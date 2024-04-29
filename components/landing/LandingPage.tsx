@@ -11,7 +11,7 @@ export default function LandingPage() {
       <footer className="bottom-0 z-30 w-screen items-center border-t bg-background p-2 text-center">
         <div className="self-center text-xs">
           <a href="/">
-            Copyright ©{date}- All right reserved by Scribe / Nils Hapke
+            Copyright ©{date}- All right reserved by Dr. Nils Hapke
           </a>
         </div>
       </footer>

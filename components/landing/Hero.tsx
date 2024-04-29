@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import Doctors from "@/public/landing/Doctors";
 import { HeroDivider } from "@/public/landing/HeroDivider";
+import Link from "next/link";
 
 export default function Hero() {
   return (
@@ -22,9 +23,8 @@ export default function Hero() {
           <Button
             variant="secondary"
             className="self-center rounded-full px-8 py-4 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-none md:self-start lg:mx-0"
-            href="/kardiologie/tavi"
           >
-            Ausprobieren
+            <Link href="/kardiologie/tavi">Ausprobieren</Link>
           </Button>
         </div>
         {/*<!--Right Col-->*/}
