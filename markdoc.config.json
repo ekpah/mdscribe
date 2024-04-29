@@ -1,0 +1,12 @@
+[
+  {
+    "id": "md-scribe",
+    "path": "app/templates",
+    "schema": {
+      "path": "markdoc/config.js",
+      "type": "esm",
+      "property": "default",
+      "watch": true
+    }
+  }
+]

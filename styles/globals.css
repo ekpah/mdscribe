@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+Solarized color palette:
+
+SOLARIZED HEX     HSL     
+--------- ------- ------- 
+base03    #002b36 192 100% 11%
+base02    #073642 192 81% 14%
+base01    #586e75 194 14% 40%
+base00    #657b83 196 13% 45%
+base0     #839496 186 8% 55%
+base1     #93a1a1 180 7% 60%
+base2     #eee8d5 46 42% 88%
+base3     #fdf6e3 44 87% 94%
+yellow    #b58900 45 100% 35%
+orange    #cb4b16 18 80% 44%
+red       #dc322f 1 71% 52%
+magenta   #d33682 331 64% 52%
+violet    #6c71c4 237 43% 60%
+blue      #268bd2 205 69% 49%
+cyan      #2aa198 175 59% 40%
+green     #859900 68 100% 30%
+
+*/
+
+@layer base {
+  :root {
+    /* Solarized color definitions */
+    --solarized-base03: 192 100% 11%;
+    --solarized-base02: 192 81% 14%;
+    --solarized-base01: 194 14% 40%;
+    --solarized-base00: 196 13% 45%;
+    --solarized-base0: 186 8% 55%;
+    --solarized-base1: 180 7% 60%;
+    --solarized-base2: 46 42% 88%;
+    --solarized-base3: 44 87% 94%;
+    --solarized-yellow: 45 100% 35%;
+    --solarized-orange: 18 80% 44%;
+    --solarized-red: 1 71% 52%;
+    --solarized-magenta: 331 64% 52%;
+    --solarized-violet: 237 43% 60%;
+    --solarized-blue: 205 69% 49%;
+    --solarized-cyan: 175 59% 40%;
+    --solarized-green: 68 100% 30%;
+
+    --background: var(--solarized-base3);
+    --foreground: var(--solarized-base00);
+
+    --muted: var(--solarized-base2);
+    --muted-foreground: var(--solarized-base1);
+
+    --popover: var(--solarized-base2);
+    --popover-foreground: var(--solarized-base1);
+
+    --card: var(--solarized-base3);
+    --card-foreground: var(--solarized-base00);
+
+    --border: var(--solarized-base1);
+    --input: var(--solarized-base1);
+
+    --primary: var(--solarized-blue);
+    --primary-foreground: var(--solarized-base3);
+
+    --secondary: var(--solarized-base2);
+    --secondary-foreground: var(--solarized-base00);
+
+    --accent: var(--solarized-base2);
+    --accent-foreground: var(--solarized-base1);
+
+    --destructive: var(--solarized-orange);
+    --destructive-foreground: var(--solarized-base03);
+
+    --ring: var(--solarized-blue);
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: var(--solarized-base03);
+    --foreground: var(--solarized-base0);
+
+    --muted: var(--solarized-base02);
+    --muted-foreground: var(--solarized-base01);
+
+    --popover: var(--solarized-base02);
+    --popover-foreground: var(--solarized-base01);
+
+    --card: var(--solarized-base03);
+    --card-foreground: var(--solarized-base0);
+
+    --border: var(--solarized-base01);
+    --input: var(--solarized-base01);
+
+    --primary: var(--solarized-blue);
+    --primary-foreground: var(--solarized-base3);
+
+    --secondary: var(--solarized-base02);
+    --secondary-foreground: var(--solarized-base0);
+
+    --accent: var(--solarized-base02);
+    --accent-foreground: var(--solarized-base01);
+
+    --destructive: var(--solarized-orange);
+    --destructive-foreground: var(--solarized-base03);
+
+    --ring: var(--solarized-blue);
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
