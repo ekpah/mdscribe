@@ -32,6 +32,7 @@ export default function Sidebar() {
             <Link
               className=" flex w-full items-center justify-start space-x-6 rounded px-3 py-2 hover:bg-gray-700 focus:bg-gray-700 md:w-52"
               href={path}
+              key={index}
             >
               {" "}
               {segment}{" "}

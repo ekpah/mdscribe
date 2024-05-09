@@ -1,6 +1,6 @@
 # Therapie und Verlauf
 
-[#Herrn/Frau#] [#NAME#] wurde elektiv zur Pulmonalvenenisolation bei Vorhofflimmern stationär in unserer Klinik aufgenommen.
+[#Herrn/Frau#] {% info variable="name" /%} wurde elektiv zur Pulmonalvenenisolation bei Vorhofflimmern stationär in unserer Klinik aufgenommen.
 
 Die PVI konnte am komplikationslos durchgeführt werden.
 
@@ -14,8 +14,8 @@ Im Falle eines >48 Stunden anhaltenden Rezidivs von Vorhofflimmern sollte eine z
 
 Innerhalb der ersten 3 Monate nach Ablation besteht zudem eine strenge Indikation zur Antikoagulation unabhängig vom CHA2DS2-VASc-Score.
 
-Wir haben für [#Herrn/Frau#] [#NAME#] einen ambulanten Wiedervorstellungstermin in unserer Rhythmusambulanz für den [#XX.XX.XXXX#], vereinbart. Bis zur Verlaufskontrolle sollten ambulant nach Möglichkeit 3 Langzeit-EKGs durchgeführt werden. Wir bitten darum, die Befunde der Langzeit-EKGs, eine Überweisung, den aktuelle Medikamentenplan sowie die Versichertenkarte bei Wiedervorstellung mitzubringen.
+Wir haben für [#Herrn/Frau#] {% info variable="name" /%} einen ambulanten Wiedervorstellungstermin in unserer Rhythmusambulanz für den [#XX.XX.XXXX#], vereinbart. Bis zur Verlaufskontrolle sollten ambulant nach Möglichkeit 3 Langzeit-EKGs durchgeführt werden. Wir bitten darum, die Befunde der Langzeit-EKGs, eine Überweisung, den aktuelle Medikamentenplan sowie die Versichertenkarte bei Wiedervorstellung mitzubringen.
 
 Ferner bitten wir um strenge Einstellung der kardiovaskulären Risikofaktoren und ggf. weitere Optimierung der medikamentösen Therapie.
 
-Wir entlassen [#Herrn/Frau#] [#NAME#] heute in stabilem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+Wir entlassen [#Herrn/Frau#] {% info variable="name" /%} heute in stabilem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.

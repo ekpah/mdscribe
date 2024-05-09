@@ -5,9 +5,19 @@ description: How to get started with Markdoc
 
 ## Full Next.js example
 
-{% upper("abc") %}
-    hallo
+{% info variable="name" /%}
+{% case value="male" %}
+Es hat funktioniert!
+{% /case %}
+{% switch variable="gender" %}
+{% case value="male" %}
+Es hat funktioniert!
+{% /case %}
+{% case "female" %}
+Mist
+{% /case %}
 
+{% /switch %}
 
 This is a full-featured boilerplate for a creating a documentation website using Markdoc and Next.js.
 

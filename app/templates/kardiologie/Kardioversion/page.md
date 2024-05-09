@@ -1,6 +1,6 @@
 # Therapie und Verlauf
 
-Herr [#Herrn/Frau#] [#NAME#] wurde elektiv zur Kardioversion bei bestehendem Vorhofflimmern stationär aufgenommen.
+Herr [#Herrn/Frau#] {% info variable="name" /%} wurde elektiv zur Kardioversion bei bestehendem Vorhofflimmern stationär aufgenommen.
 
 In einer durchgeführten transösophagealen Echokardiographie konnten intrakavitäre Thromben ausgeschlossen werden
 Die Kardioversion konnte am erfolgreich durchgeführt werden, die darauffolgende EKG-Kontrolle zeigte einen Sinusrhythmus.

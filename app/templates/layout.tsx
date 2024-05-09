@@ -1,10 +1,6 @@
+import Template from "@/app/templates/_components/Template";
 import Sidebar from "@/components/navigation/Sidebar";
-import Template from "@/components/templates/Template";
 
-// input Data const inputData = writable({ test: 'testfirstentry' });
-// input Componentsconst inputComponents = writable([]);
-// setContext('inputData', inputData);
-// setContext('inputComponents', inputComponents);
 export default function RootLayout({
   children,
 }: {

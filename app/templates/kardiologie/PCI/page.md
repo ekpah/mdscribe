@@ -1,6 +1,6 @@
 # Therapie und Verlauf
 
-Die elektive Aufnahme von [#Herrn/Frau#] [#NAME#] erfolgte zur geplanten Herzkatheteruntersuchung mit PCI des .
+Die elektive Aufnahme von [#Herrn/Frau#] {% info variable="name" /%} erfolgte zur geplanten Herzkatheteruntersuchung mit PCI des .
 
 Bei der komplikationslos durchgeführten Koronarangiographie am stellte sich die vorbekannte Stenose im dard. Es erfolgte dort die gezielte PTCA sowie die Implantation eines Drug-Eluting-Stents mit gutem angiografischen Ergebnis.
 
@@ -9,7 +9,7 @@ Der stationäre Verlauf gestaltete sich komplikationslos, die Leistenpunktionsst
 
 Wir bitten im weiteren ambulanten Verlauf um engmaschige Kontrolle und strenge Einstellung der kardiovaskulären Risikofaktoren und ggf. Optimierung der medikamentösen Therapie.
 
-Wir entlassen Herrn [#Herrn/Frau#] [#NAME#] in gutem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+Wir entlassen Herrn [#Herrn/Frau#] {% info variable="name" /%} in gutem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
 
 Wir führten eine komplikationslose Koronarintervention von XXX durch. Es wurden XXX medikamentenbeschichtete Stents implantiert. Wir bitten um eine Schonung der Punktionsstelle für insgesamt 5-7 Tage.
 

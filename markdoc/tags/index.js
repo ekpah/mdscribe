@@ -1,25 +1,40 @@
+import { Tag } from "@markdoc/markdoc";
+import Info from "./Info";
+import Switch from "./Switch";
+
 export default {
-  callout: {
-    render: "Callout",
+  info: {
+    render: Info,
     attributes: {
-      title: {
+      variable: {
         type: String,
       },
     },
+    selfClosing: true,
   },
   switch: {
-    attributes: { primary: { render: false } },
+    render: Switch,
+    attributes: { variable: { type: String } },
     transform(node, config) {
+      // console.log("Node: ", node.children);
+      // console.log("Config: ", config);
+      // console.log(node.transformChildren(config));
       const attributes = node.transformAttributes(config);
-
-      const child = node.children.find(
-        (child) => child.attributes.primary === attributes.primary
+      // console.log(attributes);
+      const children = node
+        .transformChildren(config)
+        .filter((child) => child.type === "tag" && child.tag === "case");
+      // .map((e) => [e.attributes, e]);
+      // console.log(children);
+      return new Tag(
+        this.render,
+        { attributes, children },
+        node.transformChildren(config)
       );
-
-      return child ? transformer.node(child, config) : [];
     },
   },
   case: {
-    attributes: { primary: { render: false } },
+    render: "Case",
+    attributes: { primary: { type: String } },
   },
 };

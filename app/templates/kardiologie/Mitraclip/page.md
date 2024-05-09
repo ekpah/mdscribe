@@ -1,10 +1,14 @@
-# {% upper(test) %}
+---
+title: Mitraclip
+---
 
-[#Herrn/Frau#] [#NAME#] wurde elektiv zur MitraClip-Procedur, bei hochgradiger Mitralinsuffizienz, stationär in unserer Klinik aufgenommen.
+# Therapie und Verlauf
+
+[#Herrn/Frau#] {% info variable="name" /%} wurde elektiv zur MitraClip-Procedur, bei hochgradiger Mitralinsuffizienz, stationär in unserer Klinik aufgenommen.
 
 Die Intervention konnte am komplikationslos durchgeführt werden.
 
-Postinterventionell erfolgte die Verlegung auf unsere Internistische Intensivstation. Hier konnte XXX komplikationslos extubiert werden. Während der Überwachungsphase war [#Herrn/Frau#] [#NAME#] hämodynamisch und respiratorisch stabil. Die Übernahme auf unsere Kardiologische Schwerpunktstation konnte anschließend komplikationslos erfolgen.
+Postinterventionell erfolgte die Verlegung auf unsere Internistische Intensivstation. Hier konnte XXX komplikationslos extubiert werden. Während der Überwachungsphase war [#Herrn/Frau#] {% info variable="name" /%} hämodynamisch und respiratorisch stabil. Die Übernahme auf unsere Kardiologische Schwerpunktstation konnte anschließend komplikationslos erfolgen.
 
 Die Leistenpunktionsstelle zeigte XXX, Hämatom, ein neues Strömungsgeräusch war nicht auskultierbar.
 In der transthorakalen Echokardiographie zeigte sich eine geringe verbliebene Mitralinsuffizienz.
@@ -13,4 +17,4 @@ Zur Verlaufskontrolle haben wir einen ambulanten Termin zur transösophagealen E
 
 Wir bitten für den weiteren ambulanten Verlauf um Kontrolle der kardiovaskulären Risikofaktoren und ggf. Optimierung der medikamentösen Therapie.
 
-Wir entlassen [#Herrn/Frau#] [#NAME#] in internistisch stabilem Allgemeinzustand in Ihre geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+Wir entlassen [#Herrn/Frau#] {% info variable="name" /%} in internistisch stabilem Allgemeinzustand in Ihre geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.

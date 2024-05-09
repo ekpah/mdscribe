@@ -1,17 +1,10 @@
-import { ThemeProvider } from "@/components/ThemeProvider";
+import Menubar from "@/components/navigation/Menubar";
+import { cn } from "@/lib/utils";
 import "@/styles/globals.css";
 import { Metadata } from "next";
 import { Inter as FontSans } from "next/font/google";
 import Link from "next/link";
-
-import Menubar from "@/components/navigation/Menubar";
-import { cn } from "@/lib/utils";
-
-const fontSans = FontSans({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
-
+import Providers from "./providers";
 const title = "Markdoc";
 const description = "A powerful, flexible, Markdown-based authoring framework";
 
@@ -41,12 +34,7 @@ export default function RootLayout({
         ></script>
       </head>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <Providers>
           <div className="h-screen w-screen flex">
             <nav className="fixed bottom-[calc(100vh-theme(spacing.16))] left-0 right-0 top-0 z-30 flex-none bg-blue-200">
               {/*ModeWatcher track="true" />*/}
@@ -56,7 +44,7 @@ export default function RootLayout({
               {children}
             </div>
           </div>
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

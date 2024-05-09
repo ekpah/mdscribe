@@ -1,6 +1,6 @@
 # Therapie und Verlauf
 
-Die elektive stationäre Aufnahme von [#NAME#] erfolgte bei vorbekannter Aortenklappenstenose zur weiteren Diagnostik und Therapieplaung.
+Die elektive stationäre Aufnahme von {% info variable="name" /%} erfolgte bei vorbekannter Aortenklappenstenose zur weiteren Diagnostik und Therapieplaung.
 
 Echokardiographisch bestätigte sich in domo die Aortenklappenstenose, mit einer Klappenöffnungsfläche von [#XXXX#] cm2.
 Nach ausführlicher Aufklärung und forcierter Diurese konnten wir im Anschluss daran eine komplikationslose Rechts-/Linksherz-Katheter-Untersuchung durchführen. Ein Progress der vorbekannten koronaren Herzerkrankung konnte hierbei erfreulicherweise ausgeschlossen werden. Es bestätigten sich im kleinen Kreislauf im Sinne einer hochgradigen Aortenklappenstenose erhöhte Drücke, die XXX.

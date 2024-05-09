@@ -1,1 +1,2 @@
-export { default as Gender, default as default } from './Gender/Gender.svelte';
+export { default as Gender } from "./Gender";
+export { default as Name } from "./Name";

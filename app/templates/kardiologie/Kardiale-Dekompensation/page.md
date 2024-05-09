@@ -1,6 +1,6 @@
 # Therapie und Verlauf
 
-Die notfallmäßige stationäre Aufnahme von [#Herrn/Frau#] [#NAME#] erfolgte bei kardialer Dekompensation.
+Die notfallmäßige stationäre Aufnahme von [#Herrn/Frau#] {% info variable="name" /%} erfolgte bei kardialer Dekompensation.
 
 Klinisch imponierten ausgeprägte Beinödeme beidseits. Passend hierzu konnte ein deutlich erhöhtes NT-proBNP gemessen werden.
 
@@ -10,7 +10,7 @@ Wir leiteten eine forcierte diuretische Therapie mittels Furosemid i.v. ein. Hie
 Das Entlassungsgewicht beträgt XXX kg.
 
 Wir bitten um tägliche Gewichtskontrollen, das Einhalten einer Trinkmenge von max. 1,5 Liter pro Tag und bei einer Gewichtszunahme um eine zeitnahe Rücksprache mit dem behandelnden Hausarzt.
-{% $name %}
+
 Wir bitten im weiteren ambulanten Verlauf um die engmaschige Kontrolle und die strenge Einstellung der kardiovaskulären Risikofaktoren sowie ggf. um die Optimierung der medikamentösen Therapie.
 
-Wir entlassen [#Herrn/Frau#] [#NAME#] in internistisch stabilem Allgemeinzustand in Ihre geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+Wir entlassen [#Herrn/Frau#] {% info variable="name" /%} in internistisch stabilem Allgemeinzustand in Ihre geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
