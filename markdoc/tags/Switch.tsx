@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 
-export const SwitchContext = React.createContext();
+export const SwitchContext = React.createContext("undefined");
 
 import { useInfoStore } from "@/state/infoStoreProvider";
 

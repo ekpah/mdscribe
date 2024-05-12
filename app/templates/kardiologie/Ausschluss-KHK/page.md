@@ -1,6 +1,10 @@
 # Therapie und Verlauf
 
-Herr [#Herrn/Frau#] {% info variable="name" /%} wurde zur invasiv-kardiologischen Diagnostik, bei Verdacht auf eine koronare Herzkrankheit stationär aufgenommen.
+{% switch "gender" %}
+{% case "undefined" %} [#Herrn/Frau#]{%/case%}
+{% case "male" %} Herrn {%/case%}
+{% case "female" %} Frau {%/case%}
+{%/switch%}{% info "name" /%} wurde zur invasiv-kardiologischen Diagnostik, bei Verdacht auf eine koronare Herzkrankheit stationär aufgenommen.
 
 Bei der komplikationslos durchgeführten Koronarangiographie am konnte erfreulicherweise eine KHK ausgeschlossen werden.
 
