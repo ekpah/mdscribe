@@ -1,4 +1,5 @@
 import { Tag } from "@markdoc/markdoc";
+import Case from "./Case";
 import Info from "./Info";
 import Switch from "./Switch";
 
@@ -6,7 +7,7 @@ export default {
   info: {
     render: Info,
     attributes: {
-      variable: {
+      primary: {
         type: String,
       },
     },
@@ -14,27 +15,25 @@ export default {
   },
   switch: {
     render: Switch,
-    attributes: { variable: { type: String } },
+    children: ["paragraph"],
+    attributes: { primary: { render: true }, variable: { type: String } },
     transform(node, config) {
-      // console.log("Node: ", node.children);
-      // console.log("Config: ", config);
-      // console.log(node.transformChildren(config));
-      const attributes = node.transformAttributes(config);
-      // console.log(attributes);
-      const children = node
+      const cases = node
         .transformChildren(config)
-        .filter((child) => child.type === "tag" && child.tag === "case");
-      // .map((e) => [e.attributes, e]);
-      // console.log(children);
+        .filter((child) => child.type === "tag" && child.tag === "case")
+        .map((tab) =>
+          typeof tab === "object" ? tab.attributes.primary : null
+        );
+      const variable = node.attributes.primary;
       return new Tag(
         this.render,
-        { attributes, children },
+        { variable, cases },
         node.transformChildren(config)
       );
     },
   },
   case: {
-    render: "Case",
-    attributes: { primary: { type: String } },
+    render: Case,
+    attributes: { primary: { render: true, type: String } },
   },
 };

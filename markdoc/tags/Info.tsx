@@ -2,8 +2,9 @@
 
 import { useInfoStore } from "@/state/infoStoreProvider";
 
-export default function Info({ variable }) {
+export default function Info({ primary, variable }) {
   // TODO: error, if variable does not exist
-  const info = useInfoStore((state) => state[variable]);
+  console.log(primary, variable);
+  const info = useInfoStore((state) => state[primary]);
   return <span>{info}</span>;
 }

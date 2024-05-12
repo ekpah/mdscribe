@@ -1,20 +1,18 @@
 "use client";
+import React from "react";
+
+export const SwitchContext = React.createContext();
 
 import { useInfoStore } from "@/state/infoStoreProvider";
 
+// this component mainly needs to handle reactivity around the Condition
+
 export default function Switch({ variable, children }) {
   // TODO: error, if variable does not exist
-  const gender = useInfoStore((state) => state.gender);
-  const info = useInfoStore((state) => state[variable]);
-  console.log(children);
-  const child = children.find(
-    (child) => child.attributes?.primary === variable
-  );
-  console.log(child);
+
+  const value = useInfoStore((state) => state[variable]);
 
   return (
-    <span>
-      {gender}: {child}
-    </span>
+    <SwitchContext.Provider value={value}>{children}</SwitchContext.Provider>
   );
 }

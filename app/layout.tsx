@@ -35,12 +35,15 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>
-          <div className="h-screen w-screen flex">
+          <div key="Body" className="h-screen w-screen flex">
             <nav className="fixed bottom-[calc(100vh-theme(spacing.16))] left-0 right-0 top-0 z-30 flex-none bg-blue-200">
               {/*ModeWatcher track="true" />*/}
               <Menubar />
             </nav>
-            <div className="sticky mt-16 h-[calc(100vh-theme(spacing.16))]">
+            <div
+              key="Content"
+              className="sticky mt-16 h-[calc(100vh-theme(spacing.16))]"
+            >
               {children}
             </div>
           </div>
