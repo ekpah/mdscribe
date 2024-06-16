@@ -1,15 +1,14 @@
-import Menubar from "@/components/navigation/Menubar";
 import { cn } from "@/lib/utils";
 import "@/styles/globals.css";
 import { Metadata } from "next";
 import { Inter as FontSans } from "next/font/google";
 import Link from "next/link";
+import Menubar from "./_components/Menubar";
 import Providers from "./providers";
-const title = "Markdoc";
-const description = "A powerful, flexible, Markdown-based authoring framework";
 
 export const metadata: Metadata = {
-  title: "My Page Title",
+  title: "MDScribe",
+  description: "A powerful, flexible, Markdown-based authoring framework",
 };
 
 export default function RootLayout({
@@ -20,11 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>{title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="referrer" content="strict-origin" />
-        <meta name="title" content={title} />
-        <meta name="description" content={description} />
+
         <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="icon" href="/favicon.ico" />
         <script
