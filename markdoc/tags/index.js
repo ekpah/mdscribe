@@ -1,11 +1,13 @@
 import { Tag } from "@markdoc/markdoc";
-import Case from "./Case";
-import Info from "./Info";
-import Switch from "./Switch";
+import { Case } from "./Case";
+import { Info } from "./Info";
+import { Switch } from "./Switch";
+
+console.log(Case);
 
 export default {
-  info: {
-    render: Info,
+  Info: {
+    render: "Info",
     attributes: {
       primary: {
         type: String,
@@ -13,8 +15,8 @@ export default {
     },
     selfClosing: true,
   },
-  switch: {
-    render: Switch,
+  Switch: {
+    render: "Switch",
     children: ["paragraph"],
     attributes: { primary: { render: true }, variable: { type: String } },
     transform(node, config) {
@@ -32,8 +34,14 @@ export default {
       );
     },
   },
-  case: {
-    render: Case,
+  Case: {
+    render: "Case",
     attributes: { primary: { render: true, type: String } },
   },
+};
+
+export const components = {
+  Case,
+  Info,
+  Switch,
 };
