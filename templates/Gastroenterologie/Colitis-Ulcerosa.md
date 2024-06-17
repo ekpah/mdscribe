@@ -1,5 +1,5 @@
 ---
-inputs: ["TitleVariable", "zweite"]
+inputs: ["Gender", "Name"]
 ---
 
 Die stationäre Aufnahme von HerrASASFASD erfolgte bei der akuter Alkoholintoxikation.

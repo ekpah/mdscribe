@@ -1,3 +1,7 @@
+---
+inputs: ["Gender", "Name"]
+---
+
 # Therapie und Verlauf
 
 {% switch "gender" %}

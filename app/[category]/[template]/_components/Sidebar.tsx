@@ -1,6 +1,6 @@
 "use client";
+import { uniq } from "lodash";
 import Link from "next/link";
-
 export default function Sidebar() {
   // console.log(listTemplates());
   const segments = [
@@ -27,6 +27,7 @@ export default function Sidebar() {
       ],
     },
   ];
+
   return (
     <div
       key="Sidebar"
@@ -37,7 +38,7 @@ export default function Sidebar() {
         className="flex w-full flex-col items-start justify-start pb-1 md:w-auto"
       >
         {segments.map((segment, index) => {
-          const path = `/templates/${segment.category}`;
+          const path = `/${segment.category}`;
           console.log(path);
           return (
             <div key={index}>

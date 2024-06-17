@@ -1,3 +1,7 @@
+---
+inputs: ["Gender", "Name"]
+---
+
 # Therapie und Verlauf
 
 Die notfallmäßige stationäre Aufnahme von {% switch "gender" %}

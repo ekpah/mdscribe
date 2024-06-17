@@ -17,4 +17,8 @@ Es erfolgte der stationäre Alkoholentzug unter supportiver Therapie mit Lorazep
 
 Im weiteren ambulanten Verlauf empfehlen wir eine ambulante oder stationäre Entwöhnungstherapie. Hierüber erfolgte bereits eine ausführliche Information der Patientin, die sich diesbezüglich selbst um eine Terminvereinbarung kümmern wird.
 
-Wir entlassen [#Herrn/Frau#] [#NAME#] heute in stabilem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+Wir entlassen {% switch "gender" %}
+{% case "undefined" %}[#Herrn/Frau#]{%/case%}
+{% case "male" %}Herrn{%/case%}
+{% case "female" %}Frau{%/case%}
+{%/switch%}{% info "name" /%} heute in stabilem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.

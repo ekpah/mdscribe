@@ -1,3 +1,7 @@
+---
+inputs: ["Gender", "Name"]
+---
+
 # Therapie und Verlauf
 
 Die elektive Aufnahme von {% switch "gender" %}

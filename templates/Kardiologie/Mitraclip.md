@@ -1,5 +1,5 @@
 ---
-title: Mitraclip
+inputs: ["Gender", "Name"]
 ---
 
 # Therapie und Verlauf

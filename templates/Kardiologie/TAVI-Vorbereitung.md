@@ -1,3 +1,7 @@
+---
+inputs: ["Gender", "Name"]
+---
+
 # Therapie und Verlauf
 
 Die elektive stationäre Aufnahme von {% info variable="name" /%} erfolgte bei vorbekannter Aortenklappenstenose zur weiteren Diagnostik und Therapieplaung.
@@ -9,7 +13,11 @@ Im Rahmen der präoperativen Umfeld-Diagnostik erfolgte die Durchführung einer 
 Eine Vorstellung bei den Kollegen der Zahnklinik ergab sich kein dentaler Fokus.
 
 Nach Abschluss der vorbereitenden Untersuchungen besprachen wir zusammen mit den Kollegen der Herz-Thorax-Chirurgie den Kasus XXX. Es wurde die Empfehlung zum XXX ausgesprochen.
-Wir haben für [#Herrn/Frau#] [#NAME#] einen stationären Wiederaufnahmetermin in unserer Herz-Thorax-Chirurgie (ZOM, Haus A1, Ebene -1) für den XX.XX.2020, um XXX Uhr, vereinbart. Der Eingriff soll am XX.XX.2020 durchgeführt werden.
+Wir haben für {% switch "gender" %}
+{% case "undefined" %}[#Herrn/Frau#]{%/case%}
+{% case "male" %}Herrn{%/case%}
+{% case "female" %}Frau{%/case%}
+{%/switch%}{% info "name" /%} einen stationären Wiederaufnahmetermin in unserer Herz-Thorax-Chirurgie (ZOM, Haus A1, Ebene -1) für den XX.XX.2020, um XXX Uhr, vereinbart. Der Eingriff soll am XX.XX.2020 durchgeführt werden.
 
 In Vorbereitung auf die Operation bitten wir um die Vorstellung beim niedergelassenen Zahnarzt, zum Ausschluss eines Infekt-Fokus‘.
 Wir bitten darum, den detaillierten Befund dieser Untersuchung zum Wiederaufnahmetermin mitzubringen.
@@ -17,4 +25,8 @@ Der weitere stationäre Verlauf gestaltete sich komplikationslos, die Leistenpun
 
 Wir bitten im weiteren ambulanten Verlauf um die engmaschige Kontrolle und die strenge Einstellung der kardiovaskulären Risikofaktoren sowie ggf. um die Optimierung der medikamentösen Therapie.
 
-Wir entlassen [#Herrn/Frau#] [#NAME#] in internistisch stabilem Allgemeinzustand in Ihre geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+Wir entlassen {% switch "gender" %}
+{% case "undefined" %}[#Herrn/Frau#]{%/case%}
+{% case "male" %}Herrn{%/case%}
+{% case "female" %}Frau{%/case%}
+{%/switch%}{% info "name" /%} in internistisch stabilem Allgemeinzustand in Ihre geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.

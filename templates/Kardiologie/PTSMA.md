@@ -1,6 +1,14 @@
+---
+inputs: ["Gender", "Name"]
+---
+
 # Therapie und Verlauf
 
-Die elektive stationäre Aufnahme von [#Herrn/Frau#] {% info variable="name" /%} erfolgte bei obengenannter Anamnese zur geplanten PTSMA bei HOCM.
+Die elektive stationäre Aufnahme von {% switch "gender" %}
+{% case "undefined" %}[#Herrn/Frau#]{%/case%}
+{% case "male" %}Herrn{%/case%}
+{% case "female" %}Frau{%/case%}
+{%/switch%}{% info "name" /%} erfolgte bei obengenannter Anamnese zur geplanten PTSMA bei HOCM.
 
 In der transthorakalen Echokardiographie zeigte sich in Ruhe ein Gradient von [#XXX#] mmHg und eine Zunahme unter Valsalva auf [#XXX#] mmHg.
 Das prä-interventionielle Langzeit EKG zeigte [#XXX#].
@@ -17,4 +25,8 @@ Wir bitten um Wiedervorstellung in 3 Monaten in unserer HCM-Ambulanz zur Kontrol
 Der weitere stationäre Verlauf gestaltete sich komplikationslos, die Leistenpunktionsstelle war reizlos, ein Strömungsgeräusch war nicht auskultierbar.
 
 Wir bitten im weiteren ambulanten Verlauf um die engmaschige Kontrolle und die strenge Einstellung der kardiovaskulären Risikofaktoren sowie ggf. um die Optimierung der medikamentösen Therapie.
-Wir entlassen [#Herrn/Frau#] {% info variable="name" /%} in internistisch stabilem Allgemeinzustand in Ihre geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+Wir entlassen {% switch "gender" %}
+{% case "undefined" %}[#Herrn/Frau#]{%/case%}
+{% case "male" %}Herrn{%/case%}
+{% case "female" %}Frau{%/case%}
+{%/switch%}{% info "name" /%} in internistisch stabilem Allgemeinzustand in Ihre geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
