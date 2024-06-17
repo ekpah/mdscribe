@@ -49,7 +49,7 @@ const renderMarkdoc = (ast, markdocConfig) => {
   return content;
 };
 
-export default function NotePage({ children, params }) {
+export default function NotePage({ params }) {
   const { category, template } = params;
   const ast = fetchMarkdoc({ category, template });
 
