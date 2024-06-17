@@ -3,10 +3,8 @@ import { Case } from "./Case";
 import { Info } from "./Info";
 import { Switch } from "./Switch";
 
-console.log(Case);
-
 export default {
-  Info: {
+  info: {
     render: "Info",
     attributes: {
       primary: {
@@ -15,7 +13,7 @@ export default {
     },
     selfClosing: true,
   },
-  Switch: {
+  switch: {
     render: "Switch",
     children: ["paragraph"],
     attributes: { primary: { render: true }, variable: { type: String } },
@@ -34,7 +32,7 @@ export default {
       );
     },
   },
-  Case: {
+  case: {
     render: "Case",
     attributes: { primary: { render: true, type: String } },
   },

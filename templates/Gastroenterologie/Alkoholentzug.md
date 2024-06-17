@@ -1,5 +1,5 @@
 ---
-inputs: ["Gender", "asdf"]
+inputs: ["Gender", "Name"]
 ---
 
 # Therapie und Verlauf
