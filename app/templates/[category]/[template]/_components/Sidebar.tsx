@@ -38,7 +38,7 @@ export default function Sidebar() {
         className="flex w-full flex-col items-start justify-start pb-1 md:w-auto"
       >
         {segments.map((segment, index) => {
-          const path = `/${segment.category}`;
+          const path = `/templates/${segment.category}`;
           console.log(path);
           return (
             <div key={index}>

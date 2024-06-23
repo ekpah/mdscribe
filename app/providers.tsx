@@ -1,5 +1,5 @@
 "use client";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeProvider } from "./_components/ThemeProvider";
 import { InfoStoreProvider } from "@/state/infoStoreProvider";
 
 export default function Providers({ children }) {

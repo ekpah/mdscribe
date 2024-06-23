@@ -1,6 +1,6 @@
 "use client";
 
-import { ModeToggle } from "@/components/ModeToggle";
+import { ModeToggle } from "./ModeToggle";
 import Link from "next/link";
 import * as React from "react";
 
@@ -20,7 +20,7 @@ export default function Menubar() {
               Scribe
             </span>
           </Link>
-          <Link href="/templates">Vorlagen</Link>
+          <Link href="/templates/Diverses/Intro">Vorlagen</Link>
         </div>
         <ModeToggle />
       </div>

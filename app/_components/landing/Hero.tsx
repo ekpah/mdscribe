@@ -24,7 +24,7 @@ export default function Hero() {
             variant="secondary"
             className="self-center rounded-full px-8 py-4 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-none md:self-start lg:mx-0"
           >
-            <Link href="/templates">Ausprobieren</Link>
+            <Link href="/templates/Diverses/Intro">Ausprobieren</Link>
           </Button>
         </div>
         {/*<!--Right Col-->*/}
