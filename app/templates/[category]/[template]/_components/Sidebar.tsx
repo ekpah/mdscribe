@@ -6,7 +6,7 @@ export default function Sidebar() {
   const segments = [
     {
       category: "Gastroenterologie",
-      documents: ["Colitis-Ulcerosa", "Alkoholentzug"],
+      documents: ["Aszites", "Colitis-Ulcerosa", "Alkoholentzug"],
     },
     {
       category: "Kardiologie",
