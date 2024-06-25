@@ -1,3 +1,7 @@
+---
+inputs: ["Gender", "Name"]
+---
+
 Die notfallmäßige stationäre Aufnahme von {% switch "gender" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
