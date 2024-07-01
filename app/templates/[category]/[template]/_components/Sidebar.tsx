@@ -7,7 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import Link from "next/link";
-export default function Sidebar({ segments }) {
+export default function Sidebar({ segments, category, template }) {
   const menuSegments = JSON.parse(segments);
   return (
     <div
@@ -24,7 +24,7 @@ export default function Sidebar({ segments }) {
           type="single"
           collapsible
           className="w-full"
-          defaultValue="Gastroenterologie"
+          defaultValue={category}
         >
           {menuSegments.map((segment, index) => {
             const path = `/templates/${segment.category}`;
