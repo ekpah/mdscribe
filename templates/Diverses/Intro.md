@@ -1,9 +1,12 @@
 ---
 title: Template Library
 description: How to use the template library
+inputs: ["Gender", "Name"]
 ---
 
 # Arztbriefschreibung mit Textbausteinen
+
+Test für info: {% info "gender" /%}
 
 Diese Seite hilft dabei, Arztbriefe mit Textbausteinen schneller zu erstellen und die Textbausteine zu verwalten. Aktuell werden vorhandene Textbausteine zur Verfügung gestellt, die interaktiv angepasst werden können. Diese sollen jedoch laufend ergänzt werden.
 

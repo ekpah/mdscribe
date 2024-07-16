@@ -1,22 +1,40 @@
 "use client";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useInfoStore } from "@/state/infoStoreProvider";
 
-export default function Gender() {
-  const gender = useInfoStore((state) => state.gender);
-  const setMale = useInfoStore((state) => state.setGenderMale);
-  const setFemale = useInfoStore((state) => state.setGenderFemale);
+import { formAtom } from "@/app/templates/[category]/[template]/_components/ContentSection";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { FormProvider, useForm, useFormContext } from "react-hook-form";
+
+export default function Gender({ methods }) {
+  const { register, watch, setValue } = useFormContext();
+  const gender = watch("gender");
   return (
-    <RadioGroup value={gender}>
-      <div className="flex items-center space-x-2">
-        <RadioGroupItem onClick={setMale} value="male" id="male" />
-        <Label htmlFor="option-one">Männlich</Label>
-      </div>
-      <div className="flex items-center space-x-2">
-        <RadioGroupItem onClick={setFemale} value="female" id="female" />
-        <Label htmlFor="option-two">Weiblich</Label>
-      </div>
-    </RadioGroup>
+    <FormItem className="space-y-3">
+      <FormLabel>Geschlecht des Patienten</FormLabel>
+      <RadioGroup className="flex flex-col space-y-1" value={gender}>
+        <FormItem className="flex items-center space-x-3 space-y-0">
+          <RadioGroupItem
+            onClick={() => setValue("gender", "male")}
+            value="male"
+          />
+          <FormLabel className="font-normal">Männlich</FormLabel>
+        </FormItem>
+        <FormItem className="flex items-center space-x-3 space-y-0">
+          <RadioGroupItem
+            onClick={() => setValue("gender", "female")}
+            value="female"
+          />
+          <FormLabel className="font-normal">Weiblich</FormLabel>
+        </FormItem>
+      </RadioGroup>
+      <FormMessage />
+    </FormItem>
   );
 }

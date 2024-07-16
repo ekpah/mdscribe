@@ -4,7 +4,7 @@ inputs: ["Gender", "Name"]
 
 # Therapie und Verlauf
 
-{%info "gender"%}
+{% info "gender" /%}
 {% switch "gender" %}
 {% case "undefined" %}[#Herr/Frau#]{%/case%}
 {% case "male" %}Herr{%/case%}

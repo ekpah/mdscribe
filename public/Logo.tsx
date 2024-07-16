@@ -9,8 +9,8 @@ export default function Logo() {
       >
         <defs>
           <linearGradient id="a" x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%" stop-color="#4a90e2" />
-            <stop offset="100%" stop-color="#5ca0f2" />
+            <stop offset="0%" stopColor="#4a90e2" />
+            <stop offset="100%" stopColor="#5ca0f2" />
           </linearGradient>
         </defs>
         <path
@@ -19,23 +19,23 @@ export default function Logo() {
         />
         <path
           fill="#FFF"
-          fill-opacity=".2"
+          fillOpacity=".2"
           d="M30 40c5-5 15-5 20 0s5 15 0 20-15 5-20 0-5-15 0-20Z"
         />
         <text
           x="80"
           y="60"
           fill="#333"
-          font-family="Arial, sans-serif"
-          font-size="24"
-          font-weight="bold"
+          fontFamily="Arial, sans-serif"
+          fontSize="24"
+          fontWeight="bold"
         >
           Scribe
         </text>
         <path
           fill="none"
           stroke="#4A90E2"
-          stroke-width="4"
+          strokeWidth="4"
           d="M160 50q20-20 20 0t20 0"
         />
       </svg>

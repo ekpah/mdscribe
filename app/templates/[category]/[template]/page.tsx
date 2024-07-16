@@ -4,11 +4,12 @@ import { globSync } from "glob";
 import { uniq } from "lodash";
 import type { Metadata } from "next";
 import fs from "node:fs";
-import Inputs from "./_components/Inputs";
-import Note from "./_components/Note";
+
 import Sidebar from "./_components/Sidebar";
 // load the correct markdown from file
 import yaml from "js-yaml";
+
+import ContentSection from "./_components/ContentSection";
 
 export const dynamicParams = false;
 /*const segments = [
@@ -110,7 +111,6 @@ export default function NotePage({ params }) {
   let segments = generateSegments(templates);
 
   const note = renderMarkdoc(ast, markdocConfig);
-
   return (
     <div className="flex h-[calc(100vh-theme(spacing.16))] w-full">
       <aside
@@ -127,12 +127,10 @@ export default function NotePage({ params }) {
         key="MainContent"
         className="w-[calc(100vw-theme(spacing.60))] flex-1 overflow-y-auto overscroll-none"
       >
-        <div className="flex h-full w-full justify-items-stretch">
-          <div className="h-full w-1/2 overflow-y-auto p-4 prose prose-slate">
-            <Inputs inputs={inputs} />
-          </div>
-          <Note note={JSON.stringify(note)} />
-        </div>
+        <ContentSection
+          inputs={JSON.stringify(inputs)}
+          note={JSON.stringify(note)}
+        />
       </main>
     </div>
   );

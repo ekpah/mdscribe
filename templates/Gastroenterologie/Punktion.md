@@ -2,23 +2,25 @@
 inputs: ["Gender", "Name"]
 ---
 
+# Diagnosen
+
+Leberpunktion zur histologischen Sicherung bei V.a. hepatische Metastasierung des (rel. Vorbekannten Carcinoms – einsetzen)
+
+- Histologie zum Entlasszeitpunkt ausstehend
+
+Vordiagnosen:
+[Onkologische Diagnose]
+
 # Therapie und Verlauf
 
-Die stationäre Aufnahme von {% switch "gender" %}
-{% case "undefined" %}[#Herrn/Frau#]{%/case%}
-{% case "male" %}Herrn{%/case%}
-{% case "female" %}Frau{%/case%}
-{%/switch%}{% info "name" /%} erfolgte bei der akuter Alkoholintoxikation.
+Die elektive stationäre Aufnahme von (Name) erfolgte zur Leberpunktion bei V. a. hepatische Metastasierung des bekannten (Karzinoms).
 
-Bei Aufnahme fiel ein Alkoholspiegel von XX Promille auf. Laborchemisch imponierten eine leichte/ausgeprägte CK-Erhöhung (XX U/L), Lipasämie (XX U/L), sowie Hyperkalziämie (XX mmolL).
-Im Urin wurden keine weiteren Substanzen nachgewiesen.
+Nach ausführlicher Aufklärung und Vorbereitung kann die komplikationslose Punktion am Aufnahmetag durchgeführt werden um eine Nachblutung auszuschließen erfolgte am Folgetag eine erneute Sonografie und Blutbildkontrolle. Hinweise auf eine Nachblutung ergeben sich nicht.
 
-Es erfolgte der stationäre Alkoholentzug unter supportiver Therapie mit Lorazepam / Clonidin. Zur Prophylaxe einer Wernicke-Encephalopathie bei Alkoholentzug erfolgte die parenterale und orale Substitution von Vitamin B1 und Vitamin B-Komplex.
+Die Histologie steht zum Entlasszeitpunkt noch aus und wird von uns nachberichtet werden.
 
-Im weiteren ambulanten Verlauf empfehlen wir eine ambulante oder stationäre Entwöhnungstherapie. Hierüber erfolgte bereits eine ausführliche Information der Patientin, die sich diesbezüglich selbst um eine Terminvereinbarung kümmern wird.
+Wir entlassen (Name) in stabilem Allgemeinzustand in Ihre geschätzte weitere ambulante haus- und fachärztliche Betreuung.
 
-Wir entlassen {% switch "gender" %}
-{% case "undefined" %}[#Herrn/Frau#]{%/case%}
-{% case "male" %}Herrn{%/case%}
-{% case "female" %}Frau{%/case%}
-{%/switch%}{% info "name" /%} heute in stabilem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+# Procedere
+
+Leer

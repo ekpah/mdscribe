@@ -1,8 +1,8 @@
 ---
-inputs: ["Gender", "Name", "MELD"]
+inputs: ["Gender", "Name"]
 ---
 
-## Diagnosen
+# Diagnosen
 
 Hydropische Dekompensation bei bekannter Leberzirrhose, aktuell MELD-Score 3.0 23 Punkte
 
@@ -11,7 +11,7 @@ Hydropische Dekompensation bei bekannter Leberzirrhose, aktuell MELD-Score 3.0 2
 - V.a. spontane bakterielle Peritonitis; Antibiose mit Ceftriaxon vom 08.06.-12.06.
 - Entlassgewicht: 49,5 kg
 
-## Therapie und Verlauf
+# Therapie und Verlauf
 
 Die notfallmäßige stationäre Aufnahme von {% switch "gender" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
@@ -24,12 +24,8 @@ Außerdem zeigte sich eine Hyponatriämie, welche Im stationären Verlauf langsa
 
 Die Patientin bessert sich symptomatisch deutlich. Bei nun mehrfacher Dekompensation in kurzer Zeit erfolgte ein Gespräch über die langfristigen therapeutischen Optionen mit eventuell TIPS bzw. Transplantation bei suffizienter Alkoholabstinenz. Wir empfehlen die Anbindung an ein Transplantationszentrum und besprachen dies so auch mit der Patientin.
 
-Wir entlassen {% switch "gender" %}
-{% case "undefined" %}[#Herrn/Frau#]{%/case%}
-{% case "male" %}Herrn{%/case%}
-{% case "female" %}Frau{%/case%}
-{%/switch%}{% info "name" /%} in stabilem Allgemeinzustand in Ihre geschätzte weitere ambulante haus- und fachärztliche Betreuung.
+Wir entlassen (Name) in stabilem Allgemeinzustand in Ihre geschätzte weitere ambulante haus- und fachärztliche Betreuung.
 
-## Procedere
+# Procedere
 
 leer

@@ -1,9 +1,20 @@
 "use client";
 import { Input } from "@/components/ui/input";
-import { useInfoStore } from "@/state/infoStoreProvider";
 
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useFormContext } from "react-hook-form";
 export default function Name() {
-  const name = useInfoStore((state) => state.name);
-  const updateName = useInfoStore((state) => state.updateName);
-  return <Input value={name} onChange={(e) => updateName(e.target.value)} />;
+  const { register } = useFormContext();
+  return (
+    <FormItem className="space-y-3">
+      <FormLabel>Name des Patienten </FormLabel>
+      <Input {...register("name")} placeholder="Nachname" />{" "}
+    </FormItem>
+  );
 }

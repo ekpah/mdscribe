@@ -1,10 +1,11 @@
 "use client";
 
-import { useInfoStore } from "@/state/infoStoreProvider";
+import { formAtom } from "@/app/templates/[category]/[template]/_components/ContentSection";
+
+import { useAtom, useAtomValue } from "jotai";
 
 export function Info({ primary, variable }) {
   // TODO: error, if variable does not exist
-  console.log("info", primary, variable);
-  const info = useInfoStore((state) => state[primary]);
-  return <>{info}</>;
+  const data = useAtomValue(formAtom);
+  return <>{data[primary] || ""}</>;
 }
