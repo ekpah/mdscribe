@@ -2,23 +2,29 @@
 inputs: ["Gender", "Name"]
 ---
 
+# Diagnosen
+
+Endoskopische Stenosebehandlung bei Stenose [im XXX]
+
+Vordiagnosen:
+[Onkologische Diagnose]
+
 # Therapie und Verlauf
 
-Die stationäre Aufnahme von {% switch "gender" %}
+Die elektive stationäre Aufnahme von {% switch "gender" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
 {% case "female" %}Frau{%/case%}
-{%/switch%}{% info "name" /%} erfolgte bei der akuter Alkoholintoxikation.
+{%/switch%}{% info "name" /%} erfolgte zur Stenosebehandlung einer vorbekannten Stenose [des Ösophagus, Kolon etc.].
 
-Bei Aufnahme fiel ein Alkoholspiegel von XX Promille auf. Laborchemisch imponierten eine leichte/ausgeprägte CK-Erhöhung (XX U/L), Lipasämie (XX U/L), sowie Hyperkalziämie (XX mmolL).
-Im Urin wurden keine weiteren Substanzen nachgewiesen.
-
-Es erfolgte der stationäre Alkoholentzug unter supportiver Therapie mit Lorazepam / Clonidin. Zur Prophylaxe einer Wernicke-Encephalopathie bei Alkoholentzug erfolgte die parenterale und orale Substitution von Vitamin B1 und Vitamin B-Komplex.
-
-Im weiteren ambulanten Verlauf empfehlen wir eine ambulante oder stationäre Entwöhnungstherapie. Hierüber erfolgte bereits eine ausführliche Information der Patientin, die sich diesbezüglich selbst um eine Terminvereinbarung kümmern wird.
+Nach ausführlicher Aufklärung und Vorbereitung kann die komplikationslose Intervention am Aufnahmetag durchgeführt werden. Der weitere stationäre Verlauf gestaltet sich komplikationslos.
 
 Wir entlassen {% switch "gender" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
 {% case "female" %}Frau{%/case%}
-{%/switch%}{% info "name" /%} heute in stabilem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+{%/switch%}{% info "name" /%} in stabilem Allgemeinzustand in Ihre geschätzte weitere ambulante haus- und fachärztliche Betreuung.
+
+# Procedere
+
+Leer

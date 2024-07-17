@@ -1,6 +1,17 @@
 ---
-inputs: ["Gender", "Name"]
+inputs: ["Gender", "Name", "Hb"]
 ---
+
+# Diagnosen
+
+APC-Therapie bei vorbekanntem GAVE-Syndrom
+
+- Hb bei Aufnahme {% info "Hb" %} g/dl; Transfusion nicht indiziert
+
+- Ablassen von ca. 6l Aszites
+- Substitution von 20g Albumin
+- V.a. spontane bakterielle Peritonitis; Antibiose mit Ceftriaxon vom 08.06.-12.06.
+- Entlassgewicht: 49,5 kg
 
 # Therapie und Verlauf
 
@@ -8,17 +19,21 @@ Die stationäre Aufnahme von {% switch "gender" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
 {% case "female" %}Frau{%/case%}
-{%/switch%}{% info "name" /%} erfolgte bei der akuter Alkoholintoxikation.
+{%/switch%}{% info "name" /%} erfolgte elektiv zur APC-Therapie bei vorbekanntem GAVE-Syndrom.
 
-Bei Aufnahme fiel ein Alkoholspiegel von XX Promille auf. Laborchemisch imponierten eine leichte/ausgeprägte CK-Erhöhung (XX U/L), Lipasämie (XX U/L), sowie Hyperkalziämie (XX mmolL).
-Im Urin wurden keine weiteren Substanzen nachgewiesen.
+Nach ausführlicher Aufklärung und Vorbereitung kann die geplante Intervention am Aufnahmetag erfolgreich und komplikationslos durchgeführt werden. In der anschließenden stationären Nachbeobachtung zeigen sich keine Komplikationen und insb. keine akuten Blutungszeichen.
 
-Es erfolgte der stationäre Alkoholentzug unter supportiver Therapie mit Lorazepam / Clonidin. Zur Prophylaxe einer Wernicke-Encephalopathie bei Alkoholentzug erfolgte die parenterale und orale Substitution von Vitamin B1 und Vitamin B-Komplex.
+Bei einem Hämoglobin-Wert bei Aufnahme von {% info "Hb" %} g/dl war eine Transfusion im stationären Aufenthalt nicht indiziert.
 
-Im weiteren ambulanten Verlauf empfehlen wir eine ambulante oder stationäre Entwöhnungstherapie. Hierüber erfolgte bereits eine ausführliche Information der Patientin, die sich diesbezüglich selbst um eine Terminvereinbarung kümmern wird.
+Im weiteren ambulanten Verlauf empfehlen wir die regelmäßige Blutbildkontrolle und evtl. Transfusion.
 
 Wir entlassen {% switch "gender" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
 {% case "female" %}Frau{%/case%}
 {%/switch%}{% info "name" /%} heute in stabilem Allgemeinzustand in Ihre weitere geschätzte haus- und fachärztliche Betreuung und stehen bei Rückfragen gerne zur Verfügung.
+
+# Procedere
+
+- Regelmäßige Blutbildkontrolle und evtl. erneute Transfusion
+- Fortsetzen der Medikation mit Pantoprazol 40mg 1-0-1 für 4 Wochen
