@@ -45,7 +45,7 @@ export default function Sidebar({ segments, category, template }) {
             {menuSegments.map((segment, index) => {
               const path = `/templates/${segment.category}`;
               return (
-                <div>
+                <>
                   <span className="text-lg font-semibold">
                     {segment.category || "Diverses"}
                   </span>
@@ -63,7 +63,7 @@ export default function Sidebar({ segments, category, template }) {
                       </Link>
                     );
                   })}
-                </div>
+                </>
               );
             })}
           </nav>

@@ -33,10 +33,7 @@ export default function Inputs({ inputs, onChange, initialFields = [] }) {
     <div key="inputs">
       <h1>Notwendige Eingaben</h1>
       <FormProvider {...methods}>
-        <form
-          onChange={methods.handleSubmit(onChange)}
-          className="w-2/3 space-y-6"
-        >
+        <form onChange={methods.handleSubmit(onChange)} className="space-y-6">
           {neededComponents.map((Component) => {
             return (
               <Card key={Component.name} className="p-4 m-4 bg-secondary">

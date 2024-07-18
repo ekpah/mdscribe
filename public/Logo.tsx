@@ -25,10 +25,10 @@ export default function Logo() {
         <text
           x="80"
           y="60"
-          fill="#333"
           fontFamily="Arial, sans-serif"
           fontSize="24"
           fontWeight="bold"
+          className="text-foreground"
         >
           Scribe
         </text>

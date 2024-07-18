@@ -23,11 +23,13 @@ export default function ContentSection({
     setFormData(data);
   };
   return (
-    <div className="flex h-full w-full justify-items-stretch">
-      <div className="h-full w-1/2 overflow-y-auto p-4 prose prose-slate">
+    <div className="grid grid-cols-3 h-full w-full">
+      <div className="overflow-y-auto p-4 prose prose-slate">
         <Inputs inputs={inputs} onChange={handleFormChange} />
       </div>
-      <Note note={note} />
+      <div className="overflow-y-auto col-span-2 border-l">
+        <Note note={note} />
+      </div>
     </div>
   );
 }
