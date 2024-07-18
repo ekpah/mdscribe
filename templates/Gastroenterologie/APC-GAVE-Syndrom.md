@@ -1,5 +1,5 @@
 ---
-inputs: ["Gender", "Name", "Hb"]
+inputs: ["Gender", "Name", "Hb", "transfusion"]
 ---
 
 # Diagnosen
@@ -7,7 +7,6 @@ inputs: ["Gender", "Name", "Hb"]
 APC-Therapie bei vorbekanntem GAVE-Syndrom
 
 - Hb bei Aufnahme {% info "Hb" %} g/dl; Transfusion nicht indiziert
-
 - Ablassen von ca. 6l Aszites
 - Substitution von 20g Albumin
 - V.a. spontane bakterielle Peritonitis; Antibiose mit Ceftriaxon vom 08.06.-12.06.
