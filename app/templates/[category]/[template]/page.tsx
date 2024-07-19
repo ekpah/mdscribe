@@ -47,26 +47,6 @@ const getTemplates = () => {
   return templates;
 };
 
-const generateSegments = (templates) => {
-  const segments = templates.reduce((acc, current) => {
-    const category = current.category;
-    const template = current.template;
-
-    const existingCategory = acc.find(
-      (segment) => segment.category === category
-    );
-    if (existingCategory) {
-      existingCategory.documents.push(template);
-    } else {
-      acc.push({ category, documents: [template] });
-    }
-
-    return acc;
-  }, []);
-
-  return segments;
-};
-
 export async function generateStaticParams() {
   let templates = getTemplates();
 
@@ -108,7 +88,6 @@ export default function NotePage({ params }) {
   const frontmatter = parseFrontmatter({ ast });
   const inputs = frontmatter.inputs;
   let templates = getTemplates();
-  let segments = generateSegments(templates);
 
   const note = renderMarkdoc(ast, markdocConfig);
   return (
@@ -118,7 +97,7 @@ export default function NotePage({ params }) {
         className="sticky top-16 flex h-full w-40 flex-col items-start justify-start overscroll-none border-r transition md:w-60"
       >
         <Sidebar
-          segments={JSON.stringify(segments)}
+          segments={JSON.stringify(templates)}
           category={category}
           template={template}
         />

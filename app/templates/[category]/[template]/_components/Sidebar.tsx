@@ -1,36 +1,68 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import Fuse from "fuse.js";
 import { SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
+
+const generateSegments = (templates) => {
+  const segments = templates.reduce((acc, current) => {
+    const category = current.category;
+    const template = current.template;
+
+    const existingCategory = acc.find(
+      (segment) => segment.category === category
+    );
+    if (existingCategory) {
+      existingCategory.documents.push(template);
+    } else {
+      acc.push({ category, documents: [template] });
+    }
+
+    return acc;
+  }, []);
+
+  return segments;
+};
+
 export default function Sidebar({ segments, category, template }) {
-  const menuSegments = JSON.parse(segments);
   const pathname = usePathname();
   const [searchTerm, setSearchTerm] = useState("");
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
-  const filteredLinks = useMemo(() => {
-    const regex = new RegExp(searchTerm, "i");
-    return [
-      { href: "/", label: "Home" },
-      { href: "#", label: "Dashboard" },
-      { href: "#", label: "Orders", isActive: true },
-      { href: "#", label: "Products" },
-      { href: "#", label: "Customers" },
-      { href: "#", label: "Analytics" },
-    ].filter((link) => regex.test(link.label));
-  }, [searchTerm]);
+
+  // 1. List of items to search in
+  const menuSegments = JSON.parse(segments);
+
+  // 2. Set up the Fuse instance
+  const fuse = new Fuse(menuSegments, {
+    keys: ["category", "template"],
+  });
+
+  // 3. Now search!
+  const filteredLinks = fuse
+    .search(searchTerm, { limit: 5 })
+    .map((res) => res.item);
+
+  // generate ordered segments to be visualized in the sidebar
+  const orderedSegments = generateSegments(
+    searchTerm ? filteredLinks : menuSegments
+  );
+
   return (
     <div
       key="Sidebar"
       className="items-left h-[calc(100vh-theme(spacing.16))] w-full justify-start py-4 px-2 overflow-y-scroll custom-scrollbar"
       style={{ scrollbarWidth: "none" }}
     >
-      <aside className="flex w-full flex-col items-start justify-between bg-background shadow-sm md:w-64">
-        <div className="w-52 relative">
+      <aside
+        key="aside-Sidebar"
+        className="flex w-full flex-col items-start justify-between bg-background shadow-sm md:w-64"
+      >
+        <div key="searchBar" className="w-52 relative">
           <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
@@ -40,12 +72,12 @@ export default function Sidebar({ segments, category, template }) {
             className="rounded-md bg-muted pl-8 text-sm"
           />
         </div>
-        <div className="flex w-full flex-col items-start gap-6">
+        <div key="navLinks" className="flex w-full flex-col items-start gap-6">
           <nav className="flex w-full flex-col gap-1 mt-4">
-            {menuSegments.map((segment, index) => {
+            {orderedSegments.map((segment, index) => {
               const path = `/templates/${segment.category}`;
               return (
-                <>
+                <div key={segment.category}>
                   <span className="text-lg font-semibold">
                     {segment.category || "Diverses"}
                   </span>
@@ -63,7 +95,7 @@ export default function Sidebar({ segments, category, template }) {
                       </Link>
                     );
                   })}
-                </>
+                </div>
               );
             })}
           </nav>
