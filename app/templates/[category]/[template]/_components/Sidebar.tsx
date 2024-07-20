@@ -62,7 +62,7 @@ export default function Sidebar({ segments, category, template }) {
         key="aside-Sidebar"
         className="flex w-full flex-col items-start justify-between bg-background shadow-sm md:w-64"
       >
-        <div key="searchBar" className="w-52 relative">
+        <div key="searchBar" className="w-52 fixed">
           <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
@@ -72,7 +72,10 @@ export default function Sidebar({ segments, category, template }) {
             className="rounded-md bg-muted pl-8 text-sm"
           />
         </div>
-        <div key="navLinks" className="flex w-full flex-col items-start gap-6">
+        <div
+          key="navLinks"
+          className="flex w-full flex-col items-start gap-6 mt-8"
+        >
           <nav className="flex w-full flex-col gap-1 mt-4">
             {orderedSegments.map((segment, index) => {
               const path = `/templates/${segment.category}`;

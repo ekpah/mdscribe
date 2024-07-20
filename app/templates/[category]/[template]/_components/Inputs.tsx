@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Form, FormField } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Gender, inputComponents } from "@/inputs/index.js";
 import { RadioGroup } from "@radix-ui/react-dropdown-menu";
 import { RadioGroupItem } from "@radix-ui/react-radio-group";
@@ -31,7 +32,8 @@ export default function Inputs({ inputs, onChange, initialFields = [] }) {
 
   return (
     <div key="inputs">
-      <h1>Notwendige Eingaben</h1>
+      <span className="text-xl font-bold">Notwendige Eingaben</span>
+      <Separator />
       <FormProvider {...methods}>
         <form onChange={methods.handleSubmit(onChange)} className="space-y-6">
           {neededComponents.map((Component) => {
