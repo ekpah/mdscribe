@@ -1,0 +1,2 @@
+Aufsuchen der Spina iliaca posterior superior links/rechts. Hautdesinfektion. Lokalanästhesie mit xx mL Mecain 2%. Sedierung mit fraktioniert xxx mg Propofol i.v.. Erneute Hautdesinfektion. Abdeckung mit sterilen Kautelen. Problemlose Knochenmarkspunktion mit Aspiration von Knochenmark sowie Erwerben einer Knochenstanze. Entfernen der Punktionsnadel. Druckverband.
+Proben wurden in die Pathologie und in Münchner Leukämie Labor verschickt.
