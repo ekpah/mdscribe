@@ -5,7 +5,7 @@ import Fuse from "fuse.js";
 import { SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 const generateSegments = (templates) => {
   const segments = templates.reduce((acc, current) => {

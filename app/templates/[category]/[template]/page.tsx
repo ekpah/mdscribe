@@ -1,7 +1,6 @@
 import markdocConfig from "@/markdoc/config";
 import Markdoc from "@markdoc/markdoc";
 import { globSync } from "glob";
-import { uniq } from "lodash";
 import type { Metadata } from "next";
 import fs from "node:fs";
 
@@ -12,30 +11,6 @@ import yaml from "js-yaml";
 import ContentSection from "./_components/ContentSection";
 
 export const dynamicParams = false;
-/*const segments = [
-  {
-    category: "Gastroenterologie",
-    documents: ["Colitis-Ulcerosa", "Alkoholentzug", "Leberzirrhose"],
-  },
-  {
-    category: "Kardiologie",
-    documents: [
-      "STEMI",
-      "TAVI",
-      "TAVI-Vorbereitung",
-      "Schrittmacher",
-      "Schrittmacher-Aggregat-Wechsel",
-      "PTSMA",
-      "PVI",
-      "PFO-Verschluss",
-      "PCI",
-      "Mitraclip",
-      "Kardioversion",
-      "Kardiale-Dekompensation",
-      "Ausschluss-KHK",
-    ],
-  },
-];*/
 
 const getTemplates = () => {
   const res = globSync("./templates/**/*.md");
@@ -81,7 +56,10 @@ const renderMarkdoc = (ast, markdocConfig) => {
   return content;
 };
 
-function processSwitchStatement(node, result = { name: "", options: [] }) {
+function processSwitchStatement(
+  node,
+  result = { variable: "", options: [] as string[] }
+) {
   // If the node has children, process them recursively
 
   if (node.tag === "switch") {

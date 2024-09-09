@@ -1,45 +1,18 @@
 "use client";
-import { Button } from "@/components/ui/button";
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Gender, inputComponents } from "@/inputs/index.js";
-import { createElement } from "react";
 
 import React from "react";
-import {
-  FormProvider,
-  useFieldArray,
-  useForm,
-  useFormContext,
-} from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 
-export default function Inputs({
-  inputs,
-  inputTags,
-  onChange,
-  initialFields = [],
-}) {
-  const parsedInputs = JSON.parse(inputs);
+export default function Inputs({ inputTags, onChange }) {
   const parsedInputTags = JSON.parse(inputTags);
-  const validInputs = inputs
-    ? parsedInputs.filter((key) => inputComponents[key])
-    : [];
-
-  const neededComponents = validInputs.map(
-    (comp) => inputComponents[comp] || ""
-  );
 
   const methods = useForm();
 

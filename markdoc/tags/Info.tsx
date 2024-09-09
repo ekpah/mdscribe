@@ -2,7 +2,7 @@
 
 import { formAtom } from "@/app/templates/[category]/[template]/_components/ContentSection";
 
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 
 export function Info({ primary, variable }) {
   // TODO: error, if variable does not exist

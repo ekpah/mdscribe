@@ -4,9 +4,8 @@ import { components } from "@/markdoc/tags";
 
 import { Separator } from "@/components/ui/separator";
 import Markdoc from "@markdoc/markdoc";
-import { atom, useAtom } from "jotai";
-import React, { createContext, useContext, useState } from "react";
-import { formAtom } from "./ContentSection";
+
+import React from "react";
 
 export default function Note({ note }) {
   const content = JSON.parse(note);
