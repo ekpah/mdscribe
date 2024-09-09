@@ -2,7 +2,7 @@
 
 import { Checkbox } from "@/components/ui/checkbox";
 
-export function Transfusion() {
+export default function Transfusion() {
   return (
     <div className="items-top flex space-x-2">
       <Checkbox id="transfusion" />

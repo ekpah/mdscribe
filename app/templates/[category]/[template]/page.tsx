@@ -81,14 +81,61 @@ const renderMarkdoc = (ast, markdocConfig) => {
   return content;
 };
 
+function processSwitchStatement(node, result = { name: "", options: [] }) {
+  // If the node has children, process them recursively
+
+  if (node.tag === "switch") {
+    result.variable = node.attributes.primary;
+  } else if (node.tag === "case") {
+    result.options.push(node.attributes.primary);
+  }
+
+  if (node.children && node.children.length > 0) {
+    node.children.forEach((child) => {
+      if (child.tag !== "switch") {
+        processSwitchStatement(child, result);
+      }
+    });
+  }
+
+  return result;
+}
+
+const parseTagsToInputs = ({ ast }) => {
+  let infoTags: string[] = [];
+  let switchTags: { variable: any; options: any }[] = [];
+  for (const node of ast.walk()) {
+    // do something with each node
+    // get all info tags (remove duplicates)
+    if (
+      node.type === "tag" &&
+      node.tag === "info" &&
+      !infoTags.includes(node.attributes.primary)
+    ) {
+      infoTags.push(node.attributes.primary);
+    }
+    // get all switch tags, if unique
+    if (
+      node.type === "tag" &&
+      node.tag === "switch" &&
+      !switchTags.some((tag) => tag.variable == node.attributes.primary) &&
+      node.attributes.primary
+    ) {
+      switchTags.push(processSwitchStatement(node));
+    }
+  }
+
+  // parse all switch tags
+  return { infoTags, switchTags };
+};
+
 export default function NotePage({ params }) {
   const { category, template } = params;
   const ast = fetchMarkdoc({ category, template });
-
+  const inputTags = parseTagsToInputs({ ast });
   const frontmatter = parseFrontmatter({ ast });
   const inputs = frontmatter.inputs;
   let templates = getTemplates();
-
   const note = renderMarkdoc(ast, markdocConfig);
   return (
     <div className="flex h-[calc(100vh-theme(spacing.16))] w-full">
@@ -108,6 +155,7 @@ export default function NotePage({ params }) {
       >
         <ContentSection
           inputs={JSON.stringify(inputs)}
+          inputTags={JSON.stringify(inputTags)}
           note={JSON.stringify(note)}
         />
       </main>

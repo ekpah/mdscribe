@@ -13,9 +13,11 @@ export const formAtom = atom({});
 export default function ContentSection({
   note,
   inputs = "[]",
+  inputTags = "[]",
 }: {
   note: string;
   inputs: string;
+  inputTags: string;
 }) {
   const [formData, setFormData] = useAtom(formAtom);
 
@@ -25,7 +27,11 @@ export default function ContentSection({
   return (
     <div className="grid grid-cols-3 h-full w-full">
       <div key="Inputs" className="overflow-y-auto p-4">
-        <Inputs inputs={inputs} onChange={handleFormChange} />
+        <Inputs
+          inputs={inputs}
+          inputTags={inputTags}
+          onChange={handleFormChange}
+        />
       </div>
       <div key="Note" className="overflow-y-auto col-span-2 border-l p-4">
         <Note note={note} />

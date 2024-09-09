@@ -1,6 +1,6 @@
 Symptomatische Anämie bei Eisenmangel / Vitamin-B12-Mangel
 
-- Hämoglobin bei Aufnahme ..g/dl
+- Hämoglobin bei Aufnahme {% info "Hb" /%}g/dl
 - Mikrozytäre/makrozyäre hypochrome/hyperchrome Anämie
 - Transfusion von xx Erythrozytenkonzentraten
 - Mit / ohne Kreislaufdysregulation / Nierenfunktionseinschränkung
