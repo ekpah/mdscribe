@@ -1,4 +1,6 @@
-Name der Neoplasie, ED XX/XX ICD-Code:
+# Diagnosen
+
+**Name der Neoplasie, ED XX/XX**
 
     Initiales Stadium: Tx Nx Mx, Gx, (ggf. LX VX CRMX, Ann Arbor, Binet), UICC Stadium 	XXX
        	Primärmanifestation: Beschreibung der Primarius (mit Ausmaß), ggf. Beschreibung 	Metastasen
@@ -12,15 +14,34 @@ Name der Neoplasie, ED XX/XX ICD-Code:
     Bei hämatologische Erkrankungen auch: HIV-, Hepatits B und C- Serologie: XXXX
     DYPD-Aktivitätsscore: (wenn 5-FU geplant ist)
 
-Therapie und Verlauf:
+Humangenetische Beratung: nicht erfolgt
+Sozialdienstsliche Beratung: nicht erfolgt
+FBK-R10: nicht erfolgt
+Ernährungsscreening/Ernährungsberatung: erfolgt
+Tumorregister: noch nicht erfolgt
+Studie: Nein
+
+**Aktuell:**
+XX/XX Beschreibung der aktuellen Diagnosen/Therapie etc.
+
+**Therapie und Verlauf:**
 XX/XX kurze Beschreibung Erstdiagnose
 XX/XX Beschreibung Therapie/OP
 XX/XX Beschreibung Chemo-Zyklen und Nebenwirkungen/Komplikationen
+XX/XX Beschreibung Komplikationen / Transfusionen
+XX/XX Beschreibung (Zwischen-)Staging
 
-Aktuell:
-XX/XX Beschreibung der aktuellen Diagnosen/Therapie etc.
-
-Nebendiagnosen:
+**Nebendiagnosen:**
 Tumorassozierte Nebendiagnosen wie z.B. Thrombosen/………bitte auch als Nebendiagnose führen und nicht nur unter Therapie und Verlauf/Aktuell.
 
-Allergien: XXXX
+Allergien:
+XXXX
+
+Sozialanamnese:
+XXX
+
+Genussmittelanamnese:
+XXX
+
+Ernährungsstatus:
+XX cm, YY kg. BMI ZZ kg/m2
