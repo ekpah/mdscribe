@@ -4,7 +4,6 @@ import { globSync } from "glob";
 import type { Metadata } from "next";
 import fs from "node:fs";
 
-import Sidebar from "./_components/Sidebar";
 // load the correct markdown from file
 import yaml from "js-yaml";
 
@@ -113,26 +112,12 @@ export default function NotePage({ params }) {
   const inputTags = parseTagsToInputs({ ast });
   const frontmatter = parseFrontmatter({ ast });
   const inputs = frontmatter.inputs;
-  let templates = getTemplates();
   const note = renderMarkdoc(ast, markdocConfig);
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.16))] w-full">
-      <aside
-        key="Sidebar"
-        className="sticky top-16 flex h-full w-40 flex-col items-start justify-start overscroll-none border-r transition md:w-60"
-      >
-        <Sidebar segments={JSON.stringify(templates)} />
-      </aside>
-      <main
-        key="MainContent"
-        className="w-[calc(100vw-theme(spacing.60))] flex-1 overflow-y-auto overscroll-none"
-      >
-        <ContentSection
-          inputs={JSON.stringify(inputs)}
-          inputTags={JSON.stringify(inputTags)}
-          note={JSON.stringify(note)}
-        />
-      </main>
-    </div>
+    <ContentSection
+      inputs={JSON.stringify(inputs)}
+      inputTags={JSON.stringify(inputTags)}
+      note={JSON.stringify(note)}
+    />
   );
 }
