@@ -14,7 +14,7 @@ export default function Note({ note }) {
     <>
       <span className="text-xl font-bold">Generierte Notiz</span>
       <Separator />
-      <div className="h-full w-full overflow-y-auto p-4 prose prose-slate">
+      <div className="overflow-y-auto p-4 prose prose-slate">
         {Markdoc.renderers.react(content, React, {
           components,
         })}

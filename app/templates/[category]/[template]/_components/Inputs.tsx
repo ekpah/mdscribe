@@ -34,6 +34,7 @@ export default function Inputs({ inputTags, onChange }) {
           })}
           {parsedInputTags.switchTags.map((select) => {
             const variable = methods.watch(select.variable);
+
             return (
               <Card key={select.variable} className="p-4 m-4 bg-secondary">
                 <FormItem className="space-y-3">
@@ -42,27 +43,30 @@ export default function Inputs({ inputTags, onChange }) {
                     className="flex flex-col space-y-1"
                     value={variable}
                   >
-                    {select.options.map((option) => (
-                      <FormItem
-                        key={option}
-                        className="flex items-center space-x-3 space-y-0"
-                      >
-                        <RadioGroupItem
-                          className="w-5 h-5 rounded-full border border-gray-300"
-                          value={option}
-                          id={`${select.variable}-${option}`}
-                          onClick={() =>
-                            methods.setValue(select.variable, option)
-                          }
-                        ></RadioGroupItem>
-                        <label
-                          className="text-sm"
-                          htmlFor={`${select.variable}-${option}`}
+                    {select.options.map((option) => {
+                      if (!option) return null;
+                      return (
+                        <FormItem
+                          key={option}
+                          className="flex items-center space-x-3 space-y-0"
                         >
-                          {option}
-                        </label>
-                      </FormItem>
-                    ))}
+                          <RadioGroupItem
+                            className="w-5 h-5 rounded-full border border-foreground"
+                            value={option}
+                            id={`${select.variable}-${option}`}
+                            onClick={() =>
+                              methods.setValue(select.variable, option)
+                            }
+                          ></RadioGroupItem>
+                          <label
+                            className="text-sm"
+                            htmlFor={`${select.variable}-${option}`}
+                          >
+                            {option}
+                          </label>
+                        </FormItem>
+                      );
+                    })}
                   </RadioGroup>
                   <FormMessage />
                 </FormItem>

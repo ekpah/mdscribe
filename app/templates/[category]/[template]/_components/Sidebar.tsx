@@ -1,11 +1,13 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import Fuse from "fuse.js";
 import { SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 
 const generateSegments = (templates) => {
   const segments = templates.reduce((acc, current) => {
@@ -93,6 +95,7 @@ export default function Sidebar({ segments, category, template }) {
                         }`}
                         href={docPath}
                         key={index}
+                        scroll={false}
                       >
                         {name}
                       </Link>
