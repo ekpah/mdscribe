@@ -121,11 +121,7 @@ export default function NotePage({ params }) {
         key="Sidebar"
         className="sticky top-16 flex h-full w-40 flex-col items-start justify-start overscroll-none border-r transition md:w-60"
       >
-        <Sidebar
-          segments={JSON.stringify(templates)}
-          category={category}
-          template={template}
-        />
+        <Sidebar segments={JSON.stringify(templates)} />
       </aside>
       <main
         key="MainContent"

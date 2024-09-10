@@ -29,7 +29,7 @@ const generateSegments = (templates) => {
   return segments;
 };
 
-export default function Sidebar({ segments, category, template }) {
+export default function Sidebar({ segments }) {
   const pathname = usePathname();
   const [searchTerm, setSearchTerm] = useState("");
   const handleSearch = (e) => {
@@ -80,22 +80,21 @@ export default function Sidebar({ segments, category, template }) {
         >
           <nav className="flex w-full flex-col gap-1 mt-4">
             {orderedSegments.map((segment, index) => {
-              const path = `/templates/${segment.category}`;
               return (
                 <div key={segment.category}>
                   <span className="text-lg font-semibold">
                     {segment.category || "Diverses"}
                   </span>
                   {segment.documents.map((name, index) => {
-                    const docPath = path + `/${name}`;
                     return (
                       <Link
                         className={`flex w-full items-center font-light justify-start space-x-6 rounded px-3 py-2 hover:bg-gray-700 focus:bg-gray-700 md:w-52 ${
-                          pathname === docPath ? "bg-muted" : ""
+                          pathname === `/templates/${segment.category}/${name}`
+                            ? "bg-muted"
+                            : ""
                         }`}
-                        href={docPath}
+                        href={`/templates/${segment.category}/${name}`}
                         key={index}
-                        scroll={false}
                       >
                         {name}
                       </Link>
