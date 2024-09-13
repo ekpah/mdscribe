@@ -1,16 +1,12 @@
----
-inputs: ["Gender", "Name"]
----
-
 # Therapie und Verlauf
 
-Die elektive Aufnahme von {% switch "gender" %}
+Die elektive Aufnahme von {% switch "Geschlecht" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
 {% case "female" %}Frau{%/case%}
 {%/switch%}{% info "name" /%} erfolgte zum interventionellen Verschluss eines persistierenden Foramen ovale.
 
-Nach ausführlicher Aufklärung und Ausschluss von Kontraindikationen konnte der Eingriff am [#XX.XX.XXXX#] primär komplikationslos durchgeführt werden. Echokardiographisch konnte postinterventionell ein Perikarderguss ausgeschlossen werden, das Verschlusssystem zeigte sich in regelrechter Position ohne Hinweis auf eine Leckage. Die Leistenpunktionsstelle war reizlos, ein Strömungsgeräusch konnte nicht auskultiert werden. Wir haben mit einer dualen Plättchen-Aggregationshemmung mit Clopidogrel 75 mg 1x täglich und ASS 100 mg 1-0-0 begonnen. Diese sollte insgesamt 3 Monate lang fortgeführt werden. Zudem besteht 6 Monate lang die Indikation zur Endokarditis-Prophylaxe bei Risikoeingriffen. Zur Verlaufskontrolle haben wir einen ambulanten Termin zur transösophagealen Echokardiographie für den [#XX.XX.XXXX#], um [#XXX#] Uhr (ZIM, Haus A3, Ebene -2, Anmeldung 26) vereinbart. Hierfür bitten darum, nüchtern und mit einer Begleitperson zu erscheinen sowie die Versicherungskarte, den Einweisungsschein und die ausgehändigte Aufklärung mitzubringen. Zudem bitten wir einen ambulanten Covid-Abstrich mitzubringen. Wir bitten im weiteren ambulanten Verlauf um die engmaschige Kontrolle und die strenge Einstellung der kardiovaskulären Risikofaktoren sowie ggf. um die Optimierung der medikamentösen Therapie. Wir entlassen {% switch "gender" %}
+Nach ausführlicher Aufklärung und Ausschluss von Kontraindikationen konnte der Eingriff am [#XX.XX.XXXX#] primär komplikationslos durchgeführt werden. Echokardiographisch konnte postinterventionell ein Perikarderguss ausgeschlossen werden, das Verschlusssystem zeigte sich in regelrechter Position ohne Hinweis auf eine Leckage. Die Leistenpunktionsstelle war reizlos, ein Strömungsgeräusch konnte nicht auskultiert werden. Wir haben mit einer dualen Plättchen-Aggregationshemmung mit Clopidogrel 75 mg 1x täglich und ASS 100 mg 1-0-0 begonnen. Diese sollte insgesamt 3 Monate lang fortgeführt werden. Zudem besteht 6 Monate lang die Indikation zur Endokarditis-Prophylaxe bei Risikoeingriffen. Zur Verlaufskontrolle haben wir einen ambulanten Termin zur transösophagealen Echokardiographie für den [#XX.XX.XXXX#], um [#XXX#] Uhr (ZIM, Haus A3, Ebene -2, Anmeldung 26) vereinbart. Hierfür bitten darum, nüchtern und mit einer Begleitperson zu erscheinen sowie die Versicherungskarte, den Einweisungsschein und die ausgehändigte Aufklärung mitzubringen. Zudem bitten wir einen ambulanten Covid-Abstrich mitzubringen. Wir bitten im weiteren ambulanten Verlauf um die engmaschige Kontrolle und die strenge Einstellung der kardiovaskulären Risikofaktoren sowie ggf. um die Optimierung der medikamentösen Therapie. Wir entlassen {% switch "Geschlecht" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
 {% case "female" %}Frau{%/case%}

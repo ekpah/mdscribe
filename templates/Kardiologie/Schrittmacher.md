@@ -4,9 +4,9 @@ inputs: ["Gender", "Name"]
 
 # Therapie und Verlauf
 
-Die elektive stationäre Aufnahme erfolgte zur Schrittmacherimplantation bei [#XXXX#].
+Die elektive stationäre Aufnahme erfolgte zur Schrittmacherimplantation bei {% info "Indikation" /%}.
 
-Es erfolgte die komplikationslose Impantation eines DDD-Schrittmachers am [#XX.XX.XXXX#]. Im anschließend durchgeführten Röntgen-Thorax konnte ein Pneumothorax sowie Sonden- Dislokation ausgeschlossen werden. In der am Folgetag durchgeführten Aggregatabfrage zeigte sich eine regelhafte Aggregatfunktion.
+Es erfolgte die komplikationslose Impantation eines DDD-Schrittmachers am {% info "OP-Datum" /%}. Im anschließend durchgeführten Röntgen-Thorax konnte ein Pneumothorax sowie Sonden- Dislokation ausgeschlossen werden. In der am Folgetag durchgeführten Aggregatabfrage zeigte sich eine regelhafte Aggregatfunktion.
 
 Wir haben für {% switch "gender" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}

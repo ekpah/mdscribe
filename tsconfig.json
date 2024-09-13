@@ -26,15 +26,19 @@
     "strictNullChecks": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
-, "markdoc/variables.ts", "next.config.js"  ],
+    ".next/types/**/*.ts",
+    "markdoc/variables.ts",
+    "next.config.js"
+  ],
   "exclude": [
     "node_modules"
   ],

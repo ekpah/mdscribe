@@ -1,10 +1,6 @@
----
-inputs: ["Gender", "Name"]
----
-
 # Therapie und Verlauf
 
-Die elektive stationäre Aufnahme von {% switch "gender" %}
+Die elektive stationäre Aufnahme von {% switch "Geschlecht" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
 {% case "female" %}Frau{%/case%}
@@ -25,7 +21,7 @@ Wir bitten um Wiedervorstellung in 3 Monaten in unserer HCM-Ambulanz zur Kontrol
 Der weitere stationäre Verlauf gestaltete sich komplikationslos, die Leistenpunktionsstelle war reizlos, ein Strömungsgeräusch war nicht auskultierbar.
 
 Wir bitten im weiteren ambulanten Verlauf um die engmaschige Kontrolle und die strenge Einstellung der kardiovaskulären Risikofaktoren sowie ggf. um die Optimierung der medikamentösen Therapie.
-Wir entlassen {% switch "gender" %}
+Wir entlassen {% switch "Geschlecht" %}
 {% case "undefined" %}[#Herrn/Frau#]{%/case%}
 {% case "male" %}Herrn{%/case%}
 {% case "female" %}Frau{%/case%}
