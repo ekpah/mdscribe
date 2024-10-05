@@ -40,7 +40,7 @@ export default function TopMenuBar() {
 
         <div className="absolute right-2 sm:right-4 flex flex-row">
           <div className="mx-4 items-center">
-            {true ? <SignOut /> : <SignIn />}
+            {session?.user ? <SignOut /> : <SignIn />}
           </div>
           <ModeToggle />
         </div>
