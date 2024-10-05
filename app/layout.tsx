@@ -7,6 +7,7 @@ import { Inter } from "next/font/google";
 import Link from "next/link";
 import Menubar from "./_components/Menubar";
 import Providers from "./providers";
+
 export const metadata: Metadata = {
   title: "MDScribe",
   description: "A powerful, flexible, Markdown-based authoring framework",
@@ -34,14 +35,14 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans`}>
         <Providers>
-          <div key="Body" className="h-screen w-screen flex">
+          <div key="Body" className="h-screen w-screen flex overflow-x-hidden">
             <nav className="fixed bottom-[calc(100vh-theme(spacing.16))] left-0 right-0 top-0 z-30 flex-none bg-blue-200">
               {/*ModeWatcher track="true" />*/}
               <Menubar />
             </nav>
             <div
               key="Content"
-              className="sticky mt-16 h-[calc(100vh-theme(spacing.16))]"
+              className="sticky w-full mt-16 h-[calc(100vh-theme(spacing.16))]"
             >
               {children}
             </div>
