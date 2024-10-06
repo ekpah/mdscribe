@@ -33,16 +33,16 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body className={`${inter.variable} font-sans`}>
+      <body className={`${inter.variable} font-sans` + "items-center"}>
         <Providers>
           <div key="Body" className="h-screen w-screen flex overflow-x-hidden">
-            <nav className="fixed bottom-[calc(100vh-theme(spacing.16))] left-0 right-0 top-0 z-30 flex-none bg-blue-200">
+            <nav className="fixed bottom-[calc(100vh-theme(spacing.16))] h-16 left-0 right-0 top-0 z-30">
               {/*ModeWatcher track="true" />*/}
               <Menubar />
             </nav>
             <div
               key="Content"
-              className="sticky w-full mt-16 h-[calc(100vh-theme(spacing.16))]"
+              className="sticky w-full mt-16 h-[calc(100vh-theme(spacing.16))] flex items-center justify-center"
             >
               {children}
             </div>

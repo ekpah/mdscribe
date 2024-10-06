@@ -1,31 +1,21 @@
-"use client";
+import { auth } from "@/auth";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import {
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarSeparator,
-  MenubarTrigger,
-} from "@/components/ui/menubar";
 import Logo from "@/public/Logo";
-import { HelpCircle, LogOut, Settings, User } from "lucide-react";
-import { useSession } from "next-auth/react";
+
 import Link from "next/link";
-import { useState } from "react";
+
+import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "./ModeToggle";
 import { SignIn } from "./SignIn";
 import { SignOut } from "./SignOut";
 
-export default function TopMenuBar() {
-  const { data: session } = useSession();
+export default async function TopMenuBar() {
+  const session = await auth();
 
   return (
-    <Menubar
+    <div
       key="Menubar"
-      className="z-1 fixed flex justify-between items-center bottom-[calc(100vh-theme(spacing.16))] left-0 right-0 top-0 h-16 border-b bg-background px-2 sm:px-4 py-1"
+      className="flex justify-between items-center h-16 border-b bg-background px-2 sm:px-4 py-1"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -33,9 +23,18 @@ export default function TopMenuBar() {
             <Logo />
           </Link>
         </div>
-        <div key="menuBarLinks" className="pl-10 font-light">
-          <Link href="/templates/Diverses/Intro">Textbausteine</Link>
-        </div>
+        {session?.user ? (
+          <div key="menuBarLinks" className="pl-10 font-light flex flex-row">
+            <Link href="/templates/Diverses/Intro">Meine Textbausteine</Link>
+            <Link className="pl-4" href="/createTemplate">
+              Textbaustein erstellen
+            </Link>
+          </div>
+        ) : (
+          <div key="menuBarLinks" className="pl-10 font-light">
+            <Link href="/templates/Diverses/Intro">Textbausteine</Link>
+          </div>
+        )}
         <div className="ml-auto flex items-center space-x-4"></div>
 
         <div className="absolute right-2 sm:right-4 flex flex-row">
@@ -45,6 +44,6 @@ export default function TopMenuBar() {
           <ModeToggle />
         </div>
       </div>
-    </Menubar>
+    </div>
   );
 }
