@@ -25,7 +25,7 @@ const getTemplates = () => {
 
 export async function generateStaticParams() {
   let templates = getTemplates();
-  const templateArray = templates.map((template) => ({
+  const templateArray: any = templates.map((template) => ({
     template: [template.category, template.template],
   }));
   templateArray.push({ template: undefined });
