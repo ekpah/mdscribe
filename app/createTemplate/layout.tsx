@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { globSync } from "glob";
-import Sidebar from "./[category]/[template]/_components/Sidebar";
+import Sidebar from "./_components/Sidebar";
 
 //new with prisma
 const getTemplatesPrisma = async () => {
@@ -37,7 +37,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
       <main
         key="MainContent"
-        className="w-[calc(100vw-theme(spacing.60))] flex-1 overflow-y-auto overscroll-none"
+        className="w-[calc(100vw-theme(spacing.60))] flex overflow-y-auto items-center justify-center overscroll-none"
       >
         {children}
       </main>

@@ -1,6 +1,7 @@
 {
-    "files.associations": {
-      "*.md": "markdoc"
-    },
-    "typescript.tsdk": "node_modules/typescript/lib"
-  }
+  "files.associations": {
+    "*.md": "markdoc"
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "tailwindCSS.experimental.classRegex": ["class:\\s*?[\"'`]([^\"'`]*).*?,"]
+}
