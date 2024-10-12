@@ -8,7 +8,7 @@ const getTemplatesPrisma = async () => {
   const session = await auth();
   const templates = prisma.template.findMany({
     where: {
-      author: session?.user,
+      authorId: session?.user?.id,
     },
   });
   console.log(templates);
