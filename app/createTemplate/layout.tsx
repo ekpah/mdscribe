@@ -11,7 +11,7 @@ const getTemplatesPrisma = async () => {
       authorId: session?.user?.id,
     },
   });
-  console.log(templates);
+  console.log("templates from postgres", templates);
 };
 
 const getTemplates = () => {

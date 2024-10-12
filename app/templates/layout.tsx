@@ -3,17 +3,6 @@ import prisma from "@/lib/prisma";
 import { globSync } from "glob";
 import Sidebar from "./[category]/[template]/_components/Sidebar";
 
-//new with prisma
-const getTemplatesPrisma = async () => {
-  const session = await auth();
-  const templates = prisma.template.findMany({
-    where: {
-      author: session?.user,
-    },
-  });
-  console.log(templates);
-};
-
 const getTemplates = () => {
   const res = globSync("./templates/**/*.md");
   const templates = res.map((temp) => ({
