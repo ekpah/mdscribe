@@ -6,12 +6,13 @@ import Sidebar from "./_components/Sidebar";
 //new with prisma
 const getTemplatesPrisma = async () => {
   const session = await auth();
-  const templates = prisma.template.findMany({
+  const templates = await prisma.template.findMany({
     where: {
       authorId: session?.user?.id,
     },
   });
   console.log("templates from postgres", templates);
+  return templates;
 };
 
 const getTemplates = () => {
@@ -26,7 +27,7 @@ const getTemplates = () => {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   let templates = getTemplates();
-
+  let prismaTemplates = getTemplatesPrisma();
   return (
     <div className="flex h-[calc(100vh-theme(spacing.16))] w-full">
       <aside
