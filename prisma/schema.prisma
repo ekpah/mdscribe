@@ -36,6 +36,8 @@ model User {
     createdAt DateTime   @default(now())
     updatedAt DateTime   @updatedAt
     templates Template[]
+
+    @@map("users")
 }
 
 // next-auth
@@ -58,6 +60,7 @@ model Account {
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@id([provider, providerAccountId])
+    @@map("accounts")
 }
 
 // next-auth
@@ -69,6 +72,8 @@ model Session {
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+
+    @@map("sessions")
 }
 
 // next-auth
@@ -78,6 +83,7 @@ model VerificationToken {
     expires    DateTime
 
     @@id([identifier, token])
+    @@map("verification_token")
 }
 
 // next-auth

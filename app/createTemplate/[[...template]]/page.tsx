@@ -20,6 +20,7 @@ const getTemplates = () => {
     category: temp.split("/")[1],
     template: temp.split("/")[2].replace(".md", ""),
   }));
+
   return templates;
 };
 
@@ -28,7 +29,8 @@ export async function generateStaticParams() {
   const templateArray: any = templates.map((template) => ({
     template: [template.category, template.template],
   }));
-  templateArray.push({ template: undefined });
+  templateArray.push({ template: [] });
+  console.log(templateArray);
   return templateArray;
 }
 export function generateMetadata({ params }): Metadata {
