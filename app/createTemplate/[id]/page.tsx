@@ -32,14 +32,6 @@ async function fetchMarkdoc({ id }) {
   return doc;
 }
 
-export async function generateStaticParams() {
-  let templates = getTemplates();
-  const templateArray: any = templates.map((template) => ({
-    template: [template.category, template.template],
-  }));
-  templateArray.push({ template: [] });
-  return templateArray;
-}
 export function generateMetadata({ params }): Metadata {
   const { template } = params;
   const [category, name] = template ? template : [undefined, "Scribe"];
