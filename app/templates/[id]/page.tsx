@@ -7,40 +7,47 @@ import fs from "node:fs";
 // load the correct markdown from file
 import yaml from "js-yaml";
 
+import { auth } from "@/auth";
+import prisma from "@/lib/prisma";
+import config from "@/markdoc/config";
+import { Prisma } from "@prisma/client";
 import ContentSection from "./_components/ContentSection";
 
 export const dynamicParams = false;
 
-const getTemplates = () => {
-  const res = globSync("./templates/**/*.md");
-  const templates = res.map((temp) => ({
-    route: temp,
-    category: temp.split("/")[1],
-    template: temp.split("/")[2].replace(".md", ""),
-  }));
-  return templates;
-};
-
-export async function generateStaticParams() {
+/*export async function generateStaticParams() {
   let templates = getTemplates();
+  // let templates = generateSidebarLinks(getTemplatesPrisma());
 
   return templates.map((template) => ({
     category: template.category,
     template: template.template,
   }));
-}
-export function generateMetadata({ params }): Metadata {
-  const { category, template } = params;
+}*/
+export async function generateMetadata({ params }) {
+  const doc = await prisma.template.findUnique({
+    where: {
+      id: params.id,
+    },
+  });
   return {
-    title: "Scribe - " + template,
+    title: "Scribe - " + doc?.title,
   };
 }
-const fetchMarkdoc = ({ category, template }) => {
+async function fetchMarkdoc({ id }) {
   // fetch the markdoc content for the route
-  const doc = fs.readFileSync(`templates/${category}/${template}.md`, "utf8");
-  const ast = Markdoc.parse(doc);
+  const session = await auth();
+  const doc = await prisma.template.findUnique({
+    where: {
+      id: id,
+    },
+  });
+  if (!doc) throw new Error("Not found");
+
+  const ast = Markdoc.parse(doc.content);
+
   return ast;
-};
+}
 
 const parseFrontmatter = ({ ast }) => {
   // fetch the markdoc content for the route
@@ -106,9 +113,9 @@ const parseTagsToInputs = ({ ast }) => {
   return { infoTags, switchTags };
 };
 
-export default function NotePage({ params }) {
-  const { category, template } = params;
-  const ast = fetchMarkdoc({ category, template });
+export default async function NotePage({ params }) {
+  const { id } = params;
+  const ast = await fetchMarkdoc({ id });
   const inputTags = parseTagsToInputs({ ast });
   const frontmatter = parseFrontmatter({ ast });
   const inputs = frontmatter.inputs;

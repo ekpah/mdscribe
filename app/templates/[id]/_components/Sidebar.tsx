@@ -13,14 +13,15 @@ const generateSegments = (templates) => {
   const segments = templates.reduce((acc, current) => {
     const category = current.category;
     const template = current.template;
+    const route = current.route;
 
     const existingCategory = acc.find(
       (segment) => segment.category === category
     );
     if (existingCategory) {
-      existingCategory.documents.push(template);
+      existingCategory.documents.push({ template: template, route: route });
     } else {
-      acc.push({ category, documents: [template] });
+      acc.push({ category, documents: [{ template: template, route: route }] });
     }
 
     return acc;
@@ -29,7 +30,7 @@ const generateSegments = (templates) => {
   return segments;
 };
 
-export default function Sidebar({ segments }) {
+export default function Sidebar({ templates }) {
   const pathname = usePathname();
   const [searchTerm, setSearchTerm] = useState("");
   const handleSearch = (e) => {
@@ -37,7 +38,7 @@ export default function Sidebar({ segments }) {
   };
 
   // 1. List of items to search in
-  const menuSegments = JSON.parse(segments);
+  const menuSegments = JSON.parse(templates);
 
   // 2. Set up the Fuse instance
   const fuse = new Fuse(menuSegments, {
@@ -89,14 +90,14 @@ export default function Sidebar({ segments }) {
                     return (
                       <Link
                         className={`flex w-full items-center font-light justify-start space-x-6 rounded px-3 py-2 hover:bg-gray-700 focus:bg-gray-700 md:w-52 ${
-                          pathname === `/templates/${segment.category}/${name}`
+                          pathname === `/templates/${name.route}`
                             ? "bg-muted"
                             : ""
                         }`}
-                        href={`/templates/${segment.category}/${name}`}
+                        href={`/templates/${name.route}`}
                         key={index}
                       >
-                        {name}
+                        {name.template}
                       </Link>
                     );
                   })}

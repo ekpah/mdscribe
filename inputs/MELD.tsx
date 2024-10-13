@@ -1,5 +1,5 @@
 "use client";
-import { formAtom } from "@/app/templates/[category]/[template]/_components/ContentSection";
+import { formAtom } from "@/app/templates/[id]/_components/ContentSection";
 import {
   FormControl,
   FormField,
