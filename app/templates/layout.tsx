@@ -1,6 +1,5 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { globSync } from "glob";
 import Sidebar from "./[id]/_components/Sidebar";
 
 //new with prisma

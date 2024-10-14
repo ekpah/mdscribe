@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { globSync } from "glob";
+
 import Sidebar from "./_components/Sidebar";
 
 //new with prisma
@@ -15,15 +15,6 @@ const getTemplatesPrisma = async () => {
   return templates;
 };
 
-const getTemplates = () => {
-  const res = globSync("./templates/**/*.md");
-  const templates = res.map((temp) => ({
-    route: temp,
-    category: temp.split("/")[1],
-    template: temp.split("/")[2].replace(".md", ""),
-  }));
-  return templates;
-};
 const generateSidebarLinks = (templates) => {
   return templates.map((temp) => ({
     route: `/${temp.id}`,

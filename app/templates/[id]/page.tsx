@@ -11,6 +11,7 @@ import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import config from "@/markdoc/config";
 import { Prisma } from "@prisma/client";
+import { useRouter } from "next/router";
 import ContentSection from "./_components/ContentSection";
 
 export const dynamicParams = false;
@@ -19,9 +20,12 @@ export async function generateStaticParams() {
   let templates = await getTemplatesPrisma();
   // let templates = generateSidebarLinks(getTemplatesPrisma());
 
-  return templates.map((template) => ({
-    id: template.id,
-  }));
+  const result = templates.map((template) => {
+    return {
+      id: template.id,
+    };
+  });
+  return result;
 }
 
 //new with prisma
@@ -50,9 +54,7 @@ async function fetchMarkdoc({ id }) {
   });
   if (!doc) throw new Error("Not found");
 
-  const ast = Markdoc.parse(doc.content);
-
-  return ast;
+  return doc;
 }
 
 const parseFrontmatter = ({ ast }) => {
@@ -121,7 +123,8 @@ const parseTagsToInputs = ({ ast }) => {
 
 export default async function NotePage({ params }) {
   const { id } = params;
-  const ast = await fetchMarkdoc({ id });
+  const doc = await fetchMarkdoc({ id: id });
+  const ast = Markdoc.parse(doc.content);
   const inputTags = parseTagsToInputs({ ast });
   const frontmatter = parseFrontmatter({ ast });
   const inputs = frontmatter.inputs;

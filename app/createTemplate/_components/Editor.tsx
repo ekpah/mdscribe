@@ -13,7 +13,6 @@ import TipTap from "./TipTap";
 export default function Editor({ cat, tit, note }) {
   const [category, setCategory] = useState(cat);
   const [name, setName] = useState(tit);
-  console.log(note);
   const [content, setContent] = useState(JSON.parse(note));
 
   return (

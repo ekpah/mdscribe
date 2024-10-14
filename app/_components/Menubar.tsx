@@ -4,7 +4,6 @@ import Logo from "@/public/Logo";
 
 import Link from "next/link";
 
-import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "./ModeToggle";
 import { SignIn } from "./SignIn";
 import { SignOut } from "./SignOut";

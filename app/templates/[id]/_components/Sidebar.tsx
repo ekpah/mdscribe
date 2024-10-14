@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import Fuse from "fuse.js";
 import { SearchIcon } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { useState } from "react";
 
@@ -31,8 +31,10 @@ const generateSegments = (templates) => {
 };
 
 export default function Sidebar({ templates }) {
+  const searchParams = useSearchParams();
+  const initialFilter = searchParams.get("filter") || "";
   const pathname = usePathname();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialFilter);
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };

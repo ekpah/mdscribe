@@ -1,27 +1,17 @@
-import { globSync } from "glob";
 import type { Metadata } from "next";
-import fs from "node:fs";
+
 // load the correct markdown from file
 
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import Markdoc from "@markdoc/markdoc";
+import { redirect } from "next/navigation";
 import Editor from "../_components/Editor";
 
 export const dynamicParams = false;
 
-const getTemplates = () => {
-  const res = globSync("./templates/**/*.md");
-  const templates = res.map((temp) => ({
-    route: temp,
-    category: temp.split("/")[1],
-    template: temp.split("/")[2].replace(".md", ""),
-  }));
-  return templates;
-};
 async function fetchMarkdoc({ id }) {
   // fetch the markdoc content for the route
-  const session = await auth();
   const doc = await prisma.template.findUnique({
     where: {
       id: id,
@@ -41,6 +31,10 @@ export function generateMetadata({ params }): Metadata {
 }
 
 export default async function CreateTemplate({ params }) {
+  const session = await auth();
+  if (!session?.user) {
+    redirect("/");
+  }
   const { id } = params;
   const doc = await fetchMarkdoc({ id });
 

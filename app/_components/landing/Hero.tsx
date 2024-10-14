@@ -1,9 +1,18 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Doctors from "@/public/landing/Doctors";
 import { HeroDivider } from "@/public/landing/HeroDivider";
 import Link from "next/link";
+import { redirect, useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function Hero() {
+  const [filterTerm, setFilterTerm] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    redirect("/templates/cm27xjij0000atvlt77tdkvrl?filter=" + filterTerm);
+  };
   return (
     <div className="flex flex-col flex-wrap items-center px-3 md:flex-row h-[screen]">
       {/*<!--Left Col-->*/}
@@ -18,12 +27,31 @@ export default function Hero() {
           Nutze schlaue Textbausteine, die sich ohne viel Aufwand immer wieder
           verwenden lassen
         </p>
-        <Button
-          variant="secondary"
-          className="self-center rounded-full px-8 py-4 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-none md:self-start lg:mx-0"
+        <form
+          className="flex flex-row"
+          action="/templates/cm27xjij0000atvlt77tdkvrl?filter="
         >
-          <Link href="/templates/Diverses/Intro">Ausprobieren</Link>
-        </Button>
+          <Input
+            className="mx-4"
+            value={filterTerm}
+            name="filter"
+            onChange={(e) => setFilterTerm(e.target.value)}
+          />{" "}
+          <Button
+            type="submit"
+            variant="secondary"
+            className="self-center rounded-full px-8 py-4 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-none md:self-start lg:mx-0"
+          >
+            <Link
+              href={{
+                pathname: "/templates/cm27xjij0000atvlt77tdkvrl",
+                query: { filter: filterTerm },
+              }}
+            >
+              Ausprobieren
+            </Link>
+          </Button>
+        </form>
       </div>
       {/*<!--Right Col-->*/}
       <div className="w-full text-center md:w-3/5">
