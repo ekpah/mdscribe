@@ -29,7 +29,7 @@ export default async function Layout({
 }) {
   // let templates = getTemplates();
   const prismaTemplates = await getTemplatesPrisma();
-  let templates = generateSidebarLinks(prismaTemplates);
+  const templates = generateSidebarLinks(prismaTemplates);
   return (
     <div className="flex h-[calc(100vh-theme(spacing.16))] w-full">
       <aside

@@ -15,15 +15,21 @@ import ContentSection from "./_components/ContentSection";
 
 export const dynamicParams = false;
 
-/*export async function generateStaticParams() {
-  let templates = getTemplates();
+export async function generateStaticParams() {
+  let templates = await getTemplatesPrisma();
   // let templates = generateSidebarLinks(getTemplatesPrisma());
 
   return templates.map((template) => ({
-    category: template.category,
-    template: template.template,
+    id: template.id,
   }));
-}*/
+}
+
+//new with prisma
+const getTemplatesPrisma = async () => {
+  const templates = await prisma.template.findMany({});
+  return templates;
+};
+
 export async function generateMetadata({ params }) {
   const doc = await prisma.template.findUnique({
     where: {
