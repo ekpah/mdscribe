@@ -29,7 +29,7 @@ export default async function TopMenuBar() {
             </Link>
             <Link
               className="pl-4"
-              href="/createTemplate/cm27xjij0000atvlt77tdkvrl"
+              href="/editTemplate/cm27xjij0000atvlt77tdkvrl"
             >
               Textbaustein erstellen
             </Link>

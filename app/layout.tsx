@@ -19,6 +19,8 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+import { Toaster } from "react-hot-toast";
+
 export default function RootLayout({
   children,
 }: {
@@ -35,6 +37,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans` + "items-center"}>
         <Providers>
+          <Toaster position="bottom-center" />
           <div key="Body" className="h-screen w-screen flex overflow-x-hidden">
             <nav className="fixed bottom-[calc(100vh-theme(spacing.16))] h-16 left-0 right-0 top-0 z-30">
               {/*ModeWatcher track="true" />*/}

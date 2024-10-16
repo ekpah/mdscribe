@@ -43,6 +43,8 @@ export default async function CreateTemplate({ params }) {
       cat={doc.category}
       tit={doc.title}
       note={JSON.stringify(doc.content)}
+      id={id}
+      authorId={doc.authorId}
     />
   );
 }

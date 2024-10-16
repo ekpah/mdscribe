@@ -94,7 +94,7 @@ export default function Sidebar({ templates }) {
                             ? "bg-muted"
                             : ""
                         }`}
-                        href={`/createTemplate/${name.route}`}
+                        href={`/editTemplate/${name.route}`}
                         key={index}
                       >
                         {name.template}
