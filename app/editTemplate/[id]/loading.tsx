@@ -7,6 +7,8 @@ export default function Loading({ params }) {
       cat={"Kategorie..."}
       tit={"Titel..."}
       note={JSON.stringify("Inhalt...")}
+      id={""}
+      authorId={""}
     />
   );
 }
