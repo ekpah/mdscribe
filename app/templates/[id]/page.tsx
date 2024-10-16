@@ -1,17 +1,11 @@
 import markdocConfig from "@/markdoc/config";
 import Markdoc from "@markdoc/markdoc";
-import { globSync } from "glob";
-import type { Metadata } from "next";
-import fs from "node:fs";
 
 // load the correct markdown from file
 import yaml from "js-yaml";
 
-import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import config from "@/markdoc/config";
-import { Prisma } from "@prisma/client";
-import { useRouter } from "next/router";
+
 import ContentSection from "./_components/ContentSection";
 
 export const dynamicParams = false;
