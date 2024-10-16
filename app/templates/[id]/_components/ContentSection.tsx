@@ -12,7 +12,6 @@ export default function ContentSection({
   inputTags = "[]",
 }: {
   note: string;
-  inputs: string;
   inputTags: string;
 }) {
   const [formData, setFormData] = useAtom(formAtom);

@@ -34,7 +34,7 @@ const getTemplatesPrisma = async () => {
   return templates;
 };
 
-export async function generateMetadata({ params }) {
+/*export async function generateMetadata({ params }) {
   const doc = await prisma.template.findUnique({
     where: {
       id: params.id,
@@ -43,10 +43,11 @@ export async function generateMetadata({ params }) {
   return {
     title: "Scribe - " + doc?.title,
   };
-}
+}*/
 async function fetchMarkdoc({ id }) {
   // fetch the markdoc content for the route
-  const session = await auth();
+  // const session = await auth();
+  console.log("fetched markdoc", id);
   const doc = await prisma.template.findUnique({
     where: {
       id: id,
@@ -126,12 +127,10 @@ export default async function NotePage({ params }) {
   const doc = await fetchMarkdoc({ id: id });
   const ast = Markdoc.parse(doc.content);
   const inputTags = parseTagsToInputs({ ast });
-  const frontmatter = parseFrontmatter({ ast });
-  const inputs = frontmatter.inputs;
+  // const frontmatter = parseFrontmatter({ ast });
   const note = renderMarkdoc(ast, markdocConfig);
   return (
     <ContentSection
-      inputs={JSON.stringify(inputs)}
       inputTags={JSON.stringify(inputTags)}
       note={JSON.stringify(note)}
     />

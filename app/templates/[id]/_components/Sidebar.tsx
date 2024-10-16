@@ -98,6 +98,7 @@ export default function Sidebar({ templates }) {
                         }`}
                         href={`/templates/${name.route}`}
                         key={index}
+                        prefetch={false}
                       >
                         {name.template}
                       </Link>
