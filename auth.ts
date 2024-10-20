@@ -17,5 +17,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         from: "no-reply@mdscribe.de",
       }),
     ],
+    session: {
+      strategy: "jwt",
+    },
   };
 });
