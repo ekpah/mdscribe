@@ -1,19 +1,16 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { Suspense } from "react";
 import Sidebar from "./[id]/_components/Sidebar";
 
 //new with prisma
 const getTemplatesPrisma = async () => {
-  const session = await auth();
-  const templates = await prisma.template.findMany({
-    where: {
-      authorId: session?.user?.id as any,
-    },
-  });
+  const templates = await prisma.template.findMany({});
   return templates;
 };
 
-const generateSidebarLinks = (templates) => {
+const generateSidebarLinks = async () => {
+  const templates = await getTemplatesPrisma();
   return templates.map((temp) => ({
     route: `/${temp.id}`,
     category: temp.category,
@@ -27,15 +24,16 @@ export default async function Layout({
   children: React.ReactNode;
 }) {
   // let templates = getTemplates();
-  const prismaTemplates = await getTemplatesPrisma();
-  const templates = generateSidebarLinks(prismaTemplates);
+  const templates = await generateSidebarLinks();
   return (
     <div className="flex h-[calc(100vh-theme(spacing.16))] w-full">
       <aside
         key="Sidebar"
         className="sticky top-16 flex h-full w-40 flex-col items-start justify-start overscroll-none border-r transition md:w-60"
       >
-        <Sidebar templates={JSON.stringify(templates)} />
+        <Suspense fallback={<Sidebar templates={[""]} />}>
+          <Sidebar templates={JSON.stringify(templates)} />
+        </Suspense>
       </aside>
       <main
         key="MainContent"
