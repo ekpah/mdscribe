@@ -18,8 +18,6 @@ export default function Inputs({ inputTags, onChange }) {
 
   return (
     <div key="inputs">
-      <span className="text-xl font-bold">Notwendige Eingaben</span>
-      <Separator />
       <FormProvider {...methods}>
         <form onChange={methods.handleSubmit(onChange)} className="space-y-6">
           {parsedInputTags.infoTags.map((variable) => {

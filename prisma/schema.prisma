@@ -10,12 +10,13 @@ datasource db {
 }
 
 model Template {
-  id       String @id @default(cuid())
-  title    String
-  category String
-  content  String
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id])
+  id        String   @id @default(cuid())
+  title     String
+  category  String
+  content   String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model User {

@@ -6,19 +6,18 @@ import { Separator } from "@/components/ui/separator";
 import Markdoc from "@markdoc/markdoc";
 
 import React from "react";
+import { NavActions } from "./NavActions";
 
 export default function Note({ note }) {
   const content = JSON.parse(note);
 
   return (
-    <>
-      <span className="text-xl font-bold">Generierte Notiz</span>
-      <Separator />
-      <div className="overflow-y-auto p-4 prose prose-slate">
+    <div className="grow">
+      <div className="overflow-y-auto prose prose-slate">
         {Markdoc.renderers.react(content, React, {
           components,
         })}
       </div>
-    </>
+    </div>
   );
 }

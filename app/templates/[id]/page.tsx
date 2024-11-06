@@ -7,6 +7,7 @@ import yaml from "js-yaml";
 import prisma from "@/lib/prisma";
 
 import ContentSection from "./_components/ContentSection";
+import { NavActions } from "./_components/NavActions";
 
 export const dynamicParams = false;
 
@@ -41,7 +42,6 @@ const getTemplatesPrisma = async () => {
 async function fetchMarkdoc({ id }) {
   // fetch the markdoc content for the route
   // const session = await auth();
-  console.log("fetched markdoc", id);
   const doc = await prisma.template.findUnique({
     where: {
       id: id,
@@ -125,6 +125,7 @@ export default async function NotePage({ params }) {
   const note = renderMarkdoc(ast, markdocConfig);
   return (
     <ContentSection
+      template={doc}
       inputTags={JSON.stringify(inputTags)}
       note={JSON.stringify(note)}
     />

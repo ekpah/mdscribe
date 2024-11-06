@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import "@/styles/globals.css";
+import "@/public/globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Metadata } from "next";
@@ -45,7 +45,7 @@ export default function RootLayout({
             </nav>
             <div
               key="Content"
-              className="sticky w-full mt-16 h-[calc(100vh-theme(spacing.16))] flex items-center justify-center"
+              className="sticky w-full top-16 h-[calc(100vh-theme(spacing.16))] flex items-center justify-center"
             >
               {children}
             </div>

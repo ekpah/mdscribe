@@ -76,6 +76,22 @@ green     #859900 68 100% 30%
     --ring: var(--solarized-blue);
 
     --radius: 0.5rem;
+
+    --sidebar-background: var(--background);
+
+    --sidebar-foreground: var(--foreground);
+
+    --sidebar-primary: var(--foreground);
+
+    --sidebar-primary-foreground: var(--primary-foreground);
+
+    --sidebar-accent: var(--accent);
+
+    --sidebar-accent-foreground: var(--accent-foregound);
+
+    --sidebar-border: var(--border);
+
+    --sidebar-ring: var(--ring);
   }
 
   .dark {
@@ -109,6 +125,22 @@ green     #859900 68 100% 30%
     --ring: var(--solarized-blue);
 
     --radius: 0.5rem;
+
+    --sidebar-background: var(--background);
+
+    --sidebar-foreground: var(--foreground);
+
+    --sidebar-primary: var(--foreground);
+
+    --sidebar-primary-foreground: var(--primary-foreground);
+
+    --sidebar-accent: var(--accent);
+
+    --sidebar-accent-foreground: var(--accent-foregound);
+
+    --sidebar-border: var(--border);
+
+    --sidebar-ring: var(--ring);
   }
 }
 
