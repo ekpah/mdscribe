@@ -39,12 +39,14 @@ export default async function Layout({
   // let templates = getTemplates();
   const templates = await generateSidebarLinks();
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.16))] w-screen">
+    <div className="flex h-full w-full">
       <SidebarProvider>
-        <AppSidebar key="Sidebar" templates={JSON.stringify(templates)} />
+        <Suspense fallback={<AppSidebar key="Sidebar" templates={""} />}>
+          <AppSidebar key="Sidebar" templates={JSON.stringify(templates)} />
+        </Suspense>
         <main
           key="MainContent"
-          className="top-16 mb-16 flex grow gap-4 p-4 overflow-y-auto overscroll-none"
+          className="top-16 h-full flex grow p-4 overscroll-contain"
         >
           {children}
         </main>

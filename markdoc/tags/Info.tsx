@@ -7,5 +7,5 @@ import { useAtomValue } from "jotai";
 export function Info({ primary, variable }) {
   // TODO: error, if variable does not exist
   const data = useAtomValue(formAtom);
-  return <>{data[primary] || ""}</>;
+  return <span>{data[primary] || ""}</span>;
 }

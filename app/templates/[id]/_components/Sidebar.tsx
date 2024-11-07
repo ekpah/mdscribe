@@ -97,7 +97,6 @@ export default function AppSidebar({ templates }) {
   const orderedSegments = generateSegments(
     searchTerm ? filteredLinks : menuSegments
   );
-  console.log(orderedSegments);
   return (
     <Sidebar className="top-16 p-1">
       <SidebarHeader className="z-30 gap-4">
@@ -143,8 +142,8 @@ export default function AppSidebar({ templates }) {
                   {segment.documents?.length ? (
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {segment.documents.map((item) => (
-                          <SidebarMenuSubItem key={item.title}>
+                        {segment.documents.map((item, index) => (
+                          <SidebarMenuSubItem key={index}>
                             <SidebarMenuSubButton
                               asChild
                               isActive={item.isActive}

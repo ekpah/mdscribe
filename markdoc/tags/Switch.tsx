@@ -14,6 +14,8 @@ export function Switch({ variable, children }) {
   const value = data[variable];
 
   return (
-    <SwitchContext.Provider value={value}>{children}</SwitchContext.Provider>
+    <SwitchContext.Provider value={value}>
+      <span>{children}</span>
+    </SwitchContext.Provider>
   );
 }

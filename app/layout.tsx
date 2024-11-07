@@ -40,7 +40,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans` + "items-center"}>
         <Providers>
           <Toaster position="bottom-center" />
-          <div key="Body" className="h-screen w-screen flex overflow-x-hidden">
+          <div key="Body" className="h-screen w-screen flex">
             <nav className="fixed bottom-[calc(100vh-theme(spacing.16))] h-16 left-0 right-0 top-0 z-30">
               {/*ModeWatcher track="true" />*/}
               <Menubar />

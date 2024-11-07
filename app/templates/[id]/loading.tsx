@@ -1,13 +1,6 @@
-import { Prisma } from "@prisma/client";
-import ContentSection from "./_components/ContentSection";
+import SkeletonContentSection from "./_components/SkeletonContentSection";
 
-export default function Loading({ params }) {
+export default function Loading() {
   // You can add any UI inside Loading, including a Skeleton.
-  return (
-    <ContentSection
-      template={{} as Prisma.TemplateGetPayload<{}>}
-      inputTags={JSON.stringify({ infoTags: [], switchTags: [] })}
-      note={JSON.stringify("Loading...")}
-    />
-  );
+  return <SkeletonContentSection />;
 }

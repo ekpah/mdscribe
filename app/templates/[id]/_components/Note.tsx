@@ -12,12 +12,10 @@ export default function Note({ note }) {
   const content = JSON.parse(note);
 
   return (
-    <div className="grow">
-      <div className="overflow-y-auto prose prose-slate">
-        {Markdoc.renderers.react(content, React, {
-          components,
-        })}
-      </div>
+    <div className="grow prose prose-slate">
+      {Markdoc.renderers.react(content, React, {
+        components,
+      })}
     </div>
   );
 }
