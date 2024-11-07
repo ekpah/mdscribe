@@ -26,22 +26,16 @@ export default function ContentSection({
     setFormData(data);
   };
   return (
-    <div className="flex flex-col w-full h-full">
-      <div className="flex h-10 items-center gap-2 justify-between">
-        <span className="font-bold">{template?.title}</span>
-        <NavActions template={template} />
+    <Card className="grid grid-cols-3 gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] overflow-hidden">
+      <div key="Inputs" className="p-4 overflow-y-auto overscroll-none">
+        <Inputs inputTags={inputTags} onChange={handleFormChange} />
       </div>
-      <Card className="grid grid-cols-3 gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] overflow-hidden">
-        <div key="Inputs" className="p-4 overflow-y-auto overscroll-none">
-          <Inputs inputTags={inputTags} onChange={handleFormChange} />
-        </div>
-        <div
-          key="Note"
-          className="overflow-y-auto overscroll-none col-span-2 border-l p-4"
-        >
-          <Note note={note} />
-        </div>
-      </Card>
-    </div>
+      <div
+        key="Note"
+        className="overflow-y-auto overscroll-none col-span-2 border-l p-4"
+      >
+        <Note note={note} />
+      </div>
+    </Card>
   );
 }

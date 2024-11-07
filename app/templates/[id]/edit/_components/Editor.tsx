@@ -43,7 +43,7 @@ export default function Editor({ cat, tit, note, id, authorId }) {
   }
 
   return (
-    <Card className="items-center justify-center flex flex-col grow">
+    <Card className="items-center justify-center flex flex-col grow gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] overflow-hidden">
       <div className="w-4/5 p-6 space-y-6">
         <h1 className="text-2xl font-bold mb-6">Textbaustein bearbeiten</h1>
         <form onSubmit={onSubmit} className="space-y-4 grow">

@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import Markdoc from "@markdoc/markdoc";
 import { redirect } from "next/navigation";
+import { NavActions } from "../_components/NavActions";
 import Editor from "./_components/Editor";
 
 export const dynamicParams = false;
@@ -15,6 +16,9 @@ async function fetchMarkdoc({ id }) {
   const doc = await prisma.template.findUnique({
     where: {
       id: id,
+    },
+    include: {
+      author: true, // All posts where authorId == 20
     },
   });
   if (!doc) throw new Error("Not found");
@@ -39,12 +43,18 @@ export default async function EditTemplate({ params }) {
   const doc = await fetchMarkdoc({ id });
 
   return (
-    <Editor
-      cat={doc.category}
-      tit={doc.title}
-      note={JSON.stringify(doc.content)}
-      id={id}
-      authorId={doc.authorId}
-    />
+    <div className="flex flex-col w-full h-full">
+      <div className="flex h-10 items-center gap-2 justify-between">
+        <span className="font-bold">{doc?.title}</span>
+        <NavActions template={doc} />
+      </div>
+      <Editor
+        cat={doc.category}
+        tit={doc.title}
+        note={JSON.stringify(doc.content)}
+        id={id}
+        authorId={doc.authorId}
+      />
+    </div>
   );
 }

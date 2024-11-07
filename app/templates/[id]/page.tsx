@@ -124,10 +124,16 @@ export default async function NotePage({ params }) {
   // const frontmatter = parseFrontmatter({ ast });
   const note = renderMarkdoc(ast, markdocConfig);
   return (
-    <ContentSection
-      template={doc}
-      inputTags={JSON.stringify(inputTags)}
-      note={JSON.stringify(note)}
-    />
+    <div className="flex flex-col w-full h-full">
+      <div className="flex h-10 items-center gap-2 justify-between">
+        <span className="font-bold">{doc?.title}</span>
+        <NavActions template={doc} />
+      </div>
+      <ContentSection
+        template={doc}
+        inputTags={JSON.stringify(inputTags)}
+        note={JSON.stringify(note)}
+      />
+    </div>
   );
 }

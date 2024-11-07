@@ -43,8 +43,15 @@ import {
 } from "@/components/ui/tooltip";
 
 import { auth } from "@/auth";
+import { Separator } from "@/components/ui/separator";
+import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { BookmarkFilledIcon, BookmarkIcon } from "@radix-ui/react-icons";
+import {
+  BookmarkFilledIcon,
+  BookmarkIcon,
+  ClockIcon,
+  PersonIcon,
+} from "@radix-ui/react-icons";
 import { useSession } from "next-auth/react";
 
 export function NavActions({
@@ -54,11 +61,21 @@ export function NavActions({
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isBookmark, setBookmark] = React.useState(false);
-
+  const author = prisma.user.findUnique({
+    where: {
+      id: template.authorId,
+    },
+  });
   const { data: session } = useSession();
   return (
     <div className="flex items-center gap-2 text-sm">
-      <div className="hidden font-medium text-muted-foreground md:inline-block">
+      <div className="hidden font-medium text-muted-foreground lg:flex-row lg:inline-flex items-center lg:gap-1">
+        <PersonIcon />
+        Autor: {author.then((author) => author?.email)}
+      </div>
+
+      <div className="hidden items-center font-medium text-muted-foreground lg:flex-row lg:inline-flex lg:gap-1">
+        <ClockIcon />
         Zuletzt bearbeitet am{" "}
         {template?.updatedAt?.toLocaleDateString("de-DE", {
           year: "numeric",
@@ -66,6 +83,7 @@ export function NavActions({
           day: "numeric",
         })}
       </div>
+
       <Button
         variant="ghost"
         size="icon"
@@ -74,6 +92,7 @@ export function NavActions({
       >
         {isBookmark ? <BookmarkFilledIcon /> : <BookmarkIcon />}
       </Button>
+
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button
