@@ -22,6 +22,7 @@ async function fetchMarkdoc({ id }) {
     },
     include: {
       author: true, // All posts where authorId == 20
+      favouriteOf: true,
     },
   });
   if (!doc) throw new Error("Not found");

@@ -6,6 +6,7 @@ import yaml from "js-yaml";
 
 import prisma from "@/lib/prisma";
 
+import { auth } from "@/auth";
 import Link from "next/link";
 import ContentSection from "./_components/ContentSection";
 import { NavActions } from "./_components/NavActions";
@@ -46,6 +47,9 @@ async function fetchMarkdoc({ id }) {
   const doc = await prisma.template.findUnique({
     where: {
       id: id,
+    },
+    include: {
+      favouriteOf: true,
     },
   });
   if (!doc) throw new Error("Not found");
@@ -118,6 +122,7 @@ const parseTagsToInputs = ({ ast }) => {
 };
 
 export default async function NotePage(props) {
+  const session = await auth();
   const params = await props.params;
   const { id } = params;
   const doc = await fetchMarkdoc({ id: id });
@@ -129,6 +134,9 @@ export default async function NotePage(props) {
     },
   });
   if (!author) throw new Error("Author not found");
+  const isFavourite = doc?.favouriteOf.some(
+    (user) => user.id == session?.user?.id
+  );
   // const frontmatter = parseFrontmatter({ ast });
   const note = renderMarkdoc(ast, markdocConfig);
   return (
@@ -137,7 +145,7 @@ export default async function NotePage(props) {
         <Link href={`/templates/${doc?.id}`} className="font-bold">
           {doc?.title}
         </Link>
-        <NavActions template={doc} author={author} />
+        <NavActions template={doc} author={author} isFavourite={isFavourite} />
       </div>
       <ContentSection
         template={doc}
