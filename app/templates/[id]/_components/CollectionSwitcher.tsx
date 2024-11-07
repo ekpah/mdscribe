@@ -38,12 +38,14 @@ export function CollectionSwitcher({
       plan: "Enterprise",
     },
   ],
+  count,
 }: {
   collections: {
     name: string;
     logo: React.ElementType;
     plan: string;
   }[];
+  count: number;
 }) {
   const [activeCollection, setActiveCollection] = React.useState(
     collections[0]
@@ -60,7 +62,9 @@ export function CollectionSwitcher({
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-semibold">{activeCollection.name}</span>
-                <span className="">Einige Dokumente</span>
+                <span className="">
+                  {count} {count == 1 ? "Dokument" : "Dokumente"}
+                </span>
               </div>
               <ChevronDown className="opacity-50" />
             </SidebarMenuButton>

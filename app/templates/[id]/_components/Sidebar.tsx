@@ -72,7 +72,7 @@ export default function AppSidebar({ templates }) {
 
   // 1. List of items to search in
   const menuSegments = JSON.parse(templates);
-
+  console.log(menuSegments.length);
   // 2. Set up the Fuse instance
   const fuse = new Fuse(menuSegments, {
     keys: ["category", "template"],
@@ -90,7 +90,10 @@ export default function AppSidebar({ templates }) {
   return (
     <Sidebar className="top-16 p-1">
       <SidebarHeader className="z-30 gap-4">
-        <CollectionSwitcher collections={collections} />
+        <CollectionSwitcher
+          collections={collections}
+          count={menuSegments?.length}
+        />
         <form key="search">
           <SidebarGroup className="py-0">
             <SidebarGroupContent className="relative">
