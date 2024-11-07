@@ -75,7 +75,6 @@ export function NavActions({
   isFavourite: boolean;
 }) {
   const { data: session } = useSession();
-  const [isOpen, setIsOpen] = React.useState(false);
   const [isBookmark, setBookmark] = React.useState(isFavourite);
   async function makeFavourite(event) {
     event.preventDefault();

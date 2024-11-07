@@ -53,13 +53,16 @@ export default async function EditTemplate(props) {
     },
   });
   if (!author) throw new Error("Author not found");
+  const isFavourite = doc?.favouriteOf.some(
+    (user) => user.id == session?.user?.id
+  );
   return (
     <div className="flex flex-col w-full h-full">
       <div className="flex h-10 items-center gap-2 justify-between">
         <Link href={`/templates/${doc?.id}`} className="font-bold">
           {doc?.title}
         </Link>
-        <NavActions author={author} template={doc} />
+        <NavActions author={author} template={doc} isFavourite={isFavourite} />
       </div>
       <Editor
         cat={doc.category}

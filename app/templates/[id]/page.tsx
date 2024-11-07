@@ -1,9 +1,6 @@
 import markdocConfig from "@/markdoc/config";
 import Markdoc from "@markdoc/markdoc";
 
-// load the correct markdown from file
-import yaml from "js-yaml";
-
 import prisma from "@/lib/prisma";
 
 import { auth } from "@/auth";
@@ -56,19 +53,6 @@ async function fetchMarkdoc({ id }) {
 
   return doc;
 }
-
-const parseFrontmatter = ({ ast }) => {
-  // fetch the markdoc content for the route
-  const frontmatter = ast.attributes.frontmatter
-    ? yaml.load(ast.attributes.frontmatter)
-    : {};
-  return frontmatter;
-};
-
-const renderMarkdoc = (ast, markdocConfig) => {
-  const content = Markdoc.transform(ast, markdocConfig);
-  return content;
-};
 
 function processSwitchStatement(
   node,
@@ -138,7 +122,7 @@ export default async function NotePage(props) {
     (user) => user.id == session?.user?.id
   );
   // const frontmatter = parseFrontmatter({ ast });
-  const note = renderMarkdoc(ast, markdocConfig);
+  const note = Markdoc.transform(ast, markdocConfig);
   return (
     <div className="flex flex-col w-full h-full">
       <div className="flex h-10 items-center gap-2 justify-between">

@@ -1,13 +1,10 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInput,
   SidebarMenu,
@@ -19,16 +16,10 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 
-import { AudioWaveform, ChevronDown, Command, Library } from "lucide-react";
+import { Library } from "lucide-react";
 
 import Fuse from "fuse.js";
-import {
-  GalleryVerticalEnd,
-  Minus,
-  Plus,
-  Search,
-  SearchIcon,
-} from "lucide-react";
+import { Minus, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -74,7 +65,6 @@ const collections = [
 export default function AppSidebar({ templates }) {
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get("filter") || "";
-  const pathname = usePathname();
   const [searchTerm, setSearchTerm] = useState(initialFilter);
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
