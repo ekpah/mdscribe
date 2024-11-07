@@ -12,7 +12,7 @@ export interface InfoStoreProviderProps {
 }
 
 export const InfoStoreProvider = ({ children }: InfoStoreProviderProps) => {
-  const storeRef = useRef<StoreApi<InfoStore>>();
+  const storeRef = useRef<StoreApi<InfoStore>>(undefined);
   if (!storeRef.current) {
     storeRef.current = createInfoStore();
   }

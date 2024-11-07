@@ -22,7 +22,8 @@ async function fetchMarkdoc({ id }) {
   return doc;
 }
 
-export function generateMetadata({ params }): Metadata {
+export async function generateMetadata(props): Promise<Metadata> {
+  const params = await props.params;
   const { template } = params;
   const [category, name] = template ? template : [undefined, "Scribe"];
   return {
@@ -30,7 +31,8 @@ export function generateMetadata({ params }): Metadata {
   };
 }
 
-export default async function CreateTemplate({ params }) {
+export default async function CreateTemplate(props) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) {
     redirect("/");

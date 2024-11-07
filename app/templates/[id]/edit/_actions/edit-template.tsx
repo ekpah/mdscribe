@@ -17,10 +17,9 @@ export default async function editTemplate(formData: FormData) {
   };
 
   if (rawFormData.authorId !== session?.user?.id) {
-    console.log(rawFormData.authorId, session?.user?.id);
     throw new Error("Permission denied");
   }
-  await prisma.template.update({
+  const res = await prisma.template.update({
     where: {
       id: rawFormData.id,
       authorId: session.user.id,

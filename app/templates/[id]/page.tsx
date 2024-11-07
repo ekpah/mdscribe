@@ -116,18 +116,25 @@ const parseTagsToInputs = ({ ast }) => {
   return { infoTags, switchTags };
 };
 
-export default async function NotePage({ params }) {
+export default async function NotePage(props) {
+  const params = await props.params;
   const { id } = params;
   const doc = await fetchMarkdoc({ id: id });
   const ast = Markdoc.parse(doc.content);
   const inputTags = parseTagsToInputs({ ast });
+  const author = await prisma.user.findUnique({
+    where: {
+      id: doc.authorId,
+    },
+  });
+  if (!author) throw new Error("Author not found");
   // const frontmatter = parseFrontmatter({ ast });
   const note = renderMarkdoc(ast, markdocConfig);
   return (
     <div className="flex flex-col w-full h-full">
       <div className="flex h-10 items-center gap-2 justify-between">
         <span className="font-bold">{doc?.title}</span>
-        <NavActions template={doc} />
+        <NavActions template={doc} author={author} />
       </div>
       <ContentSection
         template={doc}

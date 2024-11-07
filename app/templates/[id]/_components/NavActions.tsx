@@ -55,23 +55,21 @@ import {
 import { useSession } from "next-auth/react";
 
 export function NavActions({
+  author,
   template,
 }: {
+  author: Prisma.UserGetPayload<{}>;
   template: Prisma.TemplateGetPayload<{}>;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isBookmark, setBookmark] = React.useState(false);
-  const author = prisma.user.findUnique({
-    where: {
-      id: template.authorId,
-    },
-  });
+
   const { data: session } = useSession();
   return (
     <div className="flex items-center gap-2 text-sm">
       <div className="hidden font-medium text-muted-foreground lg:flex-row lg:inline-flex items-center lg:gap-1">
         <PersonIcon />
-        Autor: {author.then((author) => author?.email)}
+        Autor: {author?.email}
       </div>
 
       <div className="hidden items-center font-medium text-muted-foreground lg:flex-row lg:inline-flex lg:gap-1">
