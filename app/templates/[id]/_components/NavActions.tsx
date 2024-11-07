@@ -50,6 +50,7 @@ import {
   BookmarkFilledIcon,
   BookmarkIcon,
   ClockIcon,
+  Pencil2Icon,
   PersonIcon,
 } from "@radix-ui/react-icons";
 import { useSession } from "next-auth/react";
@@ -91,58 +92,24 @@ export function NavActions({
         {isBookmark ? <BookmarkFilledIcon /> : <BookmarkIcon />}
       </Button>
 
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 data-[state=open]:bg-accent"
-          >
-            <MoreHorizontal />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-56 overflow-hidden rounded-lg p-0"
-          align="end"
-        >
-          <Sidebar collapsible="none" className="bg-transparent">
-            <SidebarContent>
-              <SidebarGroup className="border-b last:border-none">
-                <SidebarGroupContent className="gap-0">
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      {session?.user ? (
-                        <SidebarMenuButton asChild>
-                          <Link href={`/templates/${template?.id}/edit`}>
-                            <Edit />
-                            <span>Bearbeiten</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      ) : (
-                        <TooltipProvider delayDuration={300}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <SidebarMenuButton asChild>
-                                <Link href="#">
-                                  <Edit />
-                                  <span>Bearbeiten</span>
-                                </Link>
-                              </SidebarMenuButton>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Nur für registrierte Nutzer</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </SidebarContent>
-          </Sidebar>
-        </PopoverContent>
-      </Popover>
+      {session?.user ? (
+        <Link href={`/templates/${template?.id}/edit`}>
+          <Pencil2Icon />
+        </Link>
+      ) : (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href="#">
+                <Pencil2Icon />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Nur für registrierte Nutzer</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 }

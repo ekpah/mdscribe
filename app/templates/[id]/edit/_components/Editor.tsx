@@ -13,6 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import prisma from "@/lib/prisma";
+import { redirect } from "next/navigation";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 import editTemplate from "../_actions/edit-template";
@@ -32,111 +33,104 @@ export default function Editor({ cat, tit, note, id, authorId }) {
   const [activeTab, setActiveTab] = useState("edit");
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    console.log("Saving template:", {
-      category: category || newCategory,
-      name,
-      content,
-    });
     const formData = new FormData(event.currentTarget);
     await editTemplate(formData);
     toast.success("Vorlage gespeichert"); // Displays a success message
+    redirect(`/templates/${formData.get("id") as string}`);
   }
 
   return (
-    <Card className="items-center justify-center flex flex-col grow gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] overflow-hidden">
-      <div className="w-4/5 p-6 space-y-6">
-        <h1 className="text-2xl font-bold mb-6">Textbaustein bearbeiten</h1>
-        <form onSubmit={onSubmit} className="space-y-4 grow">
-          <div className="flex flex-col grow md:flex-row gap-4">
-            <div className="flex-1 w-full">
-              <Label htmlFor="category">Kategorie</Label>
-              <input
-                type="hidden"
-                name="category"
-                value={category === "new" ? newCategory : category}
-              />
-              <Select onValueChange={setCategory} value={category}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {existingCategories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {category === "new" && (
-              <div className="flex-1">
-                <Label htmlFor="newCategory">Neue Kategorie</Label>
-                <Input
-                  id="newCategory"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="Füge eine Kategorie hinzu"
-                />
-              </div>
-            )}
-            <div className="flex-1">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter template name"
-              />
-            </div>
+    <Card className="flex flex-col gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] overflow-y-auto p-4">
+      <form onSubmit={onSubmit} className="grow gap-2">
+        <div className="flex flex-col grow md:flex-row gap-2">
+          <div className="flex-1 w-full">
+            <Label htmlFor="category">Kategorie</Label>
+            <input
+              type="hidden"
+              name="category"
+              value={category === "new" ? newCategory : category}
+            />
+            <Select onValueChange={setCategory} value={category}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {existingCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+                <SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-
-          <div className="grow">
-            <Label htmlFor="editor">Inhalt</Label>
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="grow"
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
-                {/*<TabsTrigger value="preview">Preview</TabsTrigger>*/}
-              </TabsList>
-              <TabsContent value="edit">
-                <Textarea
-                  name="content"
-                  onChange={(e) => setContent(e.target.value)}
-                  value={content}
-                  className="w-full h-96 p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                />
-              </TabsContent>
-              <TabsContent value="preview">
-                <div className="w-full h-96 p-4 border border-input rounded-md overflow-auto bg-white">
-                  {/*<TabsContent value="tiptap">
-            <Card className="border-secondary h-4/5 m-4 w-full h-96 p-4 border border-input rounded-md overflow-auto bg-white">
-              <TipTap note={JSON.stringify(content)} />
-            </Card>
-            <div className="flex flex-row p-2">
-              <Button variant="secondary" className="m-4">
-                Abbrechen
-              </Button>
-              <Button type="submit" className="m-4">
-                Speichern
-              </Button>
+          {category === "new" && (
+            <div className="flex-1">
+              <Label htmlFor="newCategory">Neue Kategorie</Label>
+              <Input
+                id="newCategory"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="Füge eine Kategorie hinzu"
+              />
             </div>
-          </TabsContent>*/}
+          )}
+          <div className="flex-1">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              name="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter template name"
+            />
+          </div>
+        </div>
+
+        <div className="grow gap-2">
+          <Label htmlFor="editor">Inhalt</Label>
+          <Textarea
+            name="content"
+            onChange={(e) => setContent(e.target.value)}
+            value={content}
+            className="w-full h-[calc(100vh-theme(spacing.72)-theme(spacing.6))] border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          />
+          {/*<Tabs value={activeTab} onValueChange={setActiveTab} className="grow">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
+              <TabsTrigger value="tiptap">Preview</TabsTrigger>
+            </TabsList>
+            <TabsContent value="edit">
+              <Textarea
+                name="content"
+                onChange={(e) => setContent(e.target.value)}
+                value={content}
+                className="w-full h-96 p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              />
+            </TabsContent>
+            <TabsContent value="tiptap">
+              <TabsContent value="tiptap">
+                <Card className="border-secondary h-4/5 m-4 w-full h-96 p-4 border border-input rounded-md overflow-auto">
+                  <TipTap note={JSON.stringify(content)} />
+                </Card>
+                <div className="flex flex-row p-2">
+                  <Button variant="secondary" className="m-4">
+                    Abbrechen
+                  </Button>
+                  <Button type="submit" className="m-4">
+                    Speichern
+                  </Button>
                 </div>
               </TabsContent>
-            </Tabs>
-          </div>
-          <input type="hidden" name="id" value={id} />
-          <input type="hidden" name="authorId" value={authorId} />
-          <Button type="submit" className="w-full">
-            Textbaustein speichern
-          </Button>
-        </form>
-      </div>
+            </TabsContent>
+          </Tabs>*/}
+        </div>
+        <input type="hidden" name="id" value={id} />
+        <input type="hidden" name="authorId" value={authorId} />
+        <Button type="submit" className="w-full mt-2">
+          Textbaustein speichern
+        </Button>
+      </form>
     </Card>
   );
 }

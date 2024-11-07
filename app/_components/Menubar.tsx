@@ -22,25 +22,9 @@ export default async function TopMenuBar() {
             <Logo />
           </Link>
         </div>
-        {session?.user ? (
-          <div key="menuBarLinks" className="pl-10 font-light flex flex-row">
-            <Link href="/templates/cm27xjij0000atvlt77tdkvrl">
-              Meine Textbausteine
-            </Link>
-            <Link
-              className="pl-4"
-              href="/editTemplate/cm27xjij0000atvlt77tdkvrl"
-            >
-              Textbaustein erstellen
-            </Link>
-          </div>
-        ) : (
-          <div key="menuBarLinks" className="pl-10 font-light">
-            <Link href="/templates/cm27xjij0000atvlt77tdkvrl">
-              Textbausteine
-            </Link>
-          </div>
-        )}
+        <div key="menuBarLinks" className="pl-10 font-light">
+          <Link href="/templates/cm27xjij0000atvlt77tdkvrl">Textbausteine</Link>
+        </div>
         <div className="ml-auto flex items-center space-x-4"></div>
 
         <div className="absolute right-2 sm:right-4 flex flex-row">

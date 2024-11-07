@@ -6,6 +6,7 @@ import yaml from "js-yaml";
 
 import prisma from "@/lib/prisma";
 
+import Link from "next/link";
 import ContentSection from "./_components/ContentSection";
 import { NavActions } from "./_components/NavActions";
 
@@ -133,7 +134,9 @@ export default async function NotePage(props) {
   return (
     <div className="flex flex-col w-full h-full">
       <div className="flex h-10 items-center gap-2 justify-between">
-        <span className="font-bold">{doc?.title}</span>
+        <Link href={`/templates/${doc?.id}`} className="font-bold">
+          {doc?.title}
+        </Link>
         <NavActions template={doc} author={author} />
       </div>
       <ContentSection
