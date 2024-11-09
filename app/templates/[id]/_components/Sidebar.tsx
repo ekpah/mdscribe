@@ -72,7 +72,7 @@ export default function AppSidebar({ templates }) {
 
   // 1. List of items to search in
   const menuSegments = JSON.parse(templates);
-  console.log(menuSegments.length);
+
   // 2. Set up the Fuse instance
   const fuse = new Fuse(menuSegments, {
     keys: ["category", "template"],

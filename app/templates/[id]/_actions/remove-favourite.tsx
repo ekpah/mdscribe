@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import toast from "react-hot-toast";
 
-export default async function addFavourite(template) {
+export default async function removeFavourite(template) {
   "use server";
   const session = await auth();
   console.log(template);
