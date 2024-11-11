@@ -20,5 +20,5 @@
       "persistent": true
     }
   },
-  "globalEnv": ["DATABASE_URL"]
+  "globalEnv": ["POSTGRES_PRISMA_URL"]
 }

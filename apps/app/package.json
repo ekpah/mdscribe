@@ -7,8 +7,7 @@
     "start": "next start",
     "lint": "next lint",
     "analyze": "ANALYZE=true pnpm build",
-    "test": "vitest run",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build"
+    "test": "vitest run"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
