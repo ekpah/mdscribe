@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'React';
-import React from 'React';
+import React from 'react';
 import { SwitchContext } from './Switch';
 export function Case({
   primary,
