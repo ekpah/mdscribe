@@ -8,16 +8,28 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  useForm,
 } from '@repo/design-system/components/ui/form';
 
 import {
   RadioGroup,
   RadioGroupItem,
 } from '@repo/design-system/components/ui/radio-group';
-import { useForm } from 'react-hook-form';
+import type { FieldValues, SubmitHandler } from 'react-hook-form';
 
-export default function Inputs({ inputTags, onChange }) {
-  const parsedInputTags = JSON.parse(inputTags);
+type InputTagType = {
+  infoTags: string[];
+  switchTags: {
+    variable: string;
+    options: string[];
+  }[];
+};
+
+export default function Inputs({
+  inputTags,
+  onChange,
+}: { inputTags: string; onChange: SubmitHandler<FieldValues> }) {
+  const parsedInputTags: InputTagType = JSON.parse(inputTags);
 
   const methods = useForm();
 
@@ -27,7 +39,7 @@ export default function Inputs({ inputTags, onChange }) {
         <form onChange={methods.handleSubmit(onChange)} className="space-y-6">
           {parsedInputTags.infoTags.map((variable) => {
             return (
-              <Card key={variable} className="p-4 m-4 bg-secondary">
+              <Card key={variable} className="m-4 bg-secondary p-4">
                 <FormItem className="space-y-3">
                   <FormLabel>{variable} </FormLabel>
                   <Input {...methods.register(variable)} />
@@ -39,7 +51,7 @@ export default function Inputs({ inputTags, onChange }) {
             const variable = methods.watch(select.variable);
 
             return (
-              <Card key={select.variable} className="p-4 m-4 bg-secondary">
+              <Card key={select.variable} className="m-4 bg-secondary p-4">
                 <FormItem className="space-y-3">
                   <FormLabel>{select.variable}</FormLabel>
                   <RadioGroup
@@ -47,14 +59,16 @@ export default function Inputs({ inputTags, onChange }) {
                     value={variable}
                   >
                     {select.options.map((option) => {
-                      if (!option) return null;
+                      if (!option) {
+                        return null;
+                      }
                       return (
                         <FormItem
                           key={option}
                           className="flex items-center space-x-3 space-y-0"
                         >
                           <RadioGroupItem
-                            className="w-5 h-5 rounded-full border border-foreground"
+                            className="h-5 w-5 rounded-full border border-foreground"
                             value={option}
                             id={`${select.variable}-${option}`}
                             onClick={() =>

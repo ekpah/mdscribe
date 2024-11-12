@@ -1,8 +1,15 @@
 'use server';
 import { auth } from '@/auth';
+import type { Prisma } from '@prisma/client';
 import { database } from '@repo/database';
 
-export default async function removeFavourite(template) {
+export default async function removeFavourite({
+  template,
+}: {
+  template: Prisma.TemplateGetPayload<{
+    include: { favouriteOf: true };
+  }>;
+}) {
   'use server';
   const session = await auth();
   console.log(template);

@@ -1,8 +1,11 @@
 import markdocConfig from '@/markdoc/config';
 import Markdoc from '@markdoc/markdoc';
 
+import type { Node } from '@markdoc/markdoc';
+
 import { database } from '@repo/database';
 
+import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
 import Link from 'next/link';
 import ContentSection from './_components/ContentSection';
@@ -38,7 +41,7 @@ const getTemplatesPrisma = async () => {
     title: "Scribe - " + doc?.title,
   };
 }*/
-async function fetchMarkdoc({ id }) {
+async function fetchMarkdoc({ id }: { id: string }) {
   // fetch the markdoc content for the route
   // const session = await auth();
   const doc = await database.template.findUnique({
@@ -47,15 +50,18 @@ async function fetchMarkdoc({ id }) {
     },
     include: {
       favouriteOf: true,
+      author: true,
     },
   });
-  if (!doc) throw new Error('Not found');
+  if (!doc) {
+    throw new Error('Not found');
+  }
 
   return doc;
 }
 
 function processSwitchStatement(
-  node,
+  node: Node,
   result = { variable: '', options: [] as string[] }
 ) {
   // If the node has children, process them recursively
@@ -67,17 +73,17 @@ function processSwitchStatement(
   }
 
   if (node.children && node.children.length > 0) {
-    node.children.forEach((child) => {
+    for (const child of node.children) {
       if (child.tag !== 'switch') {
         processSwitchStatement(child, result);
       }
-    });
+    }
   }
 
   return result;
 }
 
-const parseTagsToInputs = ({ ast }) => {
+const parseTagsToInputs = ({ ast }: { ast: Node }) => {
   const infoTags: string[] = [];
   const switchTags: { variable: any; options: any }[] = [];
   for (const node of ast.walk()) {
@@ -105,7 +111,7 @@ const parseTagsToInputs = ({ ast }) => {
   return { infoTags, switchTags };
 };
 
-export default async function NotePage(props) {
+export default async function NotePage(props: PageProps) {
   const session = await auth();
   const params = await props.params;
   const { id } = params;
@@ -117,15 +123,17 @@ export default async function NotePage(props) {
       id: doc.authorId,
     },
   });
-  if (!author) throw new Error('Author not found');
+  if (!author) {
+    throw new Error('Author not found');
+  }
   const isFavourite = doc?.favouriteOf.some(
-    (user) => user.id == session?.user?.id
+    (user) => user.id === session?.user?.id
   );
   // const frontmatter = parseFrontmatter({ ast });
   const note = Markdoc.transform(ast, markdocConfig);
   return (
-    <div className="flex flex-col w-full h-full">
-      <div className="flex h-10 items-center gap-2 justify-between">
+    <div className="flex h-full w-full flex-col">
+      <div className="flex h-10 items-center justify-between gap-2">
         <Link href={`/templates/${doc?.id}`} className="font-bold">
           {doc?.title}
         </Link>
@@ -137,7 +145,6 @@ export default async function NotePage(props) {
         />
       </div>
       <ContentSection
-        template={doc}
         inputTags={JSON.stringify(inputTags)}
         note={JSON.stringify(note)}
       />

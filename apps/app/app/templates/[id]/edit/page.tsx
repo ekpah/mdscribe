@@ -2,17 +2,18 @@ import type { Metadata } from 'next';
 
 // load the correct markdown from file
 
+import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
-import prisma from '@/lib/prisma';
+import { database } from '@repo/database';
 import Link from 'next/link';
 import { NavActions } from '../_components/NavActions';
 import Editor from './_components/Editor';
 
 export const dynamicParams = false;
 
-async function fetchMarkdoc({ id }) {
+async function fetchMarkdoc({ id }: { id: string }) {
   // fetch the markdoc content for the route
-  const doc = await prisma.template.findUnique({
+  const doc = await database.template.findUnique({
     where: {
       id: id,
     },
@@ -21,21 +22,28 @@ async function fetchMarkdoc({ id }) {
       favouriteOf: true,
     },
   });
-  if (!doc) throw new Error('Not found');
+  if (!doc) {
+    throw new Error('Not found');
+  }
 
   return doc;
 }
+type MetadataProps = {
+  params: Promise<{ template: [category: string, name: string] }>;
+};
 
-export async function generateMetadata(props): Promise<Metadata> {
+export async function generateMetadata(
+  props: MetadataProps
+): Promise<Metadata> {
   const params = await props.params;
   const { template } = params;
   const [category, name] = template ? template : [undefined, 'Scribe'];
   return {
-    title: 'Scribe - ' + name,
+    title: `Scribe - ${name}`,
   };
 }
 
-export default async function EditTemplate(props) {
+export default async function EditTemplate(props: PageProps) {
   const params = await props.params;
   const session = await auth();
   /*if (!session?.user) {
@@ -43,22 +51,29 @@ export default async function EditTemplate(props) {
   }*/
   const { id } = params;
   const doc = await fetchMarkdoc({ id });
-  const author = await prisma.user.findUnique({
+  const author = await database.user.findUnique({
     where: {
       id: doc.authorId,
     },
   });
-  if (!author) throw new Error('Author not found');
+  if (!author) {
+    throw new Error('Author not found');
+  }
   const isFavourite = doc?.favouriteOf.some(
-    (user) => user.id == session?.user?.id
+    (user) => user.id === session?.user?.id
   );
   return (
-    <div className="flex flex-col w-full h-full">
-      <div className="flex h-10 items-center gap-2 justify-between">
+    <div className="flex h-full w-full flex-col">
+      <div className="flex h-10 items-center justify-between gap-2">
         <Link href={`/templates/${doc?.id}`} className="font-bold">
           {doc?.title}
         </Link>
-        <NavActions author={author} template={doc} isFavourite={isFavourite} />
+        <NavActions
+          session={session}
+          author={author}
+          template={doc}
+          isFavourite={isFavourite}
+        />
       </div>
       <Editor
         cat={doc.category}

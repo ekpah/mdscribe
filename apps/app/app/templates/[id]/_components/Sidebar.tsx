@@ -28,13 +28,24 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@repo/design-system/components/ui/collapsible';
-
 import { Label } from '@repo/design-system/components/ui/label';
+import type React from 'react';
 import { useState } from 'react';
 import { CollectionSwitcher } from './CollectionSwitcher';
 
-const generateSegments = (templates) => {
-  const segments = templates.reduce((acc, current) => {
+interface Template {
+  category: string;
+  title: string;
+  url: string;
+}
+
+interface SidebarSegment {
+  category: string;
+  documents: { title: string; url: string }[];
+}
+
+const generateSegments = ({ templates }: { templates: Template[] }) => {
+  const segments = templates.reduce<SidebarSegment[]>((acc, current) => {
     const category = current.category;
     const template = current.title;
     const route = current.url;
@@ -49,7 +60,7 @@ const generateSegments = (templates) => {
     }
 
     return acc;
-  }, []);
+  }, [] as SidebarSegment[]);
 
   return segments;
 };
@@ -62,12 +73,12 @@ const collections = [
   },
 ];
 
-export default function AppSidebar({ templates }) {
+export default function AppSidebar({ templates }: { templates: string }) {
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') || '';
   const [searchTerm, setSearchTerm] = useState(initialFilter);
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e?.currentTarget?.value);
   };
 
   // 1. List of items to search in
@@ -107,13 +118,13 @@ export default function AppSidebar({ templates }) {
                 onChange={handleSearch}
                 className="rounded-md bg-muted pl-8 text-sm"
               />
-              <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 select-none opacity-50" />
+              <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2 size-4 select-none opacity-50" />
             </SidebarGroupContent>
           </SidebarGroup>
         </form>
       </SidebarHeader>
       <SidebarContent
-        className="gap-6 custom-scrollbar text-xl"
+        className="custom-scrollbar gap-6 text-xl"
         style={{ scrollbarWidth: 'none' }}
       >
         <SidebarGroup>
@@ -126,7 +137,7 @@ export default function AppSidebar({ templates }) {
               >
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton className="text-lg text-foreground font-semibold">
+                    <SidebarMenuButton className="font-semibold text-foreground text-lg">
                       {segment.category || 'Diverses'}
                       <Plus className="ml-auto group-data-[state=open]/collapsible:hidden" />
                       <Minus className="ml-auto group-data-[state=closed]/collapsible:hidden" />
@@ -137,10 +148,7 @@ export default function AppSidebar({ templates }) {
                       <SidebarMenuSub>
                         {segment.documents.map((item, index) => (
                           <SidebarMenuSubItem key={index}>
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={item.isActive}
-                            >
+                            <SidebarMenuSubButton asChild isActive={false}>
                               <Link href={item.url}>{item.title}</Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>

@@ -1,25 +1,24 @@
-"use server";
-import { auth } from "@/auth";
-import prisma from "@/lib/prisma";
-import toast from "react-hot-toast";
+'use server';
+import { auth } from '@/auth';
+import { database } from '@repo/database';
 
 export default async function editTemplate(formData: FormData) {
-  "use server";
+  'use server';
   const session = await auth();
 
   // handle submitting the template to save it to prisma (Neon-Postgres)
   const rawFormData = {
-    id: formData.get("id") as string,
-    category: formData.get("category") as string,
-    name: formData.get("name") as string,
-    content: formData.get("content") as string,
-    authorId: formData.get("authorId") as string,
+    id: formData.get('id') as string,
+    category: formData.get('category') as string,
+    name: formData.get('name') as string,
+    content: formData.get('content') as string,
+    authorId: formData.get('authorId') as string,
   };
 
   if (rawFormData.authorId !== session?.user?.id) {
-    throw new Error("Permission denied");
+    throw new Error('Permission denied');
   }
-  const res = await prisma.template.update({
+  const res = await database.template.update({
     where: {
       id: rawFormData.id,
       authorId: session.user.id,

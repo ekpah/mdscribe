@@ -1,11 +1,11 @@
-import SmartCompletion from "@/public/landing/SmartCompletion";
-import TemplateLibrary from "@/public/landing/TemplateLibrary";
+import SmartCompletion from '@/public/landing/SmartCompletion';
+import TemplateLibrary from '@/public/landing/TemplateLibrary';
 
 export default function Features() {
   return (
     <section className="py-8">
       <div className="container m-8 mx-auto max-w-5xl">
-        <h1 className="my-2 w-full text-center text-5xl font-bold leading-tight">
+        <h1 className="my-2 w-full text-center font-bold text-5xl leading-tight">
           Features
         </h1>
         <div className="mb-4 w-full">
@@ -13,7 +13,7 @@ export default function Features() {
         </div>
         <div className="flex flex-wrap">
           <div className="w-5/6 p-6 sm:w-1/2">
-            <h3 className="mb-3 text-3xl font-bold leading-none">
+            <h3 className="mb-3 font-bold text-3xl leading-none">
               Baustein-Bibliothek
             </h3>
             <p className="mb-8 text-xl">
@@ -31,7 +31,7 @@ export default function Features() {
           </div>
           <div className="mt-6 w-full p-6 sm:w-1/2">
             <div className="align-middle">
-              <h3 className="mb-3 text-3xl font-bold leading-none">
+              <h3 className="mb-3 font-bold text-3xl leading-none">
                 Schlaue Anpassung
               </h3>
               <p className="mb-8 text-xl">

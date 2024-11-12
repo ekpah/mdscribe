@@ -17,7 +17,13 @@ import { type FormEvent, useState } from 'react';
 import toast from 'react-hot-toast';
 import editTemplate from '../_actions/edit-template';
 
-export default function Editor({ cat, tit, note, id, authorId }) {
+export default function Editor({
+  cat,
+  tit,
+  note,
+  id,
+  authorId,
+}: { cat: string; tit: string; note: string; id: string; authorId: string }) {
   const [category, setCategory] = useState(cat);
   const [name, setName] = useState(tit);
   const [content, setContent] = useState(JSON.parse(note));
@@ -38,10 +44,10 @@ export default function Editor({ cat, tit, note, id, authorId }) {
   }
 
   return (
-    <Card className="flex flex-col gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] overflow-y-auto p-4">
+    <Card className="flex h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] flex-col gap-4 overflow-y-auto p-4">
       <form onSubmit={onSubmit} className="grow gap-2">
-        <div className="flex flex-col grow md:flex-row gap-2">
-          <div className="flex-1 w-full">
+        <div className="flex grow flex-col gap-2 md:flex-row">
+          <div className="w-full flex-1">
             <Label htmlFor="category">Kategorie</Label>
             <input
               type="hidden"
@@ -91,7 +97,7 @@ export default function Editor({ cat, tit, note, id, authorId }) {
             name="content"
             onChange={(e) => setContent(e.target.value)}
             value={content}
-            className="w-full h-[calc(100vh-theme(spacing.72)-theme(spacing.6))] border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="h-[calc(100vh-theme(spacing.72)-theme(spacing.6))] w-full rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           />
           {/*<Tabs value={activeTab} onValueChange={setActiveTab} className="grow">
             <TabsList className="grid w-full grid-cols-2">
@@ -125,7 +131,7 @@ export default function Editor({ cat, tit, note, id, authorId }) {
         </div>
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="authorId" value={authorId} />
-        <Button type="submit" className="w-full mt-2">
+        <Button type="submit" className="mt-2 w-full">
           Textbaustein speichern
         </Button>
       </form>

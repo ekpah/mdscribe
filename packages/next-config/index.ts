@@ -12,6 +12,8 @@ export const withMarkdoc = markdocConfig()({
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdoc'],
 });
 
+export type { NextConfig };
+
 export const config: NextConfig = withVercelToolbar()({
   images: {
     formats: ['image/avif', 'image/webp'],

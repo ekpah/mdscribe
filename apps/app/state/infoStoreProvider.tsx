@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useRef, type ReactNode } from "react";
-import { useStore, type StoreApi } from "zustand";
+import { type ReactNode, createContext, useContext, useRef } from 'react';
+import { type StoreApi, useStore } from 'zustand';
 
-import { createInfoStore, type InfoStore } from "@/state/infoStore";
+import { type InfoStore, createInfoStore } from '@/state/infoStore';
 
 export const InfoStoreContext = createContext<StoreApi<InfoStore> | null>(null);
 
@@ -12,7 +12,7 @@ export interface InfoStoreProviderProps {
 }
 
 export const InfoStoreProvider = ({ children }: InfoStoreProviderProps) => {
-  const storeRef = useRef<StoreApi<InfoStore>>(undefined);
+  const storeRef = useRef<StoreApi<InfoStore>>();
   if (!storeRef.current) {
     storeRef.current = createInfoStore();
   }
@@ -26,7 +26,7 @@ export const InfoStoreProvider = ({ children }: InfoStoreProviderProps) => {
 export const useInfoStore = <T,>(selector: (store: InfoStore) => T): T => {
   const infoStoreContext = useContext(InfoStoreContext);
   if (!infoStoreContext) {
-    throw new Error(`useInfoStore must be use within InfoStoreProvider`);
+    throw new Error('useInfoStore must be use within InfoStoreProvider');
   }
 
   return useStore(infoStoreContext, selector);

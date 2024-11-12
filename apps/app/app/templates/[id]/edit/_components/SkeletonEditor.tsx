@@ -9,25 +9,25 @@ import {} from 'react';
 
 export default function SkeletonEditor() {
   return (
-    <Card className="flex flex-col gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] w-full overflow-y-auto p-4">
+    <Card className="flex h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] w-full flex-col gap-4 overflow-y-auto p-4">
       <div className="grow gap-2">
-        <div className="flex flex-col grow md:flex-row gap-2">
-          <div className="flex-1 w-full">
+        <div className="flex grow flex-col gap-2 md:flex-row">
+          <div className="w-full flex-1">
             <Label htmlFor="category">Kategorie</Label>
-            <Skeleton className="w-[500px] h-[20px] rounded-full" />
+            <Skeleton className="h-[20px] w-[500px] rounded-full" />
           </div>
 
           <div className="flex-1">
             <Label htmlFor="name">Name</Label>
-            <Skeleton className="w-[500px] h-[20px] rounded-full" />
+            <Skeleton className="h-[20px] w-[500px] rounded-full" />
           </div>
         </div>
 
         <div className="grow gap-2">
           <Label htmlFor="editor">Inhalt</Label>
-          <Skeleton className="w-full h-[calc(100vh-theme(spacing.72)-theme(spacing.6))] rounded-l" />
+          <Skeleton className="h-[calc(100vh-theme(spacing.72)-theme(spacing.6))] w-full rounded-l" />
         </div>
-        <Button type="submit" className="w-full mt-2">
+        <Button type="submit" className="mt-2 w-full">
           Textbaustein speichern
         </Button>
       </div>

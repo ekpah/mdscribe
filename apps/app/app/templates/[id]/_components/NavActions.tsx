@@ -4,7 +4,7 @@ import {} from '@repo/design-system/components/ui/popover';
 import {} from '@repo/design-system/components/ui/sidebar';
 import {} from 'lucide-react';
 import Link from 'next/link';
-import * as React from 'react';
+import React from 'react';
 
 import type { Prisma } from '@prisma/client';
 
@@ -34,37 +34,39 @@ export function NavActions({
   isFavourite,
   session,
 }: {
-  author: Prisma.UserGetPayload<{}>;
-  template: Prisma.TemplateGetPayload<{}>;
+  author: Prisma.UserCreateInput;
+  template: Prisma.TemplateGetPayload<{
+    include: { favouriteOf: true };
+  }>;
   isFavourite: boolean;
   session: Session | null;
 }) {
   const [isBookmark, setBookmark] = React.useState(isFavourite);
-  async function makeFavourite(event) {
+  async function makeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
     setBookmark(true);
-    await addFavourite(template);
+    await addFavourite({ template });
 
     toast.success('Favorit gespeichert'); // Displays a success message
   }
-  async function unmakeFavourite(event) {
+  async function unmakeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
     setBookmark(false);
-    await removeFavourite(template);
+    await removeFavourite({ template });
     toast.success('Favorit entfernt'); // Displays a success message
   }
 
   return (
     <div className="flex items-center gap-2 text-sm">
-      <div className="hidden font-medium text-muted-foreground lg:flex-row lg:inline-flex items-center lg:gap-1">
+      <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <PersonIcon />
         Autor: {author?.email}
       </div>
 
-      <div className="hidden items-center font-medium text-muted-foreground lg:flex-row lg:inline-flex lg:gap-1">
+      <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <ClockIcon />
         Zuletzt bearbeitet am{' '}
-        {template?.updatedAt?.toLocaleDateString('de-DE', {
+        {template?.updatedAt?.toLocaleString('de-DE', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
@@ -90,8 +92,8 @@ export function NavActions({
           <BookmarkIcon />
         </Button>
       )}
-      <span className="flex flex-row w-12 font-medium text-muted-foreground">
-        {template?.favouriteOf.length -
+      <span className="flex w-12 flex-row font-medium text-muted-foreground">
+        {template?.favouriteOf?.length -
           (isFavourite ? 1 : 0) +
           (isBookmark ? 1 : 0)}{' '}
         Likes

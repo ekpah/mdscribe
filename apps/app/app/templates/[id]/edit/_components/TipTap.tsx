@@ -149,7 +149,7 @@ const content = `
 </blockquote>
 `;
 
-export default ({ note }) => {
+export default ({ note }: { note: string }) => {
   const renderedNote = JSON.parse(note);
   console.log(renderedNote);
   return (

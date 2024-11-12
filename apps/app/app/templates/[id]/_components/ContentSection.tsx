@@ -4,10 +4,11 @@ import { atom, useAtom } from 'jotai';
 import { Card } from '@repo/design-system/components/ui/card';
 
 import type { Prisma } from '@prisma/client';
+import type { FieldValues, SubmitHandler } from 'react-hook-form';
 import Inputs from './Inputs';
 import Note from './Note';
 
-export const formAtom = atom({});
+export const formAtom = atom<FieldValues>({});
 
 export default function ContentSection({
   note,
@@ -16,21 +17,21 @@ export default function ContentSection({
 }: {
   note: string;
   inputTags: string;
-  template: Prisma.TemplateGetPayload<{}>;
+  template?: Prisma.TemplateCreateInput;
 }) {
   const [formData, setFormData] = useAtom(formAtom);
 
-  const handleFormChange = (data) => {
+  const handleFormChange: SubmitHandler<FieldValues> = (data) => {
     setFormData(data);
   };
   return (
-    <Card className="grid grid-cols-3 gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] overflow-hidden">
-      <div key="Inputs" className="p-4 overflow-y-auto overscroll-none">
+    <Card className="grid h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] grid-cols-3 gap-4 overflow-hidden">
+      <div key="Inputs" className="overflow-y-auto overscroll-none p-4">
         <Inputs inputTags={inputTags} onChange={handleFormChange} />
       </div>
       <div
         key="Note"
-        className="overflow-y-auto overscroll-none col-span-2 border-l p-4"
+        className="col-span-2 overflow-y-auto overscroll-none border-l p-4"
       >
         <Note note={note} />
       </div>

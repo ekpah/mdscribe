@@ -1,5 +1,6 @@
 import { database } from '@repo/database';
 import { SidebarProvider } from '@repo/design-system/components/ui/sidebar';
+import type React from 'react';
 import { Suspense } from 'react';
 
 import AppSidebar from './[id]/_components/Sidebar';
@@ -36,7 +37,7 @@ export default async function Layout({
         </Suspense>
         <main
           key="MainContent"
-          className="top-16 h-full flex grow p-4 overscroll-contain"
+          className="top-16 flex h-full grow overscroll-contain p-4"
         >
           {children}
         </main>

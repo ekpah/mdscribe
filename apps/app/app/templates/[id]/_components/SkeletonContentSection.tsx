@@ -5,15 +5,15 @@ import { Skeleton } from '@repo/design-system/components/ui/skeleton';
 
 export default function SkeletonContentSection() {
   return (
-    <Card className="grid grid-cols-3 gap-4 h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] overflow-hidden">
-      <div key="Inputs" className="p-4 overflow-y-auto overscroll-none">
-        <Skeleton className="w-[100px] h-[20px] rounded-full" />
+    <Card className="grid h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] grid-cols-3 gap-4 overflow-hidden">
+      <div key="Inputs" className="overflow-y-auto overscroll-none p-4">
+        <Skeleton className="h-[20px] w-[100px] rounded-full" />
       </div>
       <div
         key="Note"
-        className="overflow-y-auto overscroll-none col-span-2 border-l p-4"
+        className="col-span-2 overflow-y-auto overscroll-none border-l p-4"
       >
-        <Skeleton className="w-[100px] h-[20px] rounded-full" />
+        <Skeleton className="h-[20px] w-[100px] rounded-full" />
       </div>
     </Card>
   );

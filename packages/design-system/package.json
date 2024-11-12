@@ -35,6 +35,7 @@
     "@repo/auth": "workspace:*",
     "@repo/env": "workspace:*",
     "@types/lodash.merge": "^4.6.9",
+    "@vercel/analytics": "^1.4.0",
     "@vercel/speed-insights": "^1.0.12",
     "@vercel/toolbar": "^0.1.26",
     "class-variance-authority": "^0.7.0",

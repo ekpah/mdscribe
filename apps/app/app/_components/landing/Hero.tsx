@@ -2,24 +2,19 @@ import Doctors from '@/public/landing/Doctors';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { useState } from 'react';
 
 export default function Hero() {
   const [filterTerm, setFilterTerm] = useState('');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    redirect('/templates/cm27xjij0000atvlt77tdkvrl?filter=' + filterTerm);
-  };
   return (
-    <div className="flex flex-col flex-wrap items-center px-3 md:flex-row h-[screen]">
+    <div className="flex h-[screen] flex-col flex-wrap items-center px-3 md:flex-row">
       {/*<!--Left Col-->*/}
       <div className="flex w-full flex-col items-start justify-center px-3 py-6 text-center md:w-2/5 md:py-3 md:text-left">
-        <p className="tracking-loose w-full uppercase">
+        <p className="w-full uppercase tracking-loose">
           Warum kann es nicht einfach sein?
         </p>
-        <h1 className="my-4 text-5xl font-bold leading-tight">
+        <h1 className="my-4 font-bold text-5xl leading-tight">
           Arztbriefe erstellen ohne sich zu wiederholen
         </h1>
         <p className="mb-8 text-2xl leading-normal">
@@ -35,7 +30,7 @@ export default function Hero() {
             value={filterTerm}
             name="filter"
             onChange={(e) => setFilterTerm(e.target.value)}
-          />{' '}
+          />
           <Button
             type="submit"
             variant="secondary"
