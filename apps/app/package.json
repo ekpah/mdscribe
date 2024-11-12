@@ -6,8 +6,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "analyze": "ANALYZE=true pnpm build",
-    "test": "vitest run"
+    "analyze": "ANALYZE=true pnpm build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
