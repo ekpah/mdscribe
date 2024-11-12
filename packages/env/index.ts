@@ -25,13 +25,7 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   FLAGS_SECRET: z.string().min(1),
 };
 
-const client: Parameters<typeof createEnv>[0]['client'] = {
-  NEXT_PUBLIC_APP_URL: z.string().min(1).url(),
-  NEXT_PUBLIC_DOCS_URL: z.string().min(1).url(),
-
-  // Added by Vercel
-  NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL: z.string().min(1).url(),
-};
+const client: Parameters<typeof createEnv>[0]['client'] = {};
 
 export const env = createEnv({
   client,
@@ -55,12 +49,5 @@ export const env = createEnv({
     VERCEL: process.env.VERCEL,
     NEXT_RUNTIME: process.env.NEXT_RUNTIME,
     FLAGS_SECRET: process.env.FLAGS_SECRET,
-
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-
-    NEXT_PUBLIC_DOCS_URL: process.env.NEXT_PUBLIC_DOCS_URL,
-
-    NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL:
-      process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL,
   },
 });
