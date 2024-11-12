@@ -20,5 +20,16 @@
       "persistent": true
     }
   },
-  "globalEnv": ["POSTGRES_PRISMA_URL"]
+  "globalEnv": [
+    "POSTGRES_PRISMA_URL",
+    "POSTGRES_URL_NON_POOLING",
+    "POSTGRES_URL",
+    "POSTGRES_URL_NO_SSL",
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD",
+    "POSTGRES_HOST",
+    "AUTH_SECRET",
+    "AUTH_POSTMARK_KEY",
+    "POSTGRES_DATABASE"
+  ]
 }
