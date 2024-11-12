@@ -1,6 +1,6 @@
 'use server';
 import { auth } from '@/auth';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@repo/database';
 import { database } from '@repo/database';
 
 export default async function removeFavourite({

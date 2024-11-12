@@ -16,3 +16,5 @@ const pool = new Pool({ connectionString: env.POSTGRES_PRISMA_URL });
 const adapter = new PrismaNeon(pool);
 
 export const database = new PrismaClient({ adapter });
+
+export type { Prisma } from '@prisma/client';

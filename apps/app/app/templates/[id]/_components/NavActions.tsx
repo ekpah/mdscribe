@@ -6,7 +6,7 @@ import {} from 'lucide-react';
 import Link from 'next/link';
 import React from 'react';
 
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@repo/database';
 
 import {
   BookmarkFilledIcon,
