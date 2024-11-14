@@ -95,9 +95,9 @@ export default function AppSidebar({ templates }: { templates: string }) {
     .map((res) => res.item);
 
   // generate ordered segments to be visualized in the sidebar
-  const orderedSegments = generateSegments(
-    searchTerm ? filteredLinks : menuSegments
-  );
+  const orderedSegments = generateSegments({
+    templates: searchTerm ? filteredLinks : menuSegments,
+  });
   return (
     <Sidebar className="top-16 p-1">
       <SidebarHeader className="z-30 gap-4">
