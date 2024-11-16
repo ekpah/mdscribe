@@ -1,12 +1,9 @@
+/** @type {import('tailwindcss').Config} */
 import { fontFamily } from 'tailwindcss/defaultTheme';
 
+import type { Config } from 'tailwindcss';
 import typographyConfig from './typography.config';
 
-import typography from '@tailwindcss/typography';
-import type { Config } from 'tailwindcss';
-import animate from 'tailwindcss-animate';
-
-/** @type {import('tailwindcss').Config} */
 export const config: Config = {
   darkMode: ['class'],
   content: [
@@ -21,7 +18,7 @@ export const config: Config = {
   prefix: '',
   theme: {
     container: {
-      center: 'true',
+      center: true,
       padding: '2rem',
       screens: {
         '2xl': '1400px',
@@ -82,7 +79,7 @@ export const config: Config = {
         sm: 'calc(var(--radius) - 4px)',
       },
       typography: typographyConfig,
-      plugins: [animate, typography],
+      plugins: [require('@tailwindcss/typography')],
     },
   },
 };
