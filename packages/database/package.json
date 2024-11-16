@@ -8,12 +8,14 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^0.10.2",
+    "@neondatabase/serverless": "^0.10.3",
     "@prisma/adapter-neon": "^5.22.0",
     "@prisma/client": "5.22.0",
     "@repo/env": "workspace:*",
+    "react": "19.0.0-rc.1",
+    "react-dom": "19.0.0-rc.1",
     "server-only": "^0.0.1",
-    "undici": "^6.20.1",
+    "undici": "^6.21.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
