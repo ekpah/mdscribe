@@ -7,4 +7,3 @@ yarn.lock
 
 .env.development
 .env.local
-.env*
