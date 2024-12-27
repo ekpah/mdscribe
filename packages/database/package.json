@@ -7,6 +7,9 @@
     "build": "prisma generate --no-hints",
     "postinstall": "prisma generate"
   },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.3",
     "@prisma/adapter-neon": "^5.22.0",
