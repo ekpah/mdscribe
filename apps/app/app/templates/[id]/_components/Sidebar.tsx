@@ -23,6 +23,8 @@ import { Minus, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
+import { PlusCircledIcon } from '@radix-ui/react-icons';
+import { Button } from '@repo/design-system/components/ui/button';
 import {
   Collapsible,
   CollapsibleContent,
@@ -74,6 +76,7 @@ const collections = [
 ];
 
 export default function AppSidebar({ templates }: { templates: string }) {
+  const showCreateTemplateButton = false;
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') || '';
   const [searchTerm, setSearchTerm] = useState(initialFilter);
@@ -106,7 +109,7 @@ export default function AppSidebar({ templates }: { templates: string }) {
           count={menuSegments?.length}
         />
         <form key="search">
-          <SidebarGroup className="py-0">
+          <SidebarGroup className="py-0 gap-2">
             <SidebarGroupContent className="relative">
               <Label htmlFor="search" className="sr-only">
                 Search
@@ -120,6 +123,16 @@ export default function AppSidebar({ templates }: { templates: string }) {
               />
               <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2 size-4 select-none opacity-50" />
             </SidebarGroupContent>
+            {showCreateTemplateButton && (
+              <SidebarGroupContent className="relative">
+                <Link href={'/templates/create'}>
+                  <Button variant={'default'} className="w-full">
+                    <PlusCircledIcon className="mr-2 h-4 w-4" />
+                    Neuer Textbaustein
+                  </Button>
+                </Link>
+              </SidebarGroupContent>
+            )}
           </SidebarGroup>
         </form>
       </SidebarHeader>

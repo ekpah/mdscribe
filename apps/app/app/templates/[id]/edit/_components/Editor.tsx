@@ -12,10 +12,8 @@ import {
 } from '@repo/design-system/components/ui/select';
 import {} from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
-import { redirect } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
-import toast from 'react-hot-toast';
-import editTemplate from '../_actions/edit-template';
+import type { FormEventHandler } from 'react';
+import { useState } from 'react';
 
 export default function Editor({
   cat,
@@ -23,8 +21,16 @@ export default function Editor({
   note,
   id,
   authorId,
-}: { cat: string; tit: string; note: string; id: string; authorId: string }) {
-  const [category, setCategory] = useState(cat);
+  handleSubmit,
+}: {
+  cat: string;
+  tit: string;
+  note: string;
+  id: string;
+  authorId: string;
+  handleSubmit: FormEventHandler<HTMLFormElement>;
+}) {
+  const [category, setCategory] = useState<string>(cat);
   const [name, setName] = useState(tit);
   const [content, setContent] = useState(JSON.parse(note));
   const [newCategory, setNewCategory] = useState('');
@@ -35,17 +41,10 @@ export default function Editor({
     'Onkologie',
   ];
   const [activeTab, setActiveTab] = useState('edit');
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    await editTemplate(formData);
-    toast.success('Vorlage gespeichert'); // Displays a success message
-    redirect(`/templates/${formData.get('id') as string}`);
-  }
 
   return (
     <Card className="flex h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] flex-col gap-4 overflow-y-auto p-4">
-      <form onSubmit={onSubmit} className="grow gap-2">
+      <form onSubmit={handleSubmit} className="grow gap-2">
         <div className="flex grow flex-col gap-2 md:flex-row">
           <div className="w-full flex-1">
             <Label htmlFor="category">Kategorie</Label>

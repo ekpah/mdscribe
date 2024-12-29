@@ -5,8 +5,13 @@ import type { Metadata } from 'next';
 import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
 import { database } from '@repo/database';
+import { uniqueId } from 'lodash';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import type { FormEvent } from 'react';
+import toast from 'react-hot-toast';
 import { NavActions } from '../_components/NavActions';
+import editTemplate from './_actions/edit-template';
 import Editor from './_components/Editor';
 
 export const dynamicParams = false;
@@ -22,10 +27,6 @@ async function fetchMarkdoc({ id }: { id: string }) {
       favouriteOf: true,
     },
   });
-  if (!doc) {
-    throw new Error('Not found');
-  }
-
   return doc;
 }
 type MetadataProps = {
@@ -44,6 +45,13 @@ export async function generateMetadata(
 }
 
 export default async function EditTemplate(props: PageProps) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    await editTemplate(formData);
+    toast.success('Vorlage gespeichert'); // Displays a success message
+    redirect(`/templates/${formData.get('id') as string}`);
+  }
   const params = await props.params;
   const session = await auth();
   /*if (!session?.user) {
@@ -51,9 +59,10 @@ export default async function EditTemplate(props: PageProps) {
   }*/
   const { id } = params;
   const doc = await fetchMarkdoc({ id });
+  const isNewTemplate = !doc;
   const author = await database.user.findUnique({
     where: {
-      id: doc.authorId,
+      id: doc ? doc.authorId : session.user.id,
     },
   });
   if (!author) {
@@ -76,11 +85,12 @@ export default async function EditTemplate(props: PageProps) {
         />
       </div>
       <Editor
-        cat={doc.category}
-        tit={doc.title}
-        note={JSON.stringify(doc.content)}
-        id={id}
-        authorId={doc.authorId}
+        cat={doc?.category || ''}
+        tit={doc?.title || ''}
+        note={JSON.stringify(doc?.content || '')}
+        id={isNewTemplate ? uniqueId() : id}
+        authorId={author.id}
+        handleSubmit={onSubmit}
       />
     </div>
   );
