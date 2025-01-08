@@ -59,6 +59,9 @@ export default async function EditTemplate(props: PageProps) {
   }*/
   const { id } = params;
   const doc = await fetchMarkdoc({ id });
+  if (!doc) {
+    throw new Error('Document not found');
+  }
   const isNewTemplate = !doc;
   const author = await database.user.findUnique({
     where: {
@@ -68,9 +71,8 @@ export default async function EditTemplate(props: PageProps) {
   if (!author) {
     throw new Error('Author not found');
   }
-  const isFavourite = doc?.favouriteOf.some(
-    (user) => user.id === session?.user?.id
-  );
+  const isFavourite =
+    doc?.favouriteOf.some((user) => user.id === session?.user?.id) || false;
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex h-10 items-center justify-between gap-2">

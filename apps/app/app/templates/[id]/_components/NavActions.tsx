@@ -1,8 +1,5 @@
 'use client';
 import { Button } from '@repo/design-system/components/ui/button';
-import {} from '@repo/design-system/components/ui/popover';
-import {} from '@repo/design-system/components/ui/sidebar';
-import {} from 'lucide-react';
 import Link from 'next/link';
 import React from 'react';
 
