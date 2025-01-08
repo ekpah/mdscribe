@@ -1,9 +1,7 @@
 {
   "name": "mdscribe",
   "version": "0.1.0",
-  "files": [
-    "index.js"
-  ],
+  "files": ["index.js"],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
@@ -23,8 +21,7 @@
   "engines": {
     "node": ">=18"
   },
-  "workspaces": ["packages/*", "apps/*"],
-  "packageManager": "bun@1.1.42",
+  "packageManager": "pnpm@9.15.2",
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
