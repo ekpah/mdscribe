@@ -1,0 +1,41 @@
+---
+title: 'Tags'
+description: 'So wird der Text anpassbar'
+icon: 'tag'
+---
+
+Tags sind die Art, wie in MDScribe flexible Platzhalter eingefügt werden können.
+Tags führen dazu, dass automatisch ein Eingabeformular generiert wird,
+damit bei der Nutzung schnell entsprechende Informationen eingegeben werden können.
+Tags sind enthalten folgende Bestandteile:
+- Typ: Name/Typ des Tags
+- Optionen: variable zusätzliche Eingaben, je nach Typ des Tags
+
+## Info Tag
+
+<CodeGroup>
+```mdx Markdoc
+Die stationäre Aufnahme von {%info "Name"%}
+```
+
+```md Input
+Eingabefeld "Name"
+```
+
+```md Textbaustein
+Die stationäre Aufnahme von Thomas Müller
+```
+</CodeGroup>
+
+Der Info-Tag ermöglich das Einbinden von kurzen Bruchstücken von Informationen,
+wie Z.B. einem Laborwert oder dem Namen von Patienten. Als Zusatzinfo wird der Name des Info-Tags eingegeben. 
+Dieser muss über den Textbaustein hinweg Einzigartig sein, ansonsten wird der entsprechende Tag als wiederholend betrachtet. 
+Gibt es zum Beispiel mehrere Tags mit dem Namen „Name“, so taucht nur ein Eingabefeld auf und der Name
+ (des Patienten) wird an mehreren Stellen in den Textbaustein eingebunden.
+## Switch Tag
+Ein Switchtag beschreibt eine kurze Auswahl, wobei eine von mehreren Versionen in den Textbaustein 
+eingebunden werden kann. Ein Switchtag hat einen Namen, sowie mehrere Untergeordnete „case“-Tags. 
+Diese beschreiben mögliche Optionen des Switch-Tags. So kann Z.b. ein Switch-Tag den Namen „Geschlecht“ haben, 
+wobei es Case-Tags mit den Optionen „männlich“ und „weiblich“ gibt. Es wird automatisch eine Auswahl generiert, 
+wobei nach Auswahl eines Tags der im entsprechenden Case-Tag-Abschnitt definierte Text in den Textbaustein eingefügt wird. 
+Ein Case-Tag ohne definierte Option fungiert als „default“, sollte noch keine Auswahl getroffen worden sein.

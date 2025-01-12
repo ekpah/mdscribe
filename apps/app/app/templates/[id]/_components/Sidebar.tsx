@@ -104,12 +104,14 @@ export default function AppSidebar({ templates }: { templates: string }) {
   return (
     <Sidebar className="top-16 p-1">
       <SidebarHeader className="z-30 gap-4">
-        <CollectionSwitcher
-          collections={collections}
-          count={menuSegments?.length}
-        />
+        {false && (
+          <CollectionSwitcher
+            collections={collections}
+            count={menuSegments?.length}
+          />
+        )}
         <form key="search">
-          <SidebarGroup className="py-0 gap-2">
+          <SidebarGroup className="gap-2 py-0">
             <SidebarGroupContent className="relative">
               <Label htmlFor="search" className="sr-only">
                 Search
