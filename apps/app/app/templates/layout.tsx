@@ -32,7 +32,11 @@ export default async function Layout({
   return (
     <div className="flex h-full w-full">
       <SidebarProvider>
-        <Suspense fallback={<AppSidebar key="Sidebar" templates={''} />}>
+        <Suspense
+          fallback={
+            <AppSidebar key="Sidebar" templates={''} isLoggedIn={false} />
+          }
+        >
           <AppSidebar
             key="Sidebar"
             templates={JSON.stringify(await generateSidebarLinks())}
