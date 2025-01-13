@@ -75,7 +75,10 @@ const collections = [
   },
 ];
 
-export default function AppSidebar({ templates }: { templates: string }) {
+export default function AppSidebar({
+  templates,
+  isLoggedIn,
+}: { templates: string; isLoggedIn: boolean }) {
   const showCreateTemplateButton = false;
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') || '';
@@ -104,7 +107,7 @@ export default function AppSidebar({ templates }: { templates: string }) {
   return (
     <Sidebar className="top-16 p-1">
       <SidebarHeader className="z-30 gap-4">
-        {false && (
+        {isLoggedIn && (
           <CollectionSwitcher
             collections={collections}
             count={menuSegments?.length}

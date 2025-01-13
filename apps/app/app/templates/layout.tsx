@@ -3,6 +3,7 @@ import { SidebarProvider } from '@repo/design-system/components/ui/sidebar';
 import type React from 'react';
 import { Suspense } from 'react';
 
+import { auth } from '@repo/auth';
 import AppSidebar from './[id]/_components/Sidebar';
 
 //new with prisma
@@ -25,6 +26,8 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+  const isLoggedIn = !!session?.user?.id;
   // let templates = getTemplates();
   return (
     <div className="flex h-full w-full">
@@ -33,6 +36,7 @@ export default async function Layout({
           <AppSidebar
             key="Sidebar"
             templates={JSON.stringify(await generateSidebarLinks())}
+            isLoggedIn={isLoggedIn}
           />
         </Suspense>
         <main

@@ -24,6 +24,10 @@ export default async function TopMenuBar() {
         </div>
         <div key="menuBarLinks" className="pl-10 font-light">
           <Link href="/templates/cm27xjij0000atvlt77tdkvrl">Textbausteine</Link>
+          {/* TODO: link as env to make it work in development */}
+          <Link className="ml-4" href="https://docs.mdscribe.de/">
+            Dokumentation
+          </Link>
         </div>
 
         <div className="absolute right-2 flex flex-row sm:right-4">

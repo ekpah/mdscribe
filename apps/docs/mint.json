@@ -1,11 +1,10 @@
 {
-  "$schema": "https://mintlify.com/schema.json",
-  "name": "Starter Kit",
+  "name": "MDScribe",
   "logo": {
-    "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
+    "dark": "@repo/design-system/logo/dark.svg",
+    "light": "@repo/design-system/logo/light.svg"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "@repo/design-system/icons/favicon.svg",
   "colors": {
     "primary": "#657b83",
     "light": "#839496",
@@ -31,12 +30,16 @@
   },
   "navigation": [
     {
-      "group": "Einstieg",
-      "pages": ["introduction", "quickstart", "development"]
+      "group": "Übersicht",
+      "pages": ["introduction", "quickstart"]
     },
         {
       "group": "Textbausteine",
-      "pages": ["templates/overview", "templates/tags", "templates/collections"]
+      "pages": ["templates/overview", "templates/tags"]
+    },
+        {
+      "group": "Sammlungen",
+      "pages": ["collections/overview"]
     }
   ]
 }
