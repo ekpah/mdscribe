@@ -236,6 +236,9 @@ importers:
         specifier: ^19.0.0
         version: 19.0.0(react@19.0.0)
     devDependencies:
+      '@repo/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       typescript:
         specifier: ^5.7.2
         version: 5.7.2

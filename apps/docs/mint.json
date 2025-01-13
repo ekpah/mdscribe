@@ -1,10 +1,10 @@
 {
   "name": "MDScribe",
   "logo": {
-    "dark": "@repo/design-system/logo/dark.svg",
-    "light": "@repo/design-system/logo/light.svg"
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
   },
-  "favicon": "@repo/design-system/icons/favicon.svg",
+  "favicon": "icons/favicon.svg",
   "colors": {
     "primary": "#657b83",
     "light": "#839496",

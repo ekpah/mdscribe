@@ -6,7 +6,8 @@
     "lint": "mintlify broken-links"
   },
   "devDependencies": {
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "@repo/design-system": "workspace:*"
   },
   "dependencies": {
     "mintlify": "^4.0.311",
