@@ -27,5 +27,8 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "tailwindCSS.experimental.configFile": "./packages/design-system/tailwind.config.ts"
+  "tailwindCSS.experimental.configFile": "./packages/design-system/tailwind.config.ts",
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  }
 }
