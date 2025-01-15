@@ -5,11 +5,14 @@ import Logo from '@/public/Logo';
 import Link from 'next/link';
 
 import { ModeToggle } from '@repo/design-system/components/mode-toggle';
+import { headers } from 'next/headers';
 import { SignIn } from './SignIn';
 import { SignOut } from './SignOut';
 
 export default async function TopMenuBar() {
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   return (
     <div

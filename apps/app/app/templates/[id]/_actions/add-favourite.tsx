@@ -11,7 +11,9 @@ export default async function addFavourite({
   }>;
 }) {
   'use server';
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
   const res = await database.template.update({
     where: {
       id: template.id,

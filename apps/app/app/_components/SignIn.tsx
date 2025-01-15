@@ -1,7 +1,11 @@
 'use client';
 import { Button } from '@repo/design-system/components/ui/button';
-import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 
 export function SignIn() {
-  return <Button onClick={() => signIn()}>Sign In</Button>;
+  return (
+    <Link href={'/sign-in'}>
+      <Button>Sign In</Button>
+    </Link>
+  );
 }

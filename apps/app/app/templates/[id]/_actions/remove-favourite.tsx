@@ -11,7 +11,9 @@ export default async function removeFavourite({
   }>;
 }) {
   'use server';
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
   console.log(template);
   const res = await database.template.update({
     where: {

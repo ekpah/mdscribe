@@ -6,7 +6,6 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   ANALYZE: z.string().optional(),
   AUTH_TRUST_HOST: z.string().min(1),
   AUTH_POSTMARK_KEY: z.string().min(1),
-  AUTH_SECRET: z.string().min(1),
   POSTGRES_DATABASE: z.string().min(1),
   POSTGRES_HOST: z.string().min(1),
   POSTGRES_PASSWORD: z.string().min(1),
@@ -14,6 +13,7 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   POSTGRES_URL_NON_POOLING: z.string().min(1).url(),
   POSTGRES_URL_NO_SSL: z.string().min(1).url(),
   POSTGRES_USER: z.string().min(1),
+  BETTER_AUTH_SECRET: z.string().min(1),
 
   // Added by Node
   NODE_ENV: z.enum(['development', 'production']),
@@ -45,6 +45,7 @@ export const env = createEnv({
     ANALYZE: process.env.ANALYZE,
     NODE_ENV: process.env.NODE_ENV,
     CI: process.env.CI,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 
     VERCEL: process.env.VERCEL,
     NEXT_RUNTIME: process.env.NEXT_RUNTIME,

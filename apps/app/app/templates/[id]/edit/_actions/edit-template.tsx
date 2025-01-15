@@ -4,7 +4,9 @@ import { database } from '@repo/database';
 
 export default async function editTemplate(formData: FormData) {
   'use server';
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   // handle submitting the template to save it to prisma (Neon-Postgres)
   const rawFormData = {

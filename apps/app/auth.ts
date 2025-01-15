@@ -1,1 +1,1 @@
-export { auth, handlers, signIn, signOut } from '@repo/auth';
+export { auth } from '@repo/auth';

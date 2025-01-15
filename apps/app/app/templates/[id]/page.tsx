@@ -7,6 +7,7 @@ import { database } from '@repo/database';
 
 import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import ContentSection from './_components/ContentSection';
 import { NavActions } from './_components/NavActions';
@@ -43,7 +44,9 @@ const getTemplatesPrisma = async () => {
 }*/
 async function fetchMarkdoc({ id }: { id: string }) {
   // fetch the markdoc content for the route
-  // const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
   const doc = await database.template.findUnique({
     where: {
       id: id,
@@ -112,7 +115,9 @@ const parseTagsToInputs = ({ ast }: { ast: Node }) => {
 };
 
 export default async function NotePage(props: PageProps) {
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
   const params = await props.params;
   const { id } = params;
   const doc = await fetchMarkdoc({ id: id });

@@ -1,11 +1,11 @@
 'use client';
 import { Button } from '@repo/design-system/components/ui/button';
-import { signOut } from 'next-auth/react';
+import Link from 'next/link';
 
 export function SignOut() {
   return (
-    <Button variant="secondary" onClick={() => signOut()}>
-      Sign Out
-    </Button>
+    <Link href={'/sign-in'}>
+      <Button variant={'secondary'}>Sign Out</Button>
+    </Link>
   );
 }

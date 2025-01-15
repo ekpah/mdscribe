@@ -53,7 +53,9 @@ export default async function EditTemplate(props: PageProps) {
     redirect(`/templates/${formData.get('id') as string}`);
   }
   const params = await props.params;
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
   /*if (!session?.user) {
     redirect("/");
   }*/

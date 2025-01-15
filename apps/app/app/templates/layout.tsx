@@ -4,6 +4,7 @@ import type React from 'react';
 import { Suspense } from 'react';
 
 import { auth } from '@repo/auth';
+import { headers } from 'next/headers';
 import AppSidebar from './[id]/_components/Sidebar';
 
 //new with prisma
@@ -26,7 +27,9 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
   const isLoggedIn = !!session?.user?.id;
   // let templates = getTemplates();
   return (
