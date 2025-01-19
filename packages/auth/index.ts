@@ -1,8 +1,11 @@
-import { Pool } from '@neondatabase/serverless';
+import { database } from '@repo/database';
 import { betterAuth } from 'better-auth';
 
+import { prismaAdapter } from 'better-auth/adapters/prisma';
 export const auth = betterAuth({
-  database: new Pool({ connectionString: process.env.POSTGRES_URL }),
+  database: prismaAdapter(database, {
+    provider: 'postgresql', // or "mysql", "postgresql", ...etc
+  }),
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url, token }, request) => {
@@ -11,22 +14,6 @@ export const auth = betterAuth({
         subject: 'Reset your password',
         text: `Click the link to reset your password: ${url}`,
       });
-    },
-  },
-  // Other configs
-  session: {
-    fields: {
-      expiresAt: 'expires', // e.g., "expires_at" or your existing field name
-      token: 'sessionToken', // e.g., "session_token" or your existing field name
-    },
-  },
-  accounts: {
-    fields: {
-      accountId: 'providerAccountId',
-      refreshToken: 'refresh_token',
-      accessToken: 'access_token',
-      accessTokenExpiresAt: 'access_token_expires',
-      idToken: 'id_token',
     },
   },
 });

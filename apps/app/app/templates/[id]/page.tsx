@@ -13,24 +13,24 @@ import ContentSection from './_components/ContentSection';
 import { NavActions } from './_components/NavActions';
 
 export const dynamicParams = false;
-
-export async function generateStaticParams() {
-  const templates = await getTemplatesPrisma();
-  // let templates = generateSidebarLinks(getTemplatesPrisma());
-
-  const result = templates.map((template) => {
-    return {
-      id: template.id,
-    };
-  });
-  return result;
-}
-
 //new with prisma
 const getTemplatesPrisma = async () => {
   const templates = await database.template.findMany({});
   return templates;
 };
+export async function generateStaticParams() {
+  const templates = await getTemplatesPrisma();
+  // let templates = generateSidebarLinks(getTemplatesPrisma());
+
+  const result = [
+    templates.map((template: { id: string }) => {
+      return {
+        id: template.id,
+      };
+    }),
+  ];
+  return result;
+}
 
 /*export async function generateMetadata({ params }) {
   const doc = await prisma.template.findUnique({
@@ -44,10 +44,7 @@ const getTemplatesPrisma = async () => {
 }*/
 async function fetchMarkdoc({ id }: { id: string }) {
   // fetch the markdoc content for the route
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  const doc = await database.template.findUnique({
+  const doc = await database.Template.findUnique({
     where: {
       id: id,
     },
@@ -56,9 +53,6 @@ async function fetchMarkdoc({ id }: { id: string }) {
       author: true,
     },
   });
-  if (!doc) {
-    throw new Error('Not found');
-  }
 
   return doc;
 }
@@ -103,7 +97,7 @@ const parseTagsToInputs = ({ ast }: { ast: Node }) => {
     if (
       node.type === 'tag' &&
       node.tag === 'switch' &&
-      !switchTags.some((tag) => tag.variable == node.attributes.primary) &&
+      !switchTags.some((tag) => tag.variable === node.attributes.primary) &&
       node.attributes.primary
     ) {
       switchTags.push(processSwitchStatement(node));
@@ -123,16 +117,14 @@ export default async function NotePage(props: PageProps) {
   const doc = await fetchMarkdoc({ id: id });
   const ast = Markdoc.parse(doc.content);
   const inputTags = parseTagsToInputs({ ast });
-  const author = await database.user.findUnique({
-    where: {
-      id: doc.authorId,
-    },
-  });
-  if (!author) {
-    throw new Error('Author not found');
-  }
+  const author =
+    (await database.user.findUnique({
+      where: {
+        id: doc.authorId,
+      },
+    })) || {};
   const isFavourite = doc?.favouriteOf.some(
-    (user) => user.id === session?.user?.id
+    (user: { id: string | undefined }) => user.id === session?.user?.id
   );
   // const frontmatter = parseFrontmatter({ ast });
   const note = Markdoc.transform(ast, markdocConfig);
@@ -143,10 +135,12 @@ export default async function NotePage(props: PageProps) {
           {doc?.title}
         </Link>
         <NavActions
-          template={doc}
           author={author}
           isFavourite={isFavourite}
-          session={session}
+          isLoggedIn={!!session?.user?.id}
+          lastEdited={doc?.updatedAt}
+          templateId={doc?.id}
+          favouriteOfCount={doc?.favouriteOf?.length}
         />
       </div>
       <ContentSection

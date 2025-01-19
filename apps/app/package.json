@@ -9,6 +9,7 @@
     "analyze": "ANALYZE=true pnpm build"
   },
   "dependencies": {
+    "@better-auth/cli": "^1.1.13",
     "@hookform/resolvers": "^3.10.0",
     "@markdoc/markdoc": "^0.4.0",
     "@markdoc/next.js": "^0.3.7",

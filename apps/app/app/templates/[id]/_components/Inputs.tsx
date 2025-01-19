@@ -37,7 +37,7 @@ export default function Inputs({
     <div key="inputs">
       <Form {...methods}>
         <form onChange={methods.handleSubmit(onChange)} className="space-y-6">
-          {parsedInputTags.infoTags.map((variable) => {
+          {parsedInputTags?.infoTags?.map((variable) => {
             return (
               <Card key={variable} className="m-4 bg-secondary p-4">
                 <FormItem className="space-y-3">
@@ -47,7 +47,7 @@ export default function Inputs({
               </Card>
             );
           })}
-          {parsedInputTags.switchTags.map((select) => {
+          {parsedInputTags?.switchTags?.map((select) => {
             const variable = methods.watch(select.variable);
 
             return (

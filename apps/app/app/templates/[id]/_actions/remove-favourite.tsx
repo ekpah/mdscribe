@@ -1,23 +1,20 @@
 'use server';
 import { auth } from '@/auth';
-import type { Prisma } from '@repo/database';
 import { database } from '@repo/database';
+import { headers } from 'next/headers';
 
 export default async function removeFavourite({
-  template,
+  templateId,
 }: {
-  template: Prisma.TemplateGetPayload<{
-    include: { favouriteOf: true };
-  }>;
+  templateId: string;
 }) {
   'use server';
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  console.log(template);
   const res = await database.template.update({
     where: {
-      id: template.id,
+      id: templateId,
     },
     data: {
       favouriteOf: {

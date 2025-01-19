@@ -18,7 +18,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/design-system/components/ui/tooltip';
-import type { Session } from 'next-auth';
 import toast from 'react-hot-toast';
 import addFavourite from '../_actions/add-favourite';
 import removeFavourite from '../_actions/remove-favourite';
@@ -27,29 +26,31 @@ import removeFavourite from '../_actions/remove-favourite';
 
 export function NavActions({
   author,
-  template,
   isFavourite,
-  session,
+  isLoggedIn,
+  lastEdited,
+  templateId,
+  favouriteOfCount,
 }: {
   author: Prisma.UserCreateInput;
-  template: Prisma.TemplateGetPayload<{
-    include: { favouriteOf: true };
-  }>;
   isFavourite: boolean;
-  session: Session | null;
+  isLoggedIn: boolean;
+  lastEdited: Date;
+  templateId: string;
+  favouriteOfCount: number;
 }) {
   const [isBookmark, setBookmark] = React.useState(isFavourite);
   async function makeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
     setBookmark(true);
-    await addFavourite({ template });
+    await addFavourite({ templateId });
 
     toast.success('Favorit gespeichert'); // Displays a success message
   }
   async function unmakeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
     setBookmark(false);
-    await removeFavourite({ template });
+    await removeFavourite({ templateId });
     toast.success('Favorit entfernt'); // Displays a success message
   }
 
@@ -63,40 +64,39 @@ export function NavActions({
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <ClockIcon />
         Zuletzt bearbeitet am{' '}
-        {template?.updatedAt?.toLocaleString('de-DE', {
+        {lastEdited?.toLocaleString('de-DE', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
         })}
       </div>
 
-      {isBookmark ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={(e) => unmakeFavourite(e)}
-        >
-          <BookmarkFilledIcon />
-        </Button>
-      ) : (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={(e) => makeFavourite(e)}
-        >
-          <BookmarkIcon />
-        </Button>
-      )}
+      {isLoggedIn &&
+        (isBookmark ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => unmakeFavourite(e)}
+          >
+            <BookmarkFilledIcon />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => makeFavourite(e)}
+          >
+            <BookmarkIcon />
+          </Button>
+        ))}
+      {!isLoggedIn && <BookmarkIcon />}
       <span className="flex w-12 flex-row font-medium text-muted-foreground">
-        {template?.favouriteOf?.length -
-          (isFavourite ? 1 : 0) +
-          (isBookmark ? 1 : 0)}{' '}
-        Likes
+        {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
       </span>
-      {session?.user ? (
-        <Link href={`/templates/${template?.id}/edit`}>
+      {isLoggedIn ? (
+        <Link href={`/templates/${templateId}/edit`}>
           <Pencil2Icon />
         </Link>
       ) : (

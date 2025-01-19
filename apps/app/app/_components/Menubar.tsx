@@ -1,18 +1,19 @@
-import { auth } from '@/auth';
-
+'use client';
 import Logo from '@/public/Logo';
 
 import Link from 'next/link';
 
+import { authClient } from '@repo/auth/lib/auth-client';
 import { ModeToggle } from '@repo/design-system/components/mode-toggle';
-import { headers } from 'next/headers';
 import { SignIn } from './SignIn';
 import { SignOut } from './SignOut';
 
-export default async function TopMenuBar() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export default function TopMenuBar() {
+  const {
+    data: session,
+    isPending, //loading state
+    error, //error object
+  } = authClient.useSession();
 
   return (
     <div
@@ -26,7 +27,7 @@ export default async function TopMenuBar() {
           </Link>
         </div>
         <div key="menuBarLinks" className="pl-10 font-light">
-          <Link href="/templates/cm27xjij0000atvlt77tdkvrl">Textbausteine</Link>
+          <Link href="/templates/">Textbausteine</Link>
           {/* TODO: link as env to make it work in development */}
           <Link className="ml-4" href="https://docs.mdscribe.de/">
             Dokumentation
