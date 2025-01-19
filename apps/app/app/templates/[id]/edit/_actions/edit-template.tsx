@@ -1,6 +1,7 @@
 'use server';
 import { auth } from '@/auth';
 import { database } from '@repo/database';
+import { headers } from 'next/headers';
 
 export default async function editTemplate(formData: FormData) {
   'use server';
