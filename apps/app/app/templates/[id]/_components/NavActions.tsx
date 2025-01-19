@@ -32,7 +32,7 @@ export function NavActions({
   templateId,
   favouriteOfCount,
 }: {
-  author: Prisma.UserCreateInput;
+  author?: Prisma.UserCreateInput | null;
   isFavourite: boolean;
   isLoggedIn: boolean;
   lastEdited: Date;
@@ -58,7 +58,7 @@ export function NavActions({
     <div className="flex items-center gap-2 text-sm">
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <PersonIcon />
-        Autor: {author?.email}
+        Autor: {author?.email || 'Anonym'}
       </div>
 
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">

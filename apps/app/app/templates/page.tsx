@@ -21,7 +21,6 @@ export default async function TemplatesPage() {
           Templates
         </Link>
         <NavActions
-          author={''}
           isFavourite={false}
           isLoggedIn={false}
           lastEdited={new Date()}

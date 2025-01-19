@@ -1,14 +1,16 @@
 {
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
-    "baseUrl": "."
+    "baseUrl": ".",
+    "declaration": false
   },
-    "include": [
+  "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
     "markdoc/variables.ts",
-    "next.config.ts"
-, "../../packages/design-system/providers/ThemeProvider.tsx"  ],
+    "next.config.ts",
+    "../../packages/design-system/providers/ThemeProvider.tsx"
+  ]
 }

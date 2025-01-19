@@ -44,7 +44,7 @@ export async function generateStaticParams() {
 }*/
 async function fetchMarkdoc({ id }: { id: string }) {
   // fetch the markdoc content for the route
-  const doc = await database.Template.findUnique({
+  const doc = await database.template.findUnique({
     where: {
       id: id,
     },
@@ -53,7 +53,9 @@ async function fetchMarkdoc({ id }: { id: string }) {
       author: true,
     },
   });
-
+  if (!doc) {
+    throw new Error('Document not found');
+  }
   return doc;
 }
 
@@ -135,12 +137,11 @@ export default async function NotePage(props: PageProps) {
           {doc?.title}
         </Link>
         <NavActions
-          author={author}
           isFavourite={isFavourite}
           isLoggedIn={!!session?.user?.id}
-          lastEdited={doc?.updatedAt}
-          templateId={doc?.id}
-          favouriteOfCount={doc?.favouriteOf?.length}
+          lastEdited={doc.updatedAt}
+          templateId={doc.id}
+          favouriteOfCount={doc.favouriteOf?.length}
         />
       </div>
       <ContentSection

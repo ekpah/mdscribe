@@ -6,6 +6,7 @@ import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
 import { database } from '@repo/database';
 import { uniqueId } from 'lodash';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { FormEvent } from 'react';
@@ -56,9 +57,9 @@ export default async function EditTemplate(props: PageProps) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  /*if (!session?.user) {
-    redirect("/");
-  }*/
+  if (!session?.user) {
+    redirect('/');
+  }
   const { id } = params;
   const doc = await fetchMarkdoc({ id });
   if (!doc) {
@@ -82,10 +83,12 @@ export default async function EditTemplate(props: PageProps) {
           {doc?.title}
         </Link>
         <NavActions
-          session={session}
           author={author}
-          template={doc}
           isFavourite={isFavourite}
+          isLoggedIn={!!session?.user?.id}
+          lastEdited={doc?.updatedAt}
+          templateId={doc?.id}
+          favouriteOfCount={doc?.favouriteOf?.length}
         />
       </div>
       <Editor
