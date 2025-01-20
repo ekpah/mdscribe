@@ -5,8 +5,8 @@ import Link from 'next/link';
 
 import { authClient } from '@repo/auth/lib/auth-client';
 import { ModeToggle } from '@repo/design-system/components/mode-toggle';
-import { SignIn } from './SignIn';
-import { SignOut } from './SignOut';
+import { Button } from '@repo/design-system/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 export default function TopMenuBar() {
   const {
@@ -14,6 +14,18 @@ export default function TopMenuBar() {
     isPending, //loading state
     error, //error object
   } = authClient.useSession();
+
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push('/');
+        },
+      },
+    });
+  };
 
   return (
     <div
@@ -37,7 +49,15 @@ export default function TopMenuBar() {
         <div className="absolute right-2 flex flex-row sm:right-4">
           <div className="mx-4 flex flex-row items-center">
             <p className="mx-4">{session?.user?.email}</p>
-            {session?.user ? <SignOut /> : <SignIn />}
+            {session?.user ? (
+              <Button variant={'secondary'} onClick={handleSignOut}>
+                Sign Out
+              </Button>
+            ) : (
+              <Link href={'/sign-in'}>
+                <Button>Sign In</Button>
+              </Link>
+            )}
           </div>
           <ModeToggle />
         </div>

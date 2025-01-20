@@ -1,6 +1,6 @@
 import { fontFamily } from 'tailwindcss/defaultTheme';
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+
+const config = {
   darkMode: ['class'],
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}', // Note the addition of the `app` directory.
@@ -74,7 +74,7 @@ module.exports = {
       fontFamily: {
         sans: [...fontFamily.sans],
       },
-      typography: (theme) => ({
+      typography: () => ({
         DEFAULT: {
           css: {
             color: 'var(--foreground) ',
@@ -117,3 +117,5 @@ module.exports = {
   },
   plugins: [require('tailwindcss-animate'), require('@tailwindcss/typography')],
 };
+
+export default config;

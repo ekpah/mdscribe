@@ -30,19 +30,19 @@ export default function SignUp() {
   return (
     <Card className="z-50 max-w-md rounded-md rounded-t-none">
       <CardHeader>
-        <CardTitle className="text-lg md:text-xl">Sign Up</CardTitle>
+        <CardTitle className="text-lg md:text-xl">Registrieren</CardTitle>
         <CardDescription className="text-xs md:text-sm">
-          Enter your information to create an account
+          Geben Sie Ihre Informationen ein, um ein Konto zu erstellen
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">E-Mail</Label>
             <Input
               id="email"
               type="email"
-              placeholder="m@example.com"
+              placeholder="m@beispiel.de"
               required
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -51,25 +51,25 @@ export default function SignUp() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Passwort</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
-              placeholder="Password"
+              placeholder="Passwort"
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Confirm Password</Label>
+            <Label htmlFor="password">Passwort bestätigen</Label>
             <Input
               id="password_confirmation"
               type="password"
               value={passwordConfirmation}
               onChange={(e) => setPasswordConfirmation(e.target.value)}
               autoComplete="new-password"
-              placeholder="Confirm Password"
+              placeholder="Passwort bestätigen"
             />
           </div>
 
@@ -103,7 +103,7 @@ export default function SignUp() {
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
-              'Create an account'
+              'Konto erstellen'
             )}
           </Button>
         </div>

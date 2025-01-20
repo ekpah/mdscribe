@@ -17,6 +17,7 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -44,7 +45,8 @@ export default function SignIn() {
                   setLoading(false);
                 },
                 onError: (ctx) => {
-                  alert(ctx.error.message);
+                  // Handle the error 403 - not email verified
+                  toast.error('Bitte bestätigen Sie Ihre E-Mail-Adresse');
                   setLoading(false);
                 },
               }
@@ -56,26 +58,26 @@ export default function SignIn() {
       >
         <CardHeader className="space-y-1">
           <CardTitle className="text-center font-bold text-2xl">
-            Sign in to your account
+            In Ihren Account einloggen
           </CardTitle>
           <CardDescription className="text-center">
-            Enter your email and password below to sign in
+            Geben Sie unten Ihre E-Mail und Ihr Passwort ein, um sich anzumelden
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">E-Mail</Label>
             <Input
               id="email"
               type="email"
-              placeholder="m@example.com"
+              placeholder="m@beispiel.de"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Passwort</Label>
             <Input
               id="password"
               type="password"
@@ -89,28 +91,28 @@ export default function SignIn() {
               id="remember"
               onClick={() => setRememberMe(!rememberMe)}
             />
-            <Label htmlFor="remember">Remember me</Label>
+            <Label htmlFor="remember">Angemeldet bleiben</Label>
           </div>
           <Button className="w-full" type="submit" disabled={loading}>
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
-              'Sign In'
+              'Anmelden'
             )}
           </Button>
         </CardContent>
         <CardFooter className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-muted-foreground text-sm">
-            <span className="mr-1">Don&apos;t have an account?</span>
+            <span className="mr-1">Noch kein Konto?</span>
             <Link href="/sign-up" className="text-primary hover:underline">
-              Sign up
+              Registrieren
             </Link>
           </div>
           <Link
             href="/forgot-password"
             className="text-primary text-sm hover:underline"
           >
-            Forgot password?
+            Passwort vergessen?
           </Link>
         </CardFooter>
       </form>
