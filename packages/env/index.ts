@@ -14,6 +14,7 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   POSTGRES_URL_NO_SSL: z.string().min(1).url(),
   POSTGRES_USER: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(1),
+  BASE_URL: z.string().min(1).url(),
 
   // Added by Node
   NODE_ENV: z.enum(['development', 'production']),
@@ -46,6 +47,7 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     CI: process.env.CI,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BASE_URL: process.env.BASE_URL,
 
     VERCEL: process.env.VERCEL,
     NEXT_RUNTIME: process.env.NEXT_RUNTIME,
