@@ -1,4 +1,4 @@
-import { ResetPasswordTemplate } from '@repo/email-templates/templates/reset-password';
+import { ResetPasswordTemplate } from '@repo/email/templates/reset-password';
 
 const ExampleResetPasswordEmail = () => (
   <ResetPasswordTemplate

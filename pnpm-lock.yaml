@@ -251,9 +251,6 @@ importers:
       '@react-email/components':
         specifier: 0.0.32
         version: 0.0.32(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@repo/email-templates':
-        specifier: workspace:*
-        version: link:../../packages/email-templates
       react:
         specifier: ^19.0.0
         version: 19.0.0
@@ -264,6 +261,9 @@ importers:
         specifier: 3.0.5
         version: 3.0.5(bufferutil@4.0.9)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
     devDependencies:
+      '@repo/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -313,6 +313,9 @@ importers:
         specifier: ^19.0.0
         version: 19.0.0(react@19.0.0)
     devDependencies:
+      '@repo/email':
+        specifier: workspace:*
+        version: link:../email
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -583,11 +586,14 @@ importers:
         specifier: ^5.7.2
         version: 5.7.2
 
-  packages/email-templates:
+  packages/email:
     dependencies:
       '@react-email/components':
         specifier: 0.0.32
         version: 0.0.32(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      postmark:
+        specifier: ^4.0.5
+        version: 4.0.5
       react:
         specifier: ^19.0.0
         version: 19.0.0
@@ -6682,6 +6688,9 @@ packages:
 
   postgres-range@1.1.4:
     resolution: {integrity: sha512-i/hbxIE9803Alj/6ytL7UHQxRvZkI9O4Sy+J3HGc4F4oo/2eQAjTSNJ0bfxyse3bH0nuVesCk+3IRLaMtG3H6w==}
+
+  postmark@4.0.5:
+    resolution: {integrity: sha512-nerZdd3TwOH4CgGboZnlUM/q7oZk0EqpZgJL+Y3Nup8kHeaukxouQ6JcFF3EJEijc4QbuNv1TefGhboAKtf/SQ==}
 
   preact-render-to-string@6.5.11:
     resolution: {integrity: sha512-ubnauqoGczeGISiOh6RjX0/cdaF8v/oDXIjO85XALCQjwQP+SB4RDXXtvZ6yTYSjG+PC1QRP2AhPgCEsM2EvUw==}
@@ -14978,6 +14987,12 @@ snapshots:
   postgres-interval@3.0.0: {}
 
   postgres-range@1.1.4: {}
+
+  postmark@4.0.5:
+    dependencies:
+      axios: 1.7.9
+    transitivePeerDependencies:
+      - debug
 
   preact-render-to-string@6.5.11(preact@10.24.3):
     dependencies:
