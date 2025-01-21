@@ -46,7 +46,11 @@ export default function SignIn() {
                 },
                 onError: (ctx) => {
                   // Handle the error 403 - not email verified
-                  toast.error('Bitte bestätigen Sie Ihre E-Mail-Adresse');
+                  if (ctx.error.status === 403) {
+                    toast.error('Bitte bestätigen Sie Ihre E-Mail-Adresse');
+                  } else {
+                    toast.error(ctx.error.message);
+                  }
                   setLoading(false);
                 },
               }
