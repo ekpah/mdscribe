@@ -3,7 +3,7 @@ import { createAuthClient } from 'better-auth/react';
 import type { auth } from '../index.ts';
 
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL,
+  baseURL: process.env.NEXT_PUBLIC_VERCEL_URL,
   plugins: [inferAdditionalFields<typeof auth>()],
 });
 
