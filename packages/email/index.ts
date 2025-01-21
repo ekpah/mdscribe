@@ -1,5 +1,5 @@
 import { render } from '@react-email/components';
-import postmark from 'postmark';
+import * as postmark from 'postmark';
 import type { ReactElement } from 'react';
 
 if (!process.env.AUTH_POSTMARK_KEY) {
