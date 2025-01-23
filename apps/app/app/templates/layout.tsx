@@ -7,7 +7,6 @@ import { auth } from '@repo/auth';
 import { headers } from 'next/headers';
 import AppSidebar from './_components/Sidebar';
 
-//new with prisma
 const getTemplatesPrisma = async () => {
   const templates = await database.template.findMany({});
   return templates;

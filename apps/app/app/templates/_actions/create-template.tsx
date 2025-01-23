@@ -1,6 +1,7 @@
 'use server';
 import { auth } from '@/auth';
 import { database } from '@repo/database';
+import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 export default async function createTemplate(formData: FormData) {
@@ -36,6 +37,7 @@ export default async function createTemplate(formData: FormData) {
       },
     },
   });
-  console.log(res);
+
+  revalidatePath('/templates/');
   return res;
 }
