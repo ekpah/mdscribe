@@ -85,8 +85,13 @@ const collections = [
 
 export default function AppSidebar({
   templates,
+  favouriteTemplates,
   isLoggedIn,
-}: { templates: string; isLoggedIn: boolean }) {
+}: {
+  templates: string;
+  favouriteTemplates: string;
+  isLoggedIn: boolean;
+}) {
   const { data: session, isPending, error } = authClient.useSession();
   const router = useRouter();
   const showCreateTemplateButton = false;
@@ -99,7 +104,11 @@ export default function AppSidebar({
   };
   console.log('collection', activeCollectionIndex);
   // 1. List of items to search in
-  const menuSegments = JSON.parse(templates);
+  const menuSegments = JSON.parse(
+    collections[activeCollectionIndex].name === 'Meine Favoriten'
+      ? favouriteTemplates
+      : templates
+  );
 
   // 2. Set up the Fuse instance
   const fuse = new Fuse(menuSegments, {

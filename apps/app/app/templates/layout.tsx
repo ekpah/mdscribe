@@ -11,9 +11,32 @@ const getTemplatesPrisma = async () => {
   const templates = await database.template.findMany({});
   return templates;
 };
+const getFavouriteTemplatesPrisma = async () => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const templates = await database.template.findMany({
+    where: {
+      favouriteOf: {
+        some: {
+          id: session?.user?.id,
+        },
+      },
+    },
+  });
+  return templates;
+};
 
 const generateSidebarLinks = async () => {
   const templates = await getTemplatesPrisma();
+  return templates.map((temp) => ({
+    url: `/templates/${temp.id}`,
+    category: temp.category,
+    title: temp.title,
+  }));
+};
+const generateFavouriteTemplates = async () => {
+  const templates = await getFavouriteTemplatesPrisma();
   return templates.map((temp) => ({
     url: `/templates/${temp.id}`,
     category: temp.category,
@@ -36,12 +59,20 @@ export default async function Layout({
       <SidebarProvider>
         <Suspense
           fallback={
-            <AppSidebar key="Sidebar" templates={''} isLoggedIn={false} />
+            <AppSidebar
+              key="Sidebar"
+              templates={''}
+              favouriteTemplates={''}
+              isLoggedIn={false}
+            />
           }
         >
           <AppSidebar
             key="Sidebar"
             templates={JSON.stringify(await generateSidebarLinks())}
+            favouriteTemplates={JSON.stringify(
+              await generateFavouriteTemplates()
+            )}
             isLoggedIn={isLoggedIn}
           />
         </Suspense>

@@ -1,6 +1,7 @@
 'use server';
 import { auth } from '@/auth';
 import { database } from '@repo/database';
+import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 export default async function addFavourite({
@@ -22,5 +23,6 @@ export default async function addFavourite({
       },
     },
   });
+  revalidatePath('/templates/');
   return res;
 }
