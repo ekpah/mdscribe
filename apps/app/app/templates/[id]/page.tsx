@@ -12,12 +12,14 @@ import Link from 'next/link';
 import ContentSection from './_components/ContentSection';
 import { NavActions } from './_components/NavActions';
 
-export const dynamicParams = false;
 //new with prisma
 const getTemplatesPrisma = async () => {
   const templates = await database.template.findMany({});
   return templates;
 };
+
+/*
+do not generate static params, because we need to generate them dynamically, if new templates are created
 export async function generateStaticParams() {
   const templates = await getTemplatesPrisma();
   // let templates = generateSidebarLinks(getTemplatesPrisma());
@@ -31,6 +33,7 @@ export async function generateStaticParams() {
   ];
   return result;
 }
+*/
 
 /*export async function generateMetadata({ params }) {
   const doc = await prisma.template.findUnique({

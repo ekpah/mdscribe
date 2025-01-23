@@ -9,13 +9,17 @@ export default async function editTemplate(formData: FormData) {
     headers: await headers(),
   });
 
+  if (!session?.user) {
+    throw new Error('User not found');
+  }
+
   // handle submitting the template to save it to prisma (Neon-Postgres)
   const rawFormData = {
     id: formData.get('id') as string,
     category: formData.get('category') as string,
     name: formData.get('name') as string,
     content: formData.get('content') as string,
-    authorId: formData.get('authorId') as string,
+    authorId: session?.user?.id as string,
   };
 
   if (rawFormData.authorId !== session?.user?.id) {
@@ -37,4 +41,5 @@ export default async function editTemplate(formData: FormData) {
       },
     },
   });
+  return res;
 }

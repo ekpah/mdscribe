@@ -9,11 +9,9 @@ import { uniqueId } from 'lodash';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import type { FormEvent } from 'react';
-import toast from 'react-hot-toast';
+import editTemplate from '../../_actions/edit-template';
+import Editor from '../../_components/Editor';
 import { NavActions } from '../_components/NavActions';
-import editTemplate from './_actions/edit-template';
-import Editor from './_components/Editor';
 
 export const dynamicParams = false;
 
@@ -46,13 +44,14 @@ export async function generateMetadata(
 }
 
 export default async function EditTemplate(props: PageProps) {
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    await editTemplate(formData);
-    toast.success('Vorlage gespeichert'); // Displays a success message
-    redirect(`/templates/${formData.get('id') as string}`);
+  async function handleSubmit(formData: FormData): Promise<void> {
+    'use server';
+
+    const newTemplate = await editTemplate(formData);
+
+    redirect(`/templates/${newTemplate.id}`);
   }
+
   const params = await props.params;
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -96,8 +95,7 @@ export default async function EditTemplate(props: PageProps) {
         tit={doc?.title || ''}
         note={JSON.stringify(doc?.content || '')}
         id={isNewTemplate ? uniqueId() : id}
-        authorId={author.id}
-        handleSubmit={onSubmit}
+        handleSubmitAction={handleSubmit}
       />
     </div>
   );

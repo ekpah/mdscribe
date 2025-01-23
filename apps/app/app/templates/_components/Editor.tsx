@@ -12,27 +12,35 @@ import {
 } from '@repo/design-system/components/ui/select';
 import {} from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
-import type { FormEventHandler } from 'react';
 import { useState } from 'react';
+import { useFormStatus } from 'react-dom';
+
+function Submit() {
+  // ✅ `pending` will be derived from the form that wraps the Submit component
+  const { pending } = useFormStatus();
+  return (
+    <Button disabled={pending} type="submit" className="mt-2 w-full">
+      {pending ? 'Textbaustein speichern...' : 'Textbaustein speichern'}
+    </Button>
+  );
+}
 
 export default function Editor({
   cat,
   tit,
   note,
   id,
-  authorId,
-  handleSubmit,
+  handleSubmitAction,
 }: {
   cat: string;
   tit: string;
   note: string;
-  id: string;
-  authorId: string;
-  handleSubmit: FormEventHandler<HTMLFormElement>;
+  id?: string;
+  handleSubmitAction: (formData: FormData) => Promise<void>;
 }) {
   const [category, setCategory] = useState<string>(cat);
   const [name, setName] = useState(tit);
-  const [content, setContent] = useState(JSON.parse(note));
+  const [content, setContent] = useState(note ? JSON.parse(note) : '');
   const [newCategory, setNewCategory] = useState('');
   const existingCategories = [
     'Kardiologie',
@@ -44,7 +52,7 @@ export default function Editor({
 
   return (
     <Card className="flex h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] flex-col gap-4 overflow-y-auto p-4">
-      <form onSubmit={handleSubmit} className="grow gap-2">
+      <form action={handleSubmitAction} className="grow gap-2">
         <div className="flex grow flex-col gap-2 md:flex-row">
           <div className="w-full flex-1">
             <Label htmlFor="category">Kategorie</Label>
@@ -129,10 +137,7 @@ export default function Editor({
           </Tabs>*/}
         </div>
         <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="authorId" value={authorId} />
-        <Button type="submit" className="mt-2 w-full">
-          Textbaustein speichern
-        </Button>
+        <Submit />
       </form>
     </Card>
   );

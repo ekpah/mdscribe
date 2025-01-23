@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 
 import { auth } from '@repo/auth';
 import { headers } from 'next/headers';
-import AppSidebar from './[id]/_components/Sidebar';
+import AppSidebar from './_components/Sidebar';
 
 //new with prisma
 const getTemplatesPrisma = async () => {

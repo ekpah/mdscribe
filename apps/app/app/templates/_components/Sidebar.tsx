@@ -1,5 +1,23 @@
 'use client';
 
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import type React from 'react';
+import { useState } from 'react';
+
+import { useRouter } from 'next/navigation';
+
+import { PlusCircledIcon } from '@radix-ui/react-icons';
+import Fuse from 'fuse.js';
+import { Library, Minus, Plus, Search } from 'lucide-react';
+
+import { Button } from '@repo/design-system/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@repo/design-system/components/ui/collapsible';
+import { Label } from '@repo/design-system/components/ui/label';
 import {
   Sidebar,
   SidebarContent,
@@ -15,24 +33,9 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from '@repo/design-system/components/ui/sidebar';
+import {} from '@repo/design-system/components/ui/tooltip';
 
-import { Library } from 'lucide-react';
-
-import Fuse from 'fuse.js';
-import { Minus, Plus, Search } from 'lucide-react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-
-import { PlusCircledIcon } from '@radix-ui/react-icons';
-import { Button } from '@repo/design-system/components/ui/button';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@repo/design-system/components/ui/collapsible';
-import { Label } from '@repo/design-system/components/ui/label';
-import type React from 'react';
-import { useState } from 'react';
+import { authClient } from '@repo/auth/lib/auth-client';
 import { CollectionSwitcher } from './CollectionSwitcher';
 
 interface Template {
@@ -79,6 +82,8 @@ export default function AppSidebar({
   templates,
   isLoggedIn,
 }: { templates: string; isLoggedIn: boolean }) {
+  const { data: session, isPending, error } = authClient.useSession();
+  const router = useRouter();
   const showCreateTemplateButton = false;
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') || '';
@@ -115,6 +120,16 @@ export default function AppSidebar({
         )}
         <form key="search">
           <SidebarGroup className="gap-2 py-0">
+            <SidebarGroupContent className="relative">
+              {isLoggedIn && (
+                <Link href="/templates/create">
+                  <Button className="w-full justify-start gap-2 px-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Neue Vorlage</span>
+                  </Button>
+                </Link>
+              )}
+            </SidebarGroupContent>
             <SidebarGroupContent className="relative">
               <Label htmlFor="search" className="sr-only">
                 Search

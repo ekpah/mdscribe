@@ -1,5 +1,6 @@
 'use client';
-import Logo from '@/public/Logo';
+import DarkLogo from '@/public/logo/dark';
+import LightLogo from '@/public/logo/light';
 
 import Link from 'next/link';
 
@@ -35,7 +36,12 @@ export default function TopMenuBar() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Link href="/">
-            <Logo />
+            <div className="dark:hidden">
+              <LightLogo />
+            </div>
+            <div className="hidden dark:block">
+              <DarkLogo />
+            </div>
           </Link>
         </div>
         <div key="menuBarLinks" className="pl-10 font-light">

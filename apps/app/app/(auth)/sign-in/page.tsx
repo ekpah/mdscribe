@@ -33,7 +33,7 @@ export default function SignIn() {
           setLoading(true);
           try {
             await signIn.email(
-              { email, password },
+              { email, password, rememberMe },
               {
                 onRequest: () => {
                   //show loading
@@ -94,6 +94,7 @@ export default function SignIn() {
             <Checkbox
               id="remember"
               onClick={() => setRememberMe(!rememberMe)}
+              checked={rememberMe}
             />
             <Label htmlFor="remember">Angemeldet bleiben</Label>
           </div>

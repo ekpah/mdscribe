@@ -19,8 +19,8 @@ import {
   TooltipTrigger,
 } from '@repo/design-system/components/ui/tooltip';
 import toast from 'react-hot-toast';
-import addFavourite from '../_actions/add-favourite';
-import removeFavourite from '../_actions/remove-favourite';
+import addFavourite from '../../_actions/add-favourite';
+import removeFavourite from '../../_actions/remove-favourite';
 
 // 1: Define a type that includes the relation to `Post`
 
@@ -36,12 +36,15 @@ export function NavActions({
   isFavourite: boolean;
   isLoggedIn: boolean;
   lastEdited: Date;
-  templateId: string;
+  templateId?: string;
   favouriteOfCount: number;
 }) {
   const [isBookmark, setBookmark] = React.useState(isFavourite);
   async function makeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
+    if (!templateId) {
+      return;
+    }
     setBookmark(true);
     await addFavourite({ templateId });
 
@@ -49,6 +52,9 @@ export function NavActions({
   }
   async function unmakeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
+    if (!templateId) {
+      return;
+    }
     setBookmark(false);
     await removeFavourite({ templateId });
     toast.success('Favorit entfernt'); // Displays a success message
@@ -72,6 +78,7 @@ export function NavActions({
       </div>
 
       {isLoggedIn &&
+        templateId &&
         (isBookmark ? (
           <Button
             variant="ghost"
@@ -95,7 +102,7 @@ export function NavActions({
       <span className="flex w-12 flex-row font-medium text-muted-foreground">
         {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
       </span>
-      {isLoggedIn ? (
+      {isLoggedIn && templateId ? (
         <Link href={`/templates/${templateId}/edit`}>
           <Pencil2Icon />
         </Link>

@@ -1,3 +1,5 @@
+export default function LightLogo() {
+  return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="160"
@@ -37,3 +39,5 @@
         d="M160 50q20-20 20 0t20 0"
       />
     </svg>
+  );
+}
