@@ -7,11 +7,9 @@ import { auth } from '@/auth';
 import { database } from '@repo/database';
 import { uniqueId } from 'lodash';
 import { headers } from 'next/headers';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import editTemplate from '../../_actions/edit-template';
 import Editor from '../../_components/Editor';
-import { NavActions } from '../_components/NavActions';
 
 export const dynamicParams = false;
 
@@ -67,7 +65,7 @@ export default async function EditTemplate(props: PageProps) {
   const isNewTemplate = !doc;
   const author = await database.user.findUnique({
     where: {
-      id: doc ? doc.authorId : session.user.id,
+      id: doc ? doc.authorId : session?.user?.id,
     },
   });
   if (!author) {
@@ -77,19 +75,6 @@ export default async function EditTemplate(props: PageProps) {
     doc?.favouriteOf.some((user) => user.id === session?.user?.id) || false;
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="flex h-10 items-center justify-between gap-2">
-        <Link href={`/templates/${doc?.id}`} className="font-bold">
-          {doc?.title}
-        </Link>
-        <NavActions
-          author={author}
-          isFavourite={isFavourite}
-          isLoggedIn={!!session?.user?.id}
-          lastEdited={doc?.updatedAt}
-          templateId={doc?.id}
-          favouriteOfCount={doc?.favouriteOf?.length}
-        />
-      </div>
       <Editor
         cat={doc?.category || ''}
         tit={doc?.title || ''}

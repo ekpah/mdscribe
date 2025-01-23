@@ -32,6 +32,8 @@ export function CollectionSwitcher({
     },
   ],
   count,
+  activeCollectionIndex,
+  setActiveCollectionIndex,
 }: {
   collections: {
     name: string;
@@ -39,11 +41,9 @@ export function CollectionSwitcher({
     plan: string;
   }[];
   count: number;
+  activeCollectionIndex: number;
+  setActiveCollectionIndex: (index: number) => void;
 }) {
-  const [activeCollection, setActiveCollection] = React.useState(
-    collections[0]
-  );
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -51,10 +51,14 @@ export function CollectionSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="w-fit px-1.5">
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <activeCollection.logo className="size-4" />
+                {React.createElement(collections[activeCollectionIndex].logo, {
+                  className: 'size-4',
+                })}
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold">{activeCollection.name}</span>
+                <span className="font-semibold">
+                  {collections[activeCollectionIndex].name}
+                </span>
                 <span className="">
                   {count} {count === 1 ? 'Dokument' : 'Dokumente'}
                 </span>
@@ -71,10 +75,10 @@ export function CollectionSwitcher({
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Textbausteine
             </DropdownMenuLabel>
-            {collections.map((collection) => (
+            {collections.map((collection, index) => (
               <DropdownMenuItem
                 key={collection.name}
-                onClick={() => setActiveCollection(collection)}
+                onClick={() => setActiveCollectionIndex(index)}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-sm border">

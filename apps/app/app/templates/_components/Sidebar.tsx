@@ -7,7 +7,7 @@ import { useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
-import { PlusCircledIcon } from '@radix-ui/react-icons';
+import { BookmarkFilledIcon, PlusCircledIcon } from '@radix-ui/react-icons';
 import Fuse from 'fuse.js';
 import { Library, Minus, Plus, Search } from 'lucide-react';
 
@@ -72,9 +72,14 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
 
 const collections = [
   {
-    name: 'Meine Favoriten',
+    name: 'Alle Textbausteine',
     logo: Library,
-    plan: 'Enterprise',
+    plan: 'all',
+  },
+  {
+    name: 'Meine Favoriten',
+    logo: BookmarkFilledIcon,
+    plan: 'favourites',
   },
 ];
 
@@ -88,10 +93,11 @@ export default function AppSidebar({
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') || '';
   const [searchTerm, setSearchTerm] = useState(initialFilter);
+  const [activeCollectionIndex, setActiveCollectionIndex] = useState(0);
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e?.currentTarget?.value);
   };
-
+  console.log('collection', activeCollectionIndex);
   // 1. List of items to search in
   const menuSegments = JSON.parse(templates);
 
@@ -116,6 +122,8 @@ export default function AppSidebar({
           <CollectionSwitcher
             collections={collections}
             count={menuSegments?.length}
+            activeCollectionIndex={activeCollectionIndex}
+            setActiveCollectionIndex={setActiveCollectionIndex}
           />
         )}
         <form key="search">
