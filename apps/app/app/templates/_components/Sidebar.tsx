@@ -122,7 +122,7 @@ export default function AppSidebar({
 
   // 2. Set up the Fuse instance
   const fuse = new Fuse(menuSegments, {
-    keys: ['category', 'template'],
+    keys: ['category', 'title'],
   });
 
   // 3. Now search!
@@ -134,6 +134,7 @@ export default function AppSidebar({
   const orderedSegments = generateSegments({
     templates: searchTerm ? filteredLinks : menuSegments,
   });
+
   return (
     <Sidebar className="top-16 mb-16 p-1 pb-20">
       <SidebarHeader className="z-30 gap-4">

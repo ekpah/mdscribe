@@ -57,11 +57,11 @@ export default function TopMenuBar() {
             <p className="mx-4">{session?.user?.email}</p>
             {session?.user ? (
               <Button variant={'secondary'} onClick={handleSignOut}>
-                Sign Out
+                Ausloggen
               </Button>
             ) : (
               <Link href={'/sign-in'}>
-                <Button>Sign In</Button>
+                <Button>Anmelden</Button>
               </Link>
             )}
           </div>

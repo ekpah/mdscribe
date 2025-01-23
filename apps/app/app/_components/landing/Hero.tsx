@@ -21,10 +21,7 @@ export default function Hero() {
           Nutze schlaue Textbausteine, die sich ohne viel Aufwand immer wieder
           verwenden lassen
         </p>
-        <form
-          className="flex flex-row"
-          action="/templates/cm27xjij0000atvlt77tdkvrl?filter="
-        >
+        <form className="flex flex-row" action="/templates?filter=">
           <Input
             className="mx-4"
             value={filterTerm}
@@ -38,7 +35,7 @@ export default function Hero() {
           >
             <Link
               href={{
-                pathname: '/templates/cm27xjij0000atvlt77tdkvrl',
+                pathname: '/templates',
                 query: { filter: filterTerm },
               }}
             >
