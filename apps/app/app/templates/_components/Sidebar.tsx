@@ -70,19 +70,6 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
   return segments;
 };
 
-const collections = [
-  {
-    name: 'Alle Textbausteine',
-    logo: Library,
-    plan: 'all',
-  },
-  {
-    name: 'Meine Favoriten',
-    logo: BookmarkFilledIcon,
-    plan: 'favourites',
-  },
-];
-
 export default function AppSidebar({
   templates,
   favouriteTemplates,
@@ -93,16 +80,39 @@ export default function AppSidebar({
   isLoggedIn: boolean;
 }) {
   const { data: session, isPending, error } = authClient.useSession();
+
   const router = useRouter();
   const showCreateTemplateButton = false;
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') || '';
   const [searchTerm, setSearchTerm] = useState(initialFilter);
   const [activeCollectionIndex, setActiveCollectionIndex] = useState(0);
+
+  // collections depending on if the user is logged in or not
+  const collections = isLoggedIn
+    ? [
+        {
+          name: 'Meine Favoriten',
+          logo: BookmarkFilledIcon,
+          plan: 'favourites',
+        },
+        {
+          name: 'Alle Textbausteine',
+          logo: Library,
+          plan: 'all',
+        },
+      ]
+    : [
+        {
+          name: 'Alle Textbausteine',
+          logo: Library,
+          plan: 'all',
+        },
+      ];
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e?.currentTarget?.value);
   };
-  console.log('collection', activeCollectionIndex);
   // 1. List of items to search in
   const menuSegments = JSON.parse(
     collections[activeCollectionIndex].name === 'Meine Favoriten'
@@ -125,7 +135,7 @@ export default function AppSidebar({
     templates: searchTerm ? filteredLinks : menuSegments,
   });
   return (
-    <Sidebar className="top-16 p-1">
+    <Sidebar className="top-16 mb-16 p-1 pb-20">
       <SidebarHeader className="z-30 gap-4">
         {isLoggedIn && (
           <CollectionSwitcher
