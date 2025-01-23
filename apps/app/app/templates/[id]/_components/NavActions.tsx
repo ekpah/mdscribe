@@ -3,8 +3,6 @@ import { Button } from '@repo/design-system/components/ui/button';
 import Link from 'next/link';
 import React from 'react';
 
-import type { Prisma } from '@repo/database';
-
 import {
   BookmarkFilledIcon,
   BookmarkIcon,
@@ -32,7 +30,7 @@ export function NavActions({
   templateId,
   favouriteOfCount,
 }: {
-  author?: Prisma.UserCreateInput | null;
+  author?: string; //email of the author
   isFavourite: boolean;
   isLoggedIn: boolean;
   lastEdited: Date;
@@ -64,7 +62,7 @@ export function NavActions({
     <div className="flex items-center gap-2 text-sm">
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <PersonIcon />
-        Autor: {author?.email || 'Anonym'}
+        Autor: {author || 'Anonym'}
       </div>
 
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">

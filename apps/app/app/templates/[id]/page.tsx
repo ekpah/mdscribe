@@ -145,6 +145,7 @@ export default async function NotePage(props: PageProps) {
           lastEdited={doc.updatedAt}
           templateId={doc.id}
           favouriteOfCount={doc.favouriteOf?.length}
+          author={author?.email}
         />
       </div>
       <ContentSection
