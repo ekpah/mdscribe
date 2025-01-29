@@ -100,7 +100,7 @@ type CaseTagType = {
 
 const parseTagsToInputs = ({ ast }: { ast: Node }) => {
   // all tags in the order they appear in the document
-  const inputTags: (InfoTagType | SwitchTagType | CaseTagType)[] = [];
+  const inputTags: InputTagType[] = [];
   // all info tags (remove duplicates)
   const infoTags: string[] = [];
   // all switch tags (remove duplicates)
