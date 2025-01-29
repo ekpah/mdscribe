@@ -148,11 +148,7 @@ export default async function NotePage(props: PageProps) {
   const doc = await fetchMarkdoc({ id: id });
   const ast = Markdoc.parse(doc.content);
   const inputTags = parseTagsToInputs({ ast });
-  const author = (await database.user.findUnique({
-    where: {
-      id: doc.authorId,
-    },
-  })) || { email: 'Anonym' };
+  const author = doc.author.email || { email: 'Anonym' };
   const isFavourite = doc?.favouriteOf.some(
     (user: { id: string | undefined }) => user.id === session?.user?.id
   );
