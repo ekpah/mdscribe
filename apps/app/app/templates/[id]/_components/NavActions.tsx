@@ -38,6 +38,7 @@ export function NavActions({
   favouriteOfCount: number;
 }) {
   const [isBookmark, setBookmark] = React.useState(isFavourite);
+
   async function makeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
     if (!templateId) {

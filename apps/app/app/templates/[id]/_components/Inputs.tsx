@@ -53,7 +53,10 @@ export default function Inputs({
           {parsedInputTags?.inputTags?.map((input: InputTagType) => {
             if (input.type === 'info') {
               return (
-                <Card key={input.options.name} className="m-4 bg-secondary p-4">
+                <Card
+                  key={`info-${input.options.name}`}
+                  className="m-4 bg-secondary p-4"
+                >
                   <FormItem className="space-y-3">
                     <FormLabel>{input.options.name} </FormLabel>
                     <Input {...methods.register(input.options.name)} />
@@ -64,7 +67,10 @@ export default function Inputs({
             if (input.type === 'switch') {
               const variable = methods.watch(input.options.name);
               return (
-                <Card key={input.options.name} className="m-4 bg-secondary p-4">
+                <Card
+                  key={`switch-${input.options.name}`}
+                  className="m-4 bg-secondary p-4"
+                >
                   <FormItem className="space-y-3">
                     <FormLabel>{input.options.name}</FormLabel>
                     <RadioGroup
