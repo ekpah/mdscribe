@@ -7,45 +7,13 @@ import { database } from '@repo/database';
 
 import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
+import { unstable_cache } from 'next/cache';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import ContentSection from './_components/ContentSection';
 import { NavActions } from './_components/NavActions';
 
-//new with prisma
-const getTemplatesPrisma = async () => {
-  const templates = await database.template.findMany({});
-  return templates;
-};
-
-/*
-do not generate static params, because we need to generate them dynamically, if new templates are created
-export async function generateStaticParams() {
-  const templates = await getTemplatesPrisma();
-  // let templates = generateSidebarLinks(getTemplatesPrisma());
-
-  const result = [
-    templates.map((template: { id: string }) => {
-      return {
-        id: template.id,
-      };
-    }),
-  ];
-  return result;
-}
-*/
-
-/*export async function generateMetadata({ params }) {
-  const doc = await prisma.template.findUnique({
-    where: {
-      id: params.id,
-    },
-  });
-  return {
-    title: "Scribe - " + doc?.title,
-  };
-}*/
-async function fetchMarkdoc({ id }: { id: string }) {
+export const fetchMarkdoc = unstable_cache(async ({ id }: { id: string }) => {
   // fetch the markdoc content for the route
   const doc = await database.template.findUnique({
     where: {
@@ -60,7 +28,7 @@ async function fetchMarkdoc({ id }: { id: string }) {
     throw new Error('Document not found');
   }
   return doc;
-}
+});
 
 function processSwitchStatement(
   node: Node,

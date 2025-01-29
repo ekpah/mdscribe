@@ -73,13 +73,13 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
 export default function AppSidebar({
   templates,
   favouriteTemplates,
-  isLoggedIn,
 }: {
   templates: string;
   favouriteTemplates: string;
-  isLoggedIn: boolean;
 }) {
   const { data: session, isPending, error } = authClient.useSession();
+
+  const isLoggedIn = !!session?.user;
 
   const router = useRouter();
   const showCreateTemplateButton = false;

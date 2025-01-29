@@ -59,12 +59,7 @@ export default async function Layout({
       <SidebarProvider>
         <Suspense
           fallback={
-            <AppSidebar
-              key="Sidebar"
-              templates={''}
-              favouriteTemplates={''}
-              isLoggedIn={false}
-            />
+            <AppSidebar key="Sidebar" templates={''} favouriteTemplates={''} />
           }
         >
           <AppSidebar
@@ -73,7 +68,6 @@ export default async function Layout({
             favouriteTemplates={JSON.stringify(
               await generateFavouriteTemplates()
             )}
-            isLoggedIn={isLoggedIn}
           />
         </Suspense>
         <main
