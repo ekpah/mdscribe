@@ -85,9 +85,58 @@ function processSwitchStatement(
   return result;
 }
 
+function processSwitchChildren(
+  node: Node,
+  result: CaseTagType[] = []
+): CaseTagType[] {
+  // If the node has children, process them recursively
+  if (node.tag === 'case') {
+    result.push({
+      type: 'case',
+      options: { name: node.attributes.primary },
+    });
+  }
+
+  if (node.children && node.children.length > 0) {
+    for (const child of node.children) {
+      if (child.tag !== 'switch') {
+        processSwitchChildren(child, result);
+      }
+    }
+  }
+
+  return result;
+}
+
+type InputTagType = {
+  type: 'info' | 'switch';
+  options: { name: string };
+  children?: CaseTagType[];
+};
+
+type InfoTagType = {
+  type: 'info';
+  options: { name: string };
+};
+
+type SwitchTagType = {
+  type: 'switch';
+  options: { name: string };
+  children: CaseTagType[];
+};
+
+type CaseTagType = {
+  type: 'case';
+  options: { name: string };
+};
+
 const parseTagsToInputs = ({ ast }: { ast: Node }) => {
+  // all tags in the order they appear in the document
+  const inputTags: (InfoTagType | SwitchTagType | CaseTagType)[] = [];
+  // all info tags (remove duplicates)
   const infoTags: string[] = [];
-  const switchTags: { variable: any; options: any }[] = [];
+  // all switch tags (remove duplicates)
+  const switchTags: { variable: string; options: string[] }[] = [];
   for (const node of ast.walk()) {
     // do something with each node
     // get all info tags (remove duplicates)
@@ -96,6 +145,10 @@ const parseTagsToInputs = ({ ast }: { ast: Node }) => {
       node.tag === 'info' &&
       !infoTags.includes(node.attributes.primary)
     ) {
+      inputTags.push({
+        type: 'info',
+        options: { name: node.attributes.primary },
+      });
       infoTags.push(node.attributes.primary);
     }
     // get all switch tags, if unique
@@ -105,12 +158,17 @@ const parseTagsToInputs = ({ ast }: { ast: Node }) => {
       !switchTags.some((tag) => tag.variable === node.attributes.primary) &&
       node.attributes.primary
     ) {
+      inputTags.push({
+        type: 'switch',
+        options: { name: node.attributes.primary },
+        children: processSwitchChildren(node),
+      });
       switchTags.push(processSwitchStatement(node));
     }
   }
 
   // parse all switch tags
-  return { infoTags, switchTags };
+  return { infoTags, switchTags, inputTags };
 };
 
 export default async function NotePage(props: PageProps) {
