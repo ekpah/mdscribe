@@ -13,7 +13,7 @@ import Link from 'next/link';
 import ContentSection from './_components/ContentSection';
 import { NavActions } from './_components/NavActions';
 
-export const fetchMarkdoc = unstable_cache(async ({ id }: { id: string }) => {
+const fetchMarkdoc = unstable_cache(async ({ id }: { id: string }) => {
   // fetch the markdoc content for the route
   const doc = await database.template.findUnique({
     where: {
