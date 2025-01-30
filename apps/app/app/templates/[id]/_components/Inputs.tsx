@@ -70,8 +70,9 @@ export default function Inputs({
   }, [formValues, onChange]);
 
   useEffect(() => {
-    methods.setFocus(parsedInputTags?.inputTags[0]?.options.name);
-  }, [methods.setFocus, parsedInputTags?.inputTags[0]?.options.name]);
+    parsedInputTags?.inputTags &&
+      methods.setFocus(parsedInputTags?.inputTags[0]?.options.name);
+  }, [methods.setFocus, parsedInputTags?.inputTags]);
 
   return (
     <Form {...methods} key="inputs">
