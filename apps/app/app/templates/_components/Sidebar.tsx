@@ -1,16 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import type React from 'react';
-import { useState } from 'react';
-
-import { useRouter } from 'next/navigation';
-
 import { BookmarkFilledIcon, PlusCircledIcon } from '@radix-ui/react-icons';
-import Fuse from 'fuse.js';
-import { Library, Minus, Plus, Search } from 'lucide-react';
-
+import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Collapsible,
@@ -33,7 +24,14 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from '@repo/design-system/components/ui/sidebar';
-import {} from '@repo/design-system/components/ui/tooltip';
+import Fuse from 'fuse.js';
+import { Library, Minus, Plus, Search } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import type React from 'react';
+import { useRef, useState } from 'react';
+
+import { useHotkeys } from 'react-hotkeys-hook';
 
 import { authClient } from '@repo/auth/lib/auth-client';
 import { CollectionSwitcher } from './CollectionSwitcher';
@@ -80,13 +78,22 @@ export default function AppSidebar({
   const { data: session, isPending, error } = authClient.useSession();
 
   const isLoggedIn = !!session?.user;
-
+  const isMac =
+    typeof window !== 'undefined' &&
+    /Mac|iPhone|iPod|iPad/.test(navigator.userAgent);
   const router = useRouter();
   const showCreateTemplateButton = false;
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') || '';
   const [searchTerm, setSearchTerm] = useState(initialFilter);
   const [activeCollectionIndex, setActiveCollectionIndex] = useState(0);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useHotkeys('meta+k', (event: KeyboardEvent) => {
+    event.preventDefault();
+    searchInputRef.current?.focus();
+  });
 
   // collections depending on if the user is logged in or not
   const collections = isLoggedIn
@@ -166,10 +173,18 @@ export default function AppSidebar({
                 type="search"
                 placeholder="Suchen..."
                 value={searchTerm}
+                autoFocus
+                ref={searchInputRef}
                 onChange={handleSearch}
                 className="rounded-md bg-muted pl-8 text-sm"
               />
               <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2 size-4 select-none opacity-50" />
+              <Badge
+                variant="secondary"
+                className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-2 select-none"
+              >
+                {isMac ? '⌘K' : 'Ctrl+K'}
+              </Badge>
             </SidebarGroupContent>
             {showCreateTemplateButton && (
               <SidebarGroupContent className="relative">
