@@ -33,7 +33,7 @@ import { useRef, useState } from 'react';
 
 import { useHotkeys } from 'react-hotkeys-hook';
 
-import { authClient } from '@repo/auth/lib/auth-client';
+import { useSession } from '@repo/auth/lib/auth-client';
 import { CollectionSwitcher } from './CollectionSwitcher';
 
 interface Template {
@@ -75,7 +75,7 @@ export default function AppSidebar({
   templates: string;
   favouriteTemplates: string;
 }) {
-  const { data: session, isPending, error } = authClient.useSession();
+  const { data: session } = useSession();
 
   const isLoggedIn = !!session?.user;
   const isMac =
@@ -191,7 +191,7 @@ export default function AppSidebar({
                 variant="secondary"
                 className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-2 select-none"
               >
-                {isMac ? '⌘K' : 'Ctrl+K'}
+                <span suppressHydrationWarning>{isMac ? '⌘K' : 'Ctrl+K'}</span>
               </Badge>
             </form>
           </SidebarGroupContent>

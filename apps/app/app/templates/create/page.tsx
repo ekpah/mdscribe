@@ -1,9 +1,6 @@
-import type { Metadata } from 'next';
-
-// load the correct markdown from file
-
-import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
+import { database } from '@repo/database';
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import createTemplate from '../_actions/create-template';
@@ -21,7 +18,27 @@ export function generateMetadata(props: MetadataProps): Metadata {
   };
 }
 
-export default async function CreateTemplate(props: PageProps) {
+async function fetchMarkdoc({ id }: { id: string }) {
+  // fetch the markdoc content for the route
+  const doc = await database.template.findUnique({
+    where: {
+      id: id,
+    },
+    include: {
+      author: true, // All posts where authorId == 20
+      favouriteOf: true,
+    },
+  });
+  return doc;
+}
+
+export default async function CreateTemplate({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { fork: string };
+}) {
   async function handleSubmit(formData: FormData): Promise<void> {
     'use server';
 
@@ -37,9 +54,20 @@ export default async function CreateTemplate(props: PageProps) {
     redirect('/');
   }
 
+  // get the search parameter fork to check, whether an existing template should be forked
+  const fork = searchParams.fork;
+
+  const forkedTemplate = await fetchMarkdoc({ id: fork });
+
   return (
     <div className="flex h-full w-full flex-col">
-      <Editor cat={''} tit={''} note={''} handleSubmitAction={handleSubmit} />
+      <Editor
+        cat={forkedTemplate?.category || ''}
+        tit={forkedTemplate?.title || ''}
+        note={JSON.stringify(forkedTemplate?.content || '')}
+        handleSubmitAction={handleSubmit}
+        author={session?.user}
+      />
     </div>
   );
 }

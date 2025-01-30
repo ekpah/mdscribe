@@ -31,12 +31,14 @@ export default function Editor({
   note,
   id,
   handleSubmitAction,
+  author,
 }: {
   cat: string;
   tit: string;
   note: string;
   id?: string;
   handleSubmitAction: (formData: FormData) => Promise<void>;
+  author?: { id: string; email: string };
 }) {
   const [category, setCategory] = useState<string>(cat);
   const [name, setName] = useState(tit);
@@ -137,6 +139,7 @@ export default function Editor({
           </Tabs>*/}
         </div>
         <input type="hidden" name="id" value={id} />
+        <input type="hidden" name="authorId" value={author.id} />
         <Submit />
       </form>
     </Card>

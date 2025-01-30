@@ -9,7 +9,9 @@ import {
   ClockIcon,
   Pencil2Icon,
   PersonIcon,
+  Share1Icon,
 } from '@radix-ui/react-icons';
+import { useSession } from '@repo/auth/lib/auth-client';
 import {
   Tooltip,
   TooltipContent,
@@ -38,7 +40,7 @@ export function NavActions({
   favouriteOfCount: number;
 }) {
   const [isBookmark, setBookmark] = React.useState(isFavourite);
-
+  const { data: session } = useSession();
   async function makeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
     if (!templateId) {
@@ -102,9 +104,19 @@ export function NavActions({
         {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
       </span>
       {isLoggedIn && templateId ? (
-        <Link href={`/templates/${templateId}/edit`}>
-          <Pencil2Icon />
-        </Link>
+        author === session?.user?.email ? (
+          <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Link href={`/templates/${templateId}/edit`}>
+              <Pencil2Icon />
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Link href={`/templates/create?fork=${templateId}`}>
+              <Share1Icon />
+            </Link>
+          </Button>
+        )
       ) : (
         <TooltipProvider delayDuration={300}>
           <Tooltip>

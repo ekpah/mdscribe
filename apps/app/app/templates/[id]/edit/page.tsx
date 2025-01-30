@@ -81,6 +81,7 @@ export default async function EditTemplate(props: PageProps) {
         note={JSON.stringify(doc?.content || '')}
         id={isNewTemplate ? uniqueId() : id}
         handleSubmitAction={handleSubmit}
+        author={author}
       />
     </div>
   );
