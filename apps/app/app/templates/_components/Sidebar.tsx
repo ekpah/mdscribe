@@ -92,7 +92,10 @@ export default function AppSidebar({
 
   useHotkeys('meta+k', (event: KeyboardEvent) => {
     event.preventDefault();
-    searchInputRef.current?.focus();
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+      searchInputRef.current.value = '';
+    }
   });
 
   // collections depending on if the user is logged in or not
@@ -119,6 +122,11 @@ export default function AppSidebar({
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e?.currentTarget?.value);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    router.push(`${orderedSegments[0].documents[0].url}`);
   };
   // 1. List of items to search in
   const menuSegments = JSON.parse(
@@ -153,19 +161,20 @@ export default function AppSidebar({
             setActiveCollectionIndex={setActiveCollectionIndex}
           />
         )}
-        <form key="search">
-          <SidebarGroup className="gap-2 py-0">
-            <SidebarGroupContent className="relative">
-              {isLoggedIn && (
-                <Link href="/templates/create">
-                  <Button className="w-full justify-start gap-2 px-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Neue Vorlage</span>
-                  </Button>
-                </Link>
-              )}
-            </SidebarGroupContent>
-            <SidebarGroupContent className="relative">
+
+        <SidebarGroup className="gap-2 py-0">
+          <SidebarGroupContent className="relative">
+            {isLoggedIn && (
+              <Link href="/templates/create">
+                <Button className="w-full justify-start gap-2 px-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Neue Vorlage</span>
+                </Button>
+              </Link>
+            )}
+          </SidebarGroupContent>
+          <SidebarGroupContent className="relative">
+            <form key="search" onSubmit={handleSearchSubmit}>
               <Label htmlFor="search" className="sr-only">
                 Search
               </Label>
@@ -173,7 +182,6 @@ export default function AppSidebar({
                 type="search"
                 placeholder="Suchen..."
                 value={searchTerm}
-                autoFocus
                 ref={searchInputRef}
                 onChange={handleSearch}
                 className="rounded-md bg-muted pl-8 text-sm"
@@ -185,19 +193,19 @@ export default function AppSidebar({
               >
                 {isMac ? '⌘K' : 'Ctrl+K'}
               </Badge>
+            </form>
+          </SidebarGroupContent>
+          {showCreateTemplateButton && (
+            <SidebarGroupContent className="relative">
+              <Link href={'/templates/create'}>
+                <Button variant={'default'} className="w-full">
+                  <PlusCircledIcon className="mr-2 h-4 w-4" />
+                  Neuer Textbaustein
+                </Button>
+              </Link>
             </SidebarGroupContent>
-            {showCreateTemplateButton && (
-              <SidebarGroupContent className="relative">
-                <Link href={'/templates/create'}>
-                  <Button variant={'default'} className="w-full">
-                    <PlusCircledIcon className="mr-2 h-4 w-4" />
-                    Neuer Textbaustein
-                  </Button>
-                </Link>
-              </SidebarGroupContent>
-            )}
-          </SidebarGroup>
-        </form>
+          )}
+        </SidebarGroup>
       </SidebarHeader>
       <SidebarContent
         className="custom-scrollbar gap-6 text-xl"

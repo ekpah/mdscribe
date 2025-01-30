@@ -4,7 +4,7 @@ import { atom, useAtom } from 'jotai';
 import { Card } from '@repo/design-system/components/ui/card';
 
 import type { Prisma } from '@repo/database';
-import type { FieldValues, SubmitHandler } from 'react-hook-form';
+import type { FieldValues } from 'react-hook-form';
 import Inputs from './Inputs';
 import Note from './Note';
 
@@ -21,7 +21,7 @@ export default function ContentSection({
 }) {
   const [formData, setFormData] = useAtom(formAtom);
 
-  const handleFormChange: SubmitHandler<FieldValues> = (data) => {
+  const handleFormChange = (data: FieldValues) => {
     setFormData(data);
   };
   return (
