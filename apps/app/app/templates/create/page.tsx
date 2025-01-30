@@ -36,8 +36,8 @@ export default async function CreateTemplate({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams: { fork: string };
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   async function handleSubmit(formData: FormData): Promise<void> {
     'use server';
@@ -55,9 +55,11 @@ export default async function CreateTemplate({
   }
 
   // get the search parameter fork to check, whether an existing template should be forked
-  const fork = searchParams.fork;
+  const { fork } = await searchParams;
 
-  const forkedTemplate = await fetchMarkdoc({ id: fork });
+  const forkedTemplate = fork
+    ? await fetchMarkdoc({ id: fork as string })
+    : null;
 
   return (
     <div className="flex h-full w-full flex-col">
