@@ -38,7 +38,7 @@ export default function Editor({
   note: string;
   id?: string;
   handleSubmitAction: (formData: FormData) => Promise<void>;
-  author?: { id: string; email: string };
+  author: { id: string; email: string };
 }) {
   const [category, setCategory] = useState<string>(cat);
   const [name, setName] = useState(tit);

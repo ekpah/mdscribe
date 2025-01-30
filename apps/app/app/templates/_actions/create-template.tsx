@@ -20,8 +20,11 @@ export default async function createTemplate(formData: FormData) {
     name: formData.get('name') as string,
     content: formData.get('content') as string,
     id: formData.get('id') as string,
+    authorId: formData.get('authorId') as string,
   };
-
+  if (rawFormData.authorId !== session.user.id) {
+    throw new Error('User does not match author');
+  }
   if (rawFormData.id) {
     throw new Error('Template already exists');
   }
