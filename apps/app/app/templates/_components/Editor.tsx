@@ -1,4 +1,5 @@
 'use client';
+
 import markdocConfig from '@/markdoc/config';
 import Markdoc from '@markdoc/markdoc';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -12,10 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/design-system/components/ui/select';
-import { Textarea } from '@repo/design-system/components/ui/textarea';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@repo/design-system/components/ui/tabs';
 import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-hot-toast';
+import PlainEditor from './PlainEditor';
+import TipTap from './TipTap';
+
 function Submit() {
   // ✅ `pending` will be derived from the form that wraps the Submit component
   const { pending } = useFormStatus();
@@ -33,6 +42,7 @@ export default function Editor({
   id,
   handleSubmitAction,
   author,
+  showTipTap,
 }: {
   cat: string;
   tit: string;
@@ -40,6 +50,7 @@ export default function Editor({
   id?: string;
   handleSubmitAction: (formData: FormData) => Promise<void>;
   author: { id: string; email: string };
+  showTipTap: boolean;
 }) {
   const [category, setCategory] = useState<string>(cat);
   const [name, setName] = useState(tit);
@@ -113,41 +124,33 @@ export default function Editor({
 
         <div className="grow gap-2">
           <Label htmlFor="editor">Inhalt</Label>
-          <Textarea
-            name="content"
-            onChange={(e) => setContent(e.target.value)}
-            value={content}
-            className="h-[calc(100vh-theme(spacing.72)-theme(spacing.6))] w-full rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          />
-          {/*<Tabs value={activeTab} onValueChange={setActiveTab} className="grow">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
-              <TabsTrigger value="tiptap">Preview</TabsTrigger>
-            </TabsList>
-            <TabsContent value="edit">
-              <Textarea
-                name="content"
-                onChange={(e) => setContent(e.target.value)}
-                value={content}
-                className="w-full h-96 p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              />
-            </TabsContent>
-            <TabsContent value="tiptap">
-              <TabsContent value="tiptap">
-                <Card className="border-secondary h-4/5 m-4 w-full h-96 p-4 border border-input rounded-md overflow-auto">
-                  <TipTap note={JSON.stringify(content)} />
-                </Card>
-                <div className="flex flex-row p-2">
-                  <Button variant="secondary" className="m-4">
-                    Abbrechen
-                  </Button>
-                  <Button type="submit" className="m-4">
-                    Speichern
-                  </Button>
+
+          {showTipTap ? (
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="grow"
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
+                <TabsTrigger value="tiptap">Preview</TabsTrigger>
+              </TabsList>
+              <TabsContent value="edit">
+                <div className="h-[calc(100vh-theme(spacing.72)-theme(spacing.14))] w-full rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                  <PlainEditor note={content} setContent={setContent} />
                 </div>
               </TabsContent>
-            </TabsContent>
-          </Tabs>*/}
+              <TabsContent value="tiptap">
+                <div className="h-[calc(100vh-theme(spacing.72)-theme(spacing.14))] w-full rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                  <TipTap note={content} setContent={setContent} />
+                </div>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="h-[calc(100vh-theme(spacing.72)-theme(spacing.14))] w-full rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+              <PlainEditor note={content} setContent={setContent} />
+            </div>
+          )}
         </div>
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="authorId" value={author.id} />

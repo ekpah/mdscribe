@@ -5,12 +5,12 @@ import type { Metadata } from 'next';
 import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
 import { database } from '@repo/database';
+import { showBetaFeature } from '@repo/feature-flags';
 import { uniqueId } from 'lodash';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import editTemplate from '../../_actions/edit-template';
 import Editor from '../../_components/Editor';
-
 export const dynamicParams = false;
 
 async function fetchMarkdoc({ id }: { id: string }) {
@@ -73,6 +73,7 @@ export default async function EditTemplate(props: PageProps) {
   }
   const isFavourite =
     doc?.favouriteOf.some((user) => user.id === session?.user?.id) || false;
+  const showTipTap = await showBetaFeature();
   return (
     <div className="flex h-full w-full flex-col">
       <Editor
@@ -82,6 +83,7 @@ export default async function EditTemplate(props: PageProps) {
         id={isNewTemplate ? uniqueId() : id}
         handleSubmitAction={handleSubmit}
         author={author}
+        showTipTap={showTipTap}
       />
     </div>
   );

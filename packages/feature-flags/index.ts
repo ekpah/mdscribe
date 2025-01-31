@@ -1,3 +1,33 @@
-import { createFlag } from './lib/create-flag';
+import { auth } from '@repo/auth';
+import { dedupe, flag } from '@vercel/flags/next';
 
-export const showBetaFeature = createFlag('showBetaFeature');
+interface Entities {
+  user?: { id: string; email: string };
+}
+
+const identify = dedupe(
+  async ({
+    headers,
+  }: {
+    headers: Headers;
+  }): Promise<Entities> => {
+    const session = await auth.api.getSession({
+      headers: await headers,
+    });
+    return {
+      user: session?.user
+        ? { id: session.user.id, email: session.user.email }
+        : undefined,
+    };
+  }
+);
+
+export const showBetaFeature = flag<boolean, Entities>({
+  key: 'showBetaFeature',
+  identify,
+  decide: ({ entities }) => {
+    const user = entities?.user;
+
+    return user?.email === 'nils.hapke@we-mail.de';
+  },
+});

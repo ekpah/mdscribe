@@ -1,11 +1,11 @@
 import { auth } from '@/auth';
 import { database } from '@repo/database';
+import { showBetaFeature } from '@repo/feature-flags';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import createTemplate from '../_actions/create-template';
 import Editor from '../_components/Editor';
-
 export const dynamicParams = false;
 
 type MetadataProps = {
@@ -61,6 +61,8 @@ export default async function CreateTemplate({
     ? await fetchMarkdoc({ id: fork as string })
     : null;
 
+  const showTipTap = await showBetaFeature();
+
   return (
     <div className="flex h-full w-full flex-col">
       <Editor
@@ -69,6 +71,7 @@ export default async function CreateTemplate({
         note={JSON.stringify(forkedTemplate?.content || '')}
         handleSubmitAction={handleSubmit}
         author={session?.user}
+        showTipTap={showTipTap}
       />
     </div>
   );
