@@ -71,11 +71,10 @@ export function NavActions({
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <ClockIcon />
         Zuletzt bearbeitet am{' '}
-        {lastEdited?.toLocaleString('de-DE', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        })}
+        {lastEdited &&
+          new Date(lastEdited).toLocaleString('de-DE', {
+            dateStyle: 'medium',
+          })}
       </div>
 
       {isLoggedIn &&

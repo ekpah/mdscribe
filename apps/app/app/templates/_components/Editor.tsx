@@ -1,4 +1,6 @@
 'use client';
+import markdocConfig from '@/markdoc/config';
+import Markdoc from '@markdoc/markdoc';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Card } from '@repo/design-system/components/ui/card';
 import { Input } from '@repo/design-system/components/ui/input';
@@ -10,11 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/design-system/components/ui/select';
-import {} from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
-
+import { toast } from 'react-hot-toast';
 function Submit() {
   // ✅ `pending` will be derived from the form that wraps the Submit component
   const { pending } = useFormStatus();
@@ -51,6 +52,16 @@ export default function Editor({
     'Onkologie',
   ];
   const [activeTab, setActiveTab] = useState('edit');
+
+  const checkContent = () => {
+    const result = Markdoc.validate(Markdoc.parse(content), markdocConfig);
+    if (result.length > 0) {
+      toast.error('Fehler in der Markdown-Syntax');
+    } else {
+      toast.success('Markdown-Syntax ist korrekt');
+    }
+    console.log(result);
+  };
 
   return (
     <Card className="flex h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] flex-col gap-4 overflow-y-auto p-4">
@@ -140,7 +151,17 @@ export default function Editor({
         </div>
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="authorId" value={author.id} />
-        <Submit />
+        <div className="flex flex-row gap-2">
+          <Button
+            variant="secondary"
+            onClick={checkContent}
+            type="button"
+            className="mt-2 w-1/10"
+          >
+            Prüfen
+          </Button>
+          <Submit />
+        </div>
       </form>
     </Card>
   );

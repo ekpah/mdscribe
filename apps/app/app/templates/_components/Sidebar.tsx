@@ -1,6 +1,10 @@
 'use client';
 
-import { BookmarkFilledIcon, PlusCircledIcon } from '@radix-ui/react-icons';
+import {
+  BookmarkFilledIcon,
+  Pencil1Icon,
+  PlusCircledIcon,
+} from '@radix-ui/react-icons';
 import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -105,6 +109,11 @@ export default function AppSidebar({
           name: 'Meine Favoriten',
           logo: BookmarkFilledIcon,
           plan: 'favourites',
+        },
+        {
+          name: 'Meine Textbausteine',
+          logo: Pencil1Icon,
+          plan: 'author',
         },
         {
           name: 'Alle Textbausteine',
