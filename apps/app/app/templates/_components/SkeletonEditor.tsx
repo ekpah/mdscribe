@@ -9,7 +9,7 @@ import {} from 'react';
 
 export default function SkeletonEditor() {
   return (
-    <Card className="flex h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] w-full flex-col gap-4 overflow-y-auto p-4">
+    <Card className="flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] w-full flex-col gap-4 overflow-y-auto p-4">
       <div className="grow gap-2">
         <div className="flex grow flex-col gap-2 md:flex-row">
           <div className="w-full flex-1">
@@ -25,7 +25,7 @@ export default function SkeletonEditor() {
 
         <div className="grow gap-2">
           <Label htmlFor="editor">Inhalt</Label>
-          <Skeleton className="h-[calc(100vh-theme(spacing.72)-theme(spacing.6))] w-full rounded-l" />
+          <Skeleton className="h-[calc(100vh-(--spacing(72))-(--spacing(6)))] w-full rounded-l" />
         </div>
         <Button type="submit" className="mt-2 w-full">
           Textbaustein speichern

@@ -31,13 +31,15 @@ export default function Hero() {
           <Button
             type="submit"
             variant="secondary"
-            className="self-center rounded-full px-8 py-4 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-none md:self-start lg:mx-0"
+            className="self-center rounded-full px-8 py-4 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-hidden md:self-start lg:mx-0"
+            asChild
           >
             <Link
               href={{
                 pathname: '/templates',
                 query: { filter: filterTerm },
               }}
+              className="flex items-center"
             >
               Ausprobieren
             </Link>

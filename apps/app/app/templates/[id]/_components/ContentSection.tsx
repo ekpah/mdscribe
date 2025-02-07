@@ -25,7 +25,7 @@ export default function ContentSection({
     setFormData(data);
   };
   return (
-    <Card className="grid h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] grid-cols-3 gap-4 overflow-hidden">
+    <Card className="grid h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] grid-cols-3 gap-4 overflow-hidden">
       <div key="Inputs" className="overflow-y-auto overscroll-none p-4">
         <Inputs inputTags={inputTags} onChange={handleFormChange} />
       </div>

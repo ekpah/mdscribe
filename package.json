@@ -1,7 +1,9 @@
 {
   "name": "mdscribe",
   "version": "0.1.0",
-  "files": ["index.js"],
+  "files": [
+    "index.js"
+  ],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
@@ -14,9 +16,9 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@repo/typescript-config": "workspace:*",
-    "turbo": "^2.3.3",
-    "typescript": "^5.7.2",
-    "ultracite": "^4.1.14"
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.3",
+    "ultracite": "^4.1.18"
   },
   "engines": {
     "node": ">=18"

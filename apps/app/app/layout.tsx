@@ -1,5 +1,3 @@
-import '@/public/globals.css';
-
 import { DesignSystemProvider } from '@repo/design-system/providers';
 import '@repo/design-system/styles/globals.css';
 import type { Metadata } from 'next';
@@ -32,16 +30,18 @@ export default function RootLayout({ children }: RootLayoutProperties) {
         <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body className={`${inter.variable} items-center font-sans`}>
+      <body
+        className={`${inter.variable} items-center bg-background font-sans text-foreground`}
+      >
         <DesignSystemProvider>
           <div key="Body" className="flex h-screen w-screen">
-            <nav className="fixed top-0 right-0 bottom-[calc(100vh-theme(spacing.16))] left-0 z-30 h-16">
+            <nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
               {/*ModeWatcher track="true" />*/}
               <Menubar />
             </nav>
             <div
               key="Content"
-              className="sticky top-16 flex h-[calc(100vh-theme(spacing.16))] w-full items-center justify-center"
+              className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
             >
               {children}
             </div>

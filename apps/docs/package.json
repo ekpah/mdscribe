@@ -6,11 +6,11 @@
     "lint": "mintlify broken-links"
   },
   "devDependencies": {
-    "typescript": "^5.7.2",
-    "@repo/design-system": "workspace:*"
+    "@repo/design-system": "workspace:*",
+    "typescript": "^5.7.3"
   },
   "dependencies": {
-    "mintlify": "^4.0.311",
+    "mintlify": "^4.0.375",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   }

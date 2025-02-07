@@ -75,7 +75,7 @@ export default function Editor({
   };
 
   return (
-    <Card className="flex h-[calc(100vh-theme(spacing.16)-theme(spacing.10)-2rem)] flex-col gap-4 overflow-y-auto p-4">
+    <Card className="flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-4 overflow-y-auto p-4">
       <form action={handleSubmitAction} className="grow gap-2">
         <div className="flex grow flex-col gap-2 md:flex-row">
           <div className="w-full flex-1">
@@ -136,18 +136,18 @@ export default function Editor({
                 <TabsTrigger value="tiptap">Preview</TabsTrigger>
               </TabsList>
               <TabsContent value="edit">
-                <div className="h-[calc(100vh-theme(spacing.72)-theme(spacing.14))] w-full rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                <div className="h-[calc(100vh-(--spacing(72))-(--spacing(14)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
                   <PlainEditor note={content} setContent={setContent} />
                 </div>
               </TabsContent>
               <TabsContent value="tiptap">
-                <div className="h-[calc(100vh-theme(spacing.72)-theme(spacing.14))] w-full rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                <div className="h-[calc(100vh-(--spacing(72))-(--spacing(14)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
                   <TipTap note={content} setContent={setContent} />
                 </div>
               </TabsContent>
             </Tabs>
           ) : (
-            <div className="h-[calc(100vh-theme(spacing.72)-theme(spacing.14))] w-full rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+            <div className="h-[calc(100vh-(--spacing(72))-(--spacing(14)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
               <PlainEditor note={content} setContent={setContent} />
             </div>
           )}
