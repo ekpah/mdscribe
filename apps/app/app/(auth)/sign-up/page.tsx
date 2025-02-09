@@ -94,6 +94,9 @@ export default function SignUp() {
                     toast.error(ctx.error.message);
                   },
                   onSuccess: async () => {
+                    toast.success(
+                      'Konto erstellt! Bitte bestätige deine E-Mail.'
+                    );
                     router.push('/');
                   },
                 },

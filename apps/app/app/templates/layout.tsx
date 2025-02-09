@@ -1,8 +1,5 @@
 import { database } from '@repo/database';
-import {
-  SidebarInset,
-  SidebarProvider,
-} from '@repo/design-system/components/ui/sidebar';
+import { SidebarProvider } from '@repo/design-system/components/ui/sidebar';
 import type React from 'react';
 import { Suspense } from 'react';
 
@@ -52,10 +49,6 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  const isLoggedIn = !!session?.user?.id;
   // let templates = getTemplates();
   return (
     <div className="flex h-full w-full">
@@ -73,14 +66,13 @@ export default async function Layout({
             )}
           />
         </Suspense>
-        <SidebarInset>
-          <main
-            key="MainContent"
-            className="top-16 flex h-full grow overscroll-contain p-4"
-          >
-            {children}
-          </main>
-        </SidebarInset>
+
+        <main
+          key="MainContent"
+          className="top-16 flex h-full grow overscroll-contain p-4"
+        >
+          {children}
+        </main>
       </SidebarProvider>
     </div>
   );
