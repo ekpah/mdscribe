@@ -39,7 +39,7 @@ export default {
 };
 
 export const components = {
-  Case,
-  Info,
-  Switch,
+  Case: Case,
+  Info: Info,
+  Switch: Switch,
 };

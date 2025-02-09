@@ -12,7 +12,7 @@ export default function Note({ note }: { note: string }) {
   return (
     <div className="prose prose-slate grow">
       {Markdoc.renderers.react(content, React, {
-        components,
+        components: components as Record<string, React.ComponentType<any>>,
       })}
     </div>
   );
