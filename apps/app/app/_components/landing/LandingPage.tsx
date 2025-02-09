@@ -4,7 +4,7 @@ const date = new Date().getFullYear();
 export default function LandingPage() {
   return (
     <div className="h-full w-full">
-      <div key="landing-content" className="h-250">
+      <div key="landing-content">
         <Hero />
       </div>
 
