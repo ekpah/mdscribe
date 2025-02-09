@@ -1,5 +1,8 @@
 import { database } from '@repo/database';
-import { SidebarProvider } from '@repo/design-system/components/ui/sidebar';
+import {
+  SidebarInset,
+  SidebarProvider,
+} from '@repo/design-system/components/ui/sidebar';
 import type React from 'react';
 import { Suspense } from 'react';
 
@@ -70,12 +73,14 @@ export default async function Layout({
             )}
           />
         </Suspense>
-        <main
-          key="MainContent"
-          className="top-16 flex h-full grow overscroll-contain p-4"
-        >
-          {children}
-        </main>
+        <SidebarInset>
+          <main
+            key="MainContent"
+            className="top-16 flex h-full grow overscroll-contain p-4"
+          >
+            {children}
+          </main>
+        </SidebarInset>
       </SidebarProvider>
     </div>
   );

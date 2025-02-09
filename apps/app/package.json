@@ -37,7 +37,6 @@
     "@repo/env": "workspace:*",
     "@repo/feature-flags": "workspace:*",
     "@repo/next-config": "workspace:*",
-    "@repo/tailwind-config": "workspace:*",
     "@tailwindcss/postcss": "^4.0.4",
     "@tiptap/extension-color": "^2.11.5",
     "@tiptap/pm": "^2.11.5",

@@ -94,8 +94,9 @@ export default function AppSidebar({
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  useHotkeys('meta+k', (event: KeyboardEvent) => {
+  useHotkeys(['meta+k', 'ctrl+k'], (event: KeyboardEvent) => {
     event.preventDefault();
+    event.stopPropagation();
     if (searchInputRef.current) {
       searchInputRef.current.focus();
       searchInputRef.current.value = '';

@@ -117,9 +117,6 @@ importers:
       '@repo/next-config':
         specifier: workspace:*
         version: link:../../packages/next-config
-      '@repo/tailwind-config':
-        specifier: workspace:*
-        version: link:../../packages/tailwind-config
       '@tailwindcss/postcss':
         specifier: ^4.0.4
         version: 4.0.4
@@ -306,9 +303,6 @@ importers:
       '@repo/database':
         specifier: workspace:*
         version: link:../database
-      '@repo/tailwind-config':
-        specifier: workspace:*
-        version: link:../tailwind-config
       better-auth:
         specifier: ^1.1.16
         version: 1.1.16
@@ -597,6 +591,9 @@ importers:
       tailwindcss:
         specifier: ^4.0.4
         version: 4.0.4
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@4.0.4)
       typescript:
         specifier: ^5.7.3
         version: 5.7.3
@@ -743,31 +740,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.3
         version: 19.0.3(@types/react@19.0.8)
-
-  packages/tailwind-config:
-    dependencies:
-      '@tailwindcss/typography':
-        specifier: ^0.5.16
-        version: 0.5.16(tailwindcss@4.0.4)
-      react:
-        specifier: ^19.0.0
-        version: 19.0.0
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.0.0(react@19.0.0)
-      tailwind-merge:
-        specifier: ^3.0.1
-        version: 3.0.1
-      tailwindcss-animate:
-        specifier: ^1.0.7
-        version: 1.0.7(tailwindcss@4.0.4)
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      tailwindcss:
-        specifier: ^4.0.4
-        version: 4.0.4
 
   packages/typescript-config:
     dependencies:

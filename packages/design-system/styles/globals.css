@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+@source "../components/**/*.{ts,tsx}";
+@source "../../../apps/app/**/*.{ts,tsx}";
+@plugin '@tailwindcss/typography';
+@plugin 'tailwindcss-animate';
+
+/* Configure container */
+@utility container {
+  center: true;
+  padding: 2rem;
+}
+
 /*
 Solarized color palette:
 
@@ -21,132 +32,213 @@ violet    #6c71c4 237 43% 60%
 blue      #268bd2 205 69% 49%
 cyan      #2aa198 175 59% 40%
 green     #859900 68 100% 30%
-
 */
 
-@layer base {
-  :root {
-    /* Solarized color definitions */
-    --solarized-base03: 192 100% 11%;
-    --solarized-base02: 192 81% 14%;
-    --solarized-base01: 194 14% 40%;
-    --solarized-base00: 196 13% 45%;
-    --solarized-base0: 186 8% 55%;
-    --solarized-base1: 180 7% 60%;
-    --solarized-base2: 46 42% 88%;
-    --solarized-base3: 44 87% 94%;
-    --solarized-yellow: 45 100% 35%;
-    --solarized-orange: 18 80% 44%;
-    --solarized-red: 1 71% 52%;
-    --solarized-magenta: 331 64% 52%;
-    --solarized-violet: 237 43% 60%;
-    --solarized-blue: 205 69% 49%;
-    --solarized-cyan: 175 59% 40%;
-    --solarized-green: 68 100% 30%;
+:root {
+  --solarized-base03: hsl(192, 100%, 11%);
+  --solarized-base02: hsl(192, 81%, 14%);
+  --solarized-base01: hsl(194, 14%, 40%);
+  --solarized-base00: hsl(196, 13%, 45%);
+  --solarized-base0: hsl(186, 8%, 55%);
+  --solarized-base1: hsl(180, 7%, 60%);
+  --solarized-base2: hsl(46, 42%, 88%);
+  --solarized-base3: hsl(44, 87%, 94%);
+  --solarized-yellow: hsl(45, 100%, 35%);
+  --solarized-orange: hsl(18, 80%, 44%);
+  --solarized-red: hsl(1, 71%, 52%);
+  --solarized-magenta: hsl(331, 64%, 52%);
+  --solarized-violet: hsl(237, 43%, 60%);
+  --solarized-blue: hsl(205, 69%, 49%);
+  --solarized-cyan: hsl(175, 59%, 40%);
+  --solarized-green: hsl(68, 100%, 30%);
+}
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
-    --background: var(--solarized-base3);
-    --foreground: var(--solarized-base00);
+:root {
+  --background: var(--solarized-base3);
+  --foreground: var(--solarized-base00);
 
-    --muted: var(--solarized-base2);
-    --muted-foreground: var(--solarized-base1);
+  --muted: var(--solarized-base2);
+  --muted-foreground: var(--solarized-base1);
 
-    --popover: var(--solarized-base2);
-    --popover-foreground: var(--solarized-base1);
+  --popover: var(--solarized-base2);
+  --popover-foreground: var(--solarized-base1);
 
-    --card: var(--solarized-base3);
-    --card-foreground: var(--solarized-base00);
+  --card: var(--solarized-base3);
+  --card-foreground: var(--solarized-base00);
 
-    --border: var(--solarized-base1);
-    --input: var(--solarized-base1);
+  --border: var(--solarized-base1);
+  --input: var(--solarized-base1);
 
-    --primary: var(--solarized-blue);
-    --primary-foreground: var(--solarized-base3);
+  --primary: var(--solarized-blue);
+  --primary-foreground: var(--solarized-base3);
 
-    --secondary: var(--solarized-base2);
-    --secondary-foreground: var(--solarized-base00);
+  --secondary: var(--solarized-base2);
+  --secondary-foreground: var(--solarized-base00);
 
-    --accent: var(--solarized-base2);
-    --accent-foreground: var(--solarized-base1);
+  --accent: var(--solarized-base2);
+  --accent-foreground: var(--solarized-base00);
 
-    --destructive: var(--solarized-orange);
-    --destructive-foreground: var(--solarized-base03);
+  --destructive: var(--solarized-red);
+  --destructive-foreground: var(--solarized-base3);
 
-    --ring: var(--solarized-blue);
+  --ring: var(--solarized-blue);
 
-    --radius: 0.5rem;
+  --radius: var(--radius);
 
-    --sidebar-background: var(--background);
-
-    --sidebar-foreground: var(--foreground);
-
-    --sidebar-primary: var(--foreground);
-
-    --sidebar-primary-foreground: var(--primary-foreground);
-
-    --sidebar-accent: var(--accent);
-
-    --sidebar-accent-foreground: var(--accent-foregound);
-
-    --sidebar-border: var(--border);
-
-    --sidebar-ring: var(--ring);
-  }
-
-  .dark {
-    --background: var(--solarized-base03);
-    --foreground: var(--solarized-base0);
-
-    --muted: var(--solarized-base02);
-    --muted-foreground: var(--solarized-base01);
-
-    --popover: var(--solarized-base02);
-    --popover-foreground: var(--solarized-base01);
-
-    --card: var(--solarized-base03);
-    --card-foreground: var(--solarized-base0);
-
-    --border: var(--solarized-base01);
-    --input: var(--solarized-base01);
-
-    --primary: var(--solarized-blue);
-    --primary-foreground: var(--solarized-base3);
-
-    --secondary: var(--solarized-base02);
-    --secondary-foreground: var(--solarized-base0);
-
-    --accent: var(--solarized-base02);
-    --accent-foreground: var(--solarized-base01);
-
-    --destructive: var(--solarized-orange);
-    --destructive-foreground: var(--solarized-base03);
-
-    --ring: var(--solarized-blue);
-
-    --radius: 0.5rem;
-
-    --sidebar-background: var(--background);
-
-    --sidebar-foreground: var(--foreground);
-
-    --sidebar-primary: var(--foreground);
-
-    --sidebar-primary-foreground: var(--primary-foreground);
-
-    --sidebar-accent: var(--accent);
-
-    --sidebar-accent-foreground: var(--accent-foregound);
-
-    --sidebar-border: var(--border);
-
-    --sidebar-ring: var(--ring);
-  }
+  --sidebar-background: var(--solarized-base3);
+  --sidebar-foreground: var(--solarized-base00);
+  --sidebar-primary: var(--solarized-blue);
+  --sidebar-primary-foreground: var(--solarized-base3);
+  --sidebar-accent: var(--solarized-base2);
+  --sidebar-accent-foreground: var(--solarized-base00);
+  --sidebar-border: var(--solarized-base1);
+  --sidebar-ring: var(--solarized-blue);
 }
 
+[data-theme="dark"] {
+  --background: var(--solarized-base03);
+  --foreground: var(--solarized-base0);
+
+  --muted: var(--solarized-base02);
+  --muted-foreground: var(--solarized-base01);
+
+  --popover: var(--solarized-base02);
+  --popover-foreground: var(--solarized-base01);
+
+  --card: var(--solarized-base03);
+  --card-foreground: var(--solarized-base0);
+
+  --border: var(--solarized-base01);
+  --input: var(--solarized-base01);
+
+  --primary: var(--solarized-blue);
+  --primary-foreground: var(--solarized-base3);
+
+  --secondary: var(--solarized-base02);
+  --secondary-foreground: var(--solarized-base0);
+
+  --accent: var(--solarized-base02);
+  --accent-foreground: var(--solarized-base01);
+
+  --destructive: var(--solarized-orange);
+  --destructive-foreground: var(--solarized-base03);
+
+  --ring: var(--solarized-blue);
+
+  --radius: var(--radius);
+
+  --sidebar-background: var(--solarized-base03);
+  --sidebar-foreground: var(--solarized-base2);
+  --sidebar-primary: var(--solarized-blue);
+  --sidebar-primary-foreground: var(--solarized-base3);
+  --sidebar-accent: var(--solarized-base02);
+  --sidebar-accent-foreground: var(--solarized-base2);
+  --sidebar-border: var(--solarized-base02);
+  --sidebar-ring: var(--solarized-blue);
+}
+
+@theme inline {
+  /* Configure colors apart from solarized for light theme */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-ring: var(--ring);
+
+  --radius: 0.5rem;
+
+  --color-sidebar-background: var(--background);
+  --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-primary: var(--foreground);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-accent: var(--accent);
+  --color-sidebar-accent-foreground: var(--accent-foreground);
+  --color-sidebar-border: var(--border);
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+/* This layer is added by shadcn/ui */
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .animate-accordion-down {
+    animation: accordion-down 0.2s ease-out;
+  }
+  .animate-accordion-up {
+    animation: accordion-up 0.2s ease-out;
+  }
+}
+
+@layer typography {
+  .prose {
+    --tw-prose-body: var(--color-foreground);
+    --tw-prose-headings: var(--color-foreground);
+    --tw-prose-links: var(--color-foreground);
+    --tw-prose-bold: var(--color-foreground);
+
+    & h1,
+    & h2,
+    & h3 {
+      color: var(--color-foreground);
+    }
+
+    & strong {
+      color: var(--color-foreground);
+    }
+
+    & a {
+      color: var(--color-foreground);
+      &:hover {
+        color: var(--color-foreground);
+      }
+    }
   }
 }

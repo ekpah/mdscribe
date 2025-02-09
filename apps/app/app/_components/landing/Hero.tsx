@@ -1,11 +1,27 @@
 import Doctors from '@/public/landing/Doctors';
+import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
+import { Label } from '@repo/design-system/components/ui/label';
+import { Search } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 
 export default function Hero() {
   const [filterTerm, setFilterTerm] = useState('');
+  const isMac =
+    typeof window !== 'undefined' && window.navigator.userAgent.includes('Mac');
+  useHotkeys(['meta+k', 'ctrl+k'], (event: KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+      searchInputRef.current.value = '';
+    }
+  });
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="flex h-[screen] flex-col flex-wrap items-center px-3 md:flex-row">
@@ -21,13 +37,32 @@ export default function Hero() {
           Nutze schlaue Textbausteine, die sich ohne viel Aufwand immer wieder
           verwenden lassen
         </p>
-        <form className="flex flex-row" action="/templates?filter=">
-          <Input
-            className="mx-4"
-            value={filterTerm}
-            name="filter"
-            onChange={(e) => setFilterTerm(e.target.value)}
-          />
+        <form
+          className="relative flex flex-row gap-2"
+          action="/templates?filter="
+        >
+          <div className="relative">
+            <Label htmlFor="search" className="sr-only">
+              Search
+            </Label>
+            <Input
+              type="search"
+              placeholder="Suchen..."
+              className="rounded-md bg-muted pl-8 text-sm"
+              value={filterTerm}
+              name="filter"
+              ref={searchInputRef}
+              onChange={(e) => setFilterTerm(e.target.value)}
+            />
+            <Search className="-translate-y-1/2 pointer-events-none absolute top-[50%] left-2 size-4 select-none opacity-50" />
+            <Badge
+              variant="secondary"
+              className="-translate-y-1/2 pointer-events-none absolute top-[50%] right-2 select-none"
+            >
+              <span suppressHydrationWarning>{isMac ? '⌘K' : 'Ctrl+K'}</span>
+            </Badge>
+          </div>
+
           <Button
             type="submit"
             variant="secondary"
