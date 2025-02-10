@@ -152,6 +152,7 @@ export default function Editor({
             </div>
           )}
         </div>
+        <input type="hidden" name="content" value={content} />
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="authorId" value={author.id} />
         <div className="flex flex-row gap-2">
