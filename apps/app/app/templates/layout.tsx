@@ -26,6 +26,17 @@ const getFavouriteTemplatesPrisma = async () => {
   });
   return templates;
 };
+const getAuthoredTemplatesPrisma = async () => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const templates = await database.template.findMany({
+    where: {
+      authorId: session?.user?.id,
+    },
+  });
+  return templates;
+};
 
 const generateSidebarLinks = async () => {
   const templates = await getTemplatesPrisma();
@@ -43,7 +54,14 @@ const generateFavouriteTemplates = async () => {
     title: temp.title,
   }));
 };
-
+const generateAuthoredTemplates = async () => {
+  const templates = await getAuthoredTemplatesPrisma();
+  return templates.map((temp) => ({
+    url: `/templates/${temp.id}`,
+    category: temp.category,
+    title: temp.title,
+  }));
+};
 export default async function Layout({
   children,
 }: {
@@ -63,6 +81,9 @@ export default async function Layout({
             templates={JSON.stringify(await generateSidebarLinks())}
             favouriteTemplates={JSON.stringify(
               await generateFavouriteTemplates()
+            )}
+            authoredTemplates={JSON.stringify(
+              await generateAuthoredTemplates()
             )}
           />
         </Suspense>

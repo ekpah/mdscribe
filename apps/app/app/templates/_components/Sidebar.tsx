@@ -75,9 +75,11 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
 export default function AppSidebar({
   templates,
   favouriteTemplates,
+  authoredTemplates,
 }: {
   templates: string;
   favouriteTemplates: string;
+  authoredTemplates: string;
 }) {
   const { data: session } = useSession();
 
@@ -107,12 +109,12 @@ export default function AppSidebar({
   const collections = isLoggedIn
     ? [
         {
-          name: 'Meine Favoriten',
+          name: 'Favoriten',
           logo: BookmarkFilledIcon,
           plan: 'favourites',
         },
         {
-          name: 'Meine Textbausteine',
+          name: 'Von Dir erstellt',
           logo: Pencil1Icon,
           plan: 'author',
         },
@@ -140,9 +142,15 @@ export default function AppSidebar({
   };
   // 1. List of items to search in
   const menuSegments = JSON.parse(
-    collections[activeCollectionIndex].name === 'Meine Favoriten'
-      ? favouriteTemplates
-      : templates
+    (() => {
+      if (collections[activeCollectionIndex].name === 'Meine Favoriten') {
+        return favouriteTemplates;
+      }
+      if (collections[activeCollectionIndex].name === 'Von Dir erstellt') {
+        return authoredTemplates;
+      }
+      return templates;
+    })()
   );
 
   // 2. Set up the Fuse instance
