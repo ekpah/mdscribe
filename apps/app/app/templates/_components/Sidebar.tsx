@@ -143,7 +143,7 @@ export default function AppSidebar({
   // 1. List of items to search in
   const menuSegments = JSON.parse(
     (() => {
-      if (collections[activeCollectionIndex].name === 'Meine Favoriten') {
+      if (collections[activeCollectionIndex].name === 'Favoriten') {
         return favouriteTemplates;
       }
       if (collections[activeCollectionIndex].name === 'Von Dir erstellt') {
