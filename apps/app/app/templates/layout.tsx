@@ -73,7 +73,12 @@ export default async function Layout({
       <SidebarProvider>
         <Suspense
           fallback={
-            <AppSidebar key="Sidebar" templates={''} favouriteTemplates={''} />
+            <AppSidebar
+              key="Sidebar"
+              templates={''}
+              favouriteTemplates={''}
+              authoredTemplates={''}
+            />
           }
         >
           <AppSidebar
