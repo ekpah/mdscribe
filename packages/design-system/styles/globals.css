@@ -51,10 +51,7 @@ green     #859900 68 100% 30%
   --solarized-blue: hsl(205, 69%, 49%);
   --solarized-cyan: hsl(175, 59%, 40%);
   --solarized-green: hsl(68, 100%, 30%);
-}
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
-:root {
   --background: var(--solarized-base3);
   --foreground: var(--solarized-base00);
 
@@ -95,6 +92,7 @@ green     #859900 68 100% 30%
   --sidebar-border: var(--solarized-base1);
   --sidebar-ring: var(--solarized-blue);
 }
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 [data-theme="dark"] {
   --background: var(--solarized-base03);
