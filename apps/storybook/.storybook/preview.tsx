@@ -26,6 +26,18 @@ const preview: Preview = {
         },
       },
     },
+    backgrounds: {
+      values: [
+        // 👇 Default values from globals.css
+        { name: 'Dark', value: 'hsl(192, 100%, 11%)' }, // --solarized-base03
+        { name: 'Light', value: 'hsl(44, 87%, 94%)' }, // --solarized-base3
+        // 👇 Secondary backgrounds
+        { name: 'Dark Secondary', value: 'hsl(192, 81%, 14%)' }, // --solarized-base02
+        { name: 'Light Secondary', value: 'hsl(46, 42%, 88%)' }, // --solarized-base2
+      ],
+      // 👇 Specify which background is shown by default
+      default: 'Light',
+    },
   },
   decorators: [
     withThemeByDataAttribute({
