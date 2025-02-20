@@ -10,7 +10,6 @@ import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
@@ -84,24 +83,21 @@ export default function AITextGenerator() {
       <Card className="w-full md:w-1/2">
         <CardHeader>
           <CardTitle>Anamnese</CardTitle>
-          <CardDescription>
-            {completion && (
-              <Accordion type="single" collapsible>
-                <AccordionItem value="analysis">
-                  <AccordionTrigger className="text-sm">
-                    Analyse
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <MemoizedMarkdown
-                      content={
-                        completion.split('</analyse_und_kategorisierung>')[0]
-                      }
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            )}
-          </CardDescription>
+
+          {completion && (
+            <Accordion type="single" collapsible>
+              <AccordionItem value="analysis">
+                <AccordionTrigger className="text-sm">Analyse</AccordionTrigger>
+                <AccordionContent>
+                  <MemoizedMarkdown
+                    content={
+                      completion.split('</analyse_und_kategorisierung>')[0]
+                    }
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
         </CardHeader>
         <CardContent className="h-full overflow-auto">
           {completion && (
