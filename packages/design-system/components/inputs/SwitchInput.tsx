@@ -7,18 +7,15 @@ import {
   FormLabel,
   FormMessage,
 } from '@repo/design-system/components/ui/form';
+import type { UseFormReturn } from 'react-hook-form';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@repo/design-system/components/ui/select';
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from '@repo/design-system/components/ui/toggle-group';
-import type { UseFormReturn } from 'react-hook-form';
+} from '../ui/select';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 
 export type CaseTagType = {
   type: 'case';

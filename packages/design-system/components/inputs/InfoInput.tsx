@@ -1,9 +1,9 @@
 'use client';
 
-import { Card } from '@repo/design-system/components/ui/card';
-import { FormItem, FormLabel } from '@repo/design-system/components/ui/form';
-import { Input } from '@repo/design-system/components/ui/input';
 import type { UseFormReturn } from 'react-hook-form';
+import { Card } from '../ui/card';
+import { FormItem, FormLabel } from '../ui/form';
+import { Input } from '../ui/input';
 
 export type InfoTagType = {
   type: 'info';

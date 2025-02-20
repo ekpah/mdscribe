@@ -177,6 +177,9 @@ green     #859900 68 100% 30%
   --color-sidebar-accent-foreground: var(--accent-foreground);
   --color-sidebar-border: var(--border);
 
+
+}
+
   @keyframes accordion-down {
     from {
       height: 0;
@@ -192,17 +195,6 @@ green     #859900 68 100% 30%
     }
     to {
       height: 0;
-    }
-  }
-}
-/* This layer is added by shadcn/ui */
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
   }
 }
 
@@ -214,6 +206,20 @@ green     #859900 68 100% 30%
     animation: accordion-up 0.2s ease-out;
   }
 }
+
+
+/* This layer is added by shadcn/ui */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+
 
 @layer typography {
   .prose {

@@ -1,10 +1,16 @@
 'use client';
 
+import {
+  InfoInput,
+  type InfoTagType,
+} from '@repo/design-system/components/inputs/InfoInput';
+import {
+  SwitchInput,
+  type SwitchTagType,
+} from '@repo/design-system/components/inputs/SwitchInput';
 import { Form, useForm } from '@repo/design-system/components/ui/form';
 import { useEffect } from 'react';
 import { useWatch } from 'react-hook-form';
-import { InfoInput, type InfoTagType } from './InfoInput';
-import { SwitchInput, type SwitchTagType } from './SwitchInput';
 
 export type InputTagType = InfoTagType | SwitchTagType;
 

@@ -2,6 +2,8 @@
 
 import markdocConfig from '@/markdoc/config';
 import Markdoc from '@markdoc/markdoc';
+import PlainEditor from '@repo/design-system/components/editor/PlainEditor';
+import TipTap from '@repo/design-system/components/editor/TipTap';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Card } from '@repo/design-system/components/ui/card';
 import { Input } from '@repo/design-system/components/ui/input';
@@ -22,8 +24,6 @@ import {
 import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-hot-toast';
-import PlainEditor from './PlainEditor';
-import TipTap from './TipTap';
 
 function Submit() {
   // ✅ `pending` will be derived from the form that wraps the Submit component

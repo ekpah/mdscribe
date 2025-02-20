@@ -16,6 +16,11 @@
     ".next/types/**/*.ts",
     "markdoc/variables.ts",
     "next.config.ts",
-    "../../packages/design-system/providers/ThemeProvider.tsx"
+    "../../packages/design-system/providers/ThemeProvider.tsx",
+    "../../packages/design-system/components/inputs/SwitchInput.tsx",
+    "../../packages/design-system/components/inputs/InfoInput.tsx",
+    "../../packages/design-system/components/editor/PlainEditor.tsx",
+    "../../packages/design-system/components/editor/TipTap.tsx",
+    "../../packages/design-system/components/editor/SkeletonEditor.tsx"
   ]
 }

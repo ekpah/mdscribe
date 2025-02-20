@@ -31,3 +31,16 @@ export const showBetaFeature = flag<boolean, Entities>({
     return user?.email === 'nils.hapke@we-mail.de';
   },
 });
+
+export const allowAIUse = flag<boolean, Entities>({
+  key: 'allowAIUse',
+  identify,
+  decide: ({ entities }) => {
+    const user = entities?.user;
+
+    return (
+      user?.email === 'n.hapke@bbtgruppe.de' ||
+      process.env.NODE_ENV === 'development'
+    );
+  },
+});

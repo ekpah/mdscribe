@@ -1,5 +1,5 @@
 import { Skeleton } from '@repo/design-system/components/ui/skeleton';
-import SkeletonEditor from '../../_components/SkeletonEditor';
+import SkeletonEditor from '../../../../../../packages/design-system/components/editor/SkeletonEditor';
 
 export default function Loading() {
   // You can add any UI inside Loading, including a Skeleton.

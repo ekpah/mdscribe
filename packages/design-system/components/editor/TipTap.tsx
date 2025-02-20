@@ -2,19 +2,40 @@
 
 import {
   BubbleMenu,
+  EditorContent,
   EditorProvider,
   FloatingMenu,
   useCurrentEditor,
+  useEditor,
 } from '@tiptap/react';
 
 import { Button } from '@repo/design-system/components/ui/button';
 import { cn } from '@repo/design-system/lib/utils';
+import Document from '@tiptap/extension-document';
+import Paragraph from '@tiptap/extension-paragraph';
+import Text from '@tiptap/extension-text';
 import StarterKit from '@tiptap/starter-kit';
 
 import {
   defaultMarkdownParser,
   defaultMarkdownSerializer,
 } from 'prosemirror-markdown';
+
+export default () => {
+  const editor = useEditor({
+    extensions: [Document, Paragraph, Text],
+    content: `
+      <p>
+        This is a radically reduced version of Tiptap. It has support for a document, with paragraphs and text. That’s it. It’s probably too much for real minimalists though.
+      </p>
+      <p>
+        The paragraph extension is not really required, but you need at least one node. Sure, that node can be something different.
+      </p>
+    `,
+  });
+
+  return <EditorContent editor={editor} />;
+};
 
 const MenuBar = () => {
   const { editor } = useCurrentEditor();
@@ -155,10 +176,10 @@ const content = `
 </blockquote>
 `;
 
-export default ({
+export function OtherTipTap({
   note,
   setContent,
-}: { note: string; setContent: (content: string) => void }) => {
+}: { note: string; setContent: (content: string) => void }) {
   const parsed = defaultMarkdownParser.parse(note);
   console.log(note);
   console.log(parsed);
@@ -168,12 +189,11 @@ export default ({
       editorProps={{
         attributes: {
           class: cn(
-            'flex h-full w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-            'h-full w-full'
+            'flex size-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
           ),
         },
       }}
-      // slotBefore={<MenuBar />}
+      slotBefore={<MenuBar />}
       immediatelyRender={false}
       extensions={extensions}
       content={note ?? defaultMarkdownParser.parse(note)}
@@ -186,7 +206,7 @@ export default ({
       <BubbleMenu editor={null}>This is the bubble menu</BubbleMenu>
     </EditorProvider>
   );
-};
+}
 /*
 import {
   MarkdownSerializer as ProseMirrorMarkdownSerializer,
