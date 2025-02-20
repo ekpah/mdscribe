@@ -21,6 +21,7 @@ export default function AITextGenerator() {
   const { completion, complete } = useCompletion({
     api: '/api/scribe',
     onError: (error: Error) => {
+      console.log('eerormessage', error, error.message);
       toast.error(`Fehler beim Generieren der Anamnese: ${error.message}`);
       setIsLoading(false);
     },

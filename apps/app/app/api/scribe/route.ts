@@ -8,12 +8,13 @@ export async function POST(req: Request) {
   const { prompt }: { prompt: string } = await req.json();
   const allowAIUseFlag = await allowAIUse();
   if (prompt.trim().length === 0) {
-    throw new Error('Bitte geben Sie Stichpunkte ein.');
+    return new Response('Bitte geben Sie Stichpunkte ein.', { status: 400 });
   }
 
   if (!allowAIUseFlag) {
-    throw new Error(
-      'Unauthorized: Only n.hapke@bbtgruppe.de can use this feature'
+    return new Response(
+      'Unauthorized: Only n.hapke@bbtgruppe.de can use this feature',
+      { status: 401 }
     );
   }
 
