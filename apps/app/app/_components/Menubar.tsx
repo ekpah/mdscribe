@@ -9,13 +9,12 @@ import { ModeToggle } from '@repo/design-system/components/mode-toggle';
 import { Button } from '@repo/design-system/components/ui/button';
 import { useRouter } from 'next/navigation';
 
-export default function TopMenuBar() {
+export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
   const {
     data: session,
     isPending, //loading state
     error, //error object
   } = authClient.useSession();
-
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -50,6 +49,11 @@ export default function TopMenuBar() {
           <Link className="ml-4" href="https://docs.mdscribe.de/">
             Dokumentation
           </Link>
+          {showAiLink && (
+            <Link className="ml-4" href="/aiscribe">
+              Anamnese
+            </Link>
+          )}
         </div>
 
         <div className="absolute right-2 hidden flex-row sm:right-4 sm:flex">

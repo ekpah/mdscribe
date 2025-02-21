@@ -1,10 +1,10 @@
 import { DesignSystemProvider } from '@repo/design-system/providers';
 import '@repo/design-system/styles/globals.css';
+import { allowAIUse } from '@repo/feature-flags';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
 import Menubar from './_components/Menubar';
-
 export const metadata: Metadata = {
   title: 'MDScribe',
   description: 'A powerful, flexible, Markdown-based authoring framework',
@@ -21,6 +21,7 @@ type RootLayoutProperties = {
 };
 
 export default function RootLayout({ children }: RootLayoutProperties) {
+  const showAiLink = allowAIUse();
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: RootLayoutProperties) {
           <div key="Body" className="flex h-screen w-screen">
             <nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
               {/*ModeWatcher track="true" />*/}
-              <Menubar />
+              <Menubar showAiLink={showAiLink} />
             </nav>
             <div
               key="Content"
