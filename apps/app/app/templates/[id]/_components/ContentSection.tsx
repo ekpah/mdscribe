@@ -26,12 +26,15 @@ export default function ContentSection({
   };
   return (
     <Card className="grid h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] grid-cols-3 gap-4 overflow-hidden">
-      <div key="Inputs" className="overflow-y-auto overscroll-none p-4">
+      <div
+        key="Inputs"
+        className="hidden overflow-y-auto overscroll-none p-4 md:block"
+      >
         <Inputs inputTags={inputTags} onChange={handleFormChange} />
       </div>
       <div
         key="Note"
-        className="col-span-2 overflow-y-auto overscroll-none border-l p-4"
+        className="col-span-3 hidden:col-span-2 overflow-y-auto overscroll-none border-l p-4"
       >
         <Note note={note} />
       </div>

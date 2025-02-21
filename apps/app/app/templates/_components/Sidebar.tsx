@@ -261,7 +261,14 @@ export default function AppSidebar({
                         {segment.documents.map((item, index) => (
                           <SidebarMenuSubItem key={index}>
                             <SidebarMenuSubButton asChild isActive={false}>
-                              <Link href={item.url}>{item.title}</Link>
+                              <Link
+                                href={item.url}
+                                onClick={() => {
+                                  setOpenMobile(false);
+                                }}
+                              >
+                                {item.title}
+                              </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         ))}
