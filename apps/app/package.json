@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.1.9",
+    "@ai-sdk/fireworks": "^0.1.11",
     "@ai-sdk/react": "^1.1.17",
     "@better-auth/cli": "^1.1.16",
     "@hookform/resolvers": "^3.10.0",

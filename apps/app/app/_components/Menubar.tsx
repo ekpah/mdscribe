@@ -52,7 +52,7 @@ export default function TopMenuBar() {
           </Link>
         </div>
 
-        <div className="absolute right-2 flex flex-row sm:right-4">
+        <div className="absolute right-2 hidden flex-row sm:right-4 sm:flex">
           <div className="mx-4 flex flex-row items-center">
             <p className="mx-4">{session?.user?.email}</p>
             {session?.user ? (

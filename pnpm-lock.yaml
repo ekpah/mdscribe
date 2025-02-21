@@ -36,6 +36,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: ^1.1.9
         version: 1.1.9(zod@3.24.1)
+      '@ai-sdk/fireworks':
+        specifier: ^0.1.11
+        version: 0.1.11(zod@3.24.1)
       '@ai-sdk/react':
         specifier: ^1.1.17
         version: 1.1.17(react@19.0.0)(zod@3.24.1)
@@ -891,6 +894,18 @@ packages:
 
   '@ai-sdk/anthropic@1.1.9':
     resolution: {integrity: sha512-oPZ0r1XyXHWYwOSFnUTRdPMjX3SOfmZjgb1YaRYQk5Zhrcm8DcmZLkdXBkIXbfMeeOnT+bidqGbQSejXEzk/FQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.0.0
+
+  '@ai-sdk/fireworks@0.1.11':
+    resolution: {integrity: sha512-D/gcOsFoDghN3Igu3tjuHJIYiqumo1aiwmDOLCuHanBcG0yiHjin5Hi7lZqy2+uDRTVdV4uHDqpzcZMbDWEcBA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.0.0
+
+  '@ai-sdk/openai-compatible@0.1.11':
+    resolution: {integrity: sha512-r9kIDPdKCM1tbZEEKUauGzXp+w1ADrFPPfSxVeVr7of4QIvKzXqLaH/jR/HtdZ1JR5i9uywHijOAZtw7ZcDvQQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
@@ -10370,6 +10385,19 @@ snapshots:
   '@adobe/css-tools@4.4.2': {}
 
   '@ai-sdk/anthropic@1.1.9(zod@3.24.1)':
+    dependencies:
+      '@ai-sdk/provider': 1.0.8
+      '@ai-sdk/provider-utils': 2.1.9(zod@3.24.1)
+      zod: 3.24.1
+
+  '@ai-sdk/fireworks@0.1.11(zod@3.24.1)':
+    dependencies:
+      '@ai-sdk/openai-compatible': 0.1.11(zod@3.24.1)
+      '@ai-sdk/provider': 1.0.8
+      '@ai-sdk/provider-utils': 2.1.9(zod@3.24.1)
+      zod: 3.24.1
+
+  '@ai-sdk/openai-compatible@0.1.11(zod@3.24.1)':
     dependencies:
       '@ai-sdk/provider': 1.0.8
       '@ai-sdk/provider-utils': 2.1.9(zod@3.24.1)

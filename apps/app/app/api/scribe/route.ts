@@ -1,5 +1,4 @@
 'use server';
-
 import { anthropic } from '@ai-sdk/anthropic';
 import { allowAIUse } from '@repo/feature-flags';
 import { streamText } from 'ai';
@@ -20,6 +19,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: anthropic('claude-3-5-sonnet-latest'),
+    // model: fireworks('accounts/fireworks/models/deepseek-v3'),
     maxTokens: 4096,
     temperature: 1,
     system:
