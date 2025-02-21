@@ -4,9 +4,9 @@ import type React from 'react';
 import { Suspense } from 'react';
 
 import { auth } from '@repo/auth';
+import {} from '@repo/design-system/components/ui/breadcrumb';
 import { headers } from 'next/headers';
 import AppSidebar from './_components/Sidebar';
-
 const getTemplatesPrisma = async () => {
   const templates = await database.template.findMany({});
   return templates;
@@ -92,7 +92,6 @@ export default async function Layout({
             )}
           />
         </Suspense>
-
         <main
           key="MainContent"
           className="top-16 flex h-full grow overscroll-contain p-4"

@@ -1,3 +1,11 @@
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@repo/design-system/components/ui/breadcrumb';
+import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
 import Link from 'next/link';
 import ContentSection from './[id]/_components/ContentSection';
 import { NavActions } from './[id]/_components/NavActions';
@@ -5,9 +13,18 @@ export default function TemplatesPage() {
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex h-10 items-center justify-between gap-2">
-        <Link href={'/templates'} className="font-bold">
-          Templates
-        </Link>
+        <SidebarTrigger className="ml-4 block md:hidden" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem className="hidden md:block">
+              <Link href="/templates">Textbausteine</Link>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator className="hidden md:block" />
+            <BreadcrumbItem className="hidden md:block">
+              <BreadcrumbPage>...</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         <NavActions
           isFavourite={false}
           isLoggedIn={false}

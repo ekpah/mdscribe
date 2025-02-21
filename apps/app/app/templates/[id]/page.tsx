@@ -7,6 +7,14 @@ import { database } from '@repo/database';
 
 import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@repo/design-system/components/ui/breadcrumb';
+import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
 import { unstable_cache } from 'next/cache';
 import { headers } from 'next/headers';
 import Link from 'next/link';
@@ -157,9 +165,18 @@ export default async function NotePage(props: PageProps) {
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex h-10 items-center justify-between gap-2">
-        <Link href={`/templates/${doc?.id}`} className="font-bold">
-          {doc?.title}
-        </Link>
+        <SidebarTrigger className="ml-4 block md:hidden" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem className="hidden md:block">
+              <Link href={'/templates'}>Textbausteine</Link>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator className="hidden md:block" />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{doc?.title}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         <NavActions
           isFavourite={isFavourite}
           isLoggedIn={!!session?.user?.id}

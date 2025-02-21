@@ -27,6 +27,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from '@repo/design-system/components/ui/sidebar';
 import Fuse from 'fuse.js';
 import { Library, Minus, Plus, Search } from 'lucide-react';
@@ -82,6 +83,16 @@ export default function AppSidebar({
   authoredTemplates: string;
 }) {
   const { data: session } = useSession();
+
+  const {
+    state,
+    open,
+    setOpen,
+    openMobile,
+    setOpenMobile,
+    isMobile,
+    toggleSidebar,
+  } = useSidebar();
 
   const isLoggedIn = !!session?.user;
   const isMac =
@@ -179,7 +190,6 @@ export default function AppSidebar({
             setActiveCollectionIndex={setActiveCollectionIndex}
           />
         )}
-
         <SidebarGroup className="gap-2 py-0">
           <SidebarGroupContent className="relative">
             {isLoggedIn && (
