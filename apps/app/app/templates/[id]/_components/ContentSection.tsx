@@ -34,7 +34,7 @@ export default function ContentSection({
       </div>
       <div
         key="Note"
-        className="col-span-3 hidden:col-span-2 overflow-y-auto overscroll-none border-l p-4"
+        className="col-span-3 overflow-y-auto overscroll-none border-l p-4 md:col-span-2"
       >
         <Note note={note} />
       </div>
