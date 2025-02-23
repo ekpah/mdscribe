@@ -20,8 +20,8 @@ type RootLayoutProperties = {
   readonly children: ReactNode;
 };
 
-export default function RootLayout({ children }: RootLayoutProperties) {
-  const showAiLink = allowAIUse();
+export default async function RootLayout({ children }: RootLayoutProperties) {
+  const showAiLink = await allowAIUse();
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
