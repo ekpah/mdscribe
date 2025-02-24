@@ -17,7 +17,23 @@ import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { MemoizedMarkdown } from './_components/memoized-markdown';
+
+const { XMLParser, XMLBuilder, XMLValidator } = require('fast-xml-parser');
+
+type FinalCompletion = {
+  diagnose?: string;
+  analyse?: string;
+  kategorisierung?: string;
+  anamnese?: string;
+};
+
 export default function AITextGenerator() {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    parseAttributeValue: true,
+    trimValues: true,
+  });
+  const [finalCompletion, setFinalCompletion] = useState<FinalCompletion>({});
   const { completion, complete } = useCompletion({
     api: '/api/scribe',
     onError: (error: Error) => {
@@ -26,7 +42,17 @@ export default function AITextGenerator() {
       setIsLoading(false);
     },
     onFinish: () => {
-      console.log(completion);
+      const parsedCompletion = parser.parse(`<analyse>${completion}`.trim());
+      const data =
+        typeof parsedCompletion === 'string'
+          ? JSON.parse(parsedCompletion)
+          : parsedCompletion;
+      setFinalCompletion({
+        diagnose: data.diagnose,
+        analyse: data.analyse,
+        kategorisierung: data.kategorisierung,
+        anamnese: data.anamnese,
+      });
       setIsLoading(false);
     },
   });
@@ -81,9 +107,11 @@ export default function AITextGenerator() {
             </form>
           </CardContent>
         </Card> */}
-      <Card className="w-full md:w-1/2">
-        <CardHeader>
-          <CardTitle>Anamnese</CardTitle>
+      <Card className="flex h-full w-full flex-col md:w-1/2">
+        <CardHeader className="flex-none">
+          <CardTitle>
+            {finalCompletion.diagnose ? finalCompletion.diagnose : 'Anamnese'}
+          </CardTitle>
 
           {completion && (
             <Accordion type="single" collapsible>
@@ -92,7 +120,9 @@ export default function AITextGenerator() {
                 <AccordionContent>
                   <MemoizedMarkdown
                     content={
-                      completion.split('</analyse_und_kategorisierung>')[0]
+                      finalCompletion.analyse
+                        ? finalCompletion.analyse
+                        : completion.split('<anamnese>')[0]
                     }
                   />
                 </AccordionContent>
@@ -100,11 +130,13 @@ export default function AITextGenerator() {
             </Accordion>
           )}
         </CardHeader>
-        <CardContent className="h-full overflow-auto">
+        <CardContent className="flex-1 overflow-y-auto">
           {completion && (
             <MemoizedMarkdown
               content={
-                completion.split('</analyse_und_kategorisierung>')[1] || ''
+                finalCompletion.anamnese
+                  ? finalCompletion.anamnese
+                  : completion.split('<anamnese>')[1] || ''
               }
             />
           )}
