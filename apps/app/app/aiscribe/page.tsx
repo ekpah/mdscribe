@@ -129,6 +129,25 @@ export default function AITextGenerator() {
               }
             />
           )}
+
+          {completion && (
+            <Accordion type="single" collapsible>
+              <AccordionItem value="diagnose">
+                <AccordionTrigger className="text-sm">
+                  Diagnose
+                </AccordionTrigger>
+                <AccordionContent>
+                  <MemoizedMarkdown
+                    content={
+                      finalCompletion.diagnose
+                        ? finalCompletion.diagnose
+                        : completion.split('<diagnose>')[1] || ''
+                    }
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
         </CardContent>
       </Card>
     </div>
