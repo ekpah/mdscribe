@@ -34,31 +34,28 @@ export default function AITextGenerator() {
     trimValues: true,
   });
   const [finalCompletion, setFinalCompletion] = useState<FinalCompletion>({});
-  const { completion, complete } = useCompletion({
-    api: '/api/scribe',
-    onError: (error: Error) => {
-      console.log('errormessage', error, error.message);
-      toast.error(`Fehler beim Generieren der Anamnese: ${error.message}`);
-      setIsLoading(false);
-    },
-    onFinish: () => {
-      const parsedCompletion = parser.parse(`<analyse>${completion}`.trim());
-      const data =
-        typeof parsedCompletion === 'string'
-          ? JSON.parse(parsedCompletion)
-          : parsedCompletion;
-      setFinalCompletion({
-        diagnose: data.diagnose,
-        analyse: data.analyse,
-        kategorisierung: data.kategorisierung,
-        anamnese: data.anamnese,
-      });
-      setIsLoading(false);
-    },
-  });
-  const [notes, setNotes] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [analysis, setAnalysis] = useState<string>('');
+  const { completion, input, handleInputChange, handleSubmit, isLoading } =
+    useCompletion({
+      api: '/api/scribe',
+      experimental_throttle: 50,
+      onError: (error: Error) => {
+        console.log('errormessage', error, error.message);
+        toast.error(`Fehler beim Generieren der Anamnese: ${error.message}`);
+      },
+      onFinish: () => {
+        const parsedCompletion = parser.parse(`<analyse>${completion}`.trim());
+        const data =
+          typeof parsedCompletion === 'string'
+            ? JSON.parse(parsedCompletion)
+            : parsedCompletion;
+        setFinalCompletion({
+          diagnose: data.diagnose,
+          analyse: data.analyse,
+          kategorisierung: data.kategorisierung,
+          anamnese: data.anamnese,
+        });
+      },
+    });
   return (
     <div className="mx-auto flex h-4/5 w-4/5 flex-col gap-4 space-y-4 md:flex-row">
       <Card className="h-full md:w-1/2">
@@ -70,16 +67,10 @@ export default function AITextGenerator() {
             Geben Sie hier Ihre Stichpunkte ein. Basierend darauf wird eine
             kurze Anamnese generiert.
           </span>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setIsLoading(true);
-              await complete(notes);
-            }}
-          >
+          <form onSubmit={handleSubmit}>
             <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={input}
+              onChange={handleInputChange}
               placeholder="Geben Sie hier Ihre Stichpunkte ein..."
               className="mb-4 h-[200px]"
             />
@@ -109,9 +100,7 @@ export default function AITextGenerator() {
         </Card> */}
       <Card className="flex h-full w-full flex-col md:w-1/2">
         <CardHeader className="flex-none">
-          <CardTitle>
-            {finalCompletion.diagnose ? finalCompletion.diagnose : 'Anamnese'}
-          </CardTitle>
+          <CardTitle>{'Anamnese'}</CardTitle>
 
           {completion && (
             <Accordion type="single" collapsible>
