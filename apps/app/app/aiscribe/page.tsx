@@ -13,68 +13,89 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { MemoizedMarkdown } from './_components/memoized-markdown';
 
-const { XMLParser, XMLBuilder, XMLValidator } = require('fast-xml-parser');
-
-type FinalCompletion = {
-  diagnose?: string;
-  analyse?: string;
-  kategorisierung?: string;
-  anamnese?: string;
-};
-
 export default function AITextGenerator() {
-  const parser = new XMLParser({
-    ignoreAttributes: false,
-    parseAttributeValue: true,
-    trimValues: true,
+  const [diagnosisInput, setDiagnosisInput] = useState<string>('');
+  const [anamneseInput, setAnamneseInput] = useState<string>('');
+  const { completion, complete, isLoading } = useCompletion({
+    api: '/api/scribe',
+    experimental_throttle: 50,
+    onError: (error: Error) => {
+      console.log('errormessage', error, error.message);
+      toast.error(`Fehler beim Generieren der Anamnese: ${error.message}`);
+    },
   });
-  const [finalCompletion, setFinalCompletion] = useState<FinalCompletion>({});
-  const { completion, input, handleInputChange, handleSubmit, isLoading } =
-    useCompletion({
-      api: '/api/scribe',
-      experimental_throttle: 50,
-      onError: (error: Error) => {
-        console.log('errormessage', error, error.message);
-        toast.error(`Fehler beim Generieren der Anamnese: ${error.message}`);
-      },
-      onFinish: () => {
-        const parsedCompletion = parser.parse(`<analyse>${completion}`.trim());
-        const data =
-          typeof parsedCompletion === 'string'
-            ? JSON.parse(parsedCompletion)
-            : parsedCompletion;
-        setFinalCompletion({
-          diagnose: data.diagnose,
-          analyse: data.analyse,
-          kategorisierung: data.kategorisierung,
-          anamnese: data.anamnese,
-        });
-      },
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const prompt = JSON.stringify({
+      vordiagnosen: diagnosisInput,
+      anamnese: anamneseInput,
     });
+    complete(prompt);
+  };
+
   return (
     <div className="mx-auto flex h-4/5 w-4/5 flex-col gap-4 space-y-4 md:flex-row">
-      <Card className="h-full md:w-1/2">
+      <Card className="flex h-full flex-col md:w-1/2">
         <CardHeader>
           <CardTitle>Stichpunkte</CardTitle>
         </CardHeader>
-        <CardContent>
-          <span className="mb-4 text-muted-foreground text-sm">
+        <CardContent className="flex flex-col">
+          <span className="text-muted-foreground text-sm">
             Geben Sie hier Ihre Stichpunkte ein. Basierend darauf wird eine
             kurze Anamnese generiert.
           </span>
-          <form onSubmit={handleSubmit}>
-            <Textarea
-              value={input}
-              onChange={handleInputChange}
-              placeholder="Geben Sie hier Ihre Stichpunkte ein..."
-              className="mb-4 h-[200px]"
-            />
-            <Button type="submit" disabled={isLoading}>
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
+            <Tabs defaultValue="vordiagnosen" className="flex flex-1 flex-col">
+              <TabsList className="justify-start border-muted border-b bg-muted/50">
+                <TabsTrigger
+                  value="vordiagnosen"
+                  className="rounded-none data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-background"
+                >
+                  Vordiagnosen
+                </TabsTrigger>
+                <TabsTrigger
+                  value="anamnese"
+                  className="rounded-none data-[state=active]:border-primary data-[state=active]:border-b-2 data-[state=active]:bg-background"
+                >
+                  Anamnese
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent
+                value="vordiagnosen"
+                className="flex-1 rounded-md border"
+              >
+                <Textarea
+                  value={diagnosisInput}
+                  onChange={(e) => setDiagnosisInput(e.target.value)}
+                  placeholder="Geben Sie hier Ihre Vordiagnosen ein..."
+                  className="h-full min-h-[300px] resize-none border-none"
+                />
+              </TabsContent>
+              <TabsContent
+                value="anamnese"
+                className="flex-1 rounded-md border"
+              >
+                <Textarea
+                  value={anamneseInput}
+                  onChange={(e) => setAnamneseInput(e.target.value)}
+                  placeholder="Geben Sie hier Ihre Anamnese ein..."
+                  className="h-full min-h-[300px] resize-none border-none"
+                />
+              </TabsContent>
+            </Tabs>
+            <Button type="submit" disabled={isLoading} className="mt-4">
               Generieren
             </Button>
           </form>
@@ -98,21 +119,16 @@ export default function AITextGenerator() {
             </form>
           </CardContent>
         </Card> */}
-      <Card className="flex h-full w-full flex-col md:w-1/2">
+      <Card className="flex h-full w-full flex-col overflow-y-auto md:w-1/2">
         <CardHeader className="flex-none">
           <CardTitle>{'Anamnese'}</CardTitle>
-
-          {completion && (
+          {false && (
             <Accordion type="single" collapsible>
               <AccordionItem value="analysis">
                 <AccordionTrigger className="text-sm">Analyse</AccordionTrigger>
                 <AccordionContent>
                   <MemoizedMarkdown
-                    content={
-                      finalCompletion.analyse
-                        ? finalCompletion.analyse
-                        : completion.split('<anamnese>')[0]
-                    }
+                    content={completion.split('<anamnese>')[0] || ''}
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -121,32 +137,29 @@ export default function AITextGenerator() {
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto">
           {completion && (
-            <MemoizedMarkdown
-              content={
-                finalCompletion.anamnese
-                  ? finalCompletion.anamnese
-                  : completion.split('<anamnese>')[1] || ''
-              }
-            />
-          )}
-
-          {completion && (
             <Accordion type="single" collapsible>
-              <AccordionItem value="diagnose">
+              <AccordionItem value="diagnoseblock">
                 <AccordionTrigger className="text-sm">
-                  Diagnose
+                  Diagnoseblock
                 </AccordionTrigger>
                 <AccordionContent>
                   <MemoizedMarkdown
                     content={
-                      finalCompletion.diagnose
-                        ? finalCompletion.diagnose
-                        : completion.split('<diagnose>')[1] || ''
+                      completion
+                        .split('<diagnoseblock>')[1]
+                        ?.split('</diagnoseblock>')[0] || ''
                     }
                   />
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+          )}
+          {completion && (
+            <MemoizedMarkdown
+              content={
+                completion.split('<anamnese>')[1]?.split('</anamnese>')[0] || ''
+              }
+            />
           )}
         </CardContent>
       </Card>
