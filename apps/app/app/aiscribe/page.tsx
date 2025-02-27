@@ -128,7 +128,7 @@ export default function AITextGenerator() {
                 <AccordionTrigger className="text-sm">Analyse</AccordionTrigger>
                 <AccordionContent>
                   <MemoizedMarkdown
-                    content={completion.split('<anamnese>')[0] || ''}
+                    content={completion.split('</analysis>')[0] || ''}
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -157,7 +157,9 @@ export default function AITextGenerator() {
           {completion && (
             <MemoizedMarkdown
               content={
-                completion.split('<anamnese>')[1]?.split('</anamnese>')[0] || ''
+                completion
+                  .split('</analysis>')[1]
+                  ?.split('<diagnoseblock>')[0] || ''
               }
             />
           )}
