@@ -10,7 +10,7 @@ export function useCopyToClipboard() {
       await navigator.clipboard.writeText(text);
       setIsCopied(true);
     } else {
-      document.copy('copy', true, text);
+      document.execCommand('copy', true, text);
       setIsCopied(true);
     }
   }, []);
