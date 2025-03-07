@@ -60,7 +60,7 @@ export default function ForgotPassword() {
                 });
 
                 if (error) {
-                  toast.error(error.message);
+                  toast.error(error?.message || 'Ein Fehler ist aufgetreten');
                   return;
                 }
 
