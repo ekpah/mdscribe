@@ -12,21 +12,21 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
-    "@prisma/adapter-neon": "^6.3.1",
-    "@prisma/client": "6.3.1",
+    "@prisma/adapter-neon": "^6.4.1",
+    "@prisma/client": "6.4.1",
     "@repo/env": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
-    "undici": "^7.3.0",
-    "ws": "^8.18.0"
+    "undici": "^7.4.0",
+    "ws": "^8.18.1"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "22.13.1",
-    "@types/ws": "^8.5.14",
+    "@types/node": "22.13.9",
+    "@types/ws": "^8.18.0",
     "bufferutil": "^4.0.9",
-    "prisma": "6.3.1",
-    "typescript": "^5.7.3"
+    "prisma": "6.4.1",
+    "typescript": "^5.8.2"
   }
 }

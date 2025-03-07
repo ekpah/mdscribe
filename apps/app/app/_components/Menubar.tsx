@@ -21,6 +21,7 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
+          router.refresh();
           router.push('/');
         },
       },
@@ -58,7 +59,11 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 
         <div className="absolute right-2 hidden flex-row sm:right-4 sm:flex">
           <div className="mx-4 flex flex-row items-center">
-            <p className="mx-4">{session?.user?.email}</p>
+            {session?.user && (
+              <Link href={'/dashboard'} className="mx-4">
+                {session?.user?.email}
+              </Link>
+            )}
             {session?.user ? (
               <Button variant={'secondary'} onClick={handleSignOut}>
                 Ausloggen

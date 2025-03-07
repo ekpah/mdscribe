@@ -41,6 +41,7 @@ export default function SignIn() {
                 },
                 onSuccess: () => {
                   //redirect to dashboard
+                  router.refresh();
                   router.push('/templates');
                   setLoading(false);
                 },

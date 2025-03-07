@@ -78,3 +78,40 @@ const { isEnabled } = await draftMode()
 // Handle async params in layouts/pages
 const params = await props.params
 const searchParams = await props.searchParams
+```
+
+## Used libraries
+
+### Authentication
+
+Use BetterAuth for authentication.
+
+#### Server Side Sessions
+
+```typescript
+// Necessary imports
+import { auth } from '@repo/auth';
+import { headers } from 'next/headers';
+
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+```
+
+#### Client Side Sessions
+
+```typescript
+// Necessary imports
+import { authClient } from '@repo/auth/lib/auth-client';
+
+  const { data: session } = authClient.useSession();
+```
+
+### Toast   
+
+Use react-hot-toast for toasts.
+
+```typescript
+import { toast } from 'react-hot-toast';
+```
+

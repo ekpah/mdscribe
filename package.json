@@ -16,9 +16,9 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@repo/typescript-config": "workspace:*",
-    "turbo": "^2.4.0",
-    "typescript": "^5.7.3",
-    "ultracite": "^4.1.18"
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2",
+    "ultracite": "^4.1.20"
   },
   "engines": {
     "node": ">=18"

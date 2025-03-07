@@ -177,7 +177,13 @@ green     #859900 68 100% 30%
   --color-sidebar-accent-foreground: var(--accent-foreground);
   --color-sidebar-border: var(--border);
 
-
+  /* solarized colors not used in light/dark scheme */
+  --color-solarized-green: var(--solarized-green);
+  --color-solarized-blue: var(--solarized-blue);
+  --color-solarized-red: var(--solarized-red);
+  --color-solarized-orange: var(--solarized-orange);
+  --color-solarized-yellow: var(--solarized-yellow);
+  
 }
 
   @keyframes accordion-down {

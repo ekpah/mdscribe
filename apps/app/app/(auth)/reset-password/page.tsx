@@ -36,7 +36,7 @@ export default function ResetPassword() {
       });
 
       if (error) {
-        toast.error(error.message);
+        toast.error(error?.message || 'Ein Fehler ist aufgetreten');
         return;
       }
 

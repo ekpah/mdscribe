@@ -7,10 +7,10 @@
   },
   "devDependencies": {
     "@repo/design-system": "workspace:*",
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.2"
   },
   "dependencies": {
-    "mintlify": "^4.0.375",
+    "mintlify": "^4.0.423",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   }
