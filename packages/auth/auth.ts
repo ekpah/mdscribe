@@ -7,11 +7,16 @@ import { EmailVerificationTemplate } from '@repo/email/templates/verify';
 import { betterAuth } from 'better-auth';
 import Stripe from 'stripe';
 
-// initialize stripe client
-const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || '');
-
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+
+// initialize stripe client
+if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+  throw new Error('STRIPE_SECRET_KEY is not set');
+}
+const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 export const auth = betterAuth({
+  baseURL: process.env.BASE_URL,
   // sets the Better-Auth database adapter to Prisma with the PostgreSQL provider
   database: prismaAdapter(database, {
     provider: 'postgresql', // or "mysql", "postgresql", ...etc
@@ -86,8 +91,24 @@ export const auth = betterAuth({
     // stripe plugin for subscription management
     stripe({
       stripeClient,
-      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: true,
+      products: [
+        {
+          name: 'plus', // the name of the plan, it'll be automatically lower cased when stored in the database
+          priceId: 'price_1R04XcGY6Xt2s2LzCuwZwY2I', // the price id from stripe
+          annualDiscountPriceId: 'price_1R04ZSGY6Xt2s2LzfibtZI9D', // (optional) the price id for annual billing with a discount
+          limits: {
+            ai_scribe_generations: 500,
+          },
+        },
+      ],
+      // ... other options
+      onEvent: async (event) => {
+        // Handle any Stripe event
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        console.log(event);
+      },
     }),
   ],
 });

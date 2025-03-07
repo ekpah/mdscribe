@@ -126,6 +126,9 @@ importers:
       '@radix-ui/themes':
         specifier: ^3.2.1
         version: 3.2.1(@types/react-dom@19.0.4(@types/react@19.0.10))(@types/react@19.0.10)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repo/database':
         specifier: workspace:*
         version: link:../../packages/database
