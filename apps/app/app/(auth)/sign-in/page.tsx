@@ -1,6 +1,6 @@
 'use client';
 
-import { signIn } from '@repo/auth/lib/auth-client';
+import { signIn } from '@/lib/auth-client';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,

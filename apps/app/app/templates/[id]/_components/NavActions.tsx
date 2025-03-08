@@ -3,6 +3,7 @@ import { Button } from '@repo/design-system/components/ui/button';
 import Link from 'next/link';
 import React from 'react';
 
+import { useSession } from '@/lib/auth-client';
 import {
   BookmarkFilledIcon,
   BookmarkIcon,
@@ -11,7 +12,6 @@ import {
   PersonIcon,
   Share1Icon,
 } from '@radix-ui/react-icons';
-import { useSession } from '@repo/auth/lib/auth-client';
 import {
   Tooltip,
   TooltipContent,

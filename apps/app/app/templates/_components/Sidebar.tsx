@@ -38,7 +38,7 @@ import { useRef, useState } from 'react';
 
 import { useHotkeys } from 'react-hotkeys-hook';
 
-import { useSession } from '@repo/auth/lib/auth-client';
+import { useSession } from '@/lib/auth-client';
 import { CollectionSwitcher } from './CollectionSwitcher';
 
 interface Template {

@@ -1,4 +1,4 @@
-import { auth } from '@repo/auth'; // path to your auth file
+import { auth } from '@/auth'; // path to your auth file
 import { toNextJsHandler } from 'better-auth/next-js';
 import type { NextRequest } from 'next/server';
 

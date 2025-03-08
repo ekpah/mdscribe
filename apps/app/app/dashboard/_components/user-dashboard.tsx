@@ -1,7 +1,7 @@
 'use client';
 
+import { authClient } from '@/lib/auth-client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { authClient } from '@repo/auth/lib/auth-client';
 import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
 import {

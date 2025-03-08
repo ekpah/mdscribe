@@ -4,7 +4,7 @@ import LightLogo from '@/public/logo/light';
 
 import Link from 'next/link';
 
-import { authClient } from '@repo/auth/lib/auth-client';
+import { authClient } from '@/lib/auth-client';
 import { ModeToggle } from '@repo/design-system/components/mode-toggle';
 import { Button } from '@repo/design-system/components/ui/button';
 import { useRouter } from 'next/navigation';

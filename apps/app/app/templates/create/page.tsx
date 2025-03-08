@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
+import { showBetaFeature } from '@/flags';
 import { database } from '@repo/database';
-import { showBetaFeature } from '@repo/feature-flags';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';

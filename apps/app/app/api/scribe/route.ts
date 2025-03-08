@@ -1,7 +1,7 @@
 'use server';
 import { anthropic } from '@ai-sdk/anthropic';
 
-import { allowAIUse } from '@repo/feature-flags';
+import { allowAIUse } from '@/flags';
 import { streamText } from 'ai';
 
 export async function POST(req: Request) {

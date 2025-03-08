@@ -3,7 +3,7 @@ import { SidebarProvider } from '@repo/design-system/components/ui/sidebar';
 import type React from 'react';
 import { Suspense } from 'react';
 
-import { auth } from '@repo/auth';
+import { auth } from '@/auth';
 import {} from '@repo/design-system/components/ui/breadcrumb';
 import { headers } from 'next/headers';
 import AppSidebar from './_components/Sidebar';

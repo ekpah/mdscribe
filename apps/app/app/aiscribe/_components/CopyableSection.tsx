@@ -26,7 +26,7 @@ export function CopyableSection({ title, content }: CopyableSectionProps) {
       <button
         type="button"
         tabIndex={0}
-        className="group relative w-full cursor-pointer whitespace-pre-line rounded-md bg-muted p-3 transition-colors hover:bg-muted/80"
+        className="group relative w-full cursor-pointer whitespace-pre-line rounded-md bg-muted p-3 text-left transition-colors hover:bg-muted/80"
         onClick={handleCopy}
         onKeyDown={(e) => e.key === 'Enter' && handleCopy()}
       >
