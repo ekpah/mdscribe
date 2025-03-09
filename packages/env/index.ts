@@ -3,6 +3,13 @@ import { z } from 'zod';
 
 const server: Parameters<typeof createEnv>[0]['server'] = {
   POSTGRES_PRISMA_URL: z.string().min(1).url(),
+  POSTGRES_DATABASE_URL: z.string().min(1).url(),
+  POSTGRES_DATABASE_URL_UNPOOLED: z.string().min(1).url(),
+  POSTGRES_PGHOST: z.string().min(1),
+  POSTGRES_PGPASSWORD: z.string().min(1),
+  POSTGRES_PGDATABASE: z.string().min(1),
+  POSTGRES_PGHOST_UNPOOLED: z.string().min(1),
+  POSTGRES_PGUSER: z.string().min(1),
   ANALYZE: z.string().optional(),
   AUTH_TRUST_HOST: z.string().min(1),
   AUTH_POSTMARK_KEY: z.string().min(1),
@@ -35,6 +42,13 @@ export const env = createEnv({
   server,
   runtimeEnv: {
     POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL,
+    POSTGRES_DATABASE_URL: process.env.POSTGRES_DATABASE_URL,
+    POSTGRES_DATABASE_URL_UNPOOLED: process.env.POSTGRES_DATABASE_URL_UNPOOLED,
+    POSTGRES_PGHOST: process.env.POSTGRES_PGHOST,
+    POSTGRES_PGPASSWORD: process.env.POSTGRES_PGPASSWORD,
+    POSTGRES_PGDATABASE: process.env.POSTGRES_PGDATABASE,
+    POSTGRES_PGHOST_UNPOOLED: process.env.POSTGRES_PGHOST_UNPOOLED,
+    POSTGRES_PGUSER: process.env.POSTGRES_PGUSER,
     AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST,
     AUTH_POSTMARK_KEY: process.env.AUTH_POSTMARK_KEY,
     AUTH_SECRET: process.env.AUTH_SECRET,

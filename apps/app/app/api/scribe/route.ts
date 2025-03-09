@@ -2,6 +2,7 @@
 import { anthropic } from '@ai-sdk/anthropic';
 
 import { allowAIUse } from '@/flags';
+import { env } from '@repo/env';
 import { streamText } from 'ai';
 
 export async function POST(req: Request) {
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
     onFinish: ({ usage }) => {
       const { promptTokens, completionTokens, totalTokens } = usage;
       // your own logic, e.g. for saving the chat history or recording usage
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         console.log('Prompt tokens:', promptTokens);
         console.log('Completion tokens:', completionTokens);
         console.log('Total tokens:', totalTokens);

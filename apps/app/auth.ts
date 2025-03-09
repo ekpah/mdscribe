@@ -4,19 +4,19 @@ import { sendEmail } from '@repo/email';
 import { EmailChangeTemplate } from '@repo/email/templates/change-email';
 import { ResetPasswordTemplate } from '@repo/email/templates/reset-password';
 import { EmailVerificationTemplate } from '@repo/email/templates/verify';
+import { env } from '@repo/env';
 import { betterAuth } from 'better-auth';
+import { prismaAdapter } from 'better-auth/adapters/prisma';
 import Stripe from 'stripe';
 
-import { prismaAdapter } from 'better-auth/adapters/prisma';
-
 // initialize stripe client
-if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
   throw new Error('STRIPE_SECRET_KEY is not set');
 }
-const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeClient = new Stripe(env.STRIPE_SECRET_KEY as string);
 
 export const auth = betterAuth({
-  baseURL: process.env.BASE_URL,
+  baseURL: env.BASE_URL as string,
   // sets the Better-Auth database adapter to Prisma with the PostgreSQL provider
   database: prismaAdapter(database, {
     provider: 'postgresql', // or "mysql", "postgresql", ...etc
@@ -51,7 +51,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url, token }, request) => {
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         await console.log({
           to: user.email,
           subject: 'Setze dein Passwort zurück',
@@ -70,7 +70,7 @@ export const auth = betterAuth({
   // define email verification functions
   emailVerification: {
     sendVerificationEmail: async ({ user, url, token }, request) => {
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         await console.log({
           to: user.email,
           subject: 'Verify your email address',
@@ -91,7 +91,7 @@ export const auth = betterAuth({
     // stripe plugin for subscription management
     stripe({
       stripeClient,
-      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+      stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET as string,
       createCustomerOnSignUp: true,
       subscription: {
         enabled: true,
@@ -99,11 +99,11 @@ export const auth = betterAuth({
           {
             name: 'plus', // the name of the plan, it'll be automatically lower cased when stored in the database
             priceId:
-              process.env.VERCEL_ENV === 'production'
+              env.VERCEL_ENV === 'production'
                 ? 'price_1R0lkyGY6Xt2s2Lz9jHZ8gEJ' // production price id
                 : 'price_1R0lk9GY6Xt2s2LzTC3UxDOC', // development price id
             annualDiscountPriceId:
-              process.env.VERCEL_ENV === 'production'
+              env.VERCEL_ENV === 'production'
                 ? 'price_1R0lkyGY6Xt2s2LzqKWXpUc5' // production price id
                 : 'price_1R0lkkGY6Xt2s2LzAnW6aMb4', // development price id
             limits: {
