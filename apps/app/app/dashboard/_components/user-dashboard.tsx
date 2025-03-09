@@ -29,7 +29,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@repo/design-system/components/ui/tabs';
-import { CreditCard, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
@@ -295,21 +295,8 @@ export default function UserDashboard({
                           : 'Nächstes Abrechnungsdatum'}
                       </span>
                       <span className="text-sm">
-                        {activeSubscription?.periodEnd}
+                        {activeSubscription?.periodEnd?.toLocaleDateString()}
                       </span>
-                    </div>
-                  )}
-                  {activeSubscription?.paymentMethodLast4 && (
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">
-                        Zahlungsmethode
-                      </span>
-                      <div className="flex items-center">
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        <span className="text-sm">
-                          •••• {activeSubscription?.paymentMethodLast4}
-                        </span>
-                      </div>
                     </div>
                   )}
                 </CardContent>
