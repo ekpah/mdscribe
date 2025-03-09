@@ -341,12 +341,7 @@ export default function UserDashboard({
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-sm">Plan</span>
-                    <span className="text-sm">Free</span>
-                  </div>
-                  <div className="rounded-md bg-gray-50 p-4 text-sm">
-                    Mit einem Plus-Abonnement erhältst du Zugriff auf alle
-                    Premium-Funktionen von MDScribe, einschließlich unbegrenzter
-                    Textbausteine und KI-Generierungen.
+                    <span className="text-sm">Basis</span>
                   </div>
                 </CardContent>
                 <CardFooter>
@@ -355,8 +350,7 @@ export default function UserDashboard({
                     onClick={handleSubscriptionUpgrade}
                     disabled={isManagingSubscription}
                   >
-                    <Zap className="mr-2 h-4 w-4" />
-                    Hol dir Plus
+                    Abonnieren
                   </Button>
                 </CardFooter>
               </>
