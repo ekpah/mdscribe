@@ -93,21 +93,24 @@ export const auth = betterAuth({
       stripeClient,
       stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: true,
-      products: [
-        {
-          name: 'plus', // the name of the plan, it'll be automatically lower cased when stored in the database
-          priceId: 'price_1R04XcGY6Xt2s2LzCuwZwY2I', // the price id from stripe
-          annualDiscountPriceId: 'price_1R04ZSGY6Xt2s2LzfibtZI9D', // (optional) the price id for annual billing with a discount
-          limits: {
-            ai_scribe_generations: 500,
+      subscription: {
+        enabled: true,
+        plans: [
+          {
+            name: 'plus', // the name of the plan, it'll be automatically lower cased when stored in the database
+            priceId: 'price_1R04XcGY6Xt2s2LzCuwZwY2I', // the price id from stripe
+            annualDiscountPriceId: 'price_1R04ZSGY6Xt2s2LzfibtZI9D', // (optional) the price id for annual billing with a discount
+            limits: {
+              ai_scribe_generations: 500,
+            },
           },
+        ],
+        // ... other options
+        onEvent: async (event) => {
+          // Handle any Stripe event
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          console.log(event);
         },
-      ],
-      // ... other options
-      onEvent: async (event) => {
-        // Handle any Stripe event
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        console.log(event);
       },
     }),
   ],
