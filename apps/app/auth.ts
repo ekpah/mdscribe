@@ -98,19 +98,20 @@ export const auth = betterAuth({
         plans: [
           {
             name: 'plus', // the name of the plan, it'll be automatically lower cased when stored in the database
-            priceId: 'price_1R04XcGY6Xt2s2LzCuwZwY2I', // the price id from stripe
-            annualDiscountPriceId: 'price_1R04ZSGY6Xt2s2LzfibtZI9D', // (optional) the price id for annual billing with a discount
+            priceId:
+              process.env.VERCEL_ENV === 'production'
+                ? 'price_1R0lkyGY6Xt2s2Lz9jHZ8gEJ' // production price id
+                : 'price_1R0lk9GY6Xt2s2LzTC3UxDOC', // development price id
+            annualDiscountPriceId:
+              process.env.VERCEL_ENV === 'production'
+                ? 'price_1R0lkyGY6Xt2s2LzqKWXpUc5' // production price id
+                : 'price_1R0lkkGY6Xt2s2LzAnW6aMb4', // development price id
             limits: {
               ai_scribe_generations: 500,
             },
           },
         ],
         // ... other options
-        onEvent: async (event) => {
-          // Handle any Stripe event
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          console.log(event);
-        },
       },
     }),
   ],
