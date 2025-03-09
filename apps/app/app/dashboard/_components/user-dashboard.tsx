@@ -47,7 +47,7 @@ const profileFormSchema = z.object({
   email: z
     .string()
     .email({
-      message: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+      message: 'Bitte gib eine gültige E-Mail-Adresse ein.',
     })
     .optional(),
 });
