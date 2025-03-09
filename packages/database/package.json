@@ -4,7 +4,7 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "scripts": {
-    "build": "prisma generate --no-hints",
+    "build": "prisma migrate deploy && prisma generate --no-hints",
     "postinstall": "prisma generate"
   },
   "prisma": {

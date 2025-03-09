@@ -12,7 +12,9 @@ declare global {
   var cachedPrisma: PrismaClient | undefined;
 }
 
-const pool = new Pool({ connectionString: env.POSTGRES_PRISMA_URL as string });
+const pool = new Pool({
+  connectionString: env.POSTGRES_DATABASE_URL as string,
+});
 const adapter = new PrismaNeon(pool);
 
 export const database = new PrismaClient({ adapter });
