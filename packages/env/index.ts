@@ -65,7 +65,7 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     CI: process.env.CI,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-    BASE_URL: process.env.BASE_URL,
+    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 

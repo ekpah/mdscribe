@@ -7,6 +7,9 @@ import withVercelToolbar from '@vercel/toolbar/plugins/next';
 import type { NextConfig } from 'next';
 import { createSecureHeaders } from 'next-secure-headers';
 
+import { createJiti } from 'jiti';
+const jiti = createJiti(import.meta.url);
+
 import markdocConfig from '@markdoc/next.js';
 
 export const withMarkdoc = markdocConfig()({
@@ -14,6 +17,9 @@ export const withMarkdoc = markdocConfig()({
 });
 
 export type { NextConfig };
+
+// Import env here to validate during build. Using jiti@^1 we can import .ts files :)
+jiti.import('@repo/env');
 
 export const config: NextConfig = withVercelToolbar()({
   images: {
