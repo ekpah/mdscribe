@@ -59,6 +59,7 @@ type User = {
   email: string;
 };
 
+//user Dashboard to manage profile and subscription
 export default function UserDashboard({
   user,
   subscription,
