@@ -21,7 +21,7 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   POSTGRES_URL_NO_SSL: z.string().min(1).url(),
   POSTGRES_USER: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(1),
-  BASE_URL: z.string().min(1).url(),
+
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
 
@@ -35,7 +35,9 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   FLAGS_SECRET: z.string().min(1),
 };
 
-const client: Parameters<typeof createEnv>[0]['client'] = {};
+const client: Parameters<typeof createEnv>[0]['client'] = {
+  NEXT_PUBLIC_BASE_URL: z.string().min(1).url(),
+};
 
 export const env = createEnv({
   client,
