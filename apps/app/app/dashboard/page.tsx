@@ -22,18 +22,17 @@ export default async function DashboardPage() {
   if (!session?.user) {
     redirect('/sign-in');
   }
-
+  console.log(session);
+  const activeSubscription = subscriptions.find(
+    (sub) => sub.status === 'active' || sub.status === 'trialing'
+  );
   const generationLimit =
-    subscriptions?.find(
-      (sub) => sub.status === 'active' || sub.status === 'trialing'
-    )?.limits?.ai_scribe_generations || 0;
-
+    activeSubscription?.limits?.ai_scribe_generations || 0;
+  console.log(activeSubscription);
   return (
     <UserDashboard
       user={session?.user}
-      subscription={subscriptions.find(
-        (sub) => sub.status === 'active' || sub.status === 'trialing'
-      )}
+      subscription={activeSubscription}
       generationLimit={generationLimit}
     />
   );

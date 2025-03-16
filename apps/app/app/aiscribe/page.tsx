@@ -7,21 +7,15 @@ import {
   CardContent,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
-import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/design-system/components/ui/select';
+import {} from '@repo/design-system/components/ui/select';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import Inputs from '../templates/[id]/_components/Inputs';
 import { CopyableSection } from './_components/CopyableSection';
 import { ThinkingSteps } from './_components/ThinkingSteps';
 
@@ -259,47 +253,10 @@ export default function AITextGenerator() {
                   <CardContent className="p-4">
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                       {/* Left Side - Input Fields and Selections */}
-                      <div className="space-y-4">
-                        <h3 className="font-medium text-lg">Anpassungen</h3>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="patientName">Patient</Label>
-                          <Input id="patientName" placeholder="Patientenname" />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="diagnosisType">Diagnose-Typ</Label>
-                          <Select>
-                            <SelectTrigger id="diagnosisType">
-                              <SelectValue placeholder="Wählen Sie einen Typ" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="hauptdiagnose">
-                                Hauptdiagnose
-                              </SelectItem>
-                              <SelectItem value="nebendiagnose">
-                                Nebendiagnose
-                              </SelectItem>
-                              <SelectItem value="verdachtsdiagnose">
-                                Verdachtsdiagnose
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="additionalInfo">
-                            Zusätzliche Informationen
-                          </Label>
-                          <Textarea
-                            id="additionalInfo"
-                            placeholder="Weitere relevante Informationen..."
-                            className="min-h-[100px]"
-                          />
-                        </div>
-
-                        <Button className="w-full">Aktualisieren</Button>
-                      </div>
+                      <Inputs
+                        inputs={['vordiagnosen', 'anamnese']}
+                        onChange={() => {}}
+                      />
 
                       {/* Right Side - Output Sections */}
                       <div className="space-y-4">

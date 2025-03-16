@@ -146,57 +146,6 @@ export default function UserDashboard({
       .finally(() => setIsManagingSubscription(false));
   }
 
-  function handleUpdatePaymentMethod() {
-    setIsManagingSubscription(true);
-    toast
-      .promise(
-        authClient.subscription.upgrade({
-          plan: 'plus',
-          returnUrl: '/dashboard',
-        }),
-        {
-          loading: 'Zahlungsmethode wird aktualisiert...',
-          success: 'Zahlungsmethode wurde erfolgreich aktualisiert.',
-          error: 'Zahlungsmethode konnte nicht aktualisiert werden.',
-        }
-      )
-      .finally(() => setIsManagingSubscription(false));
-  }
-
-  function handleManageSubscription() {
-    setIsManagingSubscription(true);
-    toast
-      .promise(
-        authClient.subscription.cancel({
-          returnUrl: '/dashboard',
-        }),
-        {
-          loading: 'Kundencenter wird geladen...',
-          success: 'Kundencenter wurde geladen.',
-          error: 'Kundencenter konnte nicht geladen werden.',
-        }
-      )
-      .finally(() => setIsManagingSubscription(false));
-  }
-
-  /*
-    try {
-      const toastId = toast.loading('Loading...');
-      await authClient.updateUser({
-        name: data.name,
-      });
-
-      toast.success('Dein Profil wurde erfolgreich aktualisiert.');
-    } catch (error) {
-      toast.error(
-        'Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }
-*/
-
   return (
     <div className="overflow-y-auto">
       <div className="hidden 2xl:block">
@@ -252,6 +201,7 @@ export default function UserDashboard({
             </form>
           </Form>
         </Card>
+        {/* Subscription Card */}
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -302,20 +252,6 @@ export default function UserDashboard({
                   )}
                 </CardContent>
                 <CardFooter className="flex flex-col items-start space-y-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleUpdatePaymentMethod}
-                    disabled={isManagingSubscription}
-                  >
-                    Zahlungsmethode aktualisieren
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleManageSubscription}
-                    disabled={isManagingSubscription}
-                  >
-                    Abonnement verwalten
-                  </Button>
                   {!activeSubscription?.cancelAtPeriodEnd && (
                     <Button
                       variant="outline"
@@ -357,6 +293,7 @@ export default function UserDashboard({
               </>
             )}
           </Card>
+          {/* Plan Upsell Card */}
           <Card>
             <CardHeader>
               <CardTitle>Plan-Funktionen</CardTitle>
@@ -540,20 +477,6 @@ export default function UserDashboard({
                 <CardFooter className="flex flex-col items-start space-y-2">
                   {hasActiveSubscription ? (
                     <>
-                      <Button
-                        variant="outline"
-                        onClick={handleUpdatePaymentMethod}
-                        disabled={isManagingSubscription}
-                      >
-                        Zahlungsmethode aktualisieren
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleManageSubscription}
-                        disabled={isManagingSubscription}
-                      >
-                        Abonnement verwalten
-                      </Button>
                       {!activeSubscription?.cancelAtPeriodEnd && (
                         <Button
                           variant="outline"
@@ -572,7 +495,7 @@ export default function UserDashboard({
                       disabled={isManagingSubscription}
                     >
                       <Zap className="mr-2 h-4 w-4" />
-                      Hol dir Plus
+                      Abonnement verlängern
                     </Button>
                   )}
                 </CardFooter>
@@ -603,13 +526,15 @@ export default function UserDashboard({
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button
-                    className="w-full"
-                    onClick={handleSubscriptionUpgrade}
-                  >
-                    <Zap className="mr-2 h-4 w-4" />
-                    Hol dir Plus
-                  </Button>
+                  {!hasActiveSubscription && (
+                    <Button
+                      className="w-full"
+                      onClick={handleSubscriptionUpgrade}
+                    >
+                      <Zap className="mr-2 h-4 w-4" />
+                      Hol dir Plus
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             </TabsContent>
