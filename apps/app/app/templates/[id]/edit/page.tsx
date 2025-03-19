@@ -4,8 +4,8 @@ import type { Metadata } from 'next';
 
 import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
+import { showBetaFeature } from '@/flags';
 import { database } from '@repo/database';
-import { showBetaFeature } from '@repo/feature-flags';
 import { uniqueId } from 'lodash';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';

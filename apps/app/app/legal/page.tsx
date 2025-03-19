@@ -126,3 +126,13 @@ export default function ImpressumPage() {
     </div>
   );
 }
+
+/*
+Diese Plattform dient ausschließlich dem Informationsaustausch zwischen Behandlungspartnern im Rahmen der Akut- und Notfallmedizin.
+
+Rechtlich verantwortlich ist ausschließlich der Nutzer der Plattform. Der Plattformbetreiber haftet nicht für etwaige Rechtsverletzungen im Zusammenhang mit der Nutzung dieser Plattform. Das Hochladen von Inhalten, die nicht im Zusammenhang mit der notfallmedizinischen Versorgung von Patienten stehen, ist untersagt.
+
+Beim Hochladen sind die Persönlichkeitsrechte und Datenschutzrechte der Patienten zu wahren. Es dürfen nur Dokumente hochgeladen werden, die keine Rückschlüsse auf die abgebildeten Personen zulassen. Der Nutzer verpflichtet sich dazu, keine personenbezogenen Daten gem. Art. 4 DSGVO über die Plattform zu verarbeiten und stellt ggf. eine Anonymisierung durch geeignete Maßnahmen sicher. Sollten Teile eines Dokumentes einen Bezug zu Personen enthalten, so müssen diese Stellen mit der Funktion "Bild bearbeiten" geschwärzt und damit unkenntlich gemacht werden. Für die in den hochgeladenen Dokumenten vorhandenen datenschutzrelevanten Inhalte trägt alleine der Nutzer die rechtliche Verantwortung.
+
+Die IP-Adresse des Nutzers wird lediglich zur Nachverfolgung bei missbräuchlichem Gebrauch dieser Plattform gespeichert.
+*/

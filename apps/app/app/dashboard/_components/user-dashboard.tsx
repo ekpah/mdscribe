@@ -1,7 +1,8 @@
 'use client';
 
+import { authClient } from '@/lib/auth-client';
+import type { Subscription } from '@better-auth/stripe';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { authClient } from '@repo/auth/lib/auth-client';
 import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -28,7 +29,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@repo/design-system/components/ui/tabs';
-import { CreditCard, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
@@ -46,7 +47,7 @@ const profileFormSchema = z.object({
   email: z
     .string()
     .email({
-      message: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+      message: 'Bitte gib eine gültige E-Mail-Adresse ein.',
     })
     .optional(),
 });
@@ -58,10 +59,24 @@ type User = {
   email: string;
 };
 
-export default function UserDashboard({ user }: { user: User }) {
+//user Dashboard to manage profile and subscription
+export default function UserDashboard({
+  user,
+  subscription,
+  generationLimit,
+}: {
+  user: User;
+  subscription?: Subscription;
+  generationLimit: number;
+}) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const { data: session } = authClient.useSession();
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
+
+  // get the active subscription
+  const activeSubscription = subscription;
+
+  const hasActiveSubscription = !!activeSubscription;
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -73,13 +88,13 @@ export default function UserDashboard({ user }: { user: User }) {
 
   // Update form values when session data is available
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       form.reset({
-        name: session.user.name || '',
-        email: session.user.email || '',
+        name: user.name || '',
+        email: user.email || '',
       });
     }
-  }, [session, form]);
+  }, [user, form]);
 
   function onSubmit(data: ProfileFormValues) {
     setIsLoading(true);
@@ -98,31 +113,70 @@ export default function UserDashboard({ user }: { user: User }) {
   }
 
   function handleSubscriptionUpgrade() {
-    toast.promise(
-      authClient.subscription.upgrade({
-        plan: 'plus',
-        successUrl: '/dashboard',
-        cancelUrl: '/dashboard',
-      }),
-      {
-        loading: 'Dein Abonnement wird aktualisiert...',
-        success: 'Dein Abonnement wurde erfolgreich aktualisiert.',
-        error: 'Dein Abonnement konnte nicht aktualisiert werden.',
-      }
-    );
+    setIsManagingSubscription(true);
+    toast
+      .promise(
+        authClient.subscription.upgrade({
+          plan: 'plus',
+          successUrl: '/dashboard',
+          cancelUrl: '/dashboard',
+        }),
+        {
+          loading: 'Dein Abonnement wird aktualisiert...',
+          success: 'Dein Abonnement wurde erfolgreich aktualisiert.',
+          error: 'Dein Abonnement konnte nicht aktualisiert werden.',
+        }
+      )
+      .finally(() => setIsManagingSubscription(false));
   }
 
   function handleSubscriptionCancel() {
-    toast.promise(
-      authClient.subscription.cancel({
-        returnUrl: '/dashboard',
-      }),
-      {
-        loading: 'Dein Abonnement wird storniert...',
-        success: 'Dein Abonnement wurde erfolgreich storniert.',
-        error: 'Dein Abonnement konnte nicht storniert werden.',
-      }
-    );
+    setIsManagingSubscription(true);
+    toast
+      .promise(
+        authClient.subscription.cancel({
+          returnUrl: '/dashboard',
+        }),
+        {
+          loading: 'Dein Abonnement wird storniert...',
+          success: 'Dein Abonnement wurde erfolgreich storniert.',
+          error: 'Dein Abonnement konnte nicht storniert werden.',
+        }
+      )
+      .finally(() => setIsManagingSubscription(false));
+  }
+
+  function handleUpdatePaymentMethod() {
+    setIsManagingSubscription(true);
+    toast
+      .promise(
+        authClient.subscription.upgrade({
+          plan: 'plus',
+          returnUrl: '/dashboard',
+        }),
+        {
+          loading: 'Zahlungsmethode wird aktualisiert...',
+          success: 'Zahlungsmethode wurde erfolgreich aktualisiert.',
+          error: 'Zahlungsmethode konnte nicht aktualisiert werden.',
+        }
+      )
+      .finally(() => setIsManagingSubscription(false));
+  }
+
+  function handleManageSubscription() {
+    setIsManagingSubscription(true);
+    toast
+      .promise(
+        authClient.subscription.cancel({
+          returnUrl: '/dashboard',
+        }),
+        {
+          loading: 'Kundencenter wird geladen...',
+          success: 'Kundencenter wurde geladen.',
+          error: 'Kundencenter konnte nicht geladen werden.',
+        }
+      )
+      .finally(() => setIsManagingSubscription(false));
   }
 
   /*
@@ -179,11 +233,7 @@ export default function UserDashboard({ user }: { user: User }) {
                     <FormItem>
                       <FormLabel>E-Mail</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder={session?.user?.email}
-                          {...field}
-                          disabled
-                        />
+                        <Input placeholder={user?.email} {...field} disabled />
                       </FormControl>
                       <FormDescription>
                         Deine E-Mail-Adresse wird zum Login verwendet und kann
@@ -210,44 +260,102 @@ export default function UserDashboard({ user }: { user: User }) {
                 Verwalte Dein Abonnement und Deine Zahlungsinformationen.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Status</span>
-                <Badge
-                  variant="outline"
-                  className="bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700"
-                >
-                  Aktiv
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Plan</span>
-                <span className="text-sm">Professional</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">
-                  Nächstes Abrechnungsdatum
-                </span>
-                <span className="text-sm">1. Juni 2024</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Zahlungsmethode</span>
-                <div className="flex items-center">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  <span className="text-sm">•••• 4242</span>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col items-start space-y-2">
-              <Button variant="outline">Zahlungsmethode aktualisieren</Button>
-              <Button
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={handleSubscriptionCancel}
-              >
-                Abonnement kündigen
-              </Button>
-            </CardFooter>
+            {hasActiveSubscription ? (
+              <>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">Status</span>
+                    <Badge
+                      variant={
+                        activeSubscription?.cancelAtPeriodEnd
+                          ? 'outline'
+                          : 'outline'
+                      }
+                      className={
+                        activeSubscription?.cancelAtPeriodEnd
+                          ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-700'
+                          : 'bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700'
+                      }
+                    >
+                      {activeSubscription?.cancelAtPeriodEnd
+                        ? 'Wird gekündigt'
+                        : 'Aktiv'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">Plan</span>
+                    <span className="text-sm capitalize">
+                      {activeSubscription?.plan}
+                    </span>
+                  </div>
+                  {activeSubscription?.periodEnd && (
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">
+                        {activeSubscription?.cancelAtPeriodEnd
+                          ? 'Endet am'
+                          : 'Nächstes Abrechnungsdatum'}
+                      </span>
+                      <span className="text-sm">
+                        {activeSubscription?.periodEnd?.toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex flex-col items-start space-y-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleUpdatePaymentMethod}
+                    disabled={isManagingSubscription}
+                  >
+                    Zahlungsmethode aktualisieren
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleManageSubscription}
+                    disabled={isManagingSubscription}
+                  >
+                    Abonnement verwalten
+                  </Button>
+                  {!activeSubscription?.cancelAtPeriodEnd && (
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={handleSubscriptionCancel}
+                      disabled={isManagingSubscription}
+                    >
+                      Abonnement kündigen
+                    </Button>
+                  )}
+                </CardFooter>
+              </>
+            ) : (
+              <>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">Status</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-gray-50 text-gray-700 hover:bg-gray-50 hover:text-gray-700"
+                    >
+                      Kein Abonnement
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">Plan</span>
+                    <span className="text-sm">Basis</span>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    className="w-full"
+                    onClick={handleSubscriptionUpgrade}
+                    disabled={isManagingSubscription}
+                  >
+                    Abonnieren
+                  </Button>
+                </CardFooter>
+              </>
+            )}
           </Card>
           <Card>
             <CardHeader>
@@ -334,7 +442,7 @@ export default function UserDashboard({ user }: { user: User }) {
                             <FormLabel>E-Mail</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder={session?.user?.email}
+                                placeholder={user?.email}
                                 {...field}
                                 disabled
                               />
@@ -366,41 +474,107 @@ export default function UserDashboard({ user }: { user: User }) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">Status</span>
-                    <Badge className="bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700">
-                      Aktiv
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">Plan</span>
-                    <span className="text-sm">Professional</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">
-                      Nächstes Abrechnungsdatum
-                    </span>
-                    <span className="text-sm">1. Juni 2024</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">Zahlungsmethode</span>
-                    <div className="flex items-center">
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      <span className="text-sm">•••• 4242</span>
-                    </div>
-                  </div>
+                  {hasActiveSubscription ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">Status</span>
+                        <Badge
+                          variant={
+                            activeSubscription?.cancelAtPeriodEnd
+                              ? 'outline'
+                              : 'outline'
+                          }
+                          className={
+                            activeSubscription?.cancelAtPeriodEnd
+                              ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-700'
+                              : 'bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700'
+                          }
+                        >
+                          {activeSubscription?.cancelAtPeriodEnd
+                            ? 'Wird gekündigt'
+                            : 'Aktiv'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">Plan</span>
+                        <span className="text-sm capitalize">
+                          {activeSubscription?.plan}
+                        </span>
+                      </div>
+                      {activeSubscription?.periodEnd && (
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">
+                            {activeSubscription?.cancelAtPeriodEnd
+                              ? 'Endet am'
+                              : 'Nächstes Abrechnungsdatum'}
+                          </span>
+                          <span className="text-sm">
+                            {activeSubscription?.periodEnd?.toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">Status</span>
+                        <Badge
+                          variant="outline"
+                          className="bg-gray-50 text-gray-700 hover:bg-gray-50 hover:text-gray-700"
+                        >
+                          Kein Abonnement
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">Plan</span>
+                        <span className="text-sm">Free</span>
+                      </div>
+                      <div className="rounded-md bg-gray-50 p-4 text-sm">
+                        Mit einem Plus-Abonnement erhältst du Zugriff auf alle
+                        Premium-Funktionen von MDScribe, einschließlich
+                        unbegrenzter Textbausteine und KI-Generierungen.
+                      </div>
+                    </>
+                  )}
                 </CardContent>
                 <CardFooter className="flex flex-col items-start space-y-2">
-                  <Button variant="outline">
-                    Zahlungsmethode aktualisieren
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="text-destructive hover:text-destructive"
-                    onClick={handleSubscriptionCancel}
-                  >
-                    Abonnement kündigen
-                  </Button>
+                  {hasActiveSubscription ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={handleUpdatePaymentMethod}
+                        disabled={isManagingSubscription}
+                      >
+                        Zahlungsmethode aktualisieren
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleManageSubscription}
+                        disabled={isManagingSubscription}
+                      >
+                        Abonnement verwalten
+                      </Button>
+                      {!activeSubscription?.cancelAtPeriodEnd && (
+                        <Button
+                          variant="outline"
+                          className="text-destructive hover:text-destructive"
+                          onClick={handleSubscriptionCancel}
+                          disabled={isManagingSubscription}
+                        >
+                          Abonnement kündigen
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <Button
+                      className="w-full"
+                      onClick={handleSubscriptionUpgrade}
+                      disabled={isManagingSubscription}
+                    >
+                      <Zap className="mr-2 h-4 w-4" />
+                      Hol dir Plus
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             </TabsContent>

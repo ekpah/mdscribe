@@ -1,5 +1,5 @@
-import { auth } from '@repo/auth';
-import { dedupe, flag } from '@vercel/flags/next';
+import { dedupe, flag } from 'flags/next';
+import { auth } from './auth';
 
 interface Entities {
   user?: { id: string; email: string };

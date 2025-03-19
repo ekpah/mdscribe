@@ -1,6 +1,6 @@
+import { allowAIUse } from '@/flags';
 import { DesignSystemProvider } from '@repo/design-system/providers';
 import '@repo/design-system/styles/globals.css';
-import { allowAIUse } from '@repo/feature-flags';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
