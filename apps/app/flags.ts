@@ -28,7 +28,10 @@ export const showBetaFeature = flag<boolean, Entities>({
   decide: ({ entities }) => {
     const user = entities?.user;
 
-    return user?.email === 'nils.hapke@we-mail.de';
+    return (
+      user?.email === 'nils.hapke@we-mail.de' ||
+      user?.email === 'ochir0111@yahoo.com'
+    );
   },
 });
 
