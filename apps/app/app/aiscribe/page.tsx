@@ -1,5 +1,7 @@
 'use client';
 
+import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
+import renderMarkdocAsReact from '@/lib/renderMarkdocAsReact';
 import { useCompletion } from '@ai-sdk/react';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -7,31 +9,22 @@ import {
   CardContent,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
-import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/design-system/components/ui/select';
+import {} from '@repo/design-system/components/ui/select';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
+import { useAtom } from 'jotai';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import type { FieldValues } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
+import { formAtom } from '../templates/[id]/_components/ContentSection';
+import Inputs from '../templates/[id]/_components/Inputs';
 import { CopyableSection } from './_components/CopyableSection';
 import { ThinkingSteps } from './_components/ThinkingSteps';
 
-const XML_TAGS = [
-  'analysis',
-  'diagnoseblock',
-  'summary',
-  'conclusion',
-  'plan',
-] as const;
+const XML_TAGS = ['analysis', 'diagnoseblock', 'zusammenfassung'] as const;
 
 const thinkingSteps = [
   {
@@ -63,6 +56,12 @@ export default function AITextGenerator() {
     anamnese: '',
   });
   const [currentThinkingStep, setCurrentThinkingStep] = useState<string>('');
+  // define state for the input data to make available in markdoc note
+  const [inputsData, setInputsData] = useAtom(formAtom);
+
+  const handleFormChange = (data: FieldValues) => {
+    setInputsData(data);
+  };
 
   const getCurrentThinkingStep = (completion: string): string => {
     if (!completion) {
@@ -131,14 +130,13 @@ export default function AITextGenerator() {
             ?.split('</diagnoseblock>')[0] || '',
         anamnese:
           completion.split('</analysis>')[1]?.split('<diagnoseblock>')[0] || '',
-        summary: completion.split('<summary>')[1]?.split('</summary>')[0] || '',
-        conclusion:
-          completion.split('<conclusion>')[1]?.split('</conclusion>')[0] || '',
-        plan: completion.split('<plan>')[1]?.split('</plan>')[0] || '',
+        zusammenfassung:
+          completion.split('<summary>')[1]?.split('</summary>')[0] || '',
       }
     : {
         diagnoseblock: '',
         anamnese: '',
+        zusammenfassung: '',
       };
 
   useEffect(() => {
@@ -259,47 +257,15 @@ export default function AITextGenerator() {
                   <CardContent className="p-4">
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                       {/* Left Side - Input Fields and Selections */}
-                      <div className="space-y-4">
-                        <h3 className="font-medium text-lg">Anpassungen</h3>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="patientName">Patient</Label>
-                          <Input id="patientName" placeholder="Patientenname" />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="diagnosisType">Diagnose-Typ</Label>
-                          <Select>
-                            <SelectTrigger id="diagnosisType">
-                              <SelectValue placeholder="Wählen Sie einen Typ" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="hauptdiagnose">
-                                Hauptdiagnose
-                              </SelectItem>
-                              <SelectItem value="nebendiagnose">
-                                Nebendiagnose
-                              </SelectItem>
-                              <SelectItem value="verdachtsdiagnose">
-                                Verdachtsdiagnose
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="additionalInfo">
-                            Zusätzliche Informationen
-                          </Label>
-                          <Textarea
-                            id="additionalInfo"
-                            placeholder="Weitere relevante Informationen..."
-                            className="min-h-[100px]"
-                          />
-                        </div>
-
-                        <Button className="w-full">Aktualisieren</Button>
-                      </div>
+                      <Inputs
+                        inputTags={JSON.stringify(
+                          parseMarkdocToInputs(
+                            //'{% info "test" /%} vordiagnosen'
+                            'vordiagnosen'
+                          )
+                        )}
+                        onChange={handleFormChange}
+                      />
 
                       {/* Right Side - Output Sections */}
                       <div className="space-y-4">
@@ -317,6 +283,11 @@ export default function AITextGenerator() {
                               content={content || `Kein ${section} verfügbar`}
                             />
                           )
+                        )}
+                        {outputData?.zusammenfassung && (
+                          <div>
+                            {renderMarkdocAsReact(outputData?.zusammenfassung)}
+                          </div>
                         )}
                       </div>
                     </div>

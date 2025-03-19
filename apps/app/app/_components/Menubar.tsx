@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as React from 'react';
 
-import { useIsMobile } from '@/hooks/use-mobile';
 import { authClient } from '@/lib/auth-client';
 import DarkLogo from '@/public/logo/dark';
 import LightLogo from '@/public/logo/light';
@@ -23,9 +22,8 @@ import {
 import { cn } from '@repo/design-system/lib/utils';
 
 export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
-  const { data: session, isPending, error } = authClient.useSession();
+  const { data: session } = authClient.useSession();
   const router = useRouter();
-  const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const handleSignOut = async () => {
@@ -133,41 +131,6 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
         )}
       >
         <div className="flex flex-col space-y-3 p-4">
-          <div className="flex flex-col space-y-2">
-            <div className="font-medium">Funktionen</div>
-            <Link
-              href="/templates"
-              className="rounded-md px-2 py-2 hover:bg-accent"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <div className="font-medium">Textbausteine</div>
-              <p className="text-muted-foreground text-sm">
-                Verwalten und nutzen Sie Ihre Textbausteine effizient.
-              </p>
-            </Link>
-
-            {showAiLink && (
-              <Link
-                href="/aiscribe"
-                className="rounded-md px-2 py-2 hover:bg-accent"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <div className="font-medium">AI Scribe</div>
-                <p className="text-muted-foreground text-sm">
-                  Nutzen Sie KI um Ihre Texte zu optimieren und zu erweitern.
-                </p>
-              </Link>
-            )}
-          </div>
-
-          <Link
-            href="https://docs.mdscribe.de/"
-            className="rounded-md px-2 py-2 hover:bg-accent"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Dokumentation
-          </Link>
-
           <div className="mt-2 border-t pt-3">
             {session?.user && (
               <Link

@@ -44,6 +44,7 @@ export const auth = betterAuth({
           template: EmailChangeTemplate({ url, newEmail }),
         });
       },
+      callbackURL: '/dashboard', // The redirect URL after verification
     },
   },
   // enables login with the email and password flow
@@ -69,6 +70,9 @@ export const auth = betterAuth({
   },
   // define email verification functions
   emailVerification: {
+    autoSignInAfterVerification: true,
+    callbackURL: '/dashboard', // The redirect URL after verification
+    expiresIn: 3600, // 1 hour
     sendVerificationEmail: async ({ user, url, token }, request) => {
       if (env.NODE_ENV === 'development') {
         await console.log({

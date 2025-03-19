@@ -1,6 +1,4 @@
-import {} from '@radix-ui/react-icons';
 import { Card } from '@repo/design-system/components/ui/card';
-import {} from '@repo/design-system/components/ui/popover';
 import { Skeleton } from '@repo/design-system/components/ui/skeleton';
 
 export default function SkeletonContentSection() {

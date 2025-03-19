@@ -33,7 +33,7 @@ export default function SignIn() {
           setLoading(true);
           try {
             await signIn.email(
-              { email, password, rememberMe },
+              { email, password, rememberMe, callbackURL: '/dashboard' },
               {
                 onRequest: () => {
                   //show loading
