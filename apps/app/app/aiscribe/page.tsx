@@ -1,5 +1,7 @@
 'use client';
 
+import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
+import renderMarkdocAsReact from '@/lib/renderMarkdocAsReact';
 import { useCompletion } from '@ai-sdk/react';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -10,22 +12,19 @@ import {
 import { Label } from '@repo/design-system/components/ui/label';
 import {} from '@repo/design-system/components/ui/select';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
+import { useAtom } from 'jotai';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import type { FieldValues } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
+import { formAtom } from '../templates/[id]/_components/ContentSection';
 import Inputs from '../templates/[id]/_components/Inputs';
 import { CopyableSection } from './_components/CopyableSection';
 import { ThinkingSteps } from './_components/ThinkingSteps';
 
-const XML_TAGS = [
-  'analysis',
-  'diagnoseblock',
-  'summary',
-  'conclusion',
-  'plan',
-] as const;
+const XML_TAGS = ['analysis', 'diagnoseblock', 'zusammenfassung'] as const;
 
 const thinkingSteps = [
   {
@@ -57,6 +56,12 @@ export default function AITextGenerator() {
     anamnese: '',
   });
   const [currentThinkingStep, setCurrentThinkingStep] = useState<string>('');
+  // define state for the input data to make available in markdoc note
+  const [inputsData, setInputsData] = useAtom(formAtom);
+
+  const handleFormChange = (data: FieldValues) => {
+    setInputsData(data);
+  };
 
   const getCurrentThinkingStep = (completion: string): string => {
     if (!completion) {
@@ -125,14 +130,13 @@ export default function AITextGenerator() {
             ?.split('</diagnoseblock>')[0] || '',
         anamnese:
           completion.split('</analysis>')[1]?.split('<diagnoseblock>')[0] || '',
-        summary: completion.split('<summary>')[1]?.split('</summary>')[0] || '',
-        conclusion:
-          completion.split('<conclusion>')[1]?.split('</conclusion>')[0] || '',
-        plan: completion.split('<plan>')[1]?.split('</plan>')[0] || '',
+        zusammenfassung:
+          completion.split('<summary>')[1]?.split('</summary>')[0] || '',
       }
     : {
         diagnoseblock: '',
         anamnese: '',
+        zusammenfassung: '',
       };
 
   useEffect(() => {
@@ -254,8 +258,13 @@ export default function AITextGenerator() {
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                       {/* Left Side - Input Fields and Selections */}
                       <Inputs
-                        inputs={['vordiagnosen', 'anamnese']}
-                        onChange={() => {}}
+                        inputTags={JSON.stringify(
+                          parseMarkdocToInputs(
+                            //'{% info "test" /%} vordiagnosen'
+                            'vordiagnosen'
+                          )
+                        )}
+                        onChange={handleFormChange}
                       />
 
                       {/* Right Side - Output Sections */}
@@ -274,6 +283,11 @@ export default function AITextGenerator() {
                               content={content || `Kein ${section} verfügbar`}
                             />
                           )
+                        )}
+                        {outputData?.zusammenfassung && (
+                          <div>
+                            {renderMarkdocAsReact(outputData?.zusammenfassung)}
+                          </div>
                         )}
                       </div>
                     </div>
