@@ -3,6 +3,7 @@
 import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
 import renderMarkdocAsReact from '@/lib/renderMarkdocAsReact';
 import { useCompletion } from '@ai-sdk/react';
+import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,
@@ -161,7 +162,15 @@ export default function AITextGenerator() {
               className="flex w-full cursor-pointer items-center justify-between bg-card p-4"
               onClick={toggleInputTab}
             >
-              <CardTitle className="text-lg">Eingabe</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg">Eingabe</CardTitle>
+                {!isInputExpanded && (
+                  <span className="flex items-center gap-1 rounded bg-yellow-50 px-2 py-0.5 text-xs text-yellow-800">
+                    <ExclamationTriangleIcon className="h-3 w-3" />
+                    Keine persönlichen Patientendaten
+                  </span>
+                )}
+              </div>
               {isInputExpanded ? (
                 <ChevronUp size={20} />
               ) : (
@@ -178,6 +187,12 @@ export default function AITextGenerator() {
                   transition={{ duration: 0.3 }}
                 >
                   <CardContent className="p-4">
+                    <div className="mb-4 flex items-center gap-2 rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
+                      <ExclamationTriangleIcon className="h-4 w-4" />
+                      Bitte füge hier keine Patientendaten ein und respektiere
+                      den Datenschutz. Dieses Tool dient lediglich als
+                      Formulierungshilfe für anonymisierte Stichpunkte!
+                    </div>
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="vordiagnosen">Vordiagnosen</Label>
