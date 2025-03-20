@@ -13,7 +13,7 @@ import { Label } from '@repo/design-system/components/ui/label';
 import {} from '@repo/design-system/components/ui/select';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useAtom } from 'jotai';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
@@ -22,7 +22,6 @@ import { toast } from 'react-hot-toast';
 import { formAtom } from '../templates/[id]/_components/ContentSection';
 import Inputs from '../templates/[id]/_components/Inputs';
 import { CopyableSection } from './_components/CopyableSection';
-import { ThinkingSteps } from './_components/ThinkingSteps';
 
 const XML_TAGS = ['analysis', 'diagnoseblock', 'zusammenfassung'] as const;
 
@@ -33,14 +32,14 @@ const thinkingSteps = [
     content: 'Verarbeite die eingegebenen Informationen zur weiteren Analyse',
   },
   {
-    id: 'summarize',
-    title: 'Generiere Anamnesezusammenfassung',
-    content: 'Extrahiere die wichtigsten Punkte aus der Anamnese',
-  },
-  {
-    id: 'diagnose',
+    id: 'diagnoseblock',
     title: 'Erstelle strukturierten Diagnoseblock',
     content: 'Identifiziere und formatiere relevante Diagnosen',
+  },
+  {
+    id: 'zusammenfassung',
+    title: 'Generiere Anamnesezusammenfassung',
+    content: 'Extrahiere die wichtigsten Punkte aus der Anamnese',
   },
 ];
 
@@ -67,7 +66,6 @@ export default function AITextGenerator() {
     if (!completion) {
       return '';
     }
-
     for (const tag of XML_TAGS) {
       const openTag = `<${tag}>`;
       const closeTag = `</${tag}>`;
@@ -77,7 +75,7 @@ export default function AITextGenerator() {
       }
     }
 
-    return '';
+    return 'analysis';
   };
 
   const { completion, complete, isLoading } = useCompletion({
@@ -270,11 +268,18 @@ export default function AITextGenerator() {
                       {/* Right Side - Output Sections */}
                       <div className="space-y-4">
                         {/* Thinking Steps */}
-                        <ThinkingSteps
-                          steps={thinkingSteps}
-                          currentStep={currentThinkingStep}
-                          isComplete={!isLoading}
-                        />
+                        {/* {isLoading && (
+                          <ThinkingSteps
+                            steps={thinkingSteps}
+                            currentStep={currentThinkingStep}
+                            isComplete={!isLoading}
+                          />
+                        )} */}
+                        {isLoading && (
+                          <div className="flex items-center justify-center">
+                            <Loader2 className="h-10 w-10 animate-spin" />
+                          </div>
+                        )}
                         {Object.entries(outputData).map(
                           ([section, content]) => (
                             <CopyableSection

@@ -2,10 +2,20 @@
 import { anthropic } from '@ai-sdk/anthropic';
 
 import { allowAIUse } from '@/flags';
+import { authClient } from '@/lib/auth-client';
 import { env } from '@repo/env';
 import { streamText } from 'ai';
 
 export async function POST(req: Request) {
+  //get session and active subscription from better-auth
+
+  const { data: subscriptions } = await authClient.subscription.list();
+
+  // get the active subscription
+  const activeSubscription = subscriptions?.find(
+    (sub) => sub.status === 'active' || sub.status === 'trialing'
+  );
+
   const { prompt }: { prompt: string } = await req.json();
   const { anamnese, vordiagnosen } = JSON.parse(prompt);
   const allowAIUseFlag = await allowAIUse();
@@ -13,9 +23,9 @@ export async function POST(req: Request) {
     return new Response('Bitte geben Sie Stichpunkte ein.', { status: 400 });
   }
 
-  if (!allowAIUseFlag) {
+  if (!allowAIUseFlag && !activeSubscription) {
     return new Response(
-      'Unauthorized: Only n.hapke@bbtgruppe.de can use this feature',
+      'Unauthorized: Du brauchst ein aktives Abo um diese Funktion zu nutzen.',
       { status: 401 }
     );
   }
