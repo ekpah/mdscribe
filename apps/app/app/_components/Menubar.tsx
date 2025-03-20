@@ -59,7 +59,7 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 
           {/* Desktop Navigation */}
 
-          <NavigationMenu>
+          <NavigationMenu className="hidden md:block">
             <NavigationMenuList>
               <NavigationMenuItem>
                 <NavigationMenuTrigger>Funktionen</NavigationMenuTrigger>
@@ -131,6 +131,33 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
         )}
       >
         <div className="flex flex-col space-y-3 p-4">
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Funktionen</NavigationMenuTrigger>
+                <NavigationMenuContent data-orientation="vertical">
+                  <ul className="grid md:w-[400px] lg:w-[500px]">
+                    <ListItem href="/templates" title="Textbausteine">
+                      Verwalten und nutzen Sie Ihre Textbausteine effizient.
+                    </ListItem>
+                    {showAiLink && (
+                      <ListItem href="/aiscribe" title="AI Scribe">
+                        Nutzen Sie KI um Ihre Texte zu optimieren und zu
+                        erweitern.
+                      </ListItem>
+                    )}
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link href="https://docs.mdscribe.de/" legacyBehavior passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    Dokumentation
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
           <div className="mt-2 border-t pt-3">
             {session?.user && (
               <Link
