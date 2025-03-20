@@ -123,7 +123,6 @@ export default function UserDashboard({
         }),
         {
           loading: 'Dein Abonnement wird aktualisiert...',
-          success: 'Dein Abonnement wurde erfolgreich aktualisiert.',
           error: 'Dein Abonnement konnte nicht aktualisiert werden.',
         }
       )
@@ -139,7 +138,6 @@ export default function UserDashboard({
         }),
         {
           loading: 'Dein Abonnement wird storniert...',
-          success: 'Dein Abonnement wurde erfolgreich storniert.',
           error: 'Dein Abonnement konnte nicht storniert werden.',
         }
       )

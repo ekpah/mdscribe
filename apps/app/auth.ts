@@ -15,6 +15,8 @@ if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
 }
 const stripeClient = new Stripe(env.STRIPE_SECRET_KEY as string);
 
+console.log(env.VERCEL_ENV);
+
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_BASE_URL as string,
   // sets the Better-Auth database adapter to Prisma with the PostgreSQL provider
