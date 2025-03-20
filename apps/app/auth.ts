@@ -15,8 +15,6 @@ if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
 }
 const stripeClient = new Stripe(env.STRIPE_SECRET_KEY as string);
 
-console.log(env.VERCEL_ENV);
-
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_BASE_URL as string,
   // sets the Better-Auth database adapter to Prisma with the PostgreSQL provider
@@ -104,14 +102,8 @@ export const auth = betterAuth({
         plans: [
           {
             name: 'plus', // the name of the plan, it'll be automatically lower cased when stored in the database
-            priceId:
-              env.VERCEL_ENV === 'production'
-                ? 'price_1R0lkyGY6Xt2s2Lz9jHZ8gEJ' // production price id
-                : 'price_1R0lk9GY6Xt2s2LzTC3UxDOC', // development price id
-            annualDiscountPriceId:
-              env.VERCEL_ENV === 'production'
-                ? 'price_1R0lkyGY6Xt2s2LzqKWXpUc5' // production price id
-                : 'price_1R0lkkGY6Xt2s2LzAnW6aMb4', // development price id
+            priceId: env.STRIPE_PLUS_PRICE_ID as string,
+            annualDiscountPriceId: env.STRIPE_PLUS_PRICE_ID_ANNUAL as string,
             limits: {
               ai_scribe_generations: 500,
             },

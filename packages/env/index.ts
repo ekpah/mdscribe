@@ -24,6 +24,8 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
 
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
+  STRIPE_PLUS_PRICE_ID: z.string().min(1),
+  STRIPE_PLUS_PRICE_ID_ANNUAL: z.string().min(1),
 
   // Added by Node
   NODE_ENV: z.enum(['development', 'production']),
@@ -68,7 +70,8 @@ export const env = createEnv({
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-
+    STRIPE_PLUS_PRICE_ID: process.env.STRIPE_PLUS_PRICE_ID,
+    STRIPE_PLUS_PRICE_ID_ANNUAL: process.env.STRIPE_PLUS_PRICE_ID_ANNUAL,
     VERCEL: process.env.VERCEL,
     NEXT_RUNTIME: process.env.NEXT_RUNTIME,
     FLAGS_SECRET: process.env.FLAGS_SECRET,
