@@ -1,322 +1,118 @@
 'use client';
 
-import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
-import renderMarkdocAsReact from '@/lib/renderMarkdocAsReact';
-import { useCompletion } from '@ai-sdk/react';
-import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
-import { Button } from '@repo/design-system/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardTitle,
-} from '@repo/design-system/components/ui/card';
-import { Label } from '@repo/design-system/components/ui/label';
-import {} from '@repo/design-system/components/ui/select';
-import { Textarea } from '@repo/design-system/components/ui/textarea';
-import { useAtom } from 'jotai';
-import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
-import type React from 'react';
-import { useEffect, useState } from 'react';
-import type { FieldValues } from 'react-hook-form';
-import { toast } from 'react-hot-toast';
-import { formAtom } from '../templates/[id]/_components/ContentSection';
-import Inputs from '../templates/[id]/_components/Inputs';
-import { CopyableSection } from './_components/CopyableSection';
-
-const XML_TAGS = ['analysis', 'diagnoseblock', 'zusammenfassung'] as const;
-
-const thinkingSteps = [
-  {
-    id: 'analysis',
-    title: 'Analysiere Patientendaten und Vorgeschichte',
-    content: 'Verarbeite die eingegebenen Informationen zur weiteren Analyse',
-  },
-  {
-    id: 'diagnoseblock',
-    title: 'Erstelle strukturierten Diagnoseblock',
-    content: 'Identifiziere und formatiere relevante Diagnosen',
-  },
-  {
-    id: 'zusammenfassung',
-    title: 'Generiere Anamnesezusammenfassung',
-    content: 'Extrahiere die wichtigsten Punkte aus der Anamnese',
-  },
-];
+import { useCallback, useEffect, useRef } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { DispositionTab } from './components/DispositionTab';
+import { InputTab } from './components/InputTab';
+import { OutputTab } from './components/OutputTab';
+import { useAICompletion } from './hooks/useAICompletion';
+import { useAnamneseForm } from './hooks/useAnamneseForm';
+import { useTabState } from './hooks/useTabState';
 
 export default function AITextGenerator() {
-  const [activeTab, setActiveTab] = useState<'input' | 'output'>('input');
-  const [isInputExpanded, setIsInputExpanded] = useState<boolean>(true);
-  const [isOutputExpanded, setIsOutputExpanded] = useState<boolean>(false);
-  const [formData, setFormData] = useState<{
-    vordiagnosen: string;
-    anamnese: string;
-  }>({
-    vordiagnosen: '',
-    anamnese: '',
-  });
-  const [currentThinkingStep, setCurrentThinkingStep] = useState<string>('');
-  // define state for the input data to make available in markdoc note
-  const [inputsData, setInputsData] = useAtom(formAtom);
+  const { formData, handleFormChange, handleInputChange } = useAnamneseForm();
 
-  const handleFormChange = (data: FieldValues) => {
-    setInputsData(data);
-  };
+  const {
+    activeTab,
+    isInputExpanded,
+    isOutputExpanded,
+    isDispositionExpanded,
+    toggleInputTab,
+    toggleOutputTab,
+    toggleDispositionTab,
+  } = useTabState();
 
-  const getCurrentThinkingStep = (completion: string): string => {
-    if (!completion) {
-      return '';
-    }
-    for (const tag of XML_TAGS) {
-      const openTag = `<${tag}>`;
-      const closeTag = `</${tag}>`;
+  const { getDifferentialDiagnosis, anamnese, discharge, outputData } =
+    useAICompletion();
 
-      if (completion.includes(openTag) && !completion.includes(closeTag)) {
-        return tag;
-      }
-    }
+  const handleSubmitInput = useCallback(
+    (e?: React.FormEvent) => {
+      e?.preventDefault();
 
-    return 'analysis';
-  };
+      toggleOutputTab();
 
-  const { completion, complete, isLoading } = useCompletion({
-    api: '/api/scribe',
-    experimental_throttle: 50,
-    onError: (error: Error) => {
-      console.log('errormessage', error, error.message);
-      toast.error(`Fehler beim Generieren der Anamnese: ${error.message}`);
+      const prompt = JSON.stringify({
+        vordiagnosen: formData.vordiagnosen || '',
+        anamnese: formData.anamnese || '',
+      });
+      anamnese.complete(prompt);
+      getDifferentialDiagnosis(prompt);
     },
-  });
+    [anamnese, formData, toggleOutputTab, getDifferentialDiagnosis]
+  );
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleSubmitDischarge = useCallback(
+    (e?: React.FormEvent) => {
+      e?.preventDefault();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+      toggleDispositionTab();
 
-    setActiveTab('output');
-    setIsInputExpanded(false);
-    setIsOutputExpanded(true);
-
-    const prompt = JSON.stringify({
-      vordiagnosen: formData.vordiagnosen,
-      anamnese: formData.anamnese,
-    });
-    complete(prompt);
-  };
-
-  const toggleInputTab = () => {
-    setActiveTab('input');
-    setIsInputExpanded(true);
-    setIsOutputExpanded(false);
-  };
-
-  const toggleOutputTab = () => {
-    setActiveTab('output');
-    setIsInputExpanded(false);
-    setIsOutputExpanded(true);
-  };
-
-  const outputData = completion
-    ? {
-        diagnoseblock:
-          completion
-            .split('<diagnoseblock>')[1]
-            ?.split('</diagnoseblock>')[0] || '',
-        anamnese:
-          completion.split('</analysis>')[1]?.split('<diagnoseblock>')[0] || '',
-        zusammenfassung:
-          completion.split('<summary>')[1]?.split('</summary>')[0] || '',
-      }
-    : {
-        diagnoseblock: '',
-        anamnese: '',
-        zusammenfassung: '',
-      };
+      const prompt = JSON.stringify({
+        diagnosen: outputData.diagnoseblock,
+        anamnese: outputData.anamnese,
+      });
+      discharge.complete(prompt);
+    },
+    [discharge, outputData, toggleDispositionTab]
+  );
 
   useEffect(() => {
-    setCurrentThinkingStep(getCurrentThinkingStep(completion || ''));
-  }, [completion]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmitInput();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleSubmitInput]);
+
+  useHotkeys(['meta+k', 'ctrl+k'], (event: KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (notesInputRef.current) {
+      notesInputRef.current.focus();
+      notesInputRef.current.value = '';
+    }
+  });
+
+  const notesInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="container mx-auto size-full overflow-y-auto p-4">
       <div className="flex flex-col gap-4">
-        {/* Input Tab */}
-        <motion.div
-          className="relative"
-          animate={{
-            height: isInputExpanded ? 'auto' : '60px',
-            opacity: isInputExpanded ? 1 : 0.8,
-          }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card
-            className={`size-full overflow-hidden ${activeTab === 'input' ? 'border-primary' : 'border-muted'}`}
-          >
-            <button
-              type="button"
-              className="flex w-full cursor-pointer items-center justify-between bg-card p-4"
-              onClick={toggleInputTab}
-            >
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg">Eingabe</CardTitle>
-                {!isInputExpanded && (
-                  <span className="flex items-center gap-1 rounded bg-yellow-50 px-2 py-0.5 text-xs text-yellow-800">
-                    <ExclamationTriangleIcon className="h-3 w-3" />
-                    Keine persönlichen Patientendaten
-                  </span>
-                )}
-              </div>
-              {isInputExpanded ? (
-                <ChevronUp size={20} />
-              ) : (
-                <ChevronDown size={20} />
-              )}
-            </button>
+        <InputTab
+          isExpanded={isInputExpanded}
+          isActive={activeTab === 'input'}
+          isLoading={anamnese.isLoading}
+          formData={formData}
+          onToggle={toggleInputTab}
+          onSubmit={handleSubmitInput}
+          onInputChange={handleInputChange}
+        />
 
-            <AnimatePresence>
-              {isInputExpanded && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <CardContent className="p-4">
-                    <div className="mb-4 flex items-center gap-2 rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
-                      <ExclamationTriangleIcon className="h-4 w-4" />
-                      Bitte füge hier keine Patientendaten ein und respektiere
-                      den Datenschutz. Dieses Tool dient lediglich als
-                      Formulierungshilfe für anonymisierte Stichpunkte!
-                    </div>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="vordiagnosen">Vordiagnosen</Label>
-                        <Textarea
-                          id="vordiagnosen"
-                          name="vordiagnosen"
-                          placeholder="Geben Sie hier die Vordiagnosen ein..."
-                          value={formData.vordiagnosen}
-                          onChange={handleInputChange}
-                          className="min-h-[100px]"
-                        />
-                      </div>
+        <OutputTab
+          isExpanded={isOutputExpanded}
+          isActive={activeTab === 'output'}
+          isLoading={anamnese.isLoading}
+          isDischargeLoading={discharge.isLoading}
+          completion={anamnese.completion}
+          outputData={outputData}
+          onSubmit={handleSubmitDischarge}
+          onToggle={toggleOutputTab}
+          onFormChange={handleFormChange}
+          hasAnamnese={!!outputData.anamnese}
+        />
 
-                      <div className="space-y-2">
-                        <Label htmlFor="anamnese">Anamnese</Label>
-                        <Textarea
-                          id="anamnese"
-                          name="anamnese"
-                          placeholder="Geben Sie hier die Anamnese ein..."
-                          value={formData.anamnese}
-                          onChange={handleInputChange}
-                          className="min-h-[150px]"
-                        />
-                      </div>
-
-                      <Button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full"
-                      >
-                        Verarbeiten
-                      </Button>
-                    </form>
-                  </CardContent>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Card>
-        </motion.div>
-
-        {/* Output Tab */}
-        <motion.div
-          className="relative"
-          animate={{
-            height: isOutputExpanded ? 'auto' : '60px',
-            opacity: isOutputExpanded ? 1 : 0.8,
-          }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card
-            className={`overflow-hidden ${activeTab === 'output' ? 'border-primary' : 'border-muted'}`}
-          >
-            <button
-              type="button"
-              className="flex w-full cursor-pointer items-center justify-between bg-card p-4"
-              onClick={toggleOutputTab}
-              onKeyDown={(e) => e.key === 'Enter' && toggleOutputTab()}
-            >
-              <CardTitle className="text-lg">Dokumentation</CardTitle>
-              {isOutputExpanded ? (
-                <ChevronUp size={20} />
-              ) : (
-                <ChevronDown size={20} />
-              )}
-            </button>
-
-            <AnimatePresence>
-              {isOutputExpanded && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      {/* Left Side - Input Fields and Selections */}
-                      <Inputs
-                        inputTags={JSON.stringify(
-                          parseMarkdocToInputs(
-                            //'{% info "test" /%} vordiagnosen'
-                            'vordiagnosen'
-                          )
-                        )}
-                        onChange={handleFormChange}
-                      />
-
-                      {/* Right Side - Output Sections */}
-                      <div className="space-y-4">
-                        {/* Thinking Steps */}
-                        {/* {isLoading && (
-                          <ThinkingSteps
-                            steps={thinkingSteps}
-                            currentStep={currentThinkingStep}
-                            isComplete={!isLoading}
-                          />
-                        )} */}
-                        {isLoading && (
-                          <div className="flex items-center justify-center">
-                            <Loader2 className="h-10 w-10 animate-spin" />
-                          </div>
-                        )}
-                        {Object.entries(outputData).map(
-                          ([section, content]) => (
-                            <CopyableSection
-                              key={section}
-                              title={section}
-                              content={content || `Kein ${section} verfügbar`}
-                            />
-                          )
-                        )}
-                        {outputData?.zusammenfassung && (
-                          <div>
-                            {renderMarkdocAsReact(outputData?.zusammenfassung)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Card>
-        </motion.div>
+        <DispositionTab
+          isExpanded={isDispositionExpanded}
+          isActive={activeTab === 'disposition'}
+          isLoading={discharge.isLoading}
+          completion={discharge.completion}
+          onToggle={toggleDispositionTab}
+          onFormChange={handleFormChange}
+        />
       </div>
     </div>
   );
