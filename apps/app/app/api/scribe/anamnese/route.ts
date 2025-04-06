@@ -158,7 +158,8 @@ Prüfen Sie auf:
 - Korrekte medizinische Terminologie
 - Korrekte Syntax der Markdoc-Tags (besonders auf korrekte Leerzeichen und Schrägstriche achten)
 - Unklare oder unbekannte Informationen durch Markdoc-Tags ersetzt
-- Nutze nicht mehr als 5 Markdoc-Tags
+- Nutze nicht mehr als 5 Markdoc-Tags. Sollte zu einer Kategorie gar keine Informationen vorhanden sein, lasse diese stattdessen weg und nutze Markdoc-Tags für die Bereiche, wo teilweise Informationen vorhanden sind.
+- Schreibe prägnant und klar. Nenne insbesondere jede Information nur einmal.
 </validierung>
 
 Formatieren Sie Ihre Antwort in Markdown. Geben Sie nur den Anamnesetext aus, ohne zusätzliche Kommentare oder Erklärungen. Fügen Sie nach jeder fettgedruckten Kategorie einen Doppelpunkt und einen Zeilenumbruch ein.

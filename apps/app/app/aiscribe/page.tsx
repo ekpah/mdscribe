@@ -28,15 +28,14 @@ export default function AITextGenerator() {
   const handleSubmitInput = useCallback(
     (e?: React.FormEvent) => {
       e?.preventDefault();
-
       toggleOutputTab();
 
       const prompt = JSON.stringify({
         vordiagnosen: formData.vordiagnosen || '',
         anamnese: formData.anamnese || '',
       });
-      anamnese.complete(prompt);
       getDifferentialDiagnosis(prompt);
+      anamnese.complete(prompt);
     },
     [anamnese, formData, toggleOutputTab, getDifferentialDiagnosis]
   );

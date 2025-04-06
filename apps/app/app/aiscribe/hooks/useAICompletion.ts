@@ -25,6 +25,7 @@ export function useAICompletion() {
       icd_code: json.icd_code,
       diagnosis: json.diagnosis,
     });
+    return json;
   }
 
   const anamnese = useCompletion({
