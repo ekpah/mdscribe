@@ -7,8 +7,9 @@ import {
 } from '@repo/design-system/components/ui/card';
 import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import type { FormEvent } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
+import { useHotkeys } from 'react-hotkeys-hook';
 import Inputs from '../../templates/[id]/_components/Inputs';
 import { CopyableSection } from '../_components/CopyableSection';
 
@@ -39,6 +40,23 @@ export function OutputTab({
   onFormChange,
   hasAnamnese,
 }: OutputTabProps) {
+  const [hotkeyEnabled, setHotkeyEnabled] = useState<boolean>(false);
+
+  useEffect(() => {
+    setHotkeyEnabled(isExpanded && !isLoading);
+  }, [isExpanded, isLoading]);
+
+  useHotkeys(
+    ['meta+enter', 'ctrl+enter'],
+    (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSubmit();
+    },
+    {
+      enabled: hotkeyEnabled,
+    }
+  );
   return (
     <motion.div
       className="relative"

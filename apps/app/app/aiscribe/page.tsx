@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
-import { useHotkeys } from 'react-hotkeys-hook';
+import { useCallback } from 'react';
 import { DispositionTab } from './components/DispositionTab';
 import { InputTab } from './components/InputTab';
 import { OutputTab } from './components/OutputTab';
@@ -33,6 +32,7 @@ export default function AITextGenerator() {
   const handleSubmitInput = useCallback(
     (e?: React.FormEvent) => {
       e?.preventDefault();
+      if (anamnese.isLoading || discharge.isLoading) return;
       toggleOutputTab();
 
       const prompt = JSON.stringify({
@@ -42,13 +42,13 @@ export default function AITextGenerator() {
       getDifferentialDiagnosis(prompt);
       anamnese.complete(prompt);
     },
-    [anamnese, formData, toggleOutputTab, getDifferentialDiagnosis]
+    [anamnese, discharge, formData, toggleOutputTab, getDifferentialDiagnosis]
   );
 
   const handleSubmitDischarge = useCallback(
     (e?: React.FormEvent) => {
       e?.preventDefault();
-
+      if (anamnese.isLoading || discharge.isLoading) return;
       toggleDispositionTab();
 
       const prompt = JSON.stringify({
@@ -57,31 +57,8 @@ export default function AITextGenerator() {
       });
       discharge.complete(prompt);
     },
-    [discharge, outputData, toggleDispositionTab]
+    [discharge, outputData, toggleDispositionTab, anamnese.isLoading]
   );
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        handleSubmitInput();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleSubmitInput]);
-
-  useHotkeys(['meta+k', 'ctrl+k'], (event: KeyboardEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (notesInputRef.current) {
-      notesInputRef.current.focus();
-      notesInputRef.current.value = '';
-    }
-  });
-
-  const notesInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="container mx-auto size-full overflow-y-auto p-4">

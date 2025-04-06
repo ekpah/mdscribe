@@ -11,6 +11,7 @@ import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { FormEvent } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 
 interface InputTabProps {
   isExpanded: boolean;
@@ -34,9 +35,19 @@ export function InputTab({
   onSubmit,
   onInputChange,
 }: InputTabProps) {
+  const ref = useHotkeys(
+    ['meta+enter', 'ctrl+enter'],
+    (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSubmit();
+    }
+  );
   return (
     <motion.div
       className="relative"
+      ref={ref}
+      tabIndex={-1}
       animate={{
         height: isExpanded ? 'auto' : '60px',
         opacity: isExpanded ? 1 : 0.8,
