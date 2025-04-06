@@ -35,8 +35,8 @@ export default function Inputs({ inputTags, onChange }: InputsProps) {
   }, [formValues, onChange]);
 
   return (
-    <Form {...methods} key="inputs">
-      <form className="space-y-6">
+    <Form {...methods} key="inputs" className="space-y-6">
+      <form>
         {parsedInputTags?.inputTags?.map((input: InputTagType) => {
           if (input.type === 'info') {
             return (

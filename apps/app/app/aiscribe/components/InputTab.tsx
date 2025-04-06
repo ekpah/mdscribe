@@ -79,7 +79,7 @@ export function InputTab({
                   Formulierungshilfe für anonymisierte Stichpunkte!
                 </div>
                 <form onSubmit={onSubmit} className="space-y-4">
-                  <div className="space-y-2">
+                  {/*<div className="space-y-2">
                     <Label htmlFor="vordiagnosen">Vordiagnosen</Label>
                     <Textarea
                       id="vordiagnosen"
@@ -89,7 +89,7 @@ export function InputTab({
                       onChange={onInputChange}
                       className="min-h-[100px]"
                     />
-                  </div>
+                  </div>*/}
 
                   <div className="space-y-2">
                     <Label htmlFor="anamnese">Anamnese</Label>

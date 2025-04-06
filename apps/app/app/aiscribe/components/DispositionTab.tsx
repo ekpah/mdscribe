@@ -1,5 +1,4 @@
 import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
-import renderMarkdocAsReact from '@/lib/renderMarkdocAsReact';
 import {
   Card,
   CardContent,
@@ -9,12 +8,15 @@ import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { FieldValues } from 'react-hook-form';
 import Inputs from '../../templates/[id]/_components/Inputs';
+import { CopyableSection } from '../_components/CopyableSection';
 
 interface DispositionTabProps {
   isExpanded: boolean;
   isActive: boolean;
   isLoading: boolean;
-  completion: string | undefined;
+  dispositionOutputData: {
+    [key: string]: string;
+  };
   onToggle: () => void;
   onFormChange: (data: FieldValues) => void;
 }
@@ -23,7 +25,7 @@ export function DispositionTab({
   isExpanded,
   isActive,
   isLoading,
-  completion,
+  dispositionOutputData,
   onToggle,
   onFormChange,
 }: DispositionTabProps) {
@@ -62,21 +64,29 @@ export function DispositionTab({
                   {/* Left Side - Input Fields and Selections */}
                   <Inputs
                     inputTags={JSON.stringify(
-                      parseMarkdocToInputs(completion || '')
+                      parseMarkdocToInputs(dispositionOutputData.summary || '')
                     )}
                     onChange={onFormChange}
                   />
 
                   {/* Right Side - Output Sections */}
                   <div className="space-y-4">
-                    {isLoading && (
-                      <div className="flex items-center justify-center">
-                        <Loader2 className="h-10 w-10 animate-spin" />
-                      </div>
-                    )}
-                    {completion && (
-                      <div>{renderMarkdocAsReact(completion)}</div>
-                    )}
+                    <div className="space-y-4">
+                      {isLoading && (
+                        <div className="flex items-center justify-center">
+                          <Loader2 className="h-10 w-10 animate-spin" />
+                        </div>
+                      )}
+                      {Object.entries(dispositionOutputData).map(
+                        ([section, content]) => (
+                          <CopyableSection
+                            key={section}
+                            title={section}
+                            content={content || `Kein ${section} verfügbar`}
+                          />
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>

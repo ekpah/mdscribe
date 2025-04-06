@@ -22,8 +22,13 @@ export default function AITextGenerator() {
     toggleDispositionTab,
   } = useTabState();
 
-  const { getDifferentialDiagnosis, anamnese, discharge, outputData } =
-    useAICompletion();
+  const {
+    getDifferentialDiagnosis,
+    anamnese,
+    discharge,
+    outputData,
+    dispositionOutputData,
+  } = useAICompletion();
 
   const handleSubmitInput = useCallback(
     (e?: React.FormEvent) => {
@@ -108,7 +113,7 @@ export default function AITextGenerator() {
           isExpanded={isDispositionExpanded}
           isActive={activeTab === 'disposition'}
           isLoading={discharge.isLoading}
-          completion={discharge.completion}
+          dispositionOutputData={dispositionOutputData}
           onToggle={toggleDispositionTab}
           onFormChange={handleFormChange}
         />

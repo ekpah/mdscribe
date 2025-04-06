@@ -71,6 +71,12 @@ export function useAICompletion() {
     diagnoseblock: differentialDiagnosis?.diagnosis || '',
     anamnese: anamnese?.completion?.split('</analyse>')[1] || '',
   };
+  console.log(discharge);
+  const dispositionOutputData = {
+    diagnoseblock: differentialDiagnosis?.diagnosis || '',
+    anamnese: anamnese?.completion?.split('</analyse>')[1] || '',
+    summary: discharge?.completion || '',
+  };
 
   return {
     differentialDiagnosis,
@@ -79,5 +85,6 @@ export function useAICompletion() {
     discharge,
     currentThinkingStep,
     outputData,
+    dispositionOutputData,
   };
 }
