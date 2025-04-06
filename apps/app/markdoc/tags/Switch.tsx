@@ -19,7 +19,9 @@ export function Switch({
 
   return (
     <SwitchContext.Provider value={value}>
-      <span>{children}</span>
+      <span className="rounded-md bg-solarized-green/90 px-1 text-white">
+        {children}
+      </span>
     </SwitchContext.Provider>
   );
 }

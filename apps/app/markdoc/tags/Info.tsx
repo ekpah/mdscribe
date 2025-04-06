@@ -10,5 +10,9 @@ export function Info({
 }: { primary: string; variable: string }) {
   // TODO: error, if variable does not exist
   const data = useAtomValue(formAtom);
-  return <span>{data[primary] || ''}</span>;
+  return (
+    <span className="rounded-md bg-solarized-blue/90 px-1 text-white">
+      {data[primary] || ''}
+    </span>
+  );
 }
