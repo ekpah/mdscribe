@@ -120,11 +120,7 @@ export default function Pricing() {
               </li>
             </ul>
             <Button className="mt-auto">
-              <Link
-                href={`/auth/signup?plan=plus&billing=${isYearly ? 'yearly' : 'monthly'}`}
-              >
-                Jetzt starten
-              </Link>
+              <Link href={'/auth/signup'}>Jetzt starten</Link>
             </Button>
           </div>
 
@@ -167,7 +163,7 @@ export default function Pricing() {
               </li>
             </ul>
             <Button className="mt-auto">
-              <Link href="/contact?subject=Enterprise-Interesse">
+              <Link href="mailto:nils.hapke@we-mail.de?subject=MD-Scribe-Enterprise">
                 Interesse anmelden
               </Link>
             </Button>

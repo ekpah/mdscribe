@@ -23,8 +23,15 @@ export default function Hero() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const scrollToContent = () => {
+    window.scrollTo({
+      top: window.innerHeight,
+      behavior: 'smooth',
+    });
+  };
+
   return (
-    <div className="flex h-[90vh] flex-col flex-wrap items-center bg-gradient-to-b from-background to-muted/30 px-3 md:flex-row">
+    <div className="relative flex h-[90vh] flex-col flex-wrap items-center bg-gradient-to-b from-background to-muted/30 px-3 md:flex-row">
       {/*<!--Left Col-->*/}
       <div className="flex w-full flex-col items-start justify-center px-3 py-6 text-center md:w-2/5 md:py-3 md:text-left">
         <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 font-medium text-primary text-sm">
@@ -83,7 +90,7 @@ export default function Hero() {
 
             <Button
               variant="outline"
-              className="flex-grow self-center rounded-md px-8 py-2 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-hidden sm:flex-grow-0"
+              className="hidden flex-grow self-center rounded-md px-8 py-2 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-hidden md:flex-grow-0 xl:flex"
               asChild
             >
               <Link href="/aiscribe" className="flex items-center gap-2">
