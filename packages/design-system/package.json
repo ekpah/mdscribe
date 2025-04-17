@@ -33,8 +33,10 @@
     "@radix-ui/react-toggle-group": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@repo/env": "workspace:*",
+    "@tiptap/extension-bullet-list": "^2.11.7",
     "@tiptap/extension-color": "^2.11.5",
     "@tiptap/extension-document": "^2.11.5",
+    "@tiptap/extension-list-item": "^2.11.7",
     "@tiptap/extension-paragraph": "^2.11.5",
     "@tiptap/extension-text": "^2.11.5",
     "@tiptap/pm": "^2.11.5",
@@ -68,6 +70,7 @@
     "sonner": "^2.0.1",
     "stripe": "^17.7.0",
     "tailwind-merge": "^3.0.2",
+    "tiptap-markdown": "^0.8.10",
     "vaul": "^1.1.2",
     "zod": "^3.24.2"
   },
