@@ -4,104 +4,120 @@ import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 
 import { Button } from '@repo/design-system/components/ui/button';
 import StarterKit from '@tiptap/starter-kit';
+import { Redo, Undo } from 'lucide-react';
 import { Markdown } from 'tiptap-markdown';
-
-import { defaultMarkdownParser } from 'prosemirror-markdown';
 
 const MenuBar = ({ editor }: { editor: Editor }) => {
   return (
-    <div className="control-group">
-      <div className="button-group">
+    <div className="mb-2 flex items-center gap-1 overflow-x-auto rounded-md border border-border bg-muted/40 p-2">
+      <div className="flex flex-wrap gap-1">
         <Button
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={!editor.can().chain().focus().toggleBold().run()}
-          className={editor.isActive('bold') ? 'is-active' : ''}
+          className={`h-8 px-2 ${editor.isActive('bold') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          Bold
+          <span className="font-bold">B</span>
         </Button>
         <Button
           onClick={() => editor.chain().focus().toggleItalic().run()}
           disabled={!editor.can().chain().focus().toggleItalic().run()}
-          className={editor.isActive('italic') ? 'is-active' : ''}
+          className={`h-8 px-2 ${editor.isActive('italic') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          Italic
+          <span className="italic">I</span>
         </Button>
         <Button
           onClick={() => editor.chain().focus().toggleStrike().run()}
           disabled={!editor.can().chain().focus().toggleStrike().run()}
-          className={editor.isActive('strike') ? 'is-active' : ''}
+          className={`h-8 px-2 ${editor.isActive('strike') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          Strike
+          <span className="line-through">S</span>
         </Button>
 
-        <Button
-          onClick={() => editor.chain().focus().setParagraph().run()}
-          className={editor.isActive('paragraph') ? 'is-active' : ''}
-        >
-          Paragraph
-        </Button>
+        <div className="mx-1 h-6 w-px bg-border" />
+
         <Button
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 1 }).run()
           }
-          className={
-            editor.isActive('heading', { level: 1 }) ? 'is-active' : ''
-          }
+          className={`h-8 px-2 ${editor.isActive('heading', { level: 1 }) ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          H1
+          <span className="font-bold text-base">H1</span>
         </Button>
         <Button
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 2 }).run()
           }
-          className={
-            editor.isActive('heading', { level: 2 }) ? 'is-active' : ''
-          }
+          className={`h-8 px-2 ${editor.isActive('heading', { level: 2 }) ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          H2
+          <span className="font-bold text-sm">H2</span>
         </Button>
         <Button
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 3 }).run()
           }
-          className={
-            editor.isActive('heading', { level: 3 }) ? 'is-active' : ''
-          }
+          className={`h-8 px-2 ${editor.isActive('heading', { level: 3 }) ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          H3
+          <span className="font-bold text-xs">H3</span>
         </Button>
+
+        <div className="mx-1 h-6 w-px bg-border" />
 
         <Button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={editor.isActive('bulletList') ? 'is-active' : ''}
+          className={`h-8 px-2 ${editor.isActive('bulletList') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          Bullet list
+          <span className="flex items-center">•</span>
         </Button>
         <Button
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={editor.isActive('orderedList') ? 'is-active' : ''}
+          className={`h-8 px-2 ${editor.isActive('orderedList') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          Ordered list
+          <span className="flex items-center">1.</span>
         </Button>
 
         <Button
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={editor.isActive('blockquote') ? 'is-active' : ''}
+          className={`h-8 px-2 ${editor.isActive('blockquote') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          Blockquote
+          <span className="flex items-center">"</span>
         </Button>
 
+        <div className="mx-1 h-6 w-px bg-border" />
         <Button
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run()}
+          className={`h-8 px-2 ${editor.isActive('undo') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          Undo
+          <Undo className="h-4 w-4" />
         </Button>
         <Button
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().chain().focus().redo().run()}
+          className={`h-8 px-2 ${editor.isActive('redo') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
         >
-          Redo
+          <Redo className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -112,10 +128,6 @@ export default ({
   note,
   setContent,
 }: { note: string; setContent: (content: string) => void }) => {
-  const parsed = defaultMarkdownParser.parse(note);
-  //console.log(note);
-  //console.log(parsed);
-  //console.log(defaultMarkdownSerializer.serialize(parsed));
   const editor = useEditor({
     extensions: [StarterKit, Markdown],
     content: note,
@@ -136,7 +148,7 @@ export default ({
   return (
     <>
       <MenuBar editor={editor} />
-      <EditorContent editor={editor} className="prose max-w-none p-4" />
+      <EditorContent editor={editor} className="prose max-w-none" />
     </>
   );
 };
