@@ -3,6 +3,7 @@
 import markdocConfig from '@/markdoc/config';
 import Markdoc from '@markdoc/markdoc';
 import PlainEditor from '@repo/design-system/components/editor/PlainEditor';
+import TipTap from '@repo/design-system/components/editor/TipTap';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Card } from '@repo/design-system/components/ui/card';
 import { Input } from '@repo/design-system/components/ui/input';
@@ -141,8 +142,7 @@ export default function Editor({
               </TabsContent>
               <TabsContent value="tiptap">
                 <div className="h-[calc(100vh-(--spacing(72))-(--spacing(14)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                  {/* <TipTap note={content} setContent={setContent} /> */}
-                  <div>coming...</div>
+                  <TipTap note={content} setContent={setContent} />
                 </div>
               </TabsContent>
             </Tabs>
