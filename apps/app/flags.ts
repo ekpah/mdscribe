@@ -30,7 +30,7 @@ export const showBetaFeature = flag<boolean, Entities>({
 
     return (
       user?.email === 'nils.hapke@we-mail.de' ||
-      user?.email === 'ochir0111@yahoo.com'
+      user?.email === 'n.hapke@bbtgruppe.de'
     );
   },
 });
@@ -43,7 +43,8 @@ export const allowAIUse = flag<boolean, Entities>({
 
     return (
       user?.email === 'n.hapke@bbtgruppe.de' ||
-      process.env.NODE_ENV === 'development'
+      process.env.NODE_ENV === 'development' ||
+      user?.email === 'ochir0111@yahoo.com'
     );
   },
 });
