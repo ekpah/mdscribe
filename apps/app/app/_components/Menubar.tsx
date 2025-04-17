@@ -152,7 +152,7 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
               <NavigationMenuItem>
                 <Link href="https://docs.mdscribe.de/" legacyBehavior passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Dokumentation
+                    Anleitung
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>

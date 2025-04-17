@@ -10,7 +10,7 @@ import { Label } from '@repo/design-system/components/ui/label';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import type { FormEvent } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 interface InputTabProps {
@@ -35,19 +35,26 @@ export function InputTab({
   onSubmit,
   onInputChange,
 }: InputTabProps) {
-  const ref = useHotkeys(
+  const [hotkeyEnabled, setHotkeyEnabled] = useState<boolean>(false);
+
+  useEffect(() => {
+    setHotkeyEnabled(isExpanded && !isLoading);
+  }, [isExpanded, isLoading]);
+
+  useHotkeys(
     ['meta+enter', 'ctrl+enter'],
     (event: KeyboardEvent) => {
       event.preventDefault();
       event.stopPropagation();
       onSubmit();
+    },
+    {
+      enabled: hotkeyEnabled,
     }
   );
   return (
     <motion.div
       className="relative"
-      ref={ref}
-      tabIndex={-1}
       animate={{
         height: isExpanded ? 'auto' : '60px',
         opacity: isExpanded ? 1 : 0.8,

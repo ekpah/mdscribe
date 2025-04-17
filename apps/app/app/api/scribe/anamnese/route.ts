@@ -113,16 +113,13 @@ Erstellen Sie nun die Anamnese nach folgenden Regeln:
 
 3. Begleitsymptome und relevante Negativbefunde (als separater Absatz).
 
-4. Systematische Erfassung (jeweils als separater Absatz), wenn vorhanden, formatiert als **[Kategorie]**:
+4. Systematische Erfassung (jeweils als separater Absatz), wenn vorhanden, formatiert als **[Kategorie]**. Wenn keine Informationen vorhanden sind, lasse diese Kategorie weg:
    - Sozialanamnese/Berufsanamnese
    - Risikofaktoren/Noxen
    - Medikation
    - Allergien
    - Sonographie/TTE/andere in der ZNA durchgeführte Untersuchungen
-
-5. Vitalparameter:
-   **Vitalparameter bei Vorstellung:**
-   Blutdruck: [Wert]/[Wert] mmHg; Herzfrequenz: [Wert]/min; SpO2: [Wert]%; Atemfrequenz: [Wert]/min; Temperatur: [Wert]°C; Blutzucker: [Wert] mg/dl
+   - Vitalparameter bei Vorstellung: Blutdruck: [Wert]/[Wert] mmHg; Herzfrequenz: [Wert]/min; SpO2: [Wert]%; Atemfrequenz: [Wert]/min; Temperatur: [Wert]°C; Blutzucker: [Wert] mg/dl
 
 Wichtige Hinweise:
 - Verwenden Sie nur Informationen aus den bereitgestellten Notizen
@@ -157,8 +154,9 @@ Prüfen Sie auf:
 - Logisch kohärente Abfolge
 - Korrekte medizinische Terminologie
 - Korrekte Syntax der Markdoc-Tags (besonders auf korrekte Leerzeichen und Schrägstriche achten)
-- Unklare oder unbekannte Informationen durch Markdoc-Tags ersetzt
-- Nutze nicht mehr als 5 Markdoc-Tags. Sollte zu einer Kategorie gar keine Informationen vorhanden sein, lasse diese stattdessen weg und nutze Markdoc-Tags für die Bereiche, wo teilweise Informationen vorhanden sind.
+- Ersetze teilweise fehlende Informationen durch Markdoc-Tags
+- Sollten zu einer Kategorie gar keine Informationen vorhanden sein, lasse diese stattdessen weg
+- Nutze nicht mehr als 5 Markdoc-Tags
 - Schreibe prägnant und klar. Nenne insbesondere jede Information nur einmal.
 </validierung>
 
@@ -168,16 +166,9 @@ Hier ist ein Beispiel für die Struktur und die korrekte Verwendung der Markdoc-
 
 Die notfallmäßige Vorstellung erfolgt bei {% info "Hauptsymptom" /%} zur weiteren Abklärung. Der {% info "Alter" /%}-jährige {% switch "Geschlecht" %}{% case "m" %}Patient klagt über{% /case %}{% case "w" %}Patientin klagt über{% /case %}{% /switch %} seit {% info "Zeitraum" /%} bestehende Beschwerden.
 Begleitsymptome: {% info "Begleitsymptome" /%}
-Sozialanamnese/Berufsanamnese:
-{% info "Sozialanamnese" /%}
-Risikofaktoren/Noxen:
-{% info "Risikofaktoren" /%}
-Medikation:
-{% info "Medikation" /%}
-Allergien:
-{% info "Allergien" /%}
+
 Vitalparameter bei Vorstellung:
-Blutdruck: {% info "Blutdruck" /%} mmHg; Herzfrequenz: {% info "Herzfrequenz" /%}/min; SpO2: {% info "SpO2" /%}%; Atemfrequenz: {% info "Atemfrequenz" /%}/min; Temperatur: {% info "Temperatur" /%}°C; Blutzucker: {% info "Blutzucker" /%} mg/dl
+Blutdruck: 150/30 mmHg; Herzfrequenz: 100/min; SpO2: 95%; Atemfrequenz: 15/min; Temperatur: 37°C; Blutzucker: 100 mg/dl
 
 Hier sind die unsortierten Stichpunkte zur Anamnese:
 

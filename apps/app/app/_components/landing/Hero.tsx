@@ -3,7 +3,7 @@ import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
-import { Search } from 'lucide-react';
+import { FileText, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -24,24 +24,24 @@ export default function Hero() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="flex h-[screen] flex-col flex-wrap items-center px-3 md:flex-row">
+    <div className="flex h-[90vh] flex-col flex-wrap items-center bg-gradient-to-b from-background to-muted/30 px-3 md:flex-row">
       {/*<!--Left Col-->*/}
       <div className="flex w-full flex-col items-start justify-center px-3 py-6 text-center md:w-2/5 md:py-3 md:text-left">
-        <p className="w-full uppercase tracking-loose">
-          Warum kann es nicht einfach sein?
-        </p>
+        <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 font-medium text-primary text-sm">
+          Arztbriefe leicht gemacht
+        </div>
         <h1 className="my-4 font-bold text-5xl leading-tight">
           Arztbriefe erstellen ohne sich zu wiederholen
         </h1>
         <p className="mb-8 text-2xl leading-normal">
-          Nutze schlaue Textbausteine, die sich ohne viel Aufwand immer wieder
-          verwenden lassen
+          Nutze schlaue Textbausteine und KI-Unterstützung, um schneller und
+          effizienter zu dokumentieren
         </p>
         <form
-          className="relative flex flex-row gap-2"
+          className="relative flex w-full flex-col gap-2 sm:flex-row"
           action="/templates?filter="
         >
-          <div className="relative">
+          <div className="relative flex-grow">
             <Label htmlFor="search" className="sr-only">
               Search
             </Label>
@@ -63,32 +63,41 @@ export default function Hero() {
             </Badge>
           </div>
 
-          <Button
-            type="submit"
-            variant="secondary"
-            className="self-center rounded-full px-8 py-4 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-hidden md:self-start lg:mx-0"
-            asChild
-          >
-            <Link
-              href={{
-                pathname: '/templates',
-                query: { filter: filterTerm },
-              }}
-              className="flex items-center"
+          <div className="mt-2 flex gap-2 sm:mt-0">
+            <Button
+              type="submit"
+              variant="default"
+              className="flex-grow self-center rounded-md px-8 py-2 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-hidden sm:flex-grow-0"
+              asChild
             >
-              Ausprobieren
-            </Link>
-          </Button>
+              <Link
+                href={{
+                  pathname: '/templates',
+                  query: { filter: filterTerm },
+                }}
+                className="flex items-center"
+              >
+                Textbausteine
+              </Link>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="flex-grow self-center rounded-md px-8 py-2 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-hidden sm:flex-grow-0"
+              asChild
+            >
+              <Link href="/aiscribe" className="flex items-center gap-2">
+                <FileText className="size-4" />
+                KI-Assistenz
+              </Link>
+            </Button>
+          </div>
         </form>
       </div>
       {/*<!--Right Col-->*/}
       <div className="w-full text-center md:w-3/5">
         <Doctors />
       </div>
-      {/* 
-        div className="relative -mt-12 lg:-mt-24">
-        <HeroDivider />
-      </div>*/}
     </div>
   );
 }

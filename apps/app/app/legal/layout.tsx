@@ -7,7 +7,7 @@ export default function LegalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full overflow-x-hidden">
       <div className="items-center py-6 md:py-10">
         <div className="mx-auto mb-16 w-2/3 space-y-6">
           <div>
