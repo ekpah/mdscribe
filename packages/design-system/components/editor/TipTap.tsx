@@ -7,38 +7,52 @@ import {
   createSuggestionsItems,
   enableKeyboardNavigation,
 } from '@harshtalks/slash-tiptap';
+import { cn } from '@repo/design-system/lib/utils';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import {} from 'lucide-react';
 import { Markdown } from 'tiptap-markdown';
 import TipTapMenu from './_components/TipTapMenu';
 
 const suggestions = createSuggestionsItems([
   {
-    title: 'text',
-    searchTerms: ['paragraph'],
+    title: 'Info-Tag',
+    searchTerms: ['info'],
     command: ({ editor, range }) => {
       editor
         .chain()
         .focus()
         .deleteRange(range)
-        .toggleNode('paragraph', 'paragraph')
+        .insertContent({
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: '{% info "" /%}',
+            },
+          ],
+        })
         .run();
     },
   },
   {
-    title: 'Bullet List',
-    searchTerms: ['unordered', 'point'],
+    title: 'Switch-Tag',
+    searchTerms: ['switch'],
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).toggleBulletList().run();
-    },
-  },
-  {
-    title: 'Ordered List',
-    searchTerms: ['ordered', 'point', 'numbers'],
-    command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).toggleOrderedList().run();
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: '{% switch "" /%}',
+            },
+          ],
+        })
+        .run();
     },
   },
 ]);
@@ -59,15 +73,11 @@ export default function TipTap({
       }),
       Placeholder.configure({
         // Use a placeholder:
-        placeholder: 'Press / to see available commands',
+        //placeholder: 'Press / to see available commands',
         // Use different placeholders depending on the node type:
-        // placeholder: ({ node }) => {
-        //   if (node.type.name === 'heading') {
-        //     return 'What’s the title?'
-        //   }
-
-        //   return 'Can you add some further context?'
-        // },
+        placeholder: ({ node }) => {
+          return 'Ergänze hier deinen Textbaustein...';
+        },
       }),
     ],
     content: note,
@@ -80,7 +90,16 @@ export default function TipTap({
         keydown: (_, v) => enableKeyboardNavigation(v),
       },
       attributes: {
-        class: 'prose prose-sm sm:prose mx-auto focus:outline-none',
+        class: cn(
+          'prose prose-sm sm:prose mx-auto focus:outline-none',
+          // Add the styling with Tailwind classes for the Placeholder from TipTap
+          '[&_.is-empty]:relative',
+          '[&_.is-empty]:before:content-[attr(data-placeholder)]',
+          '[&_.is-empty]:before:text-slate-400',
+          '[&_.is-empty]:before:float-left',
+          '[&_.is-empty]:before:h-0',
+          '[&_.is-empty]:before:pointer-events-none'
+        ),
       },
     },
     // place the cursor in the editor after initialization
@@ -100,7 +119,6 @@ export default function TipTap({
         <EditorContent editor={editor} />
         <SlashCmd.Root editor={editor}>
           <SlashCmd.Cmd>
-            <SlashCmd.Empty>No commands available</SlashCmd.Empty>
             <SlashCmd.List>
               {suggestions.map((item) => {
                 return (
