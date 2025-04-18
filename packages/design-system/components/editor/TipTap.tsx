@@ -1,139 +1,87 @@
 'use client';
 
-import { type Editor, EditorContent, useEditor } from '@tiptap/react';
-
-import { Button } from '@repo/design-system/components/ui/button';
+import {
+  Slash,
+  SlashCmd,
+  SlashCmdProvider,
+  createSuggestionsItems,
+  enableKeyboardNavigation,
+} from '@harshtalks/slash-tiptap';
+import Placeholder from '@tiptap/extension-placeholder';
+import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Redo, Undo } from 'lucide-react';
+import {} from 'lucide-react';
 import { Markdown } from 'tiptap-markdown';
+import TipTapMenu from './_components/TipTapMenu';
 
-const MenuBar = ({ editor }: { editor: Editor }) => {
-  return (
-    <div className="mb-2 flex items-center gap-1 overflow-x-auto rounded-md border border-border bg-muted/40 p-2">
-      <div className="flex flex-wrap gap-1">
-        <Button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          disabled={!editor.can().chain().focus().toggleBold().run()}
-          className={`h-8 px-2 ${editor.isActive('bold') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="font-bold">B</span>
-        </Button>
-        <Button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          disabled={!editor.can().chain().focus().toggleItalic().run()}
-          className={`h-8 px-2 ${editor.isActive('italic') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="italic">I</span>
-        </Button>
-        <Button
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          disabled={!editor.can().chain().focus().toggleStrike().run()}
-          className={`h-8 px-2 ${editor.isActive('strike') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="line-through">S</span>
-        </Button>
+const suggestions = createSuggestionsItems([
+  {
+    title: 'text',
+    searchTerms: ['paragraph'],
+    command: ({ editor, range }) => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .toggleNode('paragraph', 'paragraph')
+        .run();
+    },
+  },
+  {
+    title: 'Bullet List',
+    searchTerms: ['unordered', 'point'],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleBulletList().run();
+    },
+  },
+  {
+    title: 'Ordered List',
+    searchTerms: ['ordered', 'point', 'numbers'],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).toggleOrderedList().run();
+    },
+  },
+]);
 
-        <div className="mx-1 h-6 w-px bg-border" />
-
-        <Button
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 1 }).run()
-          }
-          className={`h-8 px-2 ${editor.isActive('heading', { level: 1 }) ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="font-bold text-base">H1</span>
-        </Button>
-        <Button
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-          className={`h-8 px-2 ${editor.isActive('heading', { level: 2 }) ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="font-bold text-sm">H2</span>
-        </Button>
-        <Button
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 3 }).run()
-          }
-          className={`h-8 px-2 ${editor.isActive('heading', { level: 3 }) ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="font-bold text-xs">H3</span>
-        </Button>
-
-        <div className="mx-1 h-6 w-px bg-border" />
-
-        <Button
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`h-8 px-2 ${editor.isActive('bulletList') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="flex items-center">•</span>
-        </Button>
-        <Button
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={`h-8 px-2 ${editor.isActive('orderedList') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="flex items-center">1.</span>
-        </Button>
-
-        <Button
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={`h-8 px-2 ${editor.isActive('blockquote') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <span className="flex items-center">"</span>
-        </Button>
-
-        <div className="mx-1 h-6 w-px bg-border" />
-        <Button
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().chain().focus().undo().run()}
-          className={`h-8 px-2 ${editor.isActive('undo') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <Undo className="h-4 w-4" />
-        </Button>
-        <Button
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().chain().focus().redo().run()}
-          className={`h-8 px-2 ${editor.isActive('redo') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          variant="ghost"
-          size="sm"
-        >
-          <Redo className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-export default ({
+export default function TipTap({
   note,
   setContent,
-}: { note: string; setContent: (content: string) => void }) => {
+}: { note: string; setContent: (content: string) => void }) {
   const editor = useEditor({
-    extensions: [StarterKit, Markdown],
+    extensions: [
+      StarterKit,
+      Markdown,
+      // MarkdocExtension,
+      Slash.configure({
+        suggestion: {
+          items: () => suggestions,
+        },
+      }),
+      Placeholder.configure({
+        // Use a placeholder:
+        placeholder: 'Press / to see available commands',
+        // Use different placeholders depending on the node type:
+        // placeholder: ({ node }) => {
+        //   if (node.type.name === 'heading') {
+        //     return 'What’s the title?'
+        //   }
+
+        //   return 'Can you add some further context?'
+        // },
+      }),
+    ],
     content: note,
     onUpdate: ({ editor }) => {
       const markdown = editor.storage.markdown.getMarkdown();
       setContent(markdown);
+    },
+    editorProps: {
+      handleDOMEvents: {
+        keydown: (_, v) => enableKeyboardNavigation(v),
+      },
+      attributes: {
+        class: 'prose prose-sm sm:prose mx-auto focus:outline-none',
+      },
     },
     // place the cursor in the editor after initialization
     autofocus: true,
@@ -147,8 +95,30 @@ export default ({
 
   return (
     <>
-      <MenuBar editor={editor} />
-      <EditorContent editor={editor} className="prose max-w-none" />
+      <TipTapMenu editor={editor} />
+      <SlashCmdProvider>
+        <EditorContent editor={editor} />
+        <SlashCmd.Root editor={editor}>
+          <SlashCmd.Cmd>
+            <SlashCmd.Empty>No commands available</SlashCmd.Empty>
+            <SlashCmd.List>
+              {suggestions.map((item) => {
+                return (
+                  <SlashCmd.Item
+                    value={item.title}
+                    onCommand={(val) => {
+                      item.command(val);
+                    }}
+                    key={item.title}
+                  >
+                    <p>{item.title}</p>
+                  </SlashCmd.Item>
+                );
+              })}
+            </SlashCmd.List>
+          </SlashCmd.Cmd>
+        </SlashCmd.Root>
+      </SlashCmdProvider>
     </>
   );
-};
+}
