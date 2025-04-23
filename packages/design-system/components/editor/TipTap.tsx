@@ -11,7 +11,9 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import TipTapMenu from './_components/TipTapMenu';
-import MarkdocTag from './_extensions/markdoc/markdocTags';
+import InfoTag from './_extensions/markdoc/infoTag';
+import MarkdocTags from './_extensions/markdoc/markdocTags';
+import { markdocToHTML } from './_extensions/markdoc/markdocToHTMLParser';
 
 const suggestions = createSuggestionsItems([
   {
@@ -64,7 +66,8 @@ export default function TipTap({
     extensions: [
       StarterKit,
       Markdown,
-      MarkdocTag,
+      MarkdocTags,
+      InfoTag,
       // MarkdocExtension,
       // Slash.configure({
       //   suggestion: {
@@ -80,7 +83,7 @@ export default function TipTap({
         },
       }),
     ],
-    content: note,
+    content: markdocToHTML(note),
     onUpdate: ({ editor }) => {
       const markdown = editor.storage.markdown.getMarkdown();
       setContent(markdown);

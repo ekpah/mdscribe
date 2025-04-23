@@ -50,7 +50,17 @@ export const MarkdocTag = Node.create({
     };
   },
   renderText({ node }: { node: ProseMirrorNode }) {
-    return `{%${node.attrs.tagName}%}`;
+    return `${node.attrs.tagName}`;
+  },
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-type="markdoc-case"]',
+      },
+      {
+        tag: 'span[data-type="markdoc-switch"]',
+      },
+    ];
   },
   renderHTML({
     HTMLAttributes,

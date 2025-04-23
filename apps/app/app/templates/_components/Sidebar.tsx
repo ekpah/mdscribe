@@ -120,6 +120,11 @@ export default function AppSidebar({
   const collections = isLoggedIn
     ? [
         {
+          name: 'Alle Textbausteine',
+          logo: Library,
+          plan: 'all',
+        },
+        {
           name: 'Favoriten',
           logo: BookmarkFilledIcon,
           plan: 'favourites',
@@ -128,11 +133,6 @@ export default function AppSidebar({
           name: 'Von Dir erstellt',
           logo: Pencil1Icon,
           plan: 'author',
-        },
-        {
-          name: 'Alle Textbausteine',
-          logo: Library,
-          plan: 'all',
         },
       ]
     : [
