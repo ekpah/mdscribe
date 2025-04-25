@@ -1,6 +1,7 @@
 import { Button } from '@repo/design-system/components/ui/button';
 import type { Editor } from '@tiptap/react';
 import { Redo, Undo } from 'lucide-react';
+import { htmlToMarkdoc } from '../_extensions/markdoc/markdocToHTMLParser';
 
 const MenuBar = ({ editor }: { editor: Editor }) => {
   return (
@@ -34,7 +35,7 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
           <span className="line-through">S</span>
         </Button>
 
-        <div className="mx-1 h-6 w-px bg-border" />
+        <div className="mx-1 h-8 w-px bg-border" />
 
         <Button
           onClick={() =>
@@ -67,7 +68,7 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
           <span className="font-bold text-xs">H3</span>
         </Button>
 
-        <div className="mx-1 h-6 w-px bg-border" />
+        <div className="mx-1 h-8 w-px bg-border" />
 
         <Button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -95,7 +96,7 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
           <span className="flex items-center">"</span>
         </Button>
 
-        <div className="mx-1 h-6 w-px bg-border" />
+        <div className="mx-1 h-8 w-px bg-border" />
         <Button
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run()}
@@ -114,9 +115,9 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
         >
           <Redo className="h-4 w-4" />
         </Button>
-        <div className="mx-1 h-6 w-px bg-border" />
+        <div className="mx-1 h-8 w-px bg-border" />
         <Button
-          onClick={() => alert(editor.getHTML())}
+          onClick={() => alert(htmlToMarkdoc(editor.getHTML()))}
           className={`h-8 px-2 ${editor.isActive('redo') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
           variant="ghost"
           size="sm"
