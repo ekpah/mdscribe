@@ -117,7 +117,9 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
         </Button>
         <div className="mx-1 h-8 w-px bg-border" />
         <Button
-          onClick={() => alert(htmlToMarkdoc(editor.getHTML()))}
+          onClick={() =>
+            alert(htmlToMarkdoc(editor.storage.markdown.getMarkdown()))
+          }
           className={`h-8 px-2 ${editor.isActive('redo') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
           variant="ghost"
           size="sm"
