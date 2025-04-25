@@ -79,8 +79,6 @@ export default function TipTap({
       StarterKit,
       Markdown,
       InfoTag,
-      SwitchTag,
-      CaseTag,
       Slash.configure({
         suggestion: {
           items: () => suggestions,
