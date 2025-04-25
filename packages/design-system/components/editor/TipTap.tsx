@@ -15,7 +15,10 @@ import { Markdown } from 'tiptap-markdown';
 import TipTapMenu from './_components/TipTapMenu';
 import InfoTag from './_extensions/markdoc/editorNodes/infoTag/infoTag';
 import SwitchTag from './_extensions/markdoc/editorNodes/switchTag/switchTag';
-import { markdocToHTML } from './_extensions/markdoc/markdocToHTMLParser';
+import {
+  htmlToMarkdoc,
+  markdocToHTML,
+} from './_extensions/markdoc/markdocToHTMLParser';
 
 const suggestions = createSuggestionsItems([
   {
@@ -78,7 +81,7 @@ export default function TipTap({
     content: markdocToHTML(note),
     onUpdate: ({ editor }) => {
       const markdown = editor.storage.markdown.getMarkdown();
-      setContent(markdown);
+      setContent(htmlToMarkdoc(markdown));
     },
     editorProps: {
       handleDOMEvents: {
