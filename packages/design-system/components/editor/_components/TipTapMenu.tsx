@@ -114,6 +114,15 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
         >
           <Redo className="h-4 w-4" />
         </Button>
+        <div className="mx-1 h-6 w-px bg-border" />
+        <Button
+          onClick={() => alert(editor.getHTML())}
+          className={`h-8 px-2 ${editor.isActive('redo') ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+          variant="ghost"
+          size="sm"
+        >
+          Output
+        </Button>
       </div>
     </div>
   );

@@ -16,13 +16,11 @@ export function InfoTagView({
   editor,
   updateAttributes,
 }: NodeViewProps) {
-  const displayPrimary = node.attrs.primary || 'Info';
-
   return (
-    <NodeViewWrapper>
+    <NodeViewWrapper as="span">
       <Popover>
         <PopoverTrigger
-          className="inline-block cursor-pointer rounded-md bg-blue-500 px-2 py-1 text-white"
+          className="inline-block cursor-pointer rounded-md bg-blue-500 px-2 text-white"
           data-type="markdoc-info"
           data-primary={node.attrs.primary}
         >
@@ -32,7 +30,7 @@ export function InfoTagView({
           {node.attrs.primary}
         </PopoverTrigger>
         <PopoverContent>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-2">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="primary" className="text-right">
                 Name

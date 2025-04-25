@@ -14,6 +14,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import TipTapMenu from './_components/TipTapMenu';
 import InfoTag from './_extensions/markdoc/editorNodes/infoTag/infoTag';
+import SwitchTag from './_extensions/markdoc/editorNodes/switchTag/switchTag';
 import { markdocToHTML } from './_extensions/markdoc/markdocToHTMLParser';
 
 const suggestions = createSuggestionsItems([
@@ -51,23 +52,6 @@ const suggestions = createSuggestionsItems([
         .run();
     },
   },
-  {
-    title: 'Case-Tag',
-    searchTerms: ['case'],
-    command: ({ editor, range }) => {
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .insertContent({
-          type: 'caseTag',
-          attrs: {
-            primary: 'name',
-          },
-        })
-        .run();
-    },
-  },
 ]);
 
 export default function TipTap({
@@ -79,6 +63,7 @@ export default function TipTap({
       StarterKit,
       Markdown,
       InfoTag,
+      SwitchTag,
       Slash.configure({
         suggestion: {
           items: () => suggestions,

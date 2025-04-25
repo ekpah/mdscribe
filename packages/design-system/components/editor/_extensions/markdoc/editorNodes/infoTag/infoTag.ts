@@ -29,7 +29,6 @@ export const InfoTag = Node.create<InfoTagAttrs>({
 
   // Make the node draggable
   draggable: true,
-
   inline: true,
 
   atom: true,
@@ -54,8 +53,7 @@ export const InfoTag = Node.create<InfoTagAttrs>({
   },
 
   renderText({ node }: { node: ProseMirrorNode }) {
-    const primary = node.attrs.primary || '""';
-    return `{% info "${primary}" /%}`;
+    return `{% info "${node.attrs.primary}" /%}`;
   },
 
   renderHTML({
