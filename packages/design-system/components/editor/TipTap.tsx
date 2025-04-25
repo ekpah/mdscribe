@@ -1,9 +1,11 @@
 'use client';
 
 import {
+  Slash,
   SlashCmd,
   SlashCmdProvider,
   createSuggestionsItems,
+  enableKeyboardNavigation,
 } from '@harshtalks/slash-tiptap';
 import { cn } from '@repo/design-system/lib/utils';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -11,8 +13,7 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import TipTapMenu from './_components/TipTapMenu';
-import InfoTag from './_extensions/markdoc/infoTag';
-import MarkdocTags from './_extensions/markdoc/markdocTags';
+import InfoTag from './_extensions/markdoc/editorNodes/infoTag/infoTag';
 import { markdocToHTML } from './_extensions/markdoc/markdocToHTMLParser';
 
 const suggestions = createSuggestionsItems([
@@ -25,13 +26,10 @@ const suggestions = createSuggestionsItems([
         .focus()
         .deleteRange(range)
         .insertContent({
-          type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: '{% info "" /%}',
-            },
-          ],
+          type: 'infoTag',
+          attrs: {
+            primary: 'Name',
+          },
         })
         .run();
     },
@@ -45,13 +43,27 @@ const suggestions = createSuggestionsItems([
         .focus()
         .deleteRange(range)
         .insertContent({
-          type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: '{% switch "" /%}',
-            },
-          ],
+          type: 'switchTag',
+          attrs: {
+            primary: 'name',
+          },
+        })
+        .run();
+    },
+  },
+  {
+    title: 'Case-Tag',
+    searchTerms: ['case'],
+    command: ({ editor, range }) => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: 'caseTag',
+          attrs: {
+            primary: 'name',
+          },
         })
         .run();
     },
@@ -66,18 +78,15 @@ export default function TipTap({
     extensions: [
       StarterKit,
       Markdown,
-      MarkdocTags,
       InfoTag,
-      // MarkdocExtension,
-      // Slash.configure({
-      //   suggestion: {
-      //     items: () => suggestions,
-      //   },
-      // }),
+      SwitchTag,
+      CaseTag,
+      Slash.configure({
+        suggestion: {
+          items: () => suggestions,
+        },
+      }),
       Placeholder.configure({
-        // Use a placeholder:
-        //placeholder: 'Press / to see available commands',
-        // Use different placeholders depending on the node type:
         placeholder: ({ node }) => {
           return 'Ergänze hier deinen Textbaustein...';
         },
@@ -89,13 +98,12 @@ export default function TipTap({
       setContent(markdown);
     },
     editorProps: {
-      // handleDOMEvents: {
-      //   keydown: (_, v) => enableKeyboardNavigation(v),
-      // },
+      handleDOMEvents: {
+        keydown: (_, v) => enableKeyboardNavigation(v),
+      },
       attributes: {
         class: cn(
           'prose prose-sm sm:prose mx-auto focus:outline-none',
-          // Add the styling with Tailwind classes for the Placeholder from TipTap
           '[&_.is-empty]:relative',
           '[&_.is-empty]:before:content-[attr(data-placeholder)]',
           '[&_.is-empty]:before:text-slate-400',
@@ -105,9 +113,7 @@ export default function TipTap({
         ),
       },
     },
-    // place the cursor in the editor after initialization
     autofocus: true,
-    // prevent loading the default CSS (which isn't much anyway)
     injectCSS: false,
   });
 
