@@ -17,23 +17,41 @@ export function InfoTagView({
   updateAttributes,
 }: NodeViewProps) {
   return (
-    <NodeViewWrapper as="span">
+    // Use span for inline behavior, NodeViewWrapper handles selection styling
+    // Changed align-middle to align-baseline for better text alignment
+    <NodeViewWrapper as="span" className="inline-block align-baseline">
       <Popover>
+        {/* Apply border and rounding to the trigger, use items-stretch */}
         <PopoverTrigger
-          className="inline-block cursor-pointer rounded-md bg-blue-500 px-2 text-white"
+          className="inline-flex cursor-pointer items-stretch overflow-hidden rounded-md border border-solarized-blue text-xs"
           data-type="markdoc-info"
           data-primary={node.attrs.primary}
         >
-          <span data-drag-handle className="mr-2 font-bold text-white text-xs">
+          {/* Label Part: Remove rounding, add right border */}
+          <span
+            data-drag-handle // Make only the label draggable
+            className={
+              'border-solarized-blue border-r bg-solarized-blue px-2 py-1 font-bold text-white'
+            }
+          >
             Info
           </span>
-          {node.attrs.primary}
+          {/* Content Part: Remove rounding and border */}
+          <span
+            className={
+              'bg-background px-2 py-1 text-foreground' // Removed border classes and rounding
+            }
+          >
+            {node.attrs.primary || (
+              <span className="text-muted-foreground italic">empty</span>
+            )}
+          </span>
         </PopoverTrigger>
         <PopoverContent>
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="primary" className="text-right">
-                Name
+                Value
               </Label>
               <Input
                 id="primary"
@@ -44,10 +62,11 @@ export function InfoTagView({
                   })
                 }
                 className="col-span-3"
-                placeholder="Enter field name"
+                placeholder="Enter info value"
                 autoFocus
               />
             </div>
+            {/* TODO: Add input for 'variable' attribute if needed */}
           </div>
         </PopoverContent>
       </Popover>

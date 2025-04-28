@@ -43,7 +43,7 @@ RR 138/90 mmHg, Puls 75/min, SpO2 99%, AF 14/min, Temperatur 37,4°C, Blutzucker
 Die notfallmäßige Vorstellung erfolgt bei Synkope XXX
 `,
     setContent: (content: string) => {
-      console.log('Content updated:', content);
+      // console.log('Content updated:', content);
     },
   },
 };
@@ -52,7 +52,7 @@ export const Empty: Story = {
   args: {
     note: '',
     setContent: (content: string) => {
-      console.log('Content updated:', content);
+      // console.log('Content updated:', content);
     },
   },
 };

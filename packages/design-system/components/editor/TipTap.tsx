@@ -13,6 +13,7 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import TipTapMenu from './_components/TipTapMenu';
+import CaseTag from './_extensions/markdoc/editorNodes/caseTag/caseTag';
 import InfoTag from './_extensions/markdoc/editorNodes/infoTag/infoTag';
 import SwitchTag from './_extensions/markdoc/editorNodes/switchTag/switchTag';
 import {
@@ -67,6 +68,7 @@ export default function TipTap({
       Markdown,
       InfoTag,
       SwitchTag,
+      CaseTag,
       Slash.configure({
         suggestion: {
           items: () => suggestions,

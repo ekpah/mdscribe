@@ -64,8 +64,8 @@ export const InfoTag = Node.create<InfoTagAttrs>({
     node: ProseMirrorNode;
   }) {
     return [
-      'span',
-      mergeAttributes({ 'data-type': 'markdoc-info' }, HTMLAttributes, {
+      'markdoc-info',
+      mergeAttributes(HTMLAttributes, {
         'data-primary': node.attrs.primary,
         'data-variable': node.attrs.variable,
       }),
@@ -74,7 +74,7 @@ export const InfoTag = Node.create<InfoTagAttrs>({
   parseHTML() {
     return [
       {
-        tag: 'span[data-type="markdoc-info"]',
+        tag: 'markdoc-info',
       },
     ];
   },
