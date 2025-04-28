@@ -69,7 +69,7 @@ export default function Pricing() {
               </li>
               <li className="flex items-center">
                 <Check className="mr-2 size-4 text-primary" />
-                <span>10 Anamnesen pro Monat</span>
+                <span>Textbaustein-Editor</span>
               </li>
               <li className="flex items-center">
                 <Check className="mr-2 size-4 text-primary" />
@@ -77,7 +77,7 @@ export default function Pricing() {
               </li>
             </ul>
             <Button className="mt-auto" variant="outline" asChild>
-              <Link href="/auth/signup">Starten</Link>
+              <Link href="/sign-up">Starten</Link>
             </Button>
           </div>
 
@@ -120,7 +120,7 @@ export default function Pricing() {
               </li>
             </ul>
             <Button className="mt-auto">
-              <Link href={'/auth/signup'}>Jetzt starten</Link>
+              <Link href={'/sign-up'}>Jetzt starten</Link>
             </Button>
           </div>
 
