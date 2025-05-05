@@ -15,9 +15,9 @@ export const CaseTag = Node.create<CaseTagAttrs>({
     return {
       primary: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-primary'),
+        parseHTML: (element) => element.getAttribute('primary'),
         renderHTML: (attributes) => ({
-          'data-primary': attributes.primary,
+          primary: attributes.primary,
         }),
       },
     };
@@ -35,7 +35,7 @@ export const CaseTag = Node.create<CaseTagAttrs>({
     return [
       'markdoc-case',
       mergeAttributes(HTMLAttributes, {
-        'data-primary': node.attrs.primary,
+        primary: node.attrs.primary,
       }),
       0,
     ];

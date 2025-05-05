@@ -31,9 +31,9 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
     return {
       primary: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-primary'),
+        parseHTML: (element) => element.getAttribute('primary'),
         renderHTML: (attributes) => ({
-          'data-primary': attributes.primary,
+          primary: attributes.primary,
         }),
       },
     };
@@ -65,7 +65,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
     return [
       'markdoc-switch',
       mergeAttributes(HTMLAttributes, {
-        'data-primary': node.attrs.primary,
+        primary: node.attrs.primary,
       }),
       0, // Add placeholder for child content rendering
     ];

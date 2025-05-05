@@ -104,17 +104,17 @@ export function NavActions({
       </span>
       {isLoggedIn && templateId ? (
         author === session?.user?.email ? (
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <Link href={`/templates/${templateId}/edit`}>
+          <Link href={`/templates/${templateId}/edit`}>
+            <Button variant="ghost" size="icon" className="h-7 w-7">
               <Pencil2Icon />
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         ) : (
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <Link href={`/templates/create?fork=${templateId}`}>
+          <Link href={`/templates/create?fork=${templateId}`}>
+            <Button variant="ghost" size="icon" className="h-7 w-7">
               <Share1Icon />
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         )
       ) : (
         <TooltipProvider delayDuration={300}>

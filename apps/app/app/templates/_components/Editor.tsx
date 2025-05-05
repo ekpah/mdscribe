@@ -15,12 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/design-system/components/ui/select';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@repo/design-system/components/ui/tabs';
+import { Switch } from '@repo/design-system/components/ui/switch';
 import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-hot-toast';
@@ -42,7 +37,6 @@ export default function Editor({
   id,
   handleSubmitAction,
   author,
-  showTipTap,
 }: {
   cat: string;
   tit: string;
@@ -50,19 +44,18 @@ export default function Editor({
   id?: string;
   handleSubmitAction: (formData: FormData) => Promise<void>;
   author: { id: string; email: string };
-  showTipTap: boolean;
 }) {
   const [category, setCategory] = useState<string>(cat);
   const [name, setName] = useState(tit);
   const [content, setContent] = useState(note ? JSON.parse(note) : '');
   const [newCategory, setNewCategory] = useState('');
+  const [showSource, setShowSource] = useState(false);
   const existingCategories = [
     'Kardiologie',
     'Gastroenterologie',
     'Diverses',
     'Onkologie',
   ];
-  const [activeTab, setActiveTab] = useState('edit');
 
   const checkContent = () => {
     const result = Markdoc.validate(Markdoc.parse(content), markdocConfig);
@@ -77,7 +70,7 @@ export default function Editor({
   return (
     <Card className="flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-4 overflow-y-auto p-4">
       <form action={handleSubmitAction} className="grow gap-2">
-        <div className="flex grow flex-col gap-2 md:flex-row">
+        <div className="mb-4 flex grow flex-col gap-4 md:flex-row md:gap-2">
           <div className="w-full flex-1">
             <Label htmlFor="category">Kategorie</Label>
             <input
@@ -123,34 +116,25 @@ export default function Editor({
         </div>
 
         <div className="grow gap-2">
-          <Label htmlFor="editor">Inhalt</Label>
-
-          {showTipTap ? (
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="grow"
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
-                <TabsTrigger value="tiptap">Preview</TabsTrigger>
-              </TabsList>
-              <TabsContent value="edit">
-                <div className="h-[calc(100vh-(--spacing(72))-(--spacing(14)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                  <PlainEditor note={content} setContent={setContent} />
-                </div>
-              </TabsContent>
-              <TabsContent value="tiptap">
-                <div className="h-[calc(100vh-(--spacing(72))-(--spacing(14)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                  <TipTap note={content} setContent={setContent} />
-                </div>
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <div className="h-[calc(100vh-(--spacing(72))-(--spacing(14)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
-              <PlainEditor note={content} setContent={setContent} />
+          <div className="mb-3 flex items-center justify-between">
+            <Label htmlFor="editor">Inhalt</Label>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="source-toggle"
+                checked={showSource}
+                onCheckedChange={setShowSource}
+              />
+              <Label htmlFor="source-toggle">Show Source</Label>
             </div>
-          )}
+          </div>
+
+          <div className="h-[calc(100vh-(--spacing(72))-(--spacing(16)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
+            {showSource ? (
+              <PlainEditor note={content} setContent={setContent} />
+            ) : (
+              <TipTap note={content} setContent={setContent} />
+            )}
+          </div>
         </div>
         <input type="hidden" name="content" value={content} />
         <input type="hidden" name="id" value={id} />

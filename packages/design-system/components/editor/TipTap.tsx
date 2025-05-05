@@ -8,7 +8,6 @@ import {
   enableKeyboardNavigation,
 } from '@harshtalks/slash-tiptap';
 import { cn } from '@repo/design-system/lib/utils';
-import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
@@ -74,15 +73,16 @@ export default function TipTap({
           items: () => suggestions,
         },
       }),
-      Placeholder.configure({
-        placeholder: ({ node }) => {
-          return 'Ergänze hier deinen Textbaustein...';
-        },
-      }),
+      // Placeholder.configure({
+      //   placeholder: ({ node }) => {
+      //     return 'Ergänze hier deinen Textbaustein...';
+      //   },
+      // }),
     ],
     content: markdocToHTML(note),
     onUpdate: ({ editor }) => {
       const markdown = editor.storage.markdown.getMarkdown();
+      console.log(markdown);
       setContent(htmlToMarkdoc(markdown));
     },
     editorProps: {
@@ -91,7 +91,7 @@ export default function TipTap({
       },
       attributes: {
         class: cn(
-          'prose prose-sm sm:prose mx-auto focus:outline-none',
+          'prose prose-sm sm:prose h-full w-full focus:outline-none',
           '[&_.is-empty]:relative',
           '[&_.is-empty]:before:content-[attr(data-placeholder)]',
           '[&_.is-empty]:before:text-slate-400',
@@ -110,8 +110,10 @@ export default function TipTap({
   }
 
   return (
-    <>
-      <TipTapMenu editor={editor} />
+    <div className="h-full w-full overflow-y-auto">
+      <div className="sticky top-0 z-10">
+        <TipTapMenu editor={editor} />
+      </div>
       <SlashCmdProvider>
         <EditorContent editor={editor} />
         <SlashCmd.Root editor={editor}>
@@ -135,6 +137,6 @@ export default function TipTap({
           </SlashCmd.Cmd>
         </SlashCmd.Root>
       </SlashCmdProvider>
-    </>
+    </div>
   );
 }

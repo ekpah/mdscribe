@@ -37,16 +37,9 @@ export const InfoTag = Node.create<InfoTagAttrs>({
     return {
       primary: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-primary'),
+        parseHTML: (element) => element.getAttribute('primary'),
         renderHTML: (attributes) => ({
-          'data-primary': attributes.primary,
-        }),
-      },
-      variable: {
-        default: null,
-        parseHTML: (element) => element.getAttribute('data-variable'),
-        renderHTML: (attributes) => ({
-          'data-variable': attributes.variable,
+          primary: attributes.primary,
         }),
       },
     };
@@ -66,8 +59,7 @@ export const InfoTag = Node.create<InfoTagAttrs>({
     return [
       'markdoc-info',
       mergeAttributes(HTMLAttributes, {
-        'data-primary': node.attrs.primary,
-        'data-variable': node.attrs.variable,
+        primary: node.attrs.primary,
       }),
     ];
   },

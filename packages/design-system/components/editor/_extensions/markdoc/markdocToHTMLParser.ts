@@ -3,6 +3,9 @@
  * Supports info, switch, and case tags.
  */
 
+import type { Config } from '@markdoc/markdoc';
+import Markdoc from '@markdoc/markdoc';
+
 interface ParsedTag {
   type: string;
   attributes: Record<string, string>;
@@ -45,90 +48,139 @@ function parseMarkdocTag(tag: string): ParsedTag | null {
 }
 
 /**
- * Convert Markdoc format to HTML using custom elements.
- * @param markdoc - String in Markdoc format.
- * @returns String in HTML format with custom elements like <markdoc-info>, <markdoc-switch>, <markdoc-case>.
+ * Convert Markdoc format to HTML suitable for Tiptap parsing.
+ * Uses @markdoc/markdoc for AST-based parsing and transformation.
+ * Renders custom tags into HTML elements with data attributes for Tiptap.
+ * @param markdocString - String in Markdoc format.
+ * @returns String in HTML format with custom elements like <span data-markdoc-tag="info">.
  */
-export function markdocToHTML(markdoc: string): string {
-  // Handle switch/case blocks first
-  const switchRegex = /{%\s*switch\s*%}([\s\S]*?){%\s*\/switch\s*%}/g;
-  const caseRegex = /{%\s*case\s*"([^"]*)"\s*%}([\s\S]*?){%\s*\/case\s*%}/g;
+export function markdocToHTML(markdocString: string): string {
+  const ast = Markdoc.parse(markdocString);
 
-  // Replace switch/case blocks with <markdoc-switch> and <markdoc-case>
-  const withSwitchCase = markdoc.replace(
-    switchRegex,
-    (match: string, content: string) => {
-      const switchHtml = '<markdoc-switch>';
-      const cases = content.replace(
-        caseRegex,
-        (_: string, value: string, caseContent: string) => {
-          // Convert inner Markdoc case tags to <markdoc-case> elements
-          return `<markdoc-case data-primary="${value}">${caseContent.trim()}</markdoc-case>`;
-        }
-      );
-      return `${switchHtml}${cases}</markdoc-switch>`;
-    }
-  );
+  // Define how Markdoc tags and nodes should be transformed into HTML
+  // suitable for Tiptap's parseHTML function.
 
-  // Handle self-closing info tags: {% info "value" /%}
-  const infoRegex = /{%\s*info\s*"([^"]*)"\s*\/?%}/g;
-  const withInfo = withSwitchCase.replace(
-    infoRegex,
-    (_: string, value: string) => {
-      // Convert Markdoc info tags to <markdoc-info> elements
-      return `<markdoc-info data-primary="${value}"></markdoc-info>`;
-    }
-  );
+  const config: Config = {
+    tags: {
+      info: {
+        render: 'markdoc-info',
+        attributes: {
+          primary: {
+            type: String,
+          },
+        },
+        selfClosing: true,
+      },
+      switch: {
+        render: 'markdoc-switch',
+        children: ['tag', 'softbreak', 'markdoc-case'],
+        attributes: { primary: { render: true } },
+      },
+      case: {
+        render: 'markdoc-case',
+        attributes: { primary: { type: String } },
+      },
+    },
+  };
 
-  // TODO: Add handling for other Markdoc tags as needed (e.g., variable tags)
+  // Validate the AST before transforming
+  const errors = Markdoc.validate(ast, config);
+  if (errors.length) {
+    console.error('Markdoc validation errors:', errors);
+    // Optionally, return an error state or fallback HTML
+    return '<p>Error processing Markdoc content.</p>';
+  }
 
-  return withInfo;
+  // Transform the AST into a renderable tree using the config
+  const content = Markdoc.transform(ast, config);
+
+  // Render the content tree to HTML
+  const html = Markdoc.renderers.html(content);
+
+  return html;
 }
 
 /**
- * Convert HTML format with custom elements back to Markdoc.
- * @param html - String in HTML format using custom elements like <markdoc-info>, <markdoc-switch>, <markdoc-case>.
- * @returns String in Markdoc format.
+ * Recursively processes a DOM node to convert custom Markdoc elements
+ * and potentially standard HTML back into Markdoc or HTML string format.
+ * This function is designed for client-side (browser) execution.
+ * @param node - The DOM node to process.
+ * @returns The Markdoc or HTML string representation of the node.
+ */
+function processNodeForMarkdoc(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent || '';
+  }
+
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const element = node as Element;
+    const tagName = element.tagName.toLowerCase();
+
+    // Recursively process children *first* to get their Markdoc/HTML representation
+    let innerContent = '';
+    for (const child of element.childNodes) {
+      innerContent += processNodeForMarkdoc(child);
+    }
+
+    switch (tagName) {
+      case 'markdoc-info': {
+        const infoPrimary = element.getAttribute('primary') || '';
+        // Assuming info is always self-closing based on your markdocToHTML config
+        return `{% info "${infoPrimary}" /%}`;
+      }
+
+      case 'markdoc-switch': {
+        // This attribute is rendered as 'data-primary' by Markdoc
+        const switchPrimary = element.getAttribute('primary') || '';
+        // innerContent already contains the processed children (case tags)
+        return `{% switch ${switchPrimary ? `"${switchPrimary}"` : '""'} %}${innerContent}{% /switch %}`;
+      }
+
+      case 'markdoc-case': {
+        // This attribute is rendered as 'data-primary' by Markdoc
+        const casePrimary = element.getAttribute('primary') || '';
+        // Trim whitespace that might be introduced during HTML parsing/processing
+        return `{% case "${casePrimary}" %}${innerContent.trim()}{% /case %}`;
+      }
+
+      default:
+        // Fallback for unknown tags: Keep them as HTML for now.
+        // Consider logging or handling differently based on requirements.
+        // console.warn(
+        //   `Unhandled HTML tag during Markdoc conversion: ${tagName}`
+        // );
+        // Reconstruct the original tag, simple version (attributes ignored for brevity)
+        // Return only the content for unknown tags to avoid including potentially unwanted HTML.
+        // Alternatively, reconstruct the element: return element.outerHTML;
+        return innerContent;
+    }
+  }
+
+  return ''; // Ignore comments, other node types
+}
+
+/**
+ * Convert HTML containing custom Markdoc elements (<markdoc-*>) back to Markdoc syntax.
+ * Uses the browser's DOMParser for robust HTML parsing. This function is
+ * intended for client-side execution.
+ *
+ * @param html - String in HTML format, potentially containing <markdoc-info>,
+ *               <markdoc-switch>, <markdoc-case>, and standard HTML elements.
+ * @returns String in Markdoc format mixed with any preserved HTML.
  */
 export function htmlToMarkdoc(html: string): string {
-  // Convert <markdoc-info> elements back to Markdoc info tags first
-  // Handles <markdoc-info data-primary="value"></markdoc-info>
-  const infoRegex =
-    /<markdoc-info data-primary="([^"]*)"[^>]*><\/markdoc-info>/g;
-  const withInfo = html.replace(infoRegex, (_: string, value: string) => {
-    return `{% info "${value}" /%}`;
-  });
+  if (typeof window === 'undefined' || !window.DOMParser) {
+    console.error(
+      'DOMParser is not available. Cannot convert HTML to Markdoc.'
+    );
+    // Fallback or throw error depending on desired behavior in non-browser env
+    return html; // Return original HTML as a basic fallback
+  }
 
-  // Convert <markdoc-switch> and nested <markdoc-case> elements back to Markdoc switch/case blocks
-  const switchRegex =
-    /<markdoc-switch data-primary="([^"]*)">([\s\S]*?)<\/markdoc-switch>/g;
-  const caseRegex =
-    /<markdoc-case data-primary="([^"]*)">([\s\S]*?)<\/markdoc-case>/g;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
 
-  const withSwitchCase = withInfo.replace(
-    switchRegex,
-    (_: string, primary: string, content: string) => {
-      // Start the Markdoc switch block
-      const switchStart = `{% switch ${primary ? `"${primary}"` : '""'} %}`;
-
-      // Convert nested <markdoc-case> elements back to Markdoc case blocks
-      const cases = content.replace(
-        caseRegex,
-        (_caseMatch: string, value: string, caseContent: string) => {
-          // Trim potential whitespace around case content from HTML parsing
-          return `{% case "${value}" %}${caseContent.trim()}{% /case %}`;
-        }
-      );
-
-      // Close the Markdoc switch block
-      const switchEnd = '{% /switch %}';
-
-      // Combine the parts to form the final Markdoc switch block
-      return `${switchStart}${cases}${switchEnd}`;
-    }
-  );
-
-  // TODO: Add handling for converting other custom HTML elements back to Markdoc as needed
-
-  return withSwitchCase;
+  // Start processing from the body to skip implicit <html><head><body> tags
+  // and handle potentially fragmented HTML inputs correctly.
+  return processNodeForMarkdoc(doc.body);
 }
