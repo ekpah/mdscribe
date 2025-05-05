@@ -78,7 +78,7 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="https://docs.mdscribe.de/" legacyBehavior passHref>
+                <Link href="https://docs.mdscribe.de/" passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()}>
                     Dokumentation
                   </NavigationMenuLink>
@@ -150,7 +150,7 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="https://docs.mdscribe.de/" legacyBehavior passHref>
+                <Link href="https://docs.mdscribe.de/" passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()}>
                     Anleitung
                   </NavigationMenuLink>
