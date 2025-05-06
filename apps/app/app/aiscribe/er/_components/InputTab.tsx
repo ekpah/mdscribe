@@ -1,3 +1,4 @@
+'use client';
 import { isMac } from '@/lib/isMac';
 import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -18,7 +19,6 @@ interface InputTabProps {
   isActive: boolean;
   isLoading: boolean;
   formData: {
-    vordiagnosen: string;
     anamnese: string;
   };
   onToggle: () => void;
@@ -50,6 +50,7 @@ export function InputTab({
     },
     {
       enabled: hotkeyEnabled,
+      enableOnFormTags: ['TEXTAREA'],
     }
   );
   return (

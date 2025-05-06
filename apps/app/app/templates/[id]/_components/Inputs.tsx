@@ -41,7 +41,7 @@ export default function Inputs({ inputTags, onChange }: InputsProps) {
           if (input.type === 'info') {
             return (
               <InfoInput
-                key={input.options.name}
+                key={"info-" + input.options.name}
                 input={input}
                 form={methods}
               />
@@ -50,7 +50,7 @@ export default function Inputs({ inputTags, onChange }: InputsProps) {
           if (input.type === 'switch') {
             return (
               <SwitchInput
-                key={input.options.name}
+                key={"switch-" + input.options.name}
                 input={input}
                 form={methods}
               />

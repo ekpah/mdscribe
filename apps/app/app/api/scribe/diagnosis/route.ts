@@ -2,11 +2,10 @@
 
 import { allowAIUse } from '@/flags';
 import { authClient } from '@/lib/auth-client';
-import { anthropic } from '@ai-sdk/anthropic';
+import { google } from '@ai-sdk/google';
 import { env } from '@repo/env';
-import { generateObject } from 'ai';
+import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
-
 export async function POST(req: Request) {
   //get session and active subscription from better-auth
 
@@ -32,19 +31,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await generateObject({
-    model: anthropic('claude-3-7-sonnet-20250219'),
-    schema: z.object({
-      icd_code: z.string().describe('ICD-10 Code der Verdachtsdiagnose'),
-      diagnosis: z.string().describe('Verdachtsdiagnose'),
-    }),
-    maxTokens: 20000,
-    temperature: 1,
-    /*providerOptions: {
-      anthropic: {
-        thinking: { type: 'enabled', budgetTokens: 8000 },
-      },
-    },*/
+  const {text,usage} = await generateText({
+    model: google('gemini-2.0-flash-lite'),
+    maxTokens: 2000,
+    temperature: 0,
     messages: [
       {
         role: 'system',
@@ -54,10 +44,9 @@ export async function POST(req: Request) {
       {
         role: 'user',
         content: `
-Basierend auf Ihrer Analyse, stellen Sie nun die wahrscheinlichste Verdachtsdiagnose auf und geben Sie diese in JSON-Format zurück:
+Basierend auf Ihrer Analyse, stellen Sie nun die wahrscheinlichste Verdachtsdiagnose auf und geben Sie folgende Informationen zurück:
 
-ICD-10 Code: [code]
-Diagnose: [diagnose]
+**[ICD-10 Code]**: [diagnose als text]
 
 Wichtige Hinweise:
 - Verwenden Sie nur Informationen aus den bereitgestellten Notizen
@@ -84,10 +73,10 @@ Erstelle nach obenstehenden Formatierungskriterien einen Diagnoseblock für die 
   });
 
   if (env.NODE_ENV === 'development') {
-    console.log('Prompt tokens:', result.usage.promptTokens);
-    console.log('Completion tokens:', result.usage.completionTokens);
-    console.log('Total tokens:', result.usage.totalTokens);
+    console.log('Prompt tokens:', usage.promptTokens);
+    console.log('Completion tokens:', usage.completionTokens);
+    console.log('Total tokens:', usage.totalTokens);
   }
-
-  return result.toJsonResponse();
+  console.log('result', text);
+  return Response.json({ text });
 }

@@ -1,5 +1,6 @@
+'use client';
+
 import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
-import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,
   CardContent,
@@ -9,21 +10,15 @@ import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { type FormEvent, useEffect, useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
-import { useHotkeys } from 'react-hotkeys-hook';
-import Inputs from '../../templates/[id]/_components/Inputs';
-import { CopyableSection } from '../_components/CopyableSection';
+import Inputs from '../../../templates/[id]/_components/Inputs';
+import { CopyableSection } from '../../_components/CopyableSection';
 
 interface OutputTabProps {
   isExpanded: boolean;
   isActive: boolean;
   isLoading: boolean;
-  isDischargeLoading: boolean;
-  completion: string | undefined;
-  onSubmit: (e?: FormEvent) => void;
-  outputData: {
-    diagnoseblock: string;
-    anamnese: string;
-  };
+  anamnese: string | undefined;
+  diagnosis: string | undefined;
   onToggle: () => void;
   onFormChange: (data: FieldValues) => void;
   hasAnamnese: boolean;
@@ -33,30 +28,13 @@ export function OutputTab({
   isExpanded,
   isActive,
   isLoading,
-  isDischargeLoading,
-  outputData,
-  onSubmit,
+  anamnese,
   onToggle,
   onFormChange,
   hasAnamnese,
+  diagnosis,
 }: OutputTabProps) {
-  const [hotkeyEnabled, setHotkeyEnabled] = useState<boolean>(false);
 
-  useEffect(() => {
-    setHotkeyEnabled(isExpanded && !isLoading);
-  }, [isExpanded, isLoading]);
-
-  useHotkeys(
-    ['meta+enter', 'ctrl+enter'],
-    (event: KeyboardEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      onSubmit();
-    },
-    {
-      enabled: hotkeyEnabled,
-    }
-  );
   return (
     <motion.div
       className="relative"
@@ -92,38 +70,33 @@ export function OutputTab({
                   {/* Left Side - Input Fields and Selections */}
                   <Inputs
                     inputTags={JSON.stringify(
-                      parseMarkdocToInputs(outputData.anamnese || '')
+                      parseMarkdocToInputs(anamnese || '')
                     )}
                     onChange={onFormChange}
                   />
 
                   {/* Right Side - Output Sections */}
-                  <form onSubmit={onSubmit} className="space-y-4">
+
                     <div className="space-y-4">
                       {isLoading && (
                         <div className="flex items-center justify-center">
                           <Loader2 className="h-10 w-10 animate-spin" />
                         </div>
                       )}
-                      {Object.entries(outputData).map(([section, content]) => (
-                        <CopyableSection
-                          key={section}
-                          title={section}
-                          content={content || `Kein ${section} verfügbar`}
-                        />
-                      ))}
+                      <CopyableSection
+                        key="diagnosis"
+                        title="Diagnose"
+                        content={
+                          `${diagnosis}` ||
+                          'Keine Diagnose verfügbar'
+                        }
+                      />
+                      <CopyableSection
+                          key="anamnese"
+                          title="Anamnese"
+                        content={anamnese || `Keine Anamnese verfügbar`}
+                      />
                     </div>
-                    <Button
-                      type="submit"
-                      disabled={isLoading || isDischargeLoading || !hasAnamnese}
-                      className="group w-full"
-                    >
-                      Generiere Entlassungsbericht
-                      <kbd className="pointer-events-none ml-2 inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-medium font-mono text-[10px] text-foreground">
-                        <span className="text-xs">⌘</span> + Enter
-                      </kbd>
-                    </Button>
-                  </form>
                 </div>
               </CardContent>
             </motion.div>

@@ -1,99 +1,50 @@
-'use client';
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@repo/design-system/components/ui/card';
+import Link from 'next/link';
 
-import { useCallback } from 'react';
-import { DispositionTab } from './components/DispositionTab';
-import { InputTab } from './components/InputTab';
-import { OutputTab } from './components/OutputTab';
-import { useAICompletion } from './hooks/useAICompletion';
-import { useAnamneseForm } from './hooks/useAnamneseForm';
-import { useTabState } from './hooks/useTabState';
-
-export default function AITextGenerator() {
-  const { formData, handleFormChange, handleInputChange } = useAnamneseForm();
-
-  const {
-    activeTab,
-    isInputExpanded,
-    isOutputExpanded,
-    isDispositionExpanded,
-    toggleInputTab,
-    toggleOutputTab,
-    toggleDispositionTab,
-  } = useTabState();
-
-  const {
-    getDifferentialDiagnosis,
-    anamnese,
-    discharge,
-    outputData,
-    dispositionOutputData,
-  } = useAICompletion();
-
-  const handleSubmitInput = useCallback(
-    (e?: React.FormEvent) => {
-      e?.preventDefault();
-      if (anamnese.isLoading || discharge.isLoading) return;
-      toggleOutputTab();
-
-      const prompt = JSON.stringify({
-        vordiagnosen: formData.vordiagnosen || '',
-        anamnese: formData.anamnese || '',
-      });
-      getDifferentialDiagnosis(prompt);
-      anamnese.complete(prompt);
-    },
-    [anamnese, discharge, formData, toggleOutputTab, getDifferentialDiagnosis]
-  );
-
-  const handleSubmitDischarge = useCallback(
-    (e?: React.FormEvent) => {
-      e?.preventDefault();
-      if (anamnese.isLoading || discharge.isLoading) return;
-      toggleDispositionTab();
-
-      const prompt = JSON.stringify({
-        diagnosen: outputData.diagnoseblock,
-        anamnese: outputData.anamnese,
-      });
-      discharge.complete(prompt);
-    },
-    [discharge, outputData, toggleDispositionTab, anamnese.isLoading]
-  );
-
+export default function AIScribeLandingPage() {
   return (
-    <div className="container mx-auto size-full overflow-y-auto p-4">
-      <div className="flex flex-col gap-4">
-        <InputTab
-          isExpanded={isInputExpanded}
-          isActive={activeTab === 'input'}
-          isLoading={anamnese.isLoading}
-          formData={formData}
-          onToggle={toggleInputTab}
-          onSubmit={handleSubmitInput}
-          onInputChange={handleInputChange}
-        />
-
-        <OutputTab
-          isExpanded={isOutputExpanded}
-          isActive={activeTab === 'output'}
-          isLoading={anamnese.isLoading}
-          isDischargeLoading={discharge.isLoading}
-          completion={anamnese.completion}
-          outputData={outputData}
-          onSubmit={handleSubmitDischarge}
-          onToggle={toggleOutputTab}
-          onFormChange={handleFormChange}
-          hasAnamnese={!!outputData.anamnese}
-        />
-
-        <DispositionTab
-          isExpanded={isDispositionExpanded}
-          isActive={activeTab === 'disposition'}
-          isLoading={discharge.isLoading}
-          dispositionOutputData={dispositionOutputData}
-          onToggle={toggleDispositionTab}
-          onFormChange={handleFormChange}
-        />
+    <div className="container mx-auto flex h-full flex-col items-center justify-center p-4">
+      <h1 className="mb-8 text-center font-bold text-3xl tracking-tight sm:text-4xl">
+        Wählen Sie einen AI Scribe Modus
+      </h1>
+      <div className="grid w-full max-w-3xl grid-cols-1 gap-6 md:grid-cols-2">
+        <Link
+          href="/aiscribe/er"
+          className="block rounded-lg transition-shadow duration-200 hover:shadow-lg"
+        >
+          <Card className="flex h-full flex-col">
+            {' '}
+            {/* Ensure cards have equal height if content differs */}
+            <CardHeader>
+              <CardTitle>ER Modus</CardTitle>
+              <CardDescription>
+                AI Scribe für Notaufnahme-Szenarien. Generieren Sie Anamnesen,
+                Differenzialdiagnosen und Dispositionen.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link
+          href="/aiscribe/icu"
+          className="block rounded-lg transition-shadow duration-200 hover:shadow-lg"
+        >
+          <Card className="flex h-full flex-col">
+            {' '}
+            {/* Ensure cards have equal height if content differs */}
+            <CardHeader>
+              <CardTitle>ICU Modus</CardTitle>
+              <CardDescription>
+                AI Scribe für Intensivstation-Szenarien. Generieren Sie
+                Anamnesen, Differenzialdiagnosen und Dispositionen.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
       </div>
     </div>
   );

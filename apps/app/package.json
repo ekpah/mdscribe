@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.10",
     "@ai-sdk/fireworks": "^0.2.13",
+    "@ai-sdk/google": "^1.2.14",
     "@ai-sdk/react": "^1.2.9",
     "@auth/pg-adapter": "^1.9.0",
     "@better-auth/cli": "^1.2.7",

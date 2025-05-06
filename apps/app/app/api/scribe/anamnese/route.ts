@@ -1,10 +1,9 @@
 'use server';
-import { anthropic } from '@ai-sdk/anthropic';
-
 import { allowAIUse } from '@/flags';
 import { authClient } from '@/lib/auth-client';
+import { google } from '@ai-sdk/google';
 import { env } from '@repo/env';
-import { streamText } from 'ai';
+import { generateText } from 'ai';
 
 export async function POST(req: Request) {
   //get session and active subscription from better-auth
@@ -30,10 +29,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = streamText({
-    model: anthropic('claude-3-7-sonnet-20250219'),
+  const {text, usage} = await generateText({
+    //model: anthropic('claude-3-7-sonnet-20250219'),
+    model: google('gemini-2.5-pro-exp-03-25'),
     // model: fireworks('accounts/fireworks/models/deepseek-v3'),
-    maxTokens: 4096,
+    maxTokens: 20000,
     temperature: 1,
     /*experimental_telemetry: {
       isEnabled: true,
@@ -47,160 +47,142 @@ export async function POST(req: Request) {
         content: [
           {
             type: 'text',
-            text: `Sie sind ein erfahrener Notfallmediziner und Facharzt für Innere Medizin in der Zentralen Notaufnahme. Ihre Aufgabe ist es, aus unsortierten Notizen eine präzise Anamnese zu erstellen.
+            text: `Sie sind ein erfahrener Notfallmediziner und Facharzt für Innere Medizin in der Zentralen Notaufnahme. Ihre Aufgabe ist es, aus unsortierten Notizen eine präzise, strukturierte Anamnese zu erstellen.
 
-Bevor Sie die Anamnese erstellen, analysieren Sie bitte die bereitgestellten Informationen. Führen Sie diese Analyse in den <anamnese_analyse>-Tags durch:
+**Schritt 1: Analyse der Notizen**
+
+Bevor Sie die Anamnese verfassen, analysieren Sie bitte die bereitgestellten Informationen gründlich. Führen Sie diese Analyse innerhalb der \`<analyse>\` und \`</analyse>\` Tags durch. Diese Analyse dient als Grundlage für die anschließende Anamneseerstellung.
 
 <analyse>
-1. Hauptbeschwerde identifizieren:
-   - Liste alle erwähnten Symptome auf
-   - Bewerte die Schwere und Dringlichkeit jedes Symptoms
-   - Bestimme das Hauptsymptom basierend auf Schwere und Relevanz
+1.  **Hauptbeschwerde identifizieren:**
+    *   Liste alle erwähnten Symptome auf.
+    *   Bewerte die Schwere und Dringlichkeit jedes Symptoms (qualitativ, z.B. "hoch", "mittel", "niedrig").
+    *   Bestimme das wahrscheinlichste Hauptsymptom/die Hauptbeschwerde basierend auf Schwere, Dringlichkeit und Kontext.
 
-2. Vorstellungskontext bestimmen:
-   - Art: Notfall/Elektiv
-   - Begleitung: selbstständig/Angehörige/Rettungsdienst/Notarzt
-   - Begründe deine Einschätzung basierend auf den verfügbaren Informationen
+2.  **Vorstellungskontext bestimmen:**
+    *   Art der Vorstellung: Notfall / Zuweisung / Selbstvorstellung / geplant?
+    *   Transportmittel/Begleitung: Selbstständig / Angehörige / Rettungsdienst (RTW) / Notarzt (NEF)?
+    *   Begründe deine Einschätzung kurz basierend auf den verfügbaren Informationen.
 
-3. Informationen kategorisieren:
-   | Kategorie | Zu erfassende Informationen |
-   |-----------|---------------------------|
-   | Patientendaten | Alter, Geschlecht |
-   | Hauptbeschwerde | Art, Lokalisation, Beginn, Verlauf, Intensität |
-   | Begleitsymptome | Aktuelle Beschwerden, relevante Negativbefunde |
-   | Vorerkrankungen | Chronische Erkrankungen, Operationen |
-   | Medizinische Daten | Allergien, Medikation, Vitalparameter |
-   | Soziales | Beruf, Risikofaktoren, Noxen |
+3.  **Informationen kategorisieren und extrahieren:**
+    Fülle die folgende Tabelle *nur* mit Informationen, die *explizit* in den Notizen vorhanden sind. Lasse Felder leer, wenn keine Information vorliegt.
 
-   Fülle jede Kategorie mit den verfügbaren Informationen aus den Stichpunkten
+    | Kategorie          | Zu erfassende Informationen                                    | Extrahierte Informationen |
+    |--------------------|----------------------------------------------------------------|---------------------------|
+    | Patientendaten     | Alter, Geschlecht                                              |                           |
+    | Hauptbeschwerde    | Art, Lokalisation, Beginn ( Zeitpunkt/Dauer), Verlauf, Intensität (z.B. NRS/VAS Skala), Charakter, Auslöser/Verstärker, Linderung |                           |
+    | Begleitsymptome    | Aktuelle weitere Beschwerden, relevante Negativsymptome (was wurde explizit verneint?) |                           |
+    | Vegetative Anamnese| Appetit, Durst, Schlaf, Stuhlgang, Miktion, B-Symptomatik (Fieber, Nachtschweiß, Gewichtsverlust) |                           |
+    | Vorerkrankungen    | Chronische Erkrankungen, frühere relevante akute Erkrankungen, Operationen |                           |
+    | Dauermedikation    | Name, Dosis, Frequenz (wenn angegeben)                         |                           |
+    | Allergien/Unvertr. | Substanz, Art der Reaktion                                     |                           |
+    | Sozialanamnese     | Familienstand, Wohnsituation, Beruf, Betreuungssituation       |                           |
+    | Risikofaktoren/Noxen | Rauchen (py), Alkohol, Drogen, relevante Expositionen, familiäre Risiken |                           |
+    | Vitalparameter     | Blutdruck (mmHg), Herzfrequenz (/min), SpO2 (%), Atemfrequenz (/min), Temperatur (°C), Blutzucker (mg/dl oder mmol/l) |                           |
+    | Befunde (ZNA)      | Ergebnisse bereits durchgeführter Untersuchungen (Sono, EKG, Labor-Schnelltests etc.) |                           |
 
-4. Fehlende kritische Informationen identifizieren:
-   - Liste für jede Kategorie fehlende wichtige Informationen auf
-   - Priorisiere die fehlenden Informationen nach ihrer Wichtigkeit für die Diagnose
+4.  **Fehlende kritische Informationen identifizieren:**
+    *   Liste für jede Kategorie (insbesondere Hauptbeschwerde, Vorerkrankungen, Medikation, Allergien) wichtige Informationen auf, die fehlen, aber für die initiale Einschätzung und Diagnostik relevant wären.
+    *   Priorisiere die wichtigsten fehlenden Informationen.
 
-5. Detaillierte chronologische Zeitleiste der Ereignisse erstellen:
-   - Notiere jeden erwähnten Zeitpunkt oder Zeitraum
-   - Ordne alle Symptome, Behandlungen und relevanten Ereignisse chronologisch
-   - Identifiziere mögliche Zusammenhänge zwischen Ereignissen
+5.  **Chronologische Zeitleiste (wenn möglich):**
+    *   Erstelle eine kurze, stichpunktartige Chronologie der Ereignisse, die zur Vorstellung führten (Beginn der Symptome, Verlauf, bisherige Maßnahmen).
 
-6. Struktur der Anamnese planen:
-   - Skizziere die geplante Struktur unter Berücksichtigung aller Kategorien
-   - Stelle sicher, dass die Struktur logisch aufgebaut ist und alle wichtigen Informationen enthält
+6.  **Arbeitshypothese(n):**
+    *   Nenne die wahrscheinlichste Verdachtsdiagnose basierend auf der Analyse.
+    *   Nenne 2-3 wichtige Differentialdiagnosen.
+    *   Begründe kurz.
 
-7. Wahrscheinlichste aktuelle Diagnose und 2-3 potenzielle Differentialdiagnosen erwägen:
-   - Begründe jede Diagnose basierend auf den vorhandenen Symptomen und Informationen
-   - Berücksichtige mögliche Ausschlussdiagnosen
+7.  **Medikations-Check (wenn Medikation bekannt):**
+    *   Gibt es Hinweise auf Interaktionen, Nebenwirkungen oder Kontraindikationen im Kontext der aktuellen Symptomatik?
+    *   Könnte die Medikation zur Symptomatik beitragen oder diese beeinflussen?
 
-8. Medikationsanalyse:
-   - Liste alle erwähnten Medikamente auf
-   - Identifiziere mögliche Wechselwirkungen oder Kontraindikationen
-   - Überlege, ob die Medikation mit den aktuellen Symptomen in Zusammenhang stehen könnte
-
-9. Risikofaktoren und Noxen analysieren:
-   - Identifiziere alle erwähnten Risikofaktoren und Noxen
-   - Bewerte ihre mögliche Relevanz für die aktuelle Vorstellung
+8.  **Risikofaktoren-Bewertung:**
+    *   Bewerte die Relevanz der identifizierten Risikofaktoren/Noxen für die aktuelle Vorstellung.
 </analyse>
 
-Erstellen Sie nun die Anamnese nach folgenden Regeln:
+**Schritt 2: Erstellung der Anamnese**
 
-1. Einleitung:
-   - Beginnen Sie mit einem einleitenden Satz, der die Vorstellungsart und die abzuklärende Verdachtsdiagnose oder das Hauptsymptom kurz einordnet.
+Erstellen Sie nun die Anamnese basierend auf Ihrer Analyse und den bereitgestellten Notizen. Beachten Sie strikt die folgenden Regeln:
 
-2. Hauptbeschwerde:
-   - Detaillierte Beschreibung in 2-3 Sätzen
-   - Chronologische Darstellung des Verlaufs
-   - Erwähnung relevanter Auslöser oder Modifikatoren
+1.  **Formatierung:** Verwenden Sie Markdown. Geben Sie *nur* den finalen Anamnesetext aus.
+2.  **Informationsquelle:** Nutzen Sie *ausschließlich* Informationen aus den bereitgestellten \`<stichpunkte>\`. Fügen Sie keine Informationen hinzu, die nicht vorhanden sind.
+3.  **Struktur:** Halten Sie die folgende Struktur exakt ein:
+    *   **Einleitung:** Ein prägnanter Satz zur Vorstellung (Art, Alter, Geschlecht, Hauptgrund/Verdacht).
+    *   **Aktuelle Anamnese (Hauptbeschwerde & Verlauf):** Detaillierte Beschreibung der Hauptbeschwerde(n) inkl. Charakter, Lokalisation, Beginn, Verlauf, Intensität, Auslöser/Modifikatoren in chronologischer Reihenfolge (ca. 2-4 Sätze).
+    *   **Begleitsymptome:** Separater Absatz, der positive Begleitsymptome und relevante, explizit genannte Negativsymptome aufführt.
+    *   **Vegetative Anamnese:** Separater Absatz (nur wenn Informationen vorhanden).
+    *   **Systematische Erfassung:** Für jede der folgenden Kategorien einen separaten Absatz *nur dann erstellen, wenn Informationen dazu in den Notizen vorhanden sind*. Formatieren Sie den Kategorienamen fett: \`**Kategorie**:\` gefolgt von einem Zeilenumbruch und dann den Informationen.
+        *   \`**Vorerkrankungen**:\`
+        *   \`**Operationen**:\`
+        *   \`**Medikation**:\`
+        *   \`**Allergien**:\`
+        *   \`**Sozialanamnese/Berufsanamnese**:\`
+        *   \`**Risikofaktoren/Noxen**:\`
+        *   \`**Befunde bei Vorstellung (ZNA)**:\` (Für bereits erhobene Befunde wie Sono, EKG etc.)
+        *   \`**Vitalparameter bei Vorstellung**:\` (Listen Sie die Parameter wie unten gezeigt auf, wenn Werte vorhanden sind)
+            Blutdruck: [Wert]/[Wert] mmHg; Herzfrequenz: [Wert]/min; SpO2: [Wert]%; Atemfrequenz: [Wert]/min; Temperatur: [Wert]°C; Blutzucker: [Wert] mg/dl (oder mmol/l)
 
-3. Begleitsymptome und relevante Negativbefunde (als separater Absatz).
+4.  **Markdoc Tags für fehlende/variable Infos:**
+    *   Verwenden Sie die folgenden Tags *gezielt* für *wesentliche*, aber in den Notizen fehlende oder variable Informationen. Streben Sie Klarheit an und vermeiden Sie übermäßige Platzhalter (idealweise nicht mehr als ca. 5 Tags, aber Genauigkeit hat Vorrang). Achten Sie auf korrekte Syntax (Leerzeichen, Schrägstriche).
+    *   **Info-Tag:** Für kurze Einzelinformationen (z.B. spezifischer Wert, Name, exakter Zeitpunkt).
+        \`\`\`
+        {% info "Beschreibung der fehlenden Info" /%}
+        \`\`\`
+        *Beispiel:* \`seit {% info "genauer Beginn" /%}\` oder \`Allergie gegen {% info "Allergen" /%}\`
+    *   **Switch-Tag:** Für textliche Variationen (z.B. Geschlecht).
+        \`\`\`
+        {% switch "Variable" %}
+          {% case "Option1" %}Text für Option1{% /case %}
+          {% case "Option2" %}Text für Option2{% /case %}
+        {% /switch %}
+        \`\`\`
+        *Beispiel Geschlecht:*
+        \`\`\`
+        {% switch "Geschlecht" %}
+          {% case "m" %}Der Patient gibt an{% /case %}
+          {% case "w" %}Die Patientin gibt an{% /case %}
+          {% case "d" %}Die Person gibt an{% /case %}
+        {% /switch %}
+        \`\`\`
 
-4. Systematische Erfassung (jeweils als separater Absatz), wenn vorhanden, formatiert als **[Kategorie]**. Wenn keine Informationen vorhanden sind, lasse diese Kategorie weg:
-   - Sozialanamnese/Berufsanamnese
-   - Risikofaktoren/Noxen
-   - Medikation
-   - Allergien
-   - Sonographie/TTE/andere in der ZNA durchgeführte Untersuchungen
-   - Vitalparameter bei Vorstellung: Blutdruck: [Wert]/[Wert] mmHg; Herzfrequenz: [Wert]/min; SpO2: [Wert]%; Atemfrequenz: [Wert]/min; Temperatur: [Wert]°C; Blutzucker: [Wert] mg/dl
+5.  **Validierung vor Ausgabe:** Überprüfen Sie Ihre erstellte Anamnese anhand dieser Punkte:
+    *   Wurden *nur* Informationen aus den Stichpunkten verwendet?
+    *   Ist die Struktur korrekt eingehalten (Einleitung, Absätze, Kategorien)?
+    *   Sind Kategorien ohne Informationen korrekt weggelassen worden?
+    *   Ist die Hauptbeschwerde detailliert und chronologisch dargestellt?
+    *   Sind die Markdoc-Tags korrekt formatiert und sinnvoll eingesetzt?
+    *   Ist die medizinische Terminologie korrekt?
+    *   Ist der Text prägnant, klar und vermeidet Wiederholungen?
+    *   Ist die Anamnese konsistent mit der zuvor durchgeführten Analyse?
 
-Wichtige Hinweise:
-- Verwenden Sie nur Informationen aus den bereitgestellten Notizen
-- Nutzen Sie die folgenden Markdoc-Tags für fehlende oder variable Informationen:
+---
 
-  1. Info-Tag: Verwenden Sie das folgende Format für kurze Informationen wie Namen, Laborwerte oder einzelne Zahlen:
-     \`\`\`
-     {% info "Bezeichnung" /%}
-     \`\`\`
-     Beispiel: {% info "Patienten-Name" /%} oder {% info "Blutdruck" /%}
-
-  2. Switch-Tag: Verwenden Sie das folgende Format für Textabschnitte, die je nach Option variieren sollen:
-     \`\`\`
-     {% switch "Bezeichnung" %}
-       {% case "Option1" %}Text für Option1{% /case %}
-       {% case "Option2" %}Text für Option2{% /case %}
-     {% /switch %}
-     \`\`\`
-     Beispiel für Geschlechtsanpassung:
-     \`\`\`
-     {% switch "Geschlecht" %}
-       {% case "m" %}Der Patient berichtet über{% /case %}
-       {% case "w" %}Die Patientin berichtet über{% /case %}
-     {% /switch %}
-     \`\`\`
-
-Überprüfen Sie vor der Fertigstellung Ihre Anamnese:
-
-<validierung>
-Prüfen Sie auf:
-- Vollständigkeit der Hauptbeschwerde
-- Logisch kohärente Abfolge
-- Korrekte medizinische Terminologie
-- Korrekte Syntax der Markdoc-Tags (besonders auf korrekte Leerzeichen und Schrägstriche achten)
-- Ersetze teilweise fehlende Informationen durch Markdoc-Tags
-- Sollten zu einer Kategorie gar keine Informationen vorhanden sein, lasse diese stattdessen weg
-- Nutze nicht mehr als 5 Markdoc-Tags
-- Schreibe prägnant und klar. Nenne insbesondere jede Information nur einmal.
-</validierung>
-
-Formatieren Sie Ihre Antwort in Markdown. Geben Sie nur den Anamnesetext aus, ohne zusätzliche Kommentare oder Erklärungen. Fügen Sie nach jeder fettgedruckten Kategorie einen Doppelpunkt und einen Zeilenumbruch ein.
-
-Hier ist ein Beispiel für die Struktur und die korrekte Verwendung der Markdoc-Tags(kopieren Sie nicht den Inhalt, sondern nur das Format):
-
-Die notfallmäßige Vorstellung erfolgt bei {% info "Hauptsymptom" /%} zur weiteren Abklärung. Der {% info "Alter" /%}-jährige {% switch "Geschlecht" %}{% case "m" %}Patient klagt über{% /case %}{% case "w" %}Patientin klagt über{% /case %}{% /switch %} seit {% info "Zeitraum" /%} bestehende Beschwerden.
-Begleitsymptome: {% info "Begleitsymptome" /%}
-
-Vitalparameter bei Vorstellung:
-Blutdruck: 150/30 mmHg; Herzfrequenz: 100/min; SpO2: 95%; Atemfrequenz: 15/min; Temperatur: 37°C; Blutzucker: 100 mg/dl
-
-Hier sind die unsortierten Stichpunkte zur Anamnese:
+**Hier sind die unsortierten Stichpunkte zur Anamnese:**
 
 <stichpunkte>
 ${anamnese}
 </stichpunkte>
 
-Erstellen Sie nun die Anamnese nach obenstehenden Regeln.`,
-          },
-        ],
-      },
-      {
-        role: 'assistant',
-        content: [
-          {
-            type: 'text',
-            text: '<analyse>',
-          },
-        ],
-      },
-    ],
+---
 
-    onFinish: ({ usage }) => {
-      const { promptTokens, completionTokens, totalTokens } = usage;
-      // your own logic, e.g. for saving the chat history or recording usage
-      if (env.NODE_ENV === 'development') {
-        console.log('Prompt tokens:', promptTokens);
-        console.log('Completion tokens:', completionTokens);
-        console.log('Total tokens:', totalTokens);
+**Ihre Aufgabe:**
+
+1.  Führen Sie die Analyse durch und geben Sie diese im \`<analyse>\`-Block aus.
+2.  Erstellen Sie direkt danach die strukturierte Anamnese gemäß den obigen Regeln und geben Sie *nur* diesen Text aus.
+`,
+          },
+        ],
       }
-    },
+    ],
+  
+    
+    
   });
-
-  return result.toDataStreamResponse();
+if (env.NODE_ENV === 'development') {
+    console.log('Prompt tokens:', usage.promptTokens);
+    console.log('Completion tokens:', usage.completionTokens);
+    console.log('Total tokens:', usage.totalTokens);
+  }
+  return Response.json({ text: text.split('</analyse>')[1] });
 }

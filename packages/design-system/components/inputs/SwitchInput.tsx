@@ -2,6 +2,7 @@
 
 import { Card } from '@repo/design-system/components/ui/card';
 import {
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
@@ -54,9 +55,11 @@ export function SwitchInput({ input, form }: SwitchInputProps) {
                   value={field.value as string}
                   onValueChange={field.onChange}
                 >
+
                   <SelectTrigger>
                     <SelectValue placeholder={`Select ${input.options.name}`} />
                   </SelectTrigger>
+
                   <SelectContent>
                     {options?.map((caseTag) => (
                       <SelectItem
@@ -75,6 +78,7 @@ export function SwitchInput({ input, form }: SwitchInputProps) {
                   onValueChange={field.onChange}
                   className="flex flex-row overflow-hidden rounded-md bg-background"
                 >
+
                   {options?.map((caseTag) => (
                     <ToggleGroupItem
                       key={caseTag.options.name}
@@ -84,6 +88,7 @@ export function SwitchInput({ input, form }: SwitchInputProps) {
                       {caseTag.options.name}
                     </ToggleGroupItem>
                   ))}
+
                 </ToggleGroup>
               )}
             </>

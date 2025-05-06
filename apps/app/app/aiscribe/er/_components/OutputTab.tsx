@@ -1,3 +1,5 @@
+'use client';
+
 import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
 import {
   Card,
@@ -6,29 +8,33 @@ import {
 } from '@repo/design-system/components/ui/card';
 import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { type FormEvent, useEffect, useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
-import Inputs from '../../templates/[id]/_components/Inputs';
-import { CopyableSection } from '../_components/CopyableSection';
+import Inputs from '../../../templates/[id]/_components/Inputs';
+import { CopyableSection } from '../../_components/CopyableSection';
 
-interface DispositionTabProps {
+interface OutputTabProps {
   isExpanded: boolean;
   isActive: boolean;
   isLoading: boolean;
-  dispositionOutputData: {
-    [key: string]: string;
-  };
+  anamnese: string | undefined;
+  diagnosis: string | undefined;
   onToggle: () => void;
   onFormChange: (data: FieldValues) => void;
+  hasAnamnese: boolean;
 }
 
-export function DispositionTab({
+export function OutputTab({
   isExpanded,
   isActive,
   isLoading,
-  dispositionOutputData,
+  anamnese,
   onToggle,
   onFormChange,
-}: DispositionTabProps) {
+  hasAnamnese,
+  diagnosis,
+}: OutputTabProps) {
+
   return (
     <motion.div
       className="relative"
@@ -47,7 +53,7 @@ export function DispositionTab({
           onClick={onToggle}
           onKeyDown={(e) => e.key === 'Enter' && onToggle()}
         >
-          <CardTitle className="text-lg">Entlassung</CardTitle>
+          <CardTitle className="text-lg">Dokumentation</CardTitle>
           {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </button>
 
@@ -64,30 +70,33 @@ export function DispositionTab({
                   {/* Left Side - Input Fields and Selections */}
                   <Inputs
                     inputTags={JSON.stringify(
-                      parseMarkdocToInputs(dispositionOutputData.summary || '')
+                      parseMarkdocToInputs(anamnese || '')
                     )}
                     onChange={onFormChange}
                   />
 
                   {/* Right Side - Output Sections */}
-                  <div className="space-y-4">
+
                     <div className="space-y-4">
                       {isLoading && (
                         <div className="flex items-center justify-center">
                           <Loader2 className="h-10 w-10 animate-spin" />
                         </div>
                       )}
-                      {Object.entries(dispositionOutputData).map(
-                        ([section, content]) => (
-                          <CopyableSection
-                            key={section}
-                            title={section}
-                            content={content || `Kein ${section} verfügbar`}
-                          />
-                        )
-                      )}
+                      <CopyableSection
+                        key="diagnosis"
+                        title="Diagnose"
+                        content={
+                          `${diagnosis}` ||
+                          'Keine Diagnose verfügbar'
+                        }
+                      />
+                      <CopyableSection
+                          key="anamnese"
+                          title="Anamnese"
+                        content={anamnese || `Keine Anamnese verfügbar`}
+                      />
                     </div>
-                  </div>
                 </div>
               </CardContent>
             </motion.div>
