@@ -91,7 +91,7 @@ export default function TipTap({
       },
       attributes: {
         class: cn(
-          'prose h-full w-full focus:outline-none max-w-none',
+          'prose h-full w-full focus:outline-none max-w-none whitespace-pre-wrap',
           '[&_.is-empty]:relative',
           '[&_.is-empty]:before:content-[attr(data-placeholder)]',
           '[&_.is-empty]:before:text-slate-400',
