@@ -1,4 +1,5 @@
 'use client';
+import { DynamicMarkdocRenderer } from '@repo/markdoc-md';
 import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
@@ -6,9 +7,10 @@ import { MemoizedMarkdown } from './memoized-markdown';
 interface CopyableSectionProps {
   title: string;
   content: string;
+  values?: Record<string, unknown>;
 }
 
-export function CopyableSection({ title, content }: CopyableSectionProps) {
+export function CopyableSection({ title, content, values }: CopyableSectionProps) {
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = async (renderedContent: string, textContent: string) => {
@@ -58,7 +60,7 @@ export function CopyableSection({ title, content }: CopyableSectionProps) {
         }}
       >
         <div data-section={title}>
-          <MemoizedMarkdown content={content} />
+          <DynamicMarkdocRenderer variables={values} markdocContent={content} />
         </div>
         <div className="pointer-events-none absolute top-2 right-2 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100">
           {isCopied ? (

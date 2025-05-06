@@ -14,7 +14,7 @@ const XML_TAGS = ['analyse', 'zusammenfassung'] as const;
 interface FormData {
   anamnese: string;
 }
-type TabState = 'input' | 'output' ;
+type TabState = 'input' | 'output';
 
 export default function ICUAIGenerator() {
   const [formData, setFormData] = useState<FormData>({
@@ -66,30 +66,26 @@ export default function ICUAIGenerator() {
         anamnese: formData.anamnese || '',
       });
       await fetch('/api/scribe/diagnosis', {
-            method: 'POST',
-            body: JSON.stringify({
-              prompt: prompt,
-            }),
-          }).then(response => {
-            console.log('response', response);
-            response.json().then(json => {
-              console.log('diagnosis', json);
-              setDifferentialDiagnosis(json.text);
-            });
-          });
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: prompt,
+        }),
+      }).then(response => {
+        response.json().then(json => {
+          setDifferentialDiagnosis(json.text);
+        });
+      });
       await fetch('/api/scribe/anamnese', {
-            method: 'POST',
-            body: JSON.stringify({
-              prompt: prompt,
-            }),
-          }).then(response => {
-            console.log('response', response);
-            response.json().then(json => {
-              console.log('anamnese', json);
-              setAnamnese(json.text);
-              setIsLoading(false);
-            });
-          });
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: prompt,
+        }),
+      }).then(response => {
+        response.json().then(json => {
+          setAnamnese(json.text);
+          setIsLoading(false);
+        });
+      });
     },
     [anamnese, formData, toggleOutputTab, setDifferentialDiagnosis]
   );
@@ -111,7 +107,7 @@ export default function ICUAIGenerator() {
           isExpanded={isOutputExpanded}
           isActive={activeTab === 'output'}
           isLoading={isLoading}
-          anamnese={anamnese}
+          anamnese={anamnese.split('<diagnoseblock>')[0]}
           diagnosis={differentialDiagnosis}
           onToggle={toggleOutputTab}
           onFormChange={handleFormChange}

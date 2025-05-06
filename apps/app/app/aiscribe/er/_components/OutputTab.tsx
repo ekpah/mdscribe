@@ -6,11 +6,11 @@ import {
   CardContent,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
+import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
 import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { type FormEvent, useEffect, useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
-import Inputs from '../../../templates/[id]/_components/Inputs';
 import { CopyableSection } from '../../_components/CopyableSection';
 
 interface OutputTabProps {
@@ -34,6 +34,11 @@ export function OutputTab({
   hasAnamnese,
   diagnosis,
 }: OutputTabProps) {
+  const [values, setValues] = useState<Record<string, unknown>>({});
+
+  const handleValuesChange = (data: Record<string, unknown>) => {
+    setValues(data);
+  };
 
   return (
     <motion.div
@@ -72,31 +77,32 @@ export function OutputTab({
                     inputTags={JSON.stringify(
                       parseMarkdocToInputs(anamnese || '')
                     )}
-                    onChange={onFormChange}
+                    onChange={handleValuesChange}
                   />
 
                   {/* Right Side - Output Sections */}
 
-                    <div className="space-y-4">
-                      {isLoading && (
-                        <div className="flex items-center justify-center">
-                          <Loader2 className="h-10 w-10 animate-spin" />
-                        </div>
-                      )}
-                      <CopyableSection
-                        key="diagnosis"
-                        title="Diagnose"
-                        content={
-                          `${diagnosis}` ||
-                          'Keine Diagnose verfügbar'
-                        }
-                      />
-                      <CopyableSection
-                          key="anamnese"
-                          title="Anamnese"
-                        content={anamnese || `Keine Anamnese verfügbar`}
-                      />
-                    </div>
+                  <div className="space-y-4">
+                    {isLoading && (
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="h-10 w-10 animate-spin" />
+                      </div>
+                    )}
+                    <CopyableSection
+                      key="diagnosis"
+                      title="Diagnose"
+                      content={
+                        `${diagnosis}` ||
+                        'Keine Diagnose verfügbar'
+                      }
+                    />
+                    <CopyableSection
+                      key="anamnese"
+                      title="Anamnese"
+                      values={values}
+                      content={anamnese || `Keine Anamnese verfügbar`}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </motion.div>

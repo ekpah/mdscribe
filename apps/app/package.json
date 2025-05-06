@@ -48,6 +48,7 @@
     "@repo/design-system": "workspace:*",
     "@repo/email": "workspace:*",
     "@repo/env": "workspace:*",
+    "@repo/markdoc-md": "workspace:*",
     "@tailwindcss/postcss": "^4.1.4",
     "@tiptap/extension-color": "^2.11.7",
     "@tiptap/pm": "^2.11.7",

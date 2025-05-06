@@ -150,6 +150,9 @@ importers:
       '@repo/env':
         specifier: workspace:*
         version: link:../../packages/env
+      '@repo/markdoc-md':
+        specifier: workspace:*
+        version: link:../../packages/markdoc-md
       '@tailwindcss/postcss':
         specifier: ^4.1.4
         version: 4.1.4
@@ -809,6 +812,21 @@ importers:
       typescript:
         specifier: ^5.8.3
         version: 5.8.3
+
+  packages/markdoc-md:
+    dependencies:
+      '@markdoc/markdoc':
+        specifier: ^0.5.1
+        version: 0.5.1(@types/react@19.1.2)(react@19.1.0)
+      '@repo/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      '@types/react':
+        specifier: ^19.1.2
+        version: 19.1.2
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
 
   packages/typescript-config:
     dependencies:
