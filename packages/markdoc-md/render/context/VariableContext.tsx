@@ -19,4 +19,4 @@ export function useVariables(): VariableMap {
     throw new Error('useVariables must be used within a VariableProvider');
   }
   return context;
-} 
+}

@@ -80,27 +80,24 @@ export function OutputTab({
 
                   {/* Right Side - Output Sections */}
 
-                    <div className="space-y-4">
-                      {isLoading && (
-                        <div className="flex items-center justify-center">
-                          <Loader2 className="h-10 w-10 animate-spin" />
-                        </div>
-                      )}
-                      <CopyableSection
-                        key="diagnosis"
-                        title="Diagnose"
-                        content={
-                          `${diagnosis}` ||
-                          'Keine Diagnose verfügbar'
-                        }
-                      />
-                      <CopyableSection
-                          key="anamnese"
-                          title="Anamnese"
-                          values={values}
-                        content={anamnese || `Keine Anamnese verfügbar`}
-                      />
-                    </div>
+                  <div className="space-y-4">
+                    {isLoading && (
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="h-10 w-10 animate-spin" />
+                      </div>
+                    )}
+                    <CopyableSection
+                      key="diagnosis"
+                      title="Diagnose"
+                      content={`${diagnosis}` || 'Keine Diagnose verfügbar'}
+                    />
+                    <CopyableSection
+                      key="anamnese"
+                      title="Anamnese"
+                      values={values}
+                      content={anamnese || `Keine Anamnese verfügbar`}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </motion.div>

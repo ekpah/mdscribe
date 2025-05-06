@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 
 export type InfoState = {
   name: string;
@@ -15,16 +15,16 @@ export type InfoActions = {
 
 export type InfoStore = InfoState & InfoActions;
 export const defaultInitState: InfoState = {
-  name: "[#NAME#]",
-  gender: "undefined",
+  name: '[#NAME#]',
+  gender: 'undefined',
   meldScore: 0,
 };
 
 export const createInfoStore = (initState: InfoState = defaultInitState) => {
   return create<InfoStore>()((set) => ({
     ...initState,
-    setGenderMale: () => set(() => ({ gender: "male" })),
-    setGenderFemale: () => set(() => ({ gender: "female" })),
+    setGenderMale: () => set(() => ({ gender: 'male' })),
+    setGenderFemale: () => set(() => ({ gender: 'female' })),
     updateName: (name) => set(() => ({ name: name })),
     updateMeldScore: (score) => set(() => ({ meldScore: score })),
   }));

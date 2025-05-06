@@ -1,9 +1,7 @@
 {
   "name": "mdscribe",
   "version": "0.1.0",
-  "files": [
-    "index.js"
-  ],
+  "files": ["index.js"],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",

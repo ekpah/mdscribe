@@ -183,24 +183,23 @@ green     #859900 68 100% 30%
   --color-solarized-red: var(--solarized-red);
   --color-solarized-orange: var(--solarized-orange);
   --color-solarized-yellow: var(--solarized-yellow);
-  
 }
 
-  @keyframes accordion-down {
-    from {
-      height: 0;
-    }
-    to {
-      height: var(--radix-accordion-content-height);
-    }
+@keyframes accordion-down {
+  from {
+    height: 0;
   }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
 
-  @keyframes accordion-up {
-    from {
-      height: var(--radix-accordion-content-height);
-    }
-    to {
-      height: 0;
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
   }
 }
 
@@ -213,7 +212,6 @@ green     #859900 68 100% 30%
   }
 }
 
-
 /* This layer is added by shadcn/ui */
 @layer base {
   * {
@@ -224,8 +222,6 @@ green     #859900 68 100% 30%
     @apply bg-background text-foreground;
   }
 }
-
-
 
 @layer typography {
   .prose {

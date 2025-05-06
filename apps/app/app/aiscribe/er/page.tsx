@@ -1,6 +1,9 @@
-"use client"
+'use client';
 
-import { useCompletion, experimental_useObject as useObject } from '@ai-sdk/react';
+import {
+  useCompletion,
+  experimental_useObject as useObject,
+} from '@ai-sdk/react';
 import { useAtom } from 'jotai';
 import { useCallback, useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
@@ -20,14 +23,14 @@ export default function ICUAIGenerator() {
   const [formData, setFormData] = useState<FormData>({
     anamnese: '',
   });
-  const [differentialDiagnosis, setDifferentialDiagnosis] = useState<string>('');
+  const [differentialDiagnosis, setDifferentialDiagnosis] =
+    useState<string>('');
   const [anamnese, setAnamnese] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [activeTab, setActiveTab] = useState<TabState>('input');
   const [isInputExpanded, setIsInputExpanded] = useState<boolean>(true);
   const [isOutputExpanded, setIsOutputExpanded] = useState<boolean>(false);
-
 
   const toggleInputTab = () => {
     setActiveTab('input');
@@ -70,8 +73,8 @@ export default function ICUAIGenerator() {
         body: JSON.stringify({
           prompt: prompt,
         }),
-      }).then(response => {
-        response.json().then(json => {
+      }).then((response) => {
+        response.json().then((json) => {
           setDifferentialDiagnosis(json.text);
         });
       });
@@ -80,8 +83,8 @@ export default function ICUAIGenerator() {
         body: JSON.stringify({
           prompt: prompt,
         }),
-      }).then(response => {
-        response.json().then(json => {
+      }).then((response) => {
+        response.json().then((json) => {
           setAnamnese(json.text);
           setIsLoading(false);
         });

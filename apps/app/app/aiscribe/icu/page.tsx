@@ -1,6 +1,9 @@
-"use client"
+'use client';
 
-import { useCompletion, experimental_useObject as useObject } from '@ai-sdk/react';
+import {
+  useCompletion,
+  experimental_useObject as useObject,
+} from '@ai-sdk/react';
 import { useAtom } from 'jotai';
 import { useCallback, useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
@@ -14,20 +17,20 @@ const XML_TAGS = ['analyse', 'zusammenfassung'] as const;
 interface FormData {
   anamnese: string;
 }
-type TabState = 'input' | 'output' ;
+type TabState = 'input' | 'output';
 
 export default function ICUAIGenerator() {
   const [formData, setFormData] = useState<FormData>({
     anamnese: '',
   });
-  const [differentialDiagnosis, setDifferentialDiagnosis] = useState<string>('');
+  const [differentialDiagnosis, setDifferentialDiagnosis] =
+    useState<string>('');
   const [anamnese, setAnamnese] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [activeTab, setActiveTab] = useState<TabState>('input');
   const [isInputExpanded, setIsInputExpanded] = useState<boolean>(true);
   const [isOutputExpanded, setIsOutputExpanded] = useState<boolean>(false);
-
 
   const toggleInputTab = () => {
     setActiveTab('input');
@@ -66,17 +69,17 @@ export default function ICUAIGenerator() {
         anamnese: formData.anamnese || '',
       });
       await fetch('/api/scribe/diagnosis', {
-            method: 'POST',
-            body: JSON.stringify({
-              prompt: prompt,
-            }),
-          }).then(response => {
-            console.log('response', response);
-            response.json().then(json => {
-              console.log('diagnosis', json);
-              setDifferentialDiagnosis(json.text);
-            });
-          });
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: prompt,
+        }),
+      }).then((response) => {
+        console.log('response', response);
+        response.json().then((json) => {
+          console.log('diagnosis', json);
+          setDifferentialDiagnosis(json.text);
+        });
+      });
       //await fetch('/api/scribe/anamnese', {
       //    method: 'POST',
       //    body: JSON.stringify({

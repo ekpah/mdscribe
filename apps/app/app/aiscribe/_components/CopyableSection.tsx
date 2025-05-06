@@ -10,7 +10,11 @@ interface CopyableSectionProps {
   values?: Record<string, unknown>;
 }
 
-export function CopyableSection({ title, content, values }: CopyableSectionProps) {
+export function CopyableSection({
+  title,
+  content,
+  values,
+}: CopyableSectionProps) {
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = async (renderedContent: string, textContent: string) => {

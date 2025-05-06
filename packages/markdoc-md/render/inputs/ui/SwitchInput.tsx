@@ -9,7 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/design-system/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@repo/design-system/components/ui/toggle-group';
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@repo/design-system/components/ui/toggle-group';
 import { useEffect, useState } from 'react';
 
 export type CaseTagType = {
@@ -42,7 +45,6 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
   }, [value]);
 
   const handleChange = (newValue: string) => {
-
     setLocalValue(newValue);
     onValueChange(newValue);
   };

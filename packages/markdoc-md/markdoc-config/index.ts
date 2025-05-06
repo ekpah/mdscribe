@@ -1,9 +1,9 @@
 /** @type {import('@markdoc/markdoc').Config} */
 
-import * as functions from "./functions";
-import nodes from "./nodes";
-import tags from "./tags/config";
-import variables from "./variables";
+import * as functions from './functions';
+import nodes from './nodes';
+import tags from './tags/config';
+import variables from './variables';
 
 export default {
   ...functions,

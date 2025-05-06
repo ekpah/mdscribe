@@ -28,7 +28,10 @@ export function InfoInput({ input, form }: InfoInputProps) {
           <FormItem className="space-y-3">
             <FormLabel>{input.options.name}</FormLabel>
             <FormControl>
-              <Input {...field} value={field.value ? String(field.value) : ''} />
+              <Input
+                {...field}
+                value={field.value ? String(field.value) : ''}
+              />
             </FormControl>
           </FormItem>
         )}

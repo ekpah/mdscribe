@@ -91,10 +91,7 @@ export function OutputTab({
                     <CopyableSection
                       key="diagnosis"
                       title="Diagnose"
-                      content={
-                        `${diagnosis}` ||
-                        'Keine Diagnose verfügbar'
-                      }
+                      content={`${diagnosis}` || 'Keine Diagnose verfügbar'}
                     />
                     <CopyableSection
                       key="anamnese"

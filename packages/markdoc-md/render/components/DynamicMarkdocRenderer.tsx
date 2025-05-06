@@ -28,14 +28,17 @@ interface DynamicMarkdocRendererProps {
  * Custom tags within the Markdoc content should use the `useVariables` hook
  * to access and react to changes in the provided `variables` object.
  */
-export function DynamicMarkdocRenderer({ 
-  markdocContent, 
-  variables, 
-  className = 'prose prose-slate grow' // Default class matching Note.tsx
+export function DynamicMarkdocRenderer({
+  markdocContent,
+  variables,
+  className = 'prose prose-slate grow', // Default class matching Note.tsx
 }: DynamicMarkdocRendererProps) {
   // Memoize the parsed AST based on the content string.
   // This avoids re-parsing if only variables change.
-  const ast = React.useMemo(() => parseMarkdoc(markdocContent), [markdocContent]);
+  const ast = React.useMemo(
+    () => parseMarkdoc(markdocContent),
+    [markdocContent]
+  );
 
   // Memoize the rendering of the static structure from the AST.
   // This avoids re-rendering the base structure if only variables change.
@@ -43,9 +46,7 @@ export function DynamicMarkdocRenderer({
 
   return (
     <VariableProvider value={variables ?? {}}>
-      <div className={className}>
-        {renderedContent}
-      </div>
+      <div className={className}>{renderedContent}</div>
     </VariableProvider>
   );
-} 
+}

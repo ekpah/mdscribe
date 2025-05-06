@@ -1,4 +1,8 @@
-import Markdoc, { type Config, type RenderableTreeNode, type Schema } from '@markdoc/markdoc';
+import Markdoc, {
+  type Config,
+  type RenderableTreeNode,
+  type Schema,
+} from '@markdoc/markdoc';
 import React from 'react';
 import config from '../markdoc-config';
 import { components } from '../markdoc-config/tags/config'; // Adjusted path
@@ -23,7 +27,9 @@ export function parseMarkdoc(markdocString: string): RenderableTreeNode {
  * @param content The renderable tree node obtained from parseMarkdoc.
  * @returns A ReactNode representing the Markdoc content.
  */
-export function renderMarkdocNode(content: RenderableTreeNode): React.ReactNode {
+export function renderMarkdocNode(
+  content: RenderableTreeNode
+): React.ReactNode {
   return Markdoc.renderers.react(content, React, {
     components: components as Record<string, React.ComponentType<any>>,
   });

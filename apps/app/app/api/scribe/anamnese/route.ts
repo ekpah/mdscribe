@@ -6,7 +6,6 @@ import { google } from '@ai-sdk/google';
 import { env } from '@repo/env';
 import { CoreMessage, generateText } from 'ai';
 
-
 export async function POST(req: Request) {
   //get session and active subscription from better-auth
 
@@ -31,7 +30,6 @@ export async function POST(req: Request) {
     );
   }
 
-
   const messages: CoreMessage[] = [
     {
       role: 'user',
@@ -51,8 +49,7 @@ export async function POST(req: Request) {
         },
       ],
     },
-  ]
-
+  ];
 
   const experimentalMessages = [
     {
@@ -164,9 +161,7 @@ Erstellen Sie direkt danach die strukturierte Anamnese gemäß den obigen Regeln
 Wichtiger Hinweis zur Tag-Nutzung: Das Hauptziel ist eine lesbare und direkt verwendbare Anamnese. Wenn eine Information fehlt und ihr Fehlen den Lesefluss nicht stört oder keinen kritischen Informationsverlust im unmittelbaren Kontext darstellt, lassen Sie sie weg, anstatt einen Tag zu verwenden. Verwenden Sie Tags nur, wenn es für das Verständnis des aktuellen Satzes/Abschnitts essenziell ist oder eine Variable (wie Geschlecht für korrekte Grammatik) darstellt. Der Anamnesetext soll so aussehen, als würde ein Arzt ihn diktieren und dabei nur die vorhandenen Fakten nennen.
 `,
     },
-  ]
-
-
+  ];
 
   const { text, usage } = await generateText({
     model: anthropic('claude-3-7-sonnet-20250219'),

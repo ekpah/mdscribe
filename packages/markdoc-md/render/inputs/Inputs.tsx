@@ -48,7 +48,7 @@ export default function Inputs({ inputTags, onChange }: InputsProps) {
             <InfoInput
               key={`info-${inputName}`}
               input={input}
-              value={values[inputName] as string ?? ''}
+              value={(values[inputName] as string) ?? ''}
               onChange={(e) => handleInputChange(inputName, e.target.value)}
             />
           );
