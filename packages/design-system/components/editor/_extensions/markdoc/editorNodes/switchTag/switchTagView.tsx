@@ -32,7 +32,7 @@ export function SwitchTagView({
 
   // Extract case nodes from content on mount and when content changes
   useEffect(() => {
-    const caseNodes = node.children.map((c) => ({
+    const caseNodes = node.children.filter((c) => c.type.name === 'caseTag').map((c) => ({
       primary: c.attrs.primary || '',
       // Ensure content and text exist before accessing
       text: c.content?.content?.[0]?.text || '',
@@ -41,8 +41,49 @@ export function SwitchTagView({
     setCases(caseNodes);
   }, [node.children]);
 
+  const findCaseNodeAndPos = (
+    targetIndex: number
+  ): { pos: number; node: ProseMirrorNode } | undefined => {
+    const parentSwitchAbsPos = getPos(); // Position of the start of the switchTag node
+
+    if (typeof parentSwitchAbsPos !== 'number') {
+      console.error(
+        "SwitchTagView.findCaseNodeAndPos: Could not get parent switch node's position."
+      );
+      return undefined;
+    }
+
+    const caseTagChildrenInfo: Array<{ pos: number; node: ProseMirrorNode }> =
+      [];
+
+    // Iterate over the direct children of the switchTag node (`node`).
+    // The `offset` is relative to the start of the parent node's content.
+    // The content of a node starts after its opening tag.
+    node.forEach((childNode, offsetInParentContent) => {
+      if (childNode.type.name === 'caseTag') {
+        // The absolute position of the childNode in the document is:
+        // position of parent switchTag + 1 (for the switchTag's opening tag) + offset of childNode within parent's content
+        const absoluteChildPos =
+          parentSwitchAbsPos + 1 + offsetInParentContent;
+        caseTagChildrenInfo.push({
+          pos: absoluteChildPos,
+          node: childNode,
+        });
+      }
+    });
+
+    if (targetIndex >= 0 && targetIndex < caseTagChildrenInfo.length) {
+      return caseTagChildrenInfo[targetIndex];
+    }
+    // Optionally, log if the specific case was not found.
+    // console.warn(
+    //   `SwitchTagView.findCaseNodeAndPos: caseTag at index ${targetIndex} not found. Total caseTags: ${caseTagChildrenInfo.length}`
+    // );
+    return undefined;
+  };
+
   const addCase = () => {
-    if (!newCase.primary || !newCase.text) {
+    if (!newCase.primary && !newCase.text) {
       return;
     }
 
@@ -69,44 +110,34 @@ export function SwitchTagView({
     setNewCase({ primary: '', text: '' });
   };
 
-  // Helper function to find the absolute start position and the node itself
-  const findCaseNodeAndPos = (
-    index: number
-  ): { pos: number; node: ProseMirrorNode } | null => {
-    const parentPos = getPos();
-    if (typeof parentPos !== 'number') {
-      console.error('SwitchTagView: Could not get parent position.');
-      return null;
-    }
-    let foundNode: ProseMirrorNode | null = null;
-    let foundNodePos = -1;
-    let currentIndex = 0;
-    // Iterate through the direct children of the switch node
-    node.content.forEach((childNode, offset) => {
-      if (childNode.type.name === 'caseTag') {
-        if (currentIndex === index) {
-          foundNode = childNode;
-          // Position is parentPos + 1 (for the opening tag) + offset within content
-          foundNodePos = parentPos + 1 + offset;
-          return false; // Stop iteration once found
-        }
-        currentIndex++;
-      }
-    });
-    if (foundNode && foundNodePos !== -1) {
-      return { pos: foundNodePos, node: foundNode };
-    }
-    console.error(`SwitchTagView: Case node at index ${index} not found.`);
-    return null;
-  };
 
   const removeCase = (index: number) => {
     const target = findCaseNodeAndPos(index);
     if (!target) return;
+    
     const { pos, node: childNode } = target;
+    
+    // Ensure we're deleting the correct case node by verifying its type
+    const nodeAtPos = editor.state.doc.nodeAt(pos);
+    if (nodeAtPos?.type.name !== 'caseTag') {
+      console.error('SwitchTagView: Node at position is not a caseTag, cannot remove.');
+      return;
+    }
+    
+    // Calculate the exact range to delete
     const from = pos;
     const to = pos + childNode.nodeSize;
-    editor.chain().deleteRange({ from, to }).focus().run();
+    
+    // Execute the deletion without focusing the editor
+    // The focus() call was causing the popover to close because it shifts focus away from the popover
+    editor.chain().deleteRange({ from, to }).run();
+    
+    // Prevent default behavior that might cause focus changes
+    // This helps keep the popover open after deletion
+    setTimeout(() => {
+      // Force update the editor view to reflect changes without changing focus
+      editor.view.updateState(editor.view.state);
+    }, 0);
   };
 
   const updateCase = (
@@ -182,7 +213,7 @@ export function SwitchTagView({
           <span className="flex items-center bg-white px-2 py-1 text-gray-700">
             {/* Display primary value, add placeholder if empty */}
             {node.attrs.primary || '...'}
-            {node.children.map((child, index) => (
+            {node.children.filter((child) => child.type.name === 'caseTag').map((child, index) => (
               <span
                 key={index}
                 className="mx-1 inline-block rounded-md bg-muted/50 px-1.5 py-0.5 text-muted-foreground text-xs" // Pale bubble style
@@ -198,7 +229,7 @@ export function SwitchTagView({
             {/* Switch Variable Input */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="primary" className="text-right">
-                Variable
+                Name
               </Label>
               <Input
                 id="primary"
@@ -218,40 +249,46 @@ export function SwitchTagView({
               <Label className="mb-2 block">Cases</Label>
               {/* Existing Cases */}
               {cases.map((caseItem, index) => (
-                <div key={index} className="mb-2 flex items-center gap-2">
-                  <Input
-                    value={caseItem.primary}
-                    onChange={(e) =>
-                      updateCase(index, 'primary', e.target.value)
-                    }
-                    placeholder="Case key"
-                    className="w-32"
-                  />
+                <div key={index} className="mb-2 grid grid-cols-5 items-center gap-2">
+                  {caseItem?.primary ? (
+                    <Input
+                      value={caseItem.primary}
+                      onChange={(e) =>
+                        updateCase(index, 'primary', e.target.value)
+                      }
+                      placeholder="Case key"
+                      className="w-full col-span-2"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground col-span-2">
+                       
+                    </span>
+                  )}
                   <Input
                     value={caseItem.text}
                     onChange={(e) => updateCase(index, 'text', e.target.value)}
                     placeholder="Case value"
-                    className="flex-1"
+                    className="w-full col-span-2" // Adjusted to col-span-2
                   />
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => removeCase(index)}
-                    aria-label={`Remove case ${index + 1}`}
+                    aria-label={`Remove case ${index}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
               {/* Add New Case */}
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 grid grid-cols-5 items-center gap-2">
                 <Input
                   value={newCase.primary}
                   onChange={(e) =>
                     setNewCase((prev) => ({ ...prev, primary: e.target.value }))
                   }
                   placeholder="New case key"
-                  className="w-32"
+                  className="w-full col-span-2"
                 />
                 <Input
                   value={newCase.text}
@@ -259,7 +296,7 @@ export function SwitchTagView({
                     setNewCase((prev) => ({ ...prev, text: e.target.value }))
                   }
                   placeholder="New case value"
-                  className="flex-1"
+                  className="w-full col-span-2"
                   onKeyDown={(e) => {
                     if (
                       e.key === 'Enter' &&
@@ -275,7 +312,7 @@ export function SwitchTagView({
                   variant="ghost"
                   size="icon"
                   onClick={addCase}
-                  disabled={!newCase.primary || !newCase.text} // Disable if fields are empty
+                  disabled={!newCase.primary && !newCase.text} // Disable if fields are empty
                   aria-label="Add new case"
                 >
                   <Plus className="h-4 w-4" />

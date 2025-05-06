@@ -78,7 +78,6 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
           </Select>
         ) : (
           <ToggleGroup
-            name={input.options.name}
             type="single"
             value={localValue}
             onValueChange={handleChange}

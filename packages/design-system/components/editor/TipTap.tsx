@@ -62,6 +62,7 @@ export default function TipTap({
   setContent,
 }: { note: string; setContent: (content: string) => void }) {
   const editor = useEditor({
+        immediatelyRender: false,
     extensions: [
       StarterKit,
       Markdown,
@@ -82,7 +83,6 @@ export default function TipTap({
     content: markdocToHTML(note),
     onUpdate: ({ editor }) => {
       const markdown = editor.storage.markdown.getMarkdown();
-      console.log(markdown);
       setContent(htmlToMarkdoc(markdown));
     },
     editorProps: {
@@ -91,7 +91,7 @@ export default function TipTap({
       },
       attributes: {
         class: cn(
-          'prose prose-sm sm:prose h-full w-full focus:outline-none',
+          'prose h-full w-full focus:outline-none max-w-none',
           '[&_.is-empty]:relative',
           '[&_.is-empty]:before:content-[attr(data-placeholder)]',
           '[&_.is-empty]:before:text-slate-400',

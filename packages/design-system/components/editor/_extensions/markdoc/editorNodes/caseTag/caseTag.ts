@@ -14,7 +14,7 @@ export const CaseTag = Node.create<CaseTagAttrs>({
   addAttributes() {
     return {
       primary: {
-        default: null,
+        default: "",
         parseHTML: (element) => element.getAttribute('primary'),
         renderHTML: (attributes) => ({
           primary: attributes.primary,

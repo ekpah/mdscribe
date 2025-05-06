@@ -52,23 +52,6 @@ export const config: NextConfig = withVercelToolbar()({
 
   // This is required to support PostHog trailing slash API requests
   skipTrailingSlashRedirect: true,
-
-  // Turbopack configuration
-  experimental: {
-    turbo: {
-      rules: {
-        // Example: Add custom loader configuration if needed
-        // '*.svg': {
-        //   loaders: ['@svgr/webpack'],
-        //   as: '*.js',
-        // },
-      },
-      // resolveAlias: {
-      //   // Add custom aliases if needed
-      // },
-      // resolveExtensions: ['.mdx', '.tsx', '.ts', '.jsx', '.js', '.json'],
-    },
-  },
 });
 
 export const withAnalyzer = (sourceConfig: NextConfig): NextConfig =>
