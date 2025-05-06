@@ -1,6 +1,6 @@
+import renderMarkdocAsReact from '@/lib/renderMarkdocAsReact';
 import { marked } from 'marked';
 import { memo, useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
 
 function parseMarkdownIntoBlocks(markdown: string): string[] {
   const tokens = marked.lexer(markdown);
@@ -9,7 +9,7 @@ function parseMarkdownIntoBlocks(markdown: string): string[] {
 
 const MemoizedMarkdownBlock = memo(
   ({ content }: { content: string }) => {
-    return <ReactMarkdown>{content}</ReactMarkdown>;
+    return <>{renderMarkdocAsReact(content)}</>;
   },
   (prevProps, nextProps) => {
     if (prevProps.content !== nextProps.content) return false;

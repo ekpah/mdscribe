@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { Pool, neonConfig } from '@neondatabase/serverless';
+import { neonConfig } from '@neondatabase/serverless';
 import { PrismaNeon } from '@prisma/adapter-neon';
 import { PrismaClient } from '@prisma/client';
 import { env } from '@repo/env';
@@ -12,10 +12,8 @@ declare global {
   var cachedPrisma: PrismaClient | undefined;
 }
 
-const pool = new Pool({
-  connectionString: env.POSTGRES_DATABASE_URL as string,
-});
-const adapter = new PrismaNeon(pool);
+const connectionString = env.POSTGRES_DATABASE_URL as string;
+const adapter = new PrismaNeon({ connectionString });
 
 export const database = new PrismaClient({ adapter });
 

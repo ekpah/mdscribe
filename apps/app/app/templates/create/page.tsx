@@ -1,5 +1,4 @@
 import { auth } from '@/auth';
-import { showBetaFeature } from '@/flags';
 import { database } from '@repo/database';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
@@ -61,8 +60,6 @@ export default async function CreateTemplate({
     ? await fetchMarkdoc({ id: fork as string })
     : null;
 
-  const showTipTap = await showBetaFeature();
-
   return (
     <div className="flex h-full w-full flex-col">
       <Editor
@@ -71,7 +68,6 @@ export default async function CreateTemplate({
         note={JSON.stringify(forkedTemplate?.content || '')}
         handleSubmitAction={handleSubmit}
         author={session?.user}
-        showTipTap={showTipTap}
       />
     </div>
   );

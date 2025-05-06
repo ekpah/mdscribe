@@ -1,7 +1,7 @@
 // Client Side Component
-"use client";
+'use client';
 
-import LandingPage from "./_components/landing/LandingPage";
+import LandingPage from './_components/landing/LandingPage';
 
 export default function Page() {
   return <LandingPage />;

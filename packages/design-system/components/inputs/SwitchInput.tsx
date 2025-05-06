@@ -2,6 +2,7 @@
 
 import { Card } from '@repo/design-system/components/ui/card';
 import {
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
@@ -57,6 +58,7 @@ export function SwitchInput({ input, form }: SwitchInputProps) {
                   <SelectTrigger>
                     <SelectValue placeholder={`Select ${input.options.name}`} />
                   </SelectTrigger>
+
                   <SelectContent>
                     {options?.map((caseTag) => (
                       <SelectItem
