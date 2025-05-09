@@ -4,14 +4,15 @@ import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
-import { Plus } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
-export function SwitchTagView({
+export function CaseTagView({
   node,
   editor,
   updateAttributes,
   getPos,
+  deleteNode,
 }: NodeViewProps) {
   const [primaryValue, setPrimaryValue] = useState(node.attrs.primary || '');
   const [isEditingPrimary, setIsEditingPrimary] = useState(false);
@@ -46,43 +47,26 @@ export function SwitchTagView({
     }
     if (e.key === 'Escape') {
       e.preventDefault();
-      setPrimaryValue(node.attrs.primary || ''); // Revert to original
+      setPrimaryValue(node.attrs.primary || ''); // Revert
       setIsEditingPrimary(false);
     }
   };
 
-  const addCase = () => {
-    const parentSwitchAbsPos = getPos();
-    if (typeof parentSwitchAbsPos !== 'number') {
-      console.error(
-        "SwitchTagView.addCase: Could not get parent switch node's position."
-      );
-      return;
-    }
-    const insertPos = parentSwitchAbsPos + 1 + node.content.size;
-    editor
-      .chain()
-      // .focus() // Focusing might not be desired for inline adds
-      .insertContentAt(insertPos, {
-        type: 'caseTag',
-        attrs: { primary: '' },
-        content: [{ type: 'text', text: 'new case' }],
-      })
-      .run();
-  };
+  const handleRemoveCase = useCallback(() => {
+    deleteNode();
+  }, [deleteNode]);
 
   return (
     <NodeViewWrapper
       as="span"
-      className="markdoc-switch-inline group inline-flex items-baseline rounded border border-solarized-green/60 text-xs leading-tight align-baseline"
+      className="group mx-0.5 inline-flex items-baseline rounded border border-blue-500/50 bg-blue-50 text-xs leading-tight align-baseline"
     >
       <span
-        data-drag-handle
         onClick={!isEditingPrimary ? handlePrimaryDisplayClick : undefined}
-        className={`flex cursor-text items-center bg-solarized-green px-1.5 py-0.5 text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-solarized-green/90 ${
+        className={`flex cursor-text items-center bg-blue-500/80 px-1.5 py-0.5 text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-blue-500/90 ${
           isEditingPrimary ? '' : 'hover:brightness-110'
         }`}
-        contentEditable={false} // Important for Tiptap
+        contentEditable={false}
       >
         {isEditingPrimary ? (
           <Input
@@ -90,37 +74,36 @@ export function SwitchTagView({
             onChange={handlePrimaryInputChange}
             onBlur={handlePrimaryInputBlur}
             onKeyDown={handlePrimaryInputKeyDown}
-            placeholder="name"
-            className="m-0 h-auto min-w-[60px] max-w-[150px] border-none bg-transparent p-0 text-xs text-white shadow-none ring-0 placeholder:text-gray-300 focus:ring-0"
+            placeholder="case key"
+            className="m-0 h-auto min-w-[50px] max-w-[120px] border-none bg-transparent p-0 text-xs text-white shadow-none ring-0 placeholder:text-gray-200 focus:ring-0"
             autoFocus
-            // Prevent Tiptap from handling events for this input
-            onMouseDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()} // Prevent Tiptap handling
             onSelectCapture={(e) => e.stopPropagation()} // Fix for selection issue
           />
         ) : (
           <span className="min-h-[1em] min-w-[1em] py-px">
-            {primaryValue || '...'}
+            {primaryValue || 'default'} {/* Display 'default' if primary is empty */}
           </span>
         )}
       </span>
 
       <NodeViewContent
         as="span"
-        className="cases-content-inline min-h-[1em] whitespace-nowrap px-1 py-0.5"
+        className="case-actual-content-inline min-h-[1em] whitespace-nowrap bg-white px-1 py-0.5 text-gray-700"
       />
 
       <Button
         variant="ghost"
         size="icon"
-        onClick={addCase}
-        className="add-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm p-0.5 px-1 text-solarized-green/80 hover:bg-solarized-green/10 hover:text-solarized-green"
-        contentEditable={false} // Important for Tiptap
-        aria-label="Add new case"
+        onClick={handleRemoveCase}
+        className="remove-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm p-0.5 px-1 text-blue-500/70 hover:bg-blue-500/10 hover:text-blue-600"
+        contentEditable={false}
+        aria-label="Remove case"
       >
-        <Plus className="h-3 w-3" />
+        <X className="h-3 w-3" />
       </Button>
     </NodeViewWrapper>
   );
 }
 
-export default SwitchTagView;
+export default CaseTagView; 
