@@ -79,7 +79,7 @@ export function SwitchTagView({
       <span
         data-drag-handle
         onClick={!isEditingPrimary ? handlePrimaryDisplayClick : undefined}
-        className={`flex cursor-text items-center bg-solarized-green px-1.5 py-0.5 text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-solarized-green/90 ${
+        className={`flex cursor-text items-center bg-solarized-green px-1.5 text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-solarized-green/90 ${
           isEditingPrimary ? '' : 'hover:brightness-110'
         }`}
         contentEditable={false} // Important for Tiptap
@@ -91,14 +91,14 @@ export function SwitchTagView({
             onBlur={handlePrimaryInputBlur}
             onKeyDown={handlePrimaryInputKeyDown}
             placeholder="name"
-            className="m-0 h-auto min-w-[60px] max-w-[150px] border-none bg-transparent p-0 text-xs text-white shadow-none ring-0 placeholder:text-gray-300 focus:ring-0"
+            className="border-none bg-transparent p-0 text-xs text-white shadow-none ring-0 placeholder:text-gray-300 focus:ring-0"
             autoFocus
             // Prevent Tiptap from handling events for this input
             onMouseDown={(e) => e.stopPropagation()}
             onSelectCapture={(e) => e.stopPropagation()} // Fix for selection issue
           />
         ) : (
-          <span className="min-h-[1em] min-w-[1em] py-px">
+          <span className=" min-w-[1em] py-px">
             {primaryValue || '...'}
           </span>
         )}
@@ -106,7 +106,7 @@ export function SwitchTagView({
 
       <NodeViewContent
         as="span"
-        className="cases-content-inline min-h-[1em] whitespace-nowrap px-1 py-0.5"
+        className="cases-content-inline min-h-[1em] whitespace-nowrap px-1 "
       />
 
       <Button

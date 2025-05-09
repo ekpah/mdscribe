@@ -31,7 +31,7 @@ export function InfoTagView({
           <span
             data-drag-handle // Make only the label draggable
             className={
-              'border-solarized-blue border-r bg-solarized-blue px-2 py-1 font-bold text-white'
+              'border-solarized-blue border-r bg-solarized-blue px-2 font-bold text-white'
             }
           >
             Info
@@ -39,7 +39,7 @@ export function InfoTagView({
           {/* Content Part: Remove rounding and border */}
           <span
             className={
-              'bg-background px-2 py-1 text-foreground' // Removed border classes and rounding
+              'bg-background px-2 text-foreground' // Removed border classes and rounding
             }
           >
             {node.attrs.primary || (

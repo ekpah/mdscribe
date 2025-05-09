@@ -59,11 +59,11 @@ export function CaseTagView({
   return (
     <NodeViewWrapper
       as="span"
-      className="group mx-0.5 inline-flex items-baseline rounded border border-blue-500/50 bg-blue-50 text-xs leading-tight align-baseline"
+      className="group inline-flex items-baseline rounded border border-blue-500/50 bg-blue-50/80 text-xs leading-tight align-baseline"
     >
       <span
         onClick={!isEditingPrimary ? handlePrimaryDisplayClick : undefined}
-        className={`flex cursor-text items-center bg-blue-500/80 px-1.5 py-0.5 text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-blue-500/90 ${
+        className={`flex cursor-text items-center bg-blue-500/80 px-1.5  text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-blue-500/90 ${
           isEditingPrimary ? '' : 'hover:brightness-110'
         }`}
         contentEditable={false}
@@ -89,14 +89,14 @@ export function CaseTagView({
 
       <NodeViewContent
         as="span"
-        className="case-actual-content-inline min-h-[1em] whitespace-nowrap bg-white px-1 py-0.5 text-gray-700"
+        className=" whitespace-nowrap bg-white px-1  text-gray-700"
       />
 
       <Button
         variant="ghost"
         size="icon"
         onClick={handleRemoveCase}
-        className="remove-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm p-0.5 px-1 text-blue-500/70 hover:bg-blue-500/10 hover:text-blue-600"
+        className="remove-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm  px-1 text-blue-500/70 hover:bg-blue-500/10 hover:text-blue-600"
         contentEditable={false}
         aria-label="Remove case"
       >
