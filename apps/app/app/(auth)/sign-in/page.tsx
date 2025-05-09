@@ -120,6 +120,9 @@ export default function SignIn() {
           >
             Passwort vergessen?
           </Link>
+          <p className="text-xs text-muted-foreground mt-4 w-full text-center">
+            Die Informationen auf dieser Website dienen ausschließlich zu Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation eines Arztes / einer Ärztin.
+          </p>
         </CardFooter>
       </form>
     </Card>

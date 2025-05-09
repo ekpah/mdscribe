@@ -36,6 +36,9 @@ export default function LegalPage() {
             Online-Streitbeilegung (OS) bereit:
             https://ec.europa.eu/consumers/odr/
           </p>
+                    <p className="text-xs text-muted-foreground mt-4 w-full text-center">
+            Die Informationen auf dieser Website dienen ausschließlich zu Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation eines Arztes / einer Ärztin.
+          </p>
         </div>
       </section>
 
