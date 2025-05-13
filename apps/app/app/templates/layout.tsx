@@ -67,6 +67,10 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const isLoggedIn = !!session?.user;
   // let templates = getTemplates();
   return (
     <div className="flex h-full w-full">
@@ -78,6 +82,7 @@ export default async function Layout({
               templates={''}
               favouriteTemplates={''}
               authoredTemplates={''}
+              isLoggedIn
             />
           }
         >
@@ -90,6 +95,7 @@ export default async function Layout({
             authoredTemplates={JSON.stringify(
               await generateAuthoredTemplates()
             )}
+            isLoggedIn
           />
         </Suspense>
         <main

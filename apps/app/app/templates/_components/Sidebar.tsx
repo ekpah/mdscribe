@@ -37,8 +37,6 @@ import type React from 'react';
 import { useRef, useState } from 'react';
 
 import { useHotkeys } from 'react-hotkeys-hook';
-
-import { useSession } from '@/lib/auth-client';
 import { CollectionSwitcher } from './CollectionSwitcher';
 
 interface Template {
@@ -77,13 +75,13 @@ export default function AppSidebar({
   templates,
   favouriteTemplates,
   authoredTemplates,
+  isLoggedIn,
 }: {
   templates: string;
   favouriteTemplates: string;
   authoredTemplates: string;
+  isLoggedIn: boolean;
 }) {
-  const { data: session } = useSession();
-
   const {
     state,
     open,
@@ -94,7 +92,6 @@ export default function AppSidebar({
     toggleSidebar,
   } = useSidebar();
 
-  const isLoggedIn = !!session?.user;
   const isMac =
     typeof window !== 'undefined' &&
     /Mac|iPhone|iPod|iPad/.test(navigator.userAgent);

@@ -64,7 +64,7 @@ export function SwitchTagView({
               </Label>
               <Input
                 id="primary"
-                value={node.attrs.primary}
+                value={node.attrs.primary || ''}
                 onChange={handlePrimaryChange}
                 className="col-span-3"
                 placeholder="Enter switch value"
