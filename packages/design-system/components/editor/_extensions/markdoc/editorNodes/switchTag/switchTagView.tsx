@@ -83,6 +83,7 @@ export function SwitchTagView({
       <Button
         variant="ghost"
         size="icon"
+        type="button"
         onClick={addCase}
         className="add-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm px-1 text-solarized-green/80 hover:bg-solarized-green/10 hover:text-solarized-green"
         contentEditable={false}

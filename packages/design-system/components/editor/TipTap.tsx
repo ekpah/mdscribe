@@ -32,7 +32,7 @@ const suggestions = createSuggestionsItems([
         .insertContent({
           type: 'infoTag',
           attrs: {
-            primary: 'Name',
+            primary: '...',
           },
         })
         .setNodeSelection(range.from)
@@ -50,7 +50,7 @@ const suggestions = createSuggestionsItems([
         .insertContent({
           type: 'switchTag',
           attrs: {
-            primary: 'name',
+            primary: '...',
           },
         })
         .run();
