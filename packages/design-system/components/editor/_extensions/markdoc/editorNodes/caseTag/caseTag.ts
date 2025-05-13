@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import type { ProseMirrorNode } from '@tiptap/pm';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { CaseTagView } from './CaseTagView';
 export interface CaseTagOptions {
