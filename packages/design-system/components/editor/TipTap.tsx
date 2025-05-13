@@ -35,6 +35,7 @@ const suggestions = createSuggestionsItems([
             primary: 'Name',
           },
         })
+        .setNodeSelection(range.from)
         .run();
     },
   },
@@ -62,7 +63,7 @@ export default function TipTap({
   setContent,
 }: { note: string; setContent: (content: string) => void }) {
   const editor = useEditor({
-        immediatelyRender: false,
+    immediatelyRender: false,
     extensions: [
       StarterKit,
       Markdown,
@@ -91,7 +92,7 @@ export default function TipTap({
       },
       attributes: {
         class: cn(
-          'prose h-full w-full focus:outline-none max-w-none whitespace-pre-wrap',
+          'prose h-full w-full max-w-none whitespace-pre-wrap focus:outline-none',
           '[&_.is-empty]:relative',
           '[&_.is-empty]:before:content-[attr(data-placeholder)]',
           '[&_.is-empty]:before:text-slate-400',

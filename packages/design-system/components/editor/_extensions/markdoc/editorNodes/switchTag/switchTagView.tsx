@@ -2,10 +2,15 @@
 
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
+import { Label } from '@repo/design-system/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@repo/design-system/components/ui/popover';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
 import { Plus } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
 
 export function SwitchTagView({
   node,
@@ -13,42 +18,8 @@ export function SwitchTagView({
   updateAttributes,
   getPos,
 }: NodeViewProps) {
-  const [primaryValue, setPrimaryValue] = useState(node.attrs.primary || '');
-  const [isEditingPrimary, setIsEditingPrimary] = useState(false);
-
-  useEffect(() => {
-    if (!isEditingPrimary) {
-      setPrimaryValue(node.attrs.primary || '');
-    }
-  }, [node.attrs.primary, isEditingPrimary]);
-
-  const handlePrimaryDisplayClick = useCallback(() => {
-    setIsEditingPrimary(true);
-  }, []);
-
-  const handlePrimaryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPrimaryValue(e.target.value);
-  };
-
-  const savePrimary = useCallback(() => {
-    updateAttributes({ primary: primaryValue });
-    setIsEditingPrimary(false);
-  }, [primaryValue, updateAttributes]);
-
-  const handlePrimaryInputBlur = () => {
-    savePrimary();
-  };
-
-  const handlePrimaryInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      savePrimary();
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      setPrimaryValue(node.attrs.primary || ''); // Revert to original
-      setIsEditingPrimary(false);
-    }
+  const handlePrimaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateAttributes({ primary: e.target.value });
   };
 
   const addCase = () => {
@@ -62,7 +33,6 @@ export function SwitchTagView({
     const insertPos = parentSwitchAbsPos + 1 + node.content.size;
     editor
       .chain()
-      // .focus() // Focusing might not be desired for inline adds
       .insertContentAt(insertPos, {
         type: 'caseTag',
         attrs: { primary: '' },
@@ -74,35 +44,36 @@ export function SwitchTagView({
   return (
     <NodeViewWrapper
       as="span"
-      className="markdoc-switch-inline group inline-flex items-baseline rounded border border-solarized-green/60 text-xs leading-tight align-baseline"
+      className="inline-flex items-center rounded border border-solarized-green/60 text-xs"
     >
-      <span
-        data-drag-handle
-        onClick={!isEditingPrimary ? handlePrimaryDisplayClick : undefined}
-        className={`flex cursor-text items-center bg-solarized-green px-1.5 text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-solarized-green/90 ${
-          isEditingPrimary ? '' : 'hover:brightness-110'
-        }`}
-        contentEditable={false} // Important for Tiptap
-      >
-        {isEditingPrimary ? (
-          <Input
-            value={primaryValue}
-            onChange={handlePrimaryInputChange}
-            onBlur={handlePrimaryInputBlur}
-            onKeyDown={handlePrimaryInputKeyDown}
-            placeholder="name"
-            className="border-none bg-transparent p-0 text-xs text-white shadow-none ring-0 placeholder:text-gray-300 focus:ring-0"
-            autoFocus
-            // Prevent Tiptap from handling events for this input
-            onMouseDown={(e) => e.stopPropagation()}
-            onSelectCapture={(e) => e.stopPropagation()} // Fix for selection issue
-          />
-        ) : (
-          <span className=" min-w-[1em] py-px">
-            {primaryValue || '...'}
+      <Popover>
+        <PopoverTrigger
+          className="flex cursor-pointer select-none items-center rounded-l-sm bg-solarized-green px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-solarized-green/90"
+          data-drag-handle
+          contentEditable={false}
+        >
+          <span className="min-w-[1em] py-px">
+            {node.attrs.primary || '...'}
           </span>
-        )}
-      </span>
+        </PopoverTrigger>
+        <PopoverContent>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="primary" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="primary"
+                value={node.attrs.primary}
+                onChange={handlePrimaryChange}
+                className="col-span-3"
+                placeholder="Enter switch value"
+                autoFocus
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
 
       <NodeViewContent
         as="span"
@@ -113,8 +84,8 @@ export function SwitchTagView({
         variant="ghost"
         size="icon"
         onClick={addCase}
-        className="add-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm p-0.5 px-1 text-solarized-green/80 hover:bg-solarized-green/10 hover:text-solarized-green"
-        contentEditable={false} // Important for Tiptap
+        className="add-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm px-1 text-solarized-green/80 hover:bg-solarized-green/10 hover:text-solarized-green"
+        contentEditable={false}
         aria-label="Add new case"
       >
         <Plus className="h-3 w-3" />

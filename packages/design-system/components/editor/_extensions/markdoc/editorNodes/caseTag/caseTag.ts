@@ -1,5 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import { ProseMirrorNode, ReactNodeViewRenderer } from '@tiptap/react';
+import { type ProseMirrorNode, ReactNodeViewRenderer } from '@tiptap/react';
 import { CaseTagView } from './CaseTagView';
 export interface CaseTagOptions {
   HTMLAttributes: Record<string, any>;
@@ -14,13 +14,13 @@ export interface CaseTagOptions {
 export const CaseTag = Node.create<CaseTagOptions>({
   name: 'caseTag',
   group: 'inline',
-    inline: true,
+  inline: true,
   content: 'inline*',
-  atom: false,
+  atom: true,
   addAttributes() {
     return {
       primary: {
-        default: "",
+        default: '',
         parseHTML: (element) => element.getAttribute('primary'),
         renderHTML: (attributes) => ({
           primary: attributes.primary,

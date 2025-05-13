@@ -2,10 +2,16 @@
 
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
+import { Label } from '@repo/design-system/components/ui/label';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@repo/design-system/components/ui/popover';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
 export function CaseTagView({
   node,
@@ -14,42 +20,8 @@ export function CaseTagView({
   getPos,
   deleteNode,
 }: NodeViewProps) {
-  const [primaryValue, setPrimaryValue] = useState(node.attrs.primary || '');
-  const [isEditingPrimary, setIsEditingPrimary] = useState(false);
-
-  useEffect(() => {
-    if (!isEditingPrimary) {
-      setPrimaryValue(node.attrs.primary || '');
-    }
-  }, [node.attrs.primary, isEditingPrimary]);
-
-  const handlePrimaryDisplayClick = useCallback(() => {
-    setIsEditingPrimary(true);
-  }, []);
-
-  const handlePrimaryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPrimaryValue(e.target.value);
-  };
-
-  const savePrimary = useCallback(() => {
-    updateAttributes({ primary: primaryValue });
-    setIsEditingPrimary(false);
-  }, [primaryValue, updateAttributes]);
-
-  const handlePrimaryInputBlur = () => {
-    savePrimary();
-  };
-
-  const handlePrimaryInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      savePrimary();
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      setPrimaryValue(node.attrs.primary || ''); // Revert
-      setIsEditingPrimary(false);
-    }
+  const handlePrimaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateAttributes({ primary: e.target.value });
   };
 
   const handleRemoveCase = useCallback(() => {
@@ -61,42 +33,44 @@ export function CaseTagView({
       as="span"
       className="group inline-flex items-baseline rounded border border-blue-500/50 bg-blue-50/80 text-xs leading-tight align-baseline"
     >
-      <span
-        onClick={!isEditingPrimary ? handlePrimaryDisplayClick : undefined}
-        className={`flex cursor-text items-center bg-blue-500/80 px-1.5  text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-blue-500/90 ${
-          isEditingPrimary ? '' : 'hover:brightness-110'
-        }`}
-        contentEditable={false}
-      >
-        {isEditingPrimary ? (
-          <Input
-            value={primaryValue}
-            onChange={handlePrimaryInputChange}
-            onBlur={handlePrimaryInputBlur}
-            onKeyDown={handlePrimaryInputKeyDown}
-            placeholder="case key"
-            className="m-0 h-auto min-w-[50px] max-w-[120px] border-none bg-transparent p-0 text-xs text-white shadow-none ring-0 placeholder:text-gray-200 focus:ring-0"
-            autoFocus
-            onMouseDown={(e) => e.stopPropagation()} // Prevent Tiptap handling
-            onSelectCapture={(e) => e.stopPropagation()} // Fix for selection issue
-          />
-        ) : (
+      <Popover>
+        <PopoverTrigger
+          className="flex cursor-pointer items-center bg-blue-500/80 px-1.5 text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-blue-500/90 hover:brightness-110"
+          contentEditable={false}
+        >
           <span className="min-h-[1em] min-w-[1em] py-px">
-            {primaryValue || 'default'} {/* Display 'default' if primary is empty */}
+            {node.attrs.primary || 'default'}
           </span>
-        )}
-      </span>
+        </PopoverTrigger>
+        <PopoverContent>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="primary" className="text-right">
+                Case Key
+              </Label>
+              <Input
+                id="primary"
+                value={node.attrs.primary}
+                onChange={handlePrimaryChange}
+                className="col-span-3"
+                placeholder="Enter case key"
+                autoFocus
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
 
       <NodeViewContent
         as="span"
-        className=" whitespace-nowrap bg-white px-1  text-gray-700"
+        className="whitespace-nowrap bg-white px-1 text-gray-700"
       />
 
       <Button
         variant="ghost"
         size="icon"
         onClick={handleRemoveCase}
-        className="remove-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm  px-1 text-blue-500/70 hover:bg-blue-500/10 hover:text-blue-600"
+        className="remove-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm px-1 text-blue-500/70 hover:bg-blue-500/10 hover:text-blue-600"
         contentEditable={false}
         aria-label="Remove case"
       >
