@@ -9,7 +9,7 @@ import {
 import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
 import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { type FormEvent, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
 import { CopyableSection } from '../../_components/CopyableSection';
 
@@ -97,7 +97,7 @@ export function OutputTab({
                       key="anamnese"
                       title="Anamnese"
                       values={values}
-                      content={anamnese || `Keine Anamnese verfügbar`}
+                      content={anamnese || 'Keine Anamnese verfügbar'}
                     />
                   </div>
                 </div>

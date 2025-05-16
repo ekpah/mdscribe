@@ -77,7 +77,7 @@ export default function Pricing() {
               </li>
             </ul>
             <Button className="mt-auto" variant="outline" asChild>
-              <Link href="/sign-up">Starten</Link>
+              <Link href="/sign-up">Ausprobieren</Link>
             </Button>
           </div>
 
@@ -120,7 +120,7 @@ export default function Pricing() {
               </li>
             </ul>
             <Button className="mt-auto">
-              <Link href={'/sign-up'}>Jetzt starten</Link>
+              <Link href={'/sign-up'}>Kostenlos ausprobieren</Link>
             </Button>
           </div>
 
