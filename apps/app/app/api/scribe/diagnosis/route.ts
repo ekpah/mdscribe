@@ -1,10 +1,12 @@
 'use server';
+import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { google } from '@ai-sdk/google';
 import { env } from '@repo/env';
 import { type CoreMessage, generateText } from 'ai';
 
 import { Langfuse } from 'langfuse';
+import { headers } from 'next/headers';
 
 const langfuse = new Langfuse();
 
@@ -17,13 +19,16 @@ export async function POST(req: Request) {
   const activeSubscription = subscriptions?.find(
     (sub) => sub.status === 'active' || sub.status === 'trialing'
   );
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   const { prompt }: { prompt: string } = await req.json();
 
   const { anamnese } = JSON.parse(prompt);
   //const allowAIUseFlag = await allowAIUse();
   // allowAIUseFlag is true for now for everyone to try it out
-  const allowAIUseFlag = true;
+  const allowAIUseFlag = !!session?.user;
   if (prompt.trim().length === 0) {
     return new Response('Bitte geben Sie Stichpunkte ein.', { status: 400 });
   }

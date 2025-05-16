@@ -1,9 +1,11 @@
 'use server';
+import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { anthropic } from '@ai-sdk/anthropic';
 import { env } from '@repo/env';
 import { type CoreMessage, generateText } from 'ai';
 import { Langfuse } from 'langfuse';
+import { headers } from 'next/headers';
 
 const langfuse = new Langfuse();
 
@@ -11,6 +13,10 @@ export async function POST(req: Request) {
   //get session and active subscription from better-auth
 
   const { data: subscriptions } = await authClient.subscription.list();
+
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   // get the active subscription
   const activeSubscription = subscriptions?.find(
@@ -21,7 +27,7 @@ export async function POST(req: Request) {
   const { anamnese } = JSON.parse(prompt);
   //const allowAIUseFlag = await allowAIUse();
   // allowAIUseFlag is true for now for everyone to try it out
-  const allowAIUseFlag = true;
+  const allowAIUseFlag = !!session?.user;
   if (prompt.trim().length === 0) {
     return new Response('Bitte geben Sie Stichpunkte ein.', { status: 400 });
   }
