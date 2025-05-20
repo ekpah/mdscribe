@@ -1,3 +1,4 @@
+export { default as parseMarkdocToInputs } from './parseMarkdocToInputs';
 export { DynamicMarkdocRenderer } from './render/components/DynamicMarkdocRenderer';
 export {
   useVariables,
