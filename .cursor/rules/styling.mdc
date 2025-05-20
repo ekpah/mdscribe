@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Use the style conventions of this project to keep styling consistent, use the relevant design elements. These are located in the "@repo/design-system" directory. An example is [button.tsx](mdc:packages/design-system/components/ui/button.tsx)
+
+- Make sure to always use the colors from the design system defined in [globals.css](mdc:packages/design-system/styles/globals.css)
+
+- Make sure to use Tailwind v4
+
+- Include colors not via variables, but directly as e.g. bg-solarized-green
