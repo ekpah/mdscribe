@@ -7,12 +7,15 @@ import Pricing from './Pricing';
 export default function LandingPage() {
   return (
     <div className="h-full w-full">
-      <div key="landing-content" className="pb-12">
+      <main
+        key="landing-content"
+        className="flex flex-col gap-12 overflow-x-hidden pb-12 md:gap-20 lg:gap-24"
+      >
         <Hero />
         <Features />
         <AIFeatures />
         <Pricing />
-      </div>
+      </main>
 
       <Footer />
     </div>

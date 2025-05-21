@@ -1,6 +1,12 @@
 import { DynamicMarkdocRenderer, parseMarkdocToInputs } from '@repo/markdoc-md';
 import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
-import { BrainCircuitIcon, FileTextIcon, SparkleIcon } from 'lucide-react';
+import {
+  ArrowUpRightIcon,
+  BrainCircuitIcon,
+  FileTextIcon,
+  SparkleIcon,
+} from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 export default function Features() {
@@ -37,9 +43,13 @@ Wir entlassen {% switch "Geschlecht" %}{% case "undefined" %}[#Herrn/Frau#]{%/ca
         <div className="flex flex-col items-start justify-center gap-8 sm:flex-row sm:items-center sm:gap-10">
           {/* Left Column: Customizable Template Card */}
           <div className="flex w-full flex-1 flex-col items-center sm:w-auto">
-            <span className="mb-3 text-center font-semibold text-lg text-muted-foreground">
-              Anpassbare Vorlage
-            </span>
+            <Link
+              href="/templates/cmaw87vov0002rqdn0aca1ejs"
+              className="mb-3 flex items-center gap-1.5 text-center font-semibold text-lg text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Vorlage: Kardiale Dekompensation
+              <ArrowUpRightIcon className="h-4 w-4" />
+            </Link>
             <div className="flex h-full w-full flex-col rounded-xl border border-border bg-card p-6 shadow-lg transition-shadow">
               <Inputs
                 inputTags={JSON.stringify(sampleInputTags)}

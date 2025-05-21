@@ -14,8 +14,8 @@ export default function AIFeatures() {
 
   return (
     <section className="py-12">
-      <div className="container mx-auto max-w-5xl">
-        <div className="mb-4 w-full">
+      <div className="container mx-auto max-w-5xl overflow-x-hidden">
+        <div className="mb-4 w-full max-w-full">
           <div className="gradient mx-auto my-0 h-1 w-64 rounded-t py-0 opacity-25" />
         </div>
         <p className="mb-8 text-center text-xl">
@@ -23,8 +23,8 @@ export default function AIFeatures() {
           präziser
         </p>
 
-        <div className="grid gap-8 md:grid-cols-2">
-          <div className="flex flex-col rounded-lg border bg-card p-6 shadow-sm">
+        <div className="grid max-w-full gap-8 md:grid-cols-2">
+          <div className="flex max-w-full flex-col rounded-lg border bg-card p-6 shadow-sm">
             <div className="mb-4 flex items-center">
               <Brain className="mr-3 size-8 text-primary" />
               <h3 className="font-bold text-2xl">Anamnese</h3>
@@ -53,7 +53,7 @@ export default function AIFeatures() {
             </ul>
           </div>
 
-          <div className="relative flex flex-col rounded-lg border bg-card p-6 shadow-sm">
+          <div className="relative flex max-w-full flex-col rounded-lg border bg-card p-6 shadow-sm">
             <div className="absolute top-2 right-[-28px] z-10 rotate-45 transform whitespace-nowrap bg-yellow-400 px-3 py-0.5 text-center font-semibold text-black text-xs shadow-md">
               Bald verfügbar
             </div>
@@ -86,10 +86,8 @@ export default function AIFeatures() {
               </li>
             </ul>
           </div>
-        </div>
 
-        <div className="mt-8 grid gap-8 md:grid-cols-1">
-          <div className="relative flex flex-col rounded-lg border bg-card p-6 shadow-sm">
+          <div className="relative flex max-w-full flex-col rounded-lg border bg-card p-6 shadow-sm md:col-span-2">
             <div className="absolute top-2 right-[-28px] z-10 rotate-45 transform whitespace-nowrap bg-yellow-400 px-3 py-0.5 text-center font-semibold text-black text-xs shadow-md">
               Bald verfügbar
             </div>
