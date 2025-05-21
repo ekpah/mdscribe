@@ -30,26 +30,25 @@ import {
   useSidebar,
 } from '@repo/design-system/components/ui/sidebar';
 import Fuse from 'fuse.js';
-import { Library, Minus, Plus, Search } from 'lucide-react';
+import { Library, Minus, Plus, Search, StarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type React from 'react';
 import { useRef, useState } from 'react';
 
 import { useHotkeys } from 'react-hotkeys-hook';
-
-import { useSession } from '@/lib/auth-client';
 import { CollectionSwitcher } from './CollectionSwitcher';
 
 interface Template {
   category: string;
   title: string;
   url: string;
+  favouritesCount: number;
 }
 
 interface SidebarSegment {
   category: string;
-  documents: { title: string; url: string }[];
+  documents: { title: string; url: string; favouritesCount: number }[];
 }
 
 const generateSegments = ({ templates }: { templates: Template[] }) => {
@@ -57,14 +56,23 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
     const category = current.category;
     const template = current.title;
     const route = current.url;
-
+    const favouritesCount = current.favouritesCount;
     const existingCategory = acc.find(
       (segment) => segment.category === category
     );
     if (existingCategory) {
-      existingCategory.documents.push({ title: template, url: route });
+      existingCategory.documents.push({
+        title: template,
+        url: route,
+        favouritesCount: favouritesCount,
+      });
     } else {
-      acc.push({ category, documents: [{ title: template, url: route }] });
+      acc.push({
+        category,
+        documents: [
+          { title: template, url: route, favouritesCount: favouritesCount },
+        ],
+      });
     }
 
     return acc;
@@ -73,17 +81,30 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
   return segments;
 };
 
+const formatCount = (count: number): string => {
+  if (count >= 1000000000) {
+    return `${(count / 1000000000).toFixed(1).replace(/\.0$/, '')}B`;
+  }
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  }
+  return count.toString();
+};
+
 export default function AppSidebar({
   templates,
   favouriteTemplates,
   authoredTemplates,
+  isLoggedIn,
 }: {
   templates: string;
   favouriteTemplates: string;
   authoredTemplates: string;
+  isLoggedIn: boolean;
 }) {
-  const { data: session } = useSession();
-
   const {
     state,
     open,
@@ -94,7 +115,6 @@ export default function AppSidebar({
     toggleSidebar,
   } = useSidebar();
 
-  const isLoggedIn = !!session?.user;
   const isMac =
     typeof window !== 'undefined' &&
     /Mac|iPhone|iPod|iPad/.test(navigator.userAgent);
@@ -171,8 +191,12 @@ export default function AppSidebar({
 
   // 3. Now search!
   const filteredLinks = fuse
-    .search(searchTerm, { limit: 5 })
-    .map((res) => res.item);
+    .search(searchTerm, { limit: 10 })
+    .map((res) => res.item)
+    .sort(
+      (a, b) =>
+        (b as Template).favouritesCount - (a as Template).favouritesCount
+    );
 
   // generate ordered segments to be visualized in the sidebar
   const orderedSegments = generateSegments({
@@ -258,20 +282,30 @@ export default function AppSidebar({
                   {segment.documents?.length ? (
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {segment.documents.map((item, index) => (
-                          <SidebarMenuSubItem key={index}>
-                            <SidebarMenuSubButton asChild isActive={false}>
-                              <Link
-                                href={item.url}
-                                onClick={() => {
-                                  setOpenMobile(false);
-                                }}
-                              >
-                                {item.title}
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
+                        {segment.documents.map((item, index) => {
+                          // console.log(item);
+                          return (
+                            <SidebarMenuSubItem key={index}>
+                              <SidebarMenuSubButton asChild isActive={false}>
+                                <Link
+                                  href={item.url}
+                                  onClick={() => {
+                                    setOpenMobile(false);
+                                  }}
+                                  className="flex items-center justify-between"
+                                >
+                                  <span>{item.title}</span>
+                                  {item.favouritesCount > 0 && (
+                                    <span className="ml-2 flex items-center text-muted-foreground text-xs">
+                                      <StarIcon className="mr-0.5 h-3 w-3" />
+                                      {formatCount(item.favouritesCount)}
+                                    </span>
+                                  )}
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          );
+                        })}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   ) : null}

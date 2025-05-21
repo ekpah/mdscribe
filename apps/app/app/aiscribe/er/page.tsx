@@ -1,14 +1,9 @@
 'use client';
 
-import {
-  useCompletion,
-  experimental_useObject as useObject,
-} from '@ai-sdk/react';
+import {} from '@ai-sdk/react';
 import { useAtom } from 'jotai';
 import { useCallback, useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
-import { toast } from 'react-hot-toast';
-import { z } from 'zod';
 import { formAtom } from '../../templates/[id]/_components/ContentSection';
 import { InputTab } from './_components/InputTab';
 import { OutputTab } from './_components/OutputTab';
@@ -85,6 +80,7 @@ export default function ICUAIGenerator() {
         }),
       }).then((response) => {
         response.json().then((json) => {
+          console.log('anamnese', json);
           setAnamnese(json.text);
           setIsLoading(false);
         });
@@ -110,7 +106,7 @@ export default function ICUAIGenerator() {
           isExpanded={isOutputExpanded}
           isActive={activeTab === 'output'}
           isLoading={isLoading}
-          anamnese={anamnese.split('<diagnoseblock>')[0]}
+          anamnese={anamnese?.split('<diagnoseblock>')[0]}
           diagnosis={differentialDiagnosis}
           onToggle={toggleOutputTab}
           onFormChange={handleFormChange}

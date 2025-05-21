@@ -1,0 +1,171 @@
+---
+description: use this whenever auth needs to be integrated in this application or you need to link to a authentication-related page
+globs: 
+alwaysApply: false
+---
+# Authentication with BetterAuth
+
+This document outlines how to use `better-auth` for authentication in this application, covering both server-side and client-side implementations.
+
+## Server-Side Authentication (`apps/app/auth.ts`)
+
+The server-side authentication is configured in `apps/app/auth.ts` using the `betterAuth` function.
+
+### Initialization
+
+`betterAuth` is initialized with the following core configurations:
+
+- **`baseURL`**: The base URL of the application, retrieved from environment variables (`env.NEXT_PUBLIC_BASE_URL`).
+- **`database`**: Uses the Prisma adapter (`prismaAdapter`) with PostgreSQL.
+- **`session.cookieCache`**: Enabled for caching sessions, with a `maxAge` of 5 minutes.
+
+```typescript
+import { stripe } from '@better-auth/stripe';
+import { database } from '@repo/database';
+import { sendEmail } from '@repo/email';
+import { EmailChangeTemplate } from '@repo/email/templates/change-email';
+import { ResetPasswordTemplate } from '@repo/email/templates/reset-password';
+import { EmailVerificationTemplate } from '@repo/email/templates/verify';
+import { env } from '@repo/env';
+import { betterAuth } from 'better-auth';
+import { prismaAdapter } from 'better-auth/adapters/prisma';
+import Stripe from 'stripe';
+
+// initialize stripe client
+if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
+  throw new Error('STRIPE_SECRET_KEY is not set');
+}
+const stripeClient = new Stripe(env.STRIPE_SECRET_KEY as string);
+
+export const auth = betterAuth({
+  baseURL: env.NEXT_PUBLIC_BASE_URL as string,
+  database: prismaAdapter(database, {
+    provider: 'postgresql',
+  }),
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // Cache duration in seconds
+    },
+  },
+  // ... other configurations
+});
+```
+
+### Key Features:
+
+1.  **User Email Change (`user.changeEmail`)**:
+    *   Enabled.
+    *   Sends a verification email to the user's current email address to approve the change.
+    *   Uses `EmailChangeTemplate` for the email content.
+    *   Redirects to `/dashboard` after successful verification.
+
+2.  **Email and Password Flow (`emailAndPassword`)**:
+    *   Enabled.
+    *   Requires email verification.
+    *   Sends a password reset email using `ResetPasswordTemplate`. In development, it logs the reset link to the console.
+
+3.  **Email Verification (`emailVerification`)**:
+    *   Automatically signs in the user after verification.
+    *   Redirects to `/dashboard` after verification.
+    *   Verification link expires in 1 hour (3600 seconds).
+    *   Sends a verification email using `EmailVerificationTemplate`. In development, it logs the verification link to the console.
+
+4.  **Plugins**:
+    *   **Stripe Plugin**:
+        *   Manages subscriptions.
+        *   Uses `stripeClient` initialized with `STRIPE_SECRET_KEY`.
+        *   `STRIPE_WEBHOOK_SECRET` is used for webhook verification.
+        *   Creates a customer on sign-up.
+        *   Defines subscription plans (e.g., 'plus') with associated Price IDs and limits.
+
+### Getting Server-Side Session
+
+To get the current session on the server (e.g., in Route Handlers, Server Actions, or React Server Components):
+
+```typescript
+import { auth } from '@/auth'; // Adjust path as necessary
+import { headers } from 'next/headers';
+
+async function getSession() {
+  const session = await auth.api.getSession({
+    headers: await headers(), // Or pass the Request object
+  });
+  return session;
+}
+```
+
+## Client-Side Authentication (`apps/app/lib/auth-client.ts`)
+
+The client-side authentication is configured in `apps/app/lib/auth-client.ts` using `createAuthClient`.
+
+### Initialization
+
+`createAuthClient` is initialized with:
+
+- **`baseURL`**: The base URL of the application (`env.NEXT_PUBLIC_BASE_URL`).
+- **`plugins`**:
+    -   `inferAdditionalFields<typeof auth>()`: Infers additional fields from the server-side `auth` configuration.
+    -   `stripeClient({ subscription: true })`: Enables client-side subscription management features.
+
+```typescript
+import { stripeClient } from '@better-auth/stripe/client';
+import { env } from '@repo/env';
+import { inferAdditionalFields } from 'better-auth/client/plugins';
+import { createAuthClient } from 'better-auth/react';
+import type { auth } from '../auth.ts'; // Path to your server-side auth config
+
+export const authClient = createAuthClient({
+  baseURL: env.NEXT_PUBLIC_BASE_URL as string,
+  plugins: [
+    inferAdditionalFields<typeof auth>(),
+    stripeClient({
+      subscription: true,
+    }),
+  ],
+});
+
+export const { signIn, signOut, signUp, useSession } = authClient;
+```
+
+### Client-Side Usage
+
+The `authClient` exports several useful functions and hooks for interacting with authentication on the client:
+
+-   **`signIn`**: Initiates the sign-in process.
+-   **`signOut`**: Signs the user out.
+-   **`signUp`**: Initiates the sign-up process.
+-   **`useSession`**: A React hook to access the current session state.
+
+#### Example: Using `useSession`
+
+```typescript
+import { useSession } from '@/lib/auth-client'; // Adjust path as necessary
+
+function UserProfile() {
+  const { data: session, status } = useSession();
+
+  if (status === 'loading') {
+    return <p>Loading...</p>;
+  }
+
+  if (!session) {
+    return <p>Not authenticated</p>;
+  }
+
+  return <p>Welcome, {session.user?.email}</p>;
+}
+```
+
+This provides a comprehensive overview of how authentication is handled in the application using `better-auth`. 
+
+## Application Auth Links
+
+The standard paths for authentication-related pages in the application are:
+
+-   **Sign In**: `/sign-in`
+-   **Sign Up**: `/sign-up`
+-   **Forgot Password**: `/forgot-password`
+-   **Reset Password**: `/reset-password`
+
+These routes correspond to the page components located in `apps/app/app/(auth)/<route-name>/page.tsx`. 

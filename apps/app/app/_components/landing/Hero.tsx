@@ -31,7 +31,8 @@ export default function Hero() {
   };
 
   return (
-    <div className="relative flex h-auto min-h-[90vh] flex-col items-center bg-gradient-to-b from-background to-muted/30 md:px-3 md:h-[90vh] md:flex-row md:flex-wrap">
+    <div className="relative flex min-h-[90vh] flex-col flex-wrap items-center overflow-hidden bg-gradient-to-b from-background to-muted/30 px-3 md:flex-row">
+
       {/*<!--Left Col-->*/}
       <div className="flex w-full flex-col items-start justify-center px-3 py-6 text-center md:w-2/5 md:py-3 md:text-left">
         <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 font-medium text-primary text-sm">
@@ -102,7 +103,8 @@ export default function Hero() {
         </form>
       </div>
       {/*<!--Right Col-->*/}
-      <div className="mt-8 w-full text-center md:mt-0 md:w-3/5">
+      <div className="hidden w-full text-center md:block md:w-3/5">
+
         <Doctors />
       </div>
     </div>
