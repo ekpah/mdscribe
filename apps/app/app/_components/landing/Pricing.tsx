@@ -92,13 +92,14 @@ export default function Pricing() {
             </div>
             <div className="mb-4 min-h-[5rem]">
               <div>
-                <span className="font-bold text-4xl">
+                <span className="mr-2 font-bold text-4xl text-muted-foreground/50 line-through">
                   €{isYearly ? '7,50' : '9'}
                 </span>
+                <span className="font-bold text-4xl text-primary">€0</span>
                 <span className="text-muted-foreground">/Monat</span>
               </div>
-              <p className="mt-1 h-4 text-muted-foreground text-xs">
-                {isYearly ? 'Jährliche Abrechnung: €90/Jahr' : '\u00A0'}
+              <p className="mt-1 font-semibold text-primary text-xs">
+                Kostenlos während der Beta-Phase!
               </p>
             </div>
             <ul className="mb-6 space-y-2">

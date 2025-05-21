@@ -1,14 +1,20 @@
+import { useSession } from '@/lib/auth-client';
 import { Button } from '@repo/design-system/components/ui/button';
-import { Brain, FileText, Sparkles, Stethoscope } from 'lucide-react';
+import { Brain, FileText, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AIFeatures() {
+  const { data: session } = useSession();
+
+  const isLoggedIn = !!session;
+  const buttonLink = isLoggedIn ? '/aiscribe' : '/sign-in';
+  const buttonText = isLoggedIn
+    ? 'KI-Funktionen ausprobieren'
+    : 'Registrieren & ausprobieren';
+
   return (
     <section className="py-12">
       <div className="container mx-auto max-w-5xl">
-        <h1 className="my-2 w-full text-center font-bold text-5xl leading-tight">
-          KI-Unterstützung
-        </h1>
         <div className="mb-4 w-full">
           <div className="gradient mx-auto my-0 h-1 w-64 rounded-t py-0 opacity-25" />
         </div>
@@ -47,7 +53,10 @@ export default function AIFeatures() {
             </ul>
           </div>
 
-          <div className="flex flex-col rounded-lg border bg-card p-6 shadow-sm">
+          <div className="relative flex flex-col rounded-lg border bg-card p-6 shadow-sm">
+            <div className="absolute top-2 right-[-28px] z-10 rotate-45 transform whitespace-nowrap bg-yellow-400 px-3 py-0.5 text-center font-semibold text-black text-xs shadow-md">
+              Bald verfügbar
+            </div>
             <div className="mb-4 flex items-center">
               <FileText className="mr-3 size-8 text-primary" />
               <h3 className="font-bold text-2xl">
@@ -80,7 +89,10 @@ export default function AIFeatures() {
         </div>
 
         <div className="mt-8 grid gap-8 md:grid-cols-1">
-          <div className="flex flex-col rounded-lg border bg-card p-6 shadow-sm">
+          <div className="relative flex flex-col rounded-lg border bg-card p-6 shadow-sm">
+            <div className="absolute top-2 right-[-28px] z-10 rotate-45 transform whitespace-nowrap bg-yellow-400 px-3 py-0.5 text-center font-semibold text-black text-xs shadow-md">
+              Bald verfügbar
+            </div>
             <div className="mb-4 flex items-center">
               <FileText className="mr-3 size-8 text-primary" />
               <h3 className="font-bold text-2xl">Entlassungsberichte</h3>
@@ -110,47 +122,15 @@ export default function AIFeatures() {
         </div>
 
         <div className="mt-12 flex flex-col items-center">
-          <div className="mb-4 flex items-center gap-3">
-            <Stethoscope className="size-8 text-primary" />
-            <h3 className="font-bold text-2xl">
-              Intuitiver Arbeitsablauf in drei einfachen Schritten
-            </h3>
-          </div>
-          <div className="mt-6 grid w-full gap-4 md:grid-cols-3">
-            <div className="relative rounded-lg border bg-card p-6 shadow-sm">
-              <div className="-top-4 -left-4 absolute flex size-8 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
-                1
-              </div>
-              <h4 className="mb-2 font-semibold">Anamnese eingeben</h4>
-              <p>
-                Gib die Anamnese und Vordiagnosen ein oder nutze einen
-                vorhandenen Textbaustein als Grundlage.
-              </p>
-            </div>
-            <div className="relative rounded-lg border bg-card p-6 shadow-sm">
-              <div className="-top-4 -left-4 absolute flex size-8 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
-                2
-              </div>
-              <h4 className="mb-2 font-semibold">KI-Vorschläge erhalten</h4>
-              <p>
-                Die KI strukturiert deine Eingabe und generiert passende
-                Vorschläge für deinen Arztbrief.
-              </p>
-            </div>
-            <div className="relative rounded-lg border bg-card p-6 shadow-sm">
-              <div className="-top-4 -left-4 absolute flex size-8 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
-                3
-              </div>
-              <h4 className="mb-2 font-semibold">Bericht finalisieren</h4>
-              <p>
-                Überprüfe und passe den generierten Entlassungsbericht an deine
-                speziellen Anforderungen an.
-              </p>
-            </div>
-          </div>
-          <Button className="mt-8" size="lg" asChild>
-            <Link href="/aiscribe">KI-Funktionen ausprobieren</Link>
+          <Button size="lg" asChild>
+            <Link href={buttonLink}>{buttonText}</Link>
           </Button>
+          {!isLoggedIn && (
+            <p className="mt-4 text-center text-muted-foreground text-sm">
+              Hinweis: Für die Nutzung der KI-Funktionen ist ein Konto
+              erforderlich.
+            </p>
+          )}
         </div>
       </div>
     </section>
