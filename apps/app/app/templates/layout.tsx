@@ -8,7 +8,13 @@ import {} from '@repo/design-system/components/ui/breadcrumb';
 import { headers } from 'next/headers';
 import AppSidebar from './_components/Sidebar';
 const getTemplatesPrisma = async () => {
-  const templates = await database.template.findMany({});
+  const templates = await database.template.findMany({
+    include: {
+      _count: {
+        select: { favouriteOf: true },
+      },
+    },
+  });
   return templates;
 };
 const getFavouriteTemplatesPrisma = async () => {
@@ -23,6 +29,11 @@ const getFavouriteTemplatesPrisma = async () => {
         },
       },
     },
+    include: {
+      _count: {
+        select: { favouriteOf: true },
+      },
+    },
   });
   return templates;
 };
@@ -34,6 +45,11 @@ const getAuthoredTemplatesPrisma = async () => {
     where: {
       authorId: session?.user?.id,
     },
+    include: {
+      _count: {
+        select: { favouriteOf: true },
+      },
+    },
   });
   return templates;
 };
@@ -44,6 +60,7 @@ const generateSidebarLinks = async () => {
     url: `/templates/${temp.id}`,
     category: temp.category,
     title: temp.title,
+    favouritesCount: temp._count.favouriteOf,
   }));
 };
 const generateFavouriteTemplates = async () => {
@@ -52,6 +69,7 @@ const generateFavouriteTemplates = async () => {
     url: `/templates/${temp.id}`,
     category: temp.category,
     title: temp.title,
+    favouritesCount: temp._count.favouriteOf,
   }));
 };
 const generateAuthoredTemplates = async () => {
@@ -60,6 +78,7 @@ const generateAuthoredTemplates = async () => {
     url: `/templates/${temp.id}`,
     category: temp.category,
     title: temp.title,
+    favouritesCount: temp._count.favouriteOf,
   }));
 };
 export default async function Layout({
@@ -67,6 +86,10 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const isLoggedIn = !!session?.user;
   // let templates = getTemplates();
   return (
     <div className="flex h-full w-full">
@@ -78,6 +101,7 @@ export default async function Layout({
               templates={''}
               favouriteTemplates={''}
               authoredTemplates={''}
+              isLoggedIn
             />
           }
         >
@@ -90,6 +114,7 @@ export default async function Layout({
             authoredTemplates={JSON.stringify(
               await generateAuthoredTemplates()
             )}
+            isLoggedIn
           />
         </Suspense>
         <main

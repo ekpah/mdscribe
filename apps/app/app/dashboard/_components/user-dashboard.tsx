@@ -95,9 +95,6 @@ export default function UserDashboard({
             <TabsTrigger value="subscription" className="w-full">
               Abonnement
             </TabsTrigger>
-            <TabsTrigger value="features" className="w-full">
-              Funktionen
-            </TabsTrigger>
           </TabsList>
           <div className="h-[500px] w-[800px] max-w-full">
             <TabsContent value="profile" className="h-full">
@@ -113,12 +110,6 @@ export default function UserDashboard({
                 isManagingSubscription={isManagingSubscription}
                 onUpgrade={handleSubscriptionUpgrade}
                 onCancel={handleSubscriptionCancel}
-              />
-            </TabsContent>
-            <TabsContent value="features" className="h-full">
-              <FeaturesCard
-                hasActiveSubscription={hasActiveSubscription}
-                onUpgrade={handleSubscriptionUpgrade}
               />
             </TabsContent>
           </div>

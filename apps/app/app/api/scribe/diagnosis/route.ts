@@ -1,11 +1,15 @@
 'use server';
-
-import { allowAIUse } from '@/flags';
+import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { google } from '@ai-sdk/google';
 import { env } from '@repo/env';
-import { generateObject, generateText } from 'ai';
-import { z } from 'zod';
+import { type CoreMessage, generateText } from 'ai';
+
+import { Langfuse } from 'langfuse';
+import { headers } from 'next/headers';
+
+const langfuse = new Langfuse();
+
 export async function POST(req: Request) {
   //get session and active subscription from better-auth
 
@@ -15,11 +19,16 @@ export async function POST(req: Request) {
   const activeSubscription = subscriptions?.find(
     (sub) => sub.status === 'active' || sub.status === 'trialing'
   );
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   const { prompt }: { prompt: string } = await req.json();
 
   const { anamnese } = JSON.parse(prompt);
-  const allowAIUseFlag = await allowAIUse();
+  //const allowAIUseFlag = await allowAIUse();
+  // allowAIUseFlag is true for now for everyone to try it out
+  const allowAIUseFlag = !!session?.user;
   if (prompt.trim().length === 0) {
     return new Response('Bitte geben Sie Stichpunkte ein.', { status: 400 });
   }
@@ -31,45 +40,22 @@ export async function POST(req: Request) {
     );
   }
 
+  // Get current `production` version of a chat prompt
+  const chatPrompt = await langfuse.getPrompt('ER_Diagnose', undefined, {
+    type: 'chat',
+  });
+  const compiledChatPrompt = chatPrompt.compile({
+    anamnese,
+  });
+
+  // Assert that the Langfuse output is compatible with CoreMessage[]
+  const messages: CoreMessage[] = compiledChatPrompt as CoreMessage[];
+
   const { text, usage } = await generateText({
     model: google('gemini-2.0-flash-lite'),
     maxTokens: 2000,
     temperature: 0,
-    messages: [
-      {
-        role: 'system',
-        content:
-          'Sie sind ein erfahrener Notfallmediziner und Facharzt für Innere Medizin in der Zentralen Notaufnahme. Ihre Aufgabe ist es, aus den folgenden unsortierten Notizen eine möglichst korrekte Verdachtsdiagnose zu erstellen.',
-      },
-      {
-        role: 'user',
-        content: `
-Basierend auf Ihrer Analyse, stellen Sie nun die wahrscheinlichste Verdachtsdiagnose auf und geben Sie folgende Informationen zurück:
-
-**[ICD-10 Code]**: [diagnose als text]
-
-Wichtige Hinweise:
-- Verwenden Sie nur Informationen aus den bereitgestellten Notizen
-- Stellen Sie die wahrscheinlichste Verdachtsdiagnose auf
-- Die Verdachtsdiagnose sollte spezifisch und nicht allgemein sein
-
-Bevor Sie Ihre endgültige Antwort geben, überprüfen Sie bitte:
-- Die Korrektheit der Diagnose nach ICD-10
-- Die Verwendung korrekter medizinischer Terminologie
-
-Ihre Antwort sollte nur die wahrscheinlichste Verdachtsdiagnose im oben gezeigten Markdown-Format enthalten, ohne zusätzliche Kommentare oder Erklärungen. Wiederholen Sie nicht die Schritte oder Überlegungen aus Ihrem Denkprozess in der endgültigen Antwort.
-
-Bitte beachten Sie, dass die Vordiagnosen aus einem vergangenen Aufenthalt stammen und nicht direkt für die aktuelle Vorstellung anwendbar sind.
-
-Hier sind die unsortierten Stichpunkte zur Anamnese:
-
-<stichpunkte>
-${anamnese}
-</stichpunkte>
-
-Erstelle nach obenstehenden Formatierungskriterien einen Diagnoseblock für die Aufnahmeanamnese in der Notaufnahme mit der wahrscheinlichsten Verdachtsdiagnose.`,
-      },
-    ],
+    messages: messages, // Use the mapped and correctly typed messages
   });
 
   if (env.NODE_ENV === 'development') {

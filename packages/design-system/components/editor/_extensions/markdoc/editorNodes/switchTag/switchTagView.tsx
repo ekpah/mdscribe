@@ -2,10 +2,15 @@
 
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
+import { Label } from '@repo/design-system/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@repo/design-system/components/ui/popover';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
 import { Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 export function SwitchTagView({
   node,
@@ -13,16 +18,8 @@ export function SwitchTagView({
   updateAttributes,
   getPos,
 }: NodeViewProps) {
-  const [primaryValue, setPrimaryValue] = useState(node.attrs.primary || '');
-
-  useEffect(() => {
-    setPrimaryValue(node.attrs.primary || '');
-  }, [node.attrs.primary]);
-
   const handlePrimaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setPrimaryValue(newValue);
-    updateAttributes({ primary: newValue });
+    updateAttributes({ primary: e.target.value });
   };
 
   const addCase = () => {
@@ -33,60 +30,67 @@ export function SwitchTagView({
       );
       return;
     }
-
     const insertPos = parentSwitchAbsPos + 1 + node.content.size;
-
     editor
       .chain()
-      .focus()
       .insertContentAt(insertPos, {
         type: 'caseTag',
         attrs: { primary: '' },
-        content: [
-          {
-            type: 'text',
-            text: 'case content',
-          },
-        ],
+        content: [{ type: 'text', text: 'new case' }],
       })
       .run();
   };
 
   return (
     <NodeViewWrapper
-      as="div"
-      className="markdoc-switch not-prose my-2 inline-block rounded-md border border-solarized-green text-xs align-top"
+      as="span"
+      className="inline-flex items-center rounded border border-solarized-green/60 text-xs"
     >
-      <div
-        className="flex items-center justify-between bg-solarized-green p-1"
-        contentEditable={false}
-      >
-        <div className="flex items-center">
-          <span
-            data-drag-handle
-            className="select-none px-2 py-1 font-bold text-white"
-          >
-            switch
-          </span>
-          <Input
-            value={primaryValue}
-            onChange={handlePrimaryChange}
-            placeholder="Switch variable"
-            className="ml-2 inline-block h-6 max-w-[150px] rounded-sm border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-700 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={addCase}
-          className="p-1 text-white hover:bg-opacity-75"
-          aria-label="Add new case"
+      <Popover>
+        <PopoverTrigger
+          className="flex cursor-pointer select-none items-center rounded-l-sm bg-solarized-green px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-solarized-green/90"
+          data-drag-handle
+          contentEditable={false}
         >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
+          <span className="min-w-[1em] py-px">
+            {node.attrs.primary || '...'}
+          </span>
+        </PopoverTrigger>
+        <PopoverContent>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="primary" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="primary"
+                value={node.attrs.primary || ''}
+                onChange={handlePrimaryChange}
+                className="col-span-3"
+                placeholder="Enter switch value"
+                autoFocus
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
 
-      <NodeViewContent className="content is-editable block min-h-[20px] p-2" />
+      <NodeViewContent
+        as="span"
+        className="cases-content-inline min-h-[1em] whitespace-nowrap px-1 "
+      />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        type="button"
+        onClick={addCase}
+        className="add-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm px-1 text-solarized-green/80 hover:bg-solarized-green/10 hover:text-solarized-green"
+        contentEditable={false}
+        aria-label="Add new case"
+      >
+        <Plus className="h-3 w-3" />
+      </Button>
     </NodeViewWrapper>
   );
 }

@@ -1,20 +1,28 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 
-export interface CaseTagAttrs {
-  primary: string | null;
+import { ReactNodeViewRenderer } from '@tiptap/react';
+import { CaseTagView } from './CaseTagView';
+export interface CaseTagOptions {
+  HTMLAttributes: Record<string, any>;
 }
 
-export const CaseTag = Node.create<CaseTagAttrs>({
+/**
+ * Represents a case within a switch statement in Markdoc.
+ * {% case "value" %}
+ * Content for this case
+ * {% /case %}
+ */
+export const CaseTag = Node.create<CaseTagOptions>({
   name: 'caseTag',
   group: 'inline',
   inline: true,
   content: 'inline*',
-  atom: false,
+  atom: true,
   addAttributes() {
     return {
       primary: {
-        default: "",
+        default: '',
         parseHTML: (element) => element.getAttribute('primary'),
         renderHTML: (attributes) => ({
           primary: attributes.primary,
@@ -46,6 +54,9 @@ export const CaseTag = Node.create<CaseTagAttrs>({
         tag: 'markdoc-case',
       },
     ];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(CaseTagView);
   },
 });
 
