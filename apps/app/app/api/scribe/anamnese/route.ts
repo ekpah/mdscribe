@@ -67,5 +67,5 @@ export async function POST(req: Request) {
     console.log('Completion tokens:', usage.completionTokens);
     console.log('Total tokens:', usage.totalTokens);
   }
-  return Response.json({ text: text.split('</analysis>')[1] });
+  return Response.json({ text });
 }
