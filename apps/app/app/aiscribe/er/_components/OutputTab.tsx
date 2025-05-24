@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
 import { CopyableSection } from '../../_components/CopyableSection';
+import { MemoizedCopySection } from '../../_components/MemoizedCopySection';
 
 interface OutputTabProps {
   isExpanded: boolean;
@@ -93,9 +94,9 @@ export function OutputTab({
                       title="Diagnose"
                       content={`${diagnosis}` || 'Keine Diagnose verfügbar'}
                     />
-                    <CopyableSection
-                      key="anamnese"
+                    <MemoizedCopySection
                       title="Anamnese"
+                      key="anamnese"
                       values={values}
                       content={anamnese || 'Keine Anamnese verfügbar'}
                     />

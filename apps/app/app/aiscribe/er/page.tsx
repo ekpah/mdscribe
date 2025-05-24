@@ -1,6 +1,6 @@
 'use client';
 
-import {} from '@ai-sdk/react';
+import { useCompletion } from '@ai-sdk/react';
 import { useAtom } from 'jotai';
 import { useCallback, useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
@@ -20,7 +20,9 @@ export default function ICUAIGenerator() {
   });
   const [differentialDiagnosis, setDifferentialDiagnosis] =
     useState<string>('');
-  const [anamnese, setAnamnese] = useState<string>('');
+  const completedAnamnese = useCompletion({
+    api: '/api/scribe/anamnese/stream',
+  });
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [activeTab, setActiveTab] = useState<TabState>('input');
@@ -59,7 +61,6 @@ export default function ICUAIGenerator() {
       setIsLoading(true);
       toggleOutputTab();
       setDifferentialDiagnosis('');
-      setAnamnese('');
       const prompt = JSON.stringify({
         anamnese: formData.anamnese || '',
       });
@@ -73,20 +74,10 @@ export default function ICUAIGenerator() {
           setDifferentialDiagnosis(json.text);
         });
       });
-      await fetch('/api/scribe/anamnese', {
-        method: 'POST',
-        body: JSON.stringify({
-          prompt: prompt,
-        }),
-      }).then((response) => {
-        response.json().then((json) => {
-          console.log('anamnese', json);
-          setAnamnese(json.text);
-          setIsLoading(false);
-        });
-      });
+      completedAnamnese.complete(prompt);
+      setIsLoading(false);
     },
-    [anamnese, formData, toggleOutputTab, setDifferentialDiagnosis]
+    [formData, toggleOutputTab, setDifferentialDiagnosis]
   );
 
   return (
@@ -106,11 +97,11 @@ export default function ICUAIGenerator() {
           isExpanded={isOutputExpanded}
           isActive={activeTab === 'output'}
           isLoading={isLoading}
-          anamnese={anamnese?.split('<diagnoseblock>')[0]}
+          anamnese={completedAnamnese.completion}
           diagnosis={differentialDiagnosis}
           onToggle={toggleOutputTab}
           onFormChange={handleFormChange}
-          hasAnamnese={!!anamnese}
+          hasAnamnese={!!completedAnamnese.completion}
         />
       </div>
     </div>

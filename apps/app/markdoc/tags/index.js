@@ -15,16 +15,17 @@ export default {
   },
   switch: {
     render: 'Switch',
-    children: ['tag', 'softbreak'],
-    attributes: { primary: { render: true }, variable: { type: String } },
+    attributes: {
+      primary: { type: String },
+    },
     transform(node, config) {
       const cases = node
         .transformChildren(config)
-        .filter((child) => child.type === 'tag' && child.tag === 'case')
-        .map((tab) =>
-          typeof tab === 'object' ? tab.attributes.primary : null
-        );
+        .filter((child) => child.$$mdtype === 'Tag' && child.name === 'Case');
+
+      // console.log('cases:', cases);
       const variable = node.attributes.primary;
+
       return new Tag(
         this.render,
         { variable, cases },
@@ -34,7 +35,12 @@ export default {
   },
   case: {
     render: 'Case',
-    attributes: { primary: { render: true, type: String } },
+    attributes: {
+      primary: {
+        type: String,
+        required: false,
+      },
+    },
   },
 };
 

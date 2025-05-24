@@ -2,9 +2,7 @@
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { anthropic } from '@ai-sdk/anthropic';
-import { env } from '@repo/env';
-import { type CoreMessage, generateText } from 'ai';
-
+import { type CoreMessage, streamText } from 'ai';
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
 
@@ -15,16 +13,16 @@ export async function POST(req: Request) {
 
   const { data: subscriptions } = await authClient.subscription.list();
 
-  // get the active subscription
-  const activeSubscription = subscriptions?.find(
-    (sub) => sub.status === 'active' || sub.status === 'trialing'
-  );
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
-  const { prompt }: { prompt: string } = await req.json();
+  // get the active subscription
+  const activeSubscription = subscriptions?.find(
+    (sub) => sub.status === 'active' || sub.status === 'trialing'
+  );
 
+  const { prompt }: { prompt: string } = await req.json();
   const { anamnese } = JSON.parse(prompt);
   //const allowAIUseFlag = await allowAIUse();
   // allowAIUseFlag is true for now for everyone to try it out
@@ -39,9 +37,8 @@ export async function POST(req: Request) {
       { status: 401 }
     );
   }
-
   // Get current `production` version of a chat prompt
-  const chatPrompt = await langfuse.getPrompt('ER_Diagnose', undefined, {
+  const chatPrompt = await langfuse.getPrompt('ER_Anamnese', undefined, {
     type: 'chat',
   });
   const compiledChatPrompt = chatPrompt.compile({
@@ -50,19 +47,24 @@ export async function POST(req: Request) {
 
   // Assert that the Langfuse output is compatible with CoreMessage[]
   const messages: CoreMessage[] = compiledChatPrompt as CoreMessage[];
-
-  const { text, usage } = await generateText({
+  const result = await streamText({
     model: anthropic('claude-sonnet-4-20250514'),
-    maxTokens: 2000,
-    temperature: 0,
-    messages: messages, // Use the mapped and correctly typed messages
+    //model: google('gemini-2.5-pro-exp-03-25'),
+    // model: fireworks('accounts/fireworks/models/deepseek-v3'),
+    maxTokens: 20000,
+    temperature: 1,
+    /*experimental_telemetry: {
+      isEnabled: true,
+      metadata: {
+        user: session?.user?.id || 'unknown',
+      },
+    },*/
+    messages: messages,
+    onFinish: (result) => {
+      console.log('Prompt tokens:', result.usage.promptTokens);
+      console.log('Completion tokens:', result.usage.completionTokens);
+      console.log('Total tokens:', result.usage.totalTokens);
+    },
   });
-
-  if (env.NODE_ENV === 'development') {
-    console.log('Prompt tokens:', usage.promptTokens);
-    console.log('Completion tokens:', usage.completionTokens);
-    console.log('Total tokens:', usage.totalTokens);
-  }
-  console.log('result', text);
-  return Response.json({ text });
+  return result.toDataStreamResponse();
 }

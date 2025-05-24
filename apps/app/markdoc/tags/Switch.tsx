@@ -1,12 +1,10 @@
 'use client';
-import type { ReactNode } from 'react';
 
 export const SwitchContext = React.createContext(null);
 
 import { formAtom } from '@/app/templates/[id]/_components/ContentSection';
-
 import { useAtomValue } from 'jotai';
-import React from 'react';
+import React, { type ReactNode } from 'react';
 // this component mainly needs to handle reactivity around the Condition
 
 export function Switch({
