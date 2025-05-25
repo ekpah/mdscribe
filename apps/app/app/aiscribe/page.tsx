@@ -24,7 +24,7 @@ export default function AIScribeLandingPage() {
         Wählen Sie einen AI Scribe Modus
       </h1>
       {!isPending && !isLoggedIn && (
-        <Alert variant="destructive" className="mb-6 max-w-3xl">
+        <Alert variant="destructive" className="mb-6 max-w-5xl">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <span>
@@ -37,7 +37,7 @@ export default function AIScribeLandingPage() {
           </AlertDescription>
         </Alert>
       )}
-      <div className="grid w-full max-w-3xl grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Link
           href={isLoggedIn ? '/aiscribe/er' : '#'}
           className={`block rounded-lg transition-shadow duration-200 ${
@@ -68,6 +68,23 @@ export default function AIScribeLandingPage() {
               <CardDescription>
                 AI Scribe für Intensivstation-Szenarien. Generieren Sie
                 Anamnesen, Differenzialdiagnosen und Dispositionen.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link
+          href={isLoggedIn ? '/aiscribe/procedures' : '#'}
+          className={`block rounded-lg transition-shadow duration-200 ${
+            isLoggedIn ? 'hover:shadow-lg' : 'cursor-not-allowed opacity-50'
+          }`}
+          onClick={(e) => !isLoggedIn && e.preventDefault()}
+        >
+          <Card className="flex h-full flex-col">
+            <CardHeader>
+              <CardTitle>Prozeduren Modus</CardTitle>
+              <CardDescription>
+                AI Scribe für Prozeduren. Geben Sie Notizen ein und generieren
+                Sie Dokumentation für medizinische Eingriffe.
               </CardDescription>
             </CardHeader>
           </Card>

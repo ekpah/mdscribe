@@ -1,6 +1,6 @@
 import { useSession } from '@/lib/auth-client';
 import { Button } from '@repo/design-system/components/ui/button';
-import { Brain, FileText, Sparkles } from 'lucide-react';
+import { Brain, FileText, Sparkles, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AIFeatures() {
@@ -15,7 +15,6 @@ export default function AIFeatures() {
   return (
     <section className="py-12">
       <div className="container mx-auto max-w-5xl overflow-x-hidden">
-
         <div className="mb-4 w-full">
           <div className="gradient mx-auto my-0 h-1 w-64 rounded-t py-0 opacity-25" />
         </div>
@@ -25,9 +24,9 @@ export default function AIFeatures() {
         </p>
 
         <div className="grid gap-8 md:grid-cols-2">
-          <div className="flex flex-col rounded-lg border bg-card p-4 sm:p-6 shadow-sm">
+          <div className="flex flex-col rounded-lg border bg-card p-4 shadow-sm sm:p-6">
             <div className="mb-4 flex items-center">
-              <Brain className="mr-3 size-6 sm:size-8 text-primary" />
+              <Brain className="mr-3 size-6 text-primary sm:size-8" />
               <h3 className="font-bold text-xl sm:text-2xl">Anamnese</h3>
             </div>
             <p className="mb-4 text-sm sm:text-base">
@@ -36,55 +35,51 @@ export default function AIFeatures() {
             </p>
             <ul className="mb-6 space-y-2 text-sm sm:text-base">
               <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
                 <span>
                   Automatische Strukturierung nach medizinischen Standards
                 </span>
               </li>
               <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
                 <span>
                   Übersichtliche Gliederung der Patienteninformationen
                 </span>
               </li>
               <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
                 <span>Zeitersparnis bei der Dokumentation</span>
               </li>
             </ul>
           </div>
 
-
-          <div className="relative flex flex-col rounded-lg border bg-card p-6 shadow-sm">
-            <div className="absolute top-2 right-[-28px] z-10 rotate-45 transform whitespace-nowrap bg-yellow-400 px-3 py-0.5 text-center font-semibold text-black text-xs shadow-md">
-              Bald verfügbar
-            </div>
+          <div className="flex flex-col rounded-lg border bg-card p-4 shadow-sm sm:p-6">
             <div className="mb-4 flex items-center">
-              <FileText className="mr-3 size-6 sm:size-8 text-primary" />
+              <Stethoscope className="mr-3 size-6 text-primary sm:size-8" />
               <h3 className="font-bold text-xl sm:text-2xl">
-                Anforderungen für Untersuchungen
+                Prozedur-Dokumentation
               </h3>
             </div>
             <p className="mb-4 text-sm sm:text-base">
-              Basierend auf der Anamnese generiert die KI passende
-              Untersuchungsanforderungen und Fragestellungen für den weiteren
-              Behandlungsverlauf.
+              Gib deine Notizen zu durchgeführten Eingriffen ein und unsere KI
+              erstellt eine vollständige, strukturierte Prozedur-Dokumentation.
             </p>
             <ul className="mb-6 space-y-2 text-sm sm:text-base">
               <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
-                <span>Vorlagen für mögliche diagnostische Maßnahmen</span>
-              </li>
-              <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
                 <span>
-                  Strukturierte Darstellung der Anforderungen und
-                  Fragestellungen
+                  Professionelle Dokumentation medizinischer Eingriffe
                 </span>
               </li>
               <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
-                <span>Einfache Anpassung nach individuellen Bedürfnissen</span>
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>
+                  Strukturierte Darstellung von Ablauf und Ergebnissen
+                </span>
+              </li>
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>Compliance mit Dokumentationsstandards</span>
               </li>
             </ul>
           </div>
@@ -95,8 +90,10 @@ export default function AIFeatures() {
             </div>
 
             <div className="mb-4 flex items-center">
-              <FileText className="mr-3 size-6 sm:size-8 text-primary" />
-              <h3 className="font-bold text-xl sm:text-2xl">Entlassungsberichte</h3>
+              <FileText className="mr-3 size-6 text-primary sm:size-8" />
+              <h3 className="font-bold text-xl sm:text-2xl">
+                Entlassungsberichte
+              </h3>
             </div>
             <p className="mb-4 text-sm sm:text-base">
               Basierend auf deinen Diagnosen und der Anamnese generiert die KI
@@ -105,17 +102,17 @@ export default function AIFeatures() {
             </p>
             <ul className="mb-6 space-y-2 text-sm sm:text-base">
               <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
                 <span>
                   Strukturierte Entlassungsberichte nach gängigen Standards
                 </span>
               </li>
               <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
                 <span>Automatische Einbindung relevanter Diagnosen</span>
               </li>
               <li className="flex items-start">
-                <Sparkles className="mt-1 mr-2 size-4 text-primary flex-shrink-0" />
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
                 <span>Individuelle Anpassungsmöglichkeiten</span>
               </li>
             </ul>
