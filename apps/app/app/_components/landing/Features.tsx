@@ -3,6 +3,7 @@ import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
 import {
   ArrowUpRightIcon,
   BrainCircuitIcon,
+  FileTextIcon,
   SparkleIcon,
   Syringe,
 } from 'lucide-react';
@@ -85,8 +86,8 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
 
           {/* Center Column: Conversion Visual (Desktop only) */}
           <div className="hidden flex-col items-center justify-center self-center pt-12 sm:flex">
-            <Syringe
-              className="h-16 w-16 text-[var(--color-solarized-orange)]/90 drop-shadow-[0_0_8px_hsl(25_95%_53%_/_0.5)]"
+            <FileTextIcon
+              className="h-16 w-16 text-[var(--color-solarized-blue)]/90 drop-shadow-[0_0_8px_hsl(205_69%_49%_/_0.5)]"
               strokeWidth={1.5}
             />
           </div>
