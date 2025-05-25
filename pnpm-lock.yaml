@@ -207,6 +207,9 @@ importers:
       langfuse:
         specifier: ^3.37.2
         version: 3.37.2
+      langfuse-vercel:
+        specifier: ^3.37.2
+        version: 3.37.2(ai@4.3.10(react@19.1.0)(zod@3.24.3))
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -7944,6 +7947,12 @@ packages:
   langfuse-core@3.37.2:
     resolution: {integrity: sha512-3iFz1UZzKDi9GEjIRRSSqcKbusmB17uR9qYxMR1BHQYuBkQv2wIV+HI793hWh3tmc6q2pmqPMjtJdoFVBhucDA==}
     engines: {node: '>=18'}
+
+  langfuse-vercel@3.37.2:
+    resolution: {integrity: sha512-27ZTdti+1U3Q2iXOitj149ZmBhpc+2FMnZW69/IzJSKKzijpH+es5cFvXnYQRF4es1MmsTViwc7Qtyw9rUiuZw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ai: '>=3.2.44'
 
   langfuse@3.37.2:
     resolution: {integrity: sha512-C4P56hJDNk8vWNJR102JhgyCYXbt3HG19PY0brurlrU4dh5pq91JPt44jyiT5RzUs+NFew//gCkgFEcQd3RogA==}
@@ -19379,6 +19388,12 @@ snapshots:
   langfuse-core@3.37.2:
     dependencies:
       mustache: 4.2.0
+
+  langfuse-vercel@3.37.2(ai@4.3.10(react@19.1.0)(zod@3.24.3)):
+    dependencies:
+      ai: 4.3.10(react@19.1.0)(zod@3.24.3)
+      langfuse: 3.37.2
+      langfuse-core: 3.37.2
 
   langfuse@3.37.2:
     dependencies:

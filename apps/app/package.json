@@ -67,6 +67,7 @@
     "jiti": "^2.4.2",
     "jotai": "^2.12.3",
     "langfuse": "^3.37.2",
+    "langfuse-vercel": "^3.37.2",
     "lodash": "^4.17.21",
     "lucide-react": "^0.503.0",
     "marked": "^15.0.11",

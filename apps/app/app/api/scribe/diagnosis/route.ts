@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { anthropic } from '@ai-sdk/anthropic';
 import { env } from '@repo/env';
-import { type CoreMessage, generateText } from 'ai';
+import { generateText } from 'ai';
 
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
@@ -40,22 +40,22 @@ export async function POST(req: Request) {
     );
   }
 
-  // Get current `production` version of a chat prompt
-  const chatPrompt = await langfuse.getPrompt('ER_Diagnose', undefined, {
-    type: 'chat',
-  });
-  const compiledChatPrompt = chatPrompt.compile({
+  const textPrompt = await langfuse.getPrompt('ER_Diagnose');
+  const compiledPrompt = textPrompt.compile({
     anamnese,
   });
-
-  // Assert that the Langfuse output is compatible with CoreMessage[]
-  const messages: CoreMessage[] = compiledChatPrompt as CoreMessage[];
-
   const { text, usage } = await generateText({
     model: anthropic('claude-sonnet-4-20250514'),
     maxTokens: 2000,
     temperature: 0,
-    messages: messages, // Use the mapped and correctly typed messages
+    experimental_telemetry: {
+      isEnabled: true,
+      metadata: {
+        userId: session?.user?.id || 'unknown',
+        langfusePrompt: textPrompt.toJSON(),
+      },
+    },
+    prompt: compiledPrompt,
   });
 
   if (env.NODE_ENV === 'development') {

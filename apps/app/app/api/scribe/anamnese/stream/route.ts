@@ -2,7 +2,7 @@
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { anthropic } from '@ai-sdk/anthropic';
-import { type CoreMessage, streamText } from 'ai';
+import { streamText } from 'ai';
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
 
@@ -38,28 +38,25 @@ export async function POST(req: Request) {
     );
   }
   // Get current `production` version of a chat prompt
-  const chatPrompt = await langfuse.getPrompt('ER_Anamnese', undefined, {
-    type: 'chat',
-  });
-  const compiledChatPrompt = chatPrompt.compile({
+  const textPrompt = await langfuse.getPrompt('ER_Anamnese');
+  const compiledPrompt = textPrompt.compile({
     anamnese,
   });
 
-  // Assert that the Langfuse output is compatible with CoreMessage[]
-  const messages: CoreMessage[] = compiledChatPrompt as CoreMessage[];
   const result = await streamText({
     model: anthropic('claude-sonnet-4-20250514'),
     //model: google('gemini-2.5-pro-exp-03-25'),
     // model: fireworks('accounts/fireworks/models/deepseek-v3'),
     maxTokens: 20000,
     temperature: 1,
-    /*experimental_telemetry: {
+    experimental_telemetry: {
       isEnabled: true,
       metadata: {
-        user: session?.user?.id || 'unknown',
+        userId: session?.user?.id || 'unknown',
+        langfusePrompt: textPrompt.toJSON(),
       },
-    },*/
-    messages: messages,
+    },
+    prompt: compiledPrompt,
     onFinish: (result) => {
       console.log('Prompt tokens:', result.usage.promptTokens);
       console.log('Completion tokens:', result.usage.completionTokens);
