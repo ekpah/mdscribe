@@ -36,8 +36,11 @@ export default function LegalPage() {
             Online-Streitbeilegung (OS) bereit:
             https://ec.europa.eu/consumers/odr/
           </p>
-                    <p className="text-xs text-muted-foreground mt-4 w-full text-center">
-            Die Informationen auf dieser Website dienen ausschließlich zu Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation eines Arztes / einer Ärztin.
+          <p className="mt-4 w-full text-center text-muted-foreground text-xs">
+            Die Informationen auf dieser Website dienen ausschließlich zu
+            Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch
+            keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation
+            eines Arztes / einer Ärztin.
           </p>
         </div>
       </section>
@@ -163,7 +166,77 @@ export default function LegalPage() {
 
             <section className="space-y-4">
               <h3 className="font-semibold text-xl">
-                5. Eingaben auf der Plattform
+                5. Externe Dienste und Datenverarbeitung
+              </h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">5.1 PostHog Analytics</h4>
+                  <p>
+                    Wir verwenden PostHog für die Analyse der Website-Nutzung.
+                    PostHog erfasst anonymisierte Nutzungsdaten ohne das Setzen
+                    von Cookies. Die Daten werden zur Verbesserung der
+                    Benutzererfahrung und Funktionalität verwendet.
+                  </p>
+                  <p>
+                    Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
+                    Interesse)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium">5.2 Vercel Analytics</h4>
+                  <p>
+                    Zur Überwachung der Website-Performance und -Verfügbarkeit
+                    nutzen wir Vercel Analytics. Dabei werden anonymisierte
+                    Leistungsdaten erfasst, die keine Rückschlüsse auf einzelne
+                    Nutzer zulassen.
+                  </p>
+                  <p>
+                    Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
+                    Interesse)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium">5.3 Langfuse (KI-Funktionen)</h4>
+                  <p>
+                    Für die Analyse und Verbesserung unserer KI-basierten
+                    Funktionen verwenden wir Langfuse. Dabei werden
+                    anonymisierte Nutzungsdaten der KI-Features erfasst, um die
+                    Qualität und Leistung zu optimieren.
+                  </p>
+                  <p>
+                    Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
+                    Interesse)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium">
+                    5.4 Stripe (Zahlungsabwicklung)
+                  </h4>
+                  <p>
+                    Für die Abwicklung von Zahlungen bei kostenpflichtigen
+                    Abonnements nutzen wir Stripe. Stripe verarbeitet
+                    Zahlungsdaten gemäß den geltenden PCI-DSS-Standards.
+                    Kreditkartendaten werden nicht auf unseren Servern
+                    gespeichert, sondern direkt bei Stripe verarbeitet.
+                  </p>
+                  <p>
+                    Weitere Informationen finden Sie in der Datenschutzerklärung
+                    von Stripe: https://stripe.com/privacy
+                  </p>
+                  <p>
+                    Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO
+                    (Vertragserfüllung)
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <h3 className="font-semibold text-xl">
+                6. Eingaben auf der Plattform
               </h3>
               <div className="space-y-2">
                 <p>
@@ -180,7 +253,7 @@ export default function LegalPage() {
             </section>
 
             <section className="space-y-4">
-              <h3 className="font-semibold text-xl">6. Speicherdauer</h3>
+              <h3 className="font-semibold text-xl">7. Speicherdauer</h3>
               <div className="space-y-2">
                 <p>
                   Die bei der Registrierung angegebenen Daten werden so lange
@@ -193,7 +266,7 @@ export default function LegalPage() {
             </section>
 
             <section className="space-y-4">
-              <h3 className="font-semibold text-xl">7. Weitergabe von Daten</h3>
+              <h3 className="font-semibold text-xl">8. Weitergabe von Daten</h3>
               <div className="space-y-2">
                 <p>
                   Eine Weitergabe Ihrer personenbezogenen Daten an Dritte
@@ -213,7 +286,7 @@ export default function LegalPage() {
             </section>
 
             <section className="space-y-4">
-              <h3 className="font-semibold text-xl">8. Ihre Rechte</h3>
+              <h3 className="font-semibold text-xl">9. Ihre Rechte</h3>
               <div className="space-y-2">
                 <p>Sie haben das Recht:</p>
                 <ul className="list-disc space-y-2 pl-6">
@@ -239,7 +312,7 @@ export default function LegalPage() {
             </section>
 
             <section className="space-y-4">
-              <h3 className="font-semibold text-xl">9. Datensicherheit</h3>
+              <h3 className="font-semibold text-xl">10. Datensicherheit</h3>
               <div className="space-y-2">
                 <p>
                   Wir setzen geeignete technische und organisatorische Maßnahmen
@@ -252,7 +325,7 @@ export default function LegalPage() {
 
             <section className="space-y-4">
               <h3 className="font-semibold text-xl">
-                10. Änderungen dieser Datenschutzerklärung
+                11. Änderungen dieser Datenschutzerklärung
               </h3>
               <div className="space-y-2">
                 <p>
@@ -281,7 +354,7 @@ export default function LegalPage() {
                   <h4 className="font-medium">1. Geltungsbereich</h4>
                   <p>
                     Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die
-                    Nutzung der Website mdscribe.de (im Folgenden „Plattform"),
+                    Nutzung der Website mdscribe.de (im Folgenden "Plattform"),
                     betrieben von Dr. med. Nils Hapke. Sie regeln das Verhältnis
                     zwischen dem Anbieter und den registrierten sowie nicht
                     registrierten Nutzern der Plattform.
