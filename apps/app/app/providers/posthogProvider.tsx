@@ -41,6 +41,12 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session?.user?.id]);
 
+  useEffect(() => {
+    if (posthog && session?.user?.id) {
+      posthog.identify(session?.user?.id);
+    }
+  }, [session?.user?.id]);
+
   return (
     <PHProvider client={posthog}>
       <SuspendedPostHogPageView />
