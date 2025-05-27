@@ -234,6 +234,9 @@ importers:
       pg:
         specifier: ^8.15.6
         version: 8.15.6
+      posthog-js:
+        specifier: ^1.246.0
+        version: 1.246.0
       prosemirror-markdown:
         specifier: ^1.13.2
         version: 1.13.2
@@ -5954,6 +5957,9 @@ packages:
   core-js-pure@3.41.0:
     resolution: {integrity: sha512-71Gzp96T9YPk63aUvE5Q5qP+DryB4ZloUZPSOebGM88VNw8VNfvdA7z6kGA8iGOTEzAomsRidp4jXSmUIJsL+Q==}
 
+  core-js@3.42.0:
+    resolution: {integrity: sha512-Sz4PP4ZA+Rq4II21qkNqOEDTDrCvcANId3xpIgB34NDkWc3UduWj2dqEtN9yZIq8Dk3HyPI33x9sqqU5C8sr0g==}
+
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
 
@@ -6819,6 +6825,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.4.8:
+    resolution: {integrity: sha512-FJqqoDBR00Mdj9ppamLa/Y7vxm+PRmNWA67N846RvsoYVMKB4q3y/de5PA7gUmRMYK/8CMz2GDZQmCRN1wBcWA==}
 
   file-entry-cache@10.0.8:
     resolution: {integrity: sha512-FGXHpfmI4XyzbLd3HQ8cbUcsFGohJpZtmQRHr8z8FxxtCe2PcpgIlVLwIgunqjvRmXypBETvwhV4ptJizA+Y1Q==}
@@ -9128,6 +9137,17 @@ packages:
   postgres-range@1.1.4:
     resolution: {integrity: sha512-i/hbxIE9803Alj/6ytL7UHQxRvZkI9O4Sy+J3HGc4F4oo/2eQAjTSNJ0bfxyse3bH0nuVesCk+3IRLaMtG3H6w==}
 
+  posthog-js@1.246.0:
+    resolution: {integrity: sha512-5lN/UMqDfxsLeSnT3LsY4P+eD1H+P9qxgN/iUk473LmhCM7IV8TAfdjJj23nnXk/euGNQtvyINYoD2DG+d4eEw==}
+    peerDependencies:
+      '@rrweb/types': 2.0.0-alpha.17
+      rrweb-snapshot: 2.0.0-alpha.17
+    peerDependenciesMeta:
+      '@rrweb/types':
+        optional: true
+      rrweb-snapshot:
+        optional: true
+
   postmark@4.0.5:
     resolution: {integrity: sha512-nerZdd3TwOH4CgGboZnlUM/q7oZk0EqpZgJL+Y3Nup8kHeaukxouQ6JcFF3EJEijc4QbuNv1TefGhboAKtf/SQ==}
 
@@ -10812,6 +10832,9 @@ packages:
 
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
+
+  web-vitals@4.2.4:
+    resolution: {integrity: sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -16974,6 +16997,8 @@ snapshots:
 
   core-js-pure@3.41.0: {}
 
+  core-js@3.42.0: {}
+
   core-util-is@1.0.3: {}
 
   cors@2.8.5:
@@ -17940,6 +17965,8 @@ snapshots:
   fdir@6.4.4(picomatch@4.0.2):
     optionalDependencies:
       picomatch: 4.0.2
+
+  fflate@0.4.8: {}
 
   file-entry-cache@10.0.8:
     dependencies:
@@ -20819,6 +20846,13 @@ snapshots:
 
   postgres-range@1.1.4: {}
 
+  posthog-js@1.246.0:
+    dependencies:
+      core-js: 3.42.0
+      fflate: 0.4.8
+      preact: 10.24.3
+      web-vitals: 4.2.4
+
   postmark@4.0.5:
     dependencies:
       axios: 1.9.0
@@ -23088,6 +23122,8 @@ snapshots:
       defaults: 1.0.4
 
   web-namespaces@2.0.1: {}
+
+  web-vitals@4.2.4: {}
 
   webidl-conversions@3.0.1: {}
 
