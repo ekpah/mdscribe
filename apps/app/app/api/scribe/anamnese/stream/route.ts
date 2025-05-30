@@ -2,7 +2,7 @@
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { anthropic } from '@ai-sdk/anthropic';
-import { streamText } from 'ai';
+import { type CoreMessage, streamText } from 'ai';
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
 
@@ -38,10 +38,13 @@ export async function POST(req: Request) {
     );
   }
   // Get current `production` version of a chat prompt
-  const textPrompt = await langfuse.getPrompt('ER_Anamnese');
+  const textPrompt = await langfuse.getPrompt('ER_Anamnese_chat', undefined, {
+    type: 'chat',
+  });
   const compiledPrompt = textPrompt.compile({
     anamnese,
   });
+  const messages: CoreMessage[] = compiledPrompt as CoreMessage[];
 
   const result = await streamText({
     model: anthropic('claude-sonnet-4-20250514'),
@@ -56,7 +59,7 @@ export async function POST(req: Request) {
         langfusePrompt: textPrompt.toJSON(),
       },
     },
-    prompt: compiledPrompt,
+    messages: messages,
     onFinish: (result) => {
       console.log('Prompt tokens:', result.usage.promptTokens);
       console.log('Completion tokens:', result.usage.completionTokens);

@@ -2,8 +2,7 @@
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { anthropic } from '@ai-sdk/anthropic';
-import { env } from '@repo/env';
-import { generateText } from 'ai';
+import { streamText } from 'ai';
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
 
@@ -46,24 +45,25 @@ export async function POST(req: Request) {
     procedureNotes,
   });
 
-  const { text, usage } = await generateText({
-    model: anthropic('claude-3-7-sonnet-20250219'),
+  const result = await streamText({
+    model: anthropic('claude-sonnet-4-20250514'),
     //model: google('gemini-2.5-pro-exp-03-25'),
     // model: fireworks('accounts/fireworks/models/deepseek-v3'),
     maxTokens: 20000,
     temperature: 1,
-    /*experimental_telemetry: {
+    experimental_telemetry: {
       isEnabled: true,
       metadata: {
-        user: session?.user?.id || 'unknown',
+        userId: session?.user?.id || 'unknown',
+        langfusePrompt: textPrompt.toJSON(),
       },
-    },*/
+    },
     prompt: compiledPrompt,
+    onFinish: (result) => {
+      console.log('Prompt tokens:', result.usage.promptTokens);
+      console.log('Completion tokens:', result.usage.completionTokens);
+      console.log('Total tokens:', result.usage.totalTokens);
+    },
   });
-  if (env.NODE_ENV === 'development') {
-    console.log('Prompt tokens:', usage.promptTokens);
-    console.log('Completion tokens:', usage.completionTokens);
-    console.log('Total tokens:', usage.totalTokens);
-  }
-  return Response.json({ text });
+  return result.toDataStreamResponse();
 }
