@@ -12,6 +12,7 @@ import {
 import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
@@ -109,6 +110,29 @@ export default function SignUp() {
               'Konto erstellen'
             )}
           </Button>
+          <p className="text-muted-foreground text-xs">
+            Mit der Registrierung akzeptieren Sie unsere{' '}
+            <Link
+              href="/legal?tab=datenschutz"
+              className="text-primary hover:underline"
+            >
+              Datenschutzerklärung
+            </Link>{' '}
+            und unsere{' '}
+            <Link
+              href="/legal?tab=agb"
+              className="text-primary hover:underline"
+            >
+              Geschäftsbedingungen
+            </Link>
+            .
+          </p>
+          <p className="mt-4 w-full text-center text-muted-foreground text-xs">
+            Die Informationen auf dieser Website dienen ausschließlich zu
+            Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch
+            keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation
+            eines Arztes / einer Ärztin.
+          </p>
         </div>
       </CardContent>
     </Card>

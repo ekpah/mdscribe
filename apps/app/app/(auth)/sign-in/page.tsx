@@ -99,6 +99,7 @@ export default function SignIn() {
             />
             <Label htmlFor="remember">Angemeldet bleiben</Label>
           </div>
+
           <Button className="w-full" type="submit" disabled={loading}>
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
@@ -120,8 +121,28 @@ export default function SignIn() {
           >
             Passwort vergessen?
           </Link>
-          <p className="text-xs text-muted-foreground mt-4 w-full text-center">
-            Die Informationen auf dieser Website dienen ausschließlich zu Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation eines Arztes / einer Ärztin.
+          <p className="text-muted-foreground text-xs">
+            Mit der Registrierung akzeptieren Sie unsere{' '}
+            <Link
+              href="/legal?tab=datenschutz"
+              className="text-primary hover:underline"
+            >
+              Datenschutzerklärung
+            </Link>{' '}
+            und unsere{' '}
+            <Link
+              href="/legal?tab=agb"
+              className="text-primary hover:underline"
+            >
+              Geschäftsbedingungen
+            </Link>
+            .
+          </p>
+          <p className="mt-4 w-full text-center text-muted-foreground text-xs">
+            Die Informationen auf dieser Website dienen ausschließlich zu
+            Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch
+            keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation
+            eines Arztes / einer Ärztin.
           </p>
         </CardFooter>
       </form>
