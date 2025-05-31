@@ -17,7 +17,7 @@ interface TemplateSearchResult {
   similarity: number;
 }
 
-export const generateEmbeddings = async (
+const generateEmbeddings = async (
   content: string
 ): Promise<{ embedding: number[]; content: string }> => {
   const session = await auth.api.getSession({
