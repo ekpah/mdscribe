@@ -23,7 +23,7 @@ interface TemplateSearchResult {
 
 const langfuse = new Langfuse();
 
-export const generateEmbeddings = async (
+const generateEmbeddings = async (
   content: string
 ): Promise<{ embedding: number[]; content: string }> => {
   const session = await auth.api.getSession({
