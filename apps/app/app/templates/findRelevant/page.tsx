@@ -1,20 +1,69 @@
 'use client';
 
+import { useSession } from '@/lib/auth-client';
+import {
+  BookmarkFilledIcon,
+  BookmarkIcon,
+  ExternalLinkIcon,
+} from '@radix-ui/react-icons';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
+import { StarIcon } from 'lucide-react';
+import Link from 'next/link';
+import type React from 'react';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
+import addFavourite from '../_actions/add-favourite';
+import removeFavourite from '../_actions/remove-favourite';
 
-// ... existing code ...
+// Type definition for template search results
+interface TemplateSearchResult {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  authorId: string;
+  updatedAt: Date;
+  similarity: number;
+  favouriteOf?: Array<{ id: string }>;
+  _count?: { favouriteOf: number };
+}
+
+interface SearchResponse {
+  templates: TemplateSearchResult[];
+  count: number;
+}
+
+const formatCount = (count: number): string => {
+  if (count >= 1000000000) {
+    return `${(count / 1000000000).toFixed(1).replace(/\.0$/, '')}B`;
+  }
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  }
+  return count.toString();
+};
 
 export default function FindTemplatePage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<TemplateSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [favouriteStates, setFavouriteStates] = useState<
+    Record<string, boolean>
+  >({});
+
+  const { data: session } = useSession();
+  const isLoggedIn = !!session?.user?.id;
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim()) {
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -35,13 +84,57 @@ export default function FindTemplatePage() {
       const data: SearchResponse = await response.json();
 
       // Show only top 3 results
-      setResults(data.templates.slice(0, 3));
+      const topResults = data.templates.slice(0, 3);
+      setResults(topResults);
+
+      // Initialize favorite states
+      const initialFavoriteStates: Record<string, boolean> = {};
+      for (const template of topResults) {
+        const isFavorited =
+          template.favouriteOf?.some((user) => user.id === session?.user?.id) ||
+          false;
+        initialFavoriteStates[template.id] = isFavorited;
+      }
+      setFavouriteStates(initialFavoriteStates);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Fehler beim Suchen der Vorlagen'
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleToggleFavourite = async (
+    templateId: string,
+    currentState: boolean
+  ) => {
+    if (!isLoggedIn) {
+      toast.error('Bitte melden Sie sich an, um Favoriten zu verwalten');
+      return;
+    }
+
+    try {
+      // Optimistically update the UI
+      setFavouriteStates((prev) => ({
+        ...prev,
+        [templateId]: !currentState,
+      }));
+
+      if (currentState) {
+        await removeFavourite({ templateId });
+        toast.success('Favorit entfernt');
+      } else {
+        await addFavourite({ templateId });
+        toast.success('Favorit gespeichert');
+      }
+    } catch (err) {
+      // Revert the optimistic update
+      setFavouriteStates((prev) => ({
+        ...prev,
+        [templateId]: currentState,
+      }));
+      toast.error('Fehler beim Aktualisieren der Favoriten');
     }
   };
 
@@ -96,41 +189,92 @@ export default function FindTemplatePage() {
             <h2 className="font-semibold text-solarized-base03 text-xl">
               Top 3 passende Vorlagen
             </h2>
-            {results.map((template, index) => (
-              <div
-                key={template.id}
-                className="rounded-lg border border-solarized-base2 bg-white p-6 shadow-sm"
-              >
-                <div className="mb-3 flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="rounded bg-solarized-blue/10 px-2 py-1 font-medium text-solarized-blue text-xs">
-                        #{index + 1}
-                      </span>
-                      <span className="rounded bg-solarized-green/10 px-2 py-1 text-solarized-green text-xs">
-                        {template.category}
-                      </span>
+            {results.map((template, index) => {
+              const isFavorited = favouriteStates[template.id] || false;
+              const favoriteCount = template._count?.favouriteOf || 0;
+
+              return (
+                <div
+                  key={template.id}
+                  className="rounded-lg border border-solarized-base2 bg-white p-6 shadow-sm"
+                >
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="rounded bg-solarized-blue/10 px-2 py-1 font-medium text-solarized-blue text-xs">
+                          #{index + 1}
+                        </span>
+                        <span className="rounded bg-solarized-green/10 px-2 py-1 text-solarized-green text-xs">
+                          {template.category}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-lg text-solarized-base03">
+                        {template.title}
+                      </h3>
                     </div>
-                    <h3 className="font-semibold text-lg text-solarized-base03">
-                      {template.title}
-                    </h3>
+                    <div className="text-right text-sm text-solarized-base01">
+                      <div>
+                        Übereinstimmung: {Math.round(template.similarity * 100)}
+                        %
+                      </div>
+                      <div className="flex items-center justify-end gap-4">
+                        <span>
+                          {new Date(template.updatedAt).toLocaleDateString()}
+                        </span>
+                        {favoriteCount > 0 && (
+                          <span className="flex items-center text-muted-foreground text-xs">
+                            <StarIcon className="mr-0.5 h-3 w-3" />
+                            {formatCount(favoriteCount)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right text-sm text-solarized-base01">
-                    <div>
-                      Übereinstimmung: {Math.round(template.similarity * 100)}%
-                    </div>
-                    <div>
-                      {new Date(template.updatedAt).toLocaleDateString()}
+
+                  <div className="mb-4 text-sm text-solarized-base02 leading-relaxed">
+                    {template.content.length > 200
+                      ? `${template.content.slice(0, 200)}...`
+                      : template.content}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/templates/${template.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button variant="outline" size="sm" className="gap-1">
+                          <ExternalLinkIcon className="h-3 w-3" />
+                          Vorlage anzeigen
+                        </Button>
+                      </Link>
+
+                      {isLoggedIn && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleToggleFavourite(template.id, isFavorited)
+                          }
+                          className="gap-1"
+                        >
+                          {isFavorited ? (
+                            <BookmarkFilledIcon className="h-3 w-3" />
+                          ) : (
+                            <BookmarkIcon className="h-3 w-3" />
+                          )}
+                          {isFavorited
+                            ? 'Favorit entfernen'
+                            : 'Favorit hinzufügen'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
-                <div className="text-sm text-solarized-base02 leading-relaxed">
-                  {template.content.length > 200
-                    ? `${template.content.slice(0, 200)}...`
-                    : template.content}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -147,8 +291,8 @@ export default function FindTemplatePage() {
         {/* Help Text */}
         <div className="mt-8 text-center text-sm text-solarized-base01">
           <p>
-            Versuchen Sie nach Dingen wie „medizinische Entlassungsnotizen",
-            „Patientenbewertung" oder „Behandlungspläne" zu suchen, um relevante
+            Versuchen Sie nach Dingen wie "medizinische Entlassungsnotizen",
+            "Patientenbewertung" oder "Behandlungspläne" zu suchen, um relevante
             Vorlagen zu finden.
           </p>
         </div>

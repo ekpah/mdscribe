@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const embeddingSql = pgvector.toSql(embedding);
 
     // Use raw SQL for vector similarity search to get top results
-    const templates = await database.$queryRaw<TemplateSearchResult[]>`
+    const similarityResults = await database.$queryRaw<TemplateSearchResult[]>`
       SELECT 
         id,
         title,
@@ -53,6 +53,43 @@ export async function POST(req: Request) {
       ORDER BY embedding <-> ${embeddingSql}::vector
       LIMIT 5
     `;
+
+    // Get the IDs from similarity results
+    const templateIds = similarityResults.map((t) => t.id);
+
+    if (templateIds.length === 0) {
+      return Response.json({
+        templates: [],
+        count: 0,
+      });
+    }
+
+    // Fetch complete template data with favorites information
+    const templatesWithFavorites = await database.template.findMany({
+      where: {
+        id: { in: templateIds },
+      },
+      include: {
+        favouriteOf: {
+          select: { id: true },
+        },
+        _count: {
+          select: { favouriteOf: true },
+        },
+      },
+    });
+
+    // Merge similarity scores with template data
+    const templates = similarityResults.map((simResult) => {
+      const templateData = templatesWithFavorites.find(
+        (t) => t.id === simResult.id
+      );
+      return {
+        ...simResult,
+        favouriteOf: templateData?.favouriteOf || [],
+        _count: templateData?._count || { favouriteOf: 0 },
+      };
+    });
 
     return Response.json({
       templates,
