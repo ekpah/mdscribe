@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { database } from '@repo/database';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import pgvector from 'pgvector';
+import { generateEmbeddings } from './embed-template';
 
 export default async function editTemplate(formData: FormData) {
   'use server';
@@ -26,22 +28,41 @@ export default async function editTemplate(formData: FormData) {
   if (rawFormData.authorId !== session?.user?.id) {
     throw new Error('Permission denied');
   }
-  const res = await database.template.update({
-    where: {
-      id: rawFormData.id,
-      authorId: session.user.id,
-    },
-    data: {
-      category: rawFormData.category,
-      title: rawFormData.name,
-      content: rawFormData.content,
-      author: {
-        connect: {
-          id: session?.user?.id as string, // Assuming session.user.id exists and is the correct user ID
-        },
-      },
-    },
-  });
-  revalidatePath(`/templates/${res.id}`);
-  return res;
+
+  // Generate new embedding for the updated content
+  const { embedding } = await generateEmbeddings(rawFormData.content);
+  const embeddingSql = pgvector.toSql(embedding);
+
+  type TemplateResult = {
+    id: string;
+    title: string;
+    category: string;
+    content: string;
+    authorId: string;
+    updatedAt: Date;
+    embedding: number[] | null;
+  };
+
+  // Use raw SQL query to properly handle the vector embedding update
+  const result = await database.$queryRaw<TemplateResult[]>`
+    UPDATE "Template" 
+    SET 
+      "category" = ${rawFormData.category},
+      "title" = ${rawFormData.name},
+      "content" = ${rawFormData.content},
+      "updatedAt" = NOW(),
+      "embedding" = ${embeddingSql}::vector
+    WHERE 
+      "id" = ${rawFormData.id} 
+      AND "authorId" = ${session.user.id}
+    RETURNING *
+  `;
+
+  const updatedTemplate = result[0];
+  if (!updatedTemplate) {
+    throw new Error('Failed to update template or template not found');
+  }
+
+  revalidatePath(`/templates/${updatedTemplate.id}`);
+  return updatedTemplate;
 }

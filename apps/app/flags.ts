@@ -48,3 +48,15 @@ export const allowAIUse = flag<boolean, Entities>({
     );
   },
 });
+
+export const allowAdminAccess = flag<boolean, Entities>({
+  key: 'allowAdminAccess',
+  identify,
+  decide: ({ entities }) => {
+    const user = entities?.user;
+    return (
+      user?.email === 'nils.hapke@we-mail.de' ||
+      user?.email === 'n.hapke@bbtgruppe.de'
+    );
+  },
+});

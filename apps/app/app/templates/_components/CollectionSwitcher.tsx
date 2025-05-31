@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, Command, Plus } from 'lucide-react';
+import { ChevronDown, Command, Plus, Search } from 'lucide-react';
 import React from 'react';
 
 import {
@@ -22,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/design-system/components/ui/tooltip';
+import Link from 'next/link';
 
 export function CollectionSwitcher({
   collections = [
@@ -87,6 +88,21 @@ export function CollectionSwitcher({
                 {collection.name}
               </DropdownMenuItem>
             ))}
+            <DropdownMenuItem
+              key={'findrelevant'}
+              className="gap-2 p-2"
+              asChild
+            >
+              <Link
+                href="/templates/findRelevant"
+                className="flex items-center gap-2"
+              >
+                <div className="flex size-6 items-center justify-center rounded-sm border">
+                  <Search className="size-4 shrink-0" />
+                </div>
+                Textbaustein suchen
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 p-2">
               <div className="flex size-6 items-center justify-center rounded-md border bg-background">

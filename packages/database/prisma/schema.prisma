@@ -1,12 +1,13 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  previewFeatures = ["driverAdapters", "postgresqlExtensions"]
   sslmode         = "require"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("POSTGRES_PRISMA_URL")
+  provider   = "postgresql"
+  url        = env("POSTGRES_PRISMA_URL")
+  extensions = [vector]
 }
 
 model User {
@@ -64,14 +65,15 @@ model Verification {
 }
 
 model Template {
-  id          String   @id @default(cuid())
+  id          String                       @id @default(cuid())
   title       String
   category    String
   content     String
   authorId    String
-  updatedAt   DateTime @default(now())
-  author      User     @relation(fields: [authorId], references: [id])
-  favouriteOf User[]   @relation("favourites")
+  updatedAt   DateTime                     @default(now())
+  author      User                         @relation(fields: [authorId], references: [id])
+  favouriteOf User[]                       @relation("favourites")
+  embedding   Unsupported("vector(1024)")?
 }
 
 model Subscription {
