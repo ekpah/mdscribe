@@ -10,6 +10,7 @@ import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
 import { StarIcon } from 'lucide-react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type React from 'react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -58,6 +59,10 @@ export default function FindTemplatePage() {
 
   const { data: session } = useSession();
   const isLoggedIn = !!session?.user?.id;
+
+  if (!isLoggedIn) {
+    redirect('/');
+  }
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
