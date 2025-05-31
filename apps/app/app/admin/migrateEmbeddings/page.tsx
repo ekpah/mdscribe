@@ -195,16 +195,44 @@ export default function MigrateEmbeddingsPage() {
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-solarized-yellow" />
                 <CardTitle className="text-solarized-base00">
-                  Migration Controls
+                  Embedding Management
                 </CardTitle>
               </div>
               <CardDescription>
-                Execute the embedding migration with configurable batch settings
+                Generate missing embeddings or regenerate all embeddings with
+                configurable batch settings
               </CardDescription>
             </CardHeader>
             <CardContent>
               <MigrationInterface
                 templatesNeedingEmbedding={stats.templatesWithoutEmbeddings}
+                totalTemplates={stats.totalTemplates}
+                onRefreshStats={handleRefreshStats}
+                isRefreshingStats={isLoading}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Regeneration Controls - Always show if there are templates */}
+        {stats.totalTemplates > 0 && stats.templatesWithoutEmbeddings === 0 && (
+          <Card className="border-solarized-base2">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-solarized-yellow" />
+                <CardTitle className="text-solarized-base00">
+                  Embedding Management
+                </CardTitle>
+              </div>
+              <CardDescription>
+                Regenerate embeddings for all templates (useful if embedding
+                model has changed)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MigrationInterface
+                templatesNeedingEmbedding={stats.templatesWithoutEmbeddings}
+                totalTemplates={stats.totalTemplates}
                 onRefreshStats={handleRefreshStats}
                 isRefreshingStats={isLoading}
               />
@@ -216,14 +244,19 @@ export default function MigrateEmbeddingsPage() {
         <Card className="border-solarized-base2">
           <CardHeader>
             <CardTitle className="text-solarized-base00">
-              Migration Information
+              Embedding Management Information
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-solarized-base01">
             <div>
-              <strong>What this does:</strong> Generates vector embeddings for
-              all templates that don't have them yet, enabling semantic search
-              functionality.
+              <strong>Generate Missing Embeddings:</strong> Creates vector
+              embeddings for templates that don't have them yet, enabling
+              semantic search functionality for those templates.
+            </div>
+            <div>
+              <strong>Regenerate All Embeddings:</strong> Recreates embeddings
+              for all templates, overwriting existing ones. Useful when the
+              embedding model has been updated or improved.
             </div>
             <div>
               <strong>How it works:</strong> Processes templates in configurable
@@ -231,9 +264,9 @@ export default function MigrateEmbeddingsPage() {
               embedding service.
             </div>
             <div>
-              <strong>Safety:</strong> Only processes templates without
-              embeddings, can be run multiple times safely, includes
-              comprehensive error handling and reporting.
+              <strong>Safety:</strong> Can be run multiple times safely,
+              includes comprehensive error handling and reporting. Missing
+              embedding mode only processes templates without embeddings.
             </div>
             <div>
               <strong>Recommended settings:</strong> Start with batch size 10

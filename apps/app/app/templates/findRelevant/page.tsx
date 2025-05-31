@@ -74,12 +74,35 @@ export default function FindTemplatePage() {
     setError(null);
 
     try {
+      // get the differential diagnosis from the query from llm call
+      const differentialDiagnosisResponse = await fetch(
+        '/api/scribe/diagnosis',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prompt: JSON.stringify({ anamnese: query }) }),
+        }
+      );
+
+      if (!differentialDiagnosisResponse.ok) {
+        throw new Error(
+          `HTTP error! status: ${differentialDiagnosisResponse.status}`
+        );
+      }
+
+      const { text: differentialDiagnosis } =
+        await differentialDiagnosisResponse.json();
       const response = await fetch('/api/findRelevantTemplate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query: query.trim() }),
+        body: JSON.stringify({
+          query: query.trim(),
+          differentialDiagnosis: differentialDiagnosis,
+        }),
       });
 
       if (!response.ok) {

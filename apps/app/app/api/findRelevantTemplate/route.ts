@@ -18,18 +18,26 @@ interface TemplateSearchResult {
 }
 
 const generateEmbeddings = async (
-  content: string
+  content: string,
+  differentialDiagnosis?: string
 ): Promise<{ embedding: number[]; content: string }> => {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
+  const contentWithMetadata = differentialDiagnosis
+    ? `---
+diagnosis: ${differentialDiagnosis}
+---
+${content}`
+    : content;
   const { embedding } = await embed({
     model: voyage.textEmbeddingModel('voyage-3-large'),
-    value: content,
+    value: contentWithMetadata,
     experimental_telemetry: {
       isEnabled: true,
       metadata: {
         userId: session?.user?.id || 'unknown',
+        value: contentWithMetadata,
       },
     },
   });
@@ -47,14 +55,17 @@ export async function POST(req: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    const { query } = await req.json();
+    const { query, differentialDiagnosis } = await req.json();
 
     if (!query || typeof query !== 'string') {
       return Response.json({ error: 'Query is required' }, { status: 400 });
     }
 
     // Generate embeddings for the user query
-    const { embedding } = await generateEmbeddings(query);
+    const { embedding } = await generateEmbeddings(
+      query,
+      differentialDiagnosis
+    );
     const embeddingSql = pgvector.toSql(embedding);
 
     // Use raw SQL for vector similarity search to get top results

@@ -27,12 +27,14 @@ interface MigrationResult {
 
 interface Props {
   templatesNeedingEmbedding: number;
+  totalTemplates: number;
   onRefreshStats: () => Promise<void>;
   isRefreshingStats: boolean;
 }
 
 export default function MigrationInterface({
   templatesNeedingEmbedding,
+  totalTemplates,
   onRefreshStats,
   isRefreshingStats,
 }: Props) {
@@ -41,6 +43,14 @@ export default function MigrationInterface({
   const [isLoading, setIsLoading] = useState(false);
   const [lastResult, setLastResult] = useState<MigrationResult | null>(null);
   const [estimatedTime, setEstimatedTime] = useState<string>('');
+  const [migrationMode, setMigrationMode] = useState<'missing' | 'all'>(
+    'missing'
+  );
+
+  // Determine which mode to use based on available templates
+  const effectiveMode = templatesNeedingEmbedding > 0 ? migrationMode : 'all';
+  const templatesToProcess =
+    effectiveMode === 'missing' ? templatesNeedingEmbedding : totalTemplates;
 
   // Update estimated time when parameters change
   useEffect(() => {
@@ -66,18 +76,19 @@ export default function MigrationInterface({
     };
 
     setEstimatedTime(
-      calculateEstimatedTime(
-        templatesNeedingEmbedding,
-        batchSize,
-        delayBetweenBatches
-      )
+      calculateEstimatedTime(templatesToProcess, batchSize, delayBetweenBatches)
     );
-  }, [templatesNeedingEmbedding, batchSize, delayBetweenBatches]);
+  }, [templatesToProcess, batchSize, delayBetweenBatches]);
 
   const handleMigration = async () => {
+    const actionText =
+      effectiveMode === 'missing'
+        ? `generate embeddings for ${templatesToProcess} templates without embeddings`
+        : `regenerate embeddings for all ${templatesToProcess} templates`;
+
     if (
       !confirm(
-        `Are you sure you want to migrate ${templatesNeedingEmbedding} templates? This operation cannot be undone.`
+        `Are you sure you want to ${actionText}? This operation cannot be undone.`
       )
     ) {
       return;
@@ -96,6 +107,7 @@ export default function MigrationInterface({
           batchSize,
           delayBetweenBatches,
           dryRun: false,
+          mode: effectiveMode,
         }),
       });
 
@@ -129,6 +141,46 @@ export default function MigrationInterface({
 
   return (
     <div className="space-y-6">
+      {/* Mode Selection - Only show if there are templates that need embedding */}
+      {templatesNeedingEmbedding > 0 && (
+        <div className="space-y-3">
+          <Label className="text-solarized-base00">Migration Mode</Label>
+          <div className="flex gap-4">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="migrationMode"
+                value="missing"
+                checked={migrationMode === 'missing'}
+                onChange={(e) =>
+                  setMigrationMode(e.target.value as 'missing' | 'all')
+                }
+                className="text-solarized-blue"
+              />
+              <span className="text-sm text-solarized-base00">
+                Generate missing embeddings only ({templatesNeedingEmbedding}{' '}
+                templates)
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="migrationMode"
+                value="all"
+                checked={migrationMode === 'all'}
+                onChange={(e) =>
+                  setMigrationMode(e.target.value as 'missing' | 'all')
+                }
+                className="text-solarized-blue"
+              />
+              <span className="text-sm text-solarized-base00">
+                Regenerate all embeddings ({totalTemplates} templates)
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+
       {/* Configuration */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
@@ -186,8 +238,9 @@ export default function MigrationInterface({
             </Badge>
           </div>
           <div className="mt-2 text-solarized-base01 text-xs">
-            {Math.ceil(templatesNeedingEmbedding / batchSize)} batches with{' '}
-            {batchSize} templates each
+            {Math.ceil(templatesToProcess / batchSize)} batches with {batchSize}{' '}
+            templates each
+            {effectiveMode === 'all' && ' (regenerating all embeddings)'}
           </div>
         </CardContent>
       </Card>
@@ -204,7 +257,9 @@ export default function MigrationInterface({
           ) : (
             <Play className="h-4 w-4" />
           )}
-          Run Migration
+          {effectiveMode === 'missing'
+            ? 'Generate Missing Embeddings'
+            : 'Regenerate All Embeddings'}
         </Button>
 
         <Button
@@ -225,8 +280,10 @@ export default function MigrationInterface({
         <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-solarized-yellow" />
         <div className="text-sm text-solarized-base00">
           <strong>Warning:</strong> This migration will make API calls to the
-          embedding service and modify the database. Use dry run first to verify
-          the configuration.
+          embedding service and modify the database.
+          {effectiveMode === 'all' &&
+            ' Regenerating all embeddings will overwrite existing embeddings.'}
+          {' Use dry run first to verify the configuration.'}
         </div>
       </div>
 
@@ -247,7 +304,7 @@ export default function MigrationInterface({
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <div>
-                <div className="text-sm text-solarized-base01">Total</div>
+                <div className="text-sm text-solarized-base01">Processed</div>
                 <div className="font-semibold text-lg text-solarized-base00">
                   {lastResult.templatesWithoutEmbeddings}
                 </div>
