@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Eye,
   Play,
   RefreshCw,
   XCircle,
@@ -28,10 +27,14 @@ interface MigrationResult {
 
 interface Props {
   templatesNeedingEmbedding: number;
+  onRefreshStats: () => Promise<void>;
+  isRefreshingStats: boolean;
 }
 
 export default function MigrationInterface({
   templatesNeedingEmbedding,
+  onRefreshStats,
+  isRefreshingStats,
 }: Props) {
   const [batchSize, setBatchSize] = useState(10);
   const [delayBetweenBatches, setDelayBetweenBatches] = useState(1000);
@@ -70,38 +73,6 @@ export default function MigrationInterface({
       )
     );
   }, [templatesNeedingEmbedding, batchSize, delayBetweenBatches]);
-
-  const handleDryRun = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/admin/migrate-embeddings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          batchSize,
-          delayBetweenBatches,
-          dryRun: true,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success(
-          `Dry run complete: ${result.data.templatesWithoutEmbeddings} templates would be processed`
-        );
-      } else {
-        toast.error(`Dry run failed: ${result.error}`);
-      }
-    } catch (error) {
-      toast.error('Failed to perform dry run');
-      console.error('Dry run error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleMigration = async () => {
     if (
@@ -153,7 +124,7 @@ export default function MigrationInterface({
   };
 
   const handleRefresh = () => {
-    window.location.reload();
+    onRefreshStats();
   };
 
   return (
@@ -224,20 +195,6 @@ export default function MigrationInterface({
       {/* Action Buttons */}
       <div className="flex gap-3">
         <Button
-          onClick={handleDryRun}
-          disabled={isLoading}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          {isLoading ? (
-            <RefreshCw className="h-4 w-4 animate-spin" />
-          ) : (
-            <Eye className="h-4 w-4" />
-          )}
-          Dry Run
-        </Button>
-
-        <Button
           onClick={handleMigration}
           disabled={isLoading}
           className="flex items-center gap-2 bg-solarized-orange text-solarized-base3 hover:bg-solarized-red"
@@ -254,8 +211,11 @@ export default function MigrationInterface({
           onClick={handleRefresh}
           variant="outline"
           className="flex items-center gap-2"
+          disabled={isRefreshingStats}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw
+            className={`h-4 w-4 ${isRefreshingStats ? 'animate-spin' : ''}`}
+          />
           Refresh Status
         </Button>
       </div>

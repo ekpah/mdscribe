@@ -1,10 +1,11 @@
 'use server';
-import { generateEmbeddings } from '@/app/templates/_actions/embed-template';
 import { auth } from '@/auth';
 import { database } from '@repo/database';
 import { headers } from 'next/headers';
 import pgvector from 'pgvector';
 
+import { embed } from 'ai';
+import { voyage } from 'voyage-ai-provider';
 // Type definition for template search results
 interface TemplateSearchResult {
   id: string;
@@ -15,6 +16,25 @@ interface TemplateSearchResult {
   updatedAt: Date;
   similarity: number;
 }
+
+export const generateEmbeddings = async (
+  content: string
+): Promise<{ embedding: number[]; content: string }> => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const { embedding } = await embed({
+    model: voyage.textEmbeddingModel('voyage-3-large'),
+    value: content,
+    experimental_telemetry: {
+      isEnabled: true,
+      metadata: {
+        userId: session?.user?.id || 'unknown',
+      },
+    },
+  });
+  return { embedding, content };
+};
 
 export async function POST(req: Request) {
   try {

@@ -42,6 +42,7 @@ export async function POST(req: Request) {
 
   const textPrompt = await langfuse.getPrompt('ER_Diagnose_chat', undefined, {
     type: 'chat',
+    label: env.NODE_ENV === 'production' ? 'production' : 'staging',
   });
   const compiledPrompt = textPrompt.compile({
     anamnese,

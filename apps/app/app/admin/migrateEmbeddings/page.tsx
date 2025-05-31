@@ -1,6 +1,5 @@
-import { auth } from '@/auth';
-import { allowAdminAccess } from '@/flags';
-import { checkTemplatesNeedingEmbedding } from '@/lib/migration-embed-templates';
+'use client';
+
 import { Badge } from '@repo/design-system/components/ui/badge';
 import {
   Card,
@@ -10,28 +9,93 @@ import {
   CardTitle,
 } from '@repo/design-system/components/ui/card';
 import { Separator } from '@repo/design-system/components/ui/separator';
-import { AlertCircle, CheckCircle, Database, XCircle, Zap } from 'lucide-react';
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import {
+  AlertCircle,
+  CheckCircle,
+  Database,
+  Loader2,
+  XCircle,
+  Zap,
+} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import MigrationInterface from './_components/MigrationInterface';
 
-export default async function MigrateEmbeddingsPage() {
-  // Check authentication and authorization
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+interface EmbeddingStats {
+  totalTemplates: number;
+  templatesWithoutEmbeddings: number;
+  templatesWithEmbeddings: number;
+}
 
-  if (!session?.user) {
-    redirect('/');
+export default function MigrateEmbeddingsPage() {
+  const [stats, setStats] = useState<EmbeddingStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/embedding-stats');
+      const result = await response.json();
+
+      if (result.success) {
+        setStats(result.data);
+        setError(null);
+      } else {
+        setError(result.error || 'Failed to fetch stats');
+        toast.error('Failed to fetch embedding stats');
+      }
+    } catch (err) {
+      setError('Failed to fetch stats');
+      toast.error('Failed to fetch embedding stats');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleRefreshStats = async () => {
+    setIsLoading(true);
+    await fetchStats();
+    toast.success('Stats refreshed');
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  if (isLoading && !stats) {
+    return (
+      <div className="min-h-screen bg-solarized-base3 p-6">
+        <div className="mx-auto max-w-4xl">
+          <div className="flex min-h-[400px] items-center justify-center">
+            <div className="flex items-center gap-2 text-solarized-base01">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Loading embedding stats...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  const allowAdminAccessFlag = await allowAdminAccess();
-  if (!allowAdminAccessFlag) {
-    redirect('/');
+  if (error || !stats) {
+    return (
+      <div className="min-h-screen bg-solarized-base3 p-6">
+        <div className="mx-auto max-w-4xl">
+          <div className="flex min-h-[400px] items-center justify-center">
+            <div className="space-y-2 text-center">
+              <XCircle className="mx-auto h-8 w-8 text-solarized-red" />
+              <h2 className="font-semibold text-lg text-solarized-base00">
+                Failed to load page
+              </h2>
+              <p className="text-solarized-base01">
+                {error || 'Unable to access this page'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
-
-  // Get current migration status
-  const stats = await checkTemplatesNeedingEmbedding();
 
   return (
     <div className="min-h-screen bg-solarized-base3 p-6">
@@ -55,6 +119,9 @@ export default async function MigrateEmbeddingsPage() {
               <CardTitle className="text-solarized-base00">
                 Current Status
               </CardTitle>
+              {isLoading && (
+                <Loader2 className="h-4 w-4 animate-spin text-solarized-base01" />
+              )}
             </div>
             <CardDescription>
               Overview of templates and their embedding status
@@ -138,6 +205,8 @@ export default async function MigrateEmbeddingsPage() {
             <CardContent>
               <MigrationInterface
                 templatesNeedingEmbedding={stats.templatesWithoutEmbeddings}
+                onRefreshStats={handleRefreshStats}
+                isRefreshingStats={isLoading}
               />
             </CardContent>
           </Card>
