@@ -27,6 +27,7 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   STRIPE_PLUS_PRICE_ID: z.string().min(1),
   STRIPE_PLUS_PRICE_ID_ANNUAL: z.string().min(1),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
+  VOYAGE_API_KEY: z.string().min(1),
 
   // Added by Node
   NODE_ENV: z.enum(['development', 'production']),
@@ -81,5 +82,6 @@ export const env = createEnv({
     NEXT_RUNTIME: process.env.NEXT_RUNTIME,
     FLAGS_SECRET: process.env.FLAGS_SECRET,
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    VOYAGE_API_KEY: process.env.VOYAGE_API_KEY,
   },
 });
