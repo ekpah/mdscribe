@@ -17,6 +17,7 @@ export function SwitchTagView({
   editor,
   updateAttributes,
   getPos,
+  selected,
 }: NodeViewProps) {
   const handlePrimaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateAttributes({ primary: e.target.value });
@@ -41,15 +42,26 @@ export function SwitchTagView({
       .run();
   };
 
+  const handleClick = () => {
+    const pos = getPos();
+    if (typeof pos === 'number') {
+      // Select the entire node when clicked
+      editor.commands.setNodeSelection(pos);
+    }
+  };
+
   return (
     <NodeViewWrapper
       as="span"
-      className="inline-flex items-center rounded border border-solarized-green/60 text-xs"
+      className={`inline-flex cursor-pointer select-none items-center rounded border border-solarized-green/60 text-xs transition-all ${
+        selected ? 'border-solarized-blue ring-2 ring-solarized-blue/50' : ''
+      }`}
+      onClick={handleClick}
+      data-drag-handle
     >
       <Popover>
         <PopoverTrigger
           className="flex cursor-pointer select-none items-center rounded-l-sm bg-solarized-green px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-solarized-green/90"
-          data-drag-handle
           contentEditable={false}
         >
           <span className="min-w-[1em] py-px">

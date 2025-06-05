@@ -20,12 +20,15 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   group: 'inline',
   inline: true,
 
-  // Make the node draggable
+  // Make the node draggable and selectable
   draggable: true,
+  selectable: true,
+  isolating: true,
 
   content: 'inline*', // Expects one or more inline elements (like caseTag)
 
   atom: true,
+  whitespace: 'pre',
 
   addAttributes() {
     return {

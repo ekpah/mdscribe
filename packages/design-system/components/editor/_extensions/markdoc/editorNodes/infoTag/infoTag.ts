@@ -26,6 +26,7 @@ export const InfoTag = Node.create<InfoTagAttrs>({
   name: 'infoTag',
 
   group: 'inline',
+  selectable: true,
 
   // Make the node draggable
   draggable: true,

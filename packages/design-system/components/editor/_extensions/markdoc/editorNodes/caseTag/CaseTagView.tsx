@@ -4,9 +4,9 @@ import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from '@repo/design-system/components/ui/popover';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
@@ -28,14 +28,29 @@ export function CaseTagView({
     deleteNode();
   }, [deleteNode]);
 
+  const handleContentDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // Allow text selection within the content area
+    const target = e.currentTarget as HTMLElement;
+    const range = document.createRange();
+    const selection = window.getSelection();
+
+    if (selection && target.firstChild) {
+      range.selectNodeContents(target);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }, []);
+
   return (
     <NodeViewWrapper
       as="span"
-      className="group inline-flex items-baseline rounded border border-blue-500/50 bg-blue-50/80 text-xs leading-tight align-baseline"
+      className="group inline-flex items-baseline rounded border border-blue-500/50 bg-blue-50/80 text-xs leading-tight"
     >
       <Popover>
         <PopoverTrigger
-          className="flex cursor-pointer items-center bg-blue-500/80 px-1.5 text-white select-none rounded-l-sm transition-all duration-150 ease-in-out group-hover:bg-blue-500/90 hover:brightness-110"
+          className="flex cursor-pointer select-none items-center rounded-l-sm bg-blue-500/80 px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-blue-500/90"
           contentEditable={false}
         >
           <span className="min-h-[1em] min-w-[1em] py-px">
@@ -64,6 +79,7 @@ export function CaseTagView({
       <NodeViewContent
         as="span"
         className="whitespace-nowrap bg-white px-1 text-gray-700"
+        onDoubleClick={handleContentDoubleClick}
       />
 
       <Button
@@ -80,4 +96,4 @@ export function CaseTagView({
   );
 }
 
-export default CaseTagView; 
+export default CaseTagView;
