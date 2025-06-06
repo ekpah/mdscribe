@@ -30,7 +30,11 @@ export default async function editTemplate(formData: FormData) {
   }
 
   // Generate new embedding for the updated content
-  const { embedding } = await generateEmbeddings(rawFormData.content);
+  const { embedding } = await generateEmbeddings(
+    rawFormData.content,
+    rawFormData.name,
+    rawFormData.category
+  );
   const embeddingSql = pgvector.toSql(embedding);
 
   type TemplateResult = {
