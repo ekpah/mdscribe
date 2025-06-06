@@ -38,7 +38,11 @@ export default async function createTemplate(formData: FormData): Promise<{
   if (rawFormData.id) {
     throw new Error('Template already exists');
   }
-  const { embedding } = await generateEmbeddings(rawFormData.content);
+  const { embedding } = await generateEmbeddings(
+    rawFormData.content,
+    rawFormData.name,
+    rawFormData.category
+  );
   const embeddingSql = pgvector.toSql(embedding);
 
   type TemplateResult = {
