@@ -181,7 +181,15 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
                 attrs: {
                   primary: '...',
                 },
+                content: [
+                  {
+                    type: 'caseTag',
+                    attrs: { primary: '' },
+                    content: [{ type: 'text', text: '...' }],
+                  },
+                ],
               })
+              .insertContent({ type: 'text', text: ' ' })
               .run()
           }
           className="flex cursor-pointer select-none items-center rounded-l-sm bg-solarized-green px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-solarized-green/90"
