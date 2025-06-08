@@ -55,7 +55,7 @@ export default function AIScribeLandingPage() {
             </CardHeader>
           </Card>
         </Link>
-        <Link
+        {/* <Link
           href={isLoggedIn ? '/aiscribe/icu' : '#'}
           className={`block rounded-lg transition-shadow duration-200 ${
             isLoggedIn ? 'hover:shadow-lg' : 'cursor-not-allowed opacity-50'
@@ -71,7 +71,7 @@ export default function AIScribeLandingPage() {
               </CardDescription>
             </CardHeader>
           </Card>
-        </Link>
+        </Link> */}
         <Link
           href={isLoggedIn ? '/aiscribe/procedures' : '#'}
           className={`block rounded-lg transition-shadow duration-200 ${
