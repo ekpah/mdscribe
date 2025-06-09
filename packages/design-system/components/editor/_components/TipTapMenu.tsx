@@ -181,7 +181,15 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
                 attrs: {
                   primary: '...',
                 },
+                content: [
+                  {
+                    type: 'caseTag',
+                    attrs: { primary: '' },
+                    content: [{ type: 'text', text: '...' }],
+                  },
+                ],
               })
+              .insertContent({ type: 'text', text: ' ' })
               .run()
           }
           className="flex cursor-pointer select-none items-center rounded-l-sm bg-solarized-green px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-solarized-green/90"
@@ -190,36 +198,30 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
         >
           <span>Switch</span>
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 bg-transparent px-2 hover:bg-muted"
-        >
-          <TooltipProvider>
-            <Tooltip delayDuration={200}>
-              <TooltipTrigger>
-                <HelpCircle className="h-4 w-4" />
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>
-                  Dies sind spezielle Tags, die in Ihr Dokument eingefügt werden
-                  können.
-                </p>
-                <p className="mt-1">
-                  <a
-                    href="https://docs.mdscribe.de/templates/tags"
-                    className="text-primary hover:underline"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Erfahre mehr →
-                  </a>
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </Button>
+
+        <TooltipProvider>
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger className="h-8 bg-transparent px-2 hover:bg-muted">
+              <HelpCircle className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>
+                Dies sind spezielle Tags, die in Ihr Dokument eingefügt werden
+                können.
+              </p>
+              <p className="mt-1">
+                <a
+                  href="https://docs.mdscribe.de/templates/tags"
+                  className="text-primary hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Erfahre mehr →
+                </a>
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

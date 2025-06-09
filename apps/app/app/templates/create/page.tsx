@@ -1,9 +1,11 @@
 import { auth } from '@/auth';
 import { database } from '@repo/database';
+import { Button } from '@repo/design-system/components/ui/button';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import createTemplate from '../_actions/create-template';
+import { generateEmbeddings } from '../_actions/embed-template';
 import Editor from '../_components/Editor';
 export const dynamicParams = false;
 
@@ -46,6 +48,20 @@ export default async function CreateTemplate({
     redirect(`/templates/${newTemplate.id}`);
   }
 
+  async function handleGenerateEmbedding(formData: FormData): Promise<void> {
+    'use server';
+
+    const content = formData.get('content') as string;
+    const title = formData.get('title') as string;
+    const category = formData.get('category') as string;
+    const { embedding } = await generateEmbeddings(
+      content || '',
+      title,
+      category
+    );
+    console.log('Generated embedding:', embedding);
+  }
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -69,6 +85,17 @@ export default async function CreateTemplate({
         handleSubmitAction={handleSubmit}
         author={session?.user}
       />
+
+      <form action={handleGenerateEmbedding} className="mt-4 self-end">
+        <input
+          type="hidden"
+          name="content"
+          value={JSON.stringify(forkedTemplate?.content || '')}
+        />
+        <Button type="submit" variant="outline">
+          Generate Embedding
+        </Button>
+      </form>
     </div>
   );
 }

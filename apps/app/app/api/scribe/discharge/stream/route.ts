@@ -2,6 +2,7 @@
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { anthropic } from '@ai-sdk/anthropic';
+import { env } from '@repo/env';
 import { type CoreMessage, streamText } from 'ai';
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
@@ -45,6 +46,8 @@ export async function POST(req: Request) {
     undefined,
     {
       type: 'chat',
+
+      label: env.NODE_ENV === 'production' ? 'production' : 'staging',
     }
   );
   const compiledChatPrompt = chatPrompt.compile({

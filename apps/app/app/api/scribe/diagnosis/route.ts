@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import { anthropic } from '@ai-sdk/anthropic';
 import { env } from '@repo/env';
-import { type CoreMessage, streamText } from 'ai';
+import { type CoreMessage, generateText } from 'ai';
 
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
@@ -42,12 +42,13 @@ export async function POST(req: Request) {
 
   const textPrompt = await langfuse.getPrompt('ER_Diagnose_chat', undefined, {
     type: 'chat',
+    label: env.NODE_ENV === 'production' ? 'production' : 'staging',
   });
   const compiledPrompt = textPrompt.compile({
     anamnese,
   });
   const messages: CoreMessage[] = compiledPrompt as CoreMessage[];
-  const result = await streamText({
+  const { text, usage } = await generateText({
     model: anthropic('claude-sonnet-4-20250514'),
     maxTokens: 2000,
     temperature: 0,
@@ -59,14 +60,13 @@ export async function POST(req: Request) {
       },
     },
     messages: messages,
-    onFinish: (result) => {
-      if (env.NODE_ENV === 'development') {
-        console.log('Prompt tokens:', result.usage.promptTokens);
-        console.log('Completion tokens:', result.usage.completionTokens);
-        console.log('Total tokens:', result.usage.totalTokens);
-      }
-    },
   });
 
-  return result.toDataStreamResponse();
+  if (env.NODE_ENV === 'development') {
+    console.log('Prompt tokens:', usage.promptTokens);
+    console.log('Completion tokens:', usage.completionTokens);
+    console.log('Total tokens:', usage.totalTokens);
+  }
+
+  return Response.json({ text });
 }

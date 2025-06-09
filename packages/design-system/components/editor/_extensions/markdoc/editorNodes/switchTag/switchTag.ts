@@ -15,17 +15,15 @@ export interface SwitchTagAttrs {
 }
 
 export const SwitchTag = Node.create<SwitchTagAttrs>({
-  name: 'switchTag', // Renamed node name
+  name: 'switchTag',
 
   group: 'inline',
+  content: 'inline*',
   inline: true,
-
-  // Make the node draggable
+  selectable: true,
   draggable: true,
-
-  content: 'inline*', // Expects one or more inline elements (like caseTag)
-
-  atom: true,
+  atom: false,
+  isolating: true,
 
   addAttributes() {
     return {
@@ -50,7 +48,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
     for (const child of node.children) {
       // child.textContent recursively calls renderText on children.
       // caseTag.renderText already includes the {% case %} tags.
-      content += child.content;
+      content += child.textContent;
     }
     return `{% switch ${switchPrimaryValue} %}${content}{% /switch %}`;
   },
