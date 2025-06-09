@@ -52,7 +52,13 @@ export default async function CreateTemplate({
     'use server';
 
     const content = formData.get('content') as string;
-    const { embedding } = await generateEmbeddings(content || '');
+    const title = formData.get('title') as string;
+    const category = formData.get('category') as string;
+    const { embedding } = await generateEmbeddings(
+      content || '',
+      title,
+      category
+    );
     console.log('Generated embedding:', embedding);
   }
 
