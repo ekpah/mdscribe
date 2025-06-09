@@ -61,7 +61,7 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
           value={localValue}
           onValueChange={handleChange}
         >
-          <SelectTrigger className="border-input bg-background text-foreground transition-all focus:border-solarized-blue focus:ring-solarized-blue/20">
+          <SelectTrigger className="h-9 border-input bg-background text-foreground transition-all focus:border-solarized-blue focus:ring-solarized-blue/20">
             <SelectValue placeholder={`Select ${input.options.name}`} />
           </SelectTrigger>
           <SelectContent className="border-input bg-background">
@@ -87,7 +87,7 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
             <ToggleGroupItem
               key={caseTag.options.name}
               value={caseTag.options.name}
-              className="flex-1 rounded-none bg-secondary text-foreground transition-colors hover:bg-solarized-blue/10 data-[state=on]:bg-secondary-foreground data-[state=on]:text-secondary"
+              className="h-9 flex-1 rounded-none bg-secondary text-foreground transition-colors hover:bg-solarized-blue/10 data-[state=on]:bg-secondary-foreground data-[state=on]:text-secondary"
             >
               {caseTag.options.name}
             </ToggleGroupItem>

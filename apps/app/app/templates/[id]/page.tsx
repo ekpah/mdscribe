@@ -78,7 +78,7 @@ export default async function NotePage(props: PageProps) {
       </div>
       <ContentSection
         inputTags={JSON.stringify(inputTags)}
-        note={JSON.stringify(note)}
+        note={doc.content}
       />
     </div>
   );
