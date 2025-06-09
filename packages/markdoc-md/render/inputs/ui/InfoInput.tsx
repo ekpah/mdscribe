@@ -43,7 +43,7 @@ export function InfoInput({ input, value, onChange }: InfoInputProps) {
         value={localValue}
         onChange={handleChange}
         placeholder={`Enter ${input.options.name}`}
-        className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+        className="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
       />
     </div>
   );
