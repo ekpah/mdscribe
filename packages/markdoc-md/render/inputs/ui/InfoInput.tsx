@@ -1,6 +1,4 @@
 'use client';
-
-import { Card } from '@repo/design-system/components/ui/card';
 import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
 import type React from 'react';
@@ -32,20 +30,21 @@ export function InfoInput({ input, value, onChange }: InfoInputProps) {
   };
 
   return (
-    <Card
-      key={`info-${input.options.name}`}
-      className="m-4 bg-secondary p-4 focus-within:border-secondary focus-within:ring-2"
-    >
-      <div className="space-y-3">
-        <Label htmlFor={input.options.name}>{input.options.name}</Label>
-        <Input
-          id={input.options.name}
-          name={input.options.name}
-          value={localValue}
-          onChange={handleChange}
-          placeholder={`Enter ${input.options.name}`}
-        />
-      </div>
-    </Card>
+    <div key={`info-${input.options.name}`} className="space-y-2">
+      <Label
+        className="font-medium text-foreground"
+        htmlFor={input.options.name}
+      >
+        {input.options.name}
+      </Label>
+      <Input
+        id={input.options.name}
+        name={input.options.name}
+        value={localValue}
+        onChange={handleChange}
+        placeholder={`Enter ${input.options.name}`}
+        className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+      />
+    </div>
   );
 }

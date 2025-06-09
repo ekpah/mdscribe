@@ -2,7 +2,6 @@
 
 import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
 import { useCompletion } from '@ai-sdk/react';
-import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,
@@ -12,16 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
-import { Input } from '@repo/design-system/components/ui/input';
-import { Label } from '@repo/design-system/components/ui/label';
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/design-system/components/ui/select';
+import {} from '@repo/design-system/components/ui/select';
 import {
   Tabs,
   TabsContent,
@@ -35,31 +26,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { MemoizedCopySection } from '../_components/MemoizedCopySection';
 
-interface PatientInfo {
-  name: string;
-  gender: string;
-  diagnosis?: string;
-  status?: string;
-  extractedInfo?: {
-    age?: string;
-    room?: string;
-    doctor?: string;
-    admissionDate?: string;
-  };
-}
-
 export default function ICUPage() {
   const [activeTab, setActiveTab] = useState('notizen');
   const [patientNotes, setPatientNotes] = useState('');
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
-
-  // Patient info state
-  const [patientInfo, setPatientInfo] = useState<PatientInfo>({
-    name: '',
-    gender: '',
-  });
 
   // Use Vercel AI SDK's useCompletion for ICU transfer
   const completedTransfer = useCompletion({
@@ -72,32 +44,6 @@ export default function ICUPage() {
   // Handle values change from inputs
   const handleValuesChange = (data: Record<string, unknown>) => {
     setValues(data);
-  };
-
-  // Load patient info from localStorage
-  useEffect(() => {
-    const savedInfo = localStorage.getItem('icu-patient-info');
-    if (savedInfo) {
-      try {
-        const parsed = JSON.parse(savedInfo);
-        setPatientInfo(parsed);
-      } catch (error) {
-        console.error('Fehler beim Laden der Patienteninformationen:', error);
-      }
-    }
-  }, []);
-
-  // Update patient info and save to localStorage
-  const updatePatientInfo = (updates: Partial<PatientInfo>) => {
-    const newInfo = { ...patientInfo, ...updates };
-    setPatientInfo(newInfo);
-    localStorage.setItem('icu-patient-info', JSON.stringify(newInfo));
-  };
-
-  const handleClearPatientData = () => {
-    const emptyInfo = { name: '', gender: '' };
-    setPatientInfo(emptyInfo);
-    localStorage.removeItem('icu-patient-info');
   };
 
   const handleGenerateTransferSummary = useCallback(async () => {
@@ -153,18 +99,28 @@ export default function ICUPage() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '1') {
-      e.preventDefault();
-      document.getElementById('patient-notes')?.focus();
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      if (!isLoading && patientNotes.trim()) {
-        handleGenerateTransferSummary();
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '1') {
+        e.preventDefault();
+        document.getElementById('patient-notes')?.focus();
       }
-    }
-  };
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!isLoading && patientNotes.trim()) {
+          handleGenerateTransferSummary();
+        }
+      }
+    },
+    [isLoading, patientNotes, handleGenerateTransferSummary]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   return (
     <div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
@@ -199,119 +155,14 @@ export default function ICUPage() {
                       Patienteninformationen
                     </CardTitle>
                   </div>
-                  {(patientInfo.name || patientInfo.gender) && (
-                    <button
-                      type="button"
-                      onClick={handleClearPatientData}
-                      className="self-start text-muted-foreground text-xs transition-colors hover:text-foreground"
-                    >
-                      Alle Daten löschen
-                    </button>
-                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 p-6">
-                {/* Input fields for name and gender */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="patient-name"
-                      className="font-medium text-foreground"
-                    >
-                      Name
-                    </Label>
-                    <Input
-                      id="patient-name"
-                      placeholder="Patient Name eingeben..."
-                      value={patientInfo.name}
-                      onChange={(e) =>
-                        updatePatientInfo({ name: e.target.value })
-                      }
-                      className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="patient-gender"
-                      className="font-medium text-foreground"
-                    >
-                      Geschlecht
-                    </Label>
-                    <Select
-                      value={patientInfo.gender}
-                      onValueChange={(value) =>
-                        updatePatientInfo({ gender: value })
-                      }
-                    >
-                      <SelectTrigger className="border-input bg-background text-foreground transition-all focus:border-solarized-blue focus:ring-solarized-blue/20">
-                        <SelectValue placeholder="Geschlecht auswählen..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="männlich">männlich</SelectItem>
-                        <SelectItem value="weiblich">weiblich</SelectItem>
-                        <SelectItem value="divers">divers</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
                 {/* Auto-extracted information and Input Fields */}
-                <div className="border-border/50 border-t pt-6">
-                  <h4 className="mb-4 flex items-center gap-2 font-semibold text-foreground text-sm">
-                    <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                    Weitere Informationen
-                  </h4>
-
-                  {/* Extracted Information */}
-                  {(patientInfo.extractedInfo?.age ||
-                    patientInfo.diagnosis ||
-                    patientInfo.status) && (
-                    <div className="mb-4 grid grid-cols-1 gap-3 text-sm">
-                      {patientInfo.extractedInfo?.age && (
-                        <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
-                          <span className="text-muted-foreground">Alter:</span>
-                          <span className="font-medium text-foreground">
-                            {patientInfo.extractedInfo.age}
-                          </span>
-                        </div>
-                      )}
-
-                      {patientInfo.diagnosis && (
-                        <div className="rounded-lg bg-muted/30 px-3 py-2">
-                          <div className="mb-1 text-muted-foreground text-xs">
-                            Diagnose:
-                          </div>
-                          <div className="text-foreground text-xs leading-relaxed">
-                            {patientInfo.diagnosis}
-                          </div>
-                        </div>
-                      )}
-
-                      {patientInfo.status && (
-                        <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
-                          <span className="text-muted-foreground">Status:</span>
-                          <Badge
-                            variant={
-                              patientInfo.status === 'Stabil'
-                                ? 'outline'
-                                : 'destructive'
-                            }
-                            className="border-solarized-green/30 bg-solarized-green/10 text-solarized-green"
-                          >
-                            {patientInfo.status}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
+                <div className="pt-6">
                   {/* Input Fields from Markdoc */}
                   {completedTransfer.completion && (
                     <div className="space-y-3">
-                      <div className="text-muted-foreground text-xs">
-                        Formulareingaben:
-                      </div>
                       <Inputs
                         inputTags={JSON.stringify(
                           parseMarkdocToInputs(
@@ -323,17 +174,16 @@ export default function ICUPage() {
                     </div>
                   )}
 
-                  {!patientInfo.diagnosis &&
-                    !patientInfo.extractedInfo?.age &&
-                    !patientInfo.status &&
-                    !completedTransfer.completion && (
-                      <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
-                        <p className="text-muted-foreground text-xs leading-relaxed">
-                          Informationen werden automatisch aus den
-                          Patientennotizen extrahiert
-                        </p>
-                      </div>
-                    )}
+                  {(!completedTransfer.completion ||
+                    parseMarkdocToInputs(completedTransfer.completion).inputTags
+                      .length === 0) && (
+                    <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        Notwendige Informationen werden automatisch aus den
+                        Patientennotizen extrahiert
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Privacy notice */}
@@ -391,20 +241,23 @@ export default function ICUPage() {
                       className="min-h-[400px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
                       value={patientNotes}
                       onChange={(e) => setPatientNotes(e.target.value)}
-                      onKeyDown={handleKeyDown}
                       disabled={isLoading}
                     />
                   </CardContent>
                   <CardFooter className="flex items-center justify-between bg-muted/20">
-                    <div className="space-x-4 text-muted-foreground text-sm">
-                      <kbd className="rounded border bg-muted px-2 py-1 font-mono text-xs">
-                        ⌘⇧1
-                      </kbd>{' '}
-                      <span>für Fokus</span>
-                      <kbd className="rounded border bg-muted px-2 py-1 font-mono text-xs">
-                        ⌘↵
-                      </kbd>{' '}
-                      <span>zum Generieren</span>
+                    <div className="flex items-center gap-6 text-muted-foreground text-sm">
+                      <div className="flex items-center gap-2">
+                        <kbd className="rounded border bg-muted px-2 py-1 font-mono text-xs">
+                          ⌘⇧1
+                        </kbd>
+                        <span>für Fokus</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <kbd className="rounded border bg-muted px-2 py-1 font-mono text-xs">
+                          ⌘↵
+                        </kbd>
+                        <span>zum Generieren</span>
+                      </div>
                     </div>
                     <Button
                       onClick={handleGenerateTransferSummary}
@@ -430,71 +283,81 @@ export default function ICUPage() {
                 {/* Transfer Summary Tab */}
                 <TabsContent value="zusammenfassung" className="space-y-0">
                   <CardContent>
-                    {isLoading && !completedTransfer.completion ? (
-                      <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                        <div className="relative">
-                          <div className="h-20 w-20 animate-pulse rounded-full border-4 border-solarized-blue/20" />
-                          <div className="absolute top-0 left-0 h-20 w-20 animate-spin rounded-full border-4 border-solarized-blue border-t-transparent" />
-                        </div>
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-foreground text-lg">
-                            Verlegungsbrief wird generiert...
-                          </h3>
-                          <p className="text-muted-foreground text-sm">
-                            Bitte warten Sie, während der KI-Assistent Ihren
-                            Verlegungsbrief erstellt
-                          </p>
-                        </div>
-                      </div>
-                    ) : completedTransfer.completion ? (
-                      <div className="space-y-6">
-                        <div className="space-y-4">
-                          <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
-                            <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                            ICU Verlegungsbrief
-                          </h4>
-                          <ScrollArea className="h-[500px] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
-                            <MemoizedCopySection
-                              title="ICU Verlegungsbrief"
-                              values={values}
-                              content={
-                                completedTransfer.completion ||
-                                'Keine Inhalte verfügbar'
-                              }
-                            />
-                          </ScrollArea>
-                        </div>
-
-                        {isLoading && (
-                          <div className="flex items-center justify-center gap-2 text-sm text-solarized-blue">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Wird weiter generiert...</span>
+                    {(() => {
+                      if (isLoading && !completedTransfer.completion) {
+                        return (
+                          <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                            <div className="relative">
+                              <div className="h-20 w-20 animate-pulse rounded-full border-4 border-solarized-blue/20" />
+                              <div className="absolute top-0 left-0 h-20 w-20 animate-spin rounded-full border-4 border-solarized-blue border-t-transparent" />
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="font-semibold text-foreground text-lg">
+                                Verlegungsbrief wird generiert...
+                              </h3>
+                              <p className="text-muted-foreground text-sm">
+                                Bitte warten Sie, während der KI-Assistent Ihren
+                                Verlegungsbrief erstellt
+                              </p>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
-                        <div className="rounded-full bg-muted/20 p-6">
-                          <FileText className="h-16 w-16" />
+                        );
+                      }
+
+                      if (completedTransfer.completion) {
+                        return (
+                          <div className="space-y-6">
+                            <div className="space-y-4">
+                              <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
+                                <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
+                                ICU Verlegungsbrief
+                              </h4>
+                              <ScrollArea className="max-h-[calc(100vh-300px)] min-h-[400px] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
+                                <MemoizedCopySection
+                                  title="ICU Verlegungsbrief"
+                                  values={values}
+                                  content={
+                                    completedTransfer.completion ||
+                                    'Keine Inhalte verfügbar'
+                                  }
+                                />
+                              </ScrollArea>
+                            </div>
+
+                            {isLoading && (
+                              <div className="flex items-center justify-center gap-2 text-sm text-solarized-blue">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Wird weiter generiert...</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="flex flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
+                          <div className="rounded-full bg-muted/20 p-6">
+                            <FileText className="h-16 w-16" />
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="font-semibold text-lg">
+                              Noch kein Verlegungsbrief vorhanden
+                            </h3>
+                            <p className="max-w-md text-sm">
+                              Bitte geben Sie zuerst Patientennotizen ein und
+                              generieren Sie einen Verlegungsbrief.
+                            </p>
+                            <Button
+                              variant="outline"
+                              className="mt-4"
+                              onClick={() => setActiveTab('notizen')}
+                            >
+                              Zu Notizen wechseln
+                            </Button>
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-lg">
-                            Noch kein Verlegungsbrief vorhanden
-                          </h3>
-                          <p className="max-w-md text-sm">
-                            Bitte geben Sie zuerst Patientennotizen ein und
-                            generieren Sie einen Verlegungsbrief.
-                          </p>
-                          <Button
-                            variant="outline"
-                            className="mt-4"
-                            onClick={() => setActiveTab('notizen')}
-                          >
-                            Zu Notizen wechseln
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </CardContent>
                   <CardFooter className="flex items-center justify-between bg-muted/20">
                     <Button

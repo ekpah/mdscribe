@@ -1,0 +1,130 @@
+---
+description: This rule should be used when using hotkeys in the webapp
+globs: 
+alwaysApply: false
+---
+### Hotkeys
+
+Use react-hotkeys-hook for implementing keyboard shortcuts consistently across the application.
+
+#### Import and Setup
+
+```typescript
+import { useHotkeys } from 'react-hotkeys-hook';
+```
+
+#### Cross-Platform Key Combinations
+
+Always support both Mac and PC key combinations:
+- Use `['meta+k', 'ctrl+k']` for search functionality
+- Use `['meta+enter', 'ctrl+enter']` for form submissions  
+- Use `['meta+shift+1', 'ctrl+shift+1']` for focus shortcuts
+
+#### Platform Detection
+
+Import the existing utility for platform detection:
+
+```typescript
+import { isMac } from '@/lib/isMac';
+```
+
+Use this for displaying appropriate key hints in the UI:
+
+```typescript
+const isMac = typeof window !== 'undefined' && window.navigator.userAgent.includes('Mac');
+
+// Display shortcuts in UI
+<span>{isMac ? '⌘K' : 'Ctrl+K'}</span>
+<span>{isMac ? '⌘↵' : 'Ctrl+↵'}</span>
+<span>{isMac ? '⌘⇧1' : 'Ctrl+Shift+1'}</span>
+```
+
+#### Common Patterns
+
+**Search Shortcuts:**
+```typescript
+useHotkeys(['meta+k', 'ctrl+k'], (event: KeyboardEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  if (searchInputRef.current) {
+    searchInputRef.current.focus();
+    searchInputRef.current.value = '';
+  }
+});
+```
+
+**Form Submission:**
+```typescript
+useHotkeys(
+  ['meta+enter', 'ctrl+enter'],
+  (event: KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSubmit();
+  },
+  {
+    enabled: hotkeyEnabled,
+    enableOnFormTags: ['TEXTAREA'],
+  }
+);
+```
+
+**Conditional Hotkeys:**
+```typescript
+const [hotkeyEnabled, setHotkeyEnabled] = useState<boolean>(false);
+
+useEffect(() => {
+  setHotkeyEnabled(isExpanded && !isLoading);
+}, [isExpanded, isLoading]);
+
+useHotkeys(
+  ['meta+enter', 'ctrl+enter'],
+  handleSubmit,
+  {
+    enabled: hotkeyEnabled,
+    enableOnFormTags: ['TEXTAREA'],
+  }
+);
+```
+
+#### Hotkey Options
+
+Use these common options when needed:
+- `enabled`: Boolean to conditionally enable/disable hotkeys
+- `enableOnFormTags`: Array of form elements where hotkeys should work (e.g., `['TEXTAREA', 'INPUT']`)
+- `preventDefault`: Set to `false` if you want to allow default browser behavior
+
+#### Event Handling Best Practices
+
+Always prevent default behavior and stop propagation for custom shortcuts:
+
+```typescript
+useHotkeys(['meta+k', 'ctrl+k'], (event: KeyboardEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  // Your hotkey logic here
+});
+```
+
+#### UI Feedback
+
+When implementing hotkeys, always provide visual feedback in the UI using badges or keyboard shortcuts:
+
+```typescript
+<div className="flex items-center gap-2">
+  <kbd className="rounded border bg-muted px-2 py-1 font-mono text-xs">
+    {isMac ? '⌘↵' : 'Ctrl+↵'}
+  </kbd>
+  <span>zum Generieren</span>
+</div>
+```
+
+#### Standard Hotkey Mappings
+
+Follow these conventions:
+- **Search**: `Cmd/Ctrl + K`
+- **Submit/Execute**: `Cmd/Ctrl + Enter` 
+- **Focus**: `Cmd/Ctrl + Shift + Number`
+- **Save**: `Cmd/Ctrl + S`
+- **New**: `Cmd/Ctrl + N`
+- **Copy**: Already handled by browser, but can be enhanced with `Cmd/Ctrl + C`

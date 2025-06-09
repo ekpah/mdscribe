@@ -1,6 +1,4 @@
 'use client';
-
-import { Card } from '@repo/design-system/components/ui/card';
 import { Label } from '@repo/design-system/components/ui/label';
 import {
   Select,
@@ -50,51 +48,52 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
   };
 
   return (
-    <Card
-      key={`switch-${input.options.name}`}
-      className="m-4 bg-secondary p-4 focus-within:border-secondary focus-within:ring-2"
-    >
-      <div className="space-y-3">
-        <Label htmlFor={input.options.name}>{input.options.name}</Label>
-        {useSelect ? (
-          <Select
-            name={input.options.name}
-            value={localValue}
-            onValueChange={handleChange}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={`Select ${input.options.name}`} />
-            </SelectTrigger>
-            <SelectContent>
-              {options?.map((caseTag) => (
-                <SelectItem
-                  key={caseTag.options.name}
-                  value={caseTag.options.name}
-                >
-                  {caseTag.options.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <ToggleGroup
-            type="single"
-            value={localValue}
-            onValueChange={handleChange}
-            className="flex flex-row overflow-hidden rounded-md bg-background"
-          >
+    <div key={`switch-${input.options.name}`} className="space-y-2">
+      <Label
+        htmlFor={input.options.name}
+        className="font-medium text-foreground"
+      >
+        {input.options.name}
+      </Label>
+      {useSelect ? (
+        <Select
+          name={input.options.name}
+          value={localValue}
+          onValueChange={handleChange}
+        >
+          <SelectTrigger className="border-input bg-background text-foreground transition-all focus:border-solarized-blue focus:ring-solarized-blue/20">
+            <SelectValue placeholder={`Select ${input.options.name}`} />
+          </SelectTrigger>
+          <SelectContent className="border-input bg-background">
             {options?.map((caseTag) => (
-              <ToggleGroupItem
+              <SelectItem
                 key={caseTag.options.name}
                 value={caseTag.options.name}
-                className="flex-1 rounded-none data-[state=on]:divide-muted data-[state=on]:bg-secondary-foreground data-[state=on]:text-secondary"
+                className="text-foreground hover:bg-solarized-blue/10 focus:bg-solarized-blue/10"
               >
                 {caseTag.options.name}
-              </ToggleGroupItem>
+              </SelectItem>
             ))}
-          </ToggleGroup>
-        )}
-      </div>
-    </Card>
+          </SelectContent>
+        </Select>
+      ) : (
+        <ToggleGroup
+          type="single"
+          value={localValue}
+          onValueChange={handleChange}
+          className="flex flex-row overflow-hidden rounded-md border border-input bg-background"
+        >
+          {options?.map((caseTag) => (
+            <ToggleGroupItem
+              key={caseTag.options.name}
+              value={caseTag.options.name}
+              className="flex-1 rounded-none bg-secondary text-foreground transition-colors hover:bg-solarized-blue/10 data-[state=on]:bg-secondary-foreground data-[state=on]:text-secondary"
+            >
+              {caseTag.options.name}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      )}
+    </div>
   );
 }
