@@ -1,8 +1,4 @@
-import Markdoc, {
-  type Config,
-  type RenderableTreeNode,
-  type Schema,
-} from '@markdoc/markdoc';
+import Markdoc, { type RenderableTreeNode } from '@markdoc/markdoc';
 import React from 'react';
 import config from '../markdoc-config';
 import { components } from '../markdoc-config/tags/config'; // Adjusted path

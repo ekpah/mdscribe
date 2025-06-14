@@ -2,6 +2,15 @@ import Markdoc from '@markdoc/markdoc';
 
 import type { Node } from '@markdoc/markdoc';
 
+// Extract variable names from formula string
+function extractVariablesFromFormula(formula: string): string[] {
+  // Match variable names (letters, numbers, underscore)
+  const matches = formula.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
+  // Filter out reserved words and operators
+  const reserved = new Set(['true', 'false', 'null', 'undefined']);
+  return [...new Set(matches.filter((match) => !reserved.has(match)))];
+}
+
 function processSwitchStatement(
   node: Node,
   result = { variable: '', options: [] as string[] }
@@ -49,7 +58,7 @@ function processSwitchChildren(
 }
 
 type InputTagType = {
-  type: 'info' | 'switch';
+  type: 'info' | 'switch' | 'score';
   options: { name: string };
   children?: CaseTagType[];
 };
@@ -65,6 +74,12 @@ type SwitchTagType = {
   children: CaseTagType[];
 };
 
+type ScoreTagType = {
+  type: 'score';
+  options: { name: string };
+  variables: string[];
+};
+
 type CaseTagType = {
   type: 'case';
   options: { name: string };
@@ -77,6 +92,9 @@ const parseTagsToInputs = ({ ast }: { ast: Node }) => {
   const infoTags: string[] = [];
   // all switch tags (remove duplicates)
   const switchTags: { variable: string; options: string[] }[] = [];
+  // all score tags (remove duplicates)
+  const scoreTags: { name: string; variables: string[] }[] = [];
+
   for (const node of ast.walk()) {
     // do something with each node
     // get all info tags (remove duplicates)
@@ -91,6 +109,37 @@ const parseTagsToInputs = ({ ast }: { ast: Node }) => {
       });
       infoTags.push(node.attributes.primary);
     }
+
+    // get all score tags and extract variables from formulas
+    if (
+      node.type === 'tag' &&
+      node.tag === 'score' &&
+      node.attributes.formula
+    ) {
+      const formula = node.attributes.formula;
+      const scoreName = node.attributes.title || 'custom_score';
+
+      const variables = extractVariablesFromFormula(formula);
+
+      if (
+        variables.length > 0 &&
+        !scoreTags.some((tag) => tag.name === scoreName)
+      ) {
+        scoreTags.push({ name: scoreName, variables });
+
+        // Add individual variables as info tags if they don't exist
+        for (const variable of variables) {
+          if (!infoTags.includes(variable)) {
+            inputTags.push({
+              type: 'info',
+              options: { name: variable },
+            });
+            infoTags.push(variable);
+          }
+        }
+      }
+    }
+
     // get all switch tags, if unique
     if (
       node.type === 'tag' &&
@@ -108,7 +157,7 @@ const parseTagsToInputs = ({ ast }: { ast: Node }) => {
   }
 
   // parse all switch tags
-  return { infoTags, switchTags, inputTags };
+  return { infoTags, switchTags, scoreTags, inputTags };
 };
 
 // function to take markdoc content and return parsed tags

@@ -59,7 +59,6 @@ export function markdocToHTML(markdocString: string): string {
 
   // Define how Markdoc tags and nodes should be transformed into HTML
   // suitable for Tiptap's parseHTML function.
-
   const config: Config = {
     tags: {
       info: {
@@ -73,7 +72,7 @@ export function markdocToHTML(markdocString: string): string {
       },
       switch: {
         render: 'markdoc-switch',
-        children: ['tag', 'softbreak', 'markdoc-case'],
+        children: ['tag', 'softbreak', 'markdoc-case', 'paragraph'],
         attributes: { primary: { render: true } },
       },
       case: {
