@@ -1,6 +1,5 @@
 'use client';
 
-import markdocConfig from '@/markdoc/config';
 import Markdoc from '@markdoc/markdoc';
 import PlainEditor from '@repo/design-system/components/editor/PlainEditor';
 import TipTap from '@repo/design-system/components/editor/TipTap';
@@ -16,6 +15,7 @@ import {
   SelectValue,
 } from '@repo/design-system/components/ui/select';
 import { Switch } from '@repo/design-system/components/ui/switch';
+import markdocConfig from '@repo/markdoc-md/markdoc-config';
 import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-hot-toast';
