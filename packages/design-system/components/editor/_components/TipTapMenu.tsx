@@ -1,4 +1,5 @@
 import { Button } from '@repo/design-system/components/ui/button';
+import { htmlToMarkdoc } from '@repo/markdoc-md/parse/htmlToMarkdoc';
 import type { Editor } from '@tiptap/react';
 import { HelpCircle, Redo, Undo } from 'lucide-react';
 import {
