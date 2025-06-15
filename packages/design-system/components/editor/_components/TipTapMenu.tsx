@@ -7,7 +7,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../../ui/tooltip';
-import { htmlToMarkdoc } from '../_extensions/markdoc/markdocToHTMLParser';
 
 const MenuBar = ({ editor }: { editor: Editor }) => {
   return (

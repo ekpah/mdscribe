@@ -1,11 +1,11 @@
 'use client';
 
-import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
 import {
   Card,
   CardContent,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
+import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
 import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';

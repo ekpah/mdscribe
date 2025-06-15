@@ -1,8 +1,8 @@
 'use client';
-import { Input } from '@repo/design-system/components/ui/input';
-import { Label } from '@repo/design-system/components/ui/label';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { Input } from '../../../ui/components/input';
+import { Label } from '../../../ui/components/label';
 
 export type InfoTagType = {
   type: 'info';

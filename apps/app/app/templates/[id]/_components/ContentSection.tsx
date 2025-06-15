@@ -3,9 +3,9 @@ import { atom } from 'jotai';
 
 import { Card } from '@repo/design-system/components/ui/card';
 
-import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
 import type { Prisma } from '@repo/database';
 import { DynamicMarkdocRenderer } from '@repo/markdoc-md';
+import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
 import { useState } from 'react';
 import type { FieldValues } from 'react-hook-form';

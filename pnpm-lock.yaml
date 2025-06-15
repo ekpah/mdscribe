@@ -602,6 +602,9 @@ importers:
       '@repo/env':
         specifier: workspace:*
         version: link:../env
+      '@repo/markdoc-md':
+        specifier: workspace:*
+        version: link:../markdoc-md
       '@tiptap/core':
         specifier: ^2.11.7
         version: 2.11.7(@tiptap/pm@2.11.7)
@@ -836,9 +839,9 @@ importers:
       '@markdoc/markdoc':
         specifier: ^0.5.1
         version: 0.5.1(@types/react@19.1.2)(react@19.1.0)
-      '@repo/design-system':
-        specifier: workspace:*
-        version: link:../design-system
+      '@tiptap/core':
+        specifier: ^2.11.7
+        version: 2.11.7(@tiptap/pm@2.11.7)
       '@types/react':
         specifier: ^19.1.2
         version: 19.1.2

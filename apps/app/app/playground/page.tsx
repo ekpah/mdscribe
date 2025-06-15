@@ -1,6 +1,5 @@
 'use client';
 
-import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
 import Markdoc from '@markdoc/markdoc';
 import TipTap from '@repo/design-system/components/editor/TipTap';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -13,6 +12,7 @@ import {
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import { Switch } from '@repo/design-system/components/ui/switch';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
+import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
 import {
   ChevronDown,

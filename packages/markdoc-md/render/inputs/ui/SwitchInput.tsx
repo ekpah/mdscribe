@@ -1,17 +1,17 @@
 'use client';
-import { Label } from '@repo/design-system/components/ui/label';
+import { useEffect, useState } from 'react';
+import { Label } from '../../../ui/components/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@repo/design-system/components/ui/select';
+} from '../../../ui/components/select';
 import {
   ToggleGroup,
   ToggleGroupItem,
-} from '@repo/design-system/components/ui/toggle-group';
-import { useEffect, useState } from 'react';
+} from '../../../ui/components/toggle-group';
 
 export type CaseTagType = {
   type: 'case';

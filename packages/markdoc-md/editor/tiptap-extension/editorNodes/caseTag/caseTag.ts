@@ -41,7 +41,7 @@ export const CaseTag = Node.create<CaseTagOptions>({
     node,
   }: { HTMLAttributes: Record<string, string>; node: ProseMirrorNode }) {
     return [
-      'markdoc-case',
+      'Case',
       mergeAttributes(HTMLAttributes, {
         primary: node.attrs.primary,
       }),
@@ -51,7 +51,7 @@ export const CaseTag = Node.create<CaseTagOptions>({
   parseHTML() {
     return [
       {
-        tag: 'markdoc-case',
+        tag: 'Case',
       },
     ];
   },

@@ -2,9 +2,9 @@ import Markdoc from '@markdoc/markdoc';
 
 import React from 'react';
 
-import { components } from '@/markdoc/tags';
+import { components } from '../markdoc-config/tags/config';
 
-import markdocConfig from '@/markdoc/config';
+import markdocConfig from '../markdoc-config';
 
 // function to take markdoc content and return parsed tags
 export default function renderMarkdocAsReact(content: string) {

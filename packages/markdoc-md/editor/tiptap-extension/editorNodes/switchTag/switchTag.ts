@@ -61,7 +61,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
     node: ProseMirrorNode;
   }) {
     return [
-      'markdoc-switch',
+      'Switch',
       mergeAttributes(HTMLAttributes, {
         primary: node.attrs.primary,
       }),
@@ -71,7 +71,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   parseHTML() {
     return [
       {
-        tag: 'markdoc-switch',
+        tag: 'Switch',
       },
     ];
   },
