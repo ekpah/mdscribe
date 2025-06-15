@@ -249,7 +249,7 @@ Datum: {% info "date" /%}
             </div>
             <div>
               <h1 className="font-bold text-3xl text-primary">
-                Markdoc Spielwiese
+                Markdoc-MD Playground
               </h1>
               <p className="text-lg text-muted-foreground">
                 Testen und Vorschau Ihrer Markdoc-Vorlagen mit interaktiven
@@ -263,7 +263,7 @@ Datum: {% info "date" /%}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Left Column - Template Input */}
           <div className="lg:col-span-1">
-            <Card className="h-fit border-solarized-blue/20 shadow-lg">
+            <Card className="h-[680px] border-solarized-blue/20 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-solarized-blue/5 to-solarized-cyan/5">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base text-foreground">
@@ -309,10 +309,35 @@ Datum: {% info "date" /%}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTemplate('')}
+                    onClick={() =>
+                      setTemplate(`# Beispiel Arztbericht
+
+Patient: {% info "patient_name" /%}
+Alter: {% info "age" /%}
+Datum: {% info "date" /%}
+
+## Hauptbeschwerde
+{% info "chief_complaint" /%}
+
+## Bewertung
+{% info "assessment" /%}
+
+## Behandlungsplan
+{% info "plan" /%}
+
+## Geschlecht
+# Beispiel Arztbericht
+
+## Geschlecht
+{% switch "gender" %}
+  {% case "male" %}Männlich{% /case %}
+  {% case "female" %}Weiblich{% /case %}
+  {% case "other" %}Divers{% /case %}
+{% /switch %}`)
+                    }
                     className="w-full"
                   >
-                    Vorlage löschen
+                    Vorlage zurücksetzen
                   </Button>
                 </div>
               </CardContent>
@@ -321,7 +346,7 @@ Datum: {% info "date" /%}
 
           {/* Middle Column - Input Tags / JSON */}
           <div className="lg:col-span-1">
-            <Card className="h-fit border-solarized-green/20 shadow-lg">
+            <Card className="h-[680px] border-solarized-green/20 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base text-foreground">
@@ -353,7 +378,7 @@ Datum: {% info "date" /%}
                 </div>
               </CardHeader>
               <CardContent className="p-4">
-                <ScrollArea className="h-[500px] overflow-y-auto">
+                <ScrollArea className="h-[552px] overflow-y-auto">
                   {middleView === 'inputs' ? (
                     parsedInputs.inputTags.length > 0 ? (
                       <div className="space-y-4">
@@ -407,7 +432,7 @@ Datum: {% info "date" /%}
 
           {/* Right Column - Preview / AST / Transform */}
           <div className="lg:col-span-1">
-            <Card className="h-fit border-solarized-cyan/20 shadow-lg">
+            <Card className="h-[680px] border-solarized-cyan/20 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-solarized-cyan/5 to-solarized-green/5">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base text-foreground">
@@ -452,7 +477,7 @@ Datum: {% info "date" /%}
                 </div>
               </CardHeader>
               <CardContent className="p-4">
-                <ScrollArea className="h-[500px] rounded-lg border border-solarized-cyan/20 bg-background/50 p-4">
+                <ScrollArea className="h-[552px] rounded-lg border border-solarized-cyan/20 bg-background/50 p-4">
                   {(() => {
                     if (rightView === 'preview') {
                       if (!template) {
