@@ -13,7 +13,7 @@ export function Info({ primary }: { primary: string }) {
   // Example: if (variables[primary] === undefined) { console.warn(...) }
 
   return (
-    <span className="rounded-md bg-solarized-blue/90 px-1 text-white">
+    <span className="rounded-md bg-solarized-blue px-1 text-white opacity-90">
       {value}
     </span>
   );
