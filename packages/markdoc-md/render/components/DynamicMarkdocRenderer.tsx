@@ -40,6 +40,8 @@ export function DynamicMarkdocRenderer({
     [markdocContent]
   );
 
+  console.log(variables, typeof variables);
+
   // Memoize the rendering of the static structure from the AST.
   // This avoids re-rendering the base structure if only variables change.
   const renderedContent = React.useMemo(() => renderMarkdocNode(ast), [ast]);

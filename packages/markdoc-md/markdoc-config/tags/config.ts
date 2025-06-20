@@ -11,6 +11,12 @@ export default {
       primary: {
         type: String,
       },
+      type: {
+        type: String,
+        default: 'string',
+        required: true,
+        matches: ['string', 'number', 'boolean'],
+      },
     },
     selfClosing: true,
   },

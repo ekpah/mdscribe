@@ -19,17 +19,20 @@ export interface InfoInputProps {
   onChange: React.ChangeEventHandler<HTMLInputElement>;
 }
 
-export function InfoInput({ input, value, onChange }: InfoInputProps) {
+export function InfoNumberInput({ input, value, onChange }: InfoInputProps) {
   // Use a local state to track input value
-  const [localValue, setLocalValue] = useState(value);
+  const [localValue, setLocalValue] = useState<number>(Number(value));
 
+  console.log('value', value, typeof value);
+  console.log('localValue', localValue, typeof localValue);
   // Update local state when prop value changes
   useEffect(() => {
-    setLocalValue(value);
+    setLocalValue(value as number);
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalValue(e.target.value);
+    console.log('e.target.value', e.target.value, typeof e.target.value);
+    setLocalValue(Number(e.target.value));
     onChange(e);
   };
 
@@ -43,7 +46,7 @@ export function InfoInput({ input, value, onChange }: InfoInputProps) {
       </Label>
       <Input
         id={input.options.name}
-        type={input.options.type ?? 'text'}
+        type="number"
         name={input.options.name}
         value={localValue}
         onChange={handleChange}

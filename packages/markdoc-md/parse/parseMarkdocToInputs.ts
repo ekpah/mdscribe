@@ -1,65 +1,18 @@
+import type { RenderableTreeNode } from '@markdoc/markdoc';
 import Markdoc from '@markdoc/markdoc';
+import Formula from 'fparser';
+import config from '../markdoc-config';
 
-import type { Node } from '@markdoc/markdoc';
-
-function processSwitchStatement(
-  node: Node,
-  result = { variable: '', options: [] as string[] }
-) {
-  // If the node has children, process them recursively
-
-  if (node.tag === 'switch') {
-    result.variable = node.attributes.primary;
-  } else if (node.tag === 'case') {
-    result.options.push(node.attributes.primary);
-  }
-
-  if (node.children && node.children.length > 0) {
-    for (const child of node.children) {
-      if (child.tag !== 'switch') {
-        processSwitchStatement(child, result);
-      }
-    }
-  }
-
-  return result;
-}
-
-function processSwitchChildren(
-  node: Node,
-  result: CaseTagType[] = []
-): CaseTagType[] {
-  // If the node has children, process them recursively
-  if (node.tag === 'case') {
-    result.push({
-      type: 'case',
-      options: { name: node.attributes.primary },
-    });
-  }
-
-  if (node.children && node.children.length > 0) {
-    for (const child of node.children) {
-      if (child.tag !== 'switch') {
-        processSwitchChildren(child, result);
-      }
-    }
-  }
-
-  return result;
-}
-
-type InputTagType = {
+type BaseTagType = {
   type: 'info' | 'switch';
-  options: { name: string };
-  children?: CaseTagType[];
 };
 
-type InfoTagType = {
+type InfoTagType = BaseTagType & {
   type: 'info';
-  options: { name: string };
+  options: { name: string; type?: 'string' | 'number' | 'boolean' };
 };
 
-type SwitchTagType = {
+type SwitchTagType = BaseTagType & {
   type: 'switch';
   options: { name: string };
   children: CaseTagType[];
@@ -70,49 +23,156 @@ type CaseTagType = {
   options: { name: string };
 };
 
-const parseTagsToInputs = ({ ast }: { ast: Node }) => {
+type InputTagType = InfoTagType | SwitchTagType;
+
+type InputComponentProps = {
+  primary?: string;
+  formula?: string;
+  type?: 'string' | 'number' | 'boolean';
+};
+
+type InputComponentNode = {
+  $$mdtype: 'Tag';
+  name: string;
+  attributes: InputComponentProps;
+  children?: RenderableTreeNode | RenderableTreeNode[];
+};
+
+const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
   // all tags in the order they appear in the document
   const inputTags: InputTagType[] = [];
-  // all info tags (remove duplicates)
-  const infoTags: string[] = [];
-  // all switch tags (remove duplicates)
-  const switchTags: { variable: string; options: string[] }[] = [];
-  for (const node of ast.walk()) {
-    // do something with each node
-    // get all info tags (remove duplicates)
-    if (
-      node.type === 'tag' &&
-      node.tag === 'info' &&
-      !infoTags.includes(node.attributes.primary)
-    ) {
-      inputTags.push({
-        type: 'info',
-        options: { name: node.attributes.primary },
-      });
-      infoTags.push(node.attributes.primary);
+  // Track unique tags by name and type
+  const uniqueTags = new Set<string>();
+
+  // Helper function to recursively process nodes
+  function processNode(node: RenderableTreeNode) {
+    if (!node || typeof node !== 'object') {
+      return;
     }
-    // get all switch tags, if unique
-    if (
-      node.type === 'tag' &&
-      node.tag === 'switch' &&
-      !switchTags.some((tag) => tag.variable === node.attributes.primary) &&
-      node.attributes.primary
-    ) {
-      inputTags.push({
-        type: 'switch',
-        options: { name: node.attributes.primary },
-        children: processSwitchChildren(node),
-      });
-      switchTags.push(processSwitchStatement(node));
+    // Process the current node if it's a component
+    if ('$$mdtype' in node && node.$$mdtype === 'Tag') {
+      const componentNode = node as InputComponentNode;
+      const tagKey = `${componentNode.name}:${componentNode.attributes.primary || componentNode.attributes.formula}`;
+
+      // Process info tags
+      if (componentNode.name === 'Info' && !uniqueTags.has(tagKey)) {
+        inputTags.push({
+          type: 'info',
+          options: {
+            name: componentNode.attributes.primary || '',
+            type: componentNode.attributes.type,
+          },
+        });
+        uniqueTags.add(tagKey);
+      }
+
+      // Process switch tags
+      if (
+        componentNode.name === 'Switch' &&
+        !uniqueTags.has(tagKey) &&
+        componentNode.attributes.primary
+      ) {
+        inputTags.push({
+          type: 'switch',
+          options: { name: componentNode.attributes.primary },
+          children: processSwitchChildrenFromRenderable(componentNode),
+        });
+        uniqueTags.add(tagKey);
+      }
+
+      // Process score tags
+      if (componentNode.name === 'Score' && componentNode.attributes.formula) {
+        if (!uniqueTags.has(tagKey)) {
+          uniqueTags.add(tagKey);
+        }
+
+        // Extract variables from formula using fparser
+        try {
+          const formula = new Formula(componentNode.attributes.formula);
+          const variables = formula.getVariables();
+          for (const variable of variables) {
+            const varKey = `info:${variable}`;
+            if (!uniqueTags.has(varKey)) {
+              inputTags.push({
+                type: 'info',
+                options: { name: variable, type: 'number' },
+              });
+              uniqueTags.add(varKey);
+            }
+          }
+        } catch (error) {
+          // If formula parsing fails, skip adding variables
+          console.warn(
+            `Failed to parse formula: ${componentNode.attributes.formula} with error: ${error}`
+          );
+        }
+      }
+    }
+
+    // Process children recursively
+    if ('children' in node) {
+      const children = node.children;
+      if (Array.isArray(children)) {
+        children.forEach(processNode);
+      } else if (children) {
+        processNode(children);
+      }
     }
   }
 
-  // parse all switch tags
-  return { infoTags, switchTags, inputTags };
+  // Start processing from the root
+  processNode(nodes);
+
+  return { inputTags };
 };
 
+// Helper function to process switch children from renderable tree
+function processSwitchChildrenFromRenderable(
+  node: InputComponentNode
+): CaseTagType[] {
+  const result: CaseTagType[] = [];
+
+  function processChild(child: RenderableTreeNode) {
+    if (!child || typeof child !== 'object') return;
+
+    if (
+      '$$mdtype' in child &&
+      child.$$mdtype === 'Component' &&
+      child.name === 'case'
+    ) {
+      const caseNode = child as InputComponentNode;
+      result.push({
+        type: 'case',
+        options: { name: caseNode.props.primary || '' },
+      });
+    }
+
+    if ('children' in child) {
+      const children = child.children;
+      if (Array.isArray(children)) {
+        children.forEach(processChild);
+      } else if (children) {
+        processChild(children);
+      }
+    }
+  }
+
+  if (node.children) {
+    if (Array.isArray(node.children)) {
+      node.children.forEach(processChild);
+    } else {
+      processChild(node.children);
+    }
+  }
+
+  return result;
+}
+
 // function to take markdoc content and return parsed tags
-export default function parseMarkdocToInputs(content: string) {
+export default function parseMarkdocToInputs(content: string): {
+  inputTags: InputTagType[];
+} {
   const ast = Markdoc.parse(content);
-  return parseTagsToInputs({ ast });
+  const nodes = Markdoc.transform(ast, config);
+  return parseTagsToInputs({ nodes });
 }

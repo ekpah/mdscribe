@@ -383,7 +383,7 @@ Datum: {% info "date" /%}
                     parsedInputs.inputTags.length > 0 ? (
                       <div className="space-y-4">
                         <Inputs
-                          inputTags={JSON.stringify(parsedInputs)}
+                          inputTags={parsedInputs.inputTags}
                           onChange={handleValuesChange}
                         />
                       </div>

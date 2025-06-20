@@ -18,7 +18,7 @@ export function parseMarkdoc(markdocString: string): RenderableTreeNode {
 }
 
 /**
- * Renders a Markdoc AST (RenderableTreeNode) into React elements.
+ * Renders a Markdoc transformed content (RenderableTreeNode) into React elements.
  * This step uses the components defined in your Markdoc config.
  * @param content The renderable tree node obtained from parseMarkdoc.
  * @returns A ReactNode representing the Markdoc content.

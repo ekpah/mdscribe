@@ -1,54 +1,7 @@
 'use client';
 
+import Formula from 'fparser';
 import { useVariables } from '../../render/context/VariableContext';
-
-// Safe expression evaluator for formulas
-class FormulaEvaluator {
-  private variables: Record<string, number | string | boolean>;
-
-  constructor(variables: Record<string, number | string | boolean>) {
-    this.variables = variables;
-  }
-
-  // Extract variable names from formula string
-  static extractVariables(formula: string): string[] {
-    // Match variable names (letters, numbers, underscore)
-    const matches = formula.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
-    // Filter out reserved words and operators
-    const reserved = new Set(['true', 'false', 'null', 'undefined']);
-    return [...new Set(matches.filter((match) => !reserved.has(match)))];
-  }
-
-  // Safe evaluation of expressions
-  evaluate(formula: string): number | string {
-    try {
-      // Replace variables with their values
-      let expression = formula;
-
-      // Handle ternary operators and comparisons
-      for (const [key, value] of Object.entries(this.variables)) {
-        const numValue = Number(value) || 0;
-        expression = expression.replace(
-          new RegExp(`\\b${key}\\b`, 'g'),
-          String(numValue)
-        );
-      }
-
-      // Evaluate using Function constructor (safer than eval)
-      // Only allow specific operators
-      const allowedPattern = /^[\d\s+\-*/()>=<?:&|!.]+$/;
-      if (!allowedPattern.test(expression)) {
-        throw new Error('Invalid formula: contains disallowed characters');
-      }
-
-      const result = new Function(`return ${expression}`)();
-      return result;
-    } catch (error) {
-      console.warn('Formula evaluation error:', error);
-      return 'Error';
-    }
-  }
-}
 
 export function Score({
   formula,
@@ -59,13 +12,22 @@ export function Score({
 }) {
   const variables = useVariables();
 
-  const evaluator = new FormulaEvaluator(variables);
-  const result = evaluator.evaluate(formula);
+  try {
+    const f = new Formula(formula);
+    const result = f.evaluate(variables);
 
-  return (
-    <span className="rounded-md bg-solarized-orange/90 px-1 text-white">
-      {result}
-      {unit ? ` ${unit}` : ''}
-    </span>
-  );
+    return (
+      <span className="rounded-md bg-solarized-orange px-1 text-white opacity-90">
+        {result}
+        {unit ? ` ${unit}` : ''}
+      </span>
+    );
+  } catch (error) {
+    console.warn('Formula evaluation error:', error);
+    return (
+      <span className="rounded-md bg-solarized-red px-1 text-white opacity-90">
+        Error
+      </span>
+    );
+  }
 }

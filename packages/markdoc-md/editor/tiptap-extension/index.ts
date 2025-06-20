@@ -3,6 +3,7 @@
 import { Extension } from '@tiptap/core';
 import { CaseTag, type CaseTagOptions } from './editorNodes/caseTag/caseTag';
 import { InfoTag, type InfoTagAttrs } from './editorNodes/infoTag/infoTag';
+import { ScoreTag, type ScoreTagAttrs } from './editorNodes/scoreTag/scoreTag';
 import {
   SwitchTag,
   type SwitchTagAttrs,
@@ -22,6 +23,12 @@ export interface MarkdocExtensionOptions {
   infoTag: Partial<InfoTagAttrs> | false;
 
   /**
+   * If set to false, the scoreTag extension will not be registered
+   * @example scoreTag: false
+   */
+  scoreTag: Partial<ScoreTagAttrs> | false;
+
+  /**
    * If set to false, the switchTag extension will not be registered
    * @example switchTag: false
    */
@@ -34,6 +41,7 @@ export interface MarkdocExtensionOptions {
  * It includes:
  * - CaseTag: Represents a case within a switch statement
  * - InfoTag: Displays informational content
+ * - ScoreTag: Displays calculated scores based on formulas
  * - SwitchTag: Creates conditional switch statements
  */
 export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
@@ -48,6 +56,10 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 
     if (this.options.infoTag !== false) {
       extensions.push(InfoTag.configure(this.options.infoTag));
+    }
+
+    if (this.options.scoreTag !== false) {
+      extensions.push(ScoreTag.configure(this.options.scoreTag));
     }
 
     if (this.options.switchTag !== false) {

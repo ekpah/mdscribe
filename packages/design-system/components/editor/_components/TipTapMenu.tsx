@@ -198,6 +198,28 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
         >
           <span>Switch</span>
         </Button>
+        
+        <Button
+          type="button"
+          onClick={() =>
+            editor
+              .chain()
+              .focus()
+              .insertContent({
+                type: 'scoreTag',
+                attrs: {
+                  formula: '',
+                  unit: '',
+                },
+              })
+              .run()
+          }
+          className="flex cursor-pointer select-none items-center rounded-l-sm bg-solarized-orange px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-solarized-orange/90"
+          variant="ghost"
+          size="sm"
+        >
+          <span>Score</span>
+        </Button>
 
         <TooltipProvider>
           <Tooltip delayDuration={200}>

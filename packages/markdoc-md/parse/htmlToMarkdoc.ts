@@ -32,6 +32,13 @@ function processNodeForMarkdoc(node: Node): string {
         return `{% info "${infoPrimary}" /%}`;
       }
 
+      case 'score': {
+        const formula = element.getAttribute('formula') || '';
+        const unit = element.getAttribute('unit') || '';
+        const unitAttr = unit ? ` unit="${unit}"` : '';
+        return `{% score formula="${formula}"${unitAttr} /%}`;
+      }
+
       case 'switch': {
         // This attribute is rendered as 'data-primary' by Markdoc
         const switchPrimary = element.getAttribute('primary') || '';

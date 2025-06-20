@@ -12,13 +12,14 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '../../../ui/components/toggle-group';
+import type { BaseTagType } from '../Inputs';
 
 export type CaseTagType = {
   type: 'case';
   options: { name: string };
 };
 
-export type SwitchTagType = {
+export type SwitchTagType = BaseTagType & {
   type: 'switch';
   options: { name: string };
   children: CaseTagType[];
