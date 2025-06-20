@@ -379,10 +379,10 @@ Datum: {% info "date" /%}
               <CardContent className="p-4">
                 <ScrollArea className="h-[552px] overflow-y-auto">
                   {middleView === 'inputs' ? (
-                    parsedInputs.inputTags.length > 0 ? (
+                    parsedInputs.length > 0 ? (
                       <div className="space-y-4">
                         <Inputs
-                          inputTags={parsedInputs.inputTags}
+                          inputTags={parsedInputs}
                           onChange={handleValuesChange}
                         />
                       </div>
@@ -406,7 +406,7 @@ Datum: {% info "date" /%}
                     )
                   ) : (
                     <div className="h-full">
-                      {parsedInputs.inputTags.length > 0 ? (
+                      {parsedInputs.length > 0 ? (
                         <ObjectDisplay data={parsedInputs} />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center space-y-4 text-center text-muted-foreground">

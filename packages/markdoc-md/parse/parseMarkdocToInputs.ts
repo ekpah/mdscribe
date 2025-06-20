@@ -1,28 +1,12 @@
 import type { RenderableTreeNode } from '@markdoc/markdoc';
 import Markdoc from '@markdoc/markdoc';
 import config from '../markdoc-config';
-
-type BaseTagType = {
-  type: 'info' | 'switch';
-};
-
-type InfoTagType = BaseTagType & {
-  type: 'info';
-  options: { name: string; type?: 'string' | 'number' | 'boolean' };
-};
-
-type SwitchTagType = BaseTagType & {
-  type: 'switch';
-  options: { name: string };
-  children: CaseTagType[];
-};
+import type { InputTagType } from '../render/inputs/Inputs';
 
 type CaseTagType = {
   type: 'case';
   options: { name: string };
 };
-
-type InputTagType = InfoTagType | SwitchTagType;
 
 type InputComponentProps = {
   primary?: string;
@@ -124,7 +108,7 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
   // Start processing from the root
   processNode(nodes);
 
-  return { inputTags };
+  return inputTags;
 };
 
 // Helper function to process switch children from renderable tree
@@ -170,9 +154,7 @@ function processSwitchChildrenFromRenderable(
 }
 
 // function to take markdoc content and return parsed tags
-export default function parseMarkdocToInputs(content: string): {
-  inputTags: InputTagType[];
-} {
+export default function parseMarkdocToInputs(content: string): InputTagType[] {
   const ast = Markdoc.parse(content);
   const nodes = Markdoc.transform(ast, config);
   return parseTagsToInputs({ nodes });

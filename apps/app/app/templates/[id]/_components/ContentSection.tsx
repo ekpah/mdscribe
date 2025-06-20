@@ -31,7 +31,7 @@ export default function ContentSection({
         className="hidden overflow-y-auto overscroll-none p-4 md:block"
       >
         <Inputs
-          inputTags={JSON.stringify(parseMarkdocToInputs(note))}
+          inputTags={parseMarkdocToInputs(note)}
           onChange={handleFormChange}
         />
       </div>

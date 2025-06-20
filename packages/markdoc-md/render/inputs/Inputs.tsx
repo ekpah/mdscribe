@@ -30,6 +30,10 @@ export default function Inputs({ inputTags, onChange }: InputsProps) {
     }));
   };
 
+  if (inputTags?.length === 0) {
+    return null;
+  }
+
   return (
     <form className="space-y-6">
       {inputTags?.map((input: InputTagType) => {

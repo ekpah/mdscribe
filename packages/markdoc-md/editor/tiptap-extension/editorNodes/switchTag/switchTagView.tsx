@@ -216,7 +216,7 @@ export function SwitchTagView({
           {/* Content Part */}
           <span className="bg-background px-2 text-foreground">
             {node.attrs.primary || (
-              <span className="text-muted-foreground italic">empty</span>
+              <span className="text-muted-foreground italic">leer</span>
             )}
           </span>
         </PopoverTrigger>
@@ -228,7 +228,7 @@ export function SwitchTagView({
             <div className="border-b bg-solarized-green/5 px-3 py-2">
               <h3 className="flex items-center font-medium text-sm text-solarized-green">
                 <Code2 className="mr-1.5 h-3 w-3" />
-                Switch Configuration
+                Switch-Konfiguration
               </h3>
             </div>
 
@@ -236,7 +236,7 @@ export function SwitchTagView({
               {/* Switch Variable Input */}
               <div className="space-y-1.5">
                 <Label htmlFor="primary" className="font-medium text-xs">
-                  Variable Name
+                  Variablenname
                 </Label>
                 <Input
                   id="primary"
@@ -246,7 +246,7 @@ export function SwitchTagView({
                       primary: e.target.value,
                     })
                   }
-                  placeholder="e.g., patient_type, condition"
+                  placeholder="z.B. patiententyp, zustand"
                   className="h-8 text-sm focus:border-solarized-green focus:ring-solarized-green/50"
                   autoFocus
                 />
@@ -258,7 +258,7 @@ export function SwitchTagView({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="font-medium text-xs">
-                    Cases ({cases.length})
+                    Fälle ({cases.length})
                   </Label>
                 </div>
 
@@ -276,7 +276,7 @@ export function SwitchTagView({
                             onChange={(e) =>
                               updateCase(index, 'primary', e.target.value)
                             }
-                            placeholder="Case value"
+                            placeholder="Fall-Wert"
                             className="h-7 text-xs"
                           />
                           <Input
@@ -284,7 +284,7 @@ export function SwitchTagView({
                             onChange={(e) =>
                               updateCase(index, 'text', e.target.value)
                             }
-                            placeholder="Content"
+                            placeholder="Inhalt"
                             className="h-7 text-xs"
                           />
                         </div>
@@ -293,7 +293,7 @@ export function SwitchTagView({
                           size="sm"
                           onClick={() => removeCase(index)}
                           className="h-7 w-7 p-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                          aria-label={`Remove case ${index + 1}`}
+                          aria-label={`Fall ${index + 1} entfernen`}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
