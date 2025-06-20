@@ -1,17 +1,17 @@
 'use client';
 
-import { Button } from '@repo/design-system/components/ui/button';
-import { Input } from '@repo/design-system/components/ui/input';
-import { Label } from '@repo/design-system/components/ui/label';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@repo/design-system/components/ui/popover';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { X } from 'lucide-react';
 import { useCallback } from 'react';
+import { Button } from '../../../../ui/components/button';
+import { Input } from '../../../../ui/components/input';
+import { Label } from '../../../../ui/components/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '../../../../ui/components/popover';
 
 export function InfoTagView({
   node,

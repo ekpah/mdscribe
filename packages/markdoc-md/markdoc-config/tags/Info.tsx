@@ -6,7 +6,7 @@ export function Info({ primary }: { primary: string }) {
   const variables = useVariables();
   // Look up the value from context using the 'primary' prop as the key.
   // Provide an empty string as a fallback if the variable doesn't exist.
-  const value = variables[primary] ?? '';
+  const value = variables[primary] ?? undefined;
 
   // TODO: consider adding more robust error handling or logging
   // if a variable is expected but not found.

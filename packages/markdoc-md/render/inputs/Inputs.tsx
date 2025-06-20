@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { InfoInput, type InfoTagType } from './ui/InfoInput';
-import { InfoNumberInput } from './ui/InfoNumberInput';
 import { SwitchInput, type SwitchTagType } from './ui/SwitchInput';
 
 export type BaseTagType = {
@@ -39,23 +38,21 @@ export default function Inputs({ inputTags, onChange }: InputsProps) {
           console.error('Input is missing a name:', input);
           return null;
         }
-        if (input.type === 'info' && input.options.type === 'number') {
-          return (
-            <InfoNumberInput
-              key={`info-${inputName}`}
-              input={input}
-              value={values[inputName] as string | number}
-              onChange={(e) => handleInputChange(inputName, e.target.value)}
-            />
-          );
-        }
         if (input.type === 'info') {
           return (
             <InfoInput
               key={`info-${inputName}`}
               input={input}
-              value={values[inputName] as string | number}
-              onChange={(e) => handleInputChange(inputName, e.target.value)}
+              value={values[inputName] as string | number | undefined}
+              onChange={(value) =>
+                handleInputChange(
+                  inputName,
+                  input.options.type === 'number' &&
+                    !Number.isNaN(Number(value))
+                    ? Number(value)
+                    : value
+                )
+              }
             />
           );
         }

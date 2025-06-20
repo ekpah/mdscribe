@@ -3,6 +3,10 @@
 import Formula from 'fparser';
 import { useVariables } from '../../render/context/VariableContext';
 
+type ValueObject = {
+  [key: string]: number | string | ValueObject;
+};
+
 export function Score({
   formula,
   unit,
@@ -14,7 +18,8 @@ export function Score({
 
   try {
     const f = new Formula(formula);
-    const result = f.evaluate(variables);
+
+    const result = f.evaluate(variables as ValueObject);
 
     return (
       <span className="rounded-md bg-solarized-orange px-1 text-white opacity-90">

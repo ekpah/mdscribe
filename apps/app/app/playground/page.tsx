@@ -182,23 +182,22 @@ function ObjectNode({
 }
 
 export default function PlaygroundPage() {
-  const [template, setTemplate] = useState(`# Beispiel Arztbericht
+  const [template, setTemplate] = useState(`# Patient Score
 
 Patient: {% info "patient_name" /%}
 Alter: {% info "age" /%}
-Datum: {% info "date" /%}
 
-## Hauptbeschwerde
-{% info "chief_complaint" /%}
+## Score Berechnung
+{% score formula="[age]*2+[gender_score]*3+[diabetes]*2+[hypertension]*2+[heart_failure]*2+[vascular_disease]*2+[stroke]*2+[smoking]*1" unit="Punkte" /%}
 
-## Bewertung
-{% info "assessment" /%}
-
-## Behandlungsplan
-{% info "plan" /%}
-
-## Geschlecht
-# Beispiel Arztbericht
+{% info "age" label="Alter" type="number" /%}
+{% info "gender" label="Geschlecht" type="select" options="male,female" /%}
+{% info "diabetes" label="Diabetes mellitus" type="boolean" /%}
+{% info "hypertension" label="Arterielle Hypertonie" type="boolean" /%}
+{% info "heart_failure" label="Herzinsuffizienz" type="boolean" /%}
+{% info "vascular_disease" label="Gefäßerkrankung" type="boolean" /%}
+{% info "stroke" label="Schlaganfall/TIA" type="boolean" /%}
+{% info "smoking" label="Rauchen" type="boolean" /%}
 
 ## Geschlecht
 {% switch "gender" %}

@@ -15,22 +15,26 @@ export type InfoTagType = BaseTagType & {
 
 export interface InfoInputProps {
   input: InfoTagType;
-  value: string | number;
-  onChange: React.ChangeEventHandler<HTMLInputElement>;
+  value: string | number | undefined;
+  onChange: (value: string) => void;
 }
 
 export function InfoInput({ input, value, onChange }: InfoInputProps) {
+  // Ensure we always have a defined value to prevent controlled/uncontrolled input issues
+  // For number inputs, default to 0; for text inputs, default to empty string
+  const defaultValue = value ?? (input.options.type === 'number' ? 0 : '');
+
   // Use a local state to track input value
-  const [localValue, setLocalValue] = useState(value);
+  const [localValue, setLocalValue] = useState(defaultValue);
 
   // Update local state when prop value changes
   useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
+    setLocalValue(defaultValue);
+  }, [defaultValue]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalValue(e.target.value);
-    onChange(e);
+    onChange(e.target.value);
   };
 
   return (
@@ -43,7 +47,6 @@ export function InfoInput({ input, value, onChange }: InfoInputProps) {
       </Label>
       <Input
         id={input.options.name}
-        type={input.options.type ?? 'text'}
         name={input.options.name}
         value={localValue}
         onChange={handleChange}

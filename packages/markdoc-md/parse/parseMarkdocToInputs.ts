@@ -1,6 +1,5 @@
 import type { RenderableTreeNode } from '@markdoc/markdoc';
 import Markdoc from '@markdoc/markdoc';
-import Formula from 'fparser';
 import config from '../markdoc-config';
 
 type BaseTagType = {
@@ -81,6 +80,7 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
       }
 
       // Process score tags
+      /* Skip this for now - Score tags can only use variables from already defined tags
       if (componentNode.name === 'Score' && componentNode.attributes.formula) {
         if (!uniqueTags.has(tagKey)) {
           uniqueTags.add(tagKey);
@@ -106,7 +106,8 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
             `Failed to parse formula: ${componentNode.attributes.formula} with error: ${error}`
           );
         }
-      }
+        
+      }*/
     }
 
     // Process children recursively
@@ -137,13 +138,13 @@ function processSwitchChildrenFromRenderable(
 
     if (
       '$$mdtype' in child &&
-      child.$$mdtype === 'Component' &&
-      child.name === 'case'
+      child.$$mdtype === 'Tag' &&
+      child.name === 'Case'
     ) {
       const caseNode = child as InputComponentNode;
       result.push({
         type: 'case',
-        options: { name: caseNode.props.primary || '' },
+        options: { name: caseNode.attributes.primary || '' },
       });
     }
 
