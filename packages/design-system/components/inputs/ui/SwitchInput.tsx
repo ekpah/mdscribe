@@ -85,7 +85,7 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
             <ToggleGroupItem
               key={caseTag.options.name}
               value={caseTag.options.name}
-              className="h-9 flex-1 rounded-none bg-secondary text-foreground transition-colors hover:bg-solarized-blue/10 data-state-on:p-12 data-state-on:text-secondary"
+              className="h-9 flex-1 rounded-none bg-transparent text-foreground transition-colors hover:bg-muted hover:text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
             >
               {caseTag.options.name}
             </ToggleGroupItem>
