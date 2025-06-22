@@ -1,7 +1,7 @@
 import type { RenderableTreeNode } from '@markdoc/markdoc';
 import Markdoc from '@markdoc/markdoc';
+import type { InputTagType } from '../../design-system/components/inputs/Inputs';
 import config from '../markdoc-config';
-import type { InputTagType } from '../render/inputs/Inputs';
 
 type CaseTagType = {
   type: 'case';

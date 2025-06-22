@@ -1,99 +1,45 @@
 'use client';
 
-import { useCompletion } from '@ai-sdk/react';
-import { useAtom } from 'jotai';
-import { useCallback, useState } from 'react';
-import type { FieldValues } from 'react-hook-form';
-import { formAtom } from '../../templates/[id]/_components/ContentSection';
-import { InputTab } from './_components/InputTab';
-import { OutputTab } from './_components/OutputTab';
+import { ClipboardCheck } from 'lucide-react';
+import {
+  AiscribeTemplate,
+  type AiscribeTemplateConfig,
+} from '../_components/AiscribeTemplate';
 
-interface FormData {
-  procedureNotes: string;
-}
-type TabState = 'input' | 'output';
+const PROCEDURES_CONFIG: AiscribeTemplateConfig = {
+  // Page identity
+  title: 'Eingriffsdokumentation',
+  description:
+    'Erstellen Sie professionelle Dokumentationen für medizinische Eingriffe und Prozeduren',
+  icon: ClipboardCheck,
+
+  // API configuration
+  apiEndpoint: '/api/scribe/procedures/stream',
+
+  // Tab configuration
+  inputTabTitle: 'Eingriffsnotizen',
+  outputTabTitle: 'Eingriffsdokumentation',
+
+  // Form configuration
+  inputFieldName: 'procedureNotes',
+  inputPlaceholder: 'Geben Sie hier Ihre Notizen zum Eingriff ein...',
+  inputDescription:
+    'Dokumentieren Sie den Ablauf, die verwendeten Materialien und Ergebnisse des Eingriffs',
+
+  // Button text
+  generateButtonText: 'Dokumentation generieren',
+  regenerateButtonText: 'Neu generieren',
+
+  // Empty state messages
+  emptyStateTitle: 'Noch keine Eingriffsdokumentation vorhanden',
+  emptyStateDescription:
+    'Bitte geben Sie zuerst Eingriffsnotizen ein und generieren Sie eine Dokumentation.',
+
+  // Colors
+  primaryColor: 'solarized-cyan',
+  secondaryColor: 'solarized-blue',
+};
 
 export default function ProceduresAIGenerator() {
-  const [formData, setFormData] = useState<FormData>({
-    procedureNotes: '',
-  });
-  const completedProcedure = useCompletion({
-    api: '/api/scribe/procedures/stream',
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  const [activeTab, setActiveTab] = useState<TabState>('input');
-  const [isInputExpanded, setIsInputExpanded] = useState<boolean>(true);
-  const [isOutputExpanded, setIsOutputExpanded] = useState<boolean>(false);
-
-  const toggleInputTab = useCallback(() => {
-    setActiveTab('input');
-    setIsInputExpanded(true);
-    setIsOutputExpanded(false);
-  }, []);
-
-  const toggleOutputTab = useCallback(() => {
-    setActiveTab('output');
-    setIsInputExpanded(false);
-    setIsOutputExpanded(true);
-  }, []);
-
-  const [inputsData, setInputsData] = useAtom(formAtom);
-
-  const handleFormChange = (data: FieldValues) => {
-    setInputsData(data);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmitInput = useCallback(
-    (e?: React.FormEvent) => {
-      e?.preventDefault();
-      if (isLoading) return;
-      setIsLoading(true);
-      toggleOutputTab();
-      const prompt = JSON.stringify({
-        procedureNotes: formData.procedureNotes || '',
-      });
-      completedProcedure.complete(prompt);
-      setIsLoading(false);
-    },
-    [
-      formData.procedureNotes,
-      isLoading,
-      toggleOutputTab,
-      completedProcedure.complete,
-    ]
-  );
-
-  return (
-    <div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
-      <div className="flex flex-col gap-4">
-        <InputTab
-          isExpanded={isInputExpanded}
-          isActive={activeTab === 'input'}
-          isLoading={isLoading}
-          formData={formData}
-          onToggle={toggleInputTab}
-          onSubmit={handleSubmitInput}
-          onInputChange={handleInputChange}
-        />
-
-        <OutputTab
-          isExpanded={isOutputExpanded}
-          isActive={activeTab === 'output'}
-          isLoading={isLoading}
-          procedureDocumentation={completedProcedure.completion}
-          onToggle={toggleOutputTab}
-          onFormChange={handleFormChange}
-          hasProcedureDocumentation={!!completedProcedure.completion}
-        />
-      </div>
-    </div>
-  );
+  return <AiscribeTemplate config={PROCEDURES_CONFIG} />;
 }

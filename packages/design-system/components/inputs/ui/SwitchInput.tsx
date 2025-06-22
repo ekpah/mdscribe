@@ -1,17 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Label } from '../../../ui/components/label';
+import { Label } from '../../ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../../ui/components/select';
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from '../../../ui/components/toggle-group';
+} from '../../ui/select';
+import { ToggleGroup, ToggleGroupItem } from '../../ui/toggle-group';
 import type { BaseTagType } from '../Inputs';
 
 export type CaseTagType = {
@@ -88,7 +85,7 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
             <ToggleGroupItem
               key={caseTag.options.name}
               value={caseTag.options.name}
-              className="h-9 flex-1 rounded-none bg-secondary text-foreground transition-colors hover:bg-solarized-blue/10 data-[state=on]:bg-secondary-foreground data-[state=on]:text-secondary"
+              className="h-9 flex-1 rounded-none bg-secondary text-foreground transition-colors hover:bg-solarized-blue/10 data-state-on:p-12 data-state-on:text-secondary"
             >
               {caseTag.options.name}
             </ToggleGroupItem>

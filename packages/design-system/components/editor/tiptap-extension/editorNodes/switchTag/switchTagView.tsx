@@ -5,15 +5,15 @@ import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { Code2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Button } from '../../../../ui/components/button';
-import { Input } from '../../../../ui/components/input';
-import { Label } from '../../../../ui/components/label';
+import { Button } from '../../../../ui/button';
+import { Input } from '../../../../ui/input';
+import { Label } from '../../../../ui/label';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '../../../../ui/components/popover';
-import { Separator } from '../../../../ui/components/separator';
+} from '../../../../ui/popover';
+import { Separator } from '../../../../ui/separator';
 
 interface CaseItem {
   primary: string;

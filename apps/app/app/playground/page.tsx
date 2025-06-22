@@ -2,6 +2,7 @@
 
 import Markdoc from '@markdoc/markdoc';
 import TipTap from '@repo/design-system/components/editor/TipTap';
+import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,
@@ -13,7 +14,6 @@ import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import { Switch } from '@repo/design-system/components/ui/switch';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
 import {
   ChevronDown,
   ChevronRight,

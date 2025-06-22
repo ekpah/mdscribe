@@ -4,16 +4,16 @@ import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { X } from 'lucide-react';
 import { useCallback } from 'react';
-import { Button } from '../../../../ui/components/button';
-import { Input } from '../../../../ui/components/input';
-import { Label } from '../../../../ui/components/label';
+import { Button } from '../../../../ui/button';
+import { Input } from '../../../../ui/input';
+import { Label } from '../../../../ui/label';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '../../../../ui/components/popover';
+} from '../../../../ui/popover';
 
-export function InfoTagView({
+export function ScoreTagView({
   node,
   selected,
   editor,
@@ -21,7 +21,7 @@ export function InfoTagView({
   deleteNode,
   getPos,
 }: NodeViewProps) {
-  const handleRemoveInfo = useCallback(() => {
+  const handleRemoveScore = useCallback(() => {
     deleteNode();
   }, [deleteNode]);
 
@@ -54,59 +54,74 @@ export function InfoTagView({
   );
 
   return (
-    // Use span for inline behavior, NodeViewWrapper handles selection styling
-    // Changed align-middle to align-baseline for better text alignment
     <NodeViewWrapper as="span" className="inline-block align-baseline">
       <div
         className={`inline-flex cursor-pointer items-stretch overflow-hidden rounded-md border text-xs transition-all ${
           selected
-            ? 'border-solarized-blue ring-2 ring-solarized-blue/50'
-            : 'border-solarized-blue'
+            ? 'border-solarized-orange ring-2 ring-solarized-orange/50'
+            : 'border-solarized-orange'
         }`}
       >
-        {/* Info Label - Click to select node */}
         <button
-          data-drag-handle // Make only the label draggable
-          className="cursor-pointer border-solarized-blue border-r bg-solarized-blue px-2 font-bold text-white"
+          data-drag-handle
+          className="cursor-pointer border-solarized-orange border-r bg-solarized-orange px-2 font-bold text-white"
           onClick={handleSelectNode}
           onKeyDown={handleKeyDown}
           type="button"
           contentEditable={false}
         >
-          Info
+          Score
         </button>
 
-        {/* Content Part - Click to open popover */}
         <Popover>
           <PopoverTrigger
             className="cursor-pointer bg-background px-2 text-foreground"
-            data-type="markdoc-info"
-            data-primary={node.attrs.primary}
+            data-type="markdoc-score"
+            data-formula={node.attrs.formula}
+            data-unit={node.attrs.unit}
           >
-            {node.attrs.primary || (
-              <span className="text-muted-foreground italic">empty</span>
-            )}
+            <span className="font-mono">
+              {node.attrs.formula || (
+                <span className="text-muted-foreground italic">formula</span>
+              )}
+              {node.attrs.unit && ` ${node.attrs.unit}`}
+            </span>
           </PopoverTrigger>
           <PopoverContent>
             <div className="grid gap-4 py-2">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="primary" className="text-right">
-                  Name
+                <Label htmlFor="formula" className="text-right">
+                  Formula
                 </Label>
                 <Input
-                  id="primary"
-                  value={node.attrs.primary}
+                  id="formula"
+                  value={node.attrs.formula || ''}
                   onChange={(e) =>
                     updateAttributes({
-                      primary: e.target.value,
+                      formula: e.target.value,
                     })
                   }
-                  className="col-span-3"
-                  placeholder="Enter info value"
+                  className="col-span-3 font-mono"
+                  placeholder="e.g., x + y * 2"
                   autoFocus
                 />
               </div>
-              {/* TODO: Add input for 'variable' attribute if needed */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="unit" className="text-right">
+                  Unit
+                </Label>
+                <Input
+                  id="unit"
+                  value={node.attrs.unit || ''}
+                  onChange={(e) =>
+                    updateAttributes({
+                      unit: e.target.value,
+                    })
+                  }
+                  className="col-span-3"
+                  placeholder="e.g., kg, mm, °C"
+                />
+              </div>
             </div>
           </PopoverContent>
         </Popover>
@@ -114,10 +129,10 @@ export function InfoTagView({
         <Button
           variant="ghost"
           size="icon"
-          onClick={handleRemoveInfo}
-          className="h-auto self-stretch rounded-none rounded-r-md px-1 text-solarized-blue/70 hover:bg-solarized-blue/10 hover:text-solarized-blue"
+          onClick={handleRemoveScore}
+          className="h-auto self-stretch rounded-none rounded-r-md px-1 text-solarized-orange/70 hover:bg-solarized-orange/10 hover:text-solarized-orange"
           contentEditable={false}
-          aria-label="Remove info tag"
+          aria-label="Remove score tag"
         >
           <X className="h-3 w-3" />
         </Button>
@@ -126,4 +141,4 @@ export function InfoTagView({
   );
 }
 
-export default InfoTagView;
+export default ScoreTagView;

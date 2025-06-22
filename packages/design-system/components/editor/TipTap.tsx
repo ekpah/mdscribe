@@ -7,8 +7,8 @@ import {
   createSuggestionsItems,
   enableKeyboardNavigation,
 } from '@harshtalks/slash-tiptap';
+import { MarkdocMD } from '@repo/design-system/components/editor/tiptap-extension';
 import { cn } from '@repo/design-system/lib/utils';
-import { MarkdocMD } from '@repo/markdoc-md/editor/tiptap-extension';
 import { htmlToMarkdoc } from '@repo/markdoc-md/parse/htmlToMarkdoc';
 import { renderTipTapHTML } from '@repo/markdoc-md/render/renderNote';
 import { EditorContent, useEditor } from '@tiptap/react';

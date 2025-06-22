@@ -16,7 +16,7 @@ export interface InputsProps {
   onChange: (data: Record<string, unknown>) => void;
 }
 
-export default function Inputs({ inputTags, onChange }: InputsProps) {
+export default function Inputs({ inputTags = [], onChange }: InputsProps) {
   const [values, setValues] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
@@ -30,13 +30,13 @@ export default function Inputs({ inputTags, onChange }: InputsProps) {
     }));
   };
 
-  if (inputTags?.length === 0) {
+  if (inputTags.length === 0 || !inputTags) {
     return null;
   }
 
   return (
     <form className="space-y-6">
-      {inputTags?.map((input: InputTagType) => {
+      {inputTags.map((input: InputTagType) => {
         const inputName = input.options.name;
         if (!inputName) {
           console.error('Input is missing a name:', input);
