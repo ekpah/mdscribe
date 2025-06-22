@@ -6,7 +6,7 @@ import { memo, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 
 interface MemoizedCopySectionProps {
-  title: string;
+  title?: string;
   content: string;
   values?: Record<string, unknown>;
 }
@@ -66,7 +66,7 @@ export const MemoizedCopySection = memo(
 
     return (
       <div className="space-y-2">
-        <h3 className="font-medium text-lg capitalize">{title}</h3>
+        {title && <h3 className="font-medium text-lg capitalize">{title}</h3>}
         <button
           type="button"
           tabIndex={0}

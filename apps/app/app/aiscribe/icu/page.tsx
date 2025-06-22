@@ -312,9 +312,8 @@ export default function ICUPage() {
                                 <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
                                 ICU Verlegungsbrief
                               </h4>
-                              <ScrollArea className="max-h-[calc(100vh-300px)] min-h-[400px] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
+                              <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
                                 <MemoizedCopySection
-                                  title="ICU Verlegungsbrief"
                                   values={values}
                                   content={
                                     completedTransfer.completion ||
