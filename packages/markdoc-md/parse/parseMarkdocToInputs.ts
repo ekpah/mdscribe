@@ -11,7 +11,8 @@ type CaseTagType = {
 type InputComponentProps = {
   primary?: string;
   formula?: string;
-  type?: 'string' | 'number' | 'boolean';
+  type?: 'string' | 'number';
+  unit?: string;
 };
 
 type InputComponentNode = {
@@ -44,6 +45,7 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
           options: {
             name: componentNode.attributes.primary || '',
             type: componentNode.attributes.type,
+            unit: componentNode.attributes.unit,
           },
         });
         uniqueTags.add(tagKey);

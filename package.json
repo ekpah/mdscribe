@@ -14,11 +14,11 @@
     "migrate": "cd packages/database && npx prisma format && npx prisma generate && npx prisma db push"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
+    "@biomejs/biome": "2.0.5",
     "@repo/typescript-config": "workspace:*",
-    "turbo": "^2.5.2",
+    "turbo": "^2.5.4",
     "typescript": "^5.8.3",
-    "ultracite": "^4.2.4"
+    "ultracite": "^5.0.11"
   },
   "engines": {
     "node": ">=18"

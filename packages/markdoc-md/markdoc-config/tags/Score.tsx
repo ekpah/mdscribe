@@ -30,7 +30,7 @@ export function Score({
   } catch (error) {
     console.warn('Formula evaluation error:', error);
     return (
-      <span className="rounded-md bg-solarized-red px-1 text-white opacity-90">
+      <span className="rounded-md bg-solarized-orange px-1 text-white opacity-90">
         Error
       </span>
     );

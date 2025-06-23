@@ -17,6 +17,10 @@ export default {
         required: true,
         matches: ['string', 'number', 'boolean'],
       },
+      unit: {
+        type: String,
+        required: false,
+      },
     },
     selfClosing: true,
   },

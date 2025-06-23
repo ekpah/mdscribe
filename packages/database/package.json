@@ -11,23 +11,23 @@
     "schema": "prisma/schema.prisma"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.0",
-    "@prisma/adapter-neon": "^6.6.0",
-    "@prisma/client": "6.6.0",
+    "@neondatabase/serverless": "^1.0.1",
+    "@prisma/adapter-neon": "^6.10.1",
+    "@prisma/client": "6.10.1",
     "@repo/env": "workspace:*",
     "pgvector": "^0.2.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "server-only": "^0.0.1",
-    "undici": "^7.8.0",
-    "ws": "^8.18.1"
+    "undici": "^7.10.0",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "22.15.3",
+    "@types/node": "24.0.3",
     "@types/ws": "^8.18.1",
     "bufferutil": "^4.0.9",
-    "prisma": "6.6.0",
+    "prisma": "6.10.1",
     "typescript": "^5.8.3"
   }
 }
