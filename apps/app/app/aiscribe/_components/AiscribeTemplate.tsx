@@ -19,11 +19,11 @@ import {
   TabsTrigger,
 } from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
+import { DynamicMarkdocRenderer } from '@repo/markdoc-md';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { Check, Copy, FileText, Loader2, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { MemoizedCopySection } from './MemoizedCopySection';
 
 export interface AiscribeTemplateConfig {
   // Page identity
@@ -128,20 +128,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     config.customPromptProcessor,
     config.inputFieldName,
   ]);
-
-  const handleCopy = async () => {
-    if (!completion.completion) return;
-
-    try {
-      await navigator.clipboard.writeText(completion.completion);
-      setCopied(true);
-      toast.success('Inhalt kopiert');
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      toast.error('Fehler beim Kopieren');
-      console.error('Copy error:', error);
-    }
-  };
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -353,9 +339,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                                 {config.outputTabTitle}
                               </h4>
                               <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
-                                <MemoizedCopySection
-                                  values={values}
-                                  content={
+                                <DynamicMarkdocRenderer
+                                  variables={values}
+                                  markdocContent={
                                     completion.completion ||
                                     'Keine Inhalte verfügbar'
                                   }
@@ -397,7 +383,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                       );
                     })()}
                   </CardContent>
-                  <CardFooter className="flex items-center justify-between bg-muted/20">
+                  {/* <CardFooter className="flex items-center justify-between bg-muted/20">
                     <Button
                       variant="outline"
                       disabled={!completion.completion}
@@ -434,7 +420,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                         {config.regenerateButtonText}
                       </Button>
                     </div>
-                  </CardFooter>
+                  </CardFooter> */}
                 </TabsContent>
               </Tabs>
             </Card>
