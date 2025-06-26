@@ -35,9 +35,6 @@ const ER_CONFIG: AiscribeTemplateConfig = {
   emptyStateDescription:
     'Bitte geben Sie zuerst die Anamnese ein und generieren Sie eine Analyse.',
 
-  // Colors
-  primaryColor: 'solarized-red',
-  secondaryColor: 'solarized-orange',
 
   // Custom API call for diagnosis
   customApiCall: async (inputData: string) => {

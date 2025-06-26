@@ -6,7 +6,7 @@ import config from '../markdoc-config';
  * Union type representing all possible input tag types in the Markdoc template.
  * Extends RenderableTreeNode to include Markdoc's base node properties.
  */
-type InputTagType = RenderableTreeNode & (
+export type InputTagType = RenderableTreeNode & (
   | InfoInputTagType 
   | SwitchInputTagType
   | CaseInputTagType
@@ -21,7 +21,7 @@ type InputTagType = RenderableTreeNode & (
  * @property {('string'|'number')} [attributes.type] - The data type of the value
  * @property {string} [attributes.unit] - Optional unit for numeric values
  */
-type InfoInputTagType = RenderableTreeNode & {
+export type InfoInputTagType = RenderableTreeNode & {
   name: 'Info';
   attributes: {
     primary: string;
@@ -39,7 +39,7 @@ type InfoInputTagType = RenderableTreeNode & {
  *   {% case "male" %}Male{% /case %}
  * {% /switch %}
  */
-type SwitchInputTagType = RenderableTreeNode & {
+export type SwitchInputTagType = RenderableTreeNode & {
   name: 'Switch';
   attributes: {
     primary: string;
@@ -53,7 +53,7 @@ type SwitchInputTagType = RenderableTreeNode & {
  * @example
  * {% case "male" %}Male{% /case %}
  */
-type CaseInputTagType = RenderableTreeNode & {
+export type CaseInputTagType = RenderableTreeNode & {
   name: 'Case';
   attributes: {
     primary: string;
@@ -66,7 +66,7 @@ type CaseInputTagType = RenderableTreeNode & {
  * @example
  * {% score formula="[age]*2+[gender_score]*3" unit="points" /%}
  */
-type ScoreInputTagType = RenderableTreeNode & {
+export type ScoreInputTagType = RenderableTreeNode & {
   name: 'Score';
   attributes: {
     primary: string;

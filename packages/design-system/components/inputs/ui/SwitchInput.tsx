@@ -1,4 +1,5 @@
 'use client';
+import type { CaseInputTagType, SwitchInputTagType } from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { useEffect, useState } from 'react';
 import { Label } from '../../ui/label';
 import {
@@ -9,27 +10,19 @@ import {
   SelectValue,
 } from '../../ui/select';
 import { ToggleGroup, ToggleGroupItem } from '../../ui/toggle-group';
-import type { BaseTagType } from '../Inputs';
 
-export type CaseTagType = {
-  type: 'case';
-  options: { name: string };
-};
 
-export type SwitchTagType = BaseTagType & {
-  type: 'switch';
-  options: { name: string };
-  children: CaseTagType[];
-};
+
+
 
 export interface SwitchInputProps {
-  input: SwitchTagType;
+  input: SwitchInputTagType;
   value: string | undefined;
   onValueChange: (value: string) => void;
 }
 
 export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
-  const options = input.children?.filter((caseTag) => caseTag.options.name);
+  const options = input.children?.filter((caseTag) => caseTag.name === 'Case');
   const useSelect = options && options.length > 3;
 
   // Use a local state to track input value
@@ -46,30 +39,30 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
   };
 
   return (
-    <div key={`switch-${input.options.name}`} className="space-y-2">
+    <div key={`switch-${input.attributes.primary}`} className="space-y-2">
       <Label
-        htmlFor={input.options.name}
+        htmlFor={input.attributes.primary}
         className="font-medium text-foreground"
       >
-        {input.options.name}
+        {input.attributes.primary}
       </Label>
       {useSelect ? (
         <Select
-          name={input.options.name}
+          name={input.attributes.primary}
           value={localValue}
           onValueChange={handleChange}
         >
           <SelectTrigger className="h-9 border-input bg-background text-foreground transition-all focus:border-solarized-blue focus:ring-solarized-blue/20">
-            <SelectValue placeholder={`Select ${input.options.name}`} />
+            <SelectValue placeholder={`Select ${input.attributes.primary}`} />
           </SelectTrigger>
           <SelectContent className="border-input bg-background">
             {options?.map((caseTag) => (
               <SelectItem
-                key={caseTag.options.name}
-                value={caseTag.options.name}
+                key={caseTag.attributes.primary}
+                value={caseTag.attributes.primary}
                 className="text-foreground hover:bg-solarized-blue/10 focus:bg-solarized-blue/10"
               >
-                {caseTag.options.name}
+                {caseTag.attributes.primary}
               </SelectItem>
             ))}
           </SelectContent>
@@ -83,11 +76,11 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
         >
           {options?.map((caseTag) => (
             <ToggleGroupItem
-              key={caseTag.options.name}
-              value={caseTag.options.name}
+              key={caseTag.attributes.primary}
+              value={caseTag.attributes.primary}
               className="h-9 flex-1 rounded-none bg-transparent text-foreground transition-colors hover:bg-muted hover:text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
             >
-              {caseTag.options.name}
+              {caseTag.attributes.primary}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>

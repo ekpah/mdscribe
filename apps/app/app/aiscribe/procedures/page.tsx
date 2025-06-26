@@ -35,9 +35,6 @@ const PROCEDURES_CONFIG: AiscribeTemplateConfig = {
   emptyStateDescription:
     'Bitte geben Sie zuerst Eingriffsnotizen ein und generieren Sie eine Dokumentation.',
 
-  // Colors
-  primaryColor: 'solarized-cyan',
-  secondaryColor: 'solarized-blue',
 };
 
 export default function ProceduresAIGenerator() {

@@ -1,15 +1,14 @@
 'use client';
 
+import type { InputTagType } from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { useEffect, useState } from 'react';
-import { InfoInput, type InfoTagType } from './ui/InfoInput';
-import { SwitchInput, type SwitchTagType } from './ui/SwitchInput';
+import { InfoInput } from './ui/InfoInput';
+import { SwitchInput } from './ui/SwitchInput';
 
 export type BaseTagType = {
   type: string;
   options: { primary: string };
 };
-
-export type InputTagType = InfoTagType | SwitchTagType;
 
 export interface InputsProps {
   inputTags: InputTagType[];
@@ -37,12 +36,12 @@ export default function Inputs({ inputTags = [], onChange }: InputsProps) {
   return (
     <form className="space-y-6">
       {inputTags.map((input: InputTagType) => {
-        const inputName = input.options.primary;
+        const inputName = input.attributes.primary;
         if (!inputName) {
           console.error('Input is missing a name:', input);
           return null;
         }
-        if (input.type === 'info') {
+        if (input.name === 'Info') {
           return (
             <InfoInput
               key={`info-${inputName}`}
@@ -51,7 +50,7 @@ export default function Inputs({ inputTags = [], onChange }: InputsProps) {
               onChange={(value) =>
                 handleInputChange(
                   inputName,
-                  input.options.type === 'number' &&
+                  input.attributes.type === 'number' &&
                     !Number.isNaN(Number(value))
                     ? Number(value)
                     : value
@@ -61,7 +60,7 @@ export default function Inputs({ inputTags = [], onChange }: InputsProps) {
           );
         }
 
-        if (input.type === 'switch') {
+        if (input.name === 'Switch') {
           return (
             <SwitchInput
               key={`switch-${inputName}`}

@@ -35,9 +35,6 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
   emptyStateDescription:
     'Bitte geben Sie zuerst Entlassungsnotizen ein und generieren Sie einen Entlassungsbrief.',
 
-  // Colors
-  primaryColor: 'solarized-green',
-  secondaryColor: 'solarized-cyan',
 };
 
 export default function DischargeAIGenerator() {
