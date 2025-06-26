@@ -1,11 +1,7 @@
-import markdocConfig from '@/markdoc/config';
-import Markdoc from '@markdoc/markdoc';
-
 import { database } from '@repo/database';
 
 import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
-import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,6 +10,7 @@ import {
   BreadcrumbSeparator,
 } from '@repo/design-system/components/ui/breadcrumb';
 import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
+import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { unstable_cache } from 'next/cache';
 import { headers } from 'next/headers';
 import Link from 'next/link';
@@ -44,14 +41,13 @@ export default async function NotePage(props: PageProps) {
   const params = await props.params;
   const { id } = params;
   const doc = await fetchMarkdoc({ id: id });
-  const ast = Markdoc.parse(doc.content);
+
   const inputTags = parseMarkdocToInputs(doc.content);
   const author = doc.author || { email: 'Anonym' };
   const isFavourite = doc?.favouriteOf.some(
     (user: { id: string | undefined }) => user.id === session?.user?.id
   );
-  // const frontmatter = parseFrontmatter({ ast });
-  const note = Markdoc.transform(ast, markdocConfig);
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex h-10 items-center justify-between gap-2">

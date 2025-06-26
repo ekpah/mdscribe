@@ -1,6 +1,7 @@
-import { Tag } from '@markdoc/markdoc';
+import { type Config, type Node, Tag } from '@markdoc/markdoc';
 import { Case } from './Case';
 import { Info } from './Info';
+import { Score } from './Score';
 import { Switch } from './Switch';
 
 export default {
@@ -10,30 +11,55 @@ export default {
       primary: {
         type: String,
       },
+      type: {
+        type: String,
+        default: 'string',
+        required: true,
+        matches: ['string', 'number', 'boolean'],
+      },
+      unit: {
+        type: String,
+        required: false,
+      },
     },
     selfClosing: true,
   },
+  score: {
+    render: 'Score',
+    attributes: {
+      formula: { type: String, required: true },
+      unit: { type: String },
+    },
+  },
   switch: {
     render: 'Switch',
-    children: ['tag', 'softbreak'],
+    children: ['tag', 'text', 'softbreak', 'hardbreak', 'paragraph'],
     attributes: { primary: { type: String } },
-    transform(node: any, config: any) {
-      const cases = node
-        .transformChildren(config)
-        .filter((child: any) => child.type === 'tag' && child.tag === 'case')
-        .map((tab: any) =>
-          typeof tab === 'object' ? tab.attributes.primary : null
-        );
-      const primary = node.attributes.primary;
-      return new Tag(
-        this.render,
-        { primary, cases },
-        node.transformChildren(config)
-      );
+    selfClosing: false,
+    // this transform is necessary to only allow case tags inside switch tags to render
+    // this prevents other stuff e.g. line breaks from being rendered
+    transform(node: Node, config: Config) {
+      const getAllCaseTags = (nodes: Node[]): Node[] => {
+        return nodes.reduce((acc: Node[], node) => {
+          if (node.type === 'tag' && node.tag === 'case') {
+            acc.push(node);
+          }
+          if (node.children) {
+            acc.push(...getAllCaseTags(node.children));
+          }
+          return acc;
+        }, []);
+      };
+      node.children = getAllCaseTags(node.children);
+      const attributes = node.transformAttributes(config);
+      const children = node.transformChildren(config);
+
+      return new Tag('Switch', attributes, children);
     },
   },
   case: {
     render: 'Case',
+    children: ['text', 'strong', 'em', 'code', 'link'],
     attributes: { primary: { render: true, type: String } },
   },
 };
@@ -42,4 +68,5 @@ export const components: Record<string, React.ComponentType<any>> = {
   Case: Case,
   Info: Info,
   Switch: Switch,
+  Score: Score,
 };

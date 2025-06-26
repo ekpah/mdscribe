@@ -1,109 +1,53 @@
 'use client';
 
-import { useCompletion } from '@ai-sdk/react';
-import { useAtom } from 'jotai';
-import { useCallback, useState } from 'react';
-import type { FieldValues } from 'react-hook-form';
-import { formAtom } from '../../templates/[id]/_components/ContentSection';
-import { InputTab } from './_components/InputTab';
-import { OutputTab } from './_components/OutputTab';
-const XML_TAGS = ['analyse', 'zusammenfassung'] as const;
+import { Heart } from 'lucide-react';
+import {
+  AiscribeTemplate,
+  type AiscribeTemplateConfig,
+} from '../_components/AiscribeTemplate';
 
-interface FormData {
-  anamnese: string;
-}
-type TabState = 'input' | 'output';
+const ER_CONFIG: AiscribeTemplateConfig = {
+  // Page identity
+  title: 'Notfall Anamnese',
+  description:
+    'Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten',
+  icon: Heart,
 
-export default function ICUAIGenerator() {
-  const [formData, setFormData] = useState<FormData>({
-    anamnese: '',
-  });
-  const [differentialDiagnosis, setDifferentialDiagnosis] =
-    useState<string>('');
-  const completedAnamnese = useCompletion({
-    api: '/api/scribe/anamnese/stream',
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // API configuration
+  apiEndpoint: '/api/scribe/anamnese/stream',
 
-  const [activeTab, setActiveTab] = useState<TabState>('input');
-  const [isInputExpanded, setIsInputExpanded] = useState<boolean>(true);
-  const [isOutputExpanded, setIsOutputExpanded] = useState<boolean>(false);
+  // Tab configuration
+  inputTabTitle: 'Anamnese',
+  outputTabTitle: 'Analyse',
 
-  const toggleInputTab = () => {
-    setActiveTab('input');
-    setIsInputExpanded(true);
-    setIsOutputExpanded(false);
-  };
+  // Form configuration
+  inputFieldName: 'anamnese',
+  inputPlaceholder: 'Geben Sie hier die Anamnese des Patienten ein...',
+  inputDescription:
+    'Dokumentieren Sie die Symptome, Beschwerden und relevante Vorgeschichte des Patienten',
 
-  const toggleOutputTab = () => {
-    setActiveTab('output');
-    setIsInputExpanded(false);
-    setIsOutputExpanded(true);
-  };
+  // Button text
+  generateButtonText: 'Analyse generieren',
+  regenerateButtonText: 'Neu analysieren',
 
-  const [inputsData, setInputsData] = useAtom(formAtom);
+  // Empty state messages
+  emptyStateTitle: 'Noch keine Analyse vorhanden',
+  emptyStateDescription:
+    'Bitte geben Sie zuerst die Anamnese ein und generieren Sie eine Analyse.',
 
-  const handleFormChange = (data: FieldValues) => {
-    setInputsData(data);
-  };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+  // Custom API call for diagnosis
+  customApiCall: async (inputData: string) => {
+    const prompt = JSON.stringify({ anamnese: inputData });
+    const response = await fetch('/api/scribe/diagnosis', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
     });
-  };
+    const data = await response.json();
+    return data.text;
+  },
+};
 
-  const handleSubmitInput = useCallback(
-    async (e?: React.FormEvent) => {
-      e?.preventDefault();
-      if (isLoading) return;
-      setIsLoading(true);
-      toggleOutputTab();
-      setDifferentialDiagnosis('');
-      const prompt = JSON.stringify({
-        anamnese: formData.anamnese || '',
-      });
-      await fetch('/api/scribe/diagnosis', {
-        method: 'POST',
-        body: JSON.stringify({
-          prompt: prompt,
-        }),
-      }).then((response) => {
-        response.json().then((json) => {
-          setDifferentialDiagnosis(json.text);
-        });
-      });
-      completedAnamnese.complete(prompt);
-      setIsLoading(false);
-    },
-    [formData, toggleOutputTab, setDifferentialDiagnosis]
-  );
-
-  return (
-    <div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
-      <div className="flex flex-col gap-4">
-        <InputTab
-          isExpanded={isInputExpanded}
-          isActive={activeTab === 'input'}
-          isLoading={isLoading}
-          formData={formData}
-          onToggle={toggleInputTab}
-          onSubmit={handleSubmitInput}
-          onInputChange={handleInputChange}
-        />
-
-        <OutputTab
-          isExpanded={isOutputExpanded}
-          isActive={activeTab === 'output'}
-          isLoading={isLoading}
-          anamnese={completedAnamnese.completion}
-          diagnosis={differentialDiagnosis}
-          onToggle={toggleOutputTab}
-          onFormChange={handleFormChange}
-          hasAnamnese={!!completedAnamnese.completion}
-        />
-      </div>
-    </div>
-  );
+export default function ERAIGenerator() {
+  return <AiscribeTemplate config={ER_CONFIG} />;
 }

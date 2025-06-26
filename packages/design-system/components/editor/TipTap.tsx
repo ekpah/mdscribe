@@ -7,18 +7,14 @@ import {
   createSuggestionsItems,
   enableKeyboardNavigation,
 } from '@harshtalks/slash-tiptap';
+import { MarkdocMD } from '@repo/design-system/components/editor/tiptap-extension';
 import { cn } from '@repo/design-system/lib/utils';
+import { htmlToMarkdoc } from '@repo/markdoc-md/parse/htmlToMarkdoc';
+import { renderTipTapHTML } from '@repo/markdoc-md/render/renderNote';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import TipTapMenu from './_components/TipTapMenu';
-import CaseTag from './_extensions/markdoc/editorNodes/caseTag/caseTag';
-import InfoTag from './_extensions/markdoc/editorNodes/infoTag/infoTag';
-import SwitchTag from './_extensions/markdoc/editorNodes/switchTag/switchTag';
-import {
-  htmlToMarkdoc,
-  markdocToHTML,
-} from './_extensions/markdoc/markdocToHTMLParser';
 
 const suggestions = createSuggestionsItems([
   {
@@ -67,9 +63,7 @@ export default function TipTap({
     extensions: [
       StarterKit,
       Markdown,
-      InfoTag,
-      SwitchTag,
-      CaseTag,
+      MarkdocMD,
       Slash.configure({
         suggestion: {
           items: () => suggestions,
@@ -81,7 +75,7 @@ export default function TipTap({
       //   },
       // }),
     ],
-    content: markdocToHTML(note),
+    content: renderTipTapHTML(note),
     onUpdate: ({ editor }) => {
       const markdown = editor.storage.markdown.getMarkdown();
       setContent(htmlToMarkdoc(markdown));

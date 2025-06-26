@@ -52,38 +52,32 @@ green     #859900 68 100% 30%
   --solarized-cyan: hsl(175, 59%, 40%);
   --solarized-green: hsl(68, 100%, 30%);
 
+  --radius: 0.625rem;
   --background: var(--solarized-base3);
   --foreground: var(--solarized-base00);
-
-  --muted: var(--solarized-base2);
-  --muted-foreground: var(--solarized-base1);
-
-  --popover: var(--solarized-base2);
-  --popover-foreground: var(--solarized-base1);
-
   --card: var(--solarized-base3);
   --card-foreground: var(--solarized-base00);
-
-  --border: var(--solarized-base1);
-  --input: var(--solarized-base1);
-
+  --popover: var(--solarized-base2);
+  --popover-foreground: var(--solarized-base01);
   --primary: var(--solarized-blue);
   --primary-foreground: var(--solarized-base3);
-
   --secondary: var(--solarized-base2);
   --secondary-foreground: var(--solarized-base00);
-
+  --muted: var(--solarized-base2);
+  --muted-foreground: var(--solarized-base1);
   --accent: var(--solarized-base2);
   --accent-foreground: var(--solarized-base00);
-
   --destructive: var(--solarized-red);
   --destructive-foreground: var(--solarized-base3);
-
+  --border: var(--solarized-base1);
+  --input: var(--solarized-base1);
   --ring: var(--solarized-blue);
-
-  --radius: var(--radius);
-
-  --sidebar-background: var(--solarized-base3);
+  --chart-1: var(--solarized-orange);
+  --chart-2: var(--solarized-cyan);
+  --chart-3: var(--solarized-violet);
+  --chart-4: var(--solarized-green);
+  --chart-5: var(--solarized-yellow);
+  --sidebar: var(--solarized-base3);
   --sidebar-foreground: var(--solarized-base00);
   --sidebar-primary: var(--solarized-blue);
   --sidebar-primary-foreground: var(--solarized-base3);
@@ -91,42 +85,74 @@ green     #859900 68 100% 30%
   --sidebar-accent-foreground: var(--solarized-base00);
   --sidebar-border: var(--solarized-base1);
   --sidebar-ring: var(--solarized-blue);
+
+  --sidebar-background: var(--solarized-base3);
 }
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 [data-theme="dark"] {
   --background: var(--solarized-base03);
   --foreground: var(--solarized-base0);
-
-  --muted: var(--solarized-base02);
-  --muted-foreground: var(--solarized-base01);
-
-  --popover: var(--solarized-base02);
-  --popover-foreground: var(--solarized-base01);
-
   --card: var(--solarized-base03);
   --card-foreground: var(--solarized-base0);
-
-  --border: var(--solarized-base01);
-  --input: var(--solarized-base01);
-
+  --popover: var(--solarized-base02);
+  --popover-foreground: var(--solarized-base01);
   --primary: var(--solarized-blue);
   --primary-foreground: var(--solarized-base3);
-
   --secondary: var(--solarized-base02);
   --secondary-foreground: var(--solarized-base0);
-
+  --muted: var(--solarized-base02);
+  --muted-foreground: var(--solarized-base01);
   --accent: var(--solarized-base02);
   --accent-foreground: var(--solarized-base01);
-
   --destructive: var(--solarized-orange);
   --destructive-foreground: var(--solarized-base03);
-
+  --border: var(--solarized-base01);
+  --input: var(--solarized-base01);
   --ring: var(--solarized-blue);
-
-  --radius: var(--radius);
+  --chart-1: var(--solarized-violet);
+  --chart-2: var(--solarized-cyan);
+  --chart-3: var(--solarized-green);
+  --chart-4: var(--solarized-magenta);
+  --chart-5: var(--solarized-orange);
+  --sidebar: var(--solarized-base03);
+  --sidebar-foreground: var(--solarized-base2);
+  --sidebar-primary: var(--solarized-blue);
+  --sidebar-primary-foreground: var(--solarized-base3);
+  --sidebar-accent: var(--solarized-base02);
+  --sidebar-accent-foreground: var(--solarized-base2);
+  --sidebar-border: var(--solarized-base02);
+  --sidebar-ring: var(--solarized-blue);
 
   --sidebar-background: var(--solarized-base03);
+}
+
+.dark {
+  --background: var(--solarized-base03);
+  --foreground: var(--solarized-base0);
+  --card: var(--solarized-base03);
+  --card-foreground: var(--solarized-base0);
+  --popover: var(--solarized-base02);
+  --popover-foreground: var(--solarized-base01);
+  --primary: var(--solarized-blue);
+  --primary-foreground: var(--solarized-base3);
+  --secondary: var(--solarized-base02);
+  --secondary-foreground: var(--solarized-base0);
+  --muted: var(--solarized-base02);
+  --muted-foreground: var(--solarized-base01);
+  --accent: var(--solarized-base02);
+  --accent-foreground: var(--solarized-base01);
+  --destructive: var(--solarized-orange);
+  --destructive-foreground: var(--solarized-base03);
+  --border: var(--solarized-base01);
+  --input: var(--solarized-base01);
+  --ring: var(--solarized-blue);
+  --chart-1: var(--solarized-violet);
+  --chart-2: var(--solarized-cyan);
+  --chart-3: var(--solarized-green);
+  --chart-4: var(--solarized-magenta);
+  --chart-5: var(--solarized-orange);
+  --sidebar: var(--solarized-base03);
   --sidebar-foreground: var(--solarized-base2);
   --sidebar-primary: var(--solarized-blue);
   --sidebar-primary-foreground: var(--solarized-base3);

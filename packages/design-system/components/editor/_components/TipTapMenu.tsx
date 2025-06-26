@@ -1,4 +1,5 @@
 import { Button } from '@repo/design-system/components/ui/button';
+import { htmlToMarkdoc } from '@repo/markdoc-md/parse/htmlToMarkdoc';
 import type { Editor } from '@tiptap/react';
 import { HelpCircle, Redo, Undo } from 'lucide-react';
 import {
@@ -7,7 +8,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../../ui/tooltip';
-import { htmlToMarkdoc } from '../_extensions/markdoc/markdocToHTMLParser';
 
 const MenuBar = ({ editor }: { editor: Editor }) => {
   return (
@@ -197,6 +197,28 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
           size="sm"
         >
           <span>Switch</span>
+        </Button>
+        
+        <Button
+          type="button"
+          onClick={() =>
+            editor
+              .chain()
+              .focus()
+              .insertContent({
+                type: 'scoreTag',
+                attrs: {
+                  formula: '',
+                  unit: '',
+                },
+              })
+              .run()
+          }
+          className="flex cursor-pointer select-none items-center rounded-l-sm bg-solarized-orange px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-solarized-orange/90"
+          variant="ghost"
+          size="sm"
+        >
+          <span>Score</span>
         </Button>
 
         <TooltipProvider>

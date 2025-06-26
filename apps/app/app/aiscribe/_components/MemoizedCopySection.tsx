@@ -1,7 +1,7 @@
 'use client';
+import Markdoc from '@markdoc/markdoc';
 import { DynamicMarkdocRenderer } from '@repo/markdoc-md';
 import { Check, Copy } from 'lucide-react';
-import { marked } from 'marked';
 import { memo, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 
@@ -11,9 +11,75 @@ interface MemoizedCopySectionProps {
   values?: Record<string, unknown>;
 }
 
-function parseMarkdownIntoBlocks(markdown: string): string[] {
-  const tokens = marked.lexer(markdown);
-  return tokens.map((token) => token.raw);
+function parseMarkdocIntoBlocks(markdown: string): string[] {
+  // Parse with Markdoc to validate syntax, but use line-by-line for block extraction
+  try {
+    Markdoc.parse(markdown); // This validates the Markdoc syntax
+  } catch (error) {
+    console.warn(
+      'Markdoc parsing error, falling back to basic parsing:',
+      error
+    );
+  }
+
+  const blocks: string[] = [];
+  const lines = markdown.split('\n');
+  let currentBlock = '';
+  let inMarkdocTag = false;
+  let tagDepth = 0;
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    // Check for Markdoc opening tags (not self-closing)
+    const openTagMatches = trimmedLine.match(/\{%\s*([^/\s]+)/g);
+    // Check for Markdoc closing tags
+    const closeTagMatches = trimmedLine.match(/\{%\s*\/([^/\s]+)/g);
+    // Check for self-closing tags
+    const selfClosingMatches = trimmedLine.match(/\{%.*\/%\}/g);
+
+    if (openTagMatches && !selfClosingMatches) {
+      if (!inMarkdocTag && currentBlock.trim()) {
+        blocks.push(currentBlock.trim());
+        currentBlock = '';
+      }
+      inMarkdocTag = true;
+      tagDepth += openTagMatches.length;
+    }
+
+    if (closeTagMatches) {
+      tagDepth -= closeTagMatches.length;
+      if (tagDepth <= 0) {
+        inMarkdocTag = false;
+        tagDepth = 0;
+        // Add the line to complete the tag block
+        currentBlock = currentBlock ? `${currentBlock}\n${line}` : line;
+        blocks.push(currentBlock.trim());
+        currentBlock = '';
+        continue;
+      }
+    }
+
+    currentBlock = currentBlock ? `${currentBlock}\n${line}` : line;
+
+    // Natural break points when not in tags
+    if (
+      !inMarkdocTag &&
+      currentBlock.trim() &&
+      (trimmedLine.match(/^#{1,6}\s/) ||
+        trimmedLine.match(/^[-*_]{3,}$/) ||
+        (trimmedLine === '' && currentBlock.trim()))
+    ) {
+      blocks.push(currentBlock.trim());
+      currentBlock = '';
+    }
+  }
+
+  if (currentBlock.trim()) {
+    blocks.push(currentBlock.trim());
+  }
+
+  return blocks.filter((block) => block.length > 0);
 }
 
 const MemoizedMarkdownBlock = memo(
@@ -38,7 +104,7 @@ MemoizedMarkdownBlock.displayName = 'MemoizedMarkdownBlock';
 export const MemoizedCopySection = memo(
   ({ title, content, values }: MemoizedCopySectionProps) => {
     const [isCopied, setIsCopied] = useState(false);
-    const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
+    const blocks = useMemo(() => parseMarkdocIntoBlocks(content), [content]);
 
     const handleCopy = async (renderedContent: string, textContent: string) => {
       try {

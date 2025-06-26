@@ -11,6 +11,5 @@ export function Case({
   if (value !== primary) {
     return null;
   }
-
   return children;
 }

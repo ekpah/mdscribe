@@ -4,7 +4,7 @@ import * as MenubarPrimitive from "@radix-ui/react-menubar"
 import { Check, ChevronRight, Circle } from "lucide-react"
 import * as React from "react"
 
-import { cn } from "@repo/design-system/lib/utils"
+import { cn } from "../../lib/utils"
 
 const MenubarMenu = MenubarPrimitive.Menu
 
@@ -217,8 +217,8 @@ const MenubarShortcut = ({
 MenubarShortcut.displayname = "MenubarShortcut"
 
 export {
-    Menubar, MenubarCheckboxItem, MenubarContent, MenubarGroup, MenubarItem, MenubarLabel, MenubarMenu, MenubarPortal, MenubarRadioGroup,
-    MenubarRadioItem, MenubarSeparator, MenubarShortcut, MenubarSub, MenubarSubContent,
-    MenubarSubTrigger, MenubarTrigger
+  Menubar, MenubarCheckboxItem, MenubarContent, MenubarGroup, MenubarItem, MenubarLabel, MenubarMenu, MenubarPortal, MenubarRadioGroup,
+  MenubarRadioItem, MenubarSeparator, MenubarShortcut, MenubarSub, MenubarSubContent,
+  MenubarSubTrigger, MenubarTrigger
 }
 

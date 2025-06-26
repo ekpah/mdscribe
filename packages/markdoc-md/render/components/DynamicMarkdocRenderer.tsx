@@ -1,4 +1,4 @@
-import React from 'react';
+import { useMemo } from 'react';
 import { VariableProvider } from '../context/VariableContext';
 import { parseMarkdoc, renderMarkdocNode } from '../renderNote';
 
@@ -33,16 +33,10 @@ export function DynamicMarkdocRenderer({
   variables,
   className = 'prose prose-slate grow', // Default class matching Note.tsx
 }: DynamicMarkdocRendererProps) {
-  // Memoize the parsed AST based on the content string.
-  // This avoids re-parsing if only variables change.
-  const ast = React.useMemo(
-    () => parseMarkdoc(markdocContent),
-    [markdocContent]
-  );
-
+  const ast = useMemo(() => parseMarkdoc(markdocContent), [markdocContent]);
   // Memoize the rendering of the static structure from the AST.
   // This avoids re-rendering the base structure if only variables change.
-  const renderedContent = React.useMemo(() => renderMarkdocNode(ast), [ast]);
+  const renderedContent = useMemo(() => renderMarkdocNode(ast), [ast]);
 
   return (
     <VariableProvider value={variables ?? {}}>

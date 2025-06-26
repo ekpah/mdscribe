@@ -34,7 +34,7 @@ export function Switch({
 
   return (
     <SwitchContext.Provider value={resolvedSwitchValue}>
-      <span className="rounded-md bg-solarized-green/90 px-1 text-white">
+      <span className="rounded-md bg-solarized-green px-1 text-white opacity-90">
         {children}
       </span>
     </SwitchContext.Provider>

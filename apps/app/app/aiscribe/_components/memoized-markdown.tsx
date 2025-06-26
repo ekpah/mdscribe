@@ -1,4 +1,4 @@
-import renderMarkdocAsReact from '@/lib/renderMarkdocAsReact';
+import renderMarkdocAsReact from '@repo/markdoc-md/render/renderMarkdocAsReact';
 import { marked } from 'marked';
 import { memo, useMemo } from 'react';
 

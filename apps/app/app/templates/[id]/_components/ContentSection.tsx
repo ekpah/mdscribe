@@ -3,10 +3,10 @@ import { atom } from 'jotai';
 
 import { Card } from '@repo/design-system/components/ui/card';
 
-import parseMarkdocToInputs from '@/lib/parseMarkdocToInputs';
 import type { Prisma } from '@repo/database';
+import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { DynamicMarkdocRenderer } from '@repo/markdoc-md';
-import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
+import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
 
@@ -31,7 +31,7 @@ export default function ContentSection({
         className="hidden overflow-y-auto overscroll-none p-4 md:block"
       >
         <Inputs
-          inputTags={JSON.stringify(parseMarkdocToInputs(note))}
+          inputTags={parseMarkdocToInputs(note)}
           onChange={handleFormChange}
         />
       </div>

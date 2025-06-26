@@ -1,5 +1,5 @@
+import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { DynamicMarkdocRenderer, parseMarkdocToInputs } from '@repo/markdoc-md';
-import Inputs from '@repo/markdoc-md/render/inputs/Inputs';
 import {
   ArrowUpRightIcon,
   BrainCircuitIcon,
@@ -78,7 +78,7 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
             </Link>
             <div className="flex h-full w-full flex-col rounded-xl border border-border bg-card p-6 shadow-lg transition-shadow">
               <Inputs
-                inputTags={JSON.stringify(sampleInputTags)}
+                inputTags={sampleInputTags}
                 onChange={handleValuesChange}
               />
             </div>
@@ -210,7 +210,7 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
             </span>
             <div className="w-full rounded-xl border border-solarized-orange/30 bg-solarized-orange/5 p-4">
               <Inputs
-                inputTags={JSON.stringify(sampleProcedureInputTags)}
+                inputTags={sampleProcedureInputTags}
                 onChange={handleProcedureValuesChange}
               />
             </div>

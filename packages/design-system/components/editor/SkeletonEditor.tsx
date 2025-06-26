@@ -2,10 +2,7 @@
 import { Button } from '@repo/design-system/components/ui/button';
 import { Card } from '@repo/design-system/components/ui/card';
 import { Label } from '@repo/design-system/components/ui/label';
-import {} from '@repo/design-system/components/ui/select';
 import { Skeleton } from '@repo/design-system/components/ui/skeleton';
-import {} from '@repo/design-system/components/ui/tabs';
-import {} from 'react';
 
 export default function SkeletonEditor() {
   return (
