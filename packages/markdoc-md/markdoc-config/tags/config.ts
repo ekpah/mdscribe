@@ -36,6 +36,8 @@ export default {
     children: ['tag', 'text', 'softbreak', 'hardbreak', 'paragraph'],
     attributes: { primary: { type: String } },
     selfClosing: false,
+    // this transform is necessary to only allow case tags inside switch tags to render
+    // this prevents other stuff e.g. line breaks from being rendered
     transform(node: Node, config: Config) {
       const getAllCaseTags = (nodes: Node[]): Node[] => {
         return nodes.reduce((acc: Node[], node) => {

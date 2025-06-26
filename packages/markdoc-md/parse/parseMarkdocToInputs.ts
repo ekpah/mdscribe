@@ -1,25 +1,79 @@
 import type { RenderableTreeNode } from '@markdoc/markdoc';
 import Markdoc from '@markdoc/markdoc';
-import type { InputTagType } from '../../design-system/components/inputs/Inputs';
 import config from '../markdoc-config';
 
-type CaseTagType = {
-  type: 'case';
-  options: { name: string };
+/** 
+ * Union type representing all possible input tag types in the Markdoc template.
+ * Extends RenderableTreeNode to include Markdoc's base node properties.
+ */
+type InputTagType = RenderableTreeNode & (
+  | InfoInputTagType 
+  | SwitchInputTagType
+  | CaseInputTagType
+  | ScoreInputTagType
+);
+
+/**
+ * Represents an info tag that captures single values.
+ * @example
+ * {% info "patient_name" /%}
+ * @property {string} attributes.primary - The identifier for the info tag
+ * @property {('string'|'number')} [attributes.type] - The data type of the value
+ * @property {string} [attributes.unit] - Optional unit for numeric values
+ */
+type InfoInputTagType = RenderableTreeNode & {
+  name: 'Info';
+  attributes: {
+    primary: string;
+    type?: 'string' | 'number';
+    unit?: string;
+  };
+  children?: InputTagType[];
 };
 
-type InputComponentProps = {
-  primary?: string;
-  formula?: string;
-  type?: 'string' | 'number';
-  unit?: string;
+/**
+ * Represents a switch tag for conditional content rendering.
+ * Contains case tags as children for different conditions.
+ * @example
+ * {% switch "gender" %}
+ *   {% case "male" %}Male{% /case %}
+ * {% /switch %}
+ */
+type SwitchInputTagType = RenderableTreeNode & {
+  name: 'Switch';
+  attributes: {
+    primary: string;
+  };
+  children: InputTagType[];
 };
 
-type InputComponentNode = {
-  $$mdtype: 'Tag';
-  name: string;
-  attributes: InputComponentProps;
-  children?: RenderableTreeNode | RenderableTreeNode[];
+/**
+ * Represents a case tag used within switch tags.
+ * Defines a specific condition and its content.
+ * @example
+ * {% case "male" %}Male{% /case %}
+ */
+type CaseInputTagType = RenderableTreeNode & {
+  name: 'Case';
+  attributes: {
+    primary: string;
+  };
+  children: InputTagType[];
+};
+
+/**
+ * Represents a score tag for calculating values based on a formula.
+ * @example
+ * {% score formula="[age]*2+[gender_score]*3" unit="points" /%}
+ */
+type ScoreInputTagType = RenderableTreeNode & {
+  name: 'Score';
+  attributes: {
+    primary: string;
+    formula?: string;
+    unit?: string;
+  };
+  children: InputTagType[];
 };
 
 const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
@@ -35,19 +89,15 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
     }
     // Process the current node if it's a component
     if ('$$mdtype' in node && node.$$mdtype === 'Tag') {
-      const componentNode = node as InputComponentNode;
-      const tagKey = `${componentNode.name}:${componentNode.attributes.primary || componentNode.attributes.formula}`;
+      const componentNode = node as InputTagType;
+      const tagKey = `${componentNode.name}:${componentNode.attributes.primary}`;
 
       // Process info tags
       if (componentNode.name === 'Info' && !uniqueTags.has(tagKey)) {
         inputTags.push({
-          type: 'info',
-          options: {
-            name: componentNode.attributes.primary || '',
-            type: componentNode.attributes.type,
-            unit: componentNode.attributes.unit,
-          },
-        });
+          name: 'Info',
+          attributes: componentNode.attributes,
+        } as InfoInputTagType);
         uniqueTags.add(tagKey);
       }
 
@@ -58,10 +108,10 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
         componentNode.attributes.primary
       ) {
         inputTags.push({
-          type: 'switch',
-          options: { name: componentNode.attributes.primary },
+          name: 'Switch',
+          attributes: { primary: componentNode.attributes.primary },
           children: processSwitchChildrenFromRenderable(componentNode),
-        });
+        } as SwitchInputTagType);
         uniqueTags.add(tagKey);
       }
 
@@ -115,9 +165,9 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 
 // Helper function to process switch children from renderable tree
 function processSwitchChildrenFromRenderable(
-  node: InputComponentNode
-): CaseTagType[] {
-  const result: CaseTagType[] = [];
+  node: InputTagType
+): InputTagType[] {
+  const result: InputTagType[] = [];
 
   function processChild(child: RenderableTreeNode) {
     if (!child || typeof child !== 'object') return;
@@ -127,11 +177,12 @@ function processSwitchChildrenFromRenderable(
       child.$$mdtype === 'Tag' &&
       child.name === 'Case'
     ) {
-      const caseNode = child as InputComponentNode;
+      const caseNode = child as InputTagType;
       result.push({
-        type: 'case',
-        options: { name: caseNode.attributes.primary || '' },
-      });
+        name: 'Case',
+        attributes: { primary: caseNode.attributes.primary || '' },
+        children: processSwitchChildrenFromRenderable(caseNode),
+      } as CaseInputTagType);
     }
 
     if ('children' in child) {

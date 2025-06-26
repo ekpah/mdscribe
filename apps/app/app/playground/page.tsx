@@ -1,6 +1,6 @@
 'use client';
 
-import Markdoc from '@markdoc/markdoc';
+import Markdoc, { RenderableTreeNode } from '@markdoc/markdoc';
 import TipTap from '@repo/design-system/components/editor/TipTap';
 import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -13,6 +13,7 @@ import {
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import { Switch } from '@repo/design-system/components/ui/switch';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
+import config from '@repo/markdoc-md/markdoc-config';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import {
   ChevronDown,
@@ -26,6 +27,8 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { MemoizedCopySection } from '../aiscribe/_components/MemoizedCopySection';
+
+
 
 // Collapsible Object Display component for AST and renderable tree
 function ObjectDisplay({ data }: { data: unknown }) {
@@ -225,14 +228,14 @@ Alter: {% info "age" /%}
   const markdocData = useMemo(() => {
     try {
       const ast = Markdoc.parse(template);
-      const content = Markdoc.transform(ast);
+      const content: RenderableTreeNode = Markdoc.transform(ast, config);
       return { ast, content };
     } catch (error) {
       console.error('Markdoc parsing error:', error);
       const errorAst = Markdoc.parse(`Error parsing template: ${error}`);
       return {
         ast: errorAst,
-        content: Markdoc.transform(errorAst),
+        content: Markdoc.transform(errorAst, config),
       };
     }
   }, [template]);

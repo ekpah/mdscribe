@@ -8,7 +8,7 @@ import type { BaseTagType } from '../Inputs';
 export type InfoTagType = BaseTagType & {
   type: 'info';
   options: {
-    name: string;
+    primary: string;
     type?: 'string' | 'number';
     unit?: string;
   };
@@ -25,6 +25,8 @@ export function InfoInput({ input, value, onChange }: InfoInputProps) {
   // Use empty string as default for both text and number inputs
   const defaultValue = value ?? '';
 
+
+  console.log(input);
   // Use a local state to track input value
   const [localValue, setLocalValue] = useState(defaultValue);
 
@@ -41,18 +43,18 @@ export function InfoInput({ input, value, onChange }: InfoInputProps) {
   console.log(input);
 
   return (
-    <div key={`info-${input.options.name}`} className="*:not-first:mt-2">
-      <Label htmlFor={input.options.name}>
-        {input.options.name}
+    <div key={`info-${input.options.primary}`} className="*:not-first:mt-2">
+      <Label htmlFor={input.options.primary}>
+        {input.options.primary}
       </Label>
       <div className="flex rounded-md shadow-xs">
         <Input
-          id={input.options.name}
-          name={input.options.name}
+          id={input.options.primary}
+          name={input.options.primary}
           value={localValue}
           onChange={handleChange}
           type="text"
-          placeholder={`Enter ${input.options.name}`}
+          placeholder={`Enter ${input.options.primary}`}
           className={`-me-px flex-1 ${input.options.unit ? 'rounded-e-none' : ''} shadow-none focus-visible:z-10`}
         />
         {input.options.unit && <span className="border-input bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 inline-flex items-center rounded-e-md border px-3 text-sm font-medium transition-[color,box-shadow] outline-none focus:z-10 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50">

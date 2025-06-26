@@ -6,7 +6,7 @@ import { SwitchInput, type SwitchTagType } from './ui/SwitchInput';
 
 export type BaseTagType = {
   type: string;
-  options: { name: string };
+  options: { primary: string };
 };
 
 export type InputTagType = InfoTagType | SwitchTagType;
@@ -37,7 +37,7 @@ export default function Inputs({ inputTags = [], onChange }: InputsProps) {
   return (
     <form className="space-y-6">
       {inputTags.map((input: InputTagType) => {
-        const inputName = input.options.name;
+        const inputName = input.options.primary;
         if (!inputName) {
           console.error('Input is missing a name:', input);
           return null;
