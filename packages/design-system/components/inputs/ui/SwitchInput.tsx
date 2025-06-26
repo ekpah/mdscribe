@@ -22,7 +22,7 @@ export interface SwitchInputProps {
 }
 
 export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
-  const options = input.children?.filter((caseTag) => caseTag.name === 'Case');
+  const options = input.children?.filter((caseTag) => caseTag.name === 'Case' && caseTag.attributes.primary);
   const useSelect = options && options.length > 3;
 
   // Use a local state to track input value
