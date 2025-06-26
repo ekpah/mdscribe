@@ -6,6 +6,8 @@ import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
 import Menubar from './_components/Menubar';
 
+import { auth } from '@/auth';
+import { headers } from 'next/headers';
 import { PostHogProvider } from './providers/posthogProvider';
 
 export const metadata: Metadata = {
@@ -24,7 +26,12 @@ type RootLayoutProperties = {
 };
 
 export default async function RootLayout({ children }: RootLayoutProperties) {
-  const showAiLink = await allowAIUse();
+  // Check if user is logged in
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const showAiLink = !!session?.user;
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
