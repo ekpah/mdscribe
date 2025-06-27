@@ -1,7 +1,7 @@
 'use server';
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
-import { anthropic } from '@ai-sdk/anthropic';
+import { anthropic, AnthropicProviderOptions } from '@ai-sdk/anthropic';
 import { env } from '@repo/env';
 import { type CoreMessage, streamText } from 'ai';
 import { Langfuse } from 'langfuse';
@@ -70,6 +70,11 @@ export async function POST(req: Request) {
         langfusePrompt: chatPrompt.toJSON(),
       },
     },
+    providerOptions: {
+    anthropic: {
+      thinking: { type: 'enabled', budgetTokens: 8000 },
+    } satisfies AnthropicProviderOptions,
+  },
     messages: messages,
     onFinish: (result) => {
       console.log('Prompt tokens:', result.usage.promptTokens);

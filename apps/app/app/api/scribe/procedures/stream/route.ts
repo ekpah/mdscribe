@@ -1,7 +1,7 @@
 'use server';
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
-import { anthropic } from '@ai-sdk/anthropic';
+import { anthropic, AnthropicProviderOptions } from '@ai-sdk/anthropic';
 import { database } from '@repo/database';
 import { env } from '@repo/env';
 import { type CoreMessage, embed, streamText } from 'ai';
@@ -170,6 +170,11 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
         userId: session?.user?.id || 'unknown',
         langfusePrompt: chatPrompt.toJSON(),
       },
+    },
+    providerOptions: {
+      anthropic: {
+        thinking: { type: 'enabled', budgetTokens: 8000 },
+      } satisfies AnthropicProviderOptions,
     },
     messages: messages,
     onFinish: (result) => {
