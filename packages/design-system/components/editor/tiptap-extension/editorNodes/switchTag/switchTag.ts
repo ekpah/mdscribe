@@ -22,7 +22,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   inline: true,
   selectable: true,
   draggable: true,
-  atom: false,
+  atom: true,
   isolating: true,
 
   addAttributes() {
@@ -65,7 +65,6 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
       mergeAttributes(HTMLAttributes, {
         primary: node.attrs.primary,
       }),
-      0, // Add placeholder for child content rendering
     ];
   },
   parseHTML() {

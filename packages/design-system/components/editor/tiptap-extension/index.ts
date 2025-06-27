@@ -50,9 +50,9 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
   addExtensions() {
     const extensions = [];
 
-    if (this.options.caseTag !== false) {
-      extensions.push(CaseTag.configure(this.options.caseTag));
-    }
+    // if (this.options.caseTag !== false) {
+    // extensions.push(CaseTag.configure(this.options.caseTag));
+    // }
 
     if (this.options.infoTag !== false) {
       extensions.push(InfoTag.configure(this.options.infoTag));

@@ -3,8 +3,8 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper } from '@tiptap/react';
-import { Code2, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Code2, Plus, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../../../../ui/button';
 import { Input } from '../../../../ui/input';
 import { Label } from '../../../../ui/label';
@@ -27,9 +27,15 @@ export function SwitchTagView({
   editor,
   updateAttributes,
   getPos,
+  selected,
+  deleteNode,
 }: NodeViewProps) {
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [newCase, setNewCase] = useState({ primary: '', text: '' });
+
+  const handleRemoveSwitch = useCallback(() => {
+    deleteNode();
+  }, [deleteNode]);
 
   // Extract case nodes from content on mount and when content changes
   useEffect(() => {
@@ -198,172 +204,191 @@ export function SwitchTagView({
   return (
     // Use span for inline behavior, align-baseline for text alignment
     <NodeViewWrapper as="span" className="inline-block align-baseline">
-      <Popover>
-        {/* Reverted trigger to match InfoTagView style */}
-        <PopoverTrigger
-          className="inline-flex cursor-pointer items-stretch overflow-hidden rounded-md border border-solarized-green text-xs transition-all hover:border-solarized-green/80"
-          data-type="markdoc-switch"
-          data-primary={node.attrs.primary}
-        >
-          {/* Switch Label */}
-          <span
-            data-drag-handle
-            className="border-solarized-green border-r bg-solarized-green px-2 font-bold text-white"
+      <div
+        className={`inline-flex cursor-pointer items-stretch overflow-hidden rounded-md border text-xs transition-all ${
+          selected
+            ? 'border-solarized-green ring-2 ring-solarized-green/50'
+            : 'border-solarized-green hover:border-solarized-green/80'
+        }`}
+      >
+        <Popover>
+          {/* Reverted trigger to match InfoTagView style */}
+          <PopoverTrigger
+            className="inline-flex cursor-pointer items-stretch overflow-hidden"
+            data-type="markdoc-switch"
+            data-primary={node.attrs.primary}
           >
-            Switch
-          </span>
+            {/* Switch Label */}
+            <span
+              data-drag-handle
+              className="border-solarized-green border-r bg-solarized-green px-2 font-bold text-white"
+            >
+              Switch
+            </span>
 
-          {/* Content Part */}
-          <span className="bg-background px-2 text-foreground">
-            {node.attrs.primary || (
-              <span className="text-muted-foreground italic">leer</span>
-            )}
-          </span>
-        </PopoverTrigger>
+            {/* Content Part */}
+            <span className="bg-background px-2 text-foreground">
+              {node.attrs.primary || (
+                <span className="text-muted-foreground italic">leer</span>
+              )}
+            </span>
+          </PopoverTrigger>
 
-        {/* More compact popover content */}
-        <PopoverContent className="w-80 p-0">
-          <div className="space-y-0">
-            {/* Compact header */}
-            <div className="border-b bg-solarized-green/5 px-3 py-2">
-              <h3 className="flex items-center font-medium text-sm text-solarized-green">
-                <Code2 className="mr-1.5 h-3 w-3" />
-                Switch-Konfiguration
-              </h3>
-            </div>
-
-            <div className="space-y-3 p-3">
-              {/* Switch Variable Input */}
-              <div className="space-y-1.5">
-                <Label htmlFor="primary" className="font-medium text-xs">
-                  Variablenname
-                </Label>
-                <Input
-                  id="primary"
-                  value={node.attrs.primary || ''}
-                  onChange={(e) =>
-                    updateAttributes({
-                      primary: e.target.value,
-                    })
-                  }
-                  placeholder="z.B. patiententyp, zustand"
-                  className="h-8 text-sm focus:border-solarized-green focus:ring-solarized-green/50"
-                  autoFocus
-                />
+          {/* More compact popover content */}
+          <PopoverContent className="w-80 p-0">
+            <div className="space-y-0">
+              {/* Compact header */}
+              <div className="border-b bg-solarized-green/5 px-3 py-2">
+                <h3 className="flex items-center font-medium text-sm text-solarized-green">
+                  <Code2 className="mr-1.5 h-3 w-3" />
+                  Switch-Konfiguration
+                </h3>
               </div>
 
-              <Separator />
-
-              {/* Cases Section */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="font-medium text-xs">
-                    Fälle ({cases.length})
+              <div className="space-y-3 p-3">
+                {/* Switch Variable Input */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="primary" className="font-medium text-xs">
+                    Variablenname
                   </Label>
+                  <Input
+                    id="primary"
+                    value={node.attrs.primary || ''}
+                    onChange={(e) =>
+                      updateAttributes({
+                        primary: e.target.value,
+                      })
+                    }
+                    placeholder="z.B. patiententyp, zustand"
+                    className="h-8 text-sm focus:border-solarized-green focus:ring-solarized-green/50"
+                    autoFocus
+                  />
                 </div>
 
-                {/* Existing Cases */}
-                <div className="space-y-1.5">
-                  {cases.map((caseItem, index) => (
-                    <div
-                      key={index}
-                      className="group rounded border bg-muted/20 p-2 transition-colors hover:bg-muted/40"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 space-y-1">
-                          <Input
-                            value={caseItem.primary}
-                            onChange={(e) =>
-                              updateCase(index, 'primary', e.target.value)
-                            }
-                            placeholder="Fall-Wert"
-                            className="h-7 text-xs"
-                          />
-                          <Input
-                            value={caseItem.text}
-                            onChange={(e) =>
-                              updateCase(index, 'text', e.target.value)
-                            }
-                            placeholder="Inhalt"
-                            className="h-7 text-xs"
-                          />
+                <Separator />
+
+                {/* Cases Section */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-medium text-xs">
+                      Fälle ({cases.length})
+                    </Label>
+                  </div>
+
+                  {/* Existing Cases */}
+                  <div className="space-y-1.5">
+                    {cases.map((caseItem, index) => (
+                      <div
+                        key={index}
+                        className="group rounded border bg-muted/20 p-2 transition-colors hover:bg-muted/40"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 space-y-1">
+                            <Input
+                              value={caseItem.primary}
+                              onChange={(e) =>
+                                updateCase(index, 'primary', e.target.value)
+                              }
+                              placeholder="Fall-Wert"
+                              className="h-7 text-xs"
+                            />
+                            <Input
+                              value={caseItem.text}
+                              onChange={(e) =>
+                                updateCase(index, 'text', e.target.value)
+                              }
+                              placeholder="Inhalt"
+                              className="h-7 text-xs"
+                            />
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCase(index)}
+                            className="h-7 w-7 p-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                            aria-label={`Fall ${index + 1} entfernen`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add New Case */}
+                  <div className="rounded border-2 border-muted border-dashed bg-muted/10 p-2">
+                    <div className="space-y-1.5">
+                      <Label className="font-medium text-muted-foreground text-xs">
+                        Add New Case
+                      </Label>
+                      <div className="flex gap-1.5">
+                        <Input
+                          value={newCase.primary}
+                          onChange={(e) =>
+                            setNewCase((prev) => ({
+                              ...prev,
+                              primary: e.target.value,
+                            }))
+                          }
+                          placeholder="Value"
+                          className="h-7 flex-1 text-xs"
+                        />
+                        <Input
+                          value={newCase.text}
+                          onChange={(e) =>
+                            setNewCase((prev) => ({
+                              ...prev,
+                              text: e.target.value,
+                            }))
+                          }
+                          placeholder="Content"
+                          className="h-7 flex-1 text-xs"
+                          onKeyDown={(e) => {
+                            if (
+                              e.key === 'Enter' &&
+                              (newCase.primary || newCase.text)
+                            ) {
+                              e.preventDefault();
+                              addCase();
+                            }
+                          }}
+                        />
                         <Button
-                          variant="ghost"
                           size="sm"
-                          onClick={() => removeCase(index)}
-                          className="h-7 w-7 p-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                          aria-label={`Fall ${index + 1} entfernen`}
+                          onClick={addCase}
+                          disabled={!newCase.primary && !newCase.text}
+                          className="h-7 w-7 bg-solarized-green p-0 hover:bg-solarized-green/90"
+                          aria-label="Add new case"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Plus className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
 
-                {/* Add New Case */}
-                <div className="rounded border-2 border-muted border-dashed bg-muted/10 p-2">
-                  <div className="space-y-1.5">
-                    <Label className="font-medium text-muted-foreground text-xs">
-                      Add New Case
-                    </Label>
-                    <div className="flex gap-1.5">
-                      <Input
-                        value={newCase.primary}
-                        onChange={(e) =>
-                          setNewCase((prev) => ({
-                            ...prev,
-                            primary: e.target.value,
-                          }))
-                        }
-                        placeholder="Value"
-                        className="h-7 flex-1 text-xs"
-                      />
-                      <Input
-                        value={newCase.text}
-                        onChange={(e) =>
-                          setNewCase((prev) => ({
-                            ...prev,
-                            text: e.target.value,
-                          }))
-                        }
-                        placeholder="Content"
-                        className="h-7 flex-1 text-xs"
-                        onKeyDown={(e) => {
-                          if (
-                            e.key === 'Enter' &&
-                            (newCase.primary || newCase.text)
-                          ) {
-                            e.preventDefault();
-                            addCase();
-                          }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={addCase}
-                        disabled={!newCase.primary && !newCase.text}
-                        className="h-7 w-7 bg-solarized-green p-0 hover:bg-solarized-green/90"
-                        aria-label="Add new case"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                  {cases.length === 0 && (
+                    <div className="py-4 text-center text-muted-foreground">
+                      <Code2 className="mx-auto mb-1 h-6 w-6 opacity-50" />
+                      <p className="text-xs">No cases defined yet</p>
                     </div>
-                  </div>
+                  )}
                 </div>
-
-                {cases.length === 0 && (
-                  <div className="py-4 text-center text-muted-foreground">
-                    <Code2 className="mx-auto mb-1 h-6 w-6 opacity-50" />
-                    <p className="text-xs">No cases defined yet</p>
-                  </div>
-                )}
               </div>
             </div>
-          </div>
-        </PopoverContent>
-      </Popover>
+          </PopoverContent>
+        </Popover>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleRemoveSwitch}
+          className="h-auto self-stretch rounded-none rounded-r-md px-1 text-solarized-green/70 hover:bg-solarized-green/10 hover:text-solarized-green"
+          contentEditable={false}
+          aria-label="Remove switch tag"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
     </NodeViewWrapper>
   );
 }

@@ -25,14 +25,14 @@ export interface InfoTagItem {
 export const InfoTag = Node.create<InfoTagAttrs>({
   name: 'infoTag',
 
-  group: 'inline',
   selectable: true,
 
-  // Make the node draggable
-  draggable: true,
+  group: 'inline',
+  content: 'inline*',
   inline: true,
-
+  draggable: true,
   atom: true,
+  isolating: true,
 
   addAttributes() {
     return {
