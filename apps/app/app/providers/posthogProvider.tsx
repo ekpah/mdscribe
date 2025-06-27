@@ -41,9 +41,12 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session?.user?.id]);
 
+  // Identify user once logged in
   useEffect(() => {
     if (posthog && session?.user?.id) {
-      posthog.identify(session?.user?.id);
+      posthog.identify(session?.user?.id, {
+        email: session?.user?.email,
+      });
     }
   }, [session?.user?.id]);
 

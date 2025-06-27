@@ -7,6 +7,8 @@ import { EmailVerificationTemplate } from '@repo/email/templates/verify';
 import { env } from '@repo/env';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { createAuthMiddleware } from 'better-auth/api';
+import posthog from 'posthog-js';
 import Stripe from 'stripe';
 
 // initialize stripe client
@@ -113,4 +115,15 @@ export const auth = betterAuth({
       },
     }),
   ],
+  // define hooks for better-auth to hook into events
+  hooks: {
+        after: createAuthMiddleware(async (ctx) => {
+            if(ctx.path.startsWith("/sign-up")){
+                const newSession = ctx.context.newSession;
+                posthog.capture('user-register', {
+                    email: newSession?.user?.email,
+                });
+            }
+        }),
+    },
 });
