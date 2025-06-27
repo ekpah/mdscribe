@@ -30,8 +30,6 @@ export function InfoInput({ input, value, onChange }: InfoInputProps) {
     onChange(e.target.value);
   };
 
-  console.log(input);
-
   return (
     <div key={`info-${input.attributes.primary}`} className="*:not-first:mt-2">
       <Label htmlFor={input.attributes.primary}>
