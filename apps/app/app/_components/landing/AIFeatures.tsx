@@ -85,9 +85,9 @@ export default function AIFeatures() {
           </div>
 
           <div className="relative flex flex-col rounded-lg border bg-card p-6 shadow-sm md:col-span-2">
-            <div className="absolute top-2 right-[-28px] z-10 rotate-45 transform whitespace-nowrap bg-yellow-400 px-3 py-0.5 text-center font-semibold text-black text-xs shadow-md">
+            {/* <div className="absolute top-2 right-[-28px] z-10 rotate-45 transform whitespace-nowrap bg-yellow-400 px-3 py-0.5 text-center font-semibold text-black text-xs shadow-md">
               Bald verfügbar
-            </div>
+            </div> */}
 
             <div className="mb-4 flex items-center">
               <FileText className="mr-3 size-6 text-primary sm:size-8" />
