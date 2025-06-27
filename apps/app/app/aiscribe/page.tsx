@@ -73,6 +73,23 @@ export default function AIScribeLandingPage() {
           </Card>
         </Link>
         <Link
+          href={isLoggedIn ? '/aiscribe/outpatient' : '#'}
+          className={`block rounded-lg transition-shadow duration-200 ${
+            isLoggedIn ? 'hover:shadow-lg' : 'cursor-not-allowed opacity-50'
+          }`}
+          onClick={(e) => !isLoggedIn && e.preventDefault()}
+        >
+          <Card className="flex h-full flex-col">
+            <CardHeader>
+              <CardTitle>Ambulanter Modus</CardTitle>
+              <CardDescription>
+                AI Scribe für ambulante Konsultationen. Generieren Sie
+                professionelle Arztbriefe für Ihre ambulanten Patienten.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link
           href={isLoggedIn ? '/aiscribe/procedures' : '#'}
           className={`block rounded-lg transition-shadow duration-200 ${
             isLoggedIn ? 'hover:shadow-lg' : 'cursor-not-allowed opacity-50'
