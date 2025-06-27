@@ -17,8 +17,6 @@ export function InfoInput({ input, value, onChange }: InfoInputProps) {
   // Use empty string as default for both text and number inputs
   const defaultValue = value ?? '';
 
-
-  console.log(input);
   // Use a local state to track input value
   const [localValue, setLocalValue] = useState(defaultValue);
 

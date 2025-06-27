@@ -14,7 +14,6 @@ export default {
       type: {
         type: String,
         default: 'string',
-        required: true,
         matches: ['string', 'number', 'boolean'],
       },
       unit: {
@@ -33,11 +32,11 @@ export default {
   },
   switch: {
     render: 'Switch',
-    children: ['tag', 'text', 'softbreak', 'hardbreak', 'paragraph'],
+    children: ['tag', 'text'],
     attributes: { primary: { type: String } },
     selfClosing: false,
     // this transform is necessary to only allow case tags inside switch tags to render
-    // this prevents other stuff e.g. line breaks from being rendered
+    // switch tags should not contain breaks, as this will not be rendered correctly (markdoc only recognizes inline tags or full paragraphs)
     transform(node: Node, config: Config) {
       const getAllCaseTags = (nodes: Node[]): Node[] => {
         return nodes.reduce((acc: Node[], node) => {
@@ -57,9 +56,10 @@ export default {
       return new Tag('Switch', attributes, children);
     },
   },
+  // cases should not contain breaks, as this will not be rendered correctly
   case: {
     render: 'Case',
-    children: ['text', 'strong', 'em', 'code', 'link'],
+    children: ['text', 'strong', 'em', 'code', 'link', 'inline'],
     attributes: { primary: { render: true, type: String } },
   },
 };

@@ -24,6 +24,7 @@ import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { Check, Copy, FileText, Loader2, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { MemoizedCopySection } from './MemoizedCopySection';
 
 export interface AiscribeTemplateConfig {
   // Page identity
@@ -339,9 +340,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                                 {config.outputTabTitle}
                               </h4>
                               <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
-                                <DynamicMarkdocRenderer
-                                  variables={values}
-                                  markdocContent={
+                                <MemoizedCopySection
+                                  values={values}
+                                  content={
                                     completion.completion ||
                                     'Keine Inhalte verfügbar'
                                   }
