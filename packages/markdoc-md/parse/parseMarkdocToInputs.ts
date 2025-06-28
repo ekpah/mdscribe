@@ -25,7 +25,7 @@ export type InfoInputTagType = RenderableTreeNode & {
   name: 'Info';
   attributes: {
     primary: string;
-    type?: 'string' | 'number';
+    type?: 'string' | 'number' | 'date';
     unit?: string;
   };
   children: InputTagType[];

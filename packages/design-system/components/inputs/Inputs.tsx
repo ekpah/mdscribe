@@ -5,10 +5,6 @@ import { useEffect, useState } from 'react';
 import { InfoInput } from './ui/InfoInput';
 import { SwitchInput } from './ui/SwitchInput';
 
-export type BaseTagType = {
-  type: string;
-  options: { primary: string };
-};
 
 export interface InputsProps {
   inputTags: InputTagType[];
@@ -16,13 +12,12 @@ export interface InputsProps {
 }
 
 function renderInputTag(
-  input: InputTagType, 
-  values: Record<string, unknown>, 
+  input: InputTagType,
+  values: Record<string, unknown>,
   handleInputChange: (name: string, value: unknown) => void,
   parentSwitchValue?: string
 ): React.ReactNode | null {
-  const inputName = input.attributes.primary;
-  if (!inputName) {
+  if (!input.attributes.primary) {
     console.error('Input is missing a name:', input);
     return null;
   }
@@ -30,16 +25,13 @@ function renderInputTag(
   if (input.name === 'Info') {
     return (
       <InfoInput
-        key={`info-${inputName}`}
+        key={`info-${input.attributes.primary}`}
         input={input}
-        value={values[inputName] as string | number | undefined}
+        value={values[input.attributes.primary] as string | number | undefined}
         onChange={(value) =>
           handleInputChange(
-            inputName,
-            input.attributes.type === 'number' &&
-              !Number.isNaN(Number(value))
-              ? Number(value)
-              : value
+            input.attributes.primary,
+            value
           )
         }
       />
@@ -47,22 +39,22 @@ function renderInputTag(
   }
 
   if (input.name === 'Switch') {
-    const currentValue = values[inputName] as string | undefined;
-    
+    const currentValue = values[input.attributes.primary] as string | undefined;
+
     return (
-      <div key={`switch-${inputName}`}>
+      <div key={`switch-${input.attributes.primary}`}>
         <SwitchInput
           input={input}
           value={currentValue}
-          onValueChange={(value) => handleInputChange(inputName, value)}
+          onChange={(value) => handleInputChange(input.attributes.primary, value)}
         />
         {/* Render children of selected case */}
         {currentValue && input.children && (
           <div className="ml-4 mt-4 space-y-4">
             {input.children
               .filter(child => child.name === 'Case' && child.attributes.primary === currentValue)
-              .map(caseChild => 
-                caseChild.children.map(grandChild => 
+              .map(caseChild =>
+                caseChild.children.map(grandChild =>
                   renderInputTag(grandChild, values, handleInputChange, currentValue)
                 )
               )
@@ -78,12 +70,12 @@ function renderInputTag(
     // The InfoInput component should handle it gracefully
     return (
       <InfoInput
-        key={`score-${inputName}`}
+        key={`score-${input.attributes.primary}`}
         input={input as any}
-        value={values[inputName] as string | number | undefined}
+        value={values[input.attributes.primary] as string | number | undefined}
         onChange={(value) =>
           handleInputChange(
-            inputName,
+            input.attributes.primary,
             !Number.isNaN(Number(value)) ? Number(value) : value
           )
         }
@@ -101,10 +93,10 @@ export default function Inputs({ inputTags = [], onChange }: InputsProps) {
     onChange(values);
   }, [values, onChange]);
 
-  const handleInputChange = (name: string, value: unknown) => {
+  const handleInputChange = (key: string, value: unknown) => {
     setValues((prevValues) => ({
       ...prevValues,
-      [name]: value,
+      [key]: value,
     }));
   };
 
@@ -113,8 +105,8 @@ export default function Inputs({ inputTags = [], onChange }: InputsProps) {
   }
 
   return (
-    <form className="space-y-6">
-      {inputTags.map((input) => renderInputTag(input, values, handleInputChange))}
+    <form className="space-y-6 mx-4">
+      {inputTags.map((inputTag) => renderInputTag(inputTag, values, handleInputChange))}
     </form>
   );
 }

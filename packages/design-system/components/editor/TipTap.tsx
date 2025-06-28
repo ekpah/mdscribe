@@ -10,7 +10,7 @@ import {
 import { MarkdocMD } from '@repo/design-system/components/editor/tiptap-extension';
 import { cn } from '@repo/design-system/lib/utils';
 import { htmlToMarkdoc } from '@repo/markdoc-md/parse/htmlToMarkdoc';
-import { renderTipTapHTML } from '@repo/markdoc-md/render/renderNote';
+import { renderTipTapHTML } from '@repo/markdoc-md/render/utils/renderMarkdocAsTipTapHTML';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
