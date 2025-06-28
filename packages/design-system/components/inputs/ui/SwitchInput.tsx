@@ -12,16 +12,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '../../ui/toggle-group';
 
 
-
-
-
-export interface SwitchInputProps {
-  input: SwitchInputTagType;
-  value: string | undefined;
-  onValueChange: (value: string) => void;
-}
-
-export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
+export function SwitchInput({ input, value, onChange }: { input: SwitchInputTagType, value: string | undefined, onChange: (value: string) => void }) {
   const options = input.children?.filter((caseTag) => caseTag.name === 'Case' && caseTag.attributes.primary);
   const useSelect = options && options.length > 3;
 
@@ -35,7 +26,7 @@ export function SwitchInput({ input, value, onValueChange }: SwitchInputProps) {
 
   const handleChange = (newValue: string) => {
     setLocalValue(newValue);
-    onValueChange(newValue);
+    onChange(newValue);
   };
 
   return (

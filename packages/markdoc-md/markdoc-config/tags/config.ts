@@ -14,7 +14,7 @@ export default {
       type: {
         type: String,
         default: 'string',
-        matches: ['string', 'number', 'boolean'],
+        matches: ['string', 'number', 'date'],
       },
       unit: {
         type: String,
