@@ -1,10 +1,22 @@
 'use client';
 
-import type { InfoInputTagType, InputTagType } from '@repo/markdoc-md/parse/parseMarkdocToInputs';
+import type {
+  InfoInputTagType,
+  InputTagType,
+} from '@repo/markdoc-md/parse/parseMarkdocToInputs';
+import { Sigma } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
 import { InfoInput } from './ui/InfoInput';
 import { SwitchInput } from './ui/SwitchInput';
-
 
 export interface InputsProps {
   inputTags: InputTagType[];
@@ -14,26 +26,19 @@ export interface InputsProps {
 function renderInputTag(
   input: InputTagType,
   values: Record<string, unknown>,
-  handleInputChange: (name: string, value: unknown) => void,
-  parentSwitchValue?: string
+  handleInputChange: (name: string, value: unknown) => void
 ): React.ReactNode | null {
   if (!input.attributes.primary) {
-    console.error('Input is missing a name:', input);
     return null;
   }
 
   if (input.name === 'Info') {
     return (
       <InfoInput
-        key={`info-${input.attributes.primary}`}
         input={input}
+        key={`info-${input.attributes.primary}`}
+        onChange={(value) => handleInputChange(input.attributes.primary, value)}
         value={values[input.attributes.primary] as string | number | undefined}
-        onChange={(value) =>
-          handleInputChange(
-            input.attributes.primary,
-            value
-          )
-        }
       />
     );
   }
@@ -45,20 +50,25 @@ function renderInputTag(
       <div key={`switch-${input.attributes.primary}`}>
         <SwitchInput
           input={input}
+          onChange={(value) =>
+            handleInputChange(input.attributes.primary, value)
+          }
           value={currentValue}
-          onChange={(value) => handleInputChange(input.attributes.primary, value)}
         />
         {/* Render children of selected case */}
         {currentValue && input.children && (
-          <div className="ml-4 mt-4 space-y-4">
+          <div className="mt-4 ml-4 space-y-4">
             {input.children
-              .filter(child => child.name === 'Case' && child.attributes.primary === currentValue)
-              .map(caseChild =>
-                caseChild.children.map(grandChild =>
-                  renderInputTag(grandChild, values, handleInputChange, currentValue)
-                )
+              .filter(
+                (child) =>
+                  child.name === 'Case' &&
+                  child.attributes.primary === currentValue
               )
-              .flat()}
+              .flatMap((caseChild) =>
+                caseChild.children.map((grandChild) =>
+                  renderInputTag(grandChild, values, handleInputChange)
+                )
+              )}
           </div>
         )}
       </div>
@@ -66,20 +76,85 @@ function renderInputTag(
   }
 
   if (input.name === 'Score') {
-    // For now, render score tags similar to info tags - just pass the original input
-    // The InfoInput component should handle it gracefully
+
+
     return (
-      <InfoInput
+      <div
+        className="justify-center-center w-full max-w-full space-y-3"
         key={`score-${input.attributes.primary}`}
-        input={input as any}
-        value={values[input.attributes.primary] as string | number | undefined}
-        onChange={(value) =>
-          handleInputChange(
-            input.attributes.primary,
-            !Number.isNaN(Number(value)) ? Number(value) : value
-          )
-        }
-      />
+      >
+        <Label
+          className="font-medium text-foreground"
+          htmlFor={`score-${input.attributes.primary}`}
+        >
+          {input.attributes.primary}
+        </Label>
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge className="ml-2 bg-muted-foreground">
+                <Sigma aria-hidden="true" className="opacity-60" size={12} />
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent className="overflow-hidden px-2 py-1 text-sm">
+              <div className="space-y-1">
+                <p className="font-medium text-[13px]">Formel</p>
+                <p className="text-wrap font-mono text-muted-foreground text-xs">
+                  {input.attributes.formula ? (
+                    <span className=" text-muted-foreground">
+                      {input.attributes.formula
+                        ?.replace(
+                          /(\[[\w_]+\])|([^a-zA-Z[\]])/g,
+                          (_match, p1, p2) => (p1 ? p1 : ` ${p2} `)
+                        )
+                        .replace(/\s+/g, ' ')
+                        .trim()}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Keine Formel</span>
+                  )}
+                </p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Read-only calculated score display */}
+        <div className="w-full max-w-full space-y-1">
+          <Input
+            className="h-9 w-full max-w-full cursor-default border-input bg-muted font-medium text-foreground focus:border-solarized-orange focus:ring-solarized-orange/20"
+            id={`score-${input.attributes.primary}`}
+            readOnly
+            value={`${0}${input.attributes.unit ? ` ${input.attributes.unit}` : ''}`}
+          />
+        </div>
+        {/* Variable inputs (indented) */}
+        {input.children.length > 0 && (
+          <div className="ml-4 w-full max-w-full space-y-3 border-muted border-l-2 pr-4 pl-4">
+            {input.children.map((child) => (
+              <div
+                className="w-full max-w-full space-y-1"
+                key={child.attributes.primary}
+              >
+                <InfoInput
+                  input={
+                    {
+                      attributes: {
+                        primary: child.attributes.primary,
+                        type: 'number',
+                      },
+                    } as InfoInputTagType
+                  }
+                  onChange={(value) =>
+                    handleInputChange(child.attributes.primary, value)
+                  }
+                  value={values[child.attributes.primary] as number | undefined}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -105,8 +180,10 @@ export default function Inputs({ inputTags = [], onChange }: InputsProps) {
   }
 
   return (
-    <form className="space-y-6 mx-4">
-      {inputTags.map((inputTag) => renderInputTag(inputTag, values, handleInputChange))}
+    <form className="w-full max-w-full space-y-6 pr-4">
+      {inputTags.map((inputTag) =>
+        renderInputTag(inputTag, values, handleInputChange)
+      )}
     </form>
   );
 }

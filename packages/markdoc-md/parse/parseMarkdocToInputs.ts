@@ -1,17 +1,19 @@
 import type { RenderableTreeNode } from '@markdoc/markdoc';
 import Markdoc from '@markdoc/markdoc';
+import { default as Formula, default as fparser } from 'fparser';
 import config from '../markdoc-config';
 
-/** 
+/**
  * Union type representing all possible input tag types in the Markdoc template.
  * Extends RenderableTreeNode to include Markdoc's base node properties.
  */
-export type InputTagType = RenderableTreeNode & (
-  | InfoInputTagType 
-  | SwitchInputTagType
-  | CaseInputTagType
-  | ScoreInputTagType
-);
+export type InputTagType = RenderableTreeNode &
+  (
+    | InfoInputTagType
+    | SwitchInputTagType
+    | CaseInputTagType
+    | ScoreInputTagType
+  );
 
 /**
  * Represents an info tag that captures single values.
@@ -83,86 +85,124 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
   const inputTags: InputTagType[] = [];
   const uniqueTags = new Set<string>();
 
-  // Optimized helper function to get tag key
-  const getTagKey = (componentNode: any, parentContext?: { type: string; path: string }): string => {
-    const baseKey = `${componentNode.name}:${componentNode.attributes.primary}`;
-    return parentContext 
-      ? `${parentContext.path}:${baseKey}`
-      : baseKey;
-  };
-
   // Optimized children processing function
-  const processChildrenOptimized = (children: any, childContext: any): InputTagType[] => {
+  const processChildrenOptimized = (
+    children: any,
+    childContext: any
+  ): InputTagType[] => {
     if (!children) return [];
-    
+
     const childrenArray = Array.isArray(children) ? children : [children];
     const result: InputTagType[] = [];
-    
+
     // Use for loop for better performance than forEach/map
     for (let i = 0; i < childrenArray.length; i++) {
       result.push(...processNode(childrenArray[i], childContext));
     }
-    
+
     return result;
   };
 
   // Optimized main processing function
-  function processNode(node: RenderableTreeNode, parentContext?: { type: string; path: string }): InputTagType[] {
+  function processNode(
+    node: RenderableTreeNode,
+    parentContext?: { type: string; path: string }
+  ): InputTagType[] {
     // Early returns for invalid nodes
     if (!node || typeof node !== 'object') return [];
 
     const currentLevelTags: InputTagType[] = [];
 
     // Check if it's a valid tag node
-    if ('$$mdtype' in node && node.$$mdtype === 'Tag' && 'name' in node && VALID_TAG_NAMES.has(node.name as string)) {
+    if (
+      '$$mdtype' in node &&
+      node.$$mdtype === 'Tag' &&
+      'name' in node &&
+      VALID_TAG_NAMES.has(node.name as string)
+    ) {
       const componentNode = node as any;
-      const tagKey = getTagKey(componentNode, parentContext);
+      const tagKey = componentNode.attributes.primary;
 
       // Process each tag type with optimized logic
       if (componentNode.name === 'Info' && !uniqueTags.has(tagKey)) {
         const infoTag = {
           name: 'Info' as const,
           attributes: componentNode.attributes,
-          children: processChildrenOptimized(componentNode.children, { type: 'Info', path: tagKey })
+          children: processChildrenOptimized(componentNode.children, {
+            type: 'Info',
+            path: tagKey,
+          }),
         } as InfoInputTagType;
-        
+
         currentLevelTags.push(infoTag);
         uniqueTags.add(tagKey);
-      }
-      else if (componentNode.name === 'Switch' && !uniqueTags.has(tagKey) && componentNode.attributes.primary) {
+      } else if (
+        componentNode.name === 'Switch' &&
+        !uniqueTags.has(tagKey) &&
+        componentNode.attributes.primary
+      ) {
         const switchTag = {
           name: 'Switch' as const,
           attributes: { primary: componentNode.attributes.primary },
-          children: processChildrenOptimized(componentNode.children, { type: 'Switch', path: tagKey })
+          children: processChildrenOptimized(componentNode.children, {
+            type: 'Switch',
+            path: tagKey,
+          }),
         } as SwitchInputTagType;
 
         currentLevelTags.push(switchTag);
         uniqueTags.add(tagKey);
-      }
-      else if (componentNode.name === 'Case'&& !uniqueTags.has(tagKey)) {
+      } else if (componentNode.name === 'Case' && !uniqueTags.has(tagKey)) {
         const caseTag = {
           name: 'Case' as const,
           attributes: { primary: componentNode.attributes.primary || '' },
-          children: processChildrenOptimized(componentNode.children, { type: 'Case', path: tagKey })
+          children: processChildrenOptimized(componentNode.children, {
+            type: 'Case',
+            path: tagKey,
+          }),
         } as CaseInputTagType;
 
         currentLevelTags.push(caseTag);
         uniqueTags.add(tagKey);
-      }
-      else if (componentNode.name === 'Score' && !uniqueTags.has(tagKey)) {
+      } else if (componentNode.name === 'Score' && !uniqueTags.has(tagKey)) {
         const scoreTag = {
           name: 'Score' as const,
           attributes: componentNode.attributes,
-          children: processChildrenOptimized(componentNode.children, { type: 'Score', path: tagKey })
+          children: processChildrenOptimized(componentNode.children, {
+            type: 'Score',
+            path: tagKey,
+          }),
         } as ScoreInputTagType;
-        
+
+        try {
+          const formula = new Formula(componentNode.attributes.formula);
+          const variables = formula.getVariables();
+
+          for (const variable of variables) {
+            scoreTag.children.push({
+              name: 'Info' as const,
+              attributes: {
+                primary: variable,
+                type: 'number',
+              },
+            } as InfoInputTagType);
+          }
+        } catch (error) {
+          console.error('Error parsing formula', error);
+        }
+
         currentLevelTags.push(scoreTag);
         uniqueTags.add(tagKey);
       }
     }
     // Process children for non-tag nodes more efficiently
-    else if ('children' in node && (!('name' in node) || !VALID_TAG_NAMES.has(node.name as string))) {
-      currentLevelTags.push(...processChildrenOptimized(node.children, parentContext));
+    else if (
+      'children' in node &&
+      !('name' in node && VALID_TAG_NAMES.has(node.name as string))
+    ) {
+      currentLevelTags.push(
+        ...processChildrenOptimized(node.children, parentContext)
+      );
     }
 
     return currentLevelTags;
