@@ -10,11 +10,12 @@ export default {
     attributes: {
       primary: {
         type: String,
+        required: true,
       },
       type: {
         type: String,
         default: 'string',
-        matches: ['string', 'number', 'date'],
+        matches: ['string', 'number', 'date', 'boolean'],
       },
       unit: {
         type: String,
@@ -26,6 +27,7 @@ export default {
   score: {
     render: 'Score',
     attributes: {
+      primary: { type: String, required: true },
       formula: { type: String, required: true },
       unit: { type: String },
     },
@@ -33,7 +35,7 @@ export default {
   switch: {
     render: 'Switch',
     children: ['tag', 'text'],
-    attributes: { primary: { type: String } },
+    attributes: { primary: { type: String, required: true } },
     selfClosing: false,
     // this transform is necessary to only allow case tags inside switch tags to render
     // switch tags should not contain breaks, as this will not be rendered correctly (markdoc only recognizes inline tags or full paragraphs)
@@ -65,8 +67,8 @@ export default {
 };
 
 export const components: Record<string, React.ComponentType<any>> = {
-  Case: Case,
-  Info: Info,
-  Switch: Switch,
-  Score: Score,
+  Case,
+  Info,
+  Switch,
+  Score,
 };
