@@ -2,7 +2,7 @@
 import Markdoc from "@markdoc/markdoc";
 import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
 import { Check, Copy } from "lucide-react";
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 
 interface MemoizedCopySectionProps {
@@ -108,6 +108,7 @@ export const MemoizedCopySection = memo(
 	({ title, content, values }: MemoizedCopySectionProps) => {
 		const [isCopied, setIsCopied] = useState(false);
 		const blocks = useMemo(() => parseMarkdocIntoBlocks(content), [content]);
+		const contentRef = useRef<HTMLDivElement>(null);
 
 		const handleCopy = async (renderedContent: string, textContent: string) => {
 			try {
@@ -195,7 +196,7 @@ export const MemoizedCopySection = memo(
 			<div className="space-y-2">
 				{title && <h3 className="font-medium text-lg capitalize">{title}</h3>}
 				<div className="group relative w-full whitespace-pre-line rounded-md bg-muted p-3 text-left">
-					<div data-section={title}>
+					<div ref={contentRef} data-section={title}>
 						{blocks.map((block, index) => (
 							<MemoizedMarkdownBlock
 								content={block}
@@ -208,16 +209,17 @@ export const MemoizedCopySection = memo(
 						type="button"
 						tabIndex={0}
 						onClick={() => {
-							// Get the rendered content from the DOM
-							const contentElement: HTMLElement | null = document.querySelector(
-								`[data-section="${title}"]`,
-							);
+							// Use the ref to get the rendered content directly
+							const contentElement = contentRef.current;
 							if (contentElement) {
 								const renderedContent = contentElement.innerHTML;
-								const textContent = contentElement.innerText || "";
+								const textContent =
+									contentElement.innerText || contentElement.textContent || "";
 								handleCopy(renderedContent, textContent);
 							} else {
-								handleCopy(content, content);
+								toast.error(
+									"Problem mit dem Kopieren - bitte manuell kopieren",
+								);
 							}
 						}}
 						className="absolute top-2 right-2 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100"
