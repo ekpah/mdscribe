@@ -11,11 +11,14 @@
     "test": "turbo test",
     "analyze": "turbo analyze",
     "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && pnpm install",
-    "migrate": "cd packages/database && npx prisma format && npx prisma generate && npx prisma db push"
+    "migrate": "cd packages/database && npx prisma format && npx prisma generate && npx prisma db push",
+    "knip": "knip"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.5",
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "^24.0.10",
+    "knip": "^5.61.3",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3",
     "ultracite": "^5.0.12"

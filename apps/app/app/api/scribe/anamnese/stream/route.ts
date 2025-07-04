@@ -1,11 +1,11 @@
 'use server';
-import { auth } from '@/auth';
-import { authClient } from '@/lib/auth-client';
-import { anthropic } from '@ai-sdk/anthropic';
+import { type AnthropicProviderOptions, anthropic } from '@ai-sdk/anthropic';
 import { env } from '@repo/env';
 import { type CoreMessage, streamText } from 'ai';
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
+import { auth } from '@/auth';
+import { authClient } from '@/lib/auth-client';
 
 const langfuse = new Langfuse();
 
@@ -24,7 +24,6 @@ export async function POST(req: Request) {
   );
 
   const { prompt }: { prompt: string } = await req.json();
-  const { anamnese } = JSON.parse(prompt);
   //const allowAIUseFlag = await allowAIUse();
   // allowAIUseFlag is true for now for everyone to try it out
   const allowAIUseFlag = !!session?.user;
@@ -32,12 +31,22 @@ export async function POST(req: Request) {
     return new Response('Bitte geben Sie Stichpunkte ein.', { status: 400 });
   }
 
-  if (!allowAIUseFlag && !activeSubscription) {
+  if (!(allowAIUseFlag || activeSubscription)) {
     return new Response(
       'Unauthorized: Du brauchst ein aktives Abo um diese Funktion zu nutzen.',
       { status: 401 }
     );
   }
+
+  // construct the needed variables for the prompt
+  const todaysDate = new Date().toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const { anamnese, vordiagnosen = 'Keine Vorerkrankungen' } =
+    JSON.parse(prompt);
+
   // Get current `production` version of a chat prompt
   const textPrompt = await langfuse.getPrompt('ER_Anamnese_chat', undefined, {
     type: 'chat',
@@ -45,14 +54,16 @@ export async function POST(req: Request) {
   });
   const compiledPrompt = textPrompt.compile({
     anamnese,
+    vordiagnosen,
+    todaysDate,
   });
   const messages: CoreMessage[] = compiledPrompt as CoreMessage[];
 
-  const result = await streamText({
+  const result = streamText({
     model: anthropic('claude-sonnet-4-20250514'),
     //model: google('gemini-2.5-pro-exp-03-25'),
     // model: fireworks('accounts/fireworks/models/deepseek-v3'),
-    maxTokens: 20000,
+    maxTokens: 20_000,
     temperature: 1,
     experimental_telemetry: {
       isEnabled: true,
@@ -61,7 +72,12 @@ export async function POST(req: Request) {
         langfusePrompt: textPrompt.toJSON(),
       },
     },
-    messages: messages,
+    providerOptions: {
+      anthropic: {
+        thinking: { type: 'enabled', budgetTokens: 8000 },
+      } satisfies AnthropicProviderOptions,
+    },
+    messages,
     onFinish: (result) => {
       console.log('Prompt tokens:', result.usage.promptTokens);
       console.log('Completion tokens:', result.usage.completionTokens);
