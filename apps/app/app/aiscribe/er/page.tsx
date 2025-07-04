@@ -26,6 +26,18 @@ const ER_CONFIG: AiscribeTemplateConfig = {
   inputDescription:
     'Dokumentieren Sie die Symptome, Beschwerden und relevante Vorgeschichte des Patienten',
 
+  // Additional input fields
+  additionalInputs: [
+    {
+      name: 'vordiagnosen',
+      label: 'Vordiagnosen',
+      placeholder: 'Bekannte Vorerkrankungen und Diagnosen eingeben...',
+      required: false,
+      type: 'textarea',
+      description: 'Bekannte Vorerkrankungen, chronische Leiden, bisherige Diagnosen'
+    },
+  ],
+
   // Button text
   generateButtonText: 'Analyse generieren',
   regenerateButtonText: 'Neu analysieren',
@@ -34,18 +46,6 @@ const ER_CONFIG: AiscribeTemplateConfig = {
   emptyStateTitle: 'Noch keine Analyse vorhanden',
   emptyStateDescription:
     'Bitte geben Sie zuerst die Anamnese ein und generieren Sie eine Analyse.',
-
-
-  // Custom API call for diagnosis
-  customApiCall: async (inputData: string) => {
-    const prompt = JSON.stringify({ anamnese: inputData });
-    const response = await fetch('/api/scribe/diagnosis', {
-      method: 'POST',
-      body: JSON.stringify({ prompt }),
-    });
-    const data = await response.json();
-    return data.text;
-  },
 };
 
 export default function ERAIGenerator() {
