@@ -1,6 +1,6 @@
-import { auth } from '@/auth'; // path to your auth file
 import { toNextJsHandler } from 'better-auth/next-js';
 import type { NextRequest } from 'next/server';
+import { auth } from '@/auth'; // path to your auth file
 
 export const { GET } = toNextJsHandler(auth);
 

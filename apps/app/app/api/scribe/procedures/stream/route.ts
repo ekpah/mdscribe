@@ -1,14 +1,13 @@
-'use server';
-import { auth } from '@/auth';
-import { authClient } from '@/lib/auth-client';
-import { anthropic, AnthropicProviderOptions } from '@ai-sdk/anthropic';
 import { database } from '@repo/database';
-import { env } from '@repo/env';
-import { type CoreMessage, embed, streamText } from 'ai';
-import { Langfuse } from 'langfuse';
+import { embed } from 'ai';
 import { headers } from 'next/headers';
 import pgvector from 'pgvector';
 import { voyage } from 'voyage-ai-provider';
+import { auth } from '@/auth';
+import {
+  createInputValidator,
+  createScribeHandler,
+} from '../../_lib/scribe-handler';
 
 // Type definition for template search results
 interface TemplateSearchResult {
@@ -20,8 +19,6 @@ interface TemplateSearchResult {
   updatedAt: Date;
   similarity: number;
 }
-
-const langfuse = new Langfuse();
 
 const generateEmbeddings = async (
   content: string
@@ -42,44 +39,19 @@ const generateEmbeddings = async (
   return { embedding, content };
 };
 
-export async function POST(req: Request) {
-  //get session and active subscription from better-auth
+const handleProcedures = createScribeHandler({
+  promptName: 'Procedure_chat',
+  validateInput: createInputValidator(['prompt']),
+  processInput: async (input: unknown) => {
+    const { prompt } = input as { prompt: string };
+    const { procedureNotes } = JSON.parse(prompt);
 
-  const { data: subscriptions } = await authClient.subscription.list();
+    // Generate embeddings for the user query
+    const { embedding } = await generateEmbeddings(procedureNotes);
+    const embeddingSql = pgvector.toSql(embedding);
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  // get the active subscription
-  const activeSubscription = subscriptions?.find(
-    (sub) => sub.status === 'active' || sub.status === 'trialing'
-  );
-
-  const { prompt }: { prompt: string } = await req.json();
-  const { procedureNotes } = JSON.parse(prompt);
-  //const allowAIUseFlag = await allowAIUse();
-  // allowAIUseFlag is true for now for everyone to try it out
-  const allowAIUseFlag = !!session?.user;
-  if (prompt.trim().length === 0) {
-    return new Response('Bitte geben Sie Prozedur-Notizen ein.', {
-      status: 400,
-    });
-  }
-
-  if (!allowAIUseFlag && !activeSubscription) {
-    return new Response(
-      'Unauthorized: Du brauchst ein aktives Abo um diese Funktion zu nutzen.',
-      { status: 401 }
-    );
-  }
-
-  // Generate embeddings for the user query
-  const { embedding } = await generateEmbeddings(procedureNotes);
-  const embeddingSql = pgvector.toSql(embedding);
-
-  // Use raw SQL for vector similarity search to get top results
-  const similarityResults = await database.$queryRaw<TemplateSearchResult[]>`
+    // Use raw SQL for vector similarity search to get top results
+    const similarityResults = await database.$queryRaw<TemplateSearchResult[]>`
       SELECT 
         id,
         title,
@@ -95,13 +67,13 @@ export async function POST(req: Request) {
       LIMIT 5
     `;
 
-  // use the relevant template, if there is one and otherwise use the default template
-  const relevantTemplate = similarityResults[0]?.content
-    ? `## Relevante Textbaustein-Vorlage (Referenz)
+    // Use the relevant template, if there is one and otherwise use the default template
+    const relevantTemplate = similarityResults[0]?.content
+      ? `## Relevante Textbaustein-Vorlage (Referenz)
 
 Nutze die folgende Vorlage als Beispiel eines Textbausteins. Dieser ist anhand der gegebenen Informationen ausgewählt und potenziell relevant, der Assistent baut also darauf auf. Bei Diskrepanzen, nutze auf jeden Fall die Informationen aus der Nutzereingabe!
 ${similarityResults[0]?.content}`
-    : `## Standard-Textbausteine (Referenz)
+      : `## Standard-Textbausteine (Referenz)
 
 <details>
 <summary>ZVK-Anlage Vorlage</summary>
@@ -145,43 +117,17 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 
 </details>`;
 
-  // Get current `;production` version of a chat prompt
-  const chatPrompt = await langfuse.getPrompt('Procedure_chat', undefined, {
-    type: 'chat',
-    label: env.NODE_ENV === 'production' ? 'production' : 'staging',
-  });
-  const compiledChatPrompt = chatPrompt.compile({
-    notes: procedureNotes,
-    relevantTemplate: relevantTemplate,
-  });
-
-  // Assert that the Langfuse output is compatible with CoreMessage[]
-  const messages: CoreMessage[] = compiledChatPrompt as CoreMessage[];
-
-  const result = await streamText({
-    model: anthropic('claude-sonnet-4-20250514'),
-    //model: google('gemini-2.5-pro-exp-03-25'),
-    // model: fireworks('accounts/fireworks/models/deepseek-v3'),
-    maxTokens: 20000,
+    return {
+      notes: procedureNotes,
+      relevantTemplate,
+    };
+  },
+  modelConfig: {
+    thinking: true,
+    thinkingBudget: 8000,
+    maxTokens: 20_000,
     temperature: 1,
-    experimental_telemetry: {
-      isEnabled: true,
-      metadata: {
-        userId: session?.user?.id || 'unknown',
-        langfusePrompt: chatPrompt.toJSON(),
-      },
-    },
-    providerOptions: {
-      anthropic: {
-        thinking: { type: 'enabled', budgetTokens: 8000 },
-      } satisfies AnthropicProviderOptions,
-    },
-    messages: messages,
-    onFinish: (result) => {
-      console.log('Prompt tokens:', result.usage.promptTokens);
-      console.log('Completion tokens:', result.usage.completionTokens);
-      console.log('Total tokens:', result.usage.totalTokens);
-    },
-  });
-  return result.toDataStreamResponse();
-}
+  },
+});
+
+export const POST = handleProcedures;
