@@ -1,6 +1,5 @@
 'use client';
 
-import { signIn } from '@/lib/auth-client';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,
@@ -18,6 +17,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { signIn } from '@/lib/auth-client';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -25,6 +25,7 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
+
   return (
     <Card className="w-full max-w-md">
       <form
@@ -42,7 +43,6 @@ export default function SignIn() {
                 onSuccess: () => {
                   //redirect to dashboard
                   router.refresh();
-                  router.push('/templates');
                   setLoading(false);
                 },
                 onError: (ctx) => {
@@ -74,35 +74,35 @@ export default function SignIn() {
             <Label htmlFor="email">E-Mail</Label>
             <Input
               id="email"
-              type="email"
-              placeholder="m@beispiel.de"
-              value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="m@beispiel.de"
               required
+              type="email"
+              value={email}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Passwort</Label>
             <Input
               id="password"
-              type="password"
-              value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              type="password"
+              value={password}
             />
           </div>
           <div className="flex items-center gap-2">
             <Checkbox
+              checked={rememberMe}
               id="remember"
               onClick={() => setRememberMe(!rememberMe)}
-              checked={rememberMe}
             />
             <Label htmlFor="remember">Angemeldet bleiben</Label>
           </div>
 
-          <Button className="w-full" type="submit" disabled={loading}>
+          <Button className="w-full" disabled={loading} type="submit">
             {loading ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
             ) : (
               'Anmelden'
             )}
@@ -111,28 +111,28 @@ export default function SignIn() {
         <CardFooter className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-muted-foreground text-sm">
             <span className="mr-1">Noch kein Konto?</span>
-            <Link href="/sign-up" className="text-primary hover:underline">
+            <Link className="text-primary hover:underline" href="/sign-up">
               Registrieren
             </Link>
           </div>
           <Link
-            href="/forgot-password"
             className="text-primary text-sm hover:underline"
+            href="/forgot-password"
           >
             Passwort vergessen?
           </Link>
           <p className="text-muted-foreground text-xs">
             Mit der Registrierung akzeptieren Sie unsere{' '}
             <Link
-              href="/legal?tab=datenschutz"
               className="text-primary hover:underline"
+              href="/legal?tab=datenschutz"
             >
               Datenschutzerklärung
             </Link>{' '}
             und unsere{' '}
             <Link
-              href="/legal?tab=agb"
               className="text-primary hover:underline"
+              href="/legal?tab=agb"
             >
               Geschäftsbedingungen
             </Link>

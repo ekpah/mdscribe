@@ -1,8 +1,9 @@
+
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
-import UserCard from './_components/user-card';
 import UserDashboard from './_components/user-dashboard';
+
 
 export default async function DashboardPage() {
   // Get the mocked session
@@ -27,6 +28,7 @@ export default async function DashboardPage() {
   );
   const generationLimit =
     activeSubscription?.limits?.ai_scribe_generations || 0;
+
 
   return (
     <UserDashboard
