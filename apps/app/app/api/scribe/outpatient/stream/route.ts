@@ -1,73 +1,21 @@
-'use server';
-import { auth } from '@/auth';
-import { authClient } from '@/lib/auth-client';
-import { anthropic } from '@ai-sdk/anthropic';
-import { env } from '@repo/env';
-import { type CoreMessage, streamText } from 'ai';
-import { Langfuse } from 'langfuse';
-import { headers } from 'next/headers';
+import {
+  createInputValidator,
+  createScribeHandler,
+} from '../../_lib/scribe-handler';
 
-const langfuse = new Langfuse();
-
-export async function POST(req: Request) {
-  //get session and active subscription from better-auth
-
-  const { data: subscriptions } = await authClient.subscription.list();
-
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  // get the active subscription
-  const activeSubscription = subscriptions?.find(
-    (sub) => sub.status === 'active' || sub.status === 'trialing'
-  );
-
-  const { prompt }: { prompt: string } = await req.json();
-  const { consultationNotes } = JSON.parse(prompt);
-  //const allowAIUseFlag = await allowAIUse();
-  // allowAIUseFlag is true for now for everyone to try it out
-  const allowAIUseFlag = !!session?.user;
-  if (prompt.trim().length === 0) {
-    return new Response('Bitte geben Sie Konsultationsnotizen ein.', { status: 400 });
-  }
-
-  if (!allowAIUseFlag && !activeSubscription) {
-    return new Response(
-      'Unauthorized: Du brauchst ein aktives Abo um diese Funktion zu nutzen.',
-      { status: 401 }
-    );
-  }
-  // Get current `production` version of a chat prompt
-  const textPrompt = await langfuse.getPrompt('Outpatient_visit_chat', undefined, {
-    type: 'chat',
-    label: env.NODE_ENV === 'production' ? 'production' : 'staging',
-  });
-  const compiledPrompt = textPrompt.compile({
-    notes: consultationNotes,
-  });
-  const messages: CoreMessage[] = compiledPrompt as CoreMessage[];
-
-  const result = await streamText({
-    model: anthropic('claude-sonnet-4-20250514'),
-    //model: google('gemini-2.5-pro-exp-03-25'),
-    // model: fireworks('accounts/fireworks/models/deepseek-v3'),
-    maxTokens: 20000,
+const handleOutpatient = createScribeHandler({
+  promptName: 'Outpatient_visit_chat',
+  validateInput: createInputValidator(['prompt']),
+  processInput: (input: unknown) => {
+    const { prompt } = input as { prompt: string };
+    const { consultationNotes } = JSON.parse(prompt);
+    return { notes: consultationNotes };
+  },
+  modelConfig: {
+    thinking: false,
+    maxTokens: 20_000,
     temperature: 1,
-    experimental_telemetry: {
-      isEnabled: true,
-      metadata: {
-        userId: session?.user?.id || 'unknown',
-        langfusePrompt: textPrompt.toJSON(),
-      },
-    },
-    messages: messages,
-    onFinish: (result) => {
-      console.log('Prompt tokens:', result.usage.promptTokens);
-      console.log('Completion tokens:', result.usage.completionTokens);
-      console.log('Total tokens:', result.usage.totalTokens);
-      console.log('Result:', result);
-    },
-  });
-  return result.toDataStreamResponse();
-}
+  },
+});
+
+export const POST = handleOutpatient;

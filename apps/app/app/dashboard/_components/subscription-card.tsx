@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
+import { useQuery } from '@tanstack/react-query';
 
 interface SubscriptionCardProps {
   subscription?: Subscription;
@@ -39,13 +40,13 @@ export function SubscriptionCard({
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">Status</span>
               <Badge
-                variant={
-                  subscription?.cancelAtPeriodEnd ? 'outline' : 'outline'
-                }
                 className={
                   subscription?.cancelAtPeriodEnd
                     ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-700'
                     : 'bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700'
+                }
+                variant={
+                  subscription?.cancelAtPeriodEnd ? 'outline' : 'outline'
                 }
               >
                 {subscription?.cancelAtPeriodEnd ? 'Wird gekündigt' : 'Aktiv'}
@@ -71,10 +72,10 @@ export function SubscriptionCard({
           <CardFooter className="mt-auto">
             {!subscription?.cancelAtPeriodEnd && (
               <Button
-                variant="outline"
                 className="text-destructive hover:text-destructive"
-                onClick={onCancel}
                 disabled={isManagingSubscription}
+                onClick={onCancel}
+                variant="outline"
               >
                 Abonnement kündigen
               </Button>
@@ -87,8 +88,8 @@ export function SubscriptionCard({
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">Status</span>
               <Badge
-                variant="outline"
                 className="bg-gray-50 text-gray-700 hover:bg-gray-50 hover:text-gray-700"
+                variant="outline"
               >
                 Kein Abonnement
               </Badge>
@@ -101,8 +102,8 @@ export function SubscriptionCard({
           <CardFooter className="mt-auto">
             <Button
               className="w-full"
-              onClick={onUpgrade}
               disabled={isManagingSubscription}
+              onClick={onUpgrade}
             >
               Abonnieren
             </Button>
