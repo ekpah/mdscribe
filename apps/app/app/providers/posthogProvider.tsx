@@ -3,12 +3,10 @@
 
 import { env } from '@repo/env';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { usePostHog } from 'posthog-js/react';
-import { Suspense, useEffect } from 'react';
-
-import { authClient } from '@/lib/auth-client';
 import posthog from 'posthog-js';
-import { PostHogProvider as PHProvider } from 'posthog-js/react';
+import { PostHogProvider as PHProvider, usePostHog } from 'posthog-js/react';
+import { Suspense, useEffect } from 'react';
+import { authClient } from '@/lib/auth-client';
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = authClient.useSession();
@@ -48,7 +46,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         email: session?.user?.email,
       });
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.email, session?.user?.id]);
 
   return (
     <PHProvider client={posthog}>

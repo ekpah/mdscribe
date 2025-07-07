@@ -26,6 +26,30 @@ export function SubscriptionCard({
 }: SubscriptionCardProps) {
   const hasActiveSubscription = !!subscription;
 
+  const { data: usage } = useQuery({
+    queryKey: ["usage"],
+    queryFn: async () => {
+      const res = await fetch('/api/scribe/getUsage');
+      return res.json();
+    },
+  });
+
+  const statusBadge = subscription?.cancelAtPeriodEnd ? (
+    <Badge
+      className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-700"
+      variant="outline"
+    >
+      Wird gekündigt
+    </Badge>
+  ) : (
+    <Badge
+      className="bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700"
+      variant="outline"
+    >
+      Aktiv
+    </Badge>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -39,22 +63,15 @@ export function SubscriptionCard({
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">Status</span>
-              <Badge
-                className={
-                  subscription?.cancelAtPeriodEnd
-                    ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-700'
-                    : 'bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700'
-                }
-                variant={
-                  subscription?.cancelAtPeriodEnd ? 'outline' : 'outline'
-                }
-              >
-                {subscription?.cancelAtPeriodEnd ? 'Wird gekündigt' : 'Aktiv'}
-              </Badge>
+              {statusBadge}
             </div>
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">Plan</span>
               <span className="text-sm capitalize">{subscription?.plan}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-sm">Nutzung (aktueller Monat)</span>
+              <span className="text-sm">{usage?.count} Anfragen</span>
             </div>
             {subscription?.periodEnd && (
               <div className="flex items-center justify-between">
@@ -97,6 +114,10 @@ export function SubscriptionCard({
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">Plan</span>
               <span className="text-sm">Basis</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-sm">Nutzung (aktueller Monat)</span>
+              <span className="text-sm">{usage?.count} Anfragen</span>
             </div>
           </CardContent>
           <CardFooter className="mt-auto">

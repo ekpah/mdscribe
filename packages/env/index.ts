@@ -29,6 +29,11 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
   VOYAGE_API_KEY: z.string().min(1),
 
+  // Langfuse configuration
+  LANGFUSE_SECRET_KEY: z.string().min(1),
+  LANGFUSE_PUBLIC_KEY: z.string().min(1),
+  LANGFUSE_BASEURL: z.string().min(1).url(),
+
   // Added by Node
   NODE_ENV: z.enum(['development', 'production']),
   CI: z.string().optional(),
@@ -83,5 +88,8 @@ export const env = createEnv({
     FLAGS_SECRET: process.env.FLAGS_SECRET,
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     VOYAGE_API_KEY: process.env.VOYAGE_API_KEY,
+    LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
+    LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_BASEURL: process.env.LANGFUSE_BASEURL,
   },
 });

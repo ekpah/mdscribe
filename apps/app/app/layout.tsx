@@ -50,7 +50,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
               <div className="flex h-screen w-screen" key="Body">
                 <nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
                   {/*ModeWatcher track="true" />*/}
-                  <Menubar showAiLink={showAiLink} />
+                  <Menubar session={session} showAiLink={showAiLink} />
                 </nav>
                 <div
                   className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
@@ -60,7 +60,8 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
                 </div>
               </div>
             </DesignSystemProvider>
-          </PostHogProvider></QueryProvider>
+          </PostHogProvider>
+        </QueryProvider>
       </body>
     </html>
   );

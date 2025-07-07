@@ -1,6 +1,6 @@
 /**
  * Reusable API handler for scribe routes
- * 
+ *
  * This module provides a reusable handler that abstracts common functionality
  * for all scribe API routes, including:
  * - Authentication and subscription checking
@@ -10,7 +10,7 @@
  * - Claude thinking mode configuration (disabled by default)
  * - Usage logging and telemetry
  * - Error handling
- * 
+ *
  * @example
  * // For streaming responses (default):
  * const handleAnamnese = createScribeHandler({
@@ -26,7 +26,7 @@
  *     thinkingBudget: 8000,
  *   },
  * });
- * 
+ *
  * @example
  * // For non-streaming responses:
  * const handleDiagnosis = createScribeHandler({
@@ -44,19 +44,21 @@
  *     thinking: false, // Disable thinking (default)
  *   },
  * });
- * 
+ *
  * @example
  * // Usage in API route:
  * export const POST = handleAnamnese;
  */
 
 import { type AnthropicProviderOptions, anthropic } from '@ai-sdk/anthropic';
+import { stripe } from '@repo/design-system/lib/stripe';
 import { env } from '@repo/env';
 import { type CoreMessage, generateText, streamText } from 'ai';
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
+import type { Session } from '@/lib/auth-types';
 
 const langfuse = new Langfuse();
 
@@ -67,7 +69,9 @@ export interface ScribeHandlerConfig {
 
     // Input validation and processing
     validateInput: (input: unknown) => { isValid: boolean; error?: string };
-    processInput: (input: unknown) => Record<string, unknown> | Promise<Record<string, unknown>>;
+    processInput: (
+        input: unknown
+    ) => Record<string, unknown> | Promise<Record<string, unknown>>;
 
     // Response configuration
     streaming?: boolean; // Default: true
@@ -111,7 +115,10 @@ async function getLangfusePrompt(promptName: string, promptLabel?: string) {
     return textPrompt;
 }
 
-async function processRequest(config: ScribeHandlerConfig, requestBody: unknown) {
+async function processRequest(
+    config: ScribeHandlerConfig,
+    requestBody: unknown
+) {
     // Validate input
     const validation = config.validateInput(requestBody);
     if (!validation.isValid) {
@@ -135,7 +142,7 @@ async function generateResponse(
     config: ScribeHandlerConfig,
     messages: CoreMessage[],
     metadata: Record<string, string | number | boolean>,
-    session: { user?: { id?: string } } | null
+    session: Session
 ) {
     // Default model configuration
     const defaultModelConfig = {
@@ -178,7 +185,7 @@ async function generateResponse(
         // Create streaming response
         const result = streamText({
             ...commonParams,
-            onFinish: (event) => {
+            onFinish: async (event) => {
                 // Log usage in development
                 if (env.NODE_ENV === 'development') {
                     const logData = {
@@ -190,6 +197,15 @@ async function generateResponse(
                     };
                     const _ = logData;
                 }
+
+                // Log tokens to Stripe meter
+                await stripe.billing.meterEvents.create({
+                    event_name: 'ai_scribe_usage',
+                    payload: {
+                        value: event.usage.totalTokens.toString(),
+                        stripe_customer_id: session.user.stripeCustomerId as string,
+                    },
+                });
             },
         });
 
@@ -209,6 +225,15 @@ async function generateResponse(
         };
         const _ = logData;
     }
+
+    // Log tokens to Stripe meter
+    await stripe.billing.meterEvents.create({
+        event_name: 'ai_scribe_usage',
+        payload: {
+            value: usage.totalTokens.toString(),
+            stripe_customer_id: session.user.stripeCustomerId as string,
+        },
+    });
 
     return Response.json({ text });
 }
@@ -232,9 +257,16 @@ export function createScribeHandler(
 
             // Check authentication and subscription - allow for every logged in user for now
             const allowAIUseFlag = !!session?.user;
-            if (!(allowAIUseFlag)) {
+            if (!allowAIUseFlag) {
                 return new Response(
                     'Unauthorized: Du brauchst ein aktives Abo um diese Funktion zu nutzen.',
+                    { status: 401 }
+                );
+            }
+
+            if (!session?.user?.stripeCustomerId) {
+                return new Response(
+                    'Unauthorized: Du musst einen Stripe Account haben um diese Funktion zu nutzen.',
                     { status: 401 }
                 );
             }
