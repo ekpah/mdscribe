@@ -24,7 +24,7 @@ export default function SkeletonEditor() {
           <Label htmlFor="editor">Inhalt</Label>
           <Skeleton className="h-[calc(100vh-(--spacing(72))-(--spacing(6)))] w-full rounded-l" />
         </div>
-        <Button type="submit" className="mt-2 w-full">
+        <Button className="mt-2 w-full" type="submit">
           Textbaustein speichern
         </Button>
       </div>
