@@ -267,7 +267,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                 {/* Privacy notice */}
                 <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
                   <p className="text-solarized-green leading-relaxed">
-                    🔒 Alle Daten werden nur lokal gespeichert und niemals an
+                    🔒 Alle Daten  in dieser Box werden nur lokal gespeichert und niemals an
                     Server übertragen
                   </p>
                 </div>
@@ -310,6 +310,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                     <CardDescription>{config.inputDescription}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Privacy Warning */}
+                    <div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
+                      <p className="text-solarized-red leading-relaxed">
+                        ⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier keine privaten Patientendaten ein! Diese Informationen werden an eine KI gesendet. Verwenden Sie nur anonymisierte Daten.
+                      </p>
+                    </div>
+
                     {/* Additional Input Fields */}
                     {config.additionalInputs &&
                       config.additionalInputs.length > 0 && (
