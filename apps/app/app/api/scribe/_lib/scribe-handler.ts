@@ -253,7 +253,11 @@ export function createScribeHandler(
     return async (req: Request): Promise<Response> => {
         try {
             // Get session and subscription
-            const { session } = await checkAuthAndSubscription();
+            const authResult = await checkAuthAndSubscription();
+            if (authResult instanceof Response) {
+                return authResult;
+            }
+            const { session } = authResult;
 
             // Parse request body
             const requestBody = await req.json();

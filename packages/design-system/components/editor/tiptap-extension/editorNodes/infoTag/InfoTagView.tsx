@@ -30,22 +30,21 @@ export function InfoTagView({
     // Changed align-middle to align-baseline for better text alignment
     <NodeViewWrapper as="span" className="inline-block align-baseline">
       <div
-        className={`inline-flex cursor-pointer items-stretch overflow-hidden rounded-md border text-xs transition-all ${
-          selected
+        className={`inline-flex cursor-pointer items-stretch overflow-hidden rounded-md border text-xs transition-all ${selected
             ? 'border-solarized-blue ring-2 ring-solarized-blue/50'
             : 'border-solarized-blue hover:border-solarized-blue/80'
-        }`}
+          }`}
       >
         <Popover>
           <PopoverTrigger
             className="inline-flex cursor-pointer items-stretch overflow-hidden"
-            data-type="markdoc-info"
             data-primary={node.attrs.primary}
+            data-type="markdoc-info"
           >
             {/* Info Label */}
             <span
-              data-drag-handle
               className="border-solarized-blue border-r bg-solarized-blue px-2 font-bold text-white"
+              data-drag-handle
             >
               Info
             </span>
@@ -72,20 +71,20 @@ export function InfoTagView({
               <div className="space-y-3 p-3">
                 {/* Info Variable Input */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="primary" className="font-medium text-xs">
+                  <Label className="font-medium text-xs" htmlFor="primary">
                     Variablenname
                   </Label>
                   <Input
+                    autoFocus
+                    className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
                     id="primary"
-                    value={node.attrs.primary || ''}
                     onChange={(e) =>
                       updateAttributes({
                         primary: e.target.value,
                       })
                     }
                     placeholder="z.B. patientenname, alter"
-                    className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
-                    autoFocus
+                    value={node.attrs.primary || ''}
                   />
                 </div>
               </div>
@@ -94,12 +93,12 @@ export function InfoTagView({
         </Popover>
 
         <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleRemoveInfo}
+          aria-label="Remove info tag"
           className="h-auto self-stretch rounded-none rounded-r-md px-1 text-solarized-blue/70 hover:bg-solarized-blue/10 hover:text-solarized-blue"
           contentEditable={false}
-          aria-label="Remove info tag"
+          onClick={handleRemoveInfo}
+          size="icon"
+          variant="ghost"
         >
           <X className="h-3 w-3" />
         </Button>
