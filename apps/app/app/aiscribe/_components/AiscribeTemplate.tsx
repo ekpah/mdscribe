@@ -157,7 +157,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
       // Check for errors after completion
       if (completion.error) {
-        toast.error('Fehler beim Generieren');
+        toast.error(completion.error.message || 'Fehler beim Generieren');
       } else if (completion.completion) {
         toast.success('Erfolgreich generiert');
       }

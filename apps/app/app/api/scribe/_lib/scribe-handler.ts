@@ -108,10 +108,8 @@ async function checkAuthAndSubscription() {
     const usageLimit = activeSubscription ? 500 : 50;
 
     if (usage?.count >= usageLimit) {
-        return new Response('Usage limit exceeded', { status: 403 });
+        return new Response('Monatliche Nutzungsgrenze erreicht - passe dein Abonnement an', { status: 403 });
     }
-
-    console.log('usage', usage, usageLimit);
 
     return { session, activeSubscription, usage };
 }
