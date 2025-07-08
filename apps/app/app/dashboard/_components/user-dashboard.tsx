@@ -1,6 +1,5 @@
 'use client';
 
-import { authClient } from '@/lib/auth-client';
 import type { Subscription } from '@better-auth/stripe';
 import {
   Tabs,
@@ -10,9 +9,12 @@ import {
 } from '@repo/design-system/components/ui/tabs';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { authClient } from '@/lib/auth-client';
+import type { Session } from '@/lib/auth-types';
 import { FeaturesCard } from './features-card';
 import { ProfileCard } from './profile-card';
 import { SubscriptionCard } from './subscription-card';
+import UserCard from './user-card';
 
 type User = {
   name: string;
@@ -23,10 +25,14 @@ export default function UserDashboard({
   user,
   subscription,
   generationLimit,
+  activeSessions,
+  session,
 }: {
   user: User;
   subscription?: Subscription;
   generationLimit: number;
+  activeSessions: Session['session'][];
+  session: Session;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
@@ -68,48 +74,59 @@ export default function UserDashboard({
     <div className="overflow-y-auto">
       <div className="hidden 2xl:block">
         <ProfileCard
-          user={user}
           isLoading={isLoading}
           setIsLoading={setIsLoading}
+          user={user}
         />
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <SubscriptionCard
+          <UserCard
+            activeSessions={JSON.parse(JSON.stringify(activeSessions))}
+            session={JSON.parse(JSON.stringify(session))}
             subscription={subscription}
-            isManagingSubscription={isManagingSubscription}
-            onUpgrade={handleSubscriptionUpgrade}
-            onCancel={handleSubscriptionCancel}
           />
-          <FeaturesCard
-            hasActiveSubscription={hasActiveSubscription}
+          <SubscriptionCard
+            isManagingSubscription={isManagingSubscription}
+            onCancel={handleSubscriptionCancel}
             onUpgrade={handleSubscriptionUpgrade}
+            subscription={subscription}
           />
         </div>
       </div>
 
       <div className="2xl:hidden">
-        <Tabs defaultValue="profile" className="w-full p-4">
+        <Tabs className="w-full p-4" defaultValue="profile">
           <TabsList className="w-full">
-            <TabsTrigger value="profile" className="w-full">
+            <TabsTrigger className="w-full" value="profile">
               Profil
             </TabsTrigger>
-            <TabsTrigger value="subscription" className="w-full">
+            <TabsTrigger className="w-full" value="login">
+              Account
+            </TabsTrigger>
+            <TabsTrigger className="w-full" value="subscription">
               Abonnement
             </TabsTrigger>
           </TabsList>
           <div className="h-[500px] w-[800px] max-w-full">
-            <TabsContent value="profile" className="h-full">
+            <TabsContent className="h-full" value="profile">
               <ProfileCard
-                user={user}
                 isLoading={isLoading}
                 setIsLoading={setIsLoading}
+                user={user}
               />
             </TabsContent>
-            <TabsContent value="subscription" className="h-full">
-              <SubscriptionCard
+            <TabsContent className="h-full" value="login">
+              <UserCard
+                activeSessions={JSON.parse(JSON.stringify(activeSessions))}
+                session={JSON.parse(JSON.stringify(session))}
                 subscription={subscription}
+              />
+            </TabsContent>
+            <TabsContent className="h-full" value="subscription">
+              <SubscriptionCard
                 isManagingSubscription={isManagingSubscription}
-                onUpgrade={handleSubscriptionUpgrade}
                 onCancel={handleSubscriptionCancel}
+                onUpgrade={handleSubscriptionUpgrade}
+                subscription={subscription}
               />
             </TabsContent>
           </div>

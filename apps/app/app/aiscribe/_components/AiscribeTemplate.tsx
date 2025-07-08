@@ -11,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
+import { Input } from '@repo/design-system/components/ui/input';
+import { Label } from '@repo/design-system/components/ui/label';
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import {
   Tabs,
@@ -19,12 +21,20 @@ import {
   TabsTrigger,
 } from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
-import { DynamicMarkdocRenderer } from '@repo/markdoc-md';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import { Check, Copy, FileText, Loader2, type LucideIcon } from 'lucide-react';
+import { FileText, Loader2, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { MemoizedCopySection } from './MemoizedCopySection';
+
+export interface AdditionalInputField {
+  name: string;
+  label: string;
+  placeholder: string;
+  required?: boolean;
+  type?: 'text' | 'textarea';
+  description?: string;
+}
 
 export interface AiscribeTemplateConfig {
   // Page identity
@@ -44,6 +54,9 @@ export interface AiscribeTemplateConfig {
   inputPlaceholder: string;
   inputDescription: string;
 
+  // Additional input fields
+  additionalInputs?: AdditionalInputField[];
+
   // Button text
   generateButtonText: string;
   regenerateButtonText: string;
@@ -53,8 +66,14 @@ export interface AiscribeTemplateConfig {
   emptyStateDescription: string;
 
   // Optional custom processing
-  customPromptProcessor?: (inputData: string) => Record<string, unknown>;
-  customApiCall?: (inputData: string) => Promise<unknown>;
+  customPromptProcessor?: (
+    inputData: string,
+    additionalInputs: Record<string, string>
+  ) => Record<string, unknown>;
+  customApiCall?: (
+    inputData: string,
+    additionalInputs: Record<string, string>
+  ) => Promise<unknown>;
 }
 
 interface AiscribeTemplateProps {
@@ -64,10 +83,11 @@ interface AiscribeTemplateProps {
 export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   const [activeTab, setActiveTab] = useState('input');
   const [inputData, setInputData] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [additionalInputData, setAdditionalInputData] = useState<
+    Record<string, string>
+  >({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
-  const [customApiResult, setCustomApiResult] = useState<unknown>(null);
 
   // Use Vercel AI SDK's useCompletion
   const completion = useCompletion({
@@ -82,9 +102,35 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     setValues(data);
   };
 
-  const handleGenerate = useCallback(async () => {
+  // Handle additional input changes
+  const handleAdditionalInputChange = (name: string, value: string) => {
+    setAdditionalInputData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Check if all required fields are filled
+  const areRequiredFieldsFilled = useCallback(() => {
     if (!inputData.trim()) {
-      toast.error('Bitte geben Sie die erforderlichen Informationen ein.');
+      return false;
+    }
+
+    if (config.additionalInputs) {
+      return config.additionalInputs.every(
+        (field) =>
+          !field.required ||
+          (additionalInputData[field.name] &&
+            additionalInputData[field.name].trim())
+      );
+    }
+
+    return true;
+  }, [inputData, additionalInputData, config.additionalInputs]);
+
+  const handleGenerate = useCallback(async () => {
+    if (!areRequiredFieldsFilled()) {
+      toast.error('Bitte füllen Sie alle erforderlichen Felder aus.');
       return;
     }
 
@@ -94,14 +140,16 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     try {
       // Handle custom API call if provided
       if (config.customApiCall) {
-        const customResult = await config.customApiCall(inputData);
-        setCustomApiResult(customResult);
+        await config.customApiCall(inputData, additionalInputData);
       }
 
       // Prepare prompt
       const prompt = config.customPromptProcessor
-        ? config.customPromptProcessor(inputData)
-        : JSON.stringify({ [config.inputFieldName]: inputData });
+        ? config.customPromptProcessor(inputData, additionalInputData)
+        : JSON.stringify({
+          [config.inputFieldName]: inputData,
+          ...additionalInputData,
+        });
 
       await completion.complete(
         typeof prompt === 'string' ? prompt : JSON.stringify(prompt)
@@ -109,19 +157,19 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
       // Check for errors after completion
       if (completion.error) {
-        console.error('Generation error:', completion.error);
-        toast.error('Fehler beim Generieren');
+        toast.error(completion.error.message || 'Fehler beim Generieren');
       } else if (completion.completion) {
         toast.success('Erfolgreich generiert');
       }
-    } catch (err) {
+    } catch {
       toast.error('Fehler beim Generieren');
-      console.error('Generation error:', err);
     } finally {
       setIsGenerating(false);
     }
   }, [
     inputData,
+    additionalInputData,
+    areRequiredFieldsFilled,
     completion.complete,
     completion.error,
     completion.completion,
@@ -138,12 +186,12 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        if (!isLoading && inputData.trim()) {
+        if (!isLoading && areRequiredFieldsFilled()) {
           handleGenerate();
         }
       }
     },
-    [isLoading, inputData, handleGenerate]
+    [isLoading, areRequiredFieldsFilled, handleGenerate]
   );
 
   useEffect(() => {
@@ -206,20 +254,20 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
                   {(!completion.completion ||
                     parseMarkdocToInputs(completion.completion).length ===
-                      0) && (
-                    <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
-                      <p className="text-muted-foreground text-xs leading-relaxed">
-                        Notwendige Informationen werden automatisch aus den
-                        Eingaben extrahiert
-                      </p>
-                    </div>
-                  )}
+                    0) && (
+                      <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
+                        <p className="text-muted-foreground text-xs leading-relaxed">
+                          Notwendige Informationen werden automatisch aus den
+                          Eingaben extrahiert
+                        </p>
+                      </div>
+                    )}
                 </div>
 
                 {/* Privacy notice */}
                 <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
                   <p className="text-solarized-green leading-relaxed">
-                    🔒 Alle Daten werden nur lokal gespeichert und niemals an
+                    🔒 Alle Daten  in dieser Box werden nur lokal gespeichert und niemals an
                     Server übertragen
                   </p>
                 </div>
@@ -231,21 +279,21 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
           <div className="lg:col-span-3 xl:col-span-4">
             <Card className="border-solarized-green/20 shadow-lg">
               <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
                 className="w-full"
+                onValueChange={setActiveTab}
+                value={activeTab}
               >
                 <CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
                   <TabsList className="grid grid-cols-2 bg-background/50 backdrop-blur-sm">
                     <TabsTrigger
-                      value="input"
                       className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+                      value="input"
                     >
                       {config.inputTabTitle}
                     </TabsTrigger>
                     <TabsTrigger
-                      value="output"
                       className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+                      value="output"
                     >
                       {config.outputTabTitle}
                     </TabsTrigger>
@@ -253,7 +301,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                 </CardHeader>
 
                 {/* Input Tab */}
-                <TabsContent value="input" className="space-y-0">
+                <TabsContent className="space-y-0" value="input">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-foreground">
                       <FileText className="h-5 w-5 text-solarized-blue" />
@@ -262,13 +310,87 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                     <CardDescription>{config.inputDescription}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Privacy Warning */}
+                    <div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
+                      <p className="text-solarized-red leading-relaxed">
+                        ⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier keine privaten Patientendaten ein! Diese Informationen werden an eine KI gesendet. Verwenden Sie nur anonymisierte Daten.
+                      </p>
+                    </div>
+
+                    {/* Additional Input Fields */}
+                    {config.additionalInputs &&
+                      config.additionalInputs.length > 0 && (
+                        <div className="space-y-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-1.5 rounded-full bg-solarized-blue" />
+                            <h4 className="font-medium text-foreground text-sm">
+                              Zusätzliche Informationen
+                            </h4>
+                          </div>
+                          <div className="grid gap-4">
+                            {config.additionalInputs.map((field) => (
+                              <div className="space-y-2" key={field.name}>
+                                <Label
+                                  className='font-medium text-sm'
+                                  htmlFor={field.name}
+                                >
+                                  {field.label}
+                                  {field.required && (
+                                    <span className='ml-1 text-red-500'>*</span>
+                                  )}
+                                </Label>
+                                {field.type === 'textarea' ? (
+                                  <Textarea
+                                    className="min-h-[100px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+                                    disabled={isLoading}
+                                    id={field.name}
+                                    onChange={(e) =>
+                                      handleAdditionalInputChange(
+                                        field.name,
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder={field.placeholder}
+                                    value={
+                                      additionalInputData[field.name] || ''
+                                    }
+                                  />
+                                ) : (
+                                  <Input
+                                    className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+                                    disabled={isLoading}
+                                    id={field.name}
+                                    onChange={(e) =>
+                                      handleAdditionalInputChange(
+                                        field.name,
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder={field.placeholder}
+                                    value={
+                                      additionalInputData[field.name] || ''
+                                    }
+                                  />
+                                )}
+                                {field.description && (
+                                  <p className="text-muted-foreground text-xs">
+                                    {field.description}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Main Input Field */}
                     <Textarea
-                      id="input-field"
-                      placeholder={config.inputPlaceholder}
                       className="min-h-[400px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-                      value={inputData}
-                      onChange={(e) => setInputData(e.target.value)}
                       disabled={isLoading}
+                      id="input-field"
+                      onChange={(e) => setInputData(e.target.value)}
+                      placeholder={config.inputPlaceholder}
+                      value={inputData}
                     />
                   </CardContent>
                   <CardFooter className="flex items-center justify-between bg-muted/20">
@@ -287,9 +409,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                       </div>
                     </div>
                     <Button
-                      onClick={handleGenerate}
-                      disabled={isLoading || !inputData.trim()}
                       className="bg-solarized-blue text-primary-foreground shadow-lg transition-all hover:bg-solarized-blue/90"
+                      disabled={isLoading || !areRequiredFieldsFilled()}
+                      onClick={handleGenerate}
                       size="lg"
                     >
                       {isLoading ? (
@@ -308,7 +430,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                 </TabsContent>
 
                 {/* Output Tab */}
-                <TabsContent value="output" className="space-y-0">
+                <TabsContent className="space-y-0" value="output">
                   <CardContent>
                     {(() => {
                       if (isLoading && !completion.completion) {
@@ -341,11 +463,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                               </h4>
                               <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
                                 <MemoizedCopySection
-                                  values={values}
                                   content={
                                     completion.completion ||
                                     'Keine Inhalte verfügbar'
                                   }
+                                  values={values}
                                 />
                               </ScrollArea>
                             </div>
@@ -373,9 +495,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                               {config.emptyStateDescription}
                             </p>
                             <Button
-                              variant="outline"
                               className="mt-4"
                               onClick={() => setActiveTab('input')}
+                              variant="outline"
                             >
                               Zu Eingabe wechseln
                             </Button>

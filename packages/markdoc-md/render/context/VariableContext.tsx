@@ -1,10 +1,10 @@
 import React, { createContext, useContext } from 'react';
 
 // Define the shape of your variables object to support multiple types
-type VariableValue = string | number | boolean;
+type VariableValue = string | number;
 type VariableMap = Record<string, VariableValue>;
 
-type VariableContextType = VariableMap;
+type VariableContextType = Record<string, VariableValue>;
 
 const VariableContext = createContext<VariableContextType>({});
 

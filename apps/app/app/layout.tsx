@@ -1,14 +1,15 @@
-import { allowAIUse } from '@/flags';
 import { DesignSystemProvider } from '@repo/design-system/providers';
+import { auth } from '@/auth';
+import { allowAIUse } from '@/flags';
 import '@repo/design-system/styles/globals.css';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import Menubar from './_components/Menubar';
-
-import { auth } from '@/auth';
-import { headers } from 'next/headers';
 import { PostHogProvider } from './providers/posthogProvider';
+import { QueryProvider } from './providers/queryProvider';
 
 export const metadata: Metadata = {
   title: 'MDScribe',
@@ -31,35 +32,36 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
     headers: await headers(),
   });
   const showAiLink = !!session?.user;
-  
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="referrer" content="strict-origin" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <meta content="strict-origin" name="referrer" />
 
-        <link rel="shortcut icon" href="/favicon.ico" />
-        <link rel="icon" href="/favicon.ico" />
+        <link href="/favicon.ico" rel="shortcut icon" />
+        <link href="/favicon.ico" rel="icon" />
       </head>
       <body
         className={`${inter.variable} items-center bg-background font-sans text-foreground`}
       >
-        <PostHogProvider>
-          <DesignSystemProvider>
-            <div key="Body" className="flex h-screen w-screen">
-              <nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
-                {/*ModeWatcher track="true" />*/}
-                <Menubar showAiLink={showAiLink} />
-              </nav>
-              <div
-                key="Content"
-                className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
-              >
-                {children}
+        <QueryProvider>
+          <PostHogProvider>
+            <DesignSystemProvider>
+              <div className="flex h-screen w-screen" key="Body">
+                <nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
+                  {/*ModeWatcher track="true" />*/}
+                  <Menubar session={session} showAiLink={showAiLink} />
+                </nav>
+                <div
+                  className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
+                  key="Content"
+                >
+                  {children}
+                </div>
               </div>
-            </div>
-          </DesignSystemProvider>
-        </PostHogProvider>
+            </DesignSystemProvider>
+          </PostHogProvider>
+        </QueryProvider>
       </body>
     </html>
   );

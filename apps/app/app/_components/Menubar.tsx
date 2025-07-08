@@ -1,13 +1,5 @@
 'use client';
 
-import { Menu, X } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import * as React from 'react';
-
-import { authClient } from '@/lib/auth-client';
-import DarkLogo from '@/public/logo/dark';
-import LightLogo from '@/public/logo/light';
 import { ModeToggle } from '@repo/design-system/components/mode-toggle';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -20,11 +12,24 @@ import {
   navigationMenuTriggerStyle,
 } from '@repo/design-system/components/ui/navigation-menu';
 import { cn } from '@repo/design-system/lib/utils';
+import { Menu, X } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { forwardRef, useState } from 'react';
+import { authClient } from '@/lib/auth-client';
+import type { Session } from '@/lib/auth-types';
+import DarkLogo from '@/public/logo/dark';
+import LightLogo from '@/public/logo/light';
 
-export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
-  const { data: session } = authClient.useSession();
+export default function TopMenuBar({
+  showAiLink,
+  session,
+}: {
+  showAiLink: boolean;
+  session: Session | null;
+}) {
   const router = useRouter();
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -44,11 +49,11 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
   return (
     <div className="relative">
       <div
-        key="Menubar"
         className="flex h-16 items-center justify-between border-b bg-background px-2 py-1 sm:px-4"
+        key="Menubar"
       >
         <div className="flex items-center">
-          <Link href="/" className="mr-4">
+          <Link className="mr-4" href="/">
             <div className="dark:hidden">
               <LightLogo />
             </div>
@@ -79,8 +84,8 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <NavigationMenuLink
-                  href="https://docs.mdscribe.de/"
                   className={navigationMenuTriggerStyle()}
+                  href="https://docs.mdscribe.de/"
                 >
                   Erklärung
                 </NavigationMenuLink>
@@ -91,7 +96,7 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 
         {/* Mobile Menu Toggle */}
         <div className="flex md:hidden">
-          <Button variant="ghost" size="icon" onClick={toggleMobileMenu}>
+          <Button onClick={toggleMobileMenu} size="icon" variant="ghost">
             {mobileMenuOpen ? (
               <X className="h-5 w-5" />
             ) : (
@@ -103,20 +108,20 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
         {/* Desktop User Controls */}
         <div className="hidden items-center md:flex">
           {session?.user && (
-            <Link href="/dashboard" className="mr-2 text-sm">
+            <Link className="mr-2 text-sm" href="/dashboard">
               {session.user.email}
             </Link>
           )}
           {session?.user ? (
             <Button
-              variant="secondary"
-              onClick={handleSignOut}
               className="mr-2"
+              onClick={handleSignOut}
+              variant="secondary"
             >
               Ausloggen
             </Button>
           ) : (
-            <Link href="/sign-in" className="mr-2">
+            <Link className="mr-2" href="/sign-in">
               <Button>Anmelden</Button>
             </Link>
           )}
@@ -152,8 +157,8 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <NavigationMenuLink
-                  href="https://docs.mdscribe.de/"
                   className={navigationMenuTriggerStyle()}
+                  href="https://docs.mdscribe.de/"
                 >
                   Anleitung
                 </NavigationMenuLink>
@@ -163,8 +168,8 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
           <div className="mt-2 border-t pt-3">
             {session?.user && (
               <Link
-                href="/dashboard"
                 className="px-2 py-1 text-muted-foreground text-sm"
+                href="/dashboard"
               >
                 {session.user.email}
               </Link>
@@ -173,16 +178,16 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
             <div className="flex items-center justify-between pt-2">
               {session?.user ? (
                 <Button
-                  variant="secondary"
-                  onClick={handleSignOut}
                   className="w-full"
+                  onClick={handleSignOut}
+                  variant="secondary"
                 >
                   Ausloggen
                 </Button>
               ) : (
                 <Link
-                  href="/sign-in"
                   className="w-full"
+                  href="/sign-in"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Button className="w-full">Anmelden</Button>
@@ -198,7 +203,7 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
     </div>
   );
 }
-const ListItem = React.forwardRef<
+const ListItem = forwardRef<
   React.ElementRef<'a'>,
   React.ComponentPropsWithoutRef<'a'>
 >(({ className, title, children, ...props }, ref) => {
@@ -206,11 +211,11 @@ const ListItem = React.forwardRef<
     <li>
       <NavigationMenuLink asChild>
         <a
-          ref={ref}
           className={cn(
             'block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
             className
           )}
+          ref={ref}
           {...props}
         >
           <div className="font-medium text-sm leading-none">{title}</div>

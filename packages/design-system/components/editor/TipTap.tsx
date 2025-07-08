@@ -1,16 +1,16 @@
 'use client';
 
 import {
+  createSuggestionsItems,
+  enableKeyboardNavigation,
   Slash,
   SlashCmd,
   SlashCmdProvider,
-  createSuggestionsItems,
-  enableKeyboardNavigation,
 } from '@harshtalks/slash-tiptap';
 import { MarkdocMD } from '@repo/design-system/components/editor/tiptap-extension';
 import { cn } from '@repo/design-system/lib/utils';
 import { htmlToMarkdoc } from '@repo/markdoc-md/parse/htmlToMarkdoc';
-import { renderTipTapHTML } from '@repo/markdoc-md/render/renderNote';
+import { renderTipTapHTML } from '@repo/markdoc-md/render/utils/renderMarkdocAsTipTapHTML';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
@@ -57,7 +57,10 @@ const suggestions = createSuggestionsItems([
 export default function TipTap({
   note,
   setContent,
-}: { note: string; setContent: (content: string) => void }) {
+}: {
+  note: string;
+  setContent: (content: string) => void;
+}) {
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -117,12 +120,12 @@ export default function TipTap({
               {suggestions.map((item) => {
                 return (
                   <SlashCmd.Item
-                    value={item.title}
+                    className="relative mt-1 flex h-12 cursor-pointer select-none items-center gap-3 px-4 text-gray-900 text-sm transition-all duration-150 ease-in will-change-[background,color] content-visibility-auto first:mt-0 active:bg-gray-200 active:transition-[background] data-[disabled=true]:cursor-not-allowed data-[selected=true]:bg-gray-100 data-[disabled=true]:text-gray-400 data-[selected=true]:after:absolute data-[selected=true]:after:left-0 data-[selected=true]:after:z-[123] data-[selected=true]:after:h-full data-[selected=true]:after:w-[3px] data-[selected=true]:after:bg-[#5f6ad2] data-[selected=true]:after:content-[''] dark:text-gray-100 dark:data-[selected=true]:bg-gray-800 dark:active:bg-gray-700"
+                    key={item.title}
                     onCommand={(val) => {
                       item.command(val);
                     }}
-                    key={item.title}
-                    className="relative mt-1 flex h-12 cursor-pointer select-none items-center gap-3 px-4 text-gray-900 text-sm transition-all duration-150 ease-in will-change-[background,color] content-visibility-auto first:mt-0 active:bg-gray-200 active:transition-[background] data-[disabled=true]:cursor-not-allowed data-[selected=true]:bg-gray-100 data-[disabled=true]:text-gray-400 data-[selected=true]:after:absolute data-[selected=true]:after:left-0 data-[selected=true]:after:z-[123] data-[selected=true]:after:h-full data-[selected=true]:after:w-[3px] data-[selected=true]:after:bg-[#5f6ad2] data-[selected=true]:after:content-[''] dark:text-gray-100 dark:data-[selected=true]:bg-gray-800 dark:active:bg-gray-700"
+                    value={item.title}
                   >
                     <p>{item.title}</p>
                   </SlashCmd.Item>

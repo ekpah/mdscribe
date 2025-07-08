@@ -12,7 +12,7 @@ import posthog from 'posthog-js';
 import Stripe from 'stripe';
 
 // initialize stripe client
-if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
+if (!(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET)) {
   throw new Error('STRIPE_SECRET_KEY is not set');
 }
 const stripeClient = new Stripe(env.STRIPE_SECRET_KEY as string);
@@ -36,8 +36,8 @@ export const auth = betterAuth({
     changeEmail: {
       enabled: true,
       sendChangeEmailVerification: async (
-        { user, newEmail, url, token },
-        request
+        { user, newEmail, url }
+
       ) => {
         await sendEmail({
           from: 'noreply@mdscribe.de',
@@ -53,7 +53,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    sendResetPassword: async ({ user, url, token }, request) => {
+    sendResetPassword: async ({ user, url }) => {
       if (env.NODE_ENV === 'development') {
         await console.log({
           to: user.email,
@@ -75,7 +75,7 @@ export const auth = betterAuth({
     autoSignInAfterVerification: true,
     callbackURL: '/dashboard', // The redirect URL after verification
     expiresIn: 3600, // 1 hour
-    sendVerificationEmail: async ({ user, url, token }, request) => {
+    sendVerificationEmail: async ({ user, url }) => {
       if (env.NODE_ENV === 'development') {
         await console.log({
           to: user.email,
@@ -101,6 +101,20 @@ export const auth = betterAuth({
       createCustomerOnSignUp: true,
       subscription: {
         enabled: true,
+        onSubscriptionComplete: async ({ stripeSubscription, plan }) => {
+          // Called when a subscription is successfully created
+          await posthog.capture('subscription_created', {
+            plan: plan.name,
+            price_id: stripeSubscription.items.data[0].price.id,
+            subscription_interval: stripeSubscription.items.data[0].price.recurring?.interval
+          });
+        },
+        onSubscriptionCancel: async ({ stripeSubscription }) => {
+          // Called when a subscription is canceled
+          await posthog.capture('subscription_canceled', {
+            price_id: stripeSubscription.items.data[0].price.id,
+          });
+        },
         plans: [
           {
             name: 'plus', // the name of the plan, it'll be automatically lower cased when stored in the database
@@ -117,13 +131,13 @@ export const auth = betterAuth({
   ],
   // define hooks for better-auth to hook into events
   hooks: {
-        after: createAuthMiddleware(async (ctx) => {
-            if(ctx.path.startsWith("/sign-up")){
-                const newSession = ctx.context.newSession;
-                posthog.capture('user-register', {
-                    email: newSession?.user?.email,
-                });
-            }
-        }),
-    },
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path.startsWith("/sign-up")) {
+        const newSession = ctx.context.newSession;
+        await posthog.capture('user_registered', {
+          email: newSession?.user?.email,
+        });
+      }
+    }),
+  },
 });
