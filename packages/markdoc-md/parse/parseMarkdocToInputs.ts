@@ -121,7 +121,7 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
       VALID_TAG_NAMES.has(node.name as string)
     ) {
       const componentNode = node as any;
-      const tagKey = componentNode.attributes.primary;
+      const tagKey = `${componentNode.name}_${componentNode.attributes.primary}`;
 
       // Process each tag type with optimized logic
       if (componentNode.name === 'Info' && !uniqueTags.has(tagKey)) {
