@@ -6,10 +6,37 @@ import {
   TabsList,
   TabsTrigger,
 } from '@repo/design-system/components/ui/tabs';
+import { AlertTriangle, Info, Shield } from 'lucide-react';
 
 export default function LegalPage() {
   return (
     <div className="h-full w-full space-y-8">
+      {/* Prominent Medical Disclaimer */}
+      <div className="rounded-lg border-2 border-solarized-red bg-solarized-base3 p-6 dark:border-solarized-orange dark:bg-solarized-base02">
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0">
+            <AlertTriangle className="h-6 w-6 text-solarized-red dark:text-solarized-orange" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg text-solarized-red dark:text-solarized-orange">
+              Wichtiger Hinweis
+            </h3>
+            <p className="text-sm text-solarized-base01 dark:text-solarized-base1">
+              <strong className="text-solarized-red dark:text-solarized-orange">
+                mdscribe.de stellt KEINE medizinische Beratung dar.
+              </strong>{' '}
+              Diese Plattform dient ausschließlich der Vereinfachung und
+              Beschleunigung der medizinischen Dokumentation. Die generierten
+              Texte und Vorlagen ersetzen nicht die klinische Beurteilung,
+              Diagnose oder Behandlung durch qualifizierte Ärzte. Alle
+              medizinischen Entscheidungen müssen weiterhin auf Basis der
+              individuellen klinischen Beurteilung und aktueller medizinischer
+              Standards getroffen werden.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Impressum section always visible at the top */}
       <section className="space-y-6">
         <h2 className="font-semibold text-xl">Impressum</h2>
@@ -17,15 +44,13 @@ export default function LegalPage() {
           <h3 className="font-semibold">Angaben gemäß § 5 TMG</h3>
           <div className="space-y-2">
             <p>Dr. med. Nils Hapke</p>
-            <p>Huttenstraße 6</p>
-            <p>97072 Würzburg</p>
           </div>
         </div>
 
         <div className="space-y-4">
           <h3 className="font-semibold">Kontakt</h3>
           <div className="space-y-2">
-            <p>E-Mail: nils.hapke@we-mail.de</p>
+            <p>E-Mail: nils-hapke@t-online.de</p>
           </div>
         </div>
 
@@ -46,13 +71,13 @@ export default function LegalPage() {
       </section>
 
       {/* Tabs for Datenschutz and AGB */}
-      <Tabs defaultValue="datenschutz" className="w-full">
+      <Tabs className="w-full" defaultValue="datenschutz">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="datenschutz">Datenschutzerklärung</TabsTrigger>
           <TabsTrigger value="agb">Geschäftsbedingungen</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="datenschutz" className="space-y-8">
+        <TabsContent className="space-y-8" value="datenschutz">
           <div className="space-y-8">
             <div className="space-y-4">
               <p className="text-muted-foreground text-sm">Stand: 17.04.2025</p>
@@ -138,27 +163,51 @@ export default function LegalPage() {
 
             <section className="space-y-4">
               <h3 className="font-semibold text-xl">
-                4. Aktivitätsverfolgung (Tracking ohne Cookies)
+                4. Nutzungsverfolgung und Kontingentüberwachung
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <p>
-                  Zur Sicherstellung der Funktionalität und zur Optimierung der
-                  Services wird die Nutzung der Plattform intern protokolliert
-                  (z. B. welche Funktionen wie häufig genutzt werden). Dies
-                  erfolgt ohne externe Analyse-Tools und ohne Tracking-Cookies.
+                  Zur Sicherstellung der Funktionalität, zur Optimierung der
+                  Services und zur Überwachung von Nutzungskontingenten wird die
+                  Nutzung der Plattform umfassend protokolliert.
                 </p>
-                <p>Die erfassten Daten sind:</p>
-                <ul className="list-disc space-y-2 pl-6">
-                  <li>Nutzungszeitpunkt</li>
-                  <li>Art der genutzten Funktion</li>
-                  <li>anonyme Session-Kennung</li>
-                </ul>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium">
+                    4.1 Interne Nutzungsdatenerfassung
+                  </h4>
+                  <p>Die erfassten Daten umfassen:</p>
+                  <ul className="list-disc space-y-2 pl-6">
+                    <li>Nutzungszeitpunkt und -dauer</li>
+                    <li>Art und Anzahl der genutzten KI-Funktionen</li>
+                    <li>Verbrauchte Kontingente (Tokens, Generierungen)</li>
+                    <li>Anonyme Session-Kennung</li>
+                    <li>Fehlermeldungen und Systemereignisse</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium">4.2 Kontingentüberwachung</h4>
+                  <p>
+                    Für Nutzer mit kostenpflichtigen Abonnements werden
+                    Nutzungskontingente in Echtzeit überwacht, um
+                    sicherzustellen, dass die vereinbarten Limits eingehalten
+                    werden. Dies umfasst:
+                  </p>
+                  <ul className="list-disc space-y-2 pl-6">
+                    <li>Anzahl der KI-Generierungen pro Zeitraum</li>
+                    <li>Verbrauchte Tokens und Rechenressourcen</li>
+                    <li>Überschreitung von Tageslimits</li>
+                  </ul>
+                  <p>
+                    Diese Daten werden ausschließlich zur Bereitstellung der
+                    vereinbarten Serviceleistungen und zur Abrechnung verwendet.
+                  </p>
+                </div>
+
                 <p>
-                  Diese Daten werden ausschließlich intern verwendet, um die
-                  Plattform zu verbessern und Missbrauch zu verhindern.
-                </p>
-                <p>
-                  Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
+                  Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO
+                  (Vertragserfüllung), Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
                   Interesse)
                 </p>
               </div>
@@ -172,10 +221,21 @@ export default function LegalPage() {
                 <div className="space-y-2">
                   <h4 className="font-medium">5.1 PostHog Analytics</h4>
                   <p>
-                    Wir verwenden PostHog für die Analyse der Website-Nutzung.
-                    PostHog erfasst anonymisierte Nutzungsdaten ohne das Setzen
-                    von Cookies. Die Daten werden zur Verbesserung der
-                    Benutzererfahrung und Funktionalität verwendet.
+                    Wir verwenden PostHog für die umfassende Analyse der
+                    Website-Nutzung und Benutzerinteraktionen. PostHog erfasst
+                    folgende Daten ohne das Setzen von Cookies:
+                  </p>
+                  <ul className="list-disc space-y-1 pl-6">
+                    <li>
+                      Anonymisierte Benutzer-Events (Klicks, Seitenaufrufe)
+                    </li>
+                    <li>Feature-Nutzung und Navigationsverhalten</li>
+                    <li>Session-Dauer und Bounce-Rate</li>
+                    <li>Technische Browser- und Geräteinformationen</li>
+                  </ul>
+                  <p>
+                    Diese Daten helfen uns, die Benutzererfahrung zu optimieren
+                    und beliebte Funktionen zu identifizieren.
                   </p>
                   <p>
                     Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
@@ -198,22 +258,89 @@ export default function LegalPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-medium">5.3 Langfuse (KI-Funktionen)</h4>
+                  <h4 className="font-medium">
+                    5.3 Langfuse (KI-Monitoring und -Optimierung)
+                  </h4>
                   <p>
-                    Für die Analyse und Verbesserung unserer KI-basierten
-                    Funktionen verwenden wir Langfuse. Dabei werden
-                    anonymisierte Nutzungsdaten der KI-Features erfasst, um die
-                    Qualität und Leistung zu optimieren.
+                    Für die Überwachung, Analyse und Verbesserung unserer
+                    KI-basierten Funktionen verwenden wir Langfuse. Dieses
+                    System erfasst detaillierte Informationen über die
+                    KI-Nutzung:
+                  </p>
+                  <ul className="list-disc space-y-1 pl-6">
+                    <li>KI-Anfragen und -Antworten</li>
+                    <li>Verarbeitungszeiten und Performance-Metriken</li>
+                    <li>Fehleranalyse und Qualitätsbewertungen</li>
+                    <li>Token-Verbrauch und Kosten-Tracking</li>
+                    <li>Modell-Performance und Genauigkeitsmessungen</li>
+                  </ul>
+                  <p>
+                    Diese Daten werden ausschließlich zur technischen
+                    Optimierung der KI-Funktionen und zur Sicherstellung der
+                    Servicequalität verwendet. Eingabedaten werden anonymisiert
+                    und können nicht zu einzelnen Nutzern zurückverfolgt werden.
                   </p>
                   <p>
                     Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
-                    Interesse)
+                    Interesse), Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung)
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <h4 className="font-medium">
-                    5.4 Stripe (Zahlungsabwicklung)
+                    5.4 Externe KI-Anbieter (Large Language Model Services)
+                  </h4>
+                  <p>
+                    Für die Bereitstellung der KI-basierten Funktionen nutzen
+                    wir externe Anbieter von Large Language Model (LLM)
+                    Services. Diese verarbeiten die anonymisierten Eingabedaten
+                    zur Generierung von Dokumentationsinhalten.
+                  </p>
+                  <div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3 dark:border-solarized-yellow dark:bg-solarized-base01">
+                    <div className="flex items-start space-x-2">
+                      <div className="flex-shrink-0">
+                        <AlertTriangle className="h-4 w-4 text-solarized-yellow" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-solarized-yellow">
+                          Wichtiger Hinweis zu externen KI-Anbietern:
+                        </p>
+                        <p className="text-solarized-base01 text-xs dark:text-solarized-base1">
+                          Eingabedaten werden anonymisiert an externe
+                          KI-Anbieter übertragen. Geben Sie niemals
+                          personenbezogene Gesundheitsdaten oder
+                          patientenidentifizierbare Informationen ein.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <p>
+                    <strong>
+                      Verwendete externe Anbieter können umfassen:
+                    </strong>
+                  </p>
+                  <ul className="list-disc space-y-1 pl-6">
+                    <li>OpenAI (GPT-Modelle)</li>
+                    <li>Anthropic (Claude-Modelle)</li>
+                    <li>
+                      Weitere LLM-Anbieter je nach Verfügbarkeit und Qualität
+                    </li>
+                  </ul>
+                  <p>
+                    Diese Anbieter verarbeiten die Daten gemäß ihren jeweiligen
+                    Datenschutzrichtlinien. Die Datenübertragung erfolgt
+                    verschlüsselt und ausschließlich für die Textgenerierung.
+                  </p>
+                  <p>
+                    Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO
+                    (Vertragserfüllung), Art. 6 Abs. 1 lit. f DSGVO
+                    (berechtigtes Interesse)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium">
+                    5.5 Stripe (Zahlungsabwicklung)
                   </h4>
                   <p>
                     Für die Abwicklung von Zahlungen bei kostenpflichtigen
@@ -339,7 +466,7 @@ export default function LegalPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="agb" className="space-y-8">
+        <TabsContent className="space-y-8" value="agb">
           <div className="space-y-8">
             <div className="space-y-4">
               <p className="text-muted-foreground text-sm">Stand: 17.04.2025</p>
@@ -362,7 +489,76 @@ export default function LegalPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-medium">2. Leistungen von mdscribe.de</h4>
+                  <h4 className="font-medium">
+                    2. Art und Zweck der Plattform
+                  </h4>
+                  <div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-4 dark:border-solarized-cyan dark:bg-solarized-base01">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <Info className="h-5 w-5 text-solarized-blue dark:text-solarized-cyan" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-solarized-blue dark:text-solarized-cyan">
+                          Was ist mdscribe.de?
+                        </p>
+                        <p className="text-sm text-solarized-base01 dark:text-solarized-base1">
+                          mdscribe.de ist eine reine{' '}
+                          <strong className="text-solarized-blue dark:text-solarized-cyan">
+                            Dokumentationshilfe
+                          </strong>{' '}
+                          für medizinische Fachkräfte. Die Plattform nutzt
+                          KI-Technologie ausschließlich zur Vereinfachung und
+                          Beschleunigung der Texterstellung für administrative
+                          und dokumentarische Zwecke.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <p>
+                    <strong>Was die Plattform bietet:</strong>
+                  </p>
+                  <ul className="list-disc space-y-1 pl-6">
+                    <li>
+                      Textbausteine und Vorlagen für medizinische Dokumentation
+                    </li>
+                    <li>
+                      KI-unterstützte Generierung von Dokumentationstexten durch externe LLM-Anbieter
+                    </li>
+                    <li>Verwaltung und Organisation eigener Textvorlagen</li>
+                    <li>Zeitsparende Workflows für Routinedokumentation</li>
+                  </ul>
+                  <div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3 dark:border-solarized-yellow dark:bg-solarized-base01">
+                    <div className="flex items-start space-x-2">
+                      <div className="flex-shrink-0">
+                        <Info className="h-4 w-4 text-solarized-yellow" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-solarized-yellow">
+                          Externe KI-Dienste:
+                        </p>
+                        <p className="text-solarized-base01 text-xs dark:text-solarized-base1">
+                          Die KI-Funktionen werden durch externe Anbieter (z.B. OpenAI, Anthropic)
+                          bereitgestellt. Eingabedaten werden anonymisiert übertragen und gemäß
+                          den Datenschutzrichtlinien der jeweiligen Anbieter verarbeitet.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <p>
+                    <strong>Was die Plattform NICHT bietet:</strong>
+                  </p>
+                  <ul className="list-disc space-y-1 pl-6">
+                    <li>Medizinische Beratung oder Diagnosestellung</li>
+                    <li>Behandlungsempfehlungen oder Therapievorschläge</li>
+                    <li>
+                      Ersatz für medizinische Fachliteratur oder Leitlinien
+                    </li>
+                    <li>Validierte medizinische Entscheidungsunterstützung</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="font-medium">3. Leistungen von mdscribe.de</h4>
                   <p className="font-medium text-sm">
                     2.1 Unregistrierte Nutzung (kostenfrei)
                   </p>
@@ -382,15 +578,47 @@ export default function LegalPage() {
                     besteht nicht.
                   </p>
                   <p className="font-medium text-sm">
-                    2.3 Erweiterte Funktionen im Rahmen eines Abonnements
-                    (kostenpflichtig)
+                    2.3 Kostenpflichtige Abonnements und Kontingente
                   </p>
                   <p>
-                    Registrierte Nutzer haben die Möglichkeit, ein
-                    kostenpflichtiges Abonnement abzuschließen. Dieses
-                    ermöglicht den Zugang zu KI-basierten Funktionen zur
-                    Erstellung medizinischer Dokumentation. Die genauen Inhalte
-                    und Preise sind auf der Website einsehbar.
+                    Registrierte Nutzer können kostenpflichtige Abonnements mit
+                    verschiedenen Kontingenten abschließen. Diese ermöglichen
+                    den Zugang zu erweiterten KI-basierten Funktionen zur
+                    Erstellung medizinischer Dokumentation.
+                  </p>
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm">Abonnement-Modelle:</p>
+                    <ul className="list-disc space-y-1 pl-6">
+                      <li>
+                        <strong>Basis-Kontingent:</strong> Begrenzte Anzahl an
+                        KI-Generierungen pro Monat
+                      </li>
+                      <li>
+                        <strong>Premium-Kontingent:</strong> Erhöhte Anzahl an
+                        KI-Generierungen und erweiterte Funktionen
+                      </li>
+                      <li>
+                        <strong>Unbegrenztes Kontingent:</strong> Unlimitierte
+                        Nutzung aller KI-Funktionen
+                      </li>
+                    </ul>
+                    <p className="text-sm">
+                      <strong>Kontingent-Bereitstellung:</strong> Nach
+                      erfolgreicher Zahlung werden die gebuchten Kontingente
+                      automatisch dem Nutzerkonto gutgeschrieben und sind sofort
+                      verfügbar. Nicht verbrauchte Kontingente verfallen am Ende
+                      des Abrechnungszeitraums und werden nicht übertragen.
+                    </p>
+                    <p className="text-sm">
+                      <strong>Nutzungsüberwachung:</strong> Der Verbrauch wird
+                      in Echtzeit überwacht. Bei Erreichen des Limits werden
+                      weitere Anfragen gesperrt, bis das Kontingent erneuert
+                      oder erweitert wird.
+                    </p>
+                  </div>
+                  <p>
+                    Die genauen Preise, Kontingentgrößen und verfügbaren
+                    Abonnement-Optionen sind auf der Website einsehbar.
                   </p>
                 </div>
 
@@ -422,11 +650,30 @@ export default function LegalPage() {
                     Nutzer verpflichten sich, bei der Registrierung
                     wahrheitsgemäße Angaben zu machen. Die Zugangsdaten sind
                     vertraulich zu behandeln und dürfen nicht an Dritte
-                    weitergegeben werden. Es dürfen keine personenbezogenen
-                    Gesundheitsdaten auf der Plattform eingegeben werden.
-                    Erlaubt sind nur anonymisierte Inhalte und Stichpunkte. Ein
-                    Verstoß gegen diese Pflichten kann zur sofortigen Sperrung
-                    des Accounts führen.
+                    weitergegeben werden.
+                  </p>
+                  <div className="rounded-lg border border-solarized-red bg-solarized-base2 p-3 dark:border-solarized-orange dark:bg-solarized-base01">
+                    <div className="flex items-start space-x-2">
+                      <div className="flex-shrink-0">
+                        <AlertTriangle className="h-4 w-4 text-solarized-red dark:text-solarized-orange" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-solarized-red dark:text-solarized-orange">
+                          Besonders wichtig bei KI-Funktionen:
+                        </p>
+                        <p className="text-solarized-base01 text-xs dark:text-solarized-base1">
+                          Da Eingabedaten an externe KI-Anbieter übertragen werden, dürfen
+                          NIEMALS personenbezogene Gesundheitsdaten, Patientennamen oder
+                          andere identifizierbare Informationen eingegeben werden. Erlaubt
+                          sind ausschließlich anonymisierte Inhalte und allgemeine Stichpunkte.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <p>
+                    Ein Verstoß gegen diese Pflichten, insbesondere die Eingabe
+                    personenbezogener Daten, kann zur sofortigen Sperrung des
+                    Accounts führen.
                   </p>
                 </div>
 
@@ -459,18 +706,49 @@ export default function LegalPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-medium">8. Haftung</h4>
+                  <h4 className="font-medium">
+                    8. Haftung und medizinischer Disclaimer
+                  </h4>
+                  <div className="rounded-lg border border-solarized-red bg-solarized-base2 p-4 dark:border-solarized-orange dark:bg-solarized-base01">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <Shield className="h-5 w-5 text-solarized-red dark:text-solarized-orange" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-solarized-red dark:text-solarized-orange">
+                          WICHTIGER MEDIZINISCHER DISCLAIMER:
+                        </p>
+                        <p className="text-sm text-solarized-base01 dark:text-solarized-base1">
+                          mdscribe.de ist KEIN Medizinprodukt und bietet KEINE
+                          medizinische Beratung, Diagnose oder
+                          Behandlungsempfehlungen. Die Plattform dient
+                          ausschließlich als technisches Hilfsmittel zur
+                          Vereinfachung der Dokumentation und Textgenerierung.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                   <p>
-                    Die Inhalte auf mdscribe.de dienen ausschließlich als
-                    Hilfestellung bei der medizinischen Dokumentation. Sie
-                    stellen keine medizinische Beratung dar. Für die
-                    Richtigkeit, Vollständigkeit oder Anwendbarkeit der
-                    generierten Inhalte übernimmt mdscribe.de keine Haftung.
+                    <strong>Zweck und Grenzen der Plattform:</strong> Die
+                    generierten Inhalte sind ausschließlich als
+                    Dokumentationshilfe gedacht und müssen stets durch
+                    qualifizierte medizinische Fachkräfte überprüft, angepasst
+                    und verantwortet werden. Alle medizinischen Entscheidungen
+                    bleiben vollständig in der Verantwortung der behandelnden
+                    Ärzte.
                   </p>
                   <p>
-                    Eine Haftung für leichte Fahrlässigkeit ist ausgeschlossen,
-                    außer bei Verletzung wesentlicher Vertragspflichten, bei
-                    Schäden aus der Verletzung des Lebens, des Körpers oder der
+                    <strong>Keine Haftung für medizinische Inhalte:</strong> Für
+                    die Richtigkeit, Vollständigkeit, Anwendbarkeit oder
+                    medizinische Korrektheit der generierten Inhalte übernimmt
+                    mdscribe.de keine Haftung. Die Nutzung erfolgt
+                    ausschließlich auf eigene Verantwortung des Anwenders.
+                  </p>
+                  <p>
+                    <strong>Allgemeine Haftungsbeschränkung:</strong> Eine
+                    Haftung für leichte Fahrlässigkeit ist ausgeschlossen, außer
+                    bei Verletzung wesentlicher Vertragspflichten, bei Schäden
+                    aus der Verletzung des Lebens, des Körpers oder der
                     Gesundheit sowie nach dem Produkthaftungsgesetz.
                   </p>
                 </div>
