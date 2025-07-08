@@ -26,13 +26,24 @@ export function SubscriptionCard({
 }: SubscriptionCardProps) {
   const hasActiveSubscription = !!subscription;
 
-  const { data: usage } = useQuery({
+
+  // TODO: Get this from the subscription, right now hardcoded
+  const monthlyUsageLimit = hasActiveSubscription ? 500 : 50;
+
+  const { data, isPending } = useQuery({
     queryKey: ["usage"],
     queryFn: async () => {
       const res = await fetch('/api/scribe/getUsage');
+      if (!res.ok) {
+        throw new Error('Network response was not ok')
+      }
       return res.json();
     },
   });
+
+  const { usage } = data || {};
+
+
 
   const statusBadge = subscription?.cancelAtPeriodEnd ? (
     <Badge
@@ -71,7 +82,7 @@ export function SubscriptionCard({
             </div>
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">Nutzung (aktueller Monat)</span>
-              <span className="text-sm">{usage?.count} Anfragen</span>
+              <span className="text-sm">{usage?.count || 0} / {monthlyUsageLimit}</span>
             </div>
             {subscription?.periodEnd && (
               <div className="flex items-center justify-between">
@@ -81,7 +92,11 @@ export function SubscriptionCard({
                     : 'Nächstes Abrechnungsdatum'}
                 </span>
                 <span className="text-sm">
-                  {subscription?.periodEnd?.toLocaleDateString()}
+                  {new Date(subscription?.periodEnd).toLocaleDateString('de-DE', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  })}
                 </span>
               </div>
             )}
@@ -117,7 +132,7 @@ export function SubscriptionCard({
             </div>
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">Nutzung (aktueller Monat)</span>
-              <span className="text-sm">{usage?.count} Anfragen</span>
+              <span className="text-sm">{usage?.count || 0} / {monthlyUsageLimit}</span>
             </div>
           </CardContent>
           <CardFooter className="mt-auto">

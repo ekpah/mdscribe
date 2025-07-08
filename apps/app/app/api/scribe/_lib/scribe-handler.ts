@@ -51,7 +51,7 @@
  */
 
 import { type AnthropicProviderOptions, anthropic } from '@ai-sdk/anthropic';
-import { stripe } from '@repo/design-system/lib/stripe';
+import { database } from '@repo/database';
 import { env } from '@repo/env';
 import { type CoreMessage, generateText, streamText } from 'ai';
 import { Langfuse } from 'langfuse';
@@ -59,6 +59,7 @@ import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import { authClient } from '@/lib/auth-client';
 import type { Session } from '@/lib/auth-types';
+import { getUsage } from './get-usage';
 
 const langfuse = new Langfuse();
 
@@ -102,7 +103,17 @@ async function checkAuthAndSubscription() {
         (sub) => sub.status === 'active' || sub.status === 'trialing'
     );
 
-    return { session, activeSubscription };
+    const { usage } = await getUsage(session as Session);
+
+    const usageLimit = activeSubscription ? 500 : 50;
+
+    if (usage?.count >= usageLimit) {
+        return new Response('Usage limit exceeded', { status: 403 });
+    }
+
+    console.log('usage', usage, usageLimit);
+
+    return { session, activeSubscription, usage };
 }
 
 async function getLangfusePrompt(promptName: string, promptLabel?: string) {
@@ -198,13 +209,13 @@ async function generateResponse(
                     const _ = logData;
                 }
 
-                // Log tokens to Stripe meter
-                await stripe.billing.meterEvents.create({
-                    event_name: 'ai_scribe_usage',
-                    payload: {
-                        value: event.usage.totalTokens.toString(),
-                        stripe_customer_id: session.user.stripeCustomerId as string,
-                    },
+                // Log tokens to the postgres database for usage tracking
+                await database.usageEvent.create({
+                    data: {
+                        userId: session?.user?.id || '',
+                        totalTokens: event.usage.totalTokens,
+                        name: 'ai_scribe_generation',
+                    }
                 });
             },
         });
@@ -226,13 +237,13 @@ async function generateResponse(
         const _ = logData;
     }
 
-    // Log tokens to Stripe meter
-    await stripe.billing.meterEvents.create({
-        event_name: 'ai_scribe_usage',
-        payload: {
-            value: usage.totalTokens.toString(),
-            stripe_customer_id: session.user.stripeCustomerId as string,
-        },
+    // Log tokens to the postgres database for usage tracking
+    await database.usageEvent.create({
+        data: {
+            userId: session?.user?.id || '',
+            totalTokens: usage.totalTokens,
+            name: 'ai_scribe_generation',
+        }
     });
 
     return Response.json({ text });

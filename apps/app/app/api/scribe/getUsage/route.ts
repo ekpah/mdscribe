@@ -1,22 +1,15 @@
-import { Langfuse } from 'langfuse';
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-
-
+import { auth } from '@/auth';
+import { getUsage } from '../_lib/get-usage';
 
 export async function GET() {
-
-    const langfuse = new Langfuse();
-
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const usage = await langfuse.api.metricsMetrics({
-        query: JSON.stringify({
-            view: 'traces',
-            metrics: [{ measure: 'totalCost', aggregation: 'count' }],
-            fromTimestamp: firstDayOfMonth.toISOString(),
-            toTimestamp: now.toISOString(),
-        }),
-    })
-    return NextResponse.json({ count: usage.data[0].count_totalCost });
+    const session = await auth.api.getSession({
+        headers: await headers(),
+    });
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const usage = await getUsage(session);
+    return NextResponse.json(usage);
 }
