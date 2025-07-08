@@ -36,8 +36,8 @@ export const auth = betterAuth({
     changeEmail: {
       enabled: true,
       sendChangeEmailVerification: async (
-        { user, newEmail, url, token },
-        request
+        { user, newEmail, url }
+
       ) => {
         await sendEmail({
           from: 'noreply@mdscribe.de',
@@ -53,7 +53,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    sendResetPassword: async ({ user, url, token }, request) => {
+    sendResetPassword: async ({ user, url }) => {
       if (env.NODE_ENV === 'development') {
         await console.log({
           to: user.email,
@@ -75,7 +75,7 @@ export const auth = betterAuth({
     autoSignInAfterVerification: true,
     callbackURL: '/dashboard', // The redirect URL after verification
     expiresIn: 3600, // 1 hour
-    sendVerificationEmail: async ({ user, url, token }, request) => {
+    sendVerificationEmail: async ({ user, url }) => {
       if (env.NODE_ENV === 'development') {
         await console.log({
           to: user.email,
@@ -101,7 +101,7 @@ export const auth = betterAuth({
       createCustomerOnSignUp: true,
       subscription: {
         enabled: true,
-        onSubscriptionComplete: async ({ _event, _subscription, stripeSubscription, plan }) => {
+        onSubscriptionComplete: async ({ stripeSubscription, plan }) => {
           // Called when a subscription is successfully created
           await posthog.capture('subscription_created', {
             plan: plan.name,
@@ -109,7 +109,7 @@ export const auth = betterAuth({
             subscription_interval: stripeSubscription.items.data[0].price.recurring?.interval
           });
         },
-        onSubscriptionCancel: async ({ _event, _subscription, stripeSubscription, _cancellationDetails }) => {
+        onSubscriptionCancel: async ({ stripeSubscription }) => {
           // Called when a subscription is canceled
           await posthog.capture('subscription_canceled', {
             price_id: stripeSubscription.items.data[0].price.id,
