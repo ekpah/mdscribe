@@ -8,8 +8,8 @@ export default function LandingPage() {
   return (
     <div className="h-full w-full">
       <main
-        key="landing-content"
         className="flex flex-col gap-12 overflow-x-hidden pb-12 md:gap-20 lg:gap-24"
+        key="landing-content"
       >
         <Hero />
         <Features />

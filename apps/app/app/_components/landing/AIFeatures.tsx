@@ -1,16 +1,16 @@
-import { useSession } from '@/lib/auth-client';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Brain, FileText, Sparkles, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from '@/lib/auth-client';
 
 export default function AIFeatures() {
   const { data: session } = useSession();
 
   const isLoggedIn = !!session;
-  const buttonLink = isLoggedIn ? '/aiscribe' : '/sign-in';
+  const buttonLink = isLoggedIn ? '/aiscribe' : '/sign-up';
   const buttonText = isLoggedIn
-    ? 'KI-Funktionen ausprobieren'
-    : 'Registrieren & ausprobieren';
+    ? 'KI-Funktionen jetzt ausprobieren'
+    : 'Kostenlos registrieren & KI nutzen';
 
   return (
     <section className="py-12">
@@ -120,7 +120,7 @@ export default function AIFeatures() {
         </div>
 
         <div className="mt-12 flex flex-col items-center">
-          <Button size="lg" asChild>
+          <Button asChild size="lg">
             <Link href={buttonLink}>{buttonText}</Link>
           </Button>
           {!isLoggedIn && (

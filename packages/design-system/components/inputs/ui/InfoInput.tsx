@@ -38,7 +38,8 @@ export function InfoInput({
   const [dateValue, setDateValue] = useState(parseDate('2025-01-01'));
 
   // Ensure we always have a defined value to prevent controlled/uncontrolled input issues
-  const defaultValue = input.attributes.type === 'number' ? value ?? 0 : value ?? '';
+  const defaultValue =
+    input.attributes.type === 'number' ? (value ?? 0) : (value ?? '');
   const [localValue, setLocalValue] = useState(defaultValue);
 
   // Update local state when prop value changes
@@ -58,11 +59,14 @@ export function InfoInput({
         key={`info-${input.attributes.primary}`}
       >
         <DatePicker
+          aria-label={`${input.attributes.primary} calendar`}
           className="*:not-first:mt-2"
           onChange={(newDateValue) => {
             if (newDateValue) {
               setDateValue(newDateValue);
-              onChange(dateFormatter.format(newDateValue.toDate(getLocalTimeZone())));
+              onChange(
+                dateFormatter.format(newDateValue.toDate(getLocalTimeZone()))
+              );
             }
           }}
           value={dateValue}
@@ -74,7 +78,10 @@ export function InfoInput({
             <Group className="w-full">
               <DateInput className="pe-9" />
             </Group>
-            <Button className="-ms-9 -me-px z-10 flex w-9 items-center justify-center rounded-e-md text-muted-foreground/80 outline-none transition-[color,box-shadow] hover:text-foreground data-focus-visible:border-ring data-focus-visible:ring-[3px] data-focus-visible:ring-ring/50">
+            <Button
+              aria-label="Open calendar"
+              className="-ms-9 -me-px z-10 flex w-9 items-center justify-center rounded-e-md text-muted-foreground/80 outline-none transition-[color,box-shadow] hover:text-foreground data-focus-visible:border-ring data-focus-visible:ring-[3px] data-focus-visible:ring-ring/50"
+            >
               <CalendarIcon size={16} />
             </Button>
           </div>
@@ -92,7 +99,9 @@ export function InfoInput({
   }
   // Handle text/number inputs
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalValue(Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value));
+    setLocalValue(
+      Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value)
+    );
     onChange(Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value));
   };
   // Handle number input type
@@ -129,7 +138,6 @@ export function InfoInput({
     );
   }
 
-
   // Handle text/number inputs
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalValue(e.target.value);
@@ -137,7 +145,7 @@ export function InfoInput({
   };
   return (
     <div
-      className='w-full max-w-full *:not-first:mt-2'
+      className="w-full max-w-full *:not-first:mt-2"
       key={`info-${input.attributes.primary}`}
     >
       <Label htmlFor={input.attributes.primary}>

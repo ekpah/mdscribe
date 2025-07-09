@@ -1,111 +1,117 @@
-import Doctors from '@/public/landing/Doctors';
-import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
-import { Input } from '@repo/design-system/components/ui/input';
-import { Label } from '@repo/design-system/components/ui/label';
-import { FileText, Search } from 'lucide-react';
+import { Brain, FileText, Sparkles, UserPlus } from 'lucide-react';
 import Link from 'next/link';
-import { useRef, useState } from 'react';
-import { useHotkeys } from 'react-hotkeys-hook';
+import { useSession } from '@/lib/auth-client';
+import Doctors from '@/public/landing/Doctors';
 
 export default function Hero() {
-  const [filterTerm, setFilterTerm] = useState('');
-  const isMac =
-    typeof window !== 'undefined' && window.navigator.userAgent.includes('Mac');
-  useHotkeys(['meta+k', 'ctrl+k'], (event: KeyboardEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-      searchInputRef.current.value = '';
-    }
-  });
-
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const scrollToContent = () => {
-    window.scrollTo({
-      top: window.innerHeight,
-      behavior: 'smooth',
-    });
-  };
+  const { data: session } = useSession();
+  const isLoggedIn = !!session?.user;
 
   return (
-    <div className="relative flex min-h-[90vh] flex-col flex-wrap items-center overflow-hidden bg-gradient-to-b from-background to-muted/30 px-3 md:flex-row">
-
-      {/*<!--Left Col-->*/}
-      <div className="flex w-full flex-col items-start justify-center px-3 py-6 text-center md:w-2/5 md:py-3 md:text-left">
-        <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 font-medium text-primary text-sm">
-          Arztbriefe leicht gemacht
+    <div className="relative flex min-h-[90vh] flex-col items-center overflow-hidden bg-gradient-to-b from-background to-muted/30 px-4 py-8 md:flex-row md:px-6">
+      {/* Left Column */}
+      <div className="flex w-full flex-col items-center justify-center text-center md:w-2/5 md:items-start md:py-12 md:text-left">
+        {/* Badge */}
+        <div className="inline-flex items-center gap-2 rounded-full bg-solarized-blue/10 px-3 py-1.5 font-medium text-sm text-solarized-blue md:px-4 md:py-2">
+          <Brain className="h-4 w-4" />
+          <span>KI-gestützte Dokumentation</span>
         </div>
-        <h1 className="my-4 font-bold text-5xl leading-tight">
-          Arztbriefe erstellen ohne sich zu wiederholen
+
+        {/* Main Headline */}
+        <h1 className="my-6 max-w-2xl font-bold text-3xl leading-tight md:my-8 md:text-4xl lg:text-5xl xl:text-6xl">
+          Arztbriefe mit{' '}
+          <span className="bg-gradient-to-r from-solarized-blue to-solarized-green bg-clip-text text-transparent">
+            KI-Unterstützung
+          </span>{' '}
+          erstellen
         </h1>
-        <p className="mb-8 text-2xl leading-normal">
-          Nutze schlaue Textbausteine und KI-Unterstützung, um schneller und
-          effizienter zu dokumentieren
+
+        {/* Subtitle */}
+        <p className='mb-8 max-w-xl text-lg text-muted-foreground leading-relaxed md:mb-10 md:text-xl lg:text-2xl'>
+          Von Notizen zu professionellen Arztbriefen in Sekunden. Nutze die
+          Kraft der KI für schnellere und präzisere medizinische Dokumentation.
         </p>
-        <form
-          className="relative flex w-full flex-col gap-2 sm:flex-row"
-          action="/templates?filter="
-        >
-          <div className="relative flex-grow">
-            <Label htmlFor="search" className="sr-only">
-              Search
-            </Label>
-            <Input
-              type="search"
-              placeholder="Suchen..."
-              className="rounded-md bg-muted pl-8 text-sm"
-              value={filterTerm}
-              name="filter"
-              ref={searchInputRef}
-              onChange={(e) => setFilterTerm(e.target.value)}
-            />
-            <Search className="-translate-y-1/2 pointer-events-none absolute top-[50%] left-2 size-4 select-none opacity-50" />
-            <Badge
-              variant="secondary"
-              className="-translate-y-1/2 pointer-events-none absolute top-[50%] right-2 select-none"
-            >
-              <span suppressHydrationWarning>{isMac ? '⌘K' : 'Ctrl+K'}</span>
-            </Badge>
-          </div>
 
-          <div className="mt-2 flex gap-2 sm:mt-0">
-            <Button
-              type="submit"
-              variant="default"
-              className="flex-grow self-center rounded-md px-8 py-2 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-hidden sm:flex-grow-0"
-              asChild
+        {/* CTA Buttons */}
+        <div className="flex w-full max-w-md flex-col gap-3 sm:max-w-lg sm:flex-row sm:gap-4">
+          {/* Primary CTA */}
+          <Button
+            asChild
+            className="group w-full flex-1 px-6 py-4 font-semibold text-base shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl sm:px-8 sm:py-6 sm:text-lg"
+            id="primary-cta"
+            size="lg"
+          >
+            <Link
+              className="flex items-center justify-center gap-2"
+              href={isLoggedIn ? '/aiscribe' : '/sign-up'}
             >
-              <Link
-                href={{
-                  pathname: '/templates',
-                  query: { filter: filterTerm },
-                }}
-                className="flex items-center"
-              >
-                Textbausteine
-              </Link>
-            </Button>
+              {isLoggedIn ? (
+                <>
+                  <Brain className="h-5 w-5 transition-transform group-hover:scale-110" />
+                  <span>KI-Assistenz starten</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-5 w-5 transition-transform group-hover:scale-110" />
+                  <span>Kostenlos registrieren</span>
+                </>
+              )}
+            </Link>
+          </Button>
 
-            <Button
-              variant="outline"
-              className="hidden flex-grow self-center rounded-md px-8 py-2 font-bold shadow-lg transition duration-300 ease-in-out hover:scale-105 focus:outline-hidden md:flex-grow-0 xl:flex"
-              asChild
+          {/* Secondary CTA */}
+          <Button
+            asChild
+            className="w-full flex-1 px-6 py-4 font-semibold text-base sm:px-8 sm:py-6 sm:text-lg"
+            size="lg"
+            variant="outline"
+          >
+            <Link
+              className="flex items-center justify-center gap-2"
+              href="/templates"
             >
-              <Link href="/aiscribe" className="flex items-center gap-2">
-                <FileText className="size-4" />
-                KI-Assistenz
-              </Link>
-            </Button>
+              <FileText className="h-5 w-5" />
+              <span>Textbausteine</span>
+            </Link>
+          </Button>
+        </div>
+
+        {/* Feature Highlights */}
+        <div className="mt-8 grid grid-cols-1 gap-4 text-center sm:grid-cols-3 sm:text-left md:mt-10">
+          <div className="flex flex-col items-center gap-2 sm:items-start">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-solarized-green/10">
+              <Sparkles className="h-4 w-4 text-solarized-green" />
+            </div>
+            <span className='font-medium text-foreground text-sm'>
+              In Sekunden fertig
+            </span>
           </div>
-        </form>
+          <div className="flex flex-col items-center gap-2 sm:items-start">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-solarized-blue/10">
+              <Brain className="h-4 w-4 text-solarized-blue" />
+            </div>
+            <span className='font-medium text-foreground text-sm'>
+              KI-optimiert
+            </span>
+          </div>
+          <div className="flex flex-col items-center gap-2 sm:items-start">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-solarized-orange/10">
+              <FileText className="h-4 w-4 text-solarized-orange" />
+            </div>
+            <span className='font-medium text-foreground text-sm'>
+              Professionell
+            </span>
+          </div>
+        </div>
+
       </div>
-      {/*<!--Right Col-->*/}
-      <div className="hidden w-full text-center md:block md:w-3/5">
 
-        <Doctors />
+      {/* Right Column */}
+      <div className="mt-8 w-full text-center md:mt-0 md:w-3/5">
+        <div className="mx-auto max-w-2xl">
+          <Doctors />
+        </div>
       </div>
     </div>
   );

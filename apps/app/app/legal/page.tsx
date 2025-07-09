@@ -50,7 +50,7 @@ export default function LegalPage() {
         <div className="space-y-4">
           <h3 className="font-semibold">Kontakt</h3>
           <div className="space-y-2">
-            <p>E-Mail: nils-hapke@t-online.de</p>
+            <p>E-Mail: support@mdscribe.de</p>
           </div>
         </div>
 

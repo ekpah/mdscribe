@@ -1,19 +1,19 @@
 'use client';
 
 import Formula from 'fparser';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../../../design-system/components/ui/tooltip';
 import { useVariables } from '../../render/context/VariableContext';
 
 type ValueObject = {
   [key: string]: number | string | ValueObject;
 };
 
-export function Score({
-  formula,
-  unit,
-}: {
-  formula: string;
-  unit?: string;
-}) {
+export function Score({ formula, unit }: { formula: string; unit?: string }) {
   const variables = useVariables();
 
   try {
@@ -21,18 +21,72 @@ export function Score({
 
     const result = f.evaluate(variables as ValueObject);
 
+    const roundedResult = typeof result === 'number' ? Number(result.toFixed(2)) : result;
+
     return (
-      <span className="rounded-md bg-solarized-orange px-1 text-white opacity-90">
-        {result}
-        {unit ? ` ${unit}` : ''}
-      </span>
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'>
+              {roundedResult ?? result}
+              {unit ? ` ${unit}` : ''}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="overflow-hidden px-2 py-1 text-sm">
+            <div className="space-y-1">
+              <p className="font-medium text-[13px]">Formel</p>
+              <p className="text-wrap font-mono text-muted-foreground text-xs">
+                {formula ? (
+                  <span className=" text-muted-foreground">
+                    {formula
+                      ?.replace(
+                        /(\[[\w_]+\])|([^a-zA-Z[\]])/g,
+                        (_match, p1, p2) => (p1 ? p1 : ` ${p2} `)
+                      )
+                      .replace(/\s+/g, ' ')
+                      .trim()}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Keine Formel</span>
+                )}
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
-  } catch (error) {
-    console.warn('Formula evaluation error:', error);
+  } catch (_error) {
     return (
-      <span className="rounded-md bg-solarized-orange px-1 text-white opacity-90">
-        Error
-      </span>
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'>
+              ...
+              {unit ? ` ${unit}` : ''}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="overflow-hidden px-2 py-1 text-sm">
+            <div className="space-y-1">
+              <p className="font-medium text-[13px]">Formel</p>
+              <p className="text-wrap font-mono text-muted-foreground text-xs">
+                {formula ? (
+                  <span className=" text-muted-foreground">
+                    {formula
+                      ?.replace(
+                        /(\[[\w_]+\])|([^a-zA-Z[\]])/g,
+                        (_match, p1, p2) => (p1 ? p1 : ` ${p2} `)
+                      )
+                      .replace(/\s+/g, ' ')
+                      .trim()}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Keine Formel</span>
+                )}
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 }
