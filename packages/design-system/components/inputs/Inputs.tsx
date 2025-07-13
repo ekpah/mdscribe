@@ -4,6 +4,7 @@ import type {
   InfoInputTagType,
   InputTagType,
 } from '@repo/markdoc-md/parse/parseMarkdocToInputs';
+import Formula from 'fparser';
 import { Sigma } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '../ui/badge';
@@ -76,7 +77,16 @@ function renderInputTag(
   }
 
   if (input.name === 'Score') {
+    const score = () => {
+      const f = new Formula(input.attributes.formula ?? '');
 
+      const result = f.evaluate(values as Record<string, number>);
+
+      const roundedResult =
+        typeof result === 'number' ? Number(result.toFixed(2)) : result;
+
+      return roundedResult;
+    };
 
     return (
       <div
@@ -125,7 +135,7 @@ function renderInputTag(
             className="h-9 w-full max-w-full cursor-default border-input bg-muted font-medium text-foreground focus:border-solarized-orange focus:ring-solarized-orange/20"
             id={`score-${input.attributes.primary}`}
             readOnly
-            value={`${0}${input.attributes.unit ? ` ${input.attributes.unit}` : ''}`}
+            value={`${score()}${input.attributes.unit ? ` ${input.attributes.unit}` : ''}`}
           />
         </div>
         {/* Variable inputs (indented) */}

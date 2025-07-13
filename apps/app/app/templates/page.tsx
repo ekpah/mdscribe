@@ -44,7 +44,7 @@ Score-Tags berechnen automatisch Werte basierend auf mathematischen Formeln. Ver
 - Diabetes mellitus Typ 2
 
 **Körperliche Untersuchung:**
-Größe: {% info "Patientengroesse" type="number" unit="cm" /%} cm, Gewicht: {% info "Patientengewicht" type="number" unit="kg" /%} kg, BMI: {% score "BMI" formula="[Patientengewicht]/(([Patientengroesse]/100)^2)" unit="kg/m²" /%}
+Größe: {% info "Patientengroesse" type="number" unit="cm" renderUnit=true /%}, Gewicht: {% info "Patientengewicht" type="number" unit="kg" renderUnit=true /%}, BMI: {% score "BMI" formula="[Patientengewicht]/(([Patientengroesse]/100)^2)" unit="kg/m²" renderUnit=true /%}
 
 **Erstelle jetzt dein eigenes Template und spar dir viel Zeit bei deinen künftigen Arztbriefen!**`;
 

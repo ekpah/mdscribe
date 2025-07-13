@@ -13,7 +13,7 @@ type ValueObject = {
   [key: string]: number | string | ValueObject;
 };
 
-export function Score({ formula, unit }: { formula: string; unit?: string }) {
+export function Score({ formula, unit, renderUnit }: { formula: string; unit?: string; renderUnit: boolean }) {
   const variables = useVariables();
 
   try {
@@ -29,7 +29,7 @@ export function Score({ formula, unit }: { formula: string; unit?: string }) {
           <TooltipTrigger asChild>
             <span className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'>
               {roundedResult ?? result}
-              {unit ? ` ${unit}` : ''}
+              {renderUnit && unit && ` ${unit}`}
             </span>
           </TooltipTrigger>
           <TooltipContent className="overflow-hidden px-2 py-1 text-sm">
@@ -62,7 +62,7 @@ export function Score({ formula, unit }: { formula: string; unit?: string }) {
           <TooltipTrigger asChild>
             <span className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'>
               ...
-              {unit ? ` ${unit}` : ''}
+              {renderUnit && unit && ` ${unit}`}
             </span>
           </TooltipTrigger>
           <TooltipContent className="overflow-hidden px-2 py-1 text-sm">

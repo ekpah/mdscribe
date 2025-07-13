@@ -21,6 +21,10 @@ export default {
         type: String,
         required: false,
       },
+      renderUnit: {
+        type: Boolean,
+        default: false,
+      },
     },
     selfClosing: true,
   },
@@ -30,6 +34,10 @@ export default {
       primary: { type: String, required: true },
       formula: { type: String, required: true },
       unit: { type: String },
+      renderUnit: {
+        type: Boolean,
+        default: false,
+      },
     },
   },
   switch: {

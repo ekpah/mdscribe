@@ -2,7 +2,7 @@
 
 import { useVariables } from '../../render/context/VariableContext';
 
-export function Info({ primary }: { primary: string }) {
+export function Info({ primary, type, unit, renderUnit }: { primary: string; type: string; unit: string; renderUnit: boolean }) {
   const variables = useVariables();
   // Look up the value from context using the 'primary' prop as the key.
   // Provide an empty string as a fallback if the variable doesn't exist.
@@ -14,7 +14,7 @@ export function Info({ primary }: { primary: string }) {
 
   return (
     <span className="rounded-md bg-solarized-blue px-1 text-white opacity-90">
-      {value}
+      {value}{renderUnit && unit && ` ${unit}`}
     </span>
   );
 }

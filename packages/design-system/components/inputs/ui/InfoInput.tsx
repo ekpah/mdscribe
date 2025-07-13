@@ -35,7 +35,7 @@ export function InfoInput({
   onChange: (localValue: string | number) => void;
 }) {
   // Always call all hooks at the top level
-  const [dateValue, setDateValue] = useState(parseDate('2025-01-01'));
+  const [dateValue, setDateValue] = useState(parseDate(new Date().toISOString().split('T')[0]));
 
   // Ensure we always have a defined value to prevent controlled/uncontrolled input issues
   const defaultValue =
