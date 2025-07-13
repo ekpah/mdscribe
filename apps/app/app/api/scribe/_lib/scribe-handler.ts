@@ -203,8 +203,10 @@ async function generateResponse(
                         totalTokens: event.usage.totalTokens,
                         userId: session?.user?.id || 'unknown',
                         promptName: config.promptName,
+                        thinking: event.reasoning,
+                        result: event.text,
                     };
-                    const _ = logData;
+                    console.log(logData);
                 }
 
                 // Log tokens to the postgres database for usage tracking

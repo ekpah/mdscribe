@@ -6,16 +6,30 @@ import {
 const handleDischarge = createScribeHandler({
   promptName: 'Inpatient_discharge_chat',
   validateInput: createInputValidator(['prompt']),
-  processInput: (input: unknown) => {
+  processInput: (input) => {
     const { prompt } = input as { prompt: string };
-    const { dischargeNotes } = JSON.parse(prompt);
-    return { notes: dischargeNotes };
+
+    // Parse the prompt JSON to extract anamnese and vordiagnosen
+    const parsed = JSON.parse(prompt);
+    const {
+      anamnese,
+      diagnoseblock = 'Keine Vorerkrankungen',
+      dischargeNotes,
+      befunde,
+    } = parsed;
+
+    return {
+      anamnese,
+      notes: dischargeNotes,
+      diagnoseblock,
+      befunde,
+    };
   },
   modelConfig: {
     thinking: true,
-    thinkingBudget: 8000,
+    thinkingBudget: 12_000,
     maxTokens: 20_000,
-    temperature: 1,
+    temperature: 0.3,
   },
 });
 

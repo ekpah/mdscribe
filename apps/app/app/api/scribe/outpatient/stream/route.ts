@@ -12,7 +12,7 @@ const handleOutpatient = createScribeHandler({
     return { notes: consultationNotes };
   },
   modelConfig: {
-    thinking: false,
+    thinking: true,
     maxTokens: 20_000,
     temperature: 1,
   },

@@ -26,6 +26,34 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
   inputDescription:
     'Dokumentieren Sie den Krankheitsverlauf, die Behandlung und Empfehlungen für die Weiterbehandlung',
 
+  // Additional input fields
+  additionalInputs: [
+    {
+      name: 'diagnoseblock',
+      label: 'Diagnoseblock',
+      placeholder: 'Diagnoseblock eingeben...',
+      required: false,
+      type: 'textarea',
+      description: 'Diagnoseblock des aktuellen Arztbriefes inkl. aktueller Diagnose und Vorerkrankungen (chronische Erkrankungen, Z.n. Operationen etc.)'
+    },
+    {
+      name: 'anamnese',
+      label: 'Aufnahmeanamnese',
+      placeholder: 'Initiale Anamnese bei Aufnahme eingeben...',
+      required: false,
+      type: 'textarea',
+      description: 'Anamnese bei Aufnahme inkl. Aufnahmegrund und initiale Verdachtsdiagnose'
+    },
+    {
+      name: 'befunde',
+      label: 'Befunde',
+      placeholder: 'Befunde aus dem stationären Aufenthalt eingeben...',
+      required: false,
+      type: 'textarea',
+      description: 'Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während des Aufenthalts'
+    }
+  ],
+
   // Button text
   generateButtonText: 'Entlassungsbrief generieren',
   regenerateButtonText: 'Neu generieren',
