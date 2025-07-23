@@ -9,7 +9,7 @@ import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import Menubar from './_components/Menubar';
 import { PostHogProvider } from './providers/posthogProvider';
-import { QueryProvider } from './providers/queryProvider';
+import QueryProvider from './providers/queryProvider';
 
 export const metadata: Metadata = {
   title: 'MDScribe',

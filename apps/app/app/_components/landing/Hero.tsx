@@ -44,7 +44,7 @@ export default function Hero() {
           >
             <Link
               className="flex items-center justify-center gap-2"
-              href={isLoggedIn ? '/aiscribe' : '/sign-up'}
+              href={isLoggedIn ? '/aiscribe' : '/sign-in'}
             >
               {isLoggedIn ? (
                 <>
@@ -54,7 +54,7 @@ export default function Hero() {
               ) : (
                 <>
                   <UserPlus className="h-5 w-5 transition-transform group-hover:scale-110" />
-                  <span>Kostenlos registrieren</span>
+                  <span>Jetzt anmelden</span>
                 </>
               )}
             </Link>
