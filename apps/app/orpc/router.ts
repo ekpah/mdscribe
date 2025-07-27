@@ -69,6 +69,10 @@ ToDo:
 export const base = os.$context<{ headers: Headers }>();
 const authed = base.use(authMiddleware);
 
+const getUsageHandler = authed.handler(({ context }) => {
+    return getUsage(context.session);
+});
+
 export const scribeHandler = authed
     .input(ScribeInputSchema)
 
@@ -142,4 +146,5 @@ export const scribeHandler = authed
 
 export const router = {
     scribe: scribeHandler,
+    getUsage: getUsageHandler,
 };
