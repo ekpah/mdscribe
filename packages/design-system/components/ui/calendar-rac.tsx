@@ -111,4 +111,4 @@ function RangeCalendar({ className, ...props }: RangeCalendarProps) {
   )
 }
 
-export { Calendar, RangeCalendar }
+export { Calendar,  }

@@ -96,4 +96,3 @@ export function CaseTagView({
   );
 }
 
-export default CaseTagView;

@@ -77,4 +77,3 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
   },
 });
 
-export default ScoreTag;

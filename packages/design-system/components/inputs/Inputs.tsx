@@ -19,7 +19,7 @@ import {
 import { InfoInput } from './ui/InfoInput';
 import { SwitchInput } from './ui/SwitchInput';
 
-export interface InputsProps {
+interface InputsProps {
   inputTags: InputTagType[];
   onChange: (data: Record<string, unknown>) => void;
 }

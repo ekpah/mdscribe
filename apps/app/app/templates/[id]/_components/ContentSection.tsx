@@ -10,7 +10,7 @@ import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { useState } from 'react';
 import type { FieldValues } from 'react-hook-form';
 
-export const formAtom = atom<FieldValues>({});
+const formAtom = atom<FieldValues>({});
 
 export default function ContentSection({
   note,

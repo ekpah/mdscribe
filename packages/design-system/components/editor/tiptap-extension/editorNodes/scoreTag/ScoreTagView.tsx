@@ -128,4 +128,3 @@ export function ScoreTagView({
   );
 }
 
-export default ScoreTagView;

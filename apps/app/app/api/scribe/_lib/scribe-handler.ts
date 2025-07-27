@@ -63,7 +63,7 @@ import { getUsage } from './get-usage';
 
 const langfuse = new Langfuse();
 
-export interface ScribeHandlerConfig {
+interface ScribeHandlerConfig {
     // Langfuse prompt configuration
     promptName: string;
     promptLabel?: string;
@@ -355,7 +355,7 @@ export const createInputValidator = (requiredFields: string[]) => {
 };
 
 // Helper function to create common input processors
-export const createInputProcessor = (fieldMapping?: Record<string, string>) => {
+const createInputProcessor = (fieldMapping?: Record<string, string>) => {
     return (input: unknown): Record<string, unknown> => {
         if (!input || typeof input !== 'object') {
             return {};

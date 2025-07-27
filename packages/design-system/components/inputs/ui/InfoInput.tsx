@@ -23,7 +23,7 @@ import { DateInput } from '../../ui/datefield-rac';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 
-export type InfoValue = string | number | DateValue | undefined;
+type InfoValue = string | number | DateValue | undefined;
 
 export function InfoInput({
   input,

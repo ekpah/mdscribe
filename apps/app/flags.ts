@@ -22,7 +22,7 @@ const identify = dedupe(
   }
 );
 
-export const showBetaFeature = flag<boolean, Entities>({
+const showBetaFeature = flag<boolean, Entities>({
   key: 'showBetaFeature',
   identify,
   decide: ({ entities }) => {

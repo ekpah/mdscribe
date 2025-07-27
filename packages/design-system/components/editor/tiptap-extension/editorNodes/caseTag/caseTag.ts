@@ -60,4 +60,3 @@ export const CaseTag = Node.create<CaseTagOptions>({
   },
 });
 
-export default CaseTag;

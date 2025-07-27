@@ -64,7 +64,7 @@ ToDo:
 
 (Never come up with your own patient details, assessment, diagnosis, differential diagnosis, plan, interventions, evaluation, plan for continuing care, safety netting advice, etc - use only the transcript, contextual notes or clinical note as a reference for the information you include in your note.If any information related to a placeholder has not been explicitly mentioned in the transcript or contextual notes, you must not state the information has not been explicitly mentioned in your output, just leave the relevant placeholder or section blank.) (Use as many sentences as needed to capture all the relevant information from the transcript and contextual notes.)`;
 
-export const base = os.$context<{ headers: Headers }>();
+const base = os.$context<{ headers: Headers }>();
 const authed = base.use(authMiddleware);
 
 const getUsageHandler = authed.handler(({ context }) => {
@@ -114,7 +114,7 @@ const getUserTemplatesHandler = authed.handler(async ({ context }) => {
     return userTemplates;
 });
 
-export const scribeHandler = authed
+const scribeHandler = authed
     .input(ScribeInputSchema)
 
     .handler(async ({ input, context }) => {
