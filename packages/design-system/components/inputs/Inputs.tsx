@@ -78,14 +78,17 @@ function renderInputTag(
 
   if (input.name === 'Score') {
     const score = () => {
-      const f = new Formula(input.attributes.formula ?? '');
+      try {
+        const f = new Formula(input.attributes.formula ?? '');
+        const result = f.evaluate(values as Record<string, number>);
 
-      const result = f.evaluate(values as Record<string, number>);
+        const roundedResult =
+          typeof result === 'number' ? Number(result.toFixed(2)) : result;
 
-      const roundedResult =
-        typeof result === 'number' ? Number(result.toFixed(2)) : result;
-
-      return roundedResult;
+        return roundedResult;
+      } catch (error) {
+        return 0;
+      }
     };
 
     return (
