@@ -1,6 +1,7 @@
-import { DesignSystemProvider } from '@repo/design-system/providers';
 import { auth } from '@/auth';
 import { allowAIUse } from '@/flags';
+import '@/lib/orpc.server'; // for pre-rendering
+import { DesignSystemProvider } from '@repo/design-system/providers';
 import '@repo/design-system/styles/globals.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Metadata } from 'next';
