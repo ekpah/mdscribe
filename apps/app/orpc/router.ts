@@ -1,6 +1,40 @@
-import { os } from '@orpc/server';
+import { anthropic } from '@ai-sdk/anthropic';
+import { os, streamToEventIterator, type } from '@orpc/server';
+import { database } from '@repo/database';
+import { env } from '@repo/env';
+import { type ModelMessage, streamText, UIMessage } from 'ai';
+import { Langfuse } from 'langfuse';
 import { z } from 'zod';
-import { generateResponse } from './scribe/route';
+import { authMiddleware } from './_middleware/auth';
+import { getUsage } from './scribe/_lib/get-usage';
+
+/**
+ * Generic document creation function using Langfuse prompt
+ *
+ * This module provides a reusable function for creating documents using
+ * the "ai_scribe_template_completion" Langfuse prompt, including:
+ * - Langfuse prompt integration
+ * - AI model configuration and response generation
+ * - Claude thinking mode configuration
+ * - Usage logging and telemetry
+ * - Error handling
+ *
+ * @example
+ * // For streaming responses:
+ * const result = await createDocument({
+ *   input: { template: "discharge", patientData: {...} },
+ *   userId: "user123",
+ *   streaming: true
+ * });
+ *
+ * @example
+ * // For non-streaming responses:
+ * const { text } = await createDocument({
+ *   input: { template: "anamnese", patientData: {...} },
+ *   userId: "user123",
+ *   streaming: false
+ * });
+ */
 
 const ScribeInputSchema = z.object({
     anamnese: z.string().optional(),
@@ -13,57 +47,99 @@ const ScribeOutputSchema = z.object({
     response: z.string(),
 });
 
+const langfuse = new Langfuse();
+
 const defaultTemplate = `
 
-Template structure
-[face to face “F2F” OR if calling via telephone “T / C”][specify whether anyone else is present I.e. “seen alone” or “seen with…” (based on introductions). ‘[Reason for visit, e.g.current issues or presenting complaint or booking note or follow up]’.
+[Primäres Problem und Vorstellungsgrund](erläutere das primäre Problem des Patienten bzw. die klinische Verdachtsdiagnose und ordne den Vorstellungskontext ein)
+[Unterstützende Anamnese](erläutere die Historie und weitere Informationen, die zur Beurteilung des primären Problems beitragen)
 
-History:
--[History of presenting complaints]
-    - [ICE: Patient's Ideas, Concerns and Expectations]
-        - [Presence or absence of red flag symptoms relevant to the presenting complaint]
-        - [Relevant risk factors]
-        - [PMH: / PSH: - include the past medical history or surgical history (if applicable)]
-        - [DH: Drug history / medications(if mentioned)].[Allergies: (only include if explicitly mentioned in the transcript, contextual notes or clinical note, otherwise leave blank)]
--[FH: Relevant family history(if applicable)]
--[SH: Social history I.e.lives with, occupation, smoking / alcohol / drugs, recent travel, carers / package of care(if applicable)]
+Vitalparameter:
+[Vitalparameter des Patienten](füge die Vitalparameter des Patienten ein, wenn sie vorliegen. Lasse dies ansonsten frei)
 
-Examination:
--[Vital signs listed, eg.T, Sats %, HR, BP, RR, (as applicable)]
-    - [Physical or mental state examination findings, including system specific examination](only include if applicable, and use as many bullet points as needed to capture the examination findings)
--[Investigations with results(include only if applicable and if mentioned)]
-
-Impression:
-[1. Issue, problem or request 1(issue, request or condition name only)]. [Assessment, likely diagnosis for Issue 1(condition name only)(include only if mentioned)]
--[Differential diagnosis for Issue 1(include only if applicable and if mentioned)]
-[2. Issue, problem or request 2(issue, request or condition name only)]. [Assessment, likely diagnosis for Issue 2(condition name only)(include only if mentioned)]
--[Differential diagnosis for Issue 2(include only if applicable and if mentioned)]
-[3. Issue, problem or request 3, 4, 5 etc(issue, request or condition name only)]. [Assessment, likely diagnosis for Issue 3, 4, 5 etc(condition name only)(include only if mentioned)]
--[Differential diagnosis for Issue 3, 4, 5 etc(include only if applicable and if mentioned)]
-
-Plan:
+ToDo:
 -[Investigations planned for Issue 1(include only if applicable and if mentioned)]
 -[Treatment planned for Issue 1(include only if applicable and if mentioned)]
 -[Relevant referrals for Issue 1(include only if applicable and if mentioned)]
--[Investigations planned for Issue 2(include only if applicable and if mentioned)]
--[Treatment planned for Issue 2(include only if applicable and if mentioned)]
--[Relevant referrals for Issue 2(include only if applicable and if mentioned)]
--[Investigations planned for Issue 3, 4, 5 etc(include only if applicable and if mentioned)]
--[Treatment planned for Issue 3, 4, 5 etc(include only if applicable and if mentioned)]
--[Relevant referrals for Issue 3, 4, 5 etc(include only if applicable and if mentioned)]
 -[Follow up plan(noting timeframe if stated or applicable and if mentioned)]
 -[Safety netting advice given(for example, if mentioned, state which symptoms would mean they need to call back GP OR call 111(non - life threatening) for out of hours GP or if deteriorates to attend A & E / call 999 in life - threatening emergency(include only the advice / options which are mentioned in transcript or contextual notes))]
 
-(Never come up with your own patient details, assessment, diagnosis, differential diagnosis, plan, interventions, evaluation, plan for continuing care, safety netting advice, etc - use only the transcript, contextual notes or clinical note as a reference for the information you include in your note.If any information related to a placeholder has not been explicitly mentioned in the transcript or contextual notes, you must not state the information has not been explicitly mentioned in your output, just leave the relevant placeholder or section blank.) (Use as many sentences as needed to capture all the relevant information from the transcript and contextual notes.)`
+(Never come up with your own patient details, assessment, diagnosis, differential diagnosis, plan, interventions, evaluation, plan for continuing care, safety netting advice, etc - use only the transcript, contextual notes or clinical note as a reference for the information you include in your note.If any information related to a placeholder has not been explicitly mentioned in the transcript or contextual notes, you must not state the information has not been explicitly mentioned in your output, just leave the relevant placeholder or section blank.) (Use as many sentences as needed to capture all the relevant information from the transcript and contextual notes.)`;
 
-export const scribeHandler = os
+export const base = os.$context<{ headers: Headers }>();
+const authed = base.use(authMiddleware);
+
+export const scribeHandler = authed
     .input(ScribeInputSchema)
-    .handler(({ input }) => {
-        return generateResponse({ patientData: input, template: defaultTemplate });
-    });
+
+    .handler(async ({ input, context }) => {
+        // Get today's date for prompt compilation
+        const todaysDate = new Date().toLocaleDateString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        });
+
+        const chatPrompt = await langfuse.getPrompt(
+            'ai_scribe_template_completion',
+            undefined,
+            {
+                type: 'chat',
+                label: env.NODE_ENV === 'production' ? 'production' : 'staging',
+            }
+        );
+
+        const promptVariables = {
+            ...input,
+            template: defaultTemplate,
+            todaysDate,
+        };
+
+        const promptMessages = chatPrompt.compile(
+            promptVariables
+        ) as ModelMessage[];
+
+        // Create streaming response
+        const result = streamText({
+            model: anthropic('claude-sonnet-4-20250514'),
+            providerOptions: {
+                anthropic: {
+                    thinking: { type: 'enabled', budgetTokens: 12_000 },
+                },
+            },
+            maxOutputTokens: 20_000,
+            temperature: 0.3,
+            messages: promptMessages as ModelMessage[],
+            onFinish: async (event) => {
+                // Log usage in development
+                if (env.NODE_ENV === 'development') {
+                    const logData = {
+                        promptTokens: event.usage.inputTokens,
+                        completionTokens: event.usage.outputTokens,
+                        totalTokens: event.usage.totalTokens,
+                        userId: context.session.user.id || 'unknown',
+                        promptName: 'ai_scribe_template_completion',
+                        thinking: event.reasoning,
+                        result: event.text,
+                    };
+                    // biome-ignore lint/suspicious/noConsole: log here as it is only for development
+                    console.log(logData);
+                }
+
+                // Log tokens to the postgres database for usage tracking
+                await database.usageEvent.create({
+                    data: {
+                        userId: context.session.user.id || '',
+                        totalTokens: event.usage.totalTokens,
+                        name: 'ai_scribe_generation',
+                    },
+                });
+            },
+        });
+
+        return streamToEventIterator(result.toUIMessageStream());
+    })
 
 export const router = {
-    scribe: {
-        handler: scribeHandler
-    }
-}
+    scribe: scribeHandler,
+};
