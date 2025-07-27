@@ -14,6 +14,12 @@ import {
 } from '@repo/design-system/components/ui/card';
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@repo/design-system/components/ui/select';
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -21,18 +27,41 @@ import {
 } from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText, Loader2, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { orpc } from '@/lib/orpc';
 import { MemoizedCopySection } from '../_components/MemoizedCopySection';
 
+// Document type options
+const DOCUMENT_TYPES = [
+  { value: 'anamnese', label: 'Anamnese' },
+  { value: 'entlassung', label: 'Entlassung' },
+] as const;
+
+type DocumentType = (typeof DOCUMENT_TYPES)[number]['value'];
+
+interface DocumentOutput {
+  type: DocumentType;
+  content: string;
+  values: Record<string, unknown>;
+}
+
 export default function GenerateDocumentation() {
   // State management for the UI
   const [activeTab, setActiveTab] = useState('input');
   const [inputData, setInputData] = useState('');
-  const [additionalInputData, setAdditionalInputData] = useState<Record<string, string>>({});
+  const [additionalInputData, setAdditionalInputData] = useState<
+    Record<string, string>
+  >({});
   const [values, setValues] = useState<Record<string, unknown>>({});
+
+  // Document type selection state
+  const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
+    DocumentType[]
+  >([]);
+  const [documentOutputs, setDocumentOutputs] = useState<DocumentOutput[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Use Vercel AI SDK's useChat for streaming functionality
   const { messages, sendMessage, status } = useChat({
@@ -42,15 +71,15 @@ export default function GenerateDocumentation() {
         // Extract data from the message and additional inputs
         const requestData = {
           anamnese: inputData || 'Anamnese nicht vorliegend.',
-          vordiagnosen: additionalInputData.vordiagnosen || 'Keine Vordiagnosen.',
-          diagnoseblock: additionalInputData.diagnoseblock || 'Leerer Diagnoseblock.',
+          vordiagnosen:
+            additionalInputData.vordiagnosen || 'Keine Vordiagnosen.',
+          diagnoseblock:
+            additionalInputData.diagnoseblock || 'Leerer Diagnoseblock.',
           befunde: additionalInputData.befunde || 'Keine Befunde.',
         };
 
         // Call the orpc router and convert the response to a stream
-        return eventIteratorToStream(
-          await orpc.scribe.call(requestData)
-        );
+        return eventIteratorToStream(await orpc.scribe.call(requestData));
       },
       reconnectToStream() {
         throw new Error('Reconnection not supported in this example');
@@ -59,9 +88,12 @@ export default function GenerateDocumentation() {
   });
 
   // Get the latest AI response for display
-  const latestAIResponse = messages
-    .filter(msg => msg.role === 'assistant')
-    .at(-1)?.parts?.map(part => part.type === 'text' ? part.text : '').join('') || '';
+  const latestAIResponse =
+    messages
+      .filter((msg) => msg.role === 'assistant')
+      .at(-1)
+      ?.parts?.map((part) => (part.type === 'text' ? part.text : ''))
+      .join('') || '';
 
   // Handle values change from the extracted inputs
   const handleValuesChange = (data: Record<string, unknown>) => {
@@ -76,31 +108,82 @@ export default function GenerateDocumentation() {
     }));
   };
 
+  // Handle document type selection
+  const handleDocumentTypeSelect = (type: DocumentType) => {
+    if (!selectedDocumentTypes.includes(type)) {
+      setSelectedDocumentTypes((prev) => [...prev, type]);
+    }
+  };
+
+  // Handle document type removal
+  const handleDocumentTypeRemove = (typeToRemove: DocumentType) => {
+    setSelectedDocumentTypes((prev) =>
+      prev.filter((type) => type !== typeToRemove)
+    );
+    setDocumentOutputs((prev) =>
+      prev.filter((output) => output.type !== typeToRemove)
+    );
+
+    // If we're currently on the removed tab, switch to input
+    if (activeTab === `output-${typeToRemove}`) {
+      setActiveTab('input');
+    }
+  };
+
+  // Get available document types (not yet selected)
+  const getAvailableDocumentTypes = () => {
+    return DOCUMENT_TYPES.filter(
+      (type) => !selectedDocumentTypes.includes(type.value)
+    );
+  };
+
   // Check if all required fields are filled
   const areRequiredFieldsFilled = useCallback(() => {
-    return inputData.trim().length > 0;
-  }, [inputData]);
+    return inputData.trim().length > 0 && selectedDocumentTypes.length > 0;
+  }, [inputData, selectedDocumentTypes]);
 
   // Handle form submission to trigger streaming
   const handleGenerate = useCallback(async () => {
     if (!areRequiredFieldsFilled()) {
-      toast.error('Bitte geben Sie Patientendaten ein.');
+      toast.error(
+        'Bitte geben Sie Patientendaten ein und wählen Sie mindestens einen Dokumenttyp.'
+      );
       return;
     }
 
-    setActiveTab('output');
+    setIsGenerating(true);
+
+    // Switch to the first selected document type output tab
+    if (selectedDocumentTypes.length > 0) {
+      setActiveTab(`output-${selectedDocumentTypes[0]}`);
+    }
 
     try {
-      // Send the message to trigger the streaming response
+      // For now, we'll generate the same content for all document types
+      // In a real implementation, you might want to call different endpoints
       await sendMessage({
-        text: `Generate documentation for: ${inputData}`
+        text: `Generate documentation for: ${inputData}`,
       });
 
       toast.success('Generierung gestartet');
     } catch {
       toast.error('Fehler beim Generieren');
+      setIsGenerating(false);
     }
-  }, [inputData, areRequiredFieldsFilled, sendMessage]);
+  }, [inputData, selectedDocumentTypes, areRequiredFieldsFilled, sendMessage]);
+
+  // Update document outputs when AI response changes
+  useEffect(() => {
+    if (latestAIResponse && selectedDocumentTypes.length > 0) {
+      const newOutputs = selectedDocumentTypes.map((type) => ({
+        type,
+        content: latestAIResponse,
+        values,
+      }));
+      setDocumentOutputs(newOutputs);
+      setIsGenerating(false);
+    }
+  }, [latestAIResponse, selectedDocumentTypes, values]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -130,7 +213,7 @@ export default function GenerateDocumentation() {
   }, [handleKeyDown]);
 
   // Loading state
-  const isLoading = status !== 'ready';
+  const isLoading = status !== 'ready' || isGenerating;
 
   return (
     <div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
@@ -161,7 +244,7 @@ export default function GenerateDocumentation() {
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-solarized-blue" />
                     <CardTitle className="text-base text-foreground">
-                      Extrahierte Informationen
+                      Notwendige Informationen
                     </CardTitle>
                   </div>
                 </div>
@@ -191,8 +274,8 @@ export default function GenerateDocumentation() {
                 {/* Privacy notice */}
                 <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
                   <p className="text-solarized-green leading-relaxed">
-                    🔒 Alle Daten in dieser Box werden nur lokal gespeichert und niemals an
-                    Server übertragen
+                    🔒 Alle Daten in dieser Box werden nur lokal gespeichert und
+                    niemals an Server übertragen
                   </p>
                 </div>
               </CardContent>
@@ -208,19 +291,55 @@ export default function GenerateDocumentation() {
                 value={activeTab}
               >
                 <CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
-                  <TabsList className="grid grid-cols-2 bg-background/50 backdrop-blur-sm">
+                  <TabsList className='flex w-full justify-start bg-background/50 backdrop-blur-sm'>
                     <TabsTrigger
-                      className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+                      className="px-4 py-2 text-sm data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
                       value="input"
                     >
                       Eingabe
                     </TabsTrigger>
-                    <TabsTrigger
-                      className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
-                      value="output"
-                    >
-                      Ausgabe
-                    </TabsTrigger>
+
+                    {/* Dynamic output tabs for selected document types */}
+                    {selectedDocumentTypes.map((type) => (
+                      <TabsTrigger
+                        className="relative px-4 py-2 text-sm data-[state=active]:bg-solarized-green data-[state=active]:text-primary-foreground"
+                        key={type}
+                        value={`output-${type}`}
+                      >
+                        {DOCUMENT_TYPES.find((t) => t.value === type)?.label}
+                        <Button
+                          className="ml-2 h-4 w-4 rounded-full p-0 hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDocumentTypeRemove(type);
+                          }}
+                          size="sm"
+                          variant="ghost"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </TabsTrigger>
+                    ))}
+
+                    {/* Document type selector */}
+                    {getAvailableDocumentTypes().length > 0 && (
+                      <div className="ml-2 flex items-center">
+                        <Select onValueChange={handleDocumentTypeSelect}>
+                          <SelectTrigger className="h-8 w-32 items-center justify-center rounded-full border-0 bg-transparent p-0 px-4 hover:bg-accent [&>svg:last-child]:hidden">
+                            <Plus className="h-4 w-4" />
+                            Dokument erstellen
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAvailableDocumentTypes().map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </TabsList>
                 </CardHeader>
 
@@ -232,14 +351,18 @@ export default function GenerateDocumentation() {
                       Patientendaten
                     </CardTitle>
                     <CardDescription>
-                      Geben Sie die Patientendaten ein, um eine Dokumentation zu generieren
+                      Geben Sie die Patientendaten ein, um eine Dokumentation zu
+                      generieren
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Privacy Warning */}
                     <div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
                       <p className="text-solarized-red leading-relaxed">
-                        ⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier keine privaten Patientendaten ein! Diese Informationen werden an eine KI gesendet. Verwenden Sie nur anonymisierte Daten.
+                        ⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier
+                        keine privaten Patientendaten ein! Diese Informationen
+                        werden an eine KI gesendet. Verwenden Sie nur
+                        anonymisierte Daten.
                       </p>
                     </div>
 
@@ -253,7 +376,10 @@ export default function GenerateDocumentation() {
                       </div>
                       <div className="grid gap-4">
                         <div className="space-y-2">
-                          <label className="font-medium text-sm" htmlFor="vordiagnosen">
+                          <label
+                            className="font-medium text-sm"
+                            htmlFor="vordiagnosen"
+                          >
                             Vordiagnosen
                           </label>
                           <Textarea
@@ -261,14 +387,20 @@ export default function GenerateDocumentation() {
                             disabled={isLoading}
                             id="vordiagnosen"
                             onChange={(e) =>
-                              handleAdditionalInputChange('vordiagnosen', e.target.value)
+                              handleAdditionalInputChange(
+                                'vordiagnosen',
+                                e.target.value
+                              )
                             }
                             placeholder="Vordiagnosen eingeben..."
                             value={additionalInputData.vordiagnosen || ''}
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="font-medium text-sm" htmlFor="diagnoseblock">
+                          <label
+                            className="font-medium text-sm"
+                            htmlFor="diagnoseblock"
+                          >
                             Diagnoseblock
                           </label>
                           <Textarea
@@ -276,14 +408,20 @@ export default function GenerateDocumentation() {
                             disabled={isLoading}
                             id="diagnoseblock"
                             onChange={(e) =>
-                              handleAdditionalInputChange('diagnoseblock', e.target.value)
+                              handleAdditionalInputChange(
+                                'diagnoseblock',
+                                e.target.value
+                              )
                             }
                             placeholder="Diagnoseblock eingeben..."
                             value={additionalInputData.diagnoseblock || ''}
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="font-medium text-sm" htmlFor="befunde">
+                          <label
+                            className="font-medium text-sm"
+                            htmlFor="befunde"
+                          >
                             Befunde
                           </label>
                           <Textarea
@@ -291,7 +429,10 @@ export default function GenerateDocumentation() {
                             disabled={isLoading}
                             id="befunde"
                             onChange={(e) =>
-                              handleAdditionalInputChange('befunde', e.target.value)
+                              handleAdditionalInputChange(
+                                'befunde',
+                                e.target.value
+                              )
                             }
                             placeholder="Befunde eingeben..."
                             value={additionalInputData.befunde || ''}
@@ -346,81 +487,113 @@ export default function GenerateDocumentation() {
                   </CardFooter>
                 </TabsContent>
 
-                {/* Output Tab */}
-                <TabsContent className="space-y-0" value="output">
-                  <CardContent>
-                    {(() => {
-                      if (isLoading && !latestAIResponse) {
+                {/* Dynamic Output Tabs for each document type */}
+                {selectedDocumentTypes.map((type) => (
+                  <TabsContent
+                    className="space-y-0"
+                    key={type}
+                    value={`output-${type}`}
+                  >
+                    <CardContent>
+                      {(() => {
+                        const output = documentOutputs.find(
+                          (o) => o.type === type
+                        );
+
+                        if (isLoading && !output) {
+                          return (
+                            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                              <div className="relative">
+                                <div className="h-20 w-20 animate-pulse rounded-full border-4 border-solarized-green/20" />
+                                <div className="absolute top-0 left-0 h-20 w-20 animate-spin rounded-full border-4 border-solarized-green border-t-transparent" />
+                              </div>
+                              <div className="space-y-2">
+                                <h3 className="font-semibold text-foreground text-lg">
+                                  Wird generiert...
+                                </h3>
+                                <p className="text-muted-foreground text-sm">
+                                  Bitte warten Sie, während der KI-Assistent
+                                  Ihre
+                                  {
+                                    DOCUMENT_TYPES.find((t) => t.value === type)
+                                      ?.label
+                                  }{' '}
+                                  erstellt
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (output) {
+                          return (
+                            <div className="space-y-6">
+                              <div className="space-y-4">
+                                <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
+                                  <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
+                                  Generierte{' '}
+                                  {
+                                    DOCUMENT_TYPES.find((t) => t.value === type)
+                                      ?.label
+                                  }
+                                </h4>
+                                <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
+                                  <MemoizedCopySection
+                                    content={
+                                      output.content ||
+                                      'Keine Inhalte verfügbar'
+                                    }
+                                    values={output.values}
+                                  />
+                                </ScrollArea>
+                              </div>
+
+                              {isLoading && (
+                                <div className="flex items-center justify-center gap-2 text-sm text-solarized-green">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <span>Wird weiter generiert...</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
                         return (
-                          <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                            <div className="relative">
-                              <div className="h-20 w-20 animate-pulse rounded-full border-4 border-solarized-blue/20" />
-                              <div className="absolute top-0 left-0 h-20 w-20 animate-spin rounded-full border-4 border-solarized-blue border-t-transparent" />
+                          <div className="flex flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
+                            <div className="rounded-full bg-muted/20 p-6">
+                              <FileText className="h-16 w-16" />
                             </div>
                             <div className="space-y-2">
-                              <h3 className="font-semibold text-foreground text-lg">
-                                Wird generiert...
+                              <h3 className="font-semibold text-lg">
+                                Keine{' '}
+                                {
+                                  DOCUMENT_TYPES.find((t) => t.value === type)
+                                    ?.label
+                                }{' '}
+                                verfügbar
                               </h3>
-                              <p className="text-muted-foreground text-sm">
-                                Bitte warten Sie, während der KI-Assistent Ihre
-                                Dokumentation erstellt
+                              <p className="max-w-md text-sm">
+                                Geben Sie Patientendaten ein und generieren Sie
+                                eine neue{' '}
+                                {
+                                  DOCUMENT_TYPES.find((t) => t.value === type)
+                                    ?.label
+                                }
                               </p>
+                              <Button
+                                className="mt-4"
+                                onClick={() => setActiveTab('input')}
+                                variant="outline"
+                              >
+                                Zu Eingabe wechseln
+                              </Button>
                             </div>
                           </div>
                         );
-                      }
-
-                      if (latestAIResponse) {
-                        return (
-                          <div className="space-y-6">
-                            <div className="space-y-4">
-                              <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
-                                <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                                Generierte Dokumentation
-                              </h4>
-                              <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
-                                <MemoizedCopySection
-                                  content={latestAIResponse || 'Keine Inhalte verfügbar'}
-                                  values={values}
-                                />
-                              </ScrollArea>
-                            </div>
-
-                            {isLoading && (
-                              <div className="flex items-center justify-center gap-2 text-sm text-solarized-blue">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>Wird weiter generiert...</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="flex flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
-                          <div className="rounded-full bg-muted/20 p-6">
-                            <FileText className="h-16 w-16" />
-                          </div>
-                          <div className="space-y-2">
-                            <h3 className="font-semibold text-lg">
-                              Keine Dokumentation verfügbar
-                            </h3>
-                            <p className="max-w-md text-sm">
-                              Geben Sie Patientendaten ein und generieren Sie eine neue Dokumentation
-                            </p>
-                            <Button
-                              className="mt-4"
-                              onClick={() => setActiveTab('input')}
-                              variant="outline"
-                            >
-                              Zu Eingabe wechseln
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </CardContent>
-                </TabsContent>
+                      })()}
+                    </CardContent>
+                  </TabsContent>
+                ))}
               </Tabs>
             </Card>
           </div>
