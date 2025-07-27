@@ -1,8 +1,8 @@
 import { anthropic } from '@ai-sdk/anthropic';
-import { os, streamToEventIterator, type } from '@orpc/server';
+import { os, streamToEventIterator } from '@orpc/server';
 import { database } from '@repo/database';
 import { env } from '@repo/env';
-import { type ModelMessage, streamText, UIMessage } from 'ai';
+import { type ModelMessage, streamText } from 'ai';
 import { Langfuse } from 'langfuse';
 import { z } from 'zod';
 import { authMiddleware } from './_middleware/auth';
@@ -43,9 +43,7 @@ const ScribeInputSchema = z.object({
     befunde: z.string().optional(),
 });
 
-const ScribeOutputSchema = z.object({
-    response: z.string(),
-});
+
 
 const langfuse = new Langfuse();
 
@@ -71,6 +69,49 @@ const authed = base.use(authMiddleware);
 
 const getUsageHandler = authed.handler(({ context }) => {
     return getUsage(context.session);
+});
+
+// Template routes
+const getFavoriteTemplatesHandler = authed.handler(async ({ context }) => {
+    const favoriteTemplates = await database.template.findMany({
+        where: {
+            favouriteOf: {
+                some: {
+                    id: context.session.user.id,
+                },
+            },
+        },
+        include: {
+            _count: {
+                select: { favouriteOf: true },
+            },
+        },
+        take: 5,
+        orderBy: {
+            updatedAt: 'desc',
+        },
+    });
+
+    return favoriteTemplates;
+});
+
+const getUserTemplatesHandler = authed.handler(async ({ context }) => {
+    const userTemplates = await database.template.findMany({
+        where: {
+            authorId: context.session.user.id,
+        },
+        include: {
+            _count: {
+                select: { favouriteOf: true },
+            },
+        },
+        take: 3,
+        orderBy: {
+            updatedAt: 'desc',
+        },
+    });
+
+    return userTemplates;
 });
 
 export const scribeHandler = authed
@@ -147,4 +188,10 @@ export const scribeHandler = authed
 export const router = {
     scribe: scribeHandler,
     getUsage: getUsageHandler,
+    user: {
+        templates: {
+            favourites: getFavoriteTemplatesHandler,
+            all: getUserTemplatesHandler,
+        }
+    }
 };

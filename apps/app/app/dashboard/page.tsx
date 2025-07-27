@@ -1,4 +1,4 @@
-import { database } from '@repo/database';
+
 import {
     Avatar,
     AvatarFallback,
@@ -13,7 +13,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@repo/design-system/components/ui/card';
-import { QueryClient, useQuery } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 import {
     Activity,
     ArrowRight,
@@ -72,40 +72,10 @@ export default async function DashboardPage() {
     const remainingGenerations = Math.max(0, monthlyUsageLimit - currentUsage);
 
     // Get user's favorite templates (top 5)
-    const favoriteTemplates = await database.template.findMany({
-        where: {
-            favouriteOf: {
-                some: {
-                    id: session.user.id,
-                },
-            },
-        },
-        include: {
-            _count: {
-                select: { favouriteOf: true },
-            },
-        },
-        take: 5,
-        orderBy: {
-            updatedAt: 'desc',
-        },
-    });
+    const favoriteTemplates = await queryClient.fetchQuery(orpc.user.templates.favourites.queryOptions());
 
     // Get user's own templates (top 3)
-    const userTemplates = await database.template.findMany({
-        where: {
-            authorId: session.user.id,
-        },
-        include: {
-            _count: {
-                select: { favouriteOf: true },
-            },
-        },
-        take: 3,
-        orderBy: {
-            updatedAt: 'desc',
-        },
-    });
+    const userTemplates = await queryClient.fetchQuery(orpc.user.templates.all.queryOptions());
 
     const aiFunctions = [
         {
