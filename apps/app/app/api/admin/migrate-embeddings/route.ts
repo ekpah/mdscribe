@@ -16,10 +16,12 @@ const generateEmbeddings = async (
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const { embedding } = await client.embed({
-    input: 'input',
-    model: 'model',
-  });
+  const embedding = await client.embed({
+    input: content,
+    model: 'voyage-3-large',
+  }).then((res) => res.data?.[0].embedding ?? []);
+
+
 
   // await embed({
   //   model: voyage.textEmbeddingModel('voyage-3-large'),

@@ -33,10 +33,10 @@ diagnosis: ${differentialDiagnosis}
 ---
 ${content}`
     : content;
-  const { embedding } = await client.embed({
+  const embedding = await client.embed({
     input: contentWithMetadata,
     model: 'voyage-3-large',
-  });
+  }).then((res) => res.data?.[0].embedding ?? []);
 
   // await embed({
   //   model: voyage.textEmbeddingModel(
