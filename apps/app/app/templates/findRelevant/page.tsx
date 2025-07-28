@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from '@/lib/auth-client';
 import {
   BookmarkFilledIcon,
   BookmarkIcon,
@@ -14,6 +13,7 @@ import { redirect } from 'next/navigation';
 import type React from 'react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useSession } from '@/lib/auth-client';
 import addFavourite from '../_actions/add-favourite';
 import removeFavourite from '../_actions/remove-favourite';
 
@@ -36,11 +36,11 @@ interface SearchResponse {
 }
 
 const formatCount = (count: number): string => {
-  if (count >= 1000000000) {
-    return `${(count / 1000000000).toFixed(1).replace(/\.0$/, '')}B`;
+  if (count >= 1_000_000_000) {
+    return `${(count / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
   }
-  if (count >= 1000000) {
-    return `${(count / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   }
   if (count >= 1000) {
     return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`;
@@ -101,7 +101,7 @@ export default function FindTemplatePage() {
         },
         body: JSON.stringify({
           query: query.trim(),
-          differentialDiagnosis: differentialDiagnosis,
+          differentialDiagnosis,
         }),
       });
 
@@ -118,10 +118,10 @@ export default function FindTemplatePage() {
       // Initialize favorite states
       const initialFavoriteStates: Record<string, boolean> = {};
       for (const template of topResults) {
-        const isFavorited =
-          template.favouriteOf?.some((user) => user.id === session?.user?.id) ||
-          false;
-        initialFavoriteStates[template.id] = isFavorited;
+        const isFavorited = template.favouriteOf?.some(
+          (user) => user.id === session?.user?.id
+        );
+        initialFavoriteStates[template.id] = isFavorited ?? false;
       }
       setFavouriteStates(initialFavoriteStates);
     } catch (err) {
@@ -180,15 +180,15 @@ export default function FindTemplatePage() {
         </div>
 
         {/* Search Form */}
-        <form onSubmit={handleSearch} className="flex gap-2">
+        <form className="flex gap-2" onSubmit={handleSearch}>
           <Input
-            type="text"
-            placeholder="Beschreiben Sie, nach welcher Art von Vorlage Sie suchen..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
             className="flex-1"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Beschreiben Sie, nach welcher Art von Vorlage Sie suchen..."
+            type="text"
+            value={query}
           />
-          <Button type="submit" disabled={isLoading || !query.trim()}>
+          <Button disabled={isLoading || !query.trim()} type="submit">
             {isLoading ? 'Suche läuft...' : 'Suchen'}
           </Button>
         </form>
@@ -218,13 +218,13 @@ export default function FindTemplatePage() {
               Top 3 passende Vorlagen
             </h2>
             {results.map((template, index) => {
-              const isFavorited = favouriteStates[template.id] || false;
+              const isFavorited = favouriteStates[template.id];
               const favoriteCount = template._count?.favouriteOf || 0;
 
               return (
                 <div
-                  key={template.id}
                   className="rounded-lg border border-solarized-base2 bg-white p-6 shadow-sm"
+                  key={template.id}
                 >
                   <div className="mb-3 flex items-start justify-between">
                     <div className="flex-1">
@@ -270,10 +270,10 @@ export default function FindTemplatePage() {
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/templates/${template.id}`}
-                        target="_blank"
                         rel="noopener noreferrer"
+                        target="_blank"
                       >
-                        <Button variant="outline" size="sm" className="gap-1">
+                        <Button className="gap-1" size="sm" variant="outline">
                           <ExternalLinkIcon className="h-3 w-3" />
                           Vorlage anzeigen
                         </Button>
@@ -281,12 +281,12 @@ export default function FindTemplatePage() {
 
                       {isLoggedIn && (
                         <Button
-                          variant="ghost"
-                          size="sm"
+                          className="gap-1"
                           onClick={() =>
                             handleToggleFavourite(template.id, isFavorited)
                           }
-                          className="gap-1"
+                          size="sm"
+                          variant="ghost"
                         >
                           {isFavorited ? (
                             <BookmarkFilledIcon className="h-3 w-3" />

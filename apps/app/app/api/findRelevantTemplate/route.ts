@@ -1,11 +1,14 @@
 'use server';
-import { auth } from '@/auth';
 import { database } from '@repo/database';
+import { type EmbeddingModel, embed } from 'ai';
 import { headers } from 'next/headers';
 import pgvector from 'pgvector';
-
-import { embed } from 'ai';
 import { voyage } from 'voyage-ai-provider';
+import { VoyageAIClient } from 'voyageai';
+import { auth } from '@/auth';
+
+const client = new VoyageAIClient({ apiKey: 'VOYAGE_API_KEY' });
+
 // Type definition for template search results
 interface TemplateSearchResult {
   id: string;
@@ -30,17 +33,24 @@ diagnosis: ${differentialDiagnosis}
 ---
 ${content}`
     : content;
-  const { embedding } = await embed({
-    model: voyage.textEmbeddingModel('voyage-3-large'),
-    value: contentWithMetadata,
-    experimental_telemetry: {
-      isEnabled: true,
-      metadata: {
-        userId: session?.user?.id || 'unknown',
-        value: contentWithMetadata,
-      },
-    },
+  const { embedding } = await client.embed({
+    input: contentWithMetadata,
+    model: 'voyage-3-large',
   });
+
+  // await embed({
+  //   model: voyage.textEmbeddingModel(
+  //     'voyage-3-large'
+  //   ) as unknown as EmbeddingModel<string>,
+  //   value: contentWithMetadata,
+  //   experimental_telemetry: {
+  //     isEnabled: true,
+  //     metadata: {
+  //       userId: session?.user?.id || 'unknown',
+  //       value: contentWithMetadata,
+  //     },
+  //   },
+  // });
   return { embedding, content };
 };
 

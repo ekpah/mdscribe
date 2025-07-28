@@ -1,8 +1,8 @@
-import { auth } from '@/auth';
-import { allowAdminAccess } from '@/flags';
 import { database } from '@repo/database';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { allowAdminAccess } from '@/flags';
 
 /**
  * Checks how many templates need embeddings without running the migration

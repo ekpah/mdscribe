@@ -1,12 +1,14 @@
-import { auth } from '@/auth';
-import { allowAdminAccess } from '@/flags';
-import { headers } from 'next/headers';
-import type { NextRequest } from 'next/server';
-
 import { database } from '@repo/database';
 import { embed } from 'ai';
+import { headers } from 'next/headers';
+import type { NextRequest } from 'next/server';
 import pgvector from 'pgvector';
 import { voyage } from 'voyage-ai-provider';
+import { VoyageAIClient } from 'voyageai';
+import { auth } from '@/auth';
+import { allowAdminAccess } from '@/flags';
+
+const client = new VoyageAIClient({ apiKey: 'VOYAGE_API_KEY' });
 
 const generateEmbeddings = async (
   content: string
@@ -14,16 +16,21 @@ const generateEmbeddings = async (
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const { embedding } = await embed({
-    model: voyage.textEmbeddingModel('voyage-3-large'),
-    value: content,
-    experimental_telemetry: {
-      isEnabled: true,
-      metadata: {
-        userId: session?.user?.id || 'unknown',
-      },
-    },
+  const { embedding } = await client.embed({
+    input: 'input',
+    model: 'model',
   });
+
+  // await embed({
+  //   model: voyage.textEmbeddingModel('voyage-3-large'),
+  //   value: content,
+  //   experimental_telemetry: {
+  //     isEnabled: true,
+  //     metadata: {
+  //       userId: session?.user?.id || 'unknown',
+  //     },
+  //   },
+  // });
   return { embedding, content };
 };
 
