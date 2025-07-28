@@ -35,8 +35,25 @@ import { MemoizedCopySection } from '../_components/MemoizedCopySection';
 
 // Document type options
 const DOCUMENT_TYPES = [
-  { value: 'anamnese', label: 'Anamnese' },
-  { value: 'entlassung', label: 'Entlassung' },
+  {
+    value: 'anamnese',
+    label: 'Anamnese',
+    template: `[Primäres Problem und Vorstellungsgrund](erläutere das primäre Problem des Patienten bzw. die klinische Verdachtsdiagnose und ordne den Vorstellungskontext ein)
+[Unterstützende Anamnese](erläutere die Historie und weitere Informationen, die zur Beurteilung des primären Problems beitragen)
+
+[Vitalparameter:](wenn angegeben, ansonsten weglassen)
+[Vitalparameter des Patienten](füge die Vitalparameter des Patienten ein, wenn sie vorliegen. Lasse dies ansonsten frei)
+
+[Untersuchungsbefunde:](wenn vorhanden, Aufzählungsliste)
+-[Untersuchung]:[Befund]
+
+(Never come up with your own patient details, assessment, diagnosis, differential diagnosis, plan, interventions, evaluation, plan for continuing care, safety netting advice, etc - use only the transcript, contextual notes or clinical note as a reference for the information you include in the note.If any information related to a placeholder has not been explicitly mentioned in the transcript or contextual notes, you must not state the information has not been explicitly mentioned in your output, just leave the relevant placeholder or section blank.) (Use as many sentences as needed to capture all the relevant information from the transcript and contextual notes.)`
+  },
+  {
+    value: 'entlassung',
+    label: 'Entlassung',
+    template: '' // Add template for entlassung when available
+  },
 ] as const;
 
 type DocumentType = (typeof DOCUMENT_TYPES)[number]['value'];
@@ -76,6 +93,13 @@ export default function GenerateDocumentation() {
           diagnoseblock:
             additionalInputData.diagnoseblock || 'Leerer Diagnoseblock.',
           befunde: additionalInputData.befunde || 'Keine Befunde.',
+          templates: selectedDocumentTypes.map(type => {
+            const docType = DOCUMENT_TYPES.find(t => t.value === type);
+            return {
+              type,
+              template: docType?.template || ''
+            };
+          })
         };
 
         // Call the orpc router and convert the response to a stream

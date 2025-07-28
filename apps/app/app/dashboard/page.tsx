@@ -87,7 +87,6 @@ export default async function DashboardPage() {
             color: 'text-solarized-red',
             bgColor: 'bg-solarized-red/10',
             borderColor: 'border-solarized-red/20',
-            usage: '12 heute',
         },
         {
             title: 'Entlassungsbrief',
@@ -98,7 +97,6 @@ export default async function DashboardPage() {
             color: 'text-solarized-blue',
             bgColor: 'bg-solarized-blue/10',
             borderColor: 'border-solarized-blue/20',
-            usage: '8 heute',
         },
         {
             title: 'Prozedur-Dokumentation',
@@ -109,7 +107,6 @@ export default async function DashboardPage() {
             color: 'text-solarized-orange',
             bgColor: 'bg-solarized-orange/10',
             borderColor: 'border-solarized-orange/20',
-            usage: '5 heute',
         },
         {
             title: 'ICU Verlegungsbrief',
@@ -120,7 +117,6 @@ export default async function DashboardPage() {
             color: 'text-solarized-green',
             bgColor: 'bg-solarized-green/10',
             borderColor: 'border-solarized-green/20',
-            usage: '3 heute',
         },
         {
             title: 'Ambulante Konsultation',
@@ -131,7 +127,6 @@ export default async function DashboardPage() {
             color: 'text-solarized-violet',
             bgColor: 'bg-solarized-violet/10',
             borderColor: 'border-solarized-violet/20',
-            usage: '15 heute',
         },
     ];
 
@@ -288,15 +283,15 @@ export default async function DashboardPage() {
                     <Card className="border-solarized-orange/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
-                                Heute erstellt
+                                KI-Generierungen
                             </CardTitle>
                             <TrendingUp className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />
                         </CardHeader>
                         <CardContent>
                             <div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
-                                43
+                                {currentUsage}
                             </div>
-                            <p className="text-solarized-base01 text-xs">Dokumente heute</p>
+                            <p className="text-solarized-base01 text-xs">KI-Generierungen in diesem Monat</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -333,12 +328,6 @@ export default async function DashboardPage() {
                                                 >
                                                     <func.icon className={`h-6 w-6 ${func.color}`} />
                                                 </div>
-                                                <Badge
-                                                    className="bg-solarized-base2 text-solarized-base01 text-xs"
-                                                    variant="secondary"
-                                                >
-                                                    {func.usage}
-                                                </Badge>
                                             </div>
                                             <CardTitle className="text-lg text-solarized-base03 transition-colors group-hover:text-solarized-blue">
                                                 {func.title}
