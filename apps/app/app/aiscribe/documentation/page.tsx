@@ -47,12 +47,12 @@ const DOCUMENT_TYPES = [
 [Untersuchungsbefunde:](wenn vorhanden, Aufzählungsliste)
 -[Untersuchung]:[Befund]
 
-(Never come up with your own patient details, assessment, diagnosis, differential diagnosis, plan, interventions, evaluation, plan for continuing care, safety netting advice, etc - use only the transcript, contextual notes or clinical note as a reference for the information you include in the note.If any information related to a placeholder has not been explicitly mentioned in the transcript or contextual notes, you must not state the information has not been explicitly mentioned in your output, just leave the relevant placeholder or section blank.) (Use as many sentences as needed to capture all the relevant information from the transcript and contextual notes.)`
+(Never come up with your own patient details, assessment, diagnosis, differential diagnosis, plan, interventions, evaluation, plan for continuing care, safety netting advice, etc - use only the transcript, contextual notes or clinical note as a reference for the information you include in the note.If any information related to a placeholder has not been explicitly mentioned in the transcript or contextual notes, you must not state the information has not been explicitly mentioned in your output, just leave the relevant placeholder or section blank.) (Use as many sentences as needed to capture all the relevant information from the transcript and contextual notes.)`,
   },
   {
     value: 'entlassung',
     label: 'Entlassung',
-    template: '' // Add template for entlassung when available
+    template: '', // Add template for entlassung when available
   },
 ] as const;
 
@@ -80,6 +80,11 @@ export default function GenerateDocumentation() {
   const [documentOutputs, setDocumentOutputs] = useState<DocumentOutput[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Template editing state
+  const [templateEdits, setTemplateEdits] = useState<Record<string, string>>(
+    {}
+  );
+
   // Use Vercel AI SDK's useChat for streaming functionality
   const { messages, sendMessage, status } = useChat({
     transport: {
@@ -93,13 +98,15 @@ export default function GenerateDocumentation() {
           diagnoseblock:
             additionalInputData.diagnoseblock || 'Leerer Diagnoseblock.',
           befunde: additionalInputData.befunde || 'Keine Befunde.',
-          templates: selectedDocumentTypes.map(type => {
-            const docType = DOCUMENT_TYPES.find(t => t.value === type);
+          templates: selectedDocumentTypes.map((type) => {
+            const docType = DOCUMENT_TYPES.find((t) => t.value === type);
+            const editedTemplate =
+              templateEdits[type] || docType?.template || '';
             return {
               type,
-              template: docType?.template || ''
+              template: editedTemplate,
             };
-          })
+          }),
         };
 
         // Call the orpc router and convert the response to a stream
@@ -148,10 +155,25 @@ export default function GenerateDocumentation() {
       prev.filter((output) => output.type !== typeToRemove)
     );
 
+    // Remove template edits for this type
+    setTemplateEdits((prev) => {
+      const newEdits = { ...prev };
+      delete newEdits[typeToRemove];
+      return newEdits;
+    });
+
     // If we're currently on the removed tab, switch to input
     if (activeTab === `output-${typeToRemove}`) {
       setActiveTab('input');
     }
+  };
+
+  // Handle template editing
+  const handleTemplateEdit = (type: DocumentType, content: string) => {
+    setTemplateEdits((prev) => ({
+      ...prev,
+      [type]: content,
+    }));
   };
 
   // Get available document types (not yet selected)
@@ -315,7 +337,7 @@ export default function GenerateDocumentation() {
                 value={activeTab}
               >
                 <CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
-                  <TabsList className='flex w-full justify-start bg-background/50 backdrop-blur-sm'>
+                  <TabsList className="flex w-full justify-start bg-background/50 backdrop-blur-sm">
                     <TabsTrigger
                       className="px-4 py-2 text-sm data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
                       value="input"
@@ -583,34 +605,48 @@ export default function GenerateDocumentation() {
                         }
 
                         return (
-                          <div className="flex flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
-                            <div className="rounded-full bg-muted/20 p-6">
-                              <FileText className="h-16 w-16" />
-                            </div>
-                            <div className="space-y-2">
-                              <h3 className="font-semibold text-lg">
-                                Keine{' '}
-                                {
-                                  DOCUMENT_TYPES.find((t) => t.value === type)
-                                    ?.label
-                                }{' '}
-                                verfügbar
-                              </h3>
-                              <p className="max-w-md text-sm">
-                                Geben Sie Patientendaten ein und generieren Sie
-                                eine neue{' '}
+                          <div className="space-y-6">
+                            <div className="space-y-4">
+                              <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
+                                <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
+                                Template für{' '}
                                 {
                                   DOCUMENT_TYPES.find((t) => t.value === type)
                                     ?.label
                                 }
-                              </p>
-                              <Button
-                                className="mt-4"
-                                onClick={() => setActiveTab('input')}
-                                variant="outline"
-                              >
-                                Zu Eingabe wechseln
-                              </Button>
+                              </h4>
+                              <div className="space-y-3">
+                                <p className="text-muted-foreground text-sm">
+                                  Bearbeiten Sie das Template, um die
+                                  KI-Anweisungen anzupassen:
+                                </p>
+                                <Textarea
+                                  className="min-h-[300px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-green focus:ring-solarized-green/20"
+                                  onChange={(e) =>
+                                    handleTemplateEdit(type, e.target.value)
+                                  }
+                                  placeholder="Template bearbeiten..."
+                                  value={
+                                    templateEdits[type] ||
+                                    DOCUMENT_TYPES.find((t) => t.value === type)
+                                      ?.template ||
+                                    ''
+                                  }
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <p className="text-muted-foreground text-xs">
+                                  Das Template wird bei der Generierung
+                                  verwendet
+                                </p>
+                                <Button
+                                  onClick={() => setActiveTab('input')}
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  Zu Eingabe wechseln
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         );
