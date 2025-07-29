@@ -8,7 +8,7 @@ import {
 } from '@repo/design-system/components/ui/breadcrumb';
 import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import { QueryClient, useQuery } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import type { PageProps } from '@/.next/types/app/page';

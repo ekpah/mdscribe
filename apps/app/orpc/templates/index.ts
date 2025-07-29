@@ -1,7 +1,14 @@
 import { type } from '@orpc/server';
-import type { Template } from '@repo/database';
+import type { Prisma } from '@repo/database';
 import z from 'zod';
 import { pub } from '@/orpc';
+
+type Template = Prisma.TemplateGetPayload<{
+    include: {
+        favouriteOf: true;
+        author: true;
+    };
+}>;
 
 const getTemplateInput = z.object({
     id: z.string(),
