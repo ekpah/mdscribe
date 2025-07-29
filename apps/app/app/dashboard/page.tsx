@@ -40,13 +40,6 @@ import { auth } from '@/auth';
 import { orpc } from '@/lib/orpc';
 import { LiveTime } from './_components/LiveTime';
 
-type Template = Prisma.TemplateGetPayload<{
-    include: {
-        favouriteOf: true;
-        author: true;
-    }
-}>
-
 export default async function DashboardPage() {
     // Get the session and user data
     const [session, subscriptions] = await Promise.all([
@@ -376,7 +369,7 @@ export default async function DashboardPage() {
                             <CardContent>
                                 <div className="space-y-3">
                                     {favoriteTemplates.length > 0 ? (
-                                        favoriteTemplates.map((template: Template) => (
+                                        favoriteTemplates.map((template) => (
                                             <Card
                                                 className="border border-solarized-base2 transition-all duration-200 hover:shadow-md"
                                                 key={template.id}
@@ -390,7 +383,7 @@ export default async function DashboardPage() {
                                                                 </Badge>
                                                                 <Badge className="text-xs" variant="outline">
                                                                     <Heart className="mr-1 h-3 w-3" />
-                                                                    {template.favouriteOf.length}
+                                                                    {template._count.favouriteOf}
                                                                 </Badge>
                                                             </div>
                                                             <h3 className="mb-1 font-semibold text-solarized-base03">
@@ -492,7 +485,7 @@ export default async function DashboardPage() {
                                     </div>
                                     <div className="space-y-2">
                                         {userTemplates.length > 0 ? (
-                                            userTemplates.map((template: Template) => (
+                                            userTemplates.map((template) => (
                                                 <div
                                                     className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-solarized-base2"
                                                     key={template.id}
@@ -506,7 +499,7 @@ export default async function DashboardPage() {
                                                                 {template.category}
                                                             </Badge>
                                                             <span className="text-solarized-base1 text-xs">
-                                                                {template.favouriteOf.length} ♥
+                                                                {template._count.favouriteOf} ♥
                                                             </span>
                                                         </div>
                                                     </div>

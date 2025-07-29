@@ -20,6 +20,7 @@ export const database = new PrismaClient({ adapter });
 export type {
   Account,
   Prisma,
+  PrismaClient,
   Session,
   Subscription,
   Template,

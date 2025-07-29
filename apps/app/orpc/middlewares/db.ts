@@ -1,5 +1,5 @@
 import { os } from '@orpc/server'
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient } from '@repo/database'
 import { database } from '@repo/database'
 
 
