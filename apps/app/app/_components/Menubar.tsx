@@ -15,19 +15,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
-import type { Session } from '@/lib/auth-types';
 import DarkLogo from '@/public/logo/dark';
 import LightLogo from '@/public/logo/light';
 
 export default function TopMenuBar({
   showAiLink,
-  session,
 }: {
   showAiLink: boolean;
-  session: Session | null;
 }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const { data: session } = authClient.useSession()
 
   const handleSignOut = async () => {
     await authClient.signOut({

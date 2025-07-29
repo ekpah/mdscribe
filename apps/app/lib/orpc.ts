@@ -1,19 +1,20 @@
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
-import type { RouterClient } from '@orpc/server';
+import { os, type RouterClient } from '@orpc/server';
 import { createTanstackQueryUtils } from '@orpc/tanstack-query';
+import { requiredAuthMiddleware } from '@/orpc/middlewares/auth';
+import { dbProviderMiddleware } from '@/orpc/middlewares/db';
 import type { router } from '@/orpc/router';
-
 
 const link = new RPCLink({
     url: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/rpc`,
     headers: async () => {
         if (typeof window !== 'undefined') {
-            return {}
+            return {};
         }
 
-        const { headers } = await import('next/headers')
-        return Object.fromEntries(await headers())
+        const { headers } = await import('next/headers');
+        return Object.fromEntries(await headers());
     },
 });
 
@@ -25,7 +26,6 @@ const client: RouterClient<typeof router> =
 
 export const orpc = createTanstackQueryUtils(client);
 
-
 declare global {
-    var $client: RouterClient<typeof router> | undefined
+    var $client: RouterClient<typeof router> | undefined;
 }
