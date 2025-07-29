@@ -480,7 +480,7 @@ export default async function DashboardPage() {
                                     </div>
                                     <div className="space-y-2">
                                         {userTemplates.length > 0 ? (
-                                            userTemplates.map((template) => (
+                                            userTemplates.map((template: any) => (
                                                 <div
                                                     className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-solarized-base2"
                                                     key={template.id}
