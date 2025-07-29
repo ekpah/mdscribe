@@ -8,7 +8,7 @@ import {
 } from '@repo/design-system/components/ui/breadcrumb';
 import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import { useQuery } from '@tanstack/react-query';
+import { QueryClient, useQuery } from '@tanstack/react-query';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import type { PageProps } from '@/.next/types/app/page';
@@ -19,12 +19,13 @@ import { NavActions } from './_components/NavActions';
 
 
 export default async function NotePage(props: PageProps) {
+  const queryClient = new QueryClient();
   const session = await auth.api.getSession({
     headers: await headers(),
   });
   const params = await props.params;
   const { id } = params;
-  const { data: doc } = await useQuery(
+  const doc = await queryClient.fetchQuery(
     orpc.templates.get.queryOptions({ input: { id } })
   );
   if (!doc) {
