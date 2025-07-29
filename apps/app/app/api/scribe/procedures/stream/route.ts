@@ -1,4 +1,5 @@
 import { database } from '@repo/database';
+import { env } from '@repo/env';
 import { embed } from 'ai';
 import { headers } from 'next/headers';
 import pgvector from 'pgvector';
@@ -10,7 +11,7 @@ import {
   createScribeHandler,
 } from '../../_lib/scribe-handler';
 
-const client = new VoyageAIClient({ apiKey: 'VOYAGE_API_KEY' });
+const client = new VoyageAIClient({ apiKey: env.VOYAGE_API_KEY as string });
 
 // Type definition for template search results
 interface TemplateSearchResult {
@@ -29,10 +30,12 @@ const generateEmbeddings = async (
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const embedding = await client.embed({
-    input: content,
-    model: 'voyage-3-large',
-  }).then((res) => res.data?.[0].embedding ?? []);
+  const embedding = await client
+    .embed({
+      input: content,
+      model: 'voyage-3-large',
+    })
+    .then((res) => res.data?.[0].embedding ?? []);
 
   // await embed({
   //   model: voyage.textEmbeddingModel('voyage-3-large'),

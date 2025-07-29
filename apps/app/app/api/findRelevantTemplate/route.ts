@@ -1,5 +1,6 @@
 'use server';
 import { database } from '@repo/database';
+import { env } from '@repo/env';
 import { type EmbeddingModel, embed } from 'ai';
 import { headers } from 'next/headers';
 import pgvector from 'pgvector';
@@ -7,8 +8,7 @@ import { voyage } from 'voyage-ai-provider';
 import { VoyageAIClient } from 'voyageai';
 import { auth } from '@/auth';
 
-const client = new VoyageAIClient({ apiKey: 'VOYAGE_API_KEY' });
-
+const client = new VoyageAIClient({ apiKey: env.VOYAGE_API_KEY as string });
 // Type definition for template search results
 interface TemplateSearchResult {
   id: string;
@@ -33,10 +33,12 @@ diagnosis: ${differentialDiagnosis}
 ---
 ${content}`
     : content;
-  const embedding = await client.embed({
-    input: contentWithMetadata,
-    model: 'voyage-3-large',
-  }).then((res) => res.data?.[0].embedding ?? []);
+  const embedding = await client
+    .embed({
+      input: contentWithMetadata,
+      model: 'voyage-3-large',
+    })
+    .then((res) => res.data?.[0].embedding ?? []);
 
   // await embed({
   //   model: voyage.textEmbeddingModel(

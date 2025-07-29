@@ -1,4 +1,5 @@
 import { database } from '@repo/database';
+import { env } from '@repo/env';
 import { embed } from 'ai';
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
@@ -8,7 +9,7 @@ import { VoyageAIClient } from 'voyageai';
 import { auth } from '@/auth';
 import { allowAdminAccess } from '@/flags';
 
-const client = new VoyageAIClient({ apiKey: 'VOYAGE_API_KEY' });
+const client = new VoyageAIClient({ apiKey: env.VOYAGE_API_KEY as string });
 
 const generateEmbeddings = async (
   content: string
@@ -16,12 +17,12 @@ const generateEmbeddings = async (
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const embedding = await client.embed({
-    input: content,
-    model: 'voyage-3-large',
-  }).then((res) => res.data?.[0].embedding ?? []);
-
-
+  const embedding = await client
+    .embed({
+      input: content,
+      model: 'voyage-3-large',
+    })
+    .then((res) => res.data?.[0].embedding ?? []);
 
   // await embed({
   //   model: voyage.textEmbeddingModel('voyage-3-large'),
