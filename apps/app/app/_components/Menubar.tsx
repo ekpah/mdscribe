@@ -4,18 +4,16 @@ import { ModeToggle } from '@repo/design-system/components/mode-toggle';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   NavigationMenu,
-  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from '@repo/design-system/components/ui/navigation-menu';
 import { cn } from '@repo/design-system/lib/utils';
 import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { forwardRef, useState } from 'react';
+import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import type { Session } from '@/lib/auth-types';
 import DarkLogo from '@/public/logo/dark';
@@ -63,25 +61,26 @@ export default function TopMenuBar({
           </Link>
 
           {/* Desktop Navigation */}
-
           <NavigationMenu className="hidden md:block">
             <NavigationMenuList>
               <NavigationMenuItem>
-                <NavigationMenuTrigger>Funktionen</NavigationMenuTrigger>
-                <NavigationMenuContent data-orientation="vertical">
-                  <ul className="grid md:w-[400px] lg:w-[500px]">
-                    <ListItem href="/templates" title="Textbausteine">
-                      Verwalten und nutzen Sie Ihre Textbausteine effizient.
-                    </ListItem>
-                    {showAiLink && (
-                      <ListItem href="/aiscribe" title="AI Scribe">
-                        Nutzen Sie KI um Ihre Texte zu optimieren und zu
-                        erweitern.
-                      </ListItem>
-                    )}
-                  </ul>
-                </NavigationMenuContent>
+                <NavigationMenuLink
+                  className={navigationMenuTriggerStyle()}
+                  href="/templates"
+                >
+                  Textbausteine
+                </NavigationMenuLink>
               </NavigationMenuItem>
+              {showAiLink && (
+                <NavigationMenuItem>
+                  <NavigationMenuLink
+                    className={navigationMenuTriggerStyle()}
+                    href="/aiscribe"
+                  >
+                    AI Scribe
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              )}
               <NavigationMenuItem>
                 <NavigationMenuLink
                   className={navigationMenuTriggerStyle()}
@@ -138,23 +137,25 @@ export default function TopMenuBar({
       >
         <div className="flex flex-col space-y-3 p-4">
           <NavigationMenu>
-            <NavigationMenuList>
+            <NavigationMenuList className="flex flex-col space-y-2">
               <NavigationMenuItem>
-                <NavigationMenuTrigger>Funktionen</NavigationMenuTrigger>
-                <NavigationMenuContent data-orientation="vertical">
-                  <ul className="grid md:w-[400px] lg:w-[500px]">
-                    <ListItem href="/templates" title="Textbausteine">
-                      Verwalten und nutzen Sie Ihre Textbausteine effizient.
-                    </ListItem>
-                    {showAiLink && (
-                      <ListItem href="/aiscribe" title="AI Scribe">
-                        Nutzen Sie KI um Ihre Texte zu optimieren und zu
-                        erweitern.
-                      </ListItem>
-                    )}
-                  </ul>
-                </NavigationMenuContent>
+                <NavigationMenuLink
+                  className={navigationMenuTriggerStyle()}
+                  href="/templates"
+                >
+                  Textbausteine
+                </NavigationMenuLink>
               </NavigationMenuItem>
+              {showAiLink && (
+                <NavigationMenuItem>
+                  <NavigationMenuLink
+                    className={navigationMenuTriggerStyle()}
+                    href="/aiscribe"
+                  >
+                    AI Scribe
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              )}
               <NavigationMenuItem>
                 <NavigationMenuLink
                   className={navigationMenuTriggerStyle()}
@@ -190,7 +191,7 @@ export default function TopMenuBar({
                   href="/sign-in"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <Button className="w-full">Anmelden</Button>
+                  <Button className="w-full">Jetzt anmelden</Button>
                 </Link>
               )}
               <div className="ml-2">
@@ -203,28 +204,3 @@ export default function TopMenuBar({
     </div>
   );
 }
-const ListItem = forwardRef<
-  React.ElementRef<'a'>,
-  React.ComponentPropsWithoutRef<'a'>
->(({ className, title, children, ...props }, ref) => {
-  return (
-    <li>
-      <NavigationMenuLink asChild>
-        <a
-          className={cn(
-            'block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
-            className
-          )}
-          ref={ref}
-          {...props}
-        >
-          <div className="font-medium text-sm leading-none">{title}</div>
-          <p className="line-clamp-2 text-muted-foreground text-sm leading-snug">
-            {children}
-          </p>
-        </a>
-      </NavigationMenuLink>
-    </li>
-  );
-});
-ListItem.displayName = 'ListItem';

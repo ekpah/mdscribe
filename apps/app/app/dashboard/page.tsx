@@ -21,7 +21,6 @@ import {
     Brain,
     Calendar,
     ClipboardCheck,
-    Clock,
     ExternalLinkIcon,
     FileCheck,
     FileText,
@@ -39,6 +38,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { orpc } from '@/lib/orpc';
+import { LiveTime } from './_components/LiveTime';
 
 export default async function DashboardPage() {
     // Get the session and user data
@@ -176,29 +176,15 @@ export default async function DashboardPage() {
                         </div>
                         <div>
                             <h1 className="mb-2 font-bold text-2xl text-solarized-base03 sm:text-3xl lg:text-4xl">
-                                Willkommen zurück, {session.user.name || 'Doktor'}!
+                                Willkommen zurück, {session.user.name || session.user.email}!
                             </h1>
                             <p className="mb-1 text-base text-solarized-base01 sm:text-lg">
                                 Bereit für einen produktiven Tag in der medizinischen
                                 Dokumentation?
                             </p>
                             <div className="flex flex-col gap-2 text-solarized-base1 text-xs sm:flex-row sm:items-center sm:gap-4 sm:text-sm">
-                                <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                                    {new Date().toLocaleDateString('de-DE', {
-                                        weekday: 'long',
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                    })}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                                    {new Date().toLocaleTimeString('de-DE', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                    })}
-                                </div>
+
+                                <LiveTime />
                             </div>
                         </div>
                     </div>
