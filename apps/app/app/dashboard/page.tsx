@@ -1,4 +1,4 @@
-import type { Template } from '@prisma/client';
+import type { Template } from '@repo/database';
 import {
     Avatar,
     AvatarFallback,

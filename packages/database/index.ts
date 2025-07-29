@@ -17,4 +17,14 @@ const adapter = new PrismaNeon({ connectionString });
 
 export const database = new PrismaClient({ adapter });
 
-export type { Prisma } from '@prisma/client';
+export type {
+  Account,
+  Prisma,
+  Session,
+  Subscription,
+  Template,
+  UsageEvent,
+  User,
+  Verification
+} from '@prisma/client';
+
