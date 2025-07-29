@@ -1,4 +1,4 @@
-import type { Template } from '@repo/database';
+import type { Prisma } from '@repo/database';
 import {
     Avatar,
     AvatarFallback,
@@ -39,6 +39,13 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { orpc } from '@/lib/orpc';
 import { LiveTime } from './_components/LiveTime';
+
+type Template = Prisma.TemplateGetPayload<{
+    include: {
+        favouriteOf: true;
+        author: true;
+    }
+}>
 
 export default async function DashboardPage() {
     // Get the session and user data
@@ -383,7 +390,7 @@ export default async function DashboardPage() {
                                                                 </Badge>
                                                                 <Badge className="text-xs" variant="outline">
                                                                     <Heart className="mr-1 h-3 w-3" />
-                                                                    {template._count.favouriteOf}
+                                                                    {template.favouriteOf.length}
                                                                 </Badge>
                                                             </div>
                                                             <h3 className="mb-1 font-semibold text-solarized-base03">
@@ -499,7 +506,7 @@ export default async function DashboardPage() {
                                                                 {template.category}
                                                             </Badge>
                                                             <span className="text-solarized-base1 text-xs">
-                                                                {template._count.favouriteOf} ♥
+                                                                {template.favouriteOf.length} ♥
                                                             </span>
                                                         </div>
                                                     </div>
