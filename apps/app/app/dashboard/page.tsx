@@ -364,7 +364,7 @@ export default async function DashboardPage() {
                             <CardContent>
                                 <div className="space-y-3">
                                     {favoriteTemplates.length > 0 ? (
-                                        favoriteTemplates.map((template) => (
+                                        favoriteTemplates.map((template: any) => (
                                             <Card
                                                 className="border border-solarized-base2 transition-all duration-200 hover:shadow-md"
                                                 key={template.id}
