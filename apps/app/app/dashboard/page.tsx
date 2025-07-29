@@ -1,4 +1,4 @@
-
+import type { Template } from '@prisma/client';
 import {
     Avatar,
     AvatarFallback,
@@ -61,7 +61,7 @@ export default async function DashboardPage() {
         (sub) => sub.status === 'active' || sub.status === 'trialing'
     );
 
-    const queryClient = new QueryClient()
+    const queryClient = new QueryClient();
 
     const data = await queryClient.fetchQuery(orpc.getUsage.queryOptions());
 
@@ -72,10 +72,14 @@ export default async function DashboardPage() {
     const remainingGenerations = Math.max(0, monthlyUsageLimit - currentUsage);
 
     // Get user's favorite templates (top 5)
-    const favoriteTemplates = await queryClient.fetchQuery(orpc.user.templates.favourites.queryOptions());
+    const favoriteTemplates = await queryClient.fetchQuery(
+        orpc.user.templates.favourites.queryOptions()
+    );
 
     // Get user's own templates (top 3)
-    const userTemplates = await queryClient.fetchQuery(orpc.user.templates.all.queryOptions());
+    const userTemplates = await queryClient.fetchQuery(
+        orpc.user.templates.all.queryOptions()
+    );
 
     const aiFunctions = [
         {
@@ -183,7 +187,6 @@ export default async function DashboardPage() {
                                 Dokumentation?
                             </p>
                             <div className="flex flex-col gap-2 text-solarized-base1 text-xs sm:flex-row sm:items-center sm:gap-4 sm:text-sm">
-
                                 <LiveTime />
                             </div>
                         </div>
@@ -277,7 +280,9 @@ export default async function DashboardPage() {
                             <div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
                                 {currentUsage}
                             </div>
-                            <p className="text-solarized-base01 text-xs">KI-Generierungen in diesem Monat</p>
+                            <p className="text-solarized-base01 text-xs">
+                                KI-Generierungen in diesem Monat
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
@@ -364,7 +369,7 @@ export default async function DashboardPage() {
                             <CardContent>
                                 <div className="space-y-3">
                                     {favoriteTemplates.length > 0 ? (
-                                        favoriteTemplates.map((template: any) => (
+                                        favoriteTemplates.map((template: Template) => (
                                             <Card
                                                 className="border border-solarized-base2 transition-all duration-200 hover:shadow-md"
                                                 key={template.id}
@@ -480,7 +485,7 @@ export default async function DashboardPage() {
                                     </div>
                                     <div className="space-y-2">
                                         {userTemplates.length > 0 ? (
-                                            userTemplates.map((template: any) => (
+                                            userTemplates.map((template: Template) => (
                                                 <div
                                                     className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-solarized-base2"
                                                     key={template.id}
