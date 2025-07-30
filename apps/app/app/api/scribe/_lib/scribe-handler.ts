@@ -63,7 +63,7 @@ import { getUsage } from './get-usage';
 
 const langfuse = new Langfuse();
 
-export interface ScribeHandlerConfig {
+interface ScribeHandlerConfig {
     // Langfuse prompt configuration
     promptName: string;
     promptLabel?: string;
@@ -198,8 +198,8 @@ async function generateResponse(
                 // Log usage in development
                 if (env.NODE_ENV === 'development') {
                     const logData = {
-                        promptTokens: event.usage.promptTokens,
-                        completionTokens: event.usage.completionTokens,
+                        promptTokens: event.usage.inputTokens,
+                        completionTokens: event.usage.outputTokens,
                         totalTokens: event.usage.totalTokens,
                         userId: session?.user?.id || 'unknown',
                         promptName: config.promptName,
@@ -220,7 +220,7 @@ async function generateResponse(
             },
         });
 
-        return result.toDataStreamResponse();
+        return result.toUIMessageStreamResponse();
     }
     // Create non-streaming response
     const { text, usage } = await generateText(commonParams);
@@ -228,8 +228,8 @@ async function generateResponse(
     // Log usage in development
     if (env.NODE_ENV === 'development') {
         const logData = {
-            promptTokens: usage.promptTokens,
-            completionTokens: usage.completionTokens,
+            promptTokens: usage.inputTokens,
+            completionTokens: usage.outputTokens,
             totalTokens: usage.totalTokens,
             userId: session?.user?.id || 'unknown',
             promptName: config.promptName,
@@ -355,7 +355,7 @@ export const createInputValidator = (requiredFields: string[]) => {
 };
 
 // Helper function to create common input processors
-export const createInputProcessor = (fieldMapping?: Record<string, string>) => {
+const createInputProcessor = (fieldMapping?: Record<string, string>) => {
     return (input: unknown): Record<string, unknown> => {
         if (!input || typeof input !== 'object') {
             return {};

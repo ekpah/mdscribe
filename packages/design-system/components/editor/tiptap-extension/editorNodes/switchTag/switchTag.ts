@@ -80,4 +80,3 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   },
 });
 
-export default SwitchTag;

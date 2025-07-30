@@ -1,7 +1,4 @@
-import { database } from '@repo/database';
 
-import type { PageProps } from '@/.next/types/app/page';
-import { auth } from '@/auth';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,36 +8,29 @@ import {
 } from '@repo/design-system/components/ui/breadcrumb';
 import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import { unstable_cache } from 'next/cache';
+import { QueryClient } from '@tanstack/react-query';
 import { headers } from 'next/headers';
 import Link from 'next/link';
+import type { PageProps } from '@/.next/types/app/page';
+import { auth } from '@/auth';
+import { orpc } from '@/lib/orpc';
 import ContentSection from './_components/ContentSection';
 import { NavActions } from './_components/NavActions';
 
-const fetchMarkdoc = unstable_cache(async ({ id }: { id: string }) => {
-  // fetch the markdoc content for the route
-  const doc = await database.template.findUnique({
-    where: {
-      id: id,
-    },
-    include: {
-      favouriteOf: true,
-      author: true,
-    },
-  });
-  if (!doc) {
-    throw new Error('Document not found');
-  }
-  return doc;
-});
 
 export default async function NotePage(props: PageProps) {
+  const queryClient = new QueryClient();
   const session = await auth.api.getSession({
     headers: await headers(),
   });
   const params = await props.params;
   const { id } = params;
-  const doc = await fetchMarkdoc({ id: id });
+  const doc = await queryClient.fetchQuery(
+    orpc.templates.get.queryOptions({ input: { id } })
+  );
+  if (!doc) {
+    throw new Error('Document not found');
+  }
 
   const inputTags = parseMarkdocToInputs(doc.content);
   const author = doc.author || { email: 'Anonym' };
@@ -64,12 +54,12 @@ export default async function NotePage(props: PageProps) {
           </BreadcrumbList>
         </Breadcrumb>
         <NavActions
+          author={author?.email}
+          favouriteOfCount={doc.favouriteOf?.length}
           isFavourite={isFavourite}
           isLoggedIn={!!session?.user?.id}
           lastEdited={doc.updatedAt}
           templateId={doc.id}
-          favouriteOfCount={doc.favouriteOf?.length}
-          author={author?.email}
         />
       </div>
       <ContentSection

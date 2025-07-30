@@ -1,13 +1,17 @@
 import { database } from '@repo/database';
+import { env } from '@repo/env';
 import { embed } from 'ai';
 import { headers } from 'next/headers';
 import pgvector from 'pgvector';
 import { voyage } from 'voyage-ai-provider';
+import { VoyageAIClient } from 'voyageai';
 import { auth } from '@/auth';
 import {
   createInputValidator,
   createScribeHandler,
 } from '../../_lib/scribe-handler';
+
+const client = new VoyageAIClient({ apiKey: env.VOYAGE_API_KEY as string });
 
 // Type definition for template search results
 interface TemplateSearchResult {
@@ -26,16 +30,23 @@ const generateEmbeddings = async (
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const { embedding } = await embed({
-    model: voyage.textEmbeddingModel('voyage-3-large'),
-    value: content,
-    experimental_telemetry: {
-      isEnabled: true,
-      metadata: {
-        userId: session?.user?.id || 'unknown',
-      },
-    },
-  });
+  const embedding = await client
+    .embed({
+      input: content,
+      model: 'voyage-3-large',
+    })
+    .then((res) => res.data?.[0].embedding ?? []);
+
+  // await embed({
+  //   model: voyage.textEmbeddingModel('voyage-3-large'),
+  //   value: content,
+  //   experimental_telemetry: {
+  //     isEnabled: true,
+  //     metadata: {
+  //       userId: session?.user?.id || 'unknown',
+  //     },
+  //   },
+  // });
   return { embedding, content };
 };
 

@@ -56,4 +56,3 @@ export const EmailVerificationTemplate = ({
   </Tailwind>
 );
 
-export default EmailVerificationTemplate;

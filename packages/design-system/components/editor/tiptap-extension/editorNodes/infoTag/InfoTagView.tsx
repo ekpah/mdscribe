@@ -107,4 +107,3 @@ export function InfoTagView({
   );
 }
 
-export default InfoTagView;

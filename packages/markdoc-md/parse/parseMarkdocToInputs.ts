@@ -55,7 +55,7 @@ export type SwitchInputTagType = RenderableTreeNode & {
  * @example
  * {% case "male" %}Male{% /case %}
  */
-export type CaseInputTagType = RenderableTreeNode & {
+type CaseInputTagType = RenderableTreeNode & {
   name: 'Case';
   attributes: {
     primary: string;
@@ -68,7 +68,7 @@ export type CaseInputTagType = RenderableTreeNode & {
  * @example
  * {% score formula="[age]*2+[gender_score]*3" unit="points" /%}
  */
-export type ScoreInputTagType = RenderableTreeNode & {
+type ScoreInputTagType = RenderableTreeNode & {
   name: 'Score';
   attributes: {
     primary: string;

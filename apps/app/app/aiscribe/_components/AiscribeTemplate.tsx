@@ -27,7 +27,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { MemoizedCopySection } from './MemoizedCopySection';
 
-export interface AdditionalInputField {
+interface AdditionalInputField {
   name: string;
   label: string;
   placeholder: string;

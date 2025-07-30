@@ -21,7 +21,7 @@ const ER_CONFIG: AiscribeTemplateConfig = {
   outputTabTitle: 'Analyse',
 
   // Form configuration
-  inputFieldName: 'anamnese',
+  inputFieldName: 'notes',
   inputPlaceholder: 'Geben Sie hier die Anamnese des Patienten ein...',
   inputDescription:
     'Dokumentieren Sie die Symptome, Beschwerden und relevante Vorgeschichte des Patienten',

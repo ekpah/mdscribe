@@ -6,11 +6,7 @@ import {
     QueryClient,
     QueryClientProvider,
 } from '@tanstack/react-query';
-import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import { useState } from 'react';
-import { TRPCProvider } from '@/lib/trpc';
-// Since QueryClientProvider relies on useContext under the hood, we have to put 'use client' on top
-import type { AppRouter } from '@/trpc/routers/_app';
+
 
 function makeQueryClient() {
     return new QueryClient({
@@ -41,17 +37,6 @@ function getQueryClient() {
     return browserQueryClient;
 }
 
-
-function getUrl() {
-    const base = (() => {
-        if (typeof window !== 'undefined') { return ''; }
-        if (process.env.VERCEL_URL) { return `https://${process.env.VERCEL_URL}`; }
-        return 'http://localhost:3000';
-    })();
-    return `${base}/api/trpc`;
-}
-
-
 export default function QueryProvider({
     children,
 }: {
@@ -62,20 +47,13 @@ export default function QueryProvider({
     //       suspend because React will throw away the client on the initial
     //       render if it suspends and there is no boundary
     const queryClient = getQueryClient();
-    const [trpcClient] = useState(() =>
-        createTRPCClient<AppRouter>({
-            links: [
-                httpBatchLink({
-                    url: getUrl(),
-                }),
-            ],
-        })
-    );
+
     return (
         <QueryClientProvider client={queryClient}>
-            <TRPCProvider queryClient={queryClient} trpcClient={trpcClient}>
-                {children}
-            </TRPCProvider>
+
+            {children}
+
+
         </QueryClientProvider>
     );
 }

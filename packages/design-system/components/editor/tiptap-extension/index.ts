@@ -9,7 +9,7 @@ import {
   type SwitchTagAttrs,
 } from './editorNodes/switchTag/switchTag';
 
-export interface MarkdocExtensionOptions {
+interface MarkdocExtensionOptions {
   /**
    * If set to false, the caseTag extension will not be registered
    * @example caseTag: false

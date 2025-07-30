@@ -1,6 +1,7 @@
-import { DesignSystemProvider } from '@repo/design-system/providers';
 import { auth } from '@/auth';
 import { allowAIUse } from '@/flags';
+import '@/lib/orpc.server'; // for pre-rendering
+import { DesignSystemProvider } from '@repo/design-system/providers';
 import '@repo/design-system/styles/globals.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Metadata } from 'next';
@@ -50,7 +51,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
               <div className="flex h-screen w-screen" key="Body">
                 <nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
                   {/*ModeWatcher track="true" />*/}
-                  <Menubar session={session} showAiLink={showAiLink} />
+                  <Menubar showAiLink={showAiLink} />
                 </nav>
                 <div
                   className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"

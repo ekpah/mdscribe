@@ -17,7 +17,7 @@ export interface InfoTagAttrs {
 }
 
 // TODO: Review if this interface is needed for InfoTag
-export interface InfoTagItem {
+interface InfoTagItem {
   tagName: string;
   attributes?: Record<string, string>;
 }
@@ -77,4 +77,3 @@ export const InfoTag = Node.create<InfoTagAttrs>({
   },
 });
 
-export default InfoTag;

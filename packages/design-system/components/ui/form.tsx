@@ -170,6 +170,6 @@ FormMessage.displayName = "FormMessage"
 export {
   Form, FormControl,
   FormDescription, FormField, FormItem,
-  FormLabel, FormMessage, useForm, useFormField
+  FormLabel, FormMessage,  
 }
 
