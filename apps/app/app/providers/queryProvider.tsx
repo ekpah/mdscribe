@@ -7,6 +7,7 @@ import {
     QueryClientProvider,
 } from '@tanstack/react-query';
 
+
 function makeQueryClient() {
     return new QueryClient({
         defaultOptions: {
@@ -51,6 +52,7 @@ export default function QueryProvider({
         <QueryClientProvider client={queryClient}>
 
             {children}
+
 
         </QueryClientProvider>
     );

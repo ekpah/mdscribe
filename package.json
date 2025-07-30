@@ -25,6 +25,9 @@
   "engines": {
     "node": ">=18"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "packageManager": "pnpm@9.15.2",
   "dependencies": {}
 }

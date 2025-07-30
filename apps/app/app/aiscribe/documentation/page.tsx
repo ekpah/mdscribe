@@ -661,4 +661,3 @@ export default function GenerateDocumentation() {
       </div>
     </div>
   );
-}

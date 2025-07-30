@@ -122,7 +122,7 @@ export default function SignIn() {
             Passwort vergessen?
           </Link>
           <p className="text-muted-foreground text-xs">
-            Mit der Registrierung akzeptieren Sie unsere{' '}
+            Mit der Anmeldung akzeptieren Sie unsere{' '}
             <Link
               className="text-primary hover:underline"
               href="/legal?tab=datenschutz"

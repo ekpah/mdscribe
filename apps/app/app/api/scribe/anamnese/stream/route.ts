@@ -2,6 +2,7 @@ import {
   createInputValidator,
   createScribeHandler,
 } from '@/app/api/scribe/_lib/scribe-handler';
+import { trpc } from '@/trpc/server';
 
 // Create the handler with specific configuration for anamnese
 const handleAnamnese = createScribeHandler({
