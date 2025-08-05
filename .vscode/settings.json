@@ -2,11 +2,9 @@
   "files.associations": {
     "*.md": "markdoc"
   },
-  "tailwindCSS.experimental.classRegex": [
-    "class:\\s*?[\"'`]([^\"'`]*).*?,"
-  ],
+  "tailwindCSS.experimental.classRegex": ["class:\\s*?[\"'`]([^\"'`]*).*?,"],
   "typescript.tsdk": "node_modules/typescript/lib",
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.defaultFormatter": "biomejs.biome",
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
   "emmet.showExpandedAbbreviation": "never",
@@ -16,7 +14,7 @@
     "source.fixAll.biome": "explicit"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.defaultFormatter": "biomejs.biome",
     "editor.formatOnSave": true
   },
   "[json]": {
@@ -32,7 +30,7 @@
     "editor.formatOnSave": true
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.defaultFormatter": "biomejs.biome",
     "editor.formatOnSave": true
   },
   "tailwindCSS.experimental.configFile": "./packages/design-system/tailwind.config.ts",

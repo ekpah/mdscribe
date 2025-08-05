@@ -2,6 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { eventIteratorToStream } from '@orpc/client';
+import type { Template } from '@repo/database';
 import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -27,42 +28,55 @@ import {
 } from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
+import { useQuery } from '@tanstack/react-query';
 import { FileText, Loader2, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import z from 'zod';
 import { orpc } from '@/lib/orpc';
 import { MemoizedCopySection } from '../_components/MemoizedCopySection';
 
-// Document type options
-const DOCUMENT_TYPES = [
-  {
-    value: 'anamnese',
-    label: 'Anamnese',
-    template: `[Primäres Problem und Vorstellungsgrund](erläutere das primäre Problem des Patienten bzw. die klinische Verdachtsdiagnose und ordne den Vorstellungskontext ein)
-[Unterstützende Anamnese](erläutere die Historie und weitere Informationen, die zur Beurteilung des primären Problems beitragen)
-
-[Vitalparameter:](wenn angegeben, ansonsten weglassen)
-[Vitalparameter des Patienten](füge die Vitalparameter des Patienten ein, wenn sie vorliegen. Lasse dies ansonsten frei)
-
-[Untersuchungsbefunde:](wenn vorhanden, Aufzählungsliste)
--[Untersuchung]:[Befund]
-
-(Never come up with your own patient details, assessment, diagnosis, differential diagnosis, plan, interventions, evaluation, plan for continuing care, safety netting advice, etc - use only the transcript, contextual notes or clinical note as a reference for the information you include in the note.If any information related to a placeholder has not been explicitly mentioned in the transcript or contextual notes, you must not state the information has not been explicitly mentioned in your output, just leave the relevant placeholder or section blank.) (Use as many sentences as needed to capture all the relevant information from the transcript and contextual notes.)`,
-  },
-  {
-    value: 'entlassung',
-    label: 'Entlassung',
-    template: '', // Add template for entlassung when available
-  },
-] as const;
-
-type DocumentType = (typeof DOCUMENT_TYPES)[number]['value'];
+const _ScribeInputSchema = z.object({
+  notes: z.string().optional(),
+  vordiagnosen: z.string().optional(),
+  diagnoseblock: z.string().optional(),
+  befunde: z.string().optional(),
+  template: z.string(),
+});
 
 interface DocumentOutput {
-  type: DocumentType;
+  templateId: string;
   content: string;
   values: Record<string, unknown>;
 }
+
+const generateInputsMessage = (
+  inputData: string,
+  additionalInputData: Record<string, string>,
+  templateEdits: Record<string, string>,
+  selectedTemplates: Template[]
+) => {
+  const templateContent =
+    selectedTemplates.length > 0
+      ? templateEdits[selectedTemplates[0].id] ||
+        selectedTemplates[0].content ||
+        ''
+      : '';
+
+  return `${inputData ? `<notes>${inputData}</notes>` : ''}${
+    additionalInputData.vordiagnosen
+      ? `<vordiagnosen>${additionalInputData.vordiagnosen}</vordiagnosen>`
+      : ''
+  }${
+    additionalInputData.diagnoseblock
+      ? `<diagnoseblock>${additionalInputData.diagnoseblock}</diagnoseblock>`
+      : ''
+  }${
+    additionalInputData.befunde
+      ? `<befunde>${additionalInputData.befunde}</befunde>`
+      : ''
+  }${templateContent ? `<template>${templateContent}</template>` : ''}`;
+};
 
 export default function GenerateDocumentation() {
   // State management for the UI
@@ -73,10 +87,12 @@ export default function GenerateDocumentation() {
   >({});
   const [values, setValues] = useState<Record<string, unknown>>({});
 
+  const { data: favouriteTemplates } = useQuery(
+    orpc.user.templates.favourites.queryOptions()
+  );
+
   // Document type selection state
-  const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
-    DocumentType[]
-  >([]);
+  const [selectedTemplates, setSelectedTemplates] = useState<Template[]>([]);
   const [documentOutputs, setDocumentOutputs] = useState<DocumentOutput[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -89,28 +105,17 @@ export default function GenerateDocumentation() {
   const { messages, sendMessage, status } = useChat({
     transport: {
       // Custom transport that uses orpc for streaming
-      async sendMessages() {
-        // Extract data from the message and additional inputs
-        const requestData = {
-          anamnese: inputData || 'Anamnese nicht vorliegend.',
-          vordiagnosen:
-            additionalInputData.vordiagnosen || 'Keine Vordiagnosen.',
-          diagnoseblock:
-            additionalInputData.diagnoseblock || 'Leerer Diagnoseblock.',
-          befunde: additionalInputData.befunde || 'Keine Befunde.',
-          templates: selectedDocumentTypes.map((type) => {
-            const docType = DOCUMENT_TYPES.find((t) => t.value === type);
-            const editedTemplate =
-              templateEdits[type] || docType?.template || '';
-            return {
-              type,
-              template: editedTemplate,
-            };
-          }),
-        };
-
-        // Call the orpc router and convert the response to a stream
-        return eventIteratorToStream(await orpc.scribe.call(requestData));
+      async sendMessages(options) {
+        return eventIteratorToStream(
+          await orpc.scribe.call(
+            {
+              messages: options.messages,
+              chatId: options.chatId,
+              body: options.body,
+            },
+            { signal: options.abortSignal }
+          )
+        );
       },
       reconnectToStream() {
         throw new Error('Reconnection not supported in this example');
@@ -140,53 +145,53 @@ export default function GenerateDocumentation() {
   };
 
   // Handle document type selection
-  const handleDocumentTypeSelect = (type: DocumentType) => {
-    if (!selectedDocumentTypes.includes(type)) {
-      setSelectedDocumentTypes((prev) => [...prev, type]);
+  const handleTemplateSelect = (template: Template) => {
+    if (!selectedTemplates.includes(template)) {
+      setSelectedTemplates((prev) => [...prev, template]);
     }
   };
 
   // Handle document type removal
-  const handleDocumentTypeRemove = (typeToRemove: DocumentType) => {
-    setSelectedDocumentTypes((prev) =>
-      prev.filter((type) => type !== typeToRemove)
+  const handleTemplateRemove = (templateToRemove: Template) => {
+    setSelectedTemplates((prev) =>
+      prev.filter((template) => template !== templateToRemove)
     );
     setDocumentOutputs((prev) =>
-      prev.filter((output) => output.type !== typeToRemove)
+      prev.filter((output) => output.templateId !== templateToRemove.id)
     );
 
     // Remove template edits for this type
     setTemplateEdits((prev) => {
       const newEdits = { ...prev };
-      delete newEdits[typeToRemove];
+      delete newEdits[templateToRemove.id];
       return newEdits;
     });
 
     // If we're currently on the removed tab, switch to input
-    if (activeTab === `output-${typeToRemove}`) {
+    if (activeTab === `output-${templateToRemove.id}`) {
       setActiveTab('input');
     }
   };
 
   // Handle template editing
-  const handleTemplateEdit = (type: DocumentType, content: string) => {
+  const handleTemplateEdit = (templateId: string, content: string) => {
     setTemplateEdits((prev) => ({
       ...prev,
-      [type]: content,
+      [templateId]: content,
     }));
   };
 
-  // Get available document types (not yet selected)
-  const getAvailableDocumentTypes = () => {
-    return DOCUMENT_TYPES.filter(
-      (type) => !selectedDocumentTypes.includes(type.value)
+  // Get available templates (not yet selected)
+  const getAvailableTemplates = () => {
+    return favouriteTemplates?.filter(
+      (template) => !selectedTemplates.some((t) => t.id === template.id)
     );
   };
 
   // Check if all required fields are filled
   const areRequiredFieldsFilled = useCallback(() => {
-    return inputData.trim().length > 0 && selectedDocumentTypes.length > 0;
-  }, [inputData, selectedDocumentTypes]);
+    return inputData.trim().length > 0 && selectedTemplates.length > 0;
+  }, [inputData, selectedTemplates]);
 
   // Handle form submission to trigger streaming
   const handleGenerate = useCallback(async () => {
@@ -200,36 +205,64 @@ export default function GenerateDocumentation() {
     setIsGenerating(true);
 
     // Switch to the first selected document type output tab
-    if (selectedDocumentTypes.length > 0) {
-      setActiveTab(`output-${selectedDocumentTypes[0]}`);
+    if (selectedTemplates.length > 0) {
+      setActiveTab(`output-${selectedTemplates[0].id}`);
     }
 
     try {
-      // For now, we'll generate the same content for all document types
-      // In a real implementation, you might want to call different endpoints
-      await sendMessage({
-        text: `Generate documentation for: ${inputData}`,
-      });
+      // Get the template content for the first selected template
+      const firstTemplate = selectedTemplates[0];
+      const templateContent =
+        templateEdits[firstTemplate.id] || firstTemplate.content || '';
+
+      // Prepare body data with only the input fields and template content
+      const bodyData = {
+        notes: inputData,
+        vordiagnosen: additionalInputData.vordiagnosen || '',
+        diagnoseblock: additionalInputData.diagnoseblock || '',
+        befunde: additionalInputData.befunde || '',
+        template: templateContent,
+      };
+
+      // Submit the message with input data in the body
+      await sendMessage(
+        {
+          text: generateInputsMessage(
+            inputData,
+            additionalInputData,
+            templateEdits,
+            selectedTemplates
+          ),
+        },
+        { body: bodyData }
+      );
 
       toast.success('Generierung gestartet');
     } catch {
       toast.error('Fehler beim Generieren');
       setIsGenerating(false);
     }
-  }, [inputData, selectedDocumentTypes, areRequiredFieldsFilled, sendMessage]);
+  }, [
+    inputData,
+    selectedTemplates,
+    areRequiredFieldsFilled,
+    sendMessage,
+    templateEdits,
+    additionalInputData,
+  ]);
 
   // Update document outputs when AI response changes
   useEffect(() => {
-    if (latestAIResponse && selectedDocumentTypes.length > 0) {
-      const newOutputs = selectedDocumentTypes.map((type) => ({
-        type,
+    if (latestAIResponse && selectedTemplates.length > 0) {
+      const newOutputs = selectedTemplates.map((template) => ({
+        templateId: template.id,
         content: latestAIResponse,
         values,
       }));
       setDocumentOutputs(newOutputs);
       setIsGenerating(false);
     }
-  }, [latestAIResponse, selectedDocumentTypes, values]);
+  }, [latestAIResponse, selectedTemplates, values]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -346,19 +379,19 @@ export default function GenerateDocumentation() {
                     </TabsTrigger>
 
                     {/* Dynamic output tabs for selected document types */}
-                    {selectedDocumentTypes.map((type) => (
+                    {selectedTemplates.map((template) => (
                       <TabsTrigger
                         className="relative px-4 py-2 text-sm data-[state=active]:bg-solarized-green data-[state=active]:text-primary-foreground"
-                        key={type}
-                        value={`output-${type}`}
+                        key={template.id}
+                        value={`output-${template.id}`}
                       >
-                        {DOCUMENT_TYPES.find((t) => t.value === type)?.label}
+                        {template.title}
                         <Button
                           className="ml-2 h-4 w-4 rounded-full p-0 hover:bg-destructive hover:text-destructive-foreground"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleDocumentTypeRemove(type);
+                            handleTemplateRemove(template);
                           }}
                           size="sm"
                           variant="ghost"
@@ -368,24 +401,40 @@ export default function GenerateDocumentation() {
                       </TabsTrigger>
                     ))}
 
-                    {/* Document type selector */}
-                    {getAvailableDocumentTypes().length > 0 && (
-                      <div className="ml-2 flex items-center">
-                        <Select onValueChange={handleDocumentTypeSelect}>
-                          <SelectTrigger className="h-8 w-32 items-center justify-center rounded-full border-0 bg-transparent p-0 px-4 hover:bg-accent [&>svg:last-child]:hidden">
-                            <Plus className="h-4 w-4" />
-                            Dokument erstellen
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getAvailableDocumentTypes().map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                    {/* Template selector */}
+                    {(() => {
+                      const availableTemplates = getAvailableTemplates();
+                      return availableTemplates &&
+                        availableTemplates.length > 0 ? (
+                        <div className="ml-2 flex items-center">
+                          <Select
+                            onValueChange={(templateId) => {
+                              const template = favouriteTemplates?.find(
+                                (t) => t.id === templateId
+                              );
+                              if (template) {
+                                handleTemplateSelect(template);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-8 w-32 items-center justify-center rounded-full border-0 bg-transparent p-0 px-4 hover:bg-accent [&>svg:last-child]:hidden">
+                              <Plus className="h-4 w-4" />
+                              Template hinzufügen
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableTemplates.map((template) => (
+                                <SelectItem
+                                  key={template.id}
+                                  value={template.id}
+                                >
+                                  {template.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : null;
+                    })()}
                   </TabsList>
                 </CardHeader>
 
@@ -533,17 +582,17 @@ export default function GenerateDocumentation() {
                   </CardFooter>
                 </TabsContent>
 
-                {/* Dynamic Output Tabs for each document type */}
-                {selectedDocumentTypes.map((type) => (
+                {/* Dynamic Output Tabs for each selected template */}
+                {selectedTemplates.map((template) => (
                   <TabsContent
                     className="space-y-0"
-                    key={type}
-                    value={`output-${type}`}
+                    key={template.id}
+                    value={`output-${template.id}`}
                   >
                     <CardContent>
                       {(() => {
                         const output = documentOutputs.find(
-                          (o) => o.type === type
+                          (o) => o.templateId === template.id
                         );
 
                         if (isLoading && !output) {
@@ -559,12 +608,7 @@ export default function GenerateDocumentation() {
                                 </h3>
                                 <p className="text-muted-foreground text-sm">
                                   Bitte warten Sie, während der KI-Assistent
-                                  Ihre
-                                  {
-                                    DOCUMENT_TYPES.find((t) => t.value === type)
-                                      ?.label
-                                  }{' '}
-                                  erstellt
+                                  Ihre {template.title} erstellt
                                 </p>
                               </div>
                             </div>
@@ -577,11 +621,7 @@ export default function GenerateDocumentation() {
                               <div className="space-y-4">
                                 <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
                                   <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                                  Generierte{' '}
-                                  {
-                                    DOCUMENT_TYPES.find((t) => t.value === type)
-                                      ?.label
-                                  }
+                                  Generierte {template.title}
                                 </h4>
                                 <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
                                   <MemoizedCopySection
@@ -609,11 +649,7 @@ export default function GenerateDocumentation() {
                             <div className="space-y-4">
                               <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
                                 <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                                Template für{' '}
-                                {
-                                  DOCUMENT_TYPES.find((t) => t.value === type)
-                                    ?.label
-                                }
+                                Template für {template.title}
                               </h4>
                               <div className="space-y-3">
                                 <p className="text-muted-foreground text-sm">
@@ -623,13 +659,15 @@ export default function GenerateDocumentation() {
                                 <Textarea
                                   className="min-h-[300px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-green focus:ring-solarized-green/20"
                                   onChange={(e) =>
-                                    handleTemplateEdit(type, e.target.value)
+                                    handleTemplateEdit(
+                                      template.id,
+                                      e.target.value
+                                    )
                                   }
                                   placeholder="Template bearbeiten..."
                                   value={
-                                    templateEdits[type] ||
-                                    DOCUMENT_TYPES.find((t) => t.value === type)
-                                      ?.template ||
+                                    templateEdits[template.id] ||
+                                    template.content ||
                                     ''
                                   }
                                 />
