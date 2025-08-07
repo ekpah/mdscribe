@@ -1,12 +1,13 @@
 import { database } from '@repo/database';
 import { SidebarProvider } from '@repo/design-system/components/ui/sidebar';
+import { QueryClient } from '@tanstack/react-query';
+import { headers } from 'next/headers';
 import type React from 'react';
 import { Suspense } from 'react';
-
 import { auth } from '@/auth';
-import {} from '@repo/design-system/components/ui/breadcrumb';
-import { headers } from 'next/headers';
+import { orpc } from '@/lib/orpc';
 import AppSidebar from './_components/Sidebar';
+
 const getTemplatesPrisma = async () => {
   const templates = await database.template.findMany({
     include: {
@@ -17,41 +18,37 @@ const getTemplatesPrisma = async () => {
   });
   return templates;
 };
-const getFavouriteTemplatesPrisma = async () => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  const templates = await database.template.findMany({
-    where: {
-      favouriteOf: {
-        some: {
-          id: session?.user?.id,
-        },
-      },
-    },
-    include: {
-      _count: {
-        select: { favouriteOf: true },
-      },
-    },
-  });
-  return templates;
+const getFavouriteTemplatesPrisma = async (isLoggedIn: boolean) => {
+  if (!isLoggedIn) {
+    return [];
+  }
+  try {
+    const queryClient = new QueryClient();
+    const templates = await queryClient.fetchQuery(
+      orpc.user.templates.favourites.queryOptions()
+    );
+    return templates;
+  } catch (error) {
+    // If authentication fails, return empty array instead of crashing
+    console.warn('Failed to fetch favourite templates:', error);
+    return [];
+  }
 };
-const getAuthoredTemplatesPrisma = async () => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  const templates = await database.template.findMany({
-    where: {
-      authorId: session?.user?.id,
-    },
-    include: {
-      _count: {
-        select: { favouriteOf: true },
-      },
-    },
-  });
-  return templates;
+const getAuthoredTemplatesPrisma = async (isLoggedIn: boolean) => {
+  if (!isLoggedIn) {
+    return [];
+  }
+  try {
+    const queryClient = new QueryClient();
+    const templates = await queryClient.fetchQuery(
+      orpc.user.templates.authored.queryOptions()
+    );
+    return templates;
+  } catch (error) {
+    // If authentication fails, return empty array instead of crashing
+    console.warn('Failed to fetch authored templates:', error);
+    return [];
+  }
 };
 
 const generateSidebarLinks = async () => {
@@ -63,8 +60,8 @@ const generateSidebarLinks = async () => {
     favouritesCount: temp._count.favouriteOf,
   }));
 };
-const generateFavouriteTemplates = async () => {
-  const templates = await getFavouriteTemplatesPrisma();
+const generateFavouriteTemplates = async (isLoggedIn: boolean) => {
+  const templates = await getFavouriteTemplatesPrisma(isLoggedIn);
   return templates.map((temp) => ({
     url: `/templates/${temp.id}`,
     category: temp.category,
@@ -72,8 +69,8 @@ const generateFavouriteTemplates = async () => {
     favouritesCount: temp._count.favouriteOf,
   }));
 };
-const generateAuthoredTemplates = async () => {
-  const templates = await getAuthoredTemplatesPrisma();
+const generateAuthoredTemplates = async (isLoggedIn: boolean) => {
+  const templates = await getAuthoredTemplatesPrisma(isLoggedIn);
   return templates.map((temp) => ({
     url: `/templates/${temp.id}`,
     category: temp.category,
@@ -90,36 +87,36 @@ export default async function Layout({
     headers: await headers(),
   });
   const isLoggedIn = !!session?.user;
-  // let templates = getTemplates();
+  
   return (
     <div className="flex h-full w-full">
       <SidebarProvider>
         <Suspense
           fallback={
             <AppSidebar
+              authoredTemplates={'[]'}
+              favouriteTemplates={'[]'}
+              isLoggedIn={isLoggedIn}
               key="Sidebar"
-              templates={''}
-              favouriteTemplates={''}
-              authoredTemplates={''}
-              isLoggedIn
+              templates={'[]'}
             />
           }
         >
           <AppSidebar
+            authoredTemplates={JSON.stringify(
+              await generateAuthoredTemplates(isLoggedIn)
+            )}
+            favouriteTemplates={JSON.stringify(
+              await generateFavouriteTemplates(isLoggedIn)
+            )}
+            isLoggedIn={isLoggedIn}
             key="Sidebar"
             templates={JSON.stringify(await generateSidebarLinks())}
-            favouriteTemplates={JSON.stringify(
-              await generateFavouriteTemplates()
-            )}
-            authoredTemplates={JSON.stringify(
-              await generateAuthoredTemplates()
-            )}
-            isLoggedIn
           />
         </Suspense>
         <main
-          key="MainContent"
           className="top-16 flex h-full grow overscroll-contain p-4"
+          key="MainContent"
         >
           {children}
         </main>

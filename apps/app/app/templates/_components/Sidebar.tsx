@@ -64,14 +64,12 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
       existingCategory.documents.push({
         title: template,
         url: route,
-        favouritesCount: favouritesCount,
+        favouritesCount,
       });
     } else {
       acc.push({
         category,
-        documents: [
-          { title: template, url: route, favouritesCount: favouritesCount },
-        ],
+        documents: [{ title: template, url: route, favouritesCount }],
       });
     }
 
@@ -82,11 +80,11 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
 };
 
 const formatCount = (count: number): string => {
-  if (count >= 1000000000) {
-    return `${(count / 1000000000).toFixed(1).replace(/\.0$/, '')}B`;
+  if (count >= 1_000_000_000) {
+    return `${(count / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
   }
-  if (count >= 1000000) {
-    return `${(count / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   }
   if (count >= 1000) {
     return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`;
@@ -208,9 +206,9 @@ export default function AppSidebar({
       <SidebarHeader className="z-30 gap-4">
         {isLoggedIn && (
           <CollectionSwitcher
+            activeCollectionIndex={activeCollectionIndex}
             collections={collections}
             count={menuSegments?.length}
-            activeCollectionIndex={activeCollectionIndex}
             setActiveCollectionIndex={setActiveCollectionIndex}
           />
         )}
@@ -227,21 +225,21 @@ export default function AppSidebar({
           </SidebarGroupContent>
           <SidebarGroupContent className="relative">
             <form key="search" onSubmit={handleSearchSubmit}>
-              <Label htmlFor="search" className="sr-only">
+              <Label className="sr-only" htmlFor="search">
                 Search
               </Label>
               <SidebarInput
-                type="search"
-                placeholder="Suchen..."
-                value={searchTerm}
-                ref={searchInputRef}
-                onChange={handleSearch}
                 className="rounded-md bg-muted pl-8 text-sm"
+                onChange={handleSearch}
+                placeholder="Suchen..."
+                ref={searchInputRef}
+                type="search"
+                value={searchTerm}
               />
               <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2 size-4 select-none opacity-50" />
               <Badge
-                variant="secondary"
                 className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-2 select-none"
+                variant="secondary"
               >
                 <span suppressHydrationWarning>{isMac ? '⌘K' : 'Ctrl+K'}</span>
               </Badge>
@@ -250,7 +248,7 @@ export default function AppSidebar({
           {showCreateTemplateButton && (
             <SidebarGroupContent className="relative">
               <Link href={'/templates/create'}>
-                <Button variant={'default'} className="w-full">
+                <Button className="w-full" variant={'default'}>
                   <PlusCircledIcon className="mr-2 h-4 w-4" />
                   Neuer Textbaustein
                 </Button>
@@ -267,9 +265,9 @@ export default function AppSidebar({
           <SidebarMenu>
             {orderedSegments.map((segment, index) => (
               <Collapsible
-                key={index}
-                defaultOpen={true}
                 className="group/collapsible"
+                defaultOpen={true}
+                key={index}
               >
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
@@ -288,11 +286,11 @@ export default function AppSidebar({
                             <SidebarMenuSubItem key={index}>
                               <SidebarMenuSubButton asChild isActive={false}>
                                 <Link
+                                  className="flex items-center justify-between"
                                   href={item.url}
                                   onClick={() => {
                                     setOpenMobile(false);
                                   }}
-                                  className="flex items-center justify-between"
                                 >
                                   <span>{item.title}</span>
                                   {item.favouritesCount > 0 && (

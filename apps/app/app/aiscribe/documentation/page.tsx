@@ -2,6 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { eventIteratorToStream } from '@orpc/client';
+import type { Template } from '@repo/database';
 import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -12,7 +13,24 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@repo/design-system/components/ui/dialog';
+import { Input } from '@repo/design-system/components/ui/input';
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/design-system/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
@@ -27,42 +45,56 @@ import {
 } from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import { FileText, Loader2, Plus, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { FileText, Heart, Loader2, Plus, Settings, X } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import z from 'zod';
 import { orpc } from '@/lib/orpc';
 import { MemoizedCopySection } from '../_components/MemoizedCopySection';
 
-// Document type options
-const DOCUMENT_TYPES = [
-  {
-    value: 'anamnese',
-    label: 'Anamnese',
-    template: `[Primäres Problem und Vorstellungsgrund](erläutere das primäre Problem des Patienten bzw. die klinische Verdachtsdiagnose und ordne den Vorstellungskontext ein)
-[Unterstützende Anamnese](erläutere die Historie und weitere Informationen, die zur Beurteilung des primären Problems beitragen)
-
-[Vitalparameter:](wenn angegeben, ansonsten weglassen)
-[Vitalparameter des Patienten](füge die Vitalparameter des Patienten ein, wenn sie vorliegen. Lasse dies ansonsten frei)
-
-[Untersuchungsbefunde:](wenn vorhanden, Aufzählungsliste)
--[Untersuchung]:[Befund]
-
-(Never come up with your own patient details, assessment, diagnosis, differential diagnosis, plan, interventions, evaluation, plan for continuing care, safety netting advice, etc - use only the transcript, contextual notes or clinical note as a reference for the information you include in the note.If any information related to a placeholder has not been explicitly mentioned in the transcript or contextual notes, you must not state the information has not been explicitly mentioned in your output, just leave the relevant placeholder or section blank.) (Use as many sentences as needed to capture all the relevant information from the transcript and contextual notes.)`,
-  },
-  {
-    value: 'entlassung',
-    label: 'Entlassung',
-    template: '', // Add template for entlassung when available
-  },
-] as const;
-
-type DocumentType = (typeof DOCUMENT_TYPES)[number]['value'];
+const _ScribeInputSchema = z.object({
+  notes: z.string().optional(),
+  vordiagnosen: z.string().optional(),
+  diagnoseblock: z.string().optional(),
+  befunde: z.string().optional(),
+  template: z.string(),
+});
 
 interface DocumentOutput {
-  type: DocumentType;
+  templateId: string;
   content: string;
   values: Record<string, unknown>;
 }
+
+const generateInputsMessage = (
+  inputData: string,
+  additionalInputData: Record<string, string>,
+  templateEdits: Record<string, string>,
+  selectedTemplates: Template[]
+) => {
+  const templateContent =
+    selectedTemplates.length > 0
+      ? templateEdits[selectedTemplates[0].id] ||
+        selectedTemplates[0].content ||
+        ''
+      : '';
+
+  return `${inputData ? `<notes>${inputData}</notes>` : ''}${
+    additionalInputData.vordiagnosen
+      ? `<vordiagnosen>${additionalInputData.vordiagnosen}</vordiagnosen>`
+      : ''
+  }${
+    additionalInputData.diagnoseblock
+      ? `<diagnoseblock>${additionalInputData.diagnoseblock}</diagnoseblock>`
+      : ''
+  }${
+    additionalInputData.befunde
+      ? `<befunde>${additionalInputData.befunde}</befunde>`
+      : ''
+  }${templateContent ? `<template>${templateContent}</template>` : ''}`;
+};
 
 export default function GenerateDocumentation() {
   // State management for the UI
@@ -73,10 +105,15 @@ export default function GenerateDocumentation() {
   >({});
   const [values, setValues] = useState<Record<string, unknown>>({});
 
+  const { data: favouriteTemplates, error: favouriteTemplatesError, isLoading: favouriteTemplatesLoading } = useQuery({
+    ...orpc.user.templates.favourites.queryOptions(),
+    retry: 2,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+
   // Document type selection state
-  const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<
-    DocumentType[]
-  >([]);
+  const [selectedTemplates, setSelectedTemplates] = useState<Template[]>([]);
   const [documentOutputs, setDocumentOutputs] = useState<DocumentOutput[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -85,32 +122,26 @@ export default function GenerateDocumentation() {
     {}
   );
 
+  // Empty template creation state
+  const [showCreateEmpty, setShowCreateEmpty] = useState(false);
+  const [emptyTemplateContent, setEmptyTemplateContent] = useState('');
+  const [emptyTemplateTitle, setEmptyTemplateTitle] = useState('');
+
   // Use Vercel AI SDK's useChat for streaming functionality
   const { messages, sendMessage, status } = useChat({
     transport: {
       // Custom transport that uses orpc for streaming
-      async sendMessages() {
-        // Extract data from the message and additional inputs
-        const requestData = {
-          anamnese: inputData || 'Anamnese nicht vorliegend.',
-          vordiagnosen:
-            additionalInputData.vordiagnosen || 'Keine Vordiagnosen.',
-          diagnoseblock:
-            additionalInputData.diagnoseblock || 'Leerer Diagnoseblock.',
-          befunde: additionalInputData.befunde || 'Keine Befunde.',
-          templates: selectedDocumentTypes.map((type) => {
-            const docType = DOCUMENT_TYPES.find((t) => t.value === type);
-            const editedTemplate =
-              templateEdits[type] || docType?.template || '';
-            return {
-              type,
-              template: editedTemplate,
-            };
-          }),
-        };
-
-        // Call the orpc router and convert the response to a stream
-        return eventIteratorToStream(await orpc.scribe.call(requestData));
+      async sendMessages(options) {
+        return eventIteratorToStream(
+          await orpc.scribe.call(
+            {
+              messages: options.messages,
+              chatId: options.chatId,
+              body: options.body,
+            },
+            { signal: options.abortSignal }
+          )
+        );
       },
       reconnectToStream() {
         throw new Error('Reconnection not supported in this example');
@@ -140,53 +171,76 @@ export default function GenerateDocumentation() {
   };
 
   // Handle document type selection
-  const handleDocumentTypeSelect = (type: DocumentType) => {
-    if (!selectedDocumentTypes.includes(type)) {
-      setSelectedDocumentTypes((prev) => [...prev, type]);
+  const handleTemplateSelect = (template: Template) => {
+    if (!selectedTemplates.includes(template)) {
+      setSelectedTemplates((prev) => [...prev, template]);
     }
   };
 
   // Handle document type removal
-  const handleDocumentTypeRemove = (typeToRemove: DocumentType) => {
-    setSelectedDocumentTypes((prev) =>
-      prev.filter((type) => type !== typeToRemove)
+  const handleTemplateRemove = (templateToRemove: Template) => {
+    setSelectedTemplates((prev) =>
+      prev.filter((template) => template !== templateToRemove)
     );
     setDocumentOutputs((prev) =>
-      prev.filter((output) => output.type !== typeToRemove)
+      prev.filter((output) => output.templateId !== templateToRemove.id)
     );
 
     // Remove template edits for this type
     setTemplateEdits((prev) => {
       const newEdits = { ...prev };
-      delete newEdits[typeToRemove];
+      delete newEdits[templateToRemove.id];
       return newEdits;
     });
 
     // If we're currently on the removed tab, switch to input
-    if (activeTab === `output-${typeToRemove}`) {
+    if (activeTab === `output-${templateToRemove.id}`) {
       setActiveTab('input');
     }
   };
 
   // Handle template editing
-  const handleTemplateEdit = (type: DocumentType, content: string) => {
+  const handleTemplateEdit = (templateId: string, content: string) => {
     setTemplateEdits((prev) => ({
       ...prev,
-      [type]: content,
+      [templateId]: content,
     }));
   };
 
-  // Get available document types (not yet selected)
-  const getAvailableDocumentTypes = () => {
-    return DOCUMENT_TYPES.filter(
-      (type) => !selectedDocumentTypes.includes(type.value)
+  // Get available templates (not yet selected)
+  const getAvailableTemplates = () => {
+    return favouriteTemplates?.filter(
+      (template) => !selectedTemplates.some((t) => t.id === template.id)
     );
+  };
+
+  // Handle creating an empty template
+  const handleCreateEmptyTemplate = () => {
+    if (!emptyTemplateTitle.trim()) {
+      toast.error('Bitte geben Sie einen Template-Titel ein');
+      return;
+    }
+    
+    const emptyTemplate: Template = {
+      id: `empty-${Date.now()}`,
+      title: emptyTemplateTitle || 'Benutzerdefiniertes Template',
+      category: 'Benutzerdefiniert',
+      content: emptyTemplateContent || '# Mein Template\n\n{% info "Patientenname" /%}\n\nHier können Sie Ihren Template-Inhalt eingeben.',
+      authorId: 'current-user',
+      updatedAt: new Date(),
+    };
+    
+    setSelectedTemplates((prev) => [...prev, emptyTemplate]);
+    setShowCreateEmpty(false);
+    setEmptyTemplateContent('');
+    setEmptyTemplateTitle('');
+    toast.success('Template hinzugefügt');
   };
 
   // Check if all required fields are filled
   const areRequiredFieldsFilled = useCallback(() => {
-    return inputData.trim().length > 0 && selectedDocumentTypes.length > 0;
-  }, [inputData, selectedDocumentTypes]);
+    return inputData.trim().length > 0 && selectedTemplates.length > 0;
+  }, [inputData, selectedTemplates]);
 
   // Handle form submission to trigger streaming
   const handleGenerate = useCallback(async () => {
@@ -200,36 +254,64 @@ export default function GenerateDocumentation() {
     setIsGenerating(true);
 
     // Switch to the first selected document type output tab
-    if (selectedDocumentTypes.length > 0) {
-      setActiveTab(`output-${selectedDocumentTypes[0]}`);
+    if (selectedTemplates.length > 0) {
+      setActiveTab(`output-${selectedTemplates[0].id}`);
     }
 
     try {
-      // For now, we'll generate the same content for all document types
-      // In a real implementation, you might want to call different endpoints
-      await sendMessage({
-        text: `Generate documentation for: ${inputData}`,
-      });
+      // Get the template content for the first selected template
+      const firstTemplate = selectedTemplates[0];
+      const templateContent =
+        templateEdits[firstTemplate.id] || firstTemplate.content || '';
+
+      // Prepare body data with only the input fields and template content
+      const bodyData = {
+        notes: inputData,
+        vordiagnosen: additionalInputData.vordiagnosen || '',
+        diagnoseblock: additionalInputData.diagnoseblock || '',
+        befunde: additionalInputData.befunde || '',
+        template: templateContent,
+      };
+
+      // Submit the message with input data in the body
+      await sendMessage(
+        {
+          text: generateInputsMessage(
+            inputData,
+            additionalInputData,
+            templateEdits,
+            selectedTemplates
+          ),
+        },
+        { body: bodyData }
+      );
 
       toast.success('Generierung gestartet');
     } catch {
       toast.error('Fehler beim Generieren');
       setIsGenerating(false);
     }
-  }, [inputData, selectedDocumentTypes, areRequiredFieldsFilled, sendMessage]);
+  }, [
+    inputData,
+    selectedTemplates,
+    areRequiredFieldsFilled,
+    sendMessage,
+    templateEdits,
+    additionalInputData,
+  ]);
 
   // Update document outputs when AI response changes
   useEffect(() => {
-    if (latestAIResponse && selectedDocumentTypes.length > 0) {
-      const newOutputs = selectedDocumentTypes.map((type) => ({
-        type,
+    if (latestAIResponse && selectedTemplates.length > 0) {
+      const newOutputs = selectedTemplates.map((template) => ({
+        templateId: template.id,
         content: latestAIResponse,
         values,
       }));
       setDocumentOutputs(newOutputs);
       setIsGenerating(false);
     }
-  }, [latestAIResponse, selectedDocumentTypes, values]);
+  }, [latestAIResponse, selectedTemplates, values]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -346,19 +428,19 @@ export default function GenerateDocumentation() {
                     </TabsTrigger>
 
                     {/* Dynamic output tabs for selected document types */}
-                    {selectedDocumentTypes.map((type) => (
+                    {selectedTemplates.map((template) => (
                       <TabsTrigger
                         className="relative px-4 py-2 text-sm data-[state=active]:bg-solarized-green data-[state=active]:text-primary-foreground"
-                        key={type}
-                        value={`output-${type}`}
+                        key={template.id}
+                        value={`output-${template.id}`}
                       >
-                        {DOCUMENT_TYPES.find((t) => t.value === type)?.label}
+                        {template.title}
                         <Button
                           className="ml-2 h-4 w-4 rounded-full p-0 hover:bg-destructive hover:text-destructive-foreground"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleDocumentTypeRemove(type);
+                            handleTemplateRemove(template);
                           }}
                           size="sm"
                           variant="ghost"
@@ -368,24 +450,155 @@ export default function GenerateDocumentation() {
                       </TabsTrigger>
                     ))}
 
-                    {/* Document type selector */}
-                    {getAvailableDocumentTypes().length > 0 && (
-                      <div className="ml-2 flex items-center">
-                        <Select onValueChange={handleDocumentTypeSelect}>
-                          <SelectTrigger className="h-8 w-32 items-center justify-center rounded-full border-0 bg-transparent p-0 px-4 hover:bg-accent [&>svg:last-child]:hidden">
+                    {/* Enhanced Template selector */}
+                    <div className="ml-2 flex items-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            className="h-8 rounded-full border-0 bg-transparent px-4 hover:bg-accent text-foreground"
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Template hinzufügen
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-72" align="end">
+                          <DropdownMenuLabel className="flex items-center gap-2">
                             <Plus className="h-4 w-4" />
-                            Dokument erstellen
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getAvailableDocumentTypes().map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                            Template auswählen
+                          </DropdownMenuLabel>
+                          
+                          {/* Create Empty Template Option */}
+                          <DropdownMenuItem
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => setShowCreateEmpty(true)}
+                          >
+                            <FileText className="h-4 w-4 text-solarized-blue" />
+                            <div className="flex flex-col">
+                              <span className="font-medium">Leeres Template erstellen</span>
+                              <span className="text-xs text-muted-foreground">
+                                Eigenes Template von Grund auf erstellen
+                              </span>
+                            </div>
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator />
+                          
+                          {/* Available Templates */}
+                          {(() => {
+                            if (favouriteTemplatesLoading) {
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Lade Favoriten...
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            }
+
+                            if (favouriteTemplatesError) {
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2 text-destructive">
+                                    <X className="h-4 w-4" />
+                                    Fehler beim Laden der Favoriten
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            }
+                            
+                            const availableTemplates = getAvailableTemplates();
+                            
+                            if (!favouriteTemplates || favouriteTemplates.length === 0) {
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
+                                    <Heart className="h-4 w-4" />
+                                    Keine Favoriten vorhanden
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                                    Fügen Sie Templates zu Ihren Favoriten hinzu
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            }
+                            
+                            if (availableTemplates && availableTemplates.length > 0) {
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2">
+                                    <Heart className="h-4 w-4" />
+                                    Favoriten ({availableTemplates.length})
+                                  </DropdownMenuLabel>
+                                  {availableTemplates.map((template) => (
+                                    <DropdownMenuItem
+                                      key={template.id}
+                                      className="flex items-center gap-2 cursor-pointer"
+                                      onClick={() => handleTemplateSelect(template)}
+                                    >
+                                      <div className="h-2 w-2 rounded-full bg-solarized-green" />
+                                      <div className="flex flex-col flex-1">
+                                        <span className="font-medium">{template.title}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {template.category}
+                                        </span>
+                                      </div>
+                                    </DropdownMenuItem>
+                                  ))}
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            }
+                            
+                            return (
+                              <>
+                                <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
+                                  <Heart className="h-4 w-4" />
+                                  Alle Favoriten bereits ausgewählt
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                              </>
+                            );
+                          })()}
+                          
+                          {/* Management Links */}
+                          <DropdownMenuItem asChild>
+                            <Link 
+                              href="/templates"
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Heart className="h-4 w-4 text-solarized-red" />
+                              <div className="flex flex-col">
+                                <span>Favoriten verwalten</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Templates zu Favoriten hinzufügen
+                                </span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuItem asChild>
+                            <Link 
+                              href="/templates/create" 
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Settings className="h-4 w-4 text-solarized-blue" />
+                              <div className="flex flex-col">
+                                <span>Neues Template erstellen</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Dauerhaftes Template für die Bibliothek
+                                </span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TabsList>
                 </CardHeader>
 
@@ -533,17 +746,17 @@ export default function GenerateDocumentation() {
                   </CardFooter>
                 </TabsContent>
 
-                {/* Dynamic Output Tabs for each document type */}
-                {selectedDocumentTypes.map((type) => (
+                {/* Dynamic Output Tabs for each selected template */}
+                {selectedTemplates.map((template) => (
                   <TabsContent
                     className="space-y-0"
-                    key={type}
-                    value={`output-${type}`}
+                    key={template.id}
+                    value={`output-${template.id}`}
                   >
                     <CardContent>
                       {(() => {
                         const output = documentOutputs.find(
-                          (o) => o.type === type
+                          (o) => o.templateId === template.id
                         );
 
                         if (isLoading && !output) {
@@ -559,12 +772,7 @@ export default function GenerateDocumentation() {
                                 </h3>
                                 <p className="text-muted-foreground text-sm">
                                   Bitte warten Sie, während der KI-Assistent
-                                  Ihre
-                                  {
-                                    DOCUMENT_TYPES.find((t) => t.value === type)
-                                      ?.label
-                                  }{' '}
-                                  erstellt
+                                  Ihre {template.title} erstellt
                                 </p>
                               </div>
                             </div>
@@ -577,11 +785,7 @@ export default function GenerateDocumentation() {
                               <div className="space-y-4">
                                 <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
                                   <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                                  Generierte{' '}
-                                  {
-                                    DOCUMENT_TYPES.find((t) => t.value === type)
-                                      ?.label
-                                  }
+                                  Generierte {template.title}
                                 </h4>
                                 <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
                                   <MemoizedCopySection
@@ -609,11 +813,7 @@ export default function GenerateDocumentation() {
                             <div className="space-y-4">
                               <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
                                 <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                                Template für{' '}
-                                {
-                                  DOCUMENT_TYPES.find((t) => t.value === type)
-                                    ?.label
-                                }
+                                Template für {template.title}
                               </h4>
                               <div className="space-y-3">
                                 <p className="text-muted-foreground text-sm">
@@ -623,13 +823,15 @@ export default function GenerateDocumentation() {
                                 <Textarea
                                   className="min-h-[300px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-green focus:ring-solarized-green/20"
                                   onChange={(e) =>
-                                    handleTemplateEdit(type, e.target.value)
+                                    handleTemplateEdit(
+                                      template.id,
+                                      e.target.value
+                                    )
                                   }
                                   placeholder="Template bearbeiten..."
                                   value={
-                                    templateEdits[type] ||
-                                    DOCUMENT_TYPES.find((t) => t.value === type)
-                                      ?.template ||
+                                    templateEdits[template.id] ||
+                                    template.content ||
                                     ''
                                   }
                                 />
@@ -659,6 +861,82 @@ export default function GenerateDocumentation() {
           </div>
         </div>
       </div>
+
+      {/* Create Empty Template Dialog */}
+      <Dialog open={showCreateEmpty} onOpenChange={setShowCreateEmpty}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-solarized-blue" />
+              Leeres Template erstellen
+            </DialogTitle>
+            <DialogDescription>
+              Erstellen Sie ein individuelles Template, das Sie für die AI-Generierung verwenden können.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label htmlFor="template-title" className="text-sm font-medium">
+                Template-Titel
+              </label>
+              <Input
+                id="template-title"
+                placeholder="z.B. Entlassungsbrief Kardiologie"
+                value={emptyTemplateTitle}
+                onChange={(e) => setEmptyTemplateTitle(e.target.value)}
+                className="focus:border-solarized-blue focus:ring-solarized-blue/20"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="template-content" className="text-sm font-medium">
+                Template-Inhalt (optional)
+              </label>
+              <Textarea
+                id="template-content"
+                placeholder="# Mein Template
+
+{% info &quot;Patientenname&quot; /%}
+
+Hier können Sie Ihren Template-Inhalt eingeben. Verwenden Sie Tags wie:
+- {% info &quot;Feldname&quot; /%} für Eingabefelder
+- {% switch &quot;Optionen&quot; %}{% case &quot;Option1&quot; %}Text{% /case %}{% /switch %} für Optionen
+- {% score formula=&quot;[Feld1] + [Feld2]&quot; /%} für Berechnungen"
+                value={emptyTemplateContent}
+                onChange={(e) => setEmptyTemplateContent(e.target.value)}
+                className="min-h-[200px] resize-none font-mono text-sm focus:border-solarized-blue focus:ring-solarized-blue/20"
+              />
+            </div>
+            
+            <div className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/10 p-4 text-sm">
+              <p className="text-solarized-blue leading-relaxed">
+                💡 <strong>Tipp:</strong> Sie können das Template nach dem Hinzufügen weiter bearbeiten, 
+                indem Sie auf den entsprechenden Tab klicken.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateEmpty(false);
+                setEmptyTemplateTitle('');
+                setEmptyTemplateContent('');
+              }}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={handleCreateEmptyTemplate}
+              className="bg-solarized-blue hover:bg-solarized-blue/90"
+            >
+              Template hinzufügen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
