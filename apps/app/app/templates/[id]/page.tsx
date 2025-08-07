@@ -1,4 +1,3 @@
-
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,6 +11,7 @@ import { QueryClient } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
+import type { PageProps } from '@/.next/types/app/page';
 import { auth } from '@/auth';
 import { orpc } from '@/lib/orpc';
 import ContentSection from './_components/ContentSection';
@@ -20,9 +20,9 @@ import { NavActions } from './_components/NavActions';
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = params;
+  const { id } = await params;
   const queryClient = new QueryClient();
   const doc = await queryClient.fetchQuery(
     orpc.templates.get.queryOptions({ input: { id } })
@@ -33,12 +33,12 @@ export async function generateMetadata({
   };
 }
 
-export default async function NotePage({ params }: { params: { id: string } }) {
+export default async function NotePage({ params }: PageProps) {
   const queryClient = new QueryClient();
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const { id } = params;
+  const { id } = await params;
   const doc = await queryClient.fetchQuery(
     orpc.templates.get.queryOptions({ input: { id } })
   );
