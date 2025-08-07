@@ -13,7 +13,24 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@repo/design-system/components/ui/dialog';
+import { Input } from '@repo/design-system/components/ui/input';
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/design-system/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
@@ -29,7 +46,8 @@ import {
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Loader2, Plus, X } from 'lucide-react';
+import { FileText, Heart, Loader2, Plus, Settings, X } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import z from 'zod';
@@ -87,9 +105,12 @@ export default function GenerateDocumentation() {
   >({});
   const [values, setValues] = useState<Record<string, unknown>>({});
 
-  const { data: favouriteTemplates } = useQuery(
-    orpc.user.templates.favourites.queryOptions()
-  );
+  const { data: favouriteTemplates, error: favouriteTemplatesError, isLoading: favouriteTemplatesLoading } = useQuery({
+    ...orpc.user.templates.favourites.queryOptions(),
+    retry: 2,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
 
   // Document type selection state
   const [selectedTemplates, setSelectedTemplates] = useState<Template[]>([]);
@@ -100,6 +121,11 @@ export default function GenerateDocumentation() {
   const [templateEdits, setTemplateEdits] = useState<Record<string, string>>(
     {}
   );
+
+  // Empty template creation state
+  const [showCreateEmpty, setShowCreateEmpty] = useState(false);
+  const [emptyTemplateContent, setEmptyTemplateContent] = useState('');
+  const [emptyTemplateTitle, setEmptyTemplateTitle] = useState('');
 
   // Use Vercel AI SDK's useChat for streaming functionality
   const { messages, sendMessage, status } = useChat({
@@ -186,6 +212,29 @@ export default function GenerateDocumentation() {
     return favouriteTemplates?.filter(
       (template) => !selectedTemplates.some((t) => t.id === template.id)
     );
+  };
+
+  // Handle creating an empty template
+  const handleCreateEmptyTemplate = () => {
+    if (!emptyTemplateTitle.trim()) {
+      toast.error('Bitte geben Sie einen Template-Titel ein');
+      return;
+    }
+    
+    const emptyTemplate: Template = {
+      id: `empty-${Date.now()}`,
+      title: emptyTemplateTitle || 'Benutzerdefiniertes Template',
+      category: 'Benutzerdefiniert',
+      content: emptyTemplateContent || '# Mein Template\n\n{% info "Patientenname" /%}\n\nHier können Sie Ihren Template-Inhalt eingeben.',
+      authorId: 'current-user',
+      updatedAt: new Date(),
+    };
+    
+    setSelectedTemplates((prev) => [...prev, emptyTemplate]);
+    setShowCreateEmpty(false);
+    setEmptyTemplateContent('');
+    setEmptyTemplateTitle('');
+    toast.success('Template hinzugefügt');
   };
 
   // Check if all required fields are filled
@@ -401,40 +450,155 @@ export default function GenerateDocumentation() {
                       </TabsTrigger>
                     ))}
 
-                    {/* Template selector */}
-                    {(() => {
-                      const availableTemplates = getAvailableTemplates();
-                      return availableTemplates &&
-                        availableTemplates.length > 0 ? (
-                        <div className="ml-2 flex items-center">
-                          <Select
-                            onValueChange={(templateId) => {
-                              const template = favouriteTemplates?.find(
-                                (t) => t.id === templateId
-                              );
-                              if (template) {
-                                handleTemplateSelect(template);
-                              }
-                            }}
+                    {/* Enhanced Template selector */}
+                    <div className="ml-2 flex items-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            className="h-8 rounded-full border-0 bg-transparent px-4 hover:bg-accent text-foreground"
+                            variant="ghost"
+                            size="sm"
                           >
-                            <SelectTrigger className="h-8 w-32 items-center justify-center rounded-full border-0 bg-transparent p-0 px-4 hover:bg-accent [&>svg:last-child]:hidden">
-                              <Plus className="h-4 w-4" />
-                              Template hinzufügen
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableTemplates.map((template) => (
-                                <SelectItem
-                                  key={template.id}
-                                  value={template.id}
-                                >
-                                  {template.title}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ) : null;
-                    })()}
+                            <Plus className="h-4 w-4 mr-1" />
+                            Template hinzufügen
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-72" align="end">
+                          <DropdownMenuLabel className="flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            Template auswählen
+                          </DropdownMenuLabel>
+                          
+                          {/* Create Empty Template Option */}
+                          <DropdownMenuItem
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => setShowCreateEmpty(true)}
+                          >
+                            <FileText className="h-4 w-4 text-solarized-blue" />
+                            <div className="flex flex-col">
+                              <span className="font-medium">Leeres Template erstellen</span>
+                              <span className="text-xs text-muted-foreground">
+                                Eigenes Template von Grund auf erstellen
+                              </span>
+                            </div>
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator />
+                          
+                          {/* Available Templates */}
+                          {(() => {
+                            if (favouriteTemplatesLoading) {
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Lade Favoriten...
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            }
+
+                            if (favouriteTemplatesError) {
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2 text-destructive">
+                                    <X className="h-4 w-4" />
+                                    Fehler beim Laden der Favoriten
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            }
+                            
+                            const availableTemplates = getAvailableTemplates();
+                            
+                            if (!favouriteTemplates || favouriteTemplates.length === 0) {
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
+                                    <Heart className="h-4 w-4" />
+                                    Keine Favoriten vorhanden
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                                    Fügen Sie Templates zu Ihren Favoriten hinzu
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            }
+                            
+                            if (availableTemplates && availableTemplates.length > 0) {
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2">
+                                    <Heart className="h-4 w-4" />
+                                    Favoriten ({availableTemplates.length})
+                                  </DropdownMenuLabel>
+                                  {availableTemplates.map((template) => (
+                                    <DropdownMenuItem
+                                      key={template.id}
+                                      className="flex items-center gap-2 cursor-pointer"
+                                      onClick={() => handleTemplateSelect(template)}
+                                    >
+                                      <div className="h-2 w-2 rounded-full bg-solarized-green" />
+                                      <div className="flex flex-col flex-1">
+                                        <span className="font-medium">{template.title}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {template.category}
+                                        </span>
+                                      </div>
+                                    </DropdownMenuItem>
+                                  ))}
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            }
+                            
+                            return (
+                              <>
+                                <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
+                                  <Heart className="h-4 w-4" />
+                                  Alle Favoriten bereits ausgewählt
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                              </>
+                            );
+                          })()}
+                          
+                          {/* Management Links */}
+                          <DropdownMenuItem asChild>
+                            <Link 
+                              href="/templates"
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Heart className="h-4 w-4 text-solarized-red" />
+                              <div className="flex flex-col">
+                                <span>Favoriten verwalten</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Templates zu Favoriten hinzufügen
+                                </span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuItem asChild>
+                            <Link 
+                              href="/templates/create" 
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Settings className="h-4 w-4 text-solarized-blue" />
+                              <div className="flex flex-col">
+                                <span>Neues Template erstellen</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Dauerhaftes Template für die Bibliothek
+                                </span>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TabsList>
                 </CardHeader>
 
@@ -697,6 +861,82 @@ export default function GenerateDocumentation() {
           </div>
         </div>
       </div>
+
+      {/* Create Empty Template Dialog */}
+      <Dialog open={showCreateEmpty} onOpenChange={setShowCreateEmpty}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-solarized-blue" />
+              Leeres Template erstellen
+            </DialogTitle>
+            <DialogDescription>
+              Erstellen Sie ein individuelles Template, das Sie für die AI-Generierung verwenden können.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label htmlFor="template-title" className="text-sm font-medium">
+                Template-Titel
+              </label>
+              <Input
+                id="template-title"
+                placeholder="z.B. Entlassungsbrief Kardiologie"
+                value={emptyTemplateTitle}
+                onChange={(e) => setEmptyTemplateTitle(e.target.value)}
+                className="focus:border-solarized-blue focus:ring-solarized-blue/20"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="template-content" className="text-sm font-medium">
+                Template-Inhalt (optional)
+              </label>
+              <Textarea
+                id="template-content"
+                placeholder="# Mein Template
+
+{% info &quot;Patientenname&quot; /%}
+
+Hier können Sie Ihren Template-Inhalt eingeben. Verwenden Sie Tags wie:
+- {% info &quot;Feldname&quot; /%} für Eingabefelder
+- {% switch &quot;Optionen&quot; %}{% case &quot;Option1&quot; %}Text{% /case %}{% /switch %} für Optionen
+- {% score formula=&quot;[Feld1] + [Feld2]&quot; /%} für Berechnungen"
+                value={emptyTemplateContent}
+                onChange={(e) => setEmptyTemplateContent(e.target.value)}
+                className="min-h-[200px] resize-none font-mono text-sm focus:border-solarized-blue focus:ring-solarized-blue/20"
+              />
+            </div>
+            
+            <div className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/10 p-4 text-sm">
+              <p className="text-solarized-blue leading-relaxed">
+                💡 <strong>Tipp:</strong> Sie können das Template nach dem Hinzufügen weiter bearbeiten, 
+                indem Sie auf den entsprechenden Tab klicken.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateEmpty(false);
+                setEmptyTemplateTitle('');
+                setEmptyTemplateContent('');
+              }}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={handleCreateEmptyTemplate}
+              className="bg-solarized-blue hover:bg-solarized-blue/90"
+            >
+              Template hinzufügen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

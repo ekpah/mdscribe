@@ -18,19 +18,37 @@ const getTemplatesPrisma = async () => {
   });
   return templates;
 };
-const getFavouriteTemplatesPrisma = async () => {
-  const queryClient = new QueryClient();
-  const templates = await queryClient.fetchQuery(
-    orpc.user.templates.favourites.queryOptions()
-  );
-  return templates;
+const getFavouriteTemplatesPrisma = async (isLoggedIn: boolean) => {
+  if (!isLoggedIn) {
+    return [];
+  }
+  try {
+    const queryClient = new QueryClient();
+    const templates = await queryClient.fetchQuery(
+      orpc.user.templates.favourites.queryOptions()
+    );
+    return templates;
+  } catch (error) {
+    // If authentication fails, return empty array instead of crashing
+    console.warn('Failed to fetch favourite templates:', error);
+    return [];
+  }
 };
-const getAuthoredTemplatesPrisma = async () => {
-  const queryClient = new QueryClient();
-  const templates = await queryClient.fetchQuery(
-    orpc.user.templates.authored.queryOptions()
-  );
-  return templates;
+const getAuthoredTemplatesPrisma = async (isLoggedIn: boolean) => {
+  if (!isLoggedIn) {
+    return [];
+  }
+  try {
+    const queryClient = new QueryClient();
+    const templates = await queryClient.fetchQuery(
+      orpc.user.templates.authored.queryOptions()
+    );
+    return templates;
+  } catch (error) {
+    // If authentication fails, return empty array instead of crashing
+    console.warn('Failed to fetch authored templates:', error);
+    return [];
+  }
 };
 
 const generateSidebarLinks = async () => {
@@ -42,8 +60,8 @@ const generateSidebarLinks = async () => {
     favouritesCount: temp._count.favouriteOf,
   }));
 };
-const generateFavouriteTemplates = async () => {
-  const templates = await getFavouriteTemplatesPrisma();
+const generateFavouriteTemplates = async (isLoggedIn: boolean) => {
+  const templates = await getFavouriteTemplatesPrisma(isLoggedIn);
   return templates.map((temp) => ({
     url: `/templates/${temp.id}`,
     category: temp.category,
@@ -51,8 +69,8 @@ const generateFavouriteTemplates = async () => {
     favouritesCount: temp._count.favouriteOf,
   }));
 };
-const generateAuthoredTemplates = async () => {
-  const templates = await getAuthoredTemplatesPrisma();
+const generateAuthoredTemplates = async (isLoggedIn: boolean) => {
+  const templates = await getAuthoredTemplatesPrisma(isLoggedIn);
   return templates.map((temp) => ({
     url: `/templates/${temp.id}`,
     category: temp.category,
@@ -68,30 +86,30 @@ export default async function Layout({
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const _isLoggedIn = !!session?.user;
-  // let_isLoggedIn = getTemplates();
+  const isLoggedIn = !!session?.user;
+  
   return (
     <div className="flex h-full w-full">
       <SidebarProvider>
         <Suspense
           fallback={
             <AppSidebar
-              authoredTemplates={''}
-              favouriteTemplates={''}
-              isLoggedIn
+              authoredTemplates={'[]'}
+              favouriteTemplates={'[]'}
+              isLoggedIn={isLoggedIn}
               key="Sidebar"
-              templates={''}
+              templates={'[]'}
             />
           }
         >
           <AppSidebar
             authoredTemplates={JSON.stringify(
-              await generateAuthoredTemplates()
+              await generateAuthoredTemplates(isLoggedIn)
             )}
             favouriteTemplates={JSON.stringify(
-              await generateFavouriteTemplates()
+              await generateFavouriteTemplates(isLoggedIn)
             )}
-            isLoggedIn
+            isLoggedIn={isLoggedIn}
             key="Sidebar"
             templates={JSON.stringify(await generateSidebarLinks())}
           />
