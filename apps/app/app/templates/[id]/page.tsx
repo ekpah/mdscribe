@@ -9,6 +9,7 @@ import {
 import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { QueryClient } from '@tanstack/react-query';
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import type { PageProps } from '@/.next/types/app/page';
@@ -17,6 +18,21 @@ import { orpc } from '@/lib/orpc';
 import ContentSection from './_components/ContentSection';
 import { NavActions } from './_components/NavActions';
 
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const { id } = params;
+  const queryClient = new QueryClient();
+  const doc = await queryClient.fetchQuery(
+    orpc.templates.get.queryOptions({ input: { id } })
+  );
+
+  return {
+    title: doc?.title,
+  };
+}
 
 export default async function NotePage(props: PageProps) {
   const queryClient = new QueryClient();
