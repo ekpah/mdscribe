@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.0-beta.9",
+    "@ai-sdk/fireworks": "^1.0.10",
     "@ai-sdk/react": "2.0.0-beta.28",
     "@better-auth/stripe": "^1.2.10",
     "@hookform/resolvers": "^5.1.1",

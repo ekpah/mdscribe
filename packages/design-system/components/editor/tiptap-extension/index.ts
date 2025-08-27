@@ -1,7 +1,7 @@
 // This file is a custom extension for TipTap that allows for the use of Markdoc tags in the editor.
 
 import { Extension } from '@tiptap/core';
-import { CaseTag, type CaseTagOptions } from './editorNodes/caseTag/caseTag';
+import type { CaseTagOptions } from './editorNodes/caseTag/caseTag';
 import { InfoTag, type InfoTagAttrs } from './editorNodes/infoTag/infoTag';
 import { ScoreTag, type ScoreTagAttrs } from './editorNodes/scoreTag/scoreTag';
 import {

@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 
 // load the correct markdown from file
 
-import type { PageProps } from '@/.next/types/app/page';
-import { auth } from '@/auth';
 import { database } from '@repo/database';
 import { uniqueId } from 'lodash';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import type { PageProps } from '@/.next/types/app/page';
+import { auth } from '@/auth';
 import editTemplate from '../../_actions/edit-template';
 import Editor from '../../_components/Editor';
 export const dynamicParams = false;
@@ -16,7 +16,7 @@ async function fetchMarkdoc({ id }: { id: string }) {
   // fetch the markdoc content for the route
   const doc = await database.template.findUnique({
     where: {
-      id: id,
+      id,
     },
     include: {
       author: true, // All posts where authorId == 20
@@ -34,7 +34,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const params = await props.params;
   const { template } = params;
-  const [category, name] = template ? template : [undefined, 'Scribe'];
+  const [_category, name] = template ? template : [undefined, 'Scribe'];
   return {
     title: `Scribe - ${name}`,
   };
@@ -73,12 +73,12 @@ export default async function EditTemplate(props: PageProps) {
   return (
     <div className="flex h-full w-full flex-col">
       <Editor
-        cat={doc?.category || ''}
-        tit={doc?.title || ''}
-        note={JSON.stringify(doc?.content || '')}
-        id={isNewTemplate ? uniqueId() : id}
-        handleSubmitAction={handleSubmit}
         author={author}
+        cat={doc?.category || ''}
+        handleSubmitAction={handleSubmit}
+        id={isNewTemplate ? uniqueId() : id}
+        note={JSON.stringify(doc?.content || '')}
+        tit={doc?.title || ''}
       />
     </div>
   );

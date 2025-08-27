@@ -21,8 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/design-system/components/ui/dialog';
-import { Input } from '@repo/design-system/components/ui/input';
-import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,12 +29,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/design-system/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@repo/design-system/components/ui/select';
+import { Input } from '@repo/design-system/components/ui/input';
+import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import {
   Tabs,
   TabsContent,
@@ -97,8 +91,7 @@ const generateInputsMessage = (
 };
 
 export default function GenerateDocumentation() {
-  // State management for the UI
-  const [activeTab, setActiveTab] = useState('input');
+  // State management for the UI (activeTab removed - no longer needed)
   const [inputData, setInputData] = useState('');
   const [additionalInputData, setAdditionalInputData] = useState<
     Record<string, string>
@@ -114,6 +107,9 @@ export default function GenerateDocumentation() {
 
   // Document type selection state
   const [selectedTemplates, setSelectedTemplates] = useState<Template[]>([]);
+  
+  // Left column tab state
+  const [leftActiveTab, setLeftActiveTab] = useState('templates');
   const [documentOutputs, setDocumentOutputs] = useState<DocumentOutput[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -193,10 +189,7 @@ export default function GenerateDocumentation() {
       return newEdits;
     });
 
-    // If we're currently on the removed tab, switch to input
-    if (activeTab === `output-${templateToRemove.id}`) {
-      setActiveTab('input');
-    }
+    // No need to switch tabs since templates are now in left column
   };
 
   // Handle template editing
@@ -253,10 +246,8 @@ export default function GenerateDocumentation() {
 
     setIsGenerating(true);
 
-    // Switch to the first selected document type output tab
-    if (selectedTemplates.length > 0) {
-      setActiveTab(`output-${selectedTemplates[0].id}`);
-    }
+    // Switch to info tab to show extracted fields
+    setLeftActiveTab('info');
 
     try {
       // Get the template content for the first selected template
@@ -364,256 +355,314 @@ export default function GenerateDocumentation() {
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-5 xl:grid-cols-6">
-          {/* Patient Info Card */}
+          {/* Left Column - Template Selection and Info */}
           <div className="lg:col-span-2 xl:col-span-2">
             <Card className="h-fit border-solarized-blue/20 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-solarized-blue/5 to-solarized-green/5">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-solarized-blue" />
-                    <CardTitle className="text-base text-foreground">
+              <Tabs
+                className="w-full"
+                onValueChange={setLeftActiveTab}
+                value={leftActiveTab}
+              >
+                <CardHeader className="bg-gradient-to-r from-solarized-blue/5 to-solarized-green/5">
+                  <TabsList className="flex w-full justify-start bg-background/50 backdrop-blur-sm">
+                    <TabsTrigger
+                      className="px-4 py-2 text-sm data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+                      value="templates"
+                    >
+                      Template auswählen
+                    </TabsTrigger>
+                    <TabsTrigger
+                      className="px-4 py-2 text-sm data-[state=active]:bg-solarized-green data-[state=active]:text-primary-foreground"
+                      value="info"
+                    >
                       Notwendige Informationen
-                    </CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6 p-6">
-                {/* Auto-extracted information from the AI response */}
-                <div className="pt-6">
-                  {latestAIResponse && (
-                    <div className="space-y-3">
-                      <Inputs
-                        inputTags={parseMarkdocToInputs(latestAIResponse)}
-                        onChange={handleValuesChange}
-                      />
-                    </div>
-                  )}
+                    </TabsTrigger>
+                  </TabsList>
+                </CardHeader>
+                
+                {/* Template Selection Tab */}
+                <TabsContent className="space-y-0" value="templates">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-solarized-blue" />
+                        <h4 className="font-medium text-foreground text-sm">
+                          Templates für Dokumentation
+                        </h4>
+                      </div>
+                      
+                      {/* Template Selection Dropdown - will be moved here from right column */}
+                      <div className="space-y-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              className="w-full justify-start border-solarized-blue/20 bg-transparent text-foreground hover:bg-accent"
+                              size="sm"
+                              variant="outline"
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Template hinzufügen
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-72">
+                            <DropdownMenuLabel className="flex items-center gap-2">
+                              <Plus className="h-4 w-4" />
+                              Template auswählen
+                            </DropdownMenuLabel>
+                            
+                            {/* Create Empty Template Option */}
+                            <DropdownMenuItem
+                              className="flex cursor-pointer items-center gap-2"
+                              onClick={() => setShowCreateEmpty(true)}
+                            >
+                              <FileText className="h-4 w-4 text-solarized-blue" />
+                              <div className="flex flex-col">
+                                <span className="font-medium">Leeres Template erstellen</span>
+                                <span className="text-muted-foreground text-xs">
+                                  Eigenes Template von Grund auf erstellen
+                                </span>
+                              </div>
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator />
+                            
+                            {/* Available Templates */}
+                            {(() => {
+                              if (favouriteTemplatesLoading) {
+                                return (
+                                  <>
+                                    <DropdownMenuLabel className="flex items-center gap-2">
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      Lade Favoriten...
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                  </>
+                                );
+                              }
 
-                  {!latestAIResponse && (
-                    <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
-                      <p className="text-muted-foreground text-xs leading-relaxed">
-                        Notwendige Informationen werden automatisch aus den
-                        Eingaben extrahiert
+                              if (favouriteTemplatesError) {
+                                return (
+                                  <>
+                                    <DropdownMenuLabel className="flex items-center gap-2 text-destructive">
+                                      <X className="h-4 w-4" />
+                                      Fehler beim Laden der Favoriten
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                  </>
+                                );
+                              }
+                              
+                              const availableTemplates = getAvailableTemplates();
+                              
+                              if (!favouriteTemplates || favouriteTemplates.length === 0) {
+                                return (
+                                  <>
+                                    <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
+                                      <Heart className="h-4 w-4" />
+                                      Keine Favoriten vorhanden
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuItem className="text-muted-foreground text-xs" disabled>
+                                      Fügen Sie Templates zu Ihren Favoriten hinzu
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                  </>
+                                );
+                              }
+                              
+                              if (availableTemplates && availableTemplates.length > 0) {
+                                return (
+                                  <>
+                                    <DropdownMenuLabel className="flex items-center gap-2">
+                                      <Heart className="h-4 w-4" />
+                                      Favoriten ({availableTemplates.length})
+                                    </DropdownMenuLabel>
+                                    {availableTemplates.map((template) => (
+                                      <DropdownMenuItem
+                                        className="flex cursor-pointer items-center gap-2"
+                                        key={template.id}
+                                        onClick={() => handleTemplateSelect(template)}
+                                      >
+                                        <div className="h-2 w-2 rounded-full bg-solarized-green" />
+                                        <div className="flex flex-1 flex-col">
+                                          <span className="font-medium">{template.title}</span>
+                                          <span className="text-muted-foreground text-xs">
+                                            {template.category}
+                                          </span>
+                                        </div>
+                                      </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                  </>
+                                );
+                              }
+                              
+                              return (
+                                <>
+                                  <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
+                                    <Heart className="h-4 w-4" />
+                                    Alle Favoriten bereits ausgewählt
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                </>
+                              );
+                            })()} 
+                            
+                            {/* Management Links */}
+                            <DropdownMenuItem asChild>
+                              <Link 
+                                className="flex cursor-pointer items-center gap-2"
+                                href="/templates"
+                              >
+                                <Heart className="h-4 w-4 text-solarized-red" />
+                                <div className="flex flex-col">
+                                  <span>Favoriten verwalten</span>
+                                  <span className="text-muted-foreground text-xs">
+                                    Templates zu Favoriten hinzufügen
+                                  </span>
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem asChild>
+                              <Link 
+                                className="flex cursor-pointer items-center gap-2" 
+                                href="/templates/create"
+                              >
+                                <Settings className="h-4 w-4 text-solarized-blue" />
+                                <div className="flex flex-col">
+                                  <span>Neues Template erstellen</span>
+                                  <span className="text-muted-foreground text-xs">
+                                    Dauerhaftes Template für die Bibliothek
+                                  </span>
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      
+                      {/* Selected Templates List */}
+                      {selectedTemplates.length > 0 && (
+                        <div className="space-y-3">
+                          <h5 className="font-medium text-foreground text-xs">
+                            Ausgewählte Templates ({selectedTemplates.length})
+                          </h5>
+                          {selectedTemplates.map((template) => (
+                            <Card className="border-solarized-green/20" key={template.id}>
+                              <CardHeader className="pb-2">
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="font-medium text-sm">
+                                    {template.title}
+                                  </CardTitle>
+                                  <Button
+                                    className="h-6 w-6 rounded-full p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                    onClick={() => handleTemplateRemove(template)}
+                                    size="sm"
+                                    variant="ghost"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                <CardDescription className="text-xs">
+                                  {template.category}
+                                </CardDescription>
+                              </CardHeader>
+                              <CardContent className="pt-0">
+                                <div className="space-y-2">
+                                  <label className="font-medium text-xs">
+                                    Template bearbeiten:
+                                  </label>
+                                  <Textarea
+                                    className="min-h-[100px] resize-none border-input bg-background text-xs transition-all focus:border-solarized-green focus:ring-solarized-green/20"
+                                    onChange={(e) =>
+                                      handleTemplateEdit(template.id, e.target.value)
+                                    }
+                                    placeholder="Template bearbeiten..."
+                                    value={
+                                      templateEdits[template.id] ||
+                                      template.content ||
+                                      ''
+                                    }
+                                  />
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </TabsContent>
+                
+                {/* Info Tab */}
+                <TabsContent className="space-y-0" value="info">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-solarized-green" />
+                        <h4 className="font-medium text-foreground text-sm">
+                          Notwendige Informationen
+                        </h4>
+                      </div>
+                    </div>
+                    
+                    {/* Auto-extracted information from the AI response */}
+                    <div>
+                      {latestAIResponse && (
+                        <div className="space-y-3">
+                          <Inputs
+                            inputTags={parseMarkdocToInputs(latestAIResponse)}
+                            onChange={handleValuesChange}
+                          />
+                        </div>
+                      )}
+
+                      {!latestAIResponse && (
+                        <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
+                          <p className="text-muted-foreground text-xs leading-relaxed">
+                            Notwendige Informationen werden automatisch aus den
+                            Eingaben extrahiert
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Privacy notice */}
+                    <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
+                      <p className="text-solarized-green leading-relaxed">
+                        🔒 Alle Daten in dieser Box werden nur lokal gespeichert und
+                        niemals an Server übertragen
                       </p>
                     </div>
-                  )}
-                </div>
-
-                {/* Privacy notice */}
-                <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
-                  <p className="text-solarized-green leading-relaxed">
-                    🔒 Alle Daten in dieser Box werden nur lokal gespeichert und
-                    niemals an Server übertragen
-                  </p>
-                </div>
-              </CardContent>
+                  </CardContent>
+                </TabsContent>
+              </Tabs>
             </Card>
           </div>
 
           {/* Main Content with Tabs */}
           <div className="lg:col-span-3 xl:col-span-4">
             <Card className="border-solarized-green/20 shadow-lg">
-              <Tabs
-                className="w-full"
-                onValueChange={setActiveTab}
-                value={activeTab}
-              >
-                <CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
-                  <TabsList className="flex w-full justify-start bg-background/50 backdrop-blur-sm">
-                    <TabsTrigger
-                      className="px-4 py-2 text-sm data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
-                      value="input"
-                    >
-                      Eingabe
-                    </TabsTrigger>
-
-                    {/* Dynamic output tabs for selected document types */}
-                    {selectedTemplates.map((template) => (
-                      <TabsTrigger
-                        className="relative px-4 py-2 text-sm data-[state=active]:bg-solarized-green data-[state=active]:text-primary-foreground"
-                        key={template.id}
-                        value={`output-${template.id}`}
-                      >
-                        {template.title}
-                        <Button
-                          className="ml-2 h-4 w-4 rounded-full p-0 hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleTemplateRemove(template);
-                          }}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </TabsTrigger>
-                    ))}
-
-                    {/* Enhanced Template selector */}
-                    <div className="ml-2 flex items-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            className="h-8 rounded-full border-0 bg-transparent px-4 hover:bg-accent text-foreground"
-                            variant="ghost"
-                            size="sm"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Template hinzufügen
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-72" align="end">
-                          <DropdownMenuLabel className="flex items-center gap-2">
-                            <Plus className="h-4 w-4" />
-                            Template auswählen
-                          </DropdownMenuLabel>
-                          
-                          {/* Create Empty Template Option */}
-                          <DropdownMenuItem
-                            className="flex items-center gap-2 cursor-pointer"
-                            onClick={() => setShowCreateEmpty(true)}
-                          >
-                            <FileText className="h-4 w-4 text-solarized-blue" />
-                            <div className="flex flex-col">
-                              <span className="font-medium">Leeres Template erstellen</span>
-                              <span className="text-xs text-muted-foreground">
-                                Eigenes Template von Grund auf erstellen
-                              </span>
-                            </div>
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          {/* Available Templates */}
-                          {(() => {
-                            if (favouriteTemplatesLoading) {
-                              return (
-                                <>
-                                  <DropdownMenuLabel className="flex items-center gap-2">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Lade Favoriten...
-                                  </DropdownMenuLabel>
-                                  <DropdownMenuSeparator />
-                                </>
-                              );
-                            }
-
-                            if (favouriteTemplatesError) {
-                              return (
-                                <>
-                                  <DropdownMenuLabel className="flex items-center gap-2 text-destructive">
-                                    <X className="h-4 w-4" />
-                                    Fehler beim Laden der Favoriten
-                                  </DropdownMenuLabel>
-                                  <DropdownMenuSeparator />
-                                </>
-                              );
-                            }
-                            
-                            const availableTemplates = getAvailableTemplates();
-                            
-                            if (!favouriteTemplates || favouriteTemplates.length === 0) {
-                              return (
-                                <>
-                                  <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
-                                    <Heart className="h-4 w-4" />
-                                    Keine Favoriten vorhanden
-                                  </DropdownMenuLabel>
-                                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">
-                                    Fügen Sie Templates zu Ihren Favoriten hinzu
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                </>
-                              );
-                            }
-                            
-                            if (availableTemplates && availableTemplates.length > 0) {
-                              return (
-                                <>
-                                  <DropdownMenuLabel className="flex items-center gap-2">
-                                    <Heart className="h-4 w-4" />
-                                    Favoriten ({availableTemplates.length})
-                                  </DropdownMenuLabel>
-                                  {availableTemplates.map((template) => (
-                                    <DropdownMenuItem
-                                      key={template.id}
-                                      className="flex items-center gap-2 cursor-pointer"
-                                      onClick={() => handleTemplateSelect(template)}
-                                    >
-                                      <div className="h-2 w-2 rounded-full bg-solarized-green" />
-                                      <div className="flex flex-col flex-1">
-                                        <span className="font-medium">{template.title}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                          {template.category}
-                                        </span>
-                                      </div>
-                                    </DropdownMenuItem>
-                                  ))}
-                                  <DropdownMenuSeparator />
-                                </>
-                              );
-                            }
-                            
-                            return (
-                              <>
-                                <DropdownMenuLabel className="flex items-center gap-2 text-muted-foreground">
-                                  <Heart className="h-4 w-4" />
-                                  Alle Favoriten bereits ausgewählt
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                              </>
-                            );
-                          })()}
-                          
-                          {/* Management Links */}
-                          <DropdownMenuItem asChild>
-                            <Link 
-                              href="/templates"
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Heart className="h-4 w-4 text-solarized-red" />
-                              <div className="flex flex-col">
-                                <span>Favoriten verwalten</span>
-                                <span className="text-xs text-muted-foreground">
-                                  Templates zu Favoriten hinzufügen
-                                </span>
-                              </div>
-                            </Link>
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuItem asChild>
-                            <Link 
-                              href="/templates/create" 
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Settings className="h-4 w-4 text-solarized-blue" />
-                              <div className="flex flex-col">
-                                <span>Neues Template erstellen</span>
-                                <span className="text-xs text-muted-foreground">
-                                  Dauerhaftes Template für die Bibliothek
-                                </span>
-                              </div>
-                            </Link>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TabsList>
-                </CardHeader>
-
-                {/* Input Tab */}
-                <TabsContent className="space-y-0" value="input">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-foreground">
-                      <FileText className="h-5 w-5 text-solarized-blue" />
-                      Patientendaten
+              <CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-solarized-blue" />
+                    <CardTitle className="text-foreground">
+                      {documentOutputs.length > 0 ? 'Generierte Dokumentation' : 'Patientendaten'}
                     </CardTitle>
-                    <CardDescription>
-                      Geben Sie die Patientendaten ein, um eine Dokumentation zu
-                      generieren
-                    </CardDescription>
-                  </CardHeader>
+                  </div>
+                  <CardDescription>
+                    {documentOutputs.length > 0 
+                      ? 'Die generierte Dokumentation basierend auf Ihren Eingaben'
+                      : 'Geben Sie die Patientendaten ein, um eine Dokumentation zu generieren'
+                    }
+                  </CardDescription>
+                </div>
+              </CardHeader>
+
+              {documentOutputs.length === 0 ? (
+                /* Input Mode */
+                <>
                   <CardContent className="space-y-4">
                     {/* Privacy Warning */}
                     <div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
@@ -684,7 +733,7 @@ export default function GenerateDocumentation() {
                             Befunde
                           </label>
                           <Textarea
-                            className="min-h-[80px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+                            className="min-h-[80px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:ring-solarized-blue/20"
                             disabled={isLoading}
                             id="befunde"
                             onChange={(e) =>
@@ -744,126 +793,61 @@ export default function GenerateDocumentation() {
                       )}
                     </Button>
                   </CardFooter>
-                </TabsContent>
-
-                {/* Dynamic Output Tabs for each selected template */}
-                {selectedTemplates.map((template) => (
-                  <TabsContent
-                    className="space-y-0"
-                    key={template.id}
-                    value={`output-${template.id}`}
-                  >
-                    <CardContent>
-                      {(() => {
-                        const output = documentOutputs.find(
-                          (o) => o.templateId === template.id
-                        );
-
-                        if (isLoading && !output) {
-                          return (
-                            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                              <div className="relative">
-                                <div className="h-20 w-20 animate-pulse rounded-full border-4 border-solarized-green/20" />
-                                <div className="absolute top-0 left-0 h-20 w-20 animate-spin rounded-full border-4 border-solarized-green border-t-transparent" />
-                              </div>
-                              <div className="space-y-2">
-                                <h3 className="font-semibold text-foreground text-lg">
-                                  Wird generiert...
-                                </h3>
-                                <p className="text-muted-foreground text-sm">
-                                  Bitte warten Sie, während der KI-Assistent
-                                  Ihre {template.title} erstellt
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        if (output) {
-                          return (
-                            <div className="space-y-6">
-                              <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
-                                  <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                                  Generierte {template.title}
-                                </h4>
-                                <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
-                                  <MemoizedCopySection
-                                    content={
-                                      output.content ||
-                                      'Keine Inhalte verfügbar'
-                                    }
-                                    values={output.values}
-                                  />
-                                </ScrollArea>
-                              </div>
-
-                              {isLoading && (
-                                <div className="flex items-center justify-center gap-2 text-sm text-solarized-green">
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  <span>Wird weiter generiert...</span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div className="space-y-6">
-                            <div className="space-y-4">
-                              <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
-                                <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                                Template für {template.title}
-                              </h4>
-                              <div className="space-y-3">
-                                <p className="text-muted-foreground text-sm">
-                                  Bearbeiten Sie das Template, um die
-                                  KI-Anweisungen anzupassen:
-                                </p>
-                                <Textarea
-                                  className="min-h-[300px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-green focus:ring-solarized-green/20"
-                                  onChange={(e) =>
-                                    handleTemplateEdit(
-                                      template.id,
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder="Template bearbeiten..."
-                                  value={
-                                    templateEdits[template.id] ||
-                                    template.content ||
-                                    ''
-                                  }
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <p className="text-muted-foreground text-xs">
-                                  Das Template wird bei der Generierung
-                                  verwendet
-                                </p>
-                                <Button
-                                  onClick={() => setActiveTab('input')}
-                                  size="sm"
-                                  variant="outline"
-                                >
-                                  Zu Eingabe wechseln
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </CardContent>
-                  </TabsContent>
-                ))}
-              </Tabs>
+                </>
+              ) : (
+                /* Output Mode */
+                <CardContent>
+                  {isLoading ? (
+                    <div className="flex flex-col items-center justify-center space-y-4 py-12 text-center">
+                      <div className="relative">
+                        <div className="h-20 w-20 animate-pulse rounded-full border-4 border-solarized-green/20" />
+                        <div className="absolute top-0 left-0 h-20 w-20 animate-spin rounded-full border-4 border-solarized-green border-t-transparent" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-foreground text-lg">
+                          Wird generiert...
+                        </h3>
+                        <p className="text-muted-foreground text-sm">
+                          Bitte warten Sie, während der KI-Assistent Ihre Dokumentation erstellt
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="flex items-center gap-2 font-semibold text-foreground text-lg">
+                            <div className="h-2 w-2 rounded-full bg-solarized-green" />
+                            Generierte Dokumentation
+                          </h4>
+                          <Button
+                            onClick={() => {
+                              setDocumentOutputs([]);
+                            }}
+                            size="sm"
+                            variant="outline"
+                          >
+                            Neue Eingabe
+                          </Button>
+                        </div>
+                        <ScrollArea className="h-[calc(100vh-300px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
+                          <MemoizedCopySection
+                            content={latestAIResponse || 'Keine Inhalte verfügbar'}
+                            values={values}
+                          />
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              )}
             </Card>
           </div>
         </div>
       </div>
 
       {/* Create Empty Template Dialog */}
-      <Dialog open={showCreateEmpty} onOpenChange={setShowCreateEmpty}>
+      <Dialog onOpenChange={setShowCreateEmpty} open={showCreateEmpty}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -877,24 +861,26 @@ export default function GenerateDocumentation() {
           
           <div className="space-y-6">
             <div className="space-y-2">
-              <label htmlFor="template-title" className="text-sm font-medium">
+              <label className="font-medium text-sm" htmlFor="template-title">
                 Template-Titel
               </label>
               <Input
+                className="focus:border-solarized-blue focus:ring-solarized-blue/20"
                 id="template-title"
+                onChange={(e) => setEmptyTemplateTitle(e.target.value)}
                 placeholder="z.B. Entlassungsbrief Kardiologie"
                 value={emptyTemplateTitle}
-                onChange={(e) => setEmptyTemplateTitle(e.target.value)}
-                className="focus:border-solarized-blue focus:ring-solarized-blue/20"
               />
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="template-content" className="text-sm font-medium">
+              <label className="font-medium text-sm" htmlFor="template-content">
                 Template-Inhalt (optional)
               </label>
               <Textarea
+                className="min-h-[200px] resize-none font-mono text-sm focus:border-solarized-blue focus:ring-solarized-blue/20"
                 id="template-content"
+                onChange={(e) => setEmptyTemplateContent(e.target.value)}
                 placeholder="# Mein Template
 
 {% info &quot;Patientenname&quot; /%}
@@ -904,8 +890,6 @@ Hier können Sie Ihren Template-Inhalt eingeben. Verwenden Sie Tags wie:
 - {% switch &quot;Optionen&quot; %}{% case &quot;Option1&quot; %}Text{% /case %}{% /switch %} für Optionen
 - {% score formula=&quot;[Feld1] + [Feld2]&quot; /%} für Berechnungen"
                 value={emptyTemplateContent}
-                onChange={(e) => setEmptyTemplateContent(e.target.value)}
-                className="min-h-[200px] resize-none font-mono text-sm focus:border-solarized-blue focus:ring-solarized-blue/20"
               />
             </div>
             
@@ -919,18 +903,18 @@ Hier können Sie Ihren Template-Inhalt eingeben. Verwenden Sie Tags wie:
           
           <DialogFooter>
             <Button
-              variant="outline"
               onClick={() => {
                 setShowCreateEmpty(false);
                 setEmptyTemplateTitle('');
                 setEmptyTemplateContent('');
               }}
+              variant="outline"
             >
               Abbrechen
             </Button>
             <Button
-              onClick={handleCreateEmptyTemplate}
               className="bg-solarized-blue hover:bg-solarized-blue/90"
+              onClick={handleCreateEmptyTemplate}
             >
               Template hinzufügen
             </Button>

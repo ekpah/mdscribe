@@ -1,6 +1,6 @@
 'use client';
 
-import Markdoc from '@markdoc/markdoc';
+import Markdoc, { type ValidateError } from '@markdoc/markdoc';
 import PlainEditor from '@repo/design-system/components/editor/PlainEditor';
 import TipTap from '@repo/design-system/components/editor/TipTap';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -16,16 +16,27 @@ import {
 } from '@repo/design-system/components/ui/select';
 import { Switch } from '@repo/design-system/components/ui/switch';
 import markdocConfig from '@repo/markdoc-md/markdoc-config';
-import { useState } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-hot-toast';
 
-function Submit() {
+function Submit({ hasErrors }: { hasErrors: boolean }) {
   // ✅ `pending` will be derived from the form that wraps the Submit component
   const { pending } = useFormStatus();
+  const isDisabled = pending || hasErrors;
+
   return (
-    <Button disabled={pending} type="submit" className="mt-2 w-full">
-      {pending ? 'Textbaustein speichern...' : 'Textbaustein speichern'}
+    <Button className="mt-2 w-full" disabled={isDisabled} type="submit">
+      {(() => {
+        if (pending) {
+          return 'Textbaustein speichern...';
+        }
+        if (hasErrors) {
+          return 'Behebe Fehler um zu speichern';
+        }
+        return 'Textbaustein speichern';
+      })()}
     </Button>
   );
 }
@@ -50,6 +61,7 @@ export default function Editor({
   const [content, setContent] = useState(note ? JSON.parse(note) : '');
   const [newCategory, setNewCategory] = useState('');
   const [showSource, setShowSource] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidateError[]>([]);
   const existingCategories = [
     'Kardiologie',
     'Gastroenterologie',
@@ -57,14 +69,86 @@ export default function Editor({
     'Onkologie',
   ];
 
+  const handleValidationChange = useCallback(
+    (errors: ValidateError[]) => {
+      try {
+        const ast = Markdoc.parse(content);
+        const validation = Markdoc.validate(ast, markdocConfig);
+
+        setValidationErrors(validation);
+
+        console.log('Validation results:', {
+          errors: validation,
+          tiptapErrors: errors,
+        });
+      } catch (parseError) {
+        console.error('Parse error:', parseError);
+        // Create a synthetic error for parse failures
+        const syntheticError = {
+          type: 'error' as const,
+          error: {
+            message:
+              parseError instanceof Error
+                ? parseError.message
+                : 'Unbekannter Parse-Fehler',
+            location: {
+              start: { line: 1 },
+              end: { line: 1 },
+            },
+          },
+        } as ValidateError;
+        setValidationErrors([syntheticError]);
+      }
+    },
+    [content]
+  );
+
   const checkContent = () => {
-    const result = Markdoc.validate(Markdoc.parse(content), markdocConfig);
-    if (result.length > 0) {
-      toast.error('Fehler in der Markdown-Syntax');
-    } else {
-      toast.success('Markdown-Syntax ist korrekt');
+    try {
+      const ast = Markdoc.parse(content);
+      const validation = Markdoc.validate(ast, markdocConfig);
+
+      // Separate errors and warnings
+      const checkErrors = validation.filter(
+        (v: ValidateError) => v.type === 'error'
+      );
+
+      setValidationErrors(checkErrors);
+
+      if (checkErrors.length > 0) {
+        toast.error(
+          `${checkErrors.length} Fehler in der Markdoc-Syntax gefunden`
+        );
+      } else {
+        toast.success('Markdoc-Syntax ist korrekt');
+      }
+
+      console.log('Validation results:', {
+        errors: checkErrors,
+        ast,
+      });
+    } catch (parseError) {
+      console.error('Parse error:', parseError);
+      toast.error(
+        `Parse-Fehler: ${parseError instanceof Error ? parseError.message : 'Unbekannter Fehler'}`
+      );
+
+      // Create a synthetic error for parse failures
+      const syntheticError = {
+        type: 'error' as const,
+        error: {
+          message:
+            parseError instanceof Error
+              ? parseError.message
+              : 'Unbekannter Parse-Fehler',
+          location: {
+            start: { line: 1 },
+            end: { line: 1 },
+          },
+        },
+      } as ValidateError;
+      setValidationErrors([syntheticError]);
     }
-    console.log(result);
   };
 
   return (
@@ -74,8 +158,8 @@ export default function Editor({
           <div className="w-full flex-1">
             <Label htmlFor="category">Kategorie</Label>
             <input
-              type="hidden"
               name="category"
+              type="hidden"
               value={category === 'new' ? newCategory : category}
             />
             <Select onValueChange={setCategory} value={category}>
@@ -97,9 +181,9 @@ export default function Editor({
               <Label htmlFor="newCategory">Neue Kategorie</Label>
               <Input
                 id="newCategory"
-                value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="Füge eine Kategorie hinzu"
+                value={newCategory}
               />
             </div>
           )}
@@ -108,9 +192,9 @@ export default function Editor({
             <Input
               id="name"
               name="name"
-              value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter template name"
+              value={name}
             />
           </div>
         </div>
@@ -120,8 +204,8 @@ export default function Editor({
             <Label htmlFor="editor">Inhalt</Label>
             <div className="flex items-center space-x-2">
               <Switch
-                id="source-toggle"
                 checked={showSource}
+                id="source-toggle"
                 onCheckedChange={setShowSource}
               />
               <Label htmlFor="source-toggle">Show Source</Label>
@@ -132,23 +216,68 @@ export default function Editor({
             {showSource ? (
               <PlainEditor note={content} setContent={setContent} />
             ) : (
-              <TipTap note={content} setContent={setContent} />
+              <TipTap
+                note={content}
+                onValidationChange={handleValidationChange}
+                setContent={setContent}
+              />
             )}
           </div>
+
+          {/* Error Display Panel */}
+          {validationErrors.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {validationErrors.length > 0 && (
+                <div className="rounded-md border border-solarized-red bg-solarized-red/10 p-3">
+                  <div className="flex items-center space-x-2 font-medium text-sm text-solarized-red">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Fehler ({validationErrors.length})</span>
+                  </div>
+                  <ul className="mt-2 space-y-1 text-sm text-solarized-red/80">
+                    {validationErrors.map((error, index) => (
+                      <li
+                        className="flex items-start space-x-2"
+                        key={`error-${error.error?.message || 'unknown'}-${index}`}
+                      >
+                        <span className="text-solarized-red">•</span>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            {error.error?.location && (
+                              <span className="rounded bg-solarized-red/20 px-2 py-1 font-mono text-solarized-red text-xs">
+                                Zeile{' '}
+                                {error.error.location.start?.line || 'unknown'}
+                              </span>
+                            )}
+                            <span className="font-medium text-solarized-red">
+                              {error.type === 'error' ? 'Fehler' : 'Warnung'}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-solarized-red/90">
+                            {error.error?.message ||
+                              'Unbekannter Validierungsfehler'}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-        <input type="hidden" name="content" value={content} />
-        <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="authorId" value={author.id} />
+        <input name="content" type="hidden" value={content} />
+        <input name="id" type="hidden" value={id} />
+        <input name="authorId" type="hidden" value={author.id} />
         <div className="flex flex-row gap-2">
           <Button
-            variant="secondary"
+            className="mt-2 w-1/10"
             onClick={checkContent}
             type="button"
-            className="mt-2 w-1/10"
+            variant="secondary"
           >
             Prüfen
           </Button>
-          <Submit />
+          <Submit hasErrors={validationErrors.length > 0} />
         </div>
       </form>
     </Card>
