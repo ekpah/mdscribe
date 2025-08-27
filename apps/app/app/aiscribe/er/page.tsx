@@ -34,7 +34,17 @@ const ER_CONFIG: AiscribeTemplateConfig = {
       placeholder: 'Bekannte Vorerkrankungen und Diagnosen eingeben...',
       required: false,
       type: 'textarea',
-      description: 'Bekannte Vorerkrankungen, chronische Leiden, bisherige Diagnosen'
+      description:
+        'Bekannte Vorerkrankungen, chronische Leiden, bisherige Diagnosen',
+    },
+    {
+      name: 'befunde',
+      label: 'Befunde',
+      placeholder: 'Befunde aus der Notaufnahme eingeben...',
+      required: false,
+      type: 'textarea',
+      description:
+        'Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während der Notaufnahme',
     },
   ],
 
