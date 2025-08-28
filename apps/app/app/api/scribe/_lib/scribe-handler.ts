@@ -50,8 +50,7 @@
  * export const POST = handleAnamnese;
  */
 
-import { type AnthropicProviderOptions } from '@ai-sdk/anthropic';
-import { fireworks } from '@ai-sdk/fireworks';
+import { type AnthropicProviderOptions, anthropic } from '@ai-sdk/anthropic';
 import { database } from '@repo/database';
 import { env } from '@repo/env';
 import { type CoreMessage, generateText, streamText } from 'ai';
@@ -178,7 +177,8 @@ async function generateResponse(
 
   // Common model parameters
   const commonParams = {
-    model: fireworks('accounts/fireworks/models/glm-4p5'),
+    //model: fireworks('accounts/fireworks/models/glm-4p5'),
+    model: anthropic('claude-sonnet-4-20250514'),
     maxTokens: modelConfig.maxTokens,
     temperature: modelConfig.temperature,
     experimental_telemetry: {
