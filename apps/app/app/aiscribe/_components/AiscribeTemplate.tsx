@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '@repo/design-system/components/ui/card';
 import { Input } from '@repo/design-system/components/ui/input';
+import { Kbd, KbdGroup } from '@repo/design-system/components/ui/kbd';
 import { Label } from '@repo/design-system/components/ui/label';
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import {
@@ -396,15 +397,15 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                   <CardFooter className="flex items-center justify-between bg-muted/20">
                     <div className="flex items-center gap-6 text-muted-foreground text-sm">
                       <div className="flex items-center gap-2">
-                        <kbd className="rounded border bg-muted px-2 py-1 font-mono text-xs">
+                        <Kbd>
                           ⌘⇧1
-                        </kbd>
+                        </Kbd>
                         <span>für Fokus</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <kbd className="rounded border bg-muted px-2 py-1 font-mono text-xs">
+                        <Kbd>
                           ⌘↵
-                        </kbd>
+                        </Kbd>
                         <span>zum Generieren</span>
                       </div>
                     </div>
