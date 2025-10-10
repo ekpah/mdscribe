@@ -1,6 +1,20 @@
 'use client';
 
 import { useCompletion } from '@ai-sdk/react';
+import {
+  PromptInput,
+  PromptInputActionMenu,
+  PromptInputBody,
+  PromptInputModelSelect,
+  PromptInputModelSelectContent,
+  PromptInputModelSelectItem,
+  PromptInputModelSelectTrigger,
+  PromptInputModelSelectValue,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputToolbar,
+  PromptInputTools,
+} from '@repo/design-system/components/ai-elements/prompt-input';
 import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -76,7 +90,10 @@ export interface AiscribeTemplateConfig {
     additionalInputs: Record<string, string>
   ) => Promise<unknown>;
 }
-
+const models = [
+  { id: 'glm-4p5', name: 'GLM-4.5' },
+  { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
+];
 interface AiscribeTemplateProps {
   config: AiscribeTemplateConfig;
 }
@@ -89,10 +106,14 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   >({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
+  const [model, setModel] = useState<string>(models[0].id);
 
   // Use Vercel AI SDK's useCompletion
   const completion = useCompletion({
     api: config.apiEndpoint,
+    body: {
+      model,
+    },
   });
 
   // Combined loading state
@@ -148,12 +169,17 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
       const prompt = config.customPromptProcessor
         ? config.customPromptProcessor(inputData, additionalInputData)
         : JSON.stringify({
-          [config.inputFieldName]: inputData,
-          ...additionalInputData,
-        });
+            [config.inputFieldName]: inputData,
+            ...additionalInputData,
+          });
 
       await completion.complete(
-        typeof prompt === 'string' ? prompt : JSON.stringify(prompt)
+        typeof prompt === 'string' ? prompt : JSON.stringify(prompt),
+        {
+          body: {
+            model,
+          },
+        }
       );
 
       // Check for errors after completion
@@ -177,6 +203,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     config.customApiCall,
     config.customPromptProcessor,
     config.inputFieldName,
+    model,
   ]);
 
   const handleKeyDown = useCallback(
@@ -255,21 +282,21 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
                   {(!completion.completion ||
                     parseMarkdocToInputs(completion.completion).length ===
-                    0) && (
-                      <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
-                        <p className="text-muted-foreground text-xs leading-relaxed">
-                          Notwendige Informationen werden automatisch aus den
-                          Eingaben extrahiert
-                        </p>
-                      </div>
-                    )}
+                      0) && (
+                    <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        Notwendige Informationen werden automatisch aus den
+                        Eingaben extrahiert
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Privacy notice */}
                 <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
                   <p className="text-solarized-green leading-relaxed">
-                    🔒 Alle Daten  in dieser Box werden nur lokal gespeichert und niemals an
-                    Server übertragen
+                    🔒 Alle Daten in dieser Box werden nur lokal gespeichert und
+                    niemals an Server übertragen
                   </p>
                 </div>
               </CardContent>
@@ -314,7 +341,10 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                     {/* Privacy Warning */}
                     <div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
                       <p className="text-solarized-red leading-relaxed">
-                        ⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier keine privaten Patientendaten ein! Diese Informationen werden an eine KI gesendet. Verwenden Sie nur anonymisierte Daten.
+                        ⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier
+                        keine privaten Patientendaten ein! Diese Informationen
+                        werden an eine KI gesendet. Verwenden Sie nur
+                        anonymisierte Daten.
                       </p>
                     </div>
 
@@ -332,12 +362,12 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                             {config.additionalInputs.map((field) => (
                               <div className="space-y-2" key={field.name}>
                                 <Label
-                                  className='font-medium text-sm'
+                                  className="font-medium text-sm"
                                   htmlFor={field.name}
                                 >
                                   {field.label}
                                   {field.required && (
-                                    <span className='ml-1 text-red-500'>*</span>
+                                    <span className="ml-1 text-red-500">*</span>
                                   )}
                                 </Label>
                                 {field.type === 'textarea' ? (
@@ -385,16 +415,49 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                       )}
 
                     {/* Main Input Field */}
-                    <Textarea
-                      className="min-h-[400px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-                      disabled={isLoading}
-                      id="input-field"
-                      onChange={(e) => setInputData(e.target.value)}
-                      placeholder={config.inputPlaceholder}
-                      value={inputData}
-                    />
+                    <PromptInput onSubmit={handleGenerate}>
+                      <PromptInputBody>
+                        <PromptInputTextarea
+                          className="min-h-[400px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+                          disabled={isLoading}
+                          id="input-field"
+                          onChange={(e) => setInputData(e.target.value)}
+                          placeholder={config.inputPlaceholder}
+                          value={inputData}
+                        />
+                      </PromptInputBody>
+                      <PromptInputToolbar>
+                        <PromptInputTools>
+                          <PromptInputActionMenu>
+                            <PromptInputModelSelect
+                              onValueChange={(value) => {
+                                setModel(value);
+                              }}
+                              value={model}
+                            >
+                              <PromptInputModelSelectTrigger>
+                                <PromptInputModelSelectValue />
+                              </PromptInputModelSelectTrigger>
+                              <PromptInputModelSelectContent>
+                                {models.map((m) => (
+                                  <PromptInputModelSelectItem
+                                    key={m.id}
+                                    value={m.id}
+                                  >
+                                    {m.name}
+                                  </PromptInputModelSelectItem>
+                                ))}
+                              </PromptInputModelSelectContent>
+                            </PromptInputModelSelect>
+                          </PromptInputActionMenu>
+                        </PromptInputTools>
+                        <PromptInputSubmit
+                          disabled={isLoading || !areRequiredFieldsFilled()}
+                        />
+                      </PromptInputToolbar>
+                    </PromptInput>
                   </CardContent>
-                  <CardFooter className="flex items-center justify-between bg-muted/20">
+                  <CardFooter className="flex items-center justify-center bg-muted/20">
                     <div className="flex items-center gap-6 text-muted-foreground text-sm">
                       <div className="flex items-center gap-2">
                         <Kbd>
@@ -409,24 +472,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                         <span>zum Generieren</span>
                       </div>
                     </div>
-                    <Button
-                      className="bg-solarized-blue text-primary-foreground shadow-lg transition-all hover:bg-solarized-blue/90"
-                      disabled={isLoading || !areRequiredFieldsFilled()}
-                      onClick={handleGenerate}
-                      size="lg"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                          Generiere...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="mr-2 size-4" />
-                          {config.generateButtonText}
-                        </>
-                      )}
-                    </Button>
                   </CardFooter>
                 </TabsContent>
 

@@ -6,10 +6,24 @@ import {
 const handleICUTransfer = createScribeHandler({
   promptName: 'ICU_transfer_chat',
   validateInput: createInputValidator(['prompt']),
-  processInput: (input: unknown) => {
+  processInput: (input) => {
     const { prompt } = input as { prompt: string };
-    const { patientNotes } = JSON.parse(prompt);
-    return { notes: patientNotes };
+
+    // Parse the prompt JSON to extract anamnese and vordiagnosen
+    const parsed = JSON.parse(prompt);
+    const {
+      anamnese,
+      diagnoseblock = 'Keine Vorerkrankungen',
+      notes,
+      befunde,
+    } = parsed;
+
+    return {
+      anamnese,
+      notes,
+      diagnoseblock,
+      befunde,
+    };
   },
   modelConfig: {
     thinking: false,

@@ -1,51 +1,28 @@
-import { cva, type VariantProps } from "class-variance-authority"
-import * as React from "react"
+import { cn } from "@repo/design-system/lib/utils"
 
-import { cn } from "../../lib/utils"
-
-const kbdVariants = cva(
-  "inline-flex items-center justify-center rounded border font-mono text-xs transition-colors",
-  {
-    variants: {
-      variant: {
-        default: "border-input bg-muted text-muted-foreground shadow-xs",
-        outline: "border-border bg-background text-foreground",
-      },
-      size: {
-        default: "px-2 py-1",
-        sm: "px-1.5 py-0.5 text-[10px]",
-        lg: "px-2.5 py-1.5 text-sm",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-
-export interface KbdProps
-  extends React.HTMLAttributes<HTMLElement>,
-    VariantProps<typeof kbdVariants> {}
-
-function Kbd({ className, variant, size, ...props }: KbdProps) {
+function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
   return (
     <kbd
-      className={cn(kbdVariants({ variant, size, className }))}
+      data-slot="kbd"
+      className={cn(
+        "bg-muted text-muted-foreground pointer-events-none inline-flex h-5 w-fit min-w-5 select-none items-center justify-center gap-1 rounded-sm px-1 font-sans text-xs font-medium",
+        "[&_svg:not([class*='size-'])]:size-3",
+        "[[data-slot=tooltip-content]_&]:bg-background/20 [[data-slot=tooltip-content]_&]:text-background dark:[[data-slot=tooltip-content]_&]:bg-background/10",
+        className
+      )}
       {...props}
     />
   )
 }
 
-export interface KbdGroupProps extends React.HTMLAttributes<HTMLDivElement> {}
-
-function KbdGroup({ className, ...props }: KbdGroupProps) {
+function KbdGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div
+    <kbd
+      data-slot="kbd-group"
       className={cn("inline-flex items-center gap-1", className)}
       {...props}
     />
   )
 }
 
-export { Kbd, KbdGroup, kbdVariants }
+export { Kbd, KbdGroup }

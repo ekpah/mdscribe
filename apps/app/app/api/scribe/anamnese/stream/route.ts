@@ -12,10 +12,11 @@ const handleAnamnese = createScribeHandler({
 
     // Parse the prompt JSON to extract anamnese and vordiagnosen
     const parsed = JSON.parse(prompt);
-    const { notes, vordiagnosen = 'Keine Vorerkrankungen' } = parsed;
+    const { notes, befunde, vordiagnosen = 'Keine Vorerkrankungen' } = parsed;
 
     return {
       notes,
+      befunde,
       vordiagnosen,
     };
   },

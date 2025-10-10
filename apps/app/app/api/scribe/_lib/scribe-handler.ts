@@ -51,9 +51,15 @@
  */
 
 import { type AnthropicProviderOptions, anthropic } from '@ai-sdk/anthropic';
+import { fireworks } from '@ai-sdk/fireworks';
 import { database } from '@repo/database';
 import { env } from '@repo/env';
-import { type CoreMessage, generateText, streamText } from 'ai';
+import {
+  type CoreMessage,
+  generateText,
+  type LanguageModel,
+  streamText,
+} from 'ai';
 import { Langfuse } from 'langfuse';
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
@@ -62,6 +68,34 @@ import type { Session } from '@/lib/auth-types';
 import { getUsage } from './get-usage';
 
 const langfuse = new Langfuse();
+
+// Supported models type
+type SupportedModel = 'glm-4p5' | 'claude-sonnet-4.5';
+
+// Model configuration mapper
+function getModelConfig(modelId: string): {
+  model: LanguageModel;
+  supportsThinking: boolean;
+} {
+  switch (modelId as SupportedModel) {
+    case 'glm-4p5':
+      return {
+        model: fireworks('accounts/fireworks/models/glm-4p5'),
+        supportsThinking: false,
+      };
+    case 'claude-sonnet-4.5':
+      return {
+        model: anthropic('claude-sonnet-4-5'),
+        supportsThinking: true,
+      };
+    default:
+      // Default to Claude if unknown model
+      return {
+        model: anthropic('claude-sonnet-4-5'),
+        supportsThinking: true,
+      };
+  }
+}
 
 interface ScribeHandlerConfig {
   // Langfuse prompt configuration
@@ -98,7 +132,9 @@ async function checkAuthAndSubscription() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-
+  if (!session) {
+    return new Response('Unauthorized', { status: 401 });
+  }
   const activeSubscription = subscriptions?.find(
     (sub) => sub.status === 'active' || sub.status === 'trialing'
   );
@@ -137,6 +173,10 @@ async function processRequest(
     return { error: validation.error || 'Invalid input', status: 400 };
   }
 
+  // Extract model from request body (default to claude-sonnet-4)
+  const requestObj = requestBody as Record<string, unknown>;
+  const model = (requestObj.model as string) || 'claude-sonnet-4';
+
   // Process input data
   const processedInput = await config.processInput(requestBody);
 
@@ -147,14 +187,15 @@ async function processRequest(
     year: 'numeric',
   });
 
-  return { processedInput, todaysDate };
+  return { processedInput, todaysDate, model };
 }
 
 async function generateResponse(
   config: ScribeHandlerConfig,
   messages: CoreMessage[],
   metadata: Record<string, string | number | boolean>,
-  session: Session
+  session: Session,
+  modelId: string
 ) {
   // Default model configuration
   const defaultModelConfig = {
@@ -166,9 +207,12 @@ async function generateResponse(
 
   const modelConfig = { ...defaultModelConfig, ...config.modelConfig };
 
-  // Build provider options conditionally
+  // Get the model and its capabilities
+  const { model, supportsThinking } = getModelConfig(modelId);
+
+  // Build provider options conditionally (only for models that support thinking)
   const providerOptions: AnthropicProviderOptions = {};
-  if (modelConfig.thinking) {
+  if (modelConfig.thinking && supportsThinking) {
     providerOptions.thinking = {
       type: 'enabled',
       budgetTokens: modelConfig.thinkingBudget,
@@ -177,17 +221,18 @@ async function generateResponse(
 
   // Common model parameters
   const commonParams = {
-    //model: fireworks('accounts/fireworks/models/glm-4p5'),
-    model: anthropic('claude-sonnet-4-20250514'),
+    model,
     maxTokens: modelConfig.maxTokens,
     temperature: modelConfig.temperature,
     experimental_telemetry: {
       isEnabled: true,
       metadata,
     },
-    providerOptions: {
-      anthropic: providerOptions,
-    },
+    providerOptions: supportsThinking
+      ? {
+          anthropic: providerOptions,
+        }
+      : undefined,
     messages,
   };
 
@@ -318,13 +363,18 @@ export function createScribeHandler(
       );
       const metadata = { ...baseMetadata, ...customMetadata };
 
-      // Generate response
-      return await generateResponse(config, messages, metadata, session);
+      // Generate response with selected model
+      return await generateResponse(
+        config,
+        messages,
+        metadata,
+        session,
+        processed.model
+      );
     } catch (error) {
       // Handle errors gracefully
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
-
       return new Response(`Internal server error: ${errorMessage}`, {
         status: 500,
       });

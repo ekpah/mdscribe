@@ -21,7 +21,7 @@ const ICU_CONFIG: AiscribeTemplateConfig = {
   outputTabTitle: 'Verlegungsbrief',
 
   // Form configuration
-  inputFieldName: 'patientNotes',
+  inputFieldName: 'notes',
   inputPlaceholder: 'Geben Sie hier Ihre Notizen zum Patienten ein...',
   inputDescription:
     'Dokumentieren Sie den Zustand und die Behandlung des Patienten während des ICU-Aufenthalts',
