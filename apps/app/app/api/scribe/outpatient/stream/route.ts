@@ -6,10 +6,24 @@ import {
 const handleOutpatient = createScribeHandler({
   promptName: 'Outpatient_visit_chat',
   validateInput: createInputValidator(['prompt']),
-  processInput: (input: unknown) => {
+  processInput: (input) => {
     const { prompt } = input as { prompt: string };
-    const { consultationNotes } = JSON.parse(prompt);
-    return { notes: consultationNotes };
+
+    // Parse the prompt JSON to extract anamnese and vordiagnosen
+    const parsed = JSON.parse(prompt);
+    const {
+      anamnese,
+      diagnoseblock = 'Keine Vorerkrankungen',
+      dischargeNotes,
+      befunde,
+    } = parsed;
+
+    return {
+      anamnese,
+      notes: dischargeNotes,
+      diagnoseblock,
+      befunde,
+    };
   },
   modelConfig: {
     thinking: true,
