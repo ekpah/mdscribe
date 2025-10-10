@@ -5,8 +5,8 @@ import {
   Pencil1Icon,
   PlusCircledIcon,
 } from '@radix-ui/react-icons';
-import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
+import { Kbd } from '@repo/design-system/components/ui/kbd';
 import {
   Collapsible,
   CollapsibleContent,
@@ -237,12 +237,11 @@ export default function AppSidebar({
                 value={searchTerm}
               />
               <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2 size-4 select-none opacity-50" />
-              <Badge
+              <Kbd
                 className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-2 select-none"
-                variant="secondary"
               >
                 <span suppressHydrationWarning>{isMac ? '⌘K' : 'Ctrl+K'}</span>
-              </Badge>
+              </Kbd>
             </form>
           </SidebarGroupContent>
           {showCreateTemplateButton && (
