@@ -14,13 +14,13 @@ const handleICUTransfer = createScribeHandler({
     const {
       anamnese,
       diagnoseblock = 'Keine Vorerkrankungen',
-      dischargeNotes,
+      notes,
       befunde,
     } = parsed;
 
     return {
       anamnese,
-      notes: dischargeNotes,
+      notes,
       diagnoseblock,
       befunde,
     };

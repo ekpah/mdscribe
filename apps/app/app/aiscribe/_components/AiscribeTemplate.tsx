@@ -91,7 +91,7 @@ export interface AiscribeTemplateConfig {
 }
 const models = [
   { id: 'glm-4p5', name: 'GLM-4.5' },
-  { id: 'claude-sonnet-4', name: 'Claude Sonnet 4' },
+  { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
 ];
 interface AiscribeTemplateProps {
   config: AiscribeTemplateConfig;
