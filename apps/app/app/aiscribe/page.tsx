@@ -47,7 +47,7 @@ export default async function AIScribeLandingPage() {
             <AlertDescription>
               <span>
                 Du musst dich{' '}
-                <Link className="underline hover:text-primary" href="/sign-in">
+                <Link className="underline hover:text-primary" href="/sign-in?redirect=%2Faiscribe">
                   einloggen
                 </Link>{' '}
                 um diese Funktion nutzen zu können

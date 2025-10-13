@@ -1,12 +1,15 @@
 import { Button } from '@repo/design-system/components/ui/button';
 import { Brain, FileText, Sparkles, UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useSession } from '@/lib/auth-client';
 import Doctors from '@/public/landing/Doctors';
 
 export default function Hero() {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const isLoggedIn = !!session?.user;
+  const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
   return (
     <div className="relative flex min-h-[90vh] flex-col items-center overflow-hidden bg-gradient-to-b from-background to-muted/30 px-4 py-8 md:flex-row md:px-6">
@@ -44,7 +47,7 @@ export default function Hero() {
           >
             <Link
               className="flex items-center justify-center gap-2"
-              href={isLoggedIn ? '/aiscribe' : '/sign-in'}
+              href={isLoggedIn ? '/aiscribe' : signInUrl}
             >
               {isLoggedIn ? (
                 <>
