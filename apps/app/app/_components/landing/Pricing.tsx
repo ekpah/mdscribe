@@ -1,12 +1,15 @@
 import { Button } from '@repo/design-system/components/ui/button';
 import { Check } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useSession } from '@/lib/auth-client';
 
 export default function Pricing() {
   const [isYearly, setIsYearly] = useState(false);
   const { data: session } = useSession();
+  const pathname = usePathname();
+  const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
   return (
     <section className="bg-muted/30 py-12 sm:py-16">
@@ -139,7 +142,7 @@ export default function Pricing() {
               </li>
             </ul>
             <Button asChild className="mt-auto" variant="outline">
-              <Link href={session?.user ? '/dashboard' : '/sign-in'}>
+              <Link href={session?.user ? '/dashboard' : signInUrl}>
                 Upgrade zu Plus
               </Link>
             </Button>

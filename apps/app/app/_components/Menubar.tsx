@@ -12,7 +12,7 @@ import {
 import { cn } from '@repo/design-system/lib/utils';
 import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import DarkLogo from '@/public/logo/dark';
@@ -24,9 +24,12 @@ export default function TopMenuBar({
   showAiLink: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { data: session } = authClient.useSession()
+  
+  const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -119,7 +122,7 @@ export default function TopMenuBar({
               Ausloggen
             </Button>
           ) : (
-            <Link className="mr-2" href="/sign-in">
+            <Link className="mr-2" href={signInUrl}>
               <Button>Anmelden</Button>
             </Link>
           )}
@@ -187,7 +190,7 @@ export default function TopMenuBar({
               ) : (
                 <Link
                   className="w-full"
-                  href="/sign-in"
+                  href={signInUrl}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Button className="w-full">Jetzt anmelden</Button>
