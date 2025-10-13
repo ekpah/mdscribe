@@ -1,7 +1,7 @@
 // This file is a custom extension for TipTap that allows for the use of Markdoc tags in the editor.
 
 import { Extension } from '@tiptap/core';
-import type { CaseTagOptions } from './editorNodes/caseTag/caseTag';
+import { CaseTag, type CaseTagOptions } from './editorNodes/caseTag/caseTag';
 import { InfoTag, type InfoTagAttrs } from './editorNodes/infoTag/infoTag';
 import { ScoreTag, type ScoreTagAttrs } from './editorNodes/scoreTag/scoreTag';
 import {
@@ -50,9 +50,9 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
   addExtensions() {
     const extensions = [];
 
-    // if (this.options.caseTag !== false) {
-    // extensions.push(CaseTag.configure(this.options.caseTag));
-    // }
+    if (this.options.caseTag !== false) {
+      extensions.push(CaseTag.configure(this.options.caseTag));
+    }
 
     if (this.options.infoTag !== false) {
       extensions.push(InfoTag.configure(this.options.infoTag));

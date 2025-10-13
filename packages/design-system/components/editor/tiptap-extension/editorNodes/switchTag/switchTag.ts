@@ -18,11 +18,10 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   name: 'switchTag',
 
   group: 'inline',
-  content: 'inline*',
+  content: 'caseTag+',
   inline: true,
   selectable: true,
   draggable: true,
-  atom: true,
   isolating: true,
 
   addAttributes() {

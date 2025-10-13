@@ -276,39 +276,50 @@ export function SwitchTagView({
                   </div>
 
                   {/* Existing Cases */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {cases.map((caseItem, index) => (
                       <div
                         key={index}
-                        className="group rounded border bg-muted/20 p-2 transition-colors hover:bg-muted/40"
+                        className="group rounded-md border border-solarized-green/20 bg-background p-2.5 shadow-sm transition-all hover:border-solarized-green/40 hover:shadow"
                       >
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 space-y-1">
-                            <Input
-                              value={caseItem.primary}
-                              onChange={(e) =>
-                                updateCase(index, 'primary', e.target.value)
-                              }
-                              placeholder="Fall-Wert"
-                              className="h-7 text-xs"
-                            />
-                            <Input
-                              value={caseItem.text}
-                              onChange={(e) =>
-                                updateCase(index, 'text', e.target.value)
-                              }
-                              placeholder="Inhalt"
-                              className="h-7 text-xs"
-                            />
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 space-y-2">
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground text-xs">
+                                Wert
+                              </Label>
+                              <Input
+                                value={caseItem.primary}
+                                onChange={(e) =>
+                                  updateCase(index, 'primary', e.target.value)
+                                }
+                                placeholder="Fall-Wert"
+                                className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground text-xs">
+                                Inhalt
+                              </Label>
+                              <Input
+                                value={caseItem.text}
+                                onChange={(e) =>
+                                  updateCase(index, 'text', e.target.value)
+                                }
+                                placeholder="Inhalt"
+                                className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
+                              />
+                            </div>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => removeCase(index)}
-                            className="h-7 w-7 p-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                            className="mt-5 h-8 w-8 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                             aria-label={`Fall ${index + 1} entfernen`}
+                            title="Fall entfernen"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -316,12 +327,13 @@ export function SwitchTagView({
                   </div>
 
                   {/* Add New Case */}
-                  <div className="rounded border-2 border-muted border-dashed bg-muted/10 p-2">
-                    <div className="space-y-1.5">
-                      <Label className="font-medium text-muted-foreground text-xs">
-                        Add New Case
+                  <div className="rounded border-2 border-solarized-green/30 border-dashed bg-solarized-green/5 p-2.5">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5 font-medium text-solarized-green text-xs">
+                        <Plus className="h-3 w-3" />
+                        Neuen Fall hinzufügen
                       </Label>
-                      <div className="flex gap-1.5">
+                      <div className="space-y-1.5">
                         <Input
                           value={newCase.primary}
                           onChange={(e) =>
@@ -330,8 +342,8 @@ export function SwitchTagView({
                               primary: e.target.value,
                             }))
                           }
-                          placeholder="Value"
-                          className="h-7 flex-1 text-xs"
+                          placeholder="Fall-Wert (z.B. 'männlich', 'Kind', '1')"
+                          className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
                         />
                         <Input
                           value={newCase.text}
@@ -341,8 +353,8 @@ export function SwitchTagView({
                               text: e.target.value,
                             }))
                           }
-                          placeholder="Content"
-                          className="h-7 flex-1 text-xs"
+                          placeholder="Inhalt für diesen Fall"
+                          className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
                           onKeyDown={(e) => {
                             if (
                               e.key === 'Enter' &&
@@ -357,19 +369,21 @@ export function SwitchTagView({
                           size="sm"
                           onClick={addCase}
                           disabled={!newCase.primary && !newCase.text}
-                          className="h-7 w-7 bg-solarized-green p-0 hover:bg-solarized-green/90"
-                          aria-label="Add new case"
+                          className="h-8 w-full bg-solarized-green text-sm hover:bg-solarized-green/90"
+                          aria-label="Fall hinzufügen"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="mr-1.5 h-3.5 w-3.5" />
+                          Fall hinzufügen
                         </Button>
                       </div>
                     </div>
                   </div>
 
                   {cases.length === 0 && (
-                    <div className="py-4 text-center text-muted-foreground">
-                      <Code2 className="mx-auto mb-1 h-6 w-6 opacity-50" />
-                      <p className="text-xs">No cases defined yet</p>
+                    <div className="py-6 text-center text-muted-foreground">
+                      <Code2 className="mx-auto mb-2 h-8 w-8 opacity-30" />
+                      <p className="font-medium text-xs">Noch keine Fälle definiert</p>
+                      <p className="mt-1 text-xs opacity-75">Fügen Sie unten einen neuen Fall hinzu</p>
                     </div>
                   )}
                 </div>
