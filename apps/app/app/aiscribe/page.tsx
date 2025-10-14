@@ -202,6 +202,37 @@ export default async function AIScribeLandingPage() {
             </Card>
           </div>
         )}
+
+        {isLoggedIn ? (
+          <Link
+            className="block rounded-lg transition-shadow duration-200 hover:shadow-lg"
+            href="/aiscribe/diagnoseblock"
+          >
+            <Card className="flex h-full flex-col">
+              <CardHeader>
+                <CardTitle>Diagnoseblock Update</CardTitle>
+                <CardDescription>
+                  AI Scribe für Diagnoseblock Updates. Erstellen Sie
+                  aktualisierte Diagnoseblöcke basierend auf bestehenden
+                  Diagnosen.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        ) : (
+          <div className="block cursor-not-allowed rounded-lg opacity-50">
+            <Card className="flex h-full flex-col">
+              <CardHeader>
+                <CardTitle>Diagnoseblock Update</CardTitle>
+                <CardDescription>
+                  AI Scribe für Diagnoseblock Updates. Erstellen Sie
+                  aktualisierte Diagnoseblöcke basierend auf bestehenden
+                  Diagnosen.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
