@@ -37,8 +37,8 @@ import {
 } from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import { FileText, Loader2, type LucideIcon } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { FileText, Loader2, type LucideIcon, Mic, Square, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { MemoizedCopySection } from './MemoizedCopySection';
 
@@ -94,6 +94,7 @@ const models = [
   { id: 'auto', name: 'Auto' },
   { id: 'glm-4p5', name: 'GLM-4.5' },
   { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
 ];
 
 const getActualModel = (modelId: string): string => {
@@ -116,6 +117,10 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [model, setModel] = useState<string>(models[0].id);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Use Vercel AI SDK's useCompletion
   const completion = useCompletion({
@@ -131,6 +136,52 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   // Handle values change from inputs
   const handleValuesChange = (data: Record<string, unknown>) => {
     setValues(data);
+  };
+
+  // Check if audio recording is supported for current model
+  const isAudioSupported = model === 'auto' || model === 'gemini-2.5-pro';
+
+  // Handle audio recording
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.addEventListener('dataavailable', (event) => {
+        audioChunksRef.current.push(event.data);
+      });
+
+      mediaRecorder.addEventListener('stop', () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      });
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      toast.success('Aufnahme gestartet');
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      toast.error('Fehler beim Starten der Aufnahme');
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      toast.success('Aufnahme beendet');
+    }
+  };
+
+  const handleToggleRecording = () => {
+    if (isRecording) {
+      handleStopRecording();
+    } else {
+      handleStartRecording();
+    }
   };
 
   // Handle additional input changes
@@ -182,14 +233,36 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
             ...additionalInputData,
           });
 
+      // Prepare body with audio if available
+      const body: Record<string, unknown> = {
+        model: getActualModel(model),
+      };
+
+      // If audio is available and model supports it, convert to base64 and include
+      if (audioBlob && isAudioSupported) {
+        const reader = new FileReader();
+        const audioBase64 = await new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const base64String = (reader.result as string).split(',')[1];
+            resolve(base64String);
+          };
+          reader.readAsDataURL(audioBlob);
+        });
+        body.audio = audioBase64;
+        body.audioMimeType = audioBlob.type;
+      }
+
       await completion.complete(
         typeof prompt === 'string' ? prompt : JSON.stringify(prompt),
         {
-          body: {
-            model: getActualModel(model),
-          },
+          body,
         }
       );
+
+      // Clear audio after submission
+      if (audioBlob) {
+        setAudioBlob(null);
+      }
 
       // Check for errors after completion
       if (completion.error) {
@@ -213,6 +286,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     config.customPromptProcessor,
     config.inputFieldName,
     model,
+    audioBlob,
+    isAudioSupported,
   ]);
 
   const handleKeyDown = useCallback(
@@ -423,6 +498,26 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                         </div>
                       )}
 
+                    {/* Audio Recording Indicator */}
+                    {audioBlob && (
+                      <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-solarized-green text-sm">
+                            <Mic className="h-4 w-4" />
+                            <span>Audioaufnahme bereit ({(audioBlob.size / 1024).toFixed(1)} KB)</span>
+                          </div>
+                          <Button
+                            onClick={() => setAudioBlob(null)}
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Main Input Field */}
                     <PromptInput onSubmit={handleGenerate}>
                       <PromptInputBody>
@@ -459,6 +554,21 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                               </PromptInputModelSelectContent>
                             </PromptInputModelSelect>
                           </PromptInputActionMenu>
+                          <Button
+                            className={isRecording ? 'bg-solarized-red' : ''}
+                            disabled={!isAudioSupported || isLoading}
+                            onClick={handleToggleRecording}
+                            size="sm"
+                            title={isAudioSupported ? (isRecording ? 'Aufnahme stoppen' : 'Audioaufnahme starten') : 'Nur mit Auto oder Gemini 2.5 Pro verfügbar'}
+                            type="button"
+                            variant="ghost"
+                          >
+                            {isRecording ? (
+                              <Square className="h-4 w-4" />
+                            ) : (
+                              <Mic className="h-4 w-4" />
+                            )}
+                          </Button>
                         </PromptInputTools>
                         <PromptInputSubmit
                           disabled={isLoading || !areRequiredFieldsFilled()}

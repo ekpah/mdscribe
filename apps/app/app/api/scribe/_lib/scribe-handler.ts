@@ -52,6 +52,7 @@
 
 import { type AnthropicProviderOptions, anthropic } from '@ai-sdk/anthropic';
 import { fireworks } from '@ai-sdk/fireworks';
+import { google } from '@ai-sdk/google';
 import { database } from '@repo/database';
 import { env } from '@repo/env';
 import {
@@ -70,7 +71,7 @@ import { getUsage } from './get-usage';
 const langfuse = new Langfuse();
 
 // Supported models type
-type SupportedModel = 'glm-4p5' | 'claude-sonnet-4.5';
+type SupportedModel = 'glm-4p5' | 'claude-sonnet-4.5' | 'gemini-2.5-pro';
 
 // Model configuration mapper
 function getModelConfig(modelId: string): {
@@ -87,6 +88,11 @@ function getModelConfig(modelId: string): {
       return {
         model: anthropic('claude-sonnet-4-5'),
         supportsThinking: true,
+      };
+    case 'gemini-2.5-pro':
+      return {
+        model: google('gemini-2.5-pro'),
+        supportsThinking: false,
       };
     default:
       // Default to Claude if unknown model
@@ -173,9 +179,11 @@ async function processRequest(
     return { error: validation.error || 'Invalid input', status: 400 };
   }
 
-  // Extract model from request body (default to claude-sonnet-4)
+  // Extract model and audio from request body (default to claude-sonnet-4)
   const requestObj = requestBody as Record<string, unknown>;
   const model = (requestObj.model as string) || 'claude-sonnet-4';
+  const audio = requestObj.audio as string | undefined;
+  const audioMimeType = requestObj.audioMimeType as string | undefined;
 
   // Process input data
   const processedInput = await config.processInput(requestBody);
@@ -187,7 +195,7 @@ async function processRequest(
     year: 'numeric',
   });
 
-  return { processedInput, todaysDate, model };
+  return { processedInput, todaysDate, model, audio, audioMimeType };
 }
 
 async function generateResponse(
@@ -195,7 +203,9 @@ async function generateResponse(
   messages: CoreMessage[],
   metadata: Record<string, string | number | boolean>,
   session: Session,
-  modelId: string
+  modelId: string,
+  audio?: string,
+  audioMimeType?: string
 ) {
   // Default model configuration
   const defaultModelConfig = {
@@ -219,6 +229,32 @@ async function generateResponse(
     };
   }
 
+  // If audio is provided, add it to the messages
+  let messagesWithAudio = messages;
+  if (audio && audioMimeType && modelId === 'gemini-2.5-pro') {
+    // Add audio to the user message
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role === 'user') {
+      messagesWithAudio = [
+        ...messages.slice(0, -1),
+        {
+          ...lastMessage,
+          content: [
+            {
+              type: 'text' as const,
+              text: typeof lastMessage.content === 'string' ? lastMessage.content : '',
+            },
+            {
+              type: 'file' as const,
+              data: audio,
+              mimeType: audioMimeType,
+            },
+          ],
+        },
+      ];
+    }
+  }
+
   // Common model parameters
   const commonParams = {
     model,
@@ -233,7 +269,7 @@ async function generateResponse(
           anthropic: providerOptions,
         }
       : undefined,
-    messages,
+    messages: messagesWithAudio,
   };
 
   // Handle streaming vs non-streaming responses
@@ -369,7 +405,9 @@ export function createScribeHandler(
         messages,
         metadata,
         session,
-        processed.model
+        processed.model,
+        processed.audio,
+        processed.audioMimeType
       );
     } catch (error) {
       // Handle errors gracefully
