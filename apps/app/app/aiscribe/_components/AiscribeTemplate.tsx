@@ -109,6 +109,12 @@ interface AiscribeTemplateProps {
   config: AiscribeTemplateConfig;
 }
 
+interface AudioRecording {
+  blob: Blob;
+  duration: number;
+  id: string;
+}
+
 export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   const [activeTab, setActiveTab] = useState('input');
   const [inputData, setInputData] = useState('');
@@ -119,15 +125,16 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [model, setModel] = useState<string>(models[0].id);
   const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recordingStartTimeRef = useRef<number>(0);
 
   // Use Vercel AI SDK's useCompletion
   const completion = useCompletion({
     api: config.apiEndpoint,
     body: {
-      model: getActualModel(model, !!audioBlob),
+      model: getActualModel(model, audioRecordings.length > 0),
     },
   });
 
@@ -141,14 +148,22 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
   // Check if audio recording is supported for current model
   const isAudioSupported = model === 'auto' || model === 'gemini-2.5-pro';
+  const maxRecordings = 3;
+  const canRecord = audioRecordings.length < maxRecordings;
 
   // Handle audio recording
   const handleStartRecording = async () => {
+    if (!canRecord) {
+      toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      recordingStartTimeRef.current = Date.now();
 
       mediaRecorder.addEventListener('dataavailable', (event) => {
         audioChunksRef.current.push(event.data);
@@ -156,7 +171,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
       mediaRecorder.addEventListener('stop', () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(audioBlob);
+        const duration = (Date.now() - recordingStartTimeRef.current) / 1000; // in seconds
+        const newRecording: AudioRecording = {
+          blob: audioBlob,
+          duration,
+          id: `audio-${Date.now()}`,
+        };
+        setAudioRecordings(prev => [...prev, newRecording]);
         stream.getTracks().forEach(track => track.stop());
       });
 
@@ -183,6 +204,16 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     } else {
       handleStartRecording();
     }
+  };
+
+  const handleRemoveRecording = (id: string) => {
+    setAudioRecordings(prev => prev.filter(recording => recording.id !== id));
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Handle additional input changes
@@ -236,21 +267,28 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
       // Prepare body with audio if available
       const body: Record<string, unknown> = {
-        model: getActualModel(model, !!audioBlob),
+        model: getActualModel(model, audioRecordings.length > 0),
       };
 
-      // If audio is available and model supports it, convert to base64 and include
-      if (audioBlob && isAudioSupported) {
-        const reader = new FileReader();
-        const audioBase64 = await new Promise<string>((resolve) => {
-          reader.onloadend = () => {
-            const base64String = (reader.result as string).split(',')[1];
-            resolve(base64String);
-          };
-          reader.readAsDataURL(audioBlob);
-        });
-        body.audio = audioBase64;
-        body.audioMimeType = audioBlob.type;
+      // If audio recordings are available and model supports it, convert to base64 and include
+      if (audioRecordings.length > 0 && isAudioSupported) {
+        const audioFiles = await Promise.all(
+          audioRecordings.map(async (recording) => {
+            const reader = new FileReader();
+            const audioBase64 = await new Promise<string>((resolve) => {
+              reader.onloadend = () => {
+                const base64String = (reader.result as string).split(',')[1];
+                resolve(base64String);
+              };
+              reader.readAsDataURL(recording.blob);
+            });
+            return {
+              data: audioBase64,
+              mimeType: recording.blob.type,
+            };
+          })
+        );
+        body.audioFiles = audioFiles;
       }
 
       await completion.complete(
@@ -261,8 +299,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
       );
 
       // Clear audio after submission
-      if (audioBlob) {
-        setAudioBlob(null);
+      if (audioRecordings.length > 0) {
+        setAudioRecordings([]);
       }
 
       // Check for errors after completion
@@ -287,7 +325,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     config.customPromptProcessor,
     config.inputFieldName,
     model,
-    audioBlob,
+    audioRecordings,
     isAudioSupported,
   ]);
 
@@ -499,23 +537,30 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                         </div>
                       )}
 
-                    {/* Audio Recording Indicator */}
-                    {audioBlob && (
-                      <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-solarized-green text-sm">
-                            <Mic className="h-4 w-4" />
-                            <span>Audioaufnahme bereit ({(audioBlob.size / 1024).toFixed(1)} KB)</span>
-                          </div>
-                          <Button
-                            onClick={() => setAudioBlob(null)}
-                            size="sm"
-                            type="button"
-                            variant="ghost"
+                    {/* Audio Recordings Indicator */}
+                    {audioRecordings.length > 0 && (
+                      <div className="space-y-2">
+                        {audioRecordings.map((recording, index) => (
+                          <div
+                            className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-3"
+                            key={recording.id}
                           >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-solarized-green text-sm">
+                                <Mic className="h-4 w-4" />
+                                <span>Aufnahme {index + 1} ({formatDuration(recording.duration)})</span>
+                              </div>
+                              <Button
+                                onClick={() => handleRemoveRecording(recording.id)}
+                                size="sm"
+                                type="button"
+                                variant="ghost"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -557,10 +602,18 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                           </PromptInputActionMenu>
                           <Button
                             className={isRecording ? 'bg-solarized-red' : ''}
-                            disabled={!isAudioSupported || isLoading}
+                            disabled={!isAudioSupported || isLoading || (!canRecord && !isRecording)}
                             onClick={handleToggleRecording}
                             size="sm"
-                            title={isAudioSupported ? (isRecording ? 'Aufnahme stoppen' : 'Audioaufnahme starten') : 'Nur mit Auto oder Gemini 2.5 Pro verfügbar'}
+                            title={
+                              !isAudioSupported
+                                ? 'Nur mit Auto oder Gemini 2.5 Pro verfügbar'
+                                : !canRecord && !isRecording
+                                  ? `Maximal ${maxRecordings} Aufnahmen möglich`
+                                  : isRecording
+                                    ? 'Aufnahme stoppen'
+                                    : 'Audioaufnahme starten'
+                            }
                             type="button"
                             variant="ghost"
                           >
