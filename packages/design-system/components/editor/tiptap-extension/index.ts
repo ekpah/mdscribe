@@ -8,6 +8,14 @@ import {
   SwitchTag,
   type SwitchTagAttrs,
 } from './editorNodes/switchTag/switchTag';
+import {
+  DoubleParenHighlight,
+  type DoubleParenHighlightOptions,
+  BracketHighlight,
+  type BracketHighlightOptions,
+  AutoHighlight,
+  type AutoHighlightOptions,
+} from './editorMarks';
 
 interface MarkdocExtensionOptions {
   /**
@@ -33,6 +41,24 @@ interface MarkdocExtensionOptions {
    * @example switchTag: false
    */
   switchTag: Partial<SwitchTagAttrs> | false;
+
+  /**
+   * If set to false, the doubleParenHighlight mark will not be registered
+   * @example doubleParenHighlight: false
+   */
+  doubleParenHighlight: Partial<DoubleParenHighlightOptions> | false;
+
+  /**
+   * If set to false, the bracketHighlight mark will not be registered
+   * @example bracketHighlight: false
+   */
+  bracketHighlight: Partial<BracketHighlightOptions> | false;
+
+  /**
+   * If set to false, the autoHighlight plugin will not be registered
+   * @example autoHighlight: false
+   */
+  autoHighlight: Partial<AutoHighlightOptions> | false;
 }
 
 /**
@@ -43,6 +69,8 @@ interface MarkdocExtensionOptions {
  * - InfoTag: Displays informational content
  * - ScoreTag: Displays calculated scores based on formulas
  * - SwitchTag: Creates conditional switch statements
+ * - DoubleParenHighlight: Highlights text within (()) with faint blue
+ * - BracketHighlight: Highlights text within [] with faint green
  */
 export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
   name: 'markdoc-md',
@@ -64,6 +92,18 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 
     if (this.options.switchTag !== false) {
       extensions.push(SwitchTag.configure(this.options.switchTag));
+    }
+
+    if (this.options.doubleParenHighlight !== false) {
+      extensions.push(DoubleParenHighlight.configure(this.options.doubleParenHighlight));
+    }
+
+    if (this.options.bracketHighlight !== false) {
+      extensions.push(BracketHighlight.configure(this.options.bracketHighlight));
+    }
+
+    if (this.options.autoHighlight !== false) {
+      extensions.push(AutoHighlight.configure(this.options.autoHighlight));
     }
 
     return extensions;
