@@ -97,9 +97,10 @@ const models = [
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
 ];
 
-const getActualModel = (modelId: string): string => {
+const getActualModel = (modelId: string, hasAudio?: boolean): string => {
   if (modelId === 'auto') {
-    return 'claude-sonnet-4.5';
+    // If audio is present, use Gemini as only it can process audio
+    return hasAudio ? 'gemini-2.5-pro' : 'claude-sonnet-4.5';
   }
   return modelId;
 };
@@ -126,7 +127,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   const completion = useCompletion({
     api: config.apiEndpoint,
     body: {
-      model: getActualModel(model),
+      model: getActualModel(model, !!audioBlob),
     },
   });
 
@@ -235,7 +236,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
       // Prepare body with audio if available
       const body: Record<string, unknown> = {
-        model: getActualModel(model),
+        model: getActualModel(model, !!audioBlob),
       };
 
       // If audio is available and model supports it, convert to base64 and include
