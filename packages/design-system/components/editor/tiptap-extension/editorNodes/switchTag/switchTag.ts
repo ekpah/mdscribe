@@ -64,6 +64,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
       mergeAttributes(HTMLAttributes, {
         primary: node.attrs.primary,
       }),
+      0, // Render children (case tags) here
     ];
   },
   parseHTML() {

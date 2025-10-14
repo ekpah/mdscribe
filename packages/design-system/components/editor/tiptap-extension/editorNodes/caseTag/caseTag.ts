@@ -15,9 +15,10 @@ export interface CaseTagOptions {
  */
 export const CaseTag = Node.create<CaseTagOptions>({
   name: 'caseTag',
-  group: 'inline',
   inline: true,
   content: 'inline*',
+  selectable: true,
+  draggable: false,
   addAttributes() {
     return {
       primary: {
