@@ -18,7 +18,6 @@ export const CaseTag = Node.create<CaseTagOptions>({
   group: 'inline',
   inline: true,
   content: 'inline*',
-  atom: true,
   addAttributes() {
     return {
       primary: {
