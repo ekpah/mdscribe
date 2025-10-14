@@ -14,7 +14,7 @@ import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { signIn } from '@/lib/auth-client';
@@ -25,6 +25,8 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/dashboard';
 
   return (
     <Card className="w-full max-w-md">
@@ -34,15 +36,15 @@ export default function SignIn() {
           setLoading(true);
           try {
             await signIn.email(
-              { email, password, rememberMe, callbackURL: '/dashboard' },
+              { email, password, rememberMe, callbackURL: redirect },
               {
                 onRequest: () => {
                   //show loading
                   setLoading(true);
                 },
                 onSuccess: () => {
-                  //redirect to dashboard
-                  router.push('/dashboard');
+                  //redirect to the original page or dashboard
+                  router.push(redirect);
                   setLoading(false);
                 },
                 onError: (ctx) => {

@@ -26,7 +26,7 @@ import {
   CardTitle,
 } from '@repo/design-system/components/ui/card';
 import { Input } from '@repo/design-system/components/ui/input';
-import { Kbd, KbdGroup } from '@repo/design-system/components/ui/kbd';
+import { Kbd } from '@repo/design-system/components/ui/kbd';
 import { Label } from '@repo/design-system/components/ui/label';
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import {
@@ -91,9 +91,18 @@ export interface AiscribeTemplateConfig {
   ) => Promise<unknown>;
 }
 const models = [
+  { id: 'auto', name: 'Auto' },
   { id: 'glm-4p5', name: 'GLM-4.5' },
   { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
 ];
+
+const getActualModel = (modelId: string): string => {
+  if (modelId === 'auto') {
+    return 'claude-sonnet-4.5';
+  }
+  return modelId;
+};
+
 interface AiscribeTemplateProps {
   config: AiscribeTemplateConfig;
 }
@@ -112,7 +121,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   const completion = useCompletion({
     api: config.apiEndpoint,
     body: {
-      model,
+      model: getActualModel(model),
     },
   });
 
@@ -177,7 +186,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
         typeof prompt === 'string' ? prompt : JSON.stringify(prompt),
         {
           body: {
-            model,
+            model: getActualModel(model),
           },
         }
       );
@@ -460,15 +469,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                   <CardFooter className="flex items-center justify-center bg-muted/20">
                     <div className="flex items-center gap-6 text-muted-foreground text-sm">
                       <div className="flex items-center gap-2">
-                        <Kbd>
-                          ⌘⇧1
-                        </Kbd>
+                        <Kbd>⌘⇧1</Kbd>
                         <span>für Fokus</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Kbd>
-                          ⌘↵
-                        </Kbd>
+                        <Kbd>⌘↵</Kbd>
                         <span>zum Generieren</span>
                       </div>
                     </div>

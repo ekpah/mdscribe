@@ -47,7 +47,7 @@ export default async function AIScribeLandingPage() {
             <AlertDescription>
               <span>
                 Du musst dich{' '}
-                <Link className="underline hover:text-primary" href="/sign-in">
+                <Link className="underline hover:text-primary" href="/sign-in?redirect=%2Faiscribe">
                   einloggen
                 </Link>{' '}
                 um diese Funktion nutzen zu können
@@ -197,6 +197,37 @@ export default async function AIScribeLandingPage() {
                 <CardDescription>
                   AI Scribe für Entlassungsbriefe. Geben Sie Notizen ein und
                   generiere strukturierte Entlassungsdokumentation.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        )}
+
+        {isLoggedIn ? (
+          <Link
+            className="block rounded-lg transition-shadow duration-200 hover:shadow-lg"
+            href="/aiscribe/diagnoseblock"
+          >
+            <Card className="flex h-full flex-col">
+              <CardHeader>
+                <CardTitle>Diagnoseblock Update</CardTitle>
+                <CardDescription>
+                  AI Scribe für Diagnoseblock Updates. Erstellen Sie
+                  aktualisierte Diagnoseblöcke basierend auf bestehenden
+                  Diagnosen.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        ) : (
+          <div className="block cursor-not-allowed rounded-lg opacity-50">
+            <Card className="flex h-full flex-col">
+              <CardHeader>
+                <CardTitle>Diagnoseblock Update</CardTitle>
+                <CardDescription>
+                  AI Scribe für Diagnoseblock Updates. Erstellen Sie
+                  aktualisierte Diagnoseblöcke basierend auf bestehenden
+                  Diagnosen.
                 </CardDescription>
               </CardHeader>
             </Card>

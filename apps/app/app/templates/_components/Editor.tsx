@@ -1,6 +1,7 @@
 'use client';
 
 import Markdoc, { type ValidateError } from '@markdoc/markdoc';
+import { EditorSidebar } from '@repo/design-system/components/editor/_components/EditorSidebar';
 import PlainEditor from '@repo/design-system/components/editor/PlainEditor';
 import TipTap from '@repo/design-system/components/editor/TipTap';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -152,8 +153,10 @@ export default function Editor({
   };
 
   return (
-    <Card className="flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] flex-col gap-4 overflow-y-auto p-4">
-      <form action={handleSubmitAction} className="grow gap-2">
+    <div className="flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] gap-4">
+      {/* Main Editor Card */}
+      <Card className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+        <form action={handleSubmitAction} className="grow gap-2">
         <div className="mb-4 flex grow flex-col gap-4 md:flex-row md:gap-2">
           <div className="w-full flex-1">
             <Label htmlFor="category">Kategorie</Label>
@@ -281,5 +284,11 @@ export default function Editor({
         </div>
       </form>
     </Card>
+
+      {/* Sidebar */}
+      <div className="hidden w-80 xl:block">
+        <EditorSidebar />
+      </div>
+    </div>
   );
 }

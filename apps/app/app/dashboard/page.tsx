@@ -131,6 +131,16 @@ export default async function DashboardPage() {
       bgColor: 'bg-solarized-violet/10',
       borderColor: 'border-solarized-violet/20',
     },
+    {
+      title: 'Diagnoseblock Update',
+      description:
+        'Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen',
+      icon: FileText,
+      href: '/aiscribe/diagnoseblock',
+      color: 'text-solarized-cyan',
+      bgColor: 'bg-solarized-cyan/10',
+      borderColor: 'border-solarized-cyan/20',
+    },
   ];
 
   // Mock recent activity data

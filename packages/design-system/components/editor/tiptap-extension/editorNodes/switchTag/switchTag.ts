@@ -18,11 +18,10 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   name: 'switchTag',
 
   group: 'inline',
-  content: 'inline*',
+  content: 'caseTag+',
   inline: true,
   selectable: true,
   draggable: true,
-  atom: true,
   isolating: true,
 
   addAttributes() {
@@ -65,6 +64,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
       mergeAttributes(HTMLAttributes, {
         primary: node.attrs.primary,
       }),
+      0, // Render children (case tags) here
     ];
   },
   parseHTML() {
