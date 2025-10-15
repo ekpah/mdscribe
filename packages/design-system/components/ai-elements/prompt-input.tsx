@@ -80,9 +80,15 @@ export type TextInputContext = {
   clear: () => void;
 };
 
+export type RecordingContext = {
+  isRecording: boolean;
+  setIsRecording: (recording: boolean) => void;
+};
+
 export type PromptInputController = {
   textInput: TextInputContext;
   attachments: AttachmentsContext;
+  recording: RecordingContext;
   /** INTERNAL: Allows PromptInput to register its file textInput + "open" callback */
   __registerFileInput: (
     ref: RefObject<HTMLInputElement | null>,
@@ -94,6 +100,7 @@ const PromptInputContext = createContext<PromptInputController | null>(null);
 const ProviderAttachmentsContext = createContext<AttachmentsContext | null>(
   null
 );
+const RecordingStateContext = createContext<RecordingContext | null>(null);
 
 export const usePromptInputController = () => {
   const ctx = useContext(PromptInputContext);
@@ -103,6 +110,10 @@ export const usePromptInputController = () => {
     );
   }
   return ctx;
+};
+
+export const useRecordingState = () => {
+  return useContext(RecordingStateContext);
 };
 
 // Optional variants (do NOT throw). Useful for dual-mode components.
@@ -139,6 +150,9 @@ export function PromptInputProvider({
   // ----- textInput state
   const [textInput, setTextInput] = useState(initialTextInput);
   const clearInput = useCallback(() => setTextInput(''), []);
+
+  // ----- recording state
+  const [isRecording, setIsRecording] = useState(false);
 
   // ----- attachments state (global when wrapped)
   const [attachements, setAttachements] = useState<
@@ -179,8 +193,9 @@ export function PromptInputProvider({
   const clear = useCallback(() => {
     setAttachements((prev) => {
       for (const f of prev) {
-        if (f.url{ ) URL.revokeObjectURL(f.url }
-        )
+        if (f.url) {
+          URL.revokeObjectURL(f.url);
+        }
       }
       return [];
     });
@@ -210,6 +225,14 @@ export function PromptInputProvider({
     []
   );
 
+  const recordingContext = useMemo<RecordingContext>(
+    () => ({
+      isRecording,
+      setIsRecording,
+    }),
+    [isRecording]
+  );
+
   const controller = useMemo<PromptInputController>(
     () => ({
       textInput: {
@@ -218,15 +241,18 @@ export function PromptInputProvider({
         clear: clearInput,
       },
       attachments,
+      recording: recordingContext,
       __registerFileInput,
     }),
-    [textInput, clearInput, attachments, __registerFileInput]
+    [textInput, clearInput, attachments, recordingContext, __registerFileInput]
   );
 
   return (
     <PromptInputContext.Provider value={controller}>
       <ProviderAttachmentsContext.Provider value={attachments}>
-        {children}
+        <RecordingStateContext.Provider value={recordingContext}>
+          {children}
+        </RecordingStateContext.Provider>
       </ProviderAttachmentsContext.Provider>
     </PromptInputContext.Provider>
   );
@@ -237,6 +263,7 @@ export function PromptInputProvider({
 // ============================================================================
 
 const LocalAttachmentsContext = createContext<AttachmentsContext | null>(null);
+const LocalRecordingStateContext = createContext<RecordingContext | null>(null);
 
 export const usePromptInputAttachments = () => {
   // Dual-mode: prefer provider if present, otherwise use local
@@ -474,6 +501,9 @@ export const PromptInput = ({
     }
   }, []);
 
+  // ----- Local recording state (only used when no provider)
+  const [localIsRecording, setLocalIsRecording] = useState(false);
+
   // ----- Local attachments (only used when no provider)
   const [items, setItems] = useState<(FileUIPart & { id: string })[]>([]);
   const files = usingProvider ? controller.attachments.files : items;
@@ -689,6 +719,14 @@ export const PromptInput = ({
     [files, add, remove, clear, openFileDialog]
   );
 
+  const localRecordingContext = useMemo<RecordingContext>(
+    () => ({
+      isRecording: localIsRecording,
+      setIsRecording: setLocalIsRecording,
+    }),
+    [localIsRecording]
+  );
+
   const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
@@ -774,7 +812,9 @@ export const PromptInput = ({
     inner
   ) : (
     <LocalAttachmentsContext.Provider value={ctx}>
-      {inner}
+      <LocalRecordingStateContext.Provider value={localRecordingContext}>
+        {inner}
+      </LocalRecordingStateContext.Provider>
     </LocalAttachmentsContext.Provider>
   );
 };
@@ -1059,6 +1099,7 @@ export const PromptInputSpeechButton = ({
     null
   );
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recordingContext = useRecordingState();
 
   useEffect(() => {
     if (
@@ -1075,10 +1116,12 @@ export const PromptInputSpeechButton = ({
 
       speechRecognition.onstart = () => {
         setIsListening(true);
+        recordingContext?.setIsRecording(true);
       };
 
       speechRecognition.onend = () => {
         setIsListening(false);
+        recordingContext?.setIsRecording(false);
       };
 
       speechRecognition.onresult = (event) => {
@@ -1105,6 +1148,7 @@ export const PromptInputSpeechButton = ({
       speechRecognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
+        recordingContext?.setIsRecording(false);
       };
 
       recognitionRef.current = speechRecognition;
@@ -1116,7 +1160,7 @@ export const PromptInputSpeechButton = ({
         recognitionRef.current.stop();
       }
     };
-  }, [textareaRef, onTranscriptionChange]);
+  }, [textareaRef, onTranscriptionChange, recordingContext]);
 
   const toggleListening = useCallback(() => {
     if (!recognition) {
@@ -1158,17 +1202,24 @@ export type PromptInputModelSelectTriggerProps = ComponentProps<
 
 export const PromptInputModelSelectTrigger = ({
   className,
+  disabled,
   ...props
-}: PromptInputModelSelectTriggerProps) => (
-  <SelectTrigger
-    className={cn(
-      'border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors',
-      'hover:bg-accent hover:text-foreground [&[aria-expanded="true"]]:bg-accent [&[aria-expanded="true"]]:text-foreground',
-      className
-    )}
-    {...props}
-  />
-);
+}: PromptInputModelSelectTriggerProps) => {
+  const recordingContext = useRecordingState();
+  const isRecording = recordingContext?.isRecording ?? false;
+
+  return (
+    <SelectTrigger
+      className={cn(
+        'border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors',
+        'hover:bg-accent hover:text-foreground [&[aria-expanded="true"]]:bg-accent [&[aria-expanded="true"]]:text-foreground',
+        className
+      )}
+      disabled={disabled || isRecording}
+      {...props}
+    />
+  );
+};
 
 export type PromptInputModelSelectContentProps = ComponentProps<
   typeof SelectContent
