@@ -179,8 +179,9 @@ export function PromptInputProvider({
   const clear = useCallback(() => {
     setAttachements((prev) => {
       for (const f of prev) {
-        if (f.url{ ) URL.revokeObjectURL(f.url }
-        )
+        if (f.url) {
+          URL.revokeObjectURL(f.url);
+        }
       }
       return [];
     });
