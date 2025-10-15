@@ -8,6 +8,12 @@ import {
   SwitchTag,
   type SwitchTagAttrs,
 } from './editorNodes/switchTag/switchTag';
+import {
+  DoubleParenHighlight,
+  type DoubleParenHighlightOptions,
+  BracketHighlight,
+  type BracketHighlightOptions,
+} from './editorMarks';
 
 interface MarkdocExtensionOptions {
   /**
@@ -33,16 +39,30 @@ interface MarkdocExtensionOptions {
    * @example switchTag: false
    */
   switchTag: Partial<SwitchTagAttrs> | false;
+
+  /**
+   * If set to false, the doubleParenHighlight mark will not be registered
+   * @example doubleParenHighlight: false
+   */
+  doubleParenHighlight: Partial<DoubleParenHighlightOptions> | false;
+
+  /**
+   * If set to false, the bracketHighlight mark will not be registered
+   * @example bracketHighlight: false
+   */
+  bracketHighlight: Partial<BracketHighlightOptions> | false;
 }
 
 /**
- * The Markdoc extension is a collection of custom Markdoc tags for the editor.
+ * The Markdoc extension is a collection of custom Markdoc tags and marks for the editor.
  *
  * It includes:
  * - CaseTag: Represents a case within a switch statement
  * - InfoTag: Displays informational content
  * - ScoreTag: Displays calculated scores based on formulas
  * - SwitchTag: Creates conditional switch statements
+ * - DoubleParenHighlight: Auto-highlights text within (()) with faint blue background
+ * - BracketHighlight: Auto-highlights text within [] with faint green background
  */
 export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
   name: 'markdoc-md',
@@ -64,6 +84,14 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 
     if (this.options.switchTag !== false) {
       extensions.push(SwitchTag.configure(this.options.switchTag));
+    }
+
+    if (this.options.doubleParenHighlight !== false) {
+      extensions.push(DoubleParenHighlight.configure(this.options.doubleParenHighlight));
+    }
+
+    if (this.options.bracketHighlight !== false) {
+      extensions.push(BracketHighlight.configure(this.options.bracketHighlight));
     }
 
     return extensions;
