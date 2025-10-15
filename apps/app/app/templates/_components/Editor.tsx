@@ -22,16 +22,19 @@ import { useCallback, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { toast } from 'react-hot-toast';
 
-function Submit({ hasErrors }: { hasErrors: boolean }) {
+function Submit({ hasErrors, isFormValid }: { hasErrors: boolean; isFormValid: boolean }) {
   // ✅ `pending` will be derived from the form that wraps the Submit component
   const { pending } = useFormStatus();
-  const isDisabled = pending || hasErrors;
+  const isDisabled = pending || hasErrors || !isFormValid;
 
   return (
     <Button className="mt-2 w-full" disabled={isDisabled} type="submit">
       {(() => {
         if (pending) {
           return 'Textbaustein speichern...';
+        }
+        if (!isFormValid) {
+          return 'Kategorie und Name erforderlich';
         }
         if (hasErrors) {
           return 'Behebe Fehler um zu speichern';
@@ -63,6 +66,12 @@ export default function Editor({
   const [newCategory, setNewCategory] = useState('');
   const [showSource, setShowSource] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidateError[]>([]);
+
+  // Validation for required fields
+  const isFormValid = (() => {
+    const finalCategory = category === 'new' ? newCategory : category;
+    return finalCategory.trim() !== '' && name.trim() !== '';
+  })();
   const existingCategories = [
     'Kardiologie',
     'Gastroenterologie',
@@ -159,14 +168,16 @@ export default function Editor({
         <form action={handleSubmitAction} className="grow gap-2">
         <div className="mb-4 flex grow flex-col gap-4 md:flex-row md:gap-2">
           <div className="w-full flex-1">
-            <Label htmlFor="category">Kategorie</Label>
+            <Label htmlFor="category">
+              Kategorie <span className="text-solarized-red">*</span>
+            </Label>
             <input
               name="category"
               type="hidden"
               value={category === 'new' ? newCategory : category}
             />
             <Select onValueChange={setCategory} value={category}>
-              <SelectTrigger>
+              <SelectTrigger className={(category === 'new' ? newCategory : category).trim() === '' ? 'border-solarized-red' : ''}>
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
@@ -178,27 +189,42 @@ export default function Editor({
                 <SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
               </SelectContent>
             </Select>
+            {(category === 'new' ? newCategory : category).trim() === '' && (
+              <p className="mt-1 text-solarized-red text-xs">Kategorie ist erforderlich</p>
+            )}
           </div>
           {category === 'new' && (
             <div className="flex-1">
-              <Label htmlFor="newCategory">Neue Kategorie</Label>
+              <Label htmlFor="newCategory">
+                Neue Kategorie <span className="text-solarized-red">*</span>
+              </Label>
               <Input
                 id="newCategory"
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="Füge eine Kategorie hinzu"
                 value={newCategory}
+                className={newCategory.trim() === '' ? 'border-solarized-red' : ''}
               />
+              {newCategory.trim() === '' && (
+                <p className="mt-1 text-solarized-red text-xs">Neue Kategorie ist erforderlich</p>
+              )}
             </div>
           )}
           <div className="flex-1">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">
+              Name <span className="text-solarized-red">*</span>
+            </Label>
             <Input
               id="name"
               name="name"
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter template name"
               value={name}
+              className={name.trim() === '' ? 'border-solarized-red' : ''}
             />
+            {name.trim() === '' && (
+              <p className="mt-1 text-solarized-red text-xs">Name ist erforderlich</p>
+            )}
           </div>
         </div>
 
@@ -280,7 +306,7 @@ export default function Editor({
           >
             Prüfen
           </Button>
-          <Submit hasErrors={validationErrors.length > 0} />
+          <Submit hasErrors={validationErrors.length > 0} isFormValid={isFormValid} />
         </div>
       </form>
     </Card>

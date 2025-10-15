@@ -38,6 +38,13 @@ export default async function createTemplate(formData: FormData): Promise<{
   if (rawFormData.id) {
     throw new Error('Template already exists');
   }
+  // Validate required fields
+  if (!rawFormData.category || rawFormData.category.trim() === '') {
+    throw new Error('Category is required and cannot be empty');
+  }
+  if (!rawFormData.name || rawFormData.name.trim() === '') {
+    throw new Error('Name is required and cannot be empty');
+  }
   const { embedding } = await generateEmbeddings(
     rawFormData.content,
     rawFormData.name,
