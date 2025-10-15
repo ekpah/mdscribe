@@ -17,23 +17,23 @@ export default function Hero() {
       <div className="flex w-full flex-col items-center justify-center text-center md:w-2/5 md:items-start md:py-12 md:text-left">
         {/* Badge */}
         <div className="inline-flex items-center gap-2 rounded-full bg-solarized-blue/10 px-3 py-1.5 font-medium text-sm text-solarized-blue md:px-4 md:py-2">
-          <Brain className="h-4 w-4" />
-          <span>KI-gestützte Dokumentation</span>
+          <FileText className="h-4 w-4" />
+          <span>Medizinische Dokumentation</span>
         </div>
 
         {/* Main Headline */}
         <h1 className="my-6 max-w-2xl font-bold text-3xl leading-tight md:my-8 md:text-4xl lg:text-5xl xl:text-6xl">
-          Arztbriefe mit{' '}
+          Arztbriefe{' '}
           <span className="bg-gradient-to-r from-solarized-blue to-solarized-green bg-clip-text text-transparent">
-            KI-Unterstützung
+            effizient
           </span>{' '}
           erstellen
         </h1>
 
         {/* Subtitle */}
         <p className='mb-8 max-w-xl text-lg text-muted-foreground leading-relaxed md:mb-10 md:text-xl lg:text-2xl'>
-          Von Notizen zu professionellen Arztbriefen in Sekunden. Nutze die
-          Kraft der KI für schnellere und präzisere medizinische Dokumentation.
+          Professionelle Arztbriefe mit flexiblen Vorlagen und Textbausteinen.
+          Schnellere und präzisere medizinische Dokumentation.
         </p>
 
         {/* CTA Buttons */}
@@ -47,12 +47,12 @@ export default function Hero() {
           >
             <Link
               className="flex items-center justify-center gap-2"
-              href={isLoggedIn ? '/aiscribe' : signInUrl}
+              href={isLoggedIn ? '/templates' : signInUrl}
             >
               {isLoggedIn ? (
                 <>
-                  <Brain className="h-5 w-5 transition-transform group-hover:scale-110" />
-                  <span>KI-Assistenz starten</span>
+                  <FileText className="h-5 w-5 transition-transform group-hover:scale-110" />
+                  <span>Zu den Vorlagen</span>
                 </>
               ) : (
                 <>
@@ -92,10 +92,10 @@ export default function Hero() {
           </div>
           <div className="flex flex-col items-center gap-2 sm:items-start">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-solarized-blue/10">
-              <Brain className="h-4 w-4 text-solarized-blue" />
+              <FileText className="h-4 w-4 text-solarized-blue" />
             </div>
             <span className='font-medium text-foreground text-sm'>
-              KI-optimiert
+              Strukturiert
             </span>
           </div>
           <div className="flex flex-col items-center gap-2 sm:items-start">

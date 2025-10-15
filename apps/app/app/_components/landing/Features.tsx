@@ -114,12 +114,12 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
           </div>
         </div>
       </div>
-      {/* AI Note-to-Summary Feature Section - Enhanced Styling */}
+      {/* Note-to-Summary Feature Section - Enhanced Styling */}
       <div className="container mx-auto mt-12 max-w-5xl rounded-xl py-16 sm:py-20">
         <h2 className="mb-10 text-center font-bold text-4xl text-foreground leading-tight sm:text-5xl">
           Von Notizen zu{' '}
           <span className="text-[var(--color-solarized-green)]">
-            KI-gestützten Anamnesen
+            strukturierten Anamnesen
           </span>
         </h2>
         <div className="flex flex-col items-start justify-center gap-8 sm:flex-row sm:items-center sm:gap-10">
@@ -154,7 +154,7 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
 
               <span className="flex items-center gap-1 rounded-full bg-solarized-green/10 px-2.5 py-1 font-medium text-sm text-solarized-green">
                 <SparkleIcon className="h-4 w-4" />
-                KI-Zusammenfassung
+                Strukturierte Zusammenfassung
               </span>
             </div>
             <div className="relative flex h-full w-full flex-col rounded-xl border border-solarized-green/50 bg-solarized-green/5 p-6 shadow-solarized-green/25 shadow-xl dark:border-solarized-green/70 dark:bg-slate-800/50">
@@ -233,7 +233,7 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
 
               <span className="flex items-center gap-1 rounded-full bg-solarized-orange/10 px-2.5 py-1 font-medium text-sm text-solarized-orange">
                 <SparkleIcon className="h-4 w-4" />
-                KI-strukturiert
+                Vorlage
               </span>
             </div>
             <div className="relative flex h-full w-full flex-col rounded-xl border border-solarized-orange/50 bg-solarized-orange/5 p-6 shadow-solarized-orange/25 shadow-xl dark:border-solarized-orange/70 dark:bg-slate-800/50">

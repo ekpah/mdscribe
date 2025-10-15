@@ -1,5 +1,4 @@
 import { auth } from '@/auth';
-import { allowAIUse } from '@/flags';
 import '@/lib/orpc.server'; // for pre-rendering
 import { DesignSystemProvider } from '@repo/design-system/providers';
 import '@repo/design-system/styles/globals.css';
@@ -32,7 +31,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const showAiLink = !!session?.user;
+  const showAiLink = false;
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

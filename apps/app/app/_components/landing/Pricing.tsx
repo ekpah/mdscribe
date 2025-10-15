@@ -16,7 +16,7 @@ export default function Pricing() {
       <div className="container mx-auto max-w-6xl px-4">
         <div className="text-center">
           <h1 className="my-2 w-full font-bold text-4xl leading-tight sm:text-5xl">
-            Starte kostenlos mit KI
+            Starte kostenlos
           </h1>
           <div className="mb-4 w-full">
             <div className="gradient mx-auto my-0 h-1 w-64 rounded-t py-0 opacity-25" />
@@ -83,7 +83,7 @@ export default function Pricing() {
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-solarized-green" />
-                <span>KI-Schnupperversion</span>
+                <span>Grundfunktionen</span>
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-solarized-green" />
@@ -130,11 +130,11 @@ export default function Pricing() {
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-primary" />
-                <span>500 KI-Generierungen/Monat</span>
+                <span>500 Generierungen/Monat</span>
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-primary" />
-                <span>Vollständige KI-Unterstützung</span>
+                <span>Erweiterte Funktionen</span>
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-primary" />
@@ -177,11 +177,11 @@ export default function Pricing() {
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-primary" />
-                <span>Unbegrenzte KI-Nutzung</span>
+                <span>Unbegrenzte Nutzung</span>
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-primary" />
-                <span>Erweiterte KI-Features</span>
+                <span>Premium Features</span>
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-primary" />

@@ -1,4 +1,3 @@
-import AIFeatures from './AIFeatures';
 import Features from './Features';
 import Footer from './Footer';
 import Hero from './Hero';
@@ -13,7 +12,6 @@ export default function LandingPage() {
       >
         <Hero />
         <Features />
-        <AIFeatures />
         <Pricing />
       </main>
 
