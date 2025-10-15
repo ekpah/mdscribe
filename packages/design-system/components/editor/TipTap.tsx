@@ -4,8 +4,6 @@ import {
   createSuggestionsItems,
   enableKeyboardNavigation,
   Slash,
-  SlashCmd,
-  SlashCmdProvider,
 } from '@harshtalks/slash-tiptap';
 import { MarkdocMD } from '@repo/design-system/components/editor/tiptap-extension';
 import { cn } from '@repo/design-system/lib/utils';
@@ -91,7 +89,7 @@ export default function TipTap({
       },
       attributes: {
         class: cn(
-          'prose h-full w-full max-w-none whitespace-pre-wrap focus:outline-none',
+          'prose h-full min-h-200 w-full max-w-none whitespace-pre-wrap focus:outline-none',
           '[&_.is-empty]:relative',
           '[&_.is-empty]:before:content-[attr(data-placeholder)]',
           '[&_.is-empty]:before:text-slate-400',
@@ -110,33 +108,13 @@ export default function TipTap({
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto">
-      <div className="sticky top-0 z-10">
+    <div className="flex h-full w-full flex-col">
+      <div>
         <TipTapMenu editor={editor} />
       </div>
-      <SlashCmdProvider>
+      <div className="min-h-0 flex-1">
         <EditorContent editor={editor} />
-        <SlashCmd.Root editor={editor}>
-          <SlashCmd.Cmd className="w-full max-w-[640px] overflow-hidden rounded-lg bg-white p-0 font-sans shadow-md outline-none dark:bg-[linear-gradient(136.61deg,rgb(39,40,43)_13.72%,rgb(45,46,49)_74.3%)]">
-            <SlashCmd.List className="h-[min(300px,var(--cmdk-list-height))] max-h-[400px] overflow-auto overscroll-contain transition-[height] duration-100 ease-in">
-              {suggestions.map((item) => {
-                return (
-                  <SlashCmd.Item
-                    className="relative mt-1 flex h-12 cursor-pointer select-none items-center gap-3 px-4 text-gray-900 text-sm transition-all duration-150 ease-in will-change-[background,color] content-visibility-auto first:mt-0 active:bg-gray-200 active:transition-[background] data-[disabled=true]:cursor-not-allowed data-[selected=true]:bg-gray-100 data-[disabled=true]:text-gray-400 data-[selected=true]:after:absolute data-[selected=true]:after:left-0 data-[selected=true]:after:z-[123] data-[selected=true]:after:h-full data-[selected=true]:after:w-[3px] data-[selected=true]:after:bg-[#5f6ad2] data-[selected=true]:after:content-[''] dark:text-gray-100 dark:data-[selected=true]:bg-gray-800 dark:active:bg-gray-700"
-                    key={item.title}
-                    onCommand={(val) => {
-                      item.command(val);
-                    }}
-                    value={item.title}
-                  >
-                    <p>{item.title}</p>
-                  </SlashCmd.Item>
-                );
-              })}
-            </SlashCmd.List>
-          </SlashCmd.Cmd>
-        </SlashCmd.Root>
-      </SlashCmdProvider>
+      </div>
     </div>
   );
 }

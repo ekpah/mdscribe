@@ -18,17 +18,13 @@ import { authClient } from '@/lib/auth-client';
 import DarkLogo from '@/public/logo/dark';
 import LightLogo from '@/public/logo/light';
 
-export default function TopMenuBar({
-  showAiLink,
-}: {
-  showAiLink: boolean;
-}) {
+export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { data: session } = authClient.useSession()
-  
+  const { data: session } = authClient.useSession();
+
   const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
   const handleSignOut = async () => {
@@ -83,14 +79,6 @@ export default function TopMenuBar({
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               )}
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  className={navigationMenuTriggerStyle()}
-                  href="https://docs.mdscribe.de/"
-                >
-                  Erklärung
-                </NavigationMenuLink>
-              </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
         </div>
@@ -206,4 +194,3 @@ export default function TopMenuBar({
     </div>
   );
 }
-
