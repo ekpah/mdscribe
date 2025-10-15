@@ -141,27 +141,27 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     }));
   };
 
-  // Check if all required fields are filled
+  // Check if at least one input field is filled
   const areRequiredFieldsFilled = useCallback(() => {
-    if (!inputData.trim()) {
-      return false;
-    }
+    // Check if main input field has content
+    const hasMainInput = inputData.trim().length > 0;
 
-    if (config.additionalInputs) {
-      return config.additionalInputs.every(
+    // Check if any additional input field has content
+    const hasAnyAdditionalInput =
+      config.additionalInputs &&
+      config.additionalInputs.some(
         (field) =>
-          !field.required ||
-          (additionalInputData[field.name] &&
-            additionalInputData[field.name].trim())
+          additionalInputData[field.name] &&
+          additionalInputData[field.name].trim().length > 0
       );
-    }
 
-    return true;
+    // At least one field must be filled
+    return hasMainInput || hasAnyAdditionalInput || false;
   }, [inputData, additionalInputData, config.additionalInputs]);
 
   const handleGenerate = useCallback(async () => {
     if (!areRequiredFieldsFilled()) {
-      toast.error('Bitte füllen Sie alle erforderlichen Felder aus.');
+      toast.error('Bitte füllen Sie mindestens ein Eingabefeld aus.');
       return;
     }
 
