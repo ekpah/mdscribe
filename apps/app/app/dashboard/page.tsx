@@ -80,6 +80,11 @@ export default async function DashboardPage() {
     orpc.user.templates.authored.queryOptions()
   );
 
+  // Get recent activity from usage events
+  const recentEvents = await queryClient.fetchQuery(
+    orpc.user.templates.recentActivity.queryOptions()
+  );
+
   const aiFunctions = [
     {
       title: 'Notfall Anamnese',
@@ -143,30 +148,44 @@ export default async function DashboardPage() {
     },
   ];
 
-  // Mock recent activity data
-  const recentActivity = [
-    {
-      id: 1,
-      type: 'template_created',
-      title: 'Entlassungsbrief Kardiologie erstellt',
-      time: '2 Stunden',
-      icon: FileText,
-    },
-    {
-      id: 2,
-      type: 'ai_generation',
-      title: 'KI-Anamnese für Notfallpatient generiert',
-      time: '4 Stunden',
-      icon: Brain,
-    },
-    {
-      id: 3,
-      type: 'template_shared',
-      title: 'Template favorisiert',
-      time: '1 Tag',
-      icon: Star,
-    },
-  ];
+  // Map recent events to activity items
+  const recentActivity = recentEvents.map((event) => {
+    const now = new Date();
+    const eventTime = new Date(event.timestamp);
+    const diffMs = now.getTime() - eventTime.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    let timeStr = '';
+    if (diffMins < 60) {
+      timeStr = `${diffMins} Minuten`;
+    } else if (diffHours < 24) {
+      timeStr = `${diffHours} Stunden`;
+    } else {
+      timeStr = `${diffDays} ${diffDays === 1 ? 'Tag' : 'Tage'}`;
+    }
+
+    // Determine icon and title based on event name
+    let icon = Activity;
+    let title = event.name;
+
+    if (event.name === 'ai_scribe_generation') {
+      icon = Brain;
+      title = 'KI-Dokumentation generiert';
+    } else if (event.name.includes('template')) {
+      icon = FileText;
+      title = 'Template verwendet';
+    }
+
+    return {
+      id: event.id,
+      type: event.name,
+      title,
+      time: timeStr,
+      icon,
+    };
+  });
 
   return (
     <div className="h-full w-screen overflow-y-auto bg-gradient-to-br from-solarized-base3 via-solarized-base2 to-solarized-base2">
@@ -225,37 +244,41 @@ export default async function DashboardPage() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4">
-          <Card className="border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
-                Favoriten
-              </CardTitle>
-              <BookmarkIcon className="h-4 w-4 text-solarized-blue sm:h-5 sm:w-5" />
-            </CardHeader>
-            <CardContent>
-              <div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
-                {favoriteTemplates.length}
-              </div>
-              <p className="text-solarized-base01 text-xs">
-                Gespeicherte Templates
-              </p>
-            </CardContent>
-          </Card>
+          <Link href="/templates">
+            <Card className="border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
+                  Favoriten
+                </CardTitle>
+                <BookmarkIcon className="h-4 w-4 text-solarized-blue sm:h-5 sm:w-5" />
+              </CardHeader>
+              <CardContent>
+                <div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
+                  {favoriteTemplates.length}
+                </div>
+                <p className="text-solarized-base01 text-xs">
+                  Gespeicherte Templates
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="border-solarized-green/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
-                Erstellt
-              </CardTitle>
-              <PlusIcon className="h-4 w-4 text-solarized-green sm:h-5 sm:w-5" />
-            </CardHeader>
-            <CardContent>
-              <div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
-                {userTemplates.length}
-              </div>
-              <p className="text-solarized-base01 text-xs">Eigene Templates</p>
-            </CardContent>
-          </Card>
+          <Link href="/templates">
+            <Card className="border-solarized-green/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
+                  Erstellt
+                </CardTitle>
+                <PlusIcon className="h-4 w-4 text-solarized-green sm:h-5 sm:w-5" />
+              </CardHeader>
+              <CardContent>
+                <div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
+                  {userTemplates.length}
+                </div>
+                <p className="text-solarized-base01 text-xs">Eigene Templates</p>
+              </CardContent>
+            </Card>
+          </Link>
 
           <Card className="border-solarized-violet/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -455,24 +478,33 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {recentActivity.map((activity) => (
-                    <div
-                      className="flex items-start gap-3 rounded-lg bg-solarized-base2 p-3 transition-colors hover:bg-solarized-base1"
-                      key={activity.id}
-                    >
-                      <div className="rounded-full bg-solarized-base3 p-2 shadow-sm">
-                        <activity.icon className="h-4 w-4 text-solarized-blue" />
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map((activity) => (
+                      <div
+                        className="flex items-start gap-3 rounded-lg bg-solarized-base2 p-3 transition-colors hover:bg-solarized-base1"
+                        key={activity.id}
+                      >
+                        <div className="rounded-full bg-solarized-base3 p-2 shadow-sm">
+                          <activity.icon className="h-4 w-4 text-solarized-blue" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-sm text-solarized-base03">
+                            {activity.title}
+                          </p>
+                          <p className="text-solarized-base1 text-xs">
+                            vor {activity.time}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-sm text-solarized-base03">
-                          {activity.title}
-                        </p>
-                        <p className="text-solarized-base1 text-xs">
-                          vor {activity.time}
-                        </p>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="py-8 text-center">
+                      <Activity className="mx-auto mb-2 h-8 w-8 text-solarized-base2" />
+                      <p className="text-sm text-solarized-base01">
+                        Noch keine Aktivitäten
+                      </p>
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 {/* My Templates Section */}

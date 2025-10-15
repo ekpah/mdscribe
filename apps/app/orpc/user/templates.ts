@@ -42,7 +42,22 @@ const getAuthoredTemplatesHandler = authed.handler(async ({ context }) => {
   return userTemplates;
 });
 
+const getRecentActivityHandler = authed.handler(async ({ context }) => {
+  const recentEvents = await context.db.usageEvent.findMany({
+    where: {
+      userId: context.session.user.id,
+    },
+    orderBy: {
+      timestamp: 'desc',
+    },
+    take: 5,
+  });
+
+  return recentEvents;
+});
+
 export const templatesHandler = {
   favourites: getFavoriteTemplatesHandler,
   authored: getAuthoredTemplatesHandler,
+  recentActivity: getRecentActivityHandler,
 };
