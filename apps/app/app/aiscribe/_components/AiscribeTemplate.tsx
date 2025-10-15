@@ -224,27 +224,30 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     }));
   };
 
-  // Check if all required fields are filled
+  // Check if at least one input field is filled
   const areRequiredFieldsFilled = useCallback(() => {
-    if (!inputData.trim()) {
-      return false;
-    }
+    // Check if there are any audio recordings
+    const hasAudio = audioRecordings.length > 0;
 
-    if (config.additionalInputs) {
-      return config.additionalInputs.every(
+    // Check if main input field has content
+    const hasMainInput = inputData.trim().length > 0;
+
+    // Check if any additional input field has content
+    const hasAnyAdditionalInput =
+      config.additionalInputs &&
+      config.additionalInputs.some(
         (field) =>
-          !field.required ||
-          (additionalInputData[field.name] &&
-            additionalInputData[field.name].trim())
+          additionalInputData[field.name] &&
+          additionalInputData[field.name].trim().length > 0
       );
-    }
 
-    return true;
-  }, [inputData, additionalInputData, config.additionalInputs]);
+    // At least one field must be filled (audio, main input, or any additional input)
+    return hasAudio || hasMainInput || hasAnyAdditionalInput || false;
+  }, [audioRecordings, inputData, additionalInputData, config.additionalInputs]);
 
   const handleGenerate = useCallback(async () => {
     if (!areRequiredFieldsFilled()) {
-      toast.error('Bitte füllen Sie alle erforderlichen Felder aus.');
+      toast.error('Bitte füllen Sie mindestens ein Eingabefeld aus oder nehmen Sie Audio auf.');
       return;
     }
 
