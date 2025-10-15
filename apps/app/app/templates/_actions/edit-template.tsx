@@ -29,6 +29,14 @@ export default async function editTemplate(formData: FormData) {
     throw new Error('Permission denied');
   }
 
+  // Validate required fields
+  if (!rawFormData.category || rawFormData.category.trim() === '') {
+    throw new Error('Category is required and cannot be empty');
+  }
+  if (!rawFormData.name || rawFormData.name.trim() === '') {
+    throw new Error('Name is required and cannot be empty');
+  }
+
   // Generate new embedding for the updated content
   const { embedding } = await generateEmbeddings(
     rawFormData.content,
