@@ -1,4 +1,9 @@
-import { Mark, markInputRule, markPasteRule, mergeAttributes } from '@tiptap/core';
+import {
+  Mark,
+  markInputRule,
+  markPasteRule,
+  mergeAttributes,
+} from '@tiptap/core';
 
 export interface BracketHighlightOptions {
   /**
@@ -51,26 +56,6 @@ export const BracketHighlight = Mark.create<BracketHighlightOptions>({
       }),
       0,
     ];
-  },
-
-  addCommands() {
-    return {
-      setBracketHighlight:
-        () =>
-        ({ commands }) => {
-          return commands.setMark(this.name);
-        },
-      toggleBracketHighlight:
-        () =>
-        ({ commands }) => {
-          return commands.toggleMark(this.name);
-        },
-      unsetBracketHighlight:
-        () =>
-        ({ commands }) => {
-          return commands.unsetMark(this.name);
-        },
-    };
   },
 
   addInputRules() {

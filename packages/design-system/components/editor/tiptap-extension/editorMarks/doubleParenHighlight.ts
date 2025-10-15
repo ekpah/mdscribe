@@ -1,4 +1,9 @@
-import { Mark, markInputRule, markPasteRule, mergeAttributes } from '@tiptap/core';
+import {
+  Mark,
+  markInputRule,
+  markPasteRule,
+  mergeAttributes,
+} from '@tiptap/core';
 
 export interface DoubleParenHighlightOptions {
   /**
@@ -51,26 +56,6 @@ export const DoubleParenHighlight = Mark.create<DoubleParenHighlightOptions>({
       }),
       0,
     ];
-  },
-
-  addCommands() {
-    return {
-      setDoubleParenHighlight:
-        () =>
-        ({ commands }) => {
-          return commands.setMark(this.name);
-        },
-      toggleDoubleParenHighlight:
-        () =>
-        ({ commands }) => {
-          return commands.toggleMark(this.name);
-        },
-      unsetDoubleParenHighlight:
-        () =>
-        ({ commands }) => {
-          return commands.unsetMark(this.name);
-        },
-    };
   },
 
   addInputRules() {
