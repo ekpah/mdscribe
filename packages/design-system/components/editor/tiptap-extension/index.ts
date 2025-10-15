@@ -13,8 +13,6 @@ import {
   type DoubleParenHighlightOptions,
   BracketHighlight,
   type BracketHighlightOptions,
-  AutoHighlight,
-  type AutoHighlightOptions,
 } from './editorMarks';
 
 interface MarkdocExtensionOptions {
@@ -53,24 +51,18 @@ interface MarkdocExtensionOptions {
    * @example bracketHighlight: false
    */
   bracketHighlight: Partial<BracketHighlightOptions> | false;
-
-  /**
-   * If set to false, the autoHighlight plugin will not be registered
-   * @example autoHighlight: false
-   */
-  autoHighlight: Partial<AutoHighlightOptions> | false;
 }
 
 /**
- * The Markdoc extension is a collection of custom Markdoc tags for the editor.
+ * The Markdoc extension is a collection of custom Markdoc tags and marks for the editor.
  *
  * It includes:
  * - CaseTag: Represents a case within a switch statement
  * - InfoTag: Displays informational content
  * - ScoreTag: Displays calculated scores based on formulas
  * - SwitchTag: Creates conditional switch statements
- * - DoubleParenHighlight: Highlights text within (()) with faint blue
- * - BracketHighlight: Highlights text within [] with faint green
+ * - DoubleParenHighlight: Auto-highlights text within (()) with faint blue background
+ * - BracketHighlight: Auto-highlights text within [] with faint green background
  */
 export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
   name: 'markdoc-md',
@@ -100,10 +92,6 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 
     if (this.options.bracketHighlight !== false) {
       extensions.push(BracketHighlight.configure(this.options.bracketHighlight));
-    }
-
-    if (this.options.autoHighlight !== false) {
-      extensions.push(AutoHighlight.configure(this.options.autoHighlight));
     }
 
     return extensions;

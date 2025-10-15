@@ -1,11 +1,29 @@
-import { Mark, mergeAttributes } from '@tiptap/core';
+import { Mark, markInputRule, markPasteRule, mergeAttributes } from '@tiptap/core';
 
 export interface BracketHighlightOptions {
+  /**
+   * HTML attributes to add to the bracket highlight element.
+   * @default {}
+   * @example { class: 'foo' }
+   */
   HTMLAttributes: Record<string, unknown>;
 }
 
 /**
- * Mark for highlighting text within [] with a faint green background
+ * Matches text within [] as input.
+ * Pattern: [content]
+ */
+export const bracketInputRegex = /(\[(?!\s+\[)([^\]]+)\](?!\s+\]))$/;
+
+/**
+ * Matches text within [] while pasting.
+ * Pattern: [content]
+ */
+export const bracketPasteRegex = /(\[(?!\s+\[)([^\]]+)\](?!\s+\]))/g;
+
+/**
+ * This extension highlights text within [] with a faint green background.
+ * Useful for marking AI instruction variables.
  */
 export const BracketHighlight = Mark.create<BracketHighlightOptions>({
   name: 'bracketHighlight',
@@ -53,5 +71,23 @@ export const BracketHighlight = Mark.create<BracketHighlightOptions>({
           return commands.unsetMark(this.name);
         },
     };
+  },
+
+  addInputRules() {
+    return [
+      markInputRule({
+        find: bracketInputRegex,
+        type: this.type,
+      }),
+    ];
+  },
+
+  addPasteRules() {
+    return [
+      markPasteRule({
+        find: bracketPasteRegex,
+        type: this.type,
+      }),
+    ];
   },
 });

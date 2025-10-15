@@ -1,11 +1,29 @@
-import { Mark, mergeAttributes } from '@tiptap/core';
+import { Mark, markInputRule, markPasteRule, mergeAttributes } from '@tiptap/core';
 
 export interface DoubleParenHighlightOptions {
+  /**
+   * HTML attributes to add to the double paren highlight element.
+   * @default {}
+   * @example { class: 'foo' }
+   */
   HTMLAttributes: Record<string, unknown>;
 }
 
 /**
- * Mark for highlighting text within (()) with a faint blue background
+ * Matches text within (()) as input.
+ * Pattern: ((content))
+ */
+export const doubleParenInputRegex = /(\(\((?!\s+\(\()([^)]+)\)\)(?!\s+\)\)))$/;
+
+/**
+ * Matches text within (()) while pasting.
+ * Pattern: ((content))
+ */
+export const doubleParenPasteRegex = /(\(\((?!\s+\(\()([^)]+)\)\)(?!\s+\)\)))/g;
+
+/**
+ * This extension highlights text within (()) with a faint blue background.
+ * Useful for marking AI instruction placeholders.
  */
 export const DoubleParenHighlight = Mark.create<DoubleParenHighlightOptions>({
   name: 'doubleParenHighlight',
@@ -53,5 +71,23 @@ export const DoubleParenHighlight = Mark.create<DoubleParenHighlightOptions>({
           return commands.unsetMark(this.name);
         },
     };
+  },
+
+  addInputRules() {
+    return [
+      markInputRule({
+        find: doubleParenInputRegex,
+        type: this.type,
+      }),
+    ];
+  },
+
+  addPasteRules() {
+    return [
+      markPasteRule({
+        find: doubleParenPasteRegex,
+        type: this.type,
+      }),
+    ];
   },
 });
