@@ -226,6 +226,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
   // Check if at least one input field is filled
   const areRequiredFieldsFilled = useCallback(() => {
+    // Check if there are any audio recordings
+    const hasAudio = audioRecordings.length > 0;
+
     // Check if main input field has content
     const hasMainInput = inputData.trim().length > 0;
 
@@ -238,13 +241,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
           additionalInputData[field.name].trim().length > 0
       );
 
-    // At least one field must be filled
-    return hasMainInput || hasAnyAdditionalInput || false;
-  }, [inputData, additionalInputData, config.additionalInputs]);
+    // At least one field must be filled (audio, main input, or any additional input)
+    return hasAudio || hasMainInput || hasAnyAdditionalInput || false;
+  }, [audioRecordings, inputData, additionalInputData, config.additionalInputs]);
 
   const handleGenerate = useCallback(async () => {
     if (!areRequiredFieldsFilled()) {
-      toast.error('Bitte füllen Sie mindestens ein Eingabefeld aus.');
+      toast.error('Bitte füllen Sie mindestens ein Eingabefeld aus oder nehmen Sie Audio auf.');
       return;
     }
 
