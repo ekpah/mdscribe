@@ -73,7 +73,7 @@ export const auth = betterAuth({
   // define email verification functions
   emailVerification: {
     autoSignInAfterVerification: true,
-    callbackURL: '/email-verified', // The redirect URL after verification
+    callbackURL: '/dashboard', // The redirect URL after verification
     expiresIn: 3600, // 1 hour
     sendVerificationEmail: async ({ user, url }) => {
       if (env.NODE_ENV === 'development') {
