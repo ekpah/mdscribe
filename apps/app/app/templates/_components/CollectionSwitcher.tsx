@@ -1,15 +1,10 @@
 'use client';
 
-import { ChevronDown, Command, Plus, Search } from 'lucide-react';
-import React from 'react';
-
-import { useSession } from '@/lib/auth-client';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/design-system/components/ui/dropdown-menu';
 import {
@@ -17,13 +12,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@repo/design-system/components/ui/sidebar';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@repo/design-system/components/ui/tooltip';
-import Link from 'next/link';
+
+import { ChevronDown, Command } from 'lucide-react';
+import React from 'react';
+import { useSession } from '@/lib/auth-client';
 
 export function CollectionSwitcher({
   collections = [
@@ -47,7 +39,7 @@ export function CollectionSwitcher({
   setActiveCollectionIndex: (index: number) => void;
 }) {
   const { data: session } = useSession();
-  const isLoggedIn = !!session?.user?.id;
+  const _isLoggedIn = !!session?.user?.id;
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -71,8 +63,8 @@ export function CollectionSwitcher({
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-64 rounded-lg"
             align="start"
+            className="w-64 rounded-lg"
             side="bottom"
             sideOffset={4}
           >
@@ -81,9 +73,9 @@ export function CollectionSwitcher({
             </DropdownMenuLabel>
             {collections.map((collection, index) => (
               <DropdownMenuItem
+                className="gap-2 p-2"
                 key={collection.name}
                 onClick={() => setActiveCollectionIndex(index)}
-                className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-sm border">
                   <collection.logo className="size-4 shrink-0" />
@@ -91,41 +83,6 @@ export function CollectionSwitcher({
                 {collection.name}
               </DropdownMenuItem>
             ))}
-            {isLoggedIn && (
-              <DropdownMenuItem
-                key={'findrelevant'}
-                className="gap-2 p-2"
-                asChild
-              >
-                <Link
-                  href="/templates/findRelevant"
-                  className="flex items-center gap-2"
-                >
-                  <div className="flex size-6 items-center justify-center rounded-sm border">
-                    <Search className="size-4 shrink-0" />
-                  </div>
-                  Textbaustein suchen
-                </Link>
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
-              <div className="flex size-6 items-center justify-center rounded-md border bg-background">
-                <Plus className="size-4" />
-              </div>
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <div className="font-medium text-muted-foreground">
-                      Sammlung hinzufügen
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Coming soon!</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

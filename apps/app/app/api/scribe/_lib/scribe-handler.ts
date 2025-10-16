@@ -52,6 +52,7 @@
 
 import { type AnthropicProviderOptions, anthropic } from '@ai-sdk/anthropic';
 import { fireworks } from '@ai-sdk/fireworks';
+import { google } from '@ai-sdk/google';
 import { database } from '@repo/database';
 import { env } from '@repo/env';
 import {
@@ -70,7 +71,7 @@ import { getUsage } from './get-usage';
 const langfuse = new Langfuse();
 
 // Supported models type
-type SupportedModel = 'glm-4p5' | 'claude-sonnet-4.5';
+type SupportedModel = 'glm-4p5' | 'claude-sonnet-4.5' | 'gemini-2.5-pro';
 
 // Model configuration mapper
 function getModelConfig(modelId: string): {
@@ -87,6 +88,11 @@ function getModelConfig(modelId: string): {
       return {
         model: anthropic('claude-sonnet-4-5'),
         supportsThinking: true,
+      };
+    case 'gemini-2.5-pro':
+      return {
+        model: google('gemini-2.5-pro'),
+        supportsThinking: false,
       };
     default:
       // Default to Claude if unknown model
@@ -173,9 +179,12 @@ async function processRequest(
     return { error: validation.error || 'Invalid input', status: 400 };
   }
 
-  // Extract model from request body (default to claude-sonnet-4)
+  // Extract model and audio files from request body (default to claude-sonnet-4)
   const requestObj = requestBody as Record<string, unknown>;
   const model = (requestObj.model as string) || 'claude-sonnet-4';
+  const audioFiles = requestObj.audioFiles as
+    | Array<{ data: string; mimeType: string }>
+    | undefined;
 
   // Process input data
   const processedInput = await config.processInput(requestBody);
@@ -187,7 +196,7 @@ async function processRequest(
     year: 'numeric',
   });
 
-  return { processedInput, todaysDate, model };
+  return { processedInput, todaysDate, model, audioFiles };
 }
 
 async function generateResponse(
@@ -195,7 +204,8 @@ async function generateResponse(
   messages: CoreMessage[],
   metadata: Record<string, string | number | boolean>,
   session: Session,
-  modelId: string
+  modelId: string,
+  audioFiles?: Array<{ data: string; mimeType: string }>
 ) {
   // Default model configuration
   const defaultModelConfig = {
@@ -219,6 +229,37 @@ async function generateResponse(
     };
   }
 
+  // If audio files are provided, add them to the messages
+  let messagesWithAudio = messages;
+  if (audioFiles && audioFiles.length > 0 && modelId === 'gemini-2.5-pro') {
+    // Add audio files to the user message
+    const lastMessage = messages.at(-1);
+    if (lastMessage?.role === 'user') {
+      const audioContent = audioFiles.map((audioFile) => ({
+        type: 'file' as const,
+        data: audioFile.data,
+        mediaType: audioFile.mimeType,
+      }));
+
+      messagesWithAudio = [
+        ...messages.slice(0, -1),
+        {
+          ...lastMessage,
+          content: [
+            {
+              type: 'text' as const,
+              text:
+                typeof lastMessage.content === 'string'
+                  ? lastMessage.content
+                  : '',
+            },
+            ...audioContent,
+          ],
+        },
+      ];
+    }
+  }
+
   // Common model parameters
   const commonParams = {
     model,
@@ -233,7 +274,7 @@ async function generateResponse(
           anthropic: providerOptions,
         }
       : undefined,
-    messages,
+    messages: messagesWithAudio,
   };
 
   // Handle streaming vs non-streaming responses
@@ -369,7 +410,8 @@ export function createScribeHandler(
         messages,
         metadata,
         session,
-        processed.model
+        processed.model,
+        processed.audioFiles
       );
     } catch (error) {
       // Handle errors gracefully

@@ -1,0 +1,385 @@
+---
+title: KI-Instruktionen
+description: Wie Sie der KI in Templates Anweisungen geben können
+---
+
+## Einführung
+
+KI-Instruktionen sind unsichtbare Hinweise in Ihren Templates, die der Künstlichen Intelligenz helfen, bessere und präzisere Dokumente zu generieren. Diese Anweisungen sind nur für die KI sichtbar und erscheinen nicht im finalen Dokument.
+
+## Warum KI-Instruktionen verwenden?
+
+KI-Instruktionen ermöglichen Ihnen:
+
+- **Kontext bereitstellen**: Erklären Sie der KI den Zweck eines Abschnitts
+- **Verhalten steuern**: Geben Sie spezifische Anweisungen, wie Informationen verarbeitet werden sollen
+- **Qualität verbessern**: Helfen Sie der KI, medizinisch korrekte und präzise Formulierungen zu wählen
+- **Struktur erzwingen**: Definieren Sie, wie bestimmte Informationen strukturiert werden sollen
+
+## Syntax: HTML-Kommentare
+
+KI-Instruktionen werden als **HTML-Kommentare** in Ihre Templates eingefügt:
+
+```markdown
+<!-- Dies ist eine KI-Instruktion -->
+```
+
+### Wichtige Eigenschaften
+
+✅ **Unsichtbar**: Kommentare werden nicht im generierten Dokument angezeigt
+✅ **KI-lesbar**: Die KI berücksichtigt diese Anweisungen bei der Generierung
+✅ **Flexibel**: Sie können überall in Ihrem Template platziert werden
+
+## Grundlegende Verwendung
+
+### Kontext bereitstellen
+
+Erklären Sie der KI, was Sie in einem Abschnitt erwarten:
+
+```markdown
+## Anamnese
+
+<!-- Erstelle eine strukturierte Anamnese basierend auf den Notizen. 
+     Gliedere in: Aktuelle Beschwerden, Vorgeschichte, Medikation, Allergien -->
+
+{% info "Anamnese_Text" /%}
+```
+
+### Feldanweisungen
+
+Geben Sie spezifische Hinweise für einzelne Felder:
+
+```markdown
+## Diagnosen
+
+<!-- Hauptdiagnose: Verwende ICD-10-Code und beschreibende Bezeichnung -->
+**Hauptdiagnose**: {% info "Hauptdiagnose" /%}
+
+<!-- Nebendiagnosen: Liste alle relevanten Nebendiagnosen mit ICD-10 -->
+**Nebendiagnosen**:
+{% info "Nebendiagnosen" /%}
+```
+
+### Formatierungshinweise
+
+Steuern Sie, wie Informationen formatiert werden sollen:
+
+```markdown
+## Laborwerte
+
+<!-- Zeige nur auffällige Laborwerte. Format: Parameter: Wert (Einheit) [Referenzbereich] -->
+
+{% info "Labor_Auffaellig" /%}
+```
+
+## Fortgeschrittene Techniken
+
+### Bedingte Logik erklären
+
+Helfen Sie der KI zu verstehen, wann bestimmte Inhalte relevant sind:
+
+```markdown
+## Therapie
+
+{% switch "Therapieart" %}
+{% case "Operativ" %}
+<!-- Bei operativer Therapie: Beschreibe OP-Verfahren, OP-Datum, Operateur, Komplikationen -->
+**Operation**: {% info "OP_Verfahren" /%}
+**OP-Datum**: {% info "OP_Datum" type="date" /%}
+{% /case %}
+
+{% case "Konservativ" %}
+<!-- Bei konservativer Therapie: Liste Medikamente mit Dosierung, physikalische Therapie -->
+**Medikation**: {% info "Medikation" /%}
+{% /case %}
+{% /switch %}
+```
+
+### Berechnungslogik dokumentieren
+
+Erklären Sie komplexe Berechnungen:
+
+```markdown
+## Scores
+
+<!-- CHA₂DS₂-VASc-Score: Stroke-Risiko bei Vorhofflimmern
+     Berechnung: Herzinsuffizienz(1) + Hypertonie(1) + Alter≥75(2) + 
+     Diabetes(1) + Stroke/TIA(2) + Gefäßerkrankung(1) + Alter 65-74(1) + Weiblich(1)
+     Interpretation: 0=niedrig, 1=mittel, ≥2=hoch -->
+
+**CHA₂DS₂-VASc-Score**: {% score formula="[CHF] + [HTN] + [Age75] * 2 + [DM] + [Stroke] * 2 + [Vasc] + [Age65] + [Female]" /%}
+```
+
+### Medizinische Standards referenzieren
+
+Verweisen Sie auf Leitlinien oder Standards:
+
+```markdown
+## Antibiotika-Therapie
+
+<!-- Antibiotika-Auswahl nach aktuellen AWMF-Leitlinien für ambulant erworbene Pneumonie.
+     Berücksichtige: Schweregrad, Allergien, Vortherapie, lokale Resistenzlage -->
+
+{% info "Antibiotikum" /%}
+```
+
+### Mehrsprachigkeit
+
+Wenn Sie mehrsprachige Dokumente erstellen:
+
+```markdown
+## Diagnoses / Diagnosen
+
+<!-- English: Use ICD-10 codes with English terminology -->
+<!-- Deutsch: Verwende ICD-10-Codes mit deutscher Terminologie -->
+
+{% info "Diagnosen_Mehrsprachig" /%}
+```
+
+## Best Practices
+
+### 1. Seien Sie spezifisch
+
+❌ **Schlecht**:
+```markdown
+<!-- Füge Informationen hinzu -->
+```
+
+✅ **Gut**:
+```markdown
+<!-- Extrahiere und strukturiere: Symptombeginn, Symptomdauer, 
+     Symptomcharakteristik, begleitende Symptome -->
+```
+
+### 2. Verwenden Sie medizinische Fachbegriffe
+
+✅ **Gut**:
+```markdown
+<!-- NYHA-Klassifikation für Herzinsuffizienz: I-IV basierend auf Belastbarkeit -->
+```
+
+### 3. Strukturieren Sie komplexe Anweisungen
+
+✅ **Gut**:
+```markdown
+<!-- Prozeduren-Dokumentation:
+     1. Prozedurname mit OPS-Code
+     2. Datum und Uhrzeit
+     3. Durchführender Arzt
+     4. Komplikationen (falls vorhanden)
+     5. Besonderheiten -->
+```
+
+### 4. Nutzen Sie Beispiele
+
+✅ **Gut**:
+```markdown
+<!-- Medikation im Format: 
+     Wirkstoff Handelsname Dosis Frequenz Applikation
+     Beispiel: Metoprolol Beloc 50mg 1-0-1 p.o. -->
+```
+
+### 5. Definieren Sie Prioritäten
+
+✅ **Gut**:
+```markdown
+<!-- Wichtigste Informationen zuerst: 
+     1. Akute Befunde
+     2. Relevante Vorgeschichte  
+     3. Nebenbefunde -->
+```
+
+## Häufige Anwendungsfälle
+
+### Template-Abschnitt-Header
+
+```markdown
+## Körperliche Untersuchung
+
+<!-- Strukturierte Untersuchungsbefunde von Kopf bis Fuß.
+     Nur pathologische Befunde detailliert beschreiben.
+     Normalbefunde kurz zusammenfassen. -->
+```
+
+### Datenextraktion steuern
+
+```markdown
+## Vitalparameter
+
+<!-- Extrahiere aus den Notizen: RR, Puls, SpO2, Temperatur, Atemfrequenz
+     Falls nicht vorhanden, lasse Feld leer (nicht "nicht erhoben" schreiben) -->
+
+**Blutdruck**: {% info "RR_sys" type="number" /%} / {% info "RR_dia" type="number" /%} mmHg
+**Herzfrequenz**: {% info "Puls" type="number" /%} /min
+```
+
+### Konsistenz erzwingen
+
+```markdown
+<!-- Verwende durchgängig die gleiche Zeitform (Präteritum für Anamnese, 
+     Präsens für aktuelle Befunde) -->
+```
+
+### Datenschutz-Hinweise
+
+```markdown
+<!-- WICHTIG: Anonymisiere alle personenbezogenen Daten. 
+     Verwende "Patient" / "Patientin" statt Namen. 
+     Keine Geburtsdaten, nur Alter. -->
+```
+
+## Erweiterte Beispiele
+
+### Entlassungsbrief-Template mit KI-Instruktionen
+
+```markdown
+# Entlassungsbrief
+
+<!-- Formeller, medizinischer Stil. Adressat: Zuweisender Arzt -->
+
+## Patientendaten
+
+<!-- Nur: Geschlecht, Alter (nicht Geburtsdatum) -->
+{% switch "Geschlecht" %}{% case "m" %}**Patient**{% /case %}{% case "w" %}**Patientin**{% /case %}{% /switch %}: {% info "Alter" type="number" /%} Jahre
+
+## Aufnahme und Entlassung
+
+<!-- Datumsformat: TT.MM.JJJJ -->
+**Aufnahme**: {% info "Aufnahmedatum" type="date" /%}
+**Entlassung**: {% info "Entlassungsdatum" type="date" /%}
+
+## Diagnosen
+
+<!-- Verwende vollständige ICD-10-Codes. Hauptdiagnose zuerst, dann Nebendiagnosen -->
+
+### Hauptdiagnose
+{% info "Hauptdiagnose" /%}
+
+### Nebendiagnosen
+<!-- Als nummerierte Liste, nach Relevanz sortiert -->
+{% info "Nebendiagnosen" /%}
+
+## Anamnese und Aufnahmegrund
+
+<!-- Kompakte Darstellung: Leitsymptom, Beginn, Vorgeschichte, Aufnahmegrund -->
+{% info "Anamnese" /%}
+
+## Diagnostik
+
+<!-- Gruppiere nach: Labor, Bildgebung, weitere Diagnostik
+     Nur relevante/pathologische Befunde -->
+{% info "Diagnostik" /%}
+
+## Therapie und Verlauf
+
+<!-- Chronologisch. Gliedere: Initiale Therapie, Verlauf, Anpassungen, Outcome -->
+{% info "Therapie_Verlauf" /%}
+
+## Procedere und Empfehlungen
+
+<!-- Konkrete Handlungsanweisungen für weiterbehandelnden Arzt -->
+{% info "Procedere" /%}
+
+## Medikation bei Entlassung
+
+<!-- Tabellarisch: Präparat | Wirkstoff | Dosis | Einnahmezeiten
+     Neue Medikamente markieren -->
+{% info "Entlassmedikation" /%}
+```
+
+### Labor-Befund-Template
+
+```markdown
+# Laborbefund
+
+<!-- Medizinisch-technischer Stil. Zielgruppe: Ärzte -->
+
+## Allgemeine Angaben
+
+**Abnahmedatum**: {% info "Abnahmedatum" type="date" /%}
+**Material**: {% info "Material" /%}
+
+## Klinische Angaben
+
+<!-- Fragestellung und relevante Vordiagnosen für Labor-Interpretation -->
+{% info "Fragestellung" /%}
+
+## Befunde
+
+<!-- Gruppierung nach Kategorie: Hämatologie, Klinische Chemie, Gerinnung, etc.
+     Format pro Wert: Parameter | Ergebnis | Einheit | Referenzbereich | Interpretation
+     Auffällige Werte hervorheben -->
+
+### Hämatologie
+{% info "Haematologie" /%}
+
+### Klinische Chemie
+{% info "Klinische_Chemie" /%}
+
+<!-- Berechne automatisch abgeleitete Parameter -->
+**Kreatinin-Clearance**: {% score formula="((140 - [Alter]) * [Gewicht] * [Geschlechtsfaktor]) / (72 * [Kreatinin])" unit="ml/min" renderUnit=true /%}
+
+<!-- Geschlechtsfaktor: männlich=1, weiblich=0.85 -->
+
+## Interpretation
+
+<!-- Kurze klinische Einordnung der Befunde im Kontext der Fragestellung -->
+{% info "Interpretation" /%}
+```
+
+## Grenzen und Hinweise
+
+### Was KI-Instruktionen NICHT können
+
+❌ **Programmlogik**: KI-Instruktionen sind keine Programmiersprache
+❌ **Garantierte Befolgung**: Die KI interpretiert Anweisungen, garantiert aber nicht 100% Befolgung
+❌ **Komplexe Berechnungen**: Verwenden Sie Score-Tags für Berechnungen
+❌ **Datenbankabfragen**: Instruktionen können keine externen Daten abrufen
+
+### Best Practices für Zuverlässigkeit
+
+✅ Seien Sie **klar und präzise**
+✅ Verwenden Sie **medizinische Fachterminologie**
+✅ Geben Sie **Beispiele** für gewünschte Formate
+✅ **Testen** Sie Ihre Templates mit verschiedenen Eingaben
+✅ **Iterieren** Sie basierend auf den Ergebnissen
+
+## Testen und Optimieren
+
+### Testprozess
+
+1. **Erstellen**: Fügen Sie KI-Instruktionen zu Ihrem Template hinzu
+2. **Testen**: Generieren Sie Dokumente mit verschiedenen Eingaben
+3. **Evaluieren**: Prüfen Sie, ob die KI die Anweisungen befolgt
+4. **Anpassen**: Verfeinern Sie die Instruktionen basierend auf den Ergebnissen
+5. **Wiederholen**: Iterieren Sie bis zum gewünschten Ergebnis
+
+### Häufige Probleme und Lösungen
+
+**Problem**: KI ignoriert Anweisungen
+- **Lösung**: Machen Sie die Anweisung spezifischer und platzieren Sie sie näher am relevanten Inhalt
+
+**Problem**: KI interpretiert falsch
+- **Lösung**: Verwenden Sie Beispiele zur Verdeutlichung
+
+**Problem**: Inkonsistente Ergebnisse
+- **Lösung**: Fügen Sie mehr strukturierende Anweisungen hinzu
+
+## Zusammenfassung
+
+KI-Instruktionen sind ein mächtiges Werkzeug zur Verbesserung Ihrer Templates:
+
+| Element | Syntax | Verwendung |
+|---------|--------|------------|
+| **Kommentar** | `<!-- Anweisung -->` | Unsichtbare KI-Hinweise |
+| **Kontext** | `<!-- Erkläre den Zweck -->` | Hilft der KI den Abschnitt zu verstehen |
+| **Format** | `<!-- Format: Beispiel -->` | Definiert gewünschte Ausgabestruktur |
+| **Priorität** | `<!-- Wichtigste Info zuerst -->` | Steuert Informationsreihenfolge |
+
+Experimentieren Sie mit verschiedenen Ansätzen und finden Sie heraus, welche Instruktionen für Ihre spezifischen Anwendungsfälle am besten funktionieren!
+
+## Weiterführende Ressourcen
+
+- [Tags-Dokumentation](/docs/tags) - Strukturierung mit Tags
+- [Schnellstart](/docs/schnellstart) - Erste Schritte mit Templates
+- [Übersicht](/docs/uebersicht) - Überblick über alle Funktionen
