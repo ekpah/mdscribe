@@ -1,6 +1,5 @@
 'use client';
 
-import { signUp } from '@/lib/auth-client';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,
@@ -16,15 +15,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { signUp } from '@/lib/auth-client';
 
 export default function SignUp() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  const [image, setImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -42,48 +38,52 @@ export default function SignUp() {
             <Label htmlFor="email">E-Mail</Label>
             <Input
               id="email"
-              type="email"
-              placeholder="m@beispiel.de"
-              required
               onChange={(e) => {
                 setEmail(e.target.value);
               }}
+              placeholder="m@beispiel.de"
+              required
+              type="email"
               value={email}
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">Passwort</Label>
             <Input
+              autoComplete="new-password"
               id="password"
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Passwort"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              placeholder="Passwort"
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">Passwort bestätigen</Label>
             <Input
+              autoComplete="new-password"
               id="password_confirmation"
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              placeholder="Passwort bestätigen"
               type="password"
               value={passwordConfirmation}
-              onChange={(e) => setPasswordConfirmation(e.target.value)}
-              autoComplete="new-password"
-              placeholder="Passwort bestätigen"
             />
           </div>
 
           <Button
-            type="submit"
             className="w-full"
             disabled={loading}
             onClick={async () => {
+              if (password !== passwordConfirmation) {
+                toast.error('Passwörter stimmen nicht überein');
+                return;
+              }
+
               await signUp.email({
                 email,
                 password,
-                name: `${firstName} ${lastName}`,
-                callbackURL: '/',
+                name: '',
+                callbackURL: '/email-verified',
                 fetchOptions: {
                   onResponse: () => {
                     setLoading(false);
@@ -94,18 +94,19 @@ export default function SignUp() {
                   onError: (ctx) => {
                     toast.error(ctx.error.message);
                   },
-                  onSuccess: async () => {
+                  onSuccess: () => {
                     toast.success(
                       'Konto erstellt! Bitte bestätige deine E-Mail.'
                     );
-                    router.push('/');
+                    router.push('/verification-pending');
                   },
                 },
               });
             }}
+            type="submit"
           >
             {loading ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
             ) : (
               'Konto erstellen'
             )}
@@ -113,15 +114,15 @@ export default function SignUp() {
           <p className="text-muted-foreground text-xs">
             Mit der Registrierung akzeptieren Sie unsere{' '}
             <Link
-              href="/legal?tab=datenschutz"
               className="text-primary hover:underline"
+              href="/legal?tab=datenschutz"
             >
               Datenschutzerklärung
             </Link>{' '}
             und unsere{' '}
             <Link
-              href="/legal?tab=agb"
               className="text-primary hover:underline"
+              href="/legal?tab=agb"
             >
               Geschäftsbedingungen
             </Link>

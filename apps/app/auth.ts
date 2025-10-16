@@ -5,7 +5,7 @@ import { EmailChangeTemplate } from '@repo/email/templates/change-email';
 import { ResetPasswordTemplate } from '@repo/email/templates/reset-password';
 import { EmailVerificationTemplate } from '@repo/email/templates/verify';
 import { env } from '@repo/env';
-import { betterAuth } from 'better-auth';
+import { betterAuth, type User } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { createAuthMiddleware } from 'better-auth/api';
 import posthog from 'posthog-js';
@@ -35,10 +35,7 @@ export const auth = betterAuth({
     // defines how a user can change their email
     changeEmail: {
       enabled: true,
-      sendChangeEmailVerification: async (
-        { user, newEmail, url }
-
-      ) => {
+      sendChangeEmailVerification: async ({ user, newEmail, url }) => {
         await sendEmail({
           from: 'noreply@mdscribe.de',
           to: user.email, // verification email must be sent to the current user email to approve the change
@@ -75,7 +72,8 @@ export const auth = betterAuth({
     autoSignInAfterVerification: true,
     callbackURL: '/email-verified', // The redirect URL after verification
     expiresIn: 3600, // 1 hour
-    sendVerificationEmail: async ({ user, url }) => {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url, token }) => {
       if (env.NODE_ENV === 'development') {
         await console.log({
           to: user.email,
@@ -90,6 +88,11 @@ export const auth = betterAuth({
           template: EmailVerificationTemplate({ url }),
         });
       }
+    },
+    async afterEmailVerification(user: User) {
+      await posthog.capture('email_verified', {
+        email: user.email,
+      });
     },
   },
   // define plugins for better-auth
@@ -106,7 +109,8 @@ export const auth = betterAuth({
           await posthog.capture('subscription_created', {
             plan: plan.name,
             price_id: stripeSubscription.items.data[0].price.id,
-            subscription_interval: stripeSubscription.items.data[0].price.recurring?.interval
+            subscription_interval:
+              stripeSubscription.items.data[0].price.recurring?.interval,
           });
         },
         onSubscriptionCancel: async ({ stripeSubscription }) => {
@@ -133,13 +137,13 @@ export const auth = betterAuth({
             allow_promotion_codes: true,
           },
         };
-      }
+      },
     }),
   ],
   // define hooks for better-auth to hook into events
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/sign-up")) {
+      if (ctx.path.startsWith('/sign-up')) {
         const newSession = ctx.context.newSession;
         await posthog.capture('user_registered', {
           email: newSession?.user?.email,
