@@ -1,0 +1,189 @@
+---
+title: Schnellstart
+description: Erste Schritte mit MDScribe - Von der Anmeldung bis zur ersten Dokumentation
+---
+
+## Willkommen beim Schnellstart-Guide
+
+Dieser Guide führt Sie durch die ersten Schritte mit MDScribe und zeigt Ihnen, wie Sie schnell produktiv werden können.
+
+## 1. Anmeldung
+
+### Registrierung
+1. Navigieren Sie zur [Registrierungsseite](/sign-up)
+2. Geben Sie Ihre E-Mail-Adresse und ein sicheres Passwort ein
+3. Bestätigen Sie Ihre E-Mail-Adresse über den Bestätigungslink
+4. Nach der Bestätigung werden Sie automatisch eingeloggt
+
+### Anmeldung
+1. Besuchen Sie die [Anmeldeseite](/sign-in)
+2. Geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein
+3. Klicken Sie auf "Anmelden"
+
+## 2. Template erstellen
+
+Templates sind das Herzstück von MDScribe. So erstellen Sie Ihr erstes Template:
+
+### Schritt-für-Schritt-Anleitung
+
+1. **Navigieren Sie zur Template-Erstellung**
+   - Klicken Sie in der Navigation auf "Templates"
+   - Wählen Sie "Neues Template erstellen"
+
+2. **Grundinformationen eingeben**
+   - **Titel**: Geben Sie einen aussagekräftigen Namen ein (z.B. "Entlassungsbrief Kardiologie")
+   - **Kategorie**: Wählen Sie eine passende Kategorie oder erstellen Sie eine neue
+
+3. **Template-Inhalt erstellen**
+   
+   Schreiben Sie Ihren Template-Text mit speziellen Tags für dynamische Inhalte:
+
+   ```markdown
+   # Entlassungsbrief
+   
+   **Patient**: {% info "Patientenname" /%}
+   **Geburtsdatum**: {% info "Geburtsdatum" type="date" /%}
+   
+   ## Diagnosen
+   
+   {% info "Hauptdiagnose" /%}
+   
+   ## Anamnese
+   
+   Der Patient wurde am {% info "Aufnahmedatum" type="date" /%} aufgenommen.
+   
+   ## Therapie
+   
+   {% switch "Therapieart" %}
+   {% case "Konservativ" %}Die Behandlung erfolgte konservativ.{% /case %}
+   {% case "Operativ" %}Es wurde eine operative Therapie durchgeführt.{% /case %}
+   {% /switch %}
+   ```
+
+4. **Template speichern**
+   - Klicken Sie auf "Speichern"
+   - Ihr Template ist nun in Ihrer Bibliothek verfügbar
+
+### Template-Tipps
+
+- Verwenden Sie **aussagekräftige Feldnamen** in den Info-Tags
+- Strukturieren Sie Ihr Template mit **Überschriften und Absätzen**
+- Nutzen Sie **Switch/Case-Tags** für unterschiedliche Szenarien
+- Fügen Sie **Score-Tags** für Berechnungen hinzu (z.B. BMI, Scores)
+
+## 3. Templates verwenden
+
+### Template zu Favoriten hinzufügen
+
+1. Öffnen Sie Ihre Template-Bibliothek
+2. Suchen Sie das gewünschte Template
+3. Klicken Sie auf das Herz-Symbol, um es zu den Favoriten hinzuzufügen
+4. Favoriten erscheinen in der KI-Dokumentation für schnellen Zugriff
+
+### Mit Templates arbeiten
+
+- **Bearbeiten**: Klicken Sie auf ein Template, um es zu bearbeiten
+- **Duplizieren**: Erstellen Sie Varianten bestehender Templates
+- **Löschen**: Entfernen Sie nicht mehr benötigte Templates
+- **Suchen**: Nutzen Sie die Suchfunktion für schnellen Zugriff
+
+## 4. KI-gestützte Dokumentengenerierung
+
+### Erste Dokumentation erstellen
+
+1. **Navigation zur KI-Dokumentation**
+   - Klicken Sie auf "Klinische Dokumentation" im Hauptmenü
+   - Alternativ: Dashboard → "KI-Assistent"
+
+2. **Template auswählen**
+   - Klicken Sie im linken Bereich auf "Template hinzufügen"
+   - Wählen Sie ein Template aus Ihren Favoriten
+   - Das Template erscheint nun in der Auswahlliste
+
+3. **Template anpassen (optional)**
+   - Sie können das Template direkt in der Ansicht bearbeiten
+   - Änderungen gelten nur für diese Session
+
+4. **Patientendaten eingeben**
+   
+   ⚠️ **Wichtig**: Verwenden Sie **keine echten Patientendaten**! Nutzen Sie nur anonymisierte oder fiktive Daten.
+   
+   - Geben Sie die Anamnese oder klinische Notizen im Haupttextfeld ein
+   - Ergänzen Sie optional:
+     - **Vordiagnosen**: Bekannte Vorerkrankungen
+     - **Diagnoseblock**: Aktuelle Diagnosen
+     - **Befunde**: Labor, Bildgebung, etc.
+
+5. **Dokumentation generieren**
+   - Klicken Sie auf "Dokumentation generieren"
+   - Alternativ: Drücken Sie `⌘ + Enter` (Mac) oder `Ctrl + Enter` (Windows)
+   - Die KI erstellt nun ein strukturiertes Dokument
+
+6. **Ergebnis bearbeiten und kopieren**
+   - Die generierte Dokumentation erscheint im rechten Bereich
+   - Füllen Sie die extrahierten Informationen in den Eingabefeldern aus
+   - Die Werte werden automatisch im Dokument aktualisiert
+   - Kopieren Sie das fertige Dokument in Ihr Zielsystem
+
+### Tastaturkürzel
+
+- `⌘ + Shift + 1` (Mac) / `Ctrl + Shift + 1` (Windows): Fokussiert das Eingabefeld
+- `⌘ + Enter` (Mac) / `Ctrl + Enter` (Windows): Startet die Generierung
+
+## 5. KI optimal nutzen
+
+### Gute Eingaben erstellen
+
+Die Qualität der generierten Dokumentation hängt von Ihren Eingaben ab:
+
+**Gut strukturierte Eingabe:**
+```
+Patient kommt mit Brustschmerzen seit 2 Tagen.
+Anamnese: 
+- Druckgefühl retrosternal
+- Belastungsabhängig
+- Dauer ca. 10 Minuten
+- Keine Ausstrahlung
+
+Vordiagnosen: Arterielle Hypertonie, Diabetes mellitus Typ 2
+
+Befunde:
+- EKG: ST-Streckensenkungen in V4-V6
+- Troponin: 0.8 ng/ml (erhöht)
+```
+
+**Tipps für bessere Ergebnisse:**
+- Verwenden Sie **klare, strukturierte Notizen**
+- Nutzen Sie **Stichpunkte** für bessere Lesbarkeit
+- Trennen Sie verschiedene **Informationstypen** (Anamnese, Befunde, etc.)
+- Seien Sie **spezifisch** bei medizinischen Details
+
+### Zusätzliche Informationen nutzen
+
+Die separaten Eingabefelder helfen der KI, Informationen richtig zu kategorisieren:
+
+- **Vordiagnosen**: Bekannte Vorerkrankungen und Risikofaktoren
+- **Diagnoseblock**: Haupt- und Nebendiagnosen mit ICD-10-Codes (falls vorhanden)
+- **Befunde**: Labor, Bildgebung, Untersuchungsergebnisse
+
+## Nächste Schritte
+
+Jetzt, da Sie die Grundlagen kennen:
+
+- **Entdecken Sie Tags**: Lernen Sie alle verfügbaren Tags in der [Tags-Dokumentation](/docs/tags)
+- **Verbessern Sie Templates**: Nutzen Sie [KI-Instruktionen](/docs/ki-instruktionen) für präzisere Ergebnisse
+- **Experimentieren Sie**: Erstellen Sie verschiedene Templates für unterschiedliche Dokumenttypen
+
+## Häufige Fragen
+
+### Kann ich Templates mit Kollegen teilen?
+Aktuell sind Templates benutzerspezifisch. Team-Funktionen sind für zukünftige Versionen geplant.
+
+### Wie viele Templates kann ich erstellen?
+Die Anzahl der Templates hängt von Ihrem Abonnement ab. Sehen Sie Ihre Limits im Dashboard.
+
+### Was passiert mit meinen Daten?
+Templates werden in Ihrer persönlichen Bibliothek gespeichert. Für die KI-Generierung werden Daten an externe KI-Dienste gesendet - verwenden Sie daher **keine echten Patientendaten**.
+
+### Kann ich Templates exportieren?
+Sie können den Inhalt Ihrer Templates jederzeit kopieren und in anderen Systemen verwenden.
