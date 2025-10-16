@@ -17,8 +17,5 @@
     "ui": "@repo/design-system/components/ui",
     "lib": "@repo/design-system/lib",
     "hooks": "@repo/design-system/hooks"
-  },
-  "registries": {
-    "@ai-elements": "https://registry.ai-sdk.dev/{name}.json"
   }
 }

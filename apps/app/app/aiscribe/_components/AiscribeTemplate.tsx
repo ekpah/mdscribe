@@ -2,19 +2,18 @@
 
 import { useCompletion } from '@ai-sdk/react';
 import {
-  PromptInput,
-  PromptInputActionMenu,
-  PromptInputBody,
-  PromptInputModelSelect,
-  PromptInputModelSelectContent,
-  PromptInputModelSelectItem,
-  PromptInputModelSelectTrigger,
-  PromptInputModelSelectValue,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputToolbar,
-  PromptInputTools,
-} from '@repo/design-system/components/ai-elements/prompt-input';
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from '@repo/design-system/components/ui/input-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/design-system/components/ui/select';
 import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -589,9 +588,14 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                     )}
 
                     {/* Main Input Field */}
-                    <PromptInput onSubmit={handleGenerate}>
-                      <PromptInputBody>
-                        <PromptInputTextarea
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleGenerate();
+                      }}
+                    >
+                      <InputGroup>
+                        <InputGroupTextarea
                           className="min-h-[400px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
                           disabled={isLoading}
                           id="input-field"
@@ -599,64 +603,70 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                           placeholder={config.inputPlaceholder}
                           value={inputData}
                         />
-                      </PromptInputBody>
-                      <PromptInputToolbar>
-                        <PromptInputTools>
-                          <PromptInputActionMenu>
-                            <PromptInputModelSelect
-                              onValueChange={(value) => {
-                                setModel(value);
-                              }}
-                              value={model}
+                        <InputGroupAddon align="block-end">
+                          <div className="flex w-full items-center justify-between gap-1">
+                            <div className="flex items-center gap-1">
+                              <Select
+                                onValueChange={(value) => {
+                                  setModel(value);
+                                }}
+                                value={model}
+                              >
+                                <SelectTrigger className="h-8 w-auto border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors hover:bg-accent hover:text-foreground [&[aria-expanded='true']]:bg-accent [&[aria-expanded='true']]:text-foreground">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {models.map((m) => (
+                                    <SelectItem key={m.id} value={m.id}>
+                                      {m.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <InputGroupButton
+                                className={isRecording ? 'bg-solarized-red' : ''}
+                                disabled={
+                                  !isAudioSupported ||
+                                  isLoading ||
+                                  !(canRecord || isRecording)
+                                }
+                                onClick={handleToggleRecording}
+                                size="icon-sm"
+                                title={
+                                  isAudioSupported
+                                    ? canRecord || isRecording
+                                      ? isRecording
+                                        ? 'Aufnahme stoppen'
+                                        : 'Audioaufnahme starten'
+                                      : `Maximal ${maxRecordings} Aufnahmen möglich`
+                                    : 'Nur mit Auto oder Gemini 2.5 Pro verfügbar'
+                                }
+                                type="button"
+                                variant="ghost"
+                              >
+                                {isRecording ? (
+                                  <Square className="h-4 w-4" />
+                                ) : (
+                                  <Mic className="h-4 w-4" />
+                                )}
+                              </InputGroupButton>
+                            </div>
+                            <InputGroupButton
+                              disabled={isLoading || !areRequiredFieldsFilled()}
+                              size="icon-sm"
+                              type="submit"
+                              variant="default"
                             >
-                              <PromptInputModelSelectTrigger>
-                                <PromptInputModelSelectValue />
-                              </PromptInputModelSelectTrigger>
-                              <PromptInputModelSelectContent>
-                                {models.map((m) => (
-                                  <PromptInputModelSelectItem
-                                    key={m.id}
-                                    value={m.id}
-                                  >
-                                    {m.name}
-                                  </PromptInputModelSelectItem>
-                                ))}
-                              </PromptInputModelSelectContent>
-                            </PromptInputModelSelect>
-                          </PromptInputActionMenu>
-                          <Button
-                            className={isRecording ? 'bg-solarized-red' : ''}
-                            disabled={
-                              !isAudioSupported ||
-                              isLoading ||
-                              !(canRecord || isRecording)
-                            }
-                            onClick={handleToggleRecording}
-                            size="sm"
-                            title={
-                              isAudioSupported
-                                ? canRecord || isRecording
-                                  ? isRecording
-                                    ? 'Aufnahme stoppen'
-                                    : 'Audioaufnahme starten'
-                                  : `Maximal ${maxRecordings} Aufnahmen möglich`
-                                : 'Nur mit Auto oder Gemini 2.5 Pro verfügbar'
-                            }
-                            type="button"
-                            variant="ghost"
-                          >
-                            {isRecording ? (
-                              <Square className="h-4 w-4" />
-                            ) : (
-                              <Mic className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </PromptInputTools>
-                        <PromptInputSubmit
-                          disabled={isLoading || !areRequiredFieldsFilled()}
-                        />
-                      </PromptInputToolbar>
-                    </PromptInput>
+                              {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <FileText className="h-4 w-4" />
+                              )}
+                            </InputGroupButton>
+                          </div>
+                        </InputGroupAddon>
+                      </InputGroup>
+                    </form>
                   </CardContent>
                   <CardFooter className="flex items-center justify-center bg-muted/20">
                     <div className="flex items-center gap-6 text-muted-foreground text-sm">
