@@ -20,18 +20,18 @@ export default async function AIScribeLandingPage() {
   const isLoggedIn = !!session?.user;
 
   return (
-    <div className="container mx-auto flex h-full flex-col items-center justify-center p-4">
-      <h1 className="mb-8 text-center font-bold text-3xl tracking-tight sm:text-4xl">
+    <div className="container mx-auto flex min-h-full flex-col items-center px-4 py-8 sm:py-12">
+      <h1 className="mb-6 text-center font-bold text-2xl tracking-tight sm:mb-8 sm:text-3xl md:text-4xl">
         Wählen Sie einen AI Scribe Modus
       </h1>
 
       {!isLoggedIn && (
         <>
           {/* Signup Banner */}
-          <Alert className="mb-4 max-w-5xl" variant="default">
+          <Alert className="mb-4 w-full max-w-5xl" variant="default">
             <UserPlus className="h-4 w-4" />
             <AlertDescription>
-              <span>
+              <span className="text-sm">
                 Neu hier?{' '}
                 <Link className="underline hover:text-primary" href="/sign-up">
                   Registriere dich kostenlos
@@ -42,10 +42,10 @@ export default async function AIScribeLandingPage() {
           </Alert>
 
           {/* Login Required Banner */}
-          <Alert className="mb-6 max-w-5xl" variant="destructive">
+          <Alert className="mb-6 w-full max-w-5xl" variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <span>
+              <span className="text-sm">
                 Du musst dich{' '}
                 <Link className="underline hover:text-primary" href="/sign-in?redirect=%2Faiscribe">
                   einloggen
@@ -57,7 +57,7 @@ export default async function AIScribeLandingPage() {
         </>
       )}
 
-      <div className="grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid w-full max-w-5xl grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {isLoggedIn ? (
           <Link
             className="block rounded-lg transition-shadow duration-200 hover:shadow-lg"
