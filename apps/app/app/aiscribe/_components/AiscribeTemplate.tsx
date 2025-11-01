@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { useTextSnippets } from '@/hooks/use-text-snippets';
 import { MemoizedCopySection } from './MemoizedCopySection';
 
 interface AdditionalInputField {
@@ -136,6 +137,15 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingStartTimeRef = useRef<number>(0);
+  const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Initialize text snippets hook
+  useTextSnippets({
+    textareaRef: mainTextareaRef,
+    onExpand: (expandedText) => {
+      setInputData(expandedText);
+    },
+  });
 
   // Use Vercel AI SDK's useCompletion
   const completion = useCompletion({
@@ -592,6 +602,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                     <PromptInput onSubmit={handleGenerate}>
                       <PromptInputBody>
                         <PromptInputTextarea
+                          ref={mainTextareaRef}
                           className="min-h-[400px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
                           disabled={isLoading}
                           id="input-field"
@@ -659,7 +670,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                     </PromptInput>
                   </CardContent>
                   <CardFooter className="flex items-center justify-center bg-muted/20">
-                    <div className="flex items-center gap-6 text-muted-foreground text-sm">
+                    <div className="flex flex-wrap items-center justify-center gap-6 text-muted-foreground text-sm">
                       <div className="flex items-center gap-2">
                         <Kbd>⌘⇧1</Kbd>
                         <span>für Fokus</span>
@@ -667,6 +678,10 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                       <div className="flex items-center gap-2">
                         <Kbd>⌘↵</Kbd>
                         <span>zum Generieren</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Kbd className="bg-solarized-green/10 text-solarized-green">⇧F2</Kbd>
+                        <span>für Text-Snippets</span>
                       </div>
                     </div>
                   </CardFooter>

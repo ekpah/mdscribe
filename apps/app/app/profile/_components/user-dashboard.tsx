@@ -13,6 +13,7 @@ import { authClient } from '@/lib/auth-client';
 import type { Session } from '@/lib/auth-types';
 import { FeaturesCard } from './features-card';
 import { ProfileCard } from './profile-card';
+import { SnippetsCard } from './snippets-card';
 import { SubscriptionCard } from './subscription-card';
 import UserCard from './user-card';
 
@@ -91,6 +92,9 @@ export default function UserDashboard({
             subscription={subscription}
           />
         </div>
+        <div className="mt-6">
+          <SnippetsCard />
+        </div>
       </div>
 
       <div className="2xl:hidden">
@@ -104,6 +108,9 @@ export default function UserDashboard({
             </TabsTrigger>
             <TabsTrigger className="w-full" value="subscription">
               Abonnement
+            </TabsTrigger>
+            <TabsTrigger className="w-full" value="snippets">
+              Snippets
             </TabsTrigger>
           </TabsList>
           <div className="h-[500px] w-[800px] max-w-full">
@@ -128,6 +135,9 @@ export default function UserDashboard({
                 onUpgrade={handleSubscriptionUpgrade}
                 subscription={subscription}
               />
+            </TabsContent>
+            <TabsContent className="h-full" value="snippets">
+              <SnippetsCard />
             </TabsContent>
           </div>
         </Tabs>
