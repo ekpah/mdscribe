@@ -45,6 +45,7 @@ import {
   Square,
   X,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -141,11 +142,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
   const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Initialize text snippets hook
-  useTextSnippets({
-    onExpand: (expandedText) => {
-      setInputData(expandedText);
-    },
-  });
+  useTextSnippets();
 
   // Use Vercel AI SDK's useCompletion
   const completion = useCompletion({
@@ -197,7 +194,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
           id: `audio-${Date.now()}`,
         };
         setAudioRecordings((prev) => [...prev, newRecording]);
-        stream.getTracks().forEach((track) => track.stop());
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
       });
 
       mediaRecorder.start();
@@ -682,12 +681,15 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                         <Kbd>⌘↵</Kbd>
                         <span>zum Generieren</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Kbd className="bg-solarized-green/10 text-solarized-green">
-                          ⇧F2
-                        </Kbd>
+                      <Link
+                        className="flex items-center gap-2 rounded px-2 py-1 transition "
+                        href="/profile#snippets"
+                        tabIndex={0}
+                        title="Zur Text-Snippets-Verwaltung"
+                      >
+                        <Kbd>⇧F2</Kbd>
                         <span>für Text-Snippets</span>
-                      </div>
+                      </Link>
                     </div>
                   </CardFooter>
                 </TabsContent>
@@ -769,44 +771,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                       );
                     })()}
                   </CardContent>
-                  {/* <CardFooter className="flex items-center justify-between bg-muted/20">
-                    <Button
-                      variant="outline"
-                      disabled={!completion.completion}
-                      className="shadow-sm"
-                    >
-                      Exportieren
-                    </Button>
-                    <div className="flex gap-3">
-                      {completion.completion && (
-                        <Button
-                          variant="outline"
-                          onClick={handleCopy}
-                          className="border-solarized-blue shadow-sm transition-all hover:bg-solarized-blue/10"
-                        >
-                          {copied ? (
-                            <>
-                              <Check className="mr-2 size-4" />
-                              Kopiert
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="mr-2 size-4" />
-                              Kopieren
-                            </>
-                          )}
-                        </Button>
-                      )}
-                      <Button
-                        onClick={handleGenerate}
-                        disabled={isLoading || !inputData.trim()}
-                        className="bg-solarized-green shadow-lg transition-all hover:bg-solarized-green/90"
-                      >
-                        <FileText className="mr-2 size-4" />
-                        {config.regenerateButtonText}
-                      </Button>
-                    </div>
-                  </CardFooter> */}
                 </TabsContent>
               </Tabs>
             </Card>
