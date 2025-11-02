@@ -288,7 +288,7 @@ export default function AppSidebar({
                               <SidebarMenuSubButton asChild isActive={false}>
                                 <Link
                                   className="flex items-center justify-between"
-                                  href={item.url}
+                                  href={`${item.url}?activeCollection=${encodeURIComponent(activeCollection)}`}
                                   onClick={() => {
                                     setOpenMobile(false);
                                   }}
