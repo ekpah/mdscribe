@@ -602,12 +602,12 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                     <PromptInput onSubmit={handleGenerate}>
                       <PromptInputBody>
                         <PromptInputTextarea
-                          ref={mainTextareaRef}
-                          className="min-h-[400px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+                          className="min-h-[400px] resize-none rounded-t-lg border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
                           disabled={isLoading}
                           id="input-field"
                           onChange={(e) => setInputData(e.target.value)}
                           placeholder={config.inputPlaceholder}
+                          ref={mainTextareaRef}
                           value={inputData}
                         />
                       </PromptInputBody>
@@ -680,7 +680,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                         <span>zum Generieren</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Kbd className="bg-solarized-green/10 text-solarized-green">⇧F2</Kbd>
+                        <Kbd className="bg-solarized-green/10 text-solarized-green">
+                          ⇧F2
+                        </Kbd>
                         <span>für Text-Snippets</span>
                       </div>
                     </div>
