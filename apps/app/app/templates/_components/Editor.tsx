@@ -19,18 +19,25 @@ import { Switch } from '@repo/design-system/components/ui/switch';
 import markdocConfig from '@repo/markdoc-md/markdoc-config';
 import { AlertCircle } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { useFormStatus } from 'react-dom';
 import { toast } from 'react-hot-toast';
+import { orpc } from '@/lib/orpc';
+import { useRouter } from 'next/navigation';
 
-function Submit({ hasErrors, isFormValid }: { hasErrors: boolean; isFormValid: boolean }) {
-  // ✅ `pending` will be derived from the form that wraps the Submit component
-  const { pending } = useFormStatus();
-  const isDisabled = pending || hasErrors || !isFormValid;
+function Submit({ 
+  hasErrors, 
+  isFormValid, 
+  isPending 
+}: { 
+  hasErrors: boolean; 
+  isFormValid: boolean; 
+  isPending: boolean;
+}) {
+  const isDisabled = isPending || hasErrors || !isFormValid;
 
   return (
     <Button className="mt-2 w-full" disabled={isDisabled} type="submit">
       {(() => {
-        if (pending) {
+        if (isPending) {
           return 'Textbaustein speichern...';
         }
         if (!isFormValid) {
@@ -50,16 +57,15 @@ export default function Editor({
   tit,
   note,
   id,
-  handleSubmitAction,
   author,
 }: {
   cat: string;
   tit: string;
   note: string;
   id?: string;
-  handleSubmitAction: (formData: FormData) => Promise<void>;
   author: { id: string; email: string };
 }) {
+  const router = useRouter();
   const [category, setCategory] = useState<string>(cat);
   const [name, setName] = useState(tit);
   const [content, setContent] = useState(note ? JSON.parse(note) : '');
@@ -78,6 +84,74 @@ export default function Editor({
     'Diverses',
     'Onkologie',
   ];
+
+  const isEditMode = !!id;
+
+  // Create mutation
+  const createMutation = orpc.user.templates.create.useMutation({
+    onMutate: () => {
+      toast.loading('Textbaustein wird gespeichert...', { id: 'save-template' });
+    },
+    onSuccess: (data) => {
+      toast.success('Textbaustein erfolgreich gespeichert!', { id: 'save-template' });
+      // Navigate optimistically
+      router.push(`/templates/${data.id}`);
+    },
+    onError: (error) => {
+      toast.error(
+        <div className="flex flex-col gap-2">
+          <span>Fehler beim Speichern: {error.message}</span>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              // Stay on editor page
+              toast.dismiss('save-template');
+            }}
+          >
+            Im Editor bleiben
+          </Button>
+        </div>,
+        { 
+          id: 'save-template',
+          duration: 10000 
+        }
+      );
+    },
+  });
+
+  // Edit mutation
+  const editMutation = orpc.user.templates.edit.useMutation({
+    onMutate: () => {
+      toast.loading('Änderungen werden gespeichert...', { id: 'save-template' });
+    },
+    onSuccess: (data) => {
+      toast.success('Änderungen erfolgreich gespeichert!', { id: 'save-template' });
+      // Navigate optimistically
+      router.push(`/templates/${data.id}`);
+    },
+    onError: (error) => {
+      toast.error(
+        <div className="flex flex-col gap-2">
+          <span>Fehler beim Speichern: {error.message}</span>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              // Stay on editor page
+              toast.dismiss('save-template');
+            }}
+          >
+            Im Editor bleiben
+          </Button>
+        </div>,
+        { 
+          id: 'save-template',
+          duration: 10000 
+        }
+      );
+    },
+  });
 
   const handleValidationChange = useCallback(
     (errors: ValidateError[]) => {
@@ -161,11 +235,34 @@ export default function Editor({
     }
   };
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    const finalCategory = category === 'new' ? newCategory : category;
+    
+    if (isEditMode) {
+      editMutation.mutate({
+        id: id!,
+        category: finalCategory,
+        title: name,
+        content,
+      });
+    } else {
+      createMutation.mutate({
+        category: finalCategory,
+        title: name,
+        content,
+      });
+    }
+  };
+
+  const isPending = createMutation.isPending || editMutation.isPending;
+
   return (
     <div className="flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] gap-4">
       {/* Main Editor Card */}
       <Card className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
-        <form action={handleSubmitAction} className="grow gap-2">
+        <form onSubmit={handleSubmit} className="grow gap-2">
         <div className="mb-4 flex grow flex-col gap-4 md:flex-row md:gap-2">
           <div className="w-full flex-1">
             <Label htmlFor="category">
@@ -294,9 +391,6 @@ export default function Editor({
             </div>
           )}
         </div>
-        <input name="content" type="hidden" value={content} />
-        <input name="id" type="hidden" value={id} />
-        <input name="authorId" type="hidden" value={author.id} />
         <div className="flex flex-row gap-2">
           <Button
             className="mt-2 w-1/10"
@@ -306,7 +400,11 @@ export default function Editor({
           >
             Prüfen
           </Button>
-          <Submit hasErrors={validationErrors.length > 0} isFormValid={isFormValid} />
+          <Submit 
+            hasErrors={validationErrors.length > 0} 
+            isFormValid={isFormValid} 
+            isPending={isPending}
+          />
         </div>
       </form>
     </Card>
