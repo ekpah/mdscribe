@@ -1,0 +1,662 @@
+---
+title: Textbausteine
+description: Verstehen und nutzen Sie Textbausteine f?r effiziente medizinische Dokumentation
+---
+
+## Was sind Textbausteine?
+
+Textbausteine (auch Templates genannt) sind wiederverwendbare Vorlagen f?r medizinische Dokumente. Sie bilden das Herzst?ck von MDScribe und erm?glichen es Ihnen, strukturierte medizinische Dokumentation effizient zu erstellen.
+
+Ein Textbaustein ist im Wesentlichen eine **intelligente Vorlage**, die:
+
+- **Statischen Text** enth?lt, der in jedem Dokument gleich bleibt
+- **Dynamische Platzhalter** f?r variable Informationen bietet
+- **Bedingte Inhalte** basierend auf verschiedenen Szenarien anzeigt
+- **Automatische Berechnungen** durchf?hrt
+- Von der **KI verstanden und befolgt** wird
+
+## Warum Textbausteine verwenden?
+
+### Zeitersparnis
+
+Anstatt jedes Mal dieselben Textpassagen neu zu schreiben, erstellen Sie einmal einen Textbaustein und verwenden ihn wiederholt. Die KI f?llt dann automatisch die variablen Teile aus.
+
+**Beispiel:**
+```markdown
+## Anamnese
+
+Der Patient wurde am {% info "Aufnahmedatum" type="date" /%} aufgenommen.
+```
+
+Dieser einfache Textbaustein kann f?r jeden Patienten wiederverwendet werden - nur das Datum ?ndert sich.
+
+### Konsistenz
+
+Textbausteine sorgen daf?r, dass Ihre Dokumentation immer die gleiche Struktur und Qualit?t aufweist. Wichtige Informationen werden nicht vergessen.
+
+### Flexibilit?t
+
+Durch die Verwendung von Tags k?nnen Textbausteine sich an verschiedene Situationen anpassen, ohne dass Sie mehrere Versionen pflegen m?ssen.
+
+## Anatomie eines Textbausteins
+
+Ein typischer Textbaustein besteht aus mehreren Komponenten:
+
+### 1. Statischer Text
+
+Das ist der Text, der sich nie ?ndert:
+
+```markdown
+## Diagnosen
+
+Der Patient wurde mit folgenden Diagnosen behandelt:
+```
+
+### 2. Info-Tags (Variable Felder)
+
+Platzhalter f?r Informationen, die sich von Fall zu Fall ?ndern:
+
+```markdown
+**Patient**: {% info "Patientenname" /%}
+**Geburtsdatum**: {% info "Geburtsdatum" type="date" /%}
+**Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+```
+
+Diese Tags erscheinen als **blaue Badges** im generierten Dokument.
+
+### 3. Switch/Case-Tags (Bedingte Inhalte)
+
+Verschiedene Textpassagen f?r unterschiedliche Szenarien:
+
+```markdown
+Der Patient wurde {% switch "Therapieart" %}{% case "Konservativ" %}konservativ behandelt{% /case %}{% case "Operativ" %}operativ versorgt{% /case %}{% /switch %}.
+```
+
+Diese Tags erscheinen als **gr?ne Badges** im generierten Dokument.
+
+### 4. Score-Tags (Berechnungen)
+
+Automatische Berechnungen basierend auf anderen Werten:
+
+```markdown
+**BMI**: {% score formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m?" renderUnit=true /%}
+```
+
+Diese Tags erscheinen als **orangene Badges** im generierten Dokument.
+
+## Arten von Textbausteinen
+
+### Strukturierte Dokumente
+
+Vollst?ndige Dokumentvorlagen f?r spezifische Dokumenttypen:
+
+- **Entlassungsbriefe**: Komplette Struktur f?r Entlassungsdokumentation
+- **Arztbriefe**: Standardisierte Kommunikation mit Kollegen
+- **Befundberichte**: Strukturierte Darstellung von Untersuchungsergebnissen
+- **OP-Berichte**: Dokumentation chirurgischer Eingriffe
+- **Konsilberichte**: Dokumentation von Konsultationen
+
+**Beispiel: Entlassungsbrief Kardiologie**
+```markdown
+# Entlassungsbrief
+
+**Patient**: {% info "Patientenname" /%}
+**Geburtsdatum**: {% info "Geburtsdatum" type="date" /%}
+**Aufnahmedatum**: {% info "Aufnahmedatum" type="date" /%}
+**Entlassungsdatum**: {% info "Entlassungsdatum" type="date" /%}
+
+## Diagnosen
+
+### Hauptdiagnose
+{% info "Hauptdiagnose" /%}
+
+### Nebendiagnosen
+{% info "Nebendiagnosen" /%}
+
+## Anamnese
+
+Der Patient stellte sich mit {% info "Leitsymptom" /%} vor.
+
+## Therapie und Verlauf
+
+{% switch "Therapieart" %}
+{% case "Konservativ" %}Die Behandlung erfolgte konservativ mit medikament?ser Therapie.{% /case %}
+{% case "Interventionell" %}Es erfolgte eine interventionelle Therapie mittels {% info "Intervention" /%}.{% /case %}
+{% case "Operativ" %}Der Patient wurde operativ versorgt.{% /case %}
+{% /switch %}
+
+## Entlassungsmedikation
+
+{% info "Medikation" /%}
+
+## Empfehlung
+
+{% info "Empfehlung" /%}
+```
+
+### Textbausteine f?r Abschnitte
+
+Wiederverwendbare Abschnitte f?r h?ufige Situationen:
+
+**Beispiel: Risikofaktoren**
+```markdown
+## Risikofaktoren
+
+{% switch "Raucher" %}
+{% case "Aktiv" %}Der Patient ist aktiver Raucher mit einem Konsum von {% info "Packyears" type="number" /%} Packungsjahren.{% /case %}
+{% case "Ex-Raucher" %}Der Patient ist Ex-Raucher, Nikotinabusus beendet seit {% info "RaucherSeit" /%}.{% /case %}
+{% case "Nie" %}Der Patient hat nie geraucht.{% /case %}
+{% /switch %}
+
+{% switch "Diabetes" %}
+{% case "Typ1" %}Bekannter Diabetes mellitus Typ 1.{% /case %}
+{% case "Typ2" %}Bekannter Diabetes mellitus Typ 2.{% /case %}
+{% case "Nein" %}Kein Diabetes mellitus.{% /case %}
+{% /switch %}
+
+{% switch "Hypertonie" %}
+{% case "Ja" %}Arterielle Hypertonie.{% /case %}
+{% case "Nein" %}Keine arterielle Hypertonie.{% /case %}
+{% /switch %}
+```
+
+### Score-Textbausteine
+
+Templates f?r medizinische Scores und Berechnungen:
+
+**Beispiel: BMI-Berechnung**
+```markdown
+## K?rperma?e
+
+**Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+**Gr??e**: {% info "Groesse" type="number" unit="cm" renderUnit=true /%}
+**BMI**: {% score formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m?" renderUnit=true /%}
+
+{% switch "BMI_Kategorie" %}
+{% case "Untergewicht" %}Der Patient ist untergewichtig (BMI < 18.5).{% /case %}
+{% case "Normalgewicht" %}Der Patient hat Normalgewicht (BMI 18.5-24.9).{% /case %}
+{% case "?bergewicht" %}Der Patient ist ?bergewichtig (BMI 25-29.9).{% /case %}
+{% case "Adipositas" %}Der Patient hat Adipositas (BMI ? 30).{% /case %}
+{% /switch %}
+```
+
+**Beispiel: CHA?DS?-VASc-Score**
+```markdown
+## CHA?DS?-VASc-Score f?r Vorhofflimmern
+
+Der Patient hat folgende Risikofaktoren:
+
+- Herzinsuffizienz: {% info "Herzinsuffizienz" type="number" /%} Punkt
+- Hypertonie: {% info "Hypertonie" type="number" /%} Punkt
+- Alter ?75 Jahre: {% info "Alter75" type="number" /%} Punkte
+- Diabetes: {% info "Diabetes" type="number" /%} Punkt
+- Schlaganfall/TIA: {% info "Schlaganfall" type="number" /%} Punkte
+- Gef??erkrankung: {% info "Gefaesserkrankung" type="number" /%} Punkt
+- Alter 65-74 Jahre: {% info "Alter65" type="number" /%} Punkt
+- Weibliches Geschlecht: {% info "Geschlecht" type="number" /%} Punkt
+
+**Gesamtscore**: {% score formula="[Herzinsuffizienz] + [Hypertonie] + [Alter75] * 2 + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Alter65] + [Geschlecht]" /%} Punkte
+```
+
+## Textbausteine erstellen
+
+### Planung
+
+Bevor Sie einen Textbaustein erstellen, ?berlegen Sie:
+
+1. **Zweck**: Wof?r wird dieser Textbaustein verwendet?
+2. **Struktur**: Welche Abschnitte sind notwendig?
+3. **Variabilit?t**: Welche Informationen ?ndern sich von Fall zu Fall?
+4. **Szenarien**: Gibt es verschiedene Varianten (z.B. verschiedene Therapiearten)?
+
+### Erstellung Schritt f?r Schritt
+
+1. **Navigieren Sie zur Template-Erstellung**
+   - Klicken Sie auf "Templates" in der Navigation
+   - W?hlen Sie "Neues Template erstellen"
+
+2. **Grundinformationen**
+   - **Name**: W?hlen Sie einen beschreibenden Namen (z.B. "Entlassungsbrief Kardiologie")
+   - **Kategorie**: W?hlen Sie eine Kategorie oder erstellen Sie eine neue
+
+3. **Struktur aufbauen**
+   - Beginnen Sie mit ?berschriften (`#`, `##`, `###`)
+   - F?gen Sie statischen Text hinzu
+   - Markieren Sie variable Bereiche
+
+4. **Tags hinzuf?gen**
+   - F?gen Sie Info-Tags f?r variable Daten hinzu
+   - Verwenden Sie Switch/Case f?r bedingte Inhalte
+   - Nutzen Sie Score-Tags f?r Berechnungen
+
+5. **Testen und verfeinern**
+   - Klicken Sie auf "Pr?fen" um die Syntax zu validieren
+   - Speichern Sie den Textbaustein
+   - Testen Sie ihn in der KI-Dokumentation
+   - Optimieren Sie basierend auf den Ergebnissen
+
+## Best Practices
+
+### Naming Conventions
+
+? **Gut:**
+- "Entlassungsbrief Kardiologie"
+- "Arztbrief Pneumologie"
+- "Befund CT Thorax"
+
+? **Schlecht:**
+- "Template 1"
+- "Brief"
+- "Mein Template"
+
+### Struktur
+
+? **Gute Struktur:**
+```markdown
+# Titel
+
+## Patientendaten
+[Info-Tags]
+
+## Diagnosen
+[Info-Tags]
+
+## Anamnese
+[Flie?text mit Tags]
+
+## Befunde
+[Info-Tags und Text]
+
+## Therapie
+[Switch/Case-Tags]
+
+## Empfehlung
+[Info-Tags]
+```
+
+? **Schlechte Struktur:**
+```markdown
+Patient: {% info "Name" /%}
+Diagnose: {% info "Diagnose" /%}
+Therapie: {% info "Therapie" /%}
+```
+
+### Variablennamen
+
+? **Gut:**
+- `{% info "Patientenname" /%}`
+- `{% info "Aufnahmedatum" type="date" /%}`
+- `{% info "RR_systolisch" type="number" /%}`
+
+? **Schlecht:**
+- `{% info "Name" /%}` (zu generisch)
+- `{% info "Datum1" /%}` (nicht beschreibend)
+- `{% info "RR sys" /%}` (Leerzeichen problematisch)
+
+### Kategorisierung
+
+Organisieren Sie Ihre Textbausteine in logischen Kategorien:
+
+- **Nach Fachgebiet**: Kardiologie, Gastroenterologie, Neurologie
+- **Nach Dokumenttyp**: Arztbriefe, Befunde, Konsilberichte
+- **Nach H?ufigkeit**: H?ufig verwendet, Spezialf?lle
+
+## Textbausteine verwenden
+
+### In der KI-Dokumentation
+
+1. **Navigieren Sie zur KI-Dokumentation**
+   - Klicken Sie auf "Klinische Dokumentation"
+
+2. **Template hinzuf?gen**
+   - Klicken Sie auf "Template hinzuf?gen"
+   - W?hlen Sie einen Textbaustein aus
+
+3. **Patientendaten eingeben**
+   - Geben Sie die klinischen Informationen ein
+   - Nutzen Sie die zus?tzlichen Felder (Vordiagnosen, Befunde)
+
+4. **Dokumentation generieren**
+   - Klicken Sie auf "Dokumentation generieren"
+   - Die KI erstellt ein strukturiertes Dokument basierend auf Ihrem Textbaustein
+
+5. **Werte ausf?llen**
+   - F?llen Sie die extrahierten Felder aus
+   - Die Werte werden automatisch im Dokument aktualisiert
+
+6. **Dokument kopieren**
+   - Kopieren Sie das fertige Dokument
+   - Verwenden Sie es in Ihrem Zielsystem
+
+### Favoriten nutzen
+
+F?r h?ufig verwendete Textbausteine:
+
+1. ?ffnen Sie Ihre Template-Bibliothek
+2. Klicken Sie auf das Herz-Symbol beim gew?nschten Textbaustein
+3. Favoriten erscheinen priorisiert in der KI-Dokumentation
+
+## Textbausteine verwalten
+
+### Bearbeiten
+
+1. Navigieren Sie zur Template-Bibliothek
+2. Klicken Sie auf den Textbaustein
+3. Klicken Sie auf "Bearbeiten"
+4. Nehmen Sie Ihre ?nderungen vor
+5. Speichern Sie den Textbaustein
+
+### Duplizieren
+
+Um Varianten zu erstellen:
+
+1. ?ffnen Sie den Textbaustein
+2. Kopieren Sie den Inhalt
+3. Erstellen Sie einen neuen Textbaustein
+4. F?gen Sie den Inhalt ein und passen Sie ihn an
+
+### L?schen
+
+1. ?ffnen Sie den Textbaustein
+2. Klicken Sie auf "L?schen"
+3. Best?tigen Sie die L?schung
+
+?? **Hinweis**: Gel?schte Textbausteine k?nnen nicht wiederhergestellt werden.
+
+## Fortgeschrittene Techniken
+
+### KI-Instruktionen hinzuf?gen
+
+Sie k?nnen der KI spezifische Anweisungen geben, wie sie Ihren Textbaustein ausf?llen soll:
+
+```markdown
+<!-- KI-Instruktion: Extrahiere alle Diagnosen aus dem Text und liste sie als Aufz?hlungspunkte auf -->
+
+## Diagnosen
+
+{% info "Diagnosen" /%}
+```
+
+Mehr dazu in der [KI-Instruktionen Dokumentation](/docs/ki-instruktionen).
+
+### Tags kombinieren
+
+Komplexe Szenarien durch Kombination verschiedener Tags:
+
+```markdown
+## Nierenfunktion
+
+**Kreatinin**: {% info "Kreatinin" type="number" unit="mg/dl" renderUnit=true /%}
+**eGFR**: {% info "eGFR" type="number" unit="ml/min/1.73m?" renderUnit=true /%}
+
+{% switch "Nierenfunktion" %}
+{% case "Normal" %}Die Nierenfunktion ist normal (eGFR > 90).{% /case %}
+{% case "Leicht_eingeschraenkt" %}Die Nierenfunktion ist leicht eingeschr?nkt (eGFR 60-89, Stadium 2).{% /case %}
+{% case "Maessig_eingeschraenkt" %}Die Nierenfunktion ist m??ig eingeschr?nkt (eGFR 30-59, Stadium 3).{% /case %}
+{% case "Schwer_eingeschraenkt" %}Die Nierenfunktion ist schwer eingeschr?nkt (eGFR 15-29, Stadium 4).{% /case %}
+{% case "Dialyse" %}Der Patient ist dialysepflichtig (eGFR < 15, Stadium 5).{% /case %}
+{% /switch %}
+```
+
+### Verschachtelte Strukturen
+
+F?r komplexe Dokumentationen:
+
+```markdown
+## Kardiovaskul?re Risikofaktoren
+
+{% switch "Diabetes" %}
+{% case "Ja" %}
+**Diabetes mellitus Typ {% info "DiabetesTyp" type="number" /%}**
+- HbA1c: {% info "HbA1c" type="number" unit="%" renderUnit=true /%}
+- Letzte Kontrolle: {% info "DiabetesKontrolle" type="date" /%}
+{% /case %}
+{% case "Nein" %}Kein Diabetes mellitus bekannt.{% /case %}
+{% /switch %}
+
+{% switch "Hypertonie" %}
+{% case "Ja" %}
+**Arterielle Hypertonie**
+- RR bei Aufnahme: {% info "RR_sys" type="number" /%}/{% info "RR_dia" type="number" /%} mmHg
+- Medikation: {% info "Hypertoniemedikation" /%}
+{% /case %}
+{% case "Nein" %}Keine arterielle Hypertonie.{% /case %}
+{% /switch %}
+```
+
+## H?ufige Fehler vermeiden
+
+### Fehler 1: Zu generische Namen
+
+? **Falsch:**
+```markdown
+**Patient**: {% info "Name" /%}
+**Datum**: {% info "Datum" type="date" /%}
+```
+
+? **Richtig:**
+```markdown
+**Patient**: {% info "Patientenname" /%}
+**Aufnahmedatum**: {% info "Aufnahmedatum" type="date" /%}
+```
+
+### Fehler 2: Fehlende Typen
+
+? **Falsch:**
+```markdown
+**Gewicht**: {% info "Gewicht" /%} kg
+```
+
+? **Richtig:**
+```markdown
+**Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+```
+
+### Fehler 3: Zeilenumbr?che in Switch/Case
+
+? **Falsch:**
+```markdown
+{% switch "Therapieart" %}
+  {% case "Konservativ" %}
+    konservativ behandelt
+  {% /case %}
+{% /switch %}
+```
+
+? **Richtig:**
+```markdown
+{% switch "Therapieart" %}{% case "Konservativ" %}konservativ behandelt{% /case %}{% /switch %}
+```
+
+### Fehler 4: Nicht existierende Variablen in Formeln
+
+? **Falsch:**
+```markdown
+**BMI**: {% score formula="[Gewicht] / [Groesse]" /%}
+```
+*(ohne vorher Gewicht und Groesse als Info-Tags zu definieren)*
+
+? **Richtig:**
+```markdown
+**Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+**Gr??e**: {% info "Groesse" type="number" unit="cm" renderUnit=true /%}
+**BMI**: {% score formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m?" renderUnit=true /%}
+```
+
+## Beispiel-Textbausteine
+
+### Minimaler Textbaustein
+
+Ein einfacher Textbaustein f?r schnelle Notizen:
+
+```markdown
+# Kurzbefund
+
+**Patient**: {% info "Patientenname" /%}
+**Datum**: {% info "Datum" type="date" /%}
+
+## Befund
+
+{% info "Befund" /%}
+
+## Beurteilung
+
+{% info "Beurteilung" /%}
+```
+
+### Mittlerer Textbaustein
+
+Ein strukturierter Arztbrief:
+
+```markdown
+# Arztbrief {% info "Fachgebiet" /%}
+
+**Patient**: {% info "Patientenname" /%}
+**Geburtsdatum**: {% info "Geburtsdatum" type="date" /%}
+**Behandlungszeitraum**: {% info "Aufnahmedatum" type="date" /%} bis {% info "Entlassungsdatum" type="date" /%}
+
+## Diagnosen
+
+### Hauptdiagnose
+{% info "Hauptdiagnose" /%}
+
+### Nebendiagnosen
+{% info "Nebendiagnosen" /%}
+
+## Anamnese und Aufnahmebefund
+
+{% info "Anamnese" /%}
+
+## Durchgef?hrte Untersuchungen
+
+{% info "Untersuchungen" /%}
+
+## Therapie und Verlauf
+
+{% switch "Therapieart" %}
+{% case "Konservativ" %}Die Behandlung erfolgte konservativ.{% /case %}
+{% case "Interventionell" %}Es wurde eine interventionelle Therapie durchgef?hrt.{% /case %}
+{% case "Operativ" %}Der Patient wurde operativ versorgt.{% /case %}
+{% /switch %}
+
+{% info "Therapieverlauf" /%}
+
+## Procedere
+
+{% info "Procedere" /%}
+```
+
+### Komplexer Textbaustein
+
+Ein umfassender Entlassungsbrief mit vielen Features:
+
+```markdown
+# Entlassungsbrief Kardiologie
+
+## Patientendaten
+
+**Patient**: {% info "Patientenname" /%}
+**Geburtsdatum**: {% info "Geburtsdatum" type="date" /%}
+**Aufnahmedatum**: {% info "Aufnahmedatum" type="date" /%}
+**Entlassungsdatum**: {% info "Entlassungsdatum" type="date" /%}
+
+## Diagnosen
+
+### Hauptdiagnose
+{% info "Hauptdiagnose" /%}
+
+### Nebendiagnosen
+{% info "Nebendiagnosen" /%}
+
+## Anamnese
+
+Der Patient stellte sich am {% info "Vorstellungsdatum" type="date" /%} mit {% info "Leitsymptom" /%} in unserer Klinik vor.
+
+## Kardiovaskul?re Risikofaktoren
+
+**Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+**Gr??e**: {% info "Groesse" type="number" unit="cm" renderUnit=true /%}
+**BMI**: {% score formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m?" renderUnit=true /%}
+
+{% switch "Raucher" %}
+{% case "Aktiv" %}Aktiver Raucher ({% info "Packyears" type="number" /%} py){% /case %}
+{% case "Ex" %}Ex-Raucher seit {% info "RaucherSeit" /%}{% /case %}
+{% case "Nie" %}Nie Raucher{% /case %}
+{% /switch %}
+
+{% switch "Diabetes" %}
+{% case "Ja" %}Diabetes mellitus Typ {% info "DiabetesTyp" type="number" /%}, HbA1c {% info "HbA1c" type="number" unit="%" renderUnit=true /%}{% /case %}
+{% case "Nein" %}Kein Diabetes mellitus{% /case %}
+{% /switch %}
+
+{% switch "Hypertonie" %}
+{% case "Ja" %}Arterielle Hypertonie{% /case %}
+{% case "Nein" %}Keine Hypertonie{% /case %}
+{% /switch %}
+
+{% switch "Hyperlipidaemie" %}
+{% case "Ja" %}Hyperlipid?mie{% /case %}
+{% case "Nein" %}Keine Hyperlipid?mie{% /case %}
+{% /switch %}
+
+## Aufnahmebefund
+
+**Blutdruck**: {% info "RR_sys" type="number" /%}/{% info "RR_dia" type="number" /%} mmHg
+**Herzfrequenz**: {% info "HF" type="number" unit="bpm" renderUnit=true /%}
+**SpO?**: {% info "SpO2" type="number" unit="%" renderUnit=true /%}
+
+## Durchgef?hrte Diagnostik
+
+### Labor
+{% info "Labor" /%}
+
+### EKG
+{% info "EKG" /%}
+
+### Echokardiographie
+{% info "Echo" /%}
+
+### Weitere Untersuchungen
+{% info "WeitereUntersuchungen" /%}
+
+## Therapie und Verlauf
+
+{% switch "Therapieart" %}
+{% case "Konservativ" %}Die Behandlung erfolgte konservativ mit medikament?ser Therapie.{% /case %}
+{% case "Interventionell" %}Es erfolgte eine interventionelle Therapie mittels {% info "Intervention" /%}.{% /case %}
+{% case "Operativ" %}Der Patient wurde operativ mittels {% info "OP" /%} versorgt.{% /case %}
+{% /switch %}
+
+{% info "Verlauf" /%}
+
+## Entlassungsmedikation
+
+{% info "Medikation" /%}
+
+## Procedere
+
+{% info "Procedere" /%}
+
+{% switch "Kontrolle" %}
+{% case "Hausarzt" %}Kontrolle beim Hausarzt in {% info "KontrollIntervall" /%}.{% /case %}
+{% case "Facharzt" %}Kontrolle beim Facharzt in {% info "KontrollIntervall" /%}.{% /case %}
+{% case "Klinik" %}Wiedervorstellung in unserer Ambulanz in {% info "KontrollIntervall" /%}.{% /case %}
+{% /switch %}
+```
+
+## Zusammenfassung
+
+Textbausteine sind das zentrale Werkzeug in MDScribe f?r:
+
+- ? **Effiziente Dokumentation**: Wiederverwendbare Vorlagen sparen Zeit
+- ? **Konsistente Qualit?t**: Standardisierte Struktur in allen Dokumenten
+- ? **Flexible Anpassung**: Tags erm?glichen Variabilit?t ohne Mehraufwand
+- ? **KI-Unterst?tzung**: Die KI versteht und befolgt Ihre Textbausteine
+
+### N?chste Schritte
+
+- **[Tags-Dokumentation](/docs/tags)**: Lernen Sie alle verf?gbaren Tags im Detail
+- **[KI-Instruktionen](/docs/ki-instruktionen)**: Optimieren Sie die KI-Generierung
+- **[Schnellstart](/docs/schnellstart)**: Erstellen Sie Ihren ersten Textbaustein
+
+Beginnen Sie noch heute mit dem Erstellen Ihrer eigenen Textbausteine und erleben Sie, wie MDScribe Ihre medizinische Dokumentation transformiert!
