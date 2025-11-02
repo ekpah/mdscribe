@@ -1,40 +1,39 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { toast } from 'react-hot-toast';
-import { orpcClient } from '@/lib/orpc';
-
-interface TextSnippet {
-  id: string;
-  key: string;
-  snippet: string;
-}
+import { useHotkeys } from 'react-hotkeys-hook';
+import { orpc } from '@/lib/orpc';
 
 interface UseTextSnippetsOptions {
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
   onExpand?: (expandedText: string) => void;
 }
 
 export function useTextSnippets(options?: UseTextSnippetsOptions) {
-  const { textareaRef, onExpand } = options || {};
-  const [snippets, setSnippets] = useState<TextSnippet[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { onExpand } = options || {};
 
-  // Load snippets on mount
-  useEffect(() => {
-    const loadSnippets = async () => {
-      try {
-        const data = await orpcClient.user.snippets.list();
-        setSnippets(data);
-        setIsLoaded(true);
-      } catch (error) {
-        console.error('Error loading snippets:', error);
-        setIsLoaded(true);
+  const { data: snippets = [], isLoading } = useQuery(
+    orpc.user.snippets.list.queryOptions()
+  );
+
+  useHotkeys(
+    'shift+f2',
+    (event: KeyboardEvent) => {
+      console.log('shift+1');
+      event.preventDefault();
+      event.stopPropagation();
+      const activeElement = document.activeElement;
+      if (activeElement && activeElement.tagName === 'TEXTAREA') {
+        expandSnippet(activeElement as HTMLTextAreaElement);
+      } else {
+        toast.error('Bitte fokussieren Sie ein Textfeld');
       }
-    };
-
-    loadSnippets();
-  }, []);
+    },
+    {
+      enableOnFormTags: ['INPUT', 'TEXTAREA'],
+    }
+  );
 
   // Find snippet by key
   const findSnippet = useCallback(
@@ -58,21 +57,24 @@ export function useTextSnippets(options?: UseTextSnippetsOptions) {
           : textBeforeCursor.substring(lastSpaceIndex + 1);
 
       if (!key) {
-        toast.error('Kein K?rzel gefunden');
+        toast.error('Kein Kürzel gefunden');
         return;
       }
 
       const snippet = findSnippet(key);
 
       if (!snippet) {
-        toast.error(`Kein Snippet f?r "${key}" gefunden`);
+        toast.error(`Kein Snippet für "${key}" gefunden`);
         return;
       }
 
       // Replace the key with the snippet
       const textAfterCursor = textarea.value.substring(cursorPosition);
       const newText =
-        textBeforeCursor.substring(0, lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1) +
+        textBeforeCursor.substring(
+          0,
+          lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1
+        ) +
         snippet.snippet +
         textAfterCursor;
 
@@ -81,7 +83,8 @@ export function useTextSnippets(options?: UseTextSnippetsOptions) {
 
       // Set cursor position after the inserted snippet
       const newCursorPosition =
-        (lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1) + snippet.snippet.length;
+        (lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1) +
+        snippet.snippet.length;
       textarea.selectionStart = newCursorPosition;
       textarea.selectionEnd = newCursorPosition;
 
@@ -94,47 +97,14 @@ export function useTextSnippets(options?: UseTextSnippetsOptions) {
         onExpand(newText);
       }
 
-      toast.success(`Snippet "${key}" erweitert`);
+      toast.success(`Snippet "${key}" eingefügt`);
     },
     [findSnippet, onExpand]
   );
 
-  // Handle keyboard shortcut
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      // Check for Shift+F2
-      if (event.shiftKey && event.key === 'F2') {
-        event.preventDefault();
-
-        // If textareaRef is provided, use it
-        if (textareaRef?.current) {
-          expandSnippet(textareaRef.current);
-          return;
-        }
-
-        // Otherwise, try to find the focused textarea
-        const activeElement = document.activeElement;
-        if (activeElement && activeElement.tagName === 'TEXTAREA') {
-          expandSnippet(activeElement as HTMLTextAreaElement);
-        } else {
-          toast.error('Bitte fokussieren Sie ein Textfeld');
-        }
-      }
-    },
-    [expandSnippet, textareaRef]
-  );
-
-  // Attach keyboard event listener
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyDown]);
-
   return {
     snippets,
-    isLoaded,
+    isLoading,
     expandSnippet,
     findSnippet,
   };

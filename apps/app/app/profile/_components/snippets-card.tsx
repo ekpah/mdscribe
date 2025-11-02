@@ -20,10 +20,11 @@ import {
 import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { orpcClient } from '@/lib/orpc';
+import { orpc } from '@/lib/orpc';
 
 interface TextSnippet {
   id: string;
@@ -34,31 +35,46 @@ interface TextSnippet {
 }
 
 export function SnippetsCard() {
-  const [snippets, setSnippets] = useState<TextSnippet[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<TextSnippet | null>(
     null
   );
   const [formData, setFormData] = useState({ key: '', snippet: '' });
+  const queryClient = useQueryClient();
 
-  // Load snippets
-  const loadSnippets = async () => {
-    try {
-      setIsLoading(true);
-      const data = await orpcClient.user.snippets.list();
-      setSnippets(data);
-    } catch (error) {
-      console.error('Error loading snippets:', error);
-      toast.error('Fehler beim Laden der Snippets');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: snippets = [], isLoading } = useQuery(
+    orpc.user.snippets.list.queryOptions()
+  );
 
-  useEffect(() => {
-    loadSnippets();
-  }, []);
+  const createMutation = useMutation(
+    orpc.user.snippets.create.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.user.snippets.list.queryOptions().queryKey,
+        });
+      },
+    })
+  );
+
+  const updateMutation = useMutation(
+    orpc.user.snippets.update.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.user.snippets.list.queryOptions().queryKey,
+        });
+      },
+    })
+  );
+
+  const deleteMutation = useMutation(
+    orpc.user.snippets.delete.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.user.snippets.list.queryOptions().queryKey,
+        });
+      },
+    })
+  );
 
   const handleOpenDialog = (snippet?: TextSnippet) => {
     if (snippet) {
@@ -78,27 +94,26 @@ export function SnippetsCard() {
   };
 
   const handleSave = async () => {
-    if (!formData.key.trim() || !formData.snippet.trim()) {
-      toast.error('Bitte f?llen Sie alle Felder aus');
+    if (!(formData.key.trim() && formData.snippet.trim())) {
+      toast.error('Bitte füllen Sie alle Felder aus');
       return;
     }
 
     try {
       if (editingSnippet) {
-        await orpcClient.user.snippets.update({
+        await updateMutation.mutateAsync({
           id: editingSnippet.id,
           key: formData.key,
           snippet: formData.snippet,
         });
         toast.success('Snippet aktualisiert');
       } else {
-        await orpcClient.user.snippets.create({
+        await createMutation.mutateAsync({
           key: formData.key,
           snippet: formData.snippet,
         });
         toast.success('Snippet erstellt');
       }
-      await loadSnippets();
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving snippet:', error);
@@ -111,17 +126,16 @@ export function SnippetsCard() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('M?chten Sie dieses Snippet wirklich l?schen?')) {
+    if (!confirm('Möchten Sie dieses Snippet wirklich löschen?')) {
       return;
     }
 
     try {
-      await orpcClient.user.snippets.delete({ id });
-      toast.success('Snippet gel?scht');
-      await loadSnippets();
+      await deleteMutation.mutateAsync({ id });
+      toast.success('Snippet gelöscht');
     } catch (error) {
       console.error('Error deleting snippet:', error);
-      toast.error('Fehler beim L?schen des Snippets');
+      toast.error('Fehler beim Löschen des Snippets');
     }
   };
 
@@ -132,15 +146,20 @@ export function SnippetsCard() {
           <div>
             <CardTitle>Text Snippets</CardTitle>
             <CardDescription>
-              Verwalten Sie Ihre pers?nlichen Text-Schnipsel f?r schnellen
-              Zugriff mit <kbd className="rounded bg-muted px-1 text-xs">Shift+F2</kbd>
+              Verwalten Sie Ihre persönlichen Text-Schnipsel für schnellen
+              Zugriff mit{' '}
+              <kbd className="rounded bg-muted px-1 text-xs">Shift+F2</kbd>
             </CardDescription>
           </div>
           <Dialog onOpenChange={setIsDialogOpen} open={isDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => handleOpenDialog()} size="sm" type="button">
+              <Button
+                onClick={() => handleOpenDialog()}
+                size="sm"
+                type="button"
+              >
                 <Plus className="mr-2 h-4 w-4" />
-                Hinzuf?gen
+                Hinzufügen
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -149,13 +168,13 @@ export function SnippetsCard() {
                   {editingSnippet ? 'Snippet bearbeiten' : 'Neues Snippet'}
                 </DialogTitle>
                 <DialogDescription>
-                  Erstellen Sie ein K?rzel, das Sie sp?ter mit Shift+F2 erweitern
-                  k?nnen.
+                  Erstellen Sie ein Kürzel, das Sie später mit Shift+F2
+                  erweitern können.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="key">K?rzel</Label>
+                  <Label htmlFor="key">Kürzel</Label>
                   <Input
                     id="key"
                     maxLength={50}
@@ -166,7 +185,7 @@ export function SnippetsCard() {
                     value={formData.key}
                   />
                   <p className="text-muted-foreground text-xs">
-                    Das K?rzel, das Sie eingeben, um das Snippet zu verwenden
+                    Das Kürzel, das Sie eingeben, um das Snippet zu verwenden
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -182,12 +201,16 @@ export function SnippetsCard() {
                     value={formData.snippet}
                   />
                   <p className="text-muted-foreground text-xs">
-                    Der Text, der eingef?gt wird, wenn Sie das K?rzel erweitern
+                    Der Text, der eingef?gt wird, wenn Sie das Kürzel erweitern
                   </p>
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleCloseDialog} type="button" variant="outline">
+                <Button
+                  onClick={handleCloseDialog}
+                  type="button"
+                  variant="outline"
+                >
                   Abbrechen
                 </Button>
                 <Button onClick={handleSave} type="button">
@@ -199,18 +222,20 @@ export function SnippetsCard() {
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {isLoading && (
           <div className="py-8 text-center text-muted-foreground">
             Lade Snippets...
           </div>
-        ) : snippets.length === 0 ? (
+        )}
+        {!isLoading && snippets?.length === 0 && (
           <div className="py-8 text-center text-muted-foreground">
             <p>Keine Snippets vorhanden</p>
             <p className="mt-2 text-sm">
               Erstellen Sie Ihr erstes Snippet, um loszulegen
             </p>
           </div>
-        ) : (
+        )}
+        {!isLoading && snippets && snippets.length > 0 && (
           <div className="space-y-2">
             {snippets.map((snippet) => (
               <div
@@ -223,7 +248,7 @@ export function SnippetsCard() {
                       {snippet.key}
                     </code>
                   </div>
-                  <p className="mt-2 text-muted-foreground text-sm line-clamp-2">
+                  <p className="mt-2 line-clamp-2 text-muted-foreground text-sm">
                     {snippet.snippet}
                   </p>
                 </div>

@@ -45,8 +45,9 @@ import {
   Square,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { useTextSnippets } from '@/hooks/use-text-snippets';
 import { MemoizedCopySection } from './MemoizedCopySection';
 
@@ -141,7 +142,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
   // Initialize text snippets hook
   useTextSnippets({
-    textareaRef: mainTextareaRef,
     onExpand: (expandedText) => {
       setInputData(expandedText);
     },
@@ -358,28 +358,31 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     isAudioSupported,
   ]);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '1') {
-        e.preventDefault();
-        document.getElementById('input-field')?.focus();
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        if (!isLoading && areRequiredFieldsFilled()) {
-          handleGenerate();
-        }
-      }
+  useHotkeys(
+    ['meta+shift+1', 'ctrl+shift+1'],
+    (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      document.getElementById('input-field')?.focus();
     },
-    [isLoading, areRequiredFieldsFilled, handleGenerate]
+    {
+      enableOnFormTags: ['INPUT', 'TEXTAREA'],
+    }
   );
 
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyDown]);
+  useHotkeys(
+    ['meta+enter', 'ctrl+enter'],
+    (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!isLoading && areRequiredFieldsFilled()) {
+        handleGenerate();
+      }
+    },
+    {
+      enableOnFormTags: ['INPUT', 'TEXTAREA'],
+    }
+  );
 
   const IconComponent = config.icon;
 

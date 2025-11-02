@@ -1,8 +1,24 @@
 import { z } from 'zod';
 import { authed } from '@/orpc';
 
+const getSnippetByIDHandler = authed
+  .input(
+    z.object({
+      id: z.string(),
+    })
+  )
+  .handler(async ({ context, input }) => {
+    const snippet = await context.db.textSnippet.findFirst({
+      where: {
+        id: input.id,
+        userId: context.session.user.id,
+      },
+    });
+    return snippet;
+  });
+
 // Get all snippets for the current user
-const getSnippetsHandler = authed.handler(async ({ context }) => {
+const listSnippetsHandler = authed.handler(async ({ context }) => {
   const snippets = await context.db.textSnippet.findMany({
     where: {
       userId: context.session.user.id,
@@ -100,7 +116,8 @@ const deleteSnippetHandler = authed
   });
 
 export const snippetsHandler = {
-  list: getSnippetsHandler,
+  get: getSnippetByIDHandler,
+  list: listSnippetsHandler,
   create: createSnippetHandler,
   update: updateSnippetHandler,
   delete: deleteSnippetHandler,
