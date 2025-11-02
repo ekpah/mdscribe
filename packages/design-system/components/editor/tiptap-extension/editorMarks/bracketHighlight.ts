@@ -27,7 +27,8 @@ export const bracketInputRegex = /(\[(?!\s+\[)([^\]]+)\](?!\s+\]))$/;
 export const bracketPasteRegex = /(\[(?!\s+\[)([^\]]+)\](?!\s+\]))/g;
 
 /**
- * This extension highlights text within [] with a faint green background.
+ * This extension highlights text within [] with a faint green background,
+ * but preserves the brackets visibly, highlighting only the content within.
  * Useful for marking AI instruction variables.
  */
 export const BracketHighlight = Mark.create<BracketHighlightOptions>({
@@ -47,14 +48,36 @@ export const BracketHighlight = Mark.create<BracketHighlightOptions>({
     ];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes, children }) {
+    // Renders [<span ...>content</span>] in HTML
+    // Make sure brackets are always present and not styled, only the content is.
     return [
       'span',
-      mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
-        'data-bracket-highlight': '',
-        class: 'bg-solarized-green/10 rounded px-0.5',
-      }),
-      0,
+      { class: 'inline-flex items-center gap-0.5' },
+      [
+        'span',
+        {
+          'aria-hidden': 'true',
+          class: 'text-solarized-green select-none',
+        },
+        '[',
+      ],
+      [
+        'span',
+        mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+          'data-bracket-highlight': '',
+          class: 'bg-solarized-green/10 rounded px-0.5 ',
+        }),
+        0,
+      ],
+      [
+        'span',
+        {
+          'aria-hidden': 'true',
+          class: 'text-solarized-green select-none',
+        },
+        ']',
+      ],
     ];
   },
 
@@ -63,6 +86,14 @@ export const BracketHighlight = Mark.create<BracketHighlightOptions>({
       markInputRule({
         find: bracketInputRegex,
         type: this.type,
+        getAttributes: () => ({}),
+        /**
+         * Replace the text with three nodes:
+         * - left bracket
+         * - mark containing only the content
+         * - right bracket
+         * Handled by renderHTML.
+         */
       }),
     ];
   },
@@ -72,6 +103,8 @@ export const BracketHighlight = Mark.create<BracketHighlightOptions>({
       markPasteRule({
         find: bracketPasteRegex,
         type: this.type,
+        getAttributes: () => ({}),
+        // The actual splitting of brackets/content is rendered at HTML render/React
       }),
     ];
   },

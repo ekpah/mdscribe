@@ -48,13 +48,35 @@ export const DoubleParenHighlight = Mark.create<DoubleParenHighlightOptions>({
   },
 
   renderHTML({ HTMLAttributes }) {
+    // Renders ((<span ...>content</span>)) in HTML
+    // Makes sure parens are always visible, with only content highlighted.
     return [
       'span',
-      mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
-        'data-double-paren-highlight': '',
-        class: 'bg-solarized-blue/10 rounded px-0.5',
-      }),
-      0,
+      { class: 'inline-flex items-center gap-0.5' },
+      [
+        'span',
+        {
+          'aria-hidden': 'true',
+          class: 'text-solarized-blue select-none',
+        },
+        '((', // opening double paren
+      ],
+      [
+        'span',
+        mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+          'data-double-paren-highlight': '',
+          class: 'bg-solarized-blue/10 rounded px-0.5',
+        }),
+        0,
+      ],
+      [
+        'span',
+        {
+          'aria-hidden': 'true',
+          class: 'text-solarized-blue select-none',
+        },
+        '))', // closing double paren
+      ],
     ];
   },
 

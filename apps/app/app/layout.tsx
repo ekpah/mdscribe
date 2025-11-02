@@ -1,12 +1,11 @@
 import { auth } from '@/auth';
-import { allowAIUse } from '@/flags';
 import '@/lib/orpc.server'; // for pre-rendering
 import { DesignSystemProvider } from '@repo/design-system/providers';
 import '@repo/design-system/styles/globals.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { headers } from 'next/headers';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import type { ReactNode } from 'react';
 import Menubar from './_components/Menubar';
 import { PostHogProvider } from './providers/posthogProvider';
@@ -45,24 +44,26 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
       <body
         className={`${inter.variable} items-center bg-background font-sans text-foreground`}
       >
-        <QueryProvider>
-          <PostHogProvider>
-            <DesignSystemProvider>
-              <div className="flex h-screen w-screen" key="Body">
-                <nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
-                  {/*ModeWatcher track="true" />*/}
-                  <Menubar showAiLink={showAiLink} />
-                </nav>
-                <div
-                  className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
-                  key="Content"
-                >
-                  {children}
+        <NuqsAdapter>
+          <QueryProvider>
+            <PostHogProvider>
+              <DesignSystemProvider>
+                <div className="flex h-screen w-screen" key="Body">
+                  <nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
+                    {/*ModeWatcher track="true" />*/}
+                    <Menubar showAiLink={showAiLink} />
+                  </nav>
+                  <div
+                    className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
+                    key="Content"
+                  >
+                    {children}
+                  </div>
                 </div>
-              </div>
-            </DesignSystemProvider>
-          </PostHogProvider>
-        </QueryProvider>
+              </DesignSystemProvider>
+            </PostHogProvider>
+          </QueryProvider>
+        </NuqsAdapter>
       </body>
     </html>
   );

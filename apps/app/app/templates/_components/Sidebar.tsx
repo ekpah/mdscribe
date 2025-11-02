@@ -6,12 +6,12 @@ import {
   PlusCircledIcon,
 } from '@radix-ui/react-icons';
 import { Button } from '@repo/design-system/components/ui/button';
-import { Kbd } from '@repo/design-system/components/ui/kbd';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@repo/design-system/components/ui/collapsible';
+import { Kbd } from '@repo/design-system/components/ui/kbd';
 import { Label } from '@repo/design-system/components/ui/label';
 import {
   Sidebar,
@@ -33,6 +33,7 @@ import Fuse from 'fuse.js';
 import { Library, Minus, Plus, Search, StarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQueryState } from 'nuqs';
 import type React from 'react';
 import { useRef, useState } from 'react';
 
@@ -121,7 +122,10 @@ export default function AppSidebar({
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') || '';
   const [searchTerm, setSearchTerm] = useState(initialFilter);
-  const [activeCollectionIndex, setActiveCollectionIndex] = useState(0);
+  const [activeCollection, setActiveCollection] = useQueryState(
+    'activeCollection',
+    { defaultValue: 'all' }
+  );
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,24 +144,24 @@ export default function AppSidebar({
         {
           name: 'Alle Textbausteine',
           logo: Library,
-          plan: 'all',
+          key: 'all',
         },
         {
           name: 'Favoriten',
           logo: BookmarkFilledIcon,
-          plan: 'favourites',
+          key: 'favourites',
         },
         {
           name: 'Von Dir erstellt',
           logo: Pencil1Icon,
-          plan: 'author',
+          key: 'authored',
         },
       ]
     : [
         {
           name: 'Alle Textbausteine',
           logo: Library,
-          plan: 'all',
+          key: 'all',
         },
       ];
 
@@ -172,10 +176,10 @@ export default function AppSidebar({
   // 1. List of items to search in
   const menuSegments = JSON.parse(
     (() => {
-      if (collections[activeCollectionIndex].name === 'Favoriten') {
+      if (activeCollection === 'favourites') {
         return favouriteTemplates;
       }
-      if (collections[activeCollectionIndex].name === 'Von Dir erstellt') {
+      if (activeCollection === 'authored') {
         return authoredTemplates;
       }
       return templates;
@@ -206,10 +210,10 @@ export default function AppSidebar({
       <SidebarHeader className="z-30 gap-4">
         {isLoggedIn && (
           <CollectionSwitcher
-            activeCollectionIndex={activeCollectionIndex}
+            activeCollection={activeCollection}
             collections={collections}
             count={menuSegments?.length}
-            setActiveCollectionIndex={setActiveCollectionIndex}
+            setActiveCollection={setActiveCollection}
           />
         )}
         <SidebarGroup className="gap-2 py-0">
@@ -237,9 +241,7 @@ export default function AppSidebar({
                 value={searchTerm}
               />
               <Search className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-2 size-4 select-none opacity-50" />
-              <Kbd
-                className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-2 select-none"
-              >
+              <Kbd className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-2 select-none">
                 <span suppressHydrationWarning>{isMac ? '⌘K' : 'Ctrl+K'}</span>
               </Kbd>
             </form>
