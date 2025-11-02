@@ -168,8 +168,8 @@ export function SnippetsCard() {
                   {editingSnippet ? 'Snippet bearbeiten' : 'Neues Snippet'}
                 </DialogTitle>
                 <DialogDescription>
-                  Erstellen Sie ein Kürzel, das Sie später mit Shift+F2
-                  erweitern können.
+                  Erstellen Sie ein Kürzel, das Sie später mit Shift+F2 einfügen
+                  können.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -197,11 +197,11 @@ export function SnippetsCard() {
                     onChange={(e) =>
                       setFormData({ ...formData, snippet: e.target.value })
                     }
-                    placeholder="z.B. Vielen Dank f?r Ihre Zeit"
+                    placeholder="z.B. Vielen Dank für Ihre Zeit"
                     value={formData.snippet}
                   />
                   <p className="text-muted-foreground text-xs">
-                    Der Text, der eingef?gt wird, wenn Sie das Kürzel erweitern
+                    Der Text, der eingefügt wird, wenn Sie das Kürzel aufrufen
                   </p>
                 </div>
               </div>
