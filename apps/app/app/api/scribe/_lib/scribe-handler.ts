@@ -50,9 +50,8 @@
  * export const POST = handleAnamnese;
  */
 
-import { type AnthropicProviderOptions, anthropic } from '@ai-sdk/anthropic';
-import { fireworks } from '@ai-sdk/fireworks';
-import { google } from '@ai-sdk/google';
+import type { AnthropicProviderOptions } from '@ai-sdk/anthropic';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { database } from '@repo/database';
 import { env } from '@repo/env';
 import {
@@ -77,27 +76,38 @@ type SupportedModel = 'glm-4p5' | 'claude-sonnet-4.5' | 'gemini-2.5-pro';
 function getModelConfig(modelId: string): {
   model: LanguageModel;
   supportsThinking: boolean;
+  providerOptions?: {
+    gateway?: {
+      order?: string[];
+    };
+    vertex?: {
+      location?: string;
+    };
+  };
 } {
+  const openrouter = createOpenRouter({
+    apiKey: env.OPENROUTER_API_KEY as string,
+  });
   switch (modelId as SupportedModel) {
     case 'glm-4p5':
       return {
-        model: fireworks('accounts/fireworks/models/glm-4p5'),
+        model: openrouter('z-ai/glm-4.5'),
         supportsThinking: false,
       };
     case 'claude-sonnet-4.5':
       return {
-        model: anthropic('claude-sonnet-4-5'),
+        model: openrouter('anthropic/claude-sonnet-4.5'),
         supportsThinking: true,
       };
     case 'gemini-2.5-pro':
       return {
-        model: google('gemini-2.5-pro'),
+        model: openrouter('google/gemini-2.5-pro'),
         supportsThinking: false,
       };
     default:
       // Default to Claude if unknown model
       return {
-        model: anthropic('claude-sonnet-4-5'),
+        model: openrouter('anthropic/claude-sonnet-4.5'),
         supportsThinking: true,
       };
   }

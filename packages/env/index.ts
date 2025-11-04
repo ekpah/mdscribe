@@ -6,6 +6,8 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
 
   ANALYZE: z.string().optional(),
 
+  OPENROUTER_API_KEY: z.string().min(1),
+
   AUTH_POSTMARK_KEY: z.string().min(1),
 
   BETTER_AUTH_SECRET: z.string().min(1),
@@ -14,7 +16,6 @@ const server: Parameters<typeof createEnv>[0]['server'] = {
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
   STRIPE_PLUS_PRICE_ID: z.string().min(1),
   STRIPE_PLUS_PRICE_ID_ANNUAL: z.string().min(1),
-  GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
   VOYAGE_API_KEY: z.string().min(1),
 
   // Langfuse configuration
@@ -43,9 +44,8 @@ export const env = createEnv({
   server,
   runtimeEnv: {
     POSTGRES_DATABASE_URL: process.env.POSTGRES_DATABASE_URL,
-
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     AUTH_POSTMARK_KEY: process.env.AUTH_POSTMARK_KEY,
-
     ANALYZE: process.env.ANALYZE,
     NODE_ENV: process.env.NODE_ENV,
     CI: process.env.CI,
@@ -60,7 +60,6 @@ export const env = createEnv({
     VERCEL: process.env.VERCEL,
     NEXT_RUNTIME: process.env.NEXT_RUNTIME,
     FLAGS_SECRET: process.env.FLAGS_SECRET,
-    GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     VOYAGE_API_KEY: process.env.VOYAGE_API_KEY,
     LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
     LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,

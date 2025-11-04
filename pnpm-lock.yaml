@@ -56,6 +56,9 @@ importers:
       '@next/bundle-analyzer':
         specifier: ^15.3.4
         version: 15.3.4(bufferutil@4.0.9)
+      '@openrouter/ai-sdk-provider':
+        specifier: ^1.2.0
+        version: 1.2.0(ai@5.0.0-beta.28(zod@3.25.67))(zod@3.25.67)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -2267,6 +2270,13 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@openrouter/ai-sdk-provider@1.2.0':
+    resolution: {integrity: sha512-stuIwq7Yb7DNmk3GuCtz+oS3nZOY4TXEV3V5KsknDGQN7Fpu3KRMQVWRc1J073xKdf0FC9EHOctSyzsACmp5Ag==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ai: ^5.0.0
+      zod: ^3.24.1 || ^v4
 
   '@opentelemetry/api-logs@0.202.0':
     resolution: {integrity: sha512-fTBjMqKCfotFWfLzaKyhjLvyEyq5vDKTTFfBmx21btv3gvy8Lq6N5Dh2OzqeuN4DjtpSvNT1uNVfg08eD2Rfxw==}
@@ -11569,6 +11579,11 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
+
+  '@openrouter/ai-sdk-provider@1.2.0(ai@5.0.0-beta.28(zod@3.25.67))(zod@3.25.67)':
+    dependencies:
+      ai: 5.0.0-beta.28(zod@3.25.67)
+      zod: 3.25.67
 
   '@opentelemetry/api-logs@0.202.0':
     dependencies:
