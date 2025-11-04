@@ -239,34 +239,79 @@ async function generateResponse(
     };
   }
 
+  // Helper function to extract audio format from mimeType
+  const getAudioFormat = (mimeType: string): string => {
+    // Extract format from mimeType (e.g., "audio/webm" -> "webm")
+    const match = mimeType.match(/audio\/([^;]+)/);
+    if (match) {
+      return match[1];
+    }
+    // Fallback: try to extract from common patterns
+    if (mimeType.includes('webm')) return 'webm';
+    if (mimeType.includes('wav')) return 'wav';
+    if (mimeType.includes('mp3')) return 'mp3';
+    if (mimeType.includes('ogg')) return 'ogg';
+    // Default fallback
+    return 'webm';
+  };
+
   // If audio files are provided, add them to the messages
+  // OpenRouter expects audio in a specific format: type: 'input_audio' with nested input_audio object
   let messagesWithAudio = messages;
   if (audioFiles && audioFiles.length > 0 && modelId === 'gemini-2.5-pro') {
     // Add audio files to the user message
     const lastMessage = messages.at(-1);
     if (lastMessage?.role === 'user') {
-      const audioContent = audioFiles.map((audioFile) => ({
-        type: 'file' as const,
-        data: audioFile.data,
-        mediaType: audioFile.mimeType,
-      }));
+      // Transform audio files to OpenRouter's expected format
+      const audioContent = audioFiles.map((audioFile) => {
+        const format = getAudioFormat(audioFile.mimeType);
+        return {
+          type: 'input_audio' as const,
+          input_audio: {
+            data: audioFile.data,
+            format: format,
+          },
+        };
+      });
 
+      // Get text content from last message
+      let textContent = '';
+      if (typeof lastMessage.content === 'string') {
+        textContent = lastMessage.content;
+      } else if (Array.isArray(lastMessage.content)) {
+        // Extract text from existing content array
+        const textParts = lastMessage.content
+          .filter((part) => part.type === 'text')
+          .map((part) => (part as { type: string; text: string }).text);
+        textContent = textParts.join('\n');
+      }
+
+      // Note: Using 'as any' here because CoreMessage type doesn't include OpenRouter's
+      // 'input_audio' type, but OpenRouter adapter should handle this format
       messagesWithAudio = [
         ...messages.slice(0, -1),
         {
           ...lastMessage,
           content: [
-            {
-              type: 'text' as const,
-              text:
-                typeof lastMessage.content === 'string'
-                  ? lastMessage.content
-                  : '',
-            },
+            ...(textContent
+              ? [
+                  {
+                    type: 'text' as const,
+                    text: textContent,
+                  },
+                ]
+              : []),
             ...audioContent,
           ],
-        },
+        } as CoreMessage,
       ];
+
+      // Debug logging in development
+      if (env.NODE_ENV === 'development') {
+        console.log('Audio files processed:', audioFiles.length);
+        console.log('Audio format:', audioFiles.map((f) => getAudioFormat(f.mimeType)));
+        console.log('Messages with audio (last message content):', JSON.stringify(messagesWithAudio.at(-1)?.content, null, 2));
+      }
     }
   }
 
