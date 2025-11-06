@@ -50,38 +50,10 @@ export default function DocsHero() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>
-
-          <Button
-            asChild
-            className="px-8 py-6 font-semibold text-base"
-            size="lg"
-            variant="outline"
-          >
-            <Link
-              className="flex items-center justify-center gap-2"
-              href="/docs/templates"
-            >
-              <BookMarked className="h-5 w-5" />
-              <span>Templates</span>
-            </Link>
-          </Button>
         </div>
 
         {/* Quick Links Grid */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Link
-            className="group rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-solarized-cyan/50 hover:shadow-md"
-            href="/docs/quickstart"
-          >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-solarized-cyan/10">
-              <Zap className="h-5 w-5 text-solarized-cyan" />
-            </div>
-            <h3 className="mb-2 font-semibold text-base">Schnellstart</h3>
-            <p className="text-muted-foreground text-sm">
-              Erste Schritte mit MDScribe
-            </p>
-          </Link>
-
           <Link
             className="group rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-solarized-violet/50 hover:shadow-md"
             href="/docs/templates"
@@ -105,6 +77,19 @@ export default function DocsHero() {
             <h3 className="mb-2 font-semibold text-base">KI-Funktionen</h3>
             <p className="text-muted-foreground text-sm">
               Nutze KI für bessere Dokumentation
+            </p>
+          </Link>
+
+          <Link
+            className="group rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-solarized-cyan/50 hover:shadow-md"
+            href="/docs/knowledge"
+          >
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-solarized-cyan/10">
+              <BookOpen className="h-5 w-5 text-solarized-cyan" />
+            </div>
+            <h3 className="mb-2 font-semibold text-base">Wissensdatenbank</h3>
+            <p className="text-muted-foreground text-sm">
+              Durchsuche alle Anleitungen und Hilfestellungen
             </p>
           </Link>
         </div>
