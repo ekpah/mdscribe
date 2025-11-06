@@ -3,6 +3,8 @@ import { scribeHandler } from './scribe';
 import { getUsage } from './scribe/_lib/get-usage';
 import { templatesHandler as publicTemplatesHandler } from './templates';
 import { templatesHandler as userTemplatesHandler } from './user/templates';
+import { guidelinesHandler as publicGuidelinesHandler } from './guidelines';
+import { guidelinesHandler as userGuidelinesHandler } from './user/guidelines';
 import { snippetsHandler } from './user/snippets';
 
 /**
@@ -41,9 +43,13 @@ export const router = {
     scribe: scribeHandler,
     getUsage: getUsageHandler,
     templates: publicTemplatesHandler,
+    guidelines: publicGuidelinesHandler,
     user: {
         templates: {
             ...userTemplatesHandler,
+        },
+        guidelines: {
+            ...userGuidelinesHandler,
         },
         snippets: {
             ...snippetsHandler,

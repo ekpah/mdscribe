@@ -11,21 +11,23 @@ datasource db {
 }
 
 model User {
-  id               String         @id @default(cuid())
-  name             String?
-  email            String         @unique
-  emailVerified    Boolean        @default(false)
-  image            String?
-  stripeCustomerId String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  accounts         Account[]
-  sessions         Session[]
-  templates        Template[]
-  favourites       Template[]     @relation("favourites")
-  subscriptions    Subscription[]
-  usageEvents      UsageEvent[]
-  textSnippets     TextSnippet[]
+  id                  String         @id @default(cuid())
+  name                String?
+  email               String         @unique
+  emailVerified       Boolean        @default(false)
+  image               String?
+  stripeCustomerId    String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  accounts            Account[]
+  sessions            Session[]
+  templates           Template[]
+  favourites          Template[]     @relation("favourites")
+  guidelines          Guideline[]
+  guidelineFavourites Guideline[]    @relation("guidelineFavourites")
+  subscriptions       Subscription[]
+  usageEvents         UsageEvent[]
+  textSnippets        TextSnippet[]
 }
 
 model Account {
@@ -75,6 +77,18 @@ model Template {
   updatedAt   DateTime                     @default(now())
   author      User                         @relation(fields: [authorId], references: [id])
   favouriteOf User[]                       @relation("favourites")
+  embedding   Unsupported("vector(1024)")?
+}
+
+model Guideline {
+  id          String                       @id @default(cuid())
+  title       String
+  category    String
+  content     String
+  authorId    String
+  updatedAt   DateTime                     @default(now())
+  author      User                         @relation(fields: [authorId], references: [id])
+  favouriteOf User[]                       @relation("guidelineFavourites")
   embedding   Unsupported("vector(1024)")?
 }
 

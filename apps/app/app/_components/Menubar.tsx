@@ -69,6 +69,14 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
                   Textbausteine
                 </NavigationMenuLink>
               </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink
+                  className={navigationMenuTriggerStyle()}
+                  href="/guidelines"
+                >
+                  Guidelines
+                </NavigationMenuLink>
+              </NavigationMenuItem>
               {showAiLink && (
                 <NavigationMenuItem>
                   <NavigationMenuLink
@@ -134,6 +142,14 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
                   href="/templates"
                 >
                   Textbausteine
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink
+                  className={navigationMenuTriggerStyle()}
+                  href="/guidelines"
+                >
+                  Guidelines
                 </NavigationMenuLink>
               </NavigationMenuItem>
               {showAiLink && (
