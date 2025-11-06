@@ -1,0 +1,65 @@
+---
+title: Info-Tag
+description: Dokumentation zum Info-Tag für variable Informationen in Templates
+---
+
+## Info-Tag
+
+Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung variabler Informationen.
+
+### Syntax
+
+```markdown
+{% info "Feldname" /%}
+```
+
+### Parameter
+
+| Parameter | Typ | Pflicht | Standard | Beschreibung |
+|-----------|-----|---------|----------|--------------|
+| `primary` | String | Ja | - | Der Name des Feldes/der Variable |
+| `type` | String | Nein | `"string"` | Datentyp: `"string"`, `"number"`, `"date"`, `"boolean"` |
+| `unit` | String | Nein | - | Einheit für den Wert (z.B. "kg", "mmHg") |
+| `renderUnit` | Boolean | Nein | `false` | Ob die Einheit angezeigt werden soll |
+
+### Beispiele
+
+**Einfaches Textfeld:**
+```markdown
+**Patient**: {% info "Patientenname" /%}
+```
+
+**Datum:**
+```markdown
+**Aufnahmedatum**: {% info "Aufnahmedatum" type="date" /%}
+```
+
+**Zahl mit Einheit:**
+```markdown
+**Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+```
+
+**Weitere Beispiele:**
+```markdown
+**Alter**: {% info "Alter" type="number" unit="Jahre" renderUnit=true /%}
+
+**Blutdruck systolisch**: {% info "RR_sys" type="number" unit="mmHg" renderUnit=true /%}
+
+**Allergie bekannt**: {% info "Allergie" type="boolean" /%}
+```
+
+### Funktionsweise
+
+1. Das Info-Tag erstellt ein Eingabefeld in der KI-Dokumentation
+2. Der Benutzer füllt das Feld aus
+3. Der Wert wird im Dokument automatisch angezeigt
+4. Der Wert erscheint als **blauer Badge** im generierten Dokument
+
+### Best Practices
+
+- ✅ Verwenden Sie **beschreibende Namen**: `"Patientenname"` statt `"name"`
+- ✅ Nutzen Sie den **korrekten Typ** für bessere Validierung
+- ✅ Setzen Sie **Einheiten** bei numerischen Werten
+- ❌ Vermeiden Sie **zu lange Feldnamen**
+- ❌ Verwenden Sie **keine Sonderzeichen** im Feldnamen (Ausnahme: Unterstrich)
+

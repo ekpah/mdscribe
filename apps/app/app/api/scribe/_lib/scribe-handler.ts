@@ -70,7 +70,7 @@ import { getUsage } from './get-usage';
 const langfuse = new Langfuse();
 
 // Supported models type
-type SupportedModel = 'glm-4p5' | 'claude-sonnet-4.5' | 'gemini-2.5-pro';
+type SupportedModel = 'glm-4p6' | 'claude-sonnet-4.5' | 'gemini-2.5-pro';
 
 // Model configuration mapper
 function getModelConfig(modelId: string): {
@@ -89,9 +89,9 @@ function getModelConfig(modelId: string): {
     apiKey: env.OPENROUTER_API_KEY as string,
   });
   switch (modelId as SupportedModel) {
-    case 'glm-4p5':
+    case 'glm-4p6':
       return {
-        model: openrouter('z-ai/glm-4.5'),
+        model: openrouter('z-ai/glm-4.6'),
         supportsThinking: false,
       };
     case 'claude-sonnet-4.5':
@@ -247,10 +247,18 @@ async function generateResponse(
       return match[1];
     }
     // Fallback: try to extract from common patterns
-    if (mimeType.includes('webm')) return 'webm';
-    if (mimeType.includes('wav')) return 'wav';
-    if (mimeType.includes('mp3')) return 'mp3';
-    if (mimeType.includes('ogg')) return 'ogg';
+    if (mimeType.includes('webm')) {
+      return 'webm';
+    }
+    if (mimeType.includes('wav')) {
+      return 'wav';
+    }
+    if (mimeType.includes('mp3')) {
+      return 'mp3';
+    }
+    if (mimeType.includes('ogg')) {
+      return 'ogg';
+    }
     // Default fallback
     return 'webm';
   };
@@ -269,7 +277,7 @@ async function generateResponse(
           type: 'input_audio' as const,
           input_audio: {
             data: audioFile.data,
-            format: format,
+            format,
           },
         };
       });
@@ -309,8 +317,14 @@ async function generateResponse(
       // Debug logging in development
       if (env.NODE_ENV === 'development') {
         console.log('Audio files processed:', audioFiles.length);
-        console.log('Audio format:', audioFiles.map((f) => getAudioFormat(f.mimeType)));
-        console.log('Messages with audio (last message content):', JSON.stringify(messagesWithAudio.at(-1)?.content, null, 2));
+        console.log(
+          'Audio format:',
+          audioFiles.map((f) => getAudioFormat(f.mimeType))
+        );
+        console.log(
+          'Messages with audio (last message content):',
+          JSON.stringify(messagesWithAudio.at(-1)?.content, null, 2)
+        );
       }
     }
   }
@@ -350,6 +364,8 @@ async function generateResponse(
             promptName: config.promptName,
             thinking: event.reasoning,
             result: event.text,
+            tools: event.toolCalls,
+            toolsResults: event.toolResults,
           };
           console.log(logData);
         }

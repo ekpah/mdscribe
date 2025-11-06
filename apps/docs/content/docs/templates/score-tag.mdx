@@ -1,0 +1,84 @@
+---
+title: Score-Tag
+description: Dokumentation zum Score-Tag für automatische Berechnungen in Templates
+---
+
+## Score-Tag
+
+Das Score-Tag führt automatische Berechnungen basierend auf Formeln durch.
+
+### Syntax
+
+```markdown
+{% score formula="[Variable1] + [Variable2]" /%}
+```
+
+### Parameter
+
+| Parameter | Typ | Pflicht | Beschreibung |
+|-----------|-----|---------|--------------|
+| `formula` | String | Ja | Die mathematische Formel |
+| `unit` | String | Nein | Einheit für das Ergebnis |
+| `renderUnit` | Boolean | Nein | Ob die Einheit angezeigt werden soll |
+
+### Formel-Syntax
+
+Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
+
+**Unterstützte Operatoren:**
+- Addition: `+`
+- Subtraktion: `-`
+- Multiplikation: `*`
+- Division: `/`
+- Potenz: `^`
+- Klammern: `()`
+
+### Beispiele
+
+**Body-Mass-Index (BMI):**
+```markdown
+**BMI**: {% score formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true /%}
+```
+
+**Mittlerer arterieller Druck (MAP):**
+```markdown
+**MAP**: {% score formula="([RR_sys] + 2 * [RR_dia]) / 3" unit="mmHg" renderUnit=true /%}
+```
+
+**Einfache Summe:**
+```markdown
+**Gesamtscore**: {% score formula="[Score1] + [Score2] + [Score3]" /%}
+```
+
+**CHA₂DS₂-VASc-Score (vereinfacht):**
+```markdown
+**CHA₂DS₂-VASc-Score**: {% score formula="[Herzinsuffizienz] + [Hypertonie] + [Alter75] * 2 + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Alter65] + [Geschlecht]" /%}
+
+<!-- Dabei sind die Variablen: -->
+<!-- Herzinsuffizienz: 0 oder 1 -->
+<!-- Hypertonie: 0 oder 1 -->
+<!-- Alter75: 0 oder 1 (≥75 Jahre) -->
+<!-- etc. -->
+```
+
+### Funktionsweise
+
+1. Das Score-Tag referenziert andere Variablen aus Info-Tags
+2. Die Formel wird automatisch berechnet, wenn Werte eingegeben werden
+3. Das Ergebnis wird gerundet auf **2 Dezimalstellen**
+4. Bei fehlenden oder ungültigen Werten wird `...` angezeigt
+5. Das Ergebnis erscheint als **orangener Badge** im Dokument
+
+### Best Practices
+
+- ✅ Stellen Sie sicher, dass alle **referenzierten Variablen existieren**
+- ✅ Verwenden Sie **klare Variablennamen** ohne Leerzeichen
+- ✅ Verwenden Sie **Unterstriche** statt Leerzeichen: `RR_sys` statt `RR sys`
+- ✅ Testen Sie Ihre Formeln mit verschiedenen Werten
+- ❌ Vermeiden Sie **Division durch Null** (prüfen Sie Ihre Formeln)
+- ✅ Dokumentieren Sie komplexe Berechnungen mit Kommentaren
+
+### Tooltip-Funktion
+
+Score-Tags zeigen beim Hovern ein Tooltip mit der verwendeten Formel an. Dies hilft Benutzern zu verstehen, wie der Wert berechnet wurde.
+

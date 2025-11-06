@@ -95,7 +95,7 @@ export interface AiscribeTemplateConfig {
 }
 const models = [
   { id: 'auto', name: 'Auto' },
-  { id: 'glm-4p5', name: 'GLM-4.5' },
+  { id: 'glm-4p6', name: 'GLM-4.6' },
   { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
 ];

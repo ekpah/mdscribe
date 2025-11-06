@@ -10,7 +10,7 @@
     "lint": "turbo lint",
     "test": "turbo test",
     "analyze": "turbo analyze",
-    "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && pnpm install",
+    "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && bun install",
     "migrate": "cd packages/database && npx prisma format && npx prisma generate && npx prisma db push",
     "knip": "knip"
   },
@@ -26,8 +26,9 @@
     "node": ">=18"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
-  "packageManager": "pnpm@9.15.2",
+  "packageManager": "bun@1.2.23",
   "dependencies": {}
 }
