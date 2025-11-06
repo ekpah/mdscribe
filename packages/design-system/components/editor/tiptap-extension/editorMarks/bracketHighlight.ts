@@ -48,7 +48,7 @@ export const BracketHighlight = Mark.create<BracketHighlightOptions>({
     ];
   },
 
-  renderHTML({ HTMLAttributes, children }) {
+  renderHTML({ HTMLAttributes }) {
     // Renders [<span ...>content</span>] in HTML
     // Make sure brackets are always present and not styled, only the content is.
     return [
