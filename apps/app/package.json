@@ -50,6 +50,7 @@
     "next": "15.3.4",
     "next-secure-headers": "^2.2.0",
     "nuqs": "^2.7.2",
+    "pdf-lib": "^1.17.1",
     "pgvector": "^0.2.1",
     "posthog-js": "^1.255.1",
     "react": "catalog:",
