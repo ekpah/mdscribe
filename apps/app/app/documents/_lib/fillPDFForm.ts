@@ -25,7 +25,7 @@ export async function fillPDFForm(
 	// Iterate through all form field values (using labels as keys)
 	for (const [fieldName, fieldValue] of Object.entries(fieldValues)) {
 		// Map from label (primary) to actual PDF field name
-		const mapping = fieldMapping.find((fm) => fm.fieldName === fieldName);
+		const mapping = fieldMapping.find((fm) => fm.label === fieldName);
 		if (!mapping) {
 			console.warn(`No field mapping found for fieldName: ${fieldName}`);
 			continue;

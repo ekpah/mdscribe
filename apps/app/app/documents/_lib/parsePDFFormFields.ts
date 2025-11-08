@@ -260,6 +260,7 @@ export function convertPDFFieldsToInputTags(
 				attributes: {
 					primary,
 					type: "string",
+					description: mapping?.description || "",
 				},
 				children: [],
 			};

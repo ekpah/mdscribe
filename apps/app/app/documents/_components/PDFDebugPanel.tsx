@@ -37,7 +37,7 @@ export default function PDFDebugPanel({
 
 						return (
 							<div
-								key={label}
+								key={key}
 								className="border-b border-border/50 pb-1 last:border-0 last:pb-0 text-[10px]"
 							>
 								{label === key ? (
