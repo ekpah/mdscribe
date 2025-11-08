@@ -20,9 +20,6 @@ export interface ParsePDFResult {
 	fields: PDFField[];
 }
 
-// Regex for splitting field names into words
-const FIELD_NAME_SPLIT_REGEX = /[._-]/;
-
 // Type for PDF form field with unknown methods
 type PDFFormField = {
 	getAlternateName?: () => string;
@@ -36,40 +33,12 @@ type PDFFormField = {
 };
 
 /**
- * Extracts a user-friendly label from a PDF form field.
- * Tries alternate name, tooltip, partial name, or formats the field name.
- */
-function getFieldLabel(pdfField: PDFFormField, fieldName: string): string {
-	// Try to get alternate name (often more user-friendly)
-	const alternateName = pdfField.getAlternateName?.();
-	if (alternateName?.trim()) {
-		return alternateName.trim();
-	}
-	// Try to get tooltip
-	const tooltip = pdfField.getTooltip?.();
-	if (tooltip?.trim()) {
-		return tooltip.trim();
-	}
-	// Try to get partial name (sometimes more readable)
-	const partialName = pdfField.getPartialName?.();
-	if (partialName?.trim()) {
-		return partialName.trim();
-	}
-	// Fallback to field name, but try to make it more readable
-	return fieldName
-		.split(FIELD_NAME_SPLIT_REGEX)
-		.map(
-			(word: string) =>
-				word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-		)
-		.join(" ");
-}
-
-/**
  * Parses a PDF file and extracts all fillable form fields
  * and returns them in a format similar to parseMarkdocToInputs
  */
-export async function parsePDFFormFields(file: File): Promise<ParsePDFResult> {
+export async function parsePDFFormFields(
+	file: Uint8Array,
+): Promise<ParsePDFResult> {
 	const fields = await parseFormFieldsFromPDF(file);
 	const { inputTags, fieldMapping } = convertPDFFieldsToInputTags(fields);
 	return { inputTags, fieldMapping, fields };
@@ -85,7 +54,7 @@ function parseTextField(
 	const isMultiline = pdfFormField.isMultiline?.() ?? false;
 	return {
 		name: fieldName,
-		label: getFieldLabel(pdfFormField, fieldName),
+		label: fieldName,
 		type: isMultiline ? "multiline" : "text",
 		value: pdfFormField.getText?.() || "",
 	};
@@ -103,7 +72,7 @@ function parseDropdownField(
 	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
 	return {
 		name: fieldName,
-		label: getFieldLabel(pdfFormField, fieldName),
+		label: fieldName,
 		type: "dropdown",
 		options,
 		value: selectedValue || "",
@@ -119,7 +88,7 @@ function parseCheckboxField(
 ): PDFField {
 	return {
 		name: fieldName,
-		label: getFieldLabel(pdfFormField, fieldName),
+		label: fieldName,
 		type: "checkbox",
 		value: pdfFormField.isChecked?.() ? "true" : "false",
 	};
@@ -137,7 +106,7 @@ function parseRadioGroupField(
 	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
 	return {
 		name: fieldName,
-		label: getFieldLabel(pdfFormField, fieldName),
+		label: fieldName,
 		type: "radio",
 		options,
 		value: selectedValue || "",
@@ -148,9 +117,10 @@ function parseRadioGroupField(
  * Parses a PDF file and extracts all fillable form fields
  * Similar to parseMarkdocToInputs but for PDF forms
  */
-export async function parseFormFieldsFromPDF(file: File): Promise<PDFField[]> {
-	const arrayBuffer = await file.arrayBuffer();
-	const pdfDoc = await PDFDocument.load(arrayBuffer);
+export async function parseFormFieldsFromPDF(
+	file: Uint8Array,
+): Promise<PDFField[]> {
+	const pdfDoc = await PDFDocument.load(file);
 	const form = pdfDoc.getForm();
 	const fields: PDFField[] = [];
 
@@ -188,7 +158,7 @@ export async function parseFormFieldsFromPDF(file: File): Promise<PDFField[]> {
 				// Unknown field type, treat as text
 				pdfField = {
 					name: fieldName,
-					label: getFieldLabel(pdfFormField, fieldName),
+					label: fieldName,
 					type: "text",
 					value: "",
 				};

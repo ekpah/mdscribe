@@ -1,13 +1,16 @@
 "use client";
 
 import Inputs from "@repo/design-system/components/inputs/Inputs";
+import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import { fillPDFForm } from "../_lib/fillPDFForm";
 import { type PDFField, parsePDFFormFields } from "../_lib/parsePDFFormFields";
 import PDFDebugPanel from "./PDFDebugPanel";
 import PDFUploadSection from "./PDFUploadSection";
+import toast from "react-hot-toast";
 
 const PDFViewSection = dynamic(() => import("./PDFViewSection"), {
 	ssr: false,
@@ -17,14 +20,13 @@ const _PDF_URL =
 	"https://lifevest.zoll.com/-/media/lifevest-zoll-com/medical-professionals/how-order-lifevest/de-mo/mo_deu_online_pdf.ashx";
 
 export default function PDFFormSection() {
-	const [pdfFile, setPdfFile] = useState<File | null>(null);
+	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
 	const [inputTags, setInputTags] = useState<InputTagType[]>([]);
-	const [_fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
+	const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
-	const [filledPdfUrl, setFilledPdfUrl] = useState<string | null>(null);
 	const [pdfFields, setPdfFields] = useState<PDFField[]>([]);
-
-	const handleFileUpload = async (file: File) => {
+	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
+	const handleFileUpload = async (file: Uint8Array) => {
 		setPdfFile(file);
 
 		// get form fields from pdf
@@ -35,14 +37,24 @@ export default function PDFFormSection() {
 		setFieldMapping(fieldMapping);
 		setPdfFields(fields);
 		setFieldValues({});
-		setFilledPdfUrl(null);
 	};
 
 	const handleFieldChange = async (values: Record<string, unknown>) => {
 		setFieldValues(values);
+	};
+
+	const handleFillPdf = async () => {
 		if (!pdfFile) {
+			toast.error("No PDF file selected");
 			return;
 		}
+		const filledPdfResult = await fillPDFForm(
+			pdfFile,
+			fieldValues,
+			fieldMapping,
+		);
+		setFilledPdf(filledPdfResult);
+		toast.success("PDF form filled");
 	};
 
 	return (
@@ -52,6 +64,8 @@ export default function PDFFormSection() {
 					className="hidden overflow-y-auto overscroll-none p-4 md:block"
 					key="Inputs"
 				>
+					{" "}
+					<Button onClick={handleFillPdf}>Fill PDF</Button>
 					<Inputs inputTags={inputTags} onChange={handleFieldChange} />
 				</div>
 				<div
@@ -60,15 +74,11 @@ export default function PDFFormSection() {
 				>
 					<PDFUploadSection onFileUpload={handleFileUpload} pdfFile={pdfFile} />
 					<div className="mt-4 flex-1">
-						<PDFViewSection
-							pdfFile={pdfFile}
-							filledPdfUrl={filledPdfUrl}
-							fields={pdfFields}
-						/>
+						<PDFViewSection pdfFile={filledPdf ?? pdfFile} />
 					</div>
 				</div>
 			</Card>
-			<PDFDebugPanel values={fieldValues} />
+			<PDFDebugPanel values={fieldValues} fieldMapping={fieldMapping} />
 		</>
 	);
 }

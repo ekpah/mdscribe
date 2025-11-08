@@ -14,8 +14,8 @@ import {
 import toast from "react-hot-toast";
 
 interface PDFUploadSectionProps {
-	pdfFile: File | null;
-	onFileUpload: (file: File) => void;
+	pdfFile: Uint8Array | null;
+	onFileUpload: (file: Uint8Array) => void;
 }
 
 const maxSize = 10 * 1024 * 1024; // 10MB
@@ -47,7 +47,8 @@ export default function PDFUploadSection({
 			if (!(firstFile instanceof File)) {
 				return;
 			}
-			const file = firstFile;
+			const arrayBuffer = await firstFile.arrayBuffer();
+			const file = new Uint8Array(arrayBuffer);
 			onFileUpload(file);
 			toast.success(`Dokument hochgeladen`);
 		},
@@ -61,7 +62,7 @@ export default function PDFUploadSection({
 				<div>
 					<h3 className="font-semibold text-lg">PDF Preview</h3>
 					{pdfFile && (
-						<p className="text-muted-foreground text-sm">{pdfFile.name}</p>
+						<p className="text-muted-foreground text-sm">PDF Document</p>
 					)}
 				</div>
 			</div>

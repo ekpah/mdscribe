@@ -3,7 +3,7 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -19,14 +19,10 @@ const options = {
 const maxWidth = 800;
 
 interface PDFViewSectionProps {
-	pdfFile: File | null;
-	fields: PDFField[];
+	pdfFile: Uint8Array | null;
 }
 
-export default function PDFViewSection({
-	pdfFile,
-	fields,
-}: PDFViewSectionProps) {
+export default function PDFViewSection({ pdfFile }: PDFViewSectionProps) {
 	const [numPages, setNumPages] = useState<number>();
 	const [pageNumber, setPageNumber] = useState<number>(1);
 	const [pageDimensions, setPageDimensions] = useState<{
@@ -59,13 +55,30 @@ export default function PDFViewSection({
 			? Math.min(containerWidth, maxWidth) / pageDimensions.width
 			: 1;
 
+	const pdfUrl = useMemo(() => {
+		if (pdfFile) {
+			return URL.createObjectURL(
+				new Blob([pdfFile as BlobPart], { type: "application/pdf" }),
+			);
+		}
+		return null;
+	}, [pdfFile]);
+
+	useEffect(() => {
+		return () => {
+			if (pdfUrl) {
+				URL.revokeObjectURL(pdfUrl);
+			}
+		};
+	}, [pdfUrl]);
+
 	return (
 		<div className="hidden h-full lg:block">
 			<div className="relative h-full">
-				{pdfFile ? (
+				{pdfUrl ? (
 					<div className="relative h-full">
 						<Document
-							file={pdfFile}
+							file={pdfUrl}
 							onLoadSuccess={onDocumentLoadSuccess}
 							options={options}
 							className="h-full"
