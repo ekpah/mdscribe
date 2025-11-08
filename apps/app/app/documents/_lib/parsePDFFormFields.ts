@@ -72,8 +72,6 @@ function getFieldLabel(pdfField: PDFFormField, fieldName: string): string {
 export async function parsePDFFormFields(file: File): Promise<ParsePDFResult> {
 	const fields = await parseFormFieldsFromPDF(file);
 	const { inputTags, fieldMapping } = convertPDFFieldsToInputTags(fields);
-	console.log("parsedInputs", inputTags);
-	console.log("fieldMapping", fieldMapping);
 	return { inputTags, fieldMapping, fields };
 }
 
@@ -161,8 +159,6 @@ export async function parseFormFieldsFromPDF(file: File): Promise<PDFField[]> {
 	for (const field of formFields) {
 		const fieldName = field.getName();
 		const fieldType = field.constructor.name;
-		console.log("name", fieldName);
-		console.log("type", fieldType);
 		const pdfFormField = field as unknown as PDFFormField;
 
 		let pdfField: PDFField | null = null;

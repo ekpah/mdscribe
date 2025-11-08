@@ -5,7 +5,7 @@ import { Card } from "@repo/design-system/components/ui/card";
 import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import type { PDFField } from "../_lib/parsePDFFormFields";
+import { type PDFField, parsePDFFormFields } from "../_lib/parsePDFFormFields";
 import PDFDebugPanel from "./PDFDebugPanel";
 import PDFUploadSection from "./PDFUploadSection";
 
@@ -19,27 +19,30 @@ const _PDF_URL =
 export default function PDFFormSection() {
 	const [pdfFile, setPdfFile] = useState<File | null>(null);
 	const [inputTags, setInputTags] = useState<InputTagType[]>([]);
-	const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
+	const [_fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 	const [filledPdfUrl, setFilledPdfUrl] = useState<string | null>(null);
 	const [pdfFields, setPdfFields] = useState<PDFField[]>([]);
 
-	const handleFileUpload = (
-		file: File,
-		tags: InputTagType[],
-		mapping: Record<string, string>,
-		fields: PDFField[],
-	) => {
+	const handleFileUpload = async (file: File) => {
 		setPdfFile(file);
-		setInputTags(tags);
-		setFieldMapping(mapping);
+
+		// get form fields from pdf
+		const result = await parsePDFFormFields(file);
+
+		const { inputTags, fieldMapping, fields } = result;
+		setInputTags(inputTags);
+		setFieldMapping(fieldMapping);
 		setPdfFields(fields);
 		setFieldValues({});
 		setFilledPdfUrl(null);
 	};
 
-	const handleFieldChange = (values: Record<string, unknown>) => {
+	const handleFieldChange = async (values: Record<string, unknown>) => {
 		setFieldValues(values);
+		if (!pdfFile) {
+			return;
+		}
 	};
 
 	return (
@@ -55,14 +58,7 @@ export default function PDFFormSection() {
 					className="col-span-3 flex flex-col overflow-y-auto overscroll-none border-l p-4 md:col-span-2"
 					key="Preview"
 				>
-					<PDFUploadSection
-						fieldMapping={fieldMapping}
-						fieldValues={fieldValues}
-						filledPdfUrl={filledPdfUrl}
-						onFileUpload={handleFileUpload}
-						onPdfFilled={setFilledPdfUrl}
-						pdfFile={pdfFile}
-					/>
+					<PDFUploadSection onFileUpload={handleFileUpload} pdfFile={pdfFile} />
 					<div className="mt-4 flex-1">
 						<PDFViewSection
 							pdfFile={pdfFile}

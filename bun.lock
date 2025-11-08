@@ -5,6 +5,7 @@
       "name": "mdscribe",
       "dependencies": {
         "@wojtekmaj/react-hooks": "^2.0.4",
+        "pdfjs-dist": "5.4.394",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
@@ -62,7 +63,7 @@
         "next-secure-headers": "^2.2.0",
         "nuqs": "^2.7.2",
         "pdf-lib": "^1.17.1",
-        "pdfjs-dist": "^5.4.296",
+        "pdfjs-dist": "5.4.394",
         "pgvector": "^0.2.1",
         "posthog-js": "^1.255.1",
         "react": "^19.2.0",

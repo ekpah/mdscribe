@@ -5,45 +5,25 @@ import {
 	formatBytes,
 	useFileUpload,
 } from "@repo/design-system/hooks/use-file-upload";
-import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import {
 	AlertCircleIcon,
-	Download,
 	PaperclipIcon,
 	UploadIcon,
 	XIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { parsePDFFormFields } from "../_lib/parsePDFFormFields";
 
 interface PDFUploadSectionProps {
 	pdfFile: File | null;
-	fieldValues: Record<string, unknown>;
-	fieldMapping: Record<string, string>;
-	filledPdfUrl: string | null;
-	onFileUpload: (
-		file: File,
-		inputTags: InputTagType[],
-		fieldMapping: Record<string, string>,
-		fields: any[],
-	) => void;
-	onPdfFilled: (url: string) => void;
+	onFileUpload: (file: File) => void;
 }
 
 const maxSize = 10 * 1024 * 1024; // 10MB
 
 export default function PDFUploadSection({
 	pdfFile,
-	fieldValues,
-	fieldMapping,
-	filledPdfUrl,
 	onFileUpload,
-	onPdfFilled,
 }: PDFUploadSectionProps) {
-	const _iframeRef = useRef<HTMLIFrameElement>(null);
-	const [_isProcessing, setIsProcessing] = useState(false);
-
 	const [
 		{ files, isDragging, errors },
 		{
@@ -68,55 +48,12 @@ export default function PDFUploadSection({
 				return;
 			}
 			const file = firstFile;
-
-			setIsProcessing(true);
-			try {
-				const {
-					inputTags,
-					fieldMapping: mapping,
-					fields,
-				} = await parsePDFFormFields(file);
-				if (inputTags.length === 0) {
-					toast.error(
-						"No form fields found in this PDF. Please upload a PDF with fillable form fields.",
-					);
-					removeFile(addedFiles[0].id);
-					return;
-				}
-				onFileUpload(file, inputTags, mapping, fields);
-				toast.success(`Found ${inputTags.length} form fields`);
-			} catch (error) {
-				console.error("Error parsing PDF:", error);
-				toast.error("Failed to parse PDF form fields");
-				removeFile(addedFiles[0].id);
-			} finally {
-				setIsProcessing(false);
-			}
+			onFileUpload(file);
+			toast.success(`Dokument hochgeladen`);
 		},
 	});
 
 	const file = files[0];
-
-	// Annotate PDF form fields with current labels
-
-	const handleDownload = () => {
-		if (!filledPdfUrl) {
-			return;
-		}
-		const link = document.createElement("a");
-		link.href = filledPdfUrl;
-		link.download = `filled_${pdfFile?.name || "document.pdf"}`;
-		link.click();
-	};
-
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
-			if (filledPdfUrl) {
-				URL.revokeObjectURL(filledPdfUrl);
-			}
-		};
-	}, [filledPdfUrl]);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -127,12 +64,6 @@ export default function PDFUploadSection({
 						<p className="text-muted-foreground text-sm">{pdfFile.name}</p>
 					)}
 				</div>
-				{filledPdfUrl && (
-					<Button onClick={handleDownload} size="sm" type="button">
-						<Download aria-hidden="true" className="mr-2 h-4 w-4" />
-						Download
-					</Button>
-				)}
 			</div>
 
 			<div className="flex flex-col gap-2">
