@@ -1,174 +1,216 @@
-'use client';
+"use client";
 
-import { Button } from '@repo/design-system/components/ui/button';
-import { Download, Upload } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
-import { fillPDFForm } from '../_lib/fillPDFForm';
-import type { PDFField } from '../_lib/parsePDFFormFields';
-import { parsePDFFormFields } from '../_lib/parsePDFFormFields';
+import { Button } from "@repo/design-system/components/ui/button";
+import {
+	formatBytes,
+	useFileUpload,
+} from "@repo/design-system/hooks/use-file-upload";
+import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
+import {
+	AlertCircleIcon,
+	Download,
+	PaperclipIcon,
+	UploadIcon,
+	XIcon,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { parsePDFFormFields } from "../_lib/parsePDFFormFields";
 
 interface PDFUploadSectionProps {
-  pdfFile: File | null;
-  fieldValues: Record<string, string>;
-  filledPdfUrl: string | null;
-  onFileUpload: (file: File, fields: PDFField[]) => void;
-  onPdfFilled: (url: string) => void;
+	pdfFile: File | null;
+	fieldValues: Record<string, unknown>;
+	fieldMapping: Record<string, string>;
+	filledPdfUrl: string | null;
+	onFileUpload: (
+		file: File,
+		inputTags: InputTagType[],
+		fieldMapping: Record<string, string>,
+		fields: any[],
+	) => void;
+	onPdfFilled: (url: string) => void;
 }
 
+const maxSize = 10 * 1024 * 1024; // 10MB
+
 export default function PDFUploadSection({
-  pdfFile,
-  fieldValues,
-  filledPdfUrl,
-  onFileUpload,
-  onPdfFilled,
+	pdfFile,
+	fieldValues,
+	fieldMapping,
+	filledPdfUrl,
+	onFileUpload,
+	onPdfFilled,
 }: PDFUploadSectionProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+	const _iframeRef = useRef<HTMLIFrameElement>(null);
+	const [_isProcessing, setIsProcessing] = useState(false);
 
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+	const [
+		{ files, isDragging, errors },
+		{
+			handleDragEnter,
+			handleDragLeave,
+			handleDragOver,
+			handleDrop,
+			openFileDialog,
+			removeFile,
+			getInputProps,
+		},
+	] = useFileUpload({
+		maxSize,
+		accept: "application/pdf",
+		multiple: false,
+		onFilesAdded: async (addedFiles) => {
+			const firstFile = addedFiles[0]?.file;
+			if (!firstFile) {
+				return;
+			}
+			if (!(firstFile instanceof File)) {
+				return;
+			}
+			const file = firstFile;
 
-    if (file.type !== 'application/pdf') {
-      toast.error('Please upload a PDF file');
-      return;
-    }
+			setIsProcessing(true);
+			try {
+				const {
+					inputTags,
+					fieldMapping: mapping,
+					fields,
+				} = await parsePDFFormFields(file);
+				if (inputTags.length === 0) {
+					toast.error(
+						"No form fields found in this PDF. Please upload a PDF with fillable form fields.",
+					);
+					removeFile(addedFiles[0].id);
+					return;
+				}
+				onFileUpload(file, inputTags, mapping, fields);
+				toast.success(`Found ${inputTags.length} form fields`);
+			} catch (error) {
+				console.error("Error parsing PDF:", error);
+				toast.error("Failed to parse PDF form fields");
+				removeFile(addedFiles[0].id);
+			} finally {
+				setIsProcessing(false);
+			}
+		},
+	});
 
-    setIsProcessing(true);
-    try {
-      const fields = await parsePDFFormFields(file);
-      if (fields.length === 0) {
-        toast.error(
-          'No form fields found in this PDF. Please upload a PDF with fillable form fields.'
-        );
-        return;
-      }
-      onFileUpload(file, fields);
-      toast.success(`Found ${fields.length} form fields`);
-    } catch (error) {
-      console.error('Error parsing PDF:', error);
-      toast.error('Failed to parse PDF form fields');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+	const file = files[0];
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
+	// Annotate PDF form fields with current labels
 
-  const handleDownload = () => {
-    if (!filledPdfUrl) return;
-    const link = document.createElement('a');
-    link.href = filledPdfUrl;
-    link.download = `filled_${pdfFile?.name || 'document.pdf'}`;
-    link.click();
-  };
+	const handleDownload = () => {
+		if (!filledPdfUrl) {
+			return;
+		}
+		const link = document.createElement("a");
+		link.href = filledPdfUrl;
+		link.download = `filled_${pdfFile?.name || "document.pdf"}`;
+		link.click();
+	};
 
-  // Update PDF when field values change
-  useEffect(() => {
-    if (!pdfFile || Object.keys(fieldValues).length === 0) return;
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => {
+			if (filledPdfUrl) {
+				URL.revokeObjectURL(filledPdfUrl);
+			}
+		};
+	}, [filledPdfUrl]);
 
-    const updatePDF = async () => {
-      try {
-        const filledPdfBytes = await fillPDFForm(pdfFile, fieldValues);
-        const blob = new Blob([filledPdfBytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
+	return (
+		<div className="flex flex-col gap-4">
+			<div className="flex items-center justify-between">
+				<div>
+					<h3 className="font-semibold text-lg">PDF Preview</h3>
+					{pdfFile && (
+						<p className="text-muted-foreground text-sm">{pdfFile.name}</p>
+					)}
+				</div>
+				{filledPdfUrl && (
+					<Button onClick={handleDownload} size="sm" type="button">
+						<Download aria-hidden="true" className="mr-2 h-4 w-4" />
+						Download
+					</Button>
+				)}
+			</div>
 
-        // Revoke old URL to prevent memory leaks
-        if (filledPdfUrl) {
-          URL.revokeObjectURL(filledPdfUrl);
-        }
+			<div className="flex flex-col gap-2">
+				{/* Drop area */}
+				<button
+					className="flex h-full min-h-40 flex-col items-center justify-center rounded-xl border border-input border-dashed p-4 transition-colors hover:bg-accent/50 has-disabled:pointer-events-none has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50"
+					data-dragging={isDragging || undefined}
+					disabled={Boolean(file)}
+					onClick={openFileDialog}
+					onDragEnter={handleDragEnter}
+					onDragLeave={handleDragLeave}
+					onDragOver={handleDragOver}
+					onDrop={handleDrop}
+					type="button"
+				>
+					<input
+						{...getInputProps()}
+						aria-label="Upload file"
+						className="sr-only"
+						disabled={Boolean(file)}
+					/>
 
-        onPdfFilled(url);
-      } catch (error) {
-        console.error('Error filling PDF:', error);
-        toast.error('Failed to fill PDF form');
-      }
-    };
+					<div className="flex flex-col items-center justify-center text-center">
+						<div
+							aria-hidden="true"
+							className="mb-2 flex size-11 shrink-0 items-center justify-center rounded-full border bg-background"
+						>
+							<UploadIcon className="size-4 opacity-60" />
+						</div>
+						<p className="mb-1.5 font-medium text-sm">Upload file</p>
+						<p className="text-muted-foreground text-xs">
+							Drag & drop or click to browse (max. {formatBytes(maxSize)})
+						</p>
+					</div>
+				</button>
 
-    updatePDF();
-  }, [pdfFile, fieldValues]);
+				{errors.length > 0 && (
+					<div
+						className="flex items-center gap-1 text-destructive text-xs"
+						role="alert"
+					>
+						<AlertCircleIcon className="size-3 shrink-0" />
+						<span>{errors[0]}</span>
+					</div>
+				)}
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (filledPdfUrl) {
-        URL.revokeObjectURL(filledPdfUrl);
-      }
-    };
-  }, [filledPdfUrl]);
+				{/* File list */}
+				{file && (
+					<div className="space-y-2">
+						<div
+							className="flex items-center justify-between gap-2 rounded-xl border px-4 py-2"
+							key={file.id}
+						>
+							<div className="flex items-center gap-3 overflow-hidden">
+								<PaperclipIcon
+									aria-hidden="true"
+									className="size-4 shrink-0 opacity-60"
+								/>
+								<div className="min-w-0">
+									<p className="truncate font-medium text-[13px]">
+										{file.file.name}
+									</p>
+								</div>
+							</div>
 
-  return (
-    <div className="flex h-full flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-lg">PDF Preview</h3>
-          {pdfFile && (
-            <p className="text-muted-foreground text-sm">{pdfFile.name}</p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            disabled={isProcessing}
-            onClick={handleUploadClick}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <Upload aria-hidden="true" className="mr-2 h-4 w-4" />
-            {pdfFile ? 'Change PDF' : 'Upload PDF'}
-          </Button>
-          {filledPdfUrl && (
-            <Button onClick={handleDownload} size="sm" type="button">
-              <Download aria-hidden="true" className="mr-2 h-4 w-4" />
-              Download
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <input
-        accept="application/pdf"
-        className="hidden"
-        onChange={handleFileChange}
-        ref={fileInputRef}
-        type="file"
-      />
-
-      <div className="relative flex-1 overflow-hidden rounded-lg border bg-muted">
-        {filledPdfUrl ? (
-          <iframe
-            className="h-full w-full"
-            ref={iframeRef}
-            src={filledPdfUrl}
-            title="PDF Preview"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <Upload
-                aria-hidden="true"
-                className="mx-auto mb-4 h-12 w-12 text-muted-foreground"
-              />
-              <p className="mb-2 font-medium text-foreground">
-                No PDF uploaded
-              </p>
-              <p className="mb-4 text-muted-foreground text-sm">
-                Upload a PDF with fillable form fields to get started
-              </p>
-              <Button onClick={handleUploadClick} type="button">
-                <Upload aria-hidden="true" className="mr-2 h-4 w-4" />
-                Upload PDF
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+							<Button
+								aria-label="Remove file"
+								className="-me-2 size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
+								onClick={() => removeFile(files[0]?.id)}
+								size="icon"
+								variant="ghost"
+							>
+								<XIcon aria-hidden="true" className="size-4" />
+							</Button>
+						</div>
+					</div>
+				)}
+			</div>
+		</div>
+	);
 }
