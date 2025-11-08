@@ -1,10 +1,11 @@
 "use client";
 
+import type { FieldMapping } from "../_lib/parsePDFFormFields";
 import { Card } from "@repo/design-system/components/ui/card";
 
 interface PDFDebugPanelProps {
 	values: Record<string, unknown>;
-	fieldMapping: Record<string, string>;
+	fieldMapping: FieldMapping[];
 }
 
 export default function PDFDebugPanel({
@@ -16,6 +17,7 @@ export default function PDFDebugPanel({
 		return null;
 	}
 
+	console.log(fieldMapping);
 	return (
 		<Card className="fixed bottom-4 right-4 z-50 h-96 w-96 overflow-hidden border shadow-lg flex flex-col">
 			<div className="border-b bg-muted/50 px-2 py-1 flex-shrink-0">
@@ -23,8 +25,11 @@ export default function PDFDebugPanel({
 			</div>
 			<div className="overflow-y-auto flex-1 p-2">
 				<div className="space-y-1">
-					{Object.entries(values).map(([label, value]) => {
-						const fieldName = fieldMapping[label] || "N/A";
+					{Object.entries(values).map(([key, value]) => {
+						const mapping = Object.values(fieldMapping).find(
+							(fm) => fm.fieldName === key,
+						);
+						const label = mapping?.label || "N/A";
 						const displayValue =
 							typeof value === "string"
 								? value
@@ -35,7 +40,7 @@ export default function PDFDebugPanel({
 								key={label}
 								className="border-b border-border/50 pb-1 last:border-0 last:pb-0 text-[10px]"
 							>
-								{label === fieldName ? (
+								{label === key ? (
 									<div className="flex items-start gap-1">
 										<span className="text-muted-foreground font-medium flex-shrink-0">
 											label/fieldname:
@@ -54,7 +59,7 @@ export default function PDFDebugPanel({
 											<span className="text-muted-foreground font-medium flex-shrink-0">
 												fieldname:
 											</span>
-											<span className="font-mono truncate">{fieldName}</span>
+											<span className="font-mono truncate">{key}</span>
 										</div>
 									</>
 								)}

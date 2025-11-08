@@ -14,9 +14,13 @@ export interface PDFField {
 	rect?: [number, number, number, number]; // [x1, y1, x2, y2]
 }
 
+export interface FieldMapping {
+	fieldName: string;
+	label: string;
+	description: string;
+}
+
 export interface ParsePDFResult {
-	inputTags: InputTagType[];
-	fieldMapping: Record<string, string>; // Maps label (primary) → field name
 	fields: PDFField[];
 }
 
@@ -40,8 +44,7 @@ export async function parsePDFFormFields(
 	file: Uint8Array,
 ): Promise<ParsePDFResult> {
 	const fields = await parseFormFieldsFromPDF(file);
-	const { inputTags, fieldMapping } = convertPDFFieldsToInputTags(fields);
-	return { inputTags, fieldMapping, fields };
+	return { fields };
 }
 
 /**
@@ -178,19 +181,19 @@ export async function parseFormFieldsFromPDF(
  * similar to how switch tags work in parseMarkdocToInputs.
  * Checkbox fields are converted to Switch tags with Case children for "true" and "false".
  */
-export function convertPDFFieldsToInputTags(fields: PDFField[]): {
+export function convertPDFFieldsToInputTags(
+	fields: PDFField[],
+	fieldMapping: FieldMapping[],
+): {
 	inputTags: InputTagType[];
-	fieldMapping: Record<string, string>;
 } {
 	const inputTags: InputTagType[] = [];
-	const fieldMapping: Record<string, string> = {};
 
 	for (const field of fields) {
 		// Use label as primary, fallback to name if label is empty
-		const primary = field.label.trim() || field.name;
 
-		// Store mapping: label (primary) → field name (needed for filling PDF)
-		fieldMapping[primary] = field.name;
+		const mapping = fieldMapping.find((fm) => fm.fieldName === field.name);
+		const primary = mapping?.label ? mapping.label.trim() : field.name;
 
 		// Convert checkbox fields to Switch tags with Case children for "true" and "false"
 		if (field.type === "checkbox") {
@@ -265,5 +268,5 @@ export function convertPDFFieldsToInputTags(fields: PDFField[]): {
 		}
 	}
 
-	return { inputTags, fieldMapping };
+	return { inputTags };
 }

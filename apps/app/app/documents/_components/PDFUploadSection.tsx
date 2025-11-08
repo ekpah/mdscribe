@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 interface PDFUploadSectionProps {
 	pdfFile: Uint8Array | null;
 	onFileUpload: (file: Uint8Array) => void;
+	onClear: () => void;
 }
 
 const maxSize = 10 * 1024 * 1024; // 10MB
@@ -23,6 +24,7 @@ const maxSize = 10 * 1024 * 1024; // 10MB
 export default function PDFUploadSection({
 	pdfFile,
 	onFileUpload,
+	onClear,
 }: PDFUploadSectionProps) {
 	const [
 		{ files, isDragging, errors },
@@ -133,7 +135,10 @@ export default function PDFUploadSection({
 							<Button
 								aria-label="Remove file"
 								className="-me-2 size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
-								onClick={() => removeFile(files[0]?.id)}
+								onClick={() => {
+									removeFile(files[0]?.id);
+									onClear();
+								}}
 								size="icon"
 								variant="ghost"
 							>

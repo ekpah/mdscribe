@@ -1,3 +1,4 @@
+import type { FieldMapping } from "./parsePDFFormFields";
 import { PDFDocument } from "pdf-lib";
 
 // Type for PDF form field with unknown methods
@@ -16,19 +17,20 @@ type PDFFormField = {
 export async function fillPDFForm(
 	file: Uint8Array,
 	fieldValues: Record<string, unknown>,
-	fieldMapping: Record<string, string>,
+	fieldMapping: FieldMapping[],
 ): Promise<Uint8Array> {
 	const pdfDoc = await PDFDocument.load(file);
 	const form = pdfDoc.getForm();
 
 	// Iterate through all form field values (using labels as keys)
-	for (const [label, fieldValue] of Object.entries(fieldValues)) {
+	for (const [fieldName, fieldValue] of Object.entries(fieldValues)) {
 		// Map from label (primary) to actual PDF field name
-		const fieldName = fieldMapping[label];
-		if (!fieldName) {
-			console.warn(`No field mapping found for label: ${label}`);
+		const mapping = fieldMapping.find((fm) => fm.fieldName === fieldName);
+		if (!mapping) {
+			console.warn(`No field mapping found for fieldName: ${fieldName}`);
 			continue;
 		}
+		const label = mapping.label;
 
 		// Convert field value to string for PDF filling
 		const stringValue =
