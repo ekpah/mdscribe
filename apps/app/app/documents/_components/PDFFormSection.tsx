@@ -23,11 +23,9 @@ const PDFViewSection = dynamic(() => import("./PDFViewSection"), {
 
 export default function PDFFormSection() {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
-
 	const [fieldMapping, setFieldMapping] = useState<FieldMapping[]>([]);
 	const [fields, setFields] = useState<PDFField[]>([]);
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
-
 	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
 
 	const handleClearDocument = () => {
@@ -60,7 +58,7 @@ export default function PDFFormSection() {
 
 	const handleFillPdf = async () => {
 		if (!pdfFile) {
-			toast.error("No PDF file selected");
+			toast.error("Keine PDF-Datei ausgewählt");
 			return;
 		}
 		const filledPdfResult = await fillPDFForm(
@@ -69,17 +67,17 @@ export default function PDFFormSection() {
 			fieldMapping,
 		);
 		setFilledPdf(filledPdfResult);
-		toast.success("PDF form filled");
+		toast.success("PDF-Formular ausgefüllt");
 	};
 
 	const copyInputTagsToClipboard = () => {
 		navigator.clipboard.writeText(JSON.stringify(fieldMapping, null, 2));
-		toast.success("Input tags copied to clipboard");
+		toast.success("Eingabe-Tags in Zwischenablage kopiert");
 	};
 
 	const handleEnhanceWithAI = async () => {
 		if (!pdfFile) {
-			toast.error("No PDF file selected");
+			toast.error("Keine PDF-Datei ausgewählt");
 			return;
 		}
 
@@ -97,7 +95,9 @@ export default function PDFFormSection() {
 			const formData = new FormData();
 			formData.append("file", file);
 			formData.append("fieldMapping", JSON.stringify(fieldMapping));
-			toast.loading("Enhancing inputs with AI...", { id: "enhance-ai" });
+			toast.loading("Eingaben werden mit KI verbessert...", {
+				id: "enhance-ai",
+			});
 
 			const response = await fetch("/api/documents/parse-form", {
 				method: "POST",
@@ -105,17 +105,21 @@ export default function PDFFormSection() {
 			});
 			if (!response.ok) {
 				const errorText = await response.text();
-				throw new Error(errorText || "Failed to enhance inputs");
+				throw new Error(
+					errorText || "Eingaben konnten nicht verbessert werden",
+				);
 			}
 			const data = await response.json();
 			// Update field mapping with AI-enhanced version
 			setFieldMapping(data.fieldMapping);
 
-			toast.success("Inputs enhanced with AI", { id: "enhance-ai" });
+			toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
 		} catch (error) {
 			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error occurred";
-			toast.error(`Failed to enhance inputs: ${errorMessage}`, {
+				error instanceof Error
+					? error.message
+					: "Unbekannter Fehler aufgetreten";
+			toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
 				id: "enhance-ai",
 			});
 		}
@@ -129,16 +133,16 @@ export default function PDFFormSection() {
 					key="Inputs"
 				>
 					<div className="mb-4 flex flex-col gap-2">
-						<Button onClick={handleFillPdf}>Fill PDF</Button>
+						<Button onClick={handleFillPdf}>PDF ausfüllen</Button>
 						<Button
 							onClick={handleEnhanceWithAI}
 							disabled={!pdfFile}
 							variant="outline"
 						>
-							Enhance inputs with AI
+							Eingaben mit KI verbessern
 						</Button>
 						<Button onClick={copyInputTagsToClipboard} variant="outline">
-							Copy input tags to clipboard
+							Eingabe-Tags in Zwischenablage kopieren
 						</Button>
 					</div>
 					<Inputs inputTags={inputTags} onChange={handleInputChange} />
@@ -153,7 +157,10 @@ export default function PDFFormSection() {
 						pdfFile={pdfFile}
 					/>
 					<div className="mt-4 flex-1">
-						<PDFViewSection pdfFile={filledPdf ?? pdfFile} />
+						<PDFViewSection
+							pdfFile={filledPdf ?? pdfFile}
+							hasUploadedFile={Boolean(pdfFile)}
+						/>
 					</div>
 				</div>
 			</Card>

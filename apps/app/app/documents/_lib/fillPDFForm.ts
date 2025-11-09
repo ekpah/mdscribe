@@ -23,26 +23,28 @@ export async function fillPDFForm(
 	const form = pdfDoc.getForm();
 
 	// Iterate through all form field values (using labels as keys)
-	for (const [fieldName, fieldValue] of Object.entries(fieldValues)) {
+	for (const [label, fieldValue] of Object.entries(fieldValues)) {
 		// Map from label (primary) to actual PDF field name
-		const mapping = fieldMapping.find((fm) => fm.label === fieldName);
+		const mapping = fieldMapping.find((fm) => fm.label === label);
 		if (!mapping) {
-			console.warn(`No field mapping found for fieldName: ${fieldName}`);
+			console.warn(`No field mapping found for label: ${label}`);
 			continue;
 		}
-		const label = mapping.label;
+		const fieldName = mapping.fieldName;
 
 		// Convert field value to string for PDF filling
 		const stringValue =
 			typeof fieldValue === "string"
 				? fieldValue
 				: fieldValue?.toString() || "";
-
+		console.log("Wert:", stringValue);
 		try {
 			const field = form.getField(fieldName);
 			const fieldType = field.constructor.name;
 			const pdfFormField = field as unknown as PDFFormField;
-
+			console.log("Feldname:", fieldName);
+			console.log("label:", label);
+			console.log("fieldType:", fieldType);
 			switch (fieldType) {
 				case "PDFTextField": {
 					pdfFormField.setText?.(stringValue);

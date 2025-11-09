@@ -52,28 +52,27 @@ export async function POST(req: Request) {
 		const dataUrl = `data:application/pdf;base64,${base64File}`;
 
 		// Create prompt for Gemini to enhance field mappings
-		const prompt = `You are analyzing a PDF form document. I've extracted the following form field mappings from the PDF:
+		const prompt = `Du analysierst ein PDF-Formular-Dokument. Ich habe die folgenden Formularfeld-Zuordnungen aus dem PDF extrahiert:
 
 ${JSON.stringify(fieldMapping, null, 2)}
 
-For each field mapping, please:
-1. Suggest a better, more descriptive label (using camelCase)
-2. Provide a clear, concise description of what this field is for
+Für jede Feldzuordnung:
+1. Schlage ein besseres, aussagekräftigeres Label vor
+2. Gib eine klare und prägnante Beschreibung an, wofür dieses Feld verwendet wird
 
-Return your response as a JSON object with this exact structure:
+Gib deine Antwort als JSON-Objekt mit genau dieser Struktur zurück:
 {
   "fieldMapping": [{
     "fieldName": "[original_field_name]",
-    "label": "[enhanced_label]",
-    "description": "[clear description of the field]"
+    "label": "[verbessertes_label]",
+    "description": "[klare Beschreibung des Feldes]"
   }]
 }
 
-Make sure to:
-- Keep all original fieldName values
-- Use camelCase for labels (e.g., "firstName", "emailAddress")
-- Make descriptions concise but informative
-- Preserve the fieldName exactly as shown in the input`;
+Achte darauf:
+- Alle originalen fieldName-Werte beizubehalten
+- Die Beschreibungen kurz und aussagekräftig zu halten
+- fieldName exakt wie im Input zu übernehmen`;
 
 		// Initialize OpenRouter with Gemini 2.5 Pro
 		const openrouter = createOpenRouter({

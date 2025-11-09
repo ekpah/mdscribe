@@ -20,40 +20,43 @@ const maxWidth = 800;
 
 interface PDFViewSectionProps {
 	pdfFile: Uint8Array | null;
+	hasUploadedFile?: boolean;
 }
 
-export default function PDFViewSection({ pdfFile }: PDFViewSectionProps) {
+export default function PDFViewSection({
+	pdfFile,
+	hasUploadedFile = false,
+}: PDFViewSectionProps) {
 	const [numPages, setNumPages] = useState<number>();
 	const [pageNumber, setPageNumber] = useState<number>(1);
-	const [pageDimensions, setPageDimensions] = useState<{
-		width: number;
-		height: number;
-	} | null>(null);
-	const [_containerRef, _setContainerReff] = useState<HTMLElement | null>(null);
+	const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);
 	const [containerWidth, setContainerWidth] = useState<number>();
 
-	const _onResize = useCallback<ResizeObserverCallback>((entries) => {
+	const onResize = useCallback<ResizeObserverCallback>((entries) => {
 		const [entry] = entries;
 		if (entry) {
 			setContainerWidth(entry.contentRect.width);
 		}
 	}, []);
 
+	useEffect(() => {
+		if (!containerRef) {
+			return;
+		}
+
+		const resizeObserver = new ResizeObserver(onResize);
+		resizeObserver.observe(containerRef);
+
+		return () => {
+			resizeObserver.disconnect();
+		};
+	}, [containerRef, onResize]);
+
 	function onDocumentLoadSuccess({
 		numPages: nextNumPages,
 	}: PDFDocumentProxy): void {
 		setNumPages(nextNumPages);
 	}
-
-	const _onPageLoadSuccess = (page: { width: number; height: number }) => {
-		setPageDimensions({ width: page.width, height: page.height });
-	};
-
-	// Compute scale for overlaying fields on the PDF page correctly
-	const _scale =
-		containerWidth && pageDimensions
-			? Math.min(containerWidth, maxWidth) / pageDimensions.width
-			: 1;
 
 	const pdfUrl = useMemo(() => {
 		if (pdfFile) {
@@ -74,52 +77,82 @@ export default function PDFViewSection({ pdfFile }: PDFViewSectionProps) {
 
 	return (
 		<div className="hidden h-full lg:block">
-			<div className="relative h-full">
+			<div
+				ref={setContainerRef}
+				className="relative flex h-full items-center justify-center"
+			>
 				{pdfUrl ? (
-					<div className="relative h-full">
-						<Document
-							file={pdfUrl}
-							onLoadSuccess={onDocumentLoadSuccess}
-							options={options}
-							className="h-full"
-						>
-							<Page
-								key={`page_${pageNumber}`}
-								pageNumber={pageNumber}
-								width={
-									containerWidth ? Math.min(containerWidth, maxWidth) : maxWidth
-								}
-							/>
-						</Document>
-						{numPages && numPages > 1 ? (
-							<div className="mt-4 flex items-center justify-center gap-x-2">
+					<div className="relative flex h-full items-center justify-center">
+						{numPages && numPages > 1 && hasUploadedFile ? (
+							<>
 								<Button
 									variant="outline"
 									size="icon"
 									onClick={() => setPageNumber(pageNumber - 1)}
 									disabled={pageNumber <= 1}
+									className="absolute left-2 z-10"
 								>
 									<ChevronLeftIcon className="h-4 w-4" />
 								</Button>
-								<span className="text-sm font-medium">
-									Page {pageNumber} of {numPages}
-								</span>
+								<div className="flex flex-col items-center">
+									<Document
+										file={pdfUrl}
+										onLoadSuccess={onDocumentLoadSuccess}
+										options={options}
+										className="h-full"
+									>
+										<Page
+											key={`page_${pageNumber}`}
+											pageNumber={pageNumber}
+											width={
+												containerWidth
+													? Math.min(containerWidth - 120, maxWidth - 120)
+													: maxWidth - 120
+											}
+										/>
+									</Document>
+									{numPages && numPages > 1 ? (
+										<div className="mt-2">
+											<span className="text-sm font-medium">
+												Seite {pageNumber} von {numPages}
+											</span>
+										</div>
+									) : null}
+								</div>
 								<Button
 									variant="outline"
 									size="icon"
 									onClick={() => setPageNumber(pageNumber + 1)}
 									disabled={pageNumber >= numPages}
+									className="absolute right-2 z-10"
 								>
 									<ChevronRightIcon className="h-4 w-4" />
 								</Button>
-							</div>
-						) : null}
+							</>
+						) : (
+							<Document
+								file={pdfUrl}
+								onLoadSuccess={onDocumentLoadSuccess}
+								options={options}
+								className="h-full"
+							>
+								<Page
+									key={`page_${pageNumber}`}
+									pageNumber={pageNumber}
+									width={
+										containerWidth
+											? Math.min(containerWidth, maxWidth)
+											: maxWidth
+									}
+								/>
+							</Document>
+						)}
 					</div>
 				) : (
-					<div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-solarized-base border-opacity-30 bg-solarized-base/[0.03]">
+					<div className="flex w-full h-full min-h-40 items-center justify-center rounded-xl border border-input border-dashed p-4">
 						<div className="text-center">
-							<p className="mt-2 block text-sm font-medium text-solarized-base">
-								Upload a PDF to see the preview
+							<p className="block text-sm font-medium">
+								Laden Sie ein PDF hoch, um die Vorschau zu sehen
 							</p>
 						</div>
 					</div>

@@ -60,65 +60,61 @@ export default function PDFUploadSection({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex items-center justify-between">
-				<div>
-					<h3 className="font-semibold text-lg">PDF Preview</h3>
-					{pdfFile && (
-						<p className="text-muted-foreground text-sm">PDF Document</p>
-					)}
-				</div>
-			</div>
-
 			<div className="flex flex-col gap-2">
-				{/* Drop area */}
-				<button
-					className="flex h-full min-h-40 flex-col items-center justify-center rounded-xl border border-input border-dashed p-4 transition-colors hover:bg-accent/50 has-disabled:pointer-events-none has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50"
-					data-dragging={isDragging || undefined}
-					disabled={Boolean(file)}
-					onClick={openFileDialog}
-					onDragEnter={handleDragEnter}
-					onDragLeave={handleDragLeave}
-					onDragOver={handleDragOver}
-					onDrop={handleDrop}
-					type="button"
-				>
-					<input
-						{...getInputProps()}
-						aria-label="Upload file"
-						className="sr-only"
-						disabled={Boolean(file)}
-					/>
-
-					<div className="flex flex-col items-center justify-center text-center">
-						<div
-							aria-hidden="true"
-							className="mb-2 flex size-11 shrink-0 items-center justify-center rounded-full border bg-background"
+				{/* Drop area - only show when no pdfFile */}
+				{!pdfFile && (
+					<>
+						<button
+							className="flex h-full min-h-40 flex-col items-center justify-center rounded-xl border border-input border-dashed p-4 transition-colors hover:bg-accent/50 has-disabled:pointer-events-none has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50"
+							data-dragging={isDragging || undefined}
+							disabled={Boolean(file)}
+							onClick={openFileDialog}
+							onDragEnter={handleDragEnter}
+							onDragLeave={handleDragLeave}
+							onDragOver={handleDragOver}
+							onDrop={handleDrop}
+							type="button"
 						>
-							<UploadIcon className="size-4 opacity-60" />
-						</div>
-						<p className="mb-1.5 font-medium text-sm">Upload file</p>
-						<p className="text-muted-foreground text-xs">
-							Drag & drop or click to browse (max. {formatBytes(maxSize)})
-						</p>
-					</div>
-				</button>
+							<input
+								{...getInputProps()}
+								aria-label="Datei hochladen"
+								className="sr-only"
+								disabled={Boolean(file)}
+							/>
 
-				{errors.length > 0 && (
-					<div
-						className="flex items-center gap-1 text-destructive text-xs"
-						role="alert"
-					>
-						<AlertCircleIcon className="size-3 shrink-0" />
-						<span>{errors[0]}</span>
-					</div>
+							<div className="flex flex-col items-center justify-center text-center">
+								<div
+									aria-hidden="true"
+									className="mb-2 flex size-11 shrink-0 items-center justify-center rounded-full border bg-background"
+								>
+									<UploadIcon className="size-4 opacity-60" />
+								</div>
+								<p className="mb-1.5 font-medium text-sm">Datei hochladen</p>
+								<p className="text-muted-foreground text-xs">
+									Ziehen & ablegen oder klicken zum Durchsuchen (max.{" "}
+									{formatBytes(maxSize)})
+								</p>
+							</div>
+						</button>
+
+						{errors.length > 0 && (
+							<div
+								className="flex items-center gap-1 text-destructive text-xs"
+								role="alert"
+							>
+								<AlertCircleIcon className="size-3 shrink-0" />
+								<span>{errors[0]}</span>
+							</div>
+						)}
+					</>
 				)}
 
-				{/* File list */}
-				{file && (
+				{/* File list - show when pdfFile exists or when file from hook exists */}
+				{(pdfFile || file) && (
 					<div className="space-y-2">
 						<div
 							className="flex items-center justify-between gap-2 rounded-xl border px-4 py-2"
-							key={file.id}
+							key={file?.id || "pdf-file"}
 						>
 							<div className="flex items-center gap-3 overflow-hidden">
 								<PaperclipIcon
@@ -127,16 +123,18 @@ export default function PDFUploadSection({
 								/>
 								<div className="min-w-0">
 									<p className="truncate font-medium text-[13px]">
-										{file.file.name}
+										{file?.file.name || "document.pdf"}
 									</p>
 								</div>
 							</div>
 
 							<Button
-								aria-label="Remove file"
+								aria-label="Datei entfernen"
 								className="-me-2 size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
 								onClick={() => {
-									removeFile(files[0]?.id);
+									if (file) {
+										removeFile(files[0]?.id);
+									}
 									onClear();
 								}}
 								size="icon"
