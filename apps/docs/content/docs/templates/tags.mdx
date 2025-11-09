@@ -1,0 +1,107 @@
+---
+title: Tags
+description: Übersicht über alle verfügbaren Template-Tags in MDScribe
+---
+
+## Einführung in Tags
+
+Tags sind spezielle Markierungen in Ihren Templates, die dynamische und interaktive Inhalte ermöglichen. Mit Tags können Sie:
+
+- Variable Informationen einfügen (Patientennamen, Daten, Werte)
+- Bedingte Inhalte basierend auf verschiedenen Szenarien anzeigen
+- Automatische Berechnungen durchführen
+- Strukturierte, wiederverwendbare Templates erstellen
+
+MDScribe bietet drei Haupttypen von Tags: **Info**, **Switch/Case**, und **Score**.
+
+## Verfügbare Tags
+
+### 🔵 Info-Tag
+
+Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung variabler Informationen. Es erstellt Eingabefelder für einzelne Werte mit verschiedenen Datentypen.
+
+[→ Zur vollständigen Info-Tag Dokumentation](/docs/templates/info-tag)
+
+### 🟢 Switch/Case-Tags
+
+Switch/Case-Tags ermöglichen bedingte Inhalte basierend auf verschiedenen Optionen oder Szenarien. Sie erstellen Dropdown-Menüs für die Auswahl zwischen verschiedenen Optionen.
+
+[→ Zur vollständigen Switch/Case-Tags Dokumentation](/docs/templates/switch-case-tags)
+
+### 🟠 Score-Tag
+
+Das Score-Tag führt automatische Berechnungen basierend auf mathematischen Formeln durch. Es referenziert andere Variablen und berechnet Werte in Echtzeit.
+
+[→ Zur vollständigen Score-Tag Dokumentation](/docs/templates/score-tag)
+
+## Tags kombinieren
+
+Tags können miteinander kombiniert werden für komplexe Szenarien:
+
+### Beispiel: Conditional Score
+
+```markdown
+## Nierenfunktion
+
+**eGFR**: {% info "eGFR" type="number" unit="ml/min/1.73m²" renderUnit=true /%}
+
+{% switch "Nierenfunktion" %}
+{% case "Normal" %}Die Nierenfunktion ist normal.{% /case %}
+{% case "Eingeschränkt" %}Die Nierenfunktion ist eingeschränkt (Stadium {% info "CKD_Stadium" type="number" /%}).{% /case %}
+{% case "Dialyse" %}Der Patient ist dialysepflichtig.{% /case %}
+{% /switch %}
+```
+
+### Beispiel: Score mit Info-Tags
+
+```markdown
+**Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+
+**Größe**: {% info "Groesse" type="number" unit="cm" renderUnit=true /%}
+
+**BMI**: {% score formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true /%}
+
+{% switch "BMI_Kategorie" %}
+{% case "Untergewicht" %}Der Patient ist untergewichtig.{% /case %}
+{% case "Normalgewicht" %}Der Patient hat Normalgewicht.{% /case %}
+{% case "Übergewicht" %}Der Patient ist übergewichtig.{% /case %}
+{% case "Adipositas" %}Der Patient hat Adipositas.{% /case %}
+{% /switch %}
+```
+
+## Häufige Fehler und Lösungen
+
+### Fehler: Score zeigt "..." an
+
+**Problem**: Die referenzierten Variablen existieren nicht oder sind nicht ausgefüllt.
+
+**Lösung**: 
+- Überprüfen Sie, dass alle Variablen in der Formel auch als Info-Tags existieren
+- Stellen Sie sicher, dass die Variablennamen exakt übereinstimmen (inkl. Groß-/Kleinschreibung)
+
+### Fehler: Switch zeigt nichts an
+
+**Problem**: Der ausgewählte Wert passt zu keinem Case.
+
+**Lösung**:
+- Überprüfen Sie, dass alle möglichen Optionen als Case definiert sind
+- Achten Sie auf exakte Schreibweise (inkl. Leerzeichen und Groß-/Kleinschreibung)
+
+### Fehler: Tag wird als Text angezeigt
+
+**Problem**: Die Tag-Syntax ist fehlerhaft.
+
+**Lösung**:
+- Überprüfen Sie die Syntax: `{% info "Name" /%}` nicht `{info "Name"}`
+- Prüfen Sie, ob alle Anführungszeichen korrekt gesetzt sind
+- Self-closing Tags benötigen `/%}` am Ende
+
+## Zusammenfassung
+
+| Tag | Farbe | Verwendung | Syntax-Beispiel |
+|-----|-------|------------|-----------------|
+| **Info** | 🔵 Blau | Variable Daten | `{% info "Name" /%}` |
+| **Switch/Case** | 🟢 Grün | Bedingte Inhalte | `{% switch "Var" %}{% case "A" %}Text{% /case %}{% /switch %}` |
+| **Score** | 🟠 Orange | Berechnungen | `{% score formula="[A] + [B]" /%}` |
+
+Mit diesen Tags können Sie flexible, wiederverwendbare Templates erstellen, die sich automatisch an verschiedene Situationen anpassen!

@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "@repo/design-system": "workspace:*",
-    "lucide-react": "^0.522.0",
+    "lucide-react": "catalog:",
     "next": "15.3.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-hot-toast": "^2.5.2"
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hot-toast": "catalog:"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.0.1",
@@ -24,12 +24,12 @@
     "@storybook/addon-themes": "^9.0.12",
     "@storybook/nextjs": "^9.0.12",
     "@storybook/react": "^9.0.12",
-    "@types/node": "^24.0.3",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "chromatic": "^13.0.1",
-    "postcss": "^8.5.6",
+    "postcss": "catalog:",
     "storybook": "^9.0.12",
-    "typescript": "^5.8.3"
+    "typescript": "catalog:"
   }
 }

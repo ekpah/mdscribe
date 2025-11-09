@@ -1,0 +1,104 @@
+---
+title: Switch/Case-Tags
+description: Dokumentation zu Switch/Case-Tags für bedingte Inhalte in Templates
+---
+
+## Switch/Case-Tags
+
+Switch/Case-Tags ermöglichen bedingte Inhalte basierend auf verschiedenen Optionen oder Szenarien.
+
+### Syntax
+
+```markdown
+{% switch "Variablenname" %}
+{% case "Option1" %}Inhalt für Option 1{% /case %}
+{% case "Option2" %}Inhalt für Option 2{% /case %}
+{% case "Option3" %}Inhalt für Option 3{% /case %}
+{% /switch %}
+```
+
+### Parameter
+
+**Switch-Tag:**
+| Parameter | Typ | Pflicht | Beschreibung |
+|-----------|-----|---------|--------------|
+| `primary` | String | Ja | Der Name der Auswahlvariable |
+
+**Case-Tag:**
+| Parameter | Typ | Pflicht | Beschreibung |
+|-----------|-----|---------|--------------|
+| `primary` | String | Ja | Der Wert, bei dem dieser Case angezeigt wird |
+
+### Beispiele
+
+**Therapieart:**
+```markdown
+## Therapie
+
+Der Patient wurde {% switch "Therapieart" %}{% case "Konservativ" %}konservativ behandelt{% /case %}{% case "Operativ" %}operativ versorgt{% /case %}{% case "Interventionell" %}interventionell behandelt{% /case %}{% /switch %}.
+```
+
+**Entlassungsmodus:**
+```markdown
+## Entlassung
+
+Der Patient wird {% switch "Entlassungsmodus" %}{% case "Nach Hause" %}in die häusliche Umgebung entlassen{% /case %}{% case "Rehabilitation" %}zur Anschlussheilbehandlung verlegt{% /case %}{% case "Pflegeheim" %}in ein Pflegeheim verlegt{% /case %}{% case "Verstorben" %}ist leider verstorben{% /case %}{% /switch %}.
+```
+
+**Geschlecht-spezifische Formulierungen:**
+```markdown
+{% switch "Geschlecht" %}{% case "männlich" %}Der Patient wurde{% /case %}{% case "weiblich" %}Die Patientin wurde{% /case %}{% case "divers" %}Die Person wurde{% /case %}{% /switch %} am {% info "Aufnahmedatum" type="date" /%} aufgenommen.
+```
+
+**Komplexes Beispiel mit mehreren Sätzen:**
+```markdown
+## Risikofaktoren
+
+{% switch "Raucher" %}
+{% case "Aktiv" %}
+Der Patient ist aktiver Raucher mit einem Konsum von {% info "Packyears" type="number" /%} Packungsjahren.
+{% /case %}
+{% case "Ex-Raucher" %}
+Der Patient ist Ex-Raucher, Nikotinabusus beendet seit {% info "RaucherSeit" /%}.
+{% /case %}
+{% case "Nie" %}
+Der Patient hat nie geraucht.
+{% /case %}
+{% /switch %}
+```
+
+### Funktionsweise
+
+1. Das Switch-Tag erstellt ein **Dropdown-Menü** in der KI-Dokumentation
+2. Der Benutzer wählt eine der definierten Optionen aus
+3. Nur der Inhalt des passenden Case-Tags wird angezeigt
+4. Der ausgewählte Wert erscheint als **grüner Badge** im Dokument
+
+### Wichtige Hinweise
+
+- ⚠️ **Keine Zeilenumbrüche** innerhalb von Case-Tags verwenden (führt zu Darstellungsproblemen)
+- ⚠️ Wenn kein Case passt, wird **nichts angezeigt**
+- ✅ Definieren Sie alle möglichen Optionen als separate Cases
+- ✅ Verwenden Sie **konsistente Schreibweise** für Case-Werte
+
+### Best Practices
+
+```markdown
+<!-- ✅ GUT: Inline ohne Umbrüche -->
+{% switch "Status" %}{% case "Aktiv" %}aktiv behandelt{% /case %}{% case "Beobachtung" %}unter Beobachtung{% /case %}{% /switch %}
+
+<!-- ❌ SCHLECHT: Mit Zeilenumbrüchen -->
+{% switch "Status" %}
+  {% case "Aktiv" %}
+    aktiv behandelt
+  {% /case %}
+{% /switch %}
+
+<!-- ✅ GUT für längere Texte: Umbrüche nur zwischen Cases -->
+{% switch "Komplikationen" %}{% case "Keine" %}Der Verlauf war komplikationslos.{% /case %}{% case "Leicht" %}Es traten leichte Komplikationen auf, die konservativ behandelt werden konnten.{% /case %}{% case "Schwer" %}Es kam zu schweren Komplikationen, die eine intensivmedizinische Behandlung erforderten.{% /case %}{% /switch %}
+```
+
+
+
+
+

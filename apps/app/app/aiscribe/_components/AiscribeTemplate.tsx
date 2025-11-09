@@ -37,14 +37,7 @@ import {
 } from '@repo/design-system/components/ui/tabs';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import {
-  FileText,
-  Loader2,
-  type LucideIcon,
-  Mic,
-  Square,
-  X,
-} from 'lucide-react';
+import { FileText, Loader2, type LucideIcon, Mic, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
@@ -102,7 +95,7 @@ export interface AiscribeTemplateConfig {
 }
 const models = [
   { id: 'auto', name: 'Auto' },
-  { id: 'glm-4p5', name: 'GLM-4.5' },
+  { id: 'glm-4p6', name: 'GLM-4.6' },
   { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
 ];
@@ -216,7 +209,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
     }
   };
 
-  const handleToggleRecording = () => {
+  const _handleToggleRecording = () => {
     if (isRecording) {
       handleStopRecording();
     } else {
@@ -637,6 +630,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                               </PromptInputModelSelectContent>
                             </PromptInputModelSelect>
                           </PromptInputActionMenu>
+                          {/* Audio recording currently does not work in OpenRouter, so this button is disabled/commented out for now. 
                           <Button
                             className={isRecording ? 'bg-solarized-red' : ''}
                             disabled={
@@ -664,6 +658,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                               <Mic className="h-4 w-4" />
                             )}
                           </Button>
+                          */}
                         </PromptInputTools>
                         <PromptInputSubmit
                           disabled={isLoading || !areRequiredFieldsFilled()}
