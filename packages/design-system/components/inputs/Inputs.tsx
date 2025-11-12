@@ -22,23 +22,27 @@ import { SwitchInput } from "./ui/SwitchInput";
 interface InputsProps {
 	inputTags: InputTagType[];
 	onChange: (data: Record<string, unknown>) => void;
+	suggestions?: Record<string, { value: string; confidence: string }>;
 }
 
 function renderInputTag(
 	input: InputTagType,
 	values: Record<string, unknown>,
 	handleInputChange: (name: string, value: unknown) => void,
+	suggestions?: Record<string, { value: string; confidence: string }>,
 ): React.ReactNode | null {
 	if (!input.attributes.primary) {
 		return null;
 	}
 
 	if (input.name === "Info") {
+		const suggestion = suggestions?.[input.attributes.primary];
 		return (
 			<InfoInput
 				input={input}
 				key={`info-${input.attributes.primary}`}
 				onChange={(value) => handleInputChange(input.attributes.primary, value)}
+				suggestion={suggestion}
 				value={values[input.attributes.primary] as string | number | undefined}
 			/>
 		);
@@ -67,7 +71,7 @@ function renderInputTag(
 							)
 							.flatMap((caseChild) =>
 								caseChild.children.map((grandChild) =>
-									renderInputTag(grandChild, values, handleInputChange),
+									renderInputTag(grandChild, values, handleInputChange, suggestions),
 								),
 							)}
 					</div>
@@ -174,7 +178,7 @@ function renderInputTag(
 	return null;
 }
 
-export default function Inputs({ inputTags = [], onChange }: InputsProps) {
+export default function Inputs({ inputTags = [], onChange, suggestions }: InputsProps) {
 	const [values, setValues] = useState<Record<string, unknown>>({});
 
 	useEffect(() => {
@@ -195,7 +199,7 @@ export default function Inputs({ inputTags = [], onChange }: InputsProps) {
 	return (
 		<form className="w-full max-w-full space-y-6 pr-4">
 			{inputTags.map((inputTag) =>
-				renderInputTag(inputTag, values, handleInputChange),
+				renderInputTag(inputTag, values, handleInputChange, suggestions),
 			)}
 		</form>
 	);

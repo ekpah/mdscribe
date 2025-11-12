@@ -30,10 +30,12 @@ export function InfoInput({
 	input,
 	value,
 	onChange,
+	suggestion,
 }: {
 	input: InfoInputTagType;
 	value: InfoValue;
 	onChange: (localValue: string | number) => void;
+	suggestion?: { value: string; confidence: string };
 }) {
 	// Always call all hooks at the top level
 	const [dateValue, setDateValue] = useState(
@@ -44,11 +46,26 @@ export function InfoInput({
 	const defaultValue =
 		input.attributes.type === "number" ? (value ?? 0) : (value ?? "");
 	const [localValue, setLocalValue] = useState(defaultValue);
+	const [hasSuggestion, setHasSuggestion] = useState(false);
 
 	// Update local state when prop value changes
 	useEffect(() => {
 		setLocalValue(defaultValue);
 	}, [defaultValue]);
+
+	// Apply suggestion when it changes and field is empty
+	useEffect(() => {
+		if (suggestion && suggestion.value && !value) {
+			const suggestionValue =
+				input.attributes.type === "number"
+					? Number(suggestion.value)
+					: suggestion.value;
+			setLocalValue(suggestionValue);
+			setHasSuggestion(true);
+			// Auto-apply suggestion
+			onChange(suggestionValue);
+		}
+	}, [suggestion, value, input.attributes.type, onChange]);
 
 	const dateFormatter = new DateFormatter("de-DE", {
 		dateStyle: "short",
@@ -102,10 +119,12 @@ export function InfoInput({
 	}
 	// Handle text/number inputs
 	const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setLocalValue(
-			Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value),
-		);
-		onChange(Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value));
+		const newValue = Number.isNaN(Number(e.target.value))
+			? 0
+			: Number(e.target.value);
+		setLocalValue(newValue);
+		onChange(newValue);
+		setHasSuggestion(false); // Clear suggestion state on manual change
 	};
 	// Handle number input type
 	if (input.attributes.type === "number") {
@@ -116,10 +135,15 @@ export function InfoInput({
 			>
 				<Label htmlFor={input.attributes.primary}>
 					{input.attributes.primary}
+					{hasSuggestion && suggestion && (
+						<span className="ml-2 inline-flex items-center rounded-md bg-solarized-green/20 px-2 py-0.5 font-normal text-solarized-green text-xs">
+							AI-Vorschlag
+						</span>
+					)}
 				</Label>
 				<div className="flex w-full max-w-full rounded-md shadow-xs">
 					<Input
-						className={`-me-px min-w-0 flex-1 ${input.attributes.unit ? "rounded-e-none" : ""} shadow-none focus-visible:z-10`}
+						className={`-me-px min-w-0 flex-1 ${input.attributes.unit ? "rounded-e-none" : ""} ${hasSuggestion ? "border-solarized-green/50 bg-solarized-green/5" : ""} shadow-none focus-visible:z-10`}
 						id={input.attributes.primary}
 						name={input.attributes.primary}
 						onChange={handleNumberChange}
@@ -145,6 +169,7 @@ export function InfoInput({
 	const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setLocalValue(e.target.value);
 		onChange(e.target.value);
+		setHasSuggestion(false); // Clear suggestion state on manual change
 	};
 	return (
 		<div
@@ -153,10 +178,15 @@ export function InfoInput({
 		>
 			<Label htmlFor={input.attributes.primary}>
 				{input.attributes.primary}
+				{hasSuggestion && suggestion && (
+					<span className="ml-2 inline-flex items-center rounded-md bg-solarized-green/20 px-2 py-0.5 font-normal text-solarized-green text-xs">
+						AI-Vorschlag
+					</span>
+				)}
 			</Label>
 			<div className="flex w-full max-w-full rounded-md shadow-xs">
 				<Input
-					className={`-me-px min-w-0 flex-1 ${input.attributes.unit ? "rounded-e-none" : ""} shadow-none focus-visible:z-10`}
+					className={`-me-px min-w-0 flex-1 ${input.attributes.unit ? "rounded-e-none" : ""} ${hasSuggestion ? "border-solarized-green/50 bg-solarized-green/5" : ""} shadow-none focus-visible:z-10`}
 					id={input.attributes.primary}
 					name={input.attributes.primary}
 					onChange={handleTextChange}
