@@ -1,6 +1,4 @@
 import withBundleAnalyzer from "@next/bundle-analyzer";
-// @ts-expect-error No declaration file
-import { PrismaPlugin } from "@prisma/nextjs-monorepo-workaround-plugin";
 import { env } from "@repo/env";
 import withVercelToolbar from "@vercel/toolbar/plugins/next";
 import { createJiti } from "jiti";
@@ -40,14 +38,6 @@ export const config: NextConfig = withVercelToolbar()({
 			},
 		];
 	},
-	webpack(config, { isServer }) {
-		if (isServer) {
-			config.plugins = [...config.plugins, new PrismaPlugin()];
-		}
-
-		return config;
-	},
-
 	// This is required to support PostHog trailing slash API requests
 	skipTrailingSlashRedirect: true,
 });
