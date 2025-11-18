@@ -2,7 +2,6 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -54,7 +53,9 @@ export default function PDFViewSection({
 
 	function onDocumentLoadSuccess({
 		numPages: nextNumPages,
-	}: PDFDocumentProxy): void {
+	}: {
+		numPages: number;
+	}): void {
 		setNumPages(nextNumPages);
 	}
 

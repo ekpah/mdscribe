@@ -42,18 +42,6 @@ export const config: NextConfig = withVercelToolbar()({
 	skipTrailingSlashRedirect: true,
 });
 
-export const withAnalyzer = (sourceConfig: NextConfig): NextConfig =>
-	withBundleAnalyzer()(sourceConfig);
-
 let nextConfig: NextConfig = { ...config };
-
-if (env.VERCEL) {
-	// maybe add, if I decide to use Sentry
-	// nextConfig = withSentry(nextConfig);
-}
-
-if (env.ANALYZE === "true") {
-	nextConfig = withAnalyzer(nextConfig);
-}
 
 export default nextConfig;

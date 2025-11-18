@@ -12,19 +12,19 @@
     "schema": "prisma/schema.prisma"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.1",
-    "@prisma/adapter-neon": "^6.10.1",
-    "@prisma/client": "6.10.1",
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^6.19.0",
+    "@prisma/client": "6.19.0",
     "@repo/env": "workspace:*",
     "server-only": "^0.0.1",
-    "ws": "^8.18.2"
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "catalog:",
+    "@types/node": "^24.10.1",
     "@types/ws": "^8.18.1",
     "bufferutil": "^4.0.9",
-    "prisma": "6.10.1",
-    "typescript": "catalog:"
+    "prisma": "6.19.0",
+    "typescript": "^5.9.3"
   }
 }
