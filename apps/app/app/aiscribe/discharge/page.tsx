@@ -24,7 +24,7 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
   inputFieldName: 'dischargeNotes',
   inputPlaceholder: 'Geben Sie hier Ihre Entlassungsnotizen ein...',
   inputDescription:
-    'Dokumentieren Sie den Krankheitsverlauf, die Behandlung und Empfehlungen für die Weiterbehandlung',
+    'Dokumentieren Sie den Krankheitsverlauf, die Behandlung und Empfehlungen für die Weiterbehandlung. Fügen Sie hier auch den aktuellen Stand des Entlassungsbriefes ein.',
 
   // Additional input fields
   additionalInputs: [
@@ -34,7 +34,8 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
       placeholder: 'Diagnoseblock eingeben...',
       required: false,
       type: 'textarea',
-      description: 'Diagnoseblock des aktuellen Arztbriefes inkl. aktueller Diagnose und Vorerkrankungen (chronische Erkrankungen, Z.n. Operationen etc.)'
+      description:
+        'Diagnoseblock des aktuellen Arztbriefes inkl. aktueller Diagnose und Vorerkrankungen (chronische Erkrankungen, Z.n. Operationen etc.)',
     },
     {
       name: 'anamnese',
@@ -42,7 +43,8 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
       placeholder: 'Initiale Anamnese bei Aufnahme eingeben...',
       required: false,
       type: 'textarea',
-      description: 'Anamnese bei Aufnahme inkl. Aufnahmegrund und initiale Verdachtsdiagnose'
+      description:
+        'Anamnese bei Aufnahme inkl. Aufnahmegrund und initiale Verdachtsdiagnose',
     },
     {
       name: 'befunde',
@@ -50,8 +52,9 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
       placeholder: 'Befunde aus dem stationären Aufenthalt eingeben...',
       required: false,
       type: 'textarea',
-      description: 'Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während des Aufenthalts'
-    }
+      description:
+        'Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während des Aufenthalts',
+    },
   ],
 
   // Button text
@@ -62,7 +65,6 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
   emptyStateTitle: 'Noch kein Entlassungsbrief vorhanden',
   emptyStateDescription:
     'Bitte geben Sie zuerst Entlassungsnotizen ein und generieren Sie einen Entlassungsbrief.',
-
 };
 
 export default function DischargeAIGenerator() {

@@ -1,101 +1,98 @@
-import { auth } from '@/auth';
-import { database } from '@repo/database';
-import { Button } from '@repo/design-system/components/ui/button';
-import type { Metadata } from 'next';
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
-import createTemplate from '../_actions/create-template';
-import { generateEmbeddings } from '../_actions/embed-template';
-import Editor from '../_components/Editor';
+import { auth } from "@/auth";
+import { database } from "@repo/database";
+import { Button } from "@repo/design-system/components/ui/button";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import createTemplate from "../_actions/create-template";
+import { generateEmbeddings } from "../_actions/embed-template";
+import Editor from "../_components/Editor";
 export const dynamicParams = false;
 
 type MetadataProps = {
-  params: Promise<{ template: [category: string, name: string] }>;
+	params: Promise<{ template: [category: string, name: string] }>;
 };
 
 export function generateMetadata(props: MetadataProps): Metadata {
-  return {
-    title: 'Scribe - Template erstellen',
-  };
+	return {
+		title: "Scribe - Template erstellen",
+	};
 }
 
 async function fetchMarkdoc({ id }: { id: string }) {
-  // fetch the markdoc content for the route
-  const doc = await database.template.findUnique({
-    where: {
-      id: id,
-    },
-    include: {
-      author: true, // All posts where authorId == 20
-      favouriteOf: true,
-    },
-  });
-  return doc;
+	// fetch the markdoc content for the route
+	const doc = await database.template.findUnique({
+		where: {
+			id: id,
+		},
+		include: {
+			author: true, // All posts where authorId == 20
+			favouriteOf: true,
+		},
+	});
+	return doc;
 }
 
 export default async function CreateTemplate({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  async function handleSubmit(formData: FormData): Promise<void> {
-    'use server';
+	params,
+	searchParams,
+}: PageProps<"/templates/create">) {
+	async function handleSubmit(formData: FormData): Promise<void> {
+		"use server";
 
-    const newTemplate = await createTemplate(formData);
+		const newTemplate = await createTemplate(formData);
 
-    redirect(`/templates/${newTemplate.id}`);
-  }
+		redirect(`/templates/${newTemplate.id}`);
+	}
 
-  async function handleGenerateEmbedding(formData: FormData): Promise<void> {
-    'use server';
+	async function handleGenerateEmbedding(formData: FormData): Promise<void> {
+		"use server";
 
-    const content = formData.get('content') as string;
-    const title = formData.get('title') as string;
-    const category = formData.get('category') as string;
-    const { embedding } = await generateEmbeddings(
-      content || '',
-      title,
-      category
-    );
-    console.log('Generated embedding:', embedding);
-  }
+		const content = formData.get("content") as string;
+		const title = formData.get("title") as string;
+		const category = formData.get("category") as string;
+		const { embedding } = await generateEmbeddings(
+			content || "",
+			title,
+			category,
+		);
+		console.log("Generated embedding:", embedding);
+	}
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  if (!session?.user) {
-    redirect('/');
-  }
+	const session = await auth.api.getSession({
+		headers: await headers(),
+	});
+	if (!session?.user) {
+		redirect("/");
+	}
 
-  // get the search parameter fork to check, whether an existing template should be forked
-  const { fork } = await searchParams;
+	// get the search parameter fork to check, whether an existing template should be forked
+	const { fork } = await searchParams;
 
-  const forkedTemplate = fork
-    ? await fetchMarkdoc({ id: fork as string })
-    : null;
+	const forkedTemplate = fork
+		? await fetchMarkdoc({ id: fork as string })
+		: null;
 
-  return (
-    <div className="flex h-full w-full flex-col">
-      <Editor
-        cat={forkedTemplate?.category || ''}
-        tit={forkedTemplate?.title || ''}
-        note={JSON.stringify(forkedTemplate?.content || '')}
-        handleSubmitAction={handleSubmit}
-        author={session?.user}
-      />
+	return (
+		<div className="flex h-full w-full flex-col">
+			<Editor
+				cat={forkedTemplate?.category || ""}
+				tit={forkedTemplate?.title || ""}
+				note={JSON.stringify(forkedTemplate?.content || "")}
+				handleSubmitAction={handleSubmit}
+				author={session?.user}
+			/>
 
-      <form action={handleGenerateEmbedding} className="mt-4 self-end">
-        <input
-          type="hidden"
-          name="content"
-          value={JSON.stringify(forkedTemplate?.content || '')}
-        />
-        <Button type="submit" variant="outline">
-          Generate Embedding
-        </Button>
-      </form>
-    </div>
-  );
+			<form action={handleGenerateEmbedding} className="mt-4 self-end">
+				<input
+					type="hidden"
+					name="content"
+					value={JSON.stringify(forkedTemplate?.content || "")}
+				/>
+				<Button type="submit" variant="outline">
+					Generate Embedding
+				</Button>
+			</form>
+		</div>
+	);
 }

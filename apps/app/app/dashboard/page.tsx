@@ -153,9 +153,9 @@ export default async function DashboardPage() {
     const now = new Date();
     const eventTime = new Date(event.timestamp);
     const diffMs = now.getTime() - eventTime.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+    const diffMins = Math.floor(diffMs / 60_000);
+    const diffHours = Math.floor(diffMs / 3_600_000);
+    const diffDays = Math.floor(diffMs / 86_400_000);
 
     let timeStr = '';
     if (diffMins < 60) {
@@ -244,8 +244,8 @@ export default async function DashboardPage() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4">
-          <Link href="/templates">
-            <Card className="border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer">
+          <Link href="/templates?activeCollection=favourites">
+            <Card className="cursor-pointer border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
                   Favoriten
@@ -263,8 +263,8 @@ export default async function DashboardPage() {
             </Card>
           </Link>
 
-          <Link href="/templates">
-            <Card className="border-solarized-green/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer">
+          <Link href="/templates?activeCollection=authored">
+            <Card className="cursor-pointer border-solarized-green/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
                   Erstellt
@@ -275,7 +275,9 @@ export default async function DashboardPage() {
                 <div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
                   {userTemplates.length}
                 </div>
-                <p className="text-solarized-base01 text-xs">Eigene Templates</p>
+                <p className="text-solarized-base01 text-xs">
+                  Eigene Templates
+                </p>
               </CardContent>
             </Card>
           </Link>

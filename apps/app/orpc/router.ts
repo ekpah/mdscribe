@@ -3,6 +3,7 @@ import { scribeHandler } from './scribe';
 import { getUsage } from './scribe/_lib/get-usage';
 import { templatesHandler as publicTemplatesHandler } from './templates';
 import { templatesHandler as userTemplatesHandler } from './user/templates';
+import { snippetsHandler } from './user/snippets';
 
 /**
  * Generic document creation function using Langfuse prompt
@@ -43,6 +44,9 @@ export const router = {
     user: {
         templates: {
             ...userTemplatesHandler,
+        },
+        snippets: {
+            ...snippetsHandler,
         },
     },
 };

@@ -26,24 +26,21 @@ export function SubscriptionCard({
 }: SubscriptionCardProps) {
   const hasActiveSubscription = !!subscription;
 
-
   // TODO: Get this from the subscription, right now hardcoded
   const monthlyUsageLimit = hasActiveSubscription ? 500 : 50;
 
   const { data, isPending } = useQuery({
-    queryKey: ["usage"],
+    queryKey: ['usage'],
     queryFn: async () => {
       const res = await fetch('/api/scribe/getUsage');
       if (!res.ok) {
-        throw new Error('Network response was not ok')
+        throw new Error('Network response was not ok');
       }
       return res.json();
     },
   });
 
   const { usage } = data || {};
-
-
 
   const statusBadge = subscription?.cancelAtPeriodEnd ? (
     <Badge
@@ -81,8 +78,12 @@ export function SubscriptionCard({
               <span className="text-sm capitalize">{subscription?.plan}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">Nutzung (aktueller Monat)</span>
-              <span className="text-sm">{usage?.count || 0} / {monthlyUsageLimit}</span>
+              <span className="font-medium text-sm">
+                Nutzung (aktueller Monat)
+              </span>
+              <span className="text-sm">
+                {usage?.count || 0} / {monthlyUsageLimit}
+              </span>
             </div>
             {subscription?.periodEnd && (
               <div className="flex items-center justify-between">
@@ -92,11 +93,14 @@ export function SubscriptionCard({
                     : 'Nächstes Abrechnungsdatum'}
                 </span>
                 <span className="text-sm">
-                  {new Date(subscription?.periodEnd).toLocaleDateString('de-DE', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                  })}
+                  {new Date(subscription?.periodEnd).toLocaleDateString(
+                    'de-DE',
+                    {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    }
+                  )}
                 </span>
               </div>
             )}
@@ -131,8 +135,12 @@ export function SubscriptionCard({
               <span className="text-sm">Basis</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">Nutzung (aktueller Monat)</span>
-              <span className="text-sm">{usage?.count || 0} / {monthlyUsageLimit}</span>
+              <span className="font-medium text-sm">
+                Nutzung (aktueller Monat)
+              </span>
+              <span className="text-sm">
+                {usage?.count || 0} / {monthlyUsageLimit}
+              </span>
             </div>
           </CardContent>
           <CardFooter className="mt-auto">

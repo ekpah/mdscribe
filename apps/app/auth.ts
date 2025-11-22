@@ -45,6 +45,12 @@ export const auth = betterAuth({
       },
       callbackURL: '/dashboard', // The redirect URL after verification
     },
+    additionalFields: {
+      stripeCustomerId: {
+        type: 'string',
+        required: false,
+      },
+    },
   },
   // enables login with the email and password flow
   emailAndPassword: {

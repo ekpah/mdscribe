@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/shadcn.css';
+@import 'fumadocs-ui/css/preset.css';
+@import '@repo/design-system/styles/globals.css';
+
+/* Map fumadocs CSS variables to solarized color palette from design system */
+:root {
+  /* Light theme - using solarized references */
+  --fd-background: var(--solarized-base3);
+  --fd-foreground: var(--solarized-base00);
+
+  --fd-muted: var(--solarized-base2);
+  --fd-muted-foreground: var(--solarized-base1);
+
+  --fd-popover: var(--solarized-base2);
+  --fd-popover-foreground: var(--solarized-base01);
+
+  /* Make card and sidebar backgrounds blend into the app background */
+  --fd-card: var(--solarized-base3);
+  --fd-card-foreground: var(--solarized-base00);
+
+  --fd-border: var(--solarized-base1);
+  --fd-input: var(--solarized-base1);
+
+  --fd-primary: var(--solarized-blue);
+  --fd-primary-foreground: var(--solarized-base3);
+
+  --fd-secondary: var(--solarized-base2);
+  --fd-secondary-foreground: var(--solarized-base00);
+
+  --fd-accent: var(--solarized-base2);
+  --fd-accent-foreground: var(--solarized-base00);
+
+  --fd-destructive: var(--solarized-red);
+  --fd-destructive-foreground: var(--solarized-base3);
+
+  --fd-ring: var(--solarized-blue);
+
+  /* Additional mappings for missing fields */
+  --fd-card-border: var(--solarized-base2);
+  --fd-muted-border: var(--solarized-base2);
+  --fd-popover-border: var(--solarized-base2);
+  --fd-primary-border: var(--solarized-blue);
+  --fd-secondary-border: var(--solarized-base2);
+  --fd-accent-border: var(--solarized-base2);
+  --fd-destructive-border: var(--solarized-red);
+
+  /* "foreground" version for ring, using base3 for accessibility */
+  --fd-ring-foreground: var(--solarized-base3);
+
+  /* Solarized yellow mapped as highlight/accent extra */
+  --fd-highlight: var(--solarized-yellow);
+  --fd-highlight-foreground: var(--solarized-base02);
+
+  /* For completeness - set surface as background */
+  --fd-surface: var(--solarized-base3);
+  --fd-surface-foreground: var(--solarized-base00);
+}
+
+[data-theme='dark'],
+.dark {
+  /* Dark theme - using solarized references */
+  --fd-background: var(--solarized-base03);
+  --fd-foreground: var(--solarized-base0);
+
+  --fd-muted: var(--solarized-base02);
+  --fd-muted-foreground: var(--solarized-base01);
+
+  --fd-popover: var(--solarized-base02);
+  --fd-popover-foreground: var(--solarized-base01);
+
+  /* Make card and sidebar backgrounds blend into the app background */
+  --fd-card: var(--solarized-base03);
+  --fd-card-foreground: var(--solarized-base0);
+
+  --fd-border: var(--solarized-base01);
+  --fd-input: var(--solarized-base01);
+
+  --fd-primary: var(--solarized-blue);
+  --fd-primary-foreground: var(--solarized-base3);
+
+  --fd-secondary: var(--solarized-base02);
+  --fd-secondary-foreground: var(--solarized-base0);
+
+  --fd-accent: var(--solarized-base02);
+  --fd-accent-foreground: var(--solarized-base01);
+
+  --fd-destructive: var(--solarized-orange);
+  --fd-destructive-foreground: var(--solarized-base03);
+
+  --fd-ring: var(--solarized-blue);
+
+  /* Additional mappings for missing fields */
+  --fd-card-border: var(--solarized-base02);
+  --fd-muted-border: var(--solarized-base02);
+  --fd-popover-border: var(--solarized-base02);
+  --fd-primary-border: var(--solarized-blue);
+  --fd-secondary-border: var(--solarized-base02);
+  --fd-accent-border: var(--solarized-base02);
+  --fd-destructive-border: var(--solarized-orange);
+
+  --fd-ring-foreground: var(--solarized-base03);
+
+  --fd-highlight: var(--solarized-yellow);
+  --fd-highlight-foreground: var(--solarized-base03);
+
+  --fd-surface: var(--solarized-base03);
+  --fd-surface-foreground: var(--solarized-base0);
+}
