@@ -1,636 +1,636 @@
-'use client';
+"use client";
 
-import { useCompletion } from '@ai-sdk/react';
+import { useCompletion } from "@ai-sdk/react";
 import {
-  PromptInput,
-  PromptInputActionMenu,
-  PromptInputBody,
-  PromptInputModelSelect,
-  PromptInputModelSelectContent,
-  PromptInputModelSelectItem,
-  PromptInputModelSelectTrigger,
-  PromptInputModelSelectValue,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputToolbar,
-  PromptInputTools,
-} from '@repo/design-system/components/ai-elements/prompt-input';
-import Inputs from '@repo/design-system/components/inputs/Inputs';
-import { Button } from '@repo/design-system/components/ui/button';
+	PromptInput,
+	PromptInputActionMenu,
+	PromptInputBody,
+	PromptInputModelSelect,
+	PromptInputModelSelectContent,
+	PromptInputModelSelectItem,
+	PromptInputModelSelectTrigger,
+	PromptInputModelSelectValue,
+	PromptInputSubmit,
+	PromptInputTextarea,
+	PromptInputToolbar,
+	PromptInputTools,
+} from "@repo/design-system/components/ai-elements/prompt-input";
+import Inputs from "@repo/design-system/components/inputs/Inputs";
+import { Button } from "@repo/design-system/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@repo/design-system/components/ui/card';
-import { Input } from '@repo/design-system/components/ui/input';
-import { Kbd } from '@repo/design-system/components/ui/kbd';
-import { Label } from '@repo/design-system/components/ui/label';
-import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@repo/design-system/components/ui/card";
+import { Input } from "@repo/design-system/components/ui/input";
+import { Kbd } from "@repo/design-system/components/ui/kbd";
+import { Label } from "@repo/design-system/components/ui/label";
+import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@repo/design-system/components/ui/tabs';
-import { Textarea } from '@repo/design-system/components/ui/textarea';
-import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
-import { FileText, Loader2, type LucideIcon, Mic, X } from 'lucide-react';
-import Link from 'next/link';
-import { useCallback, useRef, useState } from 'react';
-import { toast } from 'react-hot-toast';
-import { useHotkeys } from 'react-hotkeys-hook';
-import { useTextSnippets } from '@/hooks/use-text-snippets';
-import { MemoizedCopySection } from './MemoizedCopySection';
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/design-system/components/ui/tabs";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
+import parseMarkdocToInputs from "@repo/markdoc-md/parse/parseMarkdocToInputs";
+import { FileText, Loader2, type LucideIcon, Mic, X } from "lucide-react";
+import Link from "next/link";
+import { useCallback, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useTextSnippets } from "@/hooks/use-text-snippets";
+import { MemoizedCopySection } from "./MemoizedCopySection";
 
 interface AdditionalInputField {
-  name: string;
-  label: string;
-  placeholder: string;
-  required?: boolean;
-  type?: 'text' | 'textarea';
-  description?: string;
+	name: string;
+	label: string;
+	placeholder: string;
+	required?: boolean;
+	type?: "text" | "textarea";
+	description?: string;
 }
 
 export interface AiscribeTemplateConfig {
-  // Page identity
-  title: string;
-  description: string;
-  icon: LucideIcon;
+	// Page identity
+	title: string;
+	description: string;
+	icon: LucideIcon;
 
-  // API configuration
-  apiEndpoint: string;
+	// API configuration
+	apiEndpoint: string;
 
-  // Tab configuration
-  inputTabTitle: string;
-  outputTabTitle: string;
+	// Tab configuration
+	inputTabTitle: string;
+	outputTabTitle: string;
 
-  // Form configuration
-  inputFieldName: string;
-  inputPlaceholder: string;
-  inputDescription: string;
+	// Form configuration
+	inputFieldName: string;
+	inputPlaceholder: string;
+	inputDescription: string;
 
-  // Additional input fields
-  additionalInputs?: AdditionalInputField[];
+	// Additional input fields
+	additionalInputs?: AdditionalInputField[];
 
-  // Button text
-  generateButtonText: string;
-  regenerateButtonText: string;
+	// Button text
+	generateButtonText: string;
+	regenerateButtonText: string;
 
-  // Empty state messages
-  emptyStateTitle: string;
-  emptyStateDescription: string;
+	// Empty state messages
+	emptyStateTitle: string;
+	emptyStateDescription: string;
 
-  // Optional custom processing
-  customPromptProcessor?: (
-    inputData: string,
-    additionalInputs: Record<string, string>
-  ) => Record<string, unknown>;
-  customApiCall?: (
-    inputData: string,
-    additionalInputs: Record<string, string>
-  ) => Promise<unknown>;
+	// Optional custom processing
+	customPromptProcessor?: (
+		inputData: string,
+		additionalInputs: Record<string, string>,
+	) => Record<string, unknown>;
+	customApiCall?: (
+		inputData: string,
+		additionalInputs: Record<string, string>,
+	) => Promise<unknown>;
 }
 const models = [
-  { id: 'auto', name: 'Auto' },
-  { id: 'glm-4p6', name: 'GLM-4.6' },
-  { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+	{ id: "auto", name: "Auto" },
+	{ id: "glm-4p6", name: "GLM-4.6" },
+	{ id: "claude-sonnet-4.5", name: "Claude Sonnet 4.5" },
+	{ id: "gemini-3-pro", name: "Gemini 3 Pro" },
 ];
 
 const getActualModel = (modelId: string, hasAudio?: boolean): string => {
-  if (modelId === 'auto') {
-    // If audio is present, use Gemini as only it can process audio
-    return hasAudio ? 'gemini-2.5-pro' : 'claude-sonnet-4.5';
-  }
-  return modelId;
+	if (modelId === "auto") {
+		// If audio is present, use Gemini as only it can process audio
+		return hasAudio ? "gemini-3-pro" : "claude-sonnet-4.5";
+	}
+	return modelId;
 };
 
 interface AiscribeTemplateProps {
-  config: AiscribeTemplateConfig;
+	config: AiscribeTemplateConfig;
 }
 
 interface AudioRecording {
-  blob: Blob;
-  duration: number;
-  id: string;
+	blob: Blob;
+	duration: number;
+	id: string;
 }
 
 export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
-  const [activeTab, setActiveTab] = useState('input');
-  const [inputData, setInputData] = useState('');
-  const [additionalInputData, setAdditionalInputData] = useState<
-    Record<string, string>
-  >({});
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [values, setValues] = useState<Record<string, unknown>>({});
-  const [model, setModel] = useState<string>(models[0].id);
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingStartTimeRef = useRef<number>(0);
-  const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
+	const [activeTab, setActiveTab] = useState("input");
+	const [inputData, setInputData] = useState("");
+	const [additionalInputData, setAdditionalInputData] = useState<
+		Record<string, string>
+	>({});
+	const [isGenerating, setIsGenerating] = useState(false);
+	const [values, setValues] = useState<Record<string, unknown>>({});
+	const [model, setModel] = useState<string>(models[0].id);
+	const [isRecording, setIsRecording] = useState(false);
+	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
+	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+	const audioChunksRef = useRef<Blob[]>([]);
+	const recordingStartTimeRef = useRef<number>(0);
+	const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize text snippets hook
-  useTextSnippets();
+	// Initialize text snippets hook
+	useTextSnippets();
 
-  // Use Vercel AI SDK's useCompletion
-  const completion = useCompletion({
-    api: config.apiEndpoint,
-    body: {
-      model: getActualModel(model, audioRecordings.length > 0),
-    },
-  });
+	// Use Vercel AI SDK's useCompletion
+	const completion = useCompletion({
+		api: config.apiEndpoint,
+		body: {
+			model: getActualModel(model, audioRecordings.length > 0),
+		},
+	});
 
-  // Combined loading state
-  const isLoading = completion.isLoading || isGenerating;
+	// Combined loading state
+	const isLoading = completion.isLoading || isGenerating;
 
-  // Handle values change from inputs
-  const handleValuesChange = (data: Record<string, unknown>) => {
-    setValues(data);
-  };
+	// Handle values change from inputs
+	const handleValuesChange = (data: Record<string, unknown>) => {
+		setValues(data);
+	};
 
-  // Check if audio recording is supported for current model
-  const isAudioSupported = model === 'auto' || model === 'gemini-2.5-pro';
-  const maxRecordings = 3;
-  const canRecord = audioRecordings.length < maxRecordings;
+	// Check if audio recording is supported for current model
+	const isAudioSupported = model === "auto" || model === "gemini-3-pro";
+	const maxRecordings = 3;
+	const canRecord = audioRecordings.length < maxRecordings;
 
-  // Handle audio recording
-  const handleStartRecording = async () => {
-    if (!canRecord) {
-      toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
-      return;
-    }
+	// Handle audio recording
+	const handleStartRecording = async () => {
+		if (!canRecord) {
+			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
+			return;
+		}
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      recordingStartTimeRef.current = Date.now();
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const mediaRecorder = new MediaRecorder(stream);
+			mediaRecorderRef.current = mediaRecorder;
+			audioChunksRef.current = [];
+			recordingStartTimeRef.current = Date.now();
 
-      mediaRecorder.addEventListener('dataavailable', (event) => {
-        audioChunksRef.current.push(event.data);
-      });
+			mediaRecorder.addEventListener("dataavailable", (event) => {
+				audioChunksRef.current.push(event.data);
+			});
 
-      mediaRecorder.addEventListener('stop', () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: 'audio/webm',
-        });
-        const duration = (Date.now() - recordingStartTimeRef.current) / 1000; // in seconds
-        const newRecording: AudioRecording = {
-          blob: audioBlob,
-          duration,
-          id: `audio-${Date.now()}`,
-        };
-        setAudioRecordings((prev) => [...prev, newRecording]);
-        for (const track of stream.getTracks()) {
-          track.stop();
-        }
-      });
+			mediaRecorder.addEventListener("stop", () => {
+				const audioBlob = new Blob(audioChunksRef.current, {
+					type: "audio/webm",
+				});
+				const duration = (Date.now() - recordingStartTimeRef.current) / 1000; // in seconds
+				const newRecording: AudioRecording = {
+					blob: audioBlob,
+					duration,
+					id: `audio-${Date.now()}`,
+				};
+				setAudioRecordings((prev) => [...prev, newRecording]);
+				for (const track of stream.getTracks()) {
+					track.stop();
+				}
+			});
 
-      mediaRecorder.start();
-      setIsRecording(true);
-      toast.success('Aufnahme gestartet');
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      toast.error('Fehler beim Starten der Aufnahme');
-    }
-  };
+			mediaRecorder.start();
+			setIsRecording(true);
+			toast.success("Aufnahme gestartet");
+		} catch (error) {
+			console.error("Error starting recording:", error);
+			toast.error("Fehler beim Starten der Aufnahme");
+		}
+	};
 
-  const handleStopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      toast.success('Aufnahme beendet');
-    }
-  };
+	const handleStopRecording = () => {
+		if (mediaRecorderRef.current && isRecording) {
+			mediaRecorderRef.current.stop();
+			setIsRecording(false);
+			toast.success("Aufnahme beendet");
+		}
+	};
 
-  const _handleToggleRecording = () => {
-    if (isRecording) {
-      handleStopRecording();
-    } else {
-      handleStartRecording();
-    }
-  };
+	const _handleToggleRecording = () => {
+		if (isRecording) {
+			handleStopRecording();
+		} else {
+			handleStartRecording();
+		}
+	};
 
-  const handleRemoveRecording = (id: string) => {
-    setAudioRecordings((prev) =>
-      prev.filter((recording) => recording.id !== id)
-    );
-  };
+	const handleRemoveRecording = (id: string) => {
+		setAudioRecordings((prev) =>
+			prev.filter((recording) => recording.id !== id),
+		);
+	};
 
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+	const formatDuration = (seconds: number): string => {
+		const mins = Math.floor(seconds / 60);
+		const secs = Math.floor(seconds % 60);
+		return `${mins}:${secs.toString().padStart(2, "0")}`;
+	};
 
-  // Handle additional input changes
-  const handleAdditionalInputChange = (name: string, value: string) => {
-    setAdditionalInputData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+	// Handle additional input changes
+	const handleAdditionalInputChange = (name: string, value: string) => {
+		setAdditionalInputData((prev) => ({
+			...prev,
+			[name]: value,
+		}));
+	};
 
-  // Check if at least one input field is filled
-  const areRequiredFieldsFilled = useCallback(() => {
-    // Check if there are any audio recordings
-    const hasAudio = audioRecordings.length > 0;
+	// Check if at least one input field is filled
+	const areRequiredFieldsFilled = useCallback(() => {
+		// Check if there are any audio recordings
+		const hasAudio = audioRecordings.length > 0;
 
-    // Check if main input field has content
-    const hasMainInput = inputData.trim().length > 0;
+		// Check if main input field has content
+		const hasMainInput = inputData.trim().length > 0;
 
-    // Check if any additional input field has content
-    const hasAnyAdditionalInput = config.additionalInputs?.some(
-      (field) =>
-        additionalInputData[field.name] &&
-        additionalInputData[field.name].trim().length > 0
-    );
+		// Check if any additional input field has content
+		const hasAnyAdditionalInput = config.additionalInputs?.some(
+			(field) =>
+				additionalInputData[field.name] &&
+				additionalInputData[field.name].trim().length > 0,
+		);
 
-    // At least one field must be filled (audio, main input, or any additional input)
-    return hasAudio || hasMainInput || hasAnyAdditionalInput;
-  }, [
-    audioRecordings,
-    inputData,
-    additionalInputData,
-    config.additionalInputs,
-  ]);
+		// At least one field must be filled (audio, main input, or any additional input)
+		return hasAudio || hasMainInput || hasAnyAdditionalInput;
+	}, [
+		audioRecordings,
+		inputData,
+		additionalInputData,
+		config.additionalInputs,
+	]);
 
-  const handleGenerate = useCallback(async () => {
-    if (!areRequiredFieldsFilled()) {
-      toast.error(
-        'Bitte füllen Sie mindestens ein Eingabefeld aus oder nehmen Sie Audio auf.'
-      );
-      return;
-    }
+	const handleGenerate = useCallback(async () => {
+		if (!areRequiredFieldsFilled()) {
+			toast.error(
+				"Bitte füllen Sie mindestens ein Eingabefeld aus oder nehmen Sie Audio auf.",
+			);
+			return;
+		}
 
-    setIsGenerating(true);
-    setActiveTab('output');
+		setIsGenerating(true);
+		setActiveTab("output");
 
-    try {
-      // Handle custom API call if provided
-      if (config.customApiCall) {
-        await config.customApiCall(inputData, additionalInputData);
-      }
+		try {
+			// Handle custom API call if provided
+			if (config.customApiCall) {
+				await config.customApiCall(inputData, additionalInputData);
+			}
 
-      // Prepare prompt
-      const prompt = config.customPromptProcessor
-        ? config.customPromptProcessor(inputData, additionalInputData)
-        : JSON.stringify({
-            [config.inputFieldName]: inputData,
-            ...additionalInputData,
-          });
+			// Prepare prompt
+			const prompt = config.customPromptProcessor
+				? config.customPromptProcessor(inputData, additionalInputData)
+				: JSON.stringify({
+						[config.inputFieldName]: inputData,
+						...additionalInputData,
+					});
 
-      // Prepare body with audio if available
-      const body: Record<string, unknown> = {
-        model: getActualModel(model, audioRecordings.length > 0),
-      };
+			// Prepare body with audio if available
+			const body: Record<string, unknown> = {
+				model: getActualModel(model, audioRecordings.length > 0),
+			};
 
-      // If audio recordings are available and model supports it, convert to base64 and include
-      if (audioRecordings.length > 0 && isAudioSupported) {
-        const audioFiles = await Promise.all(
-          audioRecordings.map(async (recording) => {
-            const reader = new FileReader();
-            const audioBase64 = await new Promise<string>((resolve) => {
-              reader.onloadend = () => {
-                const base64String = (reader.result as string).split(',')[1];
-                resolve(base64String);
-              };
-              reader.readAsDataURL(recording.blob);
-            });
-            return {
-              data: audioBase64,
-              mimeType: recording.blob.type,
-            };
-          })
-        );
-        body.audioFiles = audioFiles;
-      }
+			// If audio recordings are available and model supports it, convert to base64 and include
+			if (audioRecordings.length > 0 && isAudioSupported) {
+				const audioFiles = await Promise.all(
+					audioRecordings.map(async (recording) => {
+						const reader = new FileReader();
+						const audioBase64 = await new Promise<string>((resolve) => {
+							reader.onloadend = () => {
+								const base64String = (reader.result as string).split(",")[1];
+								resolve(base64String);
+							};
+							reader.readAsDataURL(recording.blob);
+						});
+						return {
+							data: audioBase64,
+							mimeType: recording.blob.type,
+						};
+					}),
+				);
+				body.audioFiles = audioFiles;
+			}
 
-      await completion.complete(
-        typeof prompt === 'string' ? prompt : JSON.stringify(prompt),
-        {
-          body,
-        }
-      );
+			await completion.complete(
+				typeof prompt === "string" ? prompt : JSON.stringify(prompt),
+				{
+					body,
+				},
+			);
 
-      // Clear audio after submission
-      if (audioRecordings.length > 0) {
-        setAudioRecordings([]);
-      }
+			// Clear audio after submission
+			if (audioRecordings.length > 0) {
+				setAudioRecordings([]);
+			}
 
-      // Check for errors after completion
-      if (completion.error) {
-        toast.error(completion.error.message || 'Fehler beim Generieren');
-      } else if (completion.completion) {
-        toast.success('Erfolgreich generiert');
-      }
-    } catch {
-      toast.error('Fehler beim Generieren');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [
-    inputData,
-    additionalInputData,
-    areRequiredFieldsFilled,
-    completion.complete,
-    completion.error,
-    completion.completion,
-    config.customApiCall,
-    config.customPromptProcessor,
-    config.inputFieldName,
-    model,
-    audioRecordings,
-    isAudioSupported,
-  ]);
+			// Check for errors after completion
+			if (completion.error) {
+				toast.error(completion.error.message || "Fehler beim Generieren");
+			} else if (completion.completion) {
+				toast.success("Erfolgreich generiert");
+			}
+		} catch {
+			toast.error("Fehler beim Generieren");
+		} finally {
+			setIsGenerating(false);
+		}
+	}, [
+		inputData,
+		additionalInputData,
+		areRequiredFieldsFilled,
+		completion.complete,
+		completion.error,
+		completion.completion,
+		config.customApiCall,
+		config.customPromptProcessor,
+		config.inputFieldName,
+		model,
+		audioRecordings,
+		isAudioSupported,
+	]);
 
-  useHotkeys(
-    ['meta+shift+1', 'ctrl+shift+1'],
-    (event: KeyboardEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      document.getElementById('input-field')?.focus();
-    },
-    {
-      enableOnFormTags: ['INPUT', 'TEXTAREA'],
-    }
-  );
+	useHotkeys(
+		["meta+shift+1", "ctrl+shift+1"],
+		(event: KeyboardEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+			document.getElementById("input-field")?.focus();
+		},
+		{
+			enableOnFormTags: ["INPUT", "TEXTAREA"],
+		},
+	);
 
-  useHotkeys(
-    ['meta+enter', 'ctrl+enter'],
-    (event: KeyboardEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!isLoading && areRequiredFieldsFilled()) {
-        handleGenerate();
-      }
-    },
-    {
-      enableOnFormTags: ['INPUT', 'TEXTAREA'],
-    }
-  );
+	useHotkeys(
+		["meta+enter", "ctrl+enter"],
+		(event: KeyboardEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+			if (!isLoading && areRequiredFieldsFilled()) {
+				handleGenerate();
+			}
+		},
+		{
+			enableOnFormTags: ["INPUT", "TEXTAREA"],
+		},
+	);
 
-  const IconComponent = config.icon;
+	const IconComponent = config.icon;
 
-  return (
-    <div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
-      <div className="mx-auto max-w-7xl space-y-8">
-        {/* Header Section */}
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-3">
-            <div className="rounded-full bg-solarized-blue/10 p-3">
-              <IconComponent className="h-8 w-8 text-solarized-blue" />
-            </div>
-            <div>
-              <h1 className="font-bold text-3xl text-primary">
-                {config.title}
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                {config.description}
-              </p>
-            </div>
-          </div>
-        </div>
+	return (
+		<div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
+			<div className="mx-auto max-w-7xl space-y-8">
+				{/* Header Section */}
+				<div className="space-y-4 text-center">
+					<div className="flex items-center justify-center gap-3">
+						<div className="rounded-full bg-solarized-blue/10 p-3">
+							<IconComponent className="h-8 w-8 text-solarized-blue" />
+						</div>
+						<div>
+							<h1 className="font-bold text-3xl text-primary">
+								{config.title}
+							</h1>
+							<p className="text-lg text-muted-foreground">
+								{config.description}
+							</p>
+						</div>
+					</div>
+				</div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-5 xl:grid-cols-6">
-          {/* Patient Info Card */}
-          <div className="lg:col-span-2 xl:col-span-2">
-            <Card className="h-fit border-solarized-blue/20 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-solarized-blue/5 to-solarized-green/5">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-solarized-blue" />
-                    <CardTitle className="text-base text-foreground">
-                      Patienteninformationen
-                    </CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6 p-6">
-                {/* Auto-extracted information and Input Fields */}
-                <div className="pt-6">
-                  {/* Input Fields from Markdoc */}
-                  {completion.completion && (
-                    <div className="space-y-3">
-                      <Inputs
-                        inputTags={parseMarkdocToInputs(
-                          completion.completion || ''
-                        )}
-                        onChange={handleValuesChange}
-                      />
-                    </div>
-                  )}
+				<div className="grid grid-cols-1 gap-8 lg:grid-cols-5 xl:grid-cols-6">
+					{/* Patient Info Card */}
+					<div className="lg:col-span-2 xl:col-span-2">
+						<Card className="h-fit border-solarized-blue/20 shadow-lg">
+							<CardHeader className="bg-gradient-to-r from-solarized-blue/5 to-solarized-green/5">
+								<div className="space-y-2">
+									<div className="flex items-center gap-2">
+										<div className="h-2 w-2 rounded-full bg-solarized-blue" />
+										<CardTitle className="text-base text-foreground">
+											Patienteninformationen
+										</CardTitle>
+									</div>
+								</div>
+							</CardHeader>
+							<CardContent className="space-y-6 p-6">
+								{/* Auto-extracted information and Input Fields */}
+								<div className="pt-6">
+									{/* Input Fields from Markdoc */}
+									{completion.completion && (
+										<div className="space-y-3">
+											<Inputs
+												inputTags={parseMarkdocToInputs(
+													completion.completion || "",
+												)}
+												onChange={handleValuesChange}
+											/>
+										</div>
+									)}
 
-                  {(!completion.completion ||
-                    parseMarkdocToInputs(completion.completion).length ===
-                      0) && (
-                    <div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
-                      <p className="text-muted-foreground text-xs leading-relaxed">
-                        Notwendige Informationen werden automatisch aus den
-                        Eingaben extrahiert
-                      </p>
-                    </div>
-                  )}
-                </div>
+									{(!completion.completion ||
+										parseMarkdocToInputs(completion.completion).length ===
+											0) && (
+										<div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
+											<p className="text-muted-foreground text-xs leading-relaxed">
+												Notwendige Informationen werden automatisch aus den
+												Eingaben extrahiert
+											</p>
+										</div>
+									)}
+								</div>
 
-                {/* Privacy notice */}
-                <div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
-                  <p className="text-solarized-green leading-relaxed">
-                    🔒 Alle Daten in dieser Box werden nur lokal gespeichert und
-                    niemals an Server übertragen
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+								{/* Privacy notice */}
+								<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
+									<p className="text-solarized-green leading-relaxed">
+										🔒 Alle Daten in dieser Box werden nur lokal gespeichert und
+										niemals an Server übertragen
+									</p>
+								</div>
+							</CardContent>
+						</Card>
+					</div>
 
-          {/* Main Content with Tabs */}
-          <div className="lg:col-span-3 xl:col-span-4">
-            <Card className="border-solarized-green/20 shadow-lg">
-              <Tabs
-                className="w-full"
-                onValueChange={setActiveTab}
-                value={activeTab}
-              >
-                <CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
-                  <TabsList className="grid grid-cols-2 bg-background/50 backdrop-blur-sm">
-                    <TabsTrigger
-                      className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
-                      value="input"
-                    >
-                      {config.inputTabTitle}
-                    </TabsTrigger>
-                    <TabsTrigger
-                      className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
-                      value="output"
-                    >
-                      {config.outputTabTitle}
-                    </TabsTrigger>
-                  </TabsList>
-                </CardHeader>
+					{/* Main Content with Tabs */}
+					<div className="lg:col-span-3 xl:col-span-4">
+						<Card className="border-solarized-green/20 shadow-lg">
+							<Tabs
+								className="w-full"
+								onValueChange={setActiveTab}
+								value={activeTab}
+							>
+								<CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
+									<TabsList className="grid grid-cols-2 bg-background/50 backdrop-blur-sm">
+										<TabsTrigger
+											className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+											value="input"
+										>
+											{config.inputTabTitle}
+										</TabsTrigger>
+										<TabsTrigger
+											className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+											value="output"
+										>
+											{config.outputTabTitle}
+										</TabsTrigger>
+									</TabsList>
+								</CardHeader>
 
-                {/* Input Tab */}
-                <TabsContent className="space-y-0" value="input">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-foreground">
-                      <FileText className="h-5 w-5 text-solarized-blue" />
-                      {config.inputTabTitle}
-                    </CardTitle>
-                    <CardDescription>{config.inputDescription}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Privacy Warning */}
-                    <div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
-                      <p className="text-solarized-red leading-relaxed">
-                        ⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier
-                        keine privaten Patientendaten ein! Diese Informationen
-                        werden an eine KI gesendet. Verwenden Sie nur
-                        anonymisierte Daten.
-                      </p>
-                    </div>
+								{/* Input Tab */}
+								<TabsContent className="space-y-0" value="input">
+									<CardHeader>
+										<CardTitle className="flex items-center gap-2 text-foreground">
+											<FileText className="h-5 w-5 text-solarized-blue" />
+											{config.inputTabTitle}
+										</CardTitle>
+										<CardDescription>{config.inputDescription}</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-4">
+										{/* Privacy Warning */}
+										<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
+											<p className="text-solarized-red leading-relaxed">
+												⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier
+												keine privaten Patientendaten ein! Diese Informationen
+												werden an eine KI gesendet. Verwenden Sie nur
+												anonymisierte Daten.
+											</p>
+										</div>
 
-                    {/* Additional Input Fields */}
-                    {config.additionalInputs &&
-                      config.additionalInputs.length > 0 && (
-                        <div className="space-y-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-1.5 rounded-full bg-solarized-blue" />
-                            <h4 className="font-medium text-foreground text-sm">
-                              Zusätzliche Informationen
-                            </h4>
-                          </div>
-                          <div className="grid gap-4">
-                            {config.additionalInputs.map((field) => (
-                              <div className="space-y-2" key={field.name}>
-                                <Label
-                                  className="font-medium text-sm"
-                                  htmlFor={field.name}
-                                >
-                                  {field.label}
-                                  {field.required && (
-                                    <span className="ml-1 text-red-500">*</span>
-                                  )}
-                                </Label>
-                                {field.type === 'textarea' ? (
-                                  <Textarea
-                                    className="min-h-[100px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-                                    disabled={isLoading}
-                                    id={field.name}
-                                    onChange={(e) =>
-                                      handleAdditionalInputChange(
-                                        field.name,
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder={field.placeholder}
-                                    value={
-                                      additionalInputData[field.name] || ''
-                                    }
-                                  />
-                                ) : (
-                                  <Input
-                                    className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-                                    disabled={isLoading}
-                                    id={field.name}
-                                    onChange={(e) =>
-                                      handleAdditionalInputChange(
-                                        field.name,
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder={field.placeholder}
-                                    value={
-                                      additionalInputData[field.name] || ''
-                                    }
-                                  />
-                                )}
-                                {field.description && (
-                                  <p className="text-muted-foreground text-xs">
-                                    {field.description}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+										{/* Additional Input Fields */}
+										{config.additionalInputs &&
+											config.additionalInputs.length > 0 && (
+												<div className="space-y-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
+													<div className="flex items-center gap-2">
+														<div className="h-1.5 w-1.5 rounded-full bg-solarized-blue" />
+														<h4 className="font-medium text-foreground text-sm">
+															Zusätzliche Informationen
+														</h4>
+													</div>
+													<div className="grid gap-4">
+														{config.additionalInputs.map((field) => (
+															<div className="space-y-2" key={field.name}>
+																<Label
+																	className="font-medium text-sm"
+																	htmlFor={field.name}
+																>
+																	{field.label}
+																	{field.required && (
+																		<span className="ml-1 text-red-500">*</span>
+																	)}
+																</Label>
+																{field.type === "textarea" ? (
+																	<Textarea
+																		className="min-h-[100px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+																		disabled={isLoading}
+																		id={field.name}
+																		onChange={(e) =>
+																			handleAdditionalInputChange(
+																				field.name,
+																				e.target.value,
+																			)
+																		}
+																		placeholder={field.placeholder}
+																		value={
+																			additionalInputData[field.name] || ""
+																		}
+																	/>
+																) : (
+																	<Input
+																		className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+																		disabled={isLoading}
+																		id={field.name}
+																		onChange={(e) =>
+																			handleAdditionalInputChange(
+																				field.name,
+																				e.target.value,
+																			)
+																		}
+																		placeholder={field.placeholder}
+																		value={
+																			additionalInputData[field.name] || ""
+																		}
+																	/>
+																)}
+																{field.description && (
+																	<p className="text-muted-foreground text-xs">
+																		{field.description}
+																	</p>
+																)}
+															</div>
+														))}
+													</div>
+												</div>
+											)}
 
-                    {/* Audio Recordings Indicator */}
-                    {audioRecordings.length > 0 && (
-                      <div className="space-y-2">
-                        {audioRecordings.map((recording, index) => (
-                          <div
-                            className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-3"
-                            key={recording.id}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-sm text-solarized-green">
-                                <Mic className="h-4 w-4" />
-                                <span>
-                                  Aufnahme {index + 1} (
-                                  {formatDuration(recording.duration)})
-                                </span>
-                              </div>
-                              <Button
-                                onClick={() =>
-                                  handleRemoveRecording(recording.id)
-                                }
-                                size="sm"
-                                type="button"
-                                variant="ghost"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+										{/* Audio Recordings Indicator */}
+										{audioRecordings.length > 0 && (
+											<div className="space-y-2">
+												{audioRecordings.map((recording, index) => (
+													<div
+														className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-3"
+														key={recording.id}
+													>
+														<div className="flex items-center justify-between">
+															<div className="flex items-center gap-2 text-sm text-solarized-green">
+																<Mic className="h-4 w-4" />
+																<span>
+																	Aufnahme {index + 1} (
+																	{formatDuration(recording.duration)})
+																</span>
+															</div>
+															<Button
+																onClick={() =>
+																	handleRemoveRecording(recording.id)
+																}
+																size="sm"
+																type="button"
+																variant="ghost"
+															>
+																<X className="h-4 w-4" />
+															</Button>
+														</div>
+													</div>
+												))}
+											</div>
+										)}
 
-                    {/* Main Input Field */}
-                    <PromptInput onSubmit={handleGenerate}>
-                      <PromptInputBody>
-                        <PromptInputTextarea
-                          className="min-h-[400px] resize-none rounded-t-lg border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-                          disabled={isLoading}
-                          id="input-field"
-                          onChange={(e) => setInputData(e.target.value)}
-                          placeholder={config.inputPlaceholder}
-                          ref={mainTextareaRef}
-                          value={inputData}
-                        />
-                      </PromptInputBody>
-                      <PromptInputToolbar>
-                        <PromptInputTools>
-                          <PromptInputActionMenu>
-                            <PromptInputModelSelect
-                              onValueChange={(value) => {
-                                setModel(value);
-                              }}
-                              value={model}
-                            >
-                              <PromptInputModelSelectTrigger>
-                                <PromptInputModelSelectValue />
-                              </PromptInputModelSelectTrigger>
-                              <PromptInputModelSelectContent>
-                                {models.map((m) => (
-                                  <PromptInputModelSelectItem
-                                    key={m.id}
-                                    value={m.id}
-                                  >
-                                    {m.name}
-                                  </PromptInputModelSelectItem>
-                                ))}
-                              </PromptInputModelSelectContent>
-                            </PromptInputModelSelect>
-                          </PromptInputActionMenu>
-                          {/* Audio recording currently does not work in OpenRouter, so this button is disabled/commented out for now. 
+										{/* Main Input Field */}
+										<PromptInput onSubmit={handleGenerate}>
+											<PromptInputBody>
+												<PromptInputTextarea
+													className="min-h-[400px] resize-none rounded-t-lg border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+													disabled={isLoading}
+													id="input-field"
+													onChange={(e) => setInputData(e.target.value)}
+													placeholder={config.inputPlaceholder}
+													ref={mainTextareaRef}
+													value={inputData}
+												/>
+											</PromptInputBody>
+											<PromptInputToolbar>
+												<PromptInputTools>
+													<PromptInputActionMenu>
+														<PromptInputModelSelect
+															onValueChange={(value) => {
+																setModel(value);
+															}}
+															value={model}
+														>
+															<PromptInputModelSelectTrigger>
+																<PromptInputModelSelectValue />
+															</PromptInputModelSelectTrigger>
+															<PromptInputModelSelectContent>
+																{models.map((m) => (
+																	<PromptInputModelSelectItem
+																		key={m.id}
+																		value={m.id}
+																	>
+																		{m.name}
+																	</PromptInputModelSelectItem>
+																))}
+															</PromptInputModelSelectContent>
+														</PromptInputModelSelect>
+													</PromptInputActionMenu>
+													{/* Audio recording currently does not work in OpenRouter, so this button is disabled/commented out for now. 
                           <Button
                             className={isRecording ? 'bg-solarized-red' : ''}
                             disabled={
@@ -659,119 +659,119 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
                             )}
                           </Button>
                           */}
-                        </PromptInputTools>
-                        <PromptInputSubmit
-                          disabled={isLoading || !areRequiredFieldsFilled()}
-                        />
-                      </PromptInputToolbar>
-                    </PromptInput>
-                  </CardContent>
-                  <CardFooter className="flex items-center justify-center bg-muted/20">
-                    <div className="flex flex-wrap items-center justify-center gap-6 text-muted-foreground text-sm">
-                      <div className="flex items-center gap-2">
-                        <Kbd>⌘⇧1</Kbd>
-                        <span>für Fokus</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Kbd>⌘↵</Kbd>
-                        <span>zum Generieren</span>
-                      </div>
-                      <Link
-                        className="flex items-center gap-2 rounded px-2 py-1 transition "
-                        href="/profile#snippets"
-                        tabIndex={0}
-                        title="Zur Text-Snippets-Verwaltung"
-                      >
-                        <Kbd>⇧F2</Kbd>
-                        <span>für Text-Snippets</span>
-                      </Link>
-                    </div>
-                  </CardFooter>
-                </TabsContent>
+												</PromptInputTools>
+												<PromptInputSubmit
+													disabled={isLoading || !areRequiredFieldsFilled()}
+												/>
+											</PromptInputToolbar>
+										</PromptInput>
+									</CardContent>
+									<CardFooter className="flex items-center justify-center bg-muted/20">
+										<div className="flex flex-wrap items-center justify-center gap-6 text-muted-foreground text-sm">
+											<div className="flex items-center gap-2">
+												<Kbd>⌘⇧1</Kbd>
+												<span>für Fokus</span>
+											</div>
+											<div className="flex items-center gap-2">
+												<Kbd>⌘↵</Kbd>
+												<span>zum Generieren</span>
+											</div>
+											<Link
+												className="flex items-center gap-2 rounded px-2 py-1 transition "
+												href="/profile#snippets"
+												tabIndex={0}
+												title="Zur Text-Snippets-Verwaltung"
+											>
+												<Kbd>⇧F2</Kbd>
+												<span>für Text-Snippets</span>
+											</Link>
+										</div>
+									</CardFooter>
+								</TabsContent>
 
-                {/* Output Tab */}
-                <TabsContent className="space-y-0" value="output">
-                  <CardContent>
-                    {(() => {
-                      if (isLoading && !completion.completion) {
-                        return (
-                          <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                            <div className="relative">
-                              <div className="h-20 w-20 animate-pulse rounded-full border-4 border-solarized-blue/20" />
-                              <div className="absolute top-0 left-0 h-20 w-20 animate-spin rounded-full border-4 border-solarized-blue border-t-transparent" />
-                            </div>
-                            <div className="space-y-2">
-                              <h3 className="font-semibold text-foreground text-lg">
-                                Wird generiert...
-                              </h3>
-                              <p className="text-muted-foreground text-sm">
-                                Bitte warten Sie, während der KI-Assistent Ihren
-                                Inhalt erstellt
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      }
+								{/* Output Tab */}
+								<TabsContent className="space-y-0" value="output">
+									<CardContent>
+										{(() => {
+											if (isLoading && !completion.completion) {
+												return (
+													<div className="flex flex-col items-center justify-center space-y-4 text-center">
+														<div className="relative">
+															<div className="h-20 w-20 animate-pulse rounded-full border-4 border-solarized-blue/20" />
+															<div className="absolute top-0 left-0 h-20 w-20 animate-spin rounded-full border-4 border-solarized-blue border-t-transparent" />
+														</div>
+														<div className="space-y-2">
+															<h3 className="font-semibold text-foreground text-lg">
+																Wird generiert...
+															</h3>
+															<p className="text-muted-foreground text-sm">
+																Bitte warten Sie, während der KI-Assistent Ihren
+																Inhalt erstellt
+															</p>
+														</div>
+													</div>
+												);
+											}
 
-                      if (completion.completion) {
-                        return (
-                          <div className="space-y-6">
-                            <div className="space-y-4">
-                              <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
-                                <div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
-                                {config.outputTabTitle}
-                              </h4>
-                              <ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
-                                <MemoizedCopySection
-                                  content={
-                                    completion.completion ||
-                                    'Keine Inhalte verfügbar'
-                                  }
-                                  values={values}
-                                />
-                              </ScrollArea>
-                            </div>
+											if (completion.completion) {
+												return (
+													<div className="space-y-6">
+														<div className="space-y-4">
+															<h4 className="flex items-center gap-2 font-semibold text-foreground text-sm">
+																<div className="h-1.5 w-1.5 rounded-full bg-solarized-green" />
+																{config.outputTabTitle}
+															</h4>
+															<ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
+																<MemoizedCopySection
+																	content={
+																		completion.completion ||
+																		"Keine Inhalte verfügbar"
+																	}
+																	values={values}
+																/>
+															</ScrollArea>
+														</div>
 
-                            {isLoading && (
-                              <div className="flex items-center justify-center gap-2 text-sm text-solarized-blue">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>Wird weiter generiert...</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
+														{isLoading && (
+															<div className="flex items-center justify-center gap-2 text-sm text-solarized-blue">
+																<Loader2 className="h-4 w-4 animate-spin" />
+																<span>Wird weiter generiert...</span>
+															</div>
+														)}
+													</div>
+												);
+											}
 
-                      return (
-                        <div className="flex flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
-                          <div className="rounded-full bg-muted/20 p-6">
-                            <FileText className="h-16 w-16" />
-                          </div>
-                          <div className="space-y-2">
-                            <h3 className="font-semibold text-lg">
-                              {config.emptyStateTitle}
-                            </h3>
-                            <p className="max-w-md text-sm">
-                              {config.emptyStateDescription}
-                            </p>
-                            <Button
-                              className="mt-4"
-                              onClick={() => setActiveTab('input')}
-                              variant="outline"
-                            >
-                              Zu Eingabe wechseln
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </CardContent>
-                </TabsContent>
-              </Tabs>
-            </Card>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+											return (
+												<div className="flex flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
+													<div className="rounded-full bg-muted/20 p-6">
+														<FileText className="h-16 w-16" />
+													</div>
+													<div className="space-y-2">
+														<h3 className="font-semibold text-lg">
+															{config.emptyStateTitle}
+														</h3>
+														<p className="max-w-md text-sm">
+															{config.emptyStateDescription}
+														</p>
+														<Button
+															className="mt-4"
+															onClick={() => setActiveTab("input")}
+															variant="outline"
+														>
+															Zu Eingabe wechseln
+														</Button>
+													</div>
+												</div>
+											);
+										})()}
+									</CardContent>
+								</TabsContent>
+							</Tabs>
+						</Card>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
 }
