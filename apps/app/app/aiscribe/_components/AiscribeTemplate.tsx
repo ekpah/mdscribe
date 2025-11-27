@@ -37,7 +37,14 @@ import {
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parseMarkdocToInputs";
-import { FileText, Loader2, type LucideIcon, Mic, X } from "lucide-react";
+import {
+	FileText,
+	Loader2,
+	type LucideIcon,
+	Mic,
+	Square,
+	X,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -96,14 +103,14 @@ export interface AiscribeTemplateConfig {
 const models = [
 	{ id: "auto", name: "Auto" },
 	{ id: "glm-4p6", name: "GLM-4.6" },
-	{ id: "claude-sonnet-4.5", name: "Claude Sonnet 4.5" },
+	{ id: "claude-opus-4.5", name: "Claude Opus 4.5" },
 	{ id: "gemini-3-pro", name: "Gemini 3 Pro" },
 ];
 
 const getActualModel = (modelId: string, hasAudio?: boolean): string => {
 	if (modelId === "auto") {
 		// If audio is present, use Gemini as only it can process audio
-		return hasAudio ? "gemini-3-pro" : "claude-sonnet-4.5";
+		return hasAudio ? "gemini-3-pro" : "claude-opus-4.5";
 	}
 	return modelId;
 };
@@ -143,6 +150,14 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		body: {
 			model: getActualModel(model, audioRecordings.length > 0),
 		},
+		onError: (error) => {
+			toast.error(error.message || "Fehler beim Generieren");
+			setIsGenerating(false);
+		},
+		onFinish: () => {
+			toast.success("Erfolgreich generiert");
+			setIsGenerating(false);
+		},
 	});
 
 	// Combined loading state
@@ -176,9 +191,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 				audioChunksRef.current.push(event.data);
 			});
 
-			mediaRecorder.addEventListener("stop", () => {
+			mediaRecorder.addEventListener("stop", async () => {
 				const audioBlob = new Blob(audioChunksRef.current, {
-					type: "audio/webm",
+					type: "audio/wav",
 				});
 				const duration = (Date.now() - recordingStartTimeRef.current) / 1000; // in seconds
 				const newRecording: AudioRecording = {
@@ -209,7 +224,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		}
 	};
 
-	const _handleToggleRecording = () => {
+	const handleToggleRecording = () => {
 		if (isRecording) {
 			handleStopRecording();
 		} else {
@@ -269,6 +284,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			return;
 		}
 
+		// Clear any previous completion and error state before starting a new request
+		completion.setCompletion("");
+
 		setIsGenerating(true);
 		setActiveTab("output");
 
@@ -318,30 +336,17 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 					body,
 				},
 			);
-
-			// Clear audio after submission
-			if (audioRecordings.length > 0) {
-				setAudioRecordings([]);
-			}
-
-			// Check for errors after completion
-			if (completion.error) {
-				toast.error(completion.error.message || "Fehler beim Generieren");
-			} else if (completion.completion) {
-				toast.success("Erfolgreich generiert");
-			}
+			// Note: onError and onFinish callbacks handle toast notifications and isGenerating state
 		} catch {
+			// Catch any unexpected errors not handled by onError callback
 			toast.error("Fehler beim Generieren");
-		} finally {
 			setIsGenerating(false);
 		}
 	}, [
 		inputData,
 		additionalInputData,
 		areRequiredFieldsFilled,
-		completion.complete,
-		completion.error,
-		completion.completion,
+		completion,
 		config.customApiCall,
 		config.customPromptProcessor,
 		config.inputFieldName,
@@ -630,35 +635,34 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 															</PromptInputModelSelectContent>
 														</PromptInputModelSelect>
 													</PromptInputActionMenu>
-													{/* Audio recording currently does not work in OpenRouter, so this button is disabled/commented out for now. 
-                          <Button
-                            className={isRecording ? 'bg-solarized-red' : ''}
-                            disabled={
-                              !isAudioSupported ||
-                              isLoading ||
-                              !(canRecord || isRecording)
-                            }
-                            onClick={handleToggleRecording}
-                            size="sm"
-                            title={
-                              isAudioSupported
-                                ? canRecord || isRecording
-                                  ? isRecording
-                                    ? 'Aufnahme stoppen'
-                                    : 'Audioaufnahme starten'
-                                  : `Maximal ${maxRecordings} Aufnahmen möglich`
-                                : 'Nur mit Auto oder Gemini 2.5 Pro verfügbar'
-                            }
-                            type="button"
-                            variant="ghost"
-                          >
-                            {isRecording ? (
-                              <Square className="h-4 w-4" />
-                            ) : (
-                              <Mic className="h-4 w-4" />
-                            )}
-                          </Button>
-                          */}
+
+													<Button
+														className={isRecording ? "bg-solarized-red" : ""}
+														disabled={
+															!isAudioSupported ||
+															isLoading ||
+															!(canRecord || isRecording)
+														}
+														onClick={handleToggleRecording}
+														size="sm"
+														title={
+															isAudioSupported
+																? canRecord || isRecording
+																	? isRecording
+																		? "Aufnahme stoppen"
+																		: "Audioaufnahme starten"
+																	: `Maximal ${maxRecordings} Aufnahmen möglich`
+																: "Nur mit Auto oder Gemini 2.5 Pro verfügbar"
+														}
+														type="button"
+														variant="ghost"
+													>
+														{isRecording ? (
+															<Square className="h-4 w-4" />
+														) : (
+															<Mic className="h-4 w-4" />
+														)}
+													</Button>
 												</PromptInputTools>
 												<PromptInputSubmit
 													disabled={isLoading || !areRequiredFieldsFilled()}
