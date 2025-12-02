@@ -11,6 +11,86 @@ interface MemoizedCopySectionProps {
 	values?: Record<string, unknown>;
 }
 
+/**
+ * Normalizes markdown line breaks to ensure proper rendering.
+ * In standard markdown, a single newline doesn't create a line break.
+ * This function ensures:
+ * - Bold headers (like **Hauptdiagnose:**) are followed by paragraph breaks
+ * - List items are properly separated from preceding content
+ * - Individual text lines have trailing spaces for hard breaks
+ */
+function normalizeMarkdownLineBreaks(markdown: string): string {
+	// First, normalize all line endings to \n
+	let normalized = markdown.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+
+	// Ensure bold headers (like **Hauptdiagnose:**) are followed by a blank line
+	// Match: **Text:** followed by single newline and non-empty content
+	normalized = normalized.replaceAll(
+		/(\*\*[^*]+:\*\*)\n(?!\n)(?=[^\s])/g,
+		"$1\n\n",
+	);
+
+	// Ensure lines ending with colons and single newlines get proper breaks
+	// This handles plain text headers like "Hauptdiagnose:"
+	normalized = normalized.replaceAll(
+		/^([A-ZÄÖÜ][^:\n]*:)\n(?!\n)(?=[^\s-])/gm,
+		"$1\n\n",
+	);
+
+	// Ensure list items (starting with - or numbered) are separated from previous content
+	normalized = normalized.replaceAll(
+		/([^\n])\n(?!\n)([-\d]+[.)]?\s)/g,
+		"$1\n\n$2",
+	);
+
+	// Add trailing double spaces to lines that aren't blank, don't end with
+	// markdown formatting, and are followed by another content line.
+	// This creates hard line breaks in markdown for items like:
+	// "Z.n. Hemithyreoidektomie" -> "Z.n. Hemithyreoidektomie  "
+	const lines = normalized.split("\n");
+	const processedLines = lines.map((line, index) => {
+		const nextLine = lines[index + 1];
+		const trimmedLine = line.trim();
+		const trimmedNextLine = nextLine?.trim();
+
+		// Skip if line is empty, already ends with spaces, or is last line
+		if (
+			!trimmedLine ||
+			line.endsWith("  ") ||
+			index === lines.length - 1 ||
+			!trimmedNextLine
+		) {
+			return line;
+		}
+
+		// Skip if line ends with markdown block markers
+		if (
+			trimmedLine.endsWith("**") ||
+			trimmedLine.endsWith(":") ||
+			trimmedLine.startsWith("#") ||
+			trimmedLine.startsWith("-") ||
+			/^\d+[.)]\s/.test(trimmedLine)
+		) {
+			return line;
+		}
+
+		// Skip if next line starts a new section or is a list item
+		if (
+			trimmedNextLine.startsWith("**") ||
+			trimmedNextLine.startsWith("#") ||
+			trimmedNextLine.startsWith("-") ||
+			/^\d+[.)]\s/.test(trimmedNextLine)
+		) {
+			return line;
+		}
+
+		// Add trailing spaces for hard line break
+		return `${line}  `;
+	});
+
+	return processedLines.join("\n");
+}
+
 function parseMarkdocIntoBlocks(markdown: string): string[] {
 	// Parse with Markdoc to validate syntax, but use line-by-line for block extraction
 	try {
@@ -60,7 +140,8 @@ function parseMarkdocIntoBlocks(markdown: string): string[] {
 			}
 		}
 
-		currentBlock = currentBlock ? `${currentBlock}\n${line}` : line;
+		// Always append line, preserving explicit line breaks even at end.
+		currentBlock += (currentBlock === "" ? "" : "\n") + line;
 
 		// Natural break points when not in tags
 		if (
@@ -107,7 +188,10 @@ MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
 export const MemoizedCopySection = memo(
 	({ title, content, values }: MemoizedCopySectionProps) => {
 		const [isCopied, setIsCopied] = useState(false);
-		const blocks = useMemo(() => parseMarkdocIntoBlocks(content), [content]);
+		const blocks = useMemo(() => {
+			const normalizedContent = normalizeMarkdownLineBreaks(content);
+			return parseMarkdocIntoBlocks(normalizedContent);
+		}, [content]);
 		const contentRef = useRef<HTMLDivElement>(null);
 
 		const handleCopy = async (renderedContent: string, textContent: string) => {

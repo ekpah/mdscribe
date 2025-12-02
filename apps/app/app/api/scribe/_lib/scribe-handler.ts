@@ -55,35 +55,29 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { database } from "@repo/database";
 import { env } from "@repo/env";
 import {
-	type CoreMessage,
+	convertToModelMessages,
+	type FilePart,
 	generateText,
 	type LanguageModel,
+	type ModelMessage,
 	streamText,
+	type TextPart,
 } from "ai";
 import { Langfuse } from "langfuse";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
-import { authClient } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
 import { getUsage } from "./get-usage";
 
 const langfuse = new Langfuse();
 
 // Supported models type
-type SupportedModel = "glm-4p6" | "claude-sonnet-4.5" | "gemini-3-pro";
+type SupportedModel = "glm-4p6" | "claude-opus-4.5" | "gemini-3-pro";
 
 // Model configuration mapper
 function getModelConfig(modelId: string): {
 	model: LanguageModel;
 	supportsThinking: boolean;
-	providerOptions?: {
-		gateway?: {
-			order?: string[];
-		};
-		vertex?: {
-			location?: string;
-		};
-	};
 } {
 	const openrouter = createOpenRouter({
 		apiKey: env.OPENROUTER_API_KEY as string,
@@ -92,22 +86,22 @@ function getModelConfig(modelId: string): {
 		case "glm-4p6":
 			return {
 				model: openrouter("z-ai/glm-4.6"),
-				supportsThinking: false,
+				supportsThinking: true,
 			};
-		case "claude-sonnet-4.5":
+		case "claude-opus-4.5":
 			return {
-				model: openrouter("anthropic/claude-sonnet-4.5"),
+				model: openrouter("anthropic/claude-opus-4.5"),
 				supportsThinking: true,
 			};
 		case "gemini-3-pro":
 			return {
 				model: openrouter("google/gemini-3-pro-preview"),
-				supportsThinking: false,
+				supportsThinking: true,
 			};
 		default:
 			// Default to Claude if unknown model
 			return {
-				model: openrouter("anthropic/claude-sonnet-4.5"),
+				model: openrouter("anthropic/claude-opus-4.5"),
 				supportsThinking: true,
 			};
 	}
@@ -143,15 +137,23 @@ interface ScribeHandlerConfig {
 }
 
 async function checkAuthAndSubscription() {
-	const { data: subscriptions } = await authClient.subscription.list();
-
 	const session = await auth.api.getSession({
 		headers: await headers(),
 	});
 	if (!session) {
 		return new Response("Unauthorized", { status: 401 });
 	}
-	const activeSubscription = subscriptions?.find(
+
+	// Query subscriptions directly from database (client-side authClient doesn't work server-side)
+	const subscriptions = await auth.api.listActiveSubscriptions({
+		query: {
+			referenceId: session.user.id,
+		},
+		// This endpoint requires session cookies.
+		headers: await headers(),
+	});
+
+	const activeSubscription = subscriptions.find(
 		(sub) => sub.status === "active" || sub.status === "trialing",
 	);
 
@@ -189,9 +191,9 @@ async function processRequest(
 		return { error: validation.error || "Invalid input", status: 400 };
 	}
 
-	// Extract model and audio files from request body (default to claude-sonnet-4)
+	// Extract model and audio files from request body (default to claude-opus-4.5)
 	const requestObj = requestBody as Record<string, unknown>;
-	const model = (requestObj.model as string) || "claude-sonnet-4";
+	const model = requestObj.model as string;
 	const audioFiles = requestObj.audioFiles as
 		| Array<{ data: string; mimeType: string }>
 		| undefined;
@@ -205,13 +207,12 @@ async function processRequest(
 		month: "2-digit",
 		year: "numeric",
 	});
-
 	return { processedInput, todaysDate, model, audioFiles };
 }
 
 async function generateResponse(
 	config: ScribeHandlerConfig,
-	messages: CoreMessage[],
+	messages: ModelMessage[],
 	metadata: Record<string, string | number | boolean>,
 	session: Session,
 	modelId: string,
@@ -239,94 +240,41 @@ async function generateResponse(
 		};
 	}
 
-	// Helper function to extract audio format from mimeType
-	const getAudioFormat = (mimeType: string): string => {
-		// Extract format from mimeType (e.g., "audio/webm" -> "webm")
-		const match = mimeType.match(/audio\/([^;]+)/);
-		if (match) {
-			return match[1];
-		}
-		// Fallback: try to extract from common patterns
-		if (mimeType.includes("webm")) {
-			return "webm";
-		}
-		if (mimeType.includes("wav")) {
-			return "wav";
-		}
-		if (mimeType.includes("mp3")) {
-			return "mp3";
-		}
-		if (mimeType.includes("ogg")) {
-			return "ogg";
-		}
-		// Default fallback
-		return "webm";
-	};
-
 	// If audio files are provided, add them to the messages
-	// OpenRouter expects audio in a specific format: type: 'input_audio' with nested input_audio object
-	let messagesWithAudio = messages;
-	if (audioFiles && audioFiles.length > 0 && modelId === "gemini-2.5-pro") {
+	// Vercel AI SDK expects FilePart: { type: 'file', data: base64 | dataUrl, mimeType: string }
+	let messagesWithAudio: ModelMessage[] = messages;
+	if (audioFiles && audioFiles.length > 0 && modelId.startsWith("gemini")) {
 		// Add audio files to the user message
 		const lastMessage = messages.at(-1);
 		if (lastMessage?.role === "user") {
-			// Transform audio files to OpenRouter's expected format
-			const audioContent = audioFiles.map((audioFile) => {
-				const format = getAudioFormat(audioFile.mimeType);
-				return {
-					type: "input_audio" as const,
-					input_audio: {
-						data: audioFile.data,
-						format,
-					},
-				};
-			});
+			// Transform audio files to Vercel AI SDK's FilePart format
+			// also transform to an openrouter compatbible format: MP3 and WAV
+			// MP3: "audio/mpeg" or "audio/mp3"
+			// WAV: "audio/wav" or "audio/x-wav"
+			const audioContent = audioFiles.map((audioFile) => ({
+				type: "file" as const,
+				data: audioFile.data,
+				mediaType: audioFile.mimeType,
+			}));
 
-			// Get text content from last message
-			let textContent = "";
-			if (typeof lastMessage.content === "string") {
-				textContent = lastMessage.content;
-			} else if (Array.isArray(lastMessage.content)) {
-				// Extract text from existing content array
-				const textParts = lastMessage.content
-					.filter((part) => part.type === "text")
-					.map((part) => (part as { type: string; text: string }).text);
-				textContent = textParts.join("\n");
-			}
-
-			// Note: Using 'as any' here because CoreMessage type doesn't include OpenRouter's
-			// 'input_audio' type, but OpenRouter adapter should handle this format
 			messagesWithAudio = [
 				...messages.slice(0, -1),
 				{
 					...lastMessage,
 					content: [
-						...(textContent
-							? [
-									{
-										type: "text" as const,
-										text: textContent,
-									},
-								]
-							: []),
+						{
+							type: "text" as const,
+							text:
+								typeof lastMessage.content === "string"
+									? lastMessage.content
+									: "",
+						},
 						...audioContent,
 					],
-				} as CoreMessage,
+				},
 			];
-
-			// Debug logging in development
-			if (env.NODE_ENV === "development") {
-				console.log("Audio files processed:", audioFiles.length);
-				console.log(
-					"Audio format:",
-					audioFiles.map((f) => getAudioFormat(f.mimeType)),
-				);
-				console.log(
-					"Messages with audio (last message content):",
-					JSON.stringify(messagesWithAudio.at(-1)?.content, null, 2),
-				);
-			}
 		}
+		console.log("messagesWithAudio", messagesWithAudio);
 	}
 
 	// Common model parameters
@@ -459,7 +407,7 @@ export function createScribeHandler(
 				todaysDate: processed.todaysDate,
 			});
 
-			const messages: CoreMessage[] = compiledPrompt as CoreMessage[];
+			const messages: ModelMessage[] = compiledPrompt;
 
 			// Prepare base metadata
 			const baseMetadata: Record<string, string | number | boolean> = {
@@ -518,29 +466,5 @@ export const createInputValidator = (requiredFields: string[]) => {
 		}
 
 		return { isValid: true };
-	};
-};
-
-// Helper function to create common input processors
-const _createInputProcessor = (fieldMapping?: Record<string, string>) => {
-	return (input: unknown): Record<string, unknown> => {
-		if (!input || typeof input !== "object") {
-			return {};
-		}
-
-		const inputObj = input as Record<string, unknown>;
-
-		if (!fieldMapping) {
-			return inputObj;
-		}
-
-		// Apply field mapping if provided
-		const processed: Record<string, unknown> = {};
-		for (const [key, value] of Object.entries(inputObj)) {
-			const mappedKey = fieldMapping[key] || key;
-			processed[mappedKey] = value;
-		}
-
-		return processed;
 	};
 };
