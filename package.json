@@ -15,8 +15,8 @@
 		"knip": "knip"
 	},
 	"catalog": {
-		"react": "^19.2.0",
-		"react-dom": "^19.2.0",
+		"react": "^19.2.1",
+		"react-dom": "^19.2.1",
 		"typescript": "^5.9.3",
 		"@types/node": "^24.9.2",
 		"@types/react": "^19.2.2",
@@ -26,10 +26,9 @@
 		"react-hot-toast": "^2.5.2",
 		"zod": "^3.25.67",
 		"@radix-ui/react-icons": "^1.3.2",
-		"next": "^16.0.3",
+		"next": "^16.0.7",
 		"@prisma/client": "^7.0.1",
-		"prisma": "^7.0.1",
-		"prettier": "^3.7.1"
+		"prisma": "^7.0.1"
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
@@ -50,7 +49,6 @@
 	"dependencies": {
 		"@prisma/client": "catalog:",
 		"@wojtekmaj/react-hooks": "^2.0.4",
-		"pdfjs-dist": "5.4.394",
-		"prettier": "catalog:"
+		"pdfjs-dist": "5.4.394"
 	}
 }
