@@ -52,7 +52,7 @@ export default function FindTemplatePage() {
       setResults(data.templates.slice(0, 3));
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to search templates'
+        err instanceof Error ? err.message : 'Fehler bei der Suche nach Vorlagen'
       );
     } finally {
       setIsLoading(false);
@@ -65,10 +65,10 @@ export default function FindTemplatePage() {
         {/* Header */}
         <div className="text-center">
           <h1 className="font-bold text-3xl text-solarized-base03">
-            Find Relevant Templates
+            Relevante Vorlagen finden
           </h1>
           <p className="mt-2 text-solarized-base01">
-            Search for templates using natural language queries
+            Suchen Sie nach Vorlagen mit natürlicher Sprache
           </p>
         </div>
 
@@ -76,20 +76,20 @@ export default function FindTemplatePage() {
         <form onSubmit={handleSearch} className="flex gap-2">
           <Input
             type="text"
-            placeholder="Describe what kind of template you're looking for..."
+            placeholder="Beschreiben Sie, welche Art von Vorlage Sie suchen..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1"
           />
           <Button type="submit" disabled={isLoading || !query.trim()}>
-            {isLoading ? 'Searching...' : 'Search'}
+            {isLoading ? 'Suche läuft...' : 'Suchen'}
           </Button>
         </form>
 
         {/* Error Message */}
         {error && (
           <div className="rounded-lg bg-red-50 p-4 text-red-700">
-            <p className="font-medium">Error</p>
+            <p className="font-medium">Fehler</p>
             <p className="text-sm">{error}</p>
           </div>
         )}
@@ -100,7 +100,7 @@ export default function FindTemplatePage() {
             <div className="inline-flex items-center space-x-2">
               <div className="h-4 w-4 animate-spin rounded-full border-solarized-blue border-b-2" />
               <span className="text-solarized-base01">
-                Searching templates...
+                Vorlagen werden durchsucht...
               </span>
             </div>
           </div>
@@ -110,7 +110,7 @@ export default function FindTemplatePage() {
         {results.length > 0 && (
           <div className="space-y-4">
             <h2 className="font-semibold text-solarized-base03 text-xl">
-              Top 3 Matching Templates
+              Top 3 passende Vorlagen
             </h2>
             {results.map((template, index) => (
               <div
@@ -132,7 +132,7 @@ export default function FindTemplatePage() {
                     </h3>
                   </div>
                   <div className="text-right text-sm text-solarized-base01">
-                    <div>Match: {Math.round(template.similarity * 100)}%</div>
+                    <div>Übereinstimmung: {Math.round(template.similarity * 100)}%</div>
                     <div>
                       {new Date(template.updatedAt).toLocaleDateString()}
                     </div>
@@ -151,16 +151,16 @@ export default function FindTemplatePage() {
         {/* No Results */}
         {!isLoading && results.length === 0 && query && !error && (
           <div className="text-center text-solarized-base01">
-            <p>No templates found matching your query.</p>
-            <p className="text-sm">Try using different keywords or phrases.</p>
+            <p>Keine Vorlagen gefunden, die Ihrer Suche entsprechen.</p>
+            <p className="text-sm">Versuchen Sie andere Schlüsselwörter oder Formulierungen.</p>
           </div>
         )}
 
         {/* Help Text */}
         <div className="mt-8 text-center text-sm text-solarized-base01">
           <p>
-            Try searching for things like "medical discharge notes", "patient
-            assessment", or "treatment plans" to find relevant templates.
+            Versuchen Sie Suchbegriffe wie "Entlassungsbrief", "Aufnahme"
+            oder "Behandlungsplan", um relevante Vorlagen zu finden.
           </p>
         </div>
       </div>

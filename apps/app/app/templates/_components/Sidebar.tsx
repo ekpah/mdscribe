@@ -230,7 +230,7 @@ export default function AppSidebar({
           <SidebarGroupContent className="relative">
             <form key="search" onSubmit={handleSearchSubmit}>
               <Label className="sr-only" htmlFor="search">
-                Search
+                Suchen
               </Label>
               <SidebarInput
                 className="rounded-md bg-muted pl-8 text-sm"

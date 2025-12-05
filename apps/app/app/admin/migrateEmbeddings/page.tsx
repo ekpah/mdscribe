@@ -41,12 +41,12 @@ export default function MigrateEmbeddingsPage() {
         setStats(result.data);
         setError(null);
       } else {
-        setError(result.error || 'Failed to fetch stats');
-        toast.error('Failed to fetch embedding stats');
+        setError(result.error || 'Fehler beim Laden der Statistiken');
+        toast.error('Fehler beim Laden der Embedding-Statistiken');
       }
     } catch (err) {
-      setError('Failed to fetch stats');
-      toast.error('Failed to fetch embedding stats');
+      setError('Fehler beim Laden der Statistiken');
+      toast.error('Fehler beim Laden der Embedding-Statistiken');
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +55,7 @@ export default function MigrateEmbeddingsPage() {
   const handleRefreshStats = async () => {
     setIsLoading(true);
     await fetchStats();
-    toast.success('Stats refreshed');
+    toast.success('Statistiken aktualisiert');
   };
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function MigrateEmbeddingsPage() {
           <div className="flex min-h-[400px] items-center justify-center">
             <div className="flex items-center gap-2 text-solarized-base01">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Loading embedding stats...</span>
+              <span>Embedding-Statistiken werden geladen...</span>
             </div>
           </div>
         </div>
@@ -85,10 +85,10 @@ export default function MigrateEmbeddingsPage() {
             <div className="space-y-2 text-center">
               <XCircle className="mx-auto h-8 w-8 text-solarized-red" />
               <h2 className="font-semibold text-lg text-solarized-base00">
-                Failed to load page
+                Seite konnte nicht geladen werden
               </h2>
               <p className="text-solarized-base01">
-                {error || 'Unable to access this page'}
+                {error || 'Zugriff auf diese Seite nicht möglich'}
               </p>
             </div>
           </div>
@@ -103,11 +103,11 @@ export default function MigrateEmbeddingsPage() {
         {/* Header */}
         <div className="space-y-2">
           <h1 className="font-bold text-3xl text-solarized-base00">
-            Template Embedding Migration
+            Template-Embedding-Migration
           </h1>
           <p className="text-solarized-base01">
-            Manage and execute one-time migration to embed all templates that
-            don't have embeddings yet.
+            Verwalten und Ausführen der einmaligen Migration, um alle Vorlagen
+            mit Embeddings zu versehen, die noch keine haben.
           </p>
         </div>
 
@@ -117,14 +117,14 @@ export default function MigrateEmbeddingsPage() {
             <div className="flex items-center gap-2">
               <Database className="h-5 w-5 text-solarized-blue" />
               <CardTitle className="text-solarized-base00">
-                Current Status
+                Aktueller Status
               </CardTitle>
               {isLoading && (
                 <Loader2 className="h-4 w-4 animate-spin text-solarized-base01" />
               )}
             </div>
             <CardDescription>
-              Overview of templates and their embedding status
+              Übersicht der Vorlagen und ihres Embedding-Status
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -132,7 +132,7 @@ export default function MigrateEmbeddingsPage() {
               <div className="flex flex-col space-y-2">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-solarized-base01">
-                    Total Templates
+                    Vorlagen gesamt
                   </Badge>
                 </div>
                 <span className="font-semibold text-2xl text-solarized-base00">
@@ -144,7 +144,7 @@ export default function MigrateEmbeddingsPage() {
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-solarized-green" />
                   <Badge variant="outline" className="text-solarized-green">
-                    With Embeddings
+                    Mit Embeddings
                   </Badge>
                 </div>
                 <span className="font-semibold text-2xl text-solarized-green">
@@ -156,7 +156,7 @@ export default function MigrateEmbeddingsPage() {
                 <div className="flex items-center gap-2">
                   <XCircle className="h-4 w-4 text-solarized-orange" />
                   <Badge variant="outline" className="text-solarized-orange">
-                    Need Embedding
+                    Embedding benötigt
                   </Badge>
                 </div>
                 <span className="font-semibold text-2xl text-solarized-orange">
@@ -172,15 +172,15 @@ export default function MigrateEmbeddingsPage() {
                 <>
                   <CheckCircle className="h-5 w-5 text-solarized-green" />
                   <span className="font-medium text-solarized-green">
-                    All templates have embeddings! No migration needed.
+                    Alle Vorlagen haben Embeddings! Keine Migration erforderlich.
                   </span>
                 </>
               ) : (
                 <>
                   <AlertCircle className="h-5 w-5 text-solarized-orange" />
                   <span className="font-medium text-solarized-orange">
-                    {stats.templatesWithoutEmbeddings} templates need embedding
-                    migration.
+                    {stats.templatesWithoutEmbeddings} Vorlagen benötigen
+                    Embedding-Migration.
                   </span>
                 </>
               )}
@@ -195,12 +195,12 @@ export default function MigrateEmbeddingsPage() {
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-solarized-yellow" />
                 <CardTitle className="text-solarized-base00">
-                  Embedding Management
+                  Embedding-Verwaltung
                 </CardTitle>
               </div>
               <CardDescription>
-                Generate missing embeddings or regenerate all embeddings with
-                configurable batch settings
+                Fehlende Embeddings generieren oder alle Embeddings mit
+                konfigurierbaren Batch-Einstellungen neu erstellen
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -221,12 +221,12 @@ export default function MigrateEmbeddingsPage() {
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-solarized-yellow" />
                 <CardTitle className="text-solarized-base00">
-                  Embedding Management
+                  Embedding-Verwaltung
                 </CardTitle>
               </div>
               <CardDescription>
-                Regenerate embeddings for all templates (useful if embedding
-                model has changed)
+                Embeddings für alle Vorlagen neu generieren (nützlich bei
+                Änderung des Embedding-Modells)
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -244,34 +244,36 @@ export default function MigrateEmbeddingsPage() {
         <Card className="border-solarized-base2">
           <CardHeader>
             <CardTitle className="text-solarized-base00">
-              Embedding Management Information
+              Informationen zur Embedding-Verwaltung
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-solarized-base01">
             <div>
-              <strong>Generate Missing Embeddings:</strong> Creates vector
-              embeddings for templates that don't have them yet, enabling
-              semantic search functionality for those templates.
+              <strong>Fehlende Embeddings generieren:</strong> Erstellt
+              Vektor-Embeddings für Vorlagen, die noch keine haben, und
+              ermöglicht so die semantische Suchfunktion für diese Vorlagen.
             </div>
             <div>
-              <strong>Regenerate All Embeddings:</strong> Recreates embeddings
-              for all templates, overwriting existing ones. Useful when the
-              embedding model has been updated or improved.
+              <strong>Alle Embeddings neu generieren:</strong> Erstellt
+              Embeddings für alle Vorlagen neu und überschreibt dabei
+              vorhandene. Nützlich, wenn das Embedding-Modell aktualisiert
+              oder verbessert wurde.
             </div>
             <div>
-              <strong>How it works:</strong> Processes templates in configurable
-              batches with delays between batches to avoid overwhelming the
-              embedding service.
+              <strong>Funktionsweise:</strong> Verarbeitet Vorlagen in
+              konfigurierbaren Batches mit Verzögerungen zwischen den Batches,
+              um den Embedding-Service nicht zu überlasten.
             </div>
             <div>
-              <strong>Safety:</strong> Can be run multiple times safely,
-              includes comprehensive error handling and reporting. Missing
-              embedding mode only processes templates without embeddings.
+              <strong>Sicherheit:</strong> Kann mehrfach sicher ausgeführt
+              werden, enthält umfassende Fehlerbehandlung und Berichterstattung.
+              Der Modus für fehlende Embeddings verarbeitet nur Vorlagen ohne
+              Embeddings.
             </div>
             <div>
-              <strong>Recommended settings:</strong> Start with batch size 10
-              and 1000ms delay. Reduce batch size or increase delay if you
-              encounter rate limits.
+              <strong>Empfohlene Einstellungen:</strong> Beginnen Sie mit
+              Batch-Größe 10 und 1000ms Verzögerung. Reduzieren Sie die
+              Batch-Größe oder erhöhen Sie die Verzögerung bei Rate-Limits.
             </div>
           </CardContent>
         </Card>
