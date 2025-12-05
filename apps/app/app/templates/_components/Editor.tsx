@@ -178,7 +178,7 @@ export default function Editor({
             />
             <Select onValueChange={setCategory} value={category}>
               <SelectTrigger className={(category === 'new' ? newCategory : category).trim() === '' ? 'border-solarized-red' : ''}>
-                <SelectValue placeholder="Select category" />
+                <SelectValue placeholder="Kategorie auswählen" />
               </SelectTrigger>
               <SelectContent>
                 {existingCategories.map((cat) => (
@@ -218,7 +218,7 @@ export default function Editor({
               id="name"
               name="name"
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter template name"
+              placeholder="Vorlagenname eingeben"
               value={name}
               className={name.trim() === '' ? 'border-solarized-red' : ''}
             />
@@ -237,7 +237,7 @@ export default function Editor({
                 id="source-toggle"
                 onCheckedChange={setShowSource}
               />
-              <Label htmlFor="source-toggle">Show Source</Label>
+              <Label htmlFor="source-toggle">Quelltext anzeigen</Label>
             </div>
           </div>
 
