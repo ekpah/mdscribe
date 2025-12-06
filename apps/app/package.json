@@ -40,6 +40,7 @@
 		"@vercel/toolbar": "^0.1.38",
 		"ai": "5.0.104",
 		"better-auth": "^1.2.10",
+		"diff": "^8.0.2",
 		"eslint-config-next": "^16.0.3",
 		"flags": "^4.0.1",
 		"fuse.js": "^7.1.0",
@@ -72,6 +73,7 @@
 	"devDependencies": {
 		"@next/bundle-analyzer": "15.2.1",
 		"@repo/typescript-config": "workspace:*",
+		"@types/diff": "^8.0.0",
 		"@types/lodash": "^4.17.18",
 		"@types/node": "catalog:",
 		"@types/react": "catalog:",
