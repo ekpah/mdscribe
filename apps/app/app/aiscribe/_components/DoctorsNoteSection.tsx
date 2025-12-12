@@ -2,11 +2,14 @@
 
 import { useCompletion } from "@ai-sdk/react";
 import { MarkdownDiffEditor } from "@repo/design-system/components/editor/MarkdownDiffEditor";
+import { Button } from "@repo/design-system/components/ui/button";
 import { Label } from "@repo/design-system/components/ui/label";
 import { cn } from "@repo/design-system/lib/utils";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, TrendingUp } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
+import { isUsageLimitError, showUsageLimitToast } from "@/hooks/use-usage-limit";
+import { authClient } from "@/lib/auth-client";
 
 const MIN_HEIGHT = 120;
 
@@ -46,6 +49,7 @@ export function DoctorsNoteSection({
 	disabled = false,
 }: DoctorsNoteSectionProps) {
 	const [proposedText, setProposedText] = useState<string | null>(null);
+	const [hasReachedLimit, setHasReachedLimit] = useState(false);
 	const previousCompletionRef = useRef<string>("");
 
 	// Use Vercel AI SDK's useCompletion for streaming
@@ -55,13 +59,28 @@ export function DoctorsNoteSection({
 			model: "auto",
 		},
 		onError: (error) => {
-			toast.error(error.message || "Fehler beim Generieren");
+			// Check if this is a usage limit error and show upselling toast
+			if (isUsageLimitError(error)) {
+				setHasReachedLimit(true);
+				showUsageLimitToast();
+			} else {
+				toast.error(error.message || "Fehler beim Generieren");
+			}
 			setProposedText(null);
 		},
 		onFinish: () => {
 			// Completion is done, proposed text is already set via the effect
 		},
 	});
+
+	// Handle upgrade action
+	const handleUpgrade = useCallback(() => {
+		authClient.subscription.upgrade({
+			plan: "plus",
+			successUrl: "/dashboard",
+			cancelUrl: "/dashboard",
+		});
+	}, []);
 
 	// Update proposed text as completion streams in
 	useEffect(() => {
@@ -115,30 +134,43 @@ export function DoctorsNoteSection({
 			{/* Content area - MarkdownDiffEditor handles both edit and diff modes */}
 			<MarkdownDiffEditor
 				actionSlot={
-					<button
-						className={cn(
-							"rounded-md p-1.5 transition-all",
-							"hover:bg-solarized-blue/10",
-							canEnhance
-								? "opacity-50 hover:opacity-100 focus:opacity-100"
-								: "cursor-not-allowed opacity-30",
-							isLoading && "opacity-100",
-						)}
-						disabled={!canEnhance}
-						onClick={handleEnhance}
-						title={
-							isLoading
-								? "Wird generiert..."
-								: "Mit KI generieren/verbessern (⌘↵)"
-						}
-						type="button"
-					>
-						{isLoading ? (
-							<Loader2 className="h-4 w-4 animate-spin text-solarized-blue" />
-						) : (
-							<Sparkles className="h-4 w-4 text-solarized-blue" />
-						)}
-					</button>
+					hasReachedLimit ? (
+						<Button
+							className="gap-1 bg-solarized-orange px-2 py-1 text-white text-xs hover:bg-solarized-orange/90"
+							onClick={handleUpgrade}
+							size="sm"
+							title="Jetzt upgraden für mehr Generierungen"
+							type="button"
+						>
+							<TrendingUp className="size-3" />
+							Upgrade
+						</Button>
+					) : (
+						<button
+							className={cn(
+								"rounded-md p-1.5 transition-all",
+								"hover:bg-solarized-blue/10",
+								canEnhance
+									? "opacity-50 hover:opacity-100 focus:opacity-100"
+									: "cursor-not-allowed opacity-30",
+								isLoading && "opacity-100",
+							)}
+							disabled={!canEnhance}
+							onClick={handleEnhance}
+							title={
+								isLoading
+									? "Wird generiert..."
+									: "Mit KI generieren/verbessern (⌘↵)"
+							}
+							type="button"
+						>
+							{isLoading ? (
+								<Loader2 className="h-4 w-4 animate-spin text-solarized-blue" />
+							) : (
+								<Sparkles className="h-4 w-4 text-solarized-blue" />
+							)}
+						</button>
+					)
 				}
 				className={cn("pr-10", isLoading && !isInDiffMode && "opacity-50")}
 				disabled={disabled || isLoading}

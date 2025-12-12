@@ -6,6 +6,8 @@ import { Card } from "@repo/design-system/components/ui/card";
 import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import toast from "react-hot-toast";
+import { isUsageLimitError, showUsageLimitToast } from "@/hooks/use-usage-limit";
 import { fillPDFForm } from "../_lib/fillPDFForm";
 import {
 	type FieldMapping,
@@ -15,7 +17,6 @@ import {
 } from "../_lib/parsePDFFormFields";
 import PDFDebugPanel from "./PDFDebugPanel";
 import PDFUploadSection from "./PDFUploadSection";
-import toast from "react-hot-toast";
 
 const PDFViewSection = dynamic(() => import("./PDFViewSection"), {
 	ssr: false,
@@ -115,13 +116,18 @@ export default function PDFFormSection() {
 
 			toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: "Unbekannter Fehler aufgetreten";
-			toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
-				id: "enhance-ai",
-			});
+			// Check if this is a usage limit error and show upselling toast
+			if (isUsageLimitError(error)) {
+				showUsageLimitToast();
+			} else {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Unbekannter Fehler aufgetreten";
+				toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
+					id: "enhance-ai",
+				});
+			}
 		}
 	};
 

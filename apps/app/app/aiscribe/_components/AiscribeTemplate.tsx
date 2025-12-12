@@ -42,6 +42,7 @@ import {
 	Loader2,
 	type LucideIcon,
 	Mic,
+	Sparkles,
 	Square,
 	X,
 } from "lucide-react";
@@ -50,6 +51,7 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
+import { useUsageLimit } from "@/hooks/use-usage-limit";
 import { MemoizedCopySection } from "./MemoizedCopySection";
 
 interface AdditionalInputField {
@@ -144,6 +146,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	// Initialize text snippets hook
 	useTextSnippets();
 
+	// Usage limit hook for handling out of credits
+	const { hasReachedLimit, handleError, handleUpgrade } = useUsageLimit();
+
 	// Use Vercel AI SDK's useCompletion
 	const completion = useCompletion({
 		api: config.apiEndpoint,
@@ -151,7 +156,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			model: getActualModel(model, audioRecordings.length > 0),
 		},
 		onError: (error) => {
-			toast.error(error.message || "Fehler beim Generieren");
+			// Check if this is a usage limit error and show upselling toast
+			const isLimitError = handleError(error);
+			if (!isLimitError) {
+				toast.error(error.message || "Fehler beim Generieren");
+			}
 			setIsGenerating(false);
 		},
 		onFinish: () => {
@@ -664,9 +673,21 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 														)}
 													</Button>
 												</PromptInputTools>
-												<PromptInputSubmit
-													disabled={isLoading || !areRequiredFieldsFilled()}
-												/>
+												{hasReachedLimit ? (
+													<Button
+														className="gap-2 bg-solarized-orange text-white hover:bg-solarized-orange/90"
+														onClick={handleUpgrade}
+														size="sm"
+														type="button"
+													>
+														<Sparkles className="size-4" />
+														Jetzt upgraden
+													</Button>
+												) : (
+													<PromptInputSubmit
+														disabled={isLoading || !areRequiredFieldsFilled()}
+													/>
+												)}
 											</PromptInputToolbar>
 										</PromptInput>
 									</CardContent>

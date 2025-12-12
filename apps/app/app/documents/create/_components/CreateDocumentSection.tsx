@@ -26,6 +26,7 @@ import { Card } from "@repo/design-system/components/ui/card";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { isUsageLimitError, showUsageLimitToast } from "@/hooks/use-usage-limit";
 import { fillPDFForm } from "../../_lib/fillPDFForm";
 import {
 	type FieldMapping,
@@ -155,13 +156,18 @@ export default function CreateDocumentSection() {
 
 			toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: "Unbekannter Fehler aufgetreten";
-			toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
-				id: "enhance-ai",
-			});
+			// Check if this is a usage limit error and show upselling toast
+			if (isUsageLimitError(error)) {
+				showUsageLimitToast();
+			} else {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Unbekannter Fehler aufgetreten";
+				toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
+					id: "enhance-ai",
+				});
+			}
 		}
 	};
 

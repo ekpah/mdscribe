@@ -46,6 +46,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import z from "zod";
+import { isUsageLimitError, showUsageLimitToast } from "@/hooks/use-usage-limit";
 import { orpc } from "@/lib/orpc";
 import { MemoizedCopySection } from "../_components/MemoizedCopySection";
 
@@ -284,8 +285,13 @@ export default function GenerateDocumentation() {
 			);
 
 			toast.success("Generierung gestartet");
-		} catch {
-			toast.error("Fehler beim Generieren");
+		} catch (error) {
+			// Check if this is a usage limit error and show upselling toast
+			if (isUsageLimitError(error)) {
+				showUsageLimitToast();
+			} else {
+				toast.error("Fehler beim Generieren");
+			}
 			setIsGenerating(false);
 		}
 	}, [
