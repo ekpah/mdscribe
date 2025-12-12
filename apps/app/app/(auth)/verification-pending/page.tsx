@@ -10,7 +10,6 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { ResendEmailButton } from "./_components/ResendEmailButton";
 
 export default async function VerificationPendingPage() {
 	// Check session and redirect if email is already verified
