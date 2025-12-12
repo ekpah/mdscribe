@@ -16,16 +16,25 @@ import {
   Shield,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { authClient } from '@/lib/auth-client';
 
 export default function VerificationPendingPage() {
+  const router = useRouter();
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [lastSentTime, setLastSentTime] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const { data: session } = authClient.useSession();
+
+  // Redirect to dashboard if email is already verified
+  useEffect(() => {
+    if (session?.user?.emailVerified) {
+      router.replace('/dashboard');
+    }
+  }, [session?.user?.emailVerified, router]);
 
   // Countdown timer for rate limiting
   useEffect(() => {
