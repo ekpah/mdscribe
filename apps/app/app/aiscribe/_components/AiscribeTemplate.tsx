@@ -47,7 +47,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { MemoizedCopySection } from "./MemoizedCopySection";

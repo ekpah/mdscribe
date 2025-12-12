@@ -8,7 +8,7 @@ import {
   TabsTrigger,
 } from '@repo/design-system/components/ui/tabs';
 import { useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { authClient } from '@/lib/auth-client';
 import type { Session } from '@/lib/auth-types';
 import { FeaturesCard } from './features-card';

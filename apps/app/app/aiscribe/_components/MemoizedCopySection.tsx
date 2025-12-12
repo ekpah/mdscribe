@@ -3,7 +3,7 @@ import Markdoc from "@markdoc/markdoc";
 import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
 import { Check, Copy } from "lucide-react";
 import { memo, useMemo, useRef, useState } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 interface MemoizedCopySectionProps {
 	title?: string;

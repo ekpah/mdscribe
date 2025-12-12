@@ -15,7 +15,7 @@
     "next": "16.0.3",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-hot-toast": "catalog:"
+    "sonner": "catalog:"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.0.1",

@@ -74,7 +74,7 @@ Key models: User, Template (with vector embeddings), Subscription, UsageEvent, S
 - **Components**: Named exports, prefer React Server Components, minimize 'use client'
 - **Event Handlers**: Prefix with "handle" (handleClick, handleSubmit)
 - **Boolean Props**: Use auxiliary verbs (isLoading, hasError)
-- **Toasts**: Use react-hot-toast, not custom toast implementations
+- **Toasts**: Use sonner for toast notifications: `import { toast } from 'sonner'`
 
 ### TypeScript Standards
 - Use TypeScript 5.8+ features

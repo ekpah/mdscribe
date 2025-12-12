@@ -18,7 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import MigrationInterface from './_components/MigrationInterface';
 
 interface EmbeddingStats {

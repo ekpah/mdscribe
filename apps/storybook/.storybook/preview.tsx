@@ -1,8 +1,8 @@
+import { Toaster } from '@repo/design-system/components/ui/sonner';
 import { TooltipProvider } from '@repo/design-system/components/ui/tooltip';
 import { ThemeProvider } from '@repo/design-system/providers/theme';
 import { withThemeByDataAttribute } from '@storybook/addon-themes';
 import type { Preview } from '@storybook/react';
-import { Toaster } from 'react-hot-toast';
 
 import '@repo/design-system/styles/globals.css';
 
