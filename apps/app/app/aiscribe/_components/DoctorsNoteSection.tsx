@@ -6,7 +6,7 @@ import { Label } from "@repo/design-system/components/ui/label";
 import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 const MIN_HEIGHT = 120;
 

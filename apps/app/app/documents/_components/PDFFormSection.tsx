@@ -15,7 +15,7 @@ import {
 } from "../_lib/parsePDFFormFields";
 import PDFDebugPanel from "./PDFDebugPanel";
 import PDFUploadSection from "./PDFUploadSection";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 const PDFViewSection = dynamic(() => import("./PDFViewSection"), {
 	ssr: false,

@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/design-system/components/ui/tooltip';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import addFavourite from '../../_actions/add-favourite';
 import removeFavourite from '../../_actions/remove-favourite';
 

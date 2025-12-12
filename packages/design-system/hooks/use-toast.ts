@@ -1,6 +1,6 @@
 "use client"
 
-// Inspired by react-hot-toast library
+// Legacy toast hook - prefer using sonner directly via: import { toast } from 'sonner'
 import * as React from "react"
 
 import type {

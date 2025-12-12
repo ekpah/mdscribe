@@ -2,7 +2,7 @@ import { env } from '@repo/env';
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import { VercelToolbar } from '@vercel/toolbar/next';
 import type { ThemeProviderProps } from 'next-themes';
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from '../components/ui/sonner';
 import { ThemeProvider } from './theme';
 
 import { SpeedInsights } from '@vercel/speed-insights/next';

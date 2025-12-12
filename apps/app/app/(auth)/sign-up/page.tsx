@@ -14,7 +14,7 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { signUp } from '@/lib/auth-client';
 
 export default function SignUp() {

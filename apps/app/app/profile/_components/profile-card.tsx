@@ -23,7 +23,7 @@ import {
 import { Input } from '@repo/design-system/components/ui/input';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { z } from 'zod';
 
 const profileFormSchema = z.object({

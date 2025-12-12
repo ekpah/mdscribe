@@ -14,7 +14,7 @@ import { Label } from '@repo/design-system/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export default function ResetPassword() {
   const [newPassword, setNewPassword] = useState('');
