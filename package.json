@@ -15,8 +15,8 @@
 		"knip": "knip"
 	},
 	"catalog": {
-		"react": "^19.2.1",
-		"react-dom": "^19.2.1",
+		"react": "^19.2.3",
+		"react-dom": "^19.2.3",
 		"typescript": "^5.9.3",
 		"@types/node": "^24.9.2",
 		"@types/react": "^19.2.2",
@@ -26,7 +26,7 @@
 		"react-hot-toast": "^2.5.2",
 		"zod": "^3.25.67",
 		"@radix-ui/react-icons": "^1.3.2",
-		"next": "^16.0.7",
+		"next": "^16.0.10",
 		"@prisma/client": "^7.0.1",
 		"prisma": "^7.0.1"
 	},

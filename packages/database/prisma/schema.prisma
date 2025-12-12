@@ -1,7 +1,7 @@
 generator client {
   provider        = "prisma-client"
-  previewFeatures = ["postgresqlExtensions"]
   output          = "./generated"
+  previewFeatures = ["postgresqlExtensions"]
   engineType      = "client"
   runtime         = "bun"
 }
@@ -17,16 +17,16 @@ model User {
   email            String         @unique
   emailVerified    Boolean        @default(false)
   image            String?
-  stripeCustomerId String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  stripeCustomerId String?
   accounts         Account[]
   sessions         Session[]
-  templates        Template[]
-  favourites       Template[]     @relation("favourites")
   subscriptions    Subscription[]
-  usageEvents      UsageEvent[]
+  templates        Template[]
   textSnippets     TextSnippet[]
+  usageEvents      UsageEvent[]
+  favourites       Template[]     @relation("favourites")
 }
 
 model Account {
@@ -74,9 +74,9 @@ model Template {
   content     String
   authorId    String
   updatedAt   DateTime                     @default(now())
+  embedding   Unsupported("vector(1024)")?
   author      User                         @relation(fields: [authorId], references: [id])
   favouriteOf User[]                       @relation("favourites")
-  embedding   Unsupported("vector(1024)")?
 }
 
 model Subscription {
@@ -92,9 +92,9 @@ model Subscription {
   seats                Int?
   trialStart           DateTime?
   trialEnd             DateTime?
-  user                 User      @relation(fields: [referenceId], references: [id], onDelete: Cascade)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [referenceId], references: [id], onDelete: Cascade)
 }
 
 model UsageEvent {

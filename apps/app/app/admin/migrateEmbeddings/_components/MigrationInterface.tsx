@@ -83,12 +83,12 @@ export default function MigrationInterface({
   const handleMigration = async () => {
     const actionText =
       effectiveMode === 'missing'
-        ? `generate embeddings for ${templatesToProcess} templates without embeddings`
-        : `regenerate embeddings for all ${templatesToProcess} templates`;
+        ? `Embeddings für ${templatesToProcess} Vorlagen ohne Embeddings generieren`
+        : `Embeddings für alle ${templatesToProcess} Vorlagen neu generieren`;
 
     if (
       !confirm(
-        `Are you sure you want to ${actionText}? This operation cannot be undone.`
+        `Sind Sie sicher, dass Sie ${actionText} möchten? Dieser Vorgang kann nicht rückgängig gemacht werden.`
       )
     ) {
       return;
@@ -117,18 +117,18 @@ export default function MigrationInterface({
         setLastResult(result.data);
         if (result.data.failedEmbeddings === 0) {
           toast.success(
-            `Migration completed successfully! ${result.data.successfulEmbeddings} templates embedded.`
+            `Migration erfolgreich abgeschlossen! ${result.data.successfulEmbeddings} Vorlagen mit Embeddings versehen.`
           );
         } else {
           toast.error(
-            `Migration completed with ${result.data.failedEmbeddings} failures. ${result.data.successfulEmbeddings} templates embedded successfully.`
+            `Migration mit ${result.data.failedEmbeddings} Fehlern abgeschlossen. ${result.data.successfulEmbeddings} Vorlagen erfolgreich mit Embeddings versehen.`
           );
         }
       } else {
-        toast.error(`Migration failed: ${result.error}`);
+        toast.error(`Migration fehlgeschlagen: ${result.error}`);
       }
     } catch (error) {
-      toast.error('Migration failed with unexpected error');
+      toast.error('Migration mit unerwartetem Fehler fehlgeschlagen');
       console.error('Migration error:', error);
     } finally {
       setIsLoading(false);
@@ -144,7 +144,7 @@ export default function MigrationInterface({
       {/* Mode Selection - Only show if there are templates that need embedding */}
       {templatesNeedingEmbedding > 0 && (
         <div className="space-y-3">
-          <Label className="text-solarized-base00">Migration Mode</Label>
+          <Label className="text-solarized-base00">Migrationsmodus</Label>
           <div className="flex gap-4">
             <label className="flex cursor-pointer items-center gap-2">
               <input
@@ -158,8 +158,8 @@ export default function MigrationInterface({
                 className="text-solarized-blue"
               />
               <span className="text-sm text-solarized-base00">
-                Generate missing embeddings only ({templatesNeedingEmbedding}{' '}
-                templates)
+                Nur fehlende Embeddings generieren ({templatesNeedingEmbedding}{' '}
+                Vorlagen)
               </span>
             </label>
             <label className="flex cursor-pointer items-center gap-2">
@@ -174,7 +174,7 @@ export default function MigrationInterface({
                 className="text-solarized-blue"
               />
               <span className="text-sm text-solarized-base00">
-                Regenerate all embeddings ({totalTemplates} templates)
+                Alle Embeddings neu generieren ({totalTemplates} Vorlagen)
               </span>
             </label>
           </div>
@@ -185,7 +185,7 @@ export default function MigrationInterface({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="batchSize" className="text-solarized-base00">
-            Batch Size
+            Batch-Größe
           </Label>
           <Input
             id="batchSize"
@@ -199,13 +199,13 @@ export default function MigrationInterface({
             className="border-solarized-base2"
           />
           <p className="text-solarized-base01 text-xs">
-            Number of templates to process in each batch (1-50)
+            Anzahl der Vorlagen pro Batch (1-50)
           </p>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="delay" className="text-solarized-base00">
-            Delay Between Batches (ms)
+            Verzögerung zwischen Batches (ms)
           </Label>
           <Input
             id="delay"
@@ -218,7 +218,7 @@ export default function MigrationInterface({
             className="border-solarized-base2"
           />
           <p className="text-solarized-base01 text-xs">
-            Delay in milliseconds between processing batches
+            Verzögerung in Millisekunden zwischen den Batches
           </p>
         </div>
       </div>
@@ -230,7 +230,7 @@ export default function MigrationInterface({
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-solarized-base01" />
               <span className="text-sm text-solarized-base01">
-                Estimated time:
+                Geschätzte Zeit:
               </span>
             </div>
             <Badge variant="outline" className="text-solarized-blue">
@@ -238,9 +238,9 @@ export default function MigrationInterface({
             </Badge>
           </div>
           <div className="mt-2 text-solarized-base01 text-xs">
-            {Math.ceil(templatesToProcess / batchSize)} batches with {batchSize}{' '}
-            templates each
-            {effectiveMode === 'all' && ' (regenerating all embeddings)'}
+            {Math.ceil(templatesToProcess / batchSize)} Batches mit je {batchSize}{' '}
+            Vorlagen
+            {effectiveMode === 'all' && ' (alle Embeddings neu generieren)'}
           </div>
         </CardContent>
       </Card>
@@ -258,8 +258,8 @@ export default function MigrationInterface({
             <Play className="h-4 w-4" />
           )}
           {effectiveMode === 'missing'
-            ? 'Generate Missing Embeddings'
-            : 'Regenerate All Embeddings'}
+            ? 'Fehlende Embeddings generieren'
+            : 'Alle Embeddings neu generieren'}
         </Button>
 
         <Button
@@ -271,7 +271,7 @@ export default function MigrationInterface({
           <RefreshCw
             className={`h-4 w-4 ${isRefreshingStats ? 'animate-spin' : ''}`}
           />
-          Refresh Status
+          Status aktualisieren
         </Button>
       </div>
 
@@ -279,11 +279,11 @@ export default function MigrationInterface({
       <div className="flex items-start gap-2 rounded-md border border-solarized-yellow/20 bg-solarized-yellow/10 p-3">
         <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-solarized-yellow" />
         <div className="text-sm text-solarized-base00">
-          <strong>Warning:</strong> This migration will make API calls to the
-          embedding service and modify the database.
+          <strong>Warnung:</strong> Diese Migration führt API-Aufrufe zum
+          Embedding-Service durch und ändert die Datenbank.
           {effectiveMode === 'all' &&
-            ' Regenerating all embeddings will overwrite existing embeddings.'}
-          {' Use dry run first to verify the configuration.'}
+            ' Das Neugenerieren aller Embeddings überschreibt vorhandene Embeddings.'}
+          {' Verwenden Sie zuerst einen Testlauf, um die Konfiguration zu überprüfen.'}
         </div>
       </div>
 
@@ -298,32 +298,32 @@ export default function MigrationInterface({
                 <XCircle className="h-5 w-5 text-solarized-orange" />
               )}
               <h3 className="font-semibold text-solarized-base00">
-                Migration Results
+                Migrationsergebnisse
               </h3>
             </div>
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <div>
-                <div className="text-sm text-solarized-base01">Processed</div>
+                <div className="text-sm text-solarized-base01">Verarbeitet</div>
                 <div className="font-semibold text-lg text-solarized-base00">
                   {lastResult.templatesWithoutEmbeddings}
                 </div>
               </div>
               <div>
-                <div className="text-sm text-solarized-base01">Successful</div>
+                <div className="text-sm text-solarized-base01">Erfolgreich</div>
                 <div className="font-semibold text-lg text-solarized-green">
                   {lastResult.successfulEmbeddings}
                 </div>
               </div>
               <div>
-                <div className="text-sm text-solarized-base01">Failed</div>
+                <div className="text-sm text-solarized-base01">Fehlgeschlagen</div>
                 <div className="font-semibold text-lg text-solarized-orange">
                   {lastResult.failedEmbeddings}
                 </div>
               </div>
               <div>
                 <div className="text-sm text-solarized-base01">
-                  Success Rate
+                  Erfolgsquote
                 </div>
                 <div className="font-semibold text-lg text-solarized-blue">
                   {lastResult.templatesWithoutEmbeddings > 0
@@ -343,7 +343,7 @@ export default function MigrationInterface({
                 <Separator className="bg-solarized-base2" />
                 <div>
                   <h4 className="mb-2 font-medium text-solarized-base00">
-                    Errors ({lastResult.errors.length})
+                    Fehler ({lastResult.errors.length})
                   </h4>
                   <div className="max-h-40 space-y-1 overflow-y-auto">
                     {lastResult.errors.map(({ templateId, error }, index) => (
