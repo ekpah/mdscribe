@@ -8,6 +8,7 @@ import {
 	DoctorsNoteSection,
 	type DoctorsNoteSectionConfig,
 } from "./DoctorsNoteSection";
+import { useTextSnippets } from "@/hooks/use-text-snippets";
 
 // A toggleable section group where user picks which section to show
 export interface DoctorsNoteSectionToggle {
