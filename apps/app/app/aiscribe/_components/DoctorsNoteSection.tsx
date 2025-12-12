@@ -1,10 +1,12 @@
 "use client";
 
+import { useCompletion } from "@ai-sdk/react";
+import { MarkdownDiffEditor } from "@repo/design-system/components/editor/MarkdownDiffEditor";
 import { Label } from "@repo/design-system/components/ui/label";
 import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
-import { useCallback, useState } from "react";
-import { MarkdownDiffEditor } from "@repo/design-system/components/editor/MarkdownDiffEditor";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
 
 const MIN_HEIGHT = 120;
 
@@ -13,19 +15,26 @@ export interface DoctorsNoteSectionConfig {
 	label: string;
 	placeholder: string;
 	description?: string;
-}
-
-export interface EnhanceOptions {
-	/** Called with each streaming chunk as it arrives */
-	onStream: (chunk: string) => void;
+	/** API endpoint for this section's AI enhancement */
+	apiEndpoint: string;
+	/**
+	 * Build the prompt body for this section.
+	 * @param notes - The current text in this section
+	 * @param context - Values from other visible sections (keyed by section id)
+	 * @returns The prompt body to send to the API
+	 */
+	buildPrompt: (
+		notes: string,
+		context: Record<string, string>,
+	) => Record<string, unknown>;
 }
 
 interface DoctorsNoteSectionProps {
 	config: DoctorsNoteSectionConfig;
 	value: string;
 	onChange: (value: string) => void;
-	/** Called to trigger enhancement. Should call onStream with chunks and resolve when complete. */
-	onEnhance: (options: EnhanceOptions) => Promise<void>;
+	/** Context from other sections (keyed by section id) */
+	context: Record<string, string>;
 	disabled?: boolean;
 }
 
@@ -33,40 +42,56 @@ export function DoctorsNoteSection({
 	config,
 	value,
 	onChange,
-	onEnhance,
+	context,
 	disabled = false,
 }: DoctorsNoteSectionProps) {
-	const [isEnhancing, setIsEnhancing] = useState(false);
 	const [proposedText, setProposedText] = useState<string | null>(null);
+	const previousCompletionRef = useRef<string>("");
 
-	// Handle enhance button click (works even with empty field to generate new content)
-	const handleEnhance = useCallback(async () => {
-		if (isEnhancing) return;
-
-		setIsEnhancing(true);
-		setProposedText(""); // Start with empty proposed text (triggers diff mode)
-
-		try {
-			await onEnhance({
-				onStream: (chunk: string) => {
-					// Append each chunk to proposed text
-					setProposedText((prev) => (prev || "") + chunk);
-				},
-			});
-		} catch (error) {
-			console.error("Enhancement failed:", error);
+	// Use Vercel AI SDK's useCompletion for streaming
+	const { complete, isLoading, completion, stop } = useCompletion({
+		api: config.apiEndpoint,
+		body: {
+			model: "auto",
+		},
+		onError: (error) => {
+			toast.error(error.message || "Fehler beim Generieren");
 			setProposedText(null);
-		} finally {
-			setIsEnhancing(false);
+		},
+		onFinish: () => {
+			// Completion is done, proposed text is already set via the effect
+		},
+	});
+
+	// Update proposed text as completion streams in
+	useEffect(() => {
+		if (isLoading && completion) {
+			setProposedText(completion);
 		}
-	}, [onEnhance, isEnhancing]);
+		previousCompletionRef.current = completion;
+	}, [completion, isLoading]);
+
+	// Handle enhance button click
+	const handleEnhance = useCallback(() => {
+		if (isLoading) {
+			stop();
+			return;
+		}
+
+		// Build prompt using the config's buildPrompt function
+		const promptBody = config.buildPrompt(value, context);
+
+		// Start streaming with empty proposed text (triggers diff mode)
+		setProposedText("");
+		complete(JSON.stringify(promptBody));
+	}, [isLoading, stop, config, value, context, complete]);
 
 	// Clear proposed text after suggestion is handled
 	const handleSuggestionHandled = useCallback(() => {
 		setProposedText(null);
 	}, []);
 
-	const canEnhance = !disabled && !isEnhancing;
+	const canEnhance = !disabled && !isLoading;
 	const isInDiffMode = proposedText !== null;
 
 	return (
@@ -79,7 +104,7 @@ export function DoctorsNoteSection({
 				>
 					<div className="h-1.5 w-1.5 rounded-full bg-solarized-blue" />
 					{config.label}
-					{isEnhancing && (
+					{isLoading && (
 						<span className="ml-2 text-muted-foreground text-xs">
 							Wird generiert...
 						</span>
@@ -97,28 +122,28 @@ export function DoctorsNoteSection({
 							canEnhance
 								? "opacity-50 hover:opacity-100 focus:opacity-100"
 								: "cursor-not-allowed opacity-30",
-							isEnhancing && "opacity-100",
+							isLoading && "opacity-100",
 						)}
 						disabled={!canEnhance}
 						onClick={handleEnhance}
 						title={
-							isEnhancing
+							isLoading
 								? "Wird generiert..."
 								: "Mit KI generieren/verbessern (⌘↵)"
 						}
 						type="button"
 					>
-						{isEnhancing ? (
+						{isLoading ? (
 							<Loader2 className="h-4 w-4 animate-spin text-solarized-blue" />
 						) : (
 							<Sparkles className="h-4 w-4 text-solarized-blue" />
 						)}
 					</button>
 				}
-				className={cn("pr-10", isEnhancing && !isInDiffMode && "opacity-50")}
-				disabled={disabled || isEnhancing}
+				className={cn("pr-10", isLoading && !isInDiffMode && "opacity-50")}
+				disabled={disabled || isLoading}
 				id={`section-${config.id}`}
-				isStreaming={isEnhancing}
+				isStreaming={isLoading}
 				minHeight={MIN_HEIGHT}
 				onChange={onChange}
 				onSubmit={handleEnhance}

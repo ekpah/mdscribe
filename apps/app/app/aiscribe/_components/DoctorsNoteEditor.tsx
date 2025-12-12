@@ -7,7 +7,6 @@ import { useCallback, useState } from "react";
 import {
 	DoctorsNoteSection,
 	type DoctorsNoteSectionConfig,
-	type EnhanceOptions,
 } from "./DoctorsNoteSection";
 
 // A toggleable section group where user picks which section to show
@@ -41,24 +40,8 @@ export interface DoctorsNoteEditorConfig {
 	sections: DoctorsNoteConfigItem[];
 }
 
-export interface EnhanceRequest {
-	sectionId: string;
-	notes: string;
-	context: Record<string, string>;
-	/** Callback to stream chunks as they arrive */
-	onStream: (chunk: string) => void;
-}
-
 interface DoctorsNoteEditorProps {
 	config: DoctorsNoteEditorConfig;
-	/**
-	 * Callback to handle AI enhancement requests with streaming support.
-	 * The parent component is responsible for calling the appropriate API endpoint
-	 * and calling onStream with each chunk as it arrives.
-	 * @param request - Contains sectionId, notes, context, and onStream callback
-	 * @returns Promise that resolves when streaming is complete
-	 */
-	onEnhance: (request: EnhanceRequest) => Promise<void>;
 	/**
 	 * Optional callback when section values change
 	 */
@@ -92,7 +75,6 @@ function getAllSectionConfigs(
 
 export function DoctorsNoteEditor({
 	config,
-	onEnhance,
 	onValuesChange,
 	initialValues = {},
 	disabled = false,
@@ -161,30 +143,19 @@ export function DoctorsNoteEditor({
 		return visible;
 	}, [config.sections, toggleStates]);
 
-	// Create enhance handler for a specific section
-	const createEnhanceHandler = useCallback(
-		(sectionId: string) => {
-			return async (options: EnhanceOptions): Promise<void> => {
-				const notes = sectionValues[sectionId];
-				const context: Record<string, string> = {};
-
-				// Build context from other visible sections
-				const visibleSections = getVisibleSections();
-				for (const section of visibleSections) {
-					if (section.id !== sectionId && sectionValues[section.id]) {
-						context[section.id] = sectionValues[section.id];
-					}
+	// Build context for a specific section (values from other visible sections)
+	const getContextForSection = useCallback(
+		(sectionId: string): Record<string, string> => {
+			const context: Record<string, string> = {};
+			const visibleSections = getVisibleSections();
+			for (const section of visibleSections) {
+				if (section.id !== sectionId && sectionValues[section.id]) {
+					context[section.id] = sectionValues[section.id];
 				}
-
-				return onEnhance({
-					sectionId,
-					notes,
-					context,
-					onStream: options.onStream,
-				});
-			};
+			}
+			return context;
 		},
-		[sectionValues, getVisibleSections, onEnhance],
+		[sectionValues, getVisibleSections],
 	);
 
 	const IconComponent = config.icon;
@@ -245,11 +216,11 @@ export function DoctorsNoteEditor({
 									{option && (
 										<DoctorsNoteSection
 											config={option.section}
+											context={getContextForSection(option.section.id)}
 											disabled={disabled}
 											onChange={(value) =>
 												handleSectionChange(option.section.id, value)
 											}
-											onEnhance={createEnhanceHandler(option.section.id)}
 											value={sectionValues[option.section.id] || ""}
 										/>
 									)}
@@ -260,10 +231,10 @@ export function DoctorsNoteEditor({
 						return (
 							<DoctorsNoteSection
 								config={item}
+								context={getContextForSection(item.id)}
 								disabled={disabled}
 								key={item.id}
 								onChange={(value) => handleSectionChange(item.id, value)}
-								onEnhance={createEnhanceHandler(item.id)}
 								value={sectionValues[item.id] || ""}
 							/>
 						);
