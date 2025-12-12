@@ -1,12 +1,10 @@
 "use client";
 
-import { Button } from "@repo/design-system/components/ui/button";
 import { Label } from "@repo/design-system/components/ui/label";
-import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { cn } from "@repo/design-system/lib/utils";
-import { Loader2, RotateCcw, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { DiffView } from "./DiffView";
+import { Loader2, Sparkles } from "lucide-react";
+import { useCallback, useState } from "react";
+import { MarkdownDiffEditor } from "@repo/design-system/components/editor/MarkdownDiffEditor";
 
 const MIN_HEIGHT = 120;
 
@@ -39,24 +37,14 @@ export function DoctorsNoteSection({
 	disabled = false,
 }: DoctorsNoteSectionProps) {
 	const [isEnhancing, setIsEnhancing] = useState(false);
-	const [originalText, setOriginalText] = useState<string | null>(null);
 	const [proposedText, setProposedText] = useState<string | null>(null);
-	const [showDiff, setShowDiff] = useState(false);
-	const [capturedHeight, setCapturedHeight] = useState<number>(MIN_HEIGHT);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 	// Handle enhance button click (works even with empty field to generate new content)
 	const handleEnhance = useCallback(async () => {
 		if (isEnhancing) return;
 
-		// Capture the current textarea height before switching to diff mode
-		const currentHeight = textareaRef.current?.offsetHeight ?? MIN_HEIGHT;
-		setCapturedHeight(Math.max(currentHeight, MIN_HEIGHT));
-
 		setIsEnhancing(true);
-		setOriginalText(value); // Store original (can be empty)
-		setProposedText(""); // Start with empty proposed text
-		setShowDiff(true); // Show diff view immediately for streaming
+		setProposedText(""); // Start with empty proposed text (triggers diff mode)
 
 		try {
 			await onEnhance({
@@ -67,95 +55,19 @@ export function DoctorsNoteSection({
 			});
 		} catch (error) {
 			console.error("Enhancement failed:", error);
-			setOriginalText(null);
 			setProposedText(null);
-			setShowDiff(false);
 		} finally {
 			setIsEnhancing(false);
 		}
-	}, [value, onEnhance, isEnhancing]);
+	}, [onEnhance, isEnhancing]);
 
-	// Handle keyboard shortcuts
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent) => {
-			// Cmd+Enter or Ctrl+Enter to enhance
-			if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-				e.preventDefault();
-				handleEnhance();
-			}
-		},
-		[handleEnhance],
-	);
-
-	// Accept all changes
-	const handleAcceptAll = useCallback(() => {
-		if (proposedText !== null) {
-			onChange(proposedText);
-			setShowDiff(false);
-			setOriginalText(null);
-			setProposedText(null);
-		}
-	}, [proposedText, onChange]);
-
-	// Reject all changes (revert to original)
-	const handleRejectAll = useCallback(() => {
-		if (originalText !== null) {
-			onChange(originalText);
-		}
-		setShowDiff(false);
-		setOriginalText(null);
+	// Clear proposed text after suggestion is handled
+	const handleSuggestionHandled = useCallback(() => {
 		setProposedText(null);
-	}, [originalText, onChange]);
-
-	// Apply changes from diff view
-	const handleApplyChanges = useCallback(
-		(resultText: string) => {
-			onChange(resultText);
-			setShowDiff(false);
-			setOriginalText(null);
-			setProposedText(null);
-		},
-		[onChange],
-	);
-
-	// Undo entire enhancement
-	const handleUndo = useCallback(() => {
-		if (originalText !== null) {
-			onChange(originalText);
-			setShowDiff(false);
-			setOriginalText(null);
-			setProposedText(null);
-		}
-	}, [originalText, onChange]);
-
-	const isInDiffMode =
-		showDiff && originalText !== null && proposedText !== null;
-	const canEnhance = !disabled && !isEnhancing;
-
-	// Auto-resize textarea based on content
-	const adjustTextareaHeight = useCallback(() => {
-		const textarea = textareaRef.current;
-		if (textarea) {
-			// Reset height to auto to get the correct scrollHeight
-			textarea.style.height = "auto";
-			// Set to scrollHeight but respect minimum
-			const newHeight = Math.max(textarea.scrollHeight, MIN_HEIGHT);
-			textarea.style.height = `${newHeight}px`;
-		}
 	}, []);
 
-	// Adjust height when value changes
-	useEffect(() => {
-		adjustTextareaHeight();
-	}, [value, adjustTextareaHeight]);
-
-	// Handle input change with auto-resize
-	const handleChange = useCallback(
-		(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-			onChange(e.target.value);
-		},
-		[onChange],
-	);
+	const canEnhance = !disabled && !isEnhancing;
+	const isInDiffMode = proposedText !== null;
 
 	return (
 		<div className="group relative space-y-1.5">
@@ -173,64 +85,14 @@ export function DoctorsNoteSection({
 						</span>
 					)}
 				</Label>
-
-				{/* Undo button - visible when in diff mode */}
-				{isInDiffMode && !isEnhancing && (
-					<Button
-						className="h-6 gap-1 px-2 text-xs"
-						onClick={handleUndo}
-						size="sm"
-						title="Änderungen rückgängig machen"
-						type="button"
-						variant="outline"
-					>
-						<RotateCcw className="h-3 w-3" />
-						Rückgängig
-					</Button>
-				)}
 			</div>
 
-			{/* Content area */}
-			{isInDiffMode ? (
-				<div
-					className={cn(
-						"rounded-lg border border-solarized-blue/30 bg-background p-3",
-						"ring-2 ring-solarized-blue/20",
-						isEnhancing && "animate-pulse",
-					)}
-					style={{ minHeight: `${capturedHeight}px` }}
-				>
-					<DiffView
-						isStreaming={isEnhancing}
-						minHeight={capturedHeight - 24} // Account for padding (p-3 = 12px * 2)
-						onAcceptAll={handleAcceptAll}
-						onApplyChanges={handleApplyChanges}
-						onRejectAll={handleRejectAll}
-						originalText={originalText}
-						proposedText={proposedText}
-					/>
-				</div>
-			) : (
-				<div className="relative">
-					<Textarea
-						className={cn(
-							"min-h-[120px] resize-none overflow-hidden border-input bg-background pr-10 text-foreground transition-colors",
-							"placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20",
-							isEnhancing && "opacity-50",
-						)}
-						disabled={disabled || isEnhancing}
-						id={`section-${config.id}`}
-						onChange={handleChange}
-						onKeyDown={handleKeyDown}
-						placeholder={config.placeholder}
-						ref={textareaRef}
-						value={value}
-					/>
-
-					{/* Enhance button - always visible, generates or improves content */}
+			{/* Content area - MarkdownDiffEditor handles both edit and diff modes */}
+			<MarkdownDiffEditor
+				actionSlot={
 					<button
 						className={cn(
-							"absolute top-2 right-2 rounded-md p-1.5 transition-all",
+							"rounded-md p-1.5 transition-all",
 							"hover:bg-solarized-blue/10",
 							canEnhance
 								? "opacity-50 hover:opacity-100 focus:opacity-100"
@@ -252,8 +114,20 @@ export function DoctorsNoteSection({
 							<Sparkles className="h-4 w-4 text-solarized-blue" />
 						)}
 					</button>
-				</div>
-			)}
+				}
+				className={cn("pr-10", isEnhancing && !isInDiffMode && "opacity-50")}
+				disabled={disabled || isEnhancing}
+				id={`section-${config.id}`}
+				isStreaming={isEnhancing}
+				minHeight={MIN_HEIGHT}
+				onChange={onChange}
+				onSubmit={handleEnhance}
+				onSuggestionAccepted={handleSuggestionHandled}
+				onSuggestionRejected={handleSuggestionHandled}
+				placeholder={config.placeholder}
+				suggestedValue={proposedText}
+				value={value}
+			/>
 
 			{/* Description */}
 			{config.description && !isInDiffMode && (
