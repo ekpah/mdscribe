@@ -48,7 +48,7 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder: "Körperlichen Untersuchungsbefund eingeben...",
 			description:
 				"Ergebnisse der körperlichen Untersuchung (Vitalzeichen, Inspektion, Palpation, etc.)",
-			apiEndpoint: "/api/scribe/anamnese/stream",
+			apiEndpoint: "/api/scribe/physical-exam/stream",
 			buildPrompt: (notes, context) => ({
 				notes,
 				vordiagnosen: context.diagnosen || "",
@@ -61,7 +61,7 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder: "Labor-, Bildgebungs- und weitere Befunde eingeben...",
 			description:
 				"Laborwerte, Bildgebung, EKG und weitere diagnostische Befunde",
-			apiEndpoint: "/api/scribe/anamnese/stream",
+			apiEndpoint: "/api/scribe/befunde/stream",
 			buildPrompt: (notes, context) => ({
 				notes,
 				vordiagnosen: context.diagnosen || "",
@@ -103,7 +103,7 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 							"Aufgaben und nächste Schritte für die stationäre Aufnahme...",
 						description:
 							"Offene Aufgaben, Anordnungen und To-Dos für die Station",
-						apiEndpoint: "/api/scribe/anamnese/stream",
+						apiEndpoint: "/api/scribe/admission-todos/stream",
 						buildPrompt: (notes, context) => ({
 							notes,
 							anamnese: context.anamnese || "",
