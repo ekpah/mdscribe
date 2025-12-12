@@ -286,11 +286,8 @@ async function generateResponse(
 			isEnabled: true,
 			metadata,
 		},
-		providerOptions: supportsThinking
-			? {
-					anthropic: providerOptions,
-				}
-			: undefined,
+		providerOptions: { openrouter: { usage: { include: true } } },
+
 		messages: messagesWithAudio,
 	};
 
