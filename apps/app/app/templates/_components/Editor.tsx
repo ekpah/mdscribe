@@ -20,7 +20,7 @@ import markdocConfig from '@repo/markdoc-md/markdoc-config';
 import { AlertCircle } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 function Submit({ hasErrors, isFormValid }: { hasErrors: boolean; isFormValid: boolean }) {
   // ✅ `pending` will be derived from the form that wraps the Submit component

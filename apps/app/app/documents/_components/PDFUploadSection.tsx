@@ -11,7 +11,7 @@ import {
 	UploadIcon,
 	XIcon,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 interface PDFUploadSectionProps {
 	pdfFile: Uint8Array | null;

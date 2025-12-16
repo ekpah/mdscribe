@@ -50,7 +50,7 @@
 		"react-dom": "catalog:",
 		"react-hook-form": "^7.58.1",
 		"react-hotkeys-hook": "^4.6.1",
-		"react-hot-toast": "catalog:",
+		"sonner": "^2.0.3",
 		"react-syntax-highlighter": "^15.6.6",
 		"streamdown": "^1.1.4",
 		"tailwind-merge": "^3.3.1",

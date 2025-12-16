@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { UAParser } from 'ua-parser-js';
 import { authClient, useSession } from '@/lib/auth-client';
 import type { Session } from '@/lib/auth-types';

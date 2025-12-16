@@ -44,7 +44,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileText, Heart, Loader2, Plus, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import z from "zod";
 import { orpc } from "@/lib/orpc";
 import { MemoizedCopySection } from "../_components/MemoizedCopySection";

@@ -282,12 +282,9 @@ async function generateResponse(
 		model,
 		maxTokens: modelConfig.maxTokens,
 		temperature: modelConfig.temperature,
-		experimental_telemetry: {
-			isEnabled: true,
-			metadata,
+		providerOptions: {
+			openrouter: { usage: { include: true }, user: session?.user?.email },
 		},
-		providerOptions: { openrouter: { usage: { include: true } } },
-
 		messages: messagesWithAudio,
 	};
 

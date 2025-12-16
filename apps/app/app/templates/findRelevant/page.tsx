@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type React from 'react';
 import { useState } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useSession } from '@/lib/auth-client';
 import addFavourite from '../_actions/add-favourite';
 import removeFavourite from '../_actions/remove-favourite';

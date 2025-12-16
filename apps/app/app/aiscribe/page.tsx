@@ -9,7 +9,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { AlertCircle, FileEdit, UserPlus } from "lucide-react";
+import { AlertCircle, FileEdit, Stethoscope, UserPlus } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { auth } from "@/auth";
@@ -257,38 +257,73 @@ export default async function AIScribeLandingPage() {
 				</h2>
 				<div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
 					{isLoggedIn ? (
-						<Link
-							className="block rounded-lg transition-shadow duration-200 hover:shadow-lg"
-							href="/aiscribe/editor/er"
-						>
-							<Card className="flex h-full flex-col">
-								<CardHeader>
-									<div className="flex items-center gap-2">
-										<FileEdit className="h-5 w-5 text-solarized-cyan" />
-										<CardTitle>Notaufnahme Editor</CardTitle>
-									</div>
-									<CardDescription>
-										Strukturierter Editor für Notaufnahme-Dokumentation mit
-										KI-unterstützter Textverbesserung und Vorlagen.
-									</CardDescription>
-								</CardHeader>
-							</Card>
-						</Link>
+						<>
+							<Link
+								className="block rounded-lg transition-shadow duration-200 hover:shadow-lg"
+								href="/aiscribe/editor/er"
+							>
+								<Card className="flex h-full flex-col">
+									<CardHeader>
+										<div className="flex items-center gap-2">
+											<FileEdit className="h-5 w-5 text-solarized-cyan" />
+											<CardTitle>Notaufnahme Editor</CardTitle>
+										</div>
+										<CardDescription>
+											Strukturierter Editor für Notaufnahme-Dokumentation mit
+											KI-unterstützter Textverbesserung und Vorlagen.
+										</CardDescription>
+									</CardHeader>
+								</Card>
+							</Link>
+							<Link
+								className="block rounded-lg transition-shadow duration-200 hover:shadow-lg"
+								href="/aiscribe/editor/icu"
+							>
+								<Card className="flex h-full flex-col">
+									<CardHeader>
+										<div className="flex items-center gap-2">
+											<Stethoscope className="h-5 w-5 text-solarized-blue" />
+											<CardTitle>ICU Editor</CardTitle>
+										</div>
+										<CardDescription>
+											Strukturierter Editor für ICU-Entlassungsbriefe mit
+											KI-unterstützter Dokumentation und Textverbesserung.
+										</CardDescription>
+									</CardHeader>
+								</Card>
+							</Link>
+						</>
 					) : (
-						<div className="block cursor-not-allowed rounded-lg opacity-50">
-							<Card className="flex h-full flex-col">
-								<CardHeader>
-									<div className="flex items-center gap-2">
-										<FileEdit className="h-5 w-5 text-solarized-cyan" />
-										<CardTitle>Notaufnahme Editor</CardTitle>
-									</div>
-									<CardDescription>
-										Strukturierter Editor für Notaufnahme-Dokumentation mit
-										KI-unterstützter Textverbesserung und Vorlagen.
-									</CardDescription>
-								</CardHeader>
-							</Card>
-						</div>
+						<>
+							<div className="block cursor-not-allowed rounded-lg opacity-50">
+								<Card className="flex h-full flex-col">
+									<CardHeader>
+										<div className="flex items-center gap-2">
+											<FileEdit className="h-5 w-5 text-solarized-cyan" />
+											<CardTitle>Notaufnahme Editor</CardTitle>
+										</div>
+										<CardDescription>
+											Strukturierter Editor für Notaufnahme-Dokumentation mit
+											KI-unterstützter Textverbesserung und Vorlagen.
+										</CardDescription>
+									</CardHeader>
+								</Card>
+							</div>
+							<div className="block cursor-not-allowed rounded-lg opacity-50">
+								<Card className="flex h-full flex-col">
+									<CardHeader>
+										<div className="flex items-center gap-2">
+											<Stethoscope className="h-5 w-5 text-solarized-blue" />
+											<CardTitle>ICU Editor</CardTitle>
+										</div>
+										<CardDescription>
+											Strukturierter Editor für ICU-Entlassungsbriefe mit
+											KI-unterstützter Dokumentation und Textverbesserung.
+										</CardDescription>
+									</CardHeader>
+								</Card>
+							</div>
+						</>
 					)}
 				</div>
 			</div>
