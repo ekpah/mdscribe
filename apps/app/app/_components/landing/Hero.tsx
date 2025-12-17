@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@repo/design-system/components/ui/button';
 import { Brain, FileText, Sparkles, UserPlus } from 'lucide-react';
 import Link from 'next/link';

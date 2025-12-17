@@ -5,9 +5,10 @@ import "@repo/design-system/styles/globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { headers } from "next/headers";
+import dynamic from "next/dynamic";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import type { ReactNode } from "react";
-import Menubar from "./_components/Menubar";
+import { Suspense, type ReactNode } from "react";
+import MenubarSkeleton from "./_components/landing/skeletons/MenubarSkeleton";
 import { PostHogProvider } from "./providers/posthogProvider";
 import QueryProvider from "./providers/queryProvider";
 import { env } from "@repo/env";
@@ -15,6 +16,10 @@ import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { VercelToolbar } from "@vercel/toolbar/next";
+
+const Menubar = dynamic(() => import("./_components/Menubar"), {
+  loading: () => <MenubarSkeleton />,
+});
 
 export const metadata: Metadata = {
 	title: "MDScribe",
@@ -56,7 +61,9 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 								<div className="flex h-screen w-screen" key="Body">
 									<nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
 										{/*ModeWatcher track="true" />*/}
-										<Menubar showAiLink={showAiLink} />
+										<Suspense fallback={<MenubarSkeleton />}>
+											<Menubar showAiLink={showAiLink} />
+										</Suspense>
 									</nav>
 									<div
 										className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
