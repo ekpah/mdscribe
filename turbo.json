@@ -6,7 +6,7 @@
 			"dependsOn": ["^build"],
 			"outputs": [".next/**", "!.next/cache/**", "**/prisma/generated/**"]
 		},
-		"database#build": {
+		"@repo/database#build": {
 			"env": ["POSTGRES_DATABASE_URL"],
 			"outputs": ["**/prisma/generated/**"]
 		},
@@ -29,7 +29,7 @@
 				"LANGFUSE_PUBLIC_KEY",
 				"LANGFUSE_BASEURL"
 			],
-			"dependsOn": ["database#build"],
+			"dependsOn": ["@repo/database#build"],
 			"outputs": [".next/**", "!.next/cache/**"]
 		},
 		"test": {
