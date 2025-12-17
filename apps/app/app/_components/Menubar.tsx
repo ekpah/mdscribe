@@ -30,13 +30,14 @@ import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import DarkLogo from "@/public/logo/dark";
 import LightLogo from "@/public/logo/light";
+import { Session } from "@/lib/auth-types";
 
 export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-	const { data: session } = authClient.useSession();
+	const session = authClient.useSession().data;
 
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
