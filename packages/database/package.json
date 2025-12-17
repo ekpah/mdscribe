@@ -5,7 +5,7 @@
 	"types": "./index.ts",
 	"scripts": {
 		"build": "prisma migrate deploy && prisma generate --no-hints",
-		"postinstall": "node scripts/postinstall.js",
+		"postinstall": "prisma generate",
 		"dev": "docker compose up -d"
 	},
 	"prisma": {
