@@ -22,7 +22,7 @@ type User = {
 	email: string;
 };
 
-export default function UserDashboard({
+export default function UserSettings({
 	user,
 	subscription,
 	generationLimit,
@@ -42,11 +42,12 @@ export default function UserDashboard({
 	function handleSubscriptionUpgrade() {
 		setIsManagingSubscription(true);
 		toast.promise(
-			() => authClient.subscription.upgrade({
-				plan: "plus",
-				successUrl: "/dashboard",
-				cancelUrl: "/dashboard",
-			}),
+			() =>
+				authClient.subscription.upgrade({
+					plan: "plus",
+					successUrl: "/dashboard",
+					cancelUrl: "/dashboard",
+				}),
 			{
 				loading: "Dein Abonnement wird aktualisiert...",
 				success: "Abonnement erfolgreich aktualisiert!",
@@ -59,9 +60,10 @@ export default function UserDashboard({
 	function handleSubscriptionCancel() {
 		setIsManagingSubscription(true);
 		toast.promise(
-			() => authClient.subscription.cancel({
-				returnUrl: "/dashboard",
-			}),
+			() =>
+				authClient.subscription.cancel({
+					returnUrl: "/dashboard",
+				}),
 			{
 				loading: "Dein Abonnement wird storniert...",
 				success: "Abonnement erfolgreich storniert!",
@@ -73,31 +75,7 @@ export default function UserDashboard({
 
 	return (
 		<div className="overflow-y-auto">
-			<div className="hidden 2xl:block">
-				<ProfileCard
-					isLoading={isLoading}
-					setIsLoading={setIsLoading}
-					user={user}
-				/>
-				<div className="mt-6 grid gap-6 md:grid-cols-2">
-					<UserCard
-						activeSessions={JSON.parse(JSON.stringify(activeSessions))}
-						session={JSON.parse(JSON.stringify(session))}
-						subscription={subscription}
-					/>
-					<SubscriptionCard
-						isManagingSubscription={isManagingSubscription}
-						onCancel={handleSubscriptionCancel}
-						onUpgrade={handleSubscriptionUpgrade}
-						subscription={subscription}
-					/>
-				</div>
-				<div className="mt-6">
-					<SnippetsCard />
-				</div>
-			</div>
-
-			<div className="2xl:hidden">
+			<div>
 				<Tabs className="w-full p-4" defaultValue="profile">
 					<TabsList className="w-full">
 						<TabsTrigger className="w-full" value="profile">
