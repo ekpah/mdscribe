@@ -5,7 +5,7 @@
 	"types": "./index.ts",
 	"scripts": {
 		"build": "prisma migrate deploy && prisma generate --no-hints",
-		"postinstall": "prisma generate",
+		"postinstall": "[ -z \"$POSTGRES_DATABASE_URL\" ] && echo 'Skipping prisma generate (no database URL)' || prisma generate",
 		"dev": "docker compose up -d"
 	},
 	"prisma": {
