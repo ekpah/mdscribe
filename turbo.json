@@ -3,16 +3,12 @@
 	"globalDependencies": ["**/.env.*local"],
 	"tasks": {
 		"build": {
-			"dependsOn": ["^build", "test"],
-			"outputs": [
-				".next/**",
-				"!.next/cache/**",
-				"storybook-static/**",
-				"**/prisma/generated/**"
-			]
+			"dependsOn": ["^build"],
+			"outputs": [".next/**", "!.next/cache/**", "**/prisma/generated/**"]
 		},
 		"database#build": {
-			"env": ["POSTGRES_DATABASE_URL"]
+			"env": ["POSTGRES_DATABASE_URL"],
+			"outputs": ["**/prisma/generated/**"]
 		},
 		"app#build": {
 			"env": [
@@ -32,10 +28,12 @@
 				"LANGFUSE_SECRET_KEY",
 				"LANGFUSE_PUBLIC_KEY",
 				"LANGFUSE_BASEURL"
-			]
+			],
+			"dependsOn": ["database#build"],
+			"outputs": [".next/**", "!.next/cache/**"]
 		},
 		"test": {
-			"dependsOn": ["^test", "build"]
+			"dependsOn": ["^build"]
 		},
 		"dev": {
 			"cache": false,
