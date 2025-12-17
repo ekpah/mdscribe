@@ -16,6 +16,7 @@
 		},
 		"app#build": {
 			"env": [
+				"POSTGRES_DATABASE_URL",
 				"AUTH_POSTMARK_KEY",
 				"FLAGS_SECRET",
 				"BETTER_AUTH_SECRET",
@@ -34,13 +35,7 @@
 			]
 		},
 		"test": {
-			"dependsOn": ["^test"]
-		},
-		"lint": {
-			"dependsOn": ["^lint"]
-		},
-		"analyze": {
-			"dependsOn": ["^analyze"]
+			"dependsOn": ["^test", "build"]
 		},
 		"dev": {
 			"cache": false,
