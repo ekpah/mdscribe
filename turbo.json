@@ -11,6 +11,28 @@
 				"**/prisma/generated/**"
 			]
 		},
+		"database#build": {
+			"env": ["POSTGRES_DATABASE_URL"]
+		},
+		"app#build": {
+			"env": [
+				"AUTH_POSTMARK_KEY",
+				"FLAGS_SECRET",
+				"BETTER_AUTH_SECRET",
+				"OPENROUTER_API_KEY",
+				"BASE_URL",
+				"STRIPE_SECRET_KEY",
+				"STRIPE_WEBHOOK_SECRET",
+				"STRIPE_PLUS_PRICE_ID",
+				"STRIPE_PLUS_PRICE_ID_ANNUAL",
+				"NEXT_PUBLIC_POSTHOG_KEY",
+				"NEXT_PUBLIC_POSTHOG_HOST",
+				"VOYAGE_API_KEY",
+				"LANGFUSE_SECRET_KEY",
+				"LANGFUSE_PUBLIC_KEY",
+				"LANGFUSE_BASEURL"
+			]
+		},
 		"test": {
 			"dependsOn": ["^test"]
 		},
@@ -24,23 +46,5 @@
 			"cache": false,
 			"persistent": true
 		}
-	},
-	"globalEnv": [
-		"POSTGRES_DATABASE_URL",
-		"AUTH_POSTMARK_KEY",
-		"FLAGS_SECRET",
-		"BETTER_AUTH_SECRET",
-		"OPENROUTER_API_KEY",
-		"BASE_URL",
-		"STRIPE_SECRET_KEY",
-		"STRIPE_WEBHOOK_SECRET",
-		"STRIPE_PLUS_PRICE_ID",
-		"STRIPE_PLUS_PRICE_ID_ANNUAL",
-		"NEXT_PUBLIC_POSTHOG_KEY",
-		"NEXT_PUBLIC_POSTHOG_HOST",
-		"VOYAGE_API_KEY",
-		"LANGFUSE_SECRET_KEY",
-		"LANGFUSE_PUBLIC_KEY",
-		"LANGFUSE_BASEURL"
-	]
+	}
 }
