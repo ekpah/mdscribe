@@ -105,6 +105,7 @@ const models = [
 	{ id: "glm-4p6", name: "GLM-4.6" },
 	{ id: "claude-opus-4.5", name: "Claude Opus 4.5" },
 	{ id: "gemini-3-pro", name: "Gemini 3 Pro" },
+	{ id: "gemini-3-flash", name: "Gemini 3 Flash" },
 ];
 
 const getActualModel = (modelId: string, hasAudio?: boolean): string => {
@@ -169,7 +170,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	};
 
 	// Check if audio recording is supported for current model
-	const isAudioSupported = model === "auto" || model === "gemini-3-pro";
+	const isAudioSupported = model === "auto" || model === "gemini-3-flash";
 	const maxRecordings = 3;
 	const canRecord = audioRecordings.length < maxRecordings;
 

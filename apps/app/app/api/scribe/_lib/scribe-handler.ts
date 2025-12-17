@@ -72,7 +72,11 @@ import { getUsage } from "./get-usage";
 const langfuse = new Langfuse();
 
 // Supported models type
-type SupportedModel = "glm-4p6" | "claude-opus-4.5" | "gemini-3-pro";
+type SupportedModel =
+	| "glm-4p6"
+	| "claude-opus-4.5"
+	| "gemini-3-pro"
+	| "gemini-3-flash";
 
 // Model configuration mapper
 function getModelConfig(modelId: string): {
@@ -96,6 +100,11 @@ function getModelConfig(modelId: string): {
 		case "gemini-3-pro":
 			return {
 				model: openrouter("google/gemini-3-pro-preview"),
+				supportsThinking: true,
+			};
+		case "gemini-3-flash":
+			return {
+				model: openrouter("google/gemini-3-flash-preview"),
 				supportsThinking: true,
 			};
 		default:
