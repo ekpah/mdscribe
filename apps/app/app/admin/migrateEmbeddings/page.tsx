@@ -64,12 +64,14 @@ export default function MigrateEmbeddingsPage() {
 
   if (isLoading && !stats) {
     return (
-      <div className="min-h-screen bg-solarized-base3 p-6">
+      <div className="p-4 sm:p-6">
         <div className="mx-auto max-w-4xl">
-          <div className="flex min-h-[400px] items-center justify-center">
+          <div className="flex min-h-[300px] items-center justify-center sm:min-h-[400px]">
             <div className="flex items-center gap-2 text-solarized-base01">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Embedding-Statistiken werden geladen...</span>
+              <span className="text-sm sm:text-base">
+                Embedding-Statistiken werden geladen...
+              </span>
             </div>
           </div>
         </div>
@@ -79,15 +81,15 @@ export default function MigrateEmbeddingsPage() {
 
   if (error || !stats) {
     return (
-      <div className="min-h-screen bg-solarized-base3 p-6">
+      <div className="p-4 sm:p-6">
         <div className="mx-auto max-w-4xl">
-          <div className="flex min-h-[400px] items-center justify-center">
+          <div className="flex min-h-[300px] items-center justify-center sm:min-h-[400px]">
             <div className="space-y-2 text-center">
               <XCircle className="mx-auto h-8 w-8 text-solarized-red" />
-              <h2 className="font-semibold text-lg text-solarized-base00">
+              <h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
                 Seite konnte nicht geladen werden
               </h2>
-              <p className="text-solarized-base01">
+              <p className="text-sm text-solarized-base01 sm:text-base">
                 {error || 'Zugriff auf diese Seite nicht möglich'}
               </p>
             </div>
@@ -98,14 +100,14 @@ export default function MigrateEmbeddingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-solarized-base3 p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <div className="p-4 sm:p-6">
+      <div className="mx-auto max-w-4xl space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="font-bold text-3xl text-solarized-base00">
+          <h1 className="font-bold text-xl text-solarized-base00 sm:text-2xl md:text-3xl">
             Template-Embedding-Migration
           </h1>
-          <p className="text-solarized-base01">
+          <p className="text-sm text-solarized-base01 sm:text-base">
             Verwalten und Ausführen der einmaligen Migration, um alle Vorlagen
             mit Embeddings zu versehen, die noch keine haben.
           </p>

@@ -52,6 +52,7 @@ export default async function NotePage({
 	const isFavourite = doc?.favouriteOf.some(
 		(user: { id: string | undefined }) => user.id === session?.user?.id,
 	);
+	const isAuthor = author?.email === session?.user?.email;
 
 	return (
 		<div className="flex h-full w-full flex-col">
@@ -71,6 +72,7 @@ export default async function NotePage({
 				<NavActions
 					author={author?.email}
 					favouriteOfCount={doc.favouriteOf?.length}
+					isAuthor={isAuthor}
 					isFavourite={isFavourite}
 					isLoggedIn={!!session?.user?.id}
 					lastEdited={doc.updatedAt}

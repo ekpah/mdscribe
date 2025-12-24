@@ -9,7 +9,6 @@ import dynamic from "next/dynamic";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense, type ReactNode } from "react";
 import MenubarSkeleton from "./_components/landing/skeletons/MenubarSkeleton";
-import { PostHogProvider } from "./providers/posthogProvider";
 import QueryProvider from "./providers/queryProvider";
 import { env } from "@repo/env";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
@@ -18,7 +17,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { VercelToolbar } from "@vercel/toolbar/next";
 
 const Menubar = dynamic(() => import("./_components/Menubar"), {
-  loading: () => <MenubarSkeleton />,
+	loading: () => <MenubarSkeleton />,
 });
 
 export const metadata: Metadata = {
@@ -56,27 +55,25 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 			>
 				<NuqsAdapter>
 					<QueryProvider>
-						<PostHogProvider>
-							<DesignSystemProvider>
-								<div className="flex h-screen w-screen" key="Body">
-									<nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
-										{/*ModeWatcher track="true" />*/}
-										<Suspense fallback={<MenubarSkeleton />}>
-											<Menubar showAiLink={showAiLink} />
-										</Suspense>
-									</nav>
-									<div
-										className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
-										key="Content"
-									>
-										{children}
-									</div>
+						<DesignSystemProvider>
+							<div className="flex h-screen w-screen" key="Body">
+								<nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
+									{/*ModeWatcher track="true" />*/}
+									<Suspense fallback={<MenubarSkeleton />}>
+										<Menubar showAiLink={showAiLink} />
+									</Suspense>
+								</nav>
+								<div
+									className="sticky top-16 flex h-[calc(100vh-(--spacing(16)))] w-full items-center justify-center"
+									key="Content"
+								>
+									{children}
 								</div>
-								<VercelAnalytics />
-								<SpeedInsights />
-								{env.NODE_ENV === "development" && <VercelToolbar />}
-							</DesignSystemProvider>
-						</PostHogProvider>
+							</div>
+							<VercelAnalytics />
+							<SpeedInsights />
+							{env.NODE_ENV === "development" && <VercelToolbar />}
+						</DesignSystemProvider>
 					</QueryProvider>
 				</NuqsAdapter>
 			</body>

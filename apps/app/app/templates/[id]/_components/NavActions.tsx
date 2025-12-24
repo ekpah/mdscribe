@@ -2,8 +2,6 @@
 import { Button } from '@repo/design-system/components/ui/button';
 import Link from 'next/link';
 import React from 'react';
-
-import { useSession } from '@/lib/auth-client';
 import {
   BookmarkFilledIcon,
   BookmarkIcon,
@@ -26,6 +24,7 @@ import removeFavourite from '../../_actions/remove-favourite';
 
 export function NavActions({
   author,
+  isAuthor,
   isFavourite,
   isLoggedIn,
   lastEdited,
@@ -33,6 +32,7 @@ export function NavActions({
   favouriteOfCount,
 }: {
   author?: string; //email of the author
+  isAuthor: boolean;
   isFavourite: boolean;
   isLoggedIn: boolean;
   lastEdited: Date;
@@ -40,7 +40,6 @@ export function NavActions({
   favouriteOfCount: number;
 }) {
   const [isBookmark, setBookmark] = React.useState(isFavourite);
-  const { data: session } = useSession();
   async function makeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
     if (!templateId) {
@@ -103,7 +102,7 @@ export function NavActions({
         {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
       </span>
       {isLoggedIn && templateId ? (
-        author === session?.user?.email ? (
+        isAuthor ? (
           <Link href={`/templates/${templateId}/edit`}>
             <Button variant="ghost" size="icon" className="h-7 w-7">
               <Pencil2Icon />

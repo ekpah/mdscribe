@@ -2,6 +2,7 @@
 
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import {
 	DropdownMenu,
@@ -46,6 +47,11 @@ export const ModeToggle = () => {
 
 export const ModeToggleSwitch = ({ className }: { className?: string }) => {
 	const { theme, setTheme } = useTheme();
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
 
 	return (
 		<div
@@ -59,7 +65,7 @@ export const ModeToggleSwitch = ({ className }: { className?: string }) => {
 				size="icon"
 				className={cn(
 					"h-7 flex-1 rounded-sm",
-					theme === "light" && "bg-background shadow-sm",
+					mounted && theme === "light" && "bg-background shadow-sm",
 				)}
 				onClick={() => setTheme("light")}
 			>
@@ -71,7 +77,7 @@ export const ModeToggleSwitch = ({ className }: { className?: string }) => {
 				size="icon"
 				className={cn(
 					"h-7 flex-1 rounded-sm",
-					theme === "dark" && "bg-background shadow-sm",
+					mounted && theme === "dark" && "bg-background shadow-sm",
 				)}
 				onClick={() => setTheme("dark")}
 			>
@@ -83,7 +89,7 @@ export const ModeToggleSwitch = ({ className }: { className?: string }) => {
 				size="icon"
 				className={cn(
 					"h-7 flex-1 rounded-sm",
-					theme === "system" && "bg-background shadow-sm",
+					mounted && theme === "system" && "bg-background shadow-sm",
 				)}
 				onClick={() => setTheme("system")}
 			>

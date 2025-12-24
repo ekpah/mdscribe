@@ -10,7 +10,7 @@ export default ({
 }) => {
   return (
     <Textarea
-      className="h-full w-full"
+      className="h-full w-full resize-none border-0 p-3 focus-visible:ring-0"
       onChange={(e) => setContent(e.target.value)}
       value={note}
     />

@@ -164,9 +164,9 @@ export default function Editor({
   return (
     <div className="flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] gap-4">
       {/* Main Editor Card */}
-      <Card className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
-        <form action={handleSubmitAction} className="grow gap-2">
-        <div className="mb-4 flex grow flex-col gap-4 md:flex-row md:gap-2">
+      <Card className="flex flex-1 flex-col gap-4 overflow-hidden p-4">
+        <form action={handleSubmitAction} className="flex min-h-0 grow flex-col gap-2">
+        <div className="mb-4 flex shrink-0 flex-col gap-4 md:flex-row md:gap-2">
           <div className="w-full flex-1">
             <Label htmlFor="category">
               Kategorie <span className="text-solarized-red">*</span>
@@ -228,8 +228,8 @@ export default function Editor({
           </div>
         </div>
 
-        <div className="grow gap-2">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="flex min-h-0 grow flex-col gap-2">
+          <div className="flex shrink-0 items-center justify-between">
             <Label htmlFor="editor">Inhalt</Label>
             <div className="flex items-center space-x-2">
               <Switch
@@ -241,7 +241,7 @@ export default function Editor({
             </div>
           </div>
 
-          <div className="h-[calc(100vh-(--spacing(72))-(--spacing(16)))] w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
+          <div className="min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
             {showSource ? (
               <PlainEditor note={content} setContent={setContent} />
             ) : (
@@ -255,7 +255,7 @@ export default function Editor({
 
           {/* Error Display Panel */}
           {validationErrors.length > 0 && (
-            <div className="mt-2 space-y-2">
+            <div className="mt-2 max-h-32 shrink-0 space-y-2 overflow-y-auto">
               {validationErrors.length > 0 && (
                 <div className="rounded-md border border-solarized-red bg-solarized-red/10 p-3">
                   <div className="flex items-center space-x-2 font-medium text-sm text-solarized-red">
@@ -297,7 +297,7 @@ export default function Editor({
         <input name="content" type="hidden" value={content} />
         <input name="id" type="hidden" value={id} />
         <input name="authorId" type="hidden" value={author.id} />
-        <div className="flex flex-row gap-2">
+        <div className="flex shrink-0 flex-row gap-2">
           <Button
             className="mt-2 w-1/10"
             onClick={checkContent}

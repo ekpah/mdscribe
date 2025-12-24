@@ -83,7 +83,7 @@ export default function TipTap({
 			},
 			attributes: {
 				class: cn(
-					"prose h-full min-h-200 w-full max-w-none whitespace-pre-wrap focus:outline-none",
+					"prose min-h-full w-full max-w-none whitespace-pre-wrap focus:outline-none",
 					"[&_.is-empty]:relative",
 					"[&_.is-empty]:before:content-[attr(data-placeholder)]",
 					"[&_.is-empty]:before:text-slate-400",
@@ -102,11 +102,11 @@ export default function TipTap({
 	}
 
 	return (
-		<div className="flex h-full w-full flex-col">
-			<div>
+		<div className="flex h-full w-full flex-col overflow-hidden">
+			<div className="shrink-0">
 				<TipTapMenu editor={editor} />
 			</div>
-			<div className="min-h-0 flex-1">
+			<div className="min-h-0 flex-1 overflow-y-auto p-3">
 				<EditorContent editor={editor} />
 			</div>
 		</div>
