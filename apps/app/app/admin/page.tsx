@@ -34,7 +34,7 @@ function AdminCard({
 
 	if (!isActive) {
 		return (
-			<Card className="border-solarized-base2 opacity-60">
+			<Card className="h-full border-solarized-base2 opacity-60">
 				<CardHeader className="p-4 sm:p-6">
 					<div className="flex items-center justify-between">
 						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-solarized-base2 sm:h-10 sm:w-10">
@@ -56,8 +56,8 @@ function AdminCard({
 	}
 
 	return (
-		<Link href={href} className="group block">
-			<Card className="border-solarized-base2 transition-all duration-200 hover:border-solarized-blue hover:shadow-md">
+		<Link href={href} className="group block h-full">
+			<Card className="h-full border-solarized-base2 transition-all duration-200 hover:border-solarized-blue hover:shadow-md">
 				<CardHeader className="p-4 sm:p-6">
 					<div className="flex items-center justify-between">
 						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-solarized-blue/10 transition-colors group-hover:bg-solarized-blue/20 sm:h-10 sm:w-10">

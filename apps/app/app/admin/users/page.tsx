@@ -31,9 +31,8 @@ interface UserData {
 	updatedAt: Date;
 	_count: {
 		templates: number;
-		sessions: number;
-		accounts: number;
-		subscriptions: number;
+		favourites: number;
+		usageEvents: number;
 	};
 }
 
@@ -170,10 +169,10 @@ export default function UsersPage() {
 							</div>
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Aktive Sessions
+									Generierungen
 								</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
-									{users.reduce((sum, u) => sum + u._count.sessions, 0)}
+									{users.reduce((sum, u) => sum + u._count.usageEvents, 0)}
 								</p>
 							</div>
 						</div>
@@ -204,9 +203,11 @@ export default function UsersPage() {
 										Vorlagen
 									</TableHead>
 									<TableHead className="text-solarized-base00">
-										Sessions
+										Favoriten
 									</TableHead>
-									<TableHead className="text-solarized-base00">Abos</TableHead>
+									<TableHead className="text-solarized-base00">
+										Generierungen
+									</TableHead>
 									<TableHead className="text-solarized-base00">
 										Registriert
 									</TableHead>
@@ -271,10 +272,10 @@ export default function UsersPage() {
 												{user._count.templates}
 											</TableCell>
 											<TableCell className="text-solarized-base00">
-												{user._count.sessions}
+												{user._count.favourites}
 											</TableCell>
 											<TableCell className="text-solarized-base00">
-												{user._count.subscriptions}
+												{user._count.usageEvents}
 											</TableCell>
 											<TableCell className="text-xs text-solarized-base01">
 												{formatDate(user.createdAt)}

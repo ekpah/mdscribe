@@ -16,9 +16,8 @@ const adminUsersHandler = authed
 				_count: {
 					select: {
 						templates: true,
-						sessions: true,
-						accounts: true,
-						subscriptions: true,
+						favourites: true,
+						usageEvents: true,
 					},
 				},
 			},

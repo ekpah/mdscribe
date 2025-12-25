@@ -55,10 +55,14 @@ export default function TipTap({
 	note,
 	setContent,
 	onValidationChange,
+	showSource,
+	onToggleSource,
 }: {
 	note: string;
 	setContent: (content: string) => void;
 	onValidationChange?: (errors: any[]) => void;
+	showSource?: boolean;
+	onToggleSource?: () => void;
 }) {
 	const editor = useEditor({
 		immediatelyRender: false,
@@ -74,8 +78,9 @@ export default function TipTap({
 		],
 		content: renderTipTapHTML(note),
 		onUpdate: ({ editor }) => {
-			const markdown = editor.getMarkdown();
-			setContent(htmlToMarkdoc(markdown));
+			// Get the HTML and convert to markdoc format
+			const html = editor.getHTML();
+			setContent(htmlToMarkdoc(html));
 		},
 		editorProps: {
 			handleDOMEvents: {
@@ -97,6 +102,19 @@ export default function TipTap({
 		injectCSS: false,
 	});
 
+	// Wrap toggle to sync content before switching views
+	const handleToggleSource = () => {
+		if (editor && onToggleSource) {
+			// Force sync content before switching to source view
+			const html = editor.getHTML();
+			setContent(htmlToMarkdoc(html));
+			// Small delay to ensure state is updated before view switch
+			setTimeout(() => {
+				onToggleSource();
+			}, 0);
+		}
+	};
+
 	if (!editor) {
 		return null;
 	}
@@ -104,7 +122,11 @@ export default function TipTap({
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden">
 			<div className="shrink-0">
-				<TipTapMenu editor={editor} />
+				<TipTapMenu
+					editor={editor}
+					onToggleSource={handleToggleSource}
+					showSource={showSource}
+				/>
 			</div>
 			<div className="min-h-0 flex-1 overflow-y-auto p-3">
 				<EditorContent editor={editor} />
