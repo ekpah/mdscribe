@@ -1,4 +1,5 @@
 import { Separator } from '@repo/design-system/components/ui/separator';
+import Link from 'next/link';
 import Footer from '../_components/landing/Footer';
 
 export default function LegalLayout({
@@ -13,8 +14,22 @@ export default function LegalLayout({
           <div>
             <h1 className="font-bold text-2xl tracking-tight">Rechtliches</h1>
             <p className="text-muted-foreground">
-              Impressum und Datenschutzerklärung
+              Impressum, Datenschutzerklärung und Open Source Lizenzen
             </p>
+            <nav className="mt-4 flex gap-4">
+              <Link
+                className="text-solarized-blue text-sm hover:underline dark:text-solarized-cyan"
+                href="/legal"
+              >
+                Impressum & Datenschutz
+              </Link>
+              <Link
+                className="text-solarized-blue text-sm hover:underline dark:text-solarized-cyan"
+                href="/legal/oss-licenses"
+              >
+                Open Source Lizenzen
+              </Link>
+            </nav>
           </div>
           <Separator />
           {children}
