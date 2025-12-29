@@ -5,7 +5,7 @@ import {
 	useReactTable,
 	getCoreRowModel,
 	flexRender,
-	type ColumnDef,
+	createColumnHelper,
 } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -51,26 +51,35 @@ function formatCost(cost: unknown): string {
 	return `$${num.toFixed(4)}`;
 }
 
+type StatsFilter = "today" | "week" | "month" | "all";
+
+const filterLabels: Record<StatsFilter, string> = {
+	today: "Heute",
+	week: "Woche",
+	month: "Monat",
+	all: "Gesamt",
+};
+
+const columnHelper = createColumnHelper<UsageEventWithUser>();
+
 export default function UsagePage() {
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 	const [cursor, setCursor] = useState<string | undefined>(undefined);
 	const [allItems, setAllItems] = useState<UsageEventWithUser[]>([]);
+	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
 
 	// Stats query
-	const { data: stats } = useQuery(orpc.admin.usage.stats.queryOptions());
+	const { data: stats, isLoading: statsLoading } = useQuery(
+		orpc.admin.usage.stats.queryOptions({ input: { filter: statsFilter } }),
+	);
 
 	// List query with pagination
-	const {
-		data,
-		isLoading,
-		isFetching,
-		error,
-	} = useQuery({
+	const { data, isLoading, isFetching, error } = useQuery({
 		...orpc.admin.usage.list.queryOptions({
 			input: {
 				limit: 25,
-				...(cursor && { cursor })
-			}
+				...(cursor && { cursor }),
+			},
 		}),
 		placeholderData: (prev) => prev,
 	});
@@ -85,7 +94,9 @@ export default function UsagePage() {
 				// Subsequent pages - append new items
 				setAllItems((prev) => {
 					const existingIds = new Set(prev.map((item) => item.id));
-					const newItems = data.items.filter((item) => !existingIds.has(item.id));
+					const newItems = data.items.filter(
+						(item) => !existingIds.has(item.id),
+					);
 					return [...prev, ...newItems];
 				});
 			}
@@ -94,7 +105,9 @@ export default function UsagePage() {
 
 	// Detail query (enabled when event selected)
 	const { data: selectedEvent } = useQuery({
-		...orpc.admin.usage.get.queryOptions({ input: { id: selectedEventId ?? "" } }),
+		...orpc.admin.usage.get.queryOptions({
+			input: { id: selectedEventId ?? "" },
+		}),
 		enabled: !!selectedEventId,
 	});
 
@@ -104,70 +117,67 @@ export default function UsagePage() {
 		}
 	};
 
-	const columns: ColumnDef<UsageEventWithUser>[] = [
-		{
-			accessorKey: "timestamp",
+	const columns = [
+		columnHelper.accessor("timestamp", {
 			header: "Zeitpunkt",
-			cell: ({ row }) => (
+			cell: (info) => (
 				<span className="whitespace-nowrap text-xs sm:text-sm">
-					{formatDate(row.original.timestamp)}
+					{formatDate(info.getValue())}
 				</span>
 			),
-		},
-		{
-			accessorKey: "user",
+		}),
+		columnHelper.accessor("user", {
 			header: "Benutzer",
-			cell: ({ row }) => (
-				<div className="flex flex-col">
-					<span className="max-w-[120px] truncate font-medium text-solarized-base00 sm:max-w-none">
-						{row.original.user.name || "Kein Name"}
-					</span>
-					<span className="hidden text-xs text-solarized-base01 sm:block">
-						{row.original.user.email}
-					</span>
-				</div>
-			),
-		},
-		{
-			accessorKey: "name",
+			cell: (info) => {
+				const user = info.getValue();
+				return (
+					<div className="flex flex-col">
+						<span className="max-w-[120px] truncate font-medium text-solarized-base00 sm:max-w-none">
+							{user.name || "Kein Name"}
+						</span>
+						<span className="hidden text-xs text-solarized-base01 sm:block">
+							{user.email}
+						</span>
+					</div>
+				);
+			},
+		}),
+		columnHelper.accessor("name", {
 			header: () => <span className="hidden sm:inline">Aktion</span>,
-			cell: ({ row }) => (
+			cell: (info) => (
 				<Badge
 					variant="outline"
 					className="hidden whitespace-nowrap sm:inline-flex"
 				>
-					{row.original.name}
+					{info.getValue()}
 				</Badge>
 			),
-		},
-		{
-			accessorKey: "model",
+		}),
+		columnHelper.accessor("model", {
 			header: () => <span className="hidden md:inline">Modell</span>,
-			cell: ({ row }) => (
+			cell: (info) => (
 				<span className="hidden font-mono text-xs md:inline">
-					{row.original.model?.split("/").pop() || "-"}
+					{info.getValue()?.split("/").pop() || "-"}
 				</span>
 			),
-		},
-		{
-			accessorKey: "cost",
+		}),
+		columnHelper.accessor("cost", {
 			header: "Kosten",
-			cell: ({ row }) => (
+			cell: (info) => (
 				<span className="whitespace-nowrap font-mono text-xs">
-					{formatCost(row.original.cost)}
+					{formatCost(info.getValue())}
 				</span>
 			),
-		},
-		{
-			accessorKey: "totalTokens",
+		}),
+		columnHelper.accessor("totalTokens", {
 			header: () => <span className="hidden sm:inline">Tokens</span>,
-			cell: ({ row }) => (
+			cell: (info) => (
 				<span className="hidden font-mono text-xs sm:inline">
-					{row.original.totalTokens?.toLocaleString("de-DE") ?? "-"}
+					{info.getValue()?.toLocaleString("de-DE") ?? "-"}
 				</span>
 			),
-		},
-		{
+		}),
+		columnHelper.display({
 			id: "actions",
 			header: "",
 			cell: ({ row }) => (
@@ -183,7 +193,7 @@ export default function UsagePage() {
 					<Eye className="h-4 w-4" />
 				</Button>
 			),
-		},
+		}),
 	];
 
 	const table = useReactTable({
@@ -259,31 +269,61 @@ export default function UsagePage() {
 				{/* Stats Card */}
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
+						{/* Filter Tabs */}
+						<div className="mb-4 flex gap-1 rounded-lg bg-solarized-base2/50 p-1">
+							{(Object.keys(filterLabels) as StatsFilter[]).map((filter) => (
+								<button
+									key={filter}
+									onClick={() => setStatsFilter(filter)}
+									className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
+										statsFilter === filter
+											? "bg-solarized-base3 text-solarized-base00 shadow-sm"
+											: "text-solarized-base01 hover:text-solarized-base00"
+									}`}
+								>
+									{filterLabels[filter]}
+								</button>
+							))}
+						</div>
+
+						{/* Stats Grid */}
 						<div className="grid grid-cols-3 gap-4 sm:gap-6">
 							<div className="space-y-1">
 								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-									Gesamt
+									Events
 								</p>
 								<p className="text-base font-semibold text-solarized-base00 sm:text-lg">
-									{stats?.totalEvents?.toLocaleString("de-DE") ?? "-"}
+									{statsLoading ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : (
+										(stats?.totalEvents?.toLocaleString("de-DE") ?? "-")
+									)}
 								</p>
 							</div>
 							<div className="space-y-1">
 								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-									Heute
+									Tokens
 								</p>
 								<p className="text-base font-semibold text-solarized-cyan sm:text-lg">
-									{stats?.todayEvents?.toLocaleString("de-DE") ?? "-"}
+									{statsLoading ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : (
+										(stats?.totalTokens?.toLocaleString("de-DE") ?? "-")
+									)}
 								</p>
 							</div>
 							<div className="space-y-1">
 								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-									Gesamtkosten
+									Kosten
 								</p>
 								<p className="text-base font-semibold text-solarized-green sm:text-lg">
-									{stats?.totalCost !== undefined
-										? `$${stats.totalCost.toFixed(2)}`
-										: "-"}
+									{statsLoading ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : stats?.totalCost !== undefined ? (
+										`$${stats.totalCost.toFixed(2)}`
+									) : (
+										"-"
+									)}
 								</p>
 							</div>
 						</div>
@@ -315,7 +355,7 @@ export default function UsagePage() {
 														? null
 														: flexRender(
 																header.column.columnDef.header,
-																header.getContext()
+																header.getContext(),
 															)}
 												</TableHead>
 											))}
@@ -343,7 +383,7 @@ export default function UsagePage() {
 													<TableCell key={cell.id}>
 														{flexRender(
 															cell.column.columnDef.cell,
-															cell.getContext()
+															cell.getContext(),
 														)}
 													</TableCell>
 												))}
