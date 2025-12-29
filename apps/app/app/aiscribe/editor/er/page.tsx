@@ -48,12 +48,6 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder: "Körperlichen Untersuchungsbefund eingeben...",
 			description:
 				"Ergebnisse der körperlichen Untersuchung (Vitalzeichen, Inspektion, Palpation, etc.)",
-			apiEndpoint: "/api/scribe/physical-exam/stream",
-			buildPrompt: (notes, context) => ({
-				notes,
-				vordiagnosen: context.diagnosen || "",
-				befunde: context.befunde || "",
-			}),
 		},
 		{
 			id: "befunde",

@@ -1,19 +1,18 @@
 "use client";
 
-import { Stethoscope } from "lucide-react";
+import { BedDouble } from "lucide-react";
 import {
 	DoctorsNoteEditor,
 	type DoctorsNoteEditorConfig,
 } from "../../_components/DoctorsNoteEditor";
 
-// Section configuration for ICU documentation
+// Section configuration for inpatient (Normalstation) documentation
 // Each section defines its own endpoint and prompt builder
-// Uses ICU-specific endpoints where available, falls back to ER endpoints
-const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
-	title: "ICU Dokumentation",
+const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
+	title: "Stationäre Dokumentation",
 	description:
-		"Erstellen und verbessern Sie strukturierte ICU-Dokumentation mit KI-Unterstützung für Entlassungsbriefe",
-	icon: Stethoscope,
+		"Erstellen und verbessern Sie strukturierte stationäre Dokumentation mit KI-Unterstützung für Entlassungsbriefe",
+	icon: BedDouble,
 	sections: [
 		{
 			id: "diagnosen",
@@ -21,7 +20,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder:
 				"Diagnosen eingeben (z.B. Hauptdiagnosen, Nebendiagnosen, Vorerkrankungen)...",
 			description: "Haupt- und Nebendiagnosen sowie relevante Vorerkrankungen",
-			apiEndpoint: "/api/scribe/diagnosis/stream", // Use ER endpoint as fallback
+			apiEndpoint: "/api/scribe/diagnosis/stream",
 			buildPrompt: (notes, context) => ({
 				notes,
 				anamnese: context.anamnese || "",
@@ -35,8 +34,8 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder:
 				"Aufnahmeanamnese eingeben (Aufnahmegrund, Symptome, Vorgeschichte)...",
 			description:
-				"Anamnese bei ICU-Aufnahme, Aufnahmegrund und relevante Vorgeschichte",
-			apiEndpoint: "/api/scribe/anamnese/stream", // Use ER endpoint as fallback
+				"Anamnese bei stationärer Aufnahme, Aufnahmegrund und relevante Vorgeschichte",
+			apiEndpoint: "/api/scribe/anamnese/stream",
 			buildPrompt: (notes, context) => ({
 				notes,
 				vordiagnosen: context.diagnosen || "",
@@ -48,27 +47,27 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			label: "Körperlicher Befund",
 			placeholder: "Körperlichen Untersuchungsbefund bei Aufnahme eingeben...",
 			description:
-				"Körperliche Untersuchung bei ICU-Aufnahme (Vitalzeichen, neurologischer Status, etc.)",
+				"Körperliche Untersuchung bei Aufnahme (Vitalzeichen, Inspektion, Palpation, etc.)",
 		},
 		{
 			id: "befunde",
 			label: "Befunde & Verlauf",
 			placeholder:
-				"Labor-, Bildgebungs- und weitere Befunde während ICU-Aufenthalt eingeben...",
+				"Labor-, Bildgebungs- und weitere Befunde während des Aufenthalts eingeben...",
 			description:
 				"Laborwerte, Bildgebung, EKG und weitere diagnostische Befunde sowie Verlauf",
-			apiEndpoint: "/api/scribe/befunde/stream", // Use ER endpoint as fallback
+			apiEndpoint: "/api/scribe/befunde/stream",
 			buildPrompt: (notes, context) => ({
 				notes,
 				vordiagnosen: context.diagnosen || "",
 				anamnese: context.anamnese || "",
 			}),
 		},
-		// Toggle between Discharge home (Entlassbrief) and Transfer to normal ward (ICU Transfer)
+		// Toggle between Discharge home (Entlassbrief) and Transfer to ICU/other ward
 		{
 			type: "toggle",
 			id: "disposition",
-			defaultOption: "verlegung",
+			defaultOption: "entlassung",
 			options: [
 				{
 					id: "entlassung",
@@ -79,7 +78,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 						placeholder:
 							"Notizen für Entlassungsbrief eingeben (Therapie, Empfehlungen, Nachsorge)...",
 						description:
-							"Zusammenfassung des ICU-Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
+							"Zusammenfassung des stationären Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
 						apiEndpoint: "/api/scribe/discharge/stream",
 						buildPrompt: (notes, context) => ({
 							dischargeNotes: notes,
@@ -91,17 +90,17 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 				},
 				{
 					id: "verlegung",
-					label: "Verlegung auf Normalstation",
+					label: "Verlegung",
 					section: {
 						id: "verlegungsbrief",
 						label: "Verlegungsbrief",
 						placeholder:
-							"Notizen für Verlegungsbrief eingeben (Verlegungsgrund, aktueller Zustand, Therapie)...",
+							"Notizen für Verlegungsbrief eingeben (Verlegungsgrund, aktueller Zustand, offene Punkte)...",
 						description:
-							"Zusammenfassung des ICU-Aufenthalts und Verlegungsinformationen für die Normalstation",
-						apiEndpoint: "/api/scribe/icu/transfer/stream",
+							"Zusammenfassung des Aufenthalts und Verlegungsinformationen für die weiterbehandelnde Station",
+						apiEndpoint: "/api/scribe/discharge/stream",
 						buildPrompt: (notes, context) => ({
-							notes,
+							dischargeNotes: notes,
 							anamnese: context.anamnese || "",
 							diagnoseblock: context.diagnosen || "",
 							befunde: context.befunde || "",
@@ -113,6 +112,6 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 	],
 };
 
-export default function ICUEditorPage() {
-	return <DoctorsNoteEditor config={ICU_EDITOR_CONFIG} />;
+export default function InpatientEditorPage() {
+	return <DoctorsNoteEditor config={INPATIENT_EDITOR_CONFIG} />;
 }

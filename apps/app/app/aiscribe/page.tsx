@@ -16,7 +16,6 @@ import {
 	Bed,
 	ClipboardList,
 	Edit3,
-	FileEdit,
 	FileText,
 	Heart,
 	PenTool,
@@ -157,16 +156,26 @@ const editorModes = [
 		description:
 			"Strukturierter Editor für Notaufnahme-Dokumentation mit KI-unterstützter Textverbesserung und Vorlagen.",
 		href: "/aiscribe/editor/er",
-		icon: <FileEdit className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />,
-		accentColor: "solarized-cyan",
+		icon: <Heart className="h-4 w-4 text-solarized-red sm:h-5 sm:w-5" />,
+		accentColor: "solarized-red",
 	},
 	{
 		title: "ICU Editor",
 		description:
 			"Strukturierter Editor für ICU-Entlassungsbriefe mit KI-unterstützter Dokumentation.",
 		href: "/aiscribe/editor/icu",
-		icon: <Edit3 className="h-4 w-4 text-solarized-magenta sm:h-5 sm:w-5" />,
-		accentColor: "solarized-magenta",
+		icon: (
+			<Stethoscope className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />
+		),
+		accentColor: "solarized-orange",
+	},
+	{
+		title: "Stationärer Editor",
+		description:
+			"Strukturierter Editor für stationäre Dokumentation mit KI-unterstützter Entlassungsbrief-Erstellung.",
+		href: "/aiscribe/editor/inpatient",
+		icon: <Bed className="h-4 w-4 text-solarized-yellow sm:h-5 sm:w-5" />,
+		accentColor: "solarized-yellow",
 	},
 ];
 
