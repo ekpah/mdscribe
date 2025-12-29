@@ -49,12 +49,6 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder: "Körperlichen Untersuchungsbefund bei Aufnahme eingeben...",
 			description:
 				"Körperliche Untersuchung bei ICU-Aufnahme (Vitalzeichen, neurologischer Status, etc.)",
-			apiEndpoint: "/api/scribe/physical-exam/stream", // Use ER endpoint as fallback
-			buildPrompt: (notes, context) => ({
-				notes,
-				vordiagnosen: context.diagnosen || "",
-				befunde: context.befunde || "",
-			}),
 		},
 		{
 			id: "befunde",

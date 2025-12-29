@@ -82,17 +82,6 @@ export default async function CreateTemplate({
 				handleSubmitAction={handleSubmit}
 				author={session?.user}
 			/>
-
-			<form action={handleGenerateEmbedding} className="mt-4 self-end">
-				<input
-					type="hidden"
-					name="content"
-					value={JSON.stringify(forkedTemplate?.content || "")}
-				/>
-				<Button type="submit" variant="outline">
-					Generate Embedding
-				</Button>
-			</form>
 		</div>
 	);
 }

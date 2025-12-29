@@ -104,7 +104,6 @@ export function MarkdownDiffEditor({
 			StarterKit.configure({
 				// Disable features we don't need
 				blockquote: false,
-				bulletList: false,
 				codeBlock: false,
 				horizontalRule: false,
 				code: false,

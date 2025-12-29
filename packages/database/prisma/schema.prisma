@@ -98,12 +98,36 @@ model Subscription {
 }
 
 model UsageEvent {
-  id          String   @id @default(uuid())
-  userId      String
-  timestamp   DateTime @default(now())
-  name        String
-  totalTokens Int?
-  user        User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(uuid())
+  userId    String
+  timestamp DateTime @default(now())
+  name      String
+
+  // Token usage
+  inputTokens     Int?
+  outputTokens    Int?
+  totalTokens     Int?
+  reasoningTokens Int?
+  cachedTokens    Int?
+
+  // Cost (OpenRouter returns this with usage: true)
+  cost Decimal? @db.Decimal(10, 6)
+
+  // Model used
+  model String?
+
+  // Flexible JSON fields
+  inputData Json? // Full user input (anamnese, notes, befunde, etc.)
+  metadata  Json? // promptName, thinkingEnabled, endpoint, etc.
+
+  // AI output (for debugging and potential fine-tuning)
+  result    String? @db.Text // Full generated text output
+  reasoning String? @db.Text // Claude thinking/reasoning (when enabled)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, timestamp])
+  @@index([name, timestamp])
 }
 
 model TextSnippet {

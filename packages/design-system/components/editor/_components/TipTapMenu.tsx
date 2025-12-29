@@ -1,7 +1,6 @@
 import { Button } from "@repo/design-system/components/ui/button";
-import { htmlToMarkdoc } from "@repo/markdoc-md/parse/htmlToMarkdoc";
 import type { Editor } from "@tiptap/react";
-import { HelpCircle, List, Redo, Undo } from "lucide-react";
+import { Code, HelpCircle, List, Redo, Undo } from "lucide-react";
 import {
 	Tooltip,
 	TooltipContent,
@@ -9,7 +8,19 @@ import {
 	TooltipTrigger,
 } from "../../ui/tooltip";
 
-const MenuBar = ({ editor }: { editor: Editor }) => {
+const MenuBar = ({
+	editor,
+	showSource,
+	onToggleSource,
+}: {
+	editor: Editor | null;
+	showSource?: boolean;
+	onToggleSource?: () => void;
+}) => {
+	if (!editor) {
+		return null;
+	}
+
 	return (
 		<div className="mb-2 flex items-center gap-1 overflow-x-auto rounded-md border border-border bg-muted/90 p-2">
 			<div className="flex flex-wrap gap-1">
@@ -200,6 +211,20 @@ const MenuBar = ({ editor }: { editor: Editor }) => {
 					</Tooltip>
 				</TooltipProvider>
 			</div>
+
+			{/* Source Toggle - Right aligned */}
+			{onToggleSource !== undefined && (
+				<div className="ml-auto flex items-center">
+					<button
+						className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+						onClick={onToggleSource}
+						type="button"
+					>
+						<Code className="h-4 w-4" />
+						<span className="hidden sm:inline">Quelltext anzeigen</span>
+					</button>
+				</div>
+			)}
 		</div>
 	);
 };

@@ -6,13 +6,12 @@
  * - Authentication and subscription checking
  * - Input validation and processing
  * - Langfuse prompt integration
- * - AI model configuration and response generation
+ * - AI model configuration and streaming response generation
  * - Claude thinking mode configuration (disabled by default)
  * - Usage logging and telemetry
  * - Error handling
  *
  * @example
- * // For streaming responses (default):
  * const handleAnamnese = createScribeHandler({
  *   promptName: 'ER_Anamnese_chat',
  *   validateInput: createInputValidator(['prompt']),
@@ -28,24 +27,6 @@
  * });
  *
  * @example
- * // For non-streaming responses:
- * const handleDiagnosis = createScribeHandler({
- *   promptName: 'ER_Diagnose_chat',
- *   streaming: false,
- *   validateInput: createInputValidator(['prompt']),
- *   processInput: (input) => {
- *     const { prompt } = input as { prompt: string };
- *     const parsed = JSON.parse(prompt);
- *     return { anamnese: parsed.anamnese };
- *   },
- *   modelConfig: {
- *     maxTokens: 2000,
- *     temperature: 0,
- *     thinking: false, // Disable thinking (default)
- *   },
- * });
- *
- * @example
  * // Usage in API route:
  * export const POST = handleAnamnese;
  */
@@ -54,25 +35,28 @@ import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { database } from "@repo/database";
 import { env } from "@repo/env";
-import {
-	convertToModelMessages,
-	type FilePart,
-	generateText,
-	type LanguageModel,
-	type ModelMessage,
-	streamText,
-	type TextPart,
-} from "ai";
+import { type LanguageModel, type ModelMessage, streamText } from "ai";
 import { Langfuse } from "langfuse";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import type { Session } from "@/lib/auth-types";
+import {
+	buildUsageEventData,
+	extractOpenRouterUsage,
+	type StandardUsage,
+	type UsageInputData,
+	type UsageMetadata,
+} from "@/lib/usage-logging";
 import { getUsage } from "./get-usage";
 
 const langfuse = new Langfuse();
 
 // Supported models type
-type SupportedModel = "glm-4p6" | "claude-opus-4.5" | "gemini-3-pro";
+type SupportedModel =
+	| "glm-4p6"
+	| "claude-opus-4.5"
+	| "gemini-3-pro"
+	| "gemini-3-flash";
 
 // Model configuration mapper
 function getModelConfig(modelId: string): {
@@ -98,6 +82,11 @@ function getModelConfig(modelId: string): {
 				model: openrouter("google/gemini-3-pro-preview"),
 				supportsThinking: true,
 			};
+		case "gemini-3-flash":
+			return {
+				model: openrouter("google/gemini-3-flash-preview"),
+				supportsThinking: true,
+			};
 		default:
 			// Default to Claude if unknown model
 			return {
@@ -117,9 +106,6 @@ interface ScribeHandlerConfig {
 	processInput: (
 		input: unknown,
 	) => Record<string, unknown> | Promise<Record<string, unknown>>;
-
-	// Response configuration
-	streaming?: boolean; // Default: true
 
 	// AI model configuration
 	modelConfig?: {
@@ -216,6 +202,7 @@ async function generateResponse(
 	metadata: Record<string, string | number | boolean>,
 	session: Session,
 	modelId: string,
+	processedInput: Record<string, unknown>,
 	audioFiles?: Array<{ data: string; mimeType: string }>,
 ) {
 	// Default model configuration
@@ -277,79 +264,53 @@ async function generateResponse(
 		console.log("messagesWithAudio", messagesWithAudio);
 	}
 
-	// Common model parameters
-	const commonParams = {
+	// Create streaming response
+	const result = streamText({
 		model,
-		maxTokens: modelConfig.maxTokens,
+		maxOutputTokens: modelConfig.maxTokens,
 		temperature: modelConfig.temperature,
 		providerOptions: {
 			openrouter: { usage: { include: true }, user: session?.user?.email },
 		},
 		messages: messagesWithAudio,
-	};
+		onFinish: async (event) => {
+			// Extract OpenRouter usage data (includes cost)
+			const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
 
-	// Handle streaming vs non-streaming responses
-	const useStreaming = config.streaming !== false; // Default to true
-
-	if (useStreaming) {
-		// Create streaming response
-		const result = streamText({
-			...commonParams,
-			onFinish: async (event) => {
-				// Log usage in development
-				if (env.NODE_ENV === "development") {
-					const logData = {
-						promptTokens: event.usage.inputTokens,
-						completionTokens: event.usage.outputTokens,
-						totalTokens: event.usage.totalTokens,
-						userId: session?.user?.id || "unknown",
+			// Log comprehensive usage data to postgres
+			const createdUsageEvent = await database.usageEvent.create({
+				data: buildUsageEventData({
+					userId: session?.user?.id || "",
+					name: "ai_scribe_generation",
+					model: modelId,
+					openRouterUsage,
+					standardUsage: event.usage as StandardUsage,
+					inputData: processedInput as UsageInputData,
+					metadata: {
 						promptName: config.promptName,
-						thinking: event.reasoning,
-						result: event.text,
-						tools: event.toolCalls,
-						toolsResults: event.toolResults,
-					};
-					console.log(logData);
-				}
+						promptLabel: config.promptLabel,
+						thinkingEnabled: modelConfig.thinking,
+						thinkingBudget: modelConfig.thinking
+							? modelConfig.thinkingBudget
+							: undefined,
+						modelConfig: {
+							maxTokens: modelConfig.maxTokens,
+							temperature: modelConfig.temperature,
+						},
+					} as UsageMetadata,
+					result: event.text,
+					reasoning: event.reasoningText,
+				}),
+			});
 
-				// Log tokens to the postgres database for usage tracking
-				await database.usageEvent.create({
-					data: {
-						userId: session?.user?.id || "",
-						totalTokens: event.usage.totalTokens,
-						name: "ai_scribe_generation",
-					},
-				});
-			},
-		});
-
-		return result.toUIMessageStreamResponse();
-	}
-	// Create non-streaming response
-	const { text, usage } = await generateText(commonParams);
-
-	// Log usage in development
-	if (env.NODE_ENV === "development") {
-		const logData = {
-			promptTokens: usage.inputTokens,
-			completionTokens: usage.outputTokens,
-			totalTokens: usage.totalTokens,
-			userId: session?.user?.id || "unknown",
-			promptName: config.promptName,
-		};
-		const _ = logData;
-	}
-
-	// Log tokens to the postgres database for usage tracking
-	await database.usageEvent.create({
-		data: {
-			userId: session?.user?.id || "",
-			totalTokens: usage.totalTokens,
-			name: "ai_scribe_generation",
+			// Log created usage event in development
+			if (env.NODE_ENV === "development") {
+				console.log("Created usage event:", createdUsageEvent);
+			}
 		},
 	});
 
-	return Response.json({ text });
+	return result.toUIMessageStreamResponse();
 }
 
 export function createScribeHandler(
@@ -424,6 +385,7 @@ export function createScribeHandler(
 				metadata,
 				session,
 				processed.model,
+				processed.processedInput,
 				processed.audioFiles,
 			);
 		} catch (error) {

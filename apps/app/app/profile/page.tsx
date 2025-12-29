@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import UserDashboard from "./_components/user-dashboard";
+import UserSettings from "./_components/user-settings";
 
 export default async function DashboardPage() {
 	// Get the mocked session
@@ -28,7 +28,7 @@ export default async function DashboardPage() {
 		(activeSubscription?.limits?.ai_scribe_generations as number) || 0;
 
 	return (
-		<UserDashboard
+		<UserSettings
 			activeSessions={JSON.parse(JSON.stringify(activeSessions))}
 			generationLimit={generationLimit}
 			session={JSON.parse(JSON.stringify(session))}

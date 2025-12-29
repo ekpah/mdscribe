@@ -1,9 +1,11 @@
-import { authed, pub } from '@/orpc';
-import { scribeHandler } from './scribe';
-import { getUsage } from './scribe/_lib/get-usage';
-import { templatesHandler as publicTemplatesHandler } from './templates';
-import { templatesHandler as userTemplatesHandler } from './user/templates';
-import { snippetsHandler } from './user/snippets';
+import { authed, pub } from "@/orpc";
+import { scribeHandler } from "./scribe";
+import { getUsage } from "./scribe/_lib/get-usage";
+import { templatesHandler as publicTemplatesHandler } from "./templates";
+import { templatesHandler as userTemplatesHandler } from "./user/templates";
+import { snippetsHandler } from "./user/snippets";
+import { usersHandler as adminUsersHandler } from "./admin/users";
+import { usageHandler as adminUsageHandler } from "./admin/usage";
 
 /**
  * Generic document creation function using Langfuse prompt
@@ -34,19 +36,27 @@ import { snippetsHandler } from './user/snippets';
  */
 
 const getUsageHandler = authed.handler(({ context }) => {
-    return getUsage(context.session);
+	return getUsage(context.session);
 });
 
 export const router = {
-    scribe: scribeHandler,
-    getUsage: getUsageHandler,
-    templates: publicTemplatesHandler,
-    user: {
-        templates: {
-            ...userTemplatesHandler,
-        },
-        snippets: {
-            ...snippetsHandler,
-        },
-    },
+	scribe: scribeHandler,
+	getUsage: getUsageHandler,
+	templates: publicTemplatesHandler,
+	user: {
+		templates: {
+			...userTemplatesHandler,
+		},
+		snippets: {
+			...snippetsHandler,
+		},
+	},
+	admin: {
+		users: {
+			...adminUsersHandler,
+		},
+		usage: {
+			...adminUsageHandler,
+		},
+	},
 };

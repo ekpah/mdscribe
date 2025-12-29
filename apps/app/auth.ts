@@ -1,160 +1,129 @@
-import { stripe } from '@better-auth/stripe';
-import { database } from '@repo/database';
-import { sendEmail } from '@repo/email';
-import { EmailChangeTemplate } from '@repo/email/templates/change-email';
-import { ResetPasswordTemplate } from '@repo/email/templates/reset-password';
-import { EmailVerificationTemplate } from '@repo/email/templates/verify';
-import { env } from '@repo/env';
-import { betterAuth, type User } from 'better-auth';
-import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { createAuthMiddleware } from 'better-auth/api';
-import posthog from 'posthog-js';
-import Stripe from 'stripe';
+import { stripe } from "@better-auth/stripe";
+import { database } from "@repo/database";
+import { sendEmail } from "@repo/email";
+import { EmailChangeTemplate } from "@repo/email/templates/change-email";
+import { ResetPasswordTemplate } from "@repo/email/templates/reset-password";
+import { EmailVerificationTemplate } from "@repo/email/templates/verify";
+import { env } from "@repo/env";
+import { betterAuth, type User } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { createAuthMiddleware } from "better-auth/api";
+import Stripe from "stripe";
 
 // initialize stripe client
 if (!(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET)) {
-  throw new Error('STRIPE_SECRET_KEY is not set');
+	throw new Error("STRIPE_SECRET_KEY is not set");
 }
 const stripeClient = new Stripe(env.STRIPE_SECRET_KEY as string);
 
 export const auth = betterAuth({
-  baseURL: env.NEXT_PUBLIC_BASE_URL as string,
-  // sets the Better-Auth database adapter to Prisma with the PostgreSQL provider
-  database: prismaAdapter(database, {
-    provider: 'postgresql', // or "mysql", "postgresql", ...etc
-  }),
-  // enables cookie caching for better-auth sessions
-  session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // Cache duration in seconds
-    },
-  },
-  // defines a user object
-  user: {
-    // defines how a user can change their email
-    changeEmail: {
-      enabled: true,
-      sendChangeEmailVerification: async ({ user, newEmail, url }) => {
-        await sendEmail({
-          from: 'noreply@mdscribe.de',
-          to: user.email, // verification email must be sent to the current user email to approve the change
-          subject: 'Genehmige E-Mail-Änderung',
-          template: EmailChangeTemplate({ url, newEmail }),
-        });
-      },
-      callbackURL: '/dashboard', // The redirect URL after verification
-    },
-    additionalFields: {
-      stripeCustomerId: {
-        type: 'string',
-        required: false,
-      },
-    },
-  },
-  // enables login with the email and password flow
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: true,
-    sendResetPassword: async ({ user, url }) => {
-      if (env.NODE_ENV === 'development') {
-        await console.log({
-          to: user.email,
-          subject: 'Setze dein Passwort zurück',
-          text: `Klicke auf den Link, um dein Passwort zurückzusetzen: ${url}`,
-        });
-      } else {
-        await sendEmail({
-          from: 'noreply@mdscribe.de',
-          to: user.email,
-          subject: 'Setze dein Passwort zurück',
-          template: ResetPasswordTemplate({ url }),
-        });
-      }
-    },
-  },
-  // define email verification functions
-  emailVerification: {
-    autoSignInAfterVerification: true,
-    callbackURL: '/email-verified', // The redirect URL after verification
-    expiresIn: 3600, // 1 hour
-    sendOnSignUp: true,
-    sendVerificationEmail: async ({ user, url, token }) => {
-      if (env.NODE_ENV === 'development') {
-        await console.log({
-          to: user.email,
-          subject: 'Verify your email address',
-          text: `Click the link to verify your email: ${url}`,
-        });
-      } else {
-        await sendEmail({
-          from: 'noreply@mdscribe.de',
-          to: user.email,
-          subject: 'Verify your email address',
-          template: EmailVerificationTemplate({ url }),
-        });
-      }
-    },
-    async afterEmailVerification(user: User) {
-      await posthog.capture('email_verified', {
-        email: user.email,
-      });
-    },
-  },
-  // define plugins for better-auth
-  plugins: [
-    // stripe plugin for subscription management
-    stripe({
-      stripeClient,
-      stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET as string,
-      createCustomerOnSignUp: true,
-      subscription: {
-        enabled: true,
-        onSubscriptionComplete: async ({ stripeSubscription, plan }) => {
-          // Called when a subscription is successfully created
-          await posthog.capture('subscription_created', {
-            plan: plan.name,
-            price_id: stripeSubscription.items.data[0].price.id,
-            subscription_interval:
-              stripeSubscription.items.data[0].price.recurring?.interval,
-          });
-        },
-        onSubscriptionCancel: async ({ stripeSubscription }) => {
-          // Called when a subscription is canceled
-          await posthog.capture('subscription_canceled', {
-            price_id: stripeSubscription.items.data[0].price.id,
-          });
-        },
-        plans: [
-          {
-            name: 'plus', // the name of the plan, it'll be automatically lower cased when stored in the database
-            priceId: env.STRIPE_PLUS_PRICE_ID as string,
-            annualDiscountPriceId: env.STRIPE_PLUS_PRICE_ID_ANNUAL as string,
-            limits: {
-              ai_scribe_generations: 500,
-            },
-          },
-        ],
-        // ... other options
-      },
-      getCheckoutSessionParams: () => {
-        return {
-          params: {
-            allow_promotion_codes: true,
-          },
-        };
-      },
-    }),
-  ],
-  // define hooks for better-auth to hook into events
-  hooks: {
-    after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith('/sign-up')) {
-        const newSession = ctx.context.newSession;
-        await posthog.capture('user_registered', {
-          email: newSession?.user?.email,
-        });
-      }
-    }),
-  },
+	baseURL: env.NEXT_PUBLIC_BASE_URL as string,
+	// sets the Better-Auth database adapter to Prisma with the PostgreSQL provider
+	database: prismaAdapter(database, {
+		provider: "postgresql", // or "mysql", "postgresql", ...etc
+	}),
+	// enables cookie caching for better-auth sessions
+	session: {
+		cookieCache: {
+			enabled: true,
+			maxAge: 5 * 60, // Cache duration in seconds
+		},
+	},
+	// defines a user object
+	user: {
+		// defines how a user can change their email
+		changeEmail: {
+			enabled: true,
+			sendChangeEmailVerification: async ({ user, newEmail, url }) => {
+				await sendEmail({
+					from: "noreply@mdscribe.de",
+					to: user.email, // verification email must be sent to the current user email to approve the change
+					subject: "Genehmige E-Mail-Änderung",
+					template: EmailChangeTemplate({ url, newEmail }),
+				});
+			},
+			callbackURL: "/dashboard", // The redirect URL after verification
+		},
+		additionalFields: {
+			stripeCustomerId: {
+				type: "string",
+				required: false,
+			},
+		},
+	},
+	// enables login with the email and password flow
+	emailAndPassword: {
+		enabled: true,
+		requireEmailVerification: true,
+		sendResetPassword: async ({ user, url }) => {
+			if (env.NODE_ENV === "development") {
+				await console.log({
+					to: user.email,
+					subject: "Setze dein Passwort zurück",
+					text: `Klicke auf den Link, um dein Passwort zurückzusetzen: ${url}`,
+				});
+			} else {
+				await sendEmail({
+					from: "noreply@mdscribe.de",
+					to: user.email,
+					subject: "Setze dein Passwort zurück",
+					template: ResetPasswordTemplate({ url }),
+				});
+			}
+		},
+	},
+	// define email verification functions
+	emailVerification: {
+		autoSignInAfterVerification: true,
+		callbackURL: "/email-verified", // The redirect URL after verification
+		expiresIn: 3600, // 1 hour
+		sendOnSignUp: true,
+		sendVerificationEmail: async ({ user, url, token }) => {
+			if (env.NODE_ENV === "development") {
+				await console.log({
+					to: user.email,
+					subject: "Verify your email address",
+					text: `Click the link to verify your email: ${url}`,
+				});
+			} else {
+				await sendEmail({
+					from: "noreply@mdscribe.de",
+					to: user.email,
+					subject: "Verify your email address",
+					template: EmailVerificationTemplate({ url }),
+				});
+			}
+		},
+	},
+	// define plugins for better-auth
+	plugins: [
+		// stripe plugin for subscription management
+		stripe({
+			stripeClient,
+			stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET as string,
+			createCustomerOnSignUp: true,
+			subscription: {
+				enabled: true,
+
+				plans: [
+					{
+						name: "plus", // the name of the plan, it'll be automatically lower cased when stored in the database
+						priceId: env.STRIPE_PLUS_PRICE_ID as string,
+						annualDiscountPriceId: env.STRIPE_PLUS_PRICE_ID_ANNUAL as string,
+						limits: {
+							ai_scribe_generations: 500,
+						},
+					},
+				],
+				// ... other options
+			},
+			getCheckoutSessionParams: () => {
+				return {
+					params: {
+						allow_promotion_codes: true,
+					},
+				};
+			},
+		}),
+	],
 });

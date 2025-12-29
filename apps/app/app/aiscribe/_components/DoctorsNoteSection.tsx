@@ -15,15 +15,16 @@ export interface DoctorsNoteSectionConfig {
 	label: string;
 	placeholder: string;
 	description?: string;
-	/** API endpoint for this section's AI enhancement */
-	apiEndpoint: string;
+	/** API endpoint for this section's AI enhancement. If omitted, the field will be a plain input without enhancement. */
+	apiEndpoint?: string;
 	/**
 	 * Build the prompt body for this section.
+	 * Only required if apiEndpoint is provided.
 	 * @param notes - The current text in this section
 	 * @param context - Values from other visible sections (keyed by section id)
 	 * @returns The prompt body to send to the API
 	 */
-	buildPrompt: (
+	buildPrompt?: (
 		notes: string,
 		context: Record<string, string>,
 	) => Record<string, unknown>;
@@ -48,9 +49,13 @@ export function DoctorsNoteSection({
 	const [proposedText, setProposedText] = useState<string | null>(null);
 	const previousCompletionRef = useRef<string>("");
 
+	// Check if enhancement is available (has apiEndpoint and buildPrompt)
+	const hasEnhancement = Boolean(config.apiEndpoint && config.buildPrompt);
+
 	// Use Vercel AI SDK's useCompletion for streaming
+	// Only initialize if we have an endpoint
 	const { complete, isLoading, completion, stop } = useCompletion({
-		api: config.apiEndpoint,
+		api: config.apiEndpoint ?? "/api/placeholder", // Fallback to prevent errors, won't be called if no endpoint
 		body: {
 			model: "auto",
 		},
@@ -73,6 +78,8 @@ export function DoctorsNoteSection({
 
 	// Handle enhance button click
 	const handleEnhance = useCallback(() => {
+		if (!hasEnhancement || !config.buildPrompt) return;
+
 		if (isLoading) {
 			stop();
 			return;
@@ -84,14 +91,14 @@ export function DoctorsNoteSection({
 		// Start streaming with empty proposed text (triggers diff mode)
 		setProposedText("");
 		complete(JSON.stringify(promptBody));
-	}, [isLoading, stop, config, value, context, complete]);
+	}, [hasEnhancement, isLoading, stop, config, value, context, complete]);
 
 	// Clear proposed text after suggestion is handled
 	const handleSuggestionHandled = useCallback(() => {
 		setProposedText(null);
 	}, []);
 
-	const canEnhance = !disabled && !isLoading;
+	const canEnhance = hasEnhancement && !disabled && !isLoading;
 	const isInDiffMode = proposedText !== null;
 
 	return (
@@ -115,38 +122,43 @@ export function DoctorsNoteSection({
 			{/* Content area - MarkdownDiffEditor handles both edit and diff modes */}
 			<MarkdownDiffEditor
 				actionSlot={
-					<button
-						className={cn(
-							"rounded-md p-1.5 transition-all",
-							"hover:bg-solarized-blue/10",
-							canEnhance
-								? "opacity-50 hover:opacity-100 focus:opacity-100"
-								: "cursor-not-allowed opacity-30",
-							isLoading && "opacity-100",
-						)}
-						disabled={!canEnhance}
-						onClick={handleEnhance}
-						title={
-							isLoading
-								? "Wird generiert..."
-								: "Mit KI generieren/verbessern (⌘↵)"
-						}
-						type="button"
-					>
-						{isLoading ? (
-							<Loader2 className="h-4 w-4 animate-spin text-solarized-blue" />
-						) : (
-							<Sparkles className="h-4 w-4 text-solarized-blue" />
-						)}
-					</button>
+					hasEnhancement ? (
+						<button
+							className={cn(
+								"rounded-md p-1.5 transition-all",
+								"hover:bg-solarized-blue/10",
+								canEnhance
+									? "opacity-50 hover:opacity-100 focus:opacity-100"
+									: "cursor-not-allowed opacity-30",
+								isLoading && "opacity-100",
+							)}
+							disabled={!canEnhance}
+							onClick={handleEnhance}
+							title={
+								isLoading
+									? "Wird generiert..."
+									: "Mit KI generieren/verbessern (⌘↵)"
+							}
+							type="button"
+						>
+							{isLoading ? (
+								<Loader2 className="h-4 w-4 animate-spin text-solarized-blue" />
+							) : (
+								<Sparkles className="h-4 w-4 text-solarized-blue" />
+							)}
+						</button>
+					) : undefined
 				}
-				className={cn("pr-10", isLoading && !isInDiffMode && "opacity-50")}
+				className={cn(
+					hasEnhancement && "pr-10",
+					isLoading && !isInDiffMode && "opacity-50",
+				)}
 				disabled={disabled || isLoading}
 				id={`section-${config.id}`}
 				isStreaming={isLoading}
 				minHeight={MIN_HEIGHT}
 				onChange={onChange}
-				onSubmit={handleEnhance}
+				onSubmit={hasEnhancement ? handleEnhance : undefined}
 				onSuggestionAccepted={handleSuggestionHandled}
 				onSuggestionRejected={handleSuggestionHandled}
 				placeholder={config.placeholder}

@@ -1,0 +1,117 @@
+import { Button } from '@repo/design-system/components/ui/button';
+import { Brain, FileText, Sparkles, Stethoscope } from 'lucide-react';
+import { Skeleton } from '@repo/design-system/components/ui/skeleton';
+
+export default function AIFeaturesSkeleton() {
+  return (
+    <section className="py-12">
+      <div className="container mx-auto max-w-5xl overflow-x-hidden">
+        <div className="mb-4 w-full">
+          <div className="gradient mx-auto my-0 h-1 w-64 rounded-t py-0 opacity-25" />
+        </div>
+        <p className="mb-8 text-center text-lg sm:text-xl">
+          Mit unseren KI-Funktionen erstellst du Arztbriefe schneller und
+          präziser
+        </p>
+
+        <div className="grid gap-8 md:grid-cols-2">
+          <div className="flex flex-col rounded-lg border bg-card p-4 shadow-sm sm:p-6">
+            <div className="mb-4 flex items-center">
+              <Brain className="mr-3 size-6 text-primary sm:size-8" />
+              <h3 className="font-bold text-xl sm:text-2xl">Anamnese</h3>
+            </div>
+            <p className="mb-4 text-sm sm:text-base">
+              Gib deine Notizen ein und unsere KI strukturiert automatisch eine
+              vollständige Anamnese für deinen Arztbrief.
+            </p>
+            <ul className="mb-6 space-y-2 text-sm sm:text-base">
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>
+                  Automatische Strukturierung nach medizinischen Standards
+                </span>
+              </li>
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>
+                  Übersichtliche Gliederung der Patienteninformationen
+                </span>
+              </li>
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>Zeitersparnis bei der Dokumentation</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col rounded-lg border bg-card p-4 shadow-sm sm:p-6">
+            <div className="mb-4 flex items-center">
+              <Stethoscope className="mr-3 size-6 text-primary sm:size-8" />
+              <h3 className="font-bold text-xl sm:text-2xl">
+                Prozedur-Dokumentation
+              </h3>
+            </div>
+            <p className="mb-4 text-sm sm:text-base">
+              Gib deine Notizen zu durchgeführten Eingriffen ein und unsere KI
+              erstellt eine vollständige, strukturierte Prozedur-Dokumentation.
+            </p>
+            <ul className="mb-6 space-y-2 text-sm sm:text-base">
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>
+                  Professionelle Dokumentation medizinischer Eingriffe
+                </span>
+              </li>
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>
+                  Strukturierte Darstellung von Ablauf und Ergebnissen
+                </span>
+              </li>
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>Compliance mit Dokumentationsstandards</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="relative flex flex-col rounded-lg border bg-card p-6 shadow-sm md:col-span-2">
+            <div className="mb-4 flex items-center">
+              <FileText className="mr-3 size-6 text-primary sm:size-8" />
+              <h3 className="font-bold text-xl sm:text-2xl">
+                Entlassungsberichte
+              </h3>
+            </div>
+            <p className="mb-4 text-sm sm:text-base">
+              Basierend auf deinen Diagnosen und der Anamnese generiert die KI
+              einen vollständigen Entlassungsbericht, den du nur noch anpassen
+              musst.
+            </p>
+            <ul className="mb-6 space-y-2 text-sm sm:text-base">
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>
+                  Strukturierte Entlassungsberichte nach gängigen Standards
+                </span>
+              </li>
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>Automatische Einbindung relevanter Diagnosen</span>
+              </li>
+              <li className="flex items-start">
+                <Sparkles className="mt-1 mr-2 size-4 flex-shrink-0 text-primary" />
+                <span>Individuelle Anpassungsmöglichkeiten</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-12 flex flex-col items-center">
+          <Skeleton className="h-12 w-64" />
+          <Skeleton className="mt-4 h-5 w-80" />
+        </div>
+      </div>
+    </section>
+  );
+}
+

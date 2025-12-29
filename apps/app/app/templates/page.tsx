@@ -65,6 +65,7 @@ Größe: {% info "Patientengroesse" type="number" unit="cm" renderUnit=true /%},
         </Breadcrumb>
         <NavActions
           favouriteOfCount={0}
+          isAuthor={false}
           isFavourite={false}
           isLoggedIn={false}
           lastEdited={new Date()}

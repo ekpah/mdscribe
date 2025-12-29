@@ -5,7 +5,7 @@
 	"types": "./index.ts",
 	"scripts": {
 		"build": "prisma migrate deploy && prisma generate --no-hints",
-		"postinstall": "prisma generate",
+		"postinstall": "[ -z \"$POSTGRES_DATABASE_URL\" ] && echo 'Skipping prisma generate (no database URL)' || prisma generate",
 		"dev": "docker compose up -d"
 	},
 	"prisma": {
@@ -15,7 +15,7 @@
 		"@neondatabase/serverless": "^1.0.2",
 		"@prisma/adapter-neon": "^7.0.1",
 		"@prisma/client": "catalog:",
-		"@repo/env": "workspace:*",
+		"dotenv": "^17.2.3",
 		"server-only": "^0.0.1",
 		"ws": "^8.18.3"
 	},

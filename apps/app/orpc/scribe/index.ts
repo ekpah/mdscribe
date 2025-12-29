@@ -1,11 +1,23 @@
-import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { streamToEventIterator, type } from "@orpc/server";
 import { env } from "@repo/env";
 import { streamText, type UIMessage } from "ai";
 import Langfuse from "langfuse";
+import {
+	buildUsageEventData,
+	extractOpenRouterUsage,
+	type StandardUsage,
+	type UsageInputData,
+	type UsageMetadata,
+} from "@/lib/usage-logging";
 import { authed } from "@/orpc";
 
 const langfuse = new Langfuse();
+const openrouter = createOpenRouter({
+	apiKey: env.OPENROUTER_API_KEY as string,
+});
+
+const MODEL_ID = "anthropic/claude-sonnet-4-20250514";
 
 export const scribeHandler = authed
 	.input(type<{ chatId: string; messages: UIMessage[]; body?: object }>())
@@ -37,22 +49,29 @@ export const scribeHandler = authed
 		console.log("promptMessages", promptMessages);
 		console.log("input.body", input.body);
 		const result = streamText({
-			model: anthropic("claude-sonnet-4-20250514"),
+			model: openrouter(MODEL_ID),
 			providerOptions: {
-				anthropic: {
-					thinking: { type: "enabled", budgetTokens: 12_000 },
+				openrouter: {
+					usage: { include: true },
+					user: context.session.user.email,
 				},
 			},
 			maxOutputTokens: 20_000,
 			temperature: 0.3,
 			messages: promptMessages,
 			onFinish: async (event) => {
+				// Extract OpenRouter usage data (includes cost)
+				const openRouterUsage = extractOpenRouterUsage(
+					event.experimental_providerMetadata,
+				);
+
 				// Log usage in development
 				if (env.NODE_ENV === "development") {
 					const logData = {
 						promptTokens: event.usage.inputTokens,
 						completionTokens: event.usage.outputTokens,
 						totalTokens: event.usage.totalTokens,
+						cost: openRouterUsage?.cost,
 						userId: context.session.user.id || "unknown",
 						promptName: "ai_scribe_template_completion",
 						thinking: event.reasoning,
@@ -61,13 +80,25 @@ export const scribeHandler = authed
 					console.log(logData);
 				}
 
-				// Log tokens to the postgres database for usage tracking
+				// Log comprehensive usage data to postgres
 				await context.db.usageEvent.create({
-					data: {
+					data: buildUsageEventData({
 						userId: context.session.user.id || "",
-						totalTokens: event.usage.totalTokens,
 						name: "ai_scribe_generation",
-					},
+						model: MODEL_ID,
+						openRouterUsage,
+						standardUsage: event.usage as StandardUsage, // Fallback
+						inputData: (input.body ?? {}) as UsageInputData,
+						metadata: {
+							promptName: "ai_scribe_template_completion",
+							promptLabel:
+								env.NODE_ENV === "production" ? "production" : "staging",
+							thinkingEnabled: false, // OpenRouter doesn't support thinking in the same way
+							streamingMode: true,
+						} as UsageMetadata,
+						result: event.text,
+						reasoning: event.reasoning,
+					}),
 				});
 			},
 		});
