@@ -61,9 +61,7 @@ export const scribeHandler = authed
 			messages: promptMessages,
 			onFinish: async (event) => {
 				// Extract OpenRouter usage data (includes cost)
-				const openRouterUsage = extractOpenRouterUsage(
-					event.experimental_providerMetadata,
-				);
+				const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
 
 				// Log usage in development
 				if (env.NODE_ENV === "development") {
