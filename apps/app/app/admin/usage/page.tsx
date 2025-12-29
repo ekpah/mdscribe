@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
 	useReactTable,
 	getCoreRowModel,
@@ -85,7 +85,7 @@ export default function UsagePage() {
 	});
 
 	// Accumulate items when new data arrives
-	useMemo(() => {
+	useEffect(() => {
 		if (data?.items) {
 			if (cursor === undefined) {
 				// First page

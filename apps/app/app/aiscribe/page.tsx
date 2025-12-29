@@ -28,13 +28,71 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { auth } from "@/auth";
 
+type AccentColor =
+	| "solarized-blue"
+	| "solarized-red"
+	| "solarized-orange"
+	| "solarized-green"
+	| "solarized-violet"
+	| "solarized-yellow"
+	| "solarized-cyan";
+
+// Static class mappings to ensure Tailwind can detect all class names at build time
+const accentColorClasses: Record<
+	AccentColor,
+	{ hoverBorder: string; bg: string; bgHover: string; textHover: string }
+> = {
+	"solarized-blue": {
+		hoverBorder: "hover:border-solarized-blue",
+		bg: "bg-solarized-blue/10",
+		bgHover: "group-hover:bg-solarized-blue/20",
+		textHover: "group-hover:text-solarized-blue",
+	},
+	"solarized-red": {
+		hoverBorder: "hover:border-solarized-red",
+		bg: "bg-solarized-red/10",
+		bgHover: "group-hover:bg-solarized-red/20",
+		textHover: "group-hover:text-solarized-red",
+	},
+	"solarized-orange": {
+		hoverBorder: "hover:border-solarized-orange",
+		bg: "bg-solarized-orange/10",
+		bgHover: "group-hover:bg-solarized-orange/20",
+		textHover: "group-hover:text-solarized-orange",
+	},
+	"solarized-green": {
+		hoverBorder: "hover:border-solarized-green",
+		bg: "bg-solarized-green/10",
+		bgHover: "group-hover:bg-solarized-green/20",
+		textHover: "group-hover:text-solarized-green",
+	},
+	"solarized-violet": {
+		hoverBorder: "hover:border-solarized-violet",
+		bg: "bg-solarized-violet/10",
+		bgHover: "group-hover:bg-solarized-violet/20",
+		textHover: "group-hover:text-solarized-violet",
+	},
+	"solarized-yellow": {
+		hoverBorder: "hover:border-solarized-yellow",
+		bg: "bg-solarized-yellow/10",
+		bgHover: "group-hover:bg-solarized-yellow/20",
+		textHover: "group-hover:text-solarized-yellow",
+	},
+	"solarized-cyan": {
+		hoverBorder: "hover:border-solarized-cyan",
+		bg: "bg-solarized-cyan/10",
+		bgHover: "group-hover:bg-solarized-cyan/20",
+		textHover: "group-hover:text-solarized-cyan",
+	},
+};
+
 interface ScribeCardProps {
 	title: string;
 	description: string;
 	href: string;
 	icon: React.ReactNode;
 	isLoggedIn: boolean;
-	accentColor?: string;
+	accentColor?: AccentColor;
 }
 
 function ScribeCard({
@@ -45,6 +103,8 @@ function ScribeCard({
 	isLoggedIn,
 	accentColor = "solarized-blue",
 }: ScribeCardProps) {
+	const colorClasses = accentColorClasses[accentColor];
+
 	if (!isLoggedIn) {
 		return (
 			<div className="block cursor-not-allowed">
@@ -70,19 +130,19 @@ function ScribeCard({
 	return (
 		<Link href={href} className="group block h-full">
 			<Card
-				className={`h-full border-solarized-base2 transition-all duration-200 hover:border-${accentColor} hover:shadow-md`}
+				className={`h-full border-solarized-base2 transition-all duration-200 hover:shadow-md ${colorClasses.hoverBorder}`}
 			>
 				<CardHeader className="p-4 sm:p-5">
 					<div className="flex items-center justify-between">
 						<div
-							className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-${accentColor}/10 transition-colors group-hover:bg-${accentColor}/20 sm:h-9 sm:w-9`}
+							className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors sm:h-9 sm:w-9 ${colorClasses.bg} ${colorClasses.bgHover}`}
 						>
 							{icon}
 						</div>
 						<ArrowRight className="h-4 w-4 text-solarized-base01 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
 					</div>
 					<CardTitle
-						className={`mt-3 text-sm text-solarized-base00 group-hover:text-${accentColor} sm:text-base`}
+						className={`mt-3 text-sm text-solarized-base00 sm:text-base ${colorClasses.textHover}`}
 					>
 						{title}
 					</CardTitle>
@@ -95,7 +155,13 @@ function ScribeCard({
 	);
 }
 
-const quickGenerationModes = [
+const quickGenerationModes: {
+	title: string;
+	description: string;
+	href: string;
+	icon: React.ReactNode;
+	accentColor: AccentColor;
+}[] = [
 	{
 		title: "ER Modus",
 		description:
@@ -150,7 +216,13 @@ const quickGenerationModes = [
 	},
 ];
 
-const editorModes = [
+const editorModes: {
+	title: string;
+	description: string;
+	href: string;
+	icon: React.ReactNode;
+	accentColor: AccentColor;
+}[] = [
 	{
 		title: "Notaufnahme Editor",
 		description:
