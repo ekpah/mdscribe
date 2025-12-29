@@ -9,20 +9,20 @@ MDScribe is a medical documentation webapp built as a monorepo that helps organi
 ## Build Commands
 
 Core development commands:
-- `pnpm dev`: Start development server (Next.js on port 3000)
-- `pnpm build`: Build all packages using Turbo
-- `pnpm lint`: Run linting across all packages using Biome
-- `pnpm test`: Run tests via Turbo
-- `pnpm migrate`: Run Prisma database migrations and generate client
+- `bun dev`: Start development server (Next.js on port 3000)
+- `bun run build`: Build all packages using Turbo
+- `bun run lint`: Run linting across all packages using Biome
+- `bun run test`: Run tests via Turbo
+- `bun run migrate`: Run Prisma database migrations and generate client
 
 Database operations:
-- `cd packages/database && npx prisma format && npx prisma generate && npx prisma db push`: Full database setup
+- `cd packages/database && bunx prisma format && bunx prisma generate && bunx prisma db push`: Full database setup
 - `cd packages/database && docker compose up -d`: Start local PostgreSQL + Neon proxy containers
 
 Analysis and maintenance:
-- `pnpm analyze`: Run bundle analysis (set ANALYZE=true)
-- `pnpm knip`: Check for unused dependencies
-- `pnpm bump-deps`: Update dependencies (excludes react-day-picker)
+- `bun run analyze`: Run bundle analysis (set ANALYZE=true)
+- `bun run knip`: Check for unused dependencies
+- `bun run bump-deps`: Update dependencies (excludes react-day-picker)
 
 ## Architecture
 
