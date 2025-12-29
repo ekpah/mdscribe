@@ -5,6 +5,7 @@ import { templatesHandler as publicTemplatesHandler } from "./templates";
 import { templatesHandler as userTemplatesHandler } from "./user/templates";
 import { snippetsHandler } from "./user/snippets";
 import { usersHandler as adminUsersHandler } from "./admin/users";
+import { usageHandler as adminUsageHandler } from "./admin/usage";
 
 /**
  * Generic document creation function using Langfuse prompt
@@ -53,6 +54,9 @@ export const router = {
 	admin: {
 		users: {
 			...adminUsersHandler,
+		},
+		usage: {
+			...adminUsageHandler,
 		},
 	},
 };

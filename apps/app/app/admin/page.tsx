@@ -6,6 +6,7 @@ import {
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
 import {
+	Activity,
 	ArrowRight,
 	Database,
 	FileText,
@@ -92,6 +93,14 @@ const adminFeatures: AdminCardProps[] = [
 			"Benutzerkonten, Berechtigungen und Zugriffskontrollen auf der Plattform anzeigen und verwalten.",
 		href: "/admin/users",
 		icon: <Users className="h-5 w-5 text-solarized-cyan" />,
+		status: "active",
+	},
+	{
+		title: "Nutzungsstatistik",
+		description:
+			"Alle AI-Generierungen einsehen. Token-Nutzung, Kosten und Modelle pro Anfrage analysieren.",
+		href: "/admin/usage",
+		icon: <Activity className="h-5 w-5 text-solarized-green" />,
 		status: "active",
 	},
 	{
