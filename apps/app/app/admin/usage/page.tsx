@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
 	useReactTable,
 	getCoreRowModel,
@@ -11,6 +11,10 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
+import {
+	ToggleGroup,
+	ToggleGroupItem,
+} from "@repo/design-system/components/ui/toggle-group";
 import {
 	Card,
 	CardContent,
@@ -85,7 +89,7 @@ export default function UsagePage() {
 	});
 
 	// Accumulate items when new data arrives
-	useMemo(() => {
+	useEffect(() => {
 		if (data?.items) {
 			if (cursor === undefined) {
 				// First page
@@ -270,21 +274,21 @@ export default function UsagePage() {
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
 						{/* Filter Tabs */}
-						<div className="mb-4 flex gap-1 rounded-lg bg-solarized-base2/50 p-1">
+						<ToggleGroup
+							type="single"
+							value={statsFilter}
+							variant="outline"
+							onValueChange={(value) => {
+								if (value) setStatsFilter(value as StatsFilter);
+							}}
+							className="mb-4 w-full"
+						>
 							{(Object.keys(filterLabels) as StatsFilter[]).map((filter) => (
-								<button
-									key={filter}
-									onClick={() => setStatsFilter(filter)}
-									className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
-										statsFilter === filter
-											? "bg-solarized-base3 text-solarized-base00 shadow-sm"
-											: "text-solarized-base01 hover:text-solarized-base00"
-									}`}
-								>
+								<ToggleGroupItem key={filter} value={filter} className="flex-1">
 									{filterLabels[filter]}
-								</button>
+								</ToggleGroupItem>
 							))}
-						</div>
+						</ToggleGroup>
 
 						{/* Stats Grid */}
 						<div className="grid grid-cols-3 gap-4 sm:gap-6">

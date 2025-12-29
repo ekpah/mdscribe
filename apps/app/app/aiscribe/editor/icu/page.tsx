@@ -52,7 +52,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 		},
 		{
 			id: "befunde",
-			label: "Befunde & Verlauf",
+			label: "Befunde",
 			placeholder:
 				"Labor-, Bildgebungs- und weitere Befunde während ICU-Aufenthalt eingeben...",
 			description:
