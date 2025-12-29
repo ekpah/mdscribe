@@ -217,7 +217,7 @@ export function MarkdownDiffEditor({
 							<div className="h-5 w-5 animate-spin rounded-full border-2 border-solarized-blue border-t-transparent" />
 						</div>
 						{/* Greyed out original text */}
-						<div className="whitespace-pre-wrap p-3 opacity-40">
+						<div className="whitespace-pre-wrap p-3 opacity-40 leading-normal">
 							{value || " "}
 						</div>
 					</div>
@@ -230,7 +230,7 @@ export function MarkdownDiffEditor({
 			return (
 				<div className="space-y-2">
 					{/* Show the text as-is */}
-					<div className="whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-sm">
+					<div className="whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-sm leading-normal">
 						{value || " "}
 					</div>
 					{/* Subtle note with dismiss */}
@@ -266,7 +266,7 @@ export function MarkdownDiffEditor({
 					{/* Diff view - word or line level highlighting */}
 					<div
 						className={cn(
-							"rounded-lg border border-solarized-blue/20 bg-background p-3 text-sm",
+							"rounded-lg border border-solarized-blue/20 bg-background p-3 text-sm leading-normal",
 							diffMode === "line" ? "whitespace-pre" : "whitespace-pre-wrap",
 						)}
 					>
