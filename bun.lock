@@ -152,6 +152,7 @@
         "@radix-ui/react-separator": "^1.1.7",
         "@radix-ui/react-slot": "^1.2.3",
         "@repo/markdoc-md": "workspace:*",
+        "@tanstack/react-table": "^8.21.3",
         "@tiptap/core": "^3.10.8",
         "@tiptap/extension-underline": "^3.10.8",
         "@tiptap/extensions": "^3.13.0",

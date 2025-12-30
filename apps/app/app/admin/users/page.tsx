@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@repo/design-system/components/ui/badge";
 import {
 	Card,
 	CardContent,
@@ -8,33 +7,17 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
+import { Input } from "@repo/design-system/components/ui/input";
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@repo/design-system/components/ui/table";
-import { CheckCircle, Loader2, Mail, User, Users, XCircle } from "lucide-react";
+	DataTable,
+	DataTablePagination,
+	DataTableViewOptions,
+} from "@repo/design-system/components/ui/data-table";
+import { Loader2, Users, XCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
-
-interface UserData {
-	id: string;
-	name: string | null;
-	email: string;
-	emailVerified: boolean;
-	image: string | null;
-	createdAt: Date;
-	updatedAt: Date;
-	_count: {
-		templates: number;
-		favourites: number;
-		usageEvents: number;
-	};
-}
+import { columns, type UserData } from "./columns";
 
 export default function UsersPage() {
 	const queryClient = useQueryClient();
@@ -50,17 +33,6 @@ export default function UsersPage() {
 			queryKey: orpc.admin.users.list.queryOptions().queryKey,
 		});
 		toast.success("Benutzerliste aktualisiert");
-	};
-
-	const formatDate = (date: Date | string) => {
-		const dateObj = typeof date === "string" ? new Date(date) : date;
-		return new Intl.DateTimeFormat("de-DE", {
-			year: "numeric",
-			month: "2-digit",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-		}).format(dateObj);
 	};
 
 	const errorMessage =
@@ -190,101 +162,32 @@ export default function UsersPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead className="text-solarized-base00">
-										Benutzer
-									</TableHead>
-									<TableHead className="text-solarized-base00">
-										Status
-									</TableHead>
-									<TableHead className="text-solarized-base00">
-										Vorlagen
-									</TableHead>
-									<TableHead className="text-solarized-base00">
-										Favoriten
-									</TableHead>
-									<TableHead className="text-solarized-base00">
-										Generierungen
-									</TableHead>
-									<TableHead className="text-solarized-base00">
-										Registriert
-									</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{users.length === 0 ? (
-									<TableRow>
-										<TableCell
-											colSpan={6}
-											className="text-center text-solarized-base01"
-										>
-											Keine Benutzer gefunden
-										</TableCell>
-									</TableRow>
-								) : (
-									users.map((user) => (
-										<TableRow key={user.id}>
-											<TableCell>
-												<div className="flex items-center gap-3">
-													{user.image ? (
-														<img
-															src={user.image}
-															alt={user.name || user.email}
-															className="h-8 w-8 rounded-full"
-														/>
-													) : (
-														<div className="flex h-8 w-8 items-center justify-center rounded-full bg-solarized-base2">
-															<User className="h-4 w-4 text-solarized-base01" />
-														</div>
-													)}
-													<div className="flex flex-col">
-														<span className="font-medium text-solarized-base00">
-															{user.name || "Kein Name"}
-														</span>
-														<span className="text-xs text-solarized-base01">
-															{user.email}
-														</span>
-													</div>
-												</div>
-											</TableCell>
-											<TableCell>
-												{user.emailVerified ? (
-													<Badge
-														variant="outline"
-														className="border-solarized-green text-solarized-green"
-													>
-														<CheckCircle className="mr-1 h-3 w-3" />
-														Verifiziert
-													</Badge>
-												) : (
-													<Badge
-														variant="outline"
-														className="border-solarized-orange text-solarized-orange"
-													>
-														<Mail className="mr-1 h-3 w-3" />
-														Nicht verifiziert
-													</Badge>
-												)}
-											</TableCell>
-											<TableCell className="text-solarized-base00">
-												{user._count.templates}
-											</TableCell>
-											<TableCell className="text-solarized-base00">
-												{user._count.favourites}
-											</TableCell>
-											<TableCell className="text-solarized-base00">
-												{user._count.usageEvents}
-											</TableCell>
-											<TableCell className="text-xs text-solarized-base01">
-												{formatDate(user.createdAt)}
-											</TableCell>
-										</TableRow>
-									))
-								)}
-							</TableBody>
-						</Table>
+						<DataTable
+							columns={columns}
+							data={users as UserData[]}
+							emptyMessage="Keine Benutzer gefunden"
+							renderToolbar={(table) => (
+								<div className="flex items-center justify-between gap-2">
+									<Input
+										placeholder="Benutzer suchen..."
+										value={
+											(table.getColumn("user")?.getFilterValue() as string) ??
+											""
+										}
+										onChange={(event) =>
+											table
+												.getColumn("user")
+												?.setFilterValue(event.target.value)
+										}
+										className="max-w-sm"
+									/>
+									<DataTableViewOptions table={table} />
+								</div>
+							)}
+							renderPagination={(table) => (
+								<DataTablePagination table={table} />
+							)}
+						/>
 					</CardContent>
 				</Card>
 			</div>

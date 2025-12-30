@@ -4,6 +4,7 @@
 	"private": true,
 	"type": "module",
 	"dependencies": {
+		"@tanstack/react-table": "^8.21.3",
 		"@harshtalks/slash-tiptap": "^1.3.0",
 		"@internationalized/date": "^3.8.2",
 		"@radix-ui/react-dialog": "^1.1.14",
