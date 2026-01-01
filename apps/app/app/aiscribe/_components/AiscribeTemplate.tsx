@@ -1,5 +1,7 @@
 "use client";
 
+import { useChat } from "@ai-sdk/react";
+import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import {
 	PromptInput,
 	PromptInputActionMenu,
@@ -45,12 +47,12 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
-import { useScribeStream } from "@/hooks/use-scribe-stream";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
-import type { DocumentType, SupportedModel } from "@/orpc/scribe/types";
+import type { AudioFile, DocumentType, SupportedModel } from "@/orpc/scribe/types";
+import { client } from "./client";
 import { MemoizedCopySection } from "./MemoizedCopySection";
 
 interface AdditionalInputField {
@@ -126,11 +128,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const [additionalInputData, setAdditionalInputData] = useState<
 		Record<string, string>
 	>({});
-	const [isGenerating, setIsGenerating] = useState(false);
 	const [values, setValues] = useState<Record<string, unknown>>({});
 	const [model, setModel] = useState<SupportedModel>(models[0].id);
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
+	const [preparedAudioFiles, setPreparedAudioFiles] = useState<AudioFile[]>([]);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const audioChunksRef = useRef<Blob[]>([]);
 	const recordingStartTimeRef = useRef<number>(0);
@@ -139,21 +141,49 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	// Initialize text snippets hook
 	useTextSnippets();
 
-	// Use oRPC streaming hook
-	const scribeStream = useScribeStream({
-		documentType: config.documentType,
+	// Use AI SDK useChat with custom oRPC transport
+	const { messages, sendMessage, status, setMessages } = useChat({
+		id: `scribe-${config.documentType}`,
+		transport: {
+			async sendMessages(options) {
+				return eventIteratorToUnproxiedDataStream(
+					await client.scribeStream(
+						{
+							documentType: config.documentType,
+							messages: options.messages,
+							model,
+							audioFiles: preparedAudioFiles.length > 0 ? preparedAudioFiles : undefined,
+						},
+						{ signal: options.abortSignal },
+					),
+				);
+			},
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
+		},
 		onError: (error) => {
 			toast.error(error.message || "Fehler beim Generieren");
-			setIsGenerating(false);
 		},
 		onFinish: () => {
 			toast.success("Erfolgreich generiert");
-			setIsGenerating(false);
+			// Clear prepared audio files after generation
+			setPreparedAudioFiles([]);
 		},
 	});
 
-	// Combined loading state
-	const isLoading = scribeStream.isLoading || isGenerating;
+	// Extract completion text from the last assistant message
+	const completion = useMemo(() => {
+		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
+		if (!lastAssistantMessage) return "";
+		return lastAssistantMessage.parts
+			.filter((p) => p.type === "text")
+			.map((p) => (p as { type: "text"; text: string }).text)
+			.join("");
+	}, [messages]);
+
+	// Loading state from useChat status
+	const isLoading = status === "streaming" || status === "submitted";
 
 	// Handle values change from inputs
 	const handleValuesChange = (data: Record<string, unknown>) => {
@@ -276,10 +306,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			return;
 		}
 
-		// Clear any previous completion before starting a new request
-		scribeStream.setCompletion("");
-
-		setIsGenerating(true);
+		// Clear previous messages before starting a new request
+		setMessages([]);
 		setActiveTab("output");
 
 		try {
@@ -297,12 +325,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 					});
 
 			// Prepare audio files if available
-			let audioFiles:
-				| Array<{ data: string; mimeType: string }>
-				| undefined = undefined;
-
 			if (audioRecordings.length > 0 && isAudioSupported) {
-				audioFiles = await Promise.all(
+				const audioFiles = await Promise.all(
 					audioRecordings.map(async (recording) => {
 						const reader = new FileReader();
 						const audioBase64 = await new Promise<string>((resolve) => {
@@ -318,32 +342,25 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						};
 					}),
 				);
+				setPreparedAudioFiles(audioFiles);
 			}
 
-			await scribeStream.complete(
-				typeof prompt === "string" ? prompt : JSON.stringify(prompt),
-				{
-					body: {
-						model,
-						audioFiles,
-					},
-				},
-			);
-			// Note: onError and onFinish callbacks handle toast notifications and isGenerating state
+			// Send message using AI SDK useChat
+			const promptText = typeof prompt === "string" ? prompt : JSON.stringify(prompt);
+			await sendMessage({ text: promptText });
 		} catch {
 			// Catch any unexpected errors not handled by onError callback
 			toast.error("Fehler beim Generieren");
-			setIsGenerating(false);
 		}
 	}, [
 		inputData,
 		additionalInputData,
 		areRequiredFieldsFilled,
-		scribeStream,
+		setMessages,
+		sendMessage,
 		config.customApiCall,
 		config.customPromptProcessor,
 		config.inputFieldName,
-		model,
 		audioRecordings,
 		isAudioSupported,
 	]);
@@ -414,19 +431,19 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 								{/* Auto-extracted information and Input Fields */}
 								<div className="pt-6">
 									{/* Input Fields from Markdoc */}
-									{scribeStream.completion && (
+									{completion && (
 										<div className="space-y-3">
 											<Inputs
 												inputTags={parseMarkdocToInputs(
-													scribeStream.completion || "",
+													completion || "",
 												)}
 												onChange={handleValuesChange}
 											/>
 										</div>
 									)}
 
-									{(!scribeStream.completion ||
-										parseMarkdocToInputs(scribeStream.completion).length ===
+									{(!completion ||
+										parseMarkdocToInputs(completion).length ===
 											0) && (
 										<div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
 											<p className="text-muted-foreground text-xs leading-relaxed">
@@ -690,7 +707,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 								<TabsContent className="space-y-0" value="output">
 									<CardContent>
 										{(() => {
-											if (isLoading && !scribeStream.completion) {
+											if (isLoading && !completion) {
 												return (
 													<div className="flex flex-col items-center justify-center space-y-4 text-center">
 														<div className="relative">
@@ -710,7 +727,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 												);
 											}
 
-											if (scribeStream.completion) {
+											if (completion) {
 												return (
 													<div className="space-y-6">
 														<div className="space-y-4">
@@ -721,7 +738,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 															<ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
 																<MemoizedCopySection
 																	content={
-																		scribeStream.completion ||
+																		completion ||
 																		"Keine Inhalte verfügbar"
 																	}
 																	values={values}

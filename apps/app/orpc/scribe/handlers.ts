@@ -3,7 +3,12 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { database } from "@repo/database";
 import { env } from "@repo/env";
-import { type LanguageModel, type ModelMessage, streamText } from "ai";
+import {
+	type LanguageModel,
+	type ModelMessage,
+	type UIMessage,
+	streamText,
+} from "ai";
 import { Langfuse } from "langfuse";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
@@ -199,13 +204,36 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 }
 
 /**
- * Scribe input type
+ * Scribe input type - uses UIMessage[] for AI SDK useChat compatibility
  */
 interface ScribeStreamInput {
 	documentType: DocumentType;
-	prompt: string;
+	messages: UIMessage[];
 	model?: SupportedModel;
 	audioFiles?: AudioFile[];
+}
+
+/**
+ * Extract prompt text from the last user message
+ */
+function extractPromptFromMessages(messages: UIMessage[]): string {
+	const lastUserMessage = messages.findLast((m) => m.role === "user");
+	if (!lastUserMessage) return "";
+
+	// Handle different content formats
+	if (typeof lastUserMessage.content === "string") {
+		return lastUserMessage.content;
+	}
+
+	// For parts-based content, extract text parts
+	if (lastUserMessage.parts) {
+		return lastUserMessage.parts
+			.filter((p) => p.type === "text")
+			.map((p) => (p as { type: "text"; text: string }).text)
+			.join("");
+	}
+
+	return "";
 }
 
 /**
@@ -214,7 +242,10 @@ interface ScribeStreamInput {
 export const scribeStreamHandler = authed
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
-		const { documentType, prompt, model = "auto", audioFiles } = input;
+		const { documentType, messages: inputMessages, model = "auto", audioFiles } = input;
+
+		// Extract prompt from the last user message
+		const prompt = extractPromptFromMessages(inputMessages);
 
 		// Validate document type
 		const config = documentTypeConfigs[documentType];

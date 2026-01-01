@@ -1,13 +1,15 @@
 "use client";
 
+import { useChat } from "@ai-sdk/react";
+import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import { MarkdownDiffEditor } from "@repo/design-system/components/editor/MarkdownDiffEditor";
 import { Label } from "@repo/design-system/components/ui/label";
 import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useScribeStream } from "@/hooks/use-scribe-stream";
 import type { DocumentType } from "@/orpc/scribe/types";
+import { client } from "./client";
 
 const MIN_HEIGHT = 120;
 
@@ -52,9 +54,25 @@ export function DoctorsNoteSection({
 	// Check if enhancement is available (has documentType and buildPrompt)
 	const hasEnhancement = Boolean(config.documentType && config.buildPrompt);
 
-	// Use oRPC streaming hook
-	const scribeStream = useScribeStream({
-		documentType: config.documentType ?? "discharge", // Fallback, won't be used if no documentType
+	// Use AI SDK useChat with custom oRPC transport
+	const { messages, sendMessage, status, stop, setMessages } = useChat({
+		id: `section-${config.id}`,
+		transport: {
+			async sendMessages(options) {
+				return eventIteratorToUnproxiedDataStream(
+					await client.scribeStream(
+						{
+							documentType: config.documentType ?? "discharge",
+							messages: options.messages,
+						},
+						{ signal: options.abortSignal },
+					),
+				);
+			},
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
+		},
 		onError: (error) => {
 			toast.error(error.message || "Fehler beim Generieren");
 			setProposedText(null);
@@ -64,36 +82,50 @@ export function DoctorsNoteSection({
 		},
 	});
 
+	// Extract completion text from the last assistant message
+	const completion = useMemo(() => {
+		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
+		if (!lastAssistantMessage) return "";
+		return lastAssistantMessage.parts
+			.filter((p) => p.type === "text")
+			.map((p) => (p as { type: "text"; text: string }).text)
+			.join("");
+	}, [messages]);
+
+	// Loading state from useChat status
+	const isLoading = status === "streaming" || status === "submitted";
+
 	// Update proposed text as completion streams in
 	useEffect(() => {
-		if (scribeStream.isLoading && scribeStream.completion) {
-			setProposedText(scribeStream.completion);
+		if (isLoading && completion) {
+			setProposedText(completion);
 		}
-	}, [scribeStream.completion, scribeStream.isLoading]);
+	}, [completion, isLoading]);
 
 	// Handle enhance button click
 	const handleEnhance = useCallback(() => {
 		if (!hasEnhancement || !config.buildPrompt) return;
 
-		if (scribeStream.isLoading) {
-			scribeStream.stop();
+		if (isLoading) {
+			stop();
 			return;
 		}
 
 		// Build prompt using the config's buildPrompt function
 		const promptBody = config.buildPrompt(value, context);
 
-		// Start streaming with empty proposed text (triggers diff mode)
+		// Clear previous messages and start streaming with empty proposed text (triggers diff mode)
+		setMessages([]);
 		setProposedText("");
-		scribeStream.complete(JSON.stringify(promptBody));
-	}, [hasEnhancement, scribeStream, config, value, context]);
+		sendMessage({ text: JSON.stringify(promptBody) });
+	}, [hasEnhancement, isLoading, stop, config, value, context, setMessages, sendMessage]);
 
 	// Clear proposed text after suggestion is handled
 	const handleSuggestionHandled = useCallback(() => {
 		setProposedText(null);
-	}, []);
+		setMessages([]);
+	}, [setMessages]);
 
-	const isLoading = scribeStream.isLoading;
 	const canEnhance = hasEnhancement && !disabled && !isLoading;
 	const isInDiffMode = proposedText !== null;
 
