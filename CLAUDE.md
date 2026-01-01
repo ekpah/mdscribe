@@ -6,6 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MDScribe is a medical documentation webapp built as a monorepo that helps organize medical templates and assists doctors in their day-to-day work. It features AI-powered document generation, template management, and subscription-based usage tracking.
 
+## Git Workflow
+
+**Branching Strategy:**
+- `main`: Production branch - only receives merges from `staging`
+- `staging`: Integration branch - all feature branches merge here first
+- Feature branches: Created from `staging` for individual features/fixes
+
+**For AI Agents (Claude Code, etc.):**
+- All changes by AI agents MUST target the `staging` branch
+- Create feature branches from `staging`: `git checkout -b feature/my-feature origin/staging`
+- Open PRs against `staging`, never directly against `main`
+- Only `staging` is merged into `main` after testing and review
+
+**Branch naming conventions:**
+- AI agent branches: `claude/<description>-<session-id>`
+- Feature branches: `feature/<description>`
+- Bugfix branches: `fix/<description>`
+
 ## Build Commands
 
 Core development commands:
@@ -52,33 +70,59 @@ The API uses oRPC with two base handlers in `apps/app/orpc.ts`:
 Router structure in `apps/app/orpc/router.ts`:
 ```typescript
 router = {
-  scribe: scribeHandler,        // AI generation endpoints
-  getUsage: getUsageHandler,    // Usage tracking
-  templates: publicTemplatesHandler,
+  scribe: scribeHandler,           // Single AI generation
+  scribeStream: scribeStreamHandler, // Streaming AI generation (unified for all document types)
+  getUsage: getUsageHandler,       // Usage tracking
+  templates: {
+    ...publicTemplatesHandler,
+    findRelevant: findRelevantTemplateHandler,  // Vector similarity search
+  },
+  documents: {
+    parseForm: parseFormHandler,   // PDF form parsing with AI enhancement
+  },
   user: {
     templates: userTemplatesHandler,
     snippets: snippetsHandler,
+  },
+  admin: {
+    users: adminUsersHandler,
+    usage: adminUsageHandler,
+    embeddings: {
+      stats: getEmbeddingStatsHandler,
+      migrate: migrateEmbeddingsHandler,
+    },
   },
 }
 ```
 
 ### AI Streaming Endpoints
 
-Streaming endpoints use `createScribeHandler` factory in `apps/app/app/api/scribe/_lib/scribe-handler.ts`:
+All AI streaming is handled by a unified oRPC handler in `apps/app/orpc/scribe/handlers.ts`:
 
 ```typescript
-const handleDischarge = createScribeHandler({
-  promptName: 'Inpatient_discharge_chat',  // Langfuse prompt name
-  validateInput: createInputValidator(['prompt']),
-  processInput: (input) => { /* parse and return template variables */ },
-  modelConfig: {
-    thinking: true,           // Enable Claude thinking mode
-    thinkingBudget: 12_000,
-    maxTokens: 20_000,
-    temperature: 0.3,
+// Document types supported by the unified streaming handler
+type DocumentType = "discharge" | "anamnese" | "diagnosis" | "physical-exam" |
+                    "procedures" | "admission-todos" | "befunde" | "outpatient" | "icu-transfer";
+
+// Configuration for each document type in apps/app/orpc/scribe/config.ts
+const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> = {
+  discharge: {
+    promptName: "Inpatient_discharge_chat",
+    modelConfig: { thinking: true, thinkingBudget: 12_000, maxTokens: 20_000, temperature: 0.3 },
+    requiredFields: ["prompt"],
   },
+  // ... other document types
+};
+
+// Client-side usage with useScribeStream hook (apps/app/hooks/use-scribe-stream.ts)
+const { completion, isLoading, complete, stop } = useScribeStream({
+  documentType: "discharge",
+  onFinish: () => toast.success("Generated successfully"),
+  onError: (error) => toast.error(error.message),
 });
-export const POST = handleDischarge;
+
+// Trigger generation
+await complete(promptText, { model: "auto", audioFiles: [] });
 ```
 
 ### Authentication Architecture
