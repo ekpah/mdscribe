@@ -3,9 +3,11 @@
 import Inputs from "@repo/design-system/components/inputs/Inputs";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
-import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
+import { useMutation } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import { toast } from "sonner";
+import { orpc } from "@/lib/orpc";
 import { fillPDFForm } from "../_lib/fillPDFForm";
 import {
 	type FieldMapping,
@@ -15,7 +17,6 @@ import {
 } from "../_lib/parsePDFFormFields";
 import PDFDebugPanel from "./PDFDebugPanel";
 import PDFUploadSection from "./PDFUploadSection";
-import { toast } from "sonner";
 
 const PDFViewSection = dynamic(() => import("./PDFViewSection"), {
 	ssr: false,
@@ -27,6 +28,26 @@ export default function PDFFormSection() {
 	const [fields, setFields] = useState<PDFField[]>([]);
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
+
+	// Use oRPC mutation for AI enhancement
+	const enhanceMutation = useMutation(
+		orpc.documents.parseForm.mutationOptions({
+			onSuccess: (data) => {
+				setFieldMapping(data.fieldMapping);
+				toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
+			},
+			onError: (error) => {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Unbekannter Fehler aufgetreten";
+				toast.error(
+					`Eingaben konnten nicht verbessert werden: ${errorMessage}`,
+					{ id: "enhance-ai" },
+				);
+			},
+		}),
+	);
 
 	const handleClearDocument = () => {
 		setPdfFile(null);
@@ -81,48 +102,17 @@ export default function PDFFormSection() {
 			return;
 		}
 
-		try {
-			// Convert Uint8Array to File for FormData
-			const arrayBuffer = pdfFile.buffer.slice(
-				pdfFile.byteOffset,
-				pdfFile.byteOffset + pdfFile.byteLength,
-			) as ArrayBuffer;
-			const blob = new Blob([arrayBuffer], { type: "application/pdf" });
-			const file = new File([blob], "document.pdf", {
-				type: "application/pdf",
-			});
+		// Convert Uint8Array to base64
+		const base64 = btoa(String.fromCharCode(...pdfFile));
 
-			const formData = new FormData();
-			formData.append("file", file);
-			formData.append("fieldMapping", JSON.stringify(fieldMapping));
-			toast.loading("Eingaben werden mit KI verbessert...", {
-				id: "enhance-ai",
-			});
+		toast.loading("Eingaben werden mit KI verbessert...", {
+			id: "enhance-ai",
+		});
 
-			const response = await fetch("/api/documents/parse-form", {
-				method: "POST",
-				body: formData,
-			});
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(
-					errorText || "Eingaben konnten nicht verbessert werden",
-				);
-			}
-			const data = await response.json();
-			// Update field mapping with AI-enhanced version
-			setFieldMapping(data.fieldMapping);
-
-			toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: "Unbekannter Fehler aufgetreten";
-			toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
-				id: "enhance-ai",
-			});
-		}
+		enhanceMutation.mutate({
+			fileBase64: base64,
+			fieldMapping,
+		});
 	};
 
 	return (

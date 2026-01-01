@@ -13,8 +13,8 @@ const DIAGNOSEBLOCK_CONFIG: AiscribeTemplateConfig = {
 		"Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
 	icon: FileText,
 
-	// API configuration
-	apiEndpoint: "/api/scribe/diagnosis/stream",
+	// Document type for oRPC
+	documentType: "diagnosis",
 
 	// Tab configuration
 	inputTabTitle: "Patientennotizen",

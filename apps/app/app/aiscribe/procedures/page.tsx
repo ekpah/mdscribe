@@ -13,8 +13,8 @@ const PROCEDURES_CONFIG: AiscribeTemplateConfig = {
     'Erstellen Sie professionelle Dokumentationen für medizinische Eingriffe und Prozeduren',
   icon: ClipboardCheck,
 
-  // API configuration
-  apiEndpoint: '/api/scribe/procedures/stream',
+  // Document type for oRPC
+  documentType: 'procedures',
 
   // Tab configuration
   inputTabTitle: 'Eingriffsnotizen',

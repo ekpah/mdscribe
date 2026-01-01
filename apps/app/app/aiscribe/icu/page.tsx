@@ -13,8 +13,8 @@ const ICU_CONFIG: AiscribeTemplateConfig = {
     'Erstellen Sie professionelle Verlegungsbriefe für Ihre ICU-Patienten',
   icon: Stethoscope,
 
-  // API configuration
-  apiEndpoint: '/api/scribe/icu/transfer/stream',
+  // Document type for oRPC
+  documentType: 'icu-transfer',
 
   // Tab configuration
   inputTabTitle: 'Patientennotizen',

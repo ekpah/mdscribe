@@ -1,12 +1,13 @@
 "use client";
 
-import { useCompletion } from "@ai-sdk/react";
 import { MarkdownDiffEditor } from "@repo/design-system/components/editor/MarkdownDiffEditor";
 import { Label } from "@repo/design-system/components/ui/label";
 import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useScribeStream } from "@/hooks/use-scribe-stream";
+import type { DocumentType } from "@/orpc/scribe/types";
 
 const MIN_HEIGHT = 120;
 
@@ -15,11 +16,11 @@ export interface DoctorsNoteSectionConfig {
 	label: string;
 	placeholder: string;
 	description?: string;
-	/** API endpoint for this section's AI enhancement. If omitted, the field will be a plain input without enhancement. */
-	apiEndpoint?: string;
+	/** Document type for oRPC enhancement. If omitted, the field will be a plain input without enhancement. */
+	documentType?: DocumentType;
 	/**
 	 * Build the prompt body for this section.
-	 * Only required if apiEndpoint is provided.
+	 * Only required if documentType is provided.
 	 * @param notes - The current text in this section
 	 * @param context - Values from other visible sections (keyed by section id)
 	 * @returns The prompt body to send to the API
@@ -47,18 +48,13 @@ export function DoctorsNoteSection({
 	disabled = false,
 }: DoctorsNoteSectionProps) {
 	const [proposedText, setProposedText] = useState<string | null>(null);
-	const previousCompletionRef = useRef<string>("");
 
-	// Check if enhancement is available (has apiEndpoint and buildPrompt)
-	const hasEnhancement = Boolean(config.apiEndpoint && config.buildPrompt);
+	// Check if enhancement is available (has documentType and buildPrompt)
+	const hasEnhancement = Boolean(config.documentType && config.buildPrompt);
 
-	// Use Vercel AI SDK's useCompletion for streaming
-	// Only initialize if we have an endpoint
-	const { complete, isLoading, completion, stop } = useCompletion({
-		api: config.apiEndpoint ?? "/api/placeholder", // Fallback to prevent errors, won't be called if no endpoint
-		body: {
-			model: "auto",
-		},
+	// Use oRPC streaming hook
+	const scribeStream = useScribeStream({
+		documentType: config.documentType ?? "discharge", // Fallback, won't be used if no documentType
 		onError: (error) => {
 			toast.error(error.message || "Fehler beim Generieren");
 			setProposedText(null);
@@ -70,18 +66,17 @@ export function DoctorsNoteSection({
 
 	// Update proposed text as completion streams in
 	useEffect(() => {
-		if (isLoading && completion) {
-			setProposedText(completion);
+		if (scribeStream.isLoading && scribeStream.completion) {
+			setProposedText(scribeStream.completion);
 		}
-		previousCompletionRef.current = completion;
-	}, [completion, isLoading]);
+	}, [scribeStream.completion, scribeStream.isLoading]);
 
 	// Handle enhance button click
 	const handleEnhance = useCallback(() => {
 		if (!hasEnhancement || !config.buildPrompt) return;
 
-		if (isLoading) {
-			stop();
+		if (scribeStream.isLoading) {
+			scribeStream.stop();
 			return;
 		}
 
@@ -90,14 +85,15 @@ export function DoctorsNoteSection({
 
 		// Start streaming with empty proposed text (triggers diff mode)
 		setProposedText("");
-		complete(JSON.stringify(promptBody));
-	}, [hasEnhancement, isLoading, stop, config, value, context, complete]);
+		scribeStream.complete(JSON.stringify(promptBody));
+	}, [hasEnhancement, scribeStream, config, value, context]);
 
 	// Clear proposed text after suggestion is handled
 	const handleSuggestionHandled = useCallback(() => {
 		setProposedText(null);
 	}, []);
 
+	const isLoading = scribeStream.isLoading;
 	const canEnhance = hasEnhancement && !disabled && !isLoading;
 	const isInDiffMode = proposedText !== null;
 
