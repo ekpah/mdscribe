@@ -1,38 +1,23 @@
-import { authed, pub } from "@/orpc";
-import { scribeHandler } from "./scribe";
+import { authed } from "@/orpc";
+import { embeddingsHandler } from "./admin/embeddings";
+import { usageHandler as adminUsageHandler } from "./admin/usage";
+import { usersHandler as adminUsersHandler } from "./admin/users";
+import { documentsHandler } from "./documents";
+import { scribeHandler, scribeStreamHandler } from "./scribe";
 import { getUsage } from "./scribe/_lib/get-usage";
 import { templatesHandler as publicTemplatesHandler } from "./templates";
-import { templatesHandler as userTemplatesHandler } from "./user/templates";
+import { findRelevantTemplateHandler } from "./templates/search";
 import { snippetsHandler } from "./user/snippets";
-import { usersHandler as adminUsersHandler } from "./admin/users";
-import { usageHandler as adminUsageHandler } from "./admin/usage";
+import { templatesHandler as userTemplatesHandler } from "./user/templates";
 
 /**
- * Generic document creation function using Langfuse prompt
+ * oRPC Router
  *
- * This module provides a reusable function for creating documents using
- * the "ai_scribe_template_completion" Langfuse prompt, including:
- * - Langfuse prompt integration
- * - AI model configuration and response generation
- * - Claude thinking mode configuration
- * - Usage logging and telemetry
- * - Error handling
- *
- * @example
- * // For streaming responses:
- * const result = await createDocument({
- *   input: { template: "discharge", patientData: {...} },
- *   userId: "user123",
- *   streaming: true
- * });
- *
- * @example
- * // For non-streaming responses:
- * const { text } = await createDocument({
- *   input: { template: "anamnese", patientData: {...} },
- *   userId: "user123",
- *   streaming: false
- * });
+ * Provides type-safe API endpoints for:
+ * - AI document generation (streaming)
+ * - Template management and search
+ * - User preferences and snippets
+ * - Admin tools
  */
 
 const getUsageHandler = authed.handler(({ context }) => {
@@ -40,9 +25,23 @@ const getUsageHandler = authed.handler(({ context }) => {
 });
 
 export const router = {
+	// AI document generation
 	scribe: scribeHandler,
+	scribeStream: scribeStreamHandler,
 	getUsage: getUsageHandler,
-	templates: publicTemplatesHandler,
+
+	// Template operations
+	templates: {
+		...publicTemplatesHandler,
+		findRelevant: findRelevantTemplateHandler,
+	},
+
+	// Document operations
+	documents: {
+		...documentsHandler,
+	},
+
+	// User-specific operations
 	user: {
 		templates: {
 			...userTemplatesHandler,
@@ -51,12 +50,17 @@ export const router = {
 			...snippetsHandler,
 		},
 	},
+
+	// Admin operations
 	admin: {
 		users: {
 			...adminUsersHandler,
 		},
 		usage: {
 			...adminUsageHandler,
+		},
+		embeddings: {
+			...embeddingsHandler,
 		},
 	},
 };
