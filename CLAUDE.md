@@ -75,14 +75,20 @@ router = {
   scribeStream: scribeStreamHandler, // Streaming AI generation (unified for all document types)
   getUsage: getUsageHandler,       // Usage tracking
   templates: {
-    ...publicTemplatesHandler,
+    get: getTemplateHandler,         // Public: get template by ID
     findRelevant: findRelevantTemplateHandler,  // Vector similarity search
+    favourites: getFavouritesHandler,  // Get user's favorited templates
+    authored: getAuthoredHandler,      // Get user's authored templates
+    create: createTemplateHandler,     // Create new template
+    update: updateTemplateHandler,     // Update template (author only)
+    addFavourite: addFavouriteHandler,
+    removeFavourite: removeFavouriteHandler,
   },
   documents: {
     parseForm: parseFormHandler,   // PDF form parsing with AI enhancement
   },
   user: {
-    templates: userTemplatesHandler,
+    recentActivity: getRecentActivityHandler,  // User's recent usage events
     snippets: snippetsHandler,
   },
   admin: {

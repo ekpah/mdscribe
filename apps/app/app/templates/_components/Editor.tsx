@@ -152,7 +152,7 @@ export default function Editor({
 		try {
 			if (id) {
 				// Update existing template
-				const updatedTemplate = await orpc.user.templates.update.call({
+				const updatedTemplate = await orpc.templates.update.call({
 					id,
 					category: finalCategory,
 					name,
@@ -162,7 +162,7 @@ export default function Editor({
 				router.push(`/templates/${updatedTemplate.id}`);
 			} else {
 				// Create new template
-				const newTemplate = await orpc.user.templates.create.call({
+				const newTemplate = await orpc.templates.create.call({
 					category: finalCategory,
 					name,
 					content,

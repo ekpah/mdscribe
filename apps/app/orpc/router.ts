@@ -5,10 +5,10 @@ import { usersHandler as adminUsersHandler } from "./admin/users";
 import { documentsHandler } from "./documents";
 import { scribeHandler, scribeStreamHandler } from "./scribe";
 import { getUsage } from "./scribe/_lib/get-usage";
-import { templatesHandler as publicTemplatesHandler } from "./templates";
+import { templatesHandler } from "./templates";
 import { findRelevantTemplateHandler } from "./templates/search";
+import { activityHandler } from "./user/activity";
 import { snippetsHandler } from "./user/snippets";
-import { templatesHandler as userTemplatesHandler } from "./user/templates";
 
 /**
  * oRPC Router
@@ -30,9 +30,9 @@ export const router = {
 	scribeStream: scribeStreamHandler,
 	getUsage: getUsageHandler,
 
-	// Template operations
+	// Template operations (all CRUD under templates)
 	templates: {
-		...publicTemplatesHandler,
+		...templatesHandler,
 		findRelevant: findRelevantTemplateHandler,
 	},
 
@@ -43,9 +43,7 @@ export const router = {
 
 	// User-specific operations
 	user: {
-		templates: {
-			...userTemplatesHandler,
-		},
+		...activityHandler,
 		snippets: {
 			...snippetsHandler,
 		},

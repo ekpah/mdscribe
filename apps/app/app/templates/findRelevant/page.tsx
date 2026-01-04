@@ -149,10 +149,10 @@ export default function FindTemplatePage() {
       }));
 
       if (currentState) {
-        await orpc.user.templates.removeFavourite.call({ templateId });
+        await orpc.templates.removeFavourite.call({ templateId });
         toast.success('Favorit entfernt');
       } else {
-        await orpc.user.templates.addFavourite.call({ templateId });
+        await orpc.templates.addFavourite.call({ templateId });
         toast.success('Favorit gespeichert');
       }
     } catch (err) {

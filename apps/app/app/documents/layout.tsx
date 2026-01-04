@@ -25,7 +25,7 @@ const getFavouriteTemplatesPrisma = async (isLoggedIn: boolean) => {
   try {
     const queryClient = new QueryClient();
     const templates = await queryClient.fetchQuery(
-      orpc.user.templates.favourites.queryOptions()
+      orpc.templates.favourites.queryOptions()
     );
     return templates;
   } catch (error) {
@@ -41,7 +41,7 @@ const getAuthoredTemplatesPrisma = async (isLoggedIn: boolean) => {
   try {
     const queryClient = new QueryClient();
     const templates = await queryClient.fetchQuery(
-      orpc.user.templates.authored.queryOptions()
+      orpc.templates.authored.queryOptions()
     );
     return templates;
   } catch (error) {

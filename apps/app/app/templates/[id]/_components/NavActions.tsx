@@ -45,7 +45,7 @@ export function NavActions({
       return;
     }
     setBookmark(true);
-    await orpc.user.templates.addFavourite.call({ templateId });
+    await orpc.templates.addFavourite.call({ templateId });
 
     toast.success('Favorit gespeichert'); // Displays a success message
   }
@@ -55,7 +55,7 @@ export function NavActions({
       return;
     }
     setBookmark(false);
-    await orpc.user.templates.removeFavourite.call({ templateId });
+    await orpc.templates.removeFavourite.call({ templateId });
     toast.success('Favorit entfernt'); // Displays a success message
   }
 
