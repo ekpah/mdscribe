@@ -23,6 +23,9 @@ export const config: NextConfig = withVercelToolbar()({
 		formats: ["image/avif", "image/webp"],
 	},
 
+	// Externalize PGlite to prevent bundling issues with WASM file resolution
+	serverExternalPackages: ["@electric-sql/pglite"],
+
 	// biome-ignore lint/suspicious/useAwait: headers is async
 	async headers() {
 		return [

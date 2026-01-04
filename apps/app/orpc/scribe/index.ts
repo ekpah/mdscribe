@@ -1,8 +1,10 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { streamToEventIterator, type } from "@orpc/server";
+import { usageEvent } from "@repo/database";
 import { env } from "@repo/env";
 import { streamText, type UIMessage } from "ai";
 import Langfuse from "langfuse";
+
 import {
 	buildUsageEventData,
 	extractOpenRouterUsage,
@@ -64,8 +66,8 @@ export const scribeHandler = authed
 			onFinish: async (event) => {
 				const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
 
-				await context.db.usageEvent.create({
-					data: buildUsageEventData({
+				await context.db.insert(usageEvent).values(
+					buildUsageEventData({
 						userId: context.session.user.id || "",
 						name: "ai_scribe_generation",
 						model: MODEL_ID,
@@ -82,7 +84,7 @@ export const scribeHandler = authed
 						result: event.text,
 						reasoning: event.reasoning,
 					}),
-				});
+				);
 			},
 		});
 

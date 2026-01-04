@@ -9,7 +9,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { DocumentType } from "@/orpc/scribe/types";
-import { client } from "./client";
+import { orpc } from "@/lib/orpc";
 
 const MIN_HEIGHT = 120;
 
@@ -60,7 +60,7 @@ export function DoctorsNoteSection({
 		transport: {
 			async sendMessages(options) {
 				return eventIteratorToUnproxiedDataStream(
-					await client.scribeStream(
+					await orpc.scribeStream.call(
 						{
 							documentType: config.documentType ?? "discharge",
 							messages: options.messages,
@@ -84,7 +84,9 @@ export function DoctorsNoteSection({
 
 	// Extract completion text from the last assistant message
 	const completion = useMemo(() => {
-		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
+		const lastAssistantMessage = messages.findLast(
+			(m) => m.role === "assistant",
+		);
 		if (!lastAssistantMessage) return "";
 		return lastAssistantMessage.parts
 			.filter((p) => p.type === "text")
@@ -118,7 +120,16 @@ export function DoctorsNoteSection({
 		setMessages([]);
 		setProposedText("");
 		sendMessage({ text: JSON.stringify(promptBody) });
-	}, [hasEnhancement, isLoading, stop, config, value, context, setMessages, sendMessage]);
+	}, [
+		hasEnhancement,
+		isLoading,
+		stop,
+		config,
+		value,
+		context,
+		setMessages,
+		sendMessage,
+	]);
 
 	// Clear proposed text after suggestion is handled
 	const handleSuggestionHandled = useCallback(() => {

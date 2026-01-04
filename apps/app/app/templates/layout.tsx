@@ -1,24 +1,35 @@
-import { database } from "@repo/database";
+import { database, sql, template } from "@repo/database";
 import { SidebarProvider } from "@repo/design-system/components/ui/sidebar";
 import { QueryClient } from "@tanstack/react-query";
 import { headers } from "next/headers";
 import type React from "react";
 import { Suspense } from "react";
+
 import { auth } from "@/auth";
 import { orpc } from "@/lib/orpc";
 import AppSidebar from "./_components/Sidebar";
 
-const getTemplatesPrisma = async () => {
-	const templates = await database.template.findMany({
-		include: {
+const getTemplates = async () => {
+	const templates = await database
+		.select({
+			id: template.id,
+			title: template.title,
+			category: template.category,
+			content: template.content,
+			authorId: template.authorId,
+			updatedAt: template.updatedAt,
+			embedding: template.embedding,
 			_count: {
-				select: { favouriteOf: true },
+				favouriteOf: sql<number>`(
+					SELECT COUNT(*) FROM "_favourites"
+					WHERE "_favourites"."A" = ${template.id}
+				)`.as("favouriteCount"),
 			},
-		},
-	});
+		})
+		.from(template);
 	return templates;
 };
-const getFavouriteTemplatesPrisma = async (isLoggedIn: boolean) => {
+const getFavouriteTemplates = async (isLoggedIn: boolean) => {
 	if (!isLoggedIn) {
 		return [];
 	}
@@ -34,7 +45,7 @@ const getFavouriteTemplatesPrisma = async (isLoggedIn: boolean) => {
 		return [];
 	}
 };
-const getAuthoredTemplatesPrisma = async (isLoggedIn: boolean) => {
+const getAuthoredTemplates = async (isLoggedIn: boolean) => {
 	if (!isLoggedIn) {
 		return [];
 	}
@@ -52,7 +63,7 @@ const getAuthoredTemplatesPrisma = async (isLoggedIn: boolean) => {
 };
 
 const generateSidebarLinks = async () => {
-	const templates = await getTemplatesPrisma();
+	const templates = await getTemplates();
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,
@@ -61,7 +72,7 @@ const generateSidebarLinks = async () => {
 	}));
 };
 const generateFavouriteTemplates = async (isLoggedIn: boolean) => {
-	const templates = await getFavouriteTemplatesPrisma(isLoggedIn);
+	const templates = await getFavouriteTemplates(isLoggedIn);
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,
@@ -70,7 +81,7 @@ const generateFavouriteTemplates = async (isLoggedIn: boolean) => {
 	}));
 };
 const generateAuthoredTemplates = async (isLoggedIn: boolean) => {
-	const templates = await getAuthoredTemplatesPrisma(isLoggedIn);
+	const templates = await getAuthoredTemplates(isLoggedIn);
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,

@@ -1,7 +1,7 @@
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { database } from "@repo/database";
+import { database, eq, inArray, sql, subscription, usageEvent } from "@repo/database";
 import { env } from "@repo/env";
 import {
 	type LanguageModel,
@@ -12,7 +12,7 @@ import {
 import { Langfuse } from "langfuse";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
-import { authed } from "@/orpc";
+
 import {
 	buildUsageEventData,
 	extractOpenRouterUsage,
@@ -20,8 +20,9 @@ import {
 	type UsageInputData,
 	type UsageMetadata,
 } from "@/lib/usage-logging";
-import { documentTypeConfigs } from "./config";
+import { authed } from "@/orpc";
 import { getUsage } from "./_lib/get-usage";
+import { documentTypeConfigs } from "./config";
 import type {
 	AudioFile,
 	DocumentType,
@@ -93,13 +94,16 @@ function getActualModel(modelId: string, hasAudio?: boolean): string {
 /**
  * Check subscription and usage limits
  */
-async function checkUsageLimit(userId: string, session: { user: { id: string } }) {
-	const subscriptions = await database.subscription.findMany({
-		where: {
-			referenceId: userId,
-			status: { in: ["active", "trialing"] },
-		},
-	});
+async function checkUsageLimit(
+	userId: string,
+	session: { user: { id: string } },
+) {
+	const subscriptions = await database
+		.select()
+		.from(subscription)
+		.where(
+			sql`${subscription.referenceId} = ${userId} AND ${subscription.status} IN ('active', 'trialing')`,
+		);
 
 	const activeSubscription = subscriptions.length > 0;
 	const { usage } = await getUsage(session as { user: { id: string } });
@@ -140,22 +144,22 @@ async function findRelevantTemplateForProcedure(
 		similarity: number;
 	}
 
-	const similarityResults = await database.$queryRaw<TemplateResult[]>`
+	const similarityResults = await database.execute<TemplateResult>(sql`
 		SELECT
 			content,
-			(1 - (embedding <=> ${embeddingSql}::vector)) as similarity
+			(1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) as similarity
 		FROM "Template"
 		WHERE embedding IS NOT NULL
-		AND (1 - (embedding <=> ${embeddingSql}::vector)) > 0.6
-		ORDER BY embedding <-> ${embeddingSql}::vector
+		AND (1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) > 0.6
+		ORDER BY embedding <-> ${sql.raw(embeddingSql)}::vector
 		LIMIT 1
-	`;
+	`);
 
-	if (similarityResults[0]?.content) {
+	if (similarityResults.rows[0]?.content) {
 		return `## Relevante Textbaustein-Vorlage (Referenz)
 
 Nutze die folgende Vorlage als Beispiel eines Textbausteins. Dieser ist anhand der gegebenen Informationen ausgewählt und potenziell relevant, der Assistent baut also darauf auf. Bei Diskrepanzen, nutze auf jeden Fall die Informationen aus der Nutzereingabe!
-${similarityResults[0].content}`;
+${similarityResults.rows[0].content}`;
 	}
 
 	return `## Standard-Textbausteine (Referenz)
@@ -242,7 +246,12 @@ function extractPromptFromMessages(messages: UIMessage[]): string {
 export const scribeStreamHandler = authed
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
-		const { documentType, messages: inputMessages, model = "auto", audioFiles } = input;
+		const {
+			documentType,
+			messages: inputMessages,
+			model = "auto",
+			audioFiles,
+		} = input;
 
 		// Extract prompt from the last user message
 		const prompt = extractPromptFromMessages(inputMessages);
@@ -269,7 +278,11 @@ export const scribeStreamHandler = authed
 		// Get actual model (handle 'auto')
 		const hasAudio = audioFiles && audioFiles.length > 0;
 		const actualModel = getActualModel(model, hasAudio);
-		const { model: aiModel, supportsThinking, modelName } = getModelInstance(actualModel);
+		const {
+			model: aiModel,
+			supportsThinking,
+			modelName,
+		} = getModelInstance(actualModel);
 
 		// Process input based on document type
 		let processedInput = config.processInput(prompt);
@@ -335,10 +348,11 @@ export const scribeStreamHandler = authed
 			}
 		}
 
-		// Build provider options for thinking mode
-		const providerOptions: AnthropicProviderOptions = {};
-		if (config.modelConfig.thinking && supportsThinking) {
-			providerOptions.thinking = {
+		// Build provider options for thinking mode (Claude models)
+		const isClaudeModel = modelName.includes("anthropic");
+		const anthropicProviderOptions: AnthropicProviderOptions = {};
+		if (config.modelConfig.thinking && supportsThinking && isClaudeModel) {
+			anthropicProviderOptions.thinking = {
 				type: "enabled",
 				budgetTokens: config.modelConfig.thinkingBudget ?? 8000,
 			};
@@ -354,15 +368,19 @@ export const scribeStreamHandler = authed
 					usage: { include: true },
 					user: context.session.user.email,
 				},
+				...(isClaudeModel &&
+					Object.keys(anthropicProviderOptions).length > 0 && {
+						anthropic: anthropicProviderOptions,
+					}),
 			},
 			messages,
 			onFinish: async (event) => {
 				// Extract OpenRouter usage data
 				const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
 
-				// Log usage to database
-				await context.db.usageEvent.create({
-					data: buildUsageEventData({
+				// Log usage to database using Drizzle
+				await context.db.insert(usageEvent).values(
+					buildUsageEventData({
 						userId: context.session.user.id,
 						name: "ai_scribe_generation",
 						model: modelName,
@@ -388,7 +406,7 @@ export const scribeStreamHandler = authed
 						result: event.text,
 						reasoning: event.reasoningText,
 					}),
-				});
+				);
 			},
 		});
 

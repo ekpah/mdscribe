@@ -1,12 +1,19 @@
 import { stripe } from "@better-auth/stripe";
-import { database } from "@repo/database";
+import {
+	account,
+	database,
+	session,
+	subscription,
+	user,
+	verification,
+} from "@repo/database";
 import { sendEmail } from "@repo/email";
 import { EmailChangeTemplate } from "@repo/email/templates/change-email";
 import { ResetPasswordTemplate } from "@repo/email/templates/reset-password";
 import { EmailVerificationTemplate } from "@repo/email/templates/verify";
 import { env } from "@repo/env";
 import { betterAuth, type User } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
 import Stripe from "stripe";
 
@@ -18,9 +25,16 @@ const stripeClient = new Stripe(env.STRIPE_SECRET_KEY as string);
 
 export const auth = betterAuth({
 	baseURL: env.NEXT_PUBLIC_BASE_URL as string,
-	// sets the Better-Auth database adapter to Prisma with the PostgreSQL provider
-	database: prismaAdapter(database, {
-		provider: "postgresql", // or "mysql", "postgresql", ...etc
+	// sets the Better-Auth database adapter to Drizzle with PostgreSQL provider
+	database: drizzleAdapter(database, {
+		provider: "pg",
+		schema: {
+			user,
+			account,
+			session,
+			verification,
+			subscription,
+		},
 	}),
 	// enables cookie caching for better-auth sessions
 	session: {

@@ -51,8 +51,13 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
-import type { AudioFile, DocumentType, SupportedModel } from "@/orpc/scribe/types";
-import { client } from "./client";
+import type {
+	AudioFile,
+	DocumentType,
+	SupportedModel,
+} from "@/orpc/scribe/types";
+
+import { orpc } from "@/lib/orpc";
 import { MemoizedCopySection } from "./MemoizedCopySection";
 
 interface AdditionalInputField {
@@ -147,12 +152,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		transport: {
 			async sendMessages(options) {
 				return eventIteratorToUnproxiedDataStream(
-					await client.scribeStream(
+					await orpc.scribeStream.call(
 						{
 							documentType: config.documentType,
 							messages: options.messages,
 							model,
-							audioFiles: preparedAudioFiles.length > 0 ? preparedAudioFiles : undefined,
+							audioFiles:
+								preparedAudioFiles.length > 0 ? preparedAudioFiles : undefined,
 						},
 						{ signal: options.abortSignal },
 					),
@@ -174,7 +180,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
 	// Extract completion text from the last assistant message
 	const completion = useMemo(() => {
-		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
+		const lastAssistantMessage = messages.findLast(
+			(m) => m.role === "assistant",
+		);
 		if (!lastAssistantMessage) return "";
 		return lastAssistantMessage.parts
 			.filter((p) => p.type === "text")
@@ -346,7 +354,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			}
 
 			// Send message using AI SDK useChat
-			const promptText = typeof prompt === "string" ? prompt : JSON.stringify(prompt);
+			const promptText =
+				typeof prompt === "string" ? prompt : JSON.stringify(prompt);
 			await sendMessage({ text: promptText });
 		} catch {
 			// Catch any unexpected errors not handled by onError callback
@@ -434,17 +443,14 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 									{completion && (
 										<div className="space-y-3">
 											<Inputs
-												inputTags={parseMarkdocToInputs(
-													completion || "",
-												)}
+												inputTags={parseMarkdocToInputs(completion || "")}
 												onChange={handleValuesChange}
 											/>
 										</div>
 									)}
 
 									{(!completion ||
-										parseMarkdocToInputs(completion).length ===
-											0) && (
+										parseMarkdocToInputs(completion).length === 0) && (
 										<div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
 											<p className="text-muted-foreground text-xs leading-relaxed">
 												Notwendige Informationen werden automatisch aus den
@@ -738,8 +744,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 															<ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
 																<MemoizedCopySection
 																	content={
-																		completion ||
-																		"Keine Inhalte verfügbar"
+																		completion || "Keine Inhalte verfügbar"
 																	}
 																	values={values}
 																/>

@@ -31,11 +31,12 @@ Core development commands:
 - `bun run build`: Build all packages using Turbo
 - `bun run lint`: Run linting across all packages using Biome
 - `bun run test`: Run tests via Turbo
-- `bun run migrate`: Run Prisma database migrations and generate client
+- `bun run migrate`: Run Drizzle database migrations
 
 Database operations:
-- `cd packages/database && bunx prisma format && bunx prisma generate && bunx prisma db push`: Full database setup
-- `cd packages/database && docker compose up -d`: Start local PostgreSQL + Neon proxy containers
+- `cd packages/database && bun run push`: Push schema changes to database
+- `cd packages/database && bun run generate`: Generate new migrations
+- `cd packages/database && bun dev`: Start Drizzle Studio for database inspection
 
 Analysis and maintenance:
 - `bun run analyze`: Run bundle analysis (set ANALYZE=true)
@@ -46,13 +47,13 @@ Analysis and maintenance:
 
 ### Monorepo Structure
 - **Apps**: `apps/app` (Next.js main app), `apps/docs` (Fumadocs), `apps/email` (React Email), `apps/storybook`, `apps/studio`
-- **Packages**: `packages/database` (Prisma), `packages/design-system` (UI components), `packages/email`, `packages/env`, `packages/markdoc-md`, `packages/typescript-config`
+- **Packages**: `packages/database` (Drizzle ORM), `packages/design-system` (UI components), `packages/email`, `packages/env`, `packages/markdoc-md`, `packages/typescript-config`
 
 ### Core Technologies
 - **Runtime**: Bun (package manager and runtime)
 - **Framework**: Next.js 16 with App Router and React 19
 - **Authentication**: BetterAuth with Stripe integration for subscriptions
-- **Database**: PostgreSQL with Prisma 7 (client engine, bun runtime) and pgvector for embeddings
+- **Database**: PostgreSQL with Drizzle ORM (PGlite for local dev, Neon serverless for production) and pgvector for embeddings
 - **AI Integration**: OpenRouter for model access, Langfuse for prompt management, Voyage AI for embeddings
 - **Styling**: Tailwind CSS v4 with design system extending "ultracite" configuration
 - **API**: oRPC for type-safe client-server communication
@@ -126,7 +127,7 @@ await complete(promptText, { model: "auto", audioFiles: [] });
 ```
 
 ### Authentication Architecture
-- **Server**: `apps/app/auth.ts` - BetterAuth configuration with Prisma adapter
+- **Server**: `apps/app/auth.ts` - BetterAuth configuration with Drizzle adapter
 - **Client**: `apps/app/lib/auth-client.ts` - React hooks and client functions
 - **Routes**: `/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`
 - **Server usage**: `auth.api.getSession({ headers: await headers() })`

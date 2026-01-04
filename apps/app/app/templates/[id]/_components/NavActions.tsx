@@ -17,8 +17,7 @@ import {
   TooltipTrigger,
 } from '@repo/design-system/components/ui/tooltip';
 import { toast } from 'sonner';
-import addFavourite from '../../_actions/add-favourite';
-import removeFavourite from '../../_actions/remove-favourite';
+import { orpc } from '@/lib/orpc';
 
 // 1: Define a type that includes the relation to `Post`
 
@@ -46,7 +45,7 @@ export function NavActions({
       return;
     }
     setBookmark(true);
-    await addFavourite({ templateId });
+    await orpc.user.templates.addFavourite.call({ templateId });
 
     toast.success('Favorit gespeichert'); // Displays a success message
   }
@@ -56,7 +55,7 @@ export function NavActions({
       return;
     }
     setBookmark(false);
-    await removeFavourite({ templateId });
+    await orpc.user.templates.removeFavourite.call({ templateId });
     toast.success('Favorit entfernt'); // Displays a success message
   }
 

@@ -1,7 +1,9 @@
 import { type } from "@orpc/server";
+import { count, isNull, sql, template } from "@repo/database";
 import { env } from "@repo/env";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
+
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "../middlewares/admin";
 
@@ -26,12 +28,16 @@ async function generateEmbeddings(content: string): Promise<number[]> {
 export const getEmbeddingStatsHandler = authed
 	.use(requiredAdminMiddleware)
 	.handler(async ({ context }) => {
-		const total = await context.db.template.count();
+		const [totalResult] = await context.db
+			.select({ count: count() })
+			.from(template);
+		const total = totalResult?.count ?? 0;
 
-		const [{ count }] = await context.db.$queryRaw<[{ count: bigint }]>`
-			SELECT COUNT(*) as count FROM "Template" WHERE embedding IS NULL
-		`;
-		const needingEmbeddings = Number(count);
+		const [missingResult] = await context.db
+			.select({ count: count() })
+			.from(template)
+			.where(isNull(template.embedding));
+		const needingEmbeddings = missingResult?.count ?? 0;
 
 		return {
 			totalTemplates: total,
@@ -59,7 +65,11 @@ export const migrateEmbeddingsHandler = authed
 		}>(),
 	)
 	.handler(async ({ input, context }) => {
-		const { mode = "missing", batchSize = 10, delayBetweenBatches = 1000 } = input;
+		const {
+			mode = "missing",
+			batchSize = 10,
+			delayBetweenBatches = 1000,
+		} = input;
 
 		const stats = {
 			total: 0,
@@ -69,19 +79,23 @@ export const migrateEmbeddingsHandler = authed
 		};
 
 		// Count total templates
-		stats.total = await context.db.template.count();
+		const [totalResult] = await context.db
+			.select({ count: count() })
+			.from(template);
+		stats.total = totalResult?.count ?? 0;
 
 		// Get templates to process based on mode
 		let templatesToProcess: Array<{ id: string; content: string }>;
 
 		if (mode === "missing") {
-			templatesToProcess = await context.db.$queryRaw<
-				Array<{ id: string; content: string }>
-			>`SELECT id, content FROM "Template" WHERE embedding IS NULL`;
+			templatesToProcess = await context.db
+				.select({ id: template.id, content: template.content })
+				.from(template)
+				.where(isNull(template.embedding));
 		} else {
-			templatesToProcess = await context.db.$queryRaw<
-				Array<{ id: string; content: string }>
-			>`SELECT id, content FROM "Template"`;
+			templatesToProcess = await context.db
+				.select({ id: template.id, content: template.content })
+				.from(template);
 		}
 
 		if (templatesToProcess.length === 0) {
@@ -98,28 +112,33 @@ export const migrateEmbeddingsHandler = authed
 		for (let i = 0; i < templatesToProcess.length; i += batchSize) {
 			const batch = templatesToProcess.slice(i, i + batchSize);
 
-			for (const template of batch) {
+			for (const templateItem of batch) {
 				try {
-					const embedding = await generateEmbeddings(template.content);
-					await context.db.$queryRaw`
+					const embedding = await generateEmbeddings(templateItem.content);
+					const embeddingSql = pgvector.toSql(embedding);
+
+					await context.db.execute(sql`
 						UPDATE "Template"
-						SET "embedding" = ${pgvector.toSql(embedding)}::vector
-						WHERE "id" = ${template.id}
-					`;
+						SET "embedding" = ${sql.raw(embeddingSql)}::vector
+						WHERE "id" = ${templateItem.id}
+					`);
 					stats.processed++;
 				} catch (error) {
 					stats.failed++;
 					const errorMessage =
 						error instanceof Error ? error.message : "Unknown error";
 					stats.errors.push({
-						templateId: template.id,
+						templateId: templateItem.id,
 						error: errorMessage,
 					});
 				}
 			}
 
 			// Wait between batches to avoid rate limiting
-			if (i + batchSize < templatesToProcess.length && delayBetweenBatches > 0) {
+			if (
+				i + batchSize < templatesToProcess.length &&
+				delayBetweenBatches > 0
+			) {
 				await new Promise((resolve) => setTimeout(resolve, delayBetweenBatches));
 			}
 		}
