@@ -17,60 +17,32 @@ import {
 } from "@repo/design-system/components/ui/select";
 import markdocConfig from "@repo/markdoc-md/markdoc-config";
 import { AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
-
-function Submit({
-	hasErrors,
-	isFormValid,
-}: {
-	hasErrors: boolean;
-	isFormValid: boolean;
-}) {
-	// ✅ `pending` will be derived from the form that wraps the Submit component
-	const { pending } = useFormStatus();
-	const isDisabled = pending || hasErrors || !isFormValid;
-
-	return (
-		<Button className="mt-2 w-full" disabled={isDisabled} type="submit">
-			{(() => {
-				if (pending) {
-					return "Textbaustein speichern...";
-				}
-				if (!isFormValid) {
-					return "Kategorie und Name erforderlich";
-				}
-				if (hasErrors) {
-					return "Behebe Fehler um zu speichern";
-				}
-				return "Textbaustein speichern";
-			})()}
-		</Button>
-	);
-}
+import { orpc } from "@/lib/orpc";
 
 export default function Editor({
 	cat,
 	tit,
 	note,
 	id,
-	handleSubmitAction,
 	author,
 }: {
 	cat: string;
 	tit: string;
 	note: string;
 	id?: string;
-	handleSubmitAction: (formData: FormData) => Promise<void>;
 	author: { id: string; email: string };
 }) {
+	const router = useRouter();
 	const [category, setCategory] = useState<string>(cat);
 	const [name, setName] = useState(tit);
 	const [content, setContent] = useState(note ? JSON.parse(note) : "");
 	const [newCategory, setNewCategory] = useState("");
 	const [showSource, setShowSource] = useState(false);
 	const [validationErrors, setValidationErrors] = useState<ValidateError[]>([]);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	// Counter to force TipTap remount when switching from source view
 	const editorKeyRef = useRef(0);
 
@@ -168,12 +140,54 @@ export default function Editor({
 		}
 	};
 
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!isFormValid || validationErrors.length > 0) {
+			return;
+		}
+
+		setIsSubmitting(true);
+		const finalCategory = category === "new" ? newCategory : category;
+
+		try {
+			if (id) {
+				// Update existing template
+				const updatedTemplate = await orpc.user.templates.update.call({
+					id,
+					category: finalCategory,
+					name,
+					content,
+				});
+				toast.success("Textbaustein aktualisiert");
+				router.push(`/templates/${updatedTemplate.id}`);
+			} else {
+				// Create new template
+				const newTemplate = await orpc.user.templates.create.call({
+					category: finalCategory,
+					name,
+					content,
+				});
+				toast.success("Textbaustein erstellt");
+				router.push(`/templates/${newTemplate.id}`);
+			}
+		} catch (error) {
+			console.error("Error saving template:", error);
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Fehler beim Speichern des Textbausteins",
+			);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
 	return (
 		<div className="flex h-[calc(100vh-(--spacing(16))-(--spacing(6)))] gap-4">
 			{/* Main Editor Card */}
 			<Card className="flex flex-1 flex-col gap-4 overflow-hidden p-4">
 				<form
-					action={handleSubmitAction}
+					onSubmit={handleSubmit}
 					className="flex min-h-0 grow flex-col gap-2"
 				>
 					<div className="mb-4 flex shrink-0 flex-col gap-4 md:flex-row md:gap-2">
@@ -318,9 +332,6 @@ export default function Editor({
 							</div>
 						)}
 					</div>
-					<input name="content" type="hidden" value={content} />
-					<input name="id" type="hidden" value={id} />
-					<input name="authorId" type="hidden" value={author.id} />
 					<div className="flex shrink-0 flex-row gap-2">
 						<Button
 							className="mt-2 w-1/10"
@@ -330,10 +341,24 @@ export default function Editor({
 						>
 							Prüfen
 						</Button>
-						<Submit
-							hasErrors={validationErrors.length > 0}
-							isFormValid={isFormValid}
-						/>
+						<Button
+							className="mt-2 w-full"
+							disabled={isSubmitting || validationErrors.length > 0 || !isFormValid}
+							type="submit"
+						>
+							{(() => {
+								if (isSubmitting) {
+									return "Textbaustein speichern...";
+								}
+								if (!isFormValid) {
+									return "Kategorie und Name erforderlich";
+								}
+								if (validationErrors.length > 0) {
+									return "Behebe Fehler um zu speichern";
+								}
+								return "Textbaustein speichern";
+							})()}
+						</Button>
 					</div>
 				</form>
 			</Card>

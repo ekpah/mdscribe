@@ -1,7 +1,9 @@
 import { type } from "@orpc/server";
+import { eq, favourites, inArray, sql, template } from "@repo/database";
 import { env } from "@repo/env";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
+
 import { authed } from "@/orpc";
 
 const voyageClient = new VoyageAIClient({
@@ -64,8 +66,8 @@ export const findRelevantTemplateHandler = authed
 		const embedding = await generateEmbeddings(query, differentialDiagnosis);
 		const embeddingSql = pgvector.toSql(embedding);
 
-		// Vector similarity search
-		const similarityResults = await context.db.$queryRaw<TemplateSearchResult[]>`
+		// Vector similarity search using Drizzle sql template
+		const similarityResults = await context.db.execute<TemplateSearchResult>(sql`
 			SELECT
 				id,
 				title,
@@ -73,38 +75,48 @@ export const findRelevantTemplateHandler = authed
 				content,
 				"authorId",
 				"updatedAt",
-				(1 - (embedding <=> ${embeddingSql}::vector)) as similarity
+				(1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) as similarity
 			FROM "Template"
 			WHERE embedding IS NOT NULL
-			AND (1 - (embedding <=> ${embeddingSql}::vector)) > 0.3
-			ORDER BY embedding <-> ${embeddingSql}::vector
+			AND (1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) > 0.3
+			ORDER BY embedding <-> ${sql.raw(embeddingSql)}::vector
 			LIMIT 5
-		`;
+		`);
 
-		const templateIds = similarityResults.map((t) => t.id);
+		const templateIds = similarityResults.rows.map((t) => t.id);
 
 		if (templateIds.length === 0) {
 			return { templates: [], count: 0 };
 		}
 
-		// Fetch complete template data with favorites information
-		const templatesWithFavorites = await context.db.template.findMany({
-			where: { id: { in: templateIds } },
-			include: {
-				favouriteOf: { select: { id: true } },
-				_count: { select: { favouriteOf: true } },
+		// Fetch favourite users for each template
+		const favouriteData = await context.db
+			.select({
+				templateId: favourites.A,
+				userId: favourites.B,
+			})
+			.from(favourites)
+			.where(inArray(favourites.A, templateIds));
+
+		// Group favourites by template
+		const favouritesByTemplate = favouriteData.reduce(
+			(acc, fav) => {
+				if (!acc[fav.templateId]) {
+					acc[fav.templateId] = [];
+				}
+				acc[fav.templateId].push({ id: fav.userId });
+				return acc;
 			},
-		});
+			{} as Record<string, Array<{ id: string }>>,
+		);
 
 		// Merge similarity scores with template data
-		const templates = similarityResults.map((simResult) => {
-			const templateData = templatesWithFavorites.find(
-				(t) => t.id === simResult.id,
-			);
+		const templates = similarityResults.rows.map((simResult) => {
+			const favs = favouritesByTemplate[simResult.id] || [];
 			return {
 				...simResult,
-				favouriteOf: templateData?.favouriteOf || [],
-				_count: templateData?._count || { favouriteOf: 0 },
+				favouriteOf: favs,
+				_count: { favouriteOf: favs.length },
 			};
 		});
 
