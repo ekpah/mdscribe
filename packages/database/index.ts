@@ -1,32 +1,13 @@
 import "server-only";
 
-import { neonConfig } from "@neondatabase/serverless";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import { PrismaClient } from "./prisma/generated/client";
-import { env } from "@repo/env";
-import ws from "ws";
+// Re-export the database client
+export { database, type Database } from "./client";
 
-/*
-neonConfig.webSocketConstructor = ws;
+// Re-export schema tables for direct access
+export * from "./schema";
 
-declare global {
-	var cachedPrisma: PrismaClient | undefined;
-}
-*/
+// Re-export types for backward compatibility
+export * from "./types";
 
-const connectionString = env.POSTGRES_DATABASE_URL as string;
-const adapter = new PrismaNeon({ connectionString });
-
-export const database = new PrismaClient({ adapter });
-
-export type {
-	Account,
-	Prisma,
-	PrismaClient,
-	Session,
-	Subscription,
-	Template,
-	UsageEvent,
-	User,
-	Verification,
-} from "./prisma/generated/client";
+// Re-export useful Drizzle utilities
+export { and, eq, gt, gte, lt, lte, ne, or, sql, inArray, notInArray, isNull, isNotNull, desc, asc, count, sum, avg, like } from "drizzle-orm";
