@@ -1,69 +1,116 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this package.
 
 ## Package Overview
 
-This is the `@repo/database` package - the Prisma ORM layer for MDScribe. It uses PostgreSQL with the Neon serverless adapter and pgvector extension for template embeddings.
+This is the `@repo/database` package - the Drizzle ORM layer for MDScribe. It uses PostgreSQL with pgvector extension for template embeddings, with dual runtime support:
+- **Local Development**: PGlite (in-memory PostgreSQL)
+- **Production**: Neon serverless PostgreSQL
 
 ## Commands
 
 ```bash
-# Start local PostgreSQL + Neon proxy containers
-pnpm dev
+# Start Drizzle Studio for database inspection
+bun dev
 
-# Deploy migrations and generate Prisma client (production build)
-pnpm build
+# Generate new migrations
+bun run generate
 
-# Generate Prisma client only (runs automatically on postinstall if DB URL exists)
-npx prisma generate
+# Run migrations
+bun run migrate
 
-# Create a new migration
-npx prisma migrate dev --name <migration_name>
-
-# Push schema changes without migration (development only)
-npx prisma db push
-
-# Format schema file
-npx prisma format
+# Push schema changes directly (development)
+bun run push
 ```
 
 ## Architecture
 
-### Database Setup
-- **Local Development**: Docker Compose runs PostgreSQL 17 on port 5432 and a Neon HTTP proxy on port 4444
-- **Production**: Neon serverless PostgreSQL
-- **Adapter**: Uses `@prisma/adapter-neon` with `PrismaNeon` for serverless compatibility
+### Key Files
+- `schema.ts` - Drizzle schema definitions for all tables
+- `client.ts` - Database client with dual runtime (PGlite/Neon)
+- `types.ts` - Auto-generated TypeScript types from schema
+- `init-schema.ts` - SQL initialization for PGlite
+- `test.ts` - Testing utilities
+- `drizzle.config.ts` - Drizzle Kit configuration
 
-### Prisma Configuration
-- Schema: `prisma/schema.prisma`
-- Generated client output: `prisma/generated/`
-- Engine type: `client` (not binary) with `bun` runtime
-- Preview features: `postgresqlExtensions` for pgvector
+### Database Client
 
-### Key Models
-- **User**: Core user with BetterAuth fields, linked to subscriptions, templates, and usage tracking
-- **Template**: Medical document templates with `Unsupported("vector(1024)")` embedding field for semantic search
-- **Subscription**: Stripe subscription data with plan, status, and billing period
-- **UsageEvent**: Token usage tracking per user with event name and timestamp
-- **TextSnippet**: User text shortcuts with unique `[userId, key]` constraint
+The client automatically detects the environment:
 
-### Exports
-The package exports:
-- `database`: Singleton PrismaClient instance
-- Type exports for all models: `User`, `Template`, `Subscription`, `Account`, `Session`, `Verification`, `UsageEvent`, `Prisma`, `PrismaClient`
+```typescript
+// Local development: Uses PGlite (in-memory)
+// - No external database required
+// - Fast startup, isolated per session
+// - Schema auto-initialized on startup
+
+// Production: Uses Neon serverless
+// - Connection pooling via @neondatabase/serverless
+// - Requires POSTGRES_DATABASE_URL
+```
+
+### Schema Tables
+
+| Table | Purpose |
+|-------|---------|
+| `user` | Core user with BetterAuth fields, Stripe integration |
+| `account` | OAuth accounts linked to users |
+| `session` | User sessions with token, expiration, IP tracking |
+| `verification` | Email verification tokens |
+| `template` | Medical templates with 1024-dim vector embeddings |
+| `subscription` | Stripe subscription data |
+| `usageEvent` | Token usage tracking per AI generation |
+| `textSnippet` | User text shortcuts (unique per userId+key) |
+| `favourites` | Many-to-many user↔template junction |
+
+### Custom Vector Type
+
+Templates use a custom Drizzle type for Voyage AI embeddings:
+
+```typescript
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType() { return "vector(1024)"; },
+  toDriver(value: number[]): string { return `[${value.join(",")}]`; },
+  fromDriver(value: string): number[] { /* parse "[1,2,3]" */ }
+});
+```
+
+## Exports
+
+```typescript
+// Database client
+import { database } from "@repo/database";
+
+// Schema tables
+import { user, template, subscription, usageEvent, ... } from "@repo/database";
+
+// Types
+import type { User, Template, NewUser, NewTemplate, ... } from "@repo/database";
+
+// Drizzle operators
+import { eq, and, or, sql, inArray, ... } from "@repo/database";
+```
+
+## Testing
+
+```typescript
+import { startTestServer, createTestUser } from "@repo/database/test";
+
+const { db, close } = await startTestServer("my-test");
+const { user, session } = await createTestUser(db, { email: "test@example.com" });
+// ... run tests ...
+await close();
+```
 
 ## Environment Variables
 
 ```
-POSTGRES_DATABASE_URL  # Full connection string (required)
+POSTGRES_DATABASE_URL  # Required for production, optional for local dev
 ```
-
-Local development URL: `postgres://postgres:postgres@localhost:5432/main` (via Neon proxy: port 4444)
 
 ## Important Notes
 
 - Package is marked `server-only` - cannot be imported in client components
-- Template embeddings use 1024-dimensional vectors (Voyage AI compatible)
-- Migrations are in `prisma/migrations/` - do not modify existing migration files
-- The Neon proxy is required locally to simulate Neon's HTTP-based connection pooling
+- Template embeddings are 1024-dimensional (Voyage AI compatible)
+- PGlite uses in-memory mode to avoid file lock conflicts with Next.js HMR
+- Relations are defined bidirectionally for Drizzle query builder support

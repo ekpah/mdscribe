@@ -82,7 +82,7 @@ export default function SignUp() {
               await signUp.email({
                 email,
                 password,
-                name: '',
+                name: email.split('@')[0] || 'User',
                 callbackURL: '/email-verified',
                 fetchOptions: {
                   onResponse: () => {

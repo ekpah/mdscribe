@@ -40,6 +40,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 	const session = await auth.api.getSession({
 		headers: await headers(),
 	});
+
 	const showAiLink = !!session?.user;
 	return (
 		<html lang="en" suppressHydrationWarning>
