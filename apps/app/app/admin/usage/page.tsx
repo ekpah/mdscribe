@@ -137,11 +137,13 @@ export default function UsagePage() {
 				return (
 					<div className="flex flex-col">
 						<span className="max-w-[120px] truncate font-medium text-solarized-base00 sm:max-w-none">
-							{user.name || "Kein Name"}
+							{user.name || user.email}
 						</span>
-						<span className="hidden text-xs text-solarized-base01 sm:block">
-							{user.email}
-						</span>
+						{user.name && (
+							<span className="hidden text-xs text-solarized-base01 sm:block">
+								{user.email}
+							</span>
+						)}
 					</div>
 				);
 			},
