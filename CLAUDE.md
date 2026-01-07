@@ -141,6 +141,31 @@ Required environment variables (see turbo.json):
 - Analytics: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, `LANGFUSE_*`
 - Flags: `FLAGS_SECRET`
 
+## Git Workflow & Pull Requests
+
+### Creating Pull Requests
+
+When creating pull requests to a specific base branch (e.g., `staging`), use the GitHub compare URL format:
+
+```
+https://github.com/OWNER/REPO/compare/BASE...HEAD
+```
+
+**Example for this repo:**
+```
+https://github.com/ekpah/mdscribe/compare/staging...claude/branch-name
+```
+
+Where:
+- `BASE` is the target branch where changes should be merged (e.g., `staging`, `main`)
+- `HEAD` is the source branch containing your changes (e.g., `claude/feature-branch`)
+
+**Important Notes:**
+- The `...` (three dots) between branches is required
+- Using `?base=branch` as a query parameter does NOT work reliably - always use the compare URL format above
+- The compare URL will show the diff and provide an option to create a PR with the correct base branch
+- If `gh` CLI is available, use: `gh pr create --base staging --title "..." --body "..."`
+
 ## Important Implementation Notes
 
 - **AI Models**: Use OpenRouter provider for multi-model support (Claude, Gemini, GLM-4)
