@@ -10,6 +10,7 @@ import {
 	ArrowRight,
 	Database,
 	FileText,
+	FlaskConical,
 	Settings,
 	Shield,
 	Users,
@@ -80,6 +81,14 @@ function AdminCard({
 
 const adminFeatures: AdminCardProps[] = [
 	{
+		title: "AI Playground",
+		description:
+			"Experimentiere mit verschiedenen KI-Modellen, Prompts und Parametern. Vergleiche Modelle nebeneinander und teste multimodale Eingaben.",
+		href: "/admin/playground",
+		icon: <FlaskConical className="h-5 w-5 text-solarized-violet" />,
+		status: "active",
+	},
+	{
 		title: "Embedding-Migration",
 		description:
 			"Verwalten und Ausführen von Template-Embedding-Migrationen. Fehlende Embeddings generieren oder alle Embeddings mit konfigurierbaren Batch-Einstellungen neu erstellen.",
@@ -108,7 +117,7 @@ const adminFeatures: AdminCardProps[] = [
 		description:
 			"Dokumentenvorlagen durchsuchen, bearbeiten und verwalten. Vorlagennutzung und Leistungsmetriken überprüfen.",
 		href: "/admin/templates",
-		icon: <FileText className="h-5 w-5 text-solarized-violet" />,
+		icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
 		status: "coming-soon",
 	},
 	{
