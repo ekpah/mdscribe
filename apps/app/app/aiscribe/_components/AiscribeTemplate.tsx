@@ -137,7 +137,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const [model, setModel] = useState<SupportedModel>(models[0].id);
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
-	const [preparedAudioFiles, setPreparedAudioFiles] = useState<AudioFile[]>([]);
+	// Use ref for audio files to avoid race condition between setState and sendMessage
+	const preparedAudioFilesRef = useRef<AudioFile[]>([]);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const audioChunksRef = useRef<Blob[]>([]);
 	const recordingStartTimeRef = useRef<number>(0);
@@ -151,14 +152,15 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		id: `scribe-${config.documentType}`,
 		transport: {
 			async sendMessages(options) {
+				// Read from ref to get the latest audio files synchronously
+				const audioFiles = preparedAudioFilesRef.current;
 				return eventIteratorToUnproxiedDataStream(
 					await orpc.scribeStream.call(
 						{
 							documentType: config.documentType,
 							messages: options.messages,
 							model,
-							audioFiles:
-								preparedAudioFiles.length > 0 ? preparedAudioFiles : undefined,
+							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
 						},
 						{ signal: options.abortSignal },
 					),
@@ -173,8 +175,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		},
 		onFinish: () => {
 			toast.success("Erfolgreich generiert");
-			// Clear prepared audio files after generation
-			setPreparedAudioFiles([]);
+			// Clear prepared audio files ref after generation
+			preparedAudioFilesRef.current = [];
 		},
 	});
 
@@ -184,10 +186,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			(m) => m.role === "assistant",
 		);
 		if (!lastAssistantMessage) return "";
-		return lastAssistantMessage.parts
-			.filter((p) => p.type === "text")
-			.map((p) => (p as { type: "text"; text: string }).text)
-			.join("");
+		if (lastAssistantMessage.parts) {
+			return lastAssistantMessage.parts
+				.filter((p) => p.type === "text")
+				.map((p) => (p as { type: "text"; text: string }).text)
+				.join("");
+		}
+		return "";
 	}, [messages]);
 
 	// Loading state from useChat status
@@ -332,7 +337,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						...additionalInputData,
 					});
 
-			// Prepare audio files if available
+			// Prepare audio files if available - update ref synchronously before sendMessage
 			if (audioRecordings.length > 0 && isAudioSupported) {
 				const audioFiles = await Promise.all(
 					audioRecordings.map(async (recording) => {
@@ -350,7 +355,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						};
 					}),
 				);
-				setPreparedAudioFiles(audioFiles);
+				// Use ref to avoid race condition - ref update is synchronous
+				preparedAudioFilesRef.current = audioFiles;
+			} else {
+				// Clear ref if no audio recordings
+				preparedAudioFilesRef.current = [];
 			}
 
 			// Send message using AI SDK useChat

@@ -28,13 +28,6 @@ export const auth = betterAuth({
 	// sets the Better-Auth database adapter to Drizzle with PostgreSQL provider
 	database: drizzleAdapter(database, {
 		provider: "pg",
-		schema: {
-			user,
-			account,
-			session,
-			verification,
-			subscription,
-		},
 	}),
 	// enables cookie caching for better-auth sessions
 	session: {

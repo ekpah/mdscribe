@@ -88,10 +88,13 @@ export function DoctorsNoteSection({
 			(m) => m.role === "assistant",
 		);
 		if (!lastAssistantMessage) return "";
-		return lastAssistantMessage.parts
-			.filter((p) => p.type === "text")
-			.map((p) => (p as { type: "text"; text: string }).text)
-			.join("");
+		if (lastAssistantMessage.parts) {
+			return lastAssistantMessage.parts
+				.filter((p) => p.type === "text")
+				.map((p) => (p as { type: "text"; text: string }).text)
+				.join("");
+		}
+		return "";
 	}, [messages]);
 
 	// Loading state from useChat status

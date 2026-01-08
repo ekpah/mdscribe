@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { ORPCError } from "@orpc/server";
+import { call, ORPCError } from "@orpc/server";
 import { documentTypeConfigs } from "@/orpc/scribe/config";
 import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -172,17 +172,14 @@ describe("Scribe Stream Handler", () => {
 			const context = createTestContext({ db: server.db, session });
 
 			await expect(
-				scribeStreamHandler.handler({
-					input: {
+				call(
+					scribeStreamHandler,
+					{
 						documentType: "discharge",
 						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
 					},
-					context,
-					path: [],
-					procedure: scribeStreamHandler,
-					signal: undefined,
-					lastEventId: undefined,
-				}),
+					{ context },
+				),
 			).rejects.toThrow(ORPCError);
 		});
 	});
@@ -194,17 +191,14 @@ describe("Scribe Stream Handler", () => {
 			const context = createTestContext({ db: server.db, session });
 
 			await expect(
-				scribeStreamHandler.handler({
-					input: {
+				call(
+					scribeStreamHandler,
+					{
 						documentType: "unknown-type" as DocumentType,
 						messages: [{ id: "1", role: "user", content: "{}" }],
 					},
-					context,
-					path: [],
-					procedure: scribeStreamHandler,
-					signal: undefined,
-					lastEventId: undefined,
-				}),
+					{ context },
+				),
 			).rejects.toThrow(ORPCError);
 		});
 
@@ -219,17 +213,14 @@ describe("Scribe Stream Handler", () => {
 				// Should not throw for valid types
 				// Note: May still fail on usage limits, but not on validation
 				try {
-					await scribeStreamHandler.handler({
-						input: {
+					await call(
+						scribeStreamHandler,
+						{
 							documentType: docType,
 							messages: [{ id: "1", role: "user", content: '{"notes":"test"}' }],
 						},
-						context,
-						path: [],
-						procedure: scribeStreamHandler,
-						signal: undefined,
-						lastEventId: undefined,
-					});
+						{ context },
+					);
 				} catch (error) {
 					// Only usage limit errors are acceptable here
 					if (error instanceof ORPCError) {
@@ -259,17 +250,14 @@ describe("Scribe Stream Handler", () => {
 			const context = createTestContext({ db: server.db, session });
 
 			await expect(
-				scribeStreamHandler.handler({
-					input: {
+				call(
+					scribeStreamHandler,
+					{
 						documentType: "discharge",
 						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
 					},
-					context,
-					path: [],
-					procedure: scribeStreamHandler,
-					signal: undefined,
-					lastEventId: undefined,
-				}),
+					{ context },
+				),
 			).rejects.toThrow("Monatliche Nutzungsgrenze erreicht");
 		});
 
@@ -298,8 +286,9 @@ describe("Scribe Stream Handler", () => {
 
 			// Should not throw - under plus limit
 			// Note: Will still return a stream (mocked)
-			const result = await scribeStreamHandler.handler({
-				input: {
+			const result = await call(
+				scribeStreamHandler,
+				{
 					documentType: "discharge",
 					messages: [
 						{
@@ -314,12 +303,8 @@ describe("Scribe Stream Handler", () => {
 						},
 					],
 				},
-				context,
-				path: [],
-				procedure: scribeStreamHandler,
-				signal: undefined,
-				lastEventId: undefined,
-			});
+				{ context },
+			);
 
 			// Should return an async iterator (stream)
 			expect(result).toBeDefined();
@@ -350,17 +335,14 @@ describe("Scribe Stream Handler", () => {
 			const context = createTestContext({ db: server.db, session });
 
 			await expect(
-				scribeStreamHandler.handler({
-					input: {
+				call(
+					scribeStreamHandler,
+					{
 						documentType: "discharge",
 						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
 					},
-					context,
-					path: [],
-					procedure: scribeStreamHandler,
-					signal: undefined,
-					lastEventId: undefined,
-				}),
+					{ context },
+				),
 			).rejects.toThrow("Monatliche Nutzungsgrenze erreicht");
 		});
 	});
@@ -371,8 +353,9 @@ describe("Scribe Stream Handler", () => {
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });
 
-			const result = await scribeStreamHandler.handler({
-				input: {
+			const result = await call(
+				scribeStreamHandler,
+				{
 					documentType: "anamnese",
 					messages: [
 						{
@@ -386,12 +369,8 @@ describe("Scribe Stream Handler", () => {
 						},
 					],
 				},
-				context,
-				path: [],
-				procedure: scribeStreamHandler,
-				signal: undefined,
-				lastEventId: undefined,
-			});
+				{ context },
+			);
 
 			expect(result).toBeDefined();
 			// The result should be an async iterator
@@ -406,8 +385,9 @@ describe("Scribe Stream Handler", () => {
 			const models = ["auto", "claude-opus-4.5", "gemini-3-pro", "glm-4p6"] as const;
 
 			for (const model of models) {
-				const result = await scribeStreamHandler.handler({
-					input: {
+				const result = await call(
+					scribeStreamHandler,
+					{
 						documentType: "anamnese",
 						messages: [
 							{
@@ -418,12 +398,8 @@ describe("Scribe Stream Handler", () => {
 						],
 						model,
 					},
-					context,
-					path: [],
-					procedure: scribeStreamHandler,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+					{ context },
+				);
 
 				expect(result).toBeDefined();
 			}

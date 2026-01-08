@@ -1,16 +1,12 @@
-import { database, eq, template, user } from "@repo/database";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { QueryClient } from "@tanstack/react-query";
 import { auth } from "@/auth";
+import { orpc } from "@/lib/orpc";
 import Editor from "../../_components/Editor";
 
 export const dynamicParams = false;
-
-async function fetchMarkdoc({ id }: { id: string }) {
-	const [doc] = await database.select().from(template).where(eq(template.id, id)).limit(1);
-	return doc;
-}
 
 type MetadataProps = {
 	params: Promise<{ template: [category: string, name: string] }>;
@@ -21,7 +17,9 @@ export async function generateMetadata(
 ): Promise<Metadata> {
 	const params = await props.params;
 	const { template: templateParam } = params;
-	const [_category, name] = templateParam ? templateParam : [undefined, "Scribe"];
+	const [_category, name] = templateParam
+		? templateParam
+		: [undefined, "Scribe"];
 	return {
 		title: `Scribe - ${name}`,
 	};
@@ -38,17 +36,15 @@ export default async function EditTemplate(
 		redirect("/");
 	}
 	const { id } = params;
-	const doc = await fetchMarkdoc({ id });
+	const queryClient = new QueryClient();
+	const doc = await queryClient.fetchQuery(
+		orpc.templates.get.queryOptions({ input: { id } }),
+	);
 	if (!doc) {
 		throw new Error("Document not found");
 	}
 
-	const [author] = await database
-		.select()
-		.from(user)
-		.where(eq(user.id, doc.authorId))
-		.limit(1);
-
+	const author = doc.author;
 	if (!author) {
 		throw new Error("Author not found");
 	}

@@ -47,7 +47,11 @@ export function createMockSession(user: {
 			createdAt: new Date(),
 			updatedAt: new Date(),
 			image: null,
-			stripeCustomerId: user.stripeCustomerId ?? `cus_test_${Date.now()}`,
+			// Use explicit undefined check to allow passing null to override the default
+			stripeCustomerId:
+				"stripeCustomerId" in user
+					? user.stripeCustomerId
+					: `cus_test_${Date.now()}`,
 		},
 		session: {
 			id: crypto.randomUUID(),

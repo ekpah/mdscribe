@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { call } from "@orpc/server";
 import { snippetsHandler } from "@/orpc/user/snippets";
 import { activityHandler } from "@/orpc/user/activity";
 import {
@@ -37,14 +38,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.list.handler({
-					input: undefined,
-					context,
-					path: [],
-					procedure: snippetsHandler.list,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(snippetsHandler.list, undefined, { context });
 
 				expect(result).toEqual([]);
 			});
@@ -68,14 +62,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.list.handler({
-					input: undefined,
-					context,
-					path: [],
-					procedure: snippetsHandler.list,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(snippetsHandler.list, undefined, { context });
 
 				expect(result).toHaveLength(3);
 				// Should be ordered alphabetically by key
@@ -98,14 +85,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user1);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.list.handler({
-					input: undefined,
-					context,
-					path: [],
-					procedure: snippetsHandler.list,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(snippetsHandler.list, undefined, { context });
 
 				expect(result).toHaveLength(1);
 				expect(result[0]!.key).toBe("user1-key");
@@ -123,14 +103,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.get.handler({
-					input: { id: snippet.id },
-					context,
-					path: [],
-					procedure: snippetsHandler.get,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(snippetsHandler.get, { id: snippet.id }, { context });
 
 				expect(result).not.toBeNull();
 				expect(result?.id).toBe(snippet.id);
@@ -143,14 +116,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.get.handler({
-					input: { id: "non-existent-id" },
-					context,
-					path: [],
-					procedure: snippetsHandler.get,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(snippetsHandler.get, { id: "non-existent-id" }, { context });
 
 				expect(result).toBeNull();
 			});
@@ -168,14 +134,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(other);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.get.handler({
-					input: { id: snippet.id },
-					context,
-					path: [],
-					procedure: snippetsHandler.get,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(snippetsHandler.get, { id: snippet.id }, { context });
 
 				expect(result).toBeNull();
 			});
@@ -187,17 +146,11 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.create.handler({
-					input: {
-						key: "newkey",
-						snippet: "New snippet content",
-					},
-					context,
-					path: [],
-					procedure: snippetsHandler.create,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(
+					snippetsHandler.create,
+					{ key: "newkey", snippet: "New snippet content" },
+					{ context },
+				);
 
 				expect(result).toBeDefined();
 				expect(result?.key).toBe("newkey");
@@ -212,17 +165,7 @@ describe("User oRPC Handlers", () => {
 
 				// Empty key should fail validation
 				await expect(
-					snippetsHandler.create.handler({
-						input: {
-							key: "",
-							snippet: "content",
-						},
-						context,
-						path: [],
-						procedure: snippetsHandler.create,
-						signal: undefined,
-						lastEventId: undefined,
-					}),
+					call(snippetsHandler.create, { key: "", snippet: "content" }, { context }),
 				).rejects.toThrow();
 			});
 		});
@@ -238,18 +181,11 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.update.handler({
-					input: {
-						id: snippet.id,
-						key: "updated",
-						snippet: "Updated content",
-					},
-					context,
-					path: [],
-					procedure: snippetsHandler.update,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(
+					snippetsHandler.update,
+					{ id: snippet.id, key: "updated", snippet: "Updated content" },
+					{ context },
+				);
 
 				expect(result?.key).toBe("updated");
 				expect(result?.snippet).toBe("Updated content");
@@ -261,18 +197,11 @@ describe("User oRPC Handlers", () => {
 				const context = createTestContext({ db: server.db, session });
 
 				await expect(
-					snippetsHandler.update.handler({
-						input: {
-							id: "non-existent-id",
-							key: "key",
-							snippet: "content",
-						},
-						context,
-						path: [],
-						procedure: snippetsHandler.update,
-						signal: undefined,
-						lastEventId: undefined,
-					}),
+					call(
+						snippetsHandler.update,
+						{ id: "non-existent-id", key: "key", snippet: "content" },
+						{ context },
+					),
 				).rejects.toThrow("Snippet not found");
 			});
 
@@ -290,18 +219,11 @@ describe("User oRPC Handlers", () => {
 				const context = createTestContext({ db: server.db, session });
 
 				await expect(
-					snippetsHandler.update.handler({
-						input: {
-							id: snippet.id,
-							key: "hacked",
-							snippet: "hacked content",
-						},
-						context,
-						path: [],
-						procedure: snippetsHandler.update,
-						signal: undefined,
-						lastEventId: undefined,
-					}),
+					call(
+						snippetsHandler.update,
+						{ id: snippet.id, key: "hacked", snippet: "hacked content" },
+						{ context },
+					),
 				).rejects.toThrow("Snippet not found");
 			});
 		});
@@ -314,26 +236,12 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await snippetsHandler.delete.handler({
-					input: { id: snippet.id },
-					context,
-					path: [],
-					procedure: snippetsHandler.delete,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(snippetsHandler.delete, { id: snippet.id }, { context });
 
 				expect(result).toEqual({ success: true });
 
 				// Verify it's deleted
-				const check = await snippetsHandler.get.handler({
-					input: { id: snippet.id },
-					context,
-					path: [],
-					procedure: snippetsHandler.get,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const check = await call(snippetsHandler.get, { id: snippet.id }, { context });
 
 				expect(check).toBeNull();
 			});
@@ -344,14 +252,7 @@ describe("User oRPC Handlers", () => {
 				const context = createTestContext({ db: server.db, session });
 
 				await expect(
-					snippetsHandler.delete.handler({
-						input: { id: "non-existent-id" },
-						context,
-						path: [],
-						procedure: snippetsHandler.delete,
-						signal: undefined,
-						lastEventId: undefined,
-					}),
+					call(snippetsHandler.delete, { id: "non-existent-id" }, { context }),
 				).rejects.toThrow("Snippet not found");
 			});
 
@@ -369,14 +270,7 @@ describe("User oRPC Handlers", () => {
 				const context = createTestContext({ db: server.db, session });
 
 				await expect(
-					snippetsHandler.delete.handler({
-						input: { id: snippet.id },
-						context,
-						path: [],
-						procedure: snippetsHandler.delete,
-						signal: undefined,
-						lastEventId: undefined,
-					}),
+					call(snippetsHandler.delete, { id: snippet.id }, { context }),
 				).rejects.toThrow("Snippet not found");
 			});
 		});
@@ -389,14 +283,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await activityHandler.recentActivity.handler({
-					input: undefined,
-					context,
-					path: [],
-					procedure: activityHandler.recentActivity,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(activityHandler.recentActivity, undefined, { context });
 
 				expect(result).toEqual([]);
 			});
@@ -414,14 +301,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await activityHandler.recentActivity.handler({
-					input: undefined,
-					context,
-					path: [],
-					procedure: activityHandler.recentActivity,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(activityHandler.recentActivity, undefined, { context });
 
 				expect(result).toHaveLength(2);
 			});
@@ -437,14 +317,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await activityHandler.recentActivity.handler({
-					input: undefined,
-					context,
-					path: [],
-					procedure: activityHandler.recentActivity,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(activityHandler.recentActivity, undefined, { context });
 
 				expect(result).toHaveLength(5);
 			});
@@ -467,14 +340,7 @@ describe("User oRPC Handlers", () => {
 				const session = createMockSession(user1);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await activityHandler.recentActivity.handler({
-					input: undefined,
-					context,
-					path: [],
-					procedure: activityHandler.recentActivity,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(activityHandler.recentActivity, undefined, { context });
 
 				expect(result).toHaveLength(1);
 				expect(result[0]!.name).toBe("user1_event");

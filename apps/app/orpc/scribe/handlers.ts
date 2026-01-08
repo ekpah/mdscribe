@@ -97,8 +97,9 @@ function getActualModel(modelId: string, hasAudio?: boolean): string {
 async function checkUsageLimit(
 	userId: string,
 	session: { user: { id: string } },
+	db: typeof database,
 ) {
-	const subscriptions = await database
+	const subscriptions = await db
 		.select()
 		.from(subscription)
 		.where(
@@ -106,7 +107,7 @@ async function checkUsageLimit(
 		);
 
 	const activeSubscription = subscriptions.length > 0;
-	const { usage } = await getUsage(session as { user: { id: string } });
+	const { usage } = await getUsage(session as { user: { id: string } }, db);
 	const usageLimit = activeSubscription ? 500 : 50;
 
 	if (usage.count >= usageLimit) {
@@ -273,7 +274,7 @@ export const scribeStreamHandler = authed
 		}
 
 		// Check usage limits
-		await checkUsageLimit(context.session.user.id, context.session);
+		await checkUsageLimit(context.session.user.id, context.session, context.db);
 
 		// Get actual model (handle 'auto')
 		const hasAudio = audioFiles && audioFiles.length > 0;

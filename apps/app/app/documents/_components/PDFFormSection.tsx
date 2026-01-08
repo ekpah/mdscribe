@@ -102,8 +102,15 @@ export default function PDFFormSection() {
 			return;
 		}
 
-		// Convert Uint8Array to base64
-		const base64 = btoa(String.fromCharCode(...pdfFile));
+		// Convert Uint8Array to base64 in chunks to avoid stack overflow for large files
+		// Using array + join is more memory efficient than string concatenation
+		const chunkSize = 8192;
+		const chunks: string[] = [];
+		for (let i = 0; i < pdfFile.length; i += chunkSize) {
+			const chunk = pdfFile.subarray(i, i + chunkSize);
+			chunks.push(String.fromCharCode(...chunk));
+		}
+		const base64 = btoa(chunks.join(""));
 
 		toast.loading("Eingaben werden mit KI verbessert...", {
 			id: "enhance-ai",

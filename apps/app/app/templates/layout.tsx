@@ -1,4 +1,3 @@
-import { database, sql, template } from "@repo/database";
 import { SidebarProvider } from "@repo/design-system/components/ui/sidebar";
 import { QueryClient } from "@tanstack/react-query";
 import { headers } from "next/headers";
@@ -9,32 +8,21 @@ import { auth } from "@/auth";
 import { orpc } from "@/lib/orpc";
 import AppSidebar from "./_components/Sidebar";
 
-const getTemplates = async () => {
-	const templates = await database
-		.select({
-			id: template.id,
-			title: template.title,
-			category: template.category,
-			content: template.content,
-			authorId: template.authorId,
-			updatedAt: template.updatedAt,
-			embedding: template.embedding,
-			_count: {
-				favouriteOf: sql<number>`(
-					SELECT COUNT(*) FROM "_favourites"
-					WHERE "_favourites"."A" = ${template.id}
-				)`.as("favouriteCount"),
-			},
-		})
-		.from(template);
+const getTemplates = async (queryClient: QueryClient) => {
+	const templates = await queryClient.fetchQuery(
+		orpc.templates.list.queryOptions(),
+	);
 	return templates;
 };
-const getFavouriteTemplates = async (isLoggedIn: boolean) => {
+
+const getFavouriteTemplates = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
 	if (!isLoggedIn) {
 		return [];
 	}
 	try {
-		const queryClient = new QueryClient();
 		const templates = await queryClient.fetchQuery(
 			orpc.templates.favourites.queryOptions(),
 		);
@@ -45,12 +33,15 @@ const getFavouriteTemplates = async (isLoggedIn: boolean) => {
 		return [];
 	}
 };
-const getAuthoredTemplates = async (isLoggedIn: boolean) => {
+
+const getAuthoredTemplates = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
 	if (!isLoggedIn) {
 		return [];
 	}
 	try {
-		const queryClient = new QueryClient();
 		const templates = await queryClient.fetchQuery(
 			orpc.templates.authored.queryOptions(),
 		);
@@ -62,8 +53,8 @@ const getAuthoredTemplates = async (isLoggedIn: boolean) => {
 	}
 };
 
-const generateSidebarLinks = async () => {
-	const templates = await getTemplates();
+const generateSidebarLinks = async (queryClient: QueryClient) => {
+	const templates = await getTemplates(queryClient);
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,
@@ -71,8 +62,12 @@ const generateSidebarLinks = async () => {
 		favouritesCount: temp._count.favouriteOf,
 	}));
 };
-const generateFavouriteTemplates = async (isLoggedIn: boolean) => {
-	const templates = await getFavouriteTemplates(isLoggedIn);
+
+const generateFavouriteTemplates = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
+	const templates = await getFavouriteTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,
@@ -80,8 +75,12 @@ const generateFavouriteTemplates = async (isLoggedIn: boolean) => {
 		favouritesCount: temp._count.favouriteOf,
 	}));
 };
-const generateAuthoredTemplates = async (isLoggedIn: boolean) => {
-	const templates = await getAuthoredTemplates(isLoggedIn);
+
+const generateAuthoredTemplates = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
+	const templates = await getAuthoredTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,
@@ -89,6 +88,7 @@ const generateAuthoredTemplates = async (isLoggedIn: boolean) => {
 		favouritesCount: temp._count.favouriteOf,
 	}));
 };
+
 export default async function Layout({
 	children,
 }: {
@@ -98,6 +98,7 @@ export default async function Layout({
 		headers: await headers(),
 	});
 	const isLoggedIn = !!session?.user;
+	const queryClient = new QueryClient();
 
 	return (
 		<div className="flex h-full w-full">
@@ -115,14 +116,14 @@ export default async function Layout({
 				>
 					<AppSidebar
 						authoredTemplates={JSON.stringify(
-							await generateAuthoredTemplates(isLoggedIn),
+							await generateAuthoredTemplates(queryClient, isLoggedIn),
 						)}
 						favouriteTemplates={JSON.stringify(
-							await generateFavouriteTemplates(isLoggedIn),
+							await generateFavouriteTemplates(queryClient, isLoggedIn),
 						)}
 						isLoggedIn={isLoggedIn}
 						key="Sidebar"
-						templates={JSON.stringify(await generateSidebarLinks())}
+						templates={JSON.stringify(await generateSidebarLinks(queryClient))}
 					/>
 				</Suspense>
 				<main

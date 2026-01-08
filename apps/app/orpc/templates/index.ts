@@ -1,6 +1,7 @@
 import { type } from "@orpc/server";
 import {
 	and,
+	count,
 	desc,
 	eq,
 	favourites,
@@ -19,6 +20,12 @@ import { authed, pub } from "@/orpc";
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
 });
+
+// Helper: Count how many users have favourited a template
+const favouriteCount = (templateId: typeof template.id) =>
+	sql<number>`(SELECT ${count()} FROM ${favourites} WHERE ${favourites.templateId} = ${templateId})`.as(
+		"favouriteCount",
+	);
 
 // ============================================================================
 // Types
@@ -85,6 +92,28 @@ const favouriteInput = z.object({
 // ============================================================================
 
 /**
+ * List all templates (public)
+ */
+const listTemplatesHandler = pub.handler(async ({ context }) => {
+	const templates = await context.db
+		.select({
+			id: template.id,
+			title: template.title,
+			category: template.category,
+			content: template.content,
+			authorId: template.authorId,
+			updatedAt: template.updatedAt,
+			embedding: template.embedding,
+			_count: {
+				favouriteOf: favouriteCount(template.id),
+			},
+		})
+		.from(template);
+
+	return templates;
+});
+
+/**
  * Get a single template by ID (public)
  */
 const getTemplateHandler = pub
@@ -123,15 +152,15 @@ const getTemplateHandler = pub
 
 		// Get users who favourited this template
 		const favouriteUsers = await context.db
-			.select({ id: favourites.B })
+			.select({ id: favourites.userId })
 			.from(favourites)
-			.where(eq(favourites.A, input.id));
+			.where(eq(favourites.templateId, input.id));
 
 		// Get count
 		const [countResult] = await context.db
 			.select({ count: sql<number>`COUNT(*)` })
 			.from(favourites)
-			.where(eq(favourites.A, input.id));
+			.where(eq(favourites.templateId, input.id));
 
 		return {
 			...templateData,
@@ -159,15 +188,12 @@ const getFavouritesHandler = authed.handler(async ({ context }) => {
 			updatedAt: template.updatedAt,
 			embedding: template.embedding,
 			_count: {
-				favouriteOf: sql<number>`(
-					SELECT COUNT(*) FROM "_favourites"
-					WHERE "_favourites"."A" = ${template.id}
-				)`.as("favouriteCount"),
+				favouriteOf: favouriteCount(template.id),
 			},
 		})
 		.from(template)
-		.innerJoin(favourites, eq(favourites.A, template.id))
-		.where(eq(favourites.B, context.session.user.id))
+		.innerJoin(favourites, eq(favourites.templateId, template.id))
+		.where(eq(favourites.userId, context.session.user.id))
 		.orderBy(desc(template.updatedAt));
 
 	return favoriteTemplates;
@@ -187,10 +213,7 @@ const getAuthoredHandler = authed.handler(async ({ context }) => {
 			updatedAt: template.updatedAt,
 			embedding: template.embedding,
 			_count: {
-				favouriteOf: sql<number>`(
-					SELECT COUNT(*) FROM "_favourites"
-					WHERE "_favourites"."A" = ${template.id}
-				)`.as("favouriteCount"),
+				favouriteOf: favouriteCount(template.id),
 			},
 		})
 		.from(template)
@@ -287,8 +310,8 @@ const addFavouriteHandler = authed
 		await context.db
 			.insert(favourites)
 			.values({
-				A: input.templateId,
-				B: context.session.user.id,
+				templateId: input.templateId,
+				userId: context.session.user.id,
 			})
 			.onConflictDoNothing();
 
@@ -305,8 +328,8 @@ const removeFavouriteHandler = authed
 			.delete(favourites)
 			.where(
 				and(
-					eq(favourites.A, input.templateId),
-					eq(favourites.B, context.session.user.id),
+					eq(favourites.templateId, input.templateId),
+					eq(favourites.userId, context.session.user.id),
 				),
 			);
 
@@ -319,6 +342,7 @@ const removeFavouriteHandler = authed
 
 export const templatesHandler = {
 	// Public
+	list: listTemplatesHandler,
 	get: getTemplateHandler,
 	// Authenticated - Read
 	favourites: getFavouritesHandler,

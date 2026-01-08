@@ -45,6 +45,9 @@ export const parseFormHandler = authed
 	.handler(async ({ input }) => {
 		const { fileBase64, fieldMapping } = input;
 
+		// Decode base64 to Uint8Array using Node.js Buffer (more efficient than manual loop)
+		const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
+
 		// Create prompt for Gemini to enhance field mappings
 		const prompt = `Du analysierst ein PDF-Formular-Dokument. Ich habe die folgenden Formularfeld-Zuordnungen aus dem PDF extrahiert:
 
@@ -82,7 +85,7 @@ Achte darauf:
 					content: [
 						{
 							type: "file",
-							data: `data:application/pdf;base64,${fileBase64}`,
+							data: bytes,
 							mediaType: "application/pdf",
 						},
 					],

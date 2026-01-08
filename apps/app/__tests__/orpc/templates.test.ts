@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { call } from "@orpc/server";
 import { templatesHandler } from "@/orpc/templates";
 import {
 	createMockSession,
@@ -31,14 +32,11 @@ describe("Templates oRPC Handlers", () => {
 			test("returns null for non-existent template", async () => {
 				const context = createTestContext({ db: server.db });
 
-				const result = await templatesHandler.get.handler({
-					input: { id: "non-existent-id" },
-					context,
-					path: [],
-					procedure: templatesHandler.get,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(
+					templatesHandler.get,
+					{ id: "non-existent-id" },
+					{ context },
+				);
 
 				expect(result).toBeNull();
 			});
@@ -54,14 +52,11 @@ describe("Templates oRPC Handlers", () => {
 
 				const context = createTestContext({ db: server.db });
 
-				const result = await templatesHandler.get.handler({
-					input: { id: template.id },
-					context,
-					path: [],
-					procedure: templatesHandler.get,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(
+					templatesHandler.get,
+					{ id: template.id },
+					{ context },
+				);
 
 				expect(result).not.toBeNull();
 				expect(result?.id).toBe(template.id);
@@ -90,20 +85,17 @@ describe("Templates oRPC Handlers", () => {
 				// Add favourites
 				const { favourites } = await import("@repo/database");
 				await server.db.insert(favourites).values([
-					{ A: template.id, B: fan1.id },
-					{ A: template.id, B: fan2.id },
+					{ templateId: template.id, userId: fan1.id },
+					{ templateId: template.id, userId: fan2.id },
 				]);
 
 				const context = createTestContext({ db: server.db });
 
-				const result = await templatesHandler.get.handler({
-					input: { id: template.id },
-					context,
-					path: [],
-					procedure: templatesHandler.get,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(
+					templatesHandler.get,
+					{ id: template.id },
+					{ context },
+				);
 
 				expect(result?._count?.favouriteOf).toBe(2);
 				expect(result?.favouriteOf).toHaveLength(2);
@@ -118,13 +110,8 @@ describe("Templates oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await templatesHandler.favourites.handler({
-					input: undefined,
+				const result = await call(templatesHandler.favourites, undefined, {
 					context,
-					path: [],
-					procedure: templatesHandler.favourites,
-					signal: undefined,
-					lastEventId: undefined,
 				});
 
 				expect(result).toEqual([]);
@@ -148,20 +135,15 @@ describe("Templates oRPC Handlers", () => {
 				// Add favourites
 				const { favourites } = await import("@repo/database");
 				await server.db.insert(favourites).values([
-					{ A: template1.id, B: user.id },
-					{ A: template2.id, B: user.id },
+					{ templateId: template1.id, userId: user.id },
+					{ templateId: template2.id, userId: user.id },
 				]);
 
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await templatesHandler.favourites.handler({
-					input: undefined,
+				const result = await call(templatesHandler.favourites, undefined, {
 					context,
-					path: [],
-					procedure: templatesHandler.favourites,
-					signal: undefined,
-					lastEventId: undefined,
 				});
 
 				expect(result).toHaveLength(2);
@@ -176,13 +158,8 @@ describe("Templates oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await templatesHandler.authored.handler({
-					input: undefined,
+				const result = await call(templatesHandler.authored, undefined, {
 					context,
-					path: [],
-					procedure: templatesHandler.authored,
-					signal: undefined,
-					lastEventId: undefined,
 				});
 
 				expect(result).toEqual([]);
@@ -201,13 +178,8 @@ describe("Templates oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await templatesHandler.authored.handler({
-					input: undefined,
+				const result = await call(templatesHandler.authored, undefined, {
 					context,
-					path: [],
-					procedure: templatesHandler.authored,
-					signal: undefined,
-					lastEventId: undefined,
 				});
 
 				// Should only return 3 (the limit)
@@ -221,18 +193,15 @@ describe("Templates oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await templatesHandler.create.handler({
-					input: {
+				const result = await call(
+					templatesHandler.create,
+					{
 						name: "New Template",
 						category: "Test Category",
 						content: "Template content here",
 					},
-					context,
-					path: [],
-					procedure: templatesHandler.create,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+					{ context },
+				);
 
 				expect(result).toBeDefined();
 				expect(result.title).toBe("New Template");
@@ -254,19 +223,16 @@ describe("Templates oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await templatesHandler.update.handler({
-					input: {
+				const result = await call(
+					templatesHandler.update,
+					{
 						id: template.id,
 						name: "Updated Title",
 						category: "Updated Category",
 						content: "Updated content",
 					},
-					context,
-					path: [],
-					procedure: templatesHandler.update,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+					{ context },
+				);
 
 				expect(result.title).toBe("Updated Title");
 				expect(result.category).toBe("Updated Category");
@@ -287,19 +253,16 @@ describe("Templates oRPC Handlers", () => {
 				const context = createTestContext({ db: server.db, session });
 
 				await expect(
-					templatesHandler.update.handler({
-						input: {
+					call(
+						templatesHandler.update,
+						{
 							id: template.id,
 							name: "Hacked",
 							category: "Hacked",
 							content: "Hacked",
 						},
-						context,
-						path: [],
-						procedure: templatesHandler.update,
-						signal: undefined,
-						lastEventId: undefined,
-					}),
+						{ context },
+					),
 				).rejects.toThrow();
 			});
 		});
@@ -315,14 +278,11 @@ describe("Templates oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await templatesHandler.addFavourite.handler({
-					input: { templateId: template.id },
-					context,
-					path: [],
-					procedure: templatesHandler.addFavourite,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(
+					templatesHandler.addFavourite,
+					{ templateId: template.id },
+					{ context },
+				);
 
 				expect(result).toEqual({ success: true });
 
@@ -331,7 +291,12 @@ describe("Templates oRPC Handlers", () => {
 				const [fav] = await server.db
 					.select()
 					.from(favourites)
-					.where(and(eq(favourites.A, template.id), eq(favourites.B, user.id)))
+					.where(
+						and(
+							eq(favourites.templateId, template.id),
+							eq(favourites.userId, user.id),
+						),
+					)
 					.limit(1);
 
 				expect(fav).toBeDefined();
@@ -348,23 +313,17 @@ describe("Templates oRPC Handlers", () => {
 				const context = createTestContext({ db: server.db, session });
 
 				// Add twice
-				await templatesHandler.addFavourite.handler({
-					input: { templateId: template.id },
-					context,
-					path: [],
-					procedure: templatesHandler.addFavourite,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				await call(
+					templatesHandler.addFavourite,
+					{ templateId: template.id },
+					{ context },
+				);
 
-				const result = await templatesHandler.addFavourite.handler({
-					input: { templateId: template.id },
-					context,
-					path: [],
-					procedure: templatesHandler.addFavourite,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(
+					templatesHandler.addFavourite,
+					{ templateId: template.id },
+					{ context },
+				);
 
 				expect(result).toEqual({ success: true });
 			});
@@ -381,21 +340,18 @@ describe("Templates oRPC Handlers", () => {
 				// Add favourite first
 				const { favourites, eq, and } = await import("@repo/database");
 				await server.db.insert(favourites).values({
-					A: template.id,
-					B: user.id,
+					templateId: template.id,
+					userId: user.id,
 				});
 
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await templatesHandler.removeFavourite.handler({
-					input: { templateId: template.id },
-					context,
-					path: [],
-					procedure: templatesHandler.removeFavourite,
-					signal: undefined,
-					lastEventId: undefined,
-				});
+				const result = await call(
+					templatesHandler.removeFavourite,
+					{ templateId: template.id },
+					{ context },
+				);
 
 				expect(result).toEqual({ success: true });
 
@@ -403,7 +359,12 @@ describe("Templates oRPC Handlers", () => {
 				const [fav] = await server.db
 					.select()
 					.from(favourites)
-					.where(and(eq(favourites.A, template.id), eq(favourites.B, user.id)))
+					.where(
+						and(
+							eq(favourites.templateId, template.id),
+							eq(favourites.userId, user.id),
+						),
+					)
 					.limit(1);
 
 				expect(fav).toBeUndefined();

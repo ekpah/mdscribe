@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import {
 	boolean,
 	customType,
@@ -29,10 +29,6 @@ const vector = customType<{ data: number[]; driverData: string }>({
 			.map((v) => Number.parseFloat(v));
 	},
 });
-
-// Helper to generate cuid-like IDs (using crypto.randomUUID as fallback)
-const cuid = () =>
-	sql`substring(md5(random()::text || clock_timestamp()::text), 1, 25)`;
 
 // ============ AUTH TABLES (BetterAuth compatible) ============
 
@@ -214,24 +210,26 @@ export const textSnippet = pgTable(
 			.notNull()
 			.$onUpdate(() => new Date()),
 	},
-	(table) => [uniqueIndex("TextSnippet_userId_key_key").on(table.userId, table.key)],
+	(table) => [
+		uniqueIndex("TextSnippet_userId_key_key").on(table.userId, table.key),
+	],
 );
 
 // Many-to-many junction table for favourites
-// Prisma creates columns named "A" and "B" for implicit many-to-many
+// DB columns are "A"/"B" (Prisma legacy), but we use descriptive TS names
 export const favourites = pgTable(
 	"_favourites",
 	{
-		A: text("A")
+		templateId: text("A")
 			.notNull()
 			.references(() => template.id, { onDelete: "cascade" }),
-		B: text("B")
+		userId: text("B")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 	},
 	(table) => [
-		primaryKey({ columns: [table.A, table.B] }),
-		index("_favourites_B_index").on(table.B),
+		primaryKey({ columns: [table.templateId, table.userId] }),
+		index("_favourites_B_index").on(table.userId),
 	],
 );
 
@@ -261,7 +259,10 @@ export const templateRelations = relations(template, ({ one, many }) => ({
 }));
 
 export const subscriptionRelations = relations(subscription, ({ one }) => ({
-	user: one(user, { fields: [subscription.referenceId], references: [user.id] }),
+	user: one(user, {
+		fields: [subscription.referenceId],
+		references: [user.id],
+	}),
 }));
 
 export const usageEventRelations = relations(usageEvent, ({ one }) => ({
@@ -273,6 +274,9 @@ export const textSnippetRelations = relations(textSnippet, ({ one }) => ({
 }));
 
 export const favouritesRelations = relations(favourites, ({ one }) => ({
-	template: one(template, { fields: [favourites.A], references: [template.id] }),
-	user: one(user, { fields: [favourites.B], references: [user.id] }),
+	template: one(template, {
+		fields: [favourites.templateId],
+		references: [template.id],
+	}),
+	user: one(user, { fields: [favourites.userId], references: [user.id] }),
 }));

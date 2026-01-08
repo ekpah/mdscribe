@@ -2,11 +2,14 @@ import { and, database, eq, gte, lte, usageEvent } from "@repo/database";
 
 import type { Session } from "@/lib/auth-types";
 
-export async function getUsage(session: Session) {
+export async function getUsage(
+	session: Pick<Session, "user">,
+	db: typeof database = database,
+) {
 	const now = new Date();
 	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-	const usage = await database
+	const usage = await db
 		.select({
 			totalTokens: usageEvent.totalTokens,
 			inputTokens: usageEvent.inputTokens,

@@ -124,71 +124,22 @@ mock.module("stripe", () => ({
 // Note: We mock at the module level because bun has compatibility issues with ai/test
 mock.module("ai", () => {
 	/**
-	 * Simulates a readable stream with optional delays (matches AI SDK's simulateReadableStream)
-	 */
-	function simulateReadableStream<T>(options: {
-		chunks: T[];
-		initialDelayInMs?: number;
-		chunkDelayInMs?: number;
-	}): ReadableStream<T> {
-		const { chunks, initialDelayInMs = 0, chunkDelayInMs = 0 } = options;
-		let index = 0;
-
-		return new ReadableStream<T>({
-			async start(controller) {
-				if (initialDelayInMs > 0) {
-					await new Promise((resolve) => setTimeout(resolve, initialDelayInMs));
-				}
-
-				for (const chunk of chunks) {
-					if (chunkDelayInMs > 0 && index > 0) {
-						await new Promise((resolve) => setTimeout(resolve, chunkDelayInMs));
-					}
-					controller.enqueue(chunk);
-					index++;
-				}
-				controller.close();
-			},
-		});
-	}
-
-	/**
 	 * Creates a mock stream result matching AI SDK's streamText return type
+	 * Returns a proper ReadableStream for toUIMessageStream() so oRPC's streamToEventIterator works
 	 */
 	const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void }) => {
-		// Stream chunks following AI SDK v3 format
-		const streamChunks = [
-			{ type: "text-start" as const, id: "text-1" },
-			{ type: "text-delta" as const, id: "text-1", delta: "This " },
-			{ type: "text-delta" as const, id: "text-1", delta: "is " },
-			{ type: "text-delta" as const, id: "text-1", delta: "a " },
-			{ type: "text-delta" as const, id: "text-1", delta: "test " },
-			{ type: "text-delta" as const, id: "text-1", delta: "response." },
-			{ type: "text-end" as const, id: "text-1" },
-			{
-				type: "finish" as const,
-				finishReason: "stop" as const,
-				usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
-			},
-		];
-
 		const fullText = "This is a test response.";
-		const stream = simulateReadableStream({ chunks: streamChunks, chunkDelayInMs: 1 });
 
-		// Create async iterable for UI message stream
-		const mockUIStream = {
-			async *[Symbol.asyncIterator]() {
-				const reader = stream.getReader();
-				try {
-					while (true) {
-						const { done, value } = await reader.read();
-						if (done) break;
-						yield value;
-					}
-				} finally {
-					reader.releaseLock();
-				}
-			},
+		// Create a proper ReadableStream for UI message stream (required by oRPC's streamToEventIterator)
+		const createUIMessageStream = () => {
+			const encoder = new TextEncoder();
+			return new ReadableStream({
+				start(controller) {
+					// Enqueue some mock UI message stream data
+					controller.enqueue(encoder.encode('0:"This is a test response."\n'));
+					controller.close();
+				},
+			});
 		};
 
 		// Schedule onFinish callback (simulates stream completion)
@@ -218,8 +169,8 @@ mock.module("ai", () => {
 		}
 
 		return {
-			textStream: mockUIStream,
-			fullStream: mockUIStream,
+			textStream: createUIMessageStream(),
+			fullStream: createUIMessageStream(),
 			text: Promise.resolve(fullText),
 			usage: Promise.resolve({
 				promptTokens: 100,
@@ -228,8 +179,8 @@ mock.module("ai", () => {
 			}),
 			finishReason: Promise.resolve("stop" as const),
 			experimental_providerMetadata: {},
-			toUIMessageStream: () => mockUIStream,
-			toDataStream: () => mockUIStream,
+			toUIMessageStream: () => createUIMessageStream(),
+			toDataStream: () => createUIMessageStream(),
 		};
 	};
 
@@ -255,8 +206,6 @@ mock.module("ai", () => {
 			},
 			finishReason: "stop" as const,
 		}),
-		// Export simulateReadableStream for tests that need it
-		simulateReadableStream,
 	};
 });
 

@@ -92,11 +92,11 @@ export const findRelevantTemplateHandler = authed
 		// Fetch favourite users for each template
 		const favouriteData = await context.db
 			.select({
-				templateId: favourites.A,
-				userId: favourites.B,
+				templateId: favourites.templateId,
+				userId: favourites.userId,
 			})
 			.from(favourites)
-			.where(inArray(favourites.A, templateIds));
+			.where(inArray(favourites.templateId, templateIds));
 
 		// Group favourites by template
 		const favouritesByTemplate = favouriteData.reduce(
