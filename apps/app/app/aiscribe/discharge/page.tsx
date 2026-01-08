@@ -13,8 +13,8 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
 		"Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
 	icon: FileCheck,
 
-	// API configuration
-	apiEndpoint: "/api/scribe/discharge/stream",
+	// Document type for oRPC
+	documentType: "discharge",
 
 	// Tab configuration
 	inputTabTitle: "Entlassungsnotizen",

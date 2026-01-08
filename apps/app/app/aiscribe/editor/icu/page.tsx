@@ -21,7 +21,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder:
 				"Diagnosen eingeben (z.B. Hauptdiagnosen, Nebendiagnosen, Vorerkrankungen)...",
 			description: "Haupt- und Nebendiagnosen sowie relevante Vorerkrankungen",
-			apiEndpoint: "/api/scribe/diagnosis/stream", // Use ER endpoint as fallback
+			documentType: "diagnosis",
 			buildPrompt: (notes, context) => ({
 				notes,
 				anamnese: context.anamnese || "",
@@ -36,7 +36,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 				"Aufnahmeanamnese eingeben (Aufnahmegrund, Symptome, Vorgeschichte)...",
 			description:
 				"Anamnese bei ICU-Aufnahme, Aufnahmegrund und relevante Vorgeschichte",
-			apiEndpoint: "/api/scribe/anamnese/stream", // Use ER endpoint as fallback
+			documentType: "anamnese",
 			buildPrompt: (notes, context) => ({
 				notes,
 				vordiagnosen: context.diagnosen || "",
@@ -57,7 +57,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 				"Labor-, Bildgebungs- und weitere Befunde während ICU-Aufenthalt eingeben...",
 			description:
 				"Laborwerte, Bildgebung, EKG und weitere diagnostische Befunde sowie Verlauf",
-			apiEndpoint: "/api/scribe/befunde/stream", // Use ER endpoint as fallback
+			documentType: "befunde",
 			buildPrompt: (notes, context) => ({
 				notes,
 				vordiagnosen: context.diagnosen || "",
@@ -80,7 +80,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 							"Notizen für Entlassungsbrief eingeben (Therapie, Empfehlungen, Nachsorge)...",
 						description:
 							"Zusammenfassung des ICU-Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
-						apiEndpoint: "/api/scribe/discharge/stream",
+						documentType: "discharge",
 						buildPrompt: (notes, context) => ({
 							dischargeNotes: notes,
 							anamnese: context.anamnese || "",
@@ -99,7 +99,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 							"Notizen für Verlegungsbrief eingeben (Verlegungsgrund, aktueller Zustand, Therapie)...",
 						description:
 							"Zusammenfassung des ICU-Aufenthalts und Verlegungsinformationen für die Normalstation",
-						apiEndpoint: "/api/scribe/icu/transfer/stream",
+						documentType: "icu-transfer",
 						buildPrompt: (notes, context) => ({
 							notes,
 							anamnese: context.anamnese || "",

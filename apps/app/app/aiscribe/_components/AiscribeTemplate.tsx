@@ -1,6 +1,7 @@
 "use client";
 
-import { useCompletion } from "@ai-sdk/react";
+import { useChat } from "@ai-sdk/react";
+import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import {
 	PromptInput,
 	PromptInputActionMenu,
@@ -46,10 +47,17 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
+import type {
+	AudioFile,
+	DocumentType,
+	SupportedModel,
+} from "@/orpc/scribe/types";
+
+import { orpc } from "@/lib/orpc";
 import { MemoizedCopySection } from "./MemoizedCopySection";
 
 interface AdditionalInputField {
@@ -67,8 +75,8 @@ export interface AiscribeTemplateConfig {
 	description: string;
 	icon: LucideIcon;
 
-	// API configuration
-	apiEndpoint: string;
+	// Document type for oRPC (replaces apiEndpoint)
+	documentType: DocumentType;
 
 	// Tab configuration
 	inputTabTitle: string;
@@ -100,21 +108,14 @@ export interface AiscribeTemplateConfig {
 		additionalInputs: Record<string, string>,
 	) => Promise<unknown>;
 }
-const models = [
+
+const models: Array<{ id: SupportedModel; name: string }> = [
 	{ id: "auto", name: "Auto" },
 	{ id: "glm-4p6", name: "GLM-4.6" },
 	{ id: "claude-opus-4.5", name: "Claude Opus 4.5" },
 	{ id: "gemini-3-pro", name: "Gemini 3 Pro" },
 	{ id: "gemini-3-flash", name: "Gemini 3 Flash" },
 ];
-
-const getActualModel = (modelId: string, hasAudio?: boolean): string => {
-	if (modelId === "auto") {
-		// If audio is present, use Gemini as only it can process audio
-		return hasAudio ? "gemini-3-pro" : "claude-opus-4.5";
-	}
-	return modelId;
-};
 
 interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
@@ -132,11 +133,12 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const [additionalInputData, setAdditionalInputData] = useState<
 		Record<string, string>
 	>({});
-	const [isGenerating, setIsGenerating] = useState(false);
 	const [values, setValues] = useState<Record<string, unknown>>({});
-	const [model, setModel] = useState<string>(models[0].id);
+	const [model, setModel] = useState<SupportedModel>(models[0].id);
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
+	// Use ref for audio files to avoid race condition between setState and sendMessage
+	const preparedAudioFilesRef = useRef<AudioFile[]>([]);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const audioChunksRef = useRef<Blob[]>([]);
 	const recordingStartTimeRef = useRef<number>(0);
@@ -145,24 +147,56 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	// Initialize text snippets hook
 	useTextSnippets();
 
-	// Use Vercel AI SDK's useCompletion
-	const completion = useCompletion({
-		api: config.apiEndpoint,
-		body: {
-			model: getActualModel(model, audioRecordings.length > 0),
+	// Use AI SDK useChat with custom oRPC transport
+	const { messages, sendMessage, status, setMessages } = useChat({
+		id: `scribe-${config.documentType}`,
+		transport: {
+			async sendMessages(options) {
+				// Read from ref to get the latest audio files synchronously
+				const audioFiles = preparedAudioFilesRef.current;
+				return eventIteratorToUnproxiedDataStream(
+					await orpc.scribeStream.call(
+						{
+							documentType: config.documentType,
+							messages: options.messages,
+							model,
+							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+						},
+						{ signal: options.abortSignal },
+					),
+				);
+			},
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
 		},
 		onError: (error) => {
 			toast.error(error.message || "Fehler beim Generieren");
-			setIsGenerating(false);
 		},
 		onFinish: () => {
 			toast.success("Erfolgreich generiert");
-			setIsGenerating(false);
+			// Clear prepared audio files ref after generation
+			preparedAudioFilesRef.current = [];
 		},
 	});
 
-	// Combined loading state
-	const isLoading = completion.isLoading || isGenerating;
+	// Extract completion text from the last assistant message
+	const completion = useMemo(() => {
+		const lastAssistantMessage = messages.findLast(
+			(m) => m.role === "assistant",
+		);
+		if (!lastAssistantMessage) return "";
+		if (lastAssistantMessage.parts) {
+			return lastAssistantMessage.parts
+				.filter((p) => p.type === "text")
+				.map((p) => (p as { type: "text"; text: string }).text)
+				.join("");
+		}
+		return "";
+	}, [messages]);
+
+	// Loading state from useChat status
+	const isLoading = status === "streaming" || status === "submitted";
 
 	// Handle values change from inputs
 	const handleValuesChange = (data: Record<string, unknown>) => {
@@ -285,10 +319,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			return;
 		}
 
-		// Clear any previous completion and error state before starting a new request
-		completion.setCompletion("");
-
-		setIsGenerating(true);
+		// Clear previous messages before starting a new request
+		setMessages([]);
 		setActiveTab("output");
 
 		try {
@@ -305,12 +337,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						...additionalInputData,
 					});
 
-			// Prepare body with audio if available
-			const body: Record<string, unknown> = {
-				model: getActualModel(model, audioRecordings.length > 0),
-			};
-
-			// If audio recordings are available and model supports it, convert to base64 and include
+			// Prepare audio files if available - update ref synchronously before sendMessage
 			if (audioRecordings.length > 0 && isAudioSupported) {
 				const audioFiles = await Promise.all(
 					audioRecordings.map(async (recording) => {
@@ -328,30 +355,30 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						};
 					}),
 				);
-				body.audioFiles = audioFiles;
+				// Use ref to avoid race condition - ref update is synchronous
+				preparedAudioFilesRef.current = audioFiles;
+			} else {
+				// Clear ref if no audio recordings
+				preparedAudioFilesRef.current = [];
 			}
 
-			await completion.complete(
-				typeof prompt === "string" ? prompt : JSON.stringify(prompt),
-				{
-					body,
-				},
-			);
-			// Note: onError and onFinish callbacks handle toast notifications and isGenerating state
+			// Send message using AI SDK useChat
+			const promptText =
+				typeof prompt === "string" ? prompt : JSON.stringify(prompt);
+			await sendMessage({ text: promptText });
 		} catch {
 			// Catch any unexpected errors not handled by onError callback
 			toast.error("Fehler beim Generieren");
-			setIsGenerating(false);
 		}
 	}, [
 		inputData,
 		additionalInputData,
 		areRequiredFieldsFilled,
-		completion,
+		setMessages,
+		sendMessage,
 		config.customApiCall,
 		config.customPromptProcessor,
 		config.inputFieldName,
-		model,
 		audioRecordings,
 		isAudioSupported,
 	]);
@@ -422,20 +449,17 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 								{/* Auto-extracted information and Input Fields */}
 								<div className="pt-6">
 									{/* Input Fields from Markdoc */}
-									{completion.completion && (
+									{completion && (
 										<div className="space-y-3">
 											<Inputs
-												inputTags={parseMarkdocToInputs(
-													completion.completion || "",
-												)}
+												inputTags={parseMarkdocToInputs(completion || "")}
 												onChange={handleValuesChange}
 											/>
 										</div>
 									)}
 
-									{(!completion.completion ||
-										parseMarkdocToInputs(completion.completion).length ===
-											0) && (
+									{(!completion ||
+										parseMarkdocToInputs(completion).length === 0) && (
 										<div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
 											<p className="text-muted-foreground text-xs leading-relaxed">
 												Notwendige Informationen werden automatisch aus den
@@ -698,7 +722,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 								<TabsContent className="space-y-0" value="output">
 									<CardContent>
 										{(() => {
-											if (isLoading && !completion.completion) {
+											if (isLoading && !completion) {
 												return (
 													<div className="flex flex-col items-center justify-center space-y-4 text-center">
 														<div className="relative">
@@ -718,7 +742,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 												);
 											}
 
-											if (completion.completion) {
+											if (completion) {
 												return (
 													<div className="space-y-6">
 														<div className="space-y-4">
@@ -729,8 +753,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 															<ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
 																<MemoizedCopySection
 																	content={
-																		completion.completion ||
-																		"Keine Inhalte verfügbar"
+																		completion || "Keine Inhalte verfügbar"
 																	}
 																	values={values}
 																/>

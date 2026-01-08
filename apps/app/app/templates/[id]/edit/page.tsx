@@ -1,29 +1,13 @@
 import type { Metadata } from "next";
-
-// load the correct markdown from file
-
-import { database } from "@repo/database";
-import { uniqueId } from "lodash";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { QueryClient } from "@tanstack/react-query";
 import { auth } from "@/auth";
-import editTemplate from "../../_actions/edit-template";
+import { orpc } from "@/lib/orpc";
 import Editor from "../../_components/Editor";
+
 export const dynamicParams = false;
 
-async function fetchMarkdoc({ id }: { id: string }) {
-	// fetch the markdoc content for the route
-	const doc = await database.template.findUnique({
-		where: {
-			id,
-		},
-		include: {
-			author: true, // All posts where authorId == 20
-			favouriteOf: true,
-		},
-	});
-	return doc;
-}
 type MetadataProps = {
 	params: Promise<{ template: [category: string, name: string] }>;
 };
@@ -32,8 +16,10 @@ export async function generateMetadata(
 	props: MetadataProps,
 ): Promise<Metadata> {
 	const params = await props.params;
-	const { template } = params;
-	const [_category, name] = template ? template : [undefined, "Scribe"];
+	const { template: templateParam } = params;
+	const [_category, name] = templateParam
+		? templateParam
+		: [undefined, "Scribe"];
 	return {
 		title: `Scribe - ${name}`,
 	};
@@ -42,14 +28,6 @@ export async function generateMetadata(
 export default async function EditTemplate(
 	props: PageProps<"/templates/[id]/edit">,
 ) {
-	async function handleSubmit(formData: FormData): Promise<void> {
-		"use server";
-
-		const newTemplate = await editTemplate(formData);
-
-		redirect(`/templates/${newTemplate.id}`);
-	}
-
 	const params = await props.params;
 	const session = await auth.api.getSession({
 		headers: await headers(),
@@ -58,16 +36,15 @@ export default async function EditTemplate(
 		redirect("/");
 	}
 	const { id } = params;
-	const doc = await fetchMarkdoc({ id });
+	const queryClient = new QueryClient();
+	const doc = await queryClient.fetchQuery(
+		orpc.templates.get.queryOptions({ input: { id } }),
+	);
 	if (!doc) {
 		throw new Error("Document not found");
 	}
-	const isNewTemplate = !doc;
-	const author = await database.user.findUnique({
-		where: {
-			id: doc ? doc.authorId : session?.user?.id,
-		},
-	});
+
+	const author = doc.author;
 	if (!author) {
 		throw new Error("Author not found");
 	}
@@ -76,8 +53,7 @@ export default async function EditTemplate(
 			<Editor
 				author={author}
 				cat={doc?.category || ""}
-				handleSubmitAction={handleSubmit}
-				id={isNewTemplate ? uniqueId() : id}
+				id={id}
 				note={JSON.stringify(doc?.content || "")}
 				tit={doc?.title || ""}
 			/>

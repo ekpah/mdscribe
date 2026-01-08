@@ -1,31 +1,30 @@
-import { database } from "@repo/database";
 import { SidebarProvider } from "@repo/design-system/components/ui/sidebar";
 import { QueryClient } from "@tanstack/react-query";
 import { headers } from "next/headers";
 import type React from "react";
 import { Suspense } from "react";
+
 import { auth } from "@/auth";
 import { orpc } from "@/lib/orpc";
 import AppSidebar from "./_components/Sidebar";
 
-const getTemplatesPrisma = async () => {
-	const templates = await database.template.findMany({
-		include: {
-			_count: {
-				select: { favouriteOf: true },
-			},
-		},
-	});
+const getTemplates = async (queryClient: QueryClient) => {
+	const templates = await queryClient.fetchQuery(
+		orpc.templates.list.queryOptions(),
+	);
 	return templates;
 };
-const getFavouriteTemplatesPrisma = async (isLoggedIn: boolean) => {
+
+const getFavouriteTemplates = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
 	if (!isLoggedIn) {
 		return [];
 	}
 	try {
-		const queryClient = new QueryClient();
 		const templates = await queryClient.fetchQuery(
-			orpc.user.templates.favourites.queryOptions(),
+			orpc.templates.favourites.queryOptions(),
 		);
 		return templates;
 	} catch (error) {
@@ -34,14 +33,17 @@ const getFavouriteTemplatesPrisma = async (isLoggedIn: boolean) => {
 		return [];
 	}
 };
-const getAuthoredTemplatesPrisma = async (isLoggedIn: boolean) => {
+
+const getAuthoredTemplates = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
 	if (!isLoggedIn) {
 		return [];
 	}
 	try {
-		const queryClient = new QueryClient();
 		const templates = await queryClient.fetchQuery(
-			orpc.user.templates.authored.queryOptions(),
+			orpc.templates.authored.queryOptions(),
 		);
 		return templates;
 	} catch (error) {
@@ -51,8 +53,8 @@ const getAuthoredTemplatesPrisma = async (isLoggedIn: boolean) => {
 	}
 };
 
-const generateSidebarLinks = async () => {
-	const templates = await getTemplatesPrisma();
+const generateSidebarLinks = async (queryClient: QueryClient) => {
+	const templates = await getTemplates(queryClient);
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,
@@ -60,8 +62,12 @@ const generateSidebarLinks = async () => {
 		favouritesCount: temp._count.favouriteOf,
 	}));
 };
-const generateFavouriteTemplates = async (isLoggedIn: boolean) => {
-	const templates = await getFavouriteTemplatesPrisma(isLoggedIn);
+
+const generateFavouriteTemplates = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
+	const templates = await getFavouriteTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,
@@ -69,8 +75,12 @@ const generateFavouriteTemplates = async (isLoggedIn: boolean) => {
 		favouritesCount: temp._count.favouriteOf,
 	}));
 };
-const generateAuthoredTemplates = async (isLoggedIn: boolean) => {
-	const templates = await getAuthoredTemplatesPrisma(isLoggedIn);
+
+const generateAuthoredTemplates = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
+	const templates = await getAuthoredTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
 		url: `/templates/${temp.id}`,
 		category: temp.category,
@@ -78,6 +88,7 @@ const generateAuthoredTemplates = async (isLoggedIn: boolean) => {
 		favouritesCount: temp._count.favouriteOf,
 	}));
 };
+
 export default async function Layout({
 	children,
 }: {
@@ -87,6 +98,7 @@ export default async function Layout({
 		headers: await headers(),
 	});
 	const isLoggedIn = !!session?.user;
+	const queryClient = new QueryClient();
 
 	return (
 		<div className="flex h-full w-full">
@@ -104,14 +116,14 @@ export default async function Layout({
 				>
 					<AppSidebar
 						authoredTemplates={JSON.stringify(
-							await generateAuthoredTemplates(isLoggedIn),
+							await generateAuthoredTemplates(queryClient, isLoggedIn),
 						)}
 						favouriteTemplates={JSON.stringify(
-							await generateFavouriteTemplates(isLoggedIn),
+							await generateFavouriteTemplates(queryClient, isLoggedIn),
 						)}
 						isLoggedIn={isLoggedIn}
 						key="Sidebar"
-						templates={JSON.stringify(await generateSidebarLinks())}
+						templates={JSON.stringify(await generateSidebarLinks(queryClient))}
 					/>
 				</Suspense>
 				<main

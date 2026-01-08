@@ -1,12 +1,10 @@
-import { auth } from "@/auth";
-import { database } from "@repo/database";
-import { Button } from "@repo/design-system/components/ui/button";
+import { database, eq, template } from "@repo/database";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import createTemplate from "../_actions/create-template";
-import { generateEmbeddings } from "../_actions/embed-template";
+import { auth } from "@/auth";
 import Editor from "../_components/Editor";
+
 export const dynamicParams = false;
 
 type MetadataProps = {
@@ -20,45 +18,13 @@ export function generateMetadata(props: MetadataProps): Metadata {
 }
 
 async function fetchMarkdoc({ id }: { id: string }) {
-	// fetch the markdoc content for the route
-	const doc = await database.template.findUnique({
-		where: {
-			id: id,
-		},
-		include: {
-			author: true, // All posts where authorId == 20
-			favouriteOf: true,
-		},
-	});
+	const [doc] = await database.select().from(template).where(eq(template.id, id)).limit(1);
 	return doc;
 }
 
 export default async function CreateTemplate({
-	params,
 	searchParams,
 }: PageProps<"/templates/create">) {
-	async function handleSubmit(formData: FormData): Promise<void> {
-		"use server";
-
-		const newTemplate = await createTemplate(formData);
-
-		redirect(`/templates/${newTemplate.id}`);
-	}
-
-	async function handleGenerateEmbedding(formData: FormData): Promise<void> {
-		"use server";
-
-		const content = formData.get("content") as string;
-		const title = formData.get("title") as string;
-		const category = formData.get("category") as string;
-		const { embedding } = await generateEmbeddings(
-			content || "",
-			title,
-			category,
-		);
-		console.log("Generated embedding:", embedding);
-	}
-
 	const session = await auth.api.getSession({
 		headers: await headers(),
 	});
@@ -79,7 +45,6 @@ export default async function CreateTemplate({
 				cat={forkedTemplate?.category || ""}
 				tit={forkedTemplate?.title || ""}
 				note={JSON.stringify(forkedTemplate?.content || "")}
-				handleSubmitAction={handleSubmit}
 				author={session?.user}
 			/>
 		</div>

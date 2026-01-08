@@ -72,17 +72,17 @@ export default async function DashboardPage() {
 
 	// Get user's favorite templates (top 5)
 	const favoriteTemplates = await queryClient.fetchQuery(
-		orpc.user.templates.favourites.queryOptions(),
+		orpc.templates.favourites.queryOptions(),
 	);
 
 	// Get user's own templates (top 3)
 	const userTemplates = await queryClient.fetchQuery(
-		orpc.user.templates.authored.queryOptions(),
+		orpc.templates.authored.queryOptions(),
 	);
 
 	// Get recent activity from usage events
 	const recentEvents = await queryClient.fetchQuery(
-		orpc.user.templates.recentActivity.queryOptions(),
+		orpc.user.recentActivity.queryOptions(),
 	);
 
 	const aiFunctions = [

@@ -1,12 +1,15 @@
 "use client";
 
-import { useCompletion } from "@ai-sdk/react";
+import { useChat } from "@ai-sdk/react";
+import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import { MarkdownDiffEditor } from "@repo/design-system/components/editor/MarkdownDiffEditor";
 import { Label } from "@repo/design-system/components/ui/label";
 import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import type { DocumentType } from "@/orpc/scribe/types";
+import { orpc } from "@/lib/orpc";
 
 const MIN_HEIGHT = 120;
 
@@ -15,11 +18,11 @@ export interface DoctorsNoteSectionConfig {
 	label: string;
 	placeholder: string;
 	description?: string;
-	/** API endpoint for this section's AI enhancement. If omitted, the field will be a plain input without enhancement. */
-	apiEndpoint?: string;
+	/** Document type for oRPC enhancement. If omitted, the field will be a plain input without enhancement. */
+	documentType?: DocumentType;
 	/**
 	 * Build the prompt body for this section.
-	 * Only required if apiEndpoint is provided.
+	 * Only required if documentType is provided.
 	 * @param notes - The current text in this section
 	 * @param context - Values from other visible sections (keyed by section id)
 	 * @returns The prompt body to send to the API
@@ -47,17 +50,28 @@ export function DoctorsNoteSection({
 	disabled = false,
 }: DoctorsNoteSectionProps) {
 	const [proposedText, setProposedText] = useState<string | null>(null);
-	const previousCompletionRef = useRef<string>("");
 
-	// Check if enhancement is available (has apiEndpoint and buildPrompt)
-	const hasEnhancement = Boolean(config.apiEndpoint && config.buildPrompt);
+	// Check if enhancement is available (has documentType and buildPrompt)
+	const hasEnhancement = Boolean(config.documentType && config.buildPrompt);
 
-	// Use Vercel AI SDK's useCompletion for streaming
-	// Only initialize if we have an endpoint
-	const { complete, isLoading, completion, stop } = useCompletion({
-		api: config.apiEndpoint ?? "/api/placeholder", // Fallback to prevent errors, won't be called if no endpoint
-		body: {
-			model: "auto",
+	// Use AI SDK useChat with custom oRPC transport
+	const { messages, sendMessage, status, stop, setMessages } = useChat({
+		id: `section-${config.id}`,
+		transport: {
+			async sendMessages(options) {
+				return eventIteratorToUnproxiedDataStream(
+					await orpc.scribeStream.call(
+						{
+							documentType: config.documentType ?? "discharge",
+							messages: options.messages,
+						},
+						{ signal: options.abortSignal },
+					),
+				);
+			},
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
 		},
 		onError: (error) => {
 			toast.error(error.message || "Fehler beim Generieren");
@@ -68,12 +82,29 @@ export function DoctorsNoteSection({
 		},
 	});
 
+	// Extract completion text from the last assistant message
+	const completion = useMemo(() => {
+		const lastAssistantMessage = messages.findLast(
+			(m) => m.role === "assistant",
+		);
+		if (!lastAssistantMessage) return "";
+		if (lastAssistantMessage.parts) {
+			return lastAssistantMessage.parts
+				.filter((p) => p.type === "text")
+				.map((p) => (p as { type: "text"; text: string }).text)
+				.join("");
+		}
+		return "";
+	}, [messages]);
+
+	// Loading state from useChat status
+	const isLoading = status === "streaming" || status === "submitted";
+
 	// Update proposed text as completion streams in
 	useEffect(() => {
 		if (isLoading && completion) {
 			setProposedText(completion);
 		}
-		previousCompletionRef.current = completion;
 	}, [completion, isLoading]);
 
 	// Handle enhance button click
@@ -88,15 +119,26 @@ export function DoctorsNoteSection({
 		// Build prompt using the config's buildPrompt function
 		const promptBody = config.buildPrompt(value, context);
 
-		// Start streaming with empty proposed text (triggers diff mode)
+		// Clear previous messages and start streaming with empty proposed text (triggers diff mode)
+		setMessages([]);
 		setProposedText("");
-		complete(JSON.stringify(promptBody));
-	}, [hasEnhancement, isLoading, stop, config, value, context, complete]);
+		sendMessage({ text: JSON.stringify(promptBody) });
+	}, [
+		hasEnhancement,
+		isLoading,
+		stop,
+		config,
+		value,
+		context,
+		setMessages,
+		sendMessage,
+	]);
 
 	// Clear proposed text after suggestion is handled
 	const handleSuggestionHandled = useCallback(() => {
 		setProposedText(null);
-	}, []);
+		setMessages([]);
+	}, [setMessages]);
 
 	const canEnhance = hasEnhancement && !disabled && !isLoading;
 	const isInDiffMode = proposedText !== null;

@@ -20,7 +20,7 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder:
 				"Diagnosen eingeben (z.B. Verdachtsdiagnosen, Arbeitsdiagnosen)...",
 			description: "Haupt- und Nebendiagnosen des Patienten",
-			apiEndpoint: "/api/scribe/diagnosis/stream",
+			documentType: "diagnosis",
 			buildPrompt: (notes, context) => ({
 				notes,
 				anamnese: context.anamnese || "",
@@ -35,7 +35,7 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 				"Anamnese eingeben (Symptome, Beschwerden, Vorgeschichte)...",
 			description:
 				"Symptome, Beschwerden, Vorgeschichte und relevante Informationen",
-			apiEndpoint: "/api/scribe/anamnese/stream",
+			documentType: "anamnese",
 			buildPrompt: (notes, context) => ({
 				notes,
 				vordiagnosen: context.diagnosen || "",
@@ -55,7 +55,7 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder: "Labor-, Bildgebungs- und weitere Befunde eingeben...",
 			description:
 				"Laborwerte, Bildgebung, EKG und weitere diagnostische Befunde",
-			apiEndpoint: "/api/scribe/befunde/stream",
+			documentType: "befunde",
 			buildPrompt: (notes, context) => ({
 				notes,
 				vordiagnosen: context.diagnosen || "",
@@ -78,7 +78,7 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 							"Zusammenfassung und Entlassungsinformationen eingeben...",
 						description:
 							"Zusammenfassung des Aufenthalts, Therapie und Entlassungsempfehlungen",
-						apiEndpoint: "/api/scribe/discharge/stream",
+						documentType: "discharge",
 						buildPrompt: (notes, context) => ({
 							dischargeNotes: notes,
 							anamnese: context.anamnese || "",
@@ -97,7 +97,7 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 							"Aufgaben und nächste Schritte für die stationäre Aufnahme...",
 						description:
 							"Offene Aufgaben, Anordnungen und To-Dos für die Station",
-						apiEndpoint: "/api/scribe/admission-todos/stream",
+						documentType: "admission-todos",
 						buildPrompt: (notes, context) => ({
 							notes,
 							anamnese: context.anamnese || "",
