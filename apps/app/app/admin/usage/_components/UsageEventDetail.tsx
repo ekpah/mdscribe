@@ -7,11 +7,11 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
-import type { Prisma } from "@repo/database";
+import type { UsageEvent, User } from "@repo/database";
 
-type UsageEventWithUser = Prisma.UsageEventGetPayload<{
-	include: { user: { select: { id: true; name: true; email: true } } };
-}>;
+type UsageEventWithUser = UsageEvent & {
+	user: Pick<User, "id" | "name" | "email"> | null;
+};
 
 interface UsageEventDetailProps {
 	event: UsageEventWithUser | null | undefined;
@@ -67,10 +67,16 @@ export function UsageEventDetail({
 					<section>
 						<h3 className="mb-2 font-medium text-solarized-base00">Benutzer</h3>
 						<div className="rounded-lg border border-solarized-base2 p-3">
-							<p className="font-medium text-solarized-base00">
-								{event.user.name || "Kein Name"}
-							</p>
-							<p className="text-sm text-solarized-base01">{event.user.email}</p>
+							{event.user ? (
+								<>
+									<p className="font-medium text-solarized-base00">
+										{event.user.name || "Kein Name"}
+									</p>
+									<p className="text-sm text-solarized-base01">{event.user.email}</p>
+								</>
+							) : (
+								<p className="text-solarized-base01">Unbekannter Benutzer</p>
+							)}
 						</div>
 					</section>
 
@@ -116,7 +122,7 @@ export function UsageEventDetail({
 					</section>
 
 					{/* Input Data Section (JSON) */}
-					{event.inputData && (
+					{event.inputData != null && (
 						<section>
 							<h3 className="mb-2 font-medium text-solarized-base00">
 								Eingabedaten
@@ -130,7 +136,7 @@ export function UsageEventDetail({
 					)}
 
 					{/* Metadata Section (JSON) */}
-					{event.metadata && (
+					{event.metadata != null && (
 						<section>
 							<h3 className="mb-2 font-medium text-solarized-base00">
 								Metadaten

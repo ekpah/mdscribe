@@ -1,9 +1,7 @@
 import { and, database, eq, gte, lte, usageEvent } from "@repo/database";
 
-import type { Session } from "@/lib/auth-types";
-
 export async function getUsage(
-	session: Pick<Session, "user">,
+	session: { user: { id: string } },
 	db: typeof database = database,
 ) {
 	const now = new Date();

@@ -641,7 +641,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 													<PromptInputActionMenu>
 														<PromptInputModelSelect
 															onValueChange={(value) => {
-																setModel(value);
+																setModel(value as SupportedModel);
 															}}
 															value={model}
 														>

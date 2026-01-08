@@ -13,7 +13,7 @@ const voyageClient = new VoyageAIClient({
 /**
  * Template search result type
  */
-interface TemplateSearchResult {
+type TemplateSearchResult = {
 	id: string;
 	title: string;
 	category: string;
@@ -21,7 +21,7 @@ interface TemplateSearchResult {
 	authorId: string;
 	updatedAt: Date;
 	similarity: number;
-}
+};
 
 /**
  * Generate embeddings for a query using Voyage AI

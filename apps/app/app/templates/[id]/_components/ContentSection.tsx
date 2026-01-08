@@ -1,6 +1,6 @@
 'use client';
 
-import type { Prisma } from '@repo/database';
+import type { NewTemplate } from '@repo/database';
 import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { Card } from '@repo/design-system/components/ui/card';
 import { DynamicMarkdocRenderer } from '@repo/markdoc-md';
@@ -12,7 +12,7 @@ export default function ContentSection({
 }: {
   note: string;
   inputTags: string;
-  template?: Prisma.TemplateCreateInput;
+  template?: NewTemplate;
 }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
 

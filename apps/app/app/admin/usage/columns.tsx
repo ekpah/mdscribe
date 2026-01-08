@@ -5,11 +5,11 @@ import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
 import { Eye } from "lucide-react";
-import type { Prisma } from "@repo/database";
+import type { UsageEvent, User } from "@repo/database";
 
-export type UsageEventWithUser = Prisma.UsageEventGetPayload<{
-	include: { user: { select: { id: true; name: true; email: true } } };
-}>;
+export type UsageEventWithUser = UsageEvent & {
+	user: Pick<User, "id" | "name" | "email"> | null;
+};
 
 function formatDate(date: Date | string) {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
@@ -49,6 +49,11 @@ export const createColumns = (
 		header: "Benutzer",
 		cell: (info) => {
 			const user = info.getValue();
+			if (!user) {
+				return (
+					<span className="text-solarized-base01">Unbekannt</span>
+				);
+			}
 			return (
 				<div className="flex flex-col">
 					<span className="max-w-[120px] truncate font-medium text-solarized-base00 sm:max-w-none">
@@ -61,7 +66,8 @@ export const createColumns = (
 			);
 		},
 		filterFn: (row, id, filterValue: string) => {
-			const user = row.getValue(id) as { name: string | null; email: string };
+			const user = row.getValue(id) as { name: string | null; email: string } | null;
+			if (!user) return false;
 			const search = filterValue.toLowerCase();
 			return (
 				(user.name?.toLowerCase().includes(search) ?? false) ||

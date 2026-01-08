@@ -107,7 +107,7 @@ async function checkUsageLimit(
 		);
 
 	const activeSubscription = subscriptions.length > 0;
-	const { usage } = await getUsage(session as { user: { id: string } }, db);
+	const { usage } = await getUsage(session, db);
 	const usageLimit = activeSubscription ? 500 : 50;
 
 	if (usage.count >= usageLimit) {
@@ -140,10 +140,10 @@ async function findRelevantTemplateForProcedure(
 	const embedding = await generateEmbeddings(procedureNotes);
 	const embeddingSql = pgvector.toSql(embedding);
 
-	interface TemplateResult {
+	type TemplateResult = {
 		content: string;
 		similarity: number;
-	}
+	};
 
 	const similarityResults = await database.execute<TemplateResult>(sql`
 		SELECT
@@ -225,20 +225,11 @@ function extractPromptFromMessages(messages: UIMessage[]): string {
 	const lastUserMessage = messages.findLast((m) => m.role === "user");
 	if (!lastUserMessage) return "";
 
-	// Handle different content formats
-	if (typeof lastUserMessage.content === "string") {
-		return lastUserMessage.content;
-	}
-
-	// For parts-based content, extract text parts
-	if (lastUserMessage.parts) {
-		return lastUserMessage.parts
-			.filter((p) => p.type === "text")
-			.map((p) => (p as { type: "text"; text: string }).text)
-			.join("");
-	}
-
-	return "";
+	// Extract text from parts
+	return lastUserMessage.parts
+		.filter((p) => p.type === "text")
+		.map((p) => (p as { type: "text"; text: string }).text)
+		.join("");
 }
 
 /**

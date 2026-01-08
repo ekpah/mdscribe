@@ -1,7 +1,7 @@
 import { EmailVerificationTemplate } from '@repo/email/templates/verify';
 
 const ExampleVerifyEmail = () => (
-  <EmailVerificationTemplate actionUrl="https://example.com" />
+  <EmailVerificationTemplate url="https://example.com/verify?token=abc123" />
 );
 
 export default ExampleVerifyEmail;

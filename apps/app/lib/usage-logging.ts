@@ -1,4 +1,4 @@
-import type { Prisma } from "@repo/database";
+import type { NewUsageEvent } from "@repo/database";
 
 /**
  * Type for inputData JSON field - flexible to accommodate different endpoint inputs
@@ -121,7 +121,7 @@ function normalizeReasoning(
  */
 export function buildUsageEventData(
 	params: CreateUsageEventParams,
-): Prisma.UsageEventCreateInput {
+): NewUsageEvent {
 	const {
 		userId,
 		name,
@@ -143,7 +143,7 @@ export function buildUsageEventData(
 		openRouterUsage?.totalTokens ?? standardUsage?.totalTokens;
 
 	return {
-		user: { connect: { id: userId } },
+		userId,
 		name,
 		model,
 		inputTokens,
@@ -151,9 +151,9 @@ export function buildUsageEventData(
 		totalTokens,
 		reasoningTokens: openRouterUsage?.completionTokensDetails?.reasoningTokens,
 		cachedTokens: openRouterUsage?.promptTokensDetails?.cachedTokens,
-		cost: openRouterUsage?.cost,
-		inputData: inputData as Prisma.InputJsonValue,
-		metadata: metadata as Prisma.InputJsonValue,
+		cost: openRouterUsage?.cost?.toString(),
+		inputData: inputData as Record<string, unknown>,
+		metadata: metadata as Record<string, unknown>,
 		result,
 		reasoning: normalizeReasoning(reasoning),
 	};
