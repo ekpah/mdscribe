@@ -2,7 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
@@ -30,7 +29,14 @@ import {
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type MutableRefObject,
+} from "react";
 import { toast } from "sonner";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { orpc } from "@/lib/orpc";
@@ -85,9 +91,9 @@ export function PlaygroundPanel({
 	presetDocumentType,
 	presetVariables,
 }: PlaygroundPanelProps) {
-	const [activeTab, setActiveTab] = useState<
-		"input" | "prompt" | "models" | "results"
-	>("input");
+	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">(
+		"input",
+	);
 
 	const initialDocType = presetDocumentType ?? "discharge";
 	const [documentType, setDocumentType] =
@@ -126,10 +132,6 @@ export function PlaygroundPanel({
 	>({});
 	const [isCompiling, setIsCompiling] = useState(false);
 
-	const { data: promptNamesData } = useQuery(
-		orpc.admin.scribe.prompts.list.queryOptions({ input: { limit: 200 } }),
-	);
-	const promptNames: string[] = promptNamesData?.items ?? [];
 
 	const promptJson = useMemo(() => {
 		const data: Record<string, unknown> = {
@@ -261,6 +263,19 @@ export function PlaygroundPanel({
 		});
 	}, []);
 
+	// Ref to store run trigger functions for each model
+	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
+
+	const runAllModels = useCallback(async () => {
+		const triggers = Array.from(runTriggersRef.current.values());
+		if (triggers.length === 0) {
+			toast.error("Keine Modelle konfiguriert");
+			return;
+		}
+		// Run all models in parallel
+		await Promise.all(triggers.map((trigger) => trigger()));
+	}, []);
+
 	return (
 		<div className="flex h-full flex-col gap-3 lg:flex-row">
 			{/* Left Panel - Tabs */}
@@ -274,12 +289,12 @@ export function PlaygroundPanel({
 				<Tabs
 					className="flex h-[calc(100%-44px)] flex-col"
 					onValueChange={(v) =>
-						setActiveTab(v as "input" | "prompt" | "models" | "results")
+						setActiveTab(v as "input" | "prompt" | "models")
 					}
 					value={activeTab}
 				>
 					<div className="border-b border-solarized-base2 px-3 py-2">
-						<TabsList className="grid h-8 w-full grid-cols-4">
+						<TabsList className="grid h-8 w-full grid-cols-3">
 							<TabsTrigger value="input" className="text-xs">
 								Input
 							</TabsTrigger>
@@ -288,9 +303,6 @@ export function PlaygroundPanel({
 							</TabsTrigger>
 							<TabsTrigger value="models" className="text-xs">
 								Models
-							</TabsTrigger>
-							<TabsTrigger value="results" className="text-xs">
-								Results
 							</TabsTrigger>
 						</TabsList>
 					</div>
@@ -441,29 +453,12 @@ export function PlaygroundPanel({
 										<Label className="text-sm text-solarized-base01">
 											Prompt Name (Langfuse)
 										</Label>
-										{promptNames.length > 0 ? (
-											<Select
-												onValueChange={(v) => setPromptName(v)}
-												value={promptName}
-											>
-												<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													{promptNames.map((name: string) => (
-														<SelectItem key={name} value={name}>
-															{name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										) : (
-											<Input
-												className="border-solarized-base2 bg-solarized-base3"
-												onChange={(e) => setPromptName(e.target.value)}
-												value={promptName}
-											/>
-										)}
+										<Input
+											className="border-solarized-base2 bg-solarized-base3"
+											onChange={(e) => setPromptName(e.target.value)}
+											value={promptName}
+											placeholder="z.B. Inpatient_discharge_chat"
+										/>
 									</div>
 									<div className="space-y-2">
 										<Label className="text-sm text-solarized-base01">
@@ -687,15 +682,6 @@ export function PlaygroundPanel({
 									))}
 								</div>
 							</TabsContent>
-
-							<TabsContent value="results" className="mt-0 space-y-3">
-								<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-4">
-									<p className="text-sm text-solarized-base01">
-										Wechsle rechts in die Ergebnis-Ansicht, um Runs zu starten
-										und Ausgaben zu vergleichen.
-									</p>
-								</div>
-							</TabsContent>
 						</CardContent>
 					</ScrollArea>
 				</Tabs>
@@ -731,10 +717,10 @@ export function PlaygroundPanel({
 								type="button"
 								size="sm"
 								className="h-7 gap-1.5 bg-solarized-blue px-2 text-xs hover:bg-solarized-blue/90"
-								onClick={() => setActiveTab("results")}
+								onClick={runAllModels}
 							>
 								<Play className="h-3.5 w-3.5" />
-								Run (Tab)
+								Run All
 							</Button>
 						</div>
 					</div>
@@ -756,6 +742,7 @@ export function PlaygroundPanel({
 								compiledMessages={compiledMessages}
 								runState={runStates[run.id]}
 								setRunState={setRunState}
+								runTriggersRef={runTriggersRef}
 							/>
 						))}
 					</div>
@@ -778,6 +765,7 @@ function RunCard({
 	compiledMessages,
 	runState,
 	setRunState,
+	runTriggersRef,
 }: {
 	runId: string;
 	modelRun: ModelRunConfig;
@@ -797,6 +785,7 @@ function RunCard({
 	}>;
 	runState: RunState | undefined;
 	setRunState: (id: string, patch: Partial<RunState>) => void;
+	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 }) {
 	const payloadRef = useRef<
 		null | Parameters<typeof orpc.admin.scribe.run.call>[0]
@@ -857,30 +846,35 @@ function RunCard({
 		},
 	});
 
-	const completion = useMemo(() => {
+	const { completion, reasoning } = useMemo(() => {
 		const lastAssistant = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistant) return "";
-		// Extract text from parts (AI SDK v4 format)
+		if (!lastAssistant) return { completion: "", reasoning: "" };
+		// Extract text and reasoning from parts (AI SDK v4 format)
 		if (lastAssistant.parts && lastAssistant.parts.length > 0) {
-			return lastAssistant.parts
+			const textParts = lastAssistant.parts
 				.filter((p) => p.type === "text")
 				.map((p) => (p as { type: "text"; text: string }).text)
 				.join("");
+			const reasoningParts = lastAssistant.parts
+				.filter((p) => p.type === "reasoning")
+				.map((p) => (p as { type: "reasoning"; reasoning: string }).reasoning)
+				.join("");
+			return { completion: textParts, reasoning: reasoningParts };
 		}
-		return "";
+		return { completion: "", reasoning: "" };
 	}, [messages]);
 
 	useEffect(() => {
 		if (status === "streaming" || status === "submitted") {
-			setRunState(runId, { isStreaming: true, text: completion });
+			setRunState(runId, { isStreaming: true, text: completion, reasoning: reasoning || undefined });
 		} else if (completion) {
-			setRunState(runId, { isStreaming: false, text: completion });
+			setRunState(runId, { isStreaming: false, text: completion, reasoning: reasoning || undefined });
 		}
-	}, [completion, status, runId, setRunState]);
+	}, [completion, reasoning, status, runId, setRunState]);
 
 	const isRunning = status === "streaming" || status === "submitted";
 
-	const startRun = async () => {
+	const startRun = useCallback(async () => {
 		if (!modelRun.model) {
 			toast.error("Bitte Modell auswählen");
 			return;
@@ -933,7 +927,30 @@ function RunCard({
 		});
 		setMessages([]);
 		await sendMessage({ text: "run" });
-	};
+	}, [
+		modelRun.model,
+		modelRun.parameters,
+		inputMode,
+		variablesJson,
+		compiledOverride,
+		compiledMessages,
+		documentType,
+		promptName,
+		promptLabel,
+		promptJson,
+		runId,
+		setRunState,
+		setMessages,
+		sendMessage,
+	]);
+
+	// Register this card's run function with the parent ref
+	useEffect(() => {
+		runTriggersRef.current.set(runId, startRun);
+		return () => {
+			runTriggersRef.current.delete(runId);
+		};
+	}, [runId, runTriggersRef, startRun]);
 
 	return (
 		<div className="flex h-[400px] flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2">
