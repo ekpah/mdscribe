@@ -151,14 +151,15 @@ const runHandler = authed
 		});
 		const model = openrouter(parsed.model);
 
+		const isClaudeModel = parsed.model.includes("anthropic") || parsed.model.includes("claude");
 		const supportsThinking =
-			parsed.model.includes("claude") ||
+			isClaudeModel ||
 			parsed.model.includes("glm") ||
 			parsed.model.includes("gemini");
 
-		const providerOptions: AnthropicProviderOptions = {};
-		if (parsed.parameters.thinking && supportsThinking) {
-			providerOptions.thinking = {
+		const anthropicProviderOptions: AnthropicProviderOptions = {};
+		if (parsed.parameters.thinking && supportsThinking && isClaudeModel) {
+			anthropicProviderOptions.thinking = {
 				type: "enabled",
 				budgetTokens: parsed.parameters.thinkingBudget,
 			};
@@ -190,9 +191,10 @@ const runHandler = authed
 			presencePenalty: parsed.parameters.presencePenalty,
 			providerOptions: {
 				openrouter: { usage: { include: true }, user: context.session.user.email },
-				...(Object.keys(providerOptions).length > 0
-					? { anthropic: providerOptions }
-					: {}),
+				...(isClaudeModel &&
+					Object.keys(anthropicProviderOptions).length > 0 && {
+						anthropic: anthropicProviderOptions,
+					}),
 			},
 			messages,
 			onFinish: async (event) => {
