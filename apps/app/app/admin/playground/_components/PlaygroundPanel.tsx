@@ -857,7 +857,7 @@ function RunCard({
 				.join("");
 			const reasoningParts = lastAssistant.parts
 				.filter((p) => p.type === "reasoning")
-				.map((p) => (p as { type: "reasoning"; reasoning: string }).reasoning)
+				.map((p) => (p as { type: "reasoning"; text: string }).text)
 				.join("");
 			return { completion: textParts, reasoning: reasoningParts };
 		}
