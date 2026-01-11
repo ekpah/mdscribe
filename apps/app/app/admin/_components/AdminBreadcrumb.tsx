@@ -15,6 +15,9 @@ function getPageTitle(pathname: string): string {
 	if (pathname === "/admin") {
 		return "Dashboard";
 	}
+	if (pathname.startsWith("/admin/playground")) {
+		return "AI Playground";
+	}
 	if (pathname.startsWith("/admin/migrateEmbeddings")) {
 		return "Embedding-Migration";
 	}

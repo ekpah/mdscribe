@@ -1,18 +1,19 @@
 {
-  "name": "email",
-  "version": "0.0.0",
-  "private": true,
-  "scripts": {
-    "build": "email build",
-    "dev": "email dev --port 3003",
-    "export": "email export"
-  },
-  "dependencies": {
-    "react-email": "4.0.16"
-  },
-  "devDependencies": {
-    "@repo/typescript-config": "workspace:*",
-    "@types/node": "catalog:",
-    "typescript": "catalog:"
-  }
+	"name": "email",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"build": "email build",
+		"dev": "email dev --port 3003",
+		"export": "email export"
+	},
+	"dependencies": {
+		"@react-email/preview-server": "^5.1.1",
+		"react-email": "5.1.1"
+	},
+	"devDependencies": {
+		"@repo/typescript-config": "workspace:*",
+		"@types/node": "catalog:",
+		"typescript": "catalog:"
+	}
 }

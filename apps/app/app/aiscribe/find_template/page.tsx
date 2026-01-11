@@ -2,7 +2,9 @@
 
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
+import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
+import { orpc } from '@/lib/orpc';
 
 // Type definition for template search results
 interface TemplateSearchResult {
@@ -15,48 +17,27 @@ interface TemplateSearchResult {
   similarity: number;
 }
 
-interface SearchResponse {
-  templates: TemplateSearchResult[];
-  count: number;
-}
-
 export default function FindTemplatePage() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<TemplateSearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Use TanStack Query mutation with oRPC
+  const searchMutation = useMutation(
+    orpc.templates.findRelevant.mutationOptions({
+      onError: (error) => {
+        console.error('Search error:', error);
+      },
+    })
+  );
+
+  const results = (searchMutation.data?.templates?.slice(0, 3) ?? []) as TemplateSearchResult[];
+  const isLoading = searchMutation.isPending;
+  const error = searchMutation.error?.message ?? null;
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/findRelevantTemplate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: query.trim() }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: SearchResponse = await response.json();
-
-      // Show only top 3 results
-      setResults(data.templates.slice(0, 3));
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Fehler bei der Suche nach Vorlagen'
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    searchMutation.mutate({ query: query.trim() });
   };
 
   return (

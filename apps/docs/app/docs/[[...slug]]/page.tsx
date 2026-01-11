@@ -1,3 +1,4 @@
+import type { MDXContent } from 'mdx/types';
 import { getPageImage, source } from '@/lib/source';
 import {
   DocsBody,
@@ -15,10 +16,16 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
-  const MDX = page.data.body;
+  const data = page.data as typeof page.data & {
+    body: MDXContent;
+    toc: { title: string; url: string; depth: number }[];
+    full?: boolean;
+  };
+
+  const MDX = data.body;
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
+    <DocsPage toc={data.toc} full={data.full}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>

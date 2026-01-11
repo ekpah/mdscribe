@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Sheet,
 	SheetContent,
@@ -7,11 +8,49 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
-import type { Prisma } from "@repo/database";
+import type { UsageEvent, User } from "@repo/database";
+import { FlaskConical } from "lucide-react";
+import Link from "next/link";
 
-type UsageEventWithUser = Prisma.UsageEventGetPayload<{
-	include: { user: { select: { id: true; name: true; email: true } } };
-}>;
+type UsageEventWithUser = UsageEvent & {
+	user: Pick<User, "id" | "name" | "email"> | null;
+};
+
+function buildPlaygroundUrl(event: UsageEventWithUser): string {
+	const params = new URLSearchParams();
+
+	params.set("eventId", event.id);
+
+	if (event.model) {
+		params.set("model", event.model);
+	}
+
+	// Prefer inferring document type from metadata (if present)
+	const metadata = event.metadata as Record<string, unknown> | null;
+	const endpoint = metadata?.endpoint;
+	if (typeof endpoint === "string" && endpoint.trim()) {
+		params.set("documentType", endpoint);
+	}
+
+	// Extract parameters from metadata
+	if (metadata) {
+		const modelConfig = metadata.modelConfig as Record<string, unknown> | undefined;
+		if (modelConfig?.temperature !== undefined) {
+			params.set("temperature", String(modelConfig.temperature));
+		}
+		if (modelConfig?.maxTokens !== undefined) {
+			params.set("maxTokens", String(modelConfig.maxTokens));
+		}
+		if (metadata.thinkingEnabled) {
+			params.set("thinking", "true");
+			if (metadata.thinkingBudget !== undefined) {
+				params.set("thinkingBudget", String(metadata.thinkingBudget));
+			}
+		}
+	}
+
+	return `/admin/playground?${params.toString()}`;
+}
 
 interface UsageEventDetailProps {
 	event: UsageEventWithUser | null | undefined;
@@ -62,15 +101,35 @@ export function UsageEventDetail({
 					<SheetDescription>{formatDate(event.timestamp)}</SheetDescription>
 				</SheetHeader>
 
+				{/* Jump to Playground Button */}
+				<div className="mt-4">
+					<Button
+						asChild
+						variant="outline"
+						className="w-full gap-2 border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet hover:bg-solarized-violet/20"
+					>
+						<Link href={buildPlaygroundUrl(event)}>
+							<FlaskConical className="h-4 w-4" />
+							Im Playground öffnen
+						</Link>
+					</Button>
+				</div>
+
 				<div className="mt-6 space-y-6">
 					{/* User Info Section */}
 					<section>
 						<h3 className="mb-2 font-medium text-solarized-base00">Benutzer</h3>
 						<div className="rounded-lg border border-solarized-base2 p-3">
-							<p className="font-medium text-solarized-base00">
-								{event.user.name || "Kein Name"}
-							</p>
-							<p className="text-sm text-solarized-base01">{event.user.email}</p>
+							{event.user ? (
+								<>
+									<p className="font-medium text-solarized-base00">
+										{event.user.name || "Kein Name"}
+									</p>
+									<p className="text-sm text-solarized-base01">{event.user.email}</p>
+								</>
+							) : (
+								<p className="text-solarized-base01">Unbekannter Benutzer</p>
+							)}
 						</div>
 					</section>
 
@@ -116,7 +175,7 @@ export function UsageEventDetail({
 					</section>
 
 					{/* Input Data Section (JSON) */}
-					{event.inputData && (
+					{event.inputData != null && (
 						<section>
 							<h3 className="mb-2 font-medium text-solarized-base00">
 								Eingabedaten
@@ -130,7 +189,7 @@ export function UsageEventDetail({
 					)}
 
 					{/* Metadata Section (JSON) */}
-					{event.metadata && (
+					{event.metadata != null && (
 						<section>
 							<h3 className="mb-2 font-medium text-solarized-base00">
 								Metadaten

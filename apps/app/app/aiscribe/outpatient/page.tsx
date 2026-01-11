@@ -13,8 +13,8 @@ const OUTPATIENT_CONFIG: AiscribeTemplateConfig = {
 		"Erstellen Sie professionelle Arztbriefe für Ihre ambulanten Patienten",
 	icon: Stethoscope,
 
-	// API configuration
-	apiEndpoint: "/api/scribe/outpatient/stream",
+	// Document type for oRPC
+	documentType: "outpatient",
 
 	// Tab configuration
 	inputTabTitle: "Konsultationsnotizen",

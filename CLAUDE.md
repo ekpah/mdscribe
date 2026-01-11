@@ -6,6 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MDScribe is a medical documentation webapp built as a monorepo that helps organize medical templates and assists doctors in their day-to-day work. It features AI-powered document generation, template management, and subscription-based usage tracking.
 
+## Git Workflow
+
+**Branching Strategy:**
+- `main`: Production branch - only receives merges from `staging`
+- `staging`: Integration branch - all feature branches merge here first
+- Feature branches: Created from `staging` for individual features/fixes
+
+**For AI Agents (Claude Code, etc.):**
+- All changes by AI agents MUST target the `staging` branch
+- Create feature branches from `staging`: `git checkout -b feature/my-feature origin/staging`
+- Open PRs against `staging`, never directly against `main`
+- Only `staging` is merged into `main` after testing and review
+
+**Branch naming conventions:**
+- AI agent branches: `claude/<description>-<session-id>`
+- Feature branches: `feature/<description>`
+- Bugfix branches: `fix/<description>`
+
 ## Build Commands
 
 Core development commands:
@@ -13,11 +31,12 @@ Core development commands:
 - `bun run build`: Build all packages using Turbo
 - `bun run lint`: Run linting across all packages using Biome
 - `bun run test`: Run tests via Turbo
-- `bun run migrate`: Run Prisma database migrations and generate client
+- `bun run migrate`: Run Drizzle database migrations
 
 Database operations:
-- `cd packages/database && bunx prisma format && bunx prisma generate && bunx prisma db push`: Full database setup
-- `cd packages/database && docker compose up -d`: Start local PostgreSQL + Neon proxy containers
+- `cd packages/database && bun run push`: Push schema changes to database
+- `cd packages/database && bun run generate`: Generate new migrations
+- `cd packages/database && bun dev`: Start Drizzle Studio for database inspection
 
 Analysis and maintenance:
 - `bun run analyze`: Run bundle analysis (set ANALYZE=true)
@@ -28,13 +47,13 @@ Analysis and maintenance:
 
 ### Monorepo Structure
 - **Apps**: `apps/app` (Next.js main app), `apps/docs` (Fumadocs), `apps/email` (React Email), `apps/storybook`, `apps/studio`
-- **Packages**: `packages/database` (Prisma), `packages/design-system` (UI components), `packages/email`, `packages/env`, `packages/markdoc-md`, `packages/typescript-config`
+- **Packages**: `packages/database` (Drizzle ORM), `packages/design-system` (UI components), `packages/email`, `packages/env`, `packages/markdoc-md`, `packages/typescript-config`
 
 ### Core Technologies
 - **Runtime**: Bun (package manager and runtime)
 - **Framework**: Next.js 16 with App Router and React 19
 - **Authentication**: BetterAuth with Stripe integration for subscriptions
-- **Database**: PostgreSQL with Prisma 7 (client engine, bun runtime) and pgvector for embeddings
+- **Database**: PostgreSQL with Drizzle ORM (PGlite for local dev, Neon serverless for production) and pgvector for embeddings
 - **AI Integration**: OpenRouter for model access, Langfuse for prompt management, Voyage AI for embeddings
 - **Styling**: Tailwind CSS v4 with design system extending "ultracite" configuration
 - **API**: oRPC for type-safe client-server communication
@@ -52,37 +71,69 @@ The API uses oRPC with two base handlers in `apps/app/orpc.ts`:
 Router structure in `apps/app/orpc/router.ts`:
 ```typescript
 router = {
-  scribe: scribeHandler,        // AI generation endpoints
-  getUsage: getUsageHandler,    // Usage tracking
-  templates: publicTemplatesHandler,
+  scribe: scribeHandler,           // Single AI generation
+  scribeStream: scribeStreamHandler, // Streaming AI generation (unified for all document types)
+  getUsage: getUsageHandler,       // Usage tracking
+  templates: {
+    get: getTemplateHandler,         // Public: get template by ID
+    findRelevant: findRelevantTemplateHandler,  // Vector similarity search
+    favourites: getFavouritesHandler,  // Get user's favorited templates
+    authored: getAuthoredHandler,      // Get user's authored templates
+    create: createTemplateHandler,     // Create new template
+    update: updateTemplateHandler,     // Update template (author only)
+    addFavourite: addFavouriteHandler,
+    removeFavourite: removeFavouriteHandler,
+  },
+  documents: {
+    parseForm: parseFormHandler,   // PDF form parsing with AI enhancement
+  },
   user: {
-    templates: userTemplatesHandler,
+    recentActivity: getRecentActivityHandler,  // User's recent usage events
     snippets: snippetsHandler,
+  },
+  admin: {
+    users: adminUsersHandler,
+    usage: adminUsageHandler,
+    embeddings: {
+      stats: getEmbeddingStatsHandler,
+      migrate: migrateEmbeddingsHandler,
+    },
   },
 }
 ```
 
 ### AI Streaming Endpoints
 
-Streaming endpoints use `createScribeHandler` factory in `apps/app/app/api/scribe/_lib/scribe-handler.ts`:
+All AI streaming is handled by a unified oRPC handler in `apps/app/orpc/scribe/handlers.ts`:
 
 ```typescript
-const handleDischarge = createScribeHandler({
-  promptName: 'Inpatient_discharge_chat',  // Langfuse prompt name
-  validateInput: createInputValidator(['prompt']),
-  processInput: (input) => { /* parse and return template variables */ },
-  modelConfig: {
-    thinking: true,           // Enable Claude thinking mode
-    thinkingBudget: 12_000,
-    maxTokens: 20_000,
-    temperature: 0.3,
+// Document types supported by the unified streaming handler
+type DocumentType = "discharge" | "anamnese" | "diagnosis" | "physical-exam" |
+                    "procedures" | "admission-todos" | "befunde" | "outpatient" | "icu-transfer";
+
+// Configuration for each document type in apps/app/orpc/scribe/config.ts
+const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> = {
+  discharge: {
+    promptName: "Inpatient_discharge_chat",
+    modelConfig: { thinking: true, thinkingBudget: 12_000, maxTokens: 20_000, temperature: 0.3 },
+    requiredFields: ["prompt"],
   },
+  // ... other document types
+};
+
+// Client-side usage with useScribeStream hook (apps/app/hooks/use-scribe-stream.ts)
+const { completion, isLoading, complete, stop } = useScribeStream({
+  documentType: "discharge",
+  onFinish: () => toast.success("Generated successfully"),
+  onError: (error) => toast.error(error.message),
 });
-export const POST = handleDischarge;
+
+// Trigger generation
+await complete(promptText, { model: "auto", audioFiles: [] });
 ```
 
 ### Authentication Architecture
-- **Server**: `apps/app/auth.ts` - BetterAuth configuration with Prisma adapter
+- **Server**: `apps/app/auth.ts` - BetterAuth configuration with Drizzle adapter
 - **Client**: `apps/app/lib/auth-client.ts` - React hooks and client functions
 - **Routes**: `/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`
 - **Server usage**: `auth.api.getSession({ headers: await headers() })`

@@ -13,8 +13,8 @@ const ER_CONFIG: AiscribeTemplateConfig = {
     'Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten',
   icon: Heart,
 
-  // API configuration
-  apiEndpoint: '/api/scribe/anamnese/stream',
+  // Document type for oRPC
+  documentType: 'anamnese',
 
   // Tab configuration
   inputTabTitle: 'Anamnese',

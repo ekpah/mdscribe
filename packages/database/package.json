@@ -3,28 +3,26 @@
 	"version": "0.0.0",
 	"main": "./index.ts",
 	"types": "./index.ts",
-	"scripts": {
-		"build": "prisma migrate deploy && prisma generate --no-hints",
-		"postinstall": "[ -z \"$POSTGRES_DATABASE_URL\" ] && echo 'Skipping prisma generate (no database URL)' || prisma generate",
-		"dev": "docker compose up -d"
+	"exports": {
+		".": "./index.ts",
+		"./test": "./test.ts"
 	},
-	"prisma": {
-		"schema": "prisma/schema.prisma"
+	"scripts": {
+		"dev": "drizzle-kit studio",
+		"generate": "drizzle-kit generate",
+		"migrate": "drizzle-kit migrate",
+		"push": "drizzle-kit push"
 	},
 	"dependencies": {
 		"@neondatabase/serverless": "^1.0.2",
-		"@prisma/adapter-neon": "^7.0.1",
-		"@prisma/client": "catalog:",
-		"dotenv": "^17.2.3",
-		"server-only": "^0.0.1",
-		"ws": "^8.18.3"
+		"drizzle-orm": "^0.45.1",
+		"@electric-sql/pglite": "^0.3.14",
+		"server-only": "^0.0.1"
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
-		"@types/node": "^24.10.1",
-		"@types/ws": "^8.18.1",
-		"bufferutil": "^4.0.9",
-		"prisma": "catalog:",
-		"typescript": "^5.9.3"
+		"@types/bun": "catalog:",
+		"@types/node": "catalog:",
+		"drizzle-kit": "^0.31.8"
 	}
 }

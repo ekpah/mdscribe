@@ -14,8 +14,7 @@ import type React from 'react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/lib/auth-client';
-import addFavourite from '../_actions/add-favourite';
-import removeFavourite from '../_actions/remove-favourite';
+import { orpc } from '@/lib/orpc';
 
 // Type definition for template search results
 interface TemplateSearchResult {
@@ -150,10 +149,10 @@ export default function FindTemplatePage() {
       }));
 
       if (currentState) {
-        await removeFavourite({ templateId });
+        await orpc.templates.removeFavourite.call({ templateId });
         toast.success('Favorit entfernt');
       } else {
-        await addFavourite({ templateId });
+        await orpc.templates.addFavourite.call({ templateId });
         toast.success('Favorit gespeichert');
       }
     } catch (err) {

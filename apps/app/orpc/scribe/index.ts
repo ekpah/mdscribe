@@ -1,8 +1,10 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { streamToEventIterator, type } from "@orpc/server";
+import { usageEvent } from "@repo/database";
 import { env } from "@repo/env";
 import { streamText, type UIMessage } from "ai";
 import Langfuse from "langfuse";
+
 import {
 	buildUsageEventData,
 	extractOpenRouterUsage,
@@ -12,6 +14,9 @@ import {
 } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
 
+// Re-export the unified scribe stream handler for document generation
+export { scribeStreamHandler } from "./handlers";
+
 const langfuse = new Langfuse();
 const openrouter = createOpenRouter({
 	apiKey: env.OPENROUTER_API_KEY as string,
@@ -19,6 +24,10 @@ const openrouter = createOpenRouter({
 
 const MODEL_ID = "anthropic/claude-sonnet-4-20250514";
 
+/**
+ * Template completion handler for the chat-based template editor
+ * This is a separate use case from the document generation endpoints
+ */
 export const scribeHandler = authed
 	.input(type<{ chatId: string; messages: UIMessage[]; body?: object }>())
 	.handler(async ({ input, context }) => {
@@ -41,13 +50,8 @@ export const scribeHandler = authed
 			todaysDate,
 			...input.body,
 		};
-		const promptMessages = chatPrompt.compile(
-			//variables
-			{ ...promptVariables },
-			//placeholders
-		);
-		console.log("promptMessages", promptMessages);
-		console.log("input.body", input.body);
+		const promptMessages = chatPrompt.compile({ ...promptVariables });
+
 		const result = streamText({
 			model: openrouter(MODEL_ID),
 			providerOptions: {
@@ -60,44 +64,27 @@ export const scribeHandler = authed
 			temperature: 0.3,
 			messages: promptMessages,
 			onFinish: async (event) => {
-				// Extract OpenRouter usage data (includes cost)
 				const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
 
-				// Log usage in development
-				if (env.NODE_ENV === "development") {
-					const logData = {
-						promptTokens: event.usage.inputTokens,
-						completionTokens: event.usage.outputTokens,
-						totalTokens: event.usage.totalTokens,
-						cost: openRouterUsage?.cost,
-						userId: context.session.user.id || "unknown",
-						promptName: "ai_scribe_template_completion",
-						thinking: event.reasoning,
-						result: event.text,
-					};
-					console.log(logData);
-				}
-
-				// Log comprehensive usage data to postgres
-				await context.db.usageEvent.create({
-					data: buildUsageEventData({
+				await context.db.insert(usageEvent).values(
+					buildUsageEventData({
 						userId: context.session.user.id || "",
 						name: "ai_scribe_generation",
 						model: MODEL_ID,
 						openRouterUsage,
-						standardUsage: event.usage as StandardUsage, // Fallback
+						standardUsage: event.usage as StandardUsage,
 						inputData: (input.body ?? {}) as UsageInputData,
 						metadata: {
 							promptName: "ai_scribe_template_completion",
 							promptLabel:
 								env.NODE_ENV === "production" ? "production" : "staging",
-							thinkingEnabled: false, // OpenRouter doesn't support thinking in the same way
+							thinkingEnabled: false,
 							streamingMode: true,
 						} as UsageMetadata,
 						result: event.text,
 						reasoning: event.reasoning,
 					}),
-				});
+				);
 			},
 		});
 

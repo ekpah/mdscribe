@@ -1,16 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-	useReactTable,
-	getCoreRowModel,
-	flexRender,
-	createColumnHelper,
-} from "@tanstack/react-table";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
+import { Input } from "@repo/design-system/components/ui/input";
 import {
 	ToggleGroup,
 	ToggleGroupItem,
@@ -23,37 +17,12 @@ import {
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@repo/design-system/components/ui/table";
-import { Activity, Eye, Loader2, XCircle } from "lucide-react";
+	DataTable,
+	DataTableViewOptions,
+} from "@repo/design-system/components/ui/data-table";
+import { Activity, Loader2, XCircle } from "lucide-react";
 import { UsageEventDetail } from "./_components/UsageEventDetail";
-import type { Prisma } from "@repo/database";
-
-type UsageEventWithUser = Prisma.UsageEventGetPayload<{
-	include: { user: { select: { id: true; name: true; email: true } } };
-}>;
-
-function formatDate(date: Date | string) {
-	const dateObj = typeof date === "string" ? new Date(date) : date;
-	return new Intl.DateTimeFormat("de-DE", {
-		month: "2-digit",
-		day: "2-digit",
-		hour: "2-digit",
-		minute: "2-digit",
-	}).format(dateObj);
-}
-
-function formatCost(cost: unknown): string {
-	if (cost === null || cost === undefined) return "-";
-	const num = typeof cost === "number" ? cost : Number(cost);
-	if (Number.isNaN(num)) return "-";
-	return `$${num.toFixed(4)}`;
-}
+import { createColumns, type UsageEventWithUser } from "./columns";
 
 type StatsFilter = "today" | "week" | "month" | "all";
 
@@ -64,13 +33,12 @@ const filterLabels: Record<StatsFilter, string> = {
 	all: "Gesamt",
 };
 
-const columnHelper = createColumnHelper<UsageEventWithUser>();
-
 export default function UsagePage() {
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 	const [cursor, setCursor] = useState<string | undefined>(undefined);
 	const [allItems, setAllItems] = useState<UsageEventWithUser[]>([]);
 	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
+	const [searchFilter, setSearchFilter] = useState("");
 
 	// Stats query
 	const { data: stats, isLoading: statsLoading } = useQuery(
@@ -121,90 +89,10 @@ export default function UsagePage() {
 		}
 	};
 
-	const columns = [
-		columnHelper.accessor("timestamp", {
-			header: "Zeitpunkt",
-			cell: (info) => (
-				<span className="whitespace-nowrap text-xs sm:text-sm">
-					{formatDate(info.getValue())}
-				</span>
-			),
-		}),
-		columnHelper.accessor("user", {
-			header: "Benutzer",
-			cell: (info) => {
-				const user = info.getValue();
-				return (
-					<div className="flex flex-col">
-						<span className="max-w-[120px] truncate font-medium text-solarized-base00 sm:max-w-none">
-							{user.name || "Kein Name"}
-						</span>
-						<span className="hidden text-xs text-solarized-base01 sm:block">
-							{user.email}
-						</span>
-					</div>
-				);
-			},
-		}),
-		columnHelper.accessor("name", {
-			header: () => <span className="hidden sm:inline">Aktion</span>,
-			cell: (info) => (
-				<Badge
-					variant="outline"
-					className="hidden whitespace-nowrap sm:inline-flex"
-				>
-					{info.getValue()}
-				</Badge>
-			),
-		}),
-		columnHelper.accessor("model", {
-			header: () => <span className="hidden md:inline">Modell</span>,
-			cell: (info) => (
-				<span className="hidden font-mono text-xs md:inline">
-					{info.getValue()?.split("/").pop() || "-"}
-				</span>
-			),
-		}),
-		columnHelper.accessor("cost", {
-			header: "Kosten",
-			cell: (info) => (
-				<span className="whitespace-nowrap font-mono text-xs">
-					{formatCost(info.getValue())}
-				</span>
-			),
-		}),
-		columnHelper.accessor("totalTokens", {
-			header: () => <span className="hidden sm:inline">Tokens</span>,
-			cell: (info) => (
-				<span className="hidden font-mono text-xs sm:inline">
-					{info.getValue()?.toLocaleString("de-DE") ?? "-"}
-				</span>
-			),
-		}),
-		columnHelper.display({
-			id: "actions",
-			header: "",
-			cell: ({ row }) => (
-				<Button
-					variant="ghost"
-					size="icon"
-					onClick={(e) => {
-						e.stopPropagation();
-						setSelectedEventId(row.original.id);
-					}}
-					className="h-8 w-8"
-				>
-					<Eye className="h-4 w-4" />
-				</Button>
-			),
-		}),
-	];
-
-	const table = useReactTable({
-		data: allItems,
-		columns,
-		getCoreRowModel: getCoreRowModel(),
-	});
+	const columns = useMemo(
+		() => createColumns((id) => setSelectedEventId(id)),
+		[],
+	);
 
 	const errorMessage =
 		error instanceof Error
@@ -345,58 +233,27 @@ export default function UsagePage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									{table.getHeaderGroups().map((headerGroup) => (
-										<TableRow key={headerGroup.id}>
-											{headerGroup.headers.map((header) => (
-												<TableHead
-													key={header.id}
-													className="text-solarized-base00"
-												>
-													{header.isPlaceholder
-														? null
-														: flexRender(
-																header.column.columnDef.header,
-																header.getContext(),
-															)}
-												</TableHead>
-											))}
-										</TableRow>
-									))}
-								</TableHeader>
-								<TableBody>
-									{table.getRowModel().rows.length === 0 ? (
-										<TableRow>
-											<TableCell
-												colSpan={columns.length}
-												className="text-center text-solarized-base01"
-											>
-												Keine Events gefunden
-											</TableCell>
-										</TableRow>
-									) : (
-										table.getRowModel().rows.map((row) => (
-											<TableRow
-												key={row.id}
-												onClick={() => setSelectedEventId(row.original.id)}
-												className="cursor-pointer hover:bg-solarized-base2/50"
-											>
-												{row.getVisibleCells().map((cell) => (
-													<TableCell key={cell.id}>
-														{flexRender(
-															cell.column.columnDef.cell,
-															cell.getContext(),
-														)}
-													</TableCell>
-												))}
-											</TableRow>
-										))
-									)}
-								</TableBody>
-							</Table>
-						</div>
+						<DataTable
+							columns={columns}
+							data={allItems}
+							onRowClick={(row) => setSelectedEventId(row.id)}
+							enablePagination={false}
+							emptyMessage="Keine Events gefunden"
+							renderToolbar={(table) => (
+								<div className="flex items-center justify-between gap-2">
+									<Input
+										placeholder="Benutzer oder Aktion suchen..."
+										value={searchFilter}
+										onChange={(event) => {
+											setSearchFilter(event.target.value);
+											table.getColumn("user")?.setFilterValue(event.target.value);
+										}}
+										className="max-w-sm"
+									/>
+									<DataTableViewOptions table={table} />
+								</div>
+							)}
+						/>
 
 						{/* Load More Button */}
 						{data?.hasMore && (
