@@ -30,7 +30,7 @@ import {
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { orpc } from "@/lib/orpc";
@@ -239,7 +239,7 @@ export function PlaygroundPanel({
 
 	const [runStates, setRunStates] = useState<Record<string, RunState>>({});
 
-	const setRunState = (id: string, patch: Partial<RunState>) => {
+	const setRunState = useCallback((id: string, patch: Partial<RunState>) => {
 		setRunStates((prev) => {
 			const base: RunState = prev[id] ?? {
 				text: "",
@@ -259,37 +259,45 @@ export function PlaygroundPanel({
 				},
 			};
 		});
-	};
+	}, []);
 
 	return (
-		<div className="flex h-full flex-col gap-4 lg:flex-row">
+		<div className="flex h-full flex-col gap-3 lg:flex-row">
 			{/* Left Panel - Tabs */}
-			<Card className="w-full border-solarized-base2 lg:w-[520px] lg:shrink-0">
-				<CardHeader className="border-b border-solarized-base2 pb-3">
-					<CardTitle className="text-base text-solarized-base00">
+			<Card className="w-full border-solarized-base2 lg:w-[460px] lg:shrink-0">
+				<CardHeader className="border-b border-solarized-base2 px-3 py-2">
+					<CardTitle className="text-sm text-solarized-base00">
 						AI Scribe Playground
 					</CardTitle>
 				</CardHeader>
 
 				<Tabs
-					className="flex h-[calc(100%-60px)] flex-col"
+					className="flex h-[calc(100%-44px)] flex-col"
 					onValueChange={(v) =>
 						setActiveTab(v as "input" | "prompt" | "models" | "results")
 					}
 					value={activeTab}
 				>
-					<div className="border-b border-solarized-base2 px-4 py-3">
-						<TabsList className="grid w-full grid-cols-4">
-							<TabsTrigger value="input">Input</TabsTrigger>
-							<TabsTrigger value="prompt">Prompt</TabsTrigger>
-							<TabsTrigger value="models">Models</TabsTrigger>
-							<TabsTrigger value="results">Results</TabsTrigger>
+					<div className="border-b border-solarized-base2 px-3 py-2">
+						<TabsList className="grid h-8 w-full grid-cols-4">
+							<TabsTrigger value="input" className="text-xs">
+								Input
+							</TabsTrigger>
+							<TabsTrigger value="prompt" className="text-xs">
+								Prompt
+							</TabsTrigger>
+							<TabsTrigger value="models" className="text-xs">
+								Models
+							</TabsTrigger>
+							<TabsTrigger value="results" className="text-xs">
+								Results
+							</TabsTrigger>
 						</TabsList>
 					</div>
 
 					<ScrollArea className="min-h-0 flex-1">
-						<CardContent className="space-y-6 p-4">
-							<TabsContent value="input" className="mt-0 space-y-4">
+						<CardContent className="space-y-4 p-3">
+							<TabsContent value="input" className="mt-0 space-y-3">
 								<div className="space-y-2">
 									<Label className="text-sm text-solarized-base01">
 										Dokumenttyp
@@ -693,71 +701,72 @@ export function PlaygroundPanel({
 				</Tabs>
 			</Card>
 
-			{/* Right Panel - Input & Output */}
-			<div className="flex flex-1 flex-col gap-4 overflow-hidden">
-				<Card className="border-solarized-base2">
-					<CardHeader className="border-b border-solarized-base2 pb-3">
-						<div className="flex items-center justify-between gap-3">
-							<div>
-								<CardTitle className="text-base text-solarized-base00">
-									Ergebnisse
-								</CardTitle>
-								<p className="text-sm text-solarized-base01">
-									Input: {scribeDocTypeUi[documentType].label} · Prompt:{" "}
-									{promptName}
-								</p>
-							</div>
-							<div className="flex gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									className="gap-2 border-solarized-base2"
-									onClick={() => {
-										setRunStates({});
-										toast.success("Ergebnisse zurückgesetzt");
-									}}
-								>
-									<RotateCcw className="h-4 w-4" />
-									Reset
-								</Button>
-								<Button
-									size="sm"
-									className="gap-2 bg-solarized-blue hover:bg-solarized-blue/90"
-									onClick={() => setActiveTab("results")}
-								>
-									<Play className="h-4 w-4" />
-									Run (Tab)
-								</Button>
-							</div>
+			{/* Right Panel - Results */}
+			<Card className="flex min-h-0 flex-1 flex-col border-solarized-base2">
+				<CardHeader className="shrink-0 border-b border-solarized-base2 px-3 py-2">
+					<div className="flex items-center justify-between gap-2">
+						<div className="min-w-0">
+							<CardTitle className="truncate text-sm text-solarized-base00">
+								Ergebnisse
+							</CardTitle>
+							<p className="truncate text-xs text-solarized-base01">
+								{scribeDocTypeUi[documentType].label} · {promptName}
+							</p>
 						</div>
-					</CardHeader>
-					<CardContent className="p-4">
-						<div className="space-y-4">
-							{modelRuns.map((run) => (
-								<RunCard
-									key={run.id}
-									modelRun={run}
-									documentType={documentType}
-									inputMode={inputMode}
-									variablesJson={variablesJson}
-									promptJson={promptJson}
-									promptName={promptName}
-									promptLabel={promptLabel}
-									compiledOverride={compiledOverride}
-									compiledMessages={compiledMessages}
-									runState={runStates[run.id]}
-									onRunStateChange={(patch) => setRunState(run.id, patch)}
-								/>
-							))}
+						<div className="flex shrink-0 gap-1.5">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
+								onClick={() => {
+									setRunStates({});
+									toast.success("Ergebnisse zurückgesetzt");
+								}}
+							>
+								<RotateCcw className="h-3.5 w-3.5" />
+								Reset
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								className="h-7 gap-1.5 bg-solarized-blue px-2 text-xs hover:bg-solarized-blue/90"
+								onClick={() => setActiveTab("results")}
+							>
+								<Play className="h-3.5 w-3.5" />
+								Run (Tab)
+							</Button>
 						</div>
-					</CardContent>
-				</Card>
-			</div>
+					</div>
+				</CardHeader>
+				<ScrollArea className="min-h-0 flex-1">
+					<div className="space-y-3 p-3">
+						{modelRuns.map((run) => (
+							<RunCard
+								key={run.id}
+								runId={run.id}
+								modelRun={run}
+								documentType={documentType}
+								inputMode={inputMode}
+								variablesJson={variablesJson}
+								promptJson={promptJson}
+								promptName={promptName}
+								promptLabel={promptLabel}
+								compiledOverride={compiledOverride}
+								compiledMessages={compiledMessages}
+								runState={runStates[run.id]}
+								setRunState={setRunState}
+							/>
+						))}
+					</div>
+				</ScrollArea>
+			</Card>
 		</div>
 	);
 }
 
 function RunCard({
+	runId,
 	modelRun,
 	documentType,
 	inputMode,
@@ -768,8 +777,9 @@ function RunCard({
 	compiledOverride,
 	compiledMessages,
 	runState,
-	onRunStateChange,
+	setRunState,
 }: {
+	runId: string;
 	modelRun: ModelRunConfig;
 	documentType: DocumentType;
 	inputMode: InputMode;
@@ -786,7 +796,7 @@ function RunCard({
 		content: string;
 	}>;
 	runState: RunState | undefined;
-	onRunStateChange: (patch: Partial<RunState>) => void;
+	setRunState: (id: string, patch: Partial<RunState>) => void;
 }) {
 	const payloadRef = useRef<
 		null | Parameters<typeof orpc.admin.scribe.run.call>[0]
@@ -810,7 +820,7 @@ function RunCard({
 			},
 		},
 		onError: (error) => {
-			onRunStateChange({
+			setRunState(runId, {
 				isStreaming: false,
 				error: error.message,
 			});
@@ -830,7 +840,7 @@ function RunCard({
 						? ((event.metadata as Record<string, unknown>).latencyMs as number)
 						: 0;
 
-				onRunStateChange({
+				setRunState(runId, {
 					isStreaming: false,
 					metrics: {
 						latencyMs,
@@ -850,20 +860,23 @@ function RunCard({
 	const completion = useMemo(() => {
 		const lastAssistant = messages.findLast((m) => m.role === "assistant");
 		if (!lastAssistant) return "";
-		if (!lastAssistant.parts) return "";
-		return lastAssistant.parts
-			.filter((p) => p.type === "text")
-			.map((p) => (p as { type: "text"; text: string }).text)
-			.join("");
+		// Extract text from parts (AI SDK v4 format)
+		if (lastAssistant.parts && lastAssistant.parts.length > 0) {
+			return lastAssistant.parts
+				.filter((p) => p.type === "text")
+				.map((p) => (p as { type: "text"; text: string }).text)
+				.join("");
+		}
+		return "";
 	}, [messages]);
 
 	useEffect(() => {
 		if (status === "streaming" || status === "submitted") {
-			onRunStateChange({ isStreaming: true, text: completion });
+			setRunState(runId, { isStreaming: true, text: completion });
 		} else if (completion) {
-			onRunStateChange({ isStreaming: false, text: completion });
+			setRunState(runId, { isStreaming: false, text: completion });
 		}
-	}, [completion, status, onRunStateChange]);
+	}, [completion, status, runId, setRunState]);
 
 	const isRunning = status === "streaming" || status === "submitted";
 
@@ -911,7 +924,7 @@ function RunCard({
 				: undefined,
 		};
 
-		onRunStateChange({
+		setRunState(runId, {
 			requestId,
 			error: undefined,
 			text: "",
@@ -923,28 +936,30 @@ function RunCard({
 	};
 
 	return (
-		<div className="space-y-3 rounded-lg border border-solarized-base2 p-3">
-			<div className="flex items-center justify-between gap-3">
-				<div className="min-w-0">
-					<p className="truncate font-mono text-sm text-solarized-base00">
+		<div className="flex h-[400px] flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2">
+			{/* Header row */}
+			<div className="flex shrink-0 items-center justify-between gap-2">
+				<div className="min-w-0 flex-1">
+					<p className="truncate font-mono text-xs text-solarized-base00">
 						{modelRun.model?.id ?? "Kein Modell gewählt"}
 					</p>
 					{runState?.requestId && (
-						<p className="truncate font-mono text-xs text-solarized-base01">
-							requestId: {runState.requestId}
+						<p className="truncate font-mono text-[10px] text-solarized-base01">
+							{runState.requestId}
 						</p>
 					)}
 				</div>
 
-				<div className="flex gap-2">
+				<div className="flex shrink-0 gap-1.5">
 					{isRunning ? (
 						<Button
 							type="button"
 							variant="destructive"
 							size="sm"
+							className="h-7 px-2 text-xs"
 							onClick={() => {
 								stop();
-								onRunStateChange({ isStreaming: false });
+								setRunState(runId, { isStreaming: false });
 							}}
 						>
 							Stop
@@ -955,18 +970,18 @@ function RunCard({
 							size="sm"
 							onClick={startRun}
 							disabled={!modelRun.model}
-							className="gap-2 bg-solarized-blue hover:bg-solarized-blue/90"
+							className="h-7 gap-1.5 bg-solarized-blue px-2 text-xs hover:bg-solarized-blue/90"
 						>
-							<Play className="h-4 w-4" />
+							<Play className="h-3.5 w-3.5" />
 							Run
 						</Button>
 					)}
 				</div>
 			</div>
 
-			<div className="h-[320px]">
+			{/* Result display - takes remaining space */}
+			<div className="min-h-0 flex-1">
 				<ResultDisplay
-					modelName={modelRun.model?.name}
 					result={
 						runState
 							? {

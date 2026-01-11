@@ -37,7 +37,9 @@ function PlaygroundContent() {
 		return {
 			eventId,
 			model,
-			documentType: (documentTypeParam || undefined) as DocumentType | undefined,
+			documentType: (documentTypeParam || undefined) as
+				| DocumentType
+				| undefined,
 			parameters: {
 				temperature: temperature ? Number.parseFloat(temperature) : undefined,
 				maxTokens: maxTokens ? Number.parseInt(maxTokens) : undefined,
@@ -50,7 +52,9 @@ function PlaygroundContent() {
 	}, [searchParams]);
 
 	const { data: usageEvent } = useQuery({
-		...orpc.admin.usage.get.queryOptions({ input: { id: preset.eventId ?? "" } }),
+		...orpc.admin.usage.get.queryOptions({
+			input: { id: preset.eventId ?? "" },
+		}),
 		enabled: Boolean(preset.eventId),
 	});
 
@@ -67,7 +71,8 @@ function PlaygroundContent() {
 			documentType: inferredDocumentType,
 			variables: inputData ?? undefined,
 			model: usageEvent.model ?? undefined,
-			parameters: (metadata?.modelConfig as Partial<PlaygroundParameters>) ?? undefined,
+			parameters:
+				(metadata?.modelConfig as Partial<PlaygroundParameters>) ?? undefined,
 		};
 	}, [usageEvent]);
 
@@ -90,24 +95,21 @@ function PlaygroundContent() {
 	}
 
 	return (
-		<div className="flex h-full flex-col overflow-hidden p-4 sm:p-6">
-			<div className="mx-auto flex h-full w-full max-w-[1800px] flex-col gap-4 overflow-hidden">
-				{/* Header */}
-				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-solarized-violet/10 sm:h-12 sm:w-12">
-						<FlaskConical className="h-5 w-5 text-solarized-violet sm:h-6 sm:w-6" />
+		<div className="flex h-full flex-col overflow-hidden p-3">
+			<div className="mx-auto flex h-full w-full flex-col gap-2 overflow-hidden">
+				{/* Header - compact */}
+				<div className="flex shrink-0 items-center gap-2">
+					<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-solarized-violet/10">
+						<FlaskConical className="h-4 w-4 text-solarized-violet" />
 					</div>
 					<div>
-						<h1 className="font-bold text-xl text-solarized-base00 sm:text-2xl">
+						<h1 className="font-semibold text-base text-solarized-base00">
 							AI Playground
 						</h1>
-						<p className="text-sm text-solarized-base01">
-							Experimentiere mit verschiedenen Modellen und Einstellungen
-						</p>
 					</div>
 				</div>
 
-				{/* Main Content */}
+				{/* Main Content - takes all remaining space */}
 				<div className="min-h-0 flex-1 overflow-hidden">
 					<PlaygroundPanel
 						models={models}
