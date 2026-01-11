@@ -47,3 +47,6 @@ storybook-static
 
 # Prisma generated files
 packages/database/prisma/generated/
+
+# PGlite data for dev environment
+.pglite-data/
