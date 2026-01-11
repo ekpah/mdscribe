@@ -2,6 +2,7 @@ import { stripe } from "@better-auth/stripe";
 import {
 	account,
 	database,
+	eq,
 	session,
 	subscription,
 	user,
@@ -62,21 +63,29 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 		requireEmailVerification: true,
-		sendResetPassword: async ({ user, url }) => {
+		sendResetPassword: async ({ user: resetUser, url }) => {
 			if (env.NODE_ENV === "development") {
-				await console.log({
-					to: user.email,
+				console.log({
+					to: resetUser.email,
 					subject: "Setze dein Passwort zurück",
 					text: `Klicke auf den Link, um dein Passwort zurückzusetzen: ${url}`,
 				});
 			} else {
-				await sendEmail({
+				void sendEmail({
 					from: "noreply@mdscribe.de",
-					to: user.email,
+					to: resetUser.email,
 					subject: "Setze dein Passwort zurück",
 					template: ResetPasswordTemplate({ url }),
 				});
 			}
+		},
+		onPasswordReset: async ({ user: resetUser }) => {
+			// User has proven email access by clicking the reset link,
+			// so mark their email as verified
+			await database
+				.update(user)
+				.set({ emailVerified: true })
+				.where(eq(user.id, resetUser.id));
 		},
 	},
 	// define email verification functions
@@ -85,6 +94,7 @@ export const auth = betterAuth({
 		callbackURL: "/email-verified", // The redirect URL after verification
 		expiresIn: 3600, // 1 hour
 		sendOnSignUp: true,
+		sendOnSignIn: true,
 		sendVerificationEmail: async ({ user, url, token }) => {
 			if (env.NODE_ENV === "development") {
 				await console.log({
