@@ -132,6 +132,42 @@ const getUsageEventHandler = authed
 		return event ?? null;
 	});
 
+const findByRequestIdHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(z.object({ requestId: z.string() }))
+	.handler(async ({ context, input }) => {
+		const [event] = await context.db
+			.select({
+				id: usageEvent.id,
+				userId: usageEvent.userId,
+				timestamp: usageEvent.timestamp,
+				name: usageEvent.name,
+				inputTokens: usageEvent.inputTokens,
+				outputTokens: usageEvent.outputTokens,
+				totalTokens: usageEvent.totalTokens,
+				reasoningTokens: usageEvent.reasoningTokens,
+				cachedTokens: usageEvent.cachedTokens,
+				cost: usageEvent.cost,
+				model: usageEvent.model,
+				inputData: usageEvent.inputData,
+				metadata: usageEvent.metadata,
+				result: usageEvent.result,
+				reasoning: usageEvent.reasoning,
+				user: {
+					id: user.id,
+					name: user.name,
+					email: user.email,
+				},
+			})
+			.from(usageEvent)
+			.leftJoin(user, eq(usageEvent.userId, user.id))
+			.where(sql`${usageEvent.metadata} ->> 'requestId' = ${input.requestId}`)
+			.orderBy(desc(usageEvent.timestamp))
+			.limit(1);
+
+		return event ?? null;
+	});
+
 const statsFilterInput = z.object({
 	filter: z.enum(["today", "week", "month", "all"]).optional(),
 });
@@ -194,5 +230,6 @@ const getUsageStatsHandler = authed
 export const usageHandler = {
 	list: listUsageEventsHandler,
 	get: getUsageEventHandler,
+	findByRequestId: findByRequestIdHandler,
 	stats: getUsageStatsHandler,
 };

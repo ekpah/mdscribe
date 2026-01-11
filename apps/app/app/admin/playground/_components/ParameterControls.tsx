@@ -146,18 +146,19 @@ export function ParameterControls({
 								</TooltipContent>
 							</Tooltip>
 						</div>
-						<Input
-							type="number"
-							value={parameters.maxTokens}
-							onChange={(e) =>
-								updateParam("maxTokens", Number.parseInt(e.target.value) || 4096)
-							}
-							min={1}
-							max={100000}
-							disabled={disabled}
-							className="h-7 w-24 text-right font-mono text-sm"
-						/>
+						<span className="font-mono text-sm text-solarized-base00">
+							{parameters.maxTokens.toLocaleString()}
+						</span>
 					</div>
+					<Slider
+						value={[parameters.maxTokens]}
+						onValueChange={([value]) => updateParam("maxTokens", value)}
+						min={256}
+						max={128000}
+						step={256}
+						disabled={disabled}
+						className="w-full"
+					/>
 				</div>
 			</div>
 

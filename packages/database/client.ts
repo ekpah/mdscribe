@@ -12,27 +12,35 @@ import * as schema from "./schema";
 // Environment detection
 const isLocalDev = process.env.NODE_ENV !== "production" && !process.env.VERCEL;
 
-// Persistence paths for local development
+// Persistence paths for local development (lazily computed to avoid bundling issues)
 const urlToPath = (url: URL) => decodeURIComponent(url.pathname);
 
-const resolveDatabasePackageRootUrl = (): URL => {
+let _tarballUrl: URL | null = null;
+let _tarballPath: string | null = null;
+
+function getTarballUrl(): URL {
+	if (_tarballUrl) return _tarballUrl;
+
+	let rootUrl: URL;
 	try {
-		return new URL(
+		rootUrl = new URL(
 			".",
 			new URL(import.meta.resolve("@repo/database/package.json")),
 		);
 	} catch {
 		// Fallback: relative to this source file (best-effort)
-		return new URL(".", import.meta.url);
+		rootUrl = new URL(".", import.meta.url);
 	}
-};
 
-const DATABASE_PACKAGE_ROOT_URL = resolveDatabasePackageRootUrl();
-const PGLITE_TARBALL_URL = new URL(
-	"./.pglite-data/dev-db.tar.gz",
-	DATABASE_PACKAGE_ROOT_URL,
-);
-const PGLITE_TARBALL_PATH = urlToPath(PGLITE_TARBALL_URL);
+	_tarballUrl = new URL("./.pglite-data/dev-db.tar.gz", rootUrl);
+	return _tarballUrl;
+}
+
+function getTarballPath(): string {
+	if (_tarballPath) return _tarballPath;
+	_tarballPath = urlToPath(getTarballUrl());
+	return _tarballPath;
+}
 
 // Global singleton for PGlite to persist across HMR in development
 // Store the client, drizzle instance, AND the initialization promise to prevent race conditions
@@ -50,14 +58,14 @@ const globalForPGlite = globalThis as unknown as {
  * Returns the tarball data as Blob, or null if not found
  */
 async function loadTarballIfExists(): Promise<Blob | null> {
-	const file = Bun.file(PGLITE_TARBALL_URL);
+	const file = Bun.file(getTarballUrl());
 	if (!(await file.exists())) {
 		console.log("No existing PGlite tarball found, will create fresh database");
 		return null;
 	}
 
 	try {
-		console.log(`Loading PGlite database from ${PGLITE_TARBALL_PATH}`);
+		console.log(`Loading PGlite database from ${getTarballPath()}`);
 		// Bun.file() returns a BunFile which extends Blob
 		return file;
 	} catch (error) {
@@ -75,8 +83,8 @@ async function saveTarball(client: PGlite): Promise<void> {
 		const blob = await client.dumpDataDir();
 
 		// Bun.write() accepts Blob directly
-		await Bun.write(PGLITE_TARBALL_URL, blob);
-		console.log(`PGlite database saved to ${PGLITE_TARBALL_PATH}`);
+		await Bun.write(getTarballUrl(), blob);
+		console.log(`PGlite database saved to ${getTarballPath()}`);
 	} catch (error) {
 		console.error("Failed to save PGlite tarball:", error);
 	}

@@ -25,24 +25,14 @@ function buildPlaygroundUrl(event: UsageEventWithUser): string {
 		params.set("model", event.model);
 	}
 
-	// Extract prompt from inputData if available
-	const inputData = event.inputData as Record<string, unknown> | null;
-	if (inputData) {
-		// Try to reconstruct prompt from various input fields
-		const promptParts: string[] = [];
-		for (const [key, value] of Object.entries(inputData)) {
-			if (typeof value === "string" && value.trim()) {
-				promptParts.push(`${key}: ${value}`);
-			}
-		}
-		if (promptParts.length > 0) {
-			// URLSearchParams.set() already encodes the value
-			params.set("prompt", promptParts.join("\n\n"));
-		}
+	// Prefer inferring document type from metadata (if present)
+	const metadata = event.metadata as Record<string, unknown> | null;
+	const endpoint = metadata?.endpoint;
+	if (typeof endpoint === "string" && endpoint.trim()) {
+		params.set("documentType", endpoint);
 	}
 
 	// Extract parameters from metadata
-	const metadata = event.metadata as Record<string, unknown> | null;
 	if (metadata) {
 		const modelConfig = metadata.modelConfig as Record<string, unknown> | undefined;
 		if (modelConfig?.temperature !== undefined) {

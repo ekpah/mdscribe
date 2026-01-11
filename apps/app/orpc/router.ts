@@ -1,9 +1,11 @@
 import { authed } from "@/orpc";
 import { embeddingsHandler } from "./admin/embeddings";
+import { modelsHandler as adminModelsHandler } from "./admin/models";
+import { scribeHandler as adminScribeHandler } from "./admin/scribe";
 import { usageHandler as adminUsageHandler } from "./admin/usage";
 import { usersHandler as adminUsersHandler } from "./admin/users";
 import { documentsHandler } from "./documents";
-import { scribeHandler, scribeStreamHandler } from "./scribe";
+import { scribeHandler as scribeTemplateHandler, scribeStreamHandler } from "./scribe";
 import { getUsage } from "./scribe/_lib/get-usage";
 import { templatesHandler } from "./templates";
 import { findRelevantTemplateHandler } from "./templates/search";
@@ -26,7 +28,7 @@ const getUsageHandler = authed.handler(({ context }) => {
 
 export const router = {
 	// AI document generation
-	scribe: scribeHandler,
+	scribe: scribeTemplateHandler,
 	scribeStream: scribeStreamHandler,
 	getUsage: getUsageHandler,
 
@@ -54,11 +56,17 @@ export const router = {
 		users: {
 			...adminUsersHandler,
 		},
+		scribe: {
+			...adminScribeHandler,
+		},
 		usage: {
 			...adminUsageHandler,
 		},
 		embeddings: {
 			...embeddingsHandler,
+		},
+		models: {
+			...adminModelsHandler,
 		},
 	},
 };

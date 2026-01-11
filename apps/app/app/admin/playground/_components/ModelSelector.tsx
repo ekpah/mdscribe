@@ -23,12 +23,14 @@ import {
 	FileText,
 	ImageIcon,
 	Loader2,
+	TrendingUp,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { PlaygroundModel } from "../_lib/types";
 
 interface ModelSelectorProps {
 	models: PlaygroundModel[];
+	topModelIds?: string[];
 	isLoading?: boolean;
 	selectedModel: PlaygroundModel | null;
 	onSelect: (model: PlaygroundModel) => void;
@@ -37,6 +39,7 @@ interface ModelSelectorProps {
 
 export function ModelSelector({
 	models,
+	topModelIds,
 	isLoading,
 	selectedModel,
 	onSelect,
@@ -45,9 +48,25 @@ export function ModelSelector({
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState("");
 
-	// Group models by provider
+	// Group models by provider, with top models as a separate group at the top
 	const groupedModels = useMemo(() => {
 		const groups: Record<string, PlaygroundModel[]> = {};
+
+		// Create "Häufig verwendet" group for top models if any exist
+		if (topModelIds && topModelIds.length > 0) {
+			const topModels: PlaygroundModel[] = [];
+			for (const modelId of topModelIds) {
+				const model = models.find((m) => m.id === modelId);
+				if (model) {
+					topModels.push(model);
+				}
+			}
+			if (topModels.length > 0) {
+				groups["_top"] = topModels;
+			}
+		}
+
+		// Group remaining models by provider
 		for (const model of models) {
 			const provider = model.id.split("/")[0] || "other";
 			if (!groups[provider]) {
@@ -56,7 +75,7 @@ export function ModelSelector({
 			groups[provider].push(model);
 		}
 		return groups;
-	}, [models]);
+	}, [models, topModelIds]);
 
 	// Filter models by search
 	const filteredGroups = useMemo(() => {
@@ -82,6 +101,7 @@ export function ModelSelector({
 	// Format provider name
 	const formatProvider = (provider: string) => {
 		const names: Record<string, string> = {
+			_top: "Häufig verwendet",
 			anthropic: "Anthropic",
 			openai: "OpenAI",
 			google: "Google",
@@ -95,6 +115,9 @@ export function ModelSelector({
 		};
 		return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 	};
+
+	// Check if a model is in the top models list
+	const isTopModel = (modelId: string) => topModelIds?.includes(modelId) ?? false;
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -141,7 +164,14 @@ export function ModelSelector({
 					/>
 					<CommandList className="max-h-[400px]">
 						<CommandEmpty>Keine Modelle gefunden.</CommandEmpty>
-						{Object.entries(filteredGroups).map(([provider, providerModels]) => (
+						{Object.entries(filteredGroups)
+							.sort(([a], [b]) => {
+								// "_top" should always come first
+								if (a === "_top") return -1;
+								if (b === "_top") return 1;
+								return 0;
+							})
+							.map(([provider, providerModels]) => (
 							<CommandGroup key={provider} heading={formatProvider(provider)}>
 								{providerModels.map((model) => (
 									<CommandItem
@@ -167,6 +197,15 @@ export function ModelSelector({
 												<span className="truncate font-medium">
 													{model.name}
 												</span>
+												{isTopModel(model.id) && provider !== "_top" && (
+													<Badge
+														variant="outline"
+														className="h-5 gap-1 px-1.5 text-[10px] text-solarized-orange"
+													>
+														<TrendingUp className="h-2.5 w-2.5" />
+														Top
+													</Badge>
+												)}
 											</div>
 											<div className="flex flex-wrap items-center gap-1 text-xs text-solarized-base01">
 												<Badge
@@ -203,7 +242,7 @@ export function ModelSelector({
 													</Badge>
 												)}
 												<span className="ml-1 text-[10px] text-solarized-base01">
-													${Number.parseFloat(model.pricing.prompt).toFixed(6)}/1k
+													${(Number.parseFloat(model.pricing.prompt) * 1000000).toFixed(2)}/M
 												</span>
 											</div>
 										</div>
