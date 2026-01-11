@@ -1,9 +1,5 @@
 import "server-only";
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { PGlite } from "@electric-sql/pglite";
 import { vector } from "@electric-sql/pglite/vector";
 import { Pool } from "@neondatabase/serverless";
@@ -17,16 +13,35 @@ import * as schema from "./schema";
 const isLocalDev = process.env.NODE_ENV !== "production" && !process.env.VERCEL;
 
 // Persistence paths for local development
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PGLITE_DATA_DIR = join(__dirname, ".pglite-data");
-const PGLITE_TARBALL_PATH = join(PGLITE_DATA_DIR, "dev-db.tar.gz");
+const urlToPath = (url: URL) => decodeURIComponent(url.pathname);
+
+const resolveDatabasePackageRootUrl = (): URL => {
+	try {
+		return new URL(
+			".",
+			new URL(import.meta.resolve("@repo/database/package.json")),
+		);
+	} catch {
+		// Fallback: relative to this source file (best-effort)
+		return new URL(".", import.meta.url);
+	}
+};
+
+const DATABASE_PACKAGE_ROOT_URL = resolveDatabasePackageRootUrl();
+const PGLITE_TARBALL_URL = new URL(
+	"./.pglite-data/dev-db.tar.gz",
+	DATABASE_PACKAGE_ROOT_URL,
+);
+const PGLITE_TARBALL_PATH = urlToPath(PGLITE_TARBALL_URL);
 
 // Global singleton for PGlite to persist across HMR in development
 // Store the client, drizzle instance, AND the initialization promise to prevent race conditions
 const globalForPGlite = globalThis as unknown as {
 	pgliteClient: PGlite | undefined;
 	pgliteDb: ReturnType<typeof drizzlePGlite<typeof schema>> | undefined;
-	pgliteInitPromise: Promise<ReturnType<typeof drizzlePGlite<typeof schema>>> | undefined;
+	pgliteInitPromise:
+		| Promise<ReturnType<typeof drizzlePGlite<typeof schema>>>
+		| undefined;
 	shutdownHandlersRegistered: boolean | undefined;
 };
 
@@ -34,17 +49,17 @@ const globalForPGlite = globalThis as unknown as {
  * Load existing tarball if it exists
  * Returns the tarball data as Blob, or null if not found
  */
-function loadTarballIfExists(): Blob | null {
-	if (!existsSync(PGLITE_TARBALL_PATH)) {
+async function loadTarballIfExists(): Promise<Blob | null> {
+	const file = Bun.file(PGLITE_TARBALL_URL);
+	if (!(await file.exists())) {
 		console.log("No existing PGlite tarball found, will create fresh database");
 		return null;
 	}
 
 	try {
 		console.log(`Loading PGlite database from ${PGLITE_TARBALL_PATH}`);
-		const buffer = readFileSync(PGLITE_TARBALL_PATH);
-		// PGlite expects a Blob for loadDataDir
-		return new Blob([buffer]);
+		// Bun.file() returns a BunFile which extends Blob
+		return file;
 	} catch (error) {
 		console.error("Failed to load PGlite tarball:", error);
 		return null;
@@ -56,19 +71,11 @@ function loadTarballIfExists(): Blob | null {
  */
 async function saveTarball(client: PGlite): Promise<void> {
 	try {
-		// Ensure directory exists
-		if (!existsSync(PGLITE_DATA_DIR)) {
-			mkdirSync(PGLITE_DATA_DIR, { recursive: true });
-		}
-
 		console.log("Dumping PGlite database to tarball...");
 		const blob = await client.dumpDataDir();
 
-		// Convert Blob to Buffer for Node.js file write
-		const arrayBuffer = await blob.arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer);
-
-		writeFileSync(PGLITE_TARBALL_PATH, buffer);
+		// Bun.write() accepts Blob directly
+		await Bun.write(PGLITE_TARBALL_URL, blob);
 		console.log(`PGlite database saved to ${PGLITE_TARBALL_PATH}`);
 	} catch (error) {
 		console.error("Failed to save PGlite tarball:", error);
@@ -149,11 +156,13 @@ function registerShutdownHandlers(client: PGlite): void {
 
 async function createPGliteDatabase() {
 	// Try to load existing database from tarball
-	const existingTarball = loadTarballIfExists();
+	const existingTarball = await loadTarballIfExists();
 	const loadedFromTarball = existingTarball !== null;
 
 	// Use PGlite in-memory for local development with vector extension
-	console.log("Using PGlite (in-memory with persistence) for local development");
+	console.log(
+		"Using PGlite (in-memory with persistence) for local development",
+	);
 	const client = new PGlite({
 		extensions: { vector },
 		...(existingTarball && { loadDataDir: existingTarball }),
@@ -165,7 +174,9 @@ async function createPGliteDatabase() {
 		await client.exec(initSchemaSQL);
 		console.log("PGlite schema initialized successfully");
 	} else {
-		console.log("Loaded existing database from tarball, skipping schema initialization");
+		console.log(
+			"Loaded existing database from tarball, skipping schema initialization",
+		);
 	}
 
 	const db = drizzlePGlite({ client, schema });
