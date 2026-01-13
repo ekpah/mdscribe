@@ -66,7 +66,9 @@ const compilePromptHandler = authed
 	.handler(async ({ input }) => {
 		const parsed = compilePromptInput.parse(input);
 		const config =
-			documentTypeConfigs[parsed.documentType as keyof typeof documentTypeConfigs];
+			documentTypeConfigs[
+				parsed.documentType as keyof typeof documentTypeConfigs
+			];
 		if (!config) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Unknown document type: ${parsed.documentType}`,
@@ -132,7 +134,9 @@ const runHandler = authed
 	.handler(async ({ input, context }) => {
 		const parsed = runInput.parse(input);
 		const config =
-			documentTypeConfigs[parsed.documentType as keyof typeof documentTypeConfigs];
+			documentTypeConfigs[
+				parsed.documentType as keyof typeof documentTypeConfigs
+			];
 		if (!config) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Unknown document type: ${parsed.documentType}`,
@@ -168,10 +172,14 @@ const runHandler = authed
 		if (parsed.compiledMessagesOverride) {
 			messages = parsed.compiledMessagesOverride as unknown as ModelMessage[];
 		} else {
-			const textPrompt = await langfuse.getPrompt(resolvedPromptName, undefined, {
-				type: "chat",
-				label: resolvedPromptLabel,
-			});
+			const textPrompt = await langfuse.getPrompt(
+				resolvedPromptName,
+				undefined,
+				{
+					type: "chat",
+					label: resolvedPromptLabel,
+				},
+			);
 			messages = textPrompt.compile({
 				...variablesUsed,
 				todaysDate: todaysDateDE(),
@@ -189,7 +197,13 @@ const runHandler = authed
 			frequencyPenalty: parsed.parameters.frequencyPenalty,
 			presencePenalty: parsed.parameters.presencePenalty,
 			providerOptions: {
-				openrouter: { usage: { include: true }, user: context.session.user.email },
+				openrouter: {
+					usage: { include: true },
+					user: context.session.user.email,
+					reasoning: {
+						enabled: true,
+					},
+				},
 				...(Object.keys(providerOptions).length > 0
 					? { anthropic: providerOptions }
 					: {}),
@@ -271,8 +285,9 @@ export const scribeHandler = {
 
 				const data = (await res.json()) as { data?: unknown };
 				const items =
-					(data as { data?: Array<{ name?: unknown }> }).data?.filter(Boolean) ??
-					[];
+					(data as { data?: Array<{ name?: unknown }> }).data?.filter(
+						Boolean,
+					) ?? [];
 
 				return {
 					items: items
@@ -304,4 +319,3 @@ export const scribeHandler = {
 			}),
 	},
 };
-
