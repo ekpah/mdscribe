@@ -8,7 +8,9 @@
 		"lint": "next lint",
 		"analyze": "ANALYZE=true bun --bun next build",
 		"test": "bun test",
-		"test:watch": "bun test --watch"
+		"test:watch": "bun test --watch",
+		"test:e2e": "bunx playwright test",
+		"test:e2e:ui": "bunx playwright test --ui"
 	},
 	"dependencies": {
 		"@ai-sdk/anthropic": "2.0.45",
@@ -62,6 +64,7 @@
 	},
 	"devDependencies": {
 		"@next/bundle-analyzer": "15.2.1",
+		"@playwright/test": "^1.57.0",
 		"@repo/typescript-config": "workspace:*",
 		"@types/bun": "catalog:",
 		"@types/lodash": "^4.17.18",
