@@ -20,7 +20,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
-import { Switch } from "@repo/design-system/components/ui/switch";
 import {
 	Tabs,
 	TabsContent,
@@ -58,7 +57,101 @@ interface PlaygroundPanelProps {
 	presetVariables?: Record<string, unknown>;
 }
 
-type InputMode = "form" | "variables";
+/**
+ * Reverse mapping from processedInput (stored in usage events) back to form field names.
+ * The scribe config transforms form fields before sending to the AI:
+ * - discharge/outpatient: dischargeNotes → notes
+ * - procedures: procedureNotes → notes
+ * This function reverses that transformation so we can populate the form.
+ */
+function parseVariablesToFormFields(
+	documentType: DocumentType,
+	variables: Record<string, unknown>,
+): { main: string; additional: Record<string, string> } {
+	const result: { main: string; additional: Record<string, string> } = {
+		main: "",
+		additional: {},
+	};
+
+	const getString = (key: string): string => {
+		const val = variables[key];
+		return typeof val === "string" ? val : "";
+	};
+
+	switch (documentType) {
+		case "discharge":
+		case "outpatient":
+			// processInput transforms: dischargeNotes → notes
+			result.main = getString("notes") || getString("dischargeNotes");
+			result.additional = {
+				diagnoseblock: getString("diagnoseblock"),
+				anamnese: getString("anamnese"),
+				befunde: getString("befunde"),
+			};
+			break;
+
+		case "procedures":
+			// processInput transforms: procedureNotes → notes
+			result.main = getString("notes") || getString("procedureNotes");
+			break;
+
+		case "anamnese":
+			result.main = getString("notes");
+			result.additional = {
+				befunde: getString("befunde"),
+				vordiagnosen: getString("vordiagnosen"),
+			};
+			break;
+
+		case "physical-exam":
+			result.main = getString("notes");
+			break;
+
+		case "diagnosis":
+			result.main = getString("notes");
+			result.additional = {
+				anamnese: getString("anamnese"),
+				diagnoseblock: getString("diagnoseblock"),
+				befunde: getString("befunde"),
+			};
+			break;
+
+		case "admission-todos":
+			result.main = getString("notes");
+			result.additional = {
+				anamnese: getString("anamnese"),
+				vordiagnosen: getString("vordiagnosen"),
+				befunde: getString("befunde"),
+			};
+			break;
+
+		case "befunde":
+			result.main = getString("notes");
+			result.additional = {
+				anamnese: getString("anamnese"),
+				vordiagnosen: getString("vordiagnosen"),
+			};
+			break;
+
+		case "icu-transfer":
+			result.main = getString("notes");
+			result.additional = {
+				anamnese: getString("anamnese"),
+				diagnoseblock: getString("diagnoseblock"),
+				befunde: getString("befunde"),
+			};
+			break;
+
+		default:
+			// Fallback: try common field names
+			result.main =
+				getString("notes") ||
+				getString("dischargeNotes") ||
+				getString("procedureNotes");
+	}
+
+	return result;
+}
 
 interface ModelRunConfig {
 	id: string;
@@ -99,20 +192,19 @@ export function PlaygroundPanel({
 	const [documentType, setDocumentType] =
 		useState<DocumentType>(initialDocType);
 
-	const [inputMode, setInputMode] = useState<InputMode>(
-		presetVariables ? "variables" : "form",
-	);
+	// Parse preset variables from usage event into form fields
+	const parsedPreset = useMemo(() => {
+		if (!presetVariables || Object.keys(presetVariables).length === 0) {
+			return null;
+		}
+		return parseVariablesToFormFields(initialDocType, presetVariables);
+	}, [presetVariables, initialDocType]);
 
 	// Form input state (used to build promptJson)
 	const docUi = scribeDocTypeUi[documentType];
-	const [formMain, setFormMain] = useState("");
+	const [formMain, setFormMain] = useState(parsedPreset?.main ?? "");
 	const [formAdditional, setFormAdditional] = useState<Record<string, string>>(
-		{},
-	);
-
-	// Variables mode state
-	const [variablesJson, setVariablesJson] = useState(() =>
-		JSON.stringify(presetVariables ?? {}, null, 2),
+		parsedPreset?.additional ?? {},
 	);
 
 	// Prompt selection / compilation
@@ -132,7 +224,6 @@ export function PlaygroundPanel({
 	>({});
 	const [isCompiling, setIsCompiling] = useState(false);
 
-
 	const promptJson = useMemo(() => {
 		const data: Record<string, unknown> = {
 			[docUi.mainField.name]: formMain,
@@ -146,33 +237,13 @@ export function PlaygroundPanel({
 		return JSON.stringify(data);
 	}, [docUi, formMain, formAdditional]);
 
-	const parseVariables = (): Record<string, unknown> | null => {
-		try {
-			const parsed = JSON.parse(variablesJson) as unknown;
-			if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-				return null;
-			}
-			return parsed as Record<string, unknown>;
-		} catch {
-			return null;
-		}
-	};
-
 	const compile = async () => {
 		setIsCompiling(true);
 		try {
-			const variables = inputMode === "variables" ? parseVariables() : null;
-			if (inputMode === "variables" && !variables) {
-				toast.error("Variables JSON ist ungültig");
-				return;
-			}
-
 			const res = await orpc.admin.scribe.compilePrompt.call({
 				documentType,
 				promptName,
-				promptLabel,
-				variables: variables ?? undefined,
-				promptJson: inputMode === "form" ? promptJson : undefined,
+				promptJson,
 			});
 
 			setCompiledVariables(res.variablesUsed ?? {});
@@ -331,127 +402,89 @@ export function PlaygroundPanel({
 									</Select>
 								</div>
 
-								<div className="flex items-center justify-between rounded-lg border border-solarized-base2 bg-solarized-base3 p-3">
-									<div className="space-y-0.5">
-										<p className="font-medium text-sm text-solarized-base00">
-											Input-Modus
-										</p>
-										<p className="text-xs text-solarized-base01">
-											Form entspricht AI Scribe UX; Variables entspricht
-											\"processedInput\" aus Usage-Events.
-										</p>
-									</div>
-									<div className="flex items-center gap-2">
-										<span className="text-xs text-solarized-base01">Form</span>
-										<Switch
-											checked={inputMode === "variables"}
-											onCheckedChange={(checked) =>
-												setInputMode(checked ? "variables" : "form")
-											}
-										/>
-										<span className="text-xs text-solarized-base01">
-											Variables
-										</span>
-									</div>
-								</div>
-
-								{inputMode === "form" ? (
-									<div className="space-y-4">
-										<div className="space-y-2">
-											<Label
-												className="text-sm text-solarized-base01"
-												htmlFor="main-input"
-											>
-												{docUi.mainField.label}
-											</Label>
-											<Textarea
-												className="min-h-[140px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
-												id="main-input"
-												onChange={(e) => setFormMain(e.target.value)}
-												placeholder={docUi.mainField.placeholder}
-												value={formMain}
-											/>
-											{docUi.mainField.description && (
-												<p className="text-xs text-solarized-base01">
-													{docUi.mainField.description}
-												</p>
-											)}
-										</div>
-
-										{docUi.additionalFields.length > 0 && (
-											<div className="space-y-4">
-												<Separator className="bg-solarized-base2" />
-												{docUi.additionalFields.map((field) => (
-													<div className="space-y-2" key={field.name}>
-														<Label
-															className="text-sm text-solarized-base01"
-															htmlFor={field.name}
-														>
-															{field.label}
-														</Label>
-														<Textarea
-															className="min-h-[90px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
-															id={field.name}
-															onChange={(e) =>
-																setFormAdditional((prev) => ({
-																	...prev,
-																	[field.name]: e.target.value,
-																}))
-															}
-															placeholder={field.placeholder}
-															value={formAdditional[field.name] ?? ""}
-														/>
-													</div>
-												))}
-											</div>
-										)}
-
-										<div className="space-y-2">
-											<div className="flex items-center justify-between">
-												<Label className="text-sm text-solarized-base01">
-													Prompt JSON (gesendet an Server)
-												</Label>
-												<Button
-													type="button"
-													variant="ghost"
-													size="sm"
-													className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
-													onClick={async () => {
-														await navigator.clipboard.writeText(promptJson);
-														toast.success("Kopiert!");
-													}}
-												>
-													<Copy className="h-4 w-4" />
-													Kopieren
-												</Button>
-											</div>
-											<Textarea
-												readOnly
-												value={JSON.stringify(JSON.parse(promptJson), null, 2)}
-												className="min-h-[120px] resize-none border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-											/>
-										</div>
-									</div>
-								) : (
+								<div className="space-y-4">
 									<div className="space-y-2">
-										<Label className="text-sm text-solarized-base01">
-											Variables (JSON)
+										<Label
+											className="text-sm text-solarized-base01"
+											htmlFor="main-input"
+										>
+											{docUi.mainField.label}
 										</Label>
 										<Textarea
-											className="min-h-[340px] resize-none border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-											onChange={(e) => setVariablesJson(e.target.value)}
-											placeholder='{"notes":"...","diagnoseblock":"..."}'
-											value={variablesJson}
+											className="min-h-[140px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
+											id="main-input"
+											onChange={(e) => setFormMain(e.target.value)}
+											placeholder={docUi.mainField.placeholder}
+											value={formMain}
+										/>
+										{docUi.mainField.description && (
+											<p className="text-xs text-solarized-base01">
+												{docUi.mainField.description}
+											</p>
+										)}
+									</div>
+
+									{docUi.additionalFields.length > 0 && (
+										<div className="space-y-4">
+											<Separator className="bg-solarized-base2" />
+											{docUi.additionalFields.map((field) => (
+												<div className="space-y-2" key={field.name}>
+													<Label
+														className="text-sm text-solarized-base01"
+														htmlFor={field.name}
+													>
+														{field.label}
+													</Label>
+													<Textarea
+														className="min-h-[90px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
+														id={field.name}
+														onChange={(e) =>
+															setFormAdditional((prev) => ({
+																...prev,
+																[field.name]: e.target.value,
+															}))
+														}
+														placeholder={field.placeholder}
+														value={formAdditional[field.name] ?? ""}
+													/>
+												</div>
+											))}
+										</div>
+									)}
+
+									<div className="space-y-2">
+										<div className="flex items-center justify-between">
+											<Label className="text-sm text-solarized-base01">
+												Prompt JSON (gesendet an Server)
+											</Label>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
+												onClick={async () => {
+													await navigator.clipboard.writeText(promptJson);
+													toast.success("Kopiert!");
+												}}
+											>
+												<Copy className="h-4 w-4" />
+												Kopieren
+											</Button>
+										</div>
+										<Textarea
+											readOnly
+											value={JSON.stringify(JSON.parse(promptJson), null, 2)}
+											className="min-h-[120px] resize-none border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 										/>
 									</div>
-								)}
+								</div>
 							</TabsContent>
 
 							<TabsContent value="prompt" className="mt-0 space-y-4">
 								<div className="grid grid-cols-2 gap-3">
 									<div className="space-y-2">
 										<Label className="text-sm text-solarized-base01">
-											Prompt Name (Langfuse)
+											Prompt Name
 										</Label>
 										<Input
 											className="border-solarized-base2 bg-solarized-base3"
@@ -733,11 +766,8 @@ export function PlaygroundPanel({
 								runId={run.id}
 								modelRun={run}
 								documentType={documentType}
-								inputMode={inputMode}
-								variablesJson={variablesJson}
 								promptJson={promptJson}
 								promptName={promptName}
-								promptLabel={promptLabel}
 								compiledOverride={compiledOverride}
 								compiledMessages={compiledMessages}
 								runState={runStates[run.id]}
@@ -756,11 +786,8 @@ function RunCard({
 	runId,
 	modelRun,
 	documentType,
-	inputMode,
-	variablesJson,
 	promptJson,
 	promptName,
-	promptLabel,
 	compiledOverride,
 	compiledMessages,
 	runState,
@@ -770,11 +797,8 @@ function RunCard({
 	runId: string;
 	modelRun: ModelRunConfig;
 	documentType: DocumentType;
-	inputMode: InputMode;
-	variablesJson: string;
 	promptJson: string;
 	promptName: string;
-	promptLabel: "staging" | "production";
 	compiledOverride: Array<{
 		role: "system" | "user" | "assistant";
 		content: string;
@@ -866,9 +890,17 @@ function RunCard({
 
 	useEffect(() => {
 		if (status === "streaming" || status === "submitted") {
-			setRunState(runId, { isStreaming: true, text: completion, reasoning: reasoning || undefined });
+			setRunState(runId, {
+				isStreaming: true,
+				text: completion,
+				reasoning: reasoning || undefined,
+			});
 		} else if (completion) {
-			setRunState(runId, { isStreaming: false, text: completion, reasoning: reasoning || undefined });
+			setRunState(runId, {
+				isStreaming: false,
+				text: completion,
+				reasoning: reasoning || undefined,
+			});
 		}
 	}, [completion, reasoning, status, runId, setRunState]);
 
@@ -882,21 +914,6 @@ function RunCard({
 
 		const requestId = crypto.randomUUID();
 
-		let variables: Record<string, unknown> | undefined;
-		if (inputMode === "variables") {
-			try {
-				const parsed = JSON.parse(variablesJson) as unknown;
-				if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-					toast.error("Variables JSON ist ungültig");
-					return;
-				}
-				variables = parsed as Record<string, unknown>;
-			} catch {
-				toast.error("Variables JSON ist ungültig");
-				return;
-			}
-		}
-
 		const compiledMessagesOverride =
 			compiledOverride ??
 			(compiledMessages.length > 0 ? compiledMessages : undefined);
@@ -907,9 +924,7 @@ function RunCard({
 			parameters: modelRun.parameters,
 			documentType,
 			promptName,
-			promptLabel,
-			variables,
-			promptJson: inputMode === "form" ? promptJson : undefined,
+			promptJson,
 			compiledMessagesOverride: compiledMessagesOverride
 				? compiledMessagesOverride.map((m) => ({
 						role: m.role,
@@ -930,13 +945,10 @@ function RunCard({
 	}, [
 		modelRun.model,
 		modelRun.parameters,
-		inputMode,
-		variablesJson,
 		compiledOverride,
 		compiledMessages,
 		documentType,
 		promptName,
-		promptLabel,
 		promptJson,
 		runId,
 		setRunState,

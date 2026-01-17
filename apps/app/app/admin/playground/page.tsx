@@ -1,16 +1,32 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { FlaskConical, Loader2, XCircle } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo } from "react";
+import { FlaskConical, XCircle } from "lucide-react";
+import {
+	parseAsBoolean,
+	parseAsFloat,
+	parseAsInteger,
+	parseAsString,
+	useQueryStates,
+} from "nuqs";
+import { useMemo } from "react";
 import { orpc } from "@/lib/orpc";
 import { PlaygroundPanel } from "./_components/PlaygroundPanel";
-import type { PlaygroundModel, PlaygroundParameters } from "./_lib/types";
+import type { PlaygroundParameters } from "./_lib/types";
 import type { DocumentType } from "@/orpc/scribe/types";
 
+const playgroundSearchParams = {
+	referenceUsageEvent: parseAsString,
+	model: parseAsString,
+	documentType: parseAsString,
+	temperature: parseAsFloat,
+	maxTokens: parseAsInteger,
+	thinking: parseAsBoolean,
+	thinkingBudget: parseAsInteger,
+};
+
 function PlaygroundContent() {
-	const searchParams = useSearchParams();
+	const [searchParams] = useQueryStates(playgroundSearchParams);
 
 	// Fetch models using oRPC
 	const {
@@ -26,36 +42,26 @@ function PlaygroundContent() {
 
 	// Parse preset from URL params (from usage tracking jump-off)
 	const preset = useMemo(() => {
-		const eventId = searchParams.get("eventId");
-		const model = searchParams.get("model");
-		const documentTypeParam = searchParams.get("documentType");
-		const temperature = searchParams.get("temperature");
-		const maxTokens = searchParams.get("maxTokens");
-		const thinking = searchParams.get("thinking");
-		const thinkingBudget = searchParams.get("thinkingBudget");
-
 		return {
-			eventId,
-			model,
-			documentType: (documentTypeParam || undefined) as
+			referenceUsageEvent: searchParams.referenceUsageEvent,
+			model: searchParams.model,
+			documentType: (searchParams.documentType || undefined) as
 				| DocumentType
 				| undefined,
 			parameters: {
-				temperature: temperature ? Number.parseFloat(temperature) : undefined,
-				maxTokens: maxTokens ? Number.parseInt(maxTokens) : undefined,
-				thinking: thinking === "true",
-				thinkingBudget: thinkingBudget
-					? Number.parseInt(thinkingBudget)
-					: undefined,
+				temperature: searchParams.temperature ?? undefined,
+				maxTokens: searchParams.maxTokens ?? undefined,
+				thinking: searchParams.thinking ?? false,
+				thinkingBudget: searchParams.thinkingBudget ?? undefined,
 			} as Partial<PlaygroundParameters>,
 		};
 	}, [searchParams]);
 
 	const { data: usageEvent } = useQuery({
 		...orpc.admin.usage.get.queryOptions({
-			input: { id: preset.eventId ?? "" },
+			input: { id: preset.referenceUsageEvent ?? "" },
 		}),
-		enabled: Boolean(preset.eventId),
+		enabled: Boolean(preset.referenceUsageEvent),
 	});
 
 	const presetFromUsage = useMemo(() => {
@@ -131,18 +137,5 @@ function PlaygroundContent() {
 }
 
 export default function PlaygroundPage() {
-	return (
-		<Suspense
-			fallback={
-				<div className="flex h-full items-center justify-center p-6">
-					<div className="flex items-center gap-2 text-solarized-base01">
-						<Loader2 className="h-5 w-5 animate-spin" />
-						<span>Lade Playground...</span>
-					</div>
-				</div>
-			}
-		>
-			<PlaygroundContent />
-		</Suspense>
-	);
+	return <PlaygroundContent />;
 }
