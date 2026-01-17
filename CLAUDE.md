@@ -200,3 +200,7 @@ Required environment variables (see turbo.json):
 - **Vector Search**: Templates use 1024-dim embeddings (Voyage AI compatible)
 - **Email Templates**: Located in `packages/email/templates/` using React Email
 - **Bundle Analysis**: `ANALYZE=true bun build` in apps/app
+
+## Libraries and APIs
+
+Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
