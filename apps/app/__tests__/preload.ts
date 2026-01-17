@@ -15,9 +15,6 @@ mock.module("@repo/env", () => ({
 		STRIPE_PLUS_PRICE_ID: "price_test_plus",
 		STRIPE_PLUS_PRICE_ID_ANNUAL: "price_test_plus_annual",
 		VOYAGE_API_KEY: "test-voyage-key",
-		LANGFUSE_SECRET_KEY: "test-langfuse-key",
-		LANGFUSE_PUBLIC_KEY: "test-langfuse-public-key",
-		LANGFUSE_BASEURL: "https://test.langfuse.com",
 		NODE_ENV: "test",
 		FLAGS_SECRET: "test-flags-secret",
 		NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
@@ -35,48 +32,6 @@ mock.module("next/headers", () => ({
 		delete: () => {},
 		getAll: () => [],
 	}),
-}));
-
-// Mock Langfuse
-mock.module("langfuse", () => ({
-	Langfuse: class MockLangfuse {
-		getPrompt() {
-			return Promise.resolve({
-				compile: (variables: Record<string, unknown>) => [
-					{
-						role: "system",
-						content: `Test system prompt with variables: ${JSON.stringify(variables)}`,
-					},
-					{ role: "user", content: "Test user message" },
-				],
-			});
-		}
-		trace() {
-			return { id: "test-trace-id" };
-		}
-		span() {
-			return { id: "test-span-id", end: () => {} };
-		}
-		generation() {
-			return { id: "test-gen-id", end: () => {} };
-		}
-		flush() {
-			return Promise.resolve();
-		}
-	},
-	default: class MockLangfuse {
-		getPrompt() {
-			return Promise.resolve({
-				compile: (variables: Record<string, unknown>) => [
-					{
-						role: "system",
-						content: `Test system prompt with variables: ${JSON.stringify(variables)}`,
-					},
-					{ role: "user", content: "Test user message" },
-				],
-			});
-		}
-	},
 }));
 
 // Mock VoyageAI
