@@ -94,6 +94,22 @@ export default function UsagePage() {
 		[],
 	);
 
+	// Filter items based on search - matches user name/email OR action name
+	const filteredItems = useMemo(() => {
+		if (!searchFilter.trim()) return allItems;
+		const search = searchFilter.toLowerCase();
+		return allItems.filter((item) => {
+			const userName = item.user?.name?.toLowerCase() ?? "";
+			const userEmail = item.user?.email?.toLowerCase() ?? "";
+			const actionName = item.name?.toLowerCase() ?? "";
+			return (
+				userName.includes(search) ||
+				userEmail.includes(search) ||
+				actionName.includes(search)
+			);
+		});
+	}, [allItems, searchFilter]);
+
 	const errorMessage =
 		error instanceof Error
 			? error.message
@@ -235,19 +251,17 @@ export default function UsagePage() {
 					<CardContent>
 						<DataTable
 							columns={columns}
-							data={allItems}
+							data={filteredItems}
 							onRowClick={(row) => setSelectedEventId(row.id)}
 							enablePagination={false}
+							enableFiltering={false}
 							emptyMessage="Keine Events gefunden"
 							renderToolbar={(table) => (
 								<div className="flex items-center justify-between gap-2">
 									<Input
 										placeholder="Benutzer oder Aktion suchen..."
 										value={searchFilter}
-										onChange={(event) => {
-											setSearchFilter(event.target.value);
-											table.getColumn("user")?.setFilterValue(event.target.value);
-										}}
+										onChange={(event) => setSearchFilter(event.target.value)}
 										className="max-w-sm"
 									/>
 									<DataTableViewOptions table={table} />

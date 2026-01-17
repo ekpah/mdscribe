@@ -19,7 +19,8 @@ type UsageEventWithUser = UsageEvent & {
 function buildPlaygroundUrl(event: UsageEventWithUser): string {
 	const params = new URLSearchParams();
 
-	params.set("eventId", event.id);
+	// Use referenceUsageEvent for persistent URL state
+	params.set("referenceUsageEvent", event.id);
 
 	if (event.model) {
 		params.set("model", event.model);
@@ -34,7 +35,9 @@ function buildPlaygroundUrl(event: UsageEventWithUser): string {
 
 	// Extract parameters from metadata
 	if (metadata) {
-		const modelConfig = metadata.modelConfig as Record<string, unknown> | undefined;
+		const modelConfig = metadata.modelConfig as
+			| Record<string, unknown>
+			| undefined;
 		if (modelConfig?.temperature !== undefined) {
 			params.set("temperature", String(modelConfig.temperature));
 		}
@@ -92,10 +95,7 @@ export function UsageEventDetail({
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent
-				side="right"
-				className="w-full overflow-y-auto sm:max-w-lg"
-			>
+			<SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
 				<SheetHeader>
 					<SheetTitle>Event-Details</SheetTitle>
 					<SheetDescription>{formatDate(event.timestamp)}</SheetDescription>
@@ -125,7 +125,9 @@ export function UsageEventDetail({
 									<p className="font-medium text-solarized-base00">
 										{event.user.name || "Kein Name"}
 									</p>
-									<p className="text-sm text-solarized-base01">{event.user.email}</p>
+									<p className="text-sm text-solarized-base01">
+										{event.user.email}
+									</p>
 								</>
 							) : (
 								<p className="text-solarized-base01">Unbekannter Benutzer</p>
