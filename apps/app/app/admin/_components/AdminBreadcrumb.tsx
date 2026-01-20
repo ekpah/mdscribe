@@ -27,6 +27,9 @@ function getPageTitle(pathname: string): string {
 	if (pathname.startsWith("/admin/usage")) {
 		return "Nutzungsstatistik";
 	}
+	if (pathname.startsWith("/admin/documents-playground")) {
+		return "Dokumenten-Playground";
+	}
 	if (pathname.startsWith("/admin/templates")) {
 		return "Vorlagenverwaltung";
 	}

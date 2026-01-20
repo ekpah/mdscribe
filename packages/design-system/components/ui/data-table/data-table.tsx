@@ -32,6 +32,9 @@ interface DataTableProps<TData> {
 	enablePagination?: boolean;
 	enableSorting?: boolean;
 	enableFiltering?: boolean;
+	enableGlobalFilter?: boolean;
+	globalFilter?: string;
+	onGlobalFilterChange?: (value: string) => void;
 	enableColumnVisibility?: boolean;
 	renderToolbar?: (table: TanStackTable<TData>) => React.ReactNode;
 	renderPagination?: (table: TanStackTable<TData>) => React.ReactNode;
@@ -45,16 +48,25 @@ function DataTable<TData>({
 	enablePagination = true,
 	enableSorting = true,
 	enableFiltering = true,
+	enableGlobalFilter = false,
+	globalFilter,
+	onGlobalFilterChange,
 	enableColumnVisibility = true,
 	renderToolbar,
 	renderPagination,
 	emptyMessage = "Keine Ergebnisse.",
 }: DataTableProps<TData>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] =
-		React.useState<ColumnFiltersState>([]);
+	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+		[],
+	);
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>({});
+	const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("");
+
+	// Use controlled global filter if provided, otherwise use internal state
+	const actualGlobalFilter = globalFilter ?? internalGlobalFilter;
+	const setActualGlobalFilter = onGlobalFilterChange ?? setInternalGlobalFilter;
 
 	const table = useReactTable({
 		data,
@@ -69,12 +81,18 @@ function DataTable<TData>({
 			onColumnFiltersChange: setColumnFilters,
 			getFilteredRowModel: getFilteredRowModel(),
 		}),
+		...(enableGlobalFilter && {
+			onGlobalFilterChange: setActualGlobalFilter,
+			getFilteredRowModel: getFilteredRowModel(),
+			globalFilterFn: "includesString",
+		}),
 		...(enableColumnVisibility && {
 			onColumnVisibilityChange: setColumnVisibility,
 		}),
 		state: {
 			...(enableSorting && { sorting }),
 			...(enableFiltering && { columnFilters }),
+			...(enableGlobalFilter && { globalFilter: actualGlobalFilter }),
 			...(enableColumnVisibility && { columnVisibility }),
 		},
 	});

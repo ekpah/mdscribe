@@ -120,12 +120,15 @@ export function MarkdownDiffEditor({
 		editorProps: {
 			attributes: {
 				class: cn(
-					"prose prose-sm focus:outline-none w-full h-full max-w-none",
-					"prose-headings:font-semibold prose-headings:text-foreground",
-					"prose-h1:text-xl prose-h1:mb-2 prose-h1:mt-0",
-					"prose-h2:text-lg prose-h2:mb-2 prose-h2:mt-0",
-					"prose-h3:text-base prose-h3:mb-1 prose-h3:mt-0",
-					"prose-p:my-1 prose-p:text-foreground",
+					// Base text styling - use leading-relaxed to match non-editor pages
+					"text-sm leading-relaxed focus:outline-none w-full h-full max-w-none text-foreground",
+					// Headings
+					"[&_h1]:text-xl [&_h1]:font-semibold [&_h1]:mb-2 [&_h1]:mt-0",
+					"[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-0",
+					"[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-0",
+					// Paragraphs - minimal margins
+					"[&_p]:my-0.5",
+					// Underline support
 					"[&_u]:underline",
 					// Placeholder styles for TipTap Placeholder extension
 					"[&_.is-editor-empty:first-child]:relative",
@@ -217,7 +220,7 @@ export function MarkdownDiffEditor({
 							<div className="h-5 w-5 animate-spin rounded-full border-2 border-solarized-blue border-t-transparent" />
 						</div>
 						{/* Greyed out original text */}
-						<div className="whitespace-pre-wrap p-3 opacity-40 leading-normal">
+						<div className="whitespace-pre-wrap p-3 opacity-40 text-sm leading-relaxed">
 							{value || " "}
 						</div>
 					</div>
@@ -230,7 +233,7 @@ export function MarkdownDiffEditor({
 			return (
 				<div className="space-y-2">
 					{/* Show the text as-is */}
-					<div className="whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-sm leading-normal">
+					<div className="whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-sm leading-relaxed">
 						{value || " "}
 					</div>
 					{/* Subtle note with dismiss */}
@@ -266,7 +269,7 @@ export function MarkdownDiffEditor({
 					{/* Diff view - word or line level highlighting */}
 					<div
 						className={cn(
-							"rounded-lg border border-solarized-blue/20 bg-background p-3 text-sm leading-normal",
+							"rounded-lg border border-solarized-blue/20 bg-background p-3 text-sm leading-relaxed",
 							diffMode === "line" ? "whitespace-pre" : "whitespace-pre-wrap",
 						)}
 					>

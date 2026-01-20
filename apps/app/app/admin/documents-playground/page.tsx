@@ -16,16 +16,7 @@ export const metadata: Metadata = {
 
 export default function DocumentsPage() {
 	return (
-		<div className="flex h-full w-full flex-col">
-			<div className="flex h-10 items-center justify-between gap-2">
-				<Breadcrumb>
-					<BreadcrumbList>
-						<BreadcrumbItem>
-							<BreadcrumbPage>PDF-Formular ausfüllen</BreadcrumbPage>
-						</BreadcrumbItem>
-					</BreadcrumbList>
-				</Breadcrumb>
-			</div>
+		<div className="flex h-full w-full flex-col p-3">
 			<PDFFormSection />
 		</div>
 	);

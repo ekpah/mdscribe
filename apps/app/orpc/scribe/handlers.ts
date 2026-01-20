@@ -1,7 +1,7 @@
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { database, eq, inArray, sql, subscription, usageEvent } from "@repo/database";
+import { database, sql, subscription, usageEvent } from "@repo/database";
 import { env } from "@repo/env";
 import {
 	type LanguageModel,
@@ -9,7 +9,6 @@ import {
 	type UIMessage,
 	streamText,
 } from "ai";
-import { Langfuse } from "langfuse";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
 
@@ -26,11 +25,10 @@ import { documentTypeConfigs } from "./config";
 import type {
 	AudioFile,
 	DocumentType,
-	ModelConfig,
+	PromptVariables,
 	SupportedModel,
 } from "./types";
 
-const langfuse = new Langfuse();
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
 });
@@ -112,8 +110,7 @@ async function checkUsageLimit(
 
 	if (usage.count >= usageLimit) {
 		throw new ORPCError("FORBIDDEN", {
-			message:
-				"Monatliche Nutzungsgrenze erreicht - passe dein Abonnement an",
+			message: "Monatliche Nutzungsgrenze erreicht - passe dein Abonnement an",
 		});
 	}
 
@@ -137,33 +134,7 @@ async function generateEmbeddings(content: string): Promise<number[]> {
 async function findRelevantTemplateForProcedure(
 	procedureNotes: string,
 ): Promise<string> {
-	const embedding = await generateEmbeddings(procedureNotes);
-	const embeddingSql = pgvector.toSql(embedding);
-
-	type TemplateResult = {
-		content: string;
-		similarity: number;
-	};
-
-	const similarityResults = await database.execute<TemplateResult>(sql`
-		SELECT
-			content,
-			(1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) as similarity
-		FROM "Template"
-		WHERE embedding IS NOT NULL
-		AND (1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) > 0.6
-		ORDER BY embedding <-> ${sql.raw(embeddingSql)}::vector
-		LIMIT 1
-	`);
-
-	if (similarityResults.rows[0]?.content) {
-		return `## Relevante Textbaustein-Vorlage (Referenz)
-
-Nutze die folgende Vorlage als Beispiel eines Textbausteins. Dieser ist anhand der gegebenen Informationen ausgewählt und potenziell relevant, der Assistent baut also darauf auf. Bei Diskrepanzen, nutze auf jeden Fall die Informationen aus der Nutzereingabe!
-${similarityResults.rows[0].content}`;
-	}
-
-	return `## Standard-Textbausteine (Referenz)
+	const defaultTemplate = `## Standard-Textbausteine (Referenz)
 
 <details>
 <summary>ZVK-Anlage Vorlage</summary>
@@ -206,6 +177,42 @@ Komplikationslose Thoraxdrainage-Anlage.
 Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 
 </details>`;
+
+	if (!procedureNotes.trim()) {
+		return defaultTemplate;
+	}
+
+	try {
+		const embedding = await generateEmbeddings(procedureNotes);
+		const embeddingSql = pgvector.toSql(embedding);
+
+		type TemplateResult = {
+			content: string;
+			similarity: number;
+		};
+
+		const similarityResults = await database.execute<TemplateResult>(sql`
+			SELECT
+				content,
+				(1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) as similarity
+			FROM "Template"
+			WHERE embedding IS NOT NULL
+			AND (1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) > 0.6
+			ORDER BY embedding <-> ${sql.raw(embeddingSql)}::vector
+			LIMIT 1
+		`);
+
+		if (similarityResults.rows[0]?.content) {
+			return `## Relevante Textbaustein-Vorlage (Referenz)
+
+Nutze die folgende Vorlage als Beispiel eines Textbausteins. Dieser ist anhand der gegebenen Informationen ausgewählt und potenziell relevant, der Assistent baut also darauf auf. Bei Diskrepanzen, nutze auf jeden Fall die Informationen aus der Nutzereingabe!
+${similarityResults.rows[0].content}`;
+		}
+	} catch (error) {
+		console.error("Failed to find relevant procedure template:", error);
+	}
+
+	return defaultTemplate;
 }
 
 /**
@@ -225,11 +232,23 @@ function extractPromptFromMessages(messages: UIMessage[]): string {
 	const lastUserMessage = messages.findLast((m) => m.role === "user");
 	if (!lastUserMessage) return "";
 
-	// Extract text from parts
-	return lastUserMessage.parts
-		.filter((p) => p.type === "text")
-		.map((p) => (p as { type: "text"; text: string }).text)
-		.join("");
+	// Extract text from parts when available (AI SDK UIMessage)
+	if (lastUserMessage.parts) {
+		return lastUserMessage.parts
+			.filter((p) => p.type === "text")
+			.map((p) => (p as { type: "text"; text: string }).text)
+			.join("");
+	}
+
+	// Fallback to content string if parts are not present
+	if ("content" in lastUserMessage) {
+		const content = (lastUserMessage as { content?: unknown }).content;
+		if (typeof content === "string") {
+			return content;
+		}
+	}
+
+	return "";
 }
 
 /**
@@ -295,19 +314,13 @@ export const scribeStreamHandler = authed
 			year: "numeric",
 		});
 
-		// Get Langfuse prompt
-		const textPrompt = await langfuse.getPrompt(config.promptName, undefined, {
-			type: "chat",
-			label:
-				config.promptLabel ||
-				(env.NODE_ENV === "production" ? "production" : "staging"),
-		});
-
-		// Compile prompt with variables
-		const compiledPrompt = textPrompt.compile({
+		// Build prompt messages using local prompt function
+		const promptVariables = {
 			...processedInput,
 			todaysDate,
-		});
+		} as PromptVariables;
+
+		const compiledPrompt = config.prompt(promptVariables);
 
 		let messages: ModelMessage[] = compiledPrompt;
 
@@ -381,9 +394,7 @@ export const scribeStreamHandler = authed
 						inputData: processedInput as UsageInputData,
 						metadata: {
 							promptName: config.promptName,
-							promptLabel:
-								config.promptLabel ||
-								(env.NODE_ENV === "production" ? "production" : "staging"),
+							promptSource: "local",
 							thinkingEnabled: config.modelConfig.thinking ?? false,
 							thinkingBudget: config.modelConfig.thinking
 								? config.modelConfig.thinkingBudget

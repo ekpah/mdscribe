@@ -1,22 +1,16 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { type } from "@orpc/server";
+import { usageEvent } from "@repo/database";
 import { env } from "@repo/env";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { buildUsageEventData } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
+import { type FieldMapping, pdfDocumentConfigs } from "./config";
 
 const openrouter = createOpenRouter({
 	apiKey: env.OPENROUTER_API_KEY as string,
 });
-
-/**
- * Field mapping type for PDF form fields
- */
-interface FieldMapping {
-	fieldName: string;
-	label: string;
-	description: string;
-}
 
 /**
  * Enhanced field mapping response schema
@@ -42,43 +36,26 @@ export const parseFormHandler = authed
 			fieldMapping: FieldMapping[];
 		}>(),
 	)
-	.handler(async ({ input }) => {
+	.handler(async ({ input, context }) => {
 		const { fileBase64, fieldMapping } = input;
+		const config = pdfDocumentConfigs.parseForm;
 
 		// Decode base64 to Uint8Array using Node.js Buffer (more efficient than manual loop)
 		const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
 
-		// Create prompt for Gemini to enhance field mappings
-		const prompt = `Du analysierst ein PDF-Formular-Dokument. Ich habe die folgenden Formularfeld-Zuordnungen aus dem PDF extrahiert:
+		// Build prompt from config
+		const promptMessages = config.prompt({ fieldMapping });
+		const promptText = promptMessages[0].content;
 
-${JSON.stringify(fieldMapping, null, 2)}
+		const modelName = "google/gemini-3-flash-preview";
+		const model = openrouter(modelName);
 
-Für jede Feldzuordnung:
-1. Schlage ein besseres, aussagekräftigeres Label vor
-2. Gib eine klare und prägnante Beschreibung an, wofür dieses Feld verwendet wird
-
-Gib deine Antwort als JSON-Objekt mit genau dieser Struktur zurück:
-{
-  "fieldMapping": [{
-    "fieldName": "[original_field_name]",
-    "label": "[verbessertes_label]",
-    "description": "[klare Beschreibung des Feldes]"
-  }]
-}
-
-Achte darauf:
-- Alle originalen fieldName-Werte beizubehalten
-- Die Beschreibungen kurz und aussagekräftig zu halten
-- fieldName exakt wie im Input zu übernehmen`;
-
-		const model = openrouter("google/gemini-2.5-flash");
-
-		const { object } = await generateObject({
+		const result = await generateObject({
 			model,
 			messages: [
 				{
 					role: "user",
-					content: [{ type: "text", text: prompt }],
+					content: [{ type: "text", text: promptText }],
 				},
 				{
 					role: "user",
@@ -91,9 +68,57 @@ Achte darauf:
 					],
 				},
 			],
-			temperature: 0.3,
+			temperature: config.modelConfig.temperature ?? 0.3,
 			schema: enhancedFieldMappingSchema,
+			experimental_telemetry: { isEnabled: true },
 		});
+
+		const { object, usage } = result;
+
+		// Extract OpenRouter usage if available from provider metadata
+		const providerMetadata = (
+			result as { providerMetadata?: Record<string, unknown> }
+		).providerMetadata;
+		const openrouterUsage = (
+			providerMetadata?.openrouter as {
+				usage?: {
+					promptTokens?: number;
+					completionTokens?: number;
+					totalTokens?: number;
+					cost?: number;
+				};
+			}
+		)?.usage;
+
+		// Log usage event
+		await context.db.insert(usageEvent).values(
+			buildUsageEventData({
+				userId: context.session.user.id,
+				name: "ai_pdf_form_parsing",
+				model: modelName,
+				openRouterUsage: openrouterUsage
+					? {
+							promptTokens: openrouterUsage.promptTokens ?? 0,
+							completionTokens: openrouterUsage.completionTokens ?? 0,
+							totalTokens: openrouterUsage.totalTokens ?? 0,
+							cost: openrouterUsage.cost,
+						}
+					: null,
+				standardUsage: usage
+					? {
+							inputTokens: (usage as { promptTokens?: number }).promptTokens,
+							outputTokens: (usage as { completionTokens?: number })
+								.completionTokens,
+							totalTokens: (usage as { totalTokens?: number }).totalTokens,
+						}
+					: undefined,
+				inputData: { fieldCount: fieldMapping.length },
+				metadata: {
+					promptName: config.promptName,
+					promptSource: "local",
+				},
+			}),
+		);
 
 		return object;
 	});

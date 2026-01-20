@@ -7,6 +7,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import type { PDFField } from "../_lib/parsePDFFormFields";
+import { toPdfArrayBuffer } from "../_lib/pdfData";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 const options = {
@@ -59,22 +60,11 @@ export default function PDFViewSection({
 		setNumPages(nextNumPages);
 	}
 
-	const pdfUrl = useMemo(() => {
-		if (pdfFile) {
-			return URL.createObjectURL(
-				new Blob([pdfFile as BlobPart], { type: "application/pdf" }),
-			);
-		}
-		return null;
-	}, [pdfFile]);
+	function onDocumentLoadError(error: Error): void {
+		console.error("PDF load error:", error);
+	}
 
-	useEffect(() => {
-		return () => {
-			if (pdfUrl) {
-				URL.revokeObjectURL(pdfUrl);
-			}
-		};
-	}, [pdfUrl]);
+	const pdfData = useMemo(() => toPdfArrayBuffer(pdfFile), [pdfFile]);
 
 	return (
 		<div className="hidden h-full lg:block">
@@ -82,7 +72,7 @@ export default function PDFViewSection({
 				ref={setContainerRef}
 				className="relative flex h-full items-center justify-center"
 			>
-				{pdfUrl ? (
+				{pdfData ? (
 					<div className="relative flex h-full items-center justify-center">
 						{numPages && numPages > 1 && hasUploadedFile ? (
 							<>
@@ -97,8 +87,9 @@ export default function PDFViewSection({
 								</Button>
 								<div className="flex flex-col items-center">
 									<Document
-										file={pdfUrl}
+										file={pdfData}
 										onLoadSuccess={onDocumentLoadSuccess}
+										onLoadError={onDocumentLoadError}
 										options={options}
 										className="h-full"
 									>
@@ -132,8 +123,9 @@ export default function PDFViewSection({
 							</>
 						) : (
 							<Document
-								file={pdfUrl}
+								file={pdfData}
 								onLoadSuccess={onDocumentLoadSuccess}
+								onLoadError={onDocumentLoadError}
 								options={options}
 								className="h-full"
 							>

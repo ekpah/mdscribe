@@ -113,6 +113,14 @@ const adminFeatures: AdminCardProps[] = [
 		status: "active",
 	},
 	{
+		title: "Dokumenten-Playground",
+		description:
+			"PDF-Formulare testen, Eingaben extrahieren und Sprachausfüllung für Inputs ausprobieren.",
+		href: "/admin/documents-playground",
+		icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
+		status: "active",
+	},
+	{
 		title: "Vorlagenverwaltung",
 		description:
 			"Dokumentenvorlagen durchsuchen, bearbeiten und verwalten. Vorlagennutzung und Leistungsmetriken überprüfen.",

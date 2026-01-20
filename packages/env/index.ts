@@ -18,11 +18,6 @@ const server: Parameters<typeof createEnv>[0]["server"] = {
 	STRIPE_PLUS_PRICE_ID_ANNUAL: z.string().min(1),
 	VOYAGE_API_KEY: z.string().min(1),
 
-	// Langfuse configuration
-	LANGFUSE_SECRET_KEY: z.string().min(1),
-	LANGFUSE_PUBLIC_KEY: z.string().min(1),
-	LANGFUSE_BASEURL: z.string().min(1).url(),
-
 	// Added by Node
 	NODE_ENV: z.enum(["development", "production"]).default("development"),
 	CI: z.string().optional(),
@@ -61,8 +56,5 @@ export const env = createEnv({
 		NEXT_RUNTIME: process.env.NEXT_RUNTIME,
 		FLAGS_SECRET: process.env.FLAGS_SECRET,
 		VOYAGE_API_KEY: process.env.VOYAGE_API_KEY,
-		LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
-		LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
-		LANGFUSE_BASEURL: process.env.LANGFUSE_BASEURL,
 	},
 });

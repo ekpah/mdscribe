@@ -28,10 +28,7 @@
 				"STRIPE_PLUS_PRICE_ID_ANNUAL",
 				"NEXT_PUBLIC_POSTHOG_KEY",
 				"NEXT_PUBLIC_POSTHOG_HOST",
-				"VOYAGE_API_KEY",
-				"LANGFUSE_SECRET_KEY",
-				"LANGFUSE_PUBLIC_KEY",
-				"LANGFUSE_BASEURL"
+				"VOYAGE_API_KEY"
 			],
 			"dependsOn": ["@repo/database#build"],
 			"outputs": [".next/**", "!.next/cache/**"]
@@ -53,10 +50,7 @@
 				"STRIPE_PLUS_PRICE_ID_ANNUAL",
 				"NEXT_PUBLIC_POSTHOG_KEY",
 				"NEXT_PUBLIC_POSTHOG_HOST",
-				"VOYAGE_API_KEY",
-				"LANGFUSE_SECRET_KEY",
-				"LANGFUSE_PUBLIC_KEY",
-				"LANGFUSE_BASEURL"
+				"VOYAGE_API_KEY"
 			],
 			"cache": false,
 			"persistent": true

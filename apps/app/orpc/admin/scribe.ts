@@ -4,7 +4,6 @@ import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
 import { env } from "@repo/env";
 import { type ModelMessage, streamText } from "ai";
-import { Langfuse } from "langfuse";
 import { z } from "zod";
 
 import {
@@ -17,14 +16,7 @@ import {
 import { authed } from "@/orpc";
 import { documentTypeConfigs } from "../scribe/config";
 import { requiredAdminMiddleware } from "../middlewares/admin";
-
-const langfuse = new Langfuse();
-
-const promptLabelSchema = z.enum(["production", "staging"]).optional();
-
-function defaultPromptLabel(): "production" | "staging" {
-	return env.NODE_ENV === "production" ? "production" : "staging";
-}
+import type { PromptVariables } from "../scribe/types";
 
 function todaysDateDE(): string {
 	return new Date().toLocaleDateString("de-DE", {
@@ -34,28 +26,16 @@ function todaysDateDE(): string {
 	});
 }
 
-function langfuseAuthHeaders(): HeadersInit {
-	const token = Buffer.from(
-		`${env.LANGFUSE_PUBLIC_KEY}:${env.LANGFUSE_SECRET_KEY}`,
-	).toString("base64");
-
-	return {
-		Authorization: `Basic ${token}`,
-		"Content-Type": "application/json",
-	};
-}
-
 const compilePromptInput = z.object({
 	documentType: z.string(),
 	promptName: z.string().optional(),
-	promptLabel: promptLabelSchema,
 	/**
 	 * Preferred input: variables already shaped like `processedInput` in production.
 	 */
 	variables: z.record(z.unknown()).optional(),
 	/**
 	 * Convenience input: pass the raw prompt JSON (same as what AI Scribe sends),
-	 * and we’ll run the production `processInput` server-side for parity.
+	 * and we'll run the production `processInput` server-side for parity.
 	 */
 	promptJson: z.string().optional(),
 });
@@ -74,26 +54,23 @@ const compilePromptHandler = authed
 		}
 
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
-		const resolvedPromptLabel = parsed.promptLabel ?? defaultPromptLabel();
 
 		const variablesUsed =
 			parsed.variables ??
 			(parsed.promptJson ? config.processInput(parsed.promptJson) : {});
 
-		const textPrompt = await langfuse.getPrompt(resolvedPromptName, undefined, {
-			type: "chat",
-			label: resolvedPromptLabel,
-		});
-
-		const compiledMessages = textPrompt.compile({
+		// Build prompt using local prompt function
+		const promptVariables = {
 			...variablesUsed,
 			todaysDate: todaysDateDE(),
-		});
+		} as PromptVariables;
+
+		const compiledMessages = config.prompt(promptVariables);
 
 		return {
 			compiledMessages,
 			resolvedPromptName,
-			resolvedPromptLabel,
+			promptSource: "local",
 			variablesUsed,
 		};
 	});
@@ -113,7 +90,6 @@ const runInput = z.object({
 	}),
 	documentType: z.string(),
 	promptName: z.string().optional(),
-	promptLabel: promptLabelSchema,
 	variables: z.record(z.unknown()).optional(),
 	promptJson: z.string().optional(),
 	compiledMessagesOverride: z
@@ -140,7 +116,6 @@ const runHandler = authed
 		}
 
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
-		const resolvedPromptLabel = parsed.promptLabel ?? defaultPromptLabel();
 
 		const variablesUsed =
 			parsed.variables ??
@@ -169,14 +144,13 @@ const runHandler = authed
 		if (parsed.compiledMessagesOverride) {
 			messages = parsed.compiledMessagesOverride as unknown as ModelMessage[];
 		} else {
-			const textPrompt = await langfuse.getPrompt(resolvedPromptName, undefined, {
-				type: "chat",
-				label: resolvedPromptLabel,
-			});
-			messages = textPrompt.compile({
+			// Build prompt using local prompt function
+			const promptVariables = {
 				...variablesUsed,
 				todaysDate: todaysDateDE(),
-			});
+			} as PromptVariables;
+
+			messages = config.prompt(promptVariables);
 		}
 
 		const startTime = Date.now();
@@ -212,7 +186,7 @@ const runHandler = authed
 						metadata: {
 							requestId: parsed.requestId,
 							promptName: resolvedPromptName,
-							promptLabel: resolvedPromptLabel,
+							promptSource: "local",
 							thinkingEnabled: parsed.parameters.thinking,
 							thinkingBudget: parsed.parameters.thinking
 								? parsed.parameters.thinkingBudget
@@ -251,35 +225,24 @@ export const scribeHandler = {
 				}>(),
 			)
 			.handler(async ({ input }) => {
-				const limit = input.limit ?? 200;
-				const url = new URL(
-					"/api/public/v2/prompts",
-					env.LANGFUSE_BASEURL as string,
+				// Return all document type prompt names from local config
+				const allPromptNames = Object.values(documentTypeConfigs).map(
+					(config) => config.promptName,
 				);
-				url.searchParams.set("limit", String(limit));
+
+				// Filter by query if provided
+				let filteredNames = allPromptNames;
 				if (input.query && input.query.trim()) {
-					url.searchParams.set("query", input.query.trim());
+					const query = input.query.trim().toLowerCase();
+					filteredNames = allPromptNames.filter((name) =>
+						name.toLowerCase().includes(query),
+					);
 				}
 
-				const res = await fetch(url, {
-					method: "GET",
-					headers: langfuseAuthHeaders(),
-				});
-				if (!res.ok) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: `Langfuse prompts list failed (${res.status})`,
-					});
-				}
-
-				const data = (await res.json()) as { data?: unknown };
-				const items =
-					(data as { data?: Array<{ name?: unknown }> }).data?.filter(Boolean) ??
-					[];
-
+				// Apply limit
+				const limit = input.limit ?? 200;
 				return {
-					items: items
-						.map((p) => (typeof p?.name === "string" ? p.name : null))
-						.filter((name): name is string => Boolean(name)),
+					items: filteredNames.slice(0, limit),
 				};
 			}),
 
@@ -287,22 +250,39 @@ export const scribeHandler = {
 			.use(requiredAdminMiddleware)
 			.input(type<{ name: string }>())
 			.handler(async ({ input }) => {
-				const url = new URL(
-					`/api/public/v2/prompts/${encodeURIComponent(input.name)}`,
-					env.LANGFUSE_BASEURL as string,
+				// Find the document type config by prompt name
+				const entry = Object.entries(documentTypeConfigs).find(
+					([_, config]) => config.promptName === input.name,
 				);
 
-				const res = await fetch(url, {
-					method: "GET",
-					headers: langfuseAuthHeaders(),
-				});
-				if (!res.ok) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: `Langfuse prompt fetch failed (${res.status})`,
+				if (!entry) {
+					throw new ORPCError("NOT_FOUND", {
+						message: `Prompt not found: ${input.name}`,
 					});
 				}
 
-				return (await res.json()) as unknown;
+				const [documentType, config] = entry;
+
+				// Build sample messages to show the prompt structure
+				const sampleVariables = {
+					todaysDate: todaysDateDE(),
+					anamnese: "[Anamnese]",
+					befunde: "[Befunde]",
+					diagnoseblock: "[Diagnoseblock]",
+					notes: "[Notizen]",
+					vordiagnosen: "[Vordiagnosen]",
+					relevantTemplate: "[Relevante Vorlage]",
+				} as PromptVariables;
+
+				const messages = config.prompt(sampleVariables);
+
+				return {
+					name: config.promptName,
+					documentType,
+					source: "local",
+					modelConfig: config.modelConfig,
+					messages,
+				};
 			}),
 	},
 };

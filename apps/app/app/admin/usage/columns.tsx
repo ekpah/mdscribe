@@ -4,7 +4,14 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
-import { Eye } from "lucide-react";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@repo/design-system/components/ui/dropdown-menu";
+import { FlaskConical, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 import type { UsageEvent, User } from "@repo/database";
 
 export type UsageEventWithUser = UsageEvent & {
@@ -26,6 +33,48 @@ function formatCost(cost: unknown): string {
 	const num = typeof cost === "number" ? cost : Number(cost);
 	if (Number.isNaN(num)) return "-";
 	return `$${num.toFixed(4)}`;
+}
+
+function getPromptLabel(metadata: Record<string, unknown> | null): string {
+	if (!metadata) return "-";
+	const endpoint = metadata.endpoint as string | undefined;
+	const promptName = metadata.promptName as string | undefined;
+	return endpoint ?? promptName ?? "-";
+}
+
+function buildPlaygroundUrl(event: UsageEventWithUser): string {
+	const params = new URLSearchParams();
+	params.set("referenceUsageEvent", event.id);
+
+	if (event.model) {
+		params.set("model", event.model);
+	}
+
+	const metadata = event.metadata as Record<string, unknown> | null;
+	const endpoint = metadata?.endpoint;
+	if (typeof endpoint === "string" && endpoint.trim()) {
+		params.set("documentType", endpoint);
+	}
+
+	if (metadata) {
+		const modelConfig = metadata.modelConfig as
+			| Record<string, unknown>
+			| undefined;
+		if (modelConfig?.temperature !== undefined) {
+			params.set("temperature", String(modelConfig.temperature));
+		}
+		if (modelConfig?.maxTokens !== undefined) {
+			params.set("maxTokens", String(modelConfig.maxTokens));
+		}
+		if (metadata.thinkingEnabled) {
+			params.set("thinking", "true");
+			if (metadata.thinkingBudget !== undefined) {
+				params.set("thinkingBudget", String(metadata.thinkingBudget));
+			}
+		}
+	}
+
+	return `/admin/playground?${params.toString()}`;
 }
 
 const columnHelper = createColumnHelper<UsageEventWithUser>();
@@ -103,6 +152,22 @@ export const createColumns = (
 		),
 		enableSorting: false,
 	}),
+	columnHelper.accessor("metadata", {
+		id: "prompt",
+		header: () => <span className="hidden lg:inline">Prompt</span>,
+		cell: (info) => {
+			const metadata = info.getValue() as Record<string, unknown> | null;
+			return (
+				<Badge
+					variant="secondary"
+					className="hidden max-w-[120px] truncate whitespace-nowrap font-mono text-xs lg:inline-flex"
+				>
+					{getPromptLabel(metadata)}
+				</Badge>
+			);
+		},
+		enableSorting: false,
+	}),
 	columnHelper.accessor("cost", {
 		id: "cost",
 		header: ({ column }) => (
@@ -131,17 +196,38 @@ export const createColumns = (
 		id: "actions",
 		header: "",
 		cell: ({ row }) => (
-			<Button
-				variant="ghost"
-				size="icon"
-				onClick={(e) => {
-					e.stopPropagation();
-					onViewDetails(row.original.id);
-				}}
-				className="h-8 w-8"
-			>
-				<Eye className="h-4 w-4" />
-			</Button>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={(e) => e.stopPropagation()}
+						className="h-8 w-8"
+					>
+						<MoreHorizontal className="h-4 w-4" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end">
+					<DropdownMenuItem
+						onClick={(e) => {
+							e.stopPropagation();
+							onViewDetails(row.original.id);
+						}}
+					>
+						Details anzeigen
+					</DropdownMenuItem>
+					<DropdownMenuItem asChild>
+						<Link
+							href={buildPlaygroundUrl(row.original)}
+							onClick={(e) => e.stopPropagation()}
+							className="flex items-center gap-2"
+						>
+							<FlaskConical className="h-4 w-4" />
+							Im Playground öffnen
+						</Link>
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
 		),
 	}),
 ];
