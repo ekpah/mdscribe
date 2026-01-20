@@ -47,7 +47,8 @@ export const parseFormHandler = authed
 		const promptMessages = config.prompt({ fieldMapping });
 		const promptText = promptMessages[0].content;
 
-		const model = openrouter("google/gemini-3-flash-preview");
+		const modelName = "google/gemini-3-flash-preview";
+		const model = openrouter(modelName);
 
 		const result = await generateObject({
 			model,
@@ -94,7 +95,7 @@ export const parseFormHandler = authed
 			buildUsageEventData({
 				userId: context.session.user.id,
 				name: "ai_pdf_form_parsing",
-				model: "google/gemini-2.5-flash",
+				model: modelName,
 				openRouterUsage: openrouterUsage
 					? {
 							promptTokens: openrouterUsage.promptTokens ?? 0,

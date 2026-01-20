@@ -6,12 +6,11 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { buildUsageEventData } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
-import type {
-	AudioFile,
-	InputField,
-	VoiceFillInputPayload,
-} from "./types";
-import { voiceFillConfig, type VoiceFillFieldDefinition } from "./voiceFillConfig";
+import type { AudioFile, InputField, VoiceFillInputPayload } from "./types";
+import {
+	voiceFillConfig,
+	type VoiceFillFieldDefinition,
+} from "./voiceFillConfig";
 import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 
 /**
@@ -82,7 +81,10 @@ const deriveFieldsFromTags = (
 				.filter((child) => {
 					if (!child || typeof child !== "object") return false;
 					const c = child as Record<string, unknown>;
-					return c.name === "Case" && (c.attributes as Record<string, unknown>)?.primary;
+					return (
+						c.name === "Case" &&
+						(c.attributes as Record<string, unknown>)?.primary
+					);
 				})
 				.map((child) => {
 					const c = child as Record<string, unknown>;
@@ -127,9 +129,7 @@ const normalizeInputFields = (
  * Uses Gemini 3 Flash for audio processing and field extraction
  */
 export const voiceFillHandler = authed
-	.input(
-		type<VoiceFillInputPayload>(),
-	)
+	.input(type<VoiceFillInputPayload>())
 	.handler(async ({ input, context }) => {
 		const { inputFields, inputTags, audioFiles } = input;
 		const config = voiceFillConfig;
@@ -148,7 +148,8 @@ export const voiceFillHandler = authed
 		// Build prompt from config
 		const promptMessages = config.prompt({ fields, inputTagsJson });
 
-		const model = openrouter("google/gemini-3-flash-preview");
+		const modelName = "google/gemini-3-flash-preview";
+		const model = openrouter(modelName);
 
 		// Build messages with audio content
 		// Config returns [system, user] messages - user message contains field labels
@@ -203,7 +204,7 @@ export const voiceFillHandler = authed
 			buildUsageEventData({
 				userId: context.session.user.id,
 				name: "ai_input_voice_fill",
-				model: "google/gemini-3-flash",
+				model: modelName,
 				openRouterUsage: openrouterUsage
 					? {
 							promptTokens: openrouterUsage.promptTokens ?? 0,
