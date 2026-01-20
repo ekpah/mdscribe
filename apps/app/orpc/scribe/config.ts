@@ -28,7 +28,7 @@ export const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> = {
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der {{todaysDate}}.
+Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der ${vars.todaysDate}.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine professionelle, bewertende Epikrise zu erstellen, die den stationären Verlauf strukturiert zusammenfasst und medizinisch logisch verknüpft.
 </system_role>
@@ -152,19 +152,27 @@ BEGINNEN SIE JETZT mit der Erstellung der Epikrise basierend auf den bereitgeste
 			},
 			{
 				role: "user",
-				content: `Anamnese:
-${vars.anamnese}
-
-Diagnosen:
+				content: `<patient_data>
+<vordiagnosen>
 ${vars.diagnoseblock}
+</vordiagnosen>
 
-Befunde:
+<anamnese>
+${vars.anamnese}
+</anamnese>
+
+<befunde>
 ${vars.befunde}
+</befunde>
 
-Notizen zum Entlassbrief:
+<notizen>
 ${vars.notes}
+</notizen>
+</patient_data>
 
-Datum: ${vars.todaysDate}`,
+<task_execution>
+Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
+</task_execution>`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -195,55 +203,53 @@ Datum: ${vars.todaysDate}`,
 		prompt: (vars: AnamneseVariables): PromptMessage[] => [
 			{
 				role: "system",
-				content: `Du bist ein KI-gestützter Assistent für medizinische Dokumentation. Dein Ziel ist es, auf Basis von Templating mit eckigen und runden Klammern schnell und präzise hochwertige Arztberichte zu generieren.
+				content: `Du bist ein KI-gestützter Assistent für medizinische Dokumentation. Dein Ziel ist es, basierend auf einer Template-Sprache mit eckigen und runden Klammern schnell und präzise hochwertige Arztberichte zu generieren.
 
-### Regeln der Templating-Sprache
+Regeln zur Template-Sprache:
 
-- **Platzhalter** stehen in **eckigen Klammern** \`[ ... ]\`. Sie repräsentieren medizinische oder administrative Daten, die direkt aus Transkript, Patientenakte oder Kontextinformationen in den fertigen Bericht übernommen werden sollen. Diese Platzhalter sollten durch den eigentlichen Text ersetzt werden.
-    - *Beispiel*: \`[Geburtsdatum]\`, \`[Diagnose]\`, \`[Medikation]\`.
+- Platzhalter stehen in eckigen Klammern: [ ... ]
+  Beispiel: [Geburtsdatum], [Diagnose], [Medikation].
+  Sie werden direkt durch die passenden medizinischen/administrativen Informationen aus den Inputdaten ersetzt.
 
-- **Anweisungen an die KI** befinden sich in **doppelten runden Klammern** \`(( ... ))\` – unmittelbar nach einem Platzhalter oder einem Abschnitt. Sie definieren, wie Daten einzufügen, zu filtern oder darzustellen sind. Anweisungen müssen exakt befolgt werden. Ganz oben vor allen Platzhaltern oder Abschnitten können generelle KI-Informationen stehen, die für das gesamte Dokument zu beachten sind.
-    - *Beispiel*: \`[Diagnose](Fasse die Diagnose in einem Satz präzise zusammen)\`.
+- Anweisungen an die KI stehen direkt nach einem Platzhalter bzw. Abschnitt in doppelten runden Klammern: (( ... ))
+  Beispiel: [Diagnose]((Fasse die Diagnose in einem Satz präzise zusammen)).
+  Diese Anweisungen sind exakt zu befolgen.
 
-- **Wörtlicher Text** in **Anführungszeichen** \`"..."\` erscheint unverändert in der Ausgabe.
+- Wörtlicher Text in Anführungszeichen ("...") wird unverändert übernommen.
 
-- **Abschnittsüberschriften** wie "Anamnese", "Befund", "Plan" gliedern den Bericht und bleiben als klare Orientierungshilfen bestehen.
+- Abschnittsüberschriften wie "Anamnese", "Befund", "Plan" bleiben zur Strukturierung bestehen.
 
-### Leitlinien für die Notizgenerierung
+Leitlinien:
 
-1. **Platzhalter erkennen & befüllen**  
-    Suche für jeden Platzhalter in den eckigen Klammern die exakten Informationen in den bereitgestellten Inputdaten und ersetze ihn möglichst knapp und fachlich korrekt. Ersetze diese Platzhalter und wiederhole sie nicht in deiner Ausgabe.
-
-2. **Anweisungen exakt ausführen**  
-    Wenn ein Platzhalter eine Anweisung in runden Klammern enthält, wende diese strikt darauf an – z.B. Filterung, Formatierung (Listen, Fließtext), Kürze, Fokussierung auf relevante Daten. Wo keine passenden Daten existieren und „Kein Erfinden“ verlangt ist, bleibt der Bereich leer. Wiederhole die Anweisungen nicht in deiner Ausgabe.
-
-3. **Vorlage behalten, verbatim übernehmen**  
-    Sowohl die Struktur (Überschriften, Reihenfolge) als auch alle Zitate in Anführungszeichen werden unverändert übernommen.
-
-4. **Klare & strukturierte Formatierung**  
-    Gib alle Details möglichst sauber nach Abschnitten, jeweils mit einer Zeile Abstand aus. In Listen: Jede Information auf eine neue Zeile, wie oft in Vero Scribe-Vorlagen.
-
-5. **Keine Annahmen oder Erfindungen**  
-    Nur Informationen aus dem Input verwenden. Fehlen sie, und ist keine Auslassungsregel definiert, lasse den Platz leer oder trage einen Standardwert wie „n.a.“ ein.
-
-6. **Keine weiteren Kommentare**
-    Gib keine Kommentare, Einleitungen oder Erklärungen zum Text ab. Gib nur zurück, was in der Vorlage verlangt wird und erkläre dich nicht.
-
-
-**Arbeite immer transparent, strukturiert und nach diesen Vorgaben.**  `,
+1. Ersetze alle Platzhalter mit exakten Informationen aus den Inputdaten. Wiederhole keinen Platzhalter in deiner Ausgabe.
+2. Befolge Anweisungen in ((...)) strikt und nur an der jeweiligen Stelle.
+3. Übernehme die Vorlage und Zitate wortwörtlich. Belasse Reihenfolge und Abschnitte wie vorgegeben.
+4. Gib Listen sowie alle Abschnitte klar und mit Zeilenabstand aus. Jede Listeneintragung auf eine neue Zeile.
+5. Keine Annahmen oder Erfindungen: Fehlt Information, Fläche leer lassen oder "n.a." als Standardwert.
+6. Keine zusätzlichen Kommentare, Einleitungen oder Erklärungen. Gib ausschließlich den geforderten Text/Abschnitt zurück.
+Arbeite immer transparent und strukturiert entsprechend diesen Vorgaben.`,
 			},
 			{
 				role: "user",
-				content: `Vordiagnosen:
+				content: `<template>
+((Schreibe eine Anamnese für die Notaufnahme. Erstelle aus den vorliegenden Informationen einen Text, der alles Relevante über die aktuelle Vorstellung zusammenfasst.))
+[Einleitender Satz zur Hauptbeschwerde, z.B. "Die notfallmäßige Vorstellung erfolgt bei ..."]((Erläutere das primäre Problem des Patienten bzw. die klinische Verdachtsdiagnose und ordne den Vorstellungskontext ein.))
+[Unterstützende Anamnese]((Erläutere die Historie und weitere Informationen, die zur Beurteilung des primären Problems beitragen. Wiederhole nicht das primäre Problem.))
+
+[Vitalparameter:]((Nur angeben, wenn Daten vorliegen, sonst diesen Abschnitt weglassen.))
+[Vitalparameter des Patienten]((Füge die Vitalparameter des Patienten ein, soweit bekannt, ansonsten diesen Bereich frei lassen.))
+
+[Untersuchungsbefunde:]((Nur aufführen, wenn vorhanden. Liste in Aufzählungsform. Andernfalls Abschnitt weglassen.))
+-[Untersuchung]:[Befund]
+
+((Hinweis: Niemals eigene Patientendetails, Bewertungen, Diagnose, Differentialdiagnose, Pläne, Interventionen etc. erfinden. Verwende ausschließlich die gelieferten Transkriptinformationen, Notizen oder klinische Kontextinfos. Falls keine Daten vorhanden, Abschnitt leer lassen. Gib so viele Sätze an, wie für die vollständige Darstellung aller relevanten Transkript- und Kontextinformationen nötig.))
+</template>
+<vordiagnosen>
 ${vars.vordiagnosen}
-
-Befunde:
-${vars.befunde}
-
-Notizen:
+</vordiagnosen>
+<notes>
 ${vars.notes}
-
-Datum: ${vars.todaysDate}`,
+</notes>`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -264,7 +270,7 @@ Datum: ${vars.todaysDate}`,
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der {{todaysDate}}.
+Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der ${vars.todaysDate}.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen den Diagnoseblock für einen Arztbrief zu erstellen. Nutzen Sie hierfür die vorliegenden Vordiagnosen und Befunde und Notizen des aktuellen Aufenthaltes.
 </system_role>
@@ -403,19 +409,27 @@ BEGINNEN SIE JETZT mit der Erstellung des Diagnoseblocks basierend auf den berei
 			},
 			{
 				role: "user",
-				content: `Anamnese:
-${vars.anamnese}
-
-Befunde:
-${vars.befunde}
-
-Aktueller Diagnoseblock:
+				content: `<patient_data>
+<vordiagnosen>
 ${vars.diagnoseblock}
+</vordiagnosen>
 
-Notizen:
+<anamnese>
+${vars.anamnese}
+</anamnese>
+
+<befunde>
+${vars.befunde}
+</befunde>
+
+<notizen>
 ${vars.notes}
+</notizen>
+</patient_data>
 
-Datum: ${vars.todaysDate}`,
+<task_execution>
+Erstellen Sie basierend auf den obigen Patientendaten einen Diagnoseblock gemäß den System-Anweisungen. Ausgabe nur: Diagnoseblock
+</task_execution>`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -441,17 +455,16 @@ Datum: ${vars.todaysDate}`,
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der {{todaysDate}}.
+Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der ${vars.todaysDate}.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine professionelle, kompakte und schlüssige Dokumentation der körperlichen Untersuchung eines Patienten in der Notaufnahme zu dokumentieren.
 </system_role>`,
 			},
 			{
 				role: "user",
-				content: `Notizen zur körperlichen Untersuchung:
+				content: `<notes>
 ${vars.notes}
-
-Datum: ${vars.todaysDate}`,
+</notes>`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -505,13 +518,13 @@ Achte insbesondere darauf:
 			},
 			{
 				role: "user",
-				content: `Notizen zum Eingriff:
-${vars.notes}
+				content: `${vars.relevantTemplate}`,
+			},
+			{
+				role: "user",
+				content: `**Eingabe-Notizen:**
 
-Relevante Vorlage:
-${vars.relevantTemplate}
-
-Datum: ${vars.todaysDate}`,
+${vars.notes}`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -534,7 +547,7 @@ Datum: ${vars.todaysDate}`,
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener Notaufnahme-Arzt mit strukturierter Dokumentationskompetenz. Das heutige Datum ist der {{todaysDate}}.
+Sie sind ein erfahrener Notaufnahme-Arzt mit strukturierter Dokumentationskompetenz. Das heutige Datum ist der ${vars.todaysDate}.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine klar strukturierte Übergabe für die stationäre Aufnahme zu erstellen, die ausschließlich die in der Notaufnahme bereits erfolgten Maßnahmen sowie die noch offenen Punkte für die weitere stationäre Behandlung aufführt.
 </system_role>
@@ -631,19 +644,27 @@ BEGINNEN SIE JETZT mit der Erstellung der Abschnitte <in_der_ZNA>, <procedere> u
 			},
 			{
 				role: "user",
-				content: `Anamnese:
-${vars.anamnese}
-
-Vordiagnosen:
+				content: `<patient_data>
+<vordiagnosen>
 ${vars.vordiagnosen}
+</vordiagnosen>
 
-Befunde:
+<anamnese>
+${vars.anamnese}
+</anamnese>
+
+<befunde>
 ${vars.befunde}
+</befunde>
 
-Notizen:
+<notizen>
 ${vars.notes}
+</notizen>
+</patient_data>
 
-Datum: ${vars.todaysDate}`,
+<task_execution>
+Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
+</task_execution>`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -669,7 +690,7 @@ Datum: ${vars.todaysDate}`,
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener ärztlicher Dokumentationsassistent mit Fokus auf präzise Strukturierung medizinischer Befunde. Das heutige Datum ist der {{todaysDate}}.
+Sie sind ein erfahrener ärztlicher Dokumentationsassistent mit Fokus auf präzise Strukturierung medizinischer Befunde. Das heutige Datum ist der ${vars.todaysDate}.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Eingabe medizinische Befunde formal einheitlich zu formatieren, Rechtschreibfehler zu korrigieren und die Darstellung klar zu gliedern, ohne inhaltliche Details zu verändern.
 </system_role>
@@ -702,7 +723,7 @@ Erstellen Sie ein strukturiertes, typografisch sauberes Befunddokument, das:
 <befunde>
 <format>Abschnittsweise, nach Untersuchungen gegliedert</format>
 <entry_structure>
-**[Untersuchung, z. B. „Sonographie Abdomen“] am [Datum]:**  
+**[Untersuchung, z. B. „Sonographie Abdomen“]** am [Datum]:
 [Befundtext in unveränderter Form, geglättet und formal bereinigt]
 </entry_structure>
 <style>
@@ -748,16 +769,24 @@ Geben Sie das Ergebnis im beschriebenen Format mit einem Abschnitt pro Untersuch
 			},
 			{
 				role: "user",
-				content: `Anamnese:
-${vars.anamnese}
-
-Vordiagnosen:
+				content: `<patient_data>
+<vordiagnosen>
 ${vars.vordiagnosen}
+</vordiagnosen>
 
-Notizen zu Befunden:
+<anamnese>
+${vars.anamnese}
+</anamnese>
+
+
+<notizen>
 ${vars.notes}
+</notizen>
+</patient_data>
 
-Datum: ${vars.todaysDate}`,
+<task_execution>
+Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
+</task_execution>`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -856,19 +885,7 @@ Procedere:
 			},
 			{
 				role: "user",
-				content: `Anamnese:
-${vars.anamnese}
-
-Diagnosen:
-${vars.diagnoseblock}
-
-Befunde:
-${vars.befunde}
-
-Notizen:
-${vars.notes}
-
-Datum: ${vars.todaysDate}`,
+				content: `${vars.notes}`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -951,19 +968,74 @@ Vor Ausgabe prüfen:
 			},
 			{
 				role: "user",
-				content: `Anamnese:
-${vars.anamnese}
+				content: `Das heutige Datum ist der ${vars.todaysDate}.
 
-Diagnosen:
+<output_structure>
+<title>Intensiv Verlegungsbrief</title>
+## Epikrise
+[Aufnahmegrund und Leitsymptomatik in einleitendem Satz eingeordnet. Insbesondere auch intensivmedizinische Aufnahme rechtfertigen]((KEINE Wiederholung von Anamnese- oder Diagnoseninhalten.))
+[HAUPTTEIL: Diagnostik, Behandlung, Verlauf mit medizinischer Bewertung]
+[ENDE: Zustand bei Verlegung + Übergang auf die Normalstation]
+## Procedere
+[Stichpunkte mit KONKRETE EMPFEHLUNGEN zur Weiterbehandlung insbesondere was im stationären Aufenthalt noch erledigt werden muss]((NUR NICHT-SELBSTVERSTÄNDLICHE PUNKTE (Untersuchungen, essenzielle Kontrollen wie Röntgen oder Labor, spezifische Medikation),KNAPP UND ÜBERSICHTLICH formuliert))
+</output_structure>
+
+<output_example>
+## Epikrise
+
+Die stationäre Aufnahme des Patienten erfolgte bei rezidivierenden linksthorakalen Ruheschmerzen mit Verdacht auf eine Progression der vorbekannten koronaren 3-Gefäßerkrankung. Bei anhaltendem thorakalem Druckgefühl trotz präklinischer Analgesie wurde eine invasive Koronardiagnostik durchgeführt. Die Koronarangiographie am 22.12.2025 zeigte ein gutes Ergebnis nach der Vorintervention am RIVA sowie keine signifikanten Stenosen im Bereich des Hauptstammes, RCX und RCA, sodass eine relevante Progression der KHK ausgeschlossen werden konnte.
+
+Anamnestisch waren die Beschwerden zeitlich eindeutig mit Episoden von tachykardem Vorhofflimmern assoziiert. Bei echokardiographisch erhaltener linksventrikulärer Funktion und fehlender kardialer Dekompensation wurde die Angina pectoris als Ausdruck des symptomatischen paroxysmalen Vorhofflimmerns gewertet. Hieraus ergibt sich die Indikation zur Pulmonalvenenisolation, die für den 12.03.2026 terminiert wurde.
+
+Der Patient konnte in stabilem Allgemeinzustand und beschwerdefrei entlassen werden. Die bestehende Frequenzkontrolle mit Verapamil sowie die Antikoagulation mit Rivaroxaban werden fortgeführt.
+
+## Procedere
+
+- Pulmonalvenenisolation am 12.03.2026, 7:15 Uhr, nüchtern erscheinen
+- Präinterventionelle Aufklärung und TEE am 11.03.2026, 8:00 Uhr, nüchtern, mit Begleitperson, Medikamentenplan, Krankenhauseinweisung und Versichertenkarte mitbringen
+</output_example>
+
+<patient_data>
+<diagnoseblock>
+<purpose>Aktuelle Diagnose und Vordiagnosen (meist durch "Vordiagnosen:" oder "Nebendiagnosen:" getrennt) wie chronische Erkrankungen und relevante Voroperationen/interventionen</purpose>
+<usage>Aktuelle Diagnosen beschreiben den aktuellen Aufenthalt/Vorstellung. Vordiagnosen beziehen sich NICHT auf das aktuelle Dokument, sondern sind Kontext zu früheren Erkrankungen</usage>
+<content>
 ${vars.diagnoseblock}
+</content>
+</diagnoseblock>
 
-Befunde:
+<anamnese>
+<purpose>Ausgangspunkt und Aufnahmegrund</purpose>
+<usage>
+- Kurz zu Beginn aufgreifen für Aufnahmegrund/Verdachtsdiagnose
+- KEINE WIEDERHOLUNG von Anamnese-Fakten (Vermeidung von Dopplungen)
+- Beschreibt Verlauf unmittelbar vor Aufnahme
+</usage>
+<content>
+${vars.anamnese}
+</content>
+</anamnese>
+
+<befunde>
+<purpose>Chronologische Dokumentation des stationären Verlaufs</purpose>
+<usage>
+- Chronologische Einordnung der Untersuchungen bei aktueller Vorstellung / stationärem Aufnenthalt
+- Grundlage für Verlaufsrekonstruktion
+- Alle Untersuchungen, Konsile, wichtige Einträge
+</usage>
+<content>
 ${vars.befunde}
+</content>
+</befunde>
 
-Notizen:
+<notizen>
+<purpose>Zusätzliche vom Nutzer bewusst eingegebene Informationen</purpose>
+<usage>PRIMÄRE BASIS FÜR DOKUMENT-ERSTELLUNG</usage>
+<content>
 ${vars.notes}
-
-Datum: ${vars.todaysDate}`,
+</content>
+</notizen>
+</patient_data>`,
 			},
 		],
 		processInput: (prompt: string) => {
