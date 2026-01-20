@@ -46,7 +46,9 @@ const compilePromptHandler = authed
 	.handler(async ({ input }) => {
 		const parsed = compilePromptInput.parse(input);
 		const config =
-			documentTypeConfigs[parsed.documentType as keyof typeof documentTypeConfigs];
+			documentTypeConfigs[
+				parsed.documentType as keyof typeof documentTypeConfigs
+			];
 		if (!config) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Unknown document type: ${parsed.documentType}`,
@@ -108,7 +110,9 @@ const runHandler = authed
 	.handler(async ({ input, context }) => {
 		const parsed = runInput.parse(input);
 		const config =
-			documentTypeConfigs[parsed.documentType as keyof typeof documentTypeConfigs];
+			documentTypeConfigs[
+				parsed.documentType as keyof typeof documentTypeConfigs
+			];
 		if (!config) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Unknown document type: ${parsed.documentType}`,
@@ -164,7 +168,13 @@ const runHandler = authed
 			frequencyPenalty: parsed.parameters.frequencyPenalty,
 			presencePenalty: parsed.parameters.presencePenalty,
 			providerOptions: {
-				openrouter: { usage: { include: true }, user: context.session.user.email },
+				openrouter: {
+					usage: { include: true },
+					user: context.session.user.email,
+					reasoning: {
+						enabled: true,
+					},
+				},
 				...(isClaudeModel &&
 					Object.keys(anthropicProviderOptions).length > 0 && {
 						anthropic: anthropicProviderOptions,
@@ -239,7 +249,7 @@ export const scribeHandler = {
 					);
 				}
 
-				// Apply limit
+			// Apply limit
 				const limit = input.limit ?? 200;
 				return {
 					items: filteredNames.slice(0, limit),
@@ -286,4 +296,3 @@ export const scribeHandler = {
 			}),
 	},
 };
-

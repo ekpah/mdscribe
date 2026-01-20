@@ -3,8 +3,6 @@ export function toPdfArrayBuffer(pdfFile: Uint8Array | null): ArrayBuffer | null
 		return null;
 	}
 
-	return pdfFile.buffer.slice(
-		pdfFile.byteOffset,
-		pdfFile.byteOffset + pdfFile.byteLength,
-	);
+	// Create a copy to get a proper ArrayBuffer (not SharedArrayBuffer)
+	return pdfFile.slice().buffer as ArrayBuffer;
 }

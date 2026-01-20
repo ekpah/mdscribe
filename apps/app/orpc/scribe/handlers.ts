@@ -28,6 +28,7 @@ import type {
 	PromptVariables,
 	SupportedModel,
 } from "./types";
+import { util } from "better-auth";
 
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
@@ -353,16 +354,6 @@ export const scribeStreamHandler = authed
 			}
 		}
 
-		// Build provider options for thinking mode (Claude models)
-		const isClaudeModel = modelName.includes("anthropic");
-		const anthropicProviderOptions: AnthropicProviderOptions = {};
-		if (config.modelConfig.thinking && supportsThinking && isClaudeModel) {
-			anthropicProviderOptions.thinking = {
-				type: "enabled",
-				budgetTokens: config.modelConfig.thinkingBudget ?? 8000,
-			};
-		}
-
 		// Stream the response
 		const result = streamText({
 			model: aiModel,
@@ -372,17 +363,18 @@ export const scribeStreamHandler = authed
 				openrouter: {
 					usage: { include: true },
 					user: context.session.user.email,
+
+					reasoning: {
+						enabled: true,
+					},
 				},
-				...(isClaudeModel &&
-					Object.keys(anthropicProviderOptions).length > 0 && {
-						anthropic: anthropicProviderOptions,
-					}),
 			},
 			messages,
 			onFinish: async (event) => {
 				// Extract OpenRouter usage data
 				const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
-
+				// console.log(event, 5);
+				console.dir(event, { depth: 5 });
 				// Log usage to database using Drizzle
 				await context.db.insert(usageEvent).values(
 					buildUsageEventData({

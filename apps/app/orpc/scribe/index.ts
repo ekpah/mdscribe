@@ -75,20 +75,20 @@ MISSING INFORMATION PROTOCOL
 
 ### Leitlinien für die Notizgenerierung
 
-1. **Platzhalter erkennen & befüllen**  
+1. **Platzhalter erkennen & befüllen**
     Suche für jeden Platzhalter in den eckigen Klammern die exakten Informationen in den bereitgestellten Inputdaten und ersetze ihn möglichst knapp und fachlich korrekt.
 
-2. **Anweisungen exakt ausführen**  
-    Wenn ein Platzhalter eine Anweisung in runden Klammern enthält, wende diese strikt darauf an – z.B. Filterung, Formatierung (Listen, Fließtext), Kürze, Fokussierung auf relevante Daten. Wo keine passenden Daten existieren und „Kein Erfinden“ verlangt ist, bleibt der Bereich leer.
+2. **Anweisungen exakt ausführen**
+    Wenn ein Platzhalter eine Anweisung in runden Klammern enthält, wende diese strikt darauf an – z.B. Filterung, Formatierung (Listen, Fließtext), Kürze, Fokussierung auf relevante Daten. Wo keine passenden Daten existieren und „Kein Erfinden" verlangt ist, bleibt der Bereich leer.
 
-3. **Vorlage behalten, verbatim übernehmen**  
+3. **Vorlage behalten, verbatim übernehmen**
     Sowohl die Struktur (Überschriften, Reihenfolge) als auch alle Zitate in Anführungszeichen werden unverändert übernommen.
 
-4. **Klare & strukturierte Formatierung**  
+4. **Klare & strukturierte Formatierung**
     Gib alle Details möglichst sauber nach Abschnitten, jeweils mit einer Zeile Abstand aus. In Listen: Jede Information auf eine neue Zeile, wie oft in Vero Scribe-Vorlagen.
 
-5. **Keine Annahmen oder Erfindungen**  
-    Nur Informationen aus dem Input verwenden. Fehlen sie, und ist keine Auslassungsregel definiert, lasse den Platz leer oder trage einen Standardwert wie „n.a.“ ein.
+5. **Keine Annahmen oder Erfindungen**
+    Nur Informationen aus dem Input verwenden. Fehlen sie, und ist keine Auslassungsregel definiert, lasse den Platz leer oder trage einen Standardwert wie „n.a." ein.
 
 <markdoc_tags>
 <overview>
