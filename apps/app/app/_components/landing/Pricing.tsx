@@ -5,11 +5,14 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { useSession } from "@/lib/auth-client";
 
-export default function Pricing() {
+interface PricingProps {
+	isLoggedIn: boolean;
+}
+
+// PERF: Accept isLoggedIn from server instead of using useSession()
+export default function Pricing({ isLoggedIn }: PricingProps) {
 	const [isYearly, setIsYearly] = useState(false);
-	const { data: session } = useSession();
 	const pathname = usePathname();
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
@@ -146,7 +149,7 @@ export default function Pricing() {
 							</li>
 						</ul>
 						<Button asChild className="mt-auto" variant="outline">
-							<Link href={session?.user ? "/dashboard" : signInUrl}>
+							<Link href={isLoggedIn ? "/dashboard" : signInUrl}>
 								Upgrade zu Plus
 							</Link>
 						</Button>

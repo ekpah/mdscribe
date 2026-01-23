@@ -1,4 +1,3 @@
-import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { database, sql, subscription, usageEvent } from "@repo/database";
@@ -9,6 +8,7 @@ import {
 	type UIMessage,
 	streamText,
 } from "ai";
+import { after } from "next/server";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
 
@@ -363,45 +363,46 @@ export const scribeStreamHandler = authed
 				openrouter: {
 					usage: { include: true },
 					user: context.session.user.email,
-
-					reasoning: {
-						enabled: true,
-					},
+					reasoning: config.modelConfig.thinking
+						? { max_tokens: config.modelConfig.thinkingBudget ?? 8000 }
+						: { enabled: false },
 				},
 			},
 			messages,
-			onFinish: async (event) => {
-				// Extract OpenRouter usage data
-				const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
-				// console.log(event, 5);
-				console.dir(event, { depth: 5 });
-				// Log usage to database using Drizzle
-				await context.db.insert(usageEvent).values(
-					buildUsageEventData({
-						userId: context.session.user.id,
-						name: "ai_scribe_generation",
-						model: modelName,
-						openRouterUsage,
-						standardUsage: event.usage as StandardUsage,
-						inputData: processedInput as UsageInputData,
-						metadata: {
-							promptName: config.promptName,
-							promptSource: "local",
-							thinkingEnabled: config.modelConfig.thinking ?? false,
-							thinkingBudget: config.modelConfig.thinking
-								? config.modelConfig.thinkingBudget
-								: undefined,
-							streamingMode: true,
-							endpoint: documentType,
-							modelConfig: {
-								maxTokens: config.modelConfig.maxTokens,
-								temperature: config.modelConfig.temperature,
-							},
-						} as UsageMetadata,
-						result: event.text,
-						reasoning: event.reasoningText,
-					}),
-				);
+			onFinish: (event) => {
+				// PERF: Use after() for non-blocking usage logging (faster stream completion)
+				after(async () => {
+					// Extract OpenRouter usage data
+					const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
+					console.dir(event, { depth: 5 });
+					// Log usage to database using Drizzle
+					await context.db.insert(usageEvent).values(
+						buildUsageEventData({
+							userId: context.session.user.id,
+							name: "ai_scribe_generation",
+							model: modelName,
+							openRouterUsage,
+							standardUsage: event.usage as StandardUsage,
+							inputData: processedInput as UsageInputData,
+							metadata: {
+								promptName: config.promptName,
+								promptSource: "local",
+								thinkingEnabled: config.modelConfig.thinking ?? false,
+								thinkingBudget: config.modelConfig.thinking
+									? config.modelConfig.thinkingBudget
+									: undefined,
+								streamingMode: true,
+								endpoint: documentType,
+								modelConfig: {
+									maxTokens: config.modelConfig.maxTokens,
+									temperature: config.modelConfig.temperature,
+								},
+							} as UsageMetadata,
+							result: event.text,
+							reasoning: event.reasoningText,
+						}),
+					);
+				});
 			},
 		});
 

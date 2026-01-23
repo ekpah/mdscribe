@@ -3,12 +3,13 @@
 import { Button } from '@repo/design-system/components/ui/button';
 import { Brain, FileText, Sparkles, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
-import { useSession } from '@/lib/auth-client';
 
-export default function AIFeatures() {
-  const { data: session } = useSession();
+interface AIFeaturesProps {
+  isLoggedIn: boolean;
+}
 
-  const isLoggedIn = !!session;
+// PERF: Accept isLoggedIn from server instead of using useSession()
+export default function AIFeatures({ isLoggedIn }: AIFeaturesProps) {
   const buttonLink = isLoggedIn ? '/aiscribe' : '/sign-up';
   const buttonText = isLoggedIn
     ? 'KI-Funktionen jetzt ausprobieren'

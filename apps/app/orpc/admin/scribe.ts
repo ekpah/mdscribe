@@ -1,4 +1,3 @@
-import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
@@ -136,14 +135,6 @@ const runHandler = authed
 			parsed.model.includes("glm") ||
 			parsed.model.includes("gemini");
 
-		const anthropicProviderOptions: AnthropicProviderOptions = {};
-		if (parsed.parameters.thinking && supportsThinking && isClaudeModel) {
-			anthropicProviderOptions.thinking = {
-				type: "enabled",
-				budgetTokens: parsed.parameters.thinkingBudget,
-			};
-		}
-
 		let messages: ModelMessage[];
 		if (parsed.compiledMessagesOverride) {
 			messages = parsed.compiledMessagesOverride as unknown as ModelMessage[];
@@ -171,14 +162,11 @@ const runHandler = authed
 				openrouter: {
 					usage: { include: true },
 					user: context.session.user.email,
-					reasoning: {
-						enabled: true,
-					},
+					reasoning:
+						parsed.parameters.thinking && supportsThinking
+							? { max_tokens: parsed.parameters.thinkingBudget }
+							: { enabled: false },
 				},
-				...(isClaudeModel &&
-					Object.keys(anthropicProviderOptions).length > 0 && {
-						anthropic: anthropicProviderOptions,
-					}),
 			},
 			messages,
 			onFinish: async (event) => {

@@ -12,7 +12,6 @@ import MenubarSkeleton from "./_components/landing/skeletons/MenubarSkeleton";
 import QueryProvider from "./providers/queryProvider";
 import { env } from "@repo/env";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
-
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { VercelToolbar } from "@vercel/toolbar/next";
 
