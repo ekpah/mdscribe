@@ -534,7 +534,7 @@ ${vars.notes}`,
 			return { notes: procedureNotes };
 		},
 		modelConfig: {
-			thinking: true,
+			thinking: false,
 			thinkingBudget: 8000,
 			maxTokens: 20_000,
 			temperature: 1,

@@ -26,6 +26,16 @@ export const config: NextConfig = withVercelToolbar()({
 	// Externalize PGlite to prevent bundling issues with WASM file resolution
 	serverExternalPackages: ["@electric-sql/pglite"],
 
+	// PERF: Optimize barrel file imports (15-70% faster dev boot, 28% faster builds)
+	experimental: {
+		optimizePackageImports: [
+			"lucide-react",
+			"@radix-ui/react-icons",
+			"date-fns",
+			"@repo/design-system",
+		],
+	},
+
 	// biome-ignore lint/suspicious/useAwait: headers is async
 	async headers() {
 		return [

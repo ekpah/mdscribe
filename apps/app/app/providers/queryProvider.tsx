@@ -1,42 +1,16 @@
-// In Next.js, this file would be called: app/providers.tsx
 'use client';
 
-import {
-    isServer,
-    QueryClient,
-    QueryClientProvider,
-} from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { getQueryClient } from '@/lib/get-query-client';
 
-
-function makeQueryClient() {
-    return new QueryClient({
-        defaultOptions: {
-            queries: {
-                // With SSR, we usually want to set some default staleTime
-                // above 0 to avoid refetching immediately on the client
-                staleTime: 60 * 1000,
-            },
-        },
-    });
-}
-
-let browserQueryClient: QueryClient | undefined;
-
-function getQueryClient() {
-    if (isServer) {
-        // Server: always make a new query client
-        return makeQueryClient();
-    }
-    // Browser: make a new query client if we don't already have one
-    // This is very important, so we don't re-make a new client if React
-    // suspends during the initial render. This may not be needed if we
-    // have a suspense boundary BELOW the creation of the query client
-    if (!browserQueryClient) {
-        browserQueryClient = makeQueryClient();
-    }
-    return browserQueryClient;
-}
-
+/**
+ * TanStack Query Provider for Next.js App Router
+ *
+ * Uses the shared getQueryClient utility which:
+ * - Creates a new QueryClient for each server request (prevents data leakage)
+ * - Reuses a singleton client in the browser (preserves cache across navigations)
+ * - Configures optimized defaults for SSR (staleTime, gcTime, pending dehydration)
+ */
 export default function QueryProvider({
     children,
 }: {
@@ -50,10 +24,7 @@ export default function QueryProvider({
 
     return (
         <QueryClientProvider client={queryClient}>
-
             {children}
-
-
         </QueryClientProvider>
     );
 }

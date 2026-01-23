@@ -1,3 +1,5 @@
+'use client';
+
 import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { DynamicMarkdocRenderer, parseMarkdocToInputs } from '@repo/markdoc-md';
 import {

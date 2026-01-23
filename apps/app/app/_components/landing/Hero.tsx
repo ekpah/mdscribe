@@ -4,13 +4,15 @@ import { Button } from '@repo/design-system/components/ui/button';
 import { Brain, FileText, Sparkles, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession } from '@/lib/auth-client';
 import Doctors from '@/public/landing/Doctors';
 
-export default function Hero() {
-  const { data: session } = useSession();
+interface HeroProps {
+  isLoggedIn: boolean;
+}
+
+// PERF: Accept isLoggedIn from server instead of using useSession()
+export default function Hero({ isLoggedIn }: HeroProps) {
   const pathname = usePathname();
-  const isLoggedIn = !!session?.user;
   const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
   return (

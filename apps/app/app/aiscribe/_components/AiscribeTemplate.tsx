@@ -198,10 +198,10 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	// Loading state from useChat status
 	const isLoading = status === "streaming" || status === "submitted";
 
-	// Handle values change from inputs
-	const handleValuesChange = (data: Record<string, unknown>) => {
+	// PERF: Use useCallback for stable callback reference
+	const handleValuesChange = useCallback((data: Record<string, unknown>) => {
 		setValues(data);
-	};
+	}, []);
 
 	// Check if audio recording is supported for current model
 	const isAudioSupported = model === "auto" || model === "gemini-3-flash";
@@ -236,6 +236,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 					duration,
 					id: `audio-${Date.now()}`,
 				};
+				// PERF: Use functional setState to avoid stale closures
 				setAudioRecordings((prev) => [...prev, newRecording]);
 				for (const track of stream.getTracks()) {
 					track.stop();
@@ -267,11 +268,12 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		}
 	};
 
-	const handleRemoveRecording = (id: string) => {
+	// PERF: Use useCallback with functional setState for stable callback reference
+	const handleRemoveRecording = useCallback((id: string) => {
 		setAudioRecordings((prev) =>
 			prev.filter((recording) => recording.id !== id),
 		);
-	};
+	}, []);
 
 	const formatDuration = (seconds: number): string => {
 		const mins = Math.floor(seconds / 60);
@@ -279,13 +281,16 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		return `${mins}:${secs.toString().padStart(2, "0")}`;
 	};
 
-	// Handle additional input changes
-	const handleAdditionalInputChange = (name: string, value: string) => {
-		setAdditionalInputData((prev) => ({
-			...prev,
-			[name]: value,
-		}));
-	};
+	// PERF: Use useCallback with functional setState for stable callback reference
+	const handleAdditionalInputChange = useCallback(
+		(name: string, value: string) => {
+			setAdditionalInputData((prev) => ({
+				...prev,
+				[name]: value,
+			}));
+		},
+		[],
+	);
 
 	// Check if at least one input field is filled
 	const areRequiredFieldsFilled = useCallback(() => {
