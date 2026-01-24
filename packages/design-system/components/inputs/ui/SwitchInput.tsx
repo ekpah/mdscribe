@@ -1,6 +1,9 @@
 'use client';
 import type { SwitchInputTagType } from '@repo/markdoc-md/parse/parseMarkdocToInputs';
+import { Bot } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { cn } from '../../lib/utils';
+import { Button } from '../../ui/button';
 import { Label } from '../../ui/label';
 import {
   Select,
@@ -15,10 +18,18 @@ export function SwitchInput({
   input,
   value,
   onChange,
+  suggestedValue,
+  suggestionLabel = 'Vorschlag',
+  onAcceptSuggestedValue,
+  inputClassName,
 }: {
   input: SwitchInputTagType;
   value: string | undefined;
   onChange: (newValue: string) => void;
+  suggestedValue?: string | number;
+  suggestionLabel?: string;
+  onAcceptSuggestedValue?: () => void;
+  inputClassName?: string;
 }) {
   const options = input.children?.filter(
     (caseTag) => caseTag.name === 'Case' && caseTag.attributes.primary
@@ -38,6 +49,37 @@ export function SwitchInput({
     onChange(newValue);
   };
 
+  const normalizedSuggestion =
+    typeof suggestedValue === 'number' ? String(suggestedValue) : suggestedValue;
+  const hasValue = localValue !== '';
+  const hasSuggestion = Boolean(normalizedSuggestion && normalizedSuggestion !== '');
+  const isSuggestionApplied =
+    hasSuggestion && localValue === normalizedSuggestion;
+  const shouldShowSuggestion = hasSuggestion && !isSuggestionApplied;
+
+  const suggestionRow = shouldShowSuggestion ? (
+    <div className="flex items-center justify-between gap-2 rounded-md border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-1 text-xs text-solarized-orange">
+      <div className="flex min-w-0 items-center gap-2">
+        <Bot aria-hidden="true" className="h-3.5 w-3.5" />
+        <span className="font-medium">{suggestionLabel}</span>
+        <span className="truncate text-solarized-orange/90">
+          {normalizedSuggestion}
+        </span>
+      </div>
+      {onAcceptSuggestedValue && (
+        <Button
+          className="h-6 px-2 text-xs"
+          onClick={onAcceptSuggestedValue}
+          size="sm"
+          type="button"
+          variant="ghost"
+        >
+          {hasValue ? 'Ersetzen' : 'Uebernehmen'}
+        </Button>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="w-full max-w-full space-y-2" key={`switch-${input.attributes.primary}`}>
       <Label
@@ -52,7 +94,12 @@ export function SwitchInput({
           onValueChange={handleChange}
           value={localValue}
         >
-          <SelectTrigger className="h-9 w-full max-w-full border-input bg-background text-foreground transition-all focus:border-solarized-blue focus:ring-solarized-blue/20">
+          <SelectTrigger
+            className={cn(
+              'h-9 w-full max-w-full border-input bg-background text-foreground transition-all focus:border-solarized-blue focus:ring-solarized-blue/20',
+              inputClassName
+            )}
+          >
             <SelectValue placeholder={`Select ${input.attributes.primary}`} />
           </SelectTrigger>
           <SelectContent className="border-input bg-background">
@@ -69,7 +116,10 @@ export function SwitchInput({
         </Select>
       ) : (
         <ToggleGroup
-          className="flex w-full max-w-full flex-row overflow-hidden rounded-md border border-input bg-background"
+          className={cn(
+            'flex w-full max-w-full flex-row overflow-hidden rounded-md border border-input bg-background',
+            inputClassName
+          )}
           onValueChange={handleChange}
           type="single"
           value={localValue}
@@ -85,6 +135,7 @@ export function SwitchInput({
           ))}
         </ToggleGroup>
       )}
+      {suggestionRow}
     </div>
   );
 }
