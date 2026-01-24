@@ -1,26 +1,12 @@
 "use client";
 
 import { cn } from "@repo/design-system/lib/utils";
-import { Placeholder } from "@tiptap/extensions";
-import Underline from "@tiptap/extension-underline";
-import { Markdown } from "@tiptap/markdown";
-import { EditorContent, useEditor } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
-import StarterKit from "@tiptap/starter-kit";
 import { diffLines, diffWords } from "diff";
-import {
-	Bold,
-	Check,
-	Heading1,
-	Heading2,
-	Heading3,
-	Italic,
-	RotateCcw,
-	Underline as UnderlineIcon,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, RotateCcw } from "lucide-react";
+import { useCallback, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 interface MarkdownDiffEditorProps {
@@ -93,58 +79,15 @@ export function MarkdownDiffEditor({
 		},
 	);
 
-	const editor = useEditor({
-		extensions: [
-			Underline,
-			Markdown,
-			Placeholder.configure({
-				placeholder,
-				includeChildren: true,
-			}),
-			StarterKit.configure({
-				// Disable features we don't need
-				blockquote: false,
-				codeBlock: false,
-				horizontalRule: false,
-				code: false,
-				strike: false,
-			}),
-		],
-		content: value,
-		editable: !disabled && !isInDiffMode,
-		immediatelyRender: false,
-		onUpdate: ({ editor }) => {
-			const markdown = editor.getMarkdown();
-			onChange(markdown);
-		},
-		editorProps: {
-			attributes: {
-				class: cn(
-					// Base text styling - use leading-relaxed to match non-editor pages
-					"text-sm leading-relaxed focus:outline-none w-full h-full max-w-none text-foreground",
-					// Headings
-					"[&_h1]:text-xl [&_h1]:font-semibold [&_h1]:mb-2 [&_h1]:mt-0",
-					"[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-0",
-					"[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-0",
-					// Paragraphs - minimal margins
-					"[&_p]:my-0.5",
-					// Underline support
-					"[&_u]:underline",
-					// Placeholder styles for TipTap Placeholder extension
-					"[&_.is-editor-empty:first-child]:relative",
-					"[&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]",
-					"[&_.is-editor-empty:first-child]:before:text-muted-foreground",
-					"[&_.is-editor-empty:first-child]:before:float-left",
-					"[&_.is-editor-empty:first-child]:before:h-0",
-					"[&_.is-editor-empty:first-child]:before:pointer-events-none",
-				),
-			},
-		},
-	});
-
 	// Compute diff based on diffMode
 	const diffParts = useMemo((): DiffPart[] => {
-		if (!isInDiffMode || !suggestedValue) return [];
+		if (
+			!isInDiffMode ||
+			suggestedValue === null ||
+			suggestedValue === undefined
+		) {
+			return [];
+		}
 
 		const parts =
 			diffMode === "line"
@@ -157,7 +100,7 @@ export function MarkdownDiffEditor({
 		if (
 			textsAreDifferent &&
 			!parts.some((p: DiffPart) => p.added || p.removed) &&
-			suggestedValue
+			suggestedValue !== undefined
 		) {
 			const result: DiffPart[] = [];
 			if (value) {
@@ -180,14 +123,16 @@ export function MarkdownDiffEditor({
 
 	// Accept the suggestion
 	const handleAccept = useCallback(() => {
-		if (isStreaming || !suggestedValue) return;
-		// Immediately update editor content (parse as markdown to preserve line breaks)
-		editor?.commands.setContent(suggestedValue, {
-			emitUpdate: true,
-			contentType: "markdown",
-		});
+		if (
+			isStreaming ||
+			suggestedValue === null ||
+			suggestedValue === undefined
+		) {
+			return;
+		}
+		onChange(suggestedValue);
 		onSuggestionAccepted?.();
-	}, [isStreaming, suggestedValue, editor, onSuggestionAccepted]);
+	}, [isStreaming, onChange, onSuggestionAccepted, suggestedValue]);
 
 	// Reject the suggestion
 	const handleReject = useCallback(() => {
@@ -195,23 +140,9 @@ export function MarkdownDiffEditor({
 		onSuggestionRejected?.();
 	}, [isStreaming, onSuggestionRejected]);
 
-	if (!editor) {
-		// Show placeholder while editor loads
-		return (
-			<div
-				className={cn(
-					"rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground",
-					className,
-				)}
-			>
-				{placeholder}
-			</div>
-		);
-	} // Diff mode rendering
-
 	if (isInDiffMode) {
 		// Show loading state while waiting for first stream content
-		if (!suggestedValue) {
+		if (isStreaming && suggestedValue === "") {
 			return (
 				<div className="space-y-3">
 					<div className="relative rounded-lg border border-solarized-blue/20 bg-background text-sm">
@@ -368,120 +299,29 @@ export function MarkdownDiffEditor({
 	return (
 		<div
 			className={cn(
-				"relative flex flex-col rounded-md border w-full h-full border-input bg-background px-3 py-2 text-sm cursor-text",
-				"transition-colors focus-within:border-solarized-blue focus-within:ring-1 focus-within:ring-solarized-blue/20",
+				"relative w-full",
 				disabled && "cursor-not-allowed opacity-50",
 				className,
 			)}
-			id={id}
 			ref={hotkeyRef}
-			style={{ minHeight: `${minHeight}px` }}
-			tabIndex={-1}
 		>
-			{/* Bubble Menu - appears on text selection */}
-			<BubbleMenu
-				className="flex items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-lg"
-				editor={editor}
-			>
-				<BubbleButton
-					isActive={editor.isActive("bold")}
-					onClick={() => editor.chain().focus().toggleBold().run()}
-					title="Fett (⌘B)"
-				>
-					<Bold className="h-4 w-4" />
-				</BubbleButton>
-				<BubbleButton
-					isActive={editor.isActive("italic")}
-					onClick={() => editor.chain().focus().toggleItalic().run()}
-					title="Kursiv (⌘I)"
-				>
-					<Italic className="h-4 w-4" />
-				</BubbleButton>
-				<BubbleButton
-					isActive={editor.isActive("underline")}
-					onClick={() => editor.chain().focus().toggleUnderline().run()}
-					title="Unterstrichen (⌘U)"
-				>
-					<UnderlineIcon className="h-4 w-4" />
-				</BubbleButton>
-
-				<div className="mx-1 h-4 w-px bg-border" />
-
-				<BubbleButton
-					isActive={editor.isActive("heading", { level: 1 })}
-					onClick={() =>
-						editor.chain().focus().toggleHeading({ level: 1 }).run()
-					}
-					title="Überschrift 1"
-				>
-					<Heading1 className="h-4 w-4" />
-				</BubbleButton>
-				<BubbleButton
-					isActive={editor.isActive("heading", { level: 2 })}
-					onClick={() =>
-						editor.chain().focus().toggleHeading({ level: 2 }).run()
-					}
-					title="Überschrift 2"
-				>
-					<Heading2 className="h-4 w-4" />
-				</BubbleButton>
-				<BubbleButton
-					isActive={editor.isActive("heading", { level: 3 })}
-					onClick={() =>
-						editor.chain().focus().toggleHeading({ level: 3 }).run()
-					}
-					title="Überschrift 3"
-				>
-					<Heading3 className="h-4 w-4" />
-				</BubbleButton>
-			</BubbleMenu>
-
-			{/* Editor content */}
-			<EditorContent editor={editor} />
-
-			{/* Clickable spacer to fill remaining height - clicking focuses editor */}
-			<div
-				aria-hidden="true"
-				className="min-h-4 flex-1"
-				onClick={() => {
-					if (editor && !disabled) {
-						editor.chain().focus("end").run();
-					}
-				}}
+			<Textarea
+				className={cn(
+					"min-h-0 w-full resize-none bg-background text-foreground text-sm leading-relaxed shadow-none",
+					"focus-visible:border-solarized-blue focus-visible:ring-1 focus-visible:ring-solarized-blue/20",
+					actionSlot && "pr-10",
+				)}
+				disabled={disabled}
+				id={id}
+				onChange={(event) => onChange(event.currentTarget.value)}
+				placeholder={placeholder}
+				style={{ minHeight: `${minHeight}px` }}
+				value={value}
 			/>
 			{/* Action slot (e.g., enhance button) - positioned top-right */}
 			{actionSlot && (
 				<div className="absolute top-2 right-2 z-10">{actionSlot}</div>
 			)}
 		</div>
-	);
-}
-
-// Bubble menu button component
-function BubbleButton({
-	children,
-	onClick,
-	isActive,
-	title,
-}: {
-	children: React.ReactNode;
-	onClick: () => void;
-	isActive: boolean;
-	title: string;
-}) {
-	return (
-		<button
-			className={cn(
-				"rounded p-1.5 transition-colors",
-				isActive
-					? "bg-solarized-blue text-white"
-					: "text-foreground hover:bg-muted",
-			)}
-			onClick={onClick}
-			title={title}
-			type="button"
-		>
-			{children}
-		</button>
 	);
 }

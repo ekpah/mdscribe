@@ -161,7 +161,7 @@ export function DoctorsNoteSection({
 				</Label>
 			</div>
 
-			{/* Content area - MarkdownDiffEditor handles both edit and diff modes */}
+			{/* Content area - diff editor handles both edit and diff modes */}
 			<MarkdownDiffEditor
 				actionSlot={
 					hasEnhancement ? (
@@ -191,10 +191,7 @@ export function DoctorsNoteSection({
 						</button>
 					) : undefined
 				}
-				className={cn(
-					hasEnhancement && "pr-10",
-					isLoading && !isInDiffMode && "opacity-50",
-				)}
+				className={cn(isLoading && !isInDiffMode && "opacity-50")}
 				disabled={disabled || isLoading}
 				id={`section-${config.id}`}
 				isStreaming={isLoading}
