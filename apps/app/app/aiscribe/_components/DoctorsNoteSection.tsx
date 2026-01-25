@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import { MarkdownDiffEditor } from "@repo/design-system/components/editor/MarkdownDiffEditor";
+import { MarkdownDiffEditor } from "@repo/design-system/components/editor/DiffEditor";
 import { Label } from "@repo/design-system/components/ui/label";
 import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";

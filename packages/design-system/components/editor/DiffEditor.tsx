@@ -3,13 +3,14 @@
 import { cn } from "@repo/design-system/lib/utils";
 import { diffLines, diffWords } from "diff";
 import { Check, RotateCcw } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import type { CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
-interface MarkdownDiffEditorProps {
+interface DiffEditorProps {
 	value: string;
 	onChange: (value: string) => void;
 	placeholder?: string;
@@ -56,7 +57,7 @@ export function MarkdownDiffEditor({
 	onSuggestionRejected,
 	actionSlot,
 	diffMode = "word",
-}: MarkdownDiffEditorProps) {
+}: DiffEditorProps) {
 	// Determine if we're in diff mode
 	const isInDiffMode = suggestedValue !== undefined && suggestedValue !== null;
 
@@ -144,16 +145,14 @@ export function MarkdownDiffEditor({
 		// Show loading state while waiting for first stream content
 		if (isStreaming && suggestedValue === "") {
 			return (
-				<div className="space-y-3">
-					<div className="relative rounded-lg border border-solarized-blue/20 bg-background text-sm">
-						{/* Loading overlay */}
-						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">
-							<div className="h-5 w-5 animate-spin rounded-full border-2 border-solarized-blue border-t-transparent" />
-						</div>
-						{/* Greyed out original text */}
-						<div className="whitespace-pre-wrap p-3 opacity-40 text-sm leading-relaxed">
-							{value || " "}
-						</div>
+				<div className="relative min-h-[var(--editor-min-height)] rounded-lg border border-solarized-blue/30 bg-background ring-2 ring-solarized-blue/20 field-sizing-content">
+					{/* Loading overlay */}
+					<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 rounded-lg">
+						<div className="h-5 w-5 animate-spin rounded-full border-2 border-solarized-blue border-t-transparent" />
+					</div>
+					{/* Greyed out original text in background */}
+					<div className="whitespace-pre-wrap p-3 opacity-40 text-sm leading-relaxed">
+						{value || " "}
 					</div>
 				</div>
 			);
@@ -164,7 +163,7 @@ export function MarkdownDiffEditor({
 			return (
 				<div className="space-y-2">
 					{/* Show the text as-is */}
-					<div className="whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-sm leading-relaxed">
+					<div className="min-h-[var(--editor-min-height)] whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-sm leading-relaxed field-sizing-content">
 						{value || " "}
 					</div>
 					{/* Subtle note with dismiss */}
@@ -187,20 +186,20 @@ export function MarkdownDiffEditor({
 			);
 		}
 
-		// Diff view with changes
+		// Diff view with changes - no scrolling on individual content, grows to fit
 		return (
 			<div
 				className={cn(
-					"rounded-lg border border-solarized-blue/30 bg-background",
+					"min-h-[var(--editor-min-height)] rounded-lg border border-solarized-blue/30 bg-background field-sizing-content",
 					"ring-2 ring-solarized-blue/20",
 					isStreaming && "animate-pulse",
 				)}
 			>
 				<div className="space-y-3 p-3">
-					{/* Diff view - word or line level highlighting */}
+					{/* Diff view - word or line level highlighting, no individual scrolling */}
 					<div
 						className={cn(
-							"rounded-lg border border-solarized-blue/20 bg-background p-3 text-sm leading-relaxed",
+							"min-h-[var(--editor-min-height)] rounded-lg border border-solarized-blue/20 bg-background p-3 text-sm leading-relaxed field-sizing-content",
 							diffMode === "line" ? "whitespace-pre" : "whitespace-pre-wrap",
 						)}
 					>
@@ -295,19 +294,19 @@ export function MarkdownDiffEditor({
 		);
 	}
 
-	// Normal editor mode
+	// Normal editor mode - ref captures height for diff mode transition
 	return (
 		<div
+			ref={hotkeyRef}
 			className={cn(
 				"relative w-full",
 				disabled && "cursor-not-allowed opacity-50",
 				className,
 			)}
-			ref={hotkeyRef}
 		>
 			<Textarea
 				className={cn(
-					"min-h-0 w-full resize-none bg-background text-foreground text-sm leading-relaxed shadow-none",
+					"min-h-[var(--editor-min-height)] w-full resize-none overflow-hidden bg-background text-foreground text-sm leading-relaxed shadow-none [field-sizing:content]",
 					"focus-visible:border-solarized-blue focus-visible:ring-1 focus-visible:ring-solarized-blue/20",
 					actionSlot && "pr-10",
 				)}
@@ -315,7 +314,6 @@ export function MarkdownDiffEditor({
 				id={id}
 				onChange={(event) => onChange(event.currentTarget.value)}
 				placeholder={placeholder}
-				style={{ minHeight: `${minHeight}px` }}
 				value={value}
 			/>
 			{/* Action slot (e.g., enhance button) - positioned top-right */}
@@ -325,3 +323,6 @@ export function MarkdownDiffEditor({
 		</div>
 	);
 }
+
+/** @deprecated Use MarkdownDiffEditor - renamed for backwards compatibility */
+export const DiffEditor = MarkdownDiffEditor;
