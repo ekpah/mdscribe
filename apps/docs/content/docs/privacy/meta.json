@@ -1,6 +1,13 @@
 {
   "title": "Datenschutz",
   "description": "Informationen zum Datenschutz und zur Datensicherheit in MDScribe",
-  "root": false
+  "root": false,
+  "pages": [
+    "---Datenschutz---",
+    "index",
+    "software-zweck",
+    "private-vs-anonyme-daten",
+    "ki-datenfluss",
+    "nutzungsprotokollierung"
+  ]
 }
-

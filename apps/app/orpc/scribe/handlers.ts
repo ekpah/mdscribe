@@ -285,7 +285,11 @@ export const scribeStreamHandler = authed
 		}
 
 		// Check usage limits
-		await checkUsageLimit(context.session.user.id, context.session, context.db);
+		const { activeSubscription } = await checkUsageLimit(
+			context.session.user.id,
+			context.session,
+			context.db,
+		);
 
 		// Get actual model (handle 'auto')
 		const hasAudio = audioFiles && audioFiles.length > 0;
@@ -366,6 +370,7 @@ export const scribeStreamHandler = authed
 					reasoning: config.modelConfig.thinking
 						? { max_tokens: config.modelConfig.thinkingBudget ?? 8000 }
 						: { enabled: false },
+					...(activeSubscription && { zdr: true }),
 				},
 			},
 			messages,
@@ -373,9 +378,12 @@ export const scribeStreamHandler = authed
 				// PERF: Use after() for non-blocking usage logging (faster stream completion)
 				after(async () => {
 					// Extract OpenRouter usage data
-					const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
+					const openRouterUsage = extractOpenRouterUsage(
+						event.providerMetadata,
+					);
 					console.dir(event, { depth: 5 });
 					// Log usage to database using Drizzle
+					// Plus subscribers: skip content logging for privacy (ZDR)
 					await context.db.insert(usageEvent).values(
 						buildUsageEventData({
 							userId: context.session.user.id,
@@ -383,7 +391,9 @@ export const scribeStreamHandler = authed
 							model: modelName,
 							openRouterUsage,
 							standardUsage: event.usage as StandardUsage,
-							inputData: processedInput as UsageInputData,
+							inputData: activeSubscription
+								? undefined
+								: (processedInput as UsageInputData),
 							metadata: {
 								promptName: config.promptName,
 								promptSource: "local",
@@ -397,9 +407,14 @@ export const scribeStreamHandler = authed
 									maxTokens: config.modelConfig.maxTokens,
 									temperature: config.modelConfig.temperature,
 								},
+								zdrEnabled: activeSubscription,
 							} as UsageMetadata,
-							result: event.text,
-							reasoning: event.reasoningText,
+							result: activeSubscription
+								? "[zdr - content redacted]"
+								: event.text,
+							reasoning: activeSubscription
+								? "[zdr - content redacted]"
+								: event.reasoningText,
 						}),
 					);
 				});

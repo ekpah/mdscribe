@@ -1,0 +1,45 @@
+---
+title: Private vs. anonyme Daten
+description: Unterscheidung zwischen personenbezogenen und anonymen Daten in MDScribe
+---
+
+## Private vs. anonyme Daten
+
+MDScribe ist ausschließlich für die Verarbeitung **anonymer klinischer Daten** konzipiert. Personenbezogene Daten — insbesondere Patientendaten — dürfen **niemals** in die Plattform eingegeben werden.
+
+### Personenbezogene Daten (VERBOTEN)
+
+Folgende Daten dürfen unter keinen Umständen in MDScribe eingegeben werden:
+
+| Kategorie | Beispiele |
+|-----------|-----------|
+| **Patientenidentifikation** | Name, Geburtsdatum, Adresse, Telefonnummer |
+| **Fallbezogene Daten** | Fallnummer, Patientennummer, Versichertennummer |
+| **Organisatorische Zuordnung** | Station mit Patientenbezug, Zimmernummer mit Namen |
+| **Sonstige identifizierbare Daten** | Angehörigennamen, behandelnder Arzt mit Patientenbezug |
+
+### Anonyme klinische Daten (ERLAUBT)
+
+Folgende Daten können bedenkenlos in MDScribe verwendet werden:
+
+| Kategorie | Beispiele |
+|-----------|-----------|
+| **Klinische Befunde** | "Pneumonie rechts basal", "HB 8,2 g/dl" |
+| **Prozeduren** | "EKV 20 Propofol", "ZVK-Anlage rechts jugulär" |
+| **Medikation** | "Amiodaron 300mg i.v.", "Heparin-Perfusor 20.000 IE/50ml" |
+| **Diagnosen** | "NSTEMI", "Akute Cholezystitis", "Pneumothorax links" |
+| **Allgemeine Stichpunkte** | "Pat. wach, orientiert, kooperativ" |
+
+### Praktisches Beispiel
+
+**So nicht (personenbezogen):**
+> Max Mustermann, geb. 15.03.1965, Fall-Nr. 2024-12345, Station 3A Zimmer 12. Aufnahme wegen Dyspnoe.
+
+**So richtig (anonymisiert):**
+> 59j männlicher Pat., Aufnahme wegen Dyspnoe. Anamnestisch COPD GOLD III, seit 3 Tagen zunehmende Belastungsdyspnoe, produktiver Husten.
+
+### Warum ist diese Unterscheidung wichtig?
+
+1. **Datenschutzrechtlich:** Personenbezogene Gesundheitsdaten unterliegen gemäß Art. 9 DSGVO einem besonderen Schutz. MDScribe ist nicht für deren Verarbeitung zugelassen.
+2. **Datenfluss:** Eingabedaten werden an externe KI-Anbieter übermittelt (siehe [KI-Datenfluss](/docs/privacy/ki-datenfluss)). Auch bei Zero Data Retention werden Daten während der Verarbeitung temporär übertragen.
+3. **Haftung:** Die Verantwortung für die Einhaltung dieser Vorgaben liegt beim Nutzer. Ein Verstoß kann zur Sperrung des Accounts führen.

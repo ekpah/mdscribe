@@ -30,8 +30,6 @@ const server: Parameters<typeof createEnv>[0]["server"] = {
 
 const client: Parameters<typeof createEnv>[0]["client"] = {
 	NEXT_PUBLIC_BASE_URL: z.string().min(1).url(),
-	NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1),
-	NEXT_PUBLIC_POSTHOG_HOST: z.string().min(1),
 };
 
 export const env = createEnv({
@@ -46,8 +44,6 @@ export const env = createEnv({
 		CI: process.env.CI,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
-		NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-		NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 		STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
 		STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 		STRIPE_PLUS_PRICE_ID: process.env.STRIPE_PLUS_PRICE_ID,

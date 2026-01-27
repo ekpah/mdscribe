@@ -18,8 +18,6 @@ mock.module("@repo/env", () => ({
 		NODE_ENV: "test",
 		FLAGS_SECRET: "test-flags-secret",
 		NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
-		NEXT_PUBLIC_POSTHOG_KEY: "test-posthog-key",
-		NEXT_PUBLIC_POSTHOG_HOST: "https://test.posthog.com",
 	},
 }));
 
