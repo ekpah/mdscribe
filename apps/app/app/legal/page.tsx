@@ -160,7 +160,7 @@ export default function LegalPage() {
 
 						<section className="space-y-4">
 							<h3 className="font-semibold text-xl">
-								4. Nutzungsverfolgung und Kontingentüberwachung
+								4. Nutzungsprotokollierung und Kontingentüberwachung
 							</h3>
 							<div className="space-y-4">
 								<p>
@@ -171,9 +171,7 @@ export default function LegalPage() {
 								</p>
 
 								<div className="space-y-2">
-									<h4 className="font-medium">
-										4.1 Basis-Nutzer (kostenlos)
-									</h4>
+									<h4 className="font-medium">4.1 Basis-Nutzer (kostenlos)</h4>
 									<p>
 										Für Basis-Nutzer werden folgende Daten zur
 										Qualitätssicherung und Serviceoptimierung erfasst:
@@ -195,9 +193,11 @@ export default function LegalPage() {
 										4.2 Plus-Abonnenten (erweiterter Datenschutz)
 									</h4>
 									<p>
-										Für Plus-Abonnenten werden ausschließlich anonyme
-										Metadaten gespeichert. Es werden{" "}
-										<strong>keine Eingabeinhalte und keine generierten Texte</strong>{" "}
+										Für Plus-Abonnenten werden ausschließlich anonyme Metadaten
+										gespeichert. Es werden{" "}
+										<strong>
+											keine Eingabeinhalte und keine generierten Texte
+										</strong>{" "}
 										protokolliert:
 									</p>
 									<ul className="list-disc space-y-2 pl-6">
@@ -217,8 +217,8 @@ export default function LegalPage() {
 									<h4 className="font-medium">4.3 Kontingentüberwachung</h4>
 									<p>
 										Für alle Nutzer werden Nutzungskontingente in Echtzeit
-										überwacht, um sicherzustellen, dass die vereinbarten
-										Limits eingehalten werden. Dies umfasst:
+										überwacht, um sicherzustellen, dass die vereinbarten Limits
+										eingehalten werden. Dies umfasst:
 									</p>
 									<ul className="list-disc space-y-2 pl-6">
 										<li>Anzahl der KI-Generierungen pro Zeitraum</li>
@@ -249,10 +249,9 @@ export default function LegalPage() {
 									</h4>
 									<p>
 										Für die Bereitstellung der KI-basierten Funktionen nutzen
-										wir OpenRouter als API-Router, der Anfragen an
-										nachgelagerte KI-Anbieter weiterleitet. Die Eingabedaten
-										werden zur Generierung von Dokumentationsinhalten
-										verarbeitet.
+										wir OpenRouter als API-Router, der Anfragen an nachgelagerte
+										KI-Anbieter weiterleitet. Die Eingabedaten werden zur
+										Generierung von Dokumentationsinhalten verarbeitet.
 									</p>
 									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3 dark:border-solarized-yellow dark:bg-solarized-base01">
 										<div className="flex items-start space-x-2">
@@ -264,23 +263,20 @@ export default function LegalPage() {
 													Wichtiger Hinweis zu externen KI-Anbietern:
 												</p>
 												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
-													Eingabedaten werden an externe KI-Anbieter
-													übertragen. Geben Sie niemals personenbezogene
-													Gesundheitsdaten oder patientenidentifizierbare
-													Informationen ein.
+													Eingabedaten werden an externe KI-Anbieter übertragen.
+													Geben Sie niemals personenbezogene Gesundheitsdaten
+													oder patientenidentifizierbare Informationen ein.
 												</p>
 											</div>
 										</div>
 									</div>
 									<p>
-										<strong>Datenfluss:</strong> Nutzer → MDScribe →
-										OpenRouter → KI-Anbieter. Die gesamte Kommunikation
-										erfolgt TLS-verschlüsselt.
+										<strong>Datenfluss:</strong> Nutzer → MDScribe → OpenRouter
+										→ KI-Anbieter. Die gesamte Kommunikation erfolgt
+										TLS-verschlüsselt.
 									</p>
 									<p>
-										<strong>
-											Nachgelagerte KI-Anbieter können umfassen:
-										</strong>
+										<strong>Nachgelagerte KI-Anbieter können umfassen:</strong>
 									</p>
 									<ul className="list-disc space-y-1 pl-6">
 										<li>Anthropic (Claude-Modelle)</li>
@@ -299,12 +295,11 @@ export default function LegalPage() {
 													Zero Data Retention (ZDR) für Plus-Abonnenten:
 												</p>
 												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
-													Anfragen von Plus-Abonnenten werden
-													ausschließlich an KI-Anbieter geroutet, die
-													keine Datenspeicherung (Zero Data Retention)
-													vornehmen. Damit wird sichergestellt, dass
-													weder Eingaben noch Ausgaben bei den
-													KI-Anbietern gespeichert werden.
+													Anfragen von Plus-Abonnenten werden ausschließlich an
+													KI-Anbieter geroutet, die keine Datenspeicherung (Zero
+													Data Retention) vornehmen. Damit wird sichergestellt,
+													dass weder Eingaben noch Ausgaben bei den KI-Anbietern
+													gespeichert werden.
 												</p>
 											</div>
 										</div>
@@ -523,8 +518,8 @@ export default function LegalPage() {
 												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
 													Die KI-Funktionen werden über OpenRouter als
 													API-Router an externe Anbieter (z.B. Anthropic,
-													Google) weitergeleitet. Eingabedaten werden gemäß
-													den Datenschutzrichtlinien der jeweiligen Anbieter
+													Google) weitergeleitet. Eingabedaten werden gemäß den
+													Datenschutzrichtlinien der jeweiligen Anbieter
 													verarbeitet.
 												</p>
 											</div>
