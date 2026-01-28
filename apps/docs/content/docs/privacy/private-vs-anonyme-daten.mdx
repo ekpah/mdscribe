@@ -5,30 +5,35 @@ description: Unterscheidung zwischen personenbezogenen und anonymen Daten in MDS
 
 ## Private vs. anonyme Daten
 
-MDScribe ist ausschließlich für die Verarbeitung **anonymer klinischer Daten** konzipiert. Personenbezogene Daten — insbesondere Patientendaten — dürfen **niemals** in die Plattform eingegeben werden.
+Gesundheitsdaten sind ganz besonders sensibel und jeder Umgang damit sollte sorgfältig passieren. In unserer modernen, digitalisierten Welt ist es aber nicht immer ganz einfach zu erkennen, wo die Grenze zwischen privaten Gesundheitsdaten ist, die niemals geteilt werden sollte und anonymen Daten, die einer solchen Sorgfalt nicht bedürfen. Letztlich ist dies in jedem Einzelfall zu bewerten, hier sollen aber einige generelle Beispiele aufgezeigt werden, um diese Einschätzung zu erleichten.
 
 ### Personenbezogene Daten (VERBOTEN)
 
-Folgende Daten dürfen unter keinen Umständen in MDScribe eingegeben werden:
+<Callout type="warn" title="Nicht eingeben">
+  Folgende Daten stellen aus unserer Sicht personenbezogene Daten dar und bedürfen
+  einer besonderen Sorgfalt. In der kostenlosen Version von MDScribe sollten
+  diese Daten nicht genutzt werden.
+</Callout>
 
-| Kategorie | Beispiele |
-|-----------|-----------|
-| **Patientenidentifikation** | Name, Geburtsdatum, Adresse, Telefonnummer |
-| **Fallbezogene Daten** | Fallnummer, Patientennummer, Versichertennummer |
-| **Organisatorische Zuordnung** | Station mit Patientenbezug, Zimmernummer mit Namen |
-| **Sonstige identifizierbare Daten** | Angehörigennamen, behandelnder Arzt mit Patientenbezug |
+| Kategorie | Beispiel-Eingabe | Erwartete Ausgabe |
+|-----------|------------------|------------------|
+| **Patientenidentifikation** | "Frau Anna Berger, geb. 12.04.1979, wohnhaft Musterstraße 12, Tel. 0176 1234567. Aufnahme mit rezidivierender Synkope." | Eingabe ablehnen oder Identifikatoren vollständig entfernen. |
+| **Fallbezogene Daten** | "Fall-Nr. 2024-8743, Versichertennummer 123456789. Epikrise: Aufnahme am 08.01.2026 wegen Thoraxschmerz, Verlauf unter Heparin und ASS stabil." | Eingabe ablehnen oder Fallnummer/Versichertennummer entfernen. |
+| **Organisatorische Zuordnung** | "Station 3A, Zimmer 12, Bett neben Herrn Müller. Anamnese: Pat. nach Sturz, CT-Schädel unauffällig." | Eingabe ablehnen oder alle organisatorischen Zuordnungen entfernen. |
+| **Sonstige identifizierbare Daten** | "Behandelnder Arzt: Dr. Schmidt (Patientenbezug), Angehörige: Tochter Lisa. Diagnoseblock: NSTEMI, KHK, Hypertonie." | Eingabe ablehnen oder Bezüge zu Personen entfernen. |
 
 ### Anonyme klinische Daten (ERLAUBT)
 
 Folgende Daten können bedenkenlos in MDScribe verwendet werden:
 
-| Kategorie | Beispiele |
-|-----------|-----------|
-| **Klinische Befunde** | "Pneumonie rechts basal", "HB 8,2 g/dl" |
-| **Prozeduren** | "EKV 20 Propofol", "ZVK-Anlage rechts jugulär" |
-| **Medikation** | "Amiodaron 300mg i.v.", "Heparin-Perfusor 20.000 IE/50ml" |
-| **Diagnosen** | "NSTEMI", "Akute Cholezystitis", "Pneumothorax links" |
-| **Allgemeine Stichpunkte** | "Pat. wach, orientiert, kooperativ" |
+| Kategorie | Beispiel-Eingabe | Erwartete Ausgabe |
+|-----------|------------------|------------------|
+| **Isolierte Klinische Befunde** | "Pneumonie rechts basal, CRP 148 mg/l, Leuko 15,2 G/l. BGA: pH 7,31, pO2 58 mmHg unter 2 l O2." | Strukturierter Befundblock ohne Personenbezug, z. B. "Pneumonie rechts basal, Entzündungszeichen erhöht, Hypoxämie." |
+| **Prozeduren** | "Intubation mit Etomidat/Rocuronium, ZVK-Anlage rechts jugulär, Arterie radial links." | Prozedurenliste, z. B. "Intubation, ZVK rechts jugulär, Arterie links radial." |
+| **Medikation** | "Heparin-Perfusor 20.000 IE/50 ml, Noradrenalin 0,08 µg/kg/min, Amiodaron 300 mg i.v." | Medikationsblock mit Dosierungen, z. B. "Heparin-Perfusor, Noradrenalin, Amiodaron i.v." |
+| **Diagnosen** | "NSTEMI, akute Cholezystitis, Pneumothorax links." | Diagnoseblock, z. B. "NSTEMI, akute Cholezystitis, Pneumothorax links." |
+| **Anamnese (anonym)** | "59j Pat. mit 3 Tagen Fieber und Husten, Vorerkrankung COPD GOLD III, kein bekannter Allergien. Klinisch tachypnoeisch, SpO2 88 %." | Anamneseabschnitt, z. B. "Seit 3 Tagen Fieber/Husten, COPD GOLD III, hypoxämisch." |
+| **Epikrise (anonym)** | "Aufnahme wegen Sepsis, unter Piperacillin/Tazobactam rasche Stabilisierung, extubiert am Tag 3, Entlassung in stabilen Zustand." | Kurzepikrise, z. B. "Sepsis, antibiotisch stabilisiert, extubiert, stabil entlassen." |
 
 ### Praktisches Beispiel
 

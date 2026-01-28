@@ -4,6 +4,8 @@ import { z } from "zod";
 const server: Parameters<typeof createEnv>[0]["server"] = {
 	POSTGRES_DATABASE_URL: z.string().min(1).url(),
 
+	ADMIN_EMAIL: z.string().email(),
+
 	ANALYZE: z.string().optional(),
 
 	OPENROUTER_API_KEY: z.string().min(1),
@@ -37,6 +39,7 @@ export const env = createEnv({
 	server,
 	runtimeEnv: {
 		POSTGRES_DATABASE_URL: process.env.POSTGRES_DATABASE_URL,
+		ADMIN_EMAIL: process.env.ADMIN_EMAIL,
 		OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
 		AUTH_POSTMARK_KEY: process.env.AUTH_POSTMARK_KEY,
 		ANALYZE: process.env.ANALYZE,

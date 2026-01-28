@@ -1,5 +1,6 @@
 {
 	"name": "app",
+	"license": "AGPL-3.0-or-later",
 	"private": true,
 	"scripts": {
 		"dev": "bun --bun next dev -p 3000",

@@ -1,5 +1,6 @@
 import { dedupe, flag } from "flags/next";
 import { auth } from "./auth";
+import { env } from "@repo/env";
 
 interface Entities {
 	user?: { id: string; email: string };
@@ -25,9 +26,8 @@ export const allowAIUse = flag<boolean, Entities>({
 		const user = entities?.user;
 
 		return (
-			user?.email === "n.hapke@bbtgruppe.de" ||
-			process.env.NODE_ENV === "development" ||
-			user?.email === "ochir0111@yahoo.com"
+			user?.email === env.ADMIN_EMAIL ||
+			process.env.NODE_ENV === "development"
 		);
 	},
 });
@@ -37,9 +37,6 @@ export const allowAdminAccess = flag<boolean, Entities>({
 	identify,
 	decide: ({ entities }) => {
 		const user = entities?.user;
-		return (
-			user?.email === "nils.hapke@we-mail.de" ||
-			user?.email === "n.hapke@bbtgruppe.de"
-		);
+		return user?.email === env.ADMIN_EMAIL;
 	},
 });
