@@ -51,8 +51,6 @@ export const config: NextConfig = withVercelToolbar()({
 			},
 		];
 	},
-	// This is required to support PostHog trailing slash API requests
-	skipTrailingSlashRedirect: true,
 });
 
 let nextConfig: NextConfig = { ...config };

@@ -1,15 +1,21 @@
 {
 	"name": "mdscribe",
 	"version": "0.1.0",
+	"license": "AGPL-3.0-or-later",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ekpah/mdscribe.git"
+	},
+	"homepage": "https://mdscribe.de",
 	"files": [
 		"index.js"
 	],
 	"scripts": {
-		"build": "turbo build",
-		"dev": "turbo dev",
-		"lint": "turbo lint",
-		"test": "turbo test",
-		"analyze": "turbo analyze",
+		"build": "turbo run build",
+		"dev": "turbo run dev",
+		"lint": "turbo run lint",
+		"test": "turbo run test",
+		"analyze": "turbo run analyze",
 		"bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && bun install",
 		"migrate": "cd packages/database && npx prisma format && npx prisma generate && npx prisma db push",
 		"knip": "knip"
@@ -44,10 +50,5 @@
 		"packages/*",
 		"apps/*"
 	],
-	"packageManager": "bun@1.2.23",
-	"dependencies": {
-		"next": "^16.1.1",
-		"react": "^19.2.3",
-		"react-dom": "^19.2.3"
-	}
+	"packageManager": "bun@1.2.23"
 }

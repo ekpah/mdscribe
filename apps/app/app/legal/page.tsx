@@ -80,7 +80,7 @@ export default function LegalPage() {
 				<TabsContent className="space-y-8" value="datenschutz">
 					<div className="space-y-8">
 						<div className="space-y-4">
-							<p className="text-muted-foreground text-sm">Stand: 17.04.2025</p>
+							<p className="text-muted-foreground text-sm">Stand: 27.01.2026</p>
 							<p className="text-muted-foreground">
 								Wir freuen uns über Ihr Interesse an mdscribe.de. Der Schutz
 								Ihrer personenbezogenen Daten ist uns ein wichtiges Anliegen.
@@ -160,41 +160,69 @@ export default function LegalPage() {
 
 						<section className="space-y-4">
 							<h3 className="font-semibold text-xl">
-								4. Nutzungsverfolgung und Kontingentüberwachung
+								4. Nutzungsprotokollierung und Kontingentüberwachung
 							</h3>
 							<div className="space-y-4">
 								<p>
 									Zur Sicherstellung der Funktionalität, zur Optimierung der
 									Services und zur Überwachung von Nutzungskontingenten wird die
-									Nutzung der Plattform umfassend protokolliert.
+									Nutzung der Plattform protokolliert. Der Umfang der
+									Protokollierung unterscheidet sich je nach Abonnement.
 								</p>
 
 								<div className="space-y-2">
-									<h4 className="font-medium">
-										4.1 Interne Nutzungsdatenerfassung
-									</h4>
-									<p>Die erfassten Daten umfassen:</p>
+									<h4 className="font-medium">4.1 Basis-Nutzer (kostenlos)</h4>
+									<p>
+										Für Basis-Nutzer werden folgende Daten zur
+										Qualitätssicherung und Serviceoptimierung erfasst:
+									</p>
 									<ul className="list-disc space-y-2 pl-6">
-										<li>Nutzungszeitpunkt und -dauer</li>
+										<li>Nutzungszeitpunkt</li>
 										<li>Art und Anzahl der genutzten KI-Funktionen</li>
 										<li>Verbrauchte Kontingente (Tokens, Generierungen)</li>
-										<li>Anonyme Session-Kennung</li>
-										<li>Fehlermeldungen und Systemereignisse</li>
+										<li>Kosten und verwendetes KI-Modell</li>
+										<li>
+											Eingabedaten und generierte Ausgabetexte (zur
+											Qualitätssicherung)
+										</li>
 									</ul>
 								</div>
 
 								<div className="space-y-2">
-									<h4 className="font-medium">4.2 Kontingentüberwachung</h4>
+									<h4 className="font-medium">
+										4.2 Plus-Abonnenten (erweiterter Datenschutz)
+									</h4>
 									<p>
-										Für Nutzer mit kostenpflichtigen Abonnements werden
-										Nutzungskontingente in Echtzeit überwacht, um
-										sicherzustellen, dass die vereinbarten Limits eingehalten
-										werden. Dies umfasst:
+										Für Plus-Abonnenten werden ausschließlich anonyme Metadaten
+										gespeichert. Es werden{" "}
+										<strong>
+											keine Eingabeinhalte und keine generierten Texte
+										</strong>{" "}
+										protokolliert:
+									</p>
+									<ul className="list-disc space-y-2 pl-6">
+										<li>Anzahl der KI-Generierungen und Token-Verbrauch</li>
+										<li>Kosten und verwendetes KI-Modell</li>
+										<li>Endpunkt und Konfigurationsparameter</li>
+									</ul>
+									<p>
+										Zusätzlich wird für Plus-Abonnenten Zero Data Retention
+										(ZDR) bei den KI-Anbietern erzwungen. Anfragen werden
+										ausschließlich an Anbieter geroutet, die keine
+										Datenspeicherung vornehmen.
+									</p>
+								</div>
+
+								<div className="space-y-2">
+									<h4 className="font-medium">4.3 Kontingentüberwachung</h4>
+									<p>
+										Für alle Nutzer werden Nutzungskontingente in Echtzeit
+										überwacht, um sicherzustellen, dass die vereinbarten Limits
+										eingehalten werden. Dies umfasst:
 									</p>
 									<ul className="list-disc space-y-2 pl-6">
 										<li>Anzahl der KI-Generierungen pro Zeitraum</li>
 										<li>Verbrauchte Tokens und Rechenressourcen</li>
-										<li>Überschreitung von Tageslimits</li>
 									</ul>
 									<p>
 										Diese Daten werden ausschließlich zur Bereitstellung der
@@ -216,82 +244,14 @@ export default function LegalPage() {
 							</h3>
 							<div className="space-y-4">
 								<div className="space-y-2">
-									<h4 className="font-medium">5.1 PostHog Analytics</h4>
-									<p>
-										Wir verwenden PostHog für die umfassende Analyse der
-										Website-Nutzung und Benutzerinteraktionen. PostHog erfasst
-										folgende Daten ohne das Setzen von Cookies:
-									</p>
-									<ul className="list-disc space-y-1 pl-6">
-										<li>
-											Anonymisierte Benutzer-Events (Klicks, Seitenaufrufe)
-										</li>
-										<li>Feature-Nutzung und Navigationsverhalten</li>
-										<li>Session-Dauer und Bounce-Rate</li>
-										<li>Technische Browser- und Geräteinformationen</li>
-									</ul>
-									<p>
-										Diese Daten helfen uns, die Benutzererfahrung zu optimieren
-										und beliebte Funktionen zu identifizieren.
-									</p>
-									<p>
-										Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
-										Interesse)
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">5.2 Vercel Analytics</h4>
-									<p>
-										Zur Überwachung der Website-Performance und -Verfügbarkeit
-										nutzen wir Vercel Analytics. Dabei werden anonymisierte
-										Leistungsdaten erfasst, die keine Rückschlüsse auf einzelne
-										Nutzer zulassen.
-									</p>
-									<p>
-										Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
-										Interesse)
-									</p>
-								</div>
-
-								<div className="space-y-2">
 									<h4 className="font-medium">
-										5.3 Langfuse (KI-Monitoring und -Optimierung)
-									</h4>
-									<p>
-										Für die Überwachung, Analyse und Verbesserung unserer
-										KI-basierten Funktionen verwenden wir Langfuse. Dieses
-										System erfasst detaillierte Informationen über die
-										KI-Nutzung:
-									</p>
-									<ul className="list-disc space-y-1 pl-6">
-										<li>KI-Anfragen und -Antworten</li>
-										<li>Verarbeitungszeiten und Performance-Metriken</li>
-										<li>Fehleranalyse und Qualitätsbewertungen</li>
-										<li>Token-Verbrauch und Kosten-Tracking</li>
-										<li>Modell-Performance und Genauigkeitsmessungen</li>
-									</ul>
-									<p>
-										Diese Daten werden ausschließlich zur technischen
-										Optimierung der KI-Funktionen und zur Sicherstellung der
-										Servicequalität verwendet. Eingabedaten werden anonymisiert
-										und können nicht zu einzelnen Nutzern zurückverfolgt werden.
-									</p>
-									<p>
-										Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
-										Interesse), Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung)
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">
-										5.4 Externe KI-Anbieter (Large Language Model Services)
+										5.1 Externe KI-Anbieter (Large Language Model Services)
 									</h4>
 									<p>
 										Für die Bereitstellung der KI-basierten Funktionen nutzen
-										wir externe Anbieter von Large Language Model (LLM)
-										Services. Diese verarbeiten die anonymisierten Eingabedaten
-										zur Generierung von Dokumentationsinhalten.
+										wir OpenRouter als API-Router, der Anfragen an nachgelagerte
+										KI-Anbieter weiterleitet. Die Eingabedaten werden zur
+										Generierung von Dokumentationsinhalten verarbeitet.
 									</p>
 									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3 dark:border-solarized-yellow dark:bg-solarized-base01">
 										<div className="flex items-start space-x-2">
@@ -303,26 +263,47 @@ export default function LegalPage() {
 													Wichtiger Hinweis zu externen KI-Anbietern:
 												</p>
 												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
-													Eingabedaten werden anonymisiert an externe
-													KI-Anbieter übertragen. Geben Sie niemals
-													personenbezogene Gesundheitsdaten oder
-													patientenidentifizierbare Informationen ein.
+													Eingabedaten werden an externe KI-Anbieter übertragen.
+													Geben Sie niemals personenbezogene Gesundheitsdaten
+													oder patientenidentifizierbare Informationen ein.
 												</p>
 											</div>
 										</div>
 									</div>
 									<p>
-										<strong>
-											Verwendete externe Anbieter können umfassen:
-										</strong>
+										<strong>Datenfluss:</strong> Nutzer → MDScribe → OpenRouter
+										→ KI-Anbieter. Die gesamte Kommunikation erfolgt
+										TLS-verschlüsselt.
+									</p>
+									<p>
+										<strong>Nachgelagerte KI-Anbieter können umfassen:</strong>
 									</p>
 									<ul className="list-disc space-y-1 pl-6">
-										<li>OpenAI (GPT-Modelle)</li>
 										<li>Anthropic (Claude-Modelle)</li>
+										<li>Google (Gemini-Modelle)</li>
 										<li>
 											Weitere LLM-Anbieter je nach Verfügbarkeit und Qualität
 										</li>
 									</ul>
+									<div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-3 dark:border-solarized-cyan dark:bg-solarized-base01">
+										<div className="flex items-start space-x-2">
+											<div className="flex-shrink-0">
+												<Shield className="h-4 w-4 text-solarized-blue dark:text-solarized-cyan" />
+											</div>
+											<div>
+												<p className="font-medium text-sm text-solarized-blue dark:text-solarized-cyan">
+													Zero Data Retention (ZDR) für Plus-Abonnenten:
+												</p>
+												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
+													Anfragen von Plus-Abonnenten werden ausschließlich an
+													KI-Anbieter geroutet, die keine Datenspeicherung (Zero
+													Data Retention) vornehmen. Damit wird sichergestellt,
+													dass weder Eingaben noch Ausgaben bei den KI-Anbietern
+													gespeichert werden.
+												</p>
+											</div>
+										</div>
+									</div>
 									<p>
 										Diese Anbieter verarbeiten die Daten gemäß ihren jeweiligen
 										Datenschutzrichtlinien. Die Datenübertragung erfolgt
@@ -337,7 +318,7 @@ export default function LegalPage() {
 
 								<div className="space-y-2">
 									<h4 className="font-medium">
-										5.5 Stripe (Zahlungsabwicklung)
+										5.2 Stripe (Zahlungsabwicklung)
 									</h4>
 									<p>
 										Für die Abwicklung von Zahlungen bei kostenpflichtigen
@@ -466,7 +447,7 @@ export default function LegalPage() {
 				<TabsContent className="space-y-8" value="agb">
 					<div className="space-y-8">
 						<div className="space-y-4">
-							<p className="text-muted-foreground text-sm">Stand: 17.04.2025</p>
+							<p className="text-muted-foreground text-sm">Stand: 27.01.2026</p>
 						</div>
 
 						<section className="space-y-4">
@@ -535,9 +516,9 @@ export default function LegalPage() {
 													Externe KI-Dienste:
 												</p>
 												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
-													Die KI-Funktionen werden durch externe Anbieter (z.B.
-													OpenAI, Anthropic) bereitgestellt. Eingabedaten werden
-													anonymisiert übertragen und gemäß den
+													Die KI-Funktionen werden über OpenRouter als
+													API-Router an externe Anbieter (z.B. Anthropic,
+													Google) weitergeleitet. Eingabedaten werden gemäß den
 													Datenschutzrichtlinien der jeweiligen Anbieter
 													verarbeitet.
 												</p>

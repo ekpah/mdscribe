@@ -4,6 +4,8 @@ import { z } from "zod";
 const server: Parameters<typeof createEnv>[0]["server"] = {
 	POSTGRES_DATABASE_URL: z.string().min(1).url(),
 
+	ADMIN_EMAIL: z.string().email(),
+
 	ANALYZE: z.string().optional(),
 
 	OPENROUTER_API_KEY: z.string().min(1),
@@ -30,8 +32,6 @@ const server: Parameters<typeof createEnv>[0]["server"] = {
 
 const client: Parameters<typeof createEnv>[0]["client"] = {
 	NEXT_PUBLIC_BASE_URL: z.string().min(1).url(),
-	NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1),
-	NEXT_PUBLIC_POSTHOG_HOST: z.string().min(1),
 };
 
 export const env = createEnv({
@@ -39,6 +39,7 @@ export const env = createEnv({
 	server,
 	runtimeEnv: {
 		POSTGRES_DATABASE_URL: process.env.POSTGRES_DATABASE_URL,
+		ADMIN_EMAIL: process.env.ADMIN_EMAIL,
 		OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
 		AUTH_POSTMARK_KEY: process.env.AUTH_POSTMARK_KEY,
 		ANALYZE: process.env.ANALYZE,
@@ -46,8 +47,6 @@ export const env = createEnv({
 		CI: process.env.CI,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
-		NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-		NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 		STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
 		STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 		STRIPE_PLUS_PRICE_ID: process.env.STRIPE_PLUS_PRICE_ID,

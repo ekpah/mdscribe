@@ -1,0 +1,59 @@
+---
+title: KI-Datenfluss
+description: Wie Daten durch die KI-Pipeline von MDScribe fließen
+---
+
+## KI-Datenfluss
+
+Wenn Sie eine KI-Generierung in MDScribe auslösen, durchlaufen Ihre Daten folgenden Weg:
+
+### Übersicht
+
+```
+Nutzer → MDScribe-Server → OpenRouter (API-Router) → KI-Anbieter
+                                                         ↓
+Nutzer ← MDScribe-Server ← OpenRouter ← ─ ─ ─ ─ ─  Antwort
+```
+
+### Schritt-für-Schritt
+
+1. **Eingabe im Browser:** Sie geben anonymisierte klinische Stichpunkte in die MDScribe-Oberfläche ein.
+2. **Übertragung an MDScribe:** Die Daten werden TLS-verschlüsselt an den MDScribe-Server übertragen.
+3. **Prompt-Aufbereitung:** MDScribe kombiniert Ihre Eingabe mit dem passenden System-Prompt und ggf. relevanten Textbausteinen (via Vektorsuche).
+4. **Weiterleitung an OpenRouter:** Der aufbereitete Prompt wird TLS-verschlüsselt an OpenRouter gesendet.
+5. **Routing zum KI-Anbieter:** OpenRouter leitet die Anfrage an den gewählten KI-Anbieter weiter (z.B. Anthropic, Google).
+6. **Generierung:** Der KI-Anbieter verarbeitet den Prompt und generiert den Ausgabetext.
+7. **Streaming-Rückgabe:** Die Antwort wird als Stream über OpenRouter zurück an MDScribe und an Ihren Browser gesendet.
+
+### Verschlüsselung
+
+Alle Verbindungen in der Kette verwenden TLS-Verschlüsselung:
+
+- Browser → MDScribe: HTTPS (TLS 1.3)
+- MDScribe → OpenRouter: HTTPS (TLS 1.2+)
+- OpenRouter → KI-Anbieter: HTTPS (TLS 1.2+)
+
+### Datenverbleib bei KI-Anbietern
+
+#### Ohne Zero Data Retention (Basis-Nutzer)
+
+- OpenRouter selbst hat eine eigene ZDR-Policy und speichert keine Prompts dauerhaft.
+- Nachgelagerte KI-Anbieter können Daten gemäß ihren eigenen Richtlinien vorübergehend speichern.
+- Die Speicherdauer variiert je nach Anbieter (typischerweise 0–30 Tage).
+
+#### Mit Zero Data Retention (Plus-Abonnenten)
+
+- MDScribe setzt das `zdr`-Flag in der API-Anfrage an OpenRouter.
+- OpenRouter routet die Anfrage **ausschließlich** an Endpunkte mit Zero Data Retention Policy.
+- Der KI-Anbieter darf keine Daten speichern — weder Eingaben noch Ausgaben.
+- Ephemeres Caching (flüchtiger KV-Cache zur Performance-Optimierung) gilt nicht als Datenspeicherung.
+
+### Verwendete KI-Anbieter
+
+| Anbieter | Modelle | ZDR-kompatibel |
+|----------|---------|----------------|
+| Anthropic | Claude Opus 4.5 | Ja |
+| Google | Gemini 3 Pro, Gemini 3 Flash | Ja |
+| Z-AI | GLM-4.6 | Abhängig vom Endpunkt |
+
+Die Verfügbarkeit von Modellen und ZDR-kompatiblen Endpunkten kann sich ändern, da OpenRouter dynamisch routet.

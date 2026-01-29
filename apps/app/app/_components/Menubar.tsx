@@ -202,14 +202,6 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 									</NavigationMenuLink>
 								</NavigationMenuItem>
 							)}
-							<NavigationMenuItem>
-								<NavigationMenuLink
-									className={navigationMenuTriggerStyle()}
-									href="https://docs.mdscribe.de/"
-								>
-									Anleitung
-								</NavigationMenuLink>
-							</NavigationMenuItem>
 						</NavigationMenuList>
 					</NavigationMenu>
 					<div className="mt-2 border-t pt-3">

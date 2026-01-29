@@ -67,36 +67,6 @@ async function saveTarball(client: PGlite): Promise<void> {
 	}
 }
 
-// Auto-save interval in milliseconds (30 seconds)
-const AUTO_SAVE_INTERVAL = 30_000;
-// Initial save delay (5 seconds after startup)
-const INITIAL_SAVE_DELAY = 5_000;
-
-/**
- * Start periodic auto-save of the database
- */
-function startAutoSave(client: PGlite): void {
-	// Initial save after short delay
-	const initialTimeout = setTimeout(async () => {
-		try {
-			await saveTarball(client);
-		} catch (error) {
-			console.error("Initial save failed:", error);
-		}
-	}, INITIAL_SAVE_DELAY);
-	initialTimeout.unref();
-
-	// Periodic saves
-	const intervalId = setInterval(async () => {
-		try {
-			await saveTarball(client);
-		} catch (error) {
-			console.error("Auto-save failed:", error);
-		}
-	}, AUTO_SAVE_INTERVAL);
-	intervalId.unref();
-}
-
 /**
  * Register process signal handlers to save database on shutdown
  * Only registers once, even across HMR reloads
@@ -121,22 +91,20 @@ function registerShutdownHandlers(client: PGlite): void {
 		} catch (error) {
 			console.error("Error during shutdown:", error);
 		}
+		process.exitCode = 0;
 		process.exit(0);
 	};
 
 	// Register handlers
 	process.on("SIGINT", () => {
-		handleShutdown("SIGINT");
+		void handleShutdown("SIGINT");
 	});
 	process.on("SIGTERM", () => {
-		handleShutdown("SIGTERM");
+		void handleShutdown("SIGTERM");
 	});
 
-	// Start periodic auto-save as a fallback
-	startAutoSave(client);
-
 	globalForPGlite.shutdownHandlersRegistered = true;
-	console.log("PGlite shutdown handlers registered (with auto-save every 30s)");
+	console.log("PGlite shutdown handlers registered");
 }
 
 async function createPGliteDatabase() {
@@ -172,6 +140,13 @@ async function createPGliteDatabase() {
 
 	// Register shutdown handlers to save on exit
 	registerShutdownHandlers(client);
+
+	// Save once on startup to persist initial state
+	try {
+		await saveTarball(client);
+	} catch (error) {
+		console.error("Startup save failed:", error);
+	}
 
 	return db;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@repo/design-system/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, Shield } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -147,6 +147,10 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 								<Check className="mr-3 h-5 w-5 text-primary" />
 								<span>E-Mail Support</span>
 							</li>
+							<li className="flex items-center">
+								<Shield className="mr-3 h-5 w-5 text-primary" />
+								<span>Zero Data Retention bei KI-Anbietern</span>
+							</li>
 						</ul>
 						<Button asChild className="mt-auto" variant="outline">
 							<Link href={isLoggedIn ? "/dashboard" : signInUrl}>
@@ -197,6 +201,10 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 							<li className="flex items-center">
 								<Check className="mr-3 h-5 w-5 text-primary" />
 								<span>On-Premise Hosting</span>
+							</li>
+							<li className="flex items-center">
+								<Shield className="mr-3 h-5 w-5 text-primary" />
+								<span>Erweiterter Datenschutz (ZDR)</span>
 							</li>
 						</ul>
 						<Button asChild className="mt-auto" variant="outline">

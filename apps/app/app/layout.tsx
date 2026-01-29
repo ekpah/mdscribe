@@ -11,8 +11,6 @@ import { Suspense, type ReactNode } from "react";
 import MenubarSkeleton from "./_components/landing/skeletons/MenubarSkeleton";
 import QueryProvider from "./providers/queryProvider";
 import { env } from "@repo/env";
-import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { VercelToolbar } from "@vercel/toolbar/next";
 
 const Menubar = dynamic(() => import("./_components/Menubar"), {
@@ -70,8 +68,6 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 									{children}
 								</div>
 							</div>
-							<VercelAnalytics />
-							<SpeedInsights />
 							{env.NODE_ENV === "development" && <VercelToolbar />}
 						</DesignSystemProvider>
 					</QueryProvider>
