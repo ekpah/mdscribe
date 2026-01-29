@@ -134,7 +134,7 @@ const adminFeatures: AdminCardProps[] = [
 			"Systemweite Einstellungen, API-Schlüssel und Integrationsoptionen konfigurieren.",
 		href: "/admin/settings",
 		icon: <Settings className="h-5 w-5 text-solarized-yellow" />,
-		status: "coming-soon",
+		status: "active",
 	},
 ];
 

@@ -3,12 +3,15 @@ import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 /**
  * Supported AI models via OpenRouter
  */
-export type SupportedModel =
-	| "auto"
-	| "glm-4p6"
-	| "claude-opus-4.5"
-	| "gemini-3-pro"
-	| "gemini-3-flash";
+export const supportedModels = [
+	"auto",
+	"glm-4p6",
+	"claude-opus-4.5",
+	"gemini-3-pro",
+	"gemini-3-flash",
+] as const;
+
+export type SupportedModel = (typeof supportedModels)[number];
 
 /**
  * Model configuration for streaming responses

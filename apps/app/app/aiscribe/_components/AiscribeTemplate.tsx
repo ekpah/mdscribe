@@ -47,7 +47,8 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
@@ -57,6 +58,8 @@ import type {
 	SupportedModel,
 } from "@/orpc/scribe/types";
 
+import { isAudioCapableModel, modelDetails, modelOptions } from "@/lib/ai-models";
+import { defaultAppSettings, resolveScribeModel } from "@/lib/app-settings";
 import { orpc } from "@/lib/orpc";
 import { MemoizedCopySection } from "./MemoizedCopySection";
 
@@ -109,14 +112,6 @@ export interface AiscribeTemplateConfig {
 	) => Promise<unknown>;
 }
 
-const models: Array<{ id: SupportedModel; name: string }> = [
-	{ id: "auto", name: "Auto" },
-	{ id: "glm-4p6", name: "GLM-4.6" },
-	{ id: "claude-opus-4.5", name: "Claude Opus 4.5" },
-	{ id: "gemini-3-pro", name: "Gemini 3 Pro" },
-	{ id: "gemini-3-flash", name: "Gemini 3 Flash" },
-];
-
 interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
 }
@@ -134,15 +129,60 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		Record<string, string>
 	>({});
 	const [values, setValues] = useState<Record<string, unknown>>({});
-	const [model, setModel] = useState<SupportedModel>(models[0].id);
+	const [model, setModel] = useState<SupportedModel>("auto");
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
+	const modelRef = useRef<SupportedModel>("auto");
 	// Use ref for audio files to avoid race condition between setState and sendMessage
 	const preparedAudioFilesRef = useRef<AudioFile[]>([]);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const audioChunksRef = useRef<Blob[]>([]);
 	const recordingStartTimeRef = useRef<number>(0);
 	const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+	const { data: appSettings } = useQuery(orpc.settings.get.queryOptions());
+	const resolvedSettings = appSettings ?? defaultAppSettings;
+	const selection = resolvedSettings.modelSelection;
+
+	const availableModels = useMemo(() => {
+		if (selection.mode === "multi") {
+			return selection.availableModels;
+		}
+		return [selection.primaryModel];
+	}, [
+		selection.mode,
+		selection.mode === "multi"
+			? selection.availableModels
+			: selection.primaryModel,
+	]);
+
+	const availableModelOptions = useMemo(() => {
+		return modelOptions.filter((option) => availableModels.includes(option.id));
+	}, [availableModels]);
+
+	const defaultModel =
+		selection.mode === "multi" ? selection.defaultModel : selection.primaryModel;
+
+	const showModelSelector =
+		selection.mode === "multi" && availableModelOptions.length > 1;
+
+	useEffect(() => {
+		if (selection.mode === "multi") {
+			setModel((prev) =>
+				availableModels.includes(prev) ? prev : defaultModel,
+			);
+			return;
+		}
+
+		setModel(defaultModel);
+	}, [
+		availableModels,
+		defaultModel,
+		selection.mode,
+		selection.mode === "multi"
+			? selection.availableModels
+			: selection.primaryModel,
+	]);
 
 	// Initialize text snippets hook
 	useTextSnippets();
@@ -159,7 +199,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						{
 							documentType: config.documentType,
 							messages: options.messages,
-							model,
+							model: modelRef.current,
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
 						},
 						{ signal: options.abortSignal },
@@ -204,7 +244,15 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	}, []);
 
 	// Check if audio recording is supported for current model
-	const isAudioSupported = model === "auto" || model === "gemini-3-flash";
+	const audioModelCandidate =
+		selection.mode === "single"
+			? selection.audioModel ?? selection.primaryModel
+			: model;
+	const isAudioSupported = isAudioCapableModel(audioModelCandidate);
+	const audioDisabledMessage =
+		selection.mode === "single" && !selection.audioModel
+			? "Kein Audio-Modell konfiguriert"
+			: "Nur mit Audio-faehigem Modell verfugbar";
 	const maxRecordings = 3;
 	const canRecord = audioRecordings.length < maxRecordings;
 
@@ -294,8 +342,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
 	// Check if at least one input field is filled
 	const areRequiredFieldsFilled = useCallback(() => {
-		// Check if there are any audio recordings
-		const hasAudio = audioRecordings.length > 0;
+		// Check if there are any supported audio recordings
+		const hasAudio = audioRecordings.length > 0 && isAudioSupported;
 
 		// Check if main input field has content
 		const hasMainInput = inputData.trim().length > 0;
@@ -311,6 +359,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		return hasAudio || hasMainInput || hasAnyAdditionalInput;
 	}, [
 		audioRecordings,
+		isAudioSupported,
 		inputData,
 		additionalInputData,
 		config.additionalInputs,
@@ -342,8 +391,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						...additionalInputData,
 					});
 
+			const hasAudio = audioRecordings.length > 0 && isAudioSupported;
+			modelRef.current = resolveScribeModel(resolvedSettings, model, hasAudio);
+
 			// Prepare audio files if available - update ref synchronously before sendMessage
-			if (audioRecordings.length > 0 && isAudioSupported) {
+			if (hasAudio) {
 				const audioFiles = await Promise.all(
 					audioRecordings.map(async (recording) => {
 						const reader = new FileReader();
@@ -386,6 +438,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		config.inputFieldName,
 		audioRecordings,
 		isAudioSupported,
+		model,
+		resolvedSettings,
 	]);
 
 	useHotkeys(
@@ -644,26 +698,37 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 											<PromptInputToolbar>
 												<PromptInputTools>
 													<PromptInputActionMenu>
-														<PromptInputModelSelect
-															onValueChange={(value) => {
-																setModel(value as SupportedModel);
-															}}
-															value={model}
-														>
-															<PromptInputModelSelectTrigger>
-																<PromptInputModelSelectValue />
-															</PromptInputModelSelectTrigger>
-															<PromptInputModelSelectContent>
-																{models.map((m) => (
-																	<PromptInputModelSelectItem
-																		key={m.id}
-																		value={m.id}
-																	>
-																		{m.name}
-																	</PromptInputModelSelectItem>
-																))}
-															</PromptInputModelSelectContent>
-														</PromptInputModelSelect>
+														{showModelSelector ? (
+															<PromptInputModelSelect
+																onValueChange={(value) => {
+																	setModel(value as SupportedModel);
+																}}
+																value={model}
+															>
+																<PromptInputModelSelectTrigger>
+																	<PromptInputModelSelectValue />
+																</PromptInputModelSelectTrigger>
+																<PromptInputModelSelectContent>
+																	{availableModelOptions.map((option) => (
+																		<PromptInputModelSelectItem
+																			key={option.id}
+																			value={option.id}
+																		>
+																			{option.name}
+																		</PromptInputModelSelectItem>
+																	))}
+																</PromptInputModelSelectContent>
+															</PromptInputModelSelect>
+														) : (
+															<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-2 py-1 text-xs text-solarized-base00">
+																<span className="font-medium">
+																	{modelDetails[defaultModel].name}
+																</span>
+																<span className="text-[10px] text-solarized-base01">
+																	Standardmodell
+																</span>
+															</div>
+														)}
 													</PromptInputActionMenu>
 
 													<Button
@@ -682,7 +747,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 																		? "Aufnahme stoppen"
 																		: "Audioaufnahme starten"
 																	: `Maximal ${maxRecordings} Aufnahmen möglich`
-																: "Nur mit Auto oder Gemini 2.5 Pro verfügbar"
+																: audioDisabledMessage
 														}
 														type="button"
 														variant="ghost"

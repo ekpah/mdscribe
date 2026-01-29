@@ -19,6 +19,8 @@ import {
 	type UsageInputData,
 	type UsageMetadata,
 } from "@/lib/usage-logging";
+import { resolveScribeModel } from "@/lib/app-settings";
+import { getAppSettings } from "@/lib/app-settings-store";
 import { authed } from "@/orpc";
 import { getUsage } from "./_lib/get-usage";
 import { documentTypeConfigs } from "./config";
@@ -261,7 +263,7 @@ export const scribeStreamHandler = authed
 		const {
 			documentType,
 			messages: inputMessages,
-			model = "auto",
+		model: requestedModel,
 			audioFiles,
 		} = input;
 
@@ -291,9 +293,15 @@ export const scribeStreamHandler = authed
 			context.db,
 		);
 
-		// Get actual model (handle 'auto')
+		// Get actual model (handle 'auto' and settings)
 		const hasAudio = audioFiles && audioFiles.length > 0;
-		const actualModel = getActualModel(model, hasAudio);
+		const settings = await getAppSettings();
+		const resolvedModel = resolveScribeModel(
+			settings,
+			requestedModel ?? "auto",
+			hasAudio,
+		);
+		const actualModel = getActualModel(resolvedModel, hasAudio);
 		const {
 			model: aiModel,
 			supportsThinking,
