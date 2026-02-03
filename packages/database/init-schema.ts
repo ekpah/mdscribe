@@ -62,6 +62,15 @@ export const initSchemaSQL = `
 		"embedding" vector(1024)
 	);
 
+	CREATE TABLE IF NOT EXISTS "TemplateCollection" (
+		"id" TEXT PRIMARY KEY,
+		"userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+		"name" TEXT NOT NULL,
+		"description" TEXT,
+		"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS "Subscription" (
 		"id" TEXT PRIMARY KEY,
 		"plan" TEXT NOT NULL,
@@ -118,4 +127,12 @@ export const initSchemaSQL = `
 	);
 
 	CREATE INDEX IF NOT EXISTS "_favourites_B_index" ON "_favourites"("B");
+
+	CREATE TABLE IF NOT EXISTS "TemplateCollectionTemplate" (
+		"collectionId" TEXT NOT NULL REFERENCES "TemplateCollection"("id") ON DELETE CASCADE,
+		"templateId" TEXT NOT NULL REFERENCES "Template"("id") ON DELETE CASCADE,
+		PRIMARY KEY ("collectionId", "templateId")
+	);
+
+	CREATE INDEX IF NOT EXISTS "TemplateCollectionTemplate_templateId_idx" ON "TemplateCollectionTemplate"("templateId");
 `;

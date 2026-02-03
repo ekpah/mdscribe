@@ -14,7 +14,6 @@ import {
 } from '@repo/design-system/components/ui/sidebar';
 import { ChevronDown, Command } from 'lucide-react';
 import type React from 'react';
-import { useSession } from '@/lib/auth-client';
 
 export function CollectionSwitcher({
   collections = [
@@ -37,8 +36,9 @@ export function CollectionSwitcher({
   activeCollection: string;
   setActiveCollection: (collection: string) => void;
 }) {
-  const { data: session } = useSession();
-  const _isLoggedIn = !!session?.user?.id;
+  const activeCollectionItem =
+    collections.find((collection) => collection.key === activeCollection) ??
+    collections[0];
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -47,11 +47,8 @@ export function CollectionSwitcher({
             <SidebarMenuButton className="w-fit px-1.5">
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 {(() => {
-                  const active = collections.find(
-                    (collection) => collection.key === activeCollection
-                  );
-                  if (active?.logo) {
-                    const Logo = active.logo;
+                  if (activeCollectionItem?.logo) {
+                    const Logo = activeCollectionItem.logo;
                     return <Logo className="size-4" />;
                   }
                   return null;
@@ -60,9 +57,7 @@ export function CollectionSwitcher({
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-semibold">
                   {
-                    collections.find(
-                      (collection) => collection.key === activeCollection
-                    )?.name
+                    activeCollectionItem?.name
                   }
                 </span>
                 <span className="">
@@ -84,7 +79,7 @@ export function CollectionSwitcher({
             {collections.map((collection) => (
               <DropdownMenuItem
                 className="gap-2 p-2"
-                key={collection.name}
+                key={collection.key}
                 onClick={() => setActiveCollection(collection.key)}
               >
                 <div className="flex size-6 items-center justify-center rounded-sm border">
