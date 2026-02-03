@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import Editor from "../_components/Editor";
+import { getTemplateCategorySuggestions } from "../_lib/category-suggestions";
 
 export const dynamicParams = false;
 
@@ -38,11 +39,13 @@ export default async function CreateTemplate({
 	const forkedTemplate = fork
 		? await fetchMarkdoc({ id: fork as string })
 		: null;
+	const categorySuggestions = await getTemplateCategorySuggestions(session.user.id);
 
 	return (
 		<div className="flex h-full w-full flex-col">
 			<Editor
 				cat={forkedTemplate?.category || ""}
+				categorySuggestions={categorySuggestions}
 				tit={forkedTemplate?.title || ""}
 				note={JSON.stringify(forkedTemplate?.content || "")}
 				author={session?.user}

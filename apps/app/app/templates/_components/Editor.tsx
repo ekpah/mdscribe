@@ -18,18 +18,20 @@ import {
 import markdocConfig from "@repo/markdoc-md/markdoc-config";
 import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
 export default function Editor({
 	cat,
+	categorySuggestions = [],
 	tit,
 	note,
 	id,
 	author,
 }: {
 	cat: string;
+	categorySuggestions?: string[];
 	tit: string;
 	note: string;
 	id?: string;
@@ -51,12 +53,37 @@ export default function Editor({
 		const finalCategory = category === "new" ? newCategory : category;
 		return finalCategory.trim() !== "" && name.trim() !== "";
 	})();
-	const existingCategories = [
-		"Kardiologie",
-		"Gastroenterologie",
-		"Diverses",
-		"Onkologie",
-	];
+
+	const suggestedCategories = useMemo(() => {
+		const limit = 10;
+		const result: string[] = [];
+		const seen = new Set<string>();
+		const addCategory = (value: string) => {
+			const normalized = value.trim();
+			if (!normalized) {
+				return;
+			}
+			const key = normalized.toLowerCase();
+			if (seen.has(key)) {
+				return;
+			}
+			seen.add(key);
+			result.push(normalized);
+		};
+
+		if (cat.trim()) {
+			addCategory(cat);
+		}
+
+		for (const value of categorySuggestions) {
+			if (result.length >= limit) {
+				break;
+			}
+			addCategory(value);
+		}
+
+		return result.slice(0, limit);
+	}, [cat, categorySuggestions]);
 
 	const handleValidationChange = useCallback(
 		(errors: ValidateError[]) => {
@@ -211,9 +238,9 @@ export default function Editor({
 									<SelectValue placeholder="Kategorie auswählen" />
 								</SelectTrigger>
 								<SelectContent>
-									{existingCategories.map((cat) => (
-										<SelectItem key={cat} value={cat}>
-											{cat}
+									{suggestedCategories.map((categoryOption) => (
+										<SelectItem key={categoryOption} value={categoryOption}>
+											{categoryOption}
 										</SelectItem>
 									))}
 									<SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
