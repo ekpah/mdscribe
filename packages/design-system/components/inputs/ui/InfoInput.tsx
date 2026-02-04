@@ -1,14 +1,10 @@
 "use client";
-import {
-	DateFormatter,
-	type DateValue,
-	getLocalTimeZone,
-	parseDate,
-} from "@internationalized/date";
-import type { InfoInputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
-import type React from "react";
-import { useEffect, useState } from "react";
 
+import type { DateValue } from "@internationalized/date";
+import type { InfoInputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
+import { CalendarIcon } from "lucide-react";
+import type React from "react";
+import { useMemo } from "react";
 import {
 	Button,
 	DatePicker,
@@ -16,35 +12,25 @@ import {
 	Group,
 	Popover,
 } from "react-aria-components";
-import { Bot, CalendarIcon } from "lucide-react";
 import { withMask } from "use-mask-input";
+import { cn } from "@repo/design-system/lib/utils";
 import { Calendar } from "../../ui/calendar-rac";
 import { DateInput } from "../../ui/datefield-rac";
-import { Button as DsButton } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
-import { PopoverContent, PopoverTrigger } from "../../ui/popover";
-import { cn } from "../../lib/utils";
+import {
+	Popover as DsPopover,
+	PopoverContent,
+	PopoverTrigger,
+} from "../../ui/popover";
+import { SuggestionBadge } from "./SuggestionBadge";
+import {
+	formatDateGerman,
+	getTodayDate,
+	parseDateInput,
+} from "./date-utils";
 
 type InfoValue = string | number | DateValue | undefined;
-
-const parseDateValue = (dateInput: InfoValue) => {
-	if (!dateInput) return null;
-	if (typeof dateInput !== "string") {
-		return typeof dateInput === "object" ? (dateInput as DateValue) : null;
-	}
-	const trimmed = dateInput.trim();
-	if (!trimmed) return null;
-	if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-		return parseDate(trimmed);
-	}
-	const match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(trimmed);
-	if (!match) return null;
-	const [, day, month, year] = match;
-	return parseDate(
-		`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
-	);
-};
 
 export function InfoInput({
 	input,
@@ -63,69 +49,64 @@ export function InfoInput({
 	onAcceptSuggestedValue?: () => void;
 	inputClassName?: string;
 }) {
-	// Always call all hooks at the top level
-	const [dateValue, setDateValue] = useState(
-		parseDate(new Date().toISOString().split("T")[0]),
-	);
+	const isDateType = input.attributes.type === "date";
+	const isNumberType = input.attributes.type === "number";
 
-	// Ensure we always have a defined value to prevent controlled/uncontrolled input issues
-	const defaultValue =
-		input.attributes.type === "number" ? (value ?? 0) : (value ?? "");
-	const [localValue, setLocalValue] = useState(defaultValue);
+	// Parse date value, defaulting to today only if no value provided
+	const dateValue = useMemo(() => {
+		if (!isDateType) return getTodayDate();
+		const parsed = parseDateInput(value);
+		return parsed ?? getTodayDate();
+	}, [isDateType, value]);
 
-	// Update local state when prop value changes
-	useEffect(() => {
-		setLocalValue(defaultValue);
-	}, [defaultValue]);
+	// Parse suggested date value for display
+	const formattedSuggestedValue = useMemo(() => {
+		if (!isDateType || suggestedValue === undefined) return suggestedValue;
+		const parsed = parseDateInput(suggestedValue);
+		return parsed ? formatDateGerman(parsed) : suggestedValue;
+	}, [isDateType, suggestedValue]);
 
-	useEffect(() => {
-		if (input.attributes.type !== "date") return;
-		const parsedValue = parseDateValue(value);
-		if (parsedValue) {
-			setDateValue(parsedValue);
-		}
-	}, [input.attributes.type, value]);
-
+	// Determine if we have values for suggestion logic
 	const hasValue = value !== undefined && value !== null && value !== "";
 	const hasSuggestion =
 		suggestedValue !== undefined &&
 		suggestedValue !== null &&
 		suggestedValue !== "";
-	const isSuggestionApplied = hasSuggestion && hasValue && value === suggestedValue;
+	const isSuggestionApplied =
+		hasSuggestion && hasValue && value === suggestedValue;
 	const shouldShowSuggestion = hasSuggestion && !isSuggestionApplied;
-	const suggestionText = input.attributes.unit
-		? `${suggestedValue} ${input.attributes.unit}`
-		: `${suggestedValue}`;
 
-	const suggestionRow = shouldShowSuggestion ? (
-		<div className="flex items-center justify-between gap-2 rounded-md border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-1 text-xs text-solarized-orange">
-			<div className="flex min-w-0 items-center gap-2">
-				<Bot aria-hidden="true" className="h-3.5 w-3.5" />
-				<span className="font-medium">{suggestionLabel}</span>
-				<span className="truncate text-solarized-orange/90">
-					{suggestionText}
-				</span>
-			</div>
-			{onAcceptSuggestedValue && (
-				<DsButton
-					className="h-6 px-2 text-xs"
-					onClick={onAcceptSuggestedValue}
-					size="sm"
-					type="button"
-					variant="ghost"
-				>
-					{hasValue ? "Ersetzen" : "Uebernehmen"}
-				</DsButton>
-			)}
-		</div>
+	// Handle date changes
+	const handleDateChange = (newDateValue: DateValue | null) => {
+		if (newDateValue) {
+			onChange(formatDateGerman(newDateValue));
+		}
+	};
+
+	// Handle number changes
+	const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const numValue = Number(e.target.value);
+		onChange(Number.isNaN(numValue) ? 0 : numValue);
+	};
+
+	// Handle text changes
+	const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		onChange(e.target.value);
+	};
+
+	// Render suggestion badge if needed
+	const suggestionBadge = shouldShowSuggestion ? (
+		<SuggestionBadge
+			hasExistingValue={hasValue}
+			label={suggestionLabel}
+			onAccept={onAcceptSuggestedValue}
+			unit={isDateType ? undefined : input.attributes.unit}
+			value={formattedSuggestedValue ?? suggestedValue ?? ""}
+		/>
 	) : null;
 
-	const dateFormatter = new DateFormatter("de-DE", {
-		dateStyle: "short",
-	});
-
-	// Handle date input type
-	if (input.attributes.type === "date") {
+	// Date input
+	if (isDateType) {
 		return (
 			<div
 				className="w-full max-w-full *:not-first:mt-2"
@@ -134,14 +115,7 @@ export function InfoInput({
 				<DatePicker
 					aria-label={`${input.attributes.primary} calendar`}
 					className="*:not-first:mt-2"
-					onChange={(newDateValue) => {
-						if (newDateValue) {
-							setDateValue(newDateValue);
-							onChange(
-								dateFormatter.format(newDateValue.toDate(getLocalTimeZone())),
-							);
-						}
-					}}
+					onChange={handleDateChange}
 					value={dateValue}
 				>
 					<Label className="font-medium text-foreground text-sm">
@@ -149,7 +123,7 @@ export function InfoInput({
 					</Label>
 					<div className="flex">
 						<Group className="w-full">
-								<DateInput className={cn("pe-9", inputClassName)} />
+							<DateInput className={cn("pe-9", inputClassName)} />
 						</Group>
 						<Button
 							aria-label="Open calendar"
@@ -167,19 +141,15 @@ export function InfoInput({
 						</Dialog>
 					</Popover>
 				</DatePicker>
-				{suggestionRow}
+				{suggestionBadge}
 			</div>
 		);
 	}
-	// Handle text/number inputs
-	const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setLocalValue(
-			Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value),
-		);
-		onChange(Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value));
-	};
-	// Handle number input type
-	if (input.attributes.type === "number") {
+
+	// Number input
+	if (isNumberType) {
+		const displayValue = (value as number | undefined) ?? "";
+
 		return (
 			<div
 				className="w-full max-w-full *:not-first:mt-2"
@@ -204,7 +174,7 @@ export function InfoInput({
 							showMaskOnHover: false,
 						})}
 						type="text"
-						value={localValue as number}
+						value={displayValue}
 					/>
 					{input.attributes.unit && (
 						<span className="inline-flex items-center rounded-e-md border border-input bg-background px-3 font-medium text-foreground text-sm outline-none transition-[color,box-shadow] focus:z-10 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50">
@@ -212,16 +182,14 @@ export function InfoInput({
 						</span>
 					)}
 				</div>
-				{suggestionRow}
+				{suggestionBadge}
 			</div>
 		);
 	}
 
-	// Handle text/number inputs
-	const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setLocalValue(e.target.value);
-		onChange(e.target.value);
-	};
+	// Text input (default)
+	const displayValue = (value as string) ?? "";
+
 	return (
 		<div
 			className="w-full max-w-full *:not-first:mt-2"
@@ -242,7 +210,7 @@ export function InfoInput({
 					onChange={handleTextChange}
 					placeholder={`Enter ${input.attributes.primary}`}
 					type="text"
-					value={localValue as string}
+					value={displayValue}
 				/>
 				{input.attributes.unit && (
 					<span className="inline-flex items-center rounded-e-md border border-input bg-background px-3 font-medium text-foreground text-sm outline-none transition-[color,box-shadow] focus:z-10 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50">
@@ -250,13 +218,13 @@ export function InfoInput({
 					</span>
 				)}
 			</div>
-			{suggestionRow}
+			{suggestionBadge}
 			{input.attributes.description && (
-				<Popover>
+				<DsPopover>
 					<PopoverTrigger asChild>
 						<button
 							type="button"
-							className="ms-2 h-7 w-7 px-0 py-0 align-middle rounded-md border border-input bg-background text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/60 flex items-center justify-center"
+							className="ms-2 flex h-7 w-7 items-center justify-center rounded-md border border-input bg-background px-0 py-0 align-middle text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/60"
 							aria-label="Mehr Informationen"
 						>
 							<span
@@ -270,12 +238,12 @@ export function InfoInput({
 					</PopoverTrigger>
 					<PopoverContent className="max-w-[280px] py-3 shadow-none" side="top">
 						<div className="space-y-1">
-							<p className="text-xs text-muted-foreground">
+							<p className="text-muted-foreground text-xs">
 								{input.attributes.description}
 							</p>
 						</div>
 					</PopoverContent>
-				</Popover>
+				</DsPopover>
 			)}
 		</div>
 	);

@@ -8,7 +8,7 @@ import Formula from "fparser";
 import { Bot, Mic, Pencil, Sigma, Square, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { cn } from "../../lib/utils";
+import { cn } from "@repo/design-system/lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -19,6 +19,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "../ui/tooltip";
+import { normalizeDateValue } from "./ui/date-utils";
 import { InfoInput } from "./ui/InfoInput";
 import { SwitchInput } from "./ui/SwitchInput";
 
@@ -114,24 +115,38 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 	return { fields, meta };
 };
 
-const normalizeVoiceValue = (value: string, meta?: InputMeta) => {
+const normalizeVoiceValue = (
+	value: string,
+	meta?: InputMeta,
+): string | number | undefined => {
 	if (!meta) return value;
+
 	if (meta.type === "number") {
 		const normalized = Number(value.replace(",", "."));
 		return Number.isNaN(normalized) ? undefined : normalized;
 	}
+
+	if (meta.type === "date") {
+		return normalizeDateValue(value);
+	}
+
 	return value;
 };
 
 const isEmptyValue = (value: unknown) =>
 	value === "" || value === undefined || value === null;
 
-const getSuggestionLabel = (suggestion?: SuggestedValue) => {
+const SUGGESTION_SOURCE_LABELS: Record<SuggestedValueSource, string> = {
+	ai: "KI-Vorschlag",
+	note: "Notiz",
+	document: "Dokument",
+	prefill: "Vorausgefüllt",
+};
+
+const getSuggestionLabel = (suggestion?: SuggestedValue): string => {
 	if (!suggestion) return "Vorschlag";
 	if (suggestion.label) return suggestion.label;
-	if (suggestion.source === "ai") return "KI-Vorschlag";
-	if (suggestion.source === "note") return "Notiz";
-	if (suggestion.source === "document") return "Dokument";
+	if (suggestion.source) return SUGGESTION_SOURCE_LABELS[suggestion.source];
 	return "Vorschlag";
 };
 
@@ -151,7 +166,7 @@ function SourceIndicator({ source }: { source: InputSource | undefined }) {
 	const config = {
 		ai: {
 			icon: Bot,
-			label: "KI-Uebernommen",
+			label: "KI-Erkennung",
 			className: "text-solarized-orange",
 		},
 		manual: {
@@ -404,9 +419,7 @@ export default function Inputs({
 	const [suggestedValues, setSuggestedValues] = useState<
 		Record<string, SuggestedValue>
 	>(suggestedValuesProp ?? {});
-	const valuesRef = useRef(values);
-	const fieldSourcesRef = useRef(fieldSources);
-	const suggestedValuesRef = useRef(suggestedValues);
+	const stateRef = useRef({ values, fieldSources, suggestedValues });
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
 	const [isVoiceFillPending, setIsVoiceFillPending] = useState(false);
@@ -420,21 +433,14 @@ export default function Inputs({
 	}, [values, onChange]);
 
 	useEffect(() => {
-		valuesRef.current = values;
-	}, [values]);
-
-	useEffect(() => {
-		fieldSourcesRef.current = fieldSources;
-	}, [fieldSources]);
-
-	useEffect(() => {
-		suggestedValuesRef.current = suggestedValues;
-	}, [suggestedValues]);
+		stateRef.current = { values, fieldSources, suggestedValues };
+	}, [values, fieldSources, suggestedValues]);
 
 	const applySuggestions = useCallback(
 		(nextSuggestions: Record<string, SuggestedValue>) => {
-			const nextValues = { ...valuesRef.current };
-			const nextSources = { ...fieldSourcesRef.current };
+			const { values: currentValues, fieldSources: currentSources } = stateRef.current;
+			const nextValues = { ...currentValues };
+			const nextSources = { ...currentSources };
 
 			for (const [field, suggestion] of Object.entries(nextSuggestions)) {
 				if (nextSources[field] === "manual") {
@@ -615,7 +621,7 @@ export default function Inputs({
 
 			const fieldValues = await onVoiceFill(inputTags, audioFiles);
 
-			const nextSuggestions = { ...suggestedValuesRef.current };
+			const nextSuggestions = { ...stateRef.current.suggestedValues };
 
 			for (const [field, value] of Object.entries(fieldValues)) {
 				const normalizedValue = normalizeVoiceValue(
