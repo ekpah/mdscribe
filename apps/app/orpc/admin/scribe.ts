@@ -42,7 +42,7 @@ const compilePromptInput = z.object({
 const compilePromptHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(type<z.infer<typeof compilePromptInput>>())
-	.handler(async ({ input }) => {
+	.handler(async ({ input, context }) => {
 		const parsed = compilePromptInput.parse(input);
 		const config =
 			documentTypeConfigs[
@@ -64,6 +64,9 @@ const compilePromptHandler = authed
 		const promptVariables = {
 			...variablesUsed,
 			todaysDate: todaysDateDE(),
+			userName: context.session.user.name,
+			userLocation: context.session.user.location,
+			userContext: context.session.user.personalContext,
 		} as PromptVariables;
 
 		const compiledMessages = config.prompt(promptVariables);
@@ -143,6 +146,9 @@ const runHandler = authed
 			const promptVariables = {
 				...variablesUsed,
 				todaysDate: todaysDateDE(),
+				userName: context.session.user.name,
+				userLocation: context.session.user.location,
+				userContext: context.session.user.personalContext,
 			} as PromptVariables;
 
 			messages = config.prompt(promptVariables);
@@ -270,6 +276,9 @@ export const scribeHandler = {
 					notes: "[Notizen]",
 					vordiagnosen: "[Vordiagnosen]",
 					relevantTemplate: "[Relevante Vorlage]",
+					userName: "[Benutzername]",
+					userLocation: "[Standort]",
+					userContext: "[Persoenlicher Kontext]",
 				} as PromptVariables;
 
 				const messages = config.prompt(sampleVariables);

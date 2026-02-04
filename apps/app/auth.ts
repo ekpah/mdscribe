@@ -57,6 +57,14 @@ export const auth = betterAuth({
 				type: "string",
 				required: false,
 			},
+			location: {
+				type: "string",
+				required: false,
+			},
+			personalContext: {
+				type: "string",
+				required: false,
+			},
 		},
 	},
 	// enables login with the email and password flow

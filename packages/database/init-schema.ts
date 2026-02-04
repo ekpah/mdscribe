@@ -8,6 +8,8 @@ export const initSchemaSQL = `
 	CREATE TABLE IF NOT EXISTS "User" (
 		"id" TEXT PRIMARY KEY,
 		"name" TEXT,
+		"location" TEXT,
+		"personalContext" TEXT,
 		"email" TEXT NOT NULL UNIQUE,
 		"emailVerified" BOOLEAN NOT NULL DEFAULT false,
 		"image" TEXT,

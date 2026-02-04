@@ -92,6 +92,9 @@ export type PromptBuilder<T> = (variables: T) => PromptMessage[];
  */
 interface BasePromptVariables {
 	todaysDate: string;
+	userName?: string | null;
+	userLocation?: string | null;
+	userContext?: string | null;
 }
 
 /**

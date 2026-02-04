@@ -20,6 +20,8 @@ import UserCard from "./user-card";
 type User = {
 	name: string;
 	email: string;
+	location?: string | null;
+	personalContext?: string | null;
 };
 
 export default function UserSettings({
