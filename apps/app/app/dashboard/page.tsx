@@ -38,6 +38,7 @@ import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { LiveTime } from "./_components/LiveTime";
+import { ProductTour } from "@/components/product-tour/ProductTour";
 
 export default async function DashboardPage() {
 	// Auth check - must happen before queries
@@ -195,8 +196,14 @@ export default async function DashboardPage() {
 		<HydrationBoundary state={dehydrate(queryClient)}>
 			<div className="h-full w-screen overflow-y-auto bg-gradient-to-br from-solarized-base3 via-solarized-base2 to-solarized-base2">
 				<div className="container mx-auto max-w-7xl space-y-6 p-4 pb-16 sm:p-6">
+					{/* Product Tour for first-time users */}
+					<ProductTour />
+
 					{/* Welcome Header */}
-					<div className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:items-center lg:justify-between">
+					<div
+						className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:items-center lg:justify-between"
+						data-tour="welcome"
+					>
 						<div className="flex flex-col items-start space-y-4 sm:flex-row sm:items-center sm:space-x-6 sm:space-y-0">
 							<div className="relative">
 								<Avatar className="h-16 w-16 shadow-lg ring-4 ring-white sm:h-20 sm:w-20">
@@ -229,7 +236,7 @@ export default async function DashboardPage() {
 							</div>
 						</div>
 						<div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-							<Link href="/profile">
+							<Link href="/profile" data-tour="profile-button">
 								<Button
 									className="w-full gap-2 bg-transparent sm:w-auto"
 									size="sm"
@@ -239,7 +246,7 @@ export default async function DashboardPage() {
 									Profil bearbeiten
 								</Button>
 							</Link>
-							<Link href="/aiscribe">
+							<Link href="/aiscribe" data-tour="ai-start-button">
 								<Button
 									className="w-full gap-2 bg-solarized-blue text-white hover:bg-solarized-blue/90 sm:w-auto"
 									size="sm"
@@ -252,7 +259,10 @@ export default async function DashboardPage() {
 					</div>
 
 					{/* Quick Stats */}
-					<div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4">
+					<div
+						className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4"
+						data-tour="quick-stats"
+					>
 						<Link href="/templates?activeCollection=favourites">
 							<Card className="cursor-pointer border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -331,7 +341,10 @@ export default async function DashboardPage() {
 					</div>
 
 					{/* AI Functions Section */}
-					<Card className="border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
+					<Card
+						className="border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm"
+						data-tour="ai-functions"
+					>
 						<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 							<div>
 								<CardTitle className="flex items-center gap-2 font-bold text-solarized-base03 text-xl sm:text-2xl">
@@ -386,7 +399,7 @@ export default async function DashboardPage() {
 					{/* Templates and Activity Section */}
 					<div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
 						{/* Favorite Templates */}
-						<div className="lg:col-span-2">
+						<div className="lg:col-span-2" data-tour="favorites">
 							<Card className="h-full border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
 								<CardHeader className="flex flex-row items-center justify-between">
 									<div>
@@ -476,7 +489,7 @@ export default async function DashboardPage() {
 						</div>
 
 						{/* Recent Activity */}
-						<div>
+						<div data-tour="activity">
 							<Card className="h-full border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
 								<CardHeader>
 									<CardTitle className="flex items-center gap-2 font-bold text-solarized-base03 text-xl">

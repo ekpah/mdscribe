@@ -15,6 +15,7 @@ import { FeaturesCard } from "./features-card";
 import { ProfileCard } from "./profile-card";
 import { SnippetsCard } from "./snippets-card";
 import { SubscriptionCard } from "./subscription-card";
+import { TourCard } from "./tour-card";
 import UserCard from "./user-card";
 
 type User = {
@@ -91,13 +92,14 @@ export default function UserSettings({
 							Snippets
 						</TabsTrigger>
 					</TabsList>
-					<div className="h-[500px] w-[800px] max-w-full">
-						<TabsContent className="h-full" value="profile">
+					<div className="h-[500px] w-[800px] max-w-full overflow-y-auto">
+						<TabsContent className="h-full space-y-4" value="profile">
 							<ProfileCard
 								isLoading={isLoading}
 								setIsLoading={setIsLoading}
 								user={user}
 							/>
+							<TourCard />
 						</TabsContent>
 						<TabsContent className="h-full" value="login">
 							<UserCard

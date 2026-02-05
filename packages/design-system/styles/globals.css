@@ -274,3 +274,105 @@ green     #859900 68 100% 30%
     }
   }
 }
+
+/* Driver.js Product Tour Styling */
+.driver-popover.mdscribe-tour-popover {
+  background-color: var(--solarized-base3);
+  border: 1px solid var(--solarized-base1);
+  border-radius: 0.75rem;
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  max-width: 340px;
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-title {
+  color: var(--solarized-base03);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-description {
+  color: var(--solarized-base01);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin-top: 0.5rem;
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-progress-text {
+  color: var(--solarized-base1);
+  font-size: 0.8125rem;
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-prev-btn,
+.driver-popover.mdscribe-tour-popover .driver-popover-next-btn {
+  background-color: var(--solarized-blue);
+  border: none;
+  border-radius: 0.5rem;
+  color: var(--solarized-base3);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  transition: background-color 0.15s ease;
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-prev-btn:hover,
+.driver-popover.mdscribe-tour-popover .driver-popover-next-btn:hover {
+  background-color: var(--solarized-cyan);
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-prev-btn {
+  background-color: transparent;
+  border: 1px solid var(--solarized-base1);
+  color: var(--solarized-base01);
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-prev-btn:hover {
+  background-color: var(--solarized-base2);
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-close-btn {
+  color: var(--solarized-base1);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-close-btn:hover {
+  color: var(--solarized-base01);
+}
+
+.driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow,
+.driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow,
+.driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow,
+.driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-color: var(--solarized-base3);
+}
+
+/* Dark theme support */
+[data-theme="dark"] .driver-popover.mdscribe-tour-popover,
+.dark .driver-popover.mdscribe-tour-popover {
+  background-color: var(--solarized-base02);
+  border-color: var(--solarized-base01);
+}
+
+[data-theme="dark"] .driver-popover.mdscribe-tour-popover .driver-popover-title,
+.dark .driver-popover.mdscribe-tour-popover .driver-popover-title {
+  color: var(--solarized-base2);
+}
+
+[data-theme="dark"] .driver-popover.mdscribe-tour-popover .driver-popover-description,
+.dark .driver-popover.mdscribe-tour-popover .driver-popover-description {
+  color: var(--solarized-base1);
+}
+
+[data-theme="dark"] .driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow,
+[data-theme="dark"] .driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow,
+[data-theme="dark"] .driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow,
+[data-theme="dark"] .driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow,
+.dark .driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow,
+.dark .driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow,
+.dark .driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow,
+.dark .driver-popover.mdscribe-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-color: var(--solarized-base02);
+}

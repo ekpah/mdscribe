@@ -39,6 +39,7 @@
 		"@vercel/toolbar": "^0.1.38",
 		"ai": "5.0.104",
 		"better-auth": "^1.4.7",
+		"driver.js": "^1.4.0",
 		"flags": "^4.0.1",
 		"fuse.js": "^7.1.0",
 		"jiti": "^2.4.2",
