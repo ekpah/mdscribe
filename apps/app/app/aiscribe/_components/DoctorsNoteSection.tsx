@@ -8,6 +8,10 @@ import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+	AISCRIBE_ERROR_MESSAGES,
+	getAiscribeErrorMessage,
+} from "@/lib/aiscribe-errors";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { orpc } from "@/lib/orpc";
 
@@ -74,7 +78,10 @@ export function DoctorsNoteSection({
 			},
 		},
 		onError: (error) => {
-			toast.error(error.message || "Fehler beim Generieren");
+			const message = getAiscribeErrorMessage(error);
+			if (message) {
+				toast.error(message);
+			}
 			setProposedText(null);
 		},
 		onFinish: () => {
@@ -100,6 +107,18 @@ export function DoctorsNoteSection({
 	// Loading state from useChat status
 	const isLoading = status === "streaming" || status === "submitted";
 
+	const hasAnyInput = useMemo(() => {
+		if (value.trim().length > 0) {
+			return true;
+		}
+		for (const contextValue of Object.values(context)) {
+			if (contextValue.trim().length > 0) {
+				return true;
+			}
+		}
+		return false;
+	}, [value, context]);
+
 	// Update proposed text as completion streams in
 	useEffect(() => {
 		if (isLoading && completion) {
@@ -113,6 +132,11 @@ export function DoctorsNoteSection({
 
 		if (isLoading) {
 			stop();
+			return;
+		}
+
+		if (!hasAnyInput) {
+			toast.error(AISCRIBE_ERROR_MESSAGES.missingInput);
 			return;
 		}
 
@@ -130,6 +154,7 @@ export function DoctorsNoteSection({
 		config,
 		value,
 		context,
+		hasAnyInput,
 		setMessages,
 		sendMessage,
 	]);

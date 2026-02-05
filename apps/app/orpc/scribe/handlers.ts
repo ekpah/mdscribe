@@ -34,6 +34,69 @@ const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
 });
 
+const AISCRIBE_INPUT_MISSING_MESSAGE =
+	"Bitte füllen Sie mindestens ein Pflichtfeld aus.";
+const AISCRIBE_INPUT_INVALID_MESSAGE =
+	"Die Eingaben konnten nicht verarbeitet werden. Bitte prüfen Sie Ihre Angaben.";
+const AISCRIBE_SUBSCRIPTION_REQUIRED_MESSAGE =
+	"Dein Abonnement reicht nicht aus, um AIScribe zu nutzen. Bitte aktualisiere dein Abo.";
+
+function parsePromptPayload(prompt: string): Record<string, unknown> {
+	if (!prompt.trim()) {
+		return {};
+	}
+	try {
+		const parsed = JSON.parse(prompt) as unknown;
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: AISCRIBE_INPUT_INVALID_MESSAGE,
+			});
+		}
+		return parsed as Record<string, unknown>;
+	} catch (error) {
+		if (error instanceof ORPCError) {
+			throw error;
+		}
+		throw new ORPCError("BAD_REQUEST", {
+			message: AISCRIBE_INPUT_INVALID_MESSAGE,
+		});
+	}
+}
+
+function hasNonEmptyInput(value: unknown): boolean {
+	if (typeof value === "string") {
+		return value.trim().length > 0;
+	}
+	if (typeof value === "number" || typeof value === "boolean") {
+		return true;
+	}
+	if (Array.isArray(value)) {
+		for (const entry of value) {
+			if (hasNonEmptyInput(entry)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	if (value && typeof value === "object") {
+		for (const entry of Object.values(value as Record<string, unknown>)) {
+			if (hasNonEmptyInput(entry)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function hasAnyInput(payload: Record<string, unknown>): boolean {
+	for (const entry of Object.values(payload)) {
+		if (hasNonEmptyInput(entry)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /**
  * Get OpenRouter model instance based on model ID
  */
@@ -111,7 +174,7 @@ async function checkUsageLimit(
 
 	if (usage.count >= usageLimit) {
 		throw new ORPCError("FORBIDDEN", {
-			message: "Monatliche Nutzungsgrenze erreicht - passe dein Abonnement an",
+			message: "Monatliche Nutzungsgrenze erreicht. Bitte passe dein Abonnement an.",
 		});
 	}
 
@@ -278,9 +341,8 @@ export const scribeStreamHandler = authed
 
 		// Check user has stripeCustomerId
 		if (!context.session.user.stripeCustomerId) {
-			throw new ORPCError("UNAUTHORIZED", {
-				message:
-					"Du musst einen Stripe Account haben um diese Funktion zu nutzen.",
+			throw new ORPCError("FORBIDDEN", {
+				message: AISCRIBE_SUBSCRIPTION_REQUIRED_MESSAGE,
 			});
 		}
 
@@ -293,6 +355,12 @@ export const scribeStreamHandler = authed
 
 		// Get actual model (handle 'auto')
 		const hasAudio = audioFiles && audioFiles.length > 0;
+		const rawPrompt = parsePromptPayload(prompt);
+		if (!hasAudio && !hasAnyInput(rawPrompt)) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: AISCRIBE_INPUT_MISSING_MESSAGE,
+			});
+		}
 		const actualModel = getActualModel(model, hasAudio);
 		const {
 			model: aiModel,
@@ -305,9 +373,12 @@ export const scribeStreamHandler = authed
 
 		// Special handling for procedures - add relevant template via vector search
 		if (documentType === "procedures") {
-			const parsed = JSON.parse(prompt);
+			const procedureNotes =
+				typeof rawPrompt.procedureNotes === "string"
+					? rawPrompt.procedureNotes
+					: "";
 			const relevantTemplate = await findRelevantTemplateForProcedure(
-				parsed.procedureNotes,
+				procedureNotes,
 			);
 			processedInput = { ...processedInput, relevantTemplate };
 		}
