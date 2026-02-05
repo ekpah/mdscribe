@@ -1,10 +1,9 @@
 'use client';
 
-import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { Code2, Plus, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '../../../../ui/button';
 import { Input } from '../../../../ui/input';
 import { Label } from '../../../../ui/label';
@@ -14,11 +13,11 @@ import {
   PopoverTrigger,
 } from '../../../../ui/popover';
 import { Separator } from '../../../../ui/separator';
+import type { SwitchCase } from './switchTag';
 
 interface CaseItem {
   primary: string;
   text: string;
-  node: ProseMirrorNode;
 }
 
 // Renamed function to SwitchTagView
@@ -30,8 +29,10 @@ export function SwitchTagView({
   selected,
   deleteNode,
 }: NodeViewProps) {
-  const [cases, setCases] = useState<CaseItem[]>([]);
   const [newCase, setNewCase] = useState({ primary: '', text: '' });
+  const cases = Array.isArray(node.attrs.cases)
+    ? (node.attrs.cases as CaseItem[])
+    : [];
 
   const handleRemoveSwitch = useCallback(() => {
     deleteNode();
@@ -44,116 +45,21 @@ export function SwitchTagView({
     }
   }, [editor, getPos]);
 
-  // Extract case nodes from content on mount and when content changes
-  useEffect(() => {
-    const caseNodes = node.children
-      .filter((c) => c.type.name === 'caseTag')
-      .map((c) => ({
-        primary: c.attrs.primary || '',
-        // Ensure content and text exist before accessing
-        text: c.content?.content?.[0]?.text || '',
-        node: c,
-      }));
-    setCases(caseNodes);
-  }, [node.children]);
-
-  const findCaseNodeAndPos = (
-    targetIndex: number
-  ): { pos: number; node: ProseMirrorNode } | undefined => {
-    const parentSwitchAbsPos = getPos(); // Position of the start of the switchTag node
-
-    if (typeof parentSwitchAbsPos !== 'number') {
-      console.error(
-        "SwitchTagView.findCaseNodeAndPos: Could not get parent switch node's position."
-      );
-      return undefined;
-    }
-
-    const caseTagChildrenInfo: Array<{ pos: number; node: ProseMirrorNode }> =
-      [];
-
-    // Iterate over the direct children of the switchTag node (`node`).
-    // The `offset` is relative to the start of the parent node's content.
-    // The content of a node starts after its opening tag.
-    node.forEach((childNode, offsetInParentContent) => {
-      if (childNode.type.name === 'caseTag') {
-        // The absolute position of the childNode in the document is:
-        // position of parent switchTag + 1 (for the switchTag's opening tag) + offset of childNode within parent's content
-        const absoluteChildPos = parentSwitchAbsPos + 1 + offsetInParentContent;
-        caseTagChildrenInfo.push({
-          pos: absoluteChildPos,
-          node: childNode,
-        });
-      }
-    });
-
-    if (targetIndex >= 0 && targetIndex < caseTagChildrenInfo.length) {
-      return caseTagChildrenInfo[targetIndex];
-    }
-    // Optionally, log if the specific case was not found.
-    // console.warn(
-    //   `SwitchTagView.findCaseNodeAndPos: caseTag at index ${targetIndex} not found. Total caseTags: ${caseTagChildrenInfo.length}`
-    // );
-    return undefined;
-  };
-
   const addCase = () => {
     if (!newCase.primary && !newCase.text) {
       return;
     }
-
-    const currentPos = getPos();
-    if (typeof currentPos !== 'number') {
-      return; // Ensure getPos returns a number
-    }
-
-    // Insert *inside* the switch tag, before the closing part
-    const insertPos = currentPos + node.nodeSize - 1;
-    editor.commands.insertContentAt(insertPos, {
-      type: 'caseTag',
-      attrs: {
-        primary: newCase.primary,
-      },
-      content: [
-        {
-          type: 'text',
-          text: newCase.text,
-        },
-      ],
-    });
-
+    const nextCases: SwitchCase[] = [
+      ...cases,
+      { primary: newCase.primary, text: newCase.text },
+    ];
+    updateAttributes({ cases: nextCases });
     setNewCase({ primary: '', text: '' });
   };
 
   const removeCase = (index: number) => {
-    const target = findCaseNodeAndPos(index);
-    if (!target) return;
-
-    const { pos, node: childNode } = target;
-
-    // Ensure we're deleting the correct case node by verifying its type
-    const nodeAtPos = editor.state.doc.nodeAt(pos);
-    if (nodeAtPos?.type.name !== 'caseTag') {
-      console.error(
-        'SwitchTagView: Node at position is not a caseTag, cannot remove.'
-      );
-      return;
-    }
-
-    // Calculate the exact range to delete
-    const from = pos;
-    const to = pos + childNode.nodeSize;
-
-    // Execute the deletion without focusing the editor
-    // The focus() call was causing the popover to close because it shifts focus away from the popover
-    editor.chain().deleteRange({ from, to }).run();
-
-    // Prevent default behavior that might cause focus changes
-    // This helps keep the popover open after deletion
-    setTimeout(() => {
-      // Force update the editor view to reflect changes without changing focus
-      editor.view.updateState(editor.view.state);
-    }, 0);
+    const nextCases = cases.filter((_caseItem, caseIndex) => caseIndex !== index);
+    updateAttributes({ cases: nextCases });
   };
 
   const updateCase = (
@@ -161,51 +67,14 @@ export function SwitchTagView({
     field: 'primary' | 'text',
     value: string
   ) => {
-    const target = findCaseNodeAndPos(index);
-    if (!target) return;
-    const { pos } = target;
-    const nodeAtPos = editor.state.doc.nodeAt(pos);
-
-    // Verify it's the correct node type before proceeding
-    if (nodeAtPos?.type.name !== 'caseTag') {
-      console.error(
-        `SwitchTagView: Node at position ${pos} is not a caseTag, cannot update.`
-      );
-      return;
-    }
-
-    if (field === 'primary') {
-      editor
-        .chain()
-        .setNodeSelection(pos) // Select the caseTag node
-        .updateAttributes('caseTag', { primary: value })
-        .run();
-    } else if (field === 'text') {
-      // Calculate the range of the text content within the caseTag
-      const textNode = nodeAtPos.content?.content?.[0];
-      if (textNode && textNode.type.name === 'text') {
-        const textStartPos = pos + 1; // Position after the opening tag of caseTag
-        const textEndPos = textStartPos + textNode.nodeSize;
-        editor
-          .chain()
-          .setTextSelection({ from: textStartPos, to: textEndPos }) // Select existing text
-          .insertContent(value) // Replace selected text
-          .run();
-      } else {
-        // Handle case where caseTag might be empty or have unexpected content
-        const insertPos = pos + 1; // Position after the opening tag
-        editor
-          .chain()
-          .setNodeSelection(pos) // Select the node first
-          // Clear existing content if any (might be safer)
-          // .deleteSelection() // This might delete the node itself if not careful
-          .insertContentAt(insertPos, value) // Insert new text content
-          .run();
-        console.warn(
-          `SwitchTagView: Updated text content for caseTag at pos ${pos}, but structure was unexpected.`
-        );
-      }
-    }
+    const nextCases = cases.map((caseItem, caseIndex) => {
+      if (caseIndex !== index) return caseItem;
+      return {
+        ...caseItem,
+        [field]: value,
+      };
+    });
+    updateAttributes({ cases: nextCases });
   };
 
   return (

@@ -43,6 +43,7 @@ const suggestions = createSuggestionsItems([
 					type: "switchTag",
 					attrs: {
 						primary: "...",
+						cases: [{ primary: "", text: "..." }],
 					},
 				})
 				.run();
