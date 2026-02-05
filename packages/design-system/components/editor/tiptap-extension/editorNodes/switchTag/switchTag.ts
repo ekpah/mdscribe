@@ -1,5 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { NodeSelection } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { SwitchTagView } from './switchTagView'; // Renamed import
 
@@ -20,6 +21,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   group: 'inline',
   content: 'caseTag+',
   inline: true,
+  atom: true,
   selectable: true,
   draggable: true,
   isolating: true,
@@ -78,5 +80,60 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   addNodeView() {
     return ReactNodeViewRenderer(SwitchTagView);
   },
-});
 
+  addKeyboardShortcuts() {
+    const isSwitchTag = (node?: ProseMirrorNode | null) =>
+      node?.type.name === this.name;
+
+    const deleteNodeAt = (from: number, to: number) => {
+      this.editor.view.dispatch(this.editor.state.tr.delete(from, to));
+      return true;
+    };
+
+    const moveCursorTo = (pos: number) =>
+      this.editor.commands.setTextSelection(pos);
+
+    return {
+      Backspace: () => {
+        const { selection } = this.editor.state;
+        if (!selection.empty) return false;
+        const { $from } = selection;
+        const nodeBefore = $from.nodeBefore;
+        if (!isSwitchTag(nodeBefore)) return false;
+        return deleteNodeAt($from.pos - nodeBefore.nodeSize, $from.pos);
+      },
+      Delete: () => {
+        const { selection } = this.editor.state;
+        if (!selection.empty) return false;
+        const { $from } = selection;
+        const nodeAfter = $from.nodeAfter;
+        if (!isSwitchTag(nodeAfter)) return false;
+        return deleteNodeAt($from.pos, $from.pos + nodeAfter.nodeSize);
+      },
+      ArrowLeft: () => {
+        const { selection } = this.editor.state;
+        if (selection instanceof NodeSelection) {
+          if (selection.node.type.name !== this.name) return false;
+          return moveCursorTo(selection.from);
+        }
+        if (!selection.empty) return false;
+        const { $from } = selection;
+        const nodeBefore = $from.nodeBefore;
+        if (!isSwitchTag(nodeBefore)) return false;
+        return moveCursorTo($from.pos - nodeBefore.nodeSize);
+      },
+      ArrowRight: () => {
+        const { selection } = this.editor.state;
+        if (selection instanceof NodeSelection) {
+          if (selection.node.type.name !== this.name) return false;
+          return moveCursorTo(selection.to);
+        }
+        if (!selection.empty) return false;
+        const { $from } = selection;
+        const nodeAfter = $from.nodeAfter;
+        if (!isSwitchTag(nodeAfter)) return false;
+        return moveCursorTo($from.pos + nodeAfter.nodeSize);
+      },
+    };
+  },
+});

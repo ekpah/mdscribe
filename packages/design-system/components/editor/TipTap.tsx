@@ -28,7 +28,6 @@ const suggestions = createSuggestionsItems([
 						primary: "...",
 					},
 				})
-				.setNodeSelection(range.from)
 				.run();
 		},
 	},

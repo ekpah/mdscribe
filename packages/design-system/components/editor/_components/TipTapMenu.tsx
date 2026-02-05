@@ -155,7 +155,6 @@ const MenuBar = ({
 									},
 								],
 							})
-							.insertContent({ type: "text", text: " " })
 							.run()
 					}
 					size="sm"
