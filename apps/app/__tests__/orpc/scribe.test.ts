@@ -202,6 +202,33 @@ describe("Scribe Stream Handler", () => {
 			).rejects.toThrow(ORPCError);
 		});
 
+		test("rejects empty prompt input with helpful message", async () => {
+			const { user } = await createTestUser(server.db);
+			const session = createMockSession(user);
+			const context = createTestContext({ db: server.db, session });
+
+			await expect(
+				call(
+					scribeStreamHandler,
+					{
+						documentType: "anamnese",
+						messages: [
+							{
+								id: "1",
+								role: "user",
+								content: JSON.stringify({
+									notes: "",
+									befunde: "",
+									vordiagnosen: "",
+								}),
+							},
+						],
+					},
+					{ context },
+				),
+			).rejects.toThrow("Bitte füllen Sie mindestens ein Pflichtfeld aus.");
+		});
+
 		test("accepts valid document types", async () => {
 			const { user } = await createTestUser(server.db);
 			const session = createMockSession(user);
