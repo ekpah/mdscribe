@@ -42,15 +42,10 @@ export default function PricingSkeleton() {
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {/* Free Plan */}
           <div className="flex flex-col rounded-lg border-2 border-solarized-green/50 bg-card p-6 shadow-lg">
-            <div className="mb-4">
-              <div className="mb-2 flex items-center">
-                <h3 className="font-bold text-2xl">MDScribe Free</h3>
-                <span className="ml-2 rounded-full bg-solarized-green/10 px-2 py-1 font-medium text-solarized-green text-xs">
-                  Open Source
-                </span>
-              </div>
-              <p className="mt-2 text-muted-foreground">
-                Open Source Einstieg
+            <div className="mb-4 min-h-[4.5rem]">
+              <h3 className="mb-2 font-bold text-2xl">MDScribe Free</h3>
+              <p className="text-muted-foreground">
+                Perfekt für den Einstieg
               </p>
             </div>
             <div className="mb-4 min-h-[5rem]">
@@ -91,9 +86,9 @@ export default function PricingSkeleton() {
 
           {/* Plus Plan */}
           <div className="relative flex flex-col rounded-lg border bg-card p-6 shadow-sm">
-            <div className="mb-4">
-              <h3 className="font-bold text-2xl">MDScribe Plus</h3>
-              <p className="mt-2 text-muted-foreground">
+            <div className="mb-4 min-h-[4.5rem]">
+              <h3 className="mb-2 font-bold text-2xl">MDScribe Plus</h3>
+              <p className="text-muted-foreground">
                 Für den klinischen Alltag
               </p>
             </div>
@@ -107,7 +102,7 @@ export default function PricingSkeleton() {
             <ul className="mb-6 space-y-3">
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-primary" />
-                <span className="font-medium">Alle Free-Features</span>
+                <span className="font-medium">Alle kostenlosen Features</span>
               </li>
               <li className="flex items-center">
                 <Check className="mr-3 h-5 w-5 text-primary" />
@@ -131,14 +126,14 @@ export default function PricingSkeleton() {
 
           {/* Team Plan */}
           <div className="flex flex-col rounded-lg border bg-card p-6 shadow-sm">
-            <div className="mb-4">
+            <div className="mb-4 min-h-[4.5rem]">
               <div className="mb-2 flex items-center gap-2">
                 <h3 className="font-bold text-2xl">MDScribe Team</h3>
                 <span className="rounded-full bg-solarized-blue/10 px-2 py-1 font-medium text-solarized-blue text-xs">
                   Coming soon
                 </span>
               </div>
-              <p className="mt-2 text-muted-foreground">
+              <p className="text-muted-foreground">
                 Für Teams und Abteilungen
               </p>
             </div>
@@ -167,7 +162,7 @@ export default function PricingSkeleton() {
               </li>
               <li className="flex items-center">
                 <Shield className="mr-3 h-5 w-5 text-primary" />
-                <span>ZDR für KI-Requests</span>
+                <span>Zero Data Retention für KI-Requests</span>
               </li>
             </ul>
             <Button className="mt-auto" disabled type="button" variant="outline">
@@ -177,9 +172,9 @@ export default function PricingSkeleton() {
 
           {/* Enterprise Plan */}
           <div className="flex flex-col rounded-lg border bg-card p-6 shadow-sm">
-            <div className="mb-4">
-              <h3 className="font-bold text-2xl">MDScribe Enterprise</h3>
-              <p className="mt-2 text-muted-foreground">
+            <div className="mb-4 min-h-[4.5rem]">
+              <h3 className="mb-2 font-bold text-2xl">MDScribe Enterprise</h3>
+              <p className="text-muted-foreground">
                 Für Kliniken mit Enterprise-Anspruch
               </p>
             </div>
