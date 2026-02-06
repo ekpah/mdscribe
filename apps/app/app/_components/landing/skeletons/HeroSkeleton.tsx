@@ -1,5 +1,5 @@
 import { Button } from "@repo/design-system/components/ui/button";
-import { Brain, FileText, Sparkles } from "lucide-react";
+import { Brain, FileText, Github, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import Doctors from "@/public/landing/Doctors";
@@ -31,23 +31,42 @@ export default function HeroSkeleton() {
 				</p>
 
 				{/* CTA Buttons */}
-				<div className="flex w-full max-w-md flex-col gap-3 sm:max-w-lg sm:flex-row sm:gap-4">
-					{/* Primary CTA - Dynamic */}
-					<Skeleton className="h-12 w-full flex-1 sm:h-14" />
+				<div className="flex w-full max-w-md flex-col gap-3 sm:max-w-lg sm:gap-4">
+					<div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+						{/* Primary CTA - Dynamic */}
+						<Skeleton className="h-12 w-full flex-1 sm:h-14" />
 
-					{/* Secondary CTA - Static */}
+						{/* Secondary CTA - Static */}
+						<Button
+							asChild
+							className="w-full flex-1 px-6 py-4 font-semibold text-base sm:px-8 sm:py-6 sm:text-lg"
+							size="lg"
+							variant="outline"
+						>
+							<Link
+								className="flex items-center justify-center gap-2"
+								href="/templates"
+							>
+								<FileText className="h-5 w-5" />
+								<span>Textbausteine</span>
+							</Link>
+						</Button>
+					</div>
+
 					<Button
 						asChild
-						className="w-full flex-1 px-6 py-4 font-semibold text-base sm:px-8 sm:py-6 sm:text-lg"
+						className="w-full px-6 py-4 font-semibold text-base text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue sm:px-8 sm:py-6 sm:text-lg"
 						size="lg"
 						variant="outline"
 					>
 						<Link
 							className="flex items-center justify-center gap-2"
-							href="/templates"
+							href="https://github.com/ekpah/mdscribe"
+							rel="noopener"
+							target="_blank"
 						>
-							<FileText className="h-5 w-5" />
-							<span>Textbausteine</span>
+							<Github className="h-5 w-5" />
+							<span>Open Source auf GitHub</span>
 						</Link>
 					</Button>
 				</div>
