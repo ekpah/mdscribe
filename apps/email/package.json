@@ -6,7 +6,8 @@
 	"scripts": {
 		"build": "email build",
 		"dev": "email dev --port 3003",
-		"export": "email export"
+		"export": "email export",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@react-email/preview-server": "^5.1.1",

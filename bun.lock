@@ -221,6 +221,10 @@
         "fparser": "^3.1.0",
         "react": "catalog:",
       },
+      "devDependencies": {
+        "@repo/typescript-config": "workspace:*",
+        "typescript": "catalog:",
+      },
     },
     "packages/typescript-config": {
       "name": "@repo/typescript-config",

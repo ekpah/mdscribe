@@ -129,7 +129,7 @@ describe("Model Selection Logic", () => {
 	});
 
 	test("explicit model selection is preserved", () => {
-		const modelId = "glm-4p6";
+		const modelId: string = "glm-4p6";
 		const hasAudio = true;
 
 		const actualModel = modelId === "auto"
@@ -176,7 +176,7 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
+						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }] }],
 					},
 					{ context },
 				),
@@ -195,7 +195,7 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "unknown-type" as DocumentType,
-						messages: [{ id: "1", role: "user", content: "{}" }],
+						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: "{}" }] }],
 					},
 					{ context },
 				),
@@ -217,7 +217,7 @@ describe("Scribe Stream Handler", () => {
 						scribeStreamHandler,
 						{
 							documentType: docType,
-							messages: [{ id: "1", role: "user", content: '{"notes":"test"}' }],
+							messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"notes":"test"}' }] }],
 						},
 						{ context },
 					);
@@ -254,7 +254,7 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
+						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }] }],
 					},
 					{ context },
 				),
@@ -293,13 +293,13 @@ describe("Scribe Stream Handler", () => {
 					messages: [
 						{
 							id: "1",
-							role: "user",
-							content: JSON.stringify({
+							role: "user" as const,
+							parts: [{ type: "text" as const, text: JSON.stringify({
 								anamnese: "test",
 								diagnoseblock: "test",
 								dischargeNotes: "test",
 								befunde: "test",
-							}),
+							}) }],
 						},
 					],
 				},
@@ -339,7 +339,7 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
+						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }] }],
 					},
 					{ context },
 				),
@@ -360,12 +360,12 @@ describe("Scribe Stream Handler", () => {
 					messages: [
 						{
 							id: "1",
-							role: "user",
-							content: JSON.stringify({
+							role: "user" as const,
+							parts: [{ type: "text" as const, text: JSON.stringify({
 								notes: "Patient with chest pain",
 								befunde: "ECG normal",
 								vordiagnosen: "Hypertension",
-							}),
+							}) }],
 						},
 					],
 				},
@@ -392,8 +392,8 @@ describe("Scribe Stream Handler", () => {
 						messages: [
 							{
 								id: "1",
-								role: "user",
-								content: JSON.stringify({ notes: "test", befunde: "", vordiagnosen: "" }),
+								role: "user" as const,
+								parts: [{ type: "text" as const, text: JSON.stringify({ notes: "test", befunde: "", vordiagnosen: "" }) }],
 							},
 						],
 						model,

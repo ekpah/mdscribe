@@ -12,7 +12,8 @@
 		"dev": "drizzle-kit studio",
 		"generate": "drizzle-kit generate",
 		"migrate": "drizzle-kit migrate",
-		"push": "drizzle-kit push"
+		"push": "drizzle-kit push",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@neondatabase/serverless": "^1.0.2",

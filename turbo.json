@@ -45,6 +45,10 @@
 		"lint": {
 			"dependsOn": ["^transit"],
 			"outputs": []
+		},
+		"typecheck": {
+			"dependsOn": ["^typecheck"],
+			"outputs": []
 		}
 	}
 }

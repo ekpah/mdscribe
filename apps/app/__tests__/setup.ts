@@ -34,9 +34,10 @@ export function createTestContext(options: {
 export function createMockSession(user: {
 	id: string;
 	email: string;
-	name?: string;
+	name?: string | null;
 	stripeCustomerId?: string | null;
 	emailVerified?: boolean;
+	[key: string]: unknown;
 }): Session {
 	return {
 		user: {
