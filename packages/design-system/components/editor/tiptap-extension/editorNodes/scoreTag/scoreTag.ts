@@ -76,4 +76,3 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
     return ReactNodeViewRenderer(ScoreTagView);
   },
 });
-

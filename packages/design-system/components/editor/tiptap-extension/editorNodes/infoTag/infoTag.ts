@@ -76,4 +76,3 @@ export const InfoTag = Node.create<InfoTagAttrs>({
     return ReactNodeViewRenderer(InfoTagView);
   },
 });
-

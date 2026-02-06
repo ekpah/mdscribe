@@ -146,16 +146,9 @@ const MenuBar = ({
 								type: "switchTag",
 								attrs: {
 									primary: "...",
+									cases: [{ primary: "", text: "..." }],
 								},
-								content: [
-									{
-										type: "caseTag",
-										attrs: { primary: "" },
-										content: [{ type: "text", text: "..." }],
-									},
-								],
 							})
-							.insertContent({ type: "text", text: " " })
 							.run()
 					}
 					size="sm"

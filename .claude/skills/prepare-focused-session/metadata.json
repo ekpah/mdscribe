@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "author": "nils",
+  "date": "February 2026",
+  "abstract": "Workflow skill for focused review sessions. Designed for developers who delegate work to AI agents and need a structured approach to review, improve, and merge their suggestions. Guides through PR survey, selection, commit organization, review, validation, and merge.",
+  "triggers": [
+    "focused session",
+    "review PRs",
+    "review session",
+    "review work",
+    "merge PRs",
+    "review agent work"
+  ],
+  "workflow": {
+    "phases": [
+      "survey",
+      "select",
+      "prepare",
+      "review",
+      "improve",
+      "validate",
+      "merge"
+    ],
+    "expectedDuration": "1-2 hours"
+  }
+}

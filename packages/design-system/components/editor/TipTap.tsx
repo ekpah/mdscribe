@@ -28,7 +28,6 @@ const suggestions = createSuggestionsItems([
 						primary: "...",
 					},
 				})
-				.setNodeSelection(range.from)
 				.run();
 		},
 	},
@@ -44,6 +43,7 @@ const suggestions = createSuggestionsItems([
 					type: "switchTag",
 					attrs: {
 						primary: "...",
+						cases: [{ primary: "", text: "..." }],
 					},
 				})
 				.run();
