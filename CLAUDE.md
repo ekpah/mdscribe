@@ -23,6 +23,18 @@ MDScribe is a medical documentation webapp built as a monorepo that helps organi
 - AI agent branches: `claude/<description>-<session-id>`
 - Feature branches: `feature/<description>`
 - Bugfix branches: `fix/<description>`
+- Review branches: `review/prs-<numbers>` (e.g. `review/prs-74-75-76`)
+
+**PR Review Workflow:**
+- When asked to review multiple PRs together, create a local `review/prs-<numbers>` branch from `staging`
+- Cherry-pick each PR as a separate commit with a clean, concise commit message
+- Present the review, then wait for approval before merging into `staging`
+- After merge, close the original PRs with a comment noting they were merged via the review branch
+
+**Committing Rule:**
+- NEVER commit changes without explicit user confirmation
+- When making edits or improvements, leave changes unstaged for the user to review
+- Only stage and commit when the user explicitly asks to commit, merge, or confirms the changes look good
 
 ## Build Commands
 

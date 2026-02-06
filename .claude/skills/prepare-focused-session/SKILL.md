@@ -4,7 +4,7 @@ description: Prepare for a focused 1-2 hour review session. Lists open PRs from 
 license: MIT
 metadata:
   author: nils
-  version: "2.0.0"
+  version: "3.0.0"
 ---
 
 # Prepare Focused Session
@@ -28,60 +28,79 @@ Present as table:
 **Categories:** Feature, Bug-fix, Improvement, Docs, Chore
 **Risk:** Low (isolated), Medium (multi-file), High (core changes)
 
-Ask: "Which PR to review? (number or 'all bug-fixes')"
+Ask: "Which PR to review? (number, range like '69-70', or 'all bug-fixes')"
 
 ---
 
-## Detect Context
+## Multi-PR Review (Default when user selects multiple PRs)
 
-After user selects a PR, check their current state:
+When the user asks to review multiple PRs together, **always create a local review branch and cherry-pick each PR as a separate commit**. This is the default behavior — do NOT just show diffs.
 
+### Steps:
+
+1. **Fetch all PR branches:**
 ```bash
-# Check current branch and uncommitted changes
-git branch --show-current
-git status --short
+git fetch origin <branch1> <branch2> ...
 ```
 
-### Scenario A: Already on PR branch with local changes
-User has been working on this PR. Skip to **Review Mode Selection**.
+2. **Create review branch from staging:**
+```bash
+git checkout -b "review/prs-<numbers>" origin/staging
+```
 
-### Scenario B: On different branch, PR exists
+3. **Cherry-pick each PR as a separate commit with a clean message:**
+```bash
+git cherry-pick <sha> --no-commit
+git commit -m "<type>: <concise description>
+
+<1-2 line summary of what the PR does>
+
+(cherry-picked from PR #XX)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+```
+
+4. **Present the review** using the Review Template below for each PR.
+
+5. **Show the final commit log:**
+```bash
+git log --oneline origin/staging..HEAD
+```
+
+6. After presenting reviews, ask:
+> "Any issues to address, or ready to merge into staging?"
+
+### Merging after approval
+
+When the user approves, merge the review branch into staging:
+```bash
+git checkout staging
+git merge review/prs-<numbers>
+git branch -d review/prs-<numbers>
+```
+
+Then close the original PRs (they're now merged via the review branch):
+```bash
+gh pr close <number> --comment "Merged via review branch into staging"
+```
+
+---
+
+## Single PR Review
+
+For a single PR, checkout the PR branch directly:
+
 ```bash
 gh pr checkout <number>
 ```
-Then proceed to **Review Mode Selection**.
 
-### Scenario C: Need to create review branch (multi-PR session)
-```bash
-git fetch origin
-git checkout -b "review/session-$(date +%Y%m%d)" origin/staging
-# Cherry-pick from selected PRs
-```
+Then proceed to the Review Template.
 
 ---
 
-## Review Mode Selection
+## Review Template
 
-Ask upfront:
-
-> **How would you like to review?**
-> 1. **Combined diff** (recommended) - See all changes from staging at once
-> 2. **Commit-by-commit** - Review each commit separately
-> 3. **Files only** - Just list changed files, you guide the review
-
----
-
-## Combined Diff Review (Default)
-
-```bash
-# Stats overview
-git diff origin/staging --stat
-
-# Full diff per directory/file as needed
-git diff origin/staging -- <path>
-```
-
-### Review Template
+For each PR, present:
 
 ```markdown
 ## PR #XX: [Title]
@@ -94,28 +113,19 @@ git diff origin/staging -- <path>
 |------|-------|---------|
 | path/file.ts | +50/-20 | Description |
 
-### Architecture Review
-[Key patterns, data flow, new types introduced]
-
 ### Review Checklist
 | Check | Status | Notes |
 |-------|--------|-------|
-| Logic correct | ✅/⚠️/❌ | |
-| Error handling | ✅/⚠️/❌ | |
-| Security | ✅/⚠️/❌ | |
-| Conventions | ✅/⚠️/❌ | |
+| Logic correct | pass/warn/fail | |
+| Error handling | pass/warn/fail | |
+| Security | pass/warn/fail | |
+| Conventions | pass/warn/fail | |
 
 ### Issues Found
 | Severity | Issue | Suggestion |
 |----------|-------|------------|
 | Low/Med/High | Description | Fix approach |
-
-### Questions
-- [Clarifications needed before proceeding]
 ```
-
-After presenting review, ask:
-> "Any issues to address, or ready to validate?"
 
 ---
 
@@ -126,7 +136,9 @@ When user identifies issues to fix:
 1. Read the relevant file(s)
 2. Discuss approach briefly
 3. Make the edit
-4. Repeat for other issues
+4. **Leave changes unstaged** — NEVER commit without explicit user confirmation
+
+**IMPORTANT:** After making edits, do NOT stage or commit. Present what was changed and wait for the user to confirm. Only commit when the user explicitly says to commit/merge/looks good.
 
 Track changes:
 ```markdown
@@ -142,10 +154,10 @@ Track changes:
 Run validation, handle failures gracefully:
 
 ```bash
-# TypeScript (required)
-bunx tsc --noEmit 2>&1 | grep -E "(error|\.tsx?)" | head -20
+# TypeScript (required) — use per-package typecheck
+bun run typecheck
 
-# Lint (best effort - may have config issues)
+# Lint (best effort)
 bun run lint 2>&1 | head -20 || echo "Lint skipped (config issue)"
 
 # Build (if time permits)
@@ -158,45 +170,6 @@ bun run build 2>&1 | tail -10
 
 ---
 
-## Commit
-
-Only commit files related to this PR:
-
-```bash
-# Stage specific files (not unrelated changes)
-git add <file1> <file2> ...
-
-# Commit with descriptive message
-git commit -m "$(cat <<'EOF'
-<type>: <short description>
-
-- Bullet point of key change
-- Another key change
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
-EOF
-)"
-```
-
-**Commit types:** feat, fix, refactor, perf, docs, chore
-
-**Good commit messages:**
-- `refactor: consolidate refs in Inputs component`
-- `fix: handle empty date values in InfoInput`
-- `feat: add SuggestionBadge component`
-
----
-
-## After Commit
-
-Options to present:
-
-1. **Push to update PR** - `git push`
-2. **Continue to next PR** - Loop back to survey
-3. **End session** - Show summary
-
----
-
 ## Session Summary
 
 At session end:
@@ -204,10 +177,9 @@ At session end:
 ```markdown
 ## Session Summary
 
-### Reviewed
-- PR #66: Input suggested values
-  - Commits: 2 (1 original + 1 improvement)
-  - Changes: Consolidated refs, simplified date utils
+### Reviewed & Merged
+- PR #66: Input suggested values — merged via review/prs-66
+- PR #74, #75, #76: Context helper, pricing, error reporting — merged via review/prs-74-75-76
 
 ### Deferred
 - PR #71: Needs dependency review first
@@ -226,16 +198,20 @@ gh pr list --state open
 gh pr view <number>
 gh pr checkout <number>
 gh pr diff <number>
+gh pr close <number> --comment "message"
 
 # Review diffs
 git diff origin/staging --stat
 git diff origin/staging -- <path>
 git log origin/staging..HEAD --oneline
 
-# Commit operations
-git add <files>
+# Cherry-pick
+git cherry-pick <sha> --no-commit
 git commit -m "message"
-git push
+
+# Merge
+git checkout staging
+git merge review/prs-<numbers>
 
 # Undo
 git checkout -- <file>      # Discard file changes
