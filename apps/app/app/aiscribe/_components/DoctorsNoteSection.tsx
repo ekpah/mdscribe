@@ -8,10 +8,8 @@ import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-	AISCRIBE_ERROR_MESSAGES,
-	getAiscribeErrorMessage,
-} from "@/lib/aiscribe-errors";
+import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { orpc } from "@/lib/orpc";
 
@@ -136,7 +134,7 @@ export function DoctorsNoteSection({
 		}
 
 		if (!hasAnyInput) {
-			toast.error(AISCRIBE_ERROR_MESSAGES.missingInput);
+			toast.error(USER_MESSAGES.missingInput);
 			return;
 		}
 

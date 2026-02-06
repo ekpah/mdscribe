@@ -34,12 +34,7 @@ const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
 });
 
-const AISCRIBE_INPUT_MISSING_MESSAGE =
-	"Bitte füllen Sie mindestens ein Pflichtfeld aus.";
-const AISCRIBE_INPUT_INVALID_MESSAGE =
-	"Die Eingaben konnten nicht verarbeitet werden. Bitte prüfen Sie Ihre Angaben.";
-const AISCRIBE_SUBSCRIPTION_REQUIRED_MESSAGE =
-	"Dein Abonnement reicht nicht aus, um AIScribe zu nutzen. Bitte aktualisiere dein Abo.";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 function parsePromptPayload(prompt: string): Record<string, unknown> {
 	if (!prompt.trim()) {
@@ -49,7 +44,7 @@ function parsePromptPayload(prompt: string): Record<string, unknown> {
 		const parsed = JSON.parse(prompt) as unknown;
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
 			throw new ORPCError("BAD_REQUEST", {
-				message: AISCRIBE_INPUT_INVALID_MESSAGE,
+				message: USER_MESSAGES.inputInvalid,
 			});
 		}
 		return parsed as Record<string, unknown>;
@@ -58,7 +53,7 @@ function parsePromptPayload(prompt: string): Record<string, unknown> {
 			throw error;
 		}
 		throw new ORPCError("BAD_REQUEST", {
-			message: AISCRIBE_INPUT_INVALID_MESSAGE,
+			message: USER_MESSAGES.inputInvalid,
 		});
 	}
 }
@@ -174,7 +169,7 @@ async function checkUsageLimit(
 
 	if (usage.count >= usageLimit) {
 		throw new ORPCError("FORBIDDEN", {
-			message: "Monatliche Nutzungsgrenze erreicht. Bitte passe dein Abonnement an.",
+			message: USER_MESSAGES.usageLimitReached,
 		});
 	}
 
@@ -342,7 +337,7 @@ export const scribeStreamHandler = authed
 		// Check user has stripeCustomerId
 		if (!context.session.user.stripeCustomerId) {
 			throw new ORPCError("FORBIDDEN", {
-				message: AISCRIBE_SUBSCRIPTION_REQUIRED_MESSAGE,
+				message: USER_MESSAGES.subscriptionRequired,
 			});
 		}
 
@@ -358,7 +353,7 @@ export const scribeStreamHandler = authed
 		const rawPrompt = parsePromptPayload(prompt);
 		if (!hasAudio && !hasAnyInput(rawPrompt)) {
 			throw new ORPCError("BAD_REQUEST", {
-				message: AISCRIBE_INPUT_MISSING_MESSAGE,
+				message: USER_MESSAGES.missingInput,
 			});
 		}
 		const actualModel = getActualModel(model, hasAudio);

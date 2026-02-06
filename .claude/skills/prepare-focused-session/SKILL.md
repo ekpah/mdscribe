@@ -84,6 +84,8 @@ Then close the original PRs (they're now merged via the review branch):
 gh pr close <number> --comment "Merged via review branch into staging"
 ```
 
+After merging/pushing, check Linear for issues related to the merged PRs (look for issue IDs in branch names like `SCR-XX`) and mark them as done.
+
 ---
 
 ## Single PR Review

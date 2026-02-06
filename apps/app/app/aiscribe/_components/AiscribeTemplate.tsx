@@ -51,10 +51,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
-import {
-	AISCRIBE_ERROR_MESSAGES,
-	getAiscribeErrorMessage,
-} from "@/lib/aiscribe-errors";
+import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import type {
 	AudioFile,
 	DocumentType,
@@ -359,7 +357,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		}
 
 		if (!areRequiredFieldsFilled()) {
-			toast.error(AISCRIBE_ERROR_MESSAGES.missingInput);
+			toast.error(USER_MESSAGES.missingInput);
 			return;
 		}
 

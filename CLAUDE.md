@@ -36,6 +36,10 @@ MDScribe is a medical documentation webapp built as a monorepo that helps organi
 - When making edits or improvements, leave changes unstaged for the user to review
 - Only stage and commit when the user explicitly asks to commit, merge, or confirms the changes look good
 
+**Post-Commit:**
+- After pushing or finalizing work (PR merge, push), check Linear for related issues
+- Mark relevant Linear issues as done when the commits fully resolve them
+
 ## Build Commands
 
 Core development commands:
