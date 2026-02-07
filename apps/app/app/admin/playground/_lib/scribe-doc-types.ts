@@ -102,7 +102,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 				placeholder: "Befunde eingeben...",
 			},
 			{
-				name: "vordiagnosen",
+				name: "diagnoseblock",
 				label: "Vordiagnosen",
 				placeholder: "Vordiagnosen eingeben...",
 			},
@@ -162,7 +162,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 				placeholder: "Anamnese eingeben...",
 			},
 			{
-				name: "vordiagnosen",
+				name: "diagnoseblock",
 				label: "Vordiagnosen",
 				placeholder: "Vordiagnosen eingeben...",
 			},
@@ -189,7 +189,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 				placeholder: "Anamnese eingeben...",
 			},
 			{
-				name: "vordiagnosen",
+				name: "diagnoseblock",
 				label: "Vordiagnosen",
 				placeholder: "Vordiagnosen eingeben...",
 			},
@@ -225,4 +225,3 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 };
 
 export const allScribeDocTypes = Object.keys(scribeDocTypeUi) as DocumentType[];
-

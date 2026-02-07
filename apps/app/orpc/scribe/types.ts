@@ -92,6 +92,7 @@ export type PromptBuilder<T> = (variables: T) => PromptMessage[];
  */
 interface BasePromptVariables {
 	todaysDate: string;
+	contextXml: string;
 }
 
 /**
@@ -110,7 +111,7 @@ export interface DischargeVariables extends BasePromptVariables {
 export interface AnamneseVariables extends BasePromptVariables {
 	notes: string;
 	befunde: string;
-	vordiagnosen: string;
+	diagnoseblock: string;
 }
 
 /**
@@ -144,7 +145,7 @@ export interface ProceduresVariables extends BasePromptVariables {
 export interface AdmissionTodosVariables extends BasePromptVariables {
 	notes: string;
 	anamnese: string;
-	vordiagnosen: string;
+	diagnoseblock: string;
 	befunde: string;
 }
 
@@ -154,7 +155,7 @@ export interface AdmissionTodosVariables extends BasePromptVariables {
 export interface BefundeVariables extends BasePromptVariables {
 	notes: string;
 	anamnese: string;
-	vordiagnosen: string;
+	diagnoseblock: string;
 }
 
 /**

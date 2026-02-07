@@ -9,7 +9,6 @@ export interface UsageInputData {
 	notes?: string;
 	befunde?: string;
 	diagnoseblock?: string;
-	vordiagnosen?: string;
 	dischargeNotes?: string;
 	procedureNotes?: string;
 	// Template completion specific

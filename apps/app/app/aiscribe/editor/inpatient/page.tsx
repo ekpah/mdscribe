@@ -38,7 +38,7 @@ const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			documentType: "anamnese",
 			buildPrompt: (notes, context) => ({
 				notes,
-				vordiagnosen: context.diagnosen || "",
+				diagnoseblock: context.diagnosen || "",
 				befunde: context.befunde || "",
 			}),
 		},
@@ -59,7 +59,7 @@ const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			documentType: "befunde",
 			buildPrompt: (notes, context) => ({
 				notes,
-				vordiagnosen: context.diagnosen || "",
+				diagnoseblock: context.diagnosen || "",
 				anamnese: context.anamnese || "",
 			}),
 		},

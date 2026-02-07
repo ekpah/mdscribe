@@ -99,7 +99,7 @@ function parseVariablesToFormFields(
 			result.main = getString("notes");
 			result.additional = {
 				befunde: getString("befunde"),
-				vordiagnosen: getString("vordiagnosen"),
+				diagnoseblock: getString("diagnoseblock"),
 			};
 			break;
 
@@ -120,7 +120,7 @@ function parseVariablesToFormFields(
 			result.main = getString("notes");
 			result.additional = {
 				anamnese: getString("anamnese"),
-				vordiagnosen: getString("vordiagnosen"),
+				diagnoseblock: getString("diagnoseblock"),
 				befunde: getString("befunde"),
 			};
 			break;
@@ -129,7 +129,7 @@ function parseVariablesToFormFields(
 			result.main = getString("notes");
 			result.additional = {
 				anamnese: getString("anamnese"),
-				vordiagnosen: getString("vordiagnosen"),
+				diagnoseblock: getString("diagnoseblock"),
 			};
 			break;
 

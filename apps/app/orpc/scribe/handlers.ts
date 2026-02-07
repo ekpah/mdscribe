@@ -21,6 +21,7 @@ import {
 } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
 import { getUsage } from "./_lib/get-usage";
+import { buildScribeContext } from "./context";
 import { documentTypeConfigs } from "./config";
 import type {
 	AudioFile,
@@ -385,10 +386,18 @@ export const scribeStreamHandler = authed
 			year: "numeric",
 		});
 
+		const { contextXml } = await buildScribeContext({
+			documentType,
+			processedInput,
+			rawPrompt,
+			sessionUser: context.session.user,
+		});
+
 		// Build prompt messages using local prompt function
 		const promptVariables = {
 			...processedInput,
 			todaysDate,
+			contextXml,
 		} as PromptVariables;
 
 		const compiledPrompt = config.prompt(promptVariables);

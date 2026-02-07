@@ -73,14 +73,14 @@ describe("Document Type Configurations", () => {
 		const input = JSON.stringify({
 			notes: "Patient notes...",
 			befunde: "Findings",
-			vordiagnosen: "Prior diagnoses",
+			diagnoseblock: "Prior diagnoses",
 		});
 
 		const result = documentTypeConfigs.anamnese.processInput(input);
 
 		expect(result.notes).toBe("Patient notes...");
 		expect(result.befunde).toBe("Findings");
-		expect(result.vordiagnosen).toBe("Prior diagnoses");
+		expect(result.diagnoseblock).toBe("Prior diagnoses");
 	});
 
 	test("procedures config extracts procedure notes", () => {
@@ -219,7 +219,7 @@ describe("Scribe Stream Handler", () => {
 								content: JSON.stringify({
 									notes: "",
 									befunde: "",
-									vordiagnosen: "",
+									diagnoseblock: "",
 								}),
 							},
 						],
@@ -391,7 +391,7 @@ describe("Scribe Stream Handler", () => {
 							parts: [{ type: "text" as const, text: JSON.stringify({
 								notes: "Patient with chest pain",
 								befunde: "ECG normal",
-								vordiagnosen: "Hypertension",
+								diagnoseblock: "Hypertension",
 							}) }],
 						},
 					],
@@ -420,7 +420,7 @@ describe("Scribe Stream Handler", () => {
 							{
 								id: "1",
 								role: "user" as const,
-								parts: [{ type: "text" as const, text: JSON.stringify({ notes: "test", befunde: "", vordiagnosen: "" }) }],
+								parts: [{ type: "text" as const, text: JSON.stringify({ notes: "test", befunde: "", diagnoseblock: "" }) }],
 							},
 						],
 						model,
