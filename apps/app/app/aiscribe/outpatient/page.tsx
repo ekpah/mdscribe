@@ -21,7 +21,7 @@ const OUTPATIENT_CONFIG: AiscribeTemplateConfig = {
 	outputTabTitle: "Arztbrief",
 
 	// Form configuration
-	inputFieldName: "consultationNotes",
+	inputFieldName: "notes",
 	inputPlaceholder: "Geben Sie hier Ihre Notizen zur Konsultation ein...",
 	inputDescription:
 		"Dokumentieren Sie den Verlauf und die Ergebnisse der ambulanten Konsultation",

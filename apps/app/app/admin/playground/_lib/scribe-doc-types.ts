@@ -24,7 +24,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 		label: "Entlassungsbrief",
 		defaultPromptName: "Inpatient_discharge_chat",
 		mainField: {
-			name: "dischargeNotes",
+			name: "notes",
 			label: "Entlassungsnotizen",
 			placeholder: "Geben Sie hier Ihre Entlassungsnotizen ein...",
 			description:
@@ -53,7 +53,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 		label: "Ambulante Vorstellung",
 		defaultPromptName: "Outpatient_visit_chat",
 		mainField: {
-			name: "dischargeNotes",
+			name: "notes",
 			label: "Notizen",
 			placeholder: "Geben Sie hier Ihre Notizen ein...",
 		},
@@ -80,7 +80,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 		label: "Prozeduren",
 		defaultPromptName: "Procedure_chat",
 		mainField: {
-			name: "procedureNotes",
+			name: "notes",
 			label: "Prozedur-Notizen",
 			placeholder: "Geben Sie hier Ihre Prozedur-Notizen ein...",
 		},

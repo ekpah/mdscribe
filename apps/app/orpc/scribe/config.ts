@@ -18,7 +18,6 @@ import type {
  * Each configuration defines:
  * - promptName: Legacy reference to Langfuse prompt name
  * - prompt: Function that builds messages from typed variables
- * - processInput: How to parse the prompt JSON into variables
  * - modelConfig: AI model settings (thinking mode, tokens, temperature)
  */
 export const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> = {
@@ -159,21 +158,6 @@ Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Proc
 </task_execution>`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				anamnese,
-				diagnoseblock = "Keine Vorerkrankungen",
-				dischargeNotes,
-				befunde,
-			} = parsed;
-			return {
-				anamnese,
-				notes: dischargeNotes,
-				diagnoseblock,
-				befunde,
-			};
-		},
 		modelConfig: {
 			thinking: true,
 			thinkingBudget: 12_000,
@@ -231,11 +215,6 @@ Arbeite immer transparent und strukturiert entsprechend diesen Vorgaben.`,
 ${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const { notes, befunde, diagnoseblock = "Keine Vorerkrankungen" } = parsed;
-			return { notes, befunde, diagnoseblock };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
@@ -395,16 +374,6 @@ Erstellen Sie basierend auf den obigen Patientendaten einen Diagnoseblock gem√§√
 </task_execution>`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				anamnese,
-				diagnoseblock = "Keine Vorerkrankungen",
-				notes,
-				befunde,
-			} = parsed;
-			return { anamnese, notes, diagnoseblock, befunde };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 2000,
@@ -428,11 +397,6 @@ Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine professio
 				content: `${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const { notes } = parsed;
-			return { notes };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
@@ -488,12 +452,6 @@ Achte insbesondere darauf:
 ${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const { procedureNotes } = parsed;
-			// Note: relevantTemplate will be added by the handler via vector search
-			return { notes: procedureNotes };
-		},
 		modelConfig: {
 			thinking: false,
 			thinkingBudget: 8000,
@@ -612,16 +570,6 @@ Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Proc
 </task_execution>`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				notes,
-				anamnese = "",
-				diagnoseblock = "Keine Vorerkrankungen",
-				befunde = "",
-			} = parsed;
-			return { notes, anamnese, diagnoseblock, befunde };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
@@ -721,15 +669,6 @@ Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Proc
 </task_execution>`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				notes,
-				anamnese = "",
-				diagnoseblock = "Keine Vorerkrankungen",
-			} = parsed;
-			return { notes, anamnese, diagnoseblock };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
@@ -820,21 +759,6 @@ Procedere:
 				content: `${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				anamnese,
-				diagnoseblock = "Keine Vorerkrankungen",
-				dischargeNotes,
-				befunde,
-			} = parsed;
-			return {
-				anamnese,
-				notes: dischargeNotes,
-				diagnoseblock,
-				befunde,
-			};
-		},
 		modelConfig: {
 			thinking: true,
 			thinkingBudget: 8000,
@@ -930,16 +854,6 @@ Der Patient konnte in stabilem Allgemeinzustand und beschwerdefrei entlassen wer
 ${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				anamnese,
-				diagnoseblock = "Keine Vorerkrankungen",
-				notes,
-				befunde,
-			} = parsed;
-			return { anamnese, notes, diagnoseblock, befunde };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 2000,

@@ -21,7 +21,7 @@ import {
 } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
 import { getUsage } from "./_lib/get-usage";
-import { buildScribeContext } from "./context";
+import { buildScribeContext, derivePatientContext } from "./context";
 import { documentTypeConfigs } from "./config";
 import type {
 	AudioFile,
@@ -29,7 +29,6 @@ import type {
 	PromptVariables,
 	SupportedModel,
 } from "./types";
-import { util } from "better-auth";
 
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
@@ -191,9 +190,7 @@ async function generateEmbeddings(content: string): Promise<number[]> {
 /**
  * Find relevant templates for procedures using vector similarity
  */
-async function findRelevantTemplateForProcedure(
-	procedureNotes: string,
-): Promise<string> {
+async function findRelevantTemplateForProcedure(notes: string): Promise<string> {
 	const defaultTemplate = `## Standard-Textbausteine (Referenz)
 
 <details>
@@ -238,12 +235,12 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 
 </details>`;
 
-	if (!procedureNotes.trim()) {
+	if (!notes.trim()) {
 		return defaultTemplate;
 	}
 
 	try {
-		const embedding = await generateEmbeddings(procedureNotes);
+		const embedding = await generateEmbeddings(notes);
 		const embeddingSql = pgvector.toSql(embedding);
 
 		type TemplateResult = {
@@ -364,19 +361,13 @@ export const scribeStreamHandler = authed
 			modelName,
 		} = getModelInstance(actualModel);
 
-		// Process input based on document type
-		let processedInput = config.processInput(prompt);
+		const contextSources = [{ kind: "form" as const, data: rawPrompt }];
+		let relevantTemplate: string | undefined;
 
 		// Special handling for procedures - add relevant template via vector search
 		if (documentType === "procedures") {
-			const procedureNotes =
-				typeof rawPrompt.procedureNotes === "string"
-					? rawPrompt.procedureNotes
-					: "";
-			const relevantTemplate = await findRelevantTemplateForProcedure(
-				procedureNotes,
-			);
-			processedInput = { ...processedInput, relevantTemplate };
+			const notes = derivePatientContext(contextSources).notes;
+			relevantTemplate = await findRelevantTemplateForProcedure(notes);
 		}
 
 		// Get today's date for prompt compilation
@@ -387,17 +378,15 @@ export const scribeStreamHandler = authed
 		});
 
 		const { contextXml } = await buildScribeContext({
-			documentType,
-			processedInput,
-			rawPrompt,
+			sources: contextSources,
 			sessionUser: context.session.user,
 		});
 
 		// Build prompt messages using local prompt function
 		const promptVariables = {
-			...processedInput,
 			todaysDate,
 			contextXml,
+			relevantTemplate,
 		} as PromptVariables;
 
 		const compiledPrompt = config.prompt(promptVariables);
@@ -468,7 +457,7 @@ export const scribeStreamHandler = authed
 							standardUsage: event.usage as StandardUsage,
 							inputData: activeSubscription
 								? undefined
-								: (processedInput as UsageInputData),
+								: (rawPrompt as UsageInputData),
 							metadata: {
 								promptName: config.promptName,
 								promptSource: "local",

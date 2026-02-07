@@ -1,9 +1,14 @@
 import type { ContextBlock, ContextBuildInput } from "./types";
 import { patientContextProvider } from "./providers/patient";
+import { templateContextProvider } from "./providers/template";
 import { userContextProvider } from "./providers/user";
 import { renderContextXml } from "./render";
 
-const providers = [patientContextProvider, userContextProvider];
+const providers = [
+	patientContextProvider,
+	templateContextProvider,
+	userContextProvider,
+];
 
 export async function buildScribeContext(
 	input: ContextBuildInput,

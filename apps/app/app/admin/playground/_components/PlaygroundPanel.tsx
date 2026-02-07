@@ -58,96 +58,68 @@ interface PlaygroundPanelProps {
 }
 
 /**
- * Reverse mapping from processedInput (stored in usage events) back to form field names.
- * The scribe config transforms form fields before sending to the AI:
- * - discharge/outpatient: dischargeNotes → notes
- * - procedures: procedureNotes → notes
- * This function reverses that transformation so we can populate the form.
+ * Reverse mapping from stored usage input back to form field names.
+ * Normalization happens centrally now; we keep these mappings for UI hydration.
  */
 function parseVariablesToFormFields(
 	documentType: DocumentType,
 	variables: Record<string, unknown>,
 ): { main: string; additional: Record<string, string> } {
+	const v = variables as Record<string, string>;
+
 	const result: { main: string; additional: Record<string, string> } = {
 		main: "",
 		additional: {},
 	};
 
-	const getString = (key: string): string => {
-		const val = variables[key];
-		return typeof val === "string" ? val : "";
-	};
-
 	switch (documentType) {
 		case "discharge":
 		case "outpatient":
-			// processInput transforms: dischargeNotes → notes
-			result.main = getString("notes") || getString("dischargeNotes");
+			result.main = v.notes ?? "";
 			result.additional = {
-				diagnoseblock: getString("diagnoseblock"),
-				anamnese: getString("anamnese"),
-				befunde: getString("befunde"),
+				diagnoseblock: v.diagnoseblock ?? "",
+				anamnese: v.anamnese ?? "",
+				befunde: v.befunde ?? "",
 			};
 			break;
 
 		case "procedures":
-			// processInput transforms: procedureNotes → notes
-			result.main = getString("notes") || getString("procedureNotes");
+			result.main = v.notes ?? "";
 			break;
 
 		case "anamnese":
-			result.main = getString("notes");
+			result.main = v.notes ?? "";
 			result.additional = {
-				befunde: getString("befunde"),
-				diagnoseblock: getString("diagnoseblock"),
+				befunde: v.befunde ?? "",
+				diagnoseblock: v.diagnoseblock ?? "",
 			};
 			break;
 
 		case "physical-exam":
-			result.main = getString("notes");
+			result.main = v.notes ?? "";
 			break;
 
 		case "diagnosis":
-			result.main = getString("notes");
-			result.additional = {
-				anamnese: getString("anamnese"),
-				diagnoseblock: getString("diagnoseblock"),
-				befunde: getString("befunde"),
-			};
-			break;
-
 		case "admission-todos":
-			result.main = getString("notes");
+		case "icu-transfer":
+			result.main = v.notes ?? "";
 			result.additional = {
-				anamnese: getString("anamnese"),
-				diagnoseblock: getString("diagnoseblock"),
-				befunde: getString("befunde"),
+				anamnese: v.anamnese ?? "",
+				diagnoseblock: v.diagnoseblock ?? "",
+				befunde: v.befunde ?? "",
 			};
 			break;
 
 		case "befunde":
-			result.main = getString("notes");
+			result.main = v.notes ?? "";
 			result.additional = {
-				anamnese: getString("anamnese"),
-				diagnoseblock: getString("diagnoseblock"),
-			};
-			break;
-
-		case "icu-transfer":
-			result.main = getString("notes");
-			result.additional = {
-				anamnese: getString("anamnese"),
-				diagnoseblock: getString("diagnoseblock"),
-				befunde: getString("befunde"),
+				anamnese: v.anamnese ?? "",
+				diagnoseblock: v.diagnoseblock ?? "",
 			};
 			break;
 
 		default:
-			// Fallback: try common field names
-			result.main =
-				getString("notes") ||
-				getString("dischargeNotes") ||
-				getString("procedureNotes");
+			result.main = v.notes ?? "";
 	}
 
 	return result;

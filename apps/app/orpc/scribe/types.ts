@@ -202,6 +202,5 @@ export interface DocumentTypeConfig {
 	promptLabel?: string;
 	// biome-ignore lint/suspicious/noExplicitAny: Prompt functions receive typed variables at runtime
 	prompt: (variables: any) => PromptMessage[];
-	processInput: (prompt: string) => Record<string, unknown>;
 	modelConfig: ModelConfig;
 }

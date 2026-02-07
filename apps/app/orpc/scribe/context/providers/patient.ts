@@ -1,7 +1,5 @@
-import type { ContextProvider, ContextSectionSpec } from "../types";
-
-const toTrimmedString = (value: unknown): string =>
-	typeof value === "string" ? value.trim() : "";
+import { derivePatientContext } from "../normalize";
+import type { ContextProvider, ContextSectionSpec, PatientContextData } from "../types";
 
 const patientContextSections: ContextSectionSpec[] = [
 	{
@@ -10,7 +8,7 @@ const patientContextSections: ContextSectionSpec[] = [
 			'Aktuelle Diagnose und Vordiagnosen (meist durch "Vordiagnosen:" oder "Nebendiagnosen:" getrennt) wie chronische Erkrankungen und relevante Voroperationen/interventionen',
 		usage:
 			"Aktuelle Diagnosen beschreiben den aktuellen Aufenthalt/Vorstellung. Vordiagnosen beziehen sich NICHT auf das aktuelle Dokument, sondern sind Kontext zu früheren Erkrankungen",
-		getContent: (input) => toTrimmedString(input.diagnoseblock),
+		getContent: (input: PatientContextData) => input.diagnoseblock,
 	},
 	{
 		tag: "anamnese",
@@ -20,7 +18,7 @@ const patientContextSections: ContextSectionSpec[] = [
 			"- KEINE WIEDERHOLUNG von Anamnese-Fakten (Vermeidung von Dopplungen)",
 			"- Beschreibt Verlauf unmittelbar vor Aufnahme",
 		].join("\n"),
-		getContent: (input) => toTrimmedString(input.anamnese),
+		getContent: (input: PatientContextData) => input.anamnese,
 	},
 	{
 		tag: "befunde",
@@ -30,13 +28,13 @@ const patientContextSections: ContextSectionSpec[] = [
 			"- Grundlage für Verlaufsrekonstruktion",
 			"- Alle Untersuchungen, Konsile, wichtige Einträge",
 		].join("\n"),
-		getContent: (input) => toTrimmedString(input.befunde),
+		getContent: (input: PatientContextData) => input.befunde,
 	},
 	{
 		tag: "notizen",
 		purpose: "Zusätzliche vom Nutzer bewusst eingegebene Informationen",
 		usage: "PRIMÄRE BASIS FÜR DOKUMENT-ERSTELLUNG",
-		getContent: (input) => toTrimmedString(input.notes),
+		getContent: (input: PatientContextData) => input.notes,
 	},
 ];
 
@@ -60,9 +58,10 @@ function renderSection(spec: ContextSectionSpec, content: string): string {
 
 export const patientContextProvider: ContextProvider = {
 	id: "patient",
-	build: ({ processedInput }) => {
+	build: ({ sources }) => {
+		const patientContext = derivePatientContext(sources);
 		const sections = patientContextSections
-			.map((spec) => renderSection(spec, spec.getContent(processedInput)))
+			.map((spec) => renderSection(spec, spec.getContent(patientContext)))
 			.filter((section) => section.trim().length > 0)
 			.join("\n\n");
 

@@ -1,2 +1,8 @@
 export { buildScribeContext } from "./build";
-export type { ContextBlock, ContextBuildInput } from "./types";
+export { derivePatientContext } from "./normalize";
+export type {
+	ContextBlock,
+	ContextBuildInput,
+	ContextSource,
+	PatientContextData,
+} from "./types";

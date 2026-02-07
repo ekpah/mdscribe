@@ -82,7 +82,7 @@ const ICU_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 							"Zusammenfassung des ICU-Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
 						documentType: "discharge",
 						buildPrompt: (notes, context) => ({
-							dischargeNotes: notes,
+							notes,
 							anamnese: context.anamnese || "",
 							diagnoseblock: context.diagnosen || "",
 							befunde: context.befunde || "",

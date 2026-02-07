@@ -242,6 +242,10 @@ Required environment variables (see turbo.json):
 - **Vector Search**: Templates use 1024-dim embeddings (Voyage AI compatible)
 - **Email Templates**: Located in `packages/email/templates/` using React Email
 - **Bundle Analysis**: `ANALYZE=true bun build` in apps/app
+- **AI Scribe context engine**: Build context in `apps/app/orpc/scribe/context` via providers, then inject a single `contextXml` prompt variable.
+- **Canonical scribe input keys**: Use only `notes`, `diagnoseblock`, `anamnese`, `befunde` for patient/form input payloads.
+- **Do not use legacy keys**: `dischargeNotes`, `procedureNotes`, and `vordiagnosen` are deprecated and should not be produced or consumed.
+- **Context extensibility**: Add new context domains (e.g. template/institution/guideline/evidence) as separate providers rather than extending `patient_context`.
 
 ## Documentation Lookup
 
