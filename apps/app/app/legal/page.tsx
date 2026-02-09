@@ -91,6 +91,34 @@ export default function LegalPage() {
 							</p>
 						</div>
 
+						<div className="rounded-lg border border-solarized-base1 bg-solarized-base3 p-4 text-sm text-solarized-base01 dark:border-solarized-base01 dark:bg-solarized-base02 dark:text-solarized-base1">
+							<div className="flex items-start gap-3">
+								<Info className="mt-0.5 h-5 w-5 text-solarized-blue" />
+								<div className="space-y-2">
+									<p className="font-medium text-solarized-base01 dark:text-solarized-base1">
+										Hinweis zu sensiblen Gesundheitsdaten (OSS)
+									</p>
+									<ul className="list-disc space-y-1 pl-5">
+										<li>
+											Die cloud-gehostete Nutzung sollte derzeit nicht als sicher
+											für sensible Patienten-PII/PHI betrachtet werden, bis
+											weitere Compliance-Kontrollen abgeschlossen sind.
+										</li>
+										<li>
+											Self-Hosting ist der empfohlene Weg, wenn Sie volle Kontrolle
+											darüber benötigen, wo Daten verarbeitet und gespeichert
+											werden.
+										</li>
+									</ul>
+									<p>
+										Diese Hinweise sind risikobasiert und sollen helfen, ein
+										geeignetes Bereitstellungsmodell für Ihre Anforderungen zu
+										wählen.
+									</p>
+								</div>
+							</div>
+						</div>
+
 						<section className="space-y-4">
 							<h3 className="font-semibold text-xl">1. Verantwortlicher</h3>
 							<div className="space-y-2">
