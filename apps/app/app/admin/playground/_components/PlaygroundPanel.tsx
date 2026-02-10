@@ -411,7 +411,7 @@ export function PlaygroundPanel({
 											{docUi.mainField.label}
 										</Label>
 										<Textarea
-											className="min-h-[140px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
+											className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
 											id="main-input"
 											onChange={(e) => setFormMain(e.target.value)}
 											placeholder={docUi.mainField.placeholder}
@@ -436,7 +436,7 @@ export function PlaygroundPanel({
 														{field.label}
 													</Label>
 													<Textarea
-														className="min-h-[90px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
+														className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
 														id={field.name}
 														onChange={(e) =>
 															setFormAdditional((prev) => ({
@@ -474,7 +474,7 @@ export function PlaygroundPanel({
 										<Textarea
 											readOnly
 											value={JSON.stringify(JSON.parse(promptJson), null, 2)}
-											className="min-h-[120px] resize-none border-solarized-base2 bg-solarized-base3 font-mono text-xs"
+											className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 										/>
 									</div>
 								</div>
@@ -551,7 +551,7 @@ export function PlaygroundPanel({
 											<Textarea
 												readOnly
 												value={JSON.stringify(compiledVariables, null, 2)}
-												className="min-h-[120px] resize-none border-solarized-base2 bg-solarized-base3 font-mono text-xs"
+												className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 											/>
 										</div>
 
@@ -598,7 +598,7 @@ export function PlaygroundPanel({
 																	};
 																	setCompiledOverride(next);
 																}}
-																className="min-h-[110px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
+																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
 															/>
 														</div>
 													),
