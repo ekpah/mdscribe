@@ -554,7 +554,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 																</Label>
 																{field.type === "textarea" ? (
 																	<Textarea
-																		className="min-h-[100px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+																		className="min-h-[180px] resize-y border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
 																		disabled={isLoading}
 																		id={field.name}
 																		onChange={(e) =>
