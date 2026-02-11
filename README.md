@@ -2,6 +2,16 @@
 
 Medical documentation platform powered by AI. MDScribe helps doctors reduce documentation time by generating discharge letters, admission notes, and other clinical documents from structured inputs.
 
+## Privacy & Hosting (OSS)
+
+Our short-term privacy position for the open-source launch:
+
+- Cloud-hosted usage should not be treated as safe for sensitive patient PII/PHI until stronger compliance controls are complete.
+- Self-hosting is the recommended path for users who need full control over where data is processed and stored.
+
+This guidance is risk-based and intended to help teams choose an appropriate deployment model for their data sensitivity.
+See `docs/privacy-stance.md` for the full statement.
+
 ## Features
 
 - **AI Document Generation** — Generate discharge letters, admission notes, diagnoses, and more from structured prompts with streaming output
@@ -60,7 +70,6 @@ Medical documentation platform powered by AI. MDScribe helps doctors reduce docu
    | `STRIPE_PLUS_PRICE_ID` | Stripe price ID for monthly plan |
    | `STRIPE_PLUS_PRICE_ID_ANNUAL` | Stripe price ID for annual plan |
    | `VOYAGE_API_KEY` | Voyage AI API key for embeddings |
-   | `FLAGS_SECRET` | Feature flags secret |
 
 4. Start the development server:
    ```bash

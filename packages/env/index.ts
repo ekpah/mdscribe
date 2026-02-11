@@ -27,7 +27,6 @@ const server: Parameters<typeof createEnv>[0]["server"] = {
 	// Added by Vercel
 	VERCEL: z.string().optional(),
 	NEXT_RUNTIME: z.enum(["nodejs", "edge"]).optional(),
-	FLAGS_SECRET: z.string().min(1),
 };
 
 const client: Parameters<typeof createEnv>[0]["client"] = {
@@ -53,7 +52,6 @@ export const env = createEnv({
 		STRIPE_PLUS_PRICE_ID_ANNUAL: process.env.STRIPE_PLUS_PRICE_ID_ANNUAL,
 		VERCEL: process.env.VERCEL,
 		NEXT_RUNTIME: process.env.NEXT_RUNTIME,
-		FLAGS_SECRET: process.env.FLAGS_SECRET,
 		VOYAGE_API_KEY: process.env.VOYAGE_API_KEY,
 	},
 });

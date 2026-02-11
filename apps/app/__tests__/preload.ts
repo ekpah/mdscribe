@@ -17,7 +17,6 @@ mock.module("@repo/env", () => ({
 		VOYAGE_API_KEY: "test-voyage-key",
 		ADMIN_EMAIL: "admin@test.com",
 		NODE_ENV: "test",
-		FLAGS_SECRET: "test-flags-secret",
 		NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
 	},
 }));

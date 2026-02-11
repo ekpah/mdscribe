@@ -17,6 +17,45 @@ This file provides guidance to AI coding agents working on this repository (Clau
 The project uses **Linear** (team: Scribe) for issue tracking. Agents with Linear access should:
 
 - **"Keep in mind for later"**: When the user mentions something to do later, to remember, or to keep in mind — create a Linear issue for it immediately. Don't just acknowledge it; persist it in Linear so it doesn't get lost.
+- **Capture-first workflow**: The user frequently adds ideas/tasks to Linear Backlog quickly from phone or MacBook. Treat new backlog items as valid even if initially terse.
+- **Agent-first triage**: When the user triggers an agent right after creating an issue, do a first implementation pass and prepare a PR early.
+- **Asynchronous handoff**: After first-pass work, leave a clear Linear trail (branch/PR link, current status, explicit next step) so the user can resume later without losing context.
+- **Handoff comment format**: Agent final comments should include: PR URL, branch name, status (`ready for review`/`blocked`/`needs follow-up`), what was done, what is not done, quick validation steps, and one explicit next action for the user.
+- **Reusable handoff comment template**: Agents should use this as the final issue comment after first-pass implementation:
+  ```md
+  ## Agent Handoff
+
+  - PR: <github-pr-url>
+  - Branch: `<branch-name>`
+  - Status: `ready for review` | `blocked` | `needs follow-up`
+
+  ### What was done
+  - <done-item-1>
+  - <done-item-2>
+
+  ### What is not done
+  - <remaining-item-1>
+  - <remaining-item-2>
+
+  ### How to validate quickly
+  - <step-1>
+  - <step-2>
+
+  ### Next action for Nils
+  - <single explicit next step>
+  ```
+- **State+label normalization**: If a PR is open and awaits user check, set status to `In Review` and labels `pr-open` + `awaiting-you`. Use `stale` when no follow-up occurred for 14+ days.
+- **Issue state rubric (required)**: Normalize active work into these states for easy board scanning:
+  - `Backlog`: Captured idea/task; not yet scoped for immediate execution.
+  - `Todo`: Scoped and ready; should be worked soon (next execution window).
+  - `In Progress`: Someone is actively implementing now (branch/work session underway).
+  - `In Review`: Work is implemented and awaiting review/decision (typically PR open).
+- **State transitions**:
+  - New quick-capture items start as `Backlog` unless user asks for immediate work.
+  - Move to `Todo` once scope/acceptance criteria are clear.
+  - Move to `In Progress` immediately when implementation starts.
+  - Move to `In Review` once a PR/handoff is ready for Nils.
+  - Move to `Done` only when merged/completed; use `Canceled` for explicitly dropped work.
 - **"What should I do next?"**: When the user asks what to work on, check Linear for open issues assigned to them or in the backlog, and suggest next steps.
 - **Completing work**: After finishing a task that resolves a Linear issue, mark the issue as done. If a push or PR merge resolves issues, check Linear and close them.
 
@@ -232,7 +271,6 @@ Required environment variables (see turbo.json):
 - AI: `OPENROUTER_API_KEY`, `VOYAGE_API_KEY`
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PLUS_PRICE_ID`, `STRIPE_PLUS_PRICE_ID_ANNUAL`
 - Analytics: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, `LANGFUSE_*`
-- Flags: `FLAGS_SECRET`
 
 ## Important Implementation Notes
 
@@ -245,7 +283,9 @@ Required environment variables (see turbo.json):
 - **AI Scribe context engine**: Build context in `apps/app/orpc/scribe/context` via providers, then inject a single `contextXml` prompt variable.
 - **Canonical scribe input keys**: Use only `notes`, `diagnoseblock`, `anamnese`, `befunde` for patient/form input payloads.
 - **Do not use legacy keys**: `dischargeNotes`, `procedureNotes`, and `vordiagnosen` are deprecated and should not be produced or consumed.
+- **Admin usage -> playground compatibility**: When hydrating forms from historical `UsageEvent.inputData`, accept legacy keys (`dischargeNotes`, `procedureNotes`, `consultationNotes`, `vordiagnosen`) in the playground mapping layer only.
 - **Context extensibility**: Add new context domains (e.g. template/institution/guideline/evidence) as separate providers rather than extending `patient_context`.
+- **License file naming**: Use `LICENSE` (repository root) as the canonical OSS license file path; do not reference `license.md`.
 
 ## Documentation Lookup
 

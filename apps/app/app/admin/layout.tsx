@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { allowAdminAccess } from "@/flags";
+import { env } from "@repo/env";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -20,10 +20,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 		redirect("/");
 	}
 
-	// Check admin access using flag
-	const allowAdminAccessFlag = await allowAdminAccess();
-
-	if (!allowAdminAccessFlag) {
+	// Check admin access
+	if (session.user.email !== env.ADMIN_EMAIL) {
 		redirect("/");
 	}
 
