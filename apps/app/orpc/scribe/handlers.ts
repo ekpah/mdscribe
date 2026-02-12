@@ -25,6 +25,7 @@ import { documentTypeConfigs } from "./config";
 import type {
 	AudioFile,
 	DocumentType,
+	FileAttachment,
 	PromptVariables,
 	SupportedModel,
 } from "./types";
@@ -224,6 +225,7 @@ interface ScribeStreamInput {
 	messages: UIMessage[];
 	model?: SupportedModel;
 	audioFiles?: AudioFile[];
+	fileAttachments?: FileAttachment[];
 }
 
 /**
@@ -263,6 +265,7 @@ export const scribeStreamHandler = authed
 			messages: inputMessages,
 			model = "auto",
 			audioFiles,
+			fileAttachments,
 		} = input;
 
 		// Extract prompt from the last user message
@@ -292,8 +295,11 @@ export const scribeStreamHandler = authed
 		);
 
 		// Get actual model (handle 'auto')
-		const hasAudio = audioFiles && audioFiles.length > 0;
-		const actualModel = getActualModel(model, hasAudio);
+		const audioFilesList = audioFiles ?? [];
+		const fileAttachmentsList = fileAttachments ?? [];
+		const hasAudio = audioFilesList.length > 0;
+		const hasFileAttachments = fileAttachmentsList.length > 0;
+		const actualModel = getActualModel(model, hasAudio || hasFileAttachments);
 		const {
 			model: aiModel,
 			supportsThinking,
@@ -329,15 +335,35 @@ export const scribeStreamHandler = authed
 
 		let messages: ModelMessage[] = compiledPrompt;
 
-		// Handle audio files for Gemini models
-		if (hasAudio && actualModel.startsWith("gemini")) {
+		// Handle file and audio attachments for Gemini models
+		if ((hasAudio || hasFileAttachments) && actualModel.startsWith("gemini")) {
 			const lastMessage = messages.at(-1);
 			if (lastMessage?.role === "user") {
-				const audioContent = audioFiles.map((audioFile) => ({
-					type: "file" as const,
-					data: audioFile.data,
-					mediaType: audioFile.mimeType,
-				}));
+				const attachmentContent: Array<{
+					type: "file";
+					data: string;
+					mediaType: string;
+				}> = [];
+
+				if (hasAudio) {
+					attachmentContent.push(
+						...audioFilesList.map((audioFile) => ({
+							type: "file" as const,
+							data: audioFile.data,
+							mediaType: audioFile.mimeType,
+						})),
+					);
+				}
+
+				if (hasFileAttachments) {
+					attachmentContent.push(
+						...fileAttachmentsList.map((fileAttachment) => ({
+							type: "file" as const,
+							data: fileAttachment.data,
+							mediaType: fileAttachment.mimeType,
+						})),
+					);
+				}
 
 				messages = [
 					...messages.slice(0, -1),
@@ -351,7 +377,7 @@ export const scribeStreamHandler = authed
 										? lastMessage.content
 										: "",
 							},
-							...audioContent,
+							...attachmentContent,
 						],
 					},
 				];
