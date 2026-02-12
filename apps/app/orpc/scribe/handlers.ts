@@ -1,6 +1,6 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { database, sql, subscription, usageEvent } from "@repo/database";
+import { database, sql, usageEvent } from "@repo/database";
 import { env } from "@repo/env";
 import {
 	type LanguageModel,
@@ -94,28 +94,18 @@ function getActualModel(modelId: string, hasAudio?: boolean): string {
  * Check subscription and usage limits
  */
 async function checkUsageLimit(
-	userId: string,
 	session: { user: { id: string } },
 	db: typeof database,
 ) {
-	const subscriptions = await db
-		.select()
-		.from(subscription)
-		.where(
-			sql`${subscription.referenceId} = ${userId} AND ${subscription.status} IN ('active', 'trialing')`,
-		);
+	const { usage, limits } = await getUsage(session, db);
 
-	const activeSubscription = subscriptions.length > 0;
-	const { usage } = await getUsage(session, db);
-	const usageLimit = activeSubscription ? 500 : 50;
-
-	if (usage.count >= usageLimit) {
+	if (usage.count >= limits.monthlyUsageLimit) {
 		throw new ORPCError("FORBIDDEN", {
 			message: "Monatliche Nutzungsgrenze erreicht - passe dein Abonnement an",
 		});
 	}
 
-	return { activeSubscription, usage };
+	return { activeSubscription: limits.hasActiveSubscription, usage };
 }
 
 /**
@@ -286,7 +276,6 @@ export const scribeStreamHandler = authed
 
 		// Check usage limits
 		const { activeSubscription } = await checkUsageLimit(
-			context.session.user.id,
 			context.session,
 			context.db,
 		);

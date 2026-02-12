@@ -3,6 +3,11 @@ import {
 	AvatarFallback,
 	AvatarImage,
 } from "@repo/design-system/components/ui/avatar";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@repo/design-system/components/ui/alert";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -15,6 +20,7 @@ import {
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import {
 	Activity,
+	AlertTriangle,
 	ArrowRight,
 	BookmarkIcon,
 	Brain,
@@ -86,6 +92,17 @@ export default async function DashboardPage() {
 	// Calculate monthly usage limit (same logic as subscription card)
 	const monthlyUsageLimit = activeSubscription ? 500 : 50;
 	const remainingGenerations = Math.max(0, monthlyUsageLimit - currentUsage);
+	const remainingRatio =
+		monthlyUsageLimit > 0 ? remainingGenerations / monthlyUsageLimit : 0;
+	const isLowGenerations = remainingRatio <= 0.1;
+	const shouldShowSubscribeCallout = !activeSubscription && isLowGenerations;
+	const isUsageDepleted = remainingGenerations === 0;
+	const usageTitle = isUsageDepleted
+		? "Generierungen aufgebraucht"
+		: `Nur noch ${remainingGenerations} Generierungen verfügbar`;
+	const usageDescription = isUsageDepleted
+		? "Dein monatliches Kontingent ist aufgebraucht. Abonniere Plus, um sofort weiter zu generieren."
+		: `Du hast nur noch ${remainingGenerations} von ${monthlyUsageLimit} Generierungen übrig. Mit Plus erhältst du mehr Kapazität für diesen Monat.`;
 
 	const aiFunctions = [
 		{
@@ -250,6 +267,28 @@ export default async function DashboardPage() {
 							</Link>
 						</div>
 					</div>
+
+					{shouldShowSubscribeCallout && (
+						<Alert className="border-solarized-orange/40 bg-solarized-orange/10 text-solarized-base03">
+							<AlertTriangle className="text-solarized-orange" />
+							<AlertTitle className="text-solarized-base03">
+								{usageTitle}
+							</AlertTitle>
+							<AlertDescription className="text-solarized-base01">
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+									<p>{usageDescription}</p>
+									<Link href="/profile?tab=subscription">
+										<Button
+											className="whitespace-nowrap bg-solarized-orange text-solarized-base3 hover:bg-solarized-orange/90"
+											type="button"
+										>
+											Jetzt abonnieren
+										</Button>
+									</Link>
+								</div>
+							</AlertDescription>
+						</Alert>
+					)}
 
 					{/* Quick Stats */}
 					<div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4">
