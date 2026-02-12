@@ -29,6 +29,15 @@ export interface AudioFile {
 }
 
 /**
+ * File attachment data for model input
+ */
+export interface FileAttachment {
+	data: string;
+	mimeType: string;
+	name: string;
+}
+
+/**
  * Generic input field for voice fill
  * Uses labels as stable keys for downstream inputs
  */
@@ -58,6 +67,7 @@ export interface ScribeInput {
 	prompt: string;
 	model?: SupportedModel;
 	audioFiles?: AudioFile[];
+	fileAttachments?: FileAttachment[];
 }
 
 /**

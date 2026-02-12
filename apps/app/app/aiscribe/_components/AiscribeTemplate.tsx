@@ -37,12 +37,18 @@ import {
 	TabsTrigger,
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
+import {
+	formatBytes,
+	useFileUpload,
+} from "@repo/design-system/hooks/use-file-upload";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import {
+	AlertCircle,
 	FileText,
 	Loader2,
 	type LucideIcon,
 	Mic,
+	Paperclip,
 	Square,
 	X,
 } from "lucide-react";
@@ -54,6 +60,7 @@ import { useTextSnippets } from "@/hooks/use-text-snippets";
 import type {
 	AudioFile,
 	DocumentType,
+	FileAttachment,
 	SupportedModel,
 } from "@/orpc/scribe/types";
 
@@ -117,6 +124,75 @@ const models: Array<{ id: SupportedModel; name: string }> = [
 	{ id: "gemini-3-flash", name: "Gemini 3 Flash" },
 ];
 
+const maxFileAttachments = 3;
+const maxFileSize = 10 * 1_024 * 1_024;
+const acceptedFileTypes = [
+	"text/plain",
+	"text/markdown",
+	"text/csv",
+	"application/json",
+	"application/pdf",
+	".txt",
+	".md",
+	".markdown",
+	".csv",
+	".json",
+	".pdf",
+].join(",");
+const textMimeTypes = new Set([
+	"text/plain",
+	"text/markdown",
+	"text/csv",
+	"application/json",
+]);
+const textFileExtensions = new Set(["txt", "md", "markdown", "csv", "json"]);
+
+const getFileExtension = (fileName: string) => {
+	const parts = fileName.split(".");
+	if (parts.length < 2) {
+		return "";
+	}
+	const extension = parts.at(-1);
+	return extension ? extension.toLowerCase() : "";
+};
+
+const isTextFile = (file: File): boolean => {
+	if (file.type.startsWith("text/")) {
+		return true;
+	}
+	if (textMimeTypes.has(file.type)) {
+		return true;
+	}
+	const extension = getFileExtension(file.name);
+	return extension !== "" && textFileExtensions.has(extension);
+};
+
+const isPdfFile = (file: { name: string; type: string }): boolean => {
+	if (file.type === "application/pdf") {
+		return true;
+	}
+	const extension = getFileExtension(file.name);
+	return extension === "pdf";
+};
+
+const readFileAsBase64 = (file: File): Promise<string> =>
+	new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.addEventListener("loadend", () => {
+			const result = reader.result;
+			if (typeof result !== "string") {
+				reject(new Error("Datei konnte nicht gelesen werden."));
+				return;
+			}
+			const base64 = result.split(",").at(-1) ?? "";
+			resolve(base64);
+		});
+		reader.addEventListener("error", () => {
+			reject(new Error("Datei konnte nicht gelesen werden."));
+		});
+		reader.readAsDataURL(file);
+	});
+
 interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
 }
@@ -137,8 +213,18 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const [model, setModel] = useState<SupportedModel>(models[0].id);
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
-	// Use ref for audio files to avoid race condition between setState and sendMessage
+	const [
+		{ files: attachedFiles, errors: fileErrors },
+		{ getInputProps, openFileDialog, removeFile },
+	] = useFileUpload({
+		maxFiles: maxFileAttachments,
+		maxSize: maxFileSize,
+		accept: acceptedFileTypes,
+		multiple: true,
+	});
+	// Use refs for attachments to avoid race conditions with sendMessage
 	const preparedAudioFilesRef = useRef<AudioFile[]>([]);
+	const preparedFileAttachmentsRef = useRef<FileAttachment[]>([]);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const audioChunksRef = useRef<Blob[]>([]);
 	const recordingStartTimeRef = useRef<number>(0);
@@ -152,8 +238,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		id: `scribe-${config.documentType}`,
 		transport: {
 			async sendMessages(options) {
-				// Read from ref to get the latest audio files synchronously
+				// Read from ref to get the latest attachments synchronously
 				const audioFiles = preparedAudioFilesRef.current;
+				const fileAttachments = preparedFileAttachmentsRef.current;
 				return eventIteratorToUnproxiedDataStream(
 					await orpc.scribeStream.call(
 						{
@@ -161,6 +248,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 							messages: options.messages,
 							model,
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+							fileAttachments:
+								fileAttachments.length > 0 ? fileAttachments : undefined,
 						},
 						{ signal: options.abortSignal },
 					),
@@ -175,8 +264,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		},
 		onFinish: () => {
 			toast.success("Erfolgreich generiert");
-			// Clear prepared audio files ref after generation
+			// Clear prepared attachments after generation
 			preparedAudioFilesRef.current = [];
+			preparedFileAttachmentsRef.current = [];
 		},
 	});
 
@@ -207,6 +297,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const isAudioSupported = model === "auto" || model === "gemini-3-flash";
 	const maxRecordings = 3;
 	const canRecord = audioRecordings.length < maxRecordings;
+	const isFileInputSupported = model === "auto" || model.startsWith("gemini");
+	const canAttachFile = attachedFiles.length < maxFileAttachments;
+	const hasPdfAttachments = attachedFiles.some((fileItem) =>
+		isPdfFile(fileItem.file),
+	);
 
 	// Handle audio recording
 	const handleStartRecording = async () => {
@@ -296,6 +391,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const areRequiredFieldsFilled = useCallback(() => {
 		// Check if there are any audio recordings
 		const hasAudio = audioRecordings.length > 0;
+		const hasFiles = attachedFiles.length > 0;
 
 		// Check if main input field has content
 		const hasMainInput = inputData.trim().length > 0;
@@ -307,10 +403,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 				additionalInputData[field.name].trim().length > 0,
 		);
 
-		// At least one field must be filled (audio, main input, or any additional input)
-		return hasAudio || hasMainInput || hasAnyAdditionalInput;
+		// At least one field must be filled (audio, files, main input, or any additional input)
+		return hasAudio || hasFiles || hasMainInput || hasAnyAdditionalInput;
 	}, [
 		audioRecordings,
+		attachedFiles,
 		inputData,
 		additionalInputData,
 		config.additionalInputs,
@@ -319,7 +416,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const handleGenerate = useCallback(async () => {
 		if (!areRequiredFieldsFilled()) {
 			toast.error(
-				"Bitte füllen Sie mindestens ein Eingabefeld aus oder nehmen Sie Audio auf.",
+				"Bitte füllen Sie mindestens ein Eingabefeld aus, fügen Sie eine Datei hinzu oder nehmen Sie Audio auf.",
 			);
 			return;
 		}
@@ -328,17 +425,98 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		setMessages([]);
 		setActiveTab("output");
 
+		let inputDataWithFiles = inputData;
+
+		try {
+			if (attachedFiles.length > 0) {
+				const preparedFiles = (
+					await Promise.all(
+						attachedFiles.map(async (fileItem) => {
+							if (!(fileItem.file instanceof File)) {
+								return null;
+							}
+
+							const file = fileItem.file;
+							const fileIsText = isTextFile(file);
+							const fileIsPdf = isPdfFile(file);
+							const [base64, fileText] = await Promise.all([
+								readFileAsBase64(file),
+								fileIsText ? file.text() : "",
+							]);
+							const trimmedText =
+								typeof fileText === "string" ? fileText.trim() : "";
+
+							return {
+								attachment: {
+									data: base64,
+									mimeType: file.type || "application/octet-stream",
+									name: file.name,
+								},
+								requiresModelAttachment: fileIsPdf,
+								notes: trimmedText
+									? `Dateianhang (${file.name}):\n${trimmedText}`
+									: `Dateianhang (${file.name}):\n[Datei wurde als Anhang übermittelt.]`,
+							};
+						}),
+					)
+				).filter(
+					(file): file is {
+						attachment: FileAttachment;
+						requiresModelAttachment: boolean;
+						notes: string;
+					} => file !== null,
+				);
+
+				const requiresModelAttachment = preparedFiles.some(
+					(file) => file.requiresModelAttachment,
+				);
+				if (requiresModelAttachment && !isFileInputSupported) {
+					preparedFileAttachmentsRef.current = [];
+					toast.error(
+						"PDF-Anhänge erfordern Auto oder Gemini als Modell.",
+					);
+					return;
+				}
+
+				preparedFileAttachmentsRef.current = isFileInputSupported
+					? preparedFiles.map((file) => file.attachment)
+					: [];
+
+				const fileNotesSegments: string[] = [];
+				for (const preparedFile of preparedFiles) {
+					if (preparedFile.notes.trim().length > 0) {
+						fileNotesSegments.push(preparedFile.notes);
+					}
+				}
+
+				const fileNotes = fileNotesSegments.join("\n\n");
+				if (fileNotes) {
+					if (inputData.trim().length > 0) {
+						inputDataWithFiles = `${inputData.trimEnd()}\n\n${fileNotes}`;
+					} else {
+						inputDataWithFiles = fileNotes;
+					}
+				}
+			} else {
+				preparedFileAttachmentsRef.current = [];
+			}
+		} catch {
+			preparedFileAttachmentsRef.current = [];
+			toast.error("Fehler beim Lesen der Datei");
+			return;
+		}
+
 		try {
 			// Handle custom API call if provided
 			if (config.customApiCall) {
-				await config.customApiCall(inputData, additionalInputData);
+				await config.customApiCall(inputDataWithFiles, additionalInputData);
 			}
 
 			// Prepare prompt
 			const prompt = config.customPromptProcessor
-				? config.customPromptProcessor(inputData, additionalInputData)
+				? config.customPromptProcessor(inputDataWithFiles, additionalInputData)
 				: JSON.stringify({
-						[config.inputFieldName]: inputData,
+						[config.inputFieldName]: inputDataWithFiles,
 						...additionalInputData,
 					});
 
@@ -377,6 +555,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		}
 	}, [
 		inputData,
+		attachedFiles,
 		additionalInputData,
 		areRequiredFieldsFilled,
 		setMessages,
@@ -386,6 +565,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		config.inputFieldName,
 		audioRecordings,
 		isAudioSupported,
+		isFileInputSupported,
 	]);
 
 	useHotkeys(
@@ -596,6 +776,57 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 												</div>
 											)}
 
+										{/* File Attachments Indicator */}
+										{attachedFiles.length > 0 && (
+											<div className="space-y-2">
+												{attachedFiles.map((fileItem) => (
+													<div
+														className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/10 p-3"
+														key={fileItem.id}
+													>
+														<div className="flex items-center justify-between gap-2">
+															<div className="flex min-w-0 items-center gap-2 text-sm text-solarized-blue">
+																<Paperclip className="h-4 w-4" />
+																<div className="min-w-0">
+																	<p className="truncate font-medium">
+																		{fileItem.file.name}
+																	</p>
+																	<p className="text-muted-foreground text-xs">
+																		{formatBytes(fileItem.file.size)}
+																	</p>
+																</div>
+															</div>
+															<Button
+																aria-label="Datei entfernen"
+																onClick={() => removeFile(fileItem.id)}
+																size="sm"
+																type="button"
+																variant="ghost"
+															>
+																<X className="h-4 w-4" />
+															</Button>
+														</div>
+													</div>
+												))}
+												{hasPdfAttachments && !isFileInputSupported && (
+													<p className="text-muted-foreground text-xs">
+														PDF-Anhänge werden nur mit Auto oder Gemini an die
+														KI übermittelt.
+													</p>
+												)}
+											</div>
+										)}
+
+										{fileErrors.length > 0 && (
+											<div
+												className="flex items-center gap-1 text-destructive text-xs"
+												role="alert"
+											>
+												<AlertCircle className="size-3 shrink-0" />
+												<span>{fileErrors.at(0)}</span>
+											</div>
+										)}
+
 										{/* Audio Recordings Indicator */}
 										{audioRecordings.length > 0 && (
 											<div className="space-y-2">
@@ -666,33 +897,56 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 														</PromptInputModelSelect>
 													</PromptInputActionMenu>
 
-													<Button
-														className={isRecording ? "bg-solarized-red" : ""}
-														disabled={
-															!isAudioSupported ||
-															isLoading ||
-															!(canRecord || isRecording)
-														}
-														onClick={handleToggleRecording}
-														size="sm"
-														title={
-															isAudioSupported
-																? canRecord || isRecording
-																	? isRecording
-																		? "Aufnahme stoppen"
-																		: "Audioaufnahme starten"
-																	: `Maximal ${maxRecordings} Aufnahmen möglich`
-																: "Nur mit Auto oder Gemini 2.5 Pro verfügbar"
-														}
-														type="button"
-														variant="ghost"
-													>
-														{isRecording ? (
-															<Square className="h-4 w-4" />
-														) : (
-															<Mic className="h-4 w-4" />
-														)}
-													</Button>
+												<Button
+													aria-label="Datei anhängen"
+													disabled={isLoading || !canAttachFile}
+													onClick={openFileDialog}
+													size="sm"
+													title={
+														canAttachFile
+															? "Datei anhängen"
+															: `Maximal ${maxFileAttachments} Dateien möglich`
+													}
+													type="button"
+													variant="ghost"
+												>
+													<Paperclip className="h-4 w-4" />
+												</Button>
+												<input
+													{...getInputProps({
+														"aria-label": "Datei anhängen",
+														className: "sr-only",
+														disabled: isLoading || !canAttachFile,
+													})}
+												/>
+
+												<Button
+													className={isRecording ? "bg-solarized-red" : ""}
+													disabled={
+														!isAudioSupported ||
+														isLoading ||
+														!(canRecord || isRecording)
+													}
+													onClick={handleToggleRecording}
+													size="sm"
+													title={
+														isAudioSupported
+															? canRecord || isRecording
+																? isRecording
+																	? "Aufnahme stoppen"
+																	: "Audioaufnahme starten"
+																: `Maximal ${maxRecordings} Aufnahmen möglich`
+															: "Nur mit Auto oder Gemini 2.5 Pro verfügbar"
+													}
+													type="button"
+													variant="ghost"
+												>
+													{isRecording ? (
+														<Square className="h-4 w-4" />
+													) : (
+														<Mic className="h-4 w-4" />
+													)}
+												</Button>
 												</PromptInputTools>
 												<PromptInputSubmit
 													disabled={isLoading || !areRequiredFieldsFilled()}
