@@ -251,11 +251,11 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 		const similarityResults = await database.execute<TemplateResult>(sql`
 			SELECT
 				content,
-				(1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) as similarity
+				(1 - (embedding <=> ${embeddingSql}::vector)) as similarity
 			FROM "Template"
 			WHERE embedding IS NOT NULL
-			AND (1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) > 0.6
-			ORDER BY embedding <-> ${sql.raw(embeddingSql)}::vector
+			AND (1 - (embedding <=> ${embeddingSql}::vector)) > 0.6
+			ORDER BY embedding <-> ${embeddingSql}::vector
 			LIMIT 1
 		`);
 
@@ -445,7 +445,6 @@ export const scribeStreamHandler = authed
 					const openRouterUsage = extractOpenRouterUsage(
 						event.providerMetadata,
 					);
-					console.dir(event, { depth: 5 });
 					// Log usage to database using Drizzle
 					// Plus subscribers: skip content logging for privacy (ZDR)
 					await context.db.insert(usageEvent).values(
