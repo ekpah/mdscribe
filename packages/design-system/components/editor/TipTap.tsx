@@ -54,13 +54,11 @@ const suggestions = createSuggestionsItems([
 export default function TipTap({
 	note,
 	setContent,
-	onValidationChange,
 	showSource,
 	onToggleSource,
 }: {
 	note: string;
 	setContent: (content: string) => void;
-	onValidationChange?: (errors: any[]) => void;
 	showSource?: boolean;
 	onToggleSource?: () => void;
 }) {

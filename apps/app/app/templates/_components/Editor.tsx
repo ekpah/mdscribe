@@ -1,6 +1,6 @@
 "use client";
 
-import Markdoc, { type ValidateError } from "@markdoc/markdoc";
+import Markdoc from "@markdoc/markdoc";
 import { EditorSidebar } from "@repo/design-system/components/editor/_components/EditorSidebar";
 import PlainEditor from "@repo/design-system/components/editor/PlainEditor";
 import TipTap from "@repo/design-system/components/editor/TipTap";
@@ -16,24 +16,25 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import markdocConfig from "@repo/markdoc-md/markdoc-config";
-import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
 export default function Editor({
 	cat,
+	categorySuggestions = [],
 	tit,
 	note,
 	id,
-	author,
+	canEditSource = false,
 }: {
 	cat: string;
+	categorySuggestions?: string[];
 	tit: string;
 	note: string;
 	id?: string;
-	author: { id: string; email: string };
+	canEditSource?: boolean;
 }) {
 	const router = useRouter();
 	const [category, setCategory] = useState<string>(cat);
@@ -41,7 +42,6 @@ export default function Editor({
 	const [content, setContent] = useState(note ? JSON.parse(note) : "");
 	const [newCategory, setNewCategory] = useState("");
 	const [showSource, setShowSource] = useState(false);
-	const [validationErrors, setValidationErrors] = useState<ValidateError[]>([]);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	// Counter to force TipTap remount when switching from source view
 	const editorKeyRef = useRef(0);
@@ -51,98 +51,70 @@ export default function Editor({
 		const finalCategory = category === "new" ? newCategory : category;
 		return finalCategory.trim() !== "" && name.trim() !== "";
 	})();
-	const existingCategories = [
+	const fallbackCategories = [
 		"Kardiologie",
 		"Gastroenterologie",
 		"Diverses",
 		"Onkologie",
 	];
-
-	const handleValidationChange = useCallback(
-		(errors: ValidateError[]) => {
-			try {
-				const ast = Markdoc.parse(content);
-				const validation = Markdoc.validate(ast, markdocConfig);
-
-				setValidationErrors(validation);
-
-				console.log("Validation results:", {
-					errors: validation,
-					tiptapErrors: errors,
-				});
-			} catch (parseError) {
-				console.error("Parse error:", parseError);
-				// Create a synthetic error for parse failures
-				const syntheticError = {
-					type: "error" as const,
-					error: {
-						message:
-							parseError instanceof Error
-								? parseError.message
-								: "Unbekannter Parse-Fehler",
-						location: {
-							start: { line: 1 },
-							end: { line: 1 },
-						},
-					},
-				} as ValidateError;
-				setValidationErrors([syntheticError]);
+	const suggestedCategories = useMemo(() => {
+		const limit = 10;
+		const result: string[] = [];
+		const seen = new Set<string>();
+		const addCategory = (value: string) => {
+			const normalized = value.trim();
+			if (!normalized) {
+				return;
 			}
-		},
-		[content],
-	);
 
-	const checkContent = () => {
+			const key = normalized.toLowerCase();
+			if (seen.has(key)) {
+				return;
+			}
+
+			seen.add(key);
+			result.push(normalized);
+		};
+
+		if (cat.trim()) {
+			addCategory(cat);
+		}
+
+		for (const value of categorySuggestions) {
+			if (result.length >= limit) {
+				break;
+			}
+			addCategory(value);
+		}
+
+		for (const value of fallbackCategories) {
+			if (result.length >= limit) {
+				break;
+			}
+			addCategory(value);
+		}
+
+		return result.slice(0, limit);
+	}, [cat, categorySuggestions]);
+
+	const isMarkdocValid = (contentToValidate: string) => {
 		try {
-			const ast = Markdoc.parse(content);
+			const ast = Markdoc.parse(contentToValidate);
 			const validation = Markdoc.validate(ast, markdocConfig);
-
-			// Separate errors and warnings
-			const checkErrors = validation.filter(
-				(v: ValidateError) => v.type === "error",
-			);
-
-			setValidationErrors(checkErrors);
-
-			if (checkErrors.length > 0) {
-				toast.error(
-					`${checkErrors.length} Fehler in der Markdoc-Syntax gefunden`,
-				);
-			} else {
-				toast.success("Markdoc-Syntax ist korrekt");
-			}
-
-			console.log("Validation results:", {
-				errors: checkErrors,
-				ast,
-			});
-		} catch (parseError) {
-			console.error("Parse error:", parseError);
-			toast.error(
-				`Parse-Fehler: ${parseError instanceof Error ? parseError.message : "Unbekannter Fehler"}`,
-			);
-
-			// Create a synthetic error for parse failures
-			const syntheticError = {
-				type: "error" as const,
-				error: {
-					message:
-						parseError instanceof Error
-							? parseError.message
-							: "Unbekannter Parse-Fehler",
-					location: {
-						start: { line: 1 },
-						end: { line: 1 },
-					},
-				},
-			} as ValidateError;
-			setValidationErrors([syntheticError]);
+			return !validation.some((result) => result.type === "error");
+		} catch {
+			return false;
 		}
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!isFormValid || validationErrors.length > 0) {
+		if (!isFormValid) {
+			return;
+		}
+
+		if (!isMarkdocValid(content)) {
+			toast.error("Bitte behebe die Markdoc-Fehler vor dem Speichern");
 			return;
 		}
 
@@ -211,9 +183,9 @@ export default function Editor({
 									<SelectValue placeholder="Kategorie auswählen" />
 								</SelectTrigger>
 								<SelectContent>
-									{existingCategories.map((cat) => (
-										<SelectItem key={cat} value={cat}>
-											{cat}
+									{suggestedCategories.map((categoryOption) => (
+										<SelectItem key={categoryOption} value={categoryOption}>
+											{categoryOption}
 										</SelectItem>
 									))}
 									<SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
@@ -282,68 +254,19 @@ export default function Editor({
 								<TipTap
 									key={`tiptap-${editorKeyRef.current}`}
 									note={content}
-									onToggleSource={() => setShowSource(true)}
-									onValidationChange={handleValidationChange}
+									onToggleSource={
+										canEditSource ? () => setShowSource(true) : undefined
+									}
 									setContent={setContent}
 									showSource={showSource}
 								/>
 							)}
 						</div>
-
-						{/* Error Display Panel */}
-						{validationErrors.length > 0 && (
-							<div className="mt-2 max-h-32 shrink-0 space-y-2 overflow-y-auto">
-								{validationErrors.length > 0 && (
-									<div className="rounded-md border border-solarized-red bg-solarized-red/10 p-3">
-										<div className="flex items-center space-x-2 font-medium text-sm text-solarized-red">
-											<AlertCircle className="h-4 w-4" />
-											<span>Fehler ({validationErrors.length})</span>
-										</div>
-										<ul className="mt-2 space-y-1 text-sm text-solarized-red/80">
-											{validationErrors.map((error, index) => (
-												<li
-													className="flex items-start space-x-2"
-													key={`error-${error.error?.message || "unknown"}-${index}`}
-												>
-													<span className="text-solarized-red">•</span>
-													<div className="flex-1">
-														<div className="flex items-center space-x-2">
-															{error.error?.location && (
-																<span className="rounded bg-solarized-red/20 px-2 py-1 font-mono text-solarized-red text-xs">
-																	Zeile{" "}
-																	{error.error.location.start?.line ||
-																		"unknown"}
-																</span>
-															)}
-															<span className="font-medium text-solarized-red">
-																{error.type === "error" ? "Fehler" : "Warnung"}
-															</span>
-														</div>
-														<p className="mt-1 text-solarized-red/90">
-															{error.error?.message ||
-																"Unbekannter Validierungsfehler"}
-														</p>
-													</div>
-												</li>
-											))}
-										</ul>
-									</div>
-								)}
-							</div>
-						)}
 					</div>
 					<div className="flex shrink-0 flex-row gap-2">
 						<Button
-							className="mt-2 w-1/10"
-							onClick={checkContent}
-							type="button"
-							variant="secondary"
-						>
-							Prüfen
-						</Button>
-						<Button
 							className="mt-2 w-full"
-							disabled={isSubmitting || validationErrors.length > 0 || !isFormValid}
+							disabled={isSubmitting || !isFormValid}
 							type="submit"
 						>
 							{(() => {
@@ -352,9 +275,6 @@ export default function Editor({
 								}
 								if (!isFormValid) {
 									return "Kategorie und Name erforderlich";
-								}
-								if (validationErrors.length > 0) {
-									return "Behebe Fehler um zu speichern";
 								}
 								return "Textbaustein speichern";
 							})()}

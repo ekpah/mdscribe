@@ -1,9 +1,6 @@
-import { database, eq, template } from "@repo/database";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import Editor from "../_components/Editor";
+import { getCreateTemplateEditorData } from "../_lib/editor-page-data";
 
 export const dynamicParams = false;
 
@@ -17,36 +14,17 @@ export function generateMetadata(props: MetadataProps): Metadata {
 	};
 }
 
-async function fetchMarkdoc({ id }: { id: string }) {
-	const [doc] = await database.select().from(template).where(eq(template.id, id)).limit(1);
-	return doc;
-}
-
 export default async function CreateTemplate({
 	searchParams,
 }: PageProps<"/templates/create">) {
-	const session = await auth.api.getSession({
-		headers: await headers(),
-	});
-	if (!session?.user) {
-		redirect("/");
-	}
-
-	// get the search parameter fork to check, whether an existing template should be forked
 	const { fork } = await searchParams;
-
-	const forkedTemplate = fork
-		? await fetchMarkdoc({ id: fork as string })
-		: null;
+	const editorData = await getCreateTemplateEditorData({
+		forkId: typeof fork === "string" ? fork : undefined,
+	});
 
 	return (
 		<div className="flex h-full w-full flex-col">
-			<Editor
-				cat={forkedTemplate?.category || ""}
-				tit={forkedTemplate?.title || ""}
-				note={JSON.stringify(forkedTemplate?.content || "")}
-				author={session?.user}
-			/>
+			<Editor {...editorData} />
 		</div>
 	);
 }
