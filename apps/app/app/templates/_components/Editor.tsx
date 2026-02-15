@@ -18,9 +18,103 @@ import {
 import markdocConfig from "@repo/markdoc-md/markdoc-config";
 import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
+
+type MarkdocDiagnostic = {
+	from: number;
+	to: number;
+	message: string;
+};
+
+type MarkdocLocation = {
+	line?: number;
+	column?: number;
+};
+
+type MarkdocLocationRange = {
+	start?: MarkdocLocation;
+	end?: MarkdocLocation;
+};
+
+const createSyntheticError = (message: string): ValidateError => ({
+	type: "error",
+	error: {
+		message,
+		location: {
+			start: { line: 1, column: 1 },
+			end: { line: 1, column: 1 },
+		},
+	},
+});
+
+const getLineOffsets = (value: string) => {
+	const offsets = [0];
+	for (let index = 0; index < value.length; index += 1) {
+		if (value[index] === "\n") {
+			offsets.push(index + 1);
+		}
+	}
+	return offsets;
+};
+
+const getIndexFromLocation = (
+	location: MarkdocLocation | undefined,
+	lineOffsets: number[],
+	contentLength: number,
+) => {
+	if (!location) {
+		return 0;
+	}
+
+	const lineCount = Math.max(1, lineOffsets.length);
+	const line = Math.min(Math.max(location.line ?? 1, 1), lineCount);
+	const column = Math.max((location.column ?? 1) - 1, 0);
+	const lineStart = lineOffsets[line - 1] ?? 0;
+	const nextLineStart =
+		line < lineCount ? lineOffsets[line] ?? contentLength : contentLength;
+	const maxColumn = Math.max(0, nextLineStart - lineStart);
+
+	return Math.min(lineStart + Math.min(column, maxColumn), contentLength);
+};
+
+const buildDiagnostics = (
+	errors: ValidateError[],
+	content: string,
+): MarkdocDiagnostic[] => {
+	if (errors.length === 0 || content.length === 0) {
+		return [];
+	}
+
+	const lineOffsets = getLineOffsets(content);
+	const diagnostics: MarkdocDiagnostic[] = [];
+
+	for (const error of errors) {
+		const message = error.error?.message ?? "Unbekannter Validierungsfehler";
+		const location = error.error?.location as MarkdocLocationRange | undefined;
+		const startIndex = getIndexFromLocation(
+			location?.start,
+			lineOffsets,
+			content.length,
+		);
+		const endIndex = getIndexFromLocation(
+			location?.end ?? location?.start,
+			lineOffsets,
+			content.length,
+		);
+		const from = Math.min(startIndex, endIndex);
+		const to = Math.min(content.length, Math.max(endIndex, from + 1));
+
+		diagnostics.push({
+			from,
+			to,
+			message,
+		});
+	}
+
+	return diagnostics;
+};
 
 export default function Editor({
 	cat,
@@ -58,91 +152,94 @@ export default function Editor({
 		"Onkologie",
 	];
 
-	const handleValidationChange = useCallback(
-		(errors: ValidateError[]) => {
-			try {
-				const ast = Markdoc.parse(content);
-				const validation = Markdoc.validate(ast, markdocConfig);
-
-				setValidationErrors(validation);
-
-				console.log("Validation results:", {
-					errors: validation,
-					tiptapErrors: errors,
-				});
-			} catch (parseError) {
-				console.error("Parse error:", parseError);
-				// Create a synthetic error for parse failures
-				const syntheticError = {
-					type: "error" as const,
-					error: {
-						message:
-							parseError instanceof Error
-								? parseError.message
-								: "Unbekannter Parse-Fehler",
-						location: {
-							start: { line: 1 },
-							end: { line: 1 },
-						},
-					},
-				} as ValidateError;
-				setValidationErrors([syntheticError]);
-			}
-		},
-		[content],
-	);
-
-	const checkContent = () => {
+	const runValidation = useCallback((value: string) => {
 		try {
-			const ast = Markdoc.parse(content);
+			const ast = Markdoc.parse(value);
 			const validation = Markdoc.validate(ast, markdocConfig);
 
-			// Separate errors and warnings
-			const checkErrors = validation.filter(
+			const errorsOnly = validation.filter(
 				(v: ValidateError) => v.type === "error",
 			);
 
-			setValidationErrors(checkErrors);
-
-			if (checkErrors.length > 0) {
-				toast.error(
-					`${checkErrors.length} Fehler in der Markdoc-Syntax gefunden`,
-				);
-			} else {
-				toast.success("Markdoc-Syntax ist korrekt");
-			}
-
-			console.log("Validation results:", {
-				errors: checkErrors,
-				ast,
-			});
+			return errorsOnly;
 		} catch (parseError) {
-			console.error("Parse error:", parseError);
-			toast.error(
-				`Parse-Fehler: ${parseError instanceof Error ? parseError.message : "Unbekannter Fehler"}`,
-			);
-
-			// Create a synthetic error for parse failures
-			const syntheticError = {
-				type: "error" as const,
-				error: {
-					message:
-						parseError instanceof Error
-							? parseError.message
-							: "Unbekannter Parse-Fehler",
-					location: {
-						start: { line: 1 },
-						end: { line: 1 },
-					},
-				},
-			} as ValidateError;
-			setValidationErrors([syntheticError]);
+			const message =
+				parseError instanceof Error
+					? parseError.message
+					: "Unbekannter Parse-Fehler";
+			return [createSyntheticError(message)];
 		}
+	}, []);
+
+	const validationTimeoutRef = useRef<number | null>(null);
+	const validationIdleRef = useRef<number | null>(null);
+
+	useEffect(() => {
+		if (validationTimeoutRef.current !== null) {
+			window.clearTimeout(validationTimeoutRef.current);
+		}
+
+		if (
+			validationIdleRef.current !== null &&
+			"cancelIdleCallback" in window
+		) {
+			window.cancelIdleCallback(validationIdleRef.current);
+		}
+
+		const nextValue = content;
+
+		validationTimeoutRef.current = window.setTimeout(() => {
+			const run = () => {
+				setValidationErrors(runValidation(nextValue));
+			};
+
+			if ("requestIdleCallback" in window) {
+				validationIdleRef.current = window.requestIdleCallback(run);
+			} else {
+				run();
+			}
+		}, 250);
+
+		return () => {
+			if (validationTimeoutRef.current !== null) {
+				window.clearTimeout(validationTimeoutRef.current);
+			}
+			if (
+				validationIdleRef.current !== null &&
+				"cancelIdleCallback" in window
+			) {
+				window.cancelIdleCallback(validationIdleRef.current);
+			}
+		};
+	}, [content, runValidation]);
+
+	const markdocDiagnostics = useMemo(
+		() => buildDiagnostics(validationErrors, content),
+		[content, validationErrors],
+	);
+
+	const checkContent = () => {
+		const errors = runValidation(content);
+		setValidationErrors(errors);
+
+		if (errors.length > 0) {
+			toast.error(`${errors.length} Fehler in der Markdoc-Syntax gefunden`);
+			return;
+		}
+
+		toast.success("Markdoc-Syntax ist korrekt");
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!isFormValid || validationErrors.length > 0) {
+		if (!isFormValid) {
+			return;
+		}
+
+		const errors = runValidation(content);
+		if (errors.length > 0) {
+			setValidationErrors(errors);
+			toast.error(`${errors.length} Fehler in der Markdoc-Syntax gefunden`);
 			return;
 		}
 
@@ -171,7 +268,6 @@ export default function Editor({
 				router.push(`/templates/${newTemplate.id}`);
 			}
 		} catch (error) {
-			console.error("Error saving template:", error);
 			toast.error(
 				error instanceof Error
 					? error.message
@@ -270,20 +366,19 @@ export default function Editor({
 						<div className="min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
 							{showSource ? (
 								<PlainEditor
+									diagnostics={markdocDiagnostics}
 									note={content}
 									onToggleSource={() => {
 										editorKeyRef.current += 1;
 										setShowSource(false);
 									}}
 									setContent={setContent}
-									showSource={showSource}
 								/>
 							) : (
 								<TipTap
 									key={`tiptap-${editorKeyRef.current}`}
 									note={content}
 									onToggleSource={() => setShowSource(true)}
-									onValidationChange={handleValidationChange}
 									setContent={setContent}
 									showSource={showSource}
 								/>
