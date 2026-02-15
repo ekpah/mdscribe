@@ -1,13 +1,7 @@
 import "server-only";
 
 import { QueryClient } from "@tanstack/react-query";
-import { database, eq, template } from "@repo/database";
-import { env } from "@repo/env";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { orpc } from "@/lib/orpc";
-import { getTemplateCategorySuggestions } from "./category-suggestions";
 
 export interface TemplateEditorData {
 	cat: string;
@@ -18,52 +12,29 @@ export interface TemplateEditorData {
 	canEditSource: boolean;
 }
 
-interface SessionUser {
-	id: string;
-	email: string;
+interface EditorContextData {
+	categorySuggestions: string[];
+	canEditSource: boolean;
 }
 
-const getSessionUserOrRedirect = async (): Promise<SessionUser> => {
-	const session = await auth.api.getSession({
-		headers: await headers(),
-	});
-
-	if (!session?.user) {
-		redirect("/");
-	}
-
-	return {
-		id: session.user.id,
-		email: session.user.email,
-	};
+const getCommonEditorData = async (
+	queryClient: QueryClient,
+): Promise<EditorContextData> => {
+	return queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());
 };
-
-const getCommonEditorData = async (user: SessionUser) => {
-	const categorySuggestions = await getTemplateCategorySuggestions(user.id);
-
-	return {
-		categorySuggestions,
-		canEditSource: user.email === env.ADMIN_EMAIL,
-	};
-};
-
-async function fetchForkedTemplate(id: string) {
-	const [doc] = await database
-		.select()
-		.from(template)
-		.where(eq(template.id, id))
-		.limit(1);
-	return doc;
-}
 
 export async function getCreateTemplateEditorData({
 	forkId,
 }: {
 	forkId?: string;
 }): Promise<TemplateEditorData> {
-	const user = await getSessionUserOrRedirect();
-	const sharedData = await getCommonEditorData(user);
-	const forkedTemplate = forkId ? await fetchForkedTemplate(forkId) : null;
+	const queryClient = new QueryClient();
+	const sharedData = await getCommonEditorData(queryClient);
+	const forkedTemplate = forkId
+		? await queryClient.fetchQuery(
+				orpc.templates.get.queryOptions({ input: { id: forkId } }),
+			)
+		: null;
 
 	return {
 		...sharedData,
@@ -78,9 +49,8 @@ export async function getEditTemplateEditorData({
 }: {
 	id: string;
 }): Promise<TemplateEditorData> {
-	const user = await getSessionUserOrRedirect();
-	const sharedData = await getCommonEditorData(user);
 	const queryClient = new QueryClient();
+	const sharedData = await getCommonEditorData(queryClient);
 	const doc = await queryClient.fetchQuery(
 		orpc.templates.get.queryOptions({ input: { id } }),
 	);
