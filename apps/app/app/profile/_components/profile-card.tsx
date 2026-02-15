@@ -21,6 +21,7 @@ import {
   FormMessage,
 } from '@repo/design-system/components/ui/form';
 import { Input } from '@repo/design-system/components/ui/input';
+import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -35,6 +36,18 @@ const profileFormSchema = z.object({
     .max(30, {
       message: 'Name darf nicht länger als 30 Zeichen sein.',
     }),
+  location: z
+    .string()
+    .max(120, {
+      message: 'Standort darf nicht länger als 120 Zeichen sein.',
+    })
+    .optional(),
+  personalContext: z
+    .string()
+    .max(1000, {
+      message: 'Persönlicher Kontext darf nicht länger als 1000 Zeichen sein.',
+    })
+    .optional(),
   email: z
     .string()
     .email({
@@ -49,6 +62,8 @@ interface ProfileCardProps {
   user: {
     name: string;
     email: string;
+    location?: string | null;
+    personalContext?: string | null;
   };
   isLoading: boolean;
   setIsLoading: (value: boolean) => void;
@@ -63,6 +78,8 @@ export function ProfileCard({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: '',
+      location: '',
+      personalContext: '',
       email: '',
     },
   });
@@ -71,6 +88,8 @@ export function ProfileCard({
     if (user) {
       form.reset({
         name: user.name || '',
+        location: user.location || '',
+        personalContext: user.personalContext || '',
         email: user.email || '',
       });
     }
@@ -81,6 +100,8 @@ export function ProfileCard({
     toast.promise(
       authClient.updateUser({
         name: data.name,
+        location: data.location,
+        personalContext: data.personalContext,
       }),
       {
         loading: 'Dein Profil wird aktualisiert...',
@@ -115,6 +136,42 @@ export function ProfileCard({
                   <FormDescription>
                     Dies ist Dein vollständiger Name, wie er für andere Benutzer
                     erscheint.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Standort</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Klinikum Beispielstadt" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Optionaler Standort für persönliche Kontextangaben im
+                    KI-Scribe.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              name="personalContext"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Persönlicher Kontext</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="z. B. Fachrichtung, Praxissetting, bevorzugter Schreibstil"
+                      rows={4}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Zusätzliche Informationen, die die KI-Antworten auf Dich
+                    zuschneiden.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

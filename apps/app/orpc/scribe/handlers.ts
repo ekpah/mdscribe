@@ -319,10 +319,15 @@ export const scribeStreamHandler = authed
 			year: "numeric",
 		});
 
+	const { location, name, personalContext } = context.session.user;
+
 		// Build prompt messages using local prompt function
 		const promptVariables = {
 			...processedInput,
 			todaysDate,
+		userName: name,
+		userLocation: location,
+		userContext: personalContext,
 		} as PromptVariables;
 
 		const compiledPrompt = config.prompt(promptVariables);

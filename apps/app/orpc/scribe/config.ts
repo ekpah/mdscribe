@@ -13,6 +13,29 @@ import type {
 	PromptMessage,
 } from "./types";
 
+const buildPersonalContextBlock = (vars: {
+	userName?: string | null;
+	userLocation?: string | null;
+	userContext?: string | null;
+}): string => {
+	const name = vars.userName?.trim() || "Unbekannt";
+	const location = vars.userLocation?.trim();
+	const context = vars.userContext?.trim();
+	const lines = ["<personal_context>", `<name>${name}</name>`];
+
+	if (location) {
+		lines.push(`<location>${location}</location>`);
+	}
+
+	if (context) {
+		lines.push(`<additional_info>${context}</additional_info>`);
+	}
+
+	lines.push("</personal_context>");
+
+	return lines.join("\n");
+};
+
 /**
  * Configuration for all document types
  * Each configuration defines:
@@ -152,7 +175,9 @@ BEGINNEN SIE JETZT mit der Erstellung der Epikrise basierend auf den bereitgeste
 			},
 			{
 				role: "user",
-				content: `<patient_data>
+			content: `${buildPersonalContextBlock(vars)}
+
+<patient_data>
 <vordiagnosen>
 ${vars.diagnoseblock}
 </vordiagnosen>
@@ -244,6 +269,9 @@ Arbeite immer transparent und strukturiert entsprechend diesen Vorgaben.`,
 
 ((Hinweis: Niemals eigene Patientendetails, Bewertungen, Diagnose, Differentialdiagnose, Pläne, Interventionen etc. erfinden. Verwende ausschließlich die gelieferten Transkriptinformationen, Notizen oder klinische Kontextinfos. Falls keine Daten vorhanden, Abschnitt leer lassen. Gib so viele Sätze an, wie für die vollständige Darstellung aller relevanten Transkript- und Kontextinformationen nötig.))
 </template>
+
+${buildPersonalContextBlock(vars)}
+
 <vordiagnosen>
 ${vars.vordiagnosen}
 </vordiagnosen>
@@ -409,7 +437,9 @@ BEGINNEN SIE JETZT mit der Erstellung des Diagnoseblocks basierend auf den berei
 			},
 			{
 				role: "user",
-				content: `<patient_data>
+			content: `${buildPersonalContextBlock(vars)}
+
+<patient_data>
 <vordiagnosen>
 ${vars.diagnoseblock}
 </vordiagnosen>
@@ -462,7 +492,9 @@ Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine professio
 			},
 			{
 				role: "user",
-				content: `<notes>
+			content: `${buildPersonalContextBlock(vars)}
+
+<notes>
 ${vars.notes}
 </notes>`,
 			},
@@ -522,7 +554,9 @@ Achte insbesondere darauf:
 			},
 			{
 				role: "user",
-				content: `**Eingabe-Notizen:**
+			content: `${buildPersonalContextBlock(vars)}
+
+**Eingabe-Notizen:**
 
 ${vars.notes}`,
 			},
@@ -644,7 +678,9 @@ BEGINNEN SIE JETZT mit der Erstellung der Abschnitte <in_der_ZNA>, <procedere> u
 			},
 			{
 				role: "user",
-				content: `<patient_data>
+			content: `${buildPersonalContextBlock(vars)}
+
+<patient_data>
 <vordiagnosen>
 ${vars.vordiagnosen}
 </vordiagnosen>
@@ -769,7 +805,9 @@ Geben Sie das Ergebnis im beschriebenen Format mit einem Abschnitt pro Untersuch
 			},
 			{
 				role: "user",
-				content: `<patient_data>
+			content: `${buildPersonalContextBlock(vars)}
+
+<patient_data>
 <vordiagnosen>
 ${vars.vordiagnosen}
 </vordiagnosen>
@@ -885,7 +923,9 @@ Procedere:
 			},
 			{
 				role: "user",
-				content: `${vars.notes}`,
+			content: `${buildPersonalContextBlock(vars)}
+
+${vars.notes}`,
 			},
 		],
 		processInput: (prompt: string) => {
@@ -994,6 +1034,8 @@ Der Patient konnte in stabilem Allgemeinzustand und beschwerdefrei entlassen wer
 - Pulmonalvenenisolation am 12.03.2026, 7:15 Uhr, nüchtern erscheinen
 - Präinterventionelle Aufklärung und TEE am 11.03.2026, 8:00 Uhr, nüchtern, mit Begleitperson, Medikamentenplan, Krankenhauseinweisung und Versichertenkarte mitbringen
 </output_example>
+
+${buildPersonalContextBlock(vars)}
 
 <patient_data>
 <diagnoseblock>
