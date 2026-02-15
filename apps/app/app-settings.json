@@ -1,0 +1,14 @@
+{
+  "provider": "openrouter",
+  "modelSelection": {
+    "mode": "multi",
+    "defaultModel": "auto",
+    "availableModels": [
+      "auto",
+      "glm-4p6",
+      "claude-opus-4.5",
+      "gemini-3-pro",
+      "gemini-3-flash"
+    ]
+  }
+}

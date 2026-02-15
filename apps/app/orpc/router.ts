@@ -15,6 +15,7 @@ import { templatesHandler } from "./templates";
 import { findRelevantTemplateHandler } from "./templates/search";
 import { activityHandler } from "./user/activity";
 import { snippetsHandler } from "./user/snippets";
+import { adminSettingsHandler, settingsHandler } from "./settings";
 
 /**
  * oRPC Router
@@ -58,6 +59,11 @@ export const router = {
 		},
 	},
 
+	// Public settings
+	settings: {
+		...settingsHandler,
+	},
+
 	// Admin operations
 	admin: {
 		users: {
@@ -74,6 +80,9 @@ export const router = {
 		},
 		models: {
 			...adminModelsHandler,
+		},
+		settings: {
+			...adminSettingsHandler,
 		},
 	},
 };
