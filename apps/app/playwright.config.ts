@@ -3,6 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
+const playwrightPort = process.env.PLAYWRIGHT_PORT ?? "3000";
+const playwrightBaseURL =
+	process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${playwrightPort}`;
+
 export default defineConfig({
 	testDir: "./__tests__/e2e",
 	fullyParallel: true,
@@ -11,7 +15,7 @@ export default defineConfig({
 	workers: process.env.CI ? 1 : undefined,
 	reporter: "html",
 	use: {
-		baseURL: "http://localhost:3000",
+		baseURL: playwrightBaseURL,
 		trace: "on-first-retry",
 	},
 	projects: [
@@ -21,8 +25,8 @@ export default defineConfig({
 		},
 	],
 	webServer: {
-		command: "bun dev",
-		url: "http://localhost:3000",
+		command: `bun --bun next dev -p ${playwrightPort}`,
+		url: playwrightBaseURL,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120 * 1000,
 	},
