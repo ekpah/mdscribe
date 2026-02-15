@@ -100,6 +100,7 @@ MDScribe is a medical documentation webapp built as a monorepo that helps organi
 - NEVER commit changes without explicit user confirmation
 - When making edits or improvements, leave changes unstaged for the user to review
 - Only stage and commit when the user explicitly asks to commit, merge, or confirms the changes look good
+- Do NOT mention "Claude Code", "Opus", or any AI tool/model name in commit messages — no `Co-Authored-By` lines, no AI attribution
 
 **Post-Commit:**
 - After pushing or finalizing work (PR merge, push), check Linear for related issues
@@ -226,7 +227,9 @@ await complete(promptText, { model: "auto", audioFiles: [] });
 - **Validation strategy**: In TipTap WYSIWYG mode, Markdoc should be valid by construction; avoid per-node inline Markdoc validation/highlighting in this mode.
 - **Source editing access**: "Show source" / plain Markdoc editing should be available to admins only (`session.user.email === env.ADMIN_EMAIL`).
 - **Template page data**: Keep create/edit server loading logic centralized in `apps/app/app/templates/_lib/editor-page-data.ts`.
-- **Category suggestions**: Build template category suggestions via `apps/app/app/templates/_lib/category-suggestions.ts` and pass them to the editor as `categorySuggestions`.
+- **Editor route protection**: Keep `/templates/create` and `/templates/[id]/edit` under `apps/app/app/templates/(editor)/` with auth redirect in the route-group `layout.tsx`.
+- **Category suggestions**: Fetch via oRPC (`orpc.templates.editorContext`) and pass to the editor as `categorySuggestions`.
+- **DB access boundary**: In app routes/components, access persisted data through oRPC/TanStack Query; do not add direct database helpers under `app/`.
 - **Vector Search**: Template embeddings for relevant template discovery via Voyage AI
 
 ## Code Style & Conventions
@@ -293,6 +296,7 @@ Required environment variables (see turbo.json):
 - **Admin usage -> playground compatibility**: When hydrating forms from historical `UsageEvent.inputData`, accept legacy keys (`dischargeNotes`, `procedureNotes`, `consultationNotes`, `vordiagnosen`) in the playground mapping layer only.
 - **Context extensibility**: Add new context domains (e.g. template/institution/guideline/evidence) as separate providers rather than extending `patient_context`.
 - **License file naming**: Use `LICENSE` (repository root) as the canonical OSS license file path; do not reference `license.md`.
+- **Nuqs + menubar**: Do not move the top menubar session fetch into a separate async server wrapper component under `NuqsAdapter`; this setup has caused runtime crashes in this project. Keep menubar auth loading handling client-side.
 
 ## Documentation Lookup
 
