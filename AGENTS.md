@@ -223,6 +223,10 @@ await complete(promptText, { model: "auto", audioFiles: [] });
 ### Template System
 - **Custom Markdoc**: Extended with medical-specific tags (Case, Info, Score, Switch)
 - **TipTap Editor**: Rich text editing with custom medical node extensions
+- **Validation strategy**: In TipTap WYSIWYG mode, Markdoc should be valid by construction; avoid per-node inline Markdoc validation/highlighting in this mode.
+- **Source editing access**: "Show source" / plain Markdoc editing should be available to admins only (`session.user.email === env.ADMIN_EMAIL`).
+- **Template page data**: Keep create/edit server loading logic centralized in `apps/app/app/templates/_lib/editor-page-data.ts`.
+- **Category suggestions**: Build template category suggestions via `apps/app/app/templates/_lib/category-suggestions.ts` and pass them to the editor as `categorySuggestions`.
 - **Vector Search**: Template embeddings for relevant template discovery via Voyage AI
 
 ## Code Style & Conventions
@@ -241,6 +245,9 @@ await complete(promptText, { model: "auto", audioFiles: [] });
 - Avoid `any` - use proper typing
 - Use `for...of` instead of `Array.forEach`
 - Use arrow functions instead of function expressions
+
+### Runtime API Preference
+- When running on Bun, prefer Bun-native APIs over Node compatibility APIs if Bun provides an equivalent capability.
 
 ### Tailwind CSS v4
 - **Import syntax**: `@import "tailwindcss"` (not `@tailwind` directives)
