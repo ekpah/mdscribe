@@ -1,8 +1,7 @@
-import { auth } from "@/auth";
 import { env } from "@repo/env";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { getServerSession } from "@/lib/server-session";
 import { AdminBreadcrumb } from "./_components/AdminBreadcrumb";
 
 interface AdminLayoutProps {
@@ -11,10 +10,7 @@ interface AdminLayoutProps {
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
 	// Check authentication
-	const headersList = await headers();
-	const session = await auth.api.getSession({
-		headers: headersList,
-	});
+	const session = await getServerSession();
 
 	if (!session?.user) {
 		redirect("/");

@@ -12,7 +12,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
 	Activity,
 	ArrowRight,
@@ -37,13 +37,15 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
+import { getServerSession } from "@/lib/server-session";
 import { LiveTime } from "./_components/LiveTime";
 
 export default async function DashboardPage() {
 	// Auth check - must happen before queries
+	const requestHeaders = await headers();
 	const [session, subscriptions] = await Promise.all([
-		auth.api.getSession({ headers: await headers() }),
-		auth.api.listActiveSubscriptions({ headers: await headers() }),
+		getServerSession(),
+		auth.api.listActiveSubscriptions({ headers: requestHeaders }),
 	]).catch((_e) => {
 		throw redirect("/sign-in");
 	});
@@ -58,27 +60,29 @@ export default async function DashboardPage() {
 
 	// Use the shared getQueryClient for proper SSR caching
 	const queryClient = getQueryClient();
+	const usageQueryOptions = orpc.getUsage.queryOptions();
+	const favouritesQueryOptions = orpc.templates.favourites.queryOptions();
+	const authoredQueryOptions = orpc.templates.authored.queryOptions();
+	const recentActivityQueryOptions = orpc.user.recentActivity.queryOptions();
 
 	// PERF: Prefetch all queries in parallel
 	// Using prefetchQuery allows streaming - the page can start rendering
 	// while queries are still in flight, and data is hydrated to client
 	await Promise.all([
-		queryClient.prefetchQuery(orpc.getUsage.queryOptions()),
-		queryClient.prefetchQuery(orpc.templates.favourites.queryOptions()),
-		queryClient.prefetchQuery(orpc.templates.authored.queryOptions()),
-		queryClient.prefetchQuery(orpc.user.recentActivity.queryOptions()),
+		queryClient.prefetchQuery(usageQueryOptions),
+		queryClient.prefetchQuery(favouritesQueryOptions),
+		queryClient.prefetchQuery(authoredQueryOptions),
+		queryClient.prefetchQuery(recentActivityQueryOptions),
 	]);
 
 	// Get the cached data for server rendering
-	const data = queryClient.getQueryData(orpc.getUsage.queryOptions().queryKey);
+	const data = queryClient.getQueryData(usageQueryOptions.queryKey);
 	const favoriteTemplates = queryClient.getQueryData(
-		orpc.templates.favourites.queryOptions().queryKey,
+		favouritesQueryOptions.queryKey,
 	);
-	const userTemplates = queryClient.getQueryData(
-		orpc.templates.authored.queryOptions().queryKey,
-	);
+	const userTemplates = queryClient.getQueryData(authoredQueryOptions.queryKey);
 	const recentEvents = queryClient.getQueryData(
-		orpc.user.recentActivity.queryOptions().queryKey,
+		recentActivityQueryOptions.queryKey,
 	);
 
 	const currentUsage = data?.usage?.count || 0;
@@ -421,7 +425,10 @@ export default async function DashboardPage() {
 														<div className="flex items-start justify-between">
 															<div className="flex-1">
 																<div className="mb-2 flex items-center gap-2">
-																	<Badge className="text-xs" variant="secondary">
+																	<Badge
+																		className="text-xs"
+																		variant="secondary"
+																	>
 																		{template.category}
 																	</Badge>
 																	<Badge className="text-xs" variant="outline">

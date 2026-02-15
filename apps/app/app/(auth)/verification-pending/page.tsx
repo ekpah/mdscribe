@@ -7,15 +7,12 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { CheckCircle2, Mail, MailCheck, Shield } from "lucide-react";
 import Link from "next/link";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getServerSession } from "@/lib/server-session";
 
 export default async function VerificationPendingPage() {
 	// Check session and redirect if email is already verified
-	const session = await auth.api.getSession({
-		headers: await headers(),
-	});
+	const session = await getServerSession();
 
 	if (session?.user?.emailVerified) {
 		redirect("/dashboard");
