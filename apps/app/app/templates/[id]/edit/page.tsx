@@ -5,6 +5,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { auth } from "@/auth";
 import { orpc } from "@/lib/orpc";
 import Editor from "../../_components/Editor";
+import { getTemplateCategorySuggestions } from "../../_lib/category-suggestions";
 
 export const dynamicParams = false;
 
@@ -43,6 +44,7 @@ export default async function EditTemplate(
 	if (!doc) {
 		throw new Error("Document not found");
 	}
+	const categorySuggestions = await getTemplateCategorySuggestions(session.user.id);
 
 	const author = doc.author;
 	if (!author) {
@@ -53,6 +55,7 @@ export default async function EditTemplate(
 			<Editor
 				author={author}
 				cat={doc?.category || ""}
+				categorySuggestions={categorySuggestions}
 				id={id}
 				note={JSON.stringify(doc?.content || "")}
 				tit={doc?.title || ""}
