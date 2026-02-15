@@ -1,5 +1,6 @@
 "use client";
 
+import type { UsageEvent, User } from "@repo/database";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Sheet,
@@ -8,13 +9,42 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
-import type { UsageEvent, User } from "@repo/database";
 import { FlaskConical } from "lucide-react";
 import Link from "next/link";
+import type { DocumentType } from "@/orpc/scribe/types";
+import {
+	allScribeDocTypes,
+	scribeDocTypeUi,
+} from "../../playground/_lib/scribe-doc-types";
 
 type UsageEventWithUser = UsageEvent & {
 	user: Pick<User, "id" | "name" | "email"> | null;
 };
+
+const promptNameToDocumentType = new Map(
+	allScribeDocTypes.map((documentType) => [
+		scribeDocTypeUi[documentType].defaultPromptName,
+		documentType,
+	]),
+);
+
+function inferDocumentType(
+	metadata: Record<string, unknown> | null,
+): DocumentType | undefined {
+	if (!metadata) return undefined;
+
+	const endpoint = metadata.endpoint;
+	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
+		return endpoint as DocumentType;
+	}
+
+	const promptName = metadata.promptName;
+	if (typeof promptName === "string" && promptName.trim().length > 0) {
+		return promptNameToDocumentType.get(promptName);
+	}
+
+	return undefined;
+}
 
 function buildPlaygroundUrl(event: UsageEventWithUser): string {
 	const params = new URLSearchParams();
@@ -28,9 +58,9 @@ function buildPlaygroundUrl(event: UsageEventWithUser): string {
 
 	// Prefer inferring document type from metadata (if present)
 	const metadata = event.metadata as Record<string, unknown> | null;
-	const endpoint = metadata?.endpoint;
-	if (typeof endpoint === "string" && endpoint.trim()) {
-		params.set("documentType", endpoint);
+	const documentType = inferDocumentType(metadata);
+	if (documentType) {
+		params.set("documentType", documentType);
 	}
 
 	// Extract parameters from metadata

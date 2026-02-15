@@ -12,7 +12,6 @@ import {
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
-import { Separator } from "@repo/design-system/components/ui/separator";
 import {
 	Select,
 	SelectContent,
@@ -20,6 +19,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
+import { Separator } from "@repo/design-system/components/ui/separator";
 import {
 	Tabs,
 	TabsContent,
@@ -29,19 +29,19 @@ import {
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
+	type MutableRefObject,
 	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
 	useState,
-	type MutableRefObject,
 } from "react";
 import { toast } from "sonner";
-import type { DocumentType } from "@/orpc/scribe/types";
 import { orpc } from "@/lib/orpc";
+import type { DocumentType } from "@/orpc/scribe/types";
+import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
 import { DEFAULT_PARAMETERS } from "../_lib/types";
-import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import { ModelSelector } from "./ModelSelector";
 import { ParameterControls } from "./ParameterControls";
 import { ResultDisplay } from "./ResultDisplay";
@@ -65,7 +65,17 @@ function parseVariablesToFormFields(
 	documentType: DocumentType,
 	variables: Record<string, unknown>,
 ): { main: string; additional: Record<string, string> } {
-	const v = variables as Record<string, string>;
+	const v = variables as Record<string, unknown>;
+
+	const pickString = (...keys: string[]): string => {
+		for (const key of keys) {
+			const value = v[key];
+			if (typeof value === "string" && value.trim().length > 0) {
+				return value;
+			}
+		}
+		return "";
+	};
 
 	const result: { main: string; additional: Record<string, string> } = {
 		main: "",
@@ -75,51 +85,51 @@ function parseVariablesToFormFields(
 	switch (documentType) {
 		case "discharge":
 		case "outpatient":
-			result.main = v.notes ?? "";
+			result.main = pickString("notes", "dischargeNotes", "consultationNotes");
 			result.additional = {
-				diagnoseblock: v.diagnoseblock ?? "",
-				anamnese: v.anamnese ?? "",
-				befunde: v.befunde ?? "",
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
+				anamnese: pickString("anamnese"),
+				befunde: pickString("befunde"),
 			};
 			break;
 
 		case "procedures":
-			result.main = v.notes ?? "";
+			result.main = pickString("notes", "procedureNotes");
 			break;
 
 		case "anamnese":
-			result.main = v.notes ?? "";
+			result.main = pickString("notes");
 			result.additional = {
-				befunde: v.befunde ?? "",
-				diagnoseblock: v.diagnoseblock ?? "",
+				befunde: pickString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
 
 		case "physical-exam":
-			result.main = v.notes ?? "";
+			result.main = pickString("notes");
 			break;
 
 		case "diagnosis":
 		case "admission-todos":
 		case "icu-transfer":
-			result.main = v.notes ?? "";
+			result.main = pickString("notes");
 			result.additional = {
-				anamnese: v.anamnese ?? "",
-				diagnoseblock: v.diagnoseblock ?? "",
-				befunde: v.befunde ?? "",
+				anamnese: pickString("anamnese"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
+				befunde: pickString("befunde"),
 			};
 			break;
 
 		case "befunde":
-			result.main = v.notes ?? "";
+			result.main = pickString("notes");
 			result.additional = {
-				anamnese: v.anamnese ?? "",
-				diagnoseblock: v.diagnoseblock ?? "",
+				anamnese: pickString("anamnese"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
 
 		default:
-			result.main = v.notes ?? "";
+			result.main = pickString("notes", "dischargeNotes", "procedureNotes");
 	}
 
 	return result;
@@ -178,6 +188,27 @@ export function PlaygroundPanel({
 	const [formAdditional, setFormAdditional] = useState<Record<string, string>>(
 		parsedPreset?.additional ?? {},
 	);
+	const hasAppliedPresetDocTypeRef = useRef(false);
+	const hasAppliedPresetFieldsRef = useRef(false);
+
+	// Apply async preset document type once (usage -> playground jump-off).
+	useEffect(() => {
+		if (hasAppliedPresetDocTypeRef.current) return;
+		if (!presetDocumentType) return;
+
+		setDocumentType(presetDocumentType);
+		hasAppliedPresetDocTypeRef.current = true;
+	}, [presetDocumentType]);
+
+	// Apply async preset variables once (usage -> playground jump-off).
+	useEffect(() => {
+		if (hasAppliedPresetFieldsRef.current) return;
+		if (!parsedPreset) return;
+
+		setFormMain(parsedPreset.main);
+		setFormAdditional(parsedPreset.additional);
+		hasAppliedPresetFieldsRef.current = true;
+	}, [parsedPreset]);
 
 	// Prompt selection / compilation
 	const [promptName, setPromptName] = useState<string>(docUi.defaultPromptName);
