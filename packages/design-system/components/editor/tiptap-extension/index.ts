@@ -71,3 +71,9 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 		return extensions;
 	},
 });
+
+export { MarkdocValidation } from "./markdocValidation";
+export type {
+	MarkdocTagName,
+	MarkdocValidationHighlight,
+} from "./markdocValidation";
