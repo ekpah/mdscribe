@@ -4,10 +4,11 @@ import { os, type RouterClient } from '@orpc/server';
 import { createTanstackQueryUtils } from '@orpc/tanstack-query';
 import { requiredAuthMiddleware } from '@/orpc/middlewares/auth';
 import { dbProviderMiddleware } from '@/orpc/middlewares/db';
+import { env } from '@repo/env';
 import type { router } from '@/orpc/router';
 
 const link = new RPCLink({
-    url: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/rpc`,
+    url: `${typeof window !== 'undefined' ? window.location.origin : env.NEXT_PUBLIC_BASE_URL}/api/rpc`,
     headers: async () => {
         if (typeof window !== 'undefined') {
             return {};
