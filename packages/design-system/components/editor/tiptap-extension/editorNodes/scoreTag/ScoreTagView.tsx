@@ -141,7 +141,7 @@ export function ScoreTagView({
       className="inline-block align-baseline mx-1"
       contentEditable={false}
     >
-      <div
+      <span
         className={`group inline-flex items-center gap-1 rounded-md border px-1 py-0.5 text-xs shadow-xs transition-all ${
           selected
             ? 'border-solarized-orange ring-2 ring-solarized-orange/40'
@@ -370,7 +370,7 @@ export function ScoreTagView({
         >
           <X className="h-3 w-3" />
         </Button>
-      </div>
+      </span>
     </NodeViewWrapper>
   );
 }

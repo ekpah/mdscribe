@@ -30,7 +30,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
   inline: true,
   atom: true,
   selectable: true,
-  draggable: true,
+  draggable: false,
   isolating: true,
 
   addAttributes() {

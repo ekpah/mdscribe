@@ -28,9 +28,8 @@ export const InfoTag = Node.create<InfoTagAttrs>({
   selectable: true,
 
   group: 'inline',
-  content: 'inline*',
   inline: true,
-  draggable: true,
+  draggable: false,
   atom: true,
   isolating: true,
 

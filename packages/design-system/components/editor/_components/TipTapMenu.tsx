@@ -1,3 +1,4 @@
+import { placeCaretAfterInsertedInlineTag } from "@repo/design-system/components/editor/_lib/placeCaretAfterInsertedInlineTag";
 import { Button } from "@repo/design-system/components/ui/button";
 import type { Editor } from "@tiptap/react";
 import { Code, HelpCircle, List, Redo, Undo } from "lucide-react";
@@ -128,6 +129,7 @@ const MenuBar = ({
 									primary: "...",
 								},
 							})
+							.command(placeCaretAfterInsertedInlineTag)
 							.run()
 					}
 					size="sm"
@@ -149,6 +151,7 @@ const MenuBar = ({
 									cases: [{ primary: "", text: "..." }],
 								},
 							})
+							.command(placeCaretAfterInsertedInlineTag)
 							.run()
 					}
 					size="sm"
@@ -171,6 +174,7 @@ const MenuBar = ({
 									unit: "",
 								},
 							})
+							.command(placeCaretAfterInsertedInlineTag)
 							.run()
 					}
 					size="sm"
