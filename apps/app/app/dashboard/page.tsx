@@ -38,7 +38,29 @@ import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
+import type { DocumentType } from "@/orpc/scribe/types";
 import { LiveTime } from "./_components/LiveTime";
+
+/** Readable German labels for AI scribe document types */
+const documentTypeLabels: Record<DocumentType, string> = {
+	discharge: "Entlassungsbrief",
+	anamnese: "ER Anamnese",
+	diagnosis: "Diagnoseblock Update",
+	"physical-exam": "ER Körperliche Untersuchung",
+	procedures: "Prozeduren",
+	"admission-todos": "ER Admission TODOs",
+	befunde: "ER Befunde",
+	outpatient: "Ambulante Vorstellung",
+	"icu-transfer": "ICU Transfer",
+};
+
+/** Readable German labels for usage event names */
+const eventNameLabels: Record<string, string> = {
+	ai_scribe_generation: "KI-Dokumentation generiert",
+	ai_input_voice_fill: "Spracheingabe verarbeitet",
+	ai_pdf_form_parsing: "PDF-Formular analysiert",
+	admin_scribe_playground: "Playground-Generierung",
+};
 
 export default async function DashboardPage() {
 	// Auth check - must happen before queries
@@ -174,11 +196,19 @@ export default async function DashboardPage() {
 
 		// Determine icon and title based on event name
 		let icon = Activity;
-		let title = event.name;
+		let title = eventNameLabels[event.name] ?? event.name;
 
 		if (event.name === "ai_scribe_generation") {
 			icon = Brain;
-			title = "KI-Dokumentation generiert";
+			const metadata = event.metadata as Record<string, unknown> | null;
+			const endpoint = metadata?.endpoint as DocumentType | undefined;
+			if (endpoint && documentTypeLabels[endpoint]) {
+				title = documentTypeLabels[endpoint];
+			}
+		} else if (event.name === "ai_input_voice_fill") {
+			icon = FileCheck;
+		} else if (event.name === "ai_pdf_form_parsing") {
+			icon = FileText;
 		} else if (event.name.includes("template")) {
 			icon = FileText;
 			title = "Template verwendet";
