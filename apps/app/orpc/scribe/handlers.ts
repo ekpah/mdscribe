@@ -332,13 +332,6 @@ export const scribeStreamHandler = authed
 			});
 		}
 
-		// Check user has stripeCustomerId
-		if (!context.session.user.stripeCustomerId) {
-			throw new ORPCError("FORBIDDEN", {
-				message: USER_MESSAGES.subscriptionRequired,
-			});
-		}
-
 		// Check usage limits
 		const { activeSubscription } = await checkUsageLimit(
 			context.session.user.id,
