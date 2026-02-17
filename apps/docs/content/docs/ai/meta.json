@@ -1,6 +1,9 @@
 {
   "title": "KI zur Dokumentation",
-  "description": "KI-Funktionen für die medizinische Dokumentation",
-  "root": false
+  "description": "Praktische Leitlinien fuer bessere KI-Ausgaben in MDScribe.",
+  "root": false,
+  "pages": [
+    "index",
+    "ki-instruktionen"
+  ]
 }
-

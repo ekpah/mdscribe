@@ -1,0 +1,46 @@
+---
+title: FAQ
+description: Kurze Antworten auf die haeufigsten Fragen zum produktiven Start.
+---
+
+## Haeufige Fragen
+
+### Ich sehe mein Template in der Generierung nicht. Warum?
+
+Pruefen Sie, ob das Template gespeichert und im passenden Bereich ausgewaehlt wurde. Bei Bedarf Seite neu laden und erneut auswaehlen.
+
+### Tags werden als normaler Text angezeigt.
+
+Meist ist die Syntax fehlerhaft. Nutzen Sie exakt:
+
+```markdown
+{% info "feldname" /%}
+```
+
+### Die KI-Antwort ist zu allgemein.
+
+- Eingabe konkreter machen (Befunde, Verlauf, Diagnosen trennen)
+- Template vereinfachen
+- KI-Instruktionen als Kommentare im Template ergaenzen
+
+### Darf ich im Cloud-Betrieb sensible Patientendaten eingeben?
+
+Derzeit nein. Fuer sensible Patienten-PII/PHI ist Self-Hosting der empfohlene Weg. Details: [Datenschutz](/privacy).
+
+### Was ist der schnellste Weg zu stabilen Ergebnissen?
+
+1. Kleines Starttemplate bauen
+2. Mit echten (anonymisierten) Beispielnotizen testen
+3. 2-3 Iterationen auf Struktur und Stil machen
+4. Template als Standard fuer den Dokumenttyp festlegen
+
+## Wenn etwas weiterhin blockiert
+
+Dokumentieren Sie kurz:
+
+- welches Template Sie genutzt haben
+- welche Eingabe Sie gemacht haben
+- was Sie erwartet haben
+- was tatsaechlich passiert ist
+
+Damit laesst sich das Problem schnell reproduzieren und beheben.

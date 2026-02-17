@@ -1,24 +1,66 @@
 ---
 title: Templates
-description: Ausführliche Dokumentation zu Templates in MDScribe
+description: Wie Sie in MDScribe schnell robuste Templates fuer die KI-Dokumentation aufbauen.
 ---
 
 ## Templates
 
-Wir arbeiten derzeit an der umfassenden Dokumentation für Templates in MDScribe.
+Templates steuern Struktur, Extraktion und Sprachstil Ihrer Ausgaben. Gute Templates sind kurz, klar und konsequent.
 
-Diese Dokumentation wird detaillierte Informationen zu folgenden Themen enthalten:
+## Das Minimal-Prinzip
 
-- Template-Erstellung
-- Template-Verwaltung
-- Best Practices
-- Vorlagen-Bibliothek
-- Template-Sharing
-- Erweiterte Template-Funktionen
+1. Jeder Abschnitt hat einen klaren Zweck.
+2. Nutzen Sie nur so viele Felder wie wirklich benoetigt.
+3. Fuer wiederkehrende Qualitaetsregeln nutzen Sie KI-Kommentare (`<!-- ... -->`).
 
-Bitte haben Sie noch etwas Geduld, während wir diese Inhalte erstellen.
+## Startstruktur
 
+```markdown
+# Dokumenttitel
 
+## Kernbefunde
+{% info "kernbefunde" /%}
+
+## Diagnose
+{% info "diagnose" /%}
+
+## Verlauf
+{% info "verlauf" /%}
+```
+
+## Tag-Referenz auf einen Blick
+
+| Tag | Zweck | Link |
+|---|---|---|
+| `info` | Einzelne Werte/Felder erfassen | [Info-Tag](/templates/info-tag) |
+| `switch/case` | Bedingte Textbausteine | [Switch/Case-Tags](/templates/switch-case-tags) |
+| `score` | Formeln und Berechnungen | [Score-Tag](/templates/score-tag) |
+
+## Typische Fehler
+
+- Zu viele Felder in einem einzigen Template
+- Uneinheitliche Feldnamen (`Diagnose`, `diagnose`, `diag`)
+- Fehlende Reihenfolgevorgaben fuer die KI
+- Ungenutzte komplexe Logik, die selten gebraucht wird
+
+## Empfohlener Aufbau fuer den Launch
+
+1. 2-3 Kerntemplates, die Sie taeglich brauchen
+2. Pro Template nur die wichtigsten Abschnitte
+3. Ein kurzer interner Review mit Kollegen, bevor das Template final genutzt wird
+
+<Cards>
+  <Card
+    title="Tags im Detail"
+    href="/templates/tags"
+    description="Syntax, Beispiele und typische Stolpersteine."
+  />
+  <Card
+    title="KI-Instruktionen"
+    href="/ai/ki-instruktionen"
+    description="So steuern Sie Stil und Struktur direkt im Template."
+  />
+</Cards>
 
 
 

@@ -1,34 +1,40 @@
 ---
 title: Datenschutz
-description: Übersicht zur Datenschutz-Architektur, DSGVO-Konformität und Datensicherheit in MDScribe
+description: Praktische Datenschutz-Leitplanken fuer den Einsatz von MDScribe.
 ---
 
 ## Datenschutz bei MDScribe
 
-MDScribe legt großen Wert auf den Schutz Ihrer Daten. Als medizinische Dokumentationsplattform unterliegen wir besonderen Anforderungen an Datenschutz und Datensicherheit gemäß der Datenschutz-Grundverordnung (DSGVO).
+Diese Seite fasst die wichtigsten Leitplanken fuer den Launch zusammen.
 
-### Grundprinzipien
+## Kurzposition (Cloud vs. Self-Hosting)
 
-- **Keine personenbezogenen Gesundheitsdaten:** MDScribe ist ausdrücklich nicht für die Verarbeitung von Patientennamen, Geburtsdaten, Fallnummern oder anderen identifizierbaren Informationen vorgesehen.
-- **Anonyme Nutzungsdaten:** Es werden ausschließlich anonymisierte klinische Begriffe und Stichpunkte verarbeitet.
-- **Verschlüsselte Kommunikation:** Alle Datenübertragungen erfolgen TLS-verschlüsselt.
-- **DSGVO-Konformität:** Verarbeitung personenbezogener Daten erfolgt gemäß Art. 6 DSGVO.
+- Cloud-gehostete Nutzung sollte derzeit nicht als sicher fuer sensible Patienten-PII/PHI betrachtet werden.
+- Wenn sensible Daten verarbeitet werden muessen, ist Self-Hosting der empfohlene Weg.
+- Diese Hinweise sind technisch-praktische Leitplanken und keine Rechtsberatung.
 
-### Erweiterter Datenschutz für Plus-Abonnenten
+## Grundprinzipien
 
-Plus-Abonnenten profitieren von zusätzlichem Datenschutz:
+- **Datenminimierung:** Nur eingeben, was fuer das konkrete Dokument noetig ist.
+- **Betreiberverantwortung:** Compliance-Verantwortung liegt beim Betreiber der jeweiligen Instanz.
+- **Transportschutz:** Datenuebertragung erfolgt TLS-verschluesselt.
 
-- **Zero Data Retention (ZDR):** KI-Anfragen werden ausschließlich an Anbieter geroutet, die keine Datenspeicherung vornehmen.
-- **Keine Inhaltsprotokollierung:** Es werden keine Eingabedaten oder generierten Texte serverseitig gespeichert — nur anonyme Metadaten (Token-Verbrauch, Kosten, Modell).
+## Plus-Abonnement (ZDR-Kontext)
 
-### Weiterführende Informationen
+Bei Plus kann Zero Data Retention (ZDR) genutzt werden:
+
+- KI-Anfragen werden nur an entsprechend kompatible Endpunkte geroutet.
+- Inhalte werden serverseitig nicht als Volltext protokolliert.
+- ZDR reduziert Retention-Risiken, ersetzt aber keine eigene Compliance-Pruefung.
+
+## Weiterfuehrende Seiten
 
 | Thema | Beschreibung |
 |-------|-------------|
-| [Software-Zweck](/docs/privacy/software-zweck) | Zweckbestimmung, Abgrenzung zu Medizinprodukten |
-| [Private vs. anonyme Daten](/docs/privacy/private-vs-anonyme-daten) | Was sind personenbezogene Daten? Praktische Beispiele |
-| [KI-Datenfluss](/docs/privacy/ki-datenfluss) | Wie fließen Daten durch die KI-Pipeline? |
+| [Private vs. anonyme Daten](/privacy/private-vs-anonyme-daten) | Praktische Beispiele fuer geeignete und ungeeignete Eingaben |
+| [KI-Datenfluss](/privacy/ki-datenfluss) | Technischer Datenpfad bei einer KI-Generierung |
+| [Self-Hosting](/self-hosting) | Betrieb in eigener Infrastruktur mit voller Verantwortung |
 
-### Rechtliche Grundlagen
+## Rechtliches
 
-Die vollständige Datenschutzerklärung und die Allgemeinen Geschäftsbedingungen finden Sie unter [mdscribe.de/legal](https://mdscribe.de/legal).
+Die vollstaendige Datenschutzerklaerung und AGB finden Sie unter [mdscribe.de/legal](https://mdscribe.de/legal).

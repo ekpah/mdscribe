@@ -1,5 +1,9 @@
 {
-  "title": "Schnellstart",
-  "description": "Erste Schritte mit MDScribe - Von der Anmeldung bis zur ersten Dokumentation",
-  "root": false
+  "title": "Quickstart",
+  "description": "Schneller Einstieg in MDScribe mit einem funktionierenden End-to-End Ablauf.",
+  "root": false,
+  "pages": [
+    "index",
+    "schnellstart"
+  ]
 }

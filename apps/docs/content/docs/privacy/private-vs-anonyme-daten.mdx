@@ -7,12 +7,13 @@ description: Unterscheidung zwischen personenbezogenen und anonymen Daten in MDS
 
 Gesundheitsdaten sind ganz besonders sensibel und jeder Umgang damit sollte sorgfältig passieren. In unserer modernen, digitalisierten Welt ist es aber nicht immer ganz einfach zu erkennen, wo die Grenze zwischen privaten Gesundheitsdaten ist, die niemals geteilt werden sollte und anonymen Daten, die einer solchen Sorgfalt nicht bedürfen. Letztlich ist dies in jedem Einzelfall zu bewerten, hier sollen aber einige generelle Beispiele aufgezeigt werden, um diese Einschätzung zu erleichten.
 
-### Personenbezogene Daten (VERBOTEN)
+### Personenbezogene Daten (Cloud-hosted: vermeiden)
 
 <Callout type="warn" title="Nicht eingeben">
-  Folgende Daten stellen aus unserer Sicht personenbezogene Daten dar und bedürfen
-  einer besonderen Sorgfalt. In der kostenlosen Version von MDScribe sollten
-  diese Daten nicht genutzt werden.
+  Folgende Daten sind aus unserer Sicht sensibel und personenbezogen. In der
+  cloud-gehosteten Nutzung von MDScribe sollten diese Daten derzeit nicht
+  eingegeben werden. Bei Self-Hosting liegt die Verantwortung für den
+  rechtskonformen Einsatz beim Betreiber.
 </Callout>
 
 | Kategorie | Beispiel-Eingabe | Persönliche Daten |
@@ -22,7 +23,7 @@ Gesundheitsdaten sind ganz besonders sensibel und jeder Umgang damit sollte sorg
 | **Organisatorische Zuordnung** | "Station 3A, Zimmer 12, Bett neben Herrn Müller. Anamnese: Pat. nach Sturz, CT-Schädel unauffällig." | Station, Zimmernummer, Bett, Bezug zu weiteren Patienten (z.B. „neben Herrn Müller“) |
 | **Sonstige identifizierbare Daten** | "Behandelnder Arzt: Dr. Schmidt (Patientenbezug), Angehörige: Tochter Lisa. Diagnoseblock: NSTEMI, KHK, Hypertonie." | Namen von Behandelnden, Angehörigen oder anderen namentlich genannten Personen, direkte Personenbezüge |
 
-### Anonyme klinische Daten (ERLAUBT)
+### Anonyme klinische Daten (empfohlen)
 
 Folgende Daten können bedenkenlos in MDScribe verwendet werden:
 
@@ -34,5 +35,5 @@ Folgende Daten können bedenkenlos in MDScribe verwendet werden:
 
 ### Warum ist diese Unterscheidung wichtig?
 
-1. **Datenschutzrechtlich:** Personenbezogene Gesundheitsdaten unterliegen einem besonderen Schutz. MDScribe soll möglich weit und kostenlos verfügbar sein, um die Dokumentation auch für einzelne AssitentInnen zu erleichtern. Wenn keine Einbindung in die Krankenhaus-IT vorliegt, ist es jedoch notwenig, Daten nach außen zu übertragen, was nur bei anonymisierten Daten erlaubt ist.
-2. **Haftung:** Die Verantwortung für die Einhaltung dieser Vorgaben liegt beim Nutzer. Ein Verstoß kann zur Sperrung des Accounts - unter Umständen aber auch zu deutlich weitreichenderen Konsequenzen führen. Achtet deshalb unbeding sorgfältig darauf, dass nur anonymisierte Daten eingegeben werden.
+1. **Datenschutzrechtlich:** Personenbezogene Gesundheitsdaten unterliegen einem besonders hohen Schutz. Für cloud-gehostete Nutzung gilt daher derzeit: keine sensiblen Patienten-PII/PHI eingeben, solange stärkere Compliance-Kontrollen noch nicht abgeschlossen sind.
+2. **Betriebsverantwortung:** Die Verantwortung für die Einhaltung aller anwendbaren Datenschutz- und Compliance-Vorgaben liegt beim Betreiber. Das gilt für cloud-gehostete wie auch Self-Hosting-Deployments.

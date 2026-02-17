@@ -1,10 +1,6 @@
-import { Alert, AlertDescription } from '@repo/design-system/components/ui/alert';
 import { Button } from '@repo/design-system/components/ui/button';
-import { ArrowRight, BookMarked, BookOpen, Code, Rocket, Zap } from 'lucide-react';
+import { ArrowRight, BookMarked, BookOpen, Code, LifeBuoy, Zap } from 'lucide-react';
 import Link from 'next/link';
-
-// App URL - can be configured via environment variable
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export default function DocsHero() {
   return (
@@ -43,7 +39,7 @@ export default function DocsHero() {
           >
             <Link
               className="flex items-center justify-center gap-2"
-              href="/docs/quickstart"
+              href="/quickstart"
             >
               <Zap className="h-5 w-5" />
               <span>Schnellstart</span>
@@ -56,7 +52,7 @@ export default function DocsHero() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Link
             className="group rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-solarized-violet/50 hover:shadow-md"
-            href="/docs/templates"
+            href="/templates"
           >
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-solarized-violet/10">
               <BookMarked className="h-5 w-5 text-solarized-violet" />
@@ -69,7 +65,7 @@ export default function DocsHero() {
 
           <Link
             className="group rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-solarized-blue/50 hover:shadow-md"
-            href="/docs/ai"
+            href="/ai"
           >
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-solarized-blue/10">
               <Code className="h-5 w-5 text-solarized-blue" />
@@ -82,14 +78,14 @@ export default function DocsHero() {
 
           <Link
             className="group rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-solarized-cyan/50 hover:shadow-md"
-            href="/docs/knowledge"
+            href="/faq"
           >
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-solarized-cyan/10">
-              <BookOpen className="h-5 w-5 text-solarized-cyan" />
+              <LifeBuoy className="h-5 w-5 text-solarized-cyan" />
             </div>
-            <h3 className="mb-2 font-semibold text-base">Wissensdatenbank</h3>
+            <h3 className="mb-2 font-semibold text-base">FAQ</h3>
             <p className="text-muted-foreground text-sm">
-              Durchsuche alle Anleitungen und Hilfestellungen
+              Schnelle Antworten und Troubleshooting
             </p>
           </Link>
         </div>
@@ -98,4 +94,3 @@ export default function DocsHero() {
     </div>
   );
 }
-

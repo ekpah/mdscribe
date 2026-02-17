@@ -1,0 +1,13 @@
+{
+  "title": "MDScribe Docs",
+  "root": true,
+  "pages": [
+    "quickstart",
+    "templates",
+    "ai",
+    "text-snippets",
+    "privacy",
+    "self-hosting",
+    "faq"
+  ]
+}

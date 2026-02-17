@@ -7,6 +7,11 @@ description: Wie Daten durch die KI-Pipeline von MDScribe fließen
 
 Wenn Sie eine KI-Generierung in MDScribe auslösen, durchlaufen Ihre Daten folgenden Weg:
 
+### Einordnung für OSS
+
+- **Cloud-gehostete Nutzung:** Sensible Patienten-PII/PHI sollten derzeit nicht eingegeben werden, solange stärkere Compliance-Kontrollen noch nicht abgeschlossen sind.
+- **Self-Hosting:** Für die Verarbeitung sensibler Daten ist Self-Hosting der empfohlene Weg, wenn Sie vollständige Kontrolle über Datenpfade und Aufbewahrung benötigen.
+
 ### Übersicht
 
 ```
@@ -17,7 +22,7 @@ Nutzer ← MDScribe-Server ← OpenRouter ← ─ ─ ─ ─ ─  Antwort
 
 ### Schritt-für-Schritt
 
-1. **Eingabe im Browser:** Sie geben anonymisierte klinische Stichpunkte in die MDScribe-Oberfläche ein.
+1. **Eingabe im Browser:** Sie geben klinische Informationen in die MDScribe-Oberfläche ein.
 2. **Übertragung an MDScribe:** Die Daten werden TLS-verschlüsselt an den MDScribe-Server übertragen.
 3. **Prompt-Aufbereitung:** MDScribe kombiniert Ihre Eingabe mit dem passenden System-Prompt und ggf. relevanten Textbausteinen (via Vektorsuche).
 4. **Weiterleitung an OpenRouter:** Der aufbereitete Prompt wird TLS-verschlüsselt an OpenRouter gesendet.
