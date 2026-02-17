@@ -131,6 +131,23 @@ export const template = pgTable("Template", {
 	embedding: vector("embedding"),
 });
 
+export const templateCollection = pgTable("TemplateCollection", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	name: text("name").notNull(),
+	description: text("description"),
+	createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
+		.notNull()
+		.defaultNow(),
+	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+		.notNull()
+		.$onUpdate(() => new Date()),
+});
+
 export const subscription = pgTable("Subscription", {
 	id: text("id")
 		.primaryKey()
@@ -233,6 +250,22 @@ export const favourites = pgTable(
 	],
 );
 
+export const templateCollectionTemplate = pgTable(
+	"TemplateCollectionTemplate",
+	{
+		collectionId: text("collectionId")
+			.notNull()
+			.references(() => templateCollection.id, { onDelete: "cascade" }),
+		templateId: text("templateId")
+			.notNull()
+			.references(() => template.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		primaryKey({ columns: [table.collectionId, table.templateId] }),
+		index("TemplateCollectionTemplate_templateId_idx").on(table.templateId),
+	],
+);
+
 // ============ RELATIONS ============
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -243,6 +276,7 @@ export const userRelations = relations(user, ({ many }) => ({
 	textSnippets: many(textSnippet),
 	usageEvents: many(usageEvent),
 	favourites: many(favourites),
+	templateCollections: many(templateCollection),
 }));
 
 export const accountRelations = relations(account, ({ one }) => ({
@@ -256,6 +290,7 @@ export const sessionRelations = relations(session, ({ one }) => ({
 export const templateRelations = relations(template, ({ one, many }) => ({
 	author: one(user, { fields: [template.authorId], references: [user.id] }),
 	favouriteOf: many(favourites),
+	collectionTemplates: many(templateCollectionTemplate),
 }));
 
 export const subscriptionRelations = relations(subscription, ({ one }) => ({
@@ -280,3 +315,28 @@ export const favouritesRelations = relations(favourites, ({ one }) => ({
 	}),
 	user: one(user, { fields: [favourites.userId], references: [user.id] }),
 }));
+
+export const templateCollectionRelations = relations(
+	templateCollection,
+	({ one, many }) => ({
+		user: one(user, {
+			fields: [templateCollection.userId],
+			references: [user.id],
+		}),
+		templates: many(templateCollectionTemplate),
+	}),
+);
+
+export const templateCollectionTemplateRelations = relations(
+	templateCollectionTemplate,
+	({ one }) => ({
+		collection: one(templateCollection, {
+			fields: [templateCollectionTemplate.collectionId],
+			references: [templateCollection.id],
+		}),
+		template: one(template, {
+			fields: [templateCollectionTemplate.templateId],
+			references: [template.id],
+		}),
+	}),
+);

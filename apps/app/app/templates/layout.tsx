@@ -52,6 +52,24 @@ const getAuthoredTemplates = async (
 	}
 };
 
+const getCustomCollections = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
+	if (!isLoggedIn) {
+		return [];
+	}
+	try {
+		const collections = await queryClient.fetchQuery(
+			orpc.user.collections.list.queryOptions(),
+		);
+		return collections;
+	} catch (error) {
+		console.warn("Failed to fetch custom collections:", error);
+		return [];
+	}
+};
+
 const generateSidebarLinks = async (queryClient: QueryClient) => {
 	const templates = await getTemplates(queryClient);
 	return templates.map((temp) => ({
@@ -104,6 +122,7 @@ export default async function Layout({
 					fallback={
 						<AppSidebar
 							authoredTemplates={"[]"}
+							customCollections={"[]"}
 							favouriteTemplates={"[]"}
 							isLoggedIn={isLoggedIn}
 							key="Sidebar"
@@ -114,6 +133,9 @@ export default async function Layout({
 					<AppSidebar
 						authoredTemplates={JSON.stringify(
 							await generateAuthoredTemplates(queryClient, isLoggedIn),
+						)}
+						customCollections={JSON.stringify(
+							await getCustomCollections(queryClient, isLoggedIn),
 						)}
 						favouriteTemplates={JSON.stringify(
 							await generateFavouriteTemplates(queryClient, isLoggedIn),

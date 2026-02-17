@@ -6,6 +6,8 @@ import type {
 	session,
 	subscription,
 	template,
+	templateCollection,
+	templateCollectionTemplate,
 	textSnippet,
 	usageEvent,
 	user,
@@ -18,6 +20,10 @@ export type Account = InferSelectModel<typeof account>;
 export type Session = InferSelectModel<typeof session>;
 export type Verification = InferSelectModel<typeof verification>;
 export type Template = InferSelectModel<typeof template>;
+export type TemplateCollection = InferSelectModel<typeof templateCollection>;
+export type TemplateCollectionTemplate = InferSelectModel<
+	typeof templateCollectionTemplate
+>;
 export type Subscription = InferSelectModel<typeof subscription>;
 export type UsageEvent = InferSelectModel<typeof usageEvent>;
 export type TextSnippet = InferSelectModel<typeof textSnippet>;
@@ -29,6 +35,10 @@ export type NewAccount = InferInsertModel<typeof account>;
 export type NewSession = InferInsertModel<typeof session>;
 export type NewVerification = InferInsertModel<typeof verification>;
 export type NewTemplate = InferInsertModel<typeof template>;
+export type NewTemplateCollection = InferInsertModel<typeof templateCollection>;
+export type NewTemplateCollectionTemplate = InferInsertModel<
+	typeof templateCollectionTemplate
+>;
 export type NewSubscription = InferInsertModel<typeof subscription>;
 export type NewUsageEvent = InferInsertModel<typeof usageEvent>;
 export type NewTextSnippet = InferInsertModel<typeof textSnippet>;
