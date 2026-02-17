@@ -1,11 +1,10 @@
 import { SidebarProvider } from "@repo/design-system/components/ui/sidebar";
 import { QueryClient } from "@tanstack/react-query";
-import { headers } from "next/headers";
 import type React from "react";
 import { Suspense } from "react";
 
-import { auth } from "@/auth";
 import { orpc } from "@/lib/orpc";
+import { getServerSession } from "@/lib/server-session";
 import AppSidebar from "./_components/Sidebar";
 
 const getTemplates = async (queryClient: QueryClient) => {
@@ -94,9 +93,7 @@ export default async function Layout({
 }: {
 	children: React.ReactNode;
 }) {
-	const session = await auth.api.getSession({
-		headers: await headers(),
-	});
+	const session = await getServerSession();
 	const isLoggedIn = !!session?.user;
 	const queryClient = new QueryClient();
 

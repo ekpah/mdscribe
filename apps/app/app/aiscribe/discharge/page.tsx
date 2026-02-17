@@ -21,7 +21,7 @@ const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
 	outputTabTitle: "Entlassungsbrief",
 
 	// Form configuration
-	inputFieldName: "dischargeNotes",
+	inputFieldName: "notes",
 	inputPlaceholder: "Geben Sie hier Ihre Entlassungsnotizen ein...",
 	inputDescription:
 		"Dokumentieren Sie den Krankheitsverlauf, die Behandlung und Empfehlungen für die Weiterbehandlung. Fügen Sie hier auch den aktuellen Stand des Entlassungsbriefes ein.",

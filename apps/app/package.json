@@ -1,5 +1,6 @@
 {
 	"name": "app",
+	"license": "AGPL-3.0-or-later",
 	"private": true,
 	"scripts": {
 		"dev": "bun --bun next dev -p 3000",
@@ -10,7 +11,8 @@
 		"test": "bun test",
 		"test:watch": "bun test --watch",
 		"test:e2e": "bunx playwright test",
-		"test:e2e:ui": "bunx playwright test --ui"
+		"test:e2e:ui": "bunx playwright test --ui",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@ai-sdk/anthropic": "2.0.45",
@@ -34,12 +36,8 @@
 		"@tailwindcss/postcss": "^4.1.10",
 		"@tanstack/react-query": "^5.90.10",
 		"@tanstack/react-table": "^8.21.3",
-		"@vercel/analytics": "^1.5.0",
-		"@vercel/speed-insights": "^1.2.0",
-		"@vercel/toolbar": "^0.1.38",
 		"ai": "5.0.104",
 		"better-auth": "^1.4.7",
-		"flags": "^4.0.1",
 		"fuse.js": "^7.1.0",
 		"jiti": "^2.4.2",
 		"lodash": "^4.17.21",

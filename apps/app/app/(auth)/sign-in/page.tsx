@@ -31,7 +31,7 @@ export default function SignIn() {
 		!redirectParam || redirectParam === "/" ? "/dashboard" : redirectParam;
 
 	return (
-		<Card className="w-full max-w-md">
+		<Card className="w-full max-w-md" data-testid="sign-in-card">
 			<form
 				onSubmit={async (e) => {
 					e.preventDefault();

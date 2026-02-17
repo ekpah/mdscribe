@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call, ORPCError } from "@orpc/server";
+import { buildScribeContext } from "@/orpc/scribe/context";
 import { documentTypeConfigs } from "@/orpc/scribe/config";
 import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -37,59 +38,8 @@ describe("Document Type Configurations", () => {
 		for (const type of documentTypes) {
 			expect(documentTypeConfigs[type]).toBeDefined();
 			expect(documentTypeConfigs[type].promptName).toBeDefined();
-			expect(documentTypeConfigs[type].processInput).toBeInstanceOf(Function);
 			expect(documentTypeConfigs[type].modelConfig).toBeDefined();
 		}
-	});
-
-	test("discharge config processes input correctly", () => {
-		const input = JSON.stringify({
-			anamnese: "Patient history...",
-			diagnoseblock: "Primary diagnosis",
-			dischargeNotes: "Discharge instructions",
-			befunde: "Test results",
-		});
-
-		const result = documentTypeConfigs.discharge.processInput(input);
-
-		expect(result.anamnese).toBe("Patient history...");
-		expect(result.notes).toBe("Discharge instructions");
-		expect(result.diagnoseblock).toBe("Primary diagnosis");
-		expect(result.befunde).toBe("Test results");
-	});
-
-	test("discharge uses default diagnoseblock when missing", () => {
-		const input = JSON.stringify({
-			anamnese: "History",
-			dischargeNotes: "Notes",
-			befunde: "Results",
-		});
-
-		const result = documentTypeConfigs.discharge.processInput(input);
-		expect(result.diagnoseblock).toBe("Keine Vorerkrankungen");
-	});
-
-	test("anamnese config processes input correctly", () => {
-		const input = JSON.stringify({
-			notes: "Patient notes...",
-			befunde: "Findings",
-			vordiagnosen: "Prior diagnoses",
-		});
-
-		const result = documentTypeConfigs.anamnese.processInput(input);
-
-		expect(result.notes).toBe("Patient notes...");
-		expect(result.befunde).toBe("Findings");
-		expect(result.vordiagnosen).toBe("Prior diagnoses");
-	});
-
-	test("procedures config extracts procedure notes", () => {
-		const input = JSON.stringify({
-			procedureNotes: "ZVK anlage rechts jugulär...",
-		});
-
-		const result = documentTypeConfigs.procedures.processInput(input);
-		expect(result.notes).toBe("ZVK anlage rechts jugulär...");
 	});
 
 	test("thinking mode configs are correct", () => {
@@ -102,6 +52,49 @@ describe("Document Type Configurations", () => {
 		expect(documentTypeConfigs.anamnese.modelConfig.thinking).toBe(false);
 		expect(documentTypeConfigs.diagnosis.modelConfig.thinking).toBe(false);
 		expect(documentTypeConfigs["physical-exam"].modelConfig.thinking).toBe(false);
+	});
+});
+
+describe("Context Builder", () => {
+	test("builds patient_context with ICU-style sections and omits empty tags", async () => {
+		const { contextXml } = await buildScribeContext({
+			sources: [
+				{
+					kind: "form",
+					data: {
+						diagnoseblock: "I10 Hypertonie",
+						anamnese: "Akute Dyspnoe",
+						notes: "Zusätzliche Notizen",
+					},
+				},
+			],
+			sessionUser: null,
+		});
+
+		expect(contextXml).toContain("<patient_context>");
+		expect(contextXml).toContain("<diagnoseblock>");
+		expect(contextXml).toContain("<anamnese>");
+		expect(contextXml).toContain("<notizen>");
+		expect(contextXml).not.toContain("<befunde>");
+	});
+
+	test("includes user_context when name is provided", async () => {
+		const { contextXml } = await buildScribeContext({
+			sources: [{ kind: "form", data: {} }],
+			sessionUser: { name: "Dr. Test" } as any,
+		});
+
+		expect(contextXml).toContain("<user_context>");
+		expect(contextXml).toContain("<name>Dr. Test</name>");
+	});
+
+	test("does not emit template_context while provider is a stub", async () => {
+		const { contextXml } = await buildScribeContext({
+			sources: [{ kind: "template", data: { template: "foo" } }],
+			sessionUser: null,
+		});
+
+		expect(contextXml).not.toContain("<template_context>");
 	});
 });
 
@@ -129,7 +122,7 @@ describe("Model Selection Logic", () => {
 	});
 
 	test("explicit model selection is preserved", () => {
-		const modelId = "glm-4p6";
+		const modelId: string = "glm-4p6";
 		const hasAudio = true;
 
 		const actualModel = modelId === "auto"
@@ -176,7 +169,7 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
+						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }] }],
 					},
 					{ context },
 				),
@@ -195,11 +188,38 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "unknown-type" as DocumentType,
-						messages: [{ id: "1", role: "user", content: "{}" }],
+						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: "{}" }] }],
 					},
 					{ context },
 				),
 			).rejects.toThrow(ORPCError);
+		});
+
+		test("rejects empty prompt input with helpful message", async () => {
+			const { user } = await createTestUser(server.db);
+			const session = createMockSession(user);
+			const context = createTestContext({ db: server.db, session });
+
+			await expect(
+				call(
+					scribeStreamHandler,
+					{
+						documentType: "anamnese",
+						messages: [
+							{
+								id: "1",
+								role: "user",
+								content: JSON.stringify({
+									notes: "",
+									befunde: "",
+									diagnoseblock: "",
+								}),
+							},
+						],
+					},
+					{ context },
+				),
+			).rejects.toThrow("Bitte füllen Sie mindestens ein Pflichtfeld aus.");
 		});
 
 		test("accepts valid document types", async () => {
@@ -217,7 +237,7 @@ describe("Scribe Stream Handler", () => {
 						scribeStreamHandler,
 						{
 							documentType: docType,
-							messages: [{ id: "1", role: "user", content: '{"notes":"test"}' }],
+							messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"notes":"test"}' }] }],
 						},
 						{ context },
 					);
@@ -254,7 +274,7 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
+						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }] }],
 					},
 					{ context },
 				),
@@ -293,13 +313,13 @@ describe("Scribe Stream Handler", () => {
 					messages: [
 						{
 							id: "1",
-							role: "user",
-							content: JSON.stringify({
+							role: "user" as const,
+							parts: [{ type: "text" as const, text: JSON.stringify({
 								anamnese: "test",
 								diagnoseblock: "test",
-								dischargeNotes: "test",
+								notes: "test",
 								befunde: "test",
-							}),
+							}) }],
 						},
 					],
 				},
@@ -339,7 +359,7 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-						messages: [{ id: "1", role: "user", content: '{"anamnese":"test"}' }],
+						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }] }],
 					},
 					{ context },
 				),
@@ -360,12 +380,12 @@ describe("Scribe Stream Handler", () => {
 					messages: [
 						{
 							id: "1",
-							role: "user",
-							content: JSON.stringify({
+							role: "user" as const,
+							parts: [{ type: "text" as const, text: JSON.stringify({
 								notes: "Patient with chest pain",
 								befunde: "ECG normal",
-								vordiagnosen: "Hypertension",
-							}),
+								diagnoseblock: "Hypertension",
+							}) }],
 						},
 					],
 				},
@@ -392,8 +412,8 @@ describe("Scribe Stream Handler", () => {
 						messages: [
 							{
 								id: "1",
-								role: "user",
-								content: JSON.stringify({ notes: "test", befunde: "", vordiagnosen: "" }),
+								role: "user" as const,
+								parts: [{ type: "text" as const, text: JSON.stringify({ notes: "test", befunde: "", diagnoseblock: "" }) }],
 							},
 						],
 						model,
@@ -403,67 +423,6 @@ describe("Scribe Stream Handler", () => {
 
 				expect(result).toBeDefined();
 			}
-		});
-	});
-});
-
-/**
- * Tests for document type specific processing
- */
-describe("Document Type Processing", () => {
-	describe("Discharge Document", () => {
-		test("processInput extracts all fields correctly", () => {
-			const input = JSON.stringify({
-				anamnese: "75-jährige Patientin mit Diabetes",
-				diagnoseblock: "E11.9 - Diabetes mellitus Typ 2",
-				dischargeNotes: "Insulintherapie optimiert",
-				befunde: "HbA1c 8.5%",
-			});
-
-			const result = documentTypeConfigs.discharge.processInput(input);
-
-			expect(result.anamnese).toBe("75-jährige Patientin mit Diabetes");
-			expect(result.diagnoseblock).toBe("E11.9 - Diabetes mellitus Typ 2");
-			expect(result.notes).toBe("Insulintherapie optimiert");
-			expect(result.befunde).toBe("HbA1c 8.5%");
-		});
-	});
-
-	describe("Procedures Document", () => {
-		test("processInput extracts procedure notes", () => {
-			const input = JSON.stringify({
-				procedureNotes:
-					"ZVK Anlage rechts jugulär unter sonographischer Kontrolle, komplikationslos",
-			});
-
-			const result = documentTypeConfigs.procedures.processInput(input);
-
-			expect(result.notes).toContain("ZVK Anlage");
-		});
-	});
-
-	describe("Physical Exam Document", () => {
-		test("processInput handles physical exam fields", () => {
-			const input = JSON.stringify({
-				notes: "Allgemeinzustand gut, Patient wach und orientiert",
-			});
-
-			const result = documentTypeConfigs["physical-exam"].processInput(input);
-
-			expect(result.notes).toContain("Allgemeinzustand");
-		});
-	});
-
-	describe("ICU Transfer Document", () => {
-		test("processInput extracts ICU transfer notes", () => {
-			const input = JSON.stringify({
-				notes: "Verlegung auf ITS bei respiratorischer Insuffizienz",
-				befunde: "pO2 55mmHg, pCO2 60mmHg",
-			});
-
-			const result = documentTypeConfigs["icu-transfer"].processInput(input);
-
-			expect(result.notes).toContain("Verlegung");
 		});
 	});
 });

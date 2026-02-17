@@ -1,6 +1,19 @@
 {
 	"$schema": "https://turbo.build/schema.json",
-	"globalDependencies": ["**/.env.*local"],
+	"globalDependencies": [".env", ".env.local"],
+	"globalEnv": [
+		"POSTGRES_DATABASE_URL",
+		"AUTH_POSTMARK_KEY",
+		"BETTER_AUTH_SECRET",
+		"OPENROUTER_API_KEY",
+		"BASE_URL",
+		"STRIPE_SECRET_KEY",
+		"STRIPE_WEBHOOK_SECRET",
+		"STRIPE_PLUS_PRICE_ID",
+		"STRIPE_PLUS_PRICE_ID_ANNUAL",
+		"VOYAGE_API_KEY",
+		"ADMIN_EMAIL"
+	],
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
@@ -15,21 +28,6 @@
 			"outputs": ["**/drizzle/generated/**"]
 		},
 		"app#build": {
-			"env": [
-				"POSTGRES_DATABASE_URL",
-				"AUTH_POSTMARK_KEY",
-				"FLAGS_SECRET",
-				"BETTER_AUTH_SECRET",
-				"OPENROUTER_API_KEY",
-				"BASE_URL",
-				"STRIPE_SECRET_KEY",
-				"STRIPE_WEBHOOK_SECRET",
-				"STRIPE_PLUS_PRICE_ID",
-				"STRIPE_PLUS_PRICE_ID_ANNUAL",
-				"NEXT_PUBLIC_POSTHOG_KEY",
-				"NEXT_PUBLIC_POSTHOG_HOST",
-				"VOYAGE_API_KEY"
-			],
 			"dependsOn": ["@repo/database#build"],
 			"outputs": [".next/**", "!.next/cache/**"]
 		},
@@ -37,23 +35,19 @@
 			"dependsOn": ["^build"]
 		},
 		"dev": {
-			"env": [
-				"POSTGRES_DATABASE_URL",
-				"AUTH_POSTMARK_KEY",
-				"FLAGS_SECRET",
-				"BETTER_AUTH_SECRET",
-				"OPENROUTER_API_KEY",
-				"BASE_URL",
-				"STRIPE_SECRET_KEY",
-				"STRIPE_WEBHOOK_SECRET",
-				"STRIPE_PLUS_PRICE_ID",
-				"STRIPE_PLUS_PRICE_ID_ANNUAL",
-				"NEXT_PUBLIC_POSTHOG_KEY",
-				"NEXT_PUBLIC_POSTHOG_HOST",
-				"VOYAGE_API_KEY"
-			],
 			"cache": false,
 			"persistent": true
+		},
+		"transit": {
+			"dependsOn": ["^transit"]
+		},
+		"lint": {
+			"dependsOn": ["^transit"],
+			"outputs": []
+		},
+		"typecheck": {
+			"dependsOn": ["^typecheck"],
+			"outputs": []
 		}
 	}
 }

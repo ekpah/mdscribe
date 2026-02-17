@@ -1,57 +1,73 @@
 ---
-title: asdf
-description: Vollständige Dokumentation für MDScribe - Medizinische Dokumentation mit KI-Unterstützung
+title: Quickstart
+description: In ca. 10 Minuten von der Anmeldung zum ersten nutzbaren Dokument.
 ---
 
-## Willkommen bei MDScribe
+## Ziel
 
-MDScribe ist eine leistungsstarke Plattform für medizinische Dokumentation, die Ihnen hilft, strukturierte medizinische Dokumente effizient zu erstellen und zu verwalten.
+Sie erstellen ein erstes Template, generieren damit ein Dokument und wissen danach, wie Sie iterativ bessere Ergebnisse bekommen.
 
-## Dokumentation
+## Voraussetzung
 
-<Cards>
-  <Card 
-    title="Übersicht" 
-    href="/docs/uebersicht"
-    description="Einführung in MDScribe - was kann hier gemacht werden, Templates und KI-Funktionen"
-  />
-  <Card 
-    title="Schnellstart" 
-    href="/docs/schnellstart"
-    description="Erste Schritte - Anmeldung, Templates erstellen und nutzen, KI verwenden"
-  />
-  <Card 
-    title="Tags" 
-    href="/docs/tags"
-    description="Info, Switch, Score und Case Tags im Detail erklärt"
-  />
-  <Card 
-    title="KI-Instruktionen" 
-    href="/docs/ki-instruktionen"
-    description="Wie man in Templates Hinweise für die KI gibt"
-  />
-</Cards>
+- Ein aktiver MDScribe-Account
+- Grundidee, welches Dokument Sie erzeugen wollen (z. B. Entlassungsbrief)
 
-## Schnellzugriff
+## 1. Anmelden
 
-### Für Einsteiger
+1. Gehen Sie zu [Sign in](https://mdscribe.de/sign-in) oder [Sign up](https://mdscribe.de/sign-up).
+2. Melden Sie sich an.
+3. Oeffnen Sie danach den Bereich fuer Templates.
 
-Neu bei MDScribe? Starten Sie hier:
+## 2. Erstes Template anlegen
 
-1. **[Übersicht lesen](/docs/uebersicht)** - Verstehen Sie, was MDScribe kann
-2. **[Schnellstart durcharbeiten](/docs/schnellstart)** - Ihre ersten Schritte
-3. **[Tags lernen](/docs/tags)** - Machen Sie Ihre Templates dynamisch
-4. **[KI optimieren](/docs/ki-instruktionen)** - Holen Sie das Beste aus der KI heraus
+Erstellen Sie ein neues Template und starten Sie mit dieser Minimalstruktur:
 
-### Für erfahrene Nutzer
+```markdown
+# Kurzbrief
 
-- **[Tags-Referenz](/docs/tags)** - Vollständige Syntax und Beispiele
-- **[KI-Instruktionen](/docs/ki-instruktionen)** - Fortgeschrittene Techniken
+## Aufnahmegrund
+{% info "aufnahmegrund" /%}
 
-## Support
+## Diagnosen
+{% info "diagnosen" /%}
 
-Bei Fragen oder Problemen:
+## Verlauf
+{% info "verlauf" /%}
 
-- Konsultieren Sie die relevanten Dokumentationsseiten
-- Überprüfen Sie die Beispiele in den einzelnen Abschnitten
-- Experimentieren Sie mit verschiedenen Ansätzen in Ihren Templates
+## Entlassung
+{% switch "entlassung" %}{% case "nach-hause" %}Entlassung nach Hause.{% /case %}{% case "verlegung" %}Verlegung in weiterbehandelnde Einrichtung.{% /case %}{% /switch %}
+```
+
+Wenn Sie unsicher sind, lesen Sie parallel: [Templates](/templates) und [Tag-Referenz](/templates/tags).
+
+## 3. Dokument generieren
+
+1. Wechseln Sie in den Bereich fuer KI-Dokumentation.
+2. Waehlen Sie Ihr Template aus.
+3. Geben Sie klinische Informationen ein.
+4. Starten Sie die Generierung.
+
+## 4. Ergebnis pruefen und finalisieren
+
+Pruefen Sie das generierte Dokument direkt auf:
+
+- medizinische Korrektheit
+- Vollstaendigkeit der Diagnosen/Befunde
+- Stil und Struktur fuer Ihr Zielsystem
+- inhaltliche Halluzinationen oder unerwuenschte Fuelltexte
+
+## Fertig, wenn diese Punkte stimmen
+
+- Sie haben mindestens ein Template gespeichert.
+- Sie haben mindestens ein Dokument erfolgreich generiert.
+- Sie haben das Ergebnis manuell fachlich validiert.
+
+<Callout type="warn" title="Datenschutz">
+  Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden. Fuer sensible Daten ist Self-Hosting der empfohlene Weg.
+</Callout>
+
+## Danach
+
+1. [Beispiel-Workflow: Entlassungsbrief](/quickstart/schnellstart)
+2. [KI-Instruktionen fuer bessere Qualitaet](/ai/ki-instruktionen)
+3. [FAQ](/faq)

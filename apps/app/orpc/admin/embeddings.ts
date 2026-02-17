@@ -119,7 +119,7 @@ export const migrateEmbeddingsHandler = authed
 
 					await context.db.execute(sql`
 						UPDATE "Template"
-						SET "embedding" = ${sql.raw(embeddingSql)}::vector
+						SET "embedding" = ${embeddingSql}::vector
 						WHERE "id" = ${templateItem.id}
 					`);
 					stats.processed++;

@@ -23,21 +23,39 @@ import {
 	navigationMenuTriggerStyle,
 } from "@repo/design-system/components/ui/navigation-menu";
 import { cn } from "@repo/design-system/lib/utils";
-import { LayoutDashboard, LogOut, Menu, Settings, User, X } from "lucide-react";
+import {
+	LayoutDashboard,
+	Loader2,
+	LogOut,
+	Menu,
+	Settings,
+	Shield,
+	User,
+	X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
+import type { Session } from "@/lib/auth-types";
 import DarkLogo from "@/public/logo/dark";
 import LightLogo from "@/public/logo/light";
-import { Session } from "@/lib/auth-types";
 
-export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
+type TopMenuBarProperties = {
+	initialSession: Session | null;
+	isAdmin?: boolean;
+};
+
+export default function TopMenuBar({ initialSession, isAdmin }: TopMenuBarProperties) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-	const session = authClient.useSession().data;
+	const sessionQuery = useSession();
+	const session =
+		sessionQuery.data !== undefined ? sessionQuery.data : initialSession;
+	const isSessionLoading = sessionQuery.isPending && session === null;
+	const showAiLink = !!session?.user;
 
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
@@ -110,7 +128,20 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 
 				{/* Desktop User Controls */}
 				<div className="hidden items-center gap-2 md:flex">
-					{session?.user ? (
+					{isSessionLoading ? (
+						<Button
+							variant="ghost"
+							className="relative h-9 w-9 rounded-full"
+							disabled
+						>
+							<Avatar className="h-9 w-9 opacity-70">
+								<AvatarFallback>
+									<User className="h-5 w-5" />
+								</AvatarFallback>
+							</Avatar>
+							<Loader2 className="absolute h-4 w-4 animate-spin text-muted-foreground" />
+						</Button>
+					) : session?.user ? (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button
@@ -154,6 +185,14 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 										Einstellungen
 									</Link>
 								</DropdownMenuItem>
+								{isAdmin && (
+									<DropdownMenuItem asChild>
+										<Link href="/admin" className="cursor-pointer">
+											<Shield className="mr-2 h-4 w-4" />
+											Admin
+										</Link>
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuSeparator />
 								<ModeToggleSwitch />
 								<DropdownMenuSeparator />
@@ -202,18 +241,26 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 									</NavigationMenuLink>
 								</NavigationMenuItem>
 							)}
-							<NavigationMenuItem>
-								<NavigationMenuLink
-									className={navigationMenuTriggerStyle()}
-									href="https://docs.mdscribe.de/"
-								>
-									Anleitung
-								</NavigationMenuLink>
-							</NavigationMenuItem>
 						</NavigationMenuList>
 					</NavigationMenu>
 					<div className="mt-2 border-t pt-3">
-						{session?.user ? (
+						{isSessionLoading ? (
+							<div className="flex flex-col gap-3">
+								<div className="flex items-center justify-between px-2">
+									<ModeToggleSwitch />
+								</div>
+								<div className="flex items-center justify-center py-2">
+									<div className="relative">
+										<Avatar className="h-10 w-10 opacity-70">
+											<AvatarFallback>
+												<User className="h-5 w-5" />
+											</AvatarFallback>
+										</Avatar>
+										<Loader2 className="absolute top-1/2 left-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
+									</div>
+								</div>
+							</div>
+						) : session?.user ? (
 							<>
 								<div className="mb-3 flex items-center gap-3 px-2">
 									<Avatar className="h-10 w-10">
@@ -253,6 +300,16 @@ export default function TopMenuBar({ showAiLink }: { showAiLink: boolean }) {
 										<Settings className="h-4 w-4" />
 										Einstellungen
 									</Link>
+									{isAdmin && (
+										<Link
+											href="/admin"
+											onClick={() => setMobileMenuOpen(false)}
+											className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
+										>
+											<Shield className="h-4 w-4" />
+											Admin
+										</Link>
+									)}
 								</div>
 								<div className="mt-3 flex flex-col gap-3">
 									<div className="flex items-center justify-between px-2">

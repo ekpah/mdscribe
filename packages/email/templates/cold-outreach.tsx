@@ -54,12 +54,6 @@ export const ColdOutreachTemplate = ({
                             <Text className="text-muted-foreground">📋 <strong>Intelligente Vorlagen</strong> für alle Fachbereiche</Text>
                             <Text className="text-muted-foreground">🤖 <strong>KI-generierte Entlassbriefe</strong> automatisch aus Befunden erstellt</Text>
                             <Text className="text-muted-foreground">
-                                <em>
-                                    "Endlich kann ich mich auf meine Patienten konzentrieren!"
-                                </em>{' '}
-                                - Dr. Sarah M., Innere Medizin
-                            </Text>
-                            <Text className="text-muted-foreground">
                                 <strong>Kostenlos testen</strong> - keine Kreditkarte
                                 erforderlich. Starte noch heute!
                             </Text>

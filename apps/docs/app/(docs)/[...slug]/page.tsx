@@ -1,0 +1,67 @@
+import type { MDXContent } from 'mdx/types';
+import { getPageImage, source } from '@/lib/source';
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+} from 'fumadocs-ui/page';
+import { notFound } from 'next/navigation';
+import { getMDXComponents } from '@/mdx-components';
+import type { Metadata } from 'next';
+import { createRelativeLink } from 'fumadocs-ui/mdx';
+
+type DocsPageProps = {
+  params: Promise<{ slug: string[] }>;
+};
+
+export default async function Page(props: DocsPageProps) {
+  const params = await props.params;
+  const page = source.getPage(params.slug);
+  if (!page) notFound();
+
+  const data = page.data as typeof page.data & {
+    body: MDXContent;
+    toc: { title: string; url: string; depth: number }[];
+    full?: boolean;
+  };
+
+  const MDX = data.body;
+
+  return (
+    <DocsPage toc={data.toc} full={data.full}>
+      <DocsTitle>{page.data.title}</DocsTitle>
+      <DocsDescription>{page.data.description}</DocsDescription>
+      <DocsBody>
+        <MDX
+          components={getMDXComponents({
+            // this allows you to link to other pages with relative file paths
+            a: createRelativeLink(source, page),
+          })}
+        />
+      </DocsBody>
+    </DocsPage>
+  );
+}
+
+export async function generateStaticParams() {
+  return source
+    .generateParams()
+    .filter((params) => Array.isArray(params.slug) && params.slug.length > 0);
+}
+
+export async function generateMetadata(
+  props: DocsPageProps,
+): Promise<Metadata> {
+  const params = await props.params;
+  const page = source.getPage(params.slug);
+  if (!page) notFound();
+
+  return {
+    title: page.data.title,
+    description: page.data.description,
+    openGraph: {
+      images: getPageImage(page).url,
+    },
+  };
+}

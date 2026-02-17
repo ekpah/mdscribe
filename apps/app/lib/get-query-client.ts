@@ -1,7 +1,7 @@
 import {
-	QueryClient,
 	defaultShouldDehydrateQuery,
 	isServer,
+	QueryClient,
 } from "@tanstack/react-query";
 
 /**
@@ -22,8 +22,10 @@ function makeQueryClient() {
 				gcTime: 5 * 60 * 1000, // 5 minutes
 				// Retry failed queries up to 3 times with exponential backoff
 				retry: 3,
-				// Don't refetch on window focus in server context
-				refetchOnWindowFocus: !isServer,
+				// Avoid focus/reconnect refetch storms for heavy authenticated queries.
+				// Query invalidation and explicit refetch calls still work as usual.
+				refetchOnWindowFocus: false,
+				refetchOnReconnect: false,
 			},
 			dehydrate: {
 				// Include pending queries in dehydration for streaming SSR

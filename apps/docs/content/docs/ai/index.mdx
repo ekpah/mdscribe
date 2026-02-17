@@ -1,19 +1,50 @@
 ---
 title: KI zur Dokumentation
-description: KI-Funktionen für die medizinische Dokumentation
+description: Praktische Leitlinien fuer bessere KI-Ausgaben in MDScribe.
 ---
 
 ## KI zur Dokumentation
 
-Wir arbeiten derzeit an der Dokumentation für KI-Funktionen zur medizinischen Dokumentation.
+MDScribe kombiniert Ihre Eingaben mit Template-Struktur, Tags und KI-Instruktionen. Die Ausgabequalitaet haengt dabei vor allem von der Eingabequalitaet ab.
 
-Diese Dokumentation wird umfassende Informationen zu folgenden Themen enthalten:
+## Vor der Generierung
 
-- KI-gestützte Dokumentation
-- Automatisierung von Dokumentationsprozessen
-- Best Practices für KI-Nutzung
-- Konfiguration und Anpassung
-- Workflow-Integration
+Nutzen Sie diesen Kurzcheck:
 
-Bitte haben Sie noch etwas Geduld, während wir diese Inhalte erstellen.
+- Ist die klinische Kerninformation enthalten?
+- Sind Diagnosen, Verlauf und Befunde klar getrennt?
+- Enthalten die Notizen nur die Informationen, die wirklich ins Dokument sollen?
 
+## Gute Eingabe statt langer Eingabe
+
+```text
+Aufnahme wegen Thoraxschmerz seit 2 Tagen.
+Vorgeschichte: Hypertonie, DM2.
+Befunde: Troponin erhoeht, EKG mit ST-Senkungen V4-V6.
+Therapie: antithrombotisch, klinische Stabilisierung.
+Entlassung in stabilem Allgemeinzustand.
+```
+
+## Nach der Generierung
+
+Pruefen Sie das Ergebnis immer fachlich:
+
+1. Medizinische Korrektheit
+2. Vollstaendigkeit
+3. Plausibilitaet von Zeitpunkten/Medikation
+4. Keine Halluzinationen
+
+## KI-Ausgaben verbessern
+
+1. Template vereinfachen, statt immer mehr Prompt-Text einzugeben
+2. KI-Kommentare in den relevanten Abschnitten setzen
+3. Mit kurzen Iterationen arbeiten: nachschaerfen, neu generieren
+
+<Callout type="warn" title="Datenschutz">
+  Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden. Fuer sensible Daten ist Self-Hosting der empfohlene Weg.
+</Callout>
+
+## Weiterfuehrend
+
+- [KI-Instruktionen](/ai/ki-instruktionen)
+- [Datenschutz](/privacy)

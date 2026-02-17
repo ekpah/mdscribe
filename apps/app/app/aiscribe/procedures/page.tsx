@@ -21,7 +21,7 @@ const PROCEDURES_CONFIG: AiscribeTemplateConfig = {
   outputTabTitle: 'Eingriffsdokumentation',
 
   // Form configuration
-  inputFieldName: 'procedureNotes',
+  inputFieldName: 'notes',
   inputPlaceholder: 'Geben Sie hier Ihre Notizen zum Eingriff ein...',
   inputDescription:
     'Dokumentieren Sie den Ablauf, die verwendeten Materialien und Ergebnisse des Eingriffs',

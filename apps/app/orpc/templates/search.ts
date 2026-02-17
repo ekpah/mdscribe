@@ -75,11 +75,11 @@ export const findRelevantTemplateHandler = authed
 				content,
 				"authorId",
 				"updatedAt",
-				(1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) as similarity
+				(1 - (embedding <=> ${embeddingSql}::vector)) as similarity
 			FROM "Template"
 			WHERE embedding IS NOT NULL
-			AND (1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) > 0.3
-			ORDER BY embedding <-> ${sql.raw(embeddingSql)}::vector
+			AND (1 - (embedding <=> ${embeddingSql}::vector)) > 0.3
+			ORDER BY embedding <-> ${embeddingSql}::vector
 			LIMIT 5
 		`);
 

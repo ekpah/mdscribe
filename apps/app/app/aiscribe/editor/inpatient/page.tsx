@@ -38,7 +38,7 @@ const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			documentType: "anamnese",
 			buildPrompt: (notes, context) => ({
 				notes,
-				vordiagnosen: context.diagnosen || "",
+				diagnoseblock: context.diagnosen || "",
 				befunde: context.befunde || "",
 			}),
 		},
@@ -59,7 +59,7 @@ const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			documentType: "befunde",
 			buildPrompt: (notes, context) => ({
 				notes,
-				vordiagnosen: context.diagnosen || "",
+				diagnoseblock: context.diagnosen || "",
 				anamnese: context.anamnese || "",
 			}),
 		},
@@ -81,7 +81,7 @@ const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 							"Zusammenfassung des stationären Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
 						documentType: "discharge",
 						buildPrompt: (notes, context) => ({
-							dischargeNotes: notes,
+							notes,
 							anamnese: context.anamnese || "",
 							diagnoseblock: context.diagnosen || "",
 							befunde: context.befunde || "",
@@ -100,7 +100,7 @@ const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 							"Zusammenfassung des Aufenthalts und Verlegungsinformationen für die weiterbehandelnde Station",
 						documentType: "discharge",
 						buildPrompt: (notes, context) => ({
-							dischargeNotes: notes,
+							notes,
 							anamnese: context.anamnese || "",
 							diagnoseblock: context.diagnosen || "",
 							befunde: context.befunde || "",

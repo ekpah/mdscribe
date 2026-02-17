@@ -15,11 +15,9 @@ mock.module("@repo/env", () => ({
 		STRIPE_PLUS_PRICE_ID: "price_test_plus",
 		STRIPE_PLUS_PRICE_ID_ANNUAL: "price_test_plus_annual",
 		VOYAGE_API_KEY: "test-voyage-key",
+		ADMIN_EMAIL: "admin@test.com",
 		NODE_ENV: "test",
-		FLAGS_SECRET: "test-flags-secret",
 		NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
-		NEXT_PUBLIC_POSTHOG_KEY: "test-posthog-key",
-		NEXT_PUBLIC_POSTHOG_HOST: "https://test.posthog.com",
 	},
 }));
 

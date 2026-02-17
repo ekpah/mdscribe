@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@repo/design-system/components/ui/button';
-import { Brain, FileText, Sparkles, UserPlus } from 'lucide-react';
+import { Brain, FileText, Github, Sparkles, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Doctors from '@/public/landing/Doctors';
@@ -41,45 +41,64 @@ export default function Hero({ isLoggedIn }: HeroProps) {
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex w-full max-w-md flex-col gap-3 sm:max-w-lg sm:flex-row sm:gap-4">
-          {/* Primary CTA */}
-          <Button
-            asChild
-            className="group w-full flex-1 px-6 py-4 font-semibold text-base shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl sm:px-8 sm:py-6 sm:text-lg"
-            id="primary-cta"
-            size="lg"
-          >
-            <Link
-              className="flex items-center justify-center gap-2"
-              href={isLoggedIn ? '/aiscribe' : signInUrl}
+        <div className="flex w-full max-w-md flex-col gap-3 sm:max-w-lg sm:gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            {/* Primary CTA */}
+            <Button
+              asChild
+              className="group w-full flex-1 px-6 py-4 font-semibold text-base shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl sm:px-8 sm:py-6 sm:text-lg"
+              id="primary-cta"
+              size="lg"
             >
-              {isLoggedIn ? (
-                <>
-                  <Brain className="h-5 w-5 transition-transform group-hover:scale-110" />
-                  <span>KI-Assistenz starten</span>
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-5 w-5 transition-transform group-hover:scale-110" />
-                  <span>Jetzt anmelden</span>
-                </>
-              )}
-            </Link>
-          </Button>
+              <Link
+                className="flex items-center justify-center gap-2"
+                href={isLoggedIn ? '/aiscribe' : signInUrl}
+              >
+                {isLoggedIn ? (
+                  <>
+                    <Brain className="h-5 w-5 transition-transform group-hover:scale-110" />
+                    <span>KI-Assistenz starten</span>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-5 w-5 transition-transform group-hover:scale-110" />
+                    <span>Jetzt anmelden</span>
+                  </>
+                )}
+              </Link>
+            </Button>
 
-          {/* Secondary CTA */}
+            {/* Secondary CTA */}
+            <Button
+              asChild
+              className="w-full flex-1 px-6 py-4 font-semibold text-base sm:px-8 sm:py-6 sm:text-lg"
+              size="lg"
+              variant="outline"
+            >
+              <Link
+                className="flex items-center justify-center gap-2"
+                href="/templates"
+              >
+                <FileText className="h-5 w-5" />
+                <span>Textbausteine</span>
+              </Link>
+            </Button>
+          </div>
+
           <Button
             asChild
-            className="w-full flex-1 px-6 py-4 font-semibold text-base sm:px-8 sm:py-6 sm:text-lg"
+            className="w-full px-6 py-4 font-semibold text-base text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue sm:px-8 sm:py-6 sm:text-lg"
             size="lg"
             variant="outline"
           >
             <Link
               className="flex items-center justify-center gap-2"
-              href="/templates"
+              href="https://github.com/ekpah/mdscribe"
+              rel="noopener"
+              target="_blank"
             >
-              <FileText className="h-5 w-5" />
-              <span>Textbausteine</span>
+              <Github className="h-5 w-5" />
+              <span>Open Source auf GitHub</span>
             </Link>
           </Button>
         </div>

@@ -1,19 +1,40 @@
 ---
 title: Datenschutz
-description: Informationen zum Datenschutz und zur Datensicherheit in MDScribe
+description: Praktische Datenschutz-Leitplanken fuer den Einsatz von MDScribe.
 ---
 
-## Datenschutz
+## Datenschutz bei MDScribe
 
-Wir arbeiten derzeit an der Dokumentation für Datenschutz und Datensicherheit in MDScribe.
+Diese Seite fasst die wichtigsten Leitplanken fuer den Launch zusammen.
 
-Diese Dokumentation wird umfassende Informationen zu folgenden Themen enthalten:
+## Kurzposition (Cloud vs. Self-Hosting)
 
-- Datenschutzbestimmungen
-- Datensicherheit
-- DSGVO-Compliance
-- Umgang mit medizinischen Daten
-- Ihre Rechte als Nutzer
+- Cloud-gehostete Nutzung sollte derzeit nicht als sicher fuer sensible Patienten-PII/PHI betrachtet werden.
+- Wenn sensible Daten verarbeitet werden muessen, ist Self-Hosting der empfohlene Weg.
+- Diese Hinweise sind technisch-praktische Leitplanken und keine Rechtsberatung.
 
-Bitte haben Sie noch etwas Geduld, während wir diese Inhalte erstellen.
+## Grundprinzipien
 
+- **Datenminimierung:** Nur eingeben, was fuer das konkrete Dokument noetig ist.
+- **Betreiberverantwortung:** Compliance-Verantwortung liegt beim Betreiber der jeweiligen Instanz.
+- **Transportschutz:** Datenuebertragung erfolgt TLS-verschluesselt.
+
+## Plus-Abonnement (ZDR-Kontext)
+
+Bei Plus kann Zero Data Retention (ZDR) genutzt werden:
+
+- KI-Anfragen werden nur an entsprechend kompatible Endpunkte geroutet.
+- Inhalte werden serverseitig nicht als Volltext protokolliert.
+- ZDR reduziert Retention-Risiken, ersetzt aber keine eigene Compliance-Pruefung.
+
+## Weiterfuehrende Seiten
+
+| Thema | Beschreibung |
+|-------|-------------|
+| [Private vs. anonyme Daten](/privacy/private-vs-anonyme-daten) | Praktische Beispiele fuer geeignete und ungeeignete Eingaben |
+| [KI-Datenfluss](/privacy/ki-datenfluss) | Technischer Datenpfad bei einer KI-Generierung |
+| [Self-Hosting](/self-hosting) | Betrieb in eigener Infrastruktur mit voller Verantwortung |
+
+## Rechtliches
+
+Die vollstaendige Datenschutzerklaerung und AGB finden Sie unter [mdscribe.de/legal](https://mdscribe.de/legal).

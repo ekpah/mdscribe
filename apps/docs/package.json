@@ -1,6 +1,7 @@
 {
 	"name": "docs",
 	"version": "0.0.0",
+	"license": "AGPL-3.0-or-later",
 	"private": true,
 	"scripts": {
 		"build": "bun run --bun next build",
@@ -8,7 +9,8 @@
 		"start": "bun run --bun next start",
 		"postinstall": "fumadocs-mdx",
 		"lint": "biome check",
-		"format": "biome format --write"
+		"format": "biome format --write",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@repo/design-system": "workspace:*",

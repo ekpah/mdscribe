@@ -25,7 +25,71 @@ const globalForPGlite = globalThis as unknown as {
 		| Promise<ReturnType<typeof drizzlePGlite<typeof schema>>>
 		| undefined;
 	shutdownHandlersRegistered: boolean | undefined;
+	pgliteHasPendingChanges: boolean | undefined;
 };
+
+const READ_ONLY_SQL_PREFIXES = new Set(["SELECT", "SHOW", "VALUES", "EXPLAIN"]);
+
+function stripLeadingSqlComments(sql: string): string {
+	let remaining = sql.trimStart();
+
+	while (remaining.length > 0) {
+		if (remaining.startsWith("--")) {
+			const newlineIndex = remaining.indexOf("\n");
+			if (newlineIndex === -1) return "";
+			remaining = remaining.slice(newlineIndex + 1).trimStart();
+			continue;
+		}
+
+		if (remaining.startsWith("/*")) {
+			const commentEndIndex = remaining.indexOf("*/");
+			if (commentEndIndex === -1) return "";
+			remaining = remaining.slice(commentEndIndex + 2).trimStart();
+			continue;
+		}
+
+		break;
+	}
+
+	return remaining;
+}
+
+function isPotentialWriteQuery(query: string): boolean {
+	const normalized = stripLeadingSqlComments(query);
+	const firstKeywordMatch = normalized.match(/^[A-Za-z]+/);
+	if (!firstKeywordMatch) {
+		return false;
+	}
+
+	const firstKeyword = firstKeywordMatch[0].toUpperCase();
+	return !READ_ONLY_SQL_PREFIXES.has(firstKeyword);
+}
+
+function markDatabaseDirty(): void {
+	globalForPGlite.pgliteHasPendingChanges = true;
+}
+
+function trackMutations(client: PGlite): void {
+	const originalQuery = client.query.bind(client);
+	client.query = (async (...args) => {
+		const query = args[0];
+		if (typeof query === "string" && isPotentialWriteQuery(query)) {
+			markDatabaseDirty();
+		}
+
+		return originalQuery(...args);
+	}) as typeof client.query;
+
+	const originalExec = client.exec.bind(client);
+	client.exec = (async (...args) => {
+		const query = args[0];
+		if (typeof query === "string" && isPotentialWriteQuery(query)) {
+			markDatabaseDirty();
+		}
+
+		return originalExec(...args);
+	}) as typeof client.exec;
+}
 
 /**
  * Load existing tarball if it exists
@@ -53,48 +117,25 @@ async function loadTarballIfExists(): Promise<Blob | null> {
  * Save the database state to a tarball
  */
 async function saveTarball(client: PGlite): Promise<void> {
+	if (!globalForPGlite.pgliteHasPendingChanges) {
+		console.log("No pending PGlite changes, skipping tarball save");
+		return;
+	}
+
 	try {
 		const tarballPath = getTarballPath();
 
 		console.log("Dumping PGlite database to tarball...");
 		const blob = await client.dumpDataDir();
 
-		// Bun.write() accepts Blob directly
+		// Bun.write handles directory creation for the target path.
 		await Bun.write(tarballPath, blob);
+
+		globalForPGlite.pgliteHasPendingChanges = false;
 		console.log(`PGlite database saved to ${tarballPath}`);
 	} catch (error) {
 		console.error("Failed to save PGlite tarball:", error);
 	}
-}
-
-// Auto-save interval in milliseconds (30 seconds)
-const AUTO_SAVE_INTERVAL = 30_000;
-// Initial save delay (5 seconds after startup)
-const INITIAL_SAVE_DELAY = 5_000;
-
-/**
- * Start periodic auto-save of the database
- */
-function startAutoSave(client: PGlite): void {
-	// Initial save after short delay
-	const initialTimeout = setTimeout(async () => {
-		try {
-			await saveTarball(client);
-		} catch (error) {
-			console.error("Initial save failed:", error);
-		}
-	}, INITIAL_SAVE_DELAY);
-	initialTimeout.unref();
-
-	// Periodic saves
-	const intervalId = setInterval(async () => {
-		try {
-			await saveTarball(client);
-		} catch (error) {
-			console.error("Auto-save failed:", error);
-		}
-	}, AUTO_SAVE_INTERVAL);
-	intervalId.unref();
 }
 
 /**
@@ -121,22 +162,20 @@ function registerShutdownHandlers(client: PGlite): void {
 		} catch (error) {
 			console.error("Error during shutdown:", error);
 		}
+		process.exitCode = 0;
 		process.exit(0);
 	};
 
 	// Register handlers
 	process.on("SIGINT", () => {
-		handleShutdown("SIGINT");
+		void handleShutdown("SIGINT");
 	});
 	process.on("SIGTERM", () => {
-		handleShutdown("SIGTERM");
+		void handleShutdown("SIGTERM");
 	});
 
-	// Start periodic auto-save as a fallback
-	startAutoSave(client);
-
 	globalForPGlite.shutdownHandlersRegistered = true;
-	console.log("PGlite shutdown handlers registered (with auto-save every 30s)");
+	console.log("PGlite shutdown handlers registered");
 }
 
 async function createPGliteDatabase() {
@@ -153,15 +192,19 @@ async function createPGliteDatabase() {
 		...(existingTarball && { loadDataDir: existingTarball }),
 	});
 
+	trackMutations(client);
+
 	// Only initialize schema if we didn't load from tarball
 	if (!loadedFromTarball) {
 		console.log("Initializing PGlite schema...");
 		await client.exec(initSchemaSQL);
 		console.log("PGlite schema initialized successfully");
+		markDatabaseDirty();
 	} else {
 		console.log(
 			"Loaded existing database from tarball, skipping schema initialization",
 		);
+		globalForPGlite.pgliteHasPendingChanges = false;
 	}
 
 	const db = drizzlePGlite({ client, schema });
@@ -172,6 +215,15 @@ async function createPGliteDatabase() {
 
 	// Register shutdown handlers to save on exit
 	registerShutdownHandlers(client);
+
+	// Save on startup only when creating a fresh database for the first time.
+	if (!loadedFromTarball) {
+		try {
+			await saveTarball(client);
+		} catch (error) {
+			console.error("Startup save failed:", error);
+		}
+	}
 
 	return db;
 }

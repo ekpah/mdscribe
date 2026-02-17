@@ -10,9 +10,9 @@ import type { TestDatabase } from "@repo/database/test";
 import type { Session } from "@/lib/auth-types";
 
 /**
- * Admin email addresses (from middlewares/admin.ts)
+ * Admin email address used in tests (matches ADMIN_EMAIL in preload.ts mock)
  */
-export const ADMIN_EMAILS = ["nils.hapke@we-mail.de", "n.hapke@bbtgruppe.de"];
+export const ADMIN_EMAIL = "admin@test.com";
 
 /**
  * Creates a test context for oRPC handlers
@@ -34,9 +34,10 @@ export function createTestContext(options: {
 export function createMockSession(user: {
 	id: string;
 	email: string;
-	name?: string;
+	name?: string | null;
 	stripeCustomerId?: string | null;
 	emailVerified?: boolean;
+	[key: string]: unknown;
 }): Session {
 	return {
 		user: {

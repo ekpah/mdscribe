@@ -1,6 +1,10 @@
 {
   "title": "Datenschutz",
-  "description": "Informationen zum Datenschutz und zur Datensicherheit in MDScribe",
-  "root": false
+  "description": "Datenschutz-Leitplanken fuer Cloud- und Self-Hosting-Betrieb.",
+  "root": false,
+  "pages": [
+    "index",
+    "private-vs-anonyme-daten",
+    "ki-datenfluss"
+  ]
 }
-

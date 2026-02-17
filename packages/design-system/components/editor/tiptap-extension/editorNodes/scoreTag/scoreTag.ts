@@ -19,7 +19,7 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
 
   group: 'inline',
   selectable: true,
-  draggable: true,
+  draggable: false,
   inline: true,
   atom: true,
 
@@ -76,4 +76,3 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
     return ReactNodeViewRenderer(ScoreTagView);
   },
 });
-

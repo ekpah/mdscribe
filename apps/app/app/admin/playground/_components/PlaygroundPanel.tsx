@@ -12,7 +12,6 @@ import {
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
-import { Separator } from "@repo/design-system/components/ui/separator";
 import {
 	Select,
 	SelectContent,
@@ -20,6 +19,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
+import { Separator } from "@repo/design-system/components/ui/separator";
 import {
 	Tabs,
 	TabsContent,
@@ -29,19 +29,19 @@ import {
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
+	type MutableRefObject,
 	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
 	useState,
-	type MutableRefObject,
 } from "react";
 import { toast } from "sonner";
-import type { DocumentType } from "@/orpc/scribe/types";
 import { orpc } from "@/lib/orpc";
+import type { DocumentType } from "@/orpc/scribe/types";
+import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
 import { DEFAULT_PARAMETERS } from "../_lib/types";
-import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import { ModelSelector } from "./ModelSelector";
 import { ParameterControls } from "./ParameterControls";
 import { ResultDisplay } from "./ResultDisplay";
@@ -58,96 +58,78 @@ interface PlaygroundPanelProps {
 }
 
 /**
- * Reverse mapping from processedInput (stored in usage events) back to form field names.
- * The scribe config transforms form fields before sending to the AI:
- * - discharge/outpatient: dischargeNotes → notes
- * - procedures: procedureNotes → notes
- * This function reverses that transformation so we can populate the form.
+ * Reverse mapping from stored usage input back to form field names.
+ * Normalization happens centrally now; we keep these mappings for UI hydration.
  */
 function parseVariablesToFormFields(
 	documentType: DocumentType,
 	variables: Record<string, unknown>,
 ): { main: string; additional: Record<string, string> } {
+	const v = variables as Record<string, unknown>;
+
+	const pickString = (...keys: string[]): string => {
+		for (const key of keys) {
+			const value = v[key];
+			if (typeof value === "string" && value.trim().length > 0) {
+				return value;
+			}
+		}
+		return "";
+	};
+
 	const result: { main: string; additional: Record<string, string> } = {
 		main: "",
 		additional: {},
 	};
 
-	const getString = (key: string): string => {
-		const val = variables[key];
-		return typeof val === "string" ? val : "";
-	};
-
 	switch (documentType) {
 		case "discharge":
 		case "outpatient":
-			// processInput transforms: dischargeNotes → notes
-			result.main = getString("notes") || getString("dischargeNotes");
+			result.main = pickString("notes", "dischargeNotes", "consultationNotes");
 			result.additional = {
-				diagnoseblock: getString("diagnoseblock"),
-				anamnese: getString("anamnese"),
-				befunde: getString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
+				anamnese: pickString("anamnese"),
+				befunde: pickString("befunde"),
 			};
 			break;
 
 		case "procedures":
-			// processInput transforms: procedureNotes → notes
-			result.main = getString("notes") || getString("procedureNotes");
+			result.main = pickString("notes", "procedureNotes");
 			break;
 
 		case "anamnese":
-			result.main = getString("notes");
+			result.main = pickString("notes");
 			result.additional = {
-				befunde: getString("befunde"),
-				vordiagnosen: getString("vordiagnosen"),
+				befunde: pickString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
 
 		case "physical-exam":
-			result.main = getString("notes");
+			result.main = pickString("notes");
 			break;
 
 		case "diagnosis":
-			result.main = getString("notes");
-			result.additional = {
-				anamnese: getString("anamnese"),
-				diagnoseblock: getString("diagnoseblock"),
-				befunde: getString("befunde"),
-			};
-			break;
-
 		case "admission-todos":
-			result.main = getString("notes");
+		case "icu-transfer":
+			result.main = pickString("notes");
 			result.additional = {
-				anamnese: getString("anamnese"),
-				vordiagnosen: getString("vordiagnosen"),
-				befunde: getString("befunde"),
+				anamnese: pickString("anamnese"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
+				befunde: pickString("befunde"),
 			};
 			break;
 
 		case "befunde":
-			result.main = getString("notes");
+			result.main = pickString("notes");
 			result.additional = {
-				anamnese: getString("anamnese"),
-				vordiagnosen: getString("vordiagnosen"),
-			};
-			break;
-
-		case "icu-transfer":
-			result.main = getString("notes");
-			result.additional = {
-				anamnese: getString("anamnese"),
-				diagnoseblock: getString("diagnoseblock"),
-				befunde: getString("befunde"),
+				anamnese: pickString("anamnese"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
 
 		default:
-			// Fallback: try common field names
-			result.main =
-				getString("notes") ||
-				getString("dischargeNotes") ||
-				getString("procedureNotes");
+			result.main = pickString("notes", "dischargeNotes", "procedureNotes");
 	}
 
 	return result;
@@ -206,6 +188,27 @@ export function PlaygroundPanel({
 	const [formAdditional, setFormAdditional] = useState<Record<string, string>>(
 		parsedPreset?.additional ?? {},
 	);
+	const hasAppliedPresetDocTypeRef = useRef(false);
+	const hasAppliedPresetFieldsRef = useRef(false);
+
+	// Apply async preset document type once (usage -> playground jump-off).
+	useEffect(() => {
+		if (hasAppliedPresetDocTypeRef.current) return;
+		if (!presetDocumentType) return;
+
+		setDocumentType(presetDocumentType);
+		hasAppliedPresetDocTypeRef.current = true;
+	}, [presetDocumentType]);
+
+	// Apply async preset variables once (usage -> playground jump-off).
+	useEffect(() => {
+		if (hasAppliedPresetFieldsRef.current) return;
+		if (!parsedPreset) return;
+
+		setFormMain(parsedPreset.main);
+		setFormAdditional(parsedPreset.additional);
+		hasAppliedPresetFieldsRef.current = true;
+	}, [parsedPreset]);
 
 	// Prompt selection / compilation
 	const [promptName, setPromptName] = useState<string>(docUi.defaultPromptName);
@@ -411,7 +414,7 @@ export function PlaygroundPanel({
 											{docUi.mainField.label}
 										</Label>
 										<Textarea
-											className="min-h-[140px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
+											className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
 											id="main-input"
 											onChange={(e) => setFormMain(e.target.value)}
 											placeholder={docUi.mainField.placeholder}
@@ -436,7 +439,7 @@ export function PlaygroundPanel({
 														{field.label}
 													</Label>
 													<Textarea
-														className="min-h-[90px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
+														className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
 														id={field.name}
 														onChange={(e) =>
 															setFormAdditional((prev) => ({
@@ -474,7 +477,7 @@ export function PlaygroundPanel({
 										<Textarea
 											readOnly
 											value={JSON.stringify(JSON.parse(promptJson), null, 2)}
-											className="min-h-[120px] resize-none border-solarized-base2 bg-solarized-base3 font-mono text-xs"
+											className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 										/>
 									</div>
 								</div>
@@ -551,7 +554,7 @@ export function PlaygroundPanel({
 											<Textarea
 												readOnly
 												value={JSON.stringify(compiledVariables, null, 2)}
-												className="min-h-[120px] resize-none border-solarized-base2 bg-solarized-base3 font-mono text-xs"
+												className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 											/>
 										</div>
 
@@ -598,7 +601,7 @@ export function PlaygroundPanel({
 																	};
 																	setCompiledOverride(next);
 																}}
-																className="min-h-[110px] resize-none border-solarized-base2 bg-solarized-base3 text-sm"
+																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
 															/>
 														</div>
 													),

@@ -16,6 +16,7 @@ import { authed } from "@/orpc";
 import { documentTypeConfigs } from "../scribe/config";
 import { requiredAdminMiddleware } from "../middlewares/admin";
 import type { PromptVariables } from "../scribe/types";
+import { buildScribeContext } from "../scribe/context";
 
 function todaysDateDE(): string {
 	return new Date().toLocaleDateString("de-DE", {
@@ -29,20 +30,35 @@ const compilePromptInput = z.object({
 	documentType: z.string(),
 	promptName: z.string().optional(),
 	/**
-	 * Preferred input: variables already shaped like `processedInput` in production.
+	 * Preferred input: variables already shaped like the raw prompt payload.
 	 */
 	variables: z.record(z.unknown()).optional(),
 	/**
 	 * Convenience input: pass the raw prompt JSON (same as what AI Scribe sends),
-	 * and we'll run the production `processInput` server-side for parity.
+	 * and we'll run the production prompt compilation server-side for parity.
 	 */
 	promptJson: z.string().optional(),
 });
 
+function parsePromptJson(promptJson?: string): Record<string, unknown> {
+	if (!promptJson) return {};
+	try {
+		const parsed = JSON.parse(promptJson) as unknown;
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+			throw new Error("Invalid prompt JSON");
+		}
+		return parsed as Record<string, unknown>;
+	} catch {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Invalid prompt JSON",
+		});
+	}
+}
+
 const compilePromptHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(type<z.infer<typeof compilePromptInput>>())
-	.handler(async ({ input }) => {
+	.handler(async ({ input, context }) => {
 		const parsed = compilePromptInput.parse(input);
 		const config =
 			documentTypeConfigs[
@@ -56,14 +72,24 @@ const compilePromptHandler = authed
 
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
 
-		const variablesUsed =
-			parsed.variables ??
-			(parsed.promptJson ? config.processInput(parsed.promptJson) : {});
+		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
+		if (
+			parsed.documentType === "procedures" &&
+			typeof variablesUsed.relevantTemplate !== "string"
+		) {
+			variablesUsed.relevantTemplate = "";
+		}
+
+		const { contextXml } = await buildScribeContext({
+			sources: [{ kind: "form", data: variablesUsed }],
+			sessionUser: context.session.user,
+		});
 
 		// Build prompt using local prompt function
 		const promptVariables = {
 			...variablesUsed,
 			todaysDate: todaysDateDE(),
+			contextXml,
 		} as PromptVariables;
 
 		const compiledMessages = config.prompt(promptVariables);
@@ -120,9 +146,13 @@ const runHandler = authed
 
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
 
-		const variablesUsed =
-			parsed.variables ??
-			(parsed.promptJson ? config.processInput(parsed.promptJson) : {});
+		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
+		if (
+			parsed.documentType === "procedures" &&
+			typeof variablesUsed.relevantTemplate !== "string"
+		) {
+			variablesUsed.relevantTemplate = "";
+		}
 
 		const openrouter = createOpenRouter({
 			apiKey: env.OPENROUTER_API_KEY as string,
@@ -139,10 +169,16 @@ const runHandler = authed
 		if (parsed.compiledMessagesOverride) {
 			messages = parsed.compiledMessagesOverride as unknown as ModelMessage[];
 		} else {
+			const { contextXml } = await buildScribeContext({
+				sources: [{ kind: "form", data: variablesUsed }],
+				sessionUser: context.session.user,
+			});
+
 			// Build prompt using local prompt function
 			const promptVariables = {
 				...variablesUsed,
 				todaysDate: todaysDateDE(),
+				contextXml,
 			} as PromptVariables;
 
 			messages = config.prompt(promptVariables);
@@ -268,8 +304,8 @@ export const scribeHandler = {
 					befunde: "[Befunde]",
 					diagnoseblock: "[Diagnoseblock]",
 					notes: "[Notizen]",
-					vordiagnosen: "[Vordiagnosen]",
 					relevantTemplate: "[Relevante Vorlage]",
+					contextXml: "<patient_context></patient_context>",
 				} as PromptVariables;
 
 				const messages = config.prompt(sampleVariables);

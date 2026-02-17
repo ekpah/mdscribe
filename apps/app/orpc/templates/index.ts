@@ -87,6 +87,33 @@ const favouriteInput = z.object({
 	templateId: z.string(),
 });
 
+const MAX_CATEGORY_SUGGESTIONS = 10;
+
+const addCategories = (
+	target: string[],
+	seen: Set<string>,
+	categories: string[],
+	limit: number,
+) => {
+	for (const category of categories) {
+		const normalized = category.trim();
+		if (!normalized) {
+			continue;
+		}
+
+		const key = normalized.toLowerCase();
+		if (seen.has(key)) {
+			continue;
+		}
+
+		seen.add(key);
+		target.push(normalized);
+		if (target.length >= limit) {
+			return;
+		}
+	}
+};
+
 // ============================================================================
 // Public Handlers
 // ============================================================================
@@ -224,6 +251,67 @@ const getAuthoredHandler = authed.handler(async ({ context }) => {
 	return userTemplates;
 });
 
+const getEditorContextHandler = authed.handler(async ({ context }) => {
+	const userId = context.session.user.id;
+	const limit = MAX_CATEGORY_SUGGESTIONS;
+	const categorySuggestions: string[] = [];
+	const seen = new Set<string>();
+
+	const authoredCategories = await context.db
+		.select({ category: template.category })
+		.from(template)
+		.where(eq(template.authorId, userId))
+		.groupBy(template.category)
+		.orderBy(desc(count()))
+		.limit(limit);
+
+	addCategories(
+		categorySuggestions,
+		seen,
+		authoredCategories.map((item) => item.category),
+		limit,
+	);
+
+	if (categorySuggestions.length < limit) {
+		const favouriteCategories = await context.db
+			.select({ category: template.category })
+			.from(favourites)
+			.innerJoin(template, eq(favourites.templateId, template.id))
+			.where(eq(favourites.userId, userId))
+			.groupBy(template.category)
+			.orderBy(desc(count()))
+			.limit(limit);
+
+		addCategories(
+			categorySuggestions,
+			seen,
+			favouriteCategories.map((item) => item.category),
+			limit,
+		);
+	}
+
+	if (categorySuggestions.length < limit) {
+		const allCategories = await context.db
+			.select({ category: template.category })
+			.from(template)
+			.groupBy(template.category)
+			.orderBy(desc(count()))
+			.limit(limit);
+
+		addCategories(
+			categorySuggestions,
+			seen,
+			allCategories.map((item) => item.category),
+			limit,
+		);
+	}
+
+	return {
+		categorySuggestions,
+		canEditSource: context.session.user.email === env.ADMIN_EMAIL,
+	};
+});
+
 // ============================================================================
 // Authenticated Handlers - CRUD Operations
 // ============================================================================
@@ -347,6 +435,7 @@ export const templatesHandler = {
 	// Authenticated - Read
 	favourites: getFavouritesHandler,
 	authored: getAuthoredHandler,
+	editorContext: getEditorContextHandler,
 	// Authenticated - CRUD
 	create: createTemplateHandler,
 	update: updateTemplateHandler,

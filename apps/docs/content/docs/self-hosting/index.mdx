@@ -1,24 +1,102 @@
 ---
 title: Self-Hosting
-description: Anleitung zum Self-Hosting von MDScribe
+description: Betrieb von MDScribe in eigener Infrastruktur mit klaren Daten- und Compliance-Grenzen
 ---
 
-## Self-Hosting
+## Self-Hosting von MDScribe
 
-Wir arbeiten derzeit an der Dokumentation für das Self-Hosting von MDScribe.
+Self-Hosting bedeutet, dass Sie MDScribe in Ihrer eigenen Infrastruktur betreiben und damit die volle Kontrolle, aber auch die volle Verantwortung übernehmen.
 
-Diese Dokumentation wird umfassende Informationen zu folgenden Themen enthalten:
+## Kurzposition (OSS)
 
-- Systemanforderungen
-- Installationsanleitung
-- Konfiguration
-- Datenbank-Setup
-- Deployment-Optionen
-- Wartung und Updates
+- Die cloud-gehostete Nutzung sollte derzeit nicht als sicher für sensible Patientendaten/PHI betrachtet werden, bis weitere Datenschutzmaßnahmen abgeschlossen sind.
+- Self-Hosting ist der empfohlene Weg, wenn Sie vollständige Kontrolle über Verarbeitung, Speicherung und Aufbewahrung benötigen.
+- Die Verantwortung für den rechtskonformen Betrieb liegt beim jeweiligen Betreiber.
+- Wir arbeiten daran, das eigentständige Betreiben von MDScribe deutlich zu vereinfachen.
 
-Bitte haben Sie noch etwas Geduld, während wir diese Inhalte erstellen.
+## 1. Basis-Setup
 
+```bash
+git clone https://github.com/ekpah/mdscribe.git
+cd mdscribe
+bun install
+cp .env.example .env
+```
 
+Danach alle erforderlichen Umgebungsvariablen in `.env` setzen und den Start lokal validieren:
 
+```bash
+bun dev
+```
 
+Für Produktionsumgebungen ist ein Build vor Deployment erforderlich:
 
+```bash
+bun run build
+```
+
+## 2. Umgebungsvariablen (Self-Hosted)
+
+Fuer Self-Hosting ohne integrierte SaaS-Abrechnung sind nur die Kernvariablen relevant:
+
+| Variable | Fuer Self-Hosting | Zweck |
+|---|---|---|
+| `POSTGRES_DATABASE_URL` | erforderlich | Verbindung zur PostgreSQL-Datenbank |
+| `NEXT_PUBLIC_BASE_URL` | erforderlich | Externe Basis-URL der Instanz |
+| `ADMIN_EMAIL` | erforderlich | Administrativer Hauptaccount |
+| `BETTER_AUTH_SECRET` | erforderlich | Signatur/Session-Secret fuer Auth |
+| `AUTH_POSTMARK_KEY` | erforderlich | E-Mail-Versand (Auth-Mails, z.B. Passwort-Reset) |
+| `OPENROUTER_API_KEY` | erforderlich | Modellzugriff ueber OpenRouter |
+| `VOYAGE_API_KEY` | erforderlich | Embeddings / Vektorsuche |
+| `STRIPE_SECRET_KEY` | optional | Nur fuer integrierte Abrechnung notwendig |
+| `STRIPE_WEBHOOK_SECRET` | optional | Nur fuer Stripe-Webhooks notwendig |
+| `STRIPE_PLUS_PRICE_ID` | optional | Nur fuer Stripe-Preislogik notwendig |
+| `STRIPE_PLUS_PRICE_ID_ANNUAL` | optional | Nur fuer Stripe-Preislogik notwendig |
+
+Wenn Sie keine integrierte Billing-Logik nutzen, koennen Stripe-Variablen in einem Self-Hosted-Setup weggelassen werden.
+
+## 3. Datenfluss und Kontrollgrenzen
+
+| Pfad | Standardverhalten | Betreiberkontrolle |
+|---|---|---|
+| Browser -> MDScribe | TLS-verschlüsselte Eingaben | Zugriffsschutz, Session-Policies, Logging-Policy |
+| MDScribe -> PostgreSQL | Persistenz von App-Daten | DB-Standort, Verschlüsselung, Backup/Restore |
+| MDScribe -> OpenRouter -> Modellanbieter | Verarbeitung von Prompt/Antwort | Provider- und Modellwahl, organisatorische Nutzungsrichtlinien |
+| MDScribe -> Postmark | Versand transaktionaler E-Mails | Anbieterwahl/Policy, Mail-Inhalte |
+| MDScribe -> Stripe | Abrechnung und Webhooks | Billing-Setup und Zugriffsschutz |
+
+Wenn Sie striktere Grenzen benötigen (z.B. keine externen KI-Endpunkte), ist zusätzlicher Implementierungsaufwand notwendig. Es soll jedoch in Kürze auch möglich sein, MDScribe mit lokalen LLMszu nutzen.
+
+## 6. Secrets, Rotation und Zugriff
+
+- Verwenden Sie einen Secret Manager oder verschlüsselte Deployment-Secrets, nicht Git.
+- Halten Sie `.env.example` ausschließlich mit Platzhaltern.
+- Rotieren Sie Schlüssel regelmäßig und immer nach vermutetem Leak.
+- Trennen Sie Rollen für Deployments, DB-Administration und Anwendungszugriff.
+- Nutzen Sie Least-Privilege für DB- und Service-Credentials.
+
+## 7. Backup- und Wiederherstellungsstrategie
+
+- Planen Sie tägliche PostgreSQL-Backups (`pg_dump` oder Snapshot-basiert).
+- Definieren Sie klare Aufbewahrungsfristen und Offsite-Backups.
+- Testen Sie Recovery regelmäßig in einer separaten Umgebung.
+- Dokumentieren Sie RTO/RPO für Ihren Betrieb.
+
+## 8. Telemetrie- und Compliance-Hinweise
+
+- Prüfen Sie vor Produktivbetrieb, welche externen Dienste in Ihrem Setup aktiv sind.
+- Prüfen Sie vertragliche und regulatorische Anforderungen (z.B. Datenschutz, Dokumentationspflichten) für Ihre Organisation.
+- ZDR- oder Provider-Einstellungen können Risiken reduzieren, ersetzen aber keine eigene Compliance-Prüfung.
+
+## 9. Go-Live Checkliste (Self-Hosted)
+
+- [ ] Alle erforderlichen Environment-Variablen gesetzt und valide
+- [ ] TLS und Zugriffsschutz (Auth, Rollen, Admin-Zugänge) geprüft
+- [ ] Backup/Restore erfolgreich getestet
+- [ ] Secret-Rotation-Prozess dokumentiert
+- [ ] Logging-/Monitoring-Policy dokumentiert
+- [ ] Datenfluss und Drittanbieter-Nutzung intern freigegeben
+
+## 10. Verantwortlichkeit
+
+Diese Seite beschreibt technische Leitplanken. Sie ersetzt keine rechtliche Beratung. Der Betreiber ist verantwortlich für die Einhaltung aller anwendbaren Datenschutz- und Compliance-Vorgaben im jeweiligen Einsatzkontext.

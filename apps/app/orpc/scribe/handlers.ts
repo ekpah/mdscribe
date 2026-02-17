@@ -21,6 +21,7 @@ import {
 } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
 import { getUsage } from "./_lib/get-usage";
+import { buildScribeContext, derivePatientContext } from "./context";
 import { documentTypeConfigs } from "./config";
 import type {
 	AudioFile,
@@ -28,11 +29,68 @@ import type {
 	PromptVariables,
 	SupportedModel,
 } from "./types";
-import { util } from "better-auth";
 
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
 });
+
+import { USER_MESSAGES } from "@/lib/user-messages";
+
+function parsePromptPayload(prompt: string): Record<string, unknown> {
+	if (!prompt.trim()) {
+		return {};
+	}
+	try {
+		const parsed = JSON.parse(prompt) as unknown;
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: USER_MESSAGES.inputInvalid,
+			});
+		}
+		return parsed as Record<string, unknown>;
+	} catch (error) {
+		if (error instanceof ORPCError) {
+			throw error;
+		}
+		throw new ORPCError("BAD_REQUEST", {
+			message: USER_MESSAGES.inputInvalid,
+		});
+	}
+}
+
+function hasNonEmptyInput(value: unknown): boolean {
+	if (typeof value === "string") {
+		return value.trim().length > 0;
+	}
+	if (typeof value === "number" || typeof value === "boolean") {
+		return true;
+	}
+	if (Array.isArray(value)) {
+		for (const entry of value) {
+			if (hasNonEmptyInput(entry)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	if (value && typeof value === "object") {
+		for (const entry of Object.values(value as Record<string, unknown>)) {
+			if (hasNonEmptyInput(entry)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function hasAnyInput(payload: Record<string, unknown>): boolean {
+	for (const entry of Object.values(payload)) {
+		if (hasNonEmptyInput(entry)) {
+			return true;
+		}
+	}
+	return false;
+}
 
 /**
  * Get OpenRouter model instance based on model ID
@@ -111,7 +169,7 @@ async function checkUsageLimit(
 
 	if (usage.count >= usageLimit) {
 		throw new ORPCError("FORBIDDEN", {
-			message: "Monatliche Nutzungsgrenze erreicht - passe dein Abonnement an",
+			message: USER_MESSAGES.usageLimitReached,
 		});
 	}
 
@@ -132,9 +190,7 @@ async function generateEmbeddings(content: string): Promise<number[]> {
 /**
  * Find relevant templates for procedures using vector similarity
  */
-async function findRelevantTemplateForProcedure(
-	procedureNotes: string,
-): Promise<string> {
+async function findRelevantTemplateForProcedure(notes: string): Promise<string> {
 	const defaultTemplate = `## Standard-Textbausteine (Referenz)
 
 <details>
@@ -179,12 +235,12 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 
 </details>`;
 
-	if (!procedureNotes.trim()) {
+	if (!notes.trim()) {
 		return defaultTemplate;
 	}
 
 	try {
-		const embedding = await generateEmbeddings(procedureNotes);
+		const embedding = await generateEmbeddings(notes);
 		const embeddingSql = pgvector.toSql(embedding);
 
 		type TemplateResult = {
@@ -195,11 +251,11 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 		const similarityResults = await database.execute<TemplateResult>(sql`
 			SELECT
 				content,
-				(1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) as similarity
+				(1 - (embedding <=> ${embeddingSql}::vector)) as similarity
 			FROM "Template"
 			WHERE embedding IS NOT NULL
-			AND (1 - (embedding <=> ${sql.raw(embeddingSql)}::vector)) > 0.6
-			ORDER BY embedding <-> ${sql.raw(embeddingSql)}::vector
+			AND (1 - (embedding <=> ${embeddingSql}::vector)) > 0.6
+			ORDER BY embedding <-> ${embeddingSql}::vector
 			LIMIT 1
 		`);
 
@@ -278,17 +334,26 @@ export const scribeStreamHandler = authed
 
 		// Check user has stripeCustomerId
 		if (!context.session.user.stripeCustomerId) {
-			throw new ORPCError("UNAUTHORIZED", {
-				message:
-					"Du musst einen Stripe Account haben um diese Funktion zu nutzen.",
+			throw new ORPCError("FORBIDDEN", {
+				message: USER_MESSAGES.subscriptionRequired,
 			});
 		}
 
 		// Check usage limits
-		await checkUsageLimit(context.session.user.id, context.session, context.db);
+		const { activeSubscription } = await checkUsageLimit(
+			context.session.user.id,
+			context.session,
+			context.db,
+		);
 
 		// Get actual model (handle 'auto')
 		const hasAudio = audioFiles && audioFiles.length > 0;
+		const rawPrompt = parsePromptPayload(prompt);
+		if (!hasAudio && !hasAnyInput(rawPrompt)) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: USER_MESSAGES.missingInput,
+			});
+		}
 		const actualModel = getActualModel(model, hasAudio);
 		const {
 			model: aiModel,
@@ -296,16 +361,13 @@ export const scribeStreamHandler = authed
 			modelName,
 		} = getModelInstance(actualModel);
 
-		// Process input based on document type
-		let processedInput = config.processInput(prompt);
+		const contextSources = [{ kind: "form" as const, data: rawPrompt }];
+		let relevantTemplate: string | undefined;
 
 		// Special handling for procedures - add relevant template via vector search
 		if (documentType === "procedures") {
-			const parsed = JSON.parse(prompt);
-			const relevantTemplate = await findRelevantTemplateForProcedure(
-				parsed.procedureNotes,
-			);
-			processedInput = { ...processedInput, relevantTemplate };
+			const notes = derivePatientContext(contextSources).notes;
+			relevantTemplate = await findRelevantTemplateForProcedure(notes);
 		}
 
 		// Get today's date for prompt compilation
@@ -315,10 +377,16 @@ export const scribeStreamHandler = authed
 			year: "numeric",
 		});
 
+		const { contextXml } = await buildScribeContext({
+			sources: contextSources,
+			sessionUser: context.session.user,
+		});
+
 		// Build prompt messages using local prompt function
 		const promptVariables = {
-			...processedInput,
 			todaysDate,
+			contextXml,
+			relevantTemplate,
 		} as PromptVariables;
 
 		const compiledPrompt = config.prompt(promptVariables);
@@ -366,6 +434,7 @@ export const scribeStreamHandler = authed
 					reasoning: config.modelConfig.thinking
 						? { max_tokens: config.modelConfig.thinkingBudget ?? 8000 }
 						: { enabled: false },
+					...(activeSubscription && { zdr: true }),
 				},
 			},
 			messages,
@@ -373,9 +442,11 @@ export const scribeStreamHandler = authed
 				// PERF: Use after() for non-blocking usage logging (faster stream completion)
 				after(async () => {
 					// Extract OpenRouter usage data
-					const openRouterUsage = extractOpenRouterUsage(event.providerMetadata);
-					console.dir(event, { depth: 5 });
+					const openRouterUsage = extractOpenRouterUsage(
+						event.providerMetadata,
+					);
 					// Log usage to database using Drizzle
+					// Plus subscribers: skip content logging for privacy (ZDR)
 					await context.db.insert(usageEvent).values(
 						buildUsageEventData({
 							userId: context.session.user.id,
@@ -383,7 +454,9 @@ export const scribeStreamHandler = authed
 							model: modelName,
 							openRouterUsage,
 							standardUsage: event.usage as StandardUsage,
-							inputData: processedInput as UsageInputData,
+							inputData: activeSubscription
+								? undefined
+								: (rawPrompt as UsageInputData),
 							metadata: {
 								promptName: config.promptName,
 								promptSource: "local",
@@ -397,9 +470,14 @@ export const scribeStreamHandler = authed
 									maxTokens: config.modelConfig.maxTokens,
 									temperature: config.modelConfig.temperature,
 								},
+								zdrEnabled: activeSubscription,
 							} as UsageMetadata,
-							result: event.text,
-							reasoning: event.reasoningText,
+							result: activeSubscription
+								? "[zdr - content redacted]"
+								: event.text,
+							reasoning: activeSubscription
+								? "[zdr - content redacted]"
+								: event.reasoningText,
 						}),
 					);
 				});

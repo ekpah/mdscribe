@@ -12,7 +12,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
 	Activity,
 	ArrowRight,
@@ -37,13 +37,37 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
+import { getServerSession } from "@/lib/server-session";
+import type { DocumentType } from "@/orpc/scribe/types";
 import { LiveTime } from "./_components/LiveTime";
+
+/** Readable German labels for AI scribe document types */
+const documentTypeLabels: Record<DocumentType, string> = {
+	discharge: "Entlassungsbrief",
+	anamnese: "ER Anamnese",
+	diagnosis: "Diagnoseblock Update",
+	"physical-exam": "ER Körperliche Untersuchung",
+	procedures: "Prozeduren",
+	"admission-todos": "ER Admission TODOs",
+	befunde: "ER Befunde",
+	outpatient: "Ambulante Vorstellung",
+	"icu-transfer": "ICU Transfer",
+};
+
+/** Readable German labels for usage event names */
+const eventNameLabels: Record<string, string> = {
+	ai_scribe_generation: "KI-Dokumentation generiert",
+	ai_input_voice_fill: "Spracheingabe verarbeitet",
+	ai_pdf_form_parsing: "PDF-Formular analysiert",
+	admin_scribe_playground: "Playground-Generierung",
+};
 
 export default async function DashboardPage() {
 	// Auth check - must happen before queries
+	const requestHeaders = await headers();
 	const [session, subscriptions] = await Promise.all([
-		auth.api.getSession({ headers: await headers() }),
-		auth.api.listActiveSubscriptions({ headers: await headers() }),
+		getServerSession(),
+		auth.api.listActiveSubscriptions({ headers: requestHeaders }),
 	]).catch((_e) => {
 		throw redirect("/sign-in");
 	});
@@ -58,27 +82,29 @@ export default async function DashboardPage() {
 
 	// Use the shared getQueryClient for proper SSR caching
 	const queryClient = getQueryClient();
+	const usageQueryOptions = orpc.getUsage.queryOptions();
+	const favouritesQueryOptions = orpc.templates.favourites.queryOptions();
+	const authoredQueryOptions = orpc.templates.authored.queryOptions();
+	const recentActivityQueryOptions = orpc.user.recentActivity.queryOptions();
 
 	// PERF: Prefetch all queries in parallel
 	// Using prefetchQuery allows streaming - the page can start rendering
 	// while queries are still in flight, and data is hydrated to client
 	await Promise.all([
-		queryClient.prefetchQuery(orpc.getUsage.queryOptions()),
-		queryClient.prefetchQuery(orpc.templates.favourites.queryOptions()),
-		queryClient.prefetchQuery(orpc.templates.authored.queryOptions()),
-		queryClient.prefetchQuery(orpc.user.recentActivity.queryOptions()),
+		queryClient.prefetchQuery(usageQueryOptions),
+		queryClient.prefetchQuery(favouritesQueryOptions),
+		queryClient.prefetchQuery(authoredQueryOptions),
+		queryClient.prefetchQuery(recentActivityQueryOptions),
 	]);
 
 	// Get the cached data for server rendering
-	const data = queryClient.getQueryData(orpc.getUsage.queryOptions().queryKey);
+	const data = queryClient.getQueryData(usageQueryOptions.queryKey);
 	const favoriteTemplates = queryClient.getQueryData(
-		orpc.templates.favourites.queryOptions().queryKey,
+		favouritesQueryOptions.queryKey,
 	);
-	const userTemplates = queryClient.getQueryData(
-		orpc.templates.authored.queryOptions().queryKey,
-	);
+	const userTemplates = queryClient.getQueryData(authoredQueryOptions.queryKey);
 	const recentEvents = queryClient.getQueryData(
-		orpc.user.recentActivity.queryOptions().queryKey,
+		recentActivityQueryOptions.queryKey,
 	);
 
 	const currentUsage = data?.usage?.count || 0;
@@ -170,11 +196,19 @@ export default async function DashboardPage() {
 
 		// Determine icon and title based on event name
 		let icon = Activity;
-		let title = event.name;
+		let title = eventNameLabels[event.name] ?? event.name;
 
 		if (event.name === "ai_scribe_generation") {
 			icon = Brain;
-			title = "KI-Dokumentation generiert";
+			const metadata = event.metadata as Record<string, unknown> | null;
+			const endpoint = metadata?.endpoint as DocumentType | undefined;
+			if (endpoint && documentTypeLabels[endpoint]) {
+				title = documentTypeLabels[endpoint];
+			}
+		} else if (event.name === "ai_input_voice_fill") {
+			icon = FileCheck;
+		} else if (event.name === "ai_pdf_form_parsing") {
+			icon = FileText;
 		} else if (event.name.includes("template")) {
 			icon = FileText;
 			title = "Template verwendet";
@@ -421,7 +455,10 @@ export default async function DashboardPage() {
 														<div className="flex items-start justify-between">
 															<div className="flex-1">
 																<div className="mb-2 flex items-center gap-2">
-																	<Badge className="text-xs" variant="secondary">
+																	<Badge
+																		className="text-xs"
+																		variant="secondary"
+																	>
 																		{template.category}
 																	</Badge>
 																	<Badge className="text-xs" variant="outline">

@@ -51,6 +51,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
+import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import type {
 	AudioFile,
 	DocumentType,
@@ -171,7 +173,10 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			},
 		},
 		onError: (error) => {
-			toast.error(error.message || "Fehler beim Generieren");
+			const message = getAiscribeErrorMessage(error);
+			if (message) {
+				toast.error(message);
+			}
 		},
 		onFinish: () => {
 			toast.success("Erfolgreich generiert");
@@ -292,6 +297,35 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		[],
 	);
 
+	const missingRequiredFields = useMemo(() => {
+		if (!config.additionalInputs) {
+			return [];
+		}
+		const missing: string[] = [];
+		for (const field of config.additionalInputs) {
+			if (!field.required) {
+				continue;
+			}
+			const value = additionalInputData[field.name];
+			if (!value || value.trim().length === 0) {
+				missing.push(field.label);
+			}
+		}
+		return missing;
+	}, [config.additionalInputs, additionalInputData]);
+
+	const hasMissingRequiredFields = missingRequiredFields.length > 0;
+
+	const requiredFieldsMessage = useMemo(() => {
+		if (missingRequiredFields.length === 0) {
+			return "";
+		}
+		if (missingRequiredFields.length === 1) {
+			return `Bitte füllen Sie das Pflichtfeld "${missingRequiredFields[0]}" aus.`;
+		}
+		return `Bitte füllen Sie die Pflichtfelder ${missingRequiredFields.join(", ")} aus.`;
+	}, [missingRequiredFields]);
+
 	// Check if at least one input field is filled
 	const areRequiredFieldsFilled = useCallback(() => {
 		// Check if there are any audio recordings
@@ -317,10 +351,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	]);
 
 	const handleGenerate = useCallback(async () => {
+		if (hasMissingRequiredFields) {
+			toast.error(requiredFieldsMessage);
+			return;
+		}
+
 		if (!areRequiredFieldsFilled()) {
-			toast.error(
-				"Bitte füllen Sie mindestens ein Eingabefeld aus oder nehmen Sie Audio auf.",
-			);
+			toast.error(USER_MESSAGES.missingInput);
 			return;
 		}
 
@@ -371,14 +408,19 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			const promptText =
 				typeof prompt === "string" ? prompt : JSON.stringify(prompt);
 			await sendMessage({ text: promptText });
-		} catch {
+		} catch (error) {
 			// Catch any unexpected errors not handled by onError callback
-			toast.error("Fehler beim Generieren");
+			const message = getAiscribeErrorMessage(error);
+			if (message) {
+				toast.error(message);
+			}
 		}
 	}, [
 		inputData,
 		additionalInputData,
 		areRequiredFieldsFilled,
+		hasMissingRequiredFields,
+		requiredFieldsMessage,
 		setMessages,
 		sendMessage,
 		config.customApiCall,
@@ -405,7 +447,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		(event: KeyboardEvent) => {
 			event.preventDefault();
 			event.stopPropagation();
-			if (!isLoading && areRequiredFieldsFilled()) {
+			if (!isLoading && !hasMissingRequiredFields && areRequiredFieldsFilled()) {
 				handleGenerate();
 			}
 		},
@@ -554,7 +596,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 																</Label>
 																{field.type === "textarea" ? (
 																	<Textarea
-																		className="min-h-[100px] resize-none border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+																		className="min-h-[180px] resize-y border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
 																		disabled={isLoading}
 																		id={field.name}
 																		onChange={(e) =>
@@ -695,7 +737,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 													</Button>
 												</PromptInputTools>
 												<PromptInputSubmit
-													disabled={isLoading || !areRequiredFieldsFilled()}
+													disabled={
+														isLoading ||
+														hasMissingRequiredFields ||
+														!areRequiredFieldsFilled()
+													}
 												/>
 											</PromptInputToolbar>
 										</PromptInput>

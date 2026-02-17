@@ -29,7 +29,7 @@ const ER_CONFIG: AiscribeTemplateConfig = {
   // Additional input fields
   additionalInputs: [
     {
-      name: 'vordiagnosen',
+      name: 'diagnoseblock',
       label: 'Vordiagnosen',
       placeholder: 'Bekannte Vorerkrankungen und Diagnosen eingeben...',
       required: false,

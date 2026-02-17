@@ -1,15 +1,10 @@
 "use client";
-import {
-	DateFormatter,
-	type DateValue,
-	getLocalTimeZone,
-	parseDate,
-} from "@internationalized/date";
+
+import type { DateValue } from "@internationalized/date";
 import type { InfoInputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import { CalendarIcon } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
-
+import { useMemo } from "react";
 import {
 	Button,
 	DatePicker,
@@ -18,11 +13,22 @@ import {
 	Popover,
 } from "react-aria-components";
 import { withMask } from "use-mask-input";
+import { cn } from "@repo/design-system/lib/utils";
 import { Calendar } from "../../ui/calendar-rac";
 import { DateInput } from "../../ui/datefield-rac";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
-import { PopoverContent, PopoverTrigger } from "../../ui/popover";
+import {
+	Popover as DsPopover,
+	PopoverContent,
+	PopoverTrigger,
+} from "../../ui/popover";
+import { SuggestionBadge } from "./SuggestionBadge";
+import {
+	formatDateGerman,
+	getTodayDate,
+	parseDateInput,
+} from "./date-utils";
 
 type InfoValue = string | number | DateValue | undefined;
 
@@ -30,32 +36,77 @@ export function InfoInput({
 	input,
 	value,
 	onChange,
+	suggestedValue,
+	suggestionLabel = "Vorschlag",
+	onAcceptSuggestedValue,
+	inputClassName,
 }: {
 	input: InfoInputTagType;
 	value: InfoValue;
 	onChange: (localValue: string | number) => void;
+	suggestedValue?: string | number;
+	suggestionLabel?: string;
+	onAcceptSuggestedValue?: () => void;
+	inputClassName?: string;
 }) {
-	// Always call all hooks at the top level
-	const [dateValue, setDateValue] = useState(
-		parseDate(new Date().toISOString().split("T")[0]),
-	);
+	const isDateType = input.attributes.type === "date";
+	const isNumberType = input.attributes.type === "number";
 
-	// Ensure we always have a defined value to prevent controlled/uncontrolled input issues
-	const defaultValue =
-		input.attributes.type === "number" ? (value ?? 0) : (value ?? "");
-	const [localValue, setLocalValue] = useState(defaultValue);
+	// Parse date value, defaulting to today only if no value provided
+	const dateValue = useMemo(() => {
+		if (!isDateType) return getTodayDate();
+		const parsed = parseDateInput(value);
+		return parsed ?? getTodayDate();
+	}, [isDateType, value]);
 
-	// Update local state when prop value changes
-	useEffect(() => {
-		setLocalValue(defaultValue);
-	}, [defaultValue]);
+	// Parse suggested date value for display
+	const formattedSuggestedValue = useMemo(() => {
+		if (!isDateType || suggestedValue === undefined) return suggestedValue;
+		const parsed = parseDateInput(suggestedValue);
+		return parsed ? formatDateGerman(parsed) : suggestedValue;
+	}, [isDateType, suggestedValue]);
 
-	const dateFormatter = new DateFormatter("de-DE", {
-		dateStyle: "short",
-	});
+	// Determine if we have values for suggestion logic
+	const hasValue = value !== undefined && value !== null && value !== "";
+	const hasSuggestion =
+		suggestedValue !== undefined &&
+		suggestedValue !== null &&
+		suggestedValue !== "";
+	const isSuggestionApplied =
+		hasSuggestion && hasValue && value === suggestedValue;
+	const shouldShowSuggestion = hasSuggestion && !isSuggestionApplied;
 
-	// Handle date input type
-	if (input.attributes.type === "date") {
+	// Handle date changes
+	const handleDateChange = (newDateValue: DateValue | null) => {
+		if (newDateValue) {
+			onChange(formatDateGerman(newDateValue));
+		}
+	};
+
+	// Handle number changes
+	const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const numValue = Number(e.target.value);
+		onChange(Number.isNaN(numValue) ? 0 : numValue);
+	};
+
+	// Handle text changes
+	const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		onChange(e.target.value);
+	};
+
+	// Render suggestion badge if needed
+	const suggestionBadge = shouldShowSuggestion ? (
+		<SuggestionBadge
+			hasExistingValue={hasValue}
+			label={suggestionLabel}
+			onAccept={onAcceptSuggestedValue}
+			unit={isDateType ? undefined : input.attributes.unit}
+			value={formattedSuggestedValue ?? suggestedValue ?? ""}
+		/>
+	) : null;
+
+	// Date input
+	if (isDateType) {
 		return (
 			<div
 				className="w-full max-w-full *:not-first:mt-2"
@@ -64,14 +115,7 @@ export function InfoInput({
 				<DatePicker
 					aria-label={`${input.attributes.primary} calendar`}
 					className="*:not-first:mt-2"
-					onChange={(newDateValue) => {
-						if (newDateValue) {
-							setDateValue(newDateValue);
-							onChange(
-								dateFormatter.format(newDateValue.toDate(getLocalTimeZone())),
-							);
-						}
-					}}
+					onChange={handleDateChange}
 					value={dateValue}
 				>
 					<Label className="font-medium text-foreground text-sm">
@@ -79,7 +123,7 @@ export function InfoInput({
 					</Label>
 					<div className="flex">
 						<Group className="w-full">
-							<DateInput className="pe-9" />
+							<DateInput className={cn("pe-9", inputClassName)} />
 						</Group>
 						<Button
 							aria-label="Open calendar"
@@ -97,18 +141,15 @@ export function InfoInput({
 						</Dialog>
 					</Popover>
 				</DatePicker>
+				{suggestionBadge}
 			</div>
 		);
 	}
-	// Handle text/number inputs
-	const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setLocalValue(
-			Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value),
-		);
-		onChange(Number.isNaN(Number(e.target.value)) ? 0 : Number(e.target.value));
-	};
-	// Handle number input type
-	if (input.attributes.type === "number") {
+
+	// Number input
+	if (isNumberType) {
+		const displayValue = (value as number | undefined) ?? "";
+
 		return (
 			<div
 				className="w-full max-w-full *:not-first:mt-2"
@@ -119,7 +160,11 @@ export function InfoInput({
 				</Label>
 				<div className="flex w-full max-w-full rounded-md shadow-xs">
 					<Input
-						className={`-me-px min-w-0 flex-1 ${input.attributes.unit ? "rounded-e-none" : ""} shadow-none focus-visible:z-10`}
+						className={cn(
+							"-me-px min-w-0 flex-1 shadow-none focus-visible:z-10",
+							input.attributes.unit && "rounded-e-none",
+							inputClassName,
+						)}
 						id={input.attributes.primary}
 						name={input.attributes.primary}
 						onChange={handleNumberChange}
@@ -129,7 +174,7 @@ export function InfoInput({
 							showMaskOnHover: false,
 						})}
 						type="text"
-						value={localValue as number}
+						value={displayValue}
 					/>
 					{input.attributes.unit && (
 						<span className="inline-flex items-center rounded-e-md border border-input bg-background px-3 font-medium text-foreground text-sm outline-none transition-[color,box-shadow] focus:z-10 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50">
@@ -137,15 +182,14 @@ export function InfoInput({
 						</span>
 					)}
 				</div>
+				{suggestionBadge}
 			</div>
 		);
 	}
 
-	// Handle text/number inputs
-	const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setLocalValue(e.target.value);
-		onChange(e.target.value);
-	};
+	// Text input (default)
+	const displayValue = (value as string) ?? "";
+
 	return (
 		<div
 			className="w-full max-w-full *:not-first:mt-2"
@@ -156,13 +200,17 @@ export function InfoInput({
 			</Label>
 			<div className="flex w-full max-w-full rounded-md shadow-xs">
 				<Input
-					className={`-me-px min-w-0 flex-1 ${input.attributes.unit ? "rounded-e-none" : ""} shadow-none focus-visible:z-10`}
+					className={cn(
+						"-me-px min-w-0 flex-1 shadow-none focus-visible:z-10",
+						input.attributes.unit && "rounded-e-none",
+						inputClassName,
+					)}
 					id={input.attributes.primary}
 					name={input.attributes.primary}
 					onChange={handleTextChange}
 					placeholder={`Enter ${input.attributes.primary}`}
 					type="text"
-					value={localValue as string}
+					value={displayValue}
 				/>
 				{input.attributes.unit && (
 					<span className="inline-flex items-center rounded-e-md border border-input bg-background px-3 font-medium text-foreground text-sm outline-none transition-[color,box-shadow] focus:z-10 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50">
@@ -170,12 +218,13 @@ export function InfoInput({
 					</span>
 				)}
 			</div>
+			{suggestionBadge}
 			{input.attributes.description && (
-				<Popover>
+				<DsPopover>
 					<PopoverTrigger asChild>
 						<button
 							type="button"
-							className="ms-2 h-7 w-7 px-0 py-0 align-middle rounded-md border border-input bg-background text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/60 flex items-center justify-center"
+							className="ms-2 flex h-7 w-7 items-center justify-center rounded-md border border-input bg-background px-0 py-0 align-middle text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/60"
 							aria-label="Mehr Informationen"
 						>
 							<span
@@ -189,12 +238,12 @@ export function InfoInput({
 					</PopoverTrigger>
 					<PopoverContent className="max-w-[280px] py-3 shadow-none" side="top">
 						<div className="space-y-1">
-							<p className="text-xs text-muted-foreground">
+							<p className="text-muted-foreground text-xs">
 								{input.attributes.description}
 							</p>
 						</div>
 					</PopoverContent>
-				</Popover>
+				</DsPopover>
 			)}
 		</div>
 	);

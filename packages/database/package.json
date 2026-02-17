@@ -1,6 +1,7 @@
 {
 	"name": "@repo/database",
 	"version": "0.0.0",
+	"license": "AGPL-3.0-or-later",
 	"main": "./index.ts",
 	"types": "./index.ts",
 	"exports": {
@@ -11,7 +12,8 @@
 		"dev": "drizzle-kit studio",
 		"generate": "drizzle-kit generate",
 		"migrate": "drizzle-kit migrate",
-		"push": "drizzle-kit push"
+		"push": "drizzle-kit push",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@neondatabase/serverless": "^1.0.2",

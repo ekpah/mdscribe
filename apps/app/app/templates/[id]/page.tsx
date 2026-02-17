@@ -9,10 +9,9 @@ import { SidebarTrigger } from "@repo/design-system/components/ui/sidebar";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import { QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
-import { auth } from "@/auth";
 import { orpc } from "@/lib/orpc";
+import { getServerSession } from "@/lib/server-session";
 import ContentSection from "./_components/ContentSection";
 import { NavActions } from "./_components/NavActions";
 
@@ -36,9 +35,7 @@ export default async function NotePage({
 	params,
 }: PageProps<"/templates/[id]">) {
 	const queryClient = new QueryClient();
-	const session = await auth.api.getSession({
-		headers: await headers(),
-	});
+	const session = await getServerSession();
 	const { id } = await params;
 	const doc = await queryClient.fetchQuery(
 		orpc.templates.get.queryOptions({ input: { id } }),

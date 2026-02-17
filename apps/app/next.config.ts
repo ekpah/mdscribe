@@ -1,6 +1,5 @@
 import withBundleAnalyzer from "@next/bundle-analyzer";
 import { env } from "@repo/env";
-import withVercelToolbar from "@vercel/toolbar/plugins/next";
 import { createJiti } from "jiti";
 import type { NextConfig } from "next";
 import { createSecureHeaders } from "next-secure-headers";
@@ -18,7 +17,7 @@ export type { NextConfig };
 // Import env here to validate during build. Using jiti@^1 we can import .ts files :)
 jiti.import("@repo/env");
 
-export const config: NextConfig = withVercelToolbar()({
+export const config: NextConfig = {
 	images: {
 		formats: ["image/avif", "image/webp"],
 	},
@@ -51,9 +50,7 @@ export const config: NextConfig = withVercelToolbar()({
 			},
 		];
 	},
-	// This is required to support PostHog trailing slash API requests
-	skipTrailingSlashRedirect: true,
-});
+};
 
 let nextConfig: NextConfig = { ...config };
 

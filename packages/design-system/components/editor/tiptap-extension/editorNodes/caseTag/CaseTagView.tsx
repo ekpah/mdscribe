@@ -19,6 +19,7 @@ export function CaseTagView({
 	updateAttributes,
 	getPos,
 	deleteNode,
+	selected,
 }: NodeViewProps) {
 	const handlePrimaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		updateAttributes({ primary: e.target.value });
@@ -46,51 +47,77 @@ export function CaseTagView({
 	return (
 		<NodeViewWrapper
 			as="span"
-			className="group inline-flex items-baseline rounded border border-blue-500/50 bg-blue-50/80 text-xs leading-tight"
+			className="inline-block align-baseline mx-1"
 		>
-			<Popover>
-				<PopoverTrigger
-					className="flex cursor-pointer select-none items-center rounded-l-sm bg-blue-500/80 px-1.5 text-white transition-all duration-150 ease-in-out hover:brightness-110 group-hover:bg-blue-500/90"
-					contentEditable={false}
-				>
-					<span className="min-h-[1em] min-w-[1em] py-px">
-						{node.attrs.primary || "default"}
-					</span>
-				</PopoverTrigger>
-				<PopoverContent>
-					<div className="grid gap-4 py-2">
-						<div className="grid grid-cols-4 items-center gap-4">
-							<Label htmlFor="primary" className="text-right">
-								Case Key
-							</Label>
-							<Input
-								id="primary"
-								value={node.attrs.primary}
-								onChange={handlePrimaryChange}
-								className="col-span-3"
-								placeholder="Enter case key"
-								autoFocus
-							/>
-						</div>
-					</div>
-				</PopoverContent>
-			</Popover>
-
-			<NodeViewContent
-				className="whitespace-nowrap bg-white px-1 text-gray-700"
-				onDoubleClick={handleContentDoubleClick}
-			/>
-
-			<Button
-				variant="ghost"
-				size="icon"
-				onClick={handleRemoveCase}
-				className="remove-case-btn-inline h-auto self-stretch rounded-none rounded-r-sm px-1 text-blue-500/70 hover:bg-blue-500/10 hover:text-blue-600"
-				contentEditable={false}
-				aria-label="Remove case"
+			<div
+				className={`group inline-flex items-center gap-1 rounded-md border px-1 py-0.5 text-xs shadow-xs transition-all ${
+					selected
+						? "border-solarized-blue ring-2 ring-solarized-blue/40"
+						: "border-solarized-blue/50 hover:border-solarized-blue"
+				}`}
 			>
-				<X className="h-3 w-3" />
-			</Button>
+				<Popover>
+					<PopoverTrigger
+						className="inline-flex cursor-pointer items-center gap-1.5 px-1 py-0.5"
+						contentEditable={false}
+					>
+						<span
+							data-drag-handle
+							className="inline-flex items-center gap-1 rounded bg-solarized-blue/15 px-1.5 py-0.5 font-semibold text-solarized-blue"
+						>
+							Case
+						</span>
+						<span className="font-mono text-foreground/80">
+							{node.attrs.primary || "default"}
+						</span>
+					</PopoverTrigger>
+					<PopoverContent
+						collisionPadding={12}
+						className="w-[min(320px,94vw)] max-h-[min(70vh,var(--radix-popover-content-available-height))] overflow-hidden p-0"
+					>
+						<div className="flex max-h-[min(70vh,var(--radix-popover-content-available-height))] flex-col">
+							<div className="shrink-0 border-b bg-solarized-blue/5 px-3 py-2">
+								<h3 className="font-medium text-solarized-blue text-sm">
+									Case-Konfiguration
+								</h3>
+							</div>
+							<div className="min-h-0 flex-1 overflow-y-auto">
+								<div className="space-y-3 p-3">
+									<div className="space-y-1.5">
+										<Label htmlFor="primary" className="font-medium text-xs">
+											Case Key
+										</Label>
+										<Input
+											id="primary"
+											value={node.attrs.primary}
+											onChange={handlePrimaryChange}
+											className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
+											placeholder="Enter case key"
+											autoFocus
+										/>
+									</div>
+								</div>
+							</div>
+						</div>
+					</PopoverContent>
+				</Popover>
+
+				<NodeViewContent
+					className="whitespace-nowrap px-1 text-foreground/80"
+					onDoubleClick={handleContentDoubleClick}
+				/>
+
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={handleRemoveCase}
+					className="remove-case-btn-inline h-6 w-6 rounded-sm text-solarized-blue/70 hover:bg-solarized-blue/10 hover:text-solarized-blue"
+					contentEditable={false}
+					aria-label="Remove case"
+				>
+					<X className="h-3 w-3" />
+				</Button>
+			</div>
 		</NodeViewWrapper>
 	);
 }

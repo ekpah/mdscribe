@@ -1,304 +1,37 @@
 ---
 title: Text Snippets
-description: Erstellen und verwalten Sie wiederverwendbare Text-Schnipsel f?r schnelleren Workflow
+description: Kurze Aliase fuer haeufige Textbausteine in MDScribe.
 ---
 
 ## Was sind Text Snippets?
 
-Text Snippets (Text-Schnipsel) sind kurze K?rzel, die sich automatisch in l?ngere Texte erweitern lassen. Sie helfen Ihnen, h?ufig verwendete Textbausteine schnell einzuf?gen, ohne sie jedes Mal neu eintippen zu m?ssen.
+Text Snippets ersetzen ein kurzes Kuerzel durch einen laengeren Textbaustein. Damit sparen Sie Zeit bei wiederkehrenden Formulierungen.
 
-### Anwendungsbeispiele
+## Verwendung
 
-- **Gru?formeln**: `mfg` ? "Mit freundlichen Gr??en"
-- **Standardphrasen**: `danke` ? "Vielen Dank f?r Ihre Zeit"
-- **Adressen**: `adr` ? Ihre vollst?ndige Praxisadresse
-- **H?ufige Diagnosen**: `htn` ? "Arterielle Hypertonie"
-- **Standard-Anweisungen**: `kontrolle` ? "Kontrolle in 3 Monaten empfohlen"
+1. Kuerzel in ein Eingabefeld schreiben (z. B. `mfg`)
+2. `Shift + F2` druecken
+3. Kuerzel wird durch den hinterlegten Text ersetzt
 
-## Funktionsweise
+## Gute Beispiele
 
-### Snippet verwenden
-
-1. Tippen Sie das K?rzel in ein Textfeld (z.B. `mfg`)
-2. Dr?cken Sie <kbd>Shift + F2</kbd>
-3. Das K?rzel wird automatisch durch den vollst?ndigen Text ersetzt
-
-**Hinweis**: Text Snippets funktionieren in allen Eingabefeldern und Textbereichen der Anwendung.
-
-### Wie es funktioniert
-
-- Das System sucht nach dem letzten Wort vor der Cursorposition
-- Wenn ein passendes Snippet gefunden wird, ersetzt es das Wort
-- Der Cursor wird automatisch hinter den eingef?gten Text gesetzt
-- Eine Best?tigungsnachricht zeigt an, welches Snippet eingef?gt wurde
-
-## Snippets verwalten
-
-### Snippets erstellen
-
-1. **Navigieren Sie zu Ihrem Profil**
-   - Klicken Sie auf Ihr Profilbild oder Ihren Namen
-   - W?hlen Sie "Profil" oder "Einstellungen"
-
-2. **?ffnen Sie den Text Snippets-Bereich**
-   - Suchen Sie die Karte "Text Snippets"
-   - Hier werden alle Ihre Snippets angezeigt
-
-3. **Neues Snippet hinzuf?gen**
-   - Klicken Sie auf "Hinzuf?gen"
-   - Geben Sie ein **K?rzel** ein (max. 50 Zeichen)
-   - Geben Sie den **Text** ein, der eingef?gt werden soll (max. 5000 Zeichen)
-   - Klicken Sie auf "Erstellen"
-
-### Snippets bearbeiten
-
-1. Klicken Sie auf das Stift-Symbol  neben dem Snippet
-2. ?ndern Sie das K?rzel oder den Text
-3. Klicken Sie auf "Aktualisieren"
-
-### Snippets l?schen
-
-1. Klicken Sie auf das Papierkorb-Symbol  neben dem Snippet
-2. Best?tigen Sie die L?schung
+| Kuerzel | Ergebnis |
+|---|---|
+| `anam` | `Anamnese: ...` |
+| `bef` | `Befunde: ...` |
+| `proc` | `Procedere: ...` |
+| `mfg` | `Mit freundlichen Gruessen` |
 
 ## Best Practices
 
-### Gute K?rzel erstellen
-
-? **Empfohlen:**
-- Verwenden Sie **kurze, einpr?gsame** K?rzel (2-5 Zeichen)
-- Nutzen Sie **Abk?rzungen**, die Sie sich leicht merken k?nnen
-- Verwenden Sie **konsistente Muster** (z.B. alle medizinischen Begriffe mit 3 Buchstaben)
-- W?hlen Sie K?rzel, die nicht mit normalen W?rtern kollidieren
-
-? **Zu vermeiden:**
-- Sehr kurze K?rzel wie `a` oder `b` (k?nnte versehentlich ausgel?st werden)
-- K?rzel, die normale W?rter sind (wie `und`, `der`, etc.)
-- Zu lange K?rzel, die keinen Vorteil bieten
-- ?hnliche K?rzel, die leicht verwechselt werden k?nnen
-
-### Beispiele f?r gute K?rzel
-
-```
-// Gru?formeln
-mfg     ? Mit freundlichen Gr??en
-vd      ? Vielen Dank
-bg      ? Beste Gr??e
-
-// Medizinische Begriffe
-htn     ? Arterielle Hypertonie
-dm2     ? Diabetes mellitus Typ 2
-khe     ? Koronare Herzkrankheit
-copd    ? Chronisch obstruktive Lungenerkrankung
-
-// Standardphrasen
-kb      ? Kontrolle in 3 Monaten empfohlen
-nw      ? Keine weiteren Auff?lligkeiten
-uob     ? Unauff?lliger Organbefund
-
-// Pers?nliche Informationen
-madr    ? Dr. med. Max Mustermann, Facharzt f?r Innere Medizin
-kont    ? Kontakt: Tel. 0123/456789, Email: praxis@example.de
-```
-
-### Snippet-Inhalte strukturieren
-
-? **F?r kurze Phrasen:**
-```
-K?rzel: danke
-Text: Vielen Dank f?r Ihre Zeit und M?he.
-```
-
-? **F?r mehrere Zeilen:**
-```
-K?rzel: brief
-Text: Sehr geehrte Damen und Herren,
-
-vielen Dank f?r die ?berweisung und das entgegengebrachte Vertrauen.
-
-Mit freundlichen Gr??en
-```
-
-? **F?r strukturierte Informationen:**
-```
-K?rzel: befund
-Text: Befund:
-- Allgemeinzustand: 
-- Herz-Kreislauf: 
-- Lunge: 
-- Abdomen: 
-```
-
-## Anwendungsszenarien
-
-### 1. Standardantworten
-
-Erstellen Sie Snippets f?r h?ufige Antworten oder Erkl?rungen:
-
-- `erkl` ? "Ich erkl?re Ihnen gerne die weiteren Schritte..."
-- `termin` ? "Bitte vereinbaren Sie einen Termin in 2-4 Wochen"
-- `labor` ? "Die Laborwerte werden in 2-3 Tagen vorliegen"
-
-### 2. Medizinische Dokumentation
-
-Beschleunigen Sie die Dokumentation mit vorgefertigten Bausteinen:
-
-- `anam` ? "Anamnese: Patient berichtet ?ber..."
-- `diag` ? "Diagnose: Nach klinischer Untersuchung und Befundlage..."
-- `ther` ? "Therapie: Es wird folgende Behandlung empfohlen..."
-
-### 3. Administrative Aufgaben
-
-Vereinfachen Sie wiederkehrende administrative Texte:
-
-- `rez` ? "Rezept ausgestellt f?r..."
-- `au` ? "Arbeitsunf?higkeitsbescheinigung ausgestellt bis..."
-- `ueb` ? "?berweisung ausgestellt an..."
-
-### 4. Pers?nliche Signatur
-
-Erstellen Sie eine Snippet f?r Ihre komplette Signatur:
-
-```
-K?rzel: sig
-Text: Dr. med. Max Mustermann
-Facharzt f?r Innere Medizin
-Praxis am Marktplatz
-Tel: 0123/456789
-Email: praxis@example.de
-```
+- Kuerzel kurz und eindeutig halten (2-5 Zeichen)
+- Einheitliche Namenslogik verwenden (z. B. `diag`, `ther`, `proc`)
+- Kollisionen mit normalen Woertern vermeiden
+- Veraltete Snippets regelmaessig entfernen
 
 ## Unterschied zu Templates
 
-Text Snippets und Templates dienen unterschiedlichen Zwecken:
+- **Text Snippets:** reine Textersetzung fuer einzelne Bausteine
+- **Templates:** komplette Dokumentstruktur mit dynamischen Tags
 
-| Feature | Text Snippets | Templates |
-|---------|---------------|-----------|
-| **Verwendung** | Einfache Textersetzung | Strukturierte Dokumente mit dynamischen Feldern |
-| **Ausl?ser** | <kbd>Shift + F2</kbd> | Template-Auswahl in der KI-Dokumentation |
-| **Dynamik** | Statischer Text | Dynamische Felder (Info, Switch, Score Tags) |
-| **Einsatzort** | Alle Textfelder | KI-Dokumentation |
-| **Komplexit?t** | Einfach | Komplex mit Tags und Logik |
-| **Anwendungsfall** | Schnelle Texteingabe | Vollst?ndige medizinische Dokumente |
-
-### Wann was verwenden?
-
-**Verwenden Sie Text Snippets f?r:**
-- H?ufig wiederholte kurze Textbausteine
-- Standardphrasen und Gru?formeln
-- Pers?nliche Informationen (Adresse, Signatur)
-- Einfache medizinische Begriffe und Abk?rzungen
-
-**Verwenden Sie Templates f?r:**
-- Vollst?ndige Dokumentstrukturen (Arztbriefe, Berichte)
-- Dokumente mit variablen Daten (Patientennamen, Daten, Werte)
-- Bedingte Inhalte basierend auf verschiedenen Szenarien
-- Automatische Berechnungen (BMI, Scores)
-
-## Tipps und Tricks
-
-### 1. Hierarchisches K?rzel-System
-
-Organisieren Sie Ihre K?rzel nach Kategorien:
-
-```
-// Mit Pr?fix 'd' f?r Diagnosen
-dhtn    ? Arterielle Hypertonie
-ddm     ? Diabetes mellitus
-dkhe    ? Koronare Herzkrankheit
-
-// Mit Pr?fix 't' f?r Therapie
-tabs    ? Antibiotische Therapie eingeleitet
-tpain   ? Analgetische Therapie
-```
-
-### 2. Nummerierung f?r Varianten
-
-Erstellen Sie mehrere Versionen ?hnlicher Snippets:
-
-```
-brief1  ? Formelle Anrede
-brief2  ? Informelle Anrede
-brief3  ? Sehr formelle Anrede
-```
-
-### 3. Kombinieren mit Tastaturk?rzeln
-
-- Nutzen Sie Snippets in Kombination mit anderen Tastaturk?rzeln
-- Erstellen Sie einen pers?nlichen Workflow
-- ?ben Sie h?ufig verwendete K?rzel, bis sie zur Gewohnheit werden
-
-### 4. Regelm??ig aufr?umen
-
-- ?berpr?fen Sie regelm??ig Ihre Snippets
-- L?schen Sie nicht mehr verwendete Snippets
-- Aktualisieren Sie veraltete Texte
-- Optimieren Sie K?rzel f?r bessere Merkbarkeit
-
-## H?ufige Fragen
-
-### Wie viele Snippets kann ich erstellen?
-
-Es gibt keine festgelegte Obergrenze f?r die Anzahl der Snippets. Allerdings wird empfohlen, die Liste ?bersichtlich zu halten (ca. 20-50 Snippets) f?r eine bessere Verwaltbarkeit.
-
-### Funktionieren Snippets in allen Anwendungen?
-
-Nein, Text Snippets funktionieren nur innerhalb von MDScribe. Sie sind nicht systemweit verf?gbar. F?r systemweite Text-Ersetzung sollten Sie die Betriebssystem-eigenen Tools verwenden (z.B. macOS Text Replacement, Windows AutoHotkey).
-
-### Kann ich Snippets exportieren oder teilen?
-
-Aktuell gibt es keine Export- oder Teilfunktion f?r Snippets. Sie sind an Ihren Benutzeraccount gebunden.
-
-### Was passiert, wenn ich ein Snippet l?sche?
-
-Gel?schte Snippets werden dauerhaft entfernt und k?nnen nicht wiederhergestellt werden. Der Text in bereits erstellten Dokumenten bleibt jedoch erhalten.
-
-### Kann ich Sonderzeichen in K?rzeln verwenden?
-
-Ja, Sie k?nnen Buchstaben, Zahlen und die meisten Sonderzeichen in K?rzeln verwenden. Vermeiden Sie jedoch Leerzeichen, da das System nach dem letzten Wort vor dem Cursor sucht.
-
-### Was passiert, wenn kein Snippet gefunden wird?
-
-Wenn Sie <kbd>Shift + F2</kbd> dr?cken und das System kein passendes Snippet findet, erscheint eine Fehlermeldung: "Kein Snippet f?r '[Ihr K?rzel]' gefunden".
-
-## Fehlerbehebung
-
-### Snippet wird nicht ausgel?st
-
-**Problem**: Sie dr?cken <kbd>Shift + F2</kbd>, aber nichts passiert.
-
-**L?sungen**:
-- Stellen Sie sicher, dass ein Textfeld fokussiert ist
-- ?berpr?fen Sie, ob das K?rzel existiert (Gro?-/Kleinschreibung beachten)
-- Stellen Sie sicher, dass das K?rzel korrekt geschrieben ist
-- ?berpr?fen Sie, ob der Cursor direkt nach dem K?rzel steht
-
-### Falsches Snippet wird eingef?gt
-
-**Problem**: Ein anderes Snippet als erwartet wird eingef?gt.
-
-**L?sungen**:
-- ?berpr?fen Sie, ob Sie ?hnliche K?rzel haben
-- Stellen Sie sicher, dass Sie das vollst?ndige K?rzel eingegeben haben
-- F?gen Sie ein Leerzeichen vor dem K?rzel ein, um es vom vorherigen Wort zu trennen
-
-### Snippet-Text erscheint nicht vollst?ndig
-
-**Problem**: Nur ein Teil des Snippets wird eingef?gt.
-
-**L?sungen**:
-- ?berpr?fen Sie, ob das Snippet vollst?ndig gespeichert wurde
-- Bearbeiten Sie das Snippet und speichern Sie es erneut
-- Stellen Sie sicher, dass die maximale L?nge nicht ?berschritten wird
-
-## Zusammenfassung
-
-Text Snippets sind ein leistungsstarkes Werkzeug zur Beschleunigung Ihrer t?glichen Arbeit:
-
-- ? Erstellen Sie kurze, einpr?gsame K?rzel
-- ? Verwenden Sie <kbd>Shift + F2</kbd> zum Erweitern
-- ? Organisieren Sie Ihre Snippets systematisch
-- ? Kombinieren Sie Snippets mit Templates f?r maximale Effizienz
-- ? ?berpr?fen und aktualisieren Sie regelm??ig Ihre Snippet-Bibliothek
-
-Mit gut durchdachten Snippets k?nnen Sie Ihre Dokumentationszeit deutlich reduzieren und sich auf das Wesentliche konzentrieren: die Patientenversorgung.
+Wenn Sie strukturierte klinische Dokumente erzeugen wollen, nutzen Sie primaer [Templates](/templates).

@@ -1,9 +1,11 @@
 {
   "title": "Self-Hosting",
-  "description": "Anleitung zum Self-Hosting von MDScribe",
-  "root": false
+  "description": "Betrieb von MDScribe in eigener Infrastruktur.",
+  "root": false,
+  "pages": [
+    "index"
+  ]
 }
-
 
 
 

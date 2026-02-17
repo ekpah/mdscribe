@@ -5,7 +5,6 @@ import {
 import { Badge } from "@repo/design-system/components/ui/badge";
 import {
 	Card,
-	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
@@ -24,9 +23,8 @@ import {
 	UserPlus,
 	Zap,
 } from "lucide-react";
-import { headers } from "next/headers";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { getServerSession } from "@/lib/server-session";
 
 type AccentColor =
 	| "solarized-blue"
@@ -252,9 +250,7 @@ const editorModes: {
 ];
 
 export default async function AIScribeLandingPage() {
-	const session = await auth.api.getSession({
-		headers: await headers(),
-	});
+	const session = await getServerSession();
 	const isLoggedIn = !!session?.user;
 
 	return (

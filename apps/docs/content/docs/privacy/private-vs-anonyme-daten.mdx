@@ -1,0 +1,39 @@
+---
+title: Private vs. anonyme Daten
+description: Unterscheidung zwischen personenbezogenen und anonymen Daten in MDScribe
+---
+
+## Private vs. anonyme Daten
+
+Gesundheitsdaten sind ganz besonders sensibel und jeder Umgang damit sollte sorgfältig passieren. In unserer modernen, digitalisierten Welt ist es aber nicht immer ganz einfach zu erkennen, wo die Grenze zwischen privaten Gesundheitsdaten ist, die niemals geteilt werden sollte und anonymen Daten, die einer solchen Sorgfalt nicht bedürfen. Letztlich ist dies in jedem Einzelfall zu bewerten, hier sollen aber einige generelle Beispiele aufgezeigt werden, um diese Einschätzung zu erleichten.
+
+### Personenbezogene Daten (Cloud-hosted: vermeiden)
+
+<Callout type="warn" title="Nicht eingeben">
+  Folgende Daten sind aus unserer Sicht sensibel und personenbezogen. In der
+  cloud-gehosteten Nutzung von MDScribe sollten diese Daten derzeit nicht
+  eingegeben werden. Bei Self-Hosting liegt die Verantwortung für den
+  rechtskonformen Einsatz beim Betreiber.
+</Callout>
+
+| Kategorie | Beispiel-Eingabe | Persönliche Daten |
+|-----------|------------------|------------------|
+| **Patientenidentifikation** | "Frau Anna Berger, geb. 12.04.1979, wohnhaft Musterstraße 12, Tel. 0176 1234567. Aufnahme mit rezidivierender Synkope." | Name, Geburtsdatum, Adresse, Telefonnummer, direkte Identifikation der Person |
+| **Fallbezogene Daten** | "Fall-Nr. 2024-8743, Versichertennummer 123456789. Epikrise: Aufnahme am 08.01.2026 wegen Thoraxschmerz, Verlauf unter Heparin und ASS stabil." | Fallnummer, Versichertennummer, Aufnahmedatum, alle Angaben, die auf einen spezifischen Behandlungsfall zurückführen |
+| **Organisatorische Zuordnung** | "Station 3A, Zimmer 12, Bett neben Herrn Müller. Anamnese: Pat. nach Sturz, CT-Schädel unauffällig." | Station, Zimmernummer, Bett, Bezug zu weiteren Patienten (z.B. „neben Herrn Müller“) |
+| **Sonstige identifizierbare Daten** | "Behandelnder Arzt: Dr. Schmidt (Patientenbezug), Angehörige: Tochter Lisa. Diagnoseblock: NSTEMI, KHK, Hypertonie." | Namen von Behandelnden, Angehörigen oder anderen namentlich genannten Personen, direkte Personenbezüge |
+
+### Anonyme klinische Daten (empfohlen)
+
+Folgende Daten können bedenkenlos in MDScribe verwendet werden:
+
+| Kategorie | Beispiel-Eingabe | Erwartete Ausgabe |
+|-----------|------------------|------------------|
+| **Befund + BGA (anonym)** | "Pneumonie rechts basal, CRP 148 mg/l, Leuko 15,2 G/l. BGA: pH 7,31, pO2 58 mmHg unter 2 l O2." | **Diagnoseblock:** Pneumonie rechts basal. Entzündungszeichen: CRP 148 mg/l, Leukozyten 15,2 G/l. BGA: pH 7,31 (Azidose), pO₂ 58 mmHg unter 2 l O₂ (Hypoxämie). Klinik: Persistierende Dyspnoe. Empfohlen: Engmaschige Überwachung, Einleitung einer Antibiotikatherapie, O₂-Therapie, Verlaufskontrollen. |
+| **Prozedur (anonym)** | "ekv 60 propofol bei taa." | "Vorstellung auf der Intensivstation zur elektrischen Kardioversion bei symptomatischem Vorhofflimmern. Im Vorfeld TEE ohne Thrombusnachweis, Antikoagulation seitdem sicher eingenommen. Patient wurde in ausreichendem zeitlichen Abstand aufgeklärt und ist weiterhin einverstanden, benennt selbstständig die Indikation. Nach Gabe von 60mg Propofol (1 %) i.v. erfolgte die elektrische Kardioversion mit 200 Joule (1. Schockabgabe antero-lateral). Es gelang die erfolgreiche Kardioversion in den Sinusrhythmus (siehe EKG). Postinterventionell hämodynamisch stabil, Überwachung auf der ICU." |
+| **Epikrise (anonym)** | "Aufnahme wegen Sepsis, unter Piperacillin/Tazobactam rasche Stabilisierung, extubiert am Tag 3, Entlassung in stabilem Zustand." | "Die intensivmedizinische Aufnahme des Patienten erfolgte bei Sepsis mit hämodynamischer Instabilität und respiratorischer Insuffizienz, die eine maschinelle Beatmung erforderlich machte. Unter kalkulierter antibiotischer Therapie mit Piperacillin/Tazobactam zeigte sich eine rasche klinische Stabilisierung mit rückläufigen Infektparametern und Verbesserung der Kreislaufsituation. Die Extubation konnte am dritten Behandlungstag komplikationslos erfolgen. Im weiteren Verlauf blieb der Patient respiratorisch stabil und kreislaufunterstützende Maßnahmen waren nicht mehr erforderlich. Bei stabilem Allgemeinzustand und regredienter Infektkonstellation erfolgt nun die Verlegung auf die Normalstation zur Fortführung der antibiotischen Therapie. Procedere: Fortführung der antibiotischen Therapie mit Piperacillin/Tazobactam, Gesamtdauer nach klinischem Verlauf und Infektfokus festlegen. Kontrolle der Infektparameter im Verlauf. Fokussuche vervollständigen, sofern Infektfokus noch nicht gesichert." |
+
+### Warum ist diese Unterscheidung wichtig?
+
+1. **Datenschutzrechtlich:** Personenbezogene Gesundheitsdaten unterliegen einem besonders hohen Schutz. Für cloud-gehostete Nutzung gilt daher derzeit: keine sensiblen Patienten-PII/PHI eingeben, solange stärkere Compliance-Kontrollen noch nicht abgeschlossen sind.
+2. **Betriebsverantwortung:** Die Verantwortung für die Einhaltung aller anwendbaren Datenschutz- und Compliance-Vorgaben liegt beim Betreiber. Das gilt für cloud-gehostete wie auch Self-Hosting-Deployments.

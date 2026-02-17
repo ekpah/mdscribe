@@ -18,7 +18,6 @@ import type {
  * Each configuration defines:
  * - promptName: Legacy reference to Langfuse prompt name
  * - prompt: Function that builds messages from typed variables
- * - processInput: How to parse the prompt JSON into variables
  * - modelConfig: AI model settings (thinking mode, tokens, temperature)
  */
 export const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> = {
@@ -152,44 +151,13 @@ BEGINNEN SIE JETZT mit der Erstellung der Epikrise basierend auf den bereitgeste
 			},
 			{
 				role: "user",
-				content: `<patient_data>
-<vordiagnosen>
-${vars.diagnoseblock}
-</vordiagnosen>
-
-<anamnese>
-${vars.anamnese}
-</anamnese>
-
-<befunde>
-${vars.befunde}
-</befunde>
-
-<notizen>
-${vars.notes}
-</notizen>
-</patient_data>
+				content: `${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
 </task_execution>`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				anamnese,
-				diagnoseblock = "Keine Vorerkrankungen",
-				dischargeNotes,
-				befunde,
-			} = parsed;
-			return {
-				anamnese,
-				notes: dischargeNotes,
-				diagnoseblock,
-				befunde,
-			};
-		},
 		modelConfig: {
 			thinking: true,
 			thinkingBudget: 12_000,
@@ -244,19 +212,9 @@ Arbeite immer transparent und strukturiert entsprechend diesen Vorgaben.`,
 
 ((Hinweis: Niemals eigene Patientendetails, Bewertungen, Diagnose, Differentialdiagnose, Pläne, Interventionen etc. erfinden. Verwende ausschließlich die gelieferten Transkriptinformationen, Notizen oder klinische Kontextinfos. Falls keine Daten vorhanden, Abschnitt leer lassen. Gib so viele Sätze an, wie für die vollständige Darstellung aller relevanten Transkript- und Kontextinformationen nötig.))
 </template>
-<vordiagnosen>
-${vars.vordiagnosen}
-</vordiagnosen>
-<notes>
-${vars.notes}
-</notes>`,
+${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const { notes, befunde, vordiagnosen = "Keine Vorerkrankungen" } = parsed;
-			return { notes, befunde, vordiagnosen };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
@@ -409,39 +367,13 @@ BEGINNEN SIE JETZT mit der Erstellung des Diagnoseblocks basierend auf den berei
 			},
 			{
 				role: "user",
-				content: `<patient_data>
-<vordiagnosen>
-${vars.diagnoseblock}
-</vordiagnosen>
-
-<anamnese>
-${vars.anamnese}
-</anamnese>
-
-<befunde>
-${vars.befunde}
-</befunde>
-
-<notizen>
-${vars.notes}
-</notizen>
-</patient_data>
+				content: `${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten einen Diagnoseblock gemäß den System-Anweisungen. Ausgabe nur: Diagnoseblock
 </task_execution>`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				anamnese,
-				diagnoseblock = "Keine Vorerkrankungen",
-				notes,
-				befunde,
-			} = parsed;
-			return { anamnese, notes, diagnoseblock, befunde };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 2000,
@@ -462,16 +394,9 @@ Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine professio
 			},
 			{
 				role: "user",
-				content: `<notes>
-${vars.notes}
-</notes>`,
+				content: `${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const { notes } = parsed;
-			return { notes };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
@@ -524,15 +449,9 @@ Achte insbesondere darauf:
 				role: "user",
 				content: `**Eingabe-Notizen:**
 
-${vars.notes}`,
+${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const { procedureNotes } = parsed;
-			// Note: relevantTemplate will be added by the handler via vector search
-			return { notes: procedureNotes };
-		},
 		modelConfig: {
 			thinking: false,
 			thinkingBudget: 8000,
@@ -644,39 +563,13 @@ BEGINNEN SIE JETZT mit der Erstellung der Abschnitte <in_der_ZNA>, <procedere> u
 			},
 			{
 				role: "user",
-				content: `<patient_data>
-<vordiagnosen>
-${vars.vordiagnosen}
-</vordiagnosen>
-
-<anamnese>
-${vars.anamnese}
-</anamnese>
-
-<befunde>
-${vars.befunde}
-</befunde>
-
-<notizen>
-${vars.notes}
-</notizen>
-</patient_data>
+				content: `${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
 </task_execution>`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				notes,
-				anamnese = "",
-				vordiagnosen = "Keine Vorerkrankungen",
-				befunde = "",
-			} = parsed;
-			return { notes, anamnese, vordiagnosen, befunde };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
@@ -769,35 +662,13 @@ Geben Sie das Ergebnis im beschriebenen Format mit einem Abschnitt pro Untersuch
 			},
 			{
 				role: "user",
-				content: `<patient_data>
-<vordiagnosen>
-${vars.vordiagnosen}
-</vordiagnosen>
-
-<anamnese>
-${vars.anamnese}
-</anamnese>
-
-
-<notizen>
-${vars.notes}
-</notizen>
-</patient_data>
+				content: `${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
 </task_execution>`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				notes,
-				anamnese = "",
-				vordiagnosen = "Keine Vorerkrankungen",
-			} = parsed;
-			return { notes, anamnese, vordiagnosen };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
@@ -885,24 +756,9 @@ Procedere:
 			},
 			{
 				role: "user",
-				content: `${vars.notes}`,
+				content: `${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				anamnese,
-				diagnoseblock = "Keine Vorerkrankungen",
-				dischargeNotes,
-				befunde,
-			} = parsed;
-			return {
-				anamnese,
-				notes: dischargeNotes,
-				diagnoseblock,
-				befunde,
-			};
-		},
 		modelConfig: {
 			thinking: true,
 			thinkingBudget: 8000,
@@ -995,59 +851,9 @@ Der Patient konnte in stabilem Allgemeinzustand und beschwerdefrei entlassen wer
 - Präinterventionelle Aufklärung und TEE am 11.03.2026, 8:00 Uhr, nüchtern, mit Begleitperson, Medikamentenplan, Krankenhauseinweisung und Versichertenkarte mitbringen
 </output_example>
 
-<patient_data>
-<diagnoseblock>
-<purpose>Aktuelle Diagnose und Vordiagnosen (meist durch "Vordiagnosen:" oder "Nebendiagnosen:" getrennt) wie chronische Erkrankungen und relevante Voroperationen/interventionen</purpose>
-<usage>Aktuelle Diagnosen beschreiben den aktuellen Aufenthalt/Vorstellung. Vordiagnosen beziehen sich NICHT auf das aktuelle Dokument, sondern sind Kontext zu früheren Erkrankungen</usage>
-<content>
-${vars.diagnoseblock}
-</content>
-</diagnoseblock>
-
-<anamnese>
-<purpose>Ausgangspunkt und Aufnahmegrund</purpose>
-<usage>
-- Kurz zu Beginn aufgreifen für Aufnahmegrund/Verdachtsdiagnose
-- KEINE WIEDERHOLUNG von Anamnese-Fakten (Vermeidung von Dopplungen)
-- Beschreibt Verlauf unmittelbar vor Aufnahme
-</usage>
-<content>
-${vars.anamnese}
-</content>
-</anamnese>
-
-<befunde>
-<purpose>Chronologische Dokumentation des stationären Verlaufs</purpose>
-<usage>
-- Chronologische Einordnung der Untersuchungen bei aktueller Vorstellung / stationärem Aufnenthalt
-- Grundlage für Verlaufsrekonstruktion
-- Alle Untersuchungen, Konsile, wichtige Einträge
-</usage>
-<content>
-${vars.befunde}
-</content>
-</befunde>
-
-<notizen>
-<purpose>Zusätzliche vom Nutzer bewusst eingegebene Informationen</purpose>
-<usage>PRIMÄRE BASIS FÜR DOKUMENT-ERSTELLUNG</usage>
-<content>
-${vars.notes}
-</content>
-</notizen>
-</patient_data>`,
+${vars.contextXml}`,
 			},
 		],
-		processInput: (prompt: string) => {
-			const parsed = JSON.parse(prompt);
-			const {
-				anamnese,
-				diagnoseblock = "Keine Vorerkrankungen",
-				notes,
-				befunde,
-			} = parsed;
-			return { anamnese, notes, diagnoseblock, befunde };
-		},
 		modelConfig: {
 			thinking: false,
 			maxTokens: 2000,

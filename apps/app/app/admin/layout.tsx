@@ -1,8 +1,7 @@
-import { auth } from "@/auth";
-import { allowAdminAccess } from "@/flags";
-import { headers } from "next/headers";
+import { env } from "@repo/env";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { getServerSession } from "@/lib/server-session";
 import { AdminBreadcrumb } from "./_components/AdminBreadcrumb";
 
 interface AdminLayoutProps {
@@ -11,19 +10,14 @@ interface AdminLayoutProps {
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
 	// Check authentication
-	const headersList = await headers();
-	const session = await auth.api.getSession({
-		headers: headersList,
-	});
+	const session = await getServerSession();
 
 	if (!session?.user) {
 		redirect("/");
 	}
 
-	// Check admin access using flag
-	const allowAdminAccessFlag = await allowAdminAccess();
-
-	if (!allowAdminAccessFlag) {
+	// Check admin access
+	if (session.user.email !== env.ADMIN_EMAIL) {
 		redirect("/");
 	}
 

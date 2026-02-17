@@ -1,6 +1,6 @@
 "use client";
 
-import { createColumnHelper } from "@tanstack/react-table";
+import type { UsageEvent, User } from "@repo/database";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
@@ -10,13 +10,43 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@repo/design-system/components/ui/dropdown-menu";
+import { createColumnHelper } from "@tanstack/react-table";
 import { FlaskConical, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
-import type { UsageEvent, User } from "@repo/database";
+import type { DocumentType } from "@/orpc/scribe/types";
+import {
+	allScribeDocTypes,
+	scribeDocTypeUi,
+} from "../playground/_lib/scribe-doc-types";
 
 export type UsageEventWithUser = UsageEvent & {
 	user: Pick<User, "id" | "name" | "email"> | null;
 };
+
+const promptNameToDocumentType = new Map(
+	allScribeDocTypes.map((documentType) => [
+		scribeDocTypeUi[documentType].defaultPromptName,
+		documentType,
+	]),
+);
+
+function inferDocumentType(
+	metadata: Record<string, unknown> | null,
+): DocumentType | undefined {
+	if (!metadata) return undefined;
+
+	const endpoint = metadata.endpoint;
+	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
+		return endpoint as DocumentType;
+	}
+
+	const promptName = metadata.promptName;
+	if (typeof promptName === "string" && promptName.trim().length > 0) {
+		return promptNameToDocumentType.get(promptName);
+	}
+
+	return undefined;
+}
 
 function formatDate(date: Date | string) {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
@@ -51,9 +81,9 @@ function buildPlaygroundUrl(event: UsageEventWithUser): string {
 	}
 
 	const metadata = event.metadata as Record<string, unknown> | null;
-	const endpoint = metadata?.endpoint;
-	if (typeof endpoint === "string" && endpoint.trim()) {
-		params.set("documentType", endpoint);
+	const documentType = inferDocumentType(metadata);
+	if (documentType) {
+		params.set("documentType", documentType);
 	}
 
 	if (metadata) {
@@ -79,9 +109,7 @@ function buildPlaygroundUrl(event: UsageEventWithUser): string {
 
 const columnHelper = createColumnHelper<UsageEventWithUser>();
 
-export const createColumns = (
-	onViewDetails: (id: string) => void,
-) => [
+export const createColumns = (onViewDetails: (id: string) => void) => [
 	columnHelper.accessor("timestamp", {
 		id: "timestamp",
 		header: ({ column }) => (
@@ -99,9 +127,7 @@ export const createColumns = (
 		cell: (info) => {
 			const user = info.getValue();
 			if (!user) {
-				return (
-					<span className="text-solarized-base01">Unbekannt</span>
-				);
+				return <span className="text-solarized-base01">Unbekannt</span>;
 			}
 			return (
 				<div className="flex flex-col">
@@ -115,7 +141,10 @@ export const createColumns = (
 			);
 		},
 		filterFn: (row, id, filterValue: string) => {
-			const user = row.getValue(id) as { name: string | null; email: string } | null;
+			const user = row.getValue(id) as {
+				name: string | null;
+				email: string;
+			} | null;
 			if (!user) return false;
 			const search = filterValue.toLowerCase();
 			return (

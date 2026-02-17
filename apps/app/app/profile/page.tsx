@@ -1,19 +1,19 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { getServerSession } from "@/lib/server-session";
 import UserSettings from "./_components/user-settings";
 
 export default async function DashboardPage() {
 	// Get the mocked session
+	const requestHeaders = await headers();
 	const [session, activeSessions, subscriptions] = await Promise.all([
-		auth.api.getSession({
-			headers: await headers(),
-		}),
+		getServerSession(),
 		auth.api.listSessions({
-			headers: await headers(),
+			headers: requestHeaders,
 		}),
 		auth.api.listActiveSubscriptions({
-			headers: await headers(),
+			headers: requestHeaders,
 		}),
 	]).catch((_e) => {
 		throw redirect("/sign-in");
