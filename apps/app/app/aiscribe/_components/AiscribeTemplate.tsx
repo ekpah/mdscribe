@@ -113,10 +113,9 @@ export interface AiscribeTemplateConfig {
 
 const models: Array<{ id: SupportedModel; name: string }> = [
 	{ id: "auto", name: "Auto" },
-	{ id: "glm-4p6", name: "GLM-4.6" },
-	{ id: "claude-opus-4.5", name: "Claude Opus 4.5" },
+	{ id: "glm-5", name: "GLM 5" },
+	{ id: "claude-opus-4.6", name: "Claude Opus 4.6" },
 	{ id: "gemini-3-pro", name: "Gemini 3 Pro" },
-	{ id: "gemini-3-flash", name: "Gemini 3 Flash" },
 ];
 
 interface AiscribeTemplateProps {
@@ -137,6 +136,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	>({});
 	const [values, setValues] = useState<Record<string, unknown>>({});
 	const [model, setModel] = useState<SupportedModel>(models[0].id);
+	const selectedModelRef = useRef<SupportedModel>(models[0].id);
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
 	// Use ref for audio files to avoid race condition between setState and sendMessage
@@ -161,7 +161,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						{
 							documentType: config.documentType,
 							messages: options.messages,
-							model,
+							model: selectedModelRef.current,
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
 						},
 						{ signal: options.abortSignal },
@@ -209,7 +209,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	}, []);
 
 	// Check if audio recording is supported for current model
-	const isAudioSupported = model === "auto" || model === "gemini-3-flash";
+	const isAudioSupported = model === "auto" || model === "gemini-3-pro";
 	const maxRecordings = 3;
 	const canRecord = audioRecordings.length < maxRecordings;
 
@@ -404,6 +404,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 				preparedAudioFilesRef.current = [];
 			}
 
+			// Keep transport reads in sync with latest selection before submit
+			selectedModelRef.current = model;
+
 			// Send message using AI SDK useChat
 			const promptText =
 				typeof prompt === "string" ? prompt : JSON.stringify(prompt);
@@ -426,6 +429,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		config.customApiCall,
 		config.customPromptProcessor,
 		config.inputFieldName,
+		model,
 		audioRecordings,
 		isAudioSupported,
 	]);
@@ -688,8 +692,10 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 													<PromptInputActionMenu>
 														<PromptInputModelSelect
 															onValueChange={(value) => {
-																setModel(value as SupportedModel);
-															}}
+											const nextModel = value as SupportedModel;
+											selectedModelRef.current = nextModel;
+											setModel(nextModel);
+										}}
 															value={model}
 														>
 															<PromptInputModelSelectTrigger>
@@ -724,7 +730,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 																		? "Aufnahme stoppen"
 																		: "Audioaufnahme starten"
 																	: `Maximal ${maxRecordings} Aufnahmen möglich`
-																: "Nur mit Auto oder Gemini 2.5 Pro verfügbar"
+																: "Nur mit Auto oder Gemini 3 Pro verfügbar"
 														}
 														type="button"
 														variant="ghost"

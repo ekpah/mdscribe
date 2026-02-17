@@ -5,10 +5,9 @@ import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
  */
 export type SupportedModel =
 	| "auto"
-	| "glm-4p6"
-	| "claude-opus-4.5"
-	| "gemini-3-pro"
-	| "gemini-3-flash";
+	| "glm-5"
+	| "claude-opus-4.6"
+	| "gemini-3-pro";
 
 /**
  * Model configuration for streaming responses

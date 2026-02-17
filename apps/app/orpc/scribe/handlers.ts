@@ -34,6 +34,8 @@ const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
 });
 
+const MAX_THINKING_BUDGET = 32_000;
+
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 function parsePromptPayload(prompt: string): Record<string, unknown> {
@@ -105,17 +107,17 @@ function getModelInstance(modelId: string): {
 	});
 
 	switch (modelId as SupportedModel) {
-		case "glm-4p6":
+		case "glm-5":
 			return {
-				model: openrouter("z-ai/glm-4.6"),
+				model: openrouter("z-ai/glm-5"),
 				supportsThinking: true,
-				modelName: "z-ai/glm-4.6",
+				modelName: "z-ai/glm-5",
 			};
-		case "claude-opus-4.5":
+		case "claude-opus-4.6":
 			return {
-				model: openrouter("anthropic/claude-opus-4.5"),
+				model: openrouter("anthropic/claude-opus-4.6"),
 				supportsThinking: true,
-				modelName: "anthropic/claude-opus-4.5",
+				modelName: "anthropic/claude-opus-4.6",
 			};
 		case "gemini-3-pro":
 			return {
@@ -123,17 +125,11 @@ function getModelInstance(modelId: string): {
 				supportsThinking: true,
 				modelName: "google/gemini-3-pro-preview",
 			};
-		case "gemini-3-flash":
-			return {
-				model: openrouter("google/gemini-3-flash-preview"),
-				supportsThinking: true,
-				modelName: "google/gemini-3-flash-preview",
-			};
 		default:
 			return {
-				model: openrouter("anthropic/claude-opus-4.5"),
+				model: openrouter("anthropic/claude-opus-4.6"),
 				supportsThinking: true,
-				modelName: "anthropic/claude-opus-4.5",
+				modelName: "anthropic/claude-opus-4.6",
 			};
 	}
 }
@@ -143,7 +139,7 @@ function getModelInstance(modelId: string): {
  */
 function getActualModel(modelId: string, hasAudio?: boolean): string {
 	if (modelId === "auto") {
-		return hasAudio ? "gemini-3-pro" : "claude-opus-4.5";
+		return hasAudio ? "gemini-3-pro" : "claude-opus-4.6";
 	}
 	return modelId;
 }
@@ -424,8 +420,8 @@ export const scribeStreamHandler = authed
 				openrouter: {
 					usage: { include: true },
 					user: context.session.user.email,
-					reasoning: config.modelConfig.thinking
-						? { max_tokens: config.modelConfig.thinkingBudget ?? 8000 }
+					reasoning: supportsThinking
+						? { max_tokens: MAX_THINKING_BUDGET }
 						: { enabled: false },
 					...(activeSubscription && { zdr: true }),
 				},
@@ -453,10 +449,8 @@ export const scribeStreamHandler = authed
 							metadata: {
 								promptName: config.promptName,
 								promptSource: "local",
-								thinkingEnabled: config.modelConfig.thinking ?? false,
-								thinkingBudget: config.modelConfig.thinking
-									? config.modelConfig.thinkingBudget
-									: undefined,
+								thinkingEnabled: supportsThinking,
+								thinkingBudget: supportsThinking ? MAX_THINKING_BUDGET : undefined,
 								streamingMode: true,
 								endpoint: documentType,
 								modelConfig: {
