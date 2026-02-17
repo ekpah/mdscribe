@@ -28,12 +28,14 @@ export default function UserSettings({
 	generationLimit,
 	activeSessions,
 	session,
+	defaultTab = "profile",
 }: {
 	user: User;
 	subscription?: Subscription;
 	generationLimit: number;
 	activeSessions: Session["session"][];
 	session: Session;
+	defaultTab?: "profile" | "login" | "subscription" | "snippets";
 }) {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isManagingSubscription, setIsManagingSubscription] = useState(false);
@@ -76,7 +78,7 @@ export default function UserSettings({
 	return (
 		<div className="overflow-y-auto">
 			<div>
-				<Tabs className="w-full p-4" defaultValue="profile">
+				<Tabs className="w-full p-4" defaultValue={defaultTab}>
 					<TabsList className="w-full">
 						<TabsTrigger className="w-full" value="profile">
 							Profil

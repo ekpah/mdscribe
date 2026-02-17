@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
+import { useQuery } from "@tanstack/react-query";
 import {
 	PromptInput,
 	PromptInputActionMenu,
@@ -18,6 +19,11 @@ import {
 } from "@repo/design-system/components/ai-elements/prompt-input";
 import Inputs from "@repo/design-system/components/inputs/Inputs";
 import { Button } from "@repo/design-system/components/ui/button";
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from "@repo/design-system/components/ui/alert";
 import {
 	Card,
 	CardContent,
@@ -42,6 +48,7 @@ import {
 	FileText,
 	Loader2,
 	type LucideIcon,
+	AlertTriangle,
 	Mic,
 	Square,
 	X,
@@ -148,6 +155,21 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 
 	// Initialize text snippets hook
 	useTextSnippets();
+
+	const { data: usageData } = useQuery(orpc.getUsage.queryOptions());
+	const usageLimits = usageData?.limits;
+	const shouldShowSubscribeCallout = Boolean(
+		usageLimits && usageLimits.isLow && !usageLimits.hasActiveSubscription,
+	);
+	const remainingGenerations = usageLimits?.remainingGenerations ?? 0;
+	const monthlyUsageLimit = usageLimits?.monthlyUsageLimit ?? 0;
+	const isUsageDepleted = usageLimits?.isDepleted ?? false;
+	const usageTitle = isUsageDepleted
+		? "Generierungen aufgebraucht"
+		: `Nur noch ${remainingGenerations} Generierungen verfügbar`;
+	const usageDescription = isUsageDepleted
+		? "Dein monatliches Kontingent ist aufgebraucht. Abonniere Plus, um sofort weiter zu generieren."
+		: `Du hast nur noch ${remainingGenerations} von ${monthlyUsageLimit} Generierungen übrig. Mit Plus erhältst du mehr Kapazität für diesen Monat.`;
 
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, setMessages } = useChat({
@@ -477,6 +499,28 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						</div>
 					</div>
 				</div>
+
+				{shouldShowSubscribeCallout && (
+					<Alert className="border-solarized-orange/40 bg-solarized-orange/10 text-solarized-base03">
+						<AlertTriangle className="text-solarized-orange" />
+						<AlertTitle className="text-solarized-base03">
+							{usageTitle}
+						</AlertTitle>
+						<AlertDescription className="text-solarized-base01">
+							<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+								<p>{usageDescription}</p>
+								<Link href="/profile?tab=subscription">
+									<Button
+										className="whitespace-nowrap bg-solarized-orange text-solarized-base3 hover:bg-solarized-orange/90"
+										type="button"
+									>
+										Jetzt abonnieren
+									</Button>
+								</Link>
+							</div>
+						</AlertDescription>
+					</Alert>
+				)}
 
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-5 xl:grid-cols-6">
 					{/* Patient Info Card */}
