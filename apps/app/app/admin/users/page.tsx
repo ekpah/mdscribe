@@ -59,6 +59,13 @@ export default function UsersPage() {
 		);
 	}
 
+	const totalGenerations = users.reduce(
+		(sum, user) => sum + Number(user._count.usageEvents ?? 0),
+		0,
+	);
+	const plusUsers = users.filter((user) => user.hasActiveSubscription).length;
+	const freeUsers = users.length - plusUsers;
+
 	if (error && users.length === 0) {
 		return (
 			<div className="p-4 sm:p-6">
@@ -114,7 +121,7 @@ export default function UsersPage() {
 				{/* Stats Card */}
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
-						<div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
+						<div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-6">
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
 									Gesamt
@@ -144,7 +151,23 @@ export default function UsersPage() {
 									Generierungen
 								</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
-									{users.reduce((sum, u) => sum + u._count.usageEvents, 0)}
+									{totalGenerations}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
+									Free
+								</p>
+								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
+									{freeUsers}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
+									Plus
+								</p>
+								<p className="font-semibold text-base text-solarized-violet sm:text-lg">
+									{plusUsers}
 								</p>
 							</div>
 						</div>
