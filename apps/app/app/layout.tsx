@@ -1,5 +1,6 @@
 import "@/lib/orpc.server"; // for pre-rendering
 import { DesignSystemProvider } from "@repo/design-system/providers";
+import { env } from "@repo/env";
 import { getQueryClient } from "@/lib/get-query-client";
 import { getServerSession } from "@/lib/server-session";
 import { sessionQueryKey } from "@/lib/session-query";
@@ -34,6 +35,7 @@ type RootLayoutProperties = {
 
 export default async function RootLayout({ children }: RootLayoutProperties) {
 	const session = await getServerSession();
+	const isAdmin = session?.user?.email === env.ADMIN_EMAIL;
 	const queryClient = getQueryClient();
 	queryClient.setQueryData(sessionQueryKey, session);
 
@@ -57,7 +59,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 									<nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
 										{/*ModeWatcher track="true" />*/}
 										<Suspense fallback={<MenubarSkeleton />}>
-											<Menubar initialSession={session} />
+											<Menubar initialSession={session} isAdmin={isAdmin} />
 										</Suspense>
 									</nav>
 									<div

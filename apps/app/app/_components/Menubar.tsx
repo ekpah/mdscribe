@@ -29,6 +29,7 @@ import {
 	LogOut,
 	Menu,
 	Settings,
+	Shield,
 	User,
 	X,
 } from "lucide-react";
@@ -42,9 +43,10 @@ import LightLogo from "@/public/logo/light";
 
 type TopMenuBarProperties = {
 	initialSession: Session | null;
+	isAdmin?: boolean;
 };
 
-export default function TopMenuBar({ initialSession }: TopMenuBarProperties) {
+export default function TopMenuBar({ initialSession, isAdmin }: TopMenuBarProperties) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -183,6 +185,14 @@ export default function TopMenuBar({ initialSession }: TopMenuBarProperties) {
 										Einstellungen
 									</Link>
 								</DropdownMenuItem>
+								{isAdmin && (
+									<DropdownMenuItem asChild>
+										<Link href="/admin" className="cursor-pointer">
+											<Shield className="mr-2 h-4 w-4" />
+											Admin
+										</Link>
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuSeparator />
 								<ModeToggleSwitch />
 								<DropdownMenuSeparator />
@@ -290,6 +300,16 @@ export default function TopMenuBar({ initialSession }: TopMenuBarProperties) {
 										<Settings className="h-4 w-4" />
 										Einstellungen
 									</Link>
+									{isAdmin && (
+										<Link
+											href="/admin"
+											onClick={() => setMobileMenuOpen(false)}
+											className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
+										>
+											<Shield className="h-4 w-4" />
+											Admin
+										</Link>
+									)}
 								</div>
 								<div className="mt-3 flex flex-col gap-3">
 									<div className="flex items-center justify-between px-2">
