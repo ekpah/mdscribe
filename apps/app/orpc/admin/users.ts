@@ -3,6 +3,17 @@ import { desc, sql, user } from "@repo/database";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "../middlewares/admin";
 
+const activeSubscriptionPredicate = sql`
+	(
+		LOWER(s.status) IN ('active', 'trialing', 'past_due')
+		OR (
+			LOWER(s.status) IN ('canceled', 'cancelled')
+			AND s."periodEnd" IS NOT NULL
+			AND s."periodEnd" > NOW()
+		)
+	)
+`;
+
 const adminUsersHandler = authed
 	.use(requiredAdminMiddleware)
 	.handler(async ({ context }) => {
@@ -20,7 +31,8 @@ const adminUsersHandler = authed
 					FROM "Subscription" s
 					WHERE s."referenceId" = ${user.id}
 					ORDER BY
-						CASE WHEN s.status IN ('active', 'trialing') THEN 0 ELSE 1 END,
+						CASE WHEN ${activeSubscriptionPredicate} THEN 0 ELSE 1 END,
+						s."periodEnd" DESC NULLS LAST,
 						s."createdAt" DESC
 					LIMIT 1
 				)`.as("subscriptionPlan"),
@@ -29,7 +41,8 @@ const adminUsersHandler = authed
 					FROM "Subscription" s
 					WHERE s."referenceId" = ${user.id}
 					ORDER BY
-						CASE WHEN s.status IN ('active', 'trialing') THEN 0 ELSE 1 END,
+						CASE WHEN ${activeSubscriptionPredicate} THEN 0 ELSE 1 END,
+						s."periodEnd" DESC NULLS LAST,
 						s."createdAt" DESC
 					LIMIT 1
 				)`.as("subscriptionStatus"),
@@ -37,7 +50,7 @@ const adminUsersHandler = authed
 					SELECT 1
 					FROM "Subscription" s
 					WHERE s."referenceId" = ${user.id}
-					AND s.status IN ('active', 'trialing')
+					AND ${activeSubscriptionPredicate}
 				)`.as("hasActiveSubscription"),
 				_count: {
 					templates: sql<number>`(
@@ -49,8 +62,13 @@ const adminUsersHandler = authed
 						WHERE "_favourites"."B" = ${user.id}
 					)::int`.as("favouritesCount"),
 					usageEvents: sql<number>`(
-						SELECT COUNT(*) FROM "UsageEvent"
+						SELECT COUNT(*)
+						FROM "UsageEvent"
 						WHERE "UsageEvent"."userId" = ${user.id}
+						AND (
+							"UsageEvent".name LIKE 'ai\_%' ESCAPE '\\'
+							OR "UsageEvent".name = 'admin_scribe_playground'
+						)
 					)::int`.as("usageEventsCount"),
 				},
 			})
