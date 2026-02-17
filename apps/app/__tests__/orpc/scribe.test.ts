@@ -104,7 +104,7 @@ describe("Model Selection Logic", () => {
 		const hasAudio = true;
 
 		const actualModel = modelId === "auto"
-			? (hasAudio ? "gemini-3-pro" : "claude-opus-4.5")
+			? (hasAudio ? "gemini-3-pro" : "claude-opus-4.6")
 			: modelId;
 
 		expect(actualModel).toBe("gemini-3-pro");
@@ -115,21 +115,21 @@ describe("Model Selection Logic", () => {
 		const hasAudio = false;
 
 		const actualModel = modelId === "auto"
-			? (hasAudio ? "gemini-3-pro" : "claude-opus-4.5")
+			? (hasAudio ? "gemini-3-pro" : "claude-opus-4.6")
 			: modelId;
 
-		expect(actualModel).toBe("claude-opus-4.5");
+		expect(actualModel).toBe("claude-opus-4.6");
 	});
 
 	test("explicit model selection is preserved", () => {
-		const modelId: string = "glm-4p6";
+		const modelId: string = "glm-5";
 		const hasAudio = true;
 
 		const actualModel = modelId === "auto"
-			? (hasAudio ? "gemini-3-pro" : "claude-opus-4.5")
+			? (hasAudio ? "gemini-3-pro" : "claude-opus-4.6")
 			: modelId;
 
-		expect(actualModel).toBe("glm-4p6");
+		expect(actualModel).toBe("glm-5");
 	});
 });
 
@@ -402,7 +402,7 @@ describe("Scribe Stream Handler", () => {
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });
 
-			const models = ["auto", "claude-opus-4.5", "gemini-3-pro", "glm-4p6"] as const;
+			const models = ["auto", "claude-opus-4.6", "gemini-3-pro", "glm-5"] as const;
 
 			for (const model of models) {
 				const result = await call(
