@@ -13,10 +13,10 @@ import {
 	type UsageMetadata,
 } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
-import { documentTypeConfigs } from "../scribe/config";
 import { requiredAdminMiddleware } from "../middlewares/admin";
-import type { PromptVariables } from "../scribe/types";
+import { documentTypeConfigs } from "../scribe/config";
 import { buildScribeContext } from "../scribe/context";
+import type { PromptVariables } from "../scribe/types";
 
 function todaysDateDE(): string {
 	return new Date().toLocaleDateString("de-DE", {
@@ -72,7 +72,8 @@ const compilePromptHandler = authed
 
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
 
-		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
+		const variablesUsed =
+			parsed.variables ?? parsePromptJson(parsed.promptJson);
 		if (
 			parsed.documentType === "procedures" &&
 			typeof variablesUsed.relevantTemplate !== "string"
@@ -105,6 +106,8 @@ const compilePromptHandler = authed
 const runInput = z.object({
 	requestId: z.string(),
 	model: z.string(),
+	/** Whether the model lists "reasoning" in its supported_parameters (from OpenRouter API). */
+	supportsReasoning: z.boolean().optional().default(false),
 	parameters: z.object({
 		temperature: z.number().min(0).max(2).optional().default(1),
 		maxTokens: z.number().min(1).max(100000).optional().default(4096),
@@ -146,7 +149,8 @@ const runHandler = authed
 
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
 
-		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
+		const variablesUsed =
+			parsed.variables ?? parsePromptJson(parsed.promptJson);
 		if (
 			parsed.documentType === "procedures" &&
 			typeof variablesUsed.relevantTemplate !== "string"
@@ -159,11 +163,9 @@ const runHandler = authed
 		});
 		const model = openrouter(parsed.model);
 
-		const isClaudeModel = parsed.model.includes("anthropic") || parsed.model.includes("claude");
-		const supportsThinking =
-			isClaudeModel ||
-			parsed.model.includes("glm") ||
-			parsed.model.includes("gemini");
+		// Use the supportsReasoning flag from the frontend (derived from OpenRouter's
+		// supported_parameters) to decide whether to send reasoning config.
+		const supportsReasoning = parsed.supportsReasoning;
 
 		let messages: ModelMessage[];
 		if (parsed.compiledMessagesOverride) {
@@ -198,10 +200,13 @@ const runHandler = authed
 				openrouter: {
 					usage: { include: true },
 					user: context.session.user.email,
-					reasoning:
-						parsed.parameters.thinking && supportsThinking
+					// Only send reasoning config if the model supports it.
+					// When thinking is enabled → set budget; otherwise → explicitly disable.
+					...(supportsReasoning && {
+						reasoning: parsed.parameters.thinking
 							? { max_tokens: parsed.parameters.thinkingBudget }
 							: { enabled: false },
+					}),
 				},
 			},
 			messages,
@@ -273,7 +278,7 @@ export const scribeHandler = {
 					);
 				}
 
-			// Apply limit
+				// Apply limit
 				const limit = input.limit ?? 200;
 				return {
 					items: filteredNames.slice(0, limit),

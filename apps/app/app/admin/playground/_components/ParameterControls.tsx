@@ -16,23 +16,24 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { Brain, HelpCircle, Settings2 } from "lucide-react";
-import type { PlaygroundParameters } from "../_lib/types";
-import { supportsThinking } from "../_lib/types";
+import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
+import { requiresThinking, supportsThinking } from "../_lib/types";
 
 interface ParameterControlsProps {
 	parameters: PlaygroundParameters;
 	onChange: (params: PlaygroundParameters) => void;
-	modelId?: string;
+	model?: PlaygroundModel | null;
 	disabled?: boolean;
 }
 
 export function ParameterControls({
 	parameters,
 	onChange,
-	modelId,
+	model,
 	disabled,
 }: ParameterControlsProps) {
-	const thinkingSupported = modelId ? supportsThinking(modelId) : false;
+	const thinkingSupported = model ? supportsThinking(model) : false;
+	const thinkingRequired = model ? requiresThinking(model.id) : false;
 
 	const updateParam = <K extends keyof PlaygroundParameters>(
 		key: K,
@@ -52,26 +53,32 @@ export function ParameterControls({
 							<Label className="font-medium text-solarized-base00">
 								Thinking Mode
 							</Label>
+							{thinkingRequired && (
+								<span className="rounded-sm bg-solarized-violet/20 px-1.5 py-0.5 text-[10px] font-medium text-solarized-violet">
+									Pflicht
+								</span>
+							)}
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
 								</TooltipTrigger>
 								<TooltipContent className="max-w-[250px]">
 									<p>
-										Aktiviert den Reasoning-Modus des Modells für komplexere
-										Aufgaben. Das Modell zeigt seinen Denkprozess.
+										{thinkingRequired
+											? "Dieses Modell hat Pflicht-Reasoning. Thinking kann nicht deaktiviert werden."
+											: "Aktiviert den Reasoning-Modus des Modells für komplexere Aufgaben. Das Modell zeigt seinen Denkprozess."}
 									</p>
 								</TooltipContent>
 							</Tooltip>
 						</div>
 						<Switch
-							checked={parameters.thinking}
+							checked={thinkingRequired || parameters.thinking}
 							onCheckedChange={(checked) => updateParam("thinking", checked)}
-							disabled={disabled}
+							disabled={disabled || thinkingRequired}
 						/>
 					</div>
 
-					{parameters.thinking && (
+					{(thinkingRequired || parameters.thinking) && (
 						<div className="mt-3 space-y-2">
 							<div className="flex items-center justify-between">
 								<Label className="text-sm text-solarized-base01">
@@ -83,7 +90,9 @@ export function ParameterControls({
 							</div>
 							<Slider
 								value={[parameters.thinkingBudget]}
-								onValueChange={([value]) => updateParam("thinkingBudget", value)}
+								onValueChange={([value]) =>
+									updateParam("thinkingBudget", value)
+								}
 								min={1000}
 								max={50000}
 								step={1000}
@@ -101,15 +110,17 @@ export function ParameterControls({
 				<div className="space-y-2">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<Label className="text-sm text-solarized-base01">Temperature</Label>
+							<Label className="text-sm text-solarized-base01">
+								Temperature
+							</Label>
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
 								</TooltipTrigger>
 								<TooltipContent className="max-w-[250px]">
 									<p>
-										Höhere Werte (z.B. 1.5) machen die Ausgabe kreativer, niedrigere
-										Werte (z.B. 0.2) machen sie deterministischer.
+										Höhere Werte (z.B. 1.5) machen die Ausgabe kreativer,
+										niedrigere Werte (z.B. 0.2) machen sie deterministischer.
 									</p>
 								</TooltipContent>
 							</Tooltip>
@@ -133,7 +144,9 @@ export function ParameterControls({
 				<div className="space-y-2">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<Label className="text-sm text-solarized-base01">Max Tokens</Label>
+							<Label className="text-sm text-solarized-base01">
+								Max Tokens
+							</Label>
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
@@ -183,8 +196,9 @@ export function ParameterControls({
 										</TooltipTrigger>
 										<TooltipContent className="max-w-[250px]">
 											<p>
-												Nucleus Sampling - berücksichtigt nur die wahrscheinlichsten
-												Tokens bis zur kumulativen Wahrscheinlichkeit.
+												Nucleus Sampling - berücksichtigt nur die
+												wahrscheinlichsten Tokens bis zur kumulativen
+												Wahrscheinlichkeit.
 											</p>
 										</TooltipContent>
 									</Tooltip>
@@ -195,7 +209,9 @@ export function ParameterControls({
 									onChange={(e) =>
 										updateParam(
 											"topP",
-											e.target.value ? Number.parseFloat(e.target.value) : undefined,
+											e.target.value
+												? Number.parseFloat(e.target.value)
+												: undefined,
 										)
 									}
 									min={0}
@@ -219,7 +235,8 @@ export function ParameterControls({
 										</TooltipTrigger>
 										<TooltipContent className="max-w-[250px]">
 											<p>
-												Begrenzt die Auswahl auf die K wahrscheinlichsten Tokens.
+												Begrenzt die Auswahl auf die K wahrscheinlichsten
+												Tokens.
 											</p>
 										</TooltipContent>
 									</Tooltip>
@@ -230,7 +247,9 @@ export function ParameterControls({
 									onChange={(e) =>
 										updateParam(
 											"topK",
-											e.target.value ? Number.parseInt(e.target.value) : undefined,
+											e.target.value
+												? Number.parseInt(e.target.value)
+												: undefined,
 										)
 									}
 									min={0}
@@ -266,7 +285,9 @@ export function ParameterControls({
 									onChange={(e) =>
 										updateParam(
 											"frequencyPenalty",
-											e.target.value ? Number.parseFloat(e.target.value) : undefined,
+											e.target.value
+												? Number.parseFloat(e.target.value)
+												: undefined,
 										)
 									}
 									min={-2}
@@ -304,7 +325,9 @@ export function ParameterControls({
 									onChange={(e) =>
 										updateParam(
 											"presencePenalty",
-											e.target.value ? Number.parseFloat(e.target.value) : undefined,
+											e.target.value
+												? Number.parseFloat(e.target.value)
+												: undefined,
 										)
 									}
 									min={-2}

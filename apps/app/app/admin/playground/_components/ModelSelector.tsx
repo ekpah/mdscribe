@@ -113,11 +113,14 @@ export function ModelSelector({
 			"x-ai": "xAI",
 			"z-ai": "Zhipu AI",
 		};
-		return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+		return (
+			names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1)
+		);
 	};
 
 	// Check if a model is in the top models list
-	const isTopModel = (modelId: string) => topModelIds?.includes(modelId) ?? false;
+	const isTopModel = (modelId: string) =>
+		topModelIds?.includes(modelId) ?? false;
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -153,7 +156,7 @@ export function ModelSelector({
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
-				className="w-[400px] p-0"
+				className="w-[min(400px,calc(100vw-2rem))] p-0"
 				align="start"
 			>
 				<Command shouldFilter={false}>
@@ -172,84 +175,89 @@ export function ModelSelector({
 								return 0;
 							})
 							.map(([provider, providerModels]) => (
-							<CommandGroup key={provider} heading={formatProvider(provider)}>
-								{providerModels.map((model) => (
-									<CommandItem
-										key={model.id}
-										value={model.id}
-										onSelect={() => {
-											onSelect(model);
-											setOpen(false);
-											setSearch("");
-										}}
-										className="flex items-start gap-2 py-2"
-									>
-										<Check
-											className={cn(
-												"mt-0.5 h-4 w-4 shrink-0",
-												selectedModel?.id === model.id
-													? "opacity-100"
-													: "opacity-0",
-											)}
-										/>
-										<div className="flex flex-1 flex-col gap-1 overflow-hidden">
-											<div className="flex items-center gap-2">
-												<span className="truncate font-medium">
-													{model.name}
-												</span>
-												{isTopModel(model.id) && provider !== "_top" && (
+								<CommandGroup key={provider} heading={formatProvider(provider)}>
+									{providerModels.map((model) => (
+										<CommandItem
+											key={model.id}
+											value={model.id}
+											onSelect={() => {
+												onSelect(model);
+												setOpen(false);
+												setSearch("");
+											}}
+											className="flex items-start gap-2 py-2"
+										>
+											<Check
+												className={cn(
+													"mt-0.5 h-4 w-4 shrink-0",
+													selectedModel?.id === model.id
+														? "opacity-100"
+														: "opacity-0",
+												)}
+											/>
+											<div className="flex flex-1 flex-col gap-1 overflow-hidden">
+												<div className="flex items-center gap-2">
+													<span className="truncate font-medium">
+														{model.name}
+													</span>
+													{isTopModel(model.id) && provider !== "_top" && (
+														<Badge
+															variant="outline"
+															className="h-5 gap-1 px-1.5 text-[10px] text-solarized-orange"
+														>
+															<TrendingUp className="h-2.5 w-2.5" />
+															Top
+														</Badge>
+													)}
+												</div>
+												<div className="flex flex-wrap items-center gap-1 text-xs text-solarized-base01">
 													<Badge
 														variant="outline"
-														className="h-5 gap-1 px-1.5 text-[10px] text-solarized-orange"
+														className="h-5 px-1.5 text-[10px]"
 													>
-														<TrendingUp className="h-2.5 w-2.5" />
-														Top
+														{(model.context_length / 1000).toFixed(0)}k ctx
 													</Badge>
-												)}
+													{model.capabilities.supportsImage && (
+														<Badge
+															variant="outline"
+															className="h-5 gap-1 px-1.5 text-[10px] text-solarized-blue"
+														>
+															<ImageIcon className="h-2.5 w-2.5" />
+															Bild
+														</Badge>
+													)}
+													{model.capabilities.supportsAudio && (
+														<Badge
+															variant="outline"
+															className="h-5 gap-1 px-1.5 text-[10px] text-solarized-green"
+														>
+															<AudioLines className="h-2.5 w-2.5" />
+															Audio
+														</Badge>
+													)}
+													{(model.id.includes("claude") ||
+														model.id.includes("gemini")) && (
+														<Badge
+															variant="outline"
+															className="h-5 gap-1 px-1.5 text-[10px] text-solarized-violet"
+														>
+															<FileText className="h-2.5 w-2.5" />
+															PDF
+														</Badge>
+													)}
+													<span className="ml-1 text-[10px] text-solarized-base01">
+														$
+														{(
+															Number.parseFloat(model.pricing.prompt) * 1000000
+														).toFixed(2)}
+														/M
+													</span>
+												</div>
 											</div>
-											<div className="flex flex-wrap items-center gap-1 text-xs text-solarized-base01">
-												<Badge
-													variant="outline"
-													className="h-5 px-1.5 text-[10px]"
-												>
-													{(model.context_length / 1000).toFixed(0)}k ctx
-												</Badge>
-												{model.capabilities.supportsImage && (
-													<Badge
-														variant="outline"
-														className="h-5 gap-1 px-1.5 text-[10px] text-solarized-blue"
-													>
-														<ImageIcon className="h-2.5 w-2.5" />
-														Bild
-													</Badge>
-												)}
-												{model.capabilities.supportsAudio && (
-													<Badge
-														variant="outline"
-														className="h-5 gap-1 px-1.5 text-[10px] text-solarized-green"
-													>
-														<AudioLines className="h-2.5 w-2.5" />
-														Audio
-													</Badge>
-												)}
-												{(model.id.includes("claude") || model.id.includes("gemini")) && (
-													<Badge
-														variant="outline"
-														className="h-5 gap-1 px-1.5 text-[10px] text-solarized-violet"
-													>
-														<FileText className="h-2.5 w-2.5" />
-														PDF
-													</Badge>
-												)}
-												<span className="ml-1 text-[10px] text-solarized-base01">
-													${(Number.parseFloat(model.pricing.prompt) * 1000000).toFixed(2)}/M
-												</span>
-											</div>
-										</div>
-									</CommandItem>
-								))}
-							</CommandGroup>
-						))}
+										</CommandItem>
+									))}
+								</CommandGroup>
+							))}
 					</CommandList>
 				</Command>
 			</PopoverContent>

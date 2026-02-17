@@ -37,6 +37,7 @@ interface OpenRouterModel {
 		prompt_tokens?: string;
 		completion_tokens?: string;
 	};
+	supported_parameters?: string[];
 }
 
 interface OpenRouterModelsResponse {
@@ -75,6 +76,7 @@ interface PlaygroundModel {
 		is_moderated?: boolean;
 	};
 	capabilities: ModelCapabilities;
+	supported_parameters: string[];
 }
 
 function parseModality(modality: string): ModelCapabilities {
@@ -159,6 +161,7 @@ const listModelsHandler = authed
 				capabilities: parseModality(
 					model.architecture?.modality || "text->text",
 				),
+				supported_parameters: model.supported_parameters ?? [],
 			}),
 		);
 
