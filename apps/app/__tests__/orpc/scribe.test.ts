@@ -155,25 +155,25 @@ describe("Scribe Stream Handler", () => {
 	});
 
 	describe("Authentication & Authorization", () => {
-		test("requires stripeCustomerId to use scribe", async () => {
+		test("allows free-tier users without stripeCustomerId", async () => {
 			const { user } = await createTestUser(server.db);
-			// Create session without stripeCustomerId
 			const session = createMockSession({
 				...user,
 				stripeCustomerId: null,
 			});
 			const context = createTestContext({ db: server.db, session });
 
-			await expect(
-				call(
-					scribeStreamHandler,
-					{
-						documentType: "discharge",
-						messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }] }],
-					},
-					{ context },
-				),
-			).rejects.toThrow(ORPCError);
+			const result = await call(
+				scribeStreamHandler,
+				{
+					documentType: "discharge",
+					messages: [{ id: "1", role: "user" as const, parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }] }],
+				},
+				{ context },
+			);
+
+			expect(result).toBeDefined();
+			expect(typeof result[Symbol.asyncIterator]).toBe("function");
 		});
 	});
 
