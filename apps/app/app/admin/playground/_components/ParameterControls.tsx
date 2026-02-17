@@ -16,24 +16,24 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { Brain, HelpCircle, Settings2 } from "lucide-react";
-import type { PlaygroundParameters } from "../_lib/types";
+import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
 import { requiresThinking, supportsThinking } from "../_lib/types";
 
 interface ParameterControlsProps {
 	parameters: PlaygroundParameters;
 	onChange: (params: PlaygroundParameters) => void;
-	modelId?: string;
+	model?: PlaygroundModel | null;
 	disabled?: boolean;
 }
 
 export function ParameterControls({
 	parameters,
 	onChange,
-	modelId,
+	model,
 	disabled,
 }: ParameterControlsProps) {
-	const thinkingSupported = modelId ? supportsThinking(modelId) : false;
-	const thinkingRequired = modelId ? requiresThinking(modelId) : false;
+	const thinkingSupported = model ? supportsThinking(model) : false;
+	const thinkingRequired = model ? requiresThinking(model.id) : false;
 
 	const updateParam = <K extends keyof PlaygroundParameters>(
 		key: K,

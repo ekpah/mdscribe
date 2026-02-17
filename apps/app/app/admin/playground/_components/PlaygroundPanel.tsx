@@ -723,7 +723,7 @@ export function PlaygroundPanel({
 															),
 														)
 													}
-													modelId={run.model?.id}
+													model={run.model}
 												/>
 											</div>
 										</div>
@@ -936,6 +936,8 @@ function RunCard({
 		payloadRef.current = {
 			requestId,
 			model: modelRun.model.id,
+			supportsReasoning:
+				modelRun.model.supported_parameters.includes("reasoning"),
 			parameters: modelRun.parameters,
 			documentType,
 			promptName,

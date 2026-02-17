@@ -106,6 +106,8 @@ const compilePromptHandler = authed
 const runInput = z.object({
 	requestId: z.string(),
 	model: z.string(),
+	/** Whether the model lists "reasoning" in its supported_parameters (from OpenRouter API). */
+	supportsReasoning: z.boolean().optional().default(false),
 	parameters: z.object({
 		temperature: z.number().min(0).max(2).optional().default(1),
 		maxTokens: z.number().min(1).max(100000).optional().default(4096),
@@ -161,21 +163,9 @@ const runHandler = authed
 		});
 		const model = openrouter(parsed.model);
 
-		const modelLower = parsed.model.toLowerCase();
-		const isClaudeModel =
-			modelLower.includes("anthropic") || modelLower.includes("claude");
-		const modelRequiresThinking =
-			modelLower.includes("deepseek-r1") ||
-			modelLower.includes("deepseek/r1") ||
-			modelLower.includes("qwq") ||
-			modelLower.includes("o1") ||
-			modelLower.includes("o3") ||
-			modelLower.includes("o4");
-		const supportsThinking =
-			modelRequiresThinking ||
-			isClaudeModel ||
-			modelLower.includes("glm") ||
-			modelLower.includes("gemini");
+		// Use the supportsReasoning flag from the frontend (derived from OpenRouter's
+		// supported_parameters) to decide whether to send reasoning config.
+		const supportsReasoning = parsed.supportsReasoning;
 
 		let messages: ModelMessage[];
 		if (parsed.compiledMessagesOverride) {
@@ -210,18 +200,13 @@ const runHandler = authed
 				openrouter: {
 					usage: { include: true },
 					user: context.session.user.email,
-					...(modelRequiresThinking
-						? {
-								reasoning: {
-									max_tokens: parsed.parameters.thinkingBudget,
-								},
-							}
-						: {
-								reasoning:
-									parsed.parameters.thinking && supportsThinking
-										? { max_tokens: parsed.parameters.thinkingBudget }
-										: { enabled: false },
-							}),
+					// Only send reasoning config if the model supports it.
+					// When thinking is enabled → set budget; otherwise → explicitly disable.
+					...(supportsReasoning && {
+						reasoning: parsed.parameters.thinking
+							? { max_tokens: parsed.parameters.thinkingBudget }
+							: { enabled: false },
+					}),
 				},
 			},
 			messages,

@@ -30,6 +30,7 @@ export interface PlaygroundModel {
 		is_moderated?: boolean;
 	};
 	capabilities: ModelCapabilities;
+	supported_parameters: string[];
 }
 
 export interface PlaygroundParameters {
@@ -113,6 +114,8 @@ export const DEFAULT_PARAMETERS: PlaygroundParameters = {
 /**
  * Models that always produce reasoning and cannot have it disabled.
  * Sending `reasoning: { enabled: false }` to these models causes an error.
+ * OpenRouter doesn't expose a "requires_reasoning" flag, so we maintain
+ * a small pattern list for known mandatory-reasoning models.
  */
 export function requiresThinking(modelId: string): boolean {
 	const id = modelId.toLowerCase();
@@ -126,14 +129,12 @@ export function requiresThinking(modelId: string): boolean {
 	);
 }
 
-// Check if model supports thinking (optional or mandatory)
-export function supportsThinking(modelId: string): boolean {
-	return (
-		requiresThinking(modelId) ||
-		modelId.includes("claude") ||
-		modelId.includes("glm") ||
-		modelId.includes("gemini")
-	);
+/**
+ * Whether a model supports the reasoning/thinking parameter.
+ * Uses the `supported_parameters` array from the OpenRouter API.
+ */
+export function supportsThinking(model: PlaygroundModel): boolean {
+	return model.supported_parameters.includes("reasoning");
 }
 
 // Format cost for display
