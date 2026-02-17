@@ -13,10 +13,10 @@ import {
 	type UsageMetadata,
 } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
-import { documentTypeConfigs } from "../scribe/config";
 import { requiredAdminMiddleware } from "../middlewares/admin";
-import type { PromptVariables } from "../scribe/types";
+import { documentTypeConfigs } from "../scribe/config";
 import { buildScribeContext } from "../scribe/context";
+import type { PromptVariables } from "../scribe/types";
 
 function todaysDateDE(): string {
 	return new Date().toLocaleDateString("de-DE", {
@@ -72,7 +72,8 @@ const compilePromptHandler = authed
 
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
 
-		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
+		const variablesUsed =
+			parsed.variables ?? parsePromptJson(parsed.promptJson);
 		if (
 			parsed.documentType === "procedures" &&
 			typeof variablesUsed.relevantTemplate !== "string"
@@ -146,7 +147,8 @@ const runHandler = authed
 
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
 
-		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
+		const variablesUsed =
+			parsed.variables ?? parsePromptJson(parsed.promptJson);
 		if (
 			parsed.documentType === "procedures" &&
 			typeof variablesUsed.relevantTemplate !== "string"
@@ -159,11 +161,21 @@ const runHandler = authed
 		});
 		const model = openrouter(parsed.model);
 
-		const isClaudeModel = parsed.model.includes("anthropic") || parsed.model.includes("claude");
+		const modelLower = parsed.model.toLowerCase();
+		const isClaudeModel =
+			modelLower.includes("anthropic") || modelLower.includes("claude");
+		const modelRequiresThinking =
+			modelLower.includes("deepseek-r1") ||
+			modelLower.includes("deepseek/r1") ||
+			modelLower.includes("qwq") ||
+			modelLower.includes("o1") ||
+			modelLower.includes("o3") ||
+			modelLower.includes("o4");
 		const supportsThinking =
+			modelRequiresThinking ||
 			isClaudeModel ||
-			parsed.model.includes("glm") ||
-			parsed.model.includes("gemini");
+			modelLower.includes("glm") ||
+			modelLower.includes("gemini");
 
 		let messages: ModelMessage[];
 		if (parsed.compiledMessagesOverride) {
@@ -198,10 +210,18 @@ const runHandler = authed
 				openrouter: {
 					usage: { include: true },
 					user: context.session.user.email,
-					reasoning:
-						parsed.parameters.thinking && supportsThinking
-							? { max_tokens: parsed.parameters.thinkingBudget }
-							: { enabled: false },
+					...(modelRequiresThinking
+						? {
+								reasoning: {
+									max_tokens: parsed.parameters.thinkingBudget,
+								},
+							}
+						: {
+								reasoning:
+									parsed.parameters.thinking && supportsThinking
+										? { max_tokens: parsed.parameters.thinkingBudget }
+										: { enabled: false },
+							}),
 				},
 			},
 			messages,
@@ -273,7 +293,7 @@ export const scribeHandler = {
 					);
 				}
 
-			// Apply limit
+				// Apply limit
 				const limit = input.limit ?? 200;
 				return {
 					items: filteredNames.slice(0, limit),

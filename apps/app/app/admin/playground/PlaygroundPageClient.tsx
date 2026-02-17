@@ -125,8 +125,8 @@ function PlaygroundContent() {
 	}
 
 	return (
-		<div className="flex h-full flex-col overflow-hidden p-3">
-			<div className="mx-auto flex h-full w-full flex-col gap-2 overflow-hidden">
+		<div className="flex h-full flex-col overflow-auto p-3 lg:overflow-hidden">
+			<div className="mx-auto flex h-full w-full flex-col gap-2 lg:overflow-hidden">
 				{/* Header - compact */}
 				<div className="flex shrink-0 items-center gap-2">
 					<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-solarized-violet/10">
@@ -140,7 +140,7 @@ function PlaygroundContent() {
 				</div>
 
 				{/* Main Content - takes all remaining space */}
-				<div className="min-h-0 flex-1 overflow-hidden">
+				<div className="min-h-0 flex-1 lg:overflow-hidden">
 					<PlaygroundPanel
 						models={models}
 						topModelIds={topModelIds}

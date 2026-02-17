@@ -41,7 +41,7 @@ import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
-import { DEFAULT_PARAMETERS } from "../_lib/types";
+import { DEFAULT_PARAMETERS, requiresThinking } from "../_lib/types";
 import { ModelSelector } from "./ModelSelector";
 import { ParameterControls } from "./ParameterControls";
 import { ResultDisplay } from "./ResultDisplay";
@@ -353,7 +353,7 @@ export function PlaygroundPanel({
 	return (
 		<div className="flex h-full flex-col gap-3 lg:flex-row">
 			{/* Left Panel - Tabs */}
-			<Card className="w-full border-solarized-base2 lg:w-[460px] lg:shrink-0">
+			<Card className="flex w-full flex-col border-solarized-base2 lg:w-[460px] lg:shrink-0 lg:overflow-hidden">
 				<CardHeader className="border-b border-solarized-base2 px-3 py-2">
 					<CardTitle className="text-sm text-solarized-base00">
 						AI Scribe Playground
@@ -361,7 +361,7 @@ export function PlaygroundPanel({
 				</CardHeader>
 
 				<Tabs
-					className="flex h-[calc(100%-44px)] flex-col"
+					className="flex min-h-0 flex-1 flex-col"
 					onValueChange={(v) =>
 						setActiveTab(v as "input" | "prompt" | "models")
 					}
@@ -381,7 +381,7 @@ export function PlaygroundPanel({
 						</TabsList>
 					</div>
 
-					<ScrollArea className="min-h-0 flex-1">
+					<ScrollArea className="min-h-0 flex-1 lg:max-h-none">
 						<CardContent className="space-y-4 p-3">
 							<TabsContent value="input" className="mt-0 space-y-3">
 								<div className="space-y-2">
@@ -661,9 +661,21 @@ export function PlaygroundPanel({
 														selectedModel={run.model}
 														onSelect={(m) =>
 															setModelRuns((prev) =>
-																prev.map((r) =>
-																	r.id === run.id ? { ...r, model: m } : r,
-																),
+																prev.map((r) => {
+																	if (r.id !== run.id) return r;
+																	const updated = { ...r, model: m };
+																	// Auto-enable thinking for mandatory reasoning models
+																	if (
+																		requiresThinking(m.id) &&
+																		!r.parameters.thinking
+																	) {
+																		updated.parameters = {
+																			...r.parameters,
+																			thinking: true,
+																		};
+																	}
+																	return updated;
+																}),
 															)
 														}
 													/>
@@ -724,7 +736,7 @@ export function PlaygroundPanel({
 			</Card>
 
 			{/* Right Panel - Results */}
-			<Card className="flex min-h-0 flex-1 flex-col border-solarized-base2">
+			<Card className="flex min-h-[500px] flex-1 flex-col border-solarized-base2 lg:min-h-0">
 				<CardHeader className="shrink-0 border-b border-solarized-base2 px-3 py-2">
 					<div className="flex items-center justify-between gap-2">
 						<div className="min-w-0">
@@ -968,7 +980,7 @@ function RunCard({
 	}, [runId, runTriggersRef, startRun]);
 
 	return (
-		<div className="flex h-[400px] flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2">
+		<div className="flex h-[350px] flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2 lg:h-[400px]">
 			{/* Header row */}
 			<div className="flex shrink-0 items-center justify-between gap-2">
 				<div className="min-w-0 flex-1">

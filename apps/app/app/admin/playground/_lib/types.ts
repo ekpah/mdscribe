@@ -110,9 +110,26 @@ export const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	presencePenalty: undefined,
 };
 
-// Check if model supports thinking
+/**
+ * Models that always produce reasoning and cannot have it disabled.
+ * Sending `reasoning: { enabled: false }` to these models causes an error.
+ */
+export function requiresThinking(modelId: string): boolean {
+	const id = modelId.toLowerCase();
+	return (
+		id.includes("deepseek-r1") ||
+		id.includes("deepseek/r1") ||
+		id.includes("qwq") ||
+		id.includes("o1") ||
+		id.includes("o3") ||
+		id.includes("o4")
+	);
+}
+
+// Check if model supports thinking (optional or mandatory)
 export function supportsThinking(modelId: string): boolean {
 	return (
+		requiresThinking(modelId) ||
 		modelId.includes("claude") ||
 		modelId.includes("glm") ||
 		modelId.includes("gemini")
