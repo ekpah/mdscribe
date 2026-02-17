@@ -297,6 +297,8 @@ Required environment variables (see turbo.json):
 - **Context extensibility**: Add new context domains (e.g. template/institution/guideline/evidence) as separate providers rather than extending `patient_context`.
 - **License file naming**: Use `LICENSE` (repository root) as the canonical OSS license file path; do not reference `license.md`.
 - **Nuqs + menubar**: Do not move the top menubar session fetch into a separate async server wrapper component under `NuqsAdapter`; this setup has caused runtime crashes in this project. Keep menubar auth loading handling client-side.
+- **Admin users metrics**: In `admin.users.list`, count user generations from AI events (`UsageEvent.name` matching `ai_*` plus `admin_scribe_playground`) rather than counting every usage event.
+- **Admin subscription labeling**: Determine active subscription status case-insensitively and treat canceled subscriptions with a future `periodEnd` as still active until that date.
 
 ## Documentation Lookup
 
