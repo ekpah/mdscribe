@@ -2,9 +2,5 @@
   "title": "Datenschutz",
   "description": "Datenschutz-Leitplanken fuer Cloud- und Self-Hosting-Betrieb.",
   "root": false,
-  "pages": [
-    "index",
-    "private-vs-anonyme-daten",
-    "ki-datenfluss"
-  ]
+  "pages": ["index", "private-vs-anonyme-daten", "ki-datenfluss"]
 }

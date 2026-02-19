@@ -1,7 +1,7 @@
-@import 'tailwindcss';
-@import 'fumadocs-ui/css/shadcn.css';
-@import 'fumadocs-ui/css/preset.css';
-@import '@repo/design-system/styles/globals.css';
+@import "tailwindcss";
+@import "fumadocs-ui/css/shadcn.css";
+@import "fumadocs-ui/css/preset.css";
+@import "@repo/design-system/styles/globals.css";
 
 /* Map fumadocs CSS variables to solarized color palette from design system */
 :root {
@@ -57,7 +57,7 @@
   --fd-surface-foreground: var(--solarized-base00);
 }
 
-[data-theme='dark'],
+[data-theme="dark"],
 .dark {
   /* Dark theme - using solarized references */
   --fd-background: var(--solarized-base03);

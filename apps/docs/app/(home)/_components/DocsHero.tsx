@@ -1,11 +1,17 @@
-import { Button } from '@repo/design-system/components/ui/button';
-import { ArrowRight, BookMarked, BookOpen, Code, LifeBuoy, Zap } from 'lucide-react';
-import Link from 'next/link';
+import { Button } from "@repo/design-system/components/ui/button";
+import {
+  ArrowRight,
+  BookMarked,
+  BookOpen,
+  Code,
+  LifeBuoy,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
 
 export default function DocsHero() {
   return (
     <div className="relative flex min-h-[85vh] flex-col items-center justify-center overflow-hidden px-4 py-16 md:py-24">
-
       {/* Content Container */}
       <div className="relative z-10 mx-auto w-full max-w-4xl text-center">
         {/* Badge */}
@@ -16,7 +22,7 @@ export default function DocsHero() {
 
         {/* Main Headline */}
         <h1 className="mb-6 font-bold text-4xl leading-tight tracking-tight md:text-5xl lg:text-6xl">
-          Willkommen in der{' '}
+          Willkommen in der{" "}
           <span className="bg-gradient-to-r from-solarized-blue to-solarized-blue/50 bg-clip-text text-transparent">
             MDScribe Dokumentation
           </span>
@@ -89,7 +95,6 @@ export default function DocsHero() {
             </p>
           </Link>
         </div>
-
       </div>
     </div>
   );
