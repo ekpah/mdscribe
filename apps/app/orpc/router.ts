@@ -2,6 +2,7 @@ import { authed } from "@/orpc";
 import { embeddingsHandler } from "./admin/embeddings";
 import { modelsHandler as adminModelsHandler } from "./admin/models";
 import { scribeHandler as adminScribeHandler } from "./admin/scribe";
+import { templatesHandler as adminTemplatesHandler } from "./admin/templates";
 import { usageHandler as adminUsageHandler } from "./admin/usage";
 import { usersHandler as adminUsersHandler } from "./admin/users";
 import { documentsHandler } from "./documents";
@@ -71,6 +72,9 @@ export const router = {
 		},
 		embeddings: {
 			...embeddingsHandler,
+		},
+		templates: {
+			...adminTemplatesHandler,
 		},
 		models: {
 			...adminModelsHandler,

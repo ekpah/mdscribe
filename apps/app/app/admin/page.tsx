@@ -89,10 +89,10 @@ const adminFeatures: AdminCardProps[] = [
 		status: "active",
 	},
 	{
-		title: "Embedding-Migration",
+		title: "Vorlagenverwaltung",
 		description:
-			"Verwalten und Ausführen von Template-Embedding-Migrationen. Fehlende Embeddings generieren oder alle Embeddings mit konfigurierbaren Batch-Einstellungen neu erstellen.",
-		href: "/admin/migrateEmbeddings",
+			"Alle Templates zentral verwalten: Autoren, Favoriten, Embedding-Status und Migrationen an einem Ort.",
+		href: "/admin/templates",
 		icon: <Database className="h-5 w-5 text-solarized-blue" />,
 		status: "active",
 	},
@@ -119,14 +119,6 @@ const adminFeatures: AdminCardProps[] = [
 		href: "/admin/documents-playground",
 		icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
 		status: "active",
-	},
-	{
-		title: "Vorlagenverwaltung",
-		description:
-			"Dokumentenvorlagen durchsuchen, bearbeiten und verwalten. Vorlagennutzung und Leistungsmetriken überprüfen.",
-		href: "/admin/templates",
-		icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
-		status: "coming-soon",
 	},
 	{
 		title: "Systemeinstellungen",
