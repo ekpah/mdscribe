@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -7,14 +8,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { Input } from "@repo/design-system/components/ui/input";
 import {
 	DataTable,
 	DataTablePagination,
 	DataTableViewOptions,
 } from "@repo/design-system/components/ui/data-table";
-import { Loader2, Users, XCircle } from "lucide-react";
+import { Input } from "@repo/design-system/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, RefreshCw, Users, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { columns, type UserData } from "./columns";
@@ -25,6 +26,7 @@ export default function UsersPage() {
 	const {
 		data: users = [],
 		isLoading,
+		isFetching,
 		error,
 	} = useQuery(orpc.admin.users.list.queryOptions());
 
@@ -41,6 +43,12 @@ export default function UsersPage() {
 			: error
 				? String(error)
 				: "Fehler beim Laden der Benutzer";
+	const totalGenerations = users.reduce(
+		(sum, user) => sum + Number(user._count.usageEvents ?? 0),
+		0,
+	);
+	const plusUsers = users.filter((user) => user.hasActiveSubscription).length;
+	const freeUsers = users.length - plusUsers;
 
 	if (isLoading && users.length === 0) {
 		return (
@@ -98,23 +106,23 @@ export default function UsersPage() {
 								</p>
 							</div>
 						</div>
-						<button
+						<Button
+							variant="outline"
 							onClick={handleRefresh}
-							disabled={isLoading}
-							className="flex items-center gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3 px-3 py-2 text-sm font-medium text-solarized-base00 transition-colors hover:bg-solarized-base2 disabled:opacity-50 sm:px-4"
+							disabled={isFetching}
 						>
-							<Loader2
-								className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+							<RefreshCw
+								className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
 							/>
 							<span className="hidden sm:inline">Aktualisieren</span>
-						</button>
+						</Button>
 					</div>
 				</div>
 
 				{/* Stats Card */}
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
-						<div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
+						<div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-6">
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
 									Gesamt
@@ -144,7 +152,23 @@ export default function UsersPage() {
 									Generierungen
 								</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
-									{users.reduce((sum, u) => sum + u._count.usageEvents, 0)}
+									{totalGenerations}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
+									Free
+								</p>
+								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
+									{freeUsers}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
+									Plus
+								</p>
+								<p className="font-semibold text-base text-solarized-violet sm:text-lg">
+									{plusUsers}
 								</p>
 							</div>
 						</div>
