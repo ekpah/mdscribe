@@ -27,7 +27,7 @@ export const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> = {
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der ${vars.todaysDate}.
+Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine professionelle, bewertende Epikrise zu erstellen, die den stationären Verlauf strukturiert zusammenfasst und medizinisch logisch verknüpft.
 </system_role>
@@ -151,7 +151,9 @@ BEGINNEN SIE JETZT mit der Erstellung der Epikrise basierend auf den bereitgeste
 			},
 			{
 				role: "user",
-				content: `${vars.contextXml}
+				content: `Das heutige Datum ist der ${vars.todaysDate}.
+
+${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
@@ -228,7 +230,7 @@ ${vars.contextXml}`,
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der ${vars.todaysDate}.
+Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen den Diagnoseblock für einen Arztbrief zu erstellen. Nutzen Sie hierfür die vorliegenden Vordiagnosen und Befunde und Notizen des aktuellen Aufenthaltes.
 </system_role>
@@ -367,7 +369,9 @@ BEGINNEN SIE JETZT mit der Erstellung des Diagnoseblocks basierend auf den berei
 			},
 			{
 				role: "user",
-				content: `${vars.contextXml}
+				content: `Das heutige Datum ist der ${vars.todaysDate}.
+
+${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten einen Diagnoseblock gemäß den System-Anweisungen. Ausgabe nur: Diagnoseblock
@@ -387,14 +391,16 @@ Erstellen Sie basierend auf den obigen Patientendaten einen Diagnoseblock gemä�
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Das heutige Datum ist der ${vars.todaysDate}.
+Sie sind ein erfahrener Klinikarzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine professionelle, kompakte und schlüssige Dokumentation der körperlichen Untersuchung eines Patienten in der Notaufnahme zu dokumentieren.
 </system_role>`,
 			},
 			{
 				role: "user",
-				content: `${vars.contextXml}`,
+				content: `Das heutige Datum ist der ${vars.todaysDate}.
+
+${vars.contextXml}`,
 			},
 		],
 		modelConfig: {
@@ -466,7 +472,7 @@ ${vars.contextXml}`,
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener Notaufnahme-Arzt mit strukturierter Dokumentationskompetenz. Das heutige Datum ist der ${vars.todaysDate}.
+Sie sind ein erfahrener Notaufnahme-Arzt mit strukturierter Dokumentationskompetenz.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine klar strukturierte Übergabe für die stationäre Aufnahme zu erstellen, die ausschließlich die in der Notaufnahme bereits erfolgten Maßnahmen sowie die noch offenen Punkte für die weitere stationäre Behandlung aufführt.
 </system_role>
@@ -563,7 +569,9 @@ BEGINNEN SIE JETZT mit der Erstellung der Abschnitte <in_der_ZNA>, <procedere> u
 			},
 			{
 				role: "user",
-				content: `${vars.contextXml}
+				content: `Das heutige Datum ist der ${vars.todaysDate}.
+
+${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
@@ -583,7 +591,7 @@ Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Proc
 			{
 				role: "system",
 				content: `<system_role>
-Sie sind ein erfahrener ärztlicher Dokumentationsassistent mit Fokus auf präzise Strukturierung medizinischer Befunde. Das heutige Datum ist der ${vars.todaysDate}.
+Sie sind ein erfahrener ärztlicher Dokumentationsassistent mit Fokus auf präzise Strukturierung medizinischer Befunde.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Eingabe medizinische Befunde formal einheitlich zu formatieren, Rechtschreibfehler zu korrigieren und die Darstellung klar zu gliedern, ohne inhaltliche Details zu verändern.
 </system_role>
@@ -662,7 +670,9 @@ Geben Sie das Ergebnis im beschriebenen Format mit einem Abschnitt pro Untersuch
 			},
 			{
 				role: "user",
-				content: `${vars.contextXml}
+				content: `Das heutige Datum ist der ${vars.todaysDate}.
+
+${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
@@ -824,9 +834,7 @@ Vor Ausgabe prüfen:
 			},
 			{
 				role: "user",
-				content: `Das heutige Datum ist der ${vars.todaysDate}.
-
-<output_structure>
+				content: `<output_structure>
 <title>Intensiv Verlegungsbrief</title>
 ## Epikrise
 [Aufnahmegrund und Leitsymptomatik in einleitendem Satz eingeordnet. Insbesondere auch intensivmedizinische Aufnahme rechtfertigen]((KEINE Wiederholung von Anamnese- oder Diagnoseninhalten.))
@@ -850,6 +858,8 @@ Der Patient konnte in stabilem Allgemeinzustand und beschwerdefrei entlassen wer
 - Pulmonalvenenisolation am 12.03.2026, 7:15 Uhr, nüchtern erscheinen
 - Präinterventionelle Aufklärung und TEE am 11.03.2026, 8:00 Uhr, nüchtern, mit Begleitperson, Medikamentenplan, Krankenhauseinweisung und Versichertenkarte mitbringen
 </output_example>
+
+Das heutige Datum ist der ${vars.todaysDate}.
 
 ${vars.contextXml}`,
 			},

@@ -89,9 +89,9 @@ const adminFeatures: AdminCardProps[] = [
 		status: "active",
 	},
 	{
-		title: "Vorlagenverwaltung",
+		title: "Template Management",
 		description:
-			"Alle Templates zentral verwalten: Autoren, Favoriten, Embedding-Status und Migrationen an einem Ort.",
+			"Zentrale Übersicht aller Templates inklusive Embedding-Verwaltung, Favoriten und Autoren-Filter.",
 		href: "/admin/templates",
 		icon: <Database className="h-5 w-5 text-solarized-blue" />,
 		status: "active",

@@ -19,7 +19,7 @@ function getPageTitle(pathname: string): string {
 		return "AI Playground";
 	}
 	if (pathname.startsWith("/admin/migrateEmbeddings")) {
-		return "Embedding-Migration";
+		return "Template Management";
 	}
 	if (pathname.startsWith("/admin/users")) {
 		return "Benutzerverwaltung";
@@ -31,7 +31,7 @@ function getPageTitle(pathname: string): string {
 		return "Dokumenten-Playground";
 	}
 	if (pathname.startsWith("/admin/templates")) {
-		return "Vorlagenverwaltung";
+		return "Template Management";
 	}
 	if (pathname.startsWith("/admin/settings")) {
 		return "Systemeinstellungen";
