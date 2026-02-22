@@ -9,12 +9,13 @@ import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
 import { StarIcon } from 'lucide-react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { redirect, usePathname } from 'next/navigation';
 import type React from 'react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/lib/auth-client';
 import { orpc } from '@/lib/orpc';
+import { createSignInRedirect } from '@/lib/sign-in-redirect';
 
 // Type definition for template search results
 interface TemplateSearchResult {
@@ -57,10 +58,11 @@ export default function FindTemplatePage() {
   >({});
 
   const { data: session } = useSession();
+  const pathname = usePathname();
   const isLoggedIn = !!session?.user?.id;
 
   if (!isLoggedIn) {
-    redirect('/');
+    redirect(createSignInRedirect(pathname || '/templates/findRelevant'));
   }
 
   const handleSearch = async (e: React.FormEvent) => {
