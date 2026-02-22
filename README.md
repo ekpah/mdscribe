@@ -10,7 +10,7 @@ Our short-term privacy position for the open-source launch:
 - Self-hosting is the recommended path for users who need full control over where data is processed and stored.
 
 This guidance is risk-based and intended to help teams choose an appropriate deployment model for their data sensitivity.
-See `docs/privacy-stance.md` for the full statement.
+See `apps/docs/content/docs/self-hosting/index.mdx` for the self-hosting runbook.
 
 ## Features
 
@@ -102,9 +102,15 @@ mdscribe/
 |---------|-------------|
 | `bun dev` | Start development server |
 | `bun run build` | Build all packages |
-| `bun run lint` | Lint with Biome |
-| `bun run test` | Run tests |
+| `bun run lint` | Full monorepo lint via Turbo |
+| `bun run lint:affected` | Lint only changed/affected packages (fast path) |
+| `bun run test` | Full monorepo tests via Turbo |
+| `bun run test:affected` | Test only changed/affected packages (fast path) |
 | `bun run knip` | Check for unused dependencies |
+
+Performance tips:
+- Use `bun run lint:affected && bun run test:affected` during normal development.
+- Use Turbo filters for focused runs (for example `turbo run lint --filter=app`).
 
 ## Contributing
 
