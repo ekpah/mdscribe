@@ -6,8 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import type { PDFField } from "../_lib/parsePDFFormFields";
-import { toPdfArrayBuffer } from "../_lib/pdfData";
+import { toPdfBlobUrl } from "../_lib/pdfData";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 const options = {
@@ -35,7 +34,8 @@ export default function PDFViewSection({
 	const onResize = useCallback<ResizeObserverCallback>((entries) => {
 		const [entry] = entries;
 		if (entry) {
-			setContainerWidth(entry.contentRect.width);
+			const nextWidth = entry.contentRect.width;
+			setContainerWidth(nextWidth > 0 ? nextWidth : undefined);
 		}
 	}, []);
 
@@ -64,16 +64,46 @@ export default function PDFViewSection({
 		console.error("PDF load error:", error);
 	}
 
-	const pdfData = useMemo(() => toPdfArrayBuffer(pdfFile), [pdfFile]);
+	const pdfUrl = useMemo(() => toPdfBlobUrl(pdfFile), [pdfFile]);
+
+	useEffect(() => {
+		return () => {
+			if (pdfUrl) {
+				URL.revokeObjectURL(pdfUrl);
+			}
+		};
+	}, [pdfUrl]);
+
+	useEffect(() => {
+		if (!pdfUrl) {
+			return;
+		}
+		setPageNumber(1);
+		setNumPages(undefined);
+	}, [pdfUrl]);
+
+	const pageWidthWithControls = useMemo(() => {
+		if (!containerWidth) {
+			return maxWidth - 120;
+		}
+		return Math.max(240, Math.min(containerWidth - 120, maxWidth - 120));
+	}, [containerWidth]);
+
+	const pageWidth = useMemo(() => {
+		if (!containerWidth) {
+			return maxWidth;
+		}
+		return Math.max(240, Math.min(containerWidth - 16, maxWidth));
+	}, [containerWidth]);
 
 	return (
-		<div className="hidden h-full lg:block">
+		<div className="h-full min-h-0">
 			<div
 				ref={setContainerRef}
-				className="relative flex h-full items-center justify-center"
+				className="relative flex h-full min-h-0 items-start justify-center overflow-hidden"
 			>
-				{pdfData ? (
-					<div className="relative flex h-full items-center justify-center">
+				{pdfUrl ? (
+					<div className="relative flex h-full min-h-0 w-full items-start justify-center overflow-auto">
 						{numPages && numPages > 1 && hasUploadedFile ? (
 							<>
 								<Button
@@ -81,26 +111,22 @@ export default function PDFViewSection({
 									size="icon"
 									onClick={() => setPageNumber(pageNumber - 1)}
 									disabled={pageNumber <= 1}
-									className="absolute left-2 z-10"
+									className="absolute top-1/2 left-2 z-10 -translate-y-1/2"
 								>
 									<ChevronLeftIcon className="h-4 w-4" />
 								</Button>
-								<div className="flex flex-col items-center">
+								<div className="flex min-h-full flex-col items-center justify-start py-2">
 									<Document
-										file={pdfData}
+										file={pdfUrl}
 										onLoadSuccess={onDocumentLoadSuccess}
 										onLoadError={onDocumentLoadError}
 										options={options}
-										className="h-full"
+										className="max-w-full"
 									>
 										<Page
 											key={`page_${pageNumber}`}
 											pageNumber={pageNumber}
-											width={
-												containerWidth
-													? Math.min(containerWidth - 120, maxWidth - 120)
-													: maxWidth - 120
-											}
+											width={pageWidthWithControls}
 										/>
 									</Document>
 									{numPages && numPages > 1 ? (
@@ -116,33 +142,31 @@ export default function PDFViewSection({
 									size="icon"
 									onClick={() => setPageNumber(pageNumber + 1)}
 									disabled={pageNumber >= numPages}
-									className="absolute right-2 z-10"
+									className="absolute top-1/2 right-2 z-10 -translate-y-1/2"
 								>
 									<ChevronRightIcon className="h-4 w-4" />
 								</Button>
 							</>
 						) : (
-							<Document
-								file={pdfData}
-								onLoadSuccess={onDocumentLoadSuccess}
-								onLoadError={onDocumentLoadError}
-								options={options}
-								className="h-full"
-							>
-								<Page
-									key={`page_${pageNumber}`}
-									pageNumber={pageNumber}
-									width={
-										containerWidth
-											? Math.min(containerWidth, maxWidth)
-											: maxWidth
-									}
-								/>
-							</Document>
+							<div className="flex min-h-full flex-col items-center justify-start py-2">
+								<Document
+									file={pdfUrl}
+									onLoadSuccess={onDocumentLoadSuccess}
+									onLoadError={onDocumentLoadError}
+									options={options}
+									className="max-w-full"
+								>
+									<Page
+										key={`page_${pageNumber}`}
+										pageNumber={pageNumber}
+										width={pageWidth}
+									/>
+								</Document>
+							</div>
 						)}
 					</div>
 				) : (
-					<div className="flex w-full h-full min-h-40 items-center justify-center rounded-xl border border-input border-dashed p-4">
+					<div className="flex h-full min-h-40 w-full items-center justify-center rounded-xl border border-input border-dashed p-4">
 						<div className="text-center">
 							<p className="block text-sm font-medium">
 								Laden Sie ein PDF hoch, um die Vorschau zu sehen

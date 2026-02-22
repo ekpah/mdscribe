@@ -12,14 +12,13 @@ import {
 	XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { MAX_PDF_UPLOAD_BYTES } from "../_lib/pdfData";
 
 interface PDFUploadSectionProps {
 	pdfFile: Uint8Array | null;
 	onFileUpload: (file: Uint8Array) => void;
 	onClear: () => void;
 }
-
-const maxSize = 10 * 1024 * 1024; // 10MB
 
 export default function PDFUploadSection({
 	pdfFile,
@@ -38,7 +37,7 @@ export default function PDFUploadSection({
 			getInputProps,
 		},
 	] = useFileUpload({
-		maxSize,
+		maxSize: MAX_PDF_UPLOAD_BYTES,
 		accept: "application/pdf",
 		multiple: false,
 		onFilesAdded: async (addedFiles) => {
@@ -49,10 +48,16 @@ export default function PDFUploadSection({
 			if (!(firstFile instanceof File)) {
 				return;
 			}
+			if (firstFile.size > MAX_PDF_UPLOAD_BYTES) {
+				toast.error(
+					`Datei zu groß. Maximal erlaubt: ${formatBytes(MAX_PDF_UPLOAD_BYTES)}`,
+				);
+				return;
+			}
 			const arrayBuffer = await firstFile.arrayBuffer();
 			const file = new Uint8Array(arrayBuffer);
 			onFileUpload(file);
-			toast.success(`Dokument hochgeladen`);
+			toast.success("Dokument hochgeladen");
 		},
 	});
 
@@ -92,7 +97,7 @@ export default function PDFUploadSection({
 								<p className="mb-1.5 font-medium text-sm">Datei hochladen</p>
 								<p className="text-muted-foreground text-xs">
 									Ziehen & ablegen oder klicken zum Durchsuchen (max.{" "}
-									{formatBytes(maxSize)})
+									{formatBytes(MAX_PDF_UPLOAD_BYTES)})
 								</p>
 							</div>
 						</button>

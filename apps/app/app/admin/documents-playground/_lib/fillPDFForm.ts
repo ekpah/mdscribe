@@ -1,5 +1,5 @@
-import type { FieldMapping } from "./parsePDFFormFields";
 import { PDFDocument } from "pdf-lib";
+import type { FieldMapping } from "./parsePDFFormFields";
 
 // Type for PDF form field with unknown methods
 type PDFFormField = {
@@ -19,7 +19,9 @@ export async function fillPDFForm(
 	fieldValues: Record<string, unknown>,
 	fieldMapping: FieldMapping[],
 ): Promise<Uint8Array> {
-	const pdfDoc = await PDFDocument.load(file);
+	// Load from a copy so callers can safely keep using their original upload bytes.
+	const stableBytes = new Uint8Array(file);
+	const pdfDoc = await PDFDocument.load(stableBytes);
 	const form = pdfDoc.getForm();
 
 	// Iterate through all form field values (using labels as keys)
