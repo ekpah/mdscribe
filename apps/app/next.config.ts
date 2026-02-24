@@ -1,3 +1,5 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import withBundleAnalyzer from "@next/bundle-analyzer";
 import { env } from "@repo/env";
 import { createJiti } from "jiti";
@@ -20,13 +22,17 @@ jiti.import("@repo/env");
 export const config: NextConfig = {
 	output: "standalone",
 
-	// Skip type-checking and linting during Docker builds — these run in CI instead.
-	// This prevents OOM kills on memory-constrained build servers.
+	// Tell Next.js where the monorepo root is so standalone output preserves
+	// the correct directory structure (apps/app/server.js).
+	outputFileTracingRoot: resolve(
+		dirname(fileURLToPath(import.meta.url)),
+		"../../",
+	),
+
+	// Skip type-checking during Docker builds — this runs in CI instead.
+	// Prevents OOM kills on memory-constrained build servers.
 	typescript: {
 		ignoreBuildErrors: !!process.env.SKIP_ENV_VALIDATION,
-	},
-	eslint: {
-		ignoreDuringBuilds: !!process.env.SKIP_ENV_VALIDATION,
 	},
 
 	images: {
