@@ -1,42 +1,42 @@
 # ---- Base ----
 FROM oven/bun:1.2.23-slim AS base
 
+# ---- Pruner ----
+FROM base AS pruner
+WORKDIR /app
+
+COPY . .
+
+# Generate a pruned monorepo containing only app + its transitive workspace deps.
+RUN bunx --bun turbo@2.7.1 prune app --docker --out-dir=out
+
 # ---- Dependencies ----
 FROM base AS deps
 WORKDIR /app
 
-# Copy root workspace files
-COPY package.json bun.lock turbo.json ./
-
-# Copy all workspace package.json files to preserve monorepo structure
-COPY apps/app/package.json ./apps/app/
-COPY apps/docs/package.json ./apps/docs/
-COPY apps/email/package.json ./apps/email/
-COPY packages/database/package.json ./packages/database/
-COPY packages/design-system/package.json ./packages/design-system/
-COPY packages/email/package.json ./packages/email/
-COPY packages/env/package.json ./packages/env/
-COPY packages/markdoc-md/package.json ./packages/markdoc-md/
-COPY packages/typescript-config/package.json ./packages/typescript-config/
-
-# Avoid workspace postinstall scripts (e.g. apps/docs fumadocs-mdx) in the deps layer.
-RUN bun install --frozen-lockfile --ignore-scripts
+# Install dependencies from the pruned workspace manifests only.
+COPY --from=pruner /app/out/json/ ./
+RUN bun install --frozen-lockfile
 
 # ---- Builder ----
-FROM base AS builder
+# Use Node for Next.js build compatibility (Next 16 build workers rely on
+# worker_threads options that Bun doesn't fully implement yet).
+FROM node:20-slim AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=pruner /app/out/full/ ./
 
 ENV SKIP_ENV_VALIDATION=1
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=3072"
 
 ARG NEXT_PUBLIC_BASE_URL
 ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
 
-# Build only the Next.js app workspace for this image (docs is deployed separately).
-RUN bun run build --filter=app...
+# Build only the app (docs is deployed separately).
+# Run Next directly under Node to avoid Bun worker_threads build issues.
+RUN cd apps/app && node ../../node_modules/next/dist/bin/next build --webpack
 
 # ---- Runner ----
 FROM base AS runner

@@ -4,12 +4,15 @@
 	"license": "AGPL-3.0-or-later",
 	"private": true,
 	"scripts": {
+		"source:generate": "fumadocs-mdx",
+		"prebuild": "bun run source:generate",
 		"build": "bun run --bun next build",
+		"predev": "bun run source:generate",
 		"dev": "bun run --bun next dev --port 3004",
 		"start": "bun run --bun next start",
-		"postinstall": "fumadocs-mdx",
 		"lint": "biome check",
 		"format": "biome format --write",
+		"pretypecheck": "bun run source:generate",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

@@ -20,6 +20,15 @@ jiti.import("@repo/env");
 export const config: NextConfig = {
 	output: "standalone",
 
+	// Skip type-checking and linting during Docker builds — these run in CI instead.
+	// This prevents OOM kills on memory-constrained build servers.
+	typescript: {
+		ignoreBuildErrors: !!process.env.SKIP_ENV_VALIDATION,
+	},
+	eslint: {
+		ignoreDuringBuilds: !!process.env.SKIP_ENV_VALIDATION,
+	},
+
 	images: {
 		formats: ["image/avif", "image/webp"],
 	},
