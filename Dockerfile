@@ -19,7 +19,8 @@ COPY packages/env/package.json ./packages/env/
 COPY packages/markdoc-md/package.json ./packages/markdoc-md/
 COPY packages/typescript-config/package.json ./packages/typescript-config/
 
-RUN bun install --frozen-lockfile
+# Avoid workspace postinstall scripts (e.g. apps/docs fumadocs-mdx) in the deps layer.
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # ---- Builder ----
 FROM base AS builder
@@ -34,7 +35,8 @@ ENV NODE_ENV=production
 ARG NEXT_PUBLIC_BASE_URL
 ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
 
-RUN bun run build
+# Build only the Next.js app workspace for this image (docs is deployed separately).
+RUN bun run build --filter=app...
 
 # ---- Runner ----
 FROM base AS runner
