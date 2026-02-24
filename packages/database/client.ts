@@ -2,8 +2,8 @@ import "server-only";
 
 import { PGlite } from "@electric-sql/pglite";
 import { vector } from "@electric-sql/pglite/vector";
-import { Pool } from "@neondatabase/serverless";
-import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
+import { Pool } from "pg";
+import { drizzle as drizzleNodePg } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePGlite } from "drizzle-orm/pglite";
 
 import { initSchemaSQL } from "./init-schema";
@@ -245,11 +245,11 @@ async function createDatabase() {
 		return globalForPGlite.pgliteInitPromise;
 	}
 
-	// Use Neon serverless for production
+	// Use node-postgres for production
 	const pool = new Pool({
 		connectionString: process.env.POSTGRES_DATABASE_URL,
 	});
-	return drizzleNeon({ client: pool, schema });
+	return drizzleNodePg({ client: pool, schema });
 }
 
 // Use top-level await to ensure database is initialized before export

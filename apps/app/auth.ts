@@ -18,11 +18,14 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
 import Stripe from "stripe";
 
-// initialize stripe client
-if (!(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET)) {
+// Initialize stripe client (use placeholder during Docker builds where env vars aren't available)
+const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
+if (!isBuildTime && !(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET)) {
 	throw new Error("STRIPE_SECRET_KEY is not set");
 }
-const stripeClient = new Stripe(env.STRIPE_SECRET_KEY as string);
+const stripeClient = new Stripe(
+	(env.STRIPE_SECRET_KEY as string) || "sk_placeholder",
+);
 
 export const auth = betterAuth({
 	baseURL: env.NEXT_PUBLIC_BASE_URL as string,

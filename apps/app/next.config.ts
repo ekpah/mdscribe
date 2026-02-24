@@ -18,6 +18,8 @@ export type { NextConfig };
 jiti.import("@repo/env");
 
 export const config: NextConfig = {
+	output: "standalone",
+
 	images: {
 		formats: ["image/avif", "image/webp"],
 	},

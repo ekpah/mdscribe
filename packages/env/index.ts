@@ -36,6 +36,7 @@ const client: Parameters<typeof createEnv>[0]["client"] = {
 export const env = createEnv({
 	client,
 	server,
+	skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 	runtimeEnv: {
 		POSTGRES_DATABASE_URL: process.env.POSTGRES_DATABASE_URL,
 		ADMIN_EMAIL: process.env.ADMIN_EMAIL,

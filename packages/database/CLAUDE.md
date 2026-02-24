@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is the `@repo/database` package - the Drizzle ORM layer for MDScribe. It uses PostgreSQL with pgvector extension for template embeddings, with dual runtime support:
 - **Local Development**: PGlite (in-memory PostgreSQL)
-- **Production**: Neon serverless PostgreSQL
+- **Production**: PostgreSQL via node-postgres (`pg`)
 
 ## Commands
 
@@ -28,7 +28,7 @@ bun run push
 
 ### Key Files
 - `schema.ts` - Drizzle schema definitions for all tables
-- `client.ts` - Database client with dual runtime (PGlite/Neon)
+- `client.ts` - Database client with dual runtime (PGlite/node-postgres)
 - `types.ts` - Auto-generated TypeScript types from schema
 - `init-schema.ts` - SQL initialization for PGlite
 - `test.ts` - Testing utilities
@@ -44,8 +44,8 @@ The client automatically detects the environment:
 // - Fast startup, isolated per session
 // - Schema auto-initialized on startup
 
-// Production: Uses Neon serverless
-// - Connection pooling via @neondatabase/serverless
+// Production: Uses node-postgres (pg)
+// - Connection pooling via pg Pool
 // - Requires POSTGRES_DATABASE_URL
 ```
 
