@@ -20,7 +20,8 @@
 		"typecheck": "turbo run typecheck",
 		"analyze": "turbo run analyze",
 		"bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && bun install",
-		"migrate": "cd packages/database && npx prisma format && npx prisma generate && npx prisma db push",
+		"db:bootstrap": "bun --cwd packages/database run bootstrap",
+		"migrate": "bun --cwd packages/database run migrate",
 		"knip": "knip"
 	},
 	"catalog": {

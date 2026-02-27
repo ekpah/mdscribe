@@ -2,12 +2,18 @@
   "title": "MDScribe Docs",
   "root": true,
   "pages": [
+    "index",
+    "tutorials",
+    "how-to",
+    "reference",
+    "explanation",
     "quickstart",
     "templates",
     "ai",
     "text-snippets",
-    "privacy",
     "self-hosting",
+    "privacy",
+    "knowledge",
     "faq"
   ]
 }

@@ -67,13 +67,6 @@ export default function UsersPage() {
 		);
 	}
 
-	const totalGenerations = users.reduce(
-		(sum, user) => sum + Number(user._count.usageEvents ?? 0),
-		0,
-	);
-	const plusUsers = users.filter((user) => user.hasActiveSubscription).length;
-	const freeUsers = users.length - plusUsers;
-
 	if (error && users.length === 0) {
 		return (
 			<div className="p-4 sm:p-6">

@@ -29,9 +29,7 @@ const columnHelper = createColumnHelper<UserData>();
 function getSubscriptionLabel(user: UserData) {
 	if (user.hasActiveSubscription) {
 		const plan = (user.subscriptionPlan ?? "plus").toLowerCase();
-		return plan === "plus"
-			? "Plus"
-			: plan.charAt(0).toUpperCase() + plan.slice(1);
+		return plan === "plus" ? "Plus" : plan.charAt(0).toUpperCase() + plan.slice(1);
 	}
 
 	return "Free";
