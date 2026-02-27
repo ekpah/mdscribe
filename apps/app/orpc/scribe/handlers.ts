@@ -1,6 +1,6 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { database, sql, subscription, usageEvent } from "@repo/database";
+import { and, database, eq, inArray, sql, subscription, usageEvent } from "@repo/database";
 import { env } from "@repo/env";
 import {
 	type LanguageModel,
@@ -156,7 +156,10 @@ async function checkUsageLimit(
 		.select()
 		.from(subscription)
 		.where(
-			sql`${subscription.referenceId} = ${userId} AND ${subscription.status} IN ('active', 'trialing')`,
+			and(
+				eq(subscription.referenceId, userId),
+				inArray(subscription.status, ["active", "trialing"]),
+			),
 		);
 
 	const activeSubscription = subscriptions.length > 0;

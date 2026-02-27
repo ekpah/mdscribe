@@ -1,7 +1,6 @@
 import { type } from "@orpc/server";
-import { count, isNull, sql, template } from "@repo/database";
+import { count, eq, isNull, template } from "@repo/database";
 import { env } from "@repo/env";
-import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
 
 import { authed } from "@/orpc";
@@ -115,13 +114,10 @@ export const migrateEmbeddingsHandler = authed
 			for (const templateItem of batch) {
 				try {
 					const embedding = await generateEmbeddings(templateItem.content);
-					const embeddingSql = pgvector.toSql(embedding);
-
-					await context.db.execute(sql`
-						UPDATE "Template"
-						SET "embedding" = ${embeddingSql}::vector
-						WHERE "id" = ${templateItem.id}
-					`);
+					await context.db
+						.update(template)
+						.set({ embedding })
+						.where(eq(template.id, templateItem.id));
 					stats.processed++;
 				} catch (error) {
 					stats.failed++;

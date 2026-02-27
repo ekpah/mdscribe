@@ -123,7 +123,9 @@ function parseRadioGroupField(
 export async function parseFormFieldsFromPDF(
 	file: Uint8Array,
 ): Promise<PDFField[]> {
-	const pdfDoc = await PDFDocument.load(file);
+	// Always parse from a copied buffer to avoid mutating/detaching shared upload state.
+	const stableBytes = new Uint8Array(file);
+	const pdfDoc = await PDFDocument.load(stableBytes);
 	const form = pdfDoc.getForm();
 	const fields: PDFField[] = [];
 

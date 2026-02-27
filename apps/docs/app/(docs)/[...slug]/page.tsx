@@ -1,15 +1,15 @@
-import type { MDXContent } from 'mdx/types';
-import { getPageImage, source } from '@/lib/source';
+import { createRelativeLink } from "fumadocs-ui/mdx";
 import {
   DocsBody,
   DocsDescription,
   DocsPage,
   DocsTitle,
-} from 'fumadocs-ui/page';
-import { notFound } from 'next/navigation';
-import { getMDXComponents } from '@/mdx-components';
-import type { Metadata } from 'next';
-import { createRelativeLink } from 'fumadocs-ui/mdx';
+} from "fumadocs-ui/page";
+import type { MDXContent } from "mdx/types";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { getPageImage, source } from "@/lib/source";
+import { getMDXComponents } from "@/mdx-components";
 
 type DocsPageProps = {
   params: Promise<{ slug: string[] }>;

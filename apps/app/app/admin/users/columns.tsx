@@ -1,9 +1,10 @@
 "use client";
 
-import { createColumnHelper } from "@tanstack/react-table";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
+import { createColumnHelper } from "@tanstack/react-table";
 import { CheckCircle, Mail, Star, User } from "lucide-react";
+import Image from "next/image";
 
 export interface UserData {
 	id: string;
@@ -28,7 +29,9 @@ const columnHelper = createColumnHelper<UserData>();
 function getSubscriptionLabel(user: UserData) {
 	if (user.hasActiveSubscription) {
 		const plan = (user.subscriptionPlan ?? "plus").toLowerCase();
-		return plan === "plus" ? "Plus" : plan.charAt(0).toUpperCase() + plan.slice(1);
+		return plan === "plus"
+			? "Plus"
+			: plan.charAt(0).toUpperCase() + plan.slice(1);
 	}
 
 	return "Free";
@@ -56,10 +59,13 @@ export const columns = [
 				return (
 					<div className="flex items-center gap-3">
 						{image ? (
-							<img
+							<Image
 								src={image}
 								alt={name || email}
+								width={32}
+								height={32}
 								className="h-8 w-8 rounded-full"
+								unoptimized
 							/>
 						) : (
 							<div className="flex h-8 w-8 items-center justify-center rounded-full bg-solarized-base2">
@@ -144,7 +150,6 @@ export const columns = [
 			return a.localeCompare(b);
 		},
 	}),
-
 	columnHelper.accessor("_count.templates", {
 		id: "templates",
 		header: ({ column }) => (

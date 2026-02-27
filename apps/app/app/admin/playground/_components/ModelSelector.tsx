@@ -127,7 +127,7 @@ export function ModelSelector({
 					role="combobox"
 					aria-expanded={open}
 					disabled={disabled || isLoading}
-					className="w-full justify-between border-solarized-base2 bg-solarized-base3 text-left font-normal hover:bg-solarized-base2"
+					className="w-full min-w-0 justify-between border-solarized-base2 bg-solarized-base3 text-left font-normal hover:bg-solarized-base2"
 				>
 					{isLoading ? (
 						<div className="flex items-center gap-2">
@@ -135,9 +135,9 @@ export function ModelSelector({
 							<span>Lade Modelle...</span>
 						</div>
 					) : selectedModel ? (
-						<div className="flex items-center gap-2 truncate">
-							<span className="truncate">{selectedModel.name}</span>
-							<div className="flex gap-1">
+						<div className="flex min-w-0 items-center gap-2">
+							<span className="min-w-0 truncate">{selectedModel.name}</span>
+							<div className="flex shrink-0 gap-1">
 								{selectedModel.capabilities.supportsImage && (
 									<ImageIcon className="h-3 w-3 text-solarized-blue" />
 								)}
@@ -153,8 +153,10 @@ export function ModelSelector({
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
-				className="w-[400px] p-0"
+				className="max-h-[min(70vh,32rem)] w-[min(26rem,calc(100vw-1rem))] overflow-hidden p-0"
 				align="start"
+				collisionPadding={8}
+				sideOffset={6}
 			>
 				<Command shouldFilter={false}>
 					<CommandInput
@@ -162,7 +164,7 @@ export function ModelSelector({
 						value={search}
 						onValueChange={setSearch}
 					/>
-					<CommandList className="max-h-[400px]">
+					<CommandList className="max-h-[min(60vh,24rem)]">
 						<CommandEmpty>Keine Modelle gefunden.</CommandEmpty>
 						{Object.entries(filteredGroups)
 							.sort(([a], [b]) => {
@@ -182,7 +184,7 @@ export function ModelSelector({
 											setOpen(false);
 											setSearch("");
 										}}
-										className="flex items-start gap-2 py-2"
+										className="flex min-w-0 items-start gap-2 py-2"
 									>
 										<Check
 											className={cn(
@@ -193,8 +195,8 @@ export function ModelSelector({
 											)}
 										/>
 										<div className="flex flex-1 flex-col gap-1 overflow-hidden">
-											<div className="flex items-center gap-2">
-												<span className="truncate font-medium">
+											<div className="flex min-w-0 items-center gap-2">
+												<span className="min-w-0 truncate font-medium">
 													{model.name}
 												</span>
 												{isTopModel(model.id) && provider !== "_top" && (

@@ -1,7 +1,9 @@
 import { env } from "@repo/env";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getServerSession } from "@/lib/server-session";
+import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
 import { AdminBreadcrumb } from "./_components/AdminBreadcrumb";
 
 interface AdminLayoutProps {
@@ -10,10 +12,12 @@ interface AdminLayoutProps {
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
 	// Check authentication
+	const requestHeaders = await headers();
 	const session = await getServerSession();
 
 	if (!session?.user) {
-		redirect("/");
+		const requestedPath = getRequestedPath(requestHeaders, "/admin");
+		redirect(createSignInRedirect(requestedPath));
 	}
 
 	// Check admin access

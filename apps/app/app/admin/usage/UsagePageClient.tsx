@@ -17,9 +17,10 @@ import {
 	ToggleGroup,
 	ToggleGroupItem,
 } from "@repo/design-system/components/ui/toggle-group";
-import { useQuery } from "@tanstack/react-query";
-import { Activity, Loader2, XCircle } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Activity, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { UsageEventDetail } from "./_components/UsageEventDetail";
 import { createColumns, type UsageEventWithUser } from "./columns";
@@ -34,19 +35,33 @@ const filterLabels: Record<StatsFilter, string> = {
 };
 
 export default function UsagePage() {
+	const queryClient = useQueryClient();
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 	const [cursor, setCursor] = useState<string | undefined>(undefined);
 	const [allItems, setAllItems] = useState<UsageEventWithUser[]>([]);
 	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
 	const [searchFilter, setSearchFilter] = useState("");
+	const statsQueryOptions = orpc.admin.usage.stats.queryOptions({
+		input: { filter: statsFilter },
+	});
+	const listQueryKey = orpc.admin.usage.list.queryOptions({
+		input: { limit: 25 },
+	}).queryKey;
 
 	// Stats query
-	const { data: stats, isLoading: statsLoading } = useQuery(
-		orpc.admin.usage.stats.queryOptions({ input: { filter: statsFilter } }),
-	);
+	const {
+		data: stats,
+		isLoading: statsLoading,
+		isFetching: isFetchingStats,
+	} = useQuery(statsQueryOptions);
 
 	// List query with pagination
-	const { data, isLoading, isFetching, error } = useQuery({
+	const {
+		data,
+		isLoading,
+		isFetching: isFetchingList,
+		error,
+	} = useQuery({
 		...orpc.admin.usage.list.queryOptions({
 			input: {
 				limit: 25,
@@ -55,6 +70,19 @@ export default function UsagePage() {
 		}),
 		placeholderData: (prev) => prev,
 	});
+
+	const handleRefresh = async () => {
+		setCursor(undefined);
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: statsQueryOptions.queryKey,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: listQueryKey,
+			}),
+		]);
+		toast.success("Nutzungsdaten aktualisiert");
+	};
 
 	// Accumulate items when new data arrives
 	useEffect(() => {
@@ -159,18 +187,32 @@ export default function UsagePage() {
 			<div className="mx-auto max-w-6xl space-y-4 sm:space-y-6">
 				{/* Header */}
 				<div className="space-y-2">
-					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-solarized-green/10 sm:h-12 sm:w-12">
-							<Activity className="h-5 w-5 text-solarized-green sm:h-6 sm:w-6" />
+					<div className="flex items-center justify-between gap-4">
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-solarized-green/10 sm:h-12 sm:w-12">
+								<Activity className="h-5 w-5 text-solarized-green sm:h-6 sm:w-6" />
+							</div>
+							<div>
+								<h1 className="text-xl font-bold text-solarized-base00 sm:text-2xl md:text-3xl">
+									Nutzungsstatistik
+								</h1>
+								<p className="text-sm text-solarized-base01 sm:text-base">
+									Übersicht aller AI-Generierungen auf der Plattform
+								</p>
+							</div>
 						</div>
-						<div>
-							<h1 className="text-xl font-bold text-solarized-base00 sm:text-2xl md:text-3xl">
-								Nutzungsstatistik
-							</h1>
-							<p className="text-sm text-solarized-base01 sm:text-base">
-								Übersicht aller AI-Generierungen auf der Plattform
-							</p>
-						</div>
+						<Button
+							variant="outline"
+							onClick={handleRefresh}
+							disabled={isFetchingList || isFetchingStats}
+						>
+							<RefreshCw
+								className={`mr-2 h-4 w-4 ${
+									isFetchingList || isFetchingStats ? "animate-spin" : ""
+								}`}
+							/>
+							<span className="hidden sm:inline">Aktualisieren</span>
+						</Button>
 					</div>
 				</div>
 
@@ -275,10 +317,10 @@ export default function UsagePage() {
 								<Button
 									variant="outline"
 									onClick={handleLoadMore}
-									disabled={isFetching}
+									disabled={isFetchingList}
 									className="border-solarized-base2"
 								>
-									{isFetching ? (
+									{isFetchingList ? (
 										<>
 											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 											Lädt...

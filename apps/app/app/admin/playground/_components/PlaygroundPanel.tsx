@@ -2,6 +2,12 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@repo/design-system/components/ui/accordion";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
@@ -27,6 +33,7 @@ import {
 	TabsTrigger,
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
+import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
 	type MutableRefObject,
@@ -41,7 +48,7 @@ import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
-import { DEFAULT_PARAMETERS } from "../_lib/types";
+import { DEFAULT_PARAMETERS, requiresThinking } from "../_lib/types";
 import { ModelSelector } from "./ModelSelector";
 import { ParameterControls } from "./ParameterControls";
 import { ResultDisplay } from "./ResultDisplay";
@@ -169,6 +176,10 @@ export function PlaygroundPanel({
 	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">(
 		"input",
 	);
+	const isMobile = useIsMobile();
+	const [mobileInputPanelValue, setMobileInputPanelValue] = useState<
+		string | undefined
+	>("input-config");
 
 	const initialDocType = presetDocumentType ?? "discharge";
 	const [documentType, setDocumentType] =
@@ -279,6 +290,9 @@ export function PlaygroundPanel({
 					presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
 				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
 				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
+				thinkingExplicit:
+					presetParameters?.thinkingExplicit ??
+					DEFAULT_PARAMETERS.thinkingExplicit,
 				thinkingBudget:
 					presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
 				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
@@ -301,7 +315,16 @@ export function PlaygroundPanel({
 			if (!first || first.model) return prev;
 			const match = models.find((m) => m.id === presetModel);
 			if (!match) return prev;
-			return [{ ...first, model: match }, ...prev.slice(1)];
+			return [
+				{
+					...first,
+					model: match,
+					parameters: requiresThinking(match.id)
+						? { ...first.parameters, thinking: true }
+						: first.parameters,
+				},
+				...prev.slice(1),
+			];
 		});
 	}, [presetModel, models]);
 
@@ -351,380 +374,418 @@ export function PlaygroundPanel({
 	}, []);
 
 	return (
-		<div className="flex h-full flex-col gap-3 lg:flex-row">
+		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
 			{/* Left Panel - Tabs */}
-			<Card className="w-full border-solarized-base2 lg:w-[460px] lg:shrink-0">
-				<CardHeader className="border-b border-solarized-base2 px-3 py-2">
-					<CardTitle className="text-sm text-solarized-base00">
-						AI Scribe Playground
-					</CardTitle>
-				</CardHeader>
-
-				<Tabs
-					className="flex h-[calc(100%-44px)] flex-col"
-					onValueChange={(v) =>
-						setActiveTab(v as "input" | "prompt" | "models")
-					}
-					value={activeTab}
+			<div className="w-full min-w-0 lg:w-[460px] lg:shrink-0">
+				<Accordion
+					type="single"
+					collapsible={isMobile}
+					value={isMobile ? mobileInputPanelValue : "input-config"}
+					onValueChange={(value) => {
+						if (!isMobile) return;
+						setMobileInputPanelValue(value || undefined);
+					}}
+					className="w-full"
 				>
-					<div className="border-b border-solarized-base2 px-3 py-2">
-						<TabsList className="grid h-8 w-full grid-cols-3">
-							<TabsTrigger value="input" className="text-xs">
-								Input
-							</TabsTrigger>
-							<TabsTrigger value="prompt" className="text-xs">
-								Prompt
-							</TabsTrigger>
-							<TabsTrigger value="models" className="text-xs">
-								Models
-							</TabsTrigger>
-						</TabsList>
-					</div>
+					<AccordionItem
+						value="input-config"
+						className="border-solarized-base2 lg:border-0"
+					>
+						<AccordionTrigger className="py-2 text-xs text-solarized-base00 hover:no-underline lg:hidden">
+							Input & Konfiguration
+						</AccordionTrigger>
+						<AccordionContent className="pb-0 pt-2 lg:pt-0">
+							<Card className="flex w-full min-w-0 flex-col border-solarized-base2 lg:overflow-hidden">
+								<CardHeader className="border-b border-solarized-base2 px-3 py-2">
+									<CardTitle className="text-sm text-solarized-base00">
+										AI Scribe Playground
+									</CardTitle>
+								</CardHeader>
 
-					<ScrollArea className="min-h-0 flex-1">
-						<CardContent className="space-y-4 p-3">
-							<TabsContent value="input" className="mt-0 space-y-3">
-								<div className="space-y-2">
-									<Label className="text-sm text-solarized-base01">
-										Dokumenttyp
-									</Label>
-									<Select
-										onValueChange={(v) => setDocumentType(v as DocumentType)}
-										value={documentType}
-									>
-										<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											{allScribeDocTypes.map((dt) => (
-												<SelectItem key={dt} value={dt}>
-													{scribeDocTypeUi[dt].label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-
-								<div className="space-y-4">
-									<div className="space-y-2">
-										<Label
-											className="text-sm text-solarized-base01"
-											htmlFor="main-input"
-										>
-											{docUi.mainField.label}
-										</Label>
-										<Textarea
-											className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-											id="main-input"
-											onChange={(e) => setFormMain(e.target.value)}
-											placeholder={docUi.mainField.placeholder}
-											value={formMain}
-										/>
-										{docUi.mainField.description && (
-											<p className="text-xs text-solarized-base01">
-												{docUi.mainField.description}
-											</p>
-										)}
+								<Tabs
+									className="flex min-h-0 min-w-0 flex-1 flex-col"
+									onValueChange={(v) =>
+										setActiveTab(v as "input" | "prompt" | "models")
+									}
+									value={activeTab}
+								>
+									<div className="border-b border-solarized-base2 px-3 py-2">
+										<TabsList className="grid h-8 w-full grid-cols-3">
+											<TabsTrigger value="input" className="text-xs">
+												Input
+											</TabsTrigger>
+											<TabsTrigger value="prompt" className="text-xs">
+												Prompt
+											</TabsTrigger>
+											<TabsTrigger value="models" className="text-xs">
+												Models
+											</TabsTrigger>
+										</TabsList>
 									</div>
 
-									{docUi.additionalFields.length > 0 && (
-										<div className="space-y-4">
-											<Separator className="bg-solarized-base2" />
-											{docUi.additionalFields.map((field) => (
-												<div className="space-y-2" key={field.name}>
-													<Label
-														className="text-sm text-solarized-base01"
-														htmlFor={field.name}
-													>
-														{field.label}
+									<ScrollArea className="min-h-0 min-w-0 flex-1 lg:max-h-none">
+										<CardContent className="min-w-0 space-y-4 p-3">
+											<TabsContent value="input" className="mt-0 space-y-3">
+												<div className="space-y-2">
+													<Label className="text-sm text-solarized-base01">
+														Dokumenttyp
 													</Label>
-													<Textarea
-														className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-														id={field.name}
-														onChange={(e) =>
-															setFormAdditional((prev) => ({
-																...prev,
-																[field.name]: e.target.value,
-															}))
-														}
-														placeholder={field.placeholder}
-														value={formAdditional[field.name] ?? ""}
-													/>
+													<Select
+														onValueChange={(v) => setDocumentType(v as DocumentType)}
+														value={documentType}
+													>
+														<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															{allScribeDocTypes.map((dt) => (
+																<SelectItem key={dt} value={dt}>
+																	{scribeDocTypeUi[dt].label}
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
 												</div>
-											))}
-										</div>
-									)}
 
-									<div className="space-y-2">
-										<div className="flex items-center justify-between">
-											<Label className="text-sm text-solarized-base01">
-												Prompt JSON (gesendet an Server)
-											</Label>
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
-												onClick={async () => {
-													await navigator.clipboard.writeText(promptJson);
-													toast.success("Kopiert!");
-												}}
-											>
-												<Copy className="h-4 w-4" />
-												Kopieren
-											</Button>
-										</div>
-										<Textarea
-											readOnly
-											value={JSON.stringify(JSON.parse(promptJson), null, 2)}
-											className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-										/>
-									</div>
-								</div>
-							</TabsContent>
-
-							<TabsContent value="prompt" className="mt-0 space-y-4">
-								<div className="grid grid-cols-2 gap-3">
-									<div className="space-y-2">
-										<Label className="text-sm text-solarized-base01">
-											Prompt Name
-										</Label>
-										<Input
-											className="border-solarized-base2 bg-solarized-base3"
-											onChange={(e) => setPromptName(e.target.value)}
-											value={promptName}
-											placeholder="z.B. Inpatient_discharge_chat"
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label className="text-sm text-solarized-base01">
-											Label
-										</Label>
-										<Select
-											onValueChange={(v) =>
-												setPromptLabel(v as "staging" | "production")
-											}
-											value={promptLabel}
-										>
-											<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="staging">staging</SelectItem>
-												<SelectItem value="production">production</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-								</div>
-
-								<div className="flex gap-2">
-									<Button
-										type="button"
-										onClick={compile}
-										disabled={isCompiling}
-										className="bg-solarized-blue hover:bg-solarized-blue/90"
-									>
-										{isCompiling ? "Kompiliere..." : "Kompilieren"}
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										className="border-solarized-base2"
-										onClick={() => {
-											setCompiledOverride(null);
-											toast.success("Override zurückgesetzt");
-										}}
-										disabled={compiledOverride === null}
-									>
-										<RotateCcw className="h-4 w-4" />
-										Override zurücksetzen
-									</Button>
-								</div>
-
-								{compiledMessages.length === 0 ? (
-									<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-4 text-sm text-solarized-base01">
-										Kompiliere den Prompt, um die finalen Messages zu sehen.
-									</div>
-								) : (
-									<div className="space-y-4">
-										<div className="space-y-2">
-											<Label className="text-sm text-solarized-base01">
-												Inputs (variablesUsed)
-											</Label>
-											<Textarea
-												readOnly
-												value={JSON.stringify(compiledVariables, null, 2)}
-												className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-											/>
-										</div>
-
-										<div className="space-y-2">
-											<Label className="text-sm text-solarized-base01">
-												Compiled Messages (editierbar)
-											</Label>
-											<div className="space-y-3">
-												{(compiledOverride ?? compiledMessages).map(
-													(m, idx) => (
-														<div
-															key={`${m.role}-${idx}`}
-															className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
+												<div className="space-y-4">
+													<div className="space-y-2">
+														<Label
+															className="text-sm text-solarized-base01"
+															htmlFor="main-input"
 														>
-															<div className="flex items-center justify-between">
-																<span className="font-mono text-xs text-solarized-base01">
-																	{m.role}
-																</span>
+															{docUi.mainField.label}
+														</Label>
+														<Textarea
+															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+															id="main-input"
+															onChange={(e) => setFormMain(e.target.value)}
+															placeholder={docUi.mainField.placeholder}
+															value={formMain}
+														/>
+														{docUi.mainField.description && (
+															<p className="text-xs text-solarized-base01">
+																{docUi.mainField.description}
+															</p>
+														)}
+													</div>
+
+													{docUi.additionalFields.length > 0 && (
+														<div className="space-y-4">
+															<Separator className="bg-solarized-base2" />
+															{docUi.additionalFields.map((field) => (
+																<div className="space-y-2" key={field.name}>
+																	<Label
+																		className="text-sm text-solarized-base01"
+																		htmlFor={field.name}
+																	>
+																		{field.label}
+																	</Label>
+																	<Textarea
+																		className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+																		id={field.name}
+																		onChange={(e) =>
+																			setFormAdditional((prev) => ({
+																				...prev,
+																				[field.name]: e.target.value,
+																			}))
+																		}
+																		placeholder={field.placeholder}
+																		value={formAdditional[field.name] ?? ""}
+																	/>
+																</div>
+															))}
+														</div>
+													)}
+
+													<div className="space-y-2">
+														<div className="flex items-center justify-between">
+															<Label className="text-sm text-solarized-base01">
+																Prompt JSON (gesendet an Server)
+															</Label>
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
+																onClick={async () => {
+																	await navigator.clipboard.writeText(promptJson);
+																	toast.success("Kopiert!");
+																}}
+															>
+																<Copy className="h-4 w-4" />
+																Kopieren
+															</Button>
+														</div>
+														<Textarea
+															readOnly
+															value={JSON.stringify(JSON.parse(promptJson), null, 2)}
+															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
+														/>
+													</div>
+												</div>
+											</TabsContent>
+
+											<TabsContent value="prompt" className="mt-0 space-y-4">
+												<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+													<div className="space-y-2">
+														<Label className="text-sm text-solarized-base01">
+															Prompt Name
+														</Label>
+														<Input
+															className="border-solarized-base2 bg-solarized-base3"
+															onChange={(e) => setPromptName(e.target.value)}
+															value={promptName}
+															placeholder="z.B. Inpatient_discharge_chat"
+														/>
+													</div>
+													<div className="space-y-2">
+														<Label className="text-sm text-solarized-base01">
+															Label
+														</Label>
+														<Select
+															onValueChange={(v) =>
+																setPromptLabel(v as "staging" | "production")
+															}
+															value={promptLabel}
+														>
+															<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
+																<SelectValue />
+															</SelectTrigger>
+															<SelectContent>
+																<SelectItem value="staging">staging</SelectItem>
+																<SelectItem value="production">
+																	production
+																</SelectItem>
+															</SelectContent>
+														</Select>
+													</div>
+												</div>
+
+												<div className="flex flex-wrap gap-2">
+													<Button
+														type="button"
+														onClick={compile}
+														disabled={isCompiling}
+														className="bg-solarized-blue hover:bg-solarized-blue/90"
+													>
+														{isCompiling ? "Kompiliere..." : "Kompilieren"}
+													</Button>
+													<Button
+														type="button"
+														variant="outline"
+														className="border-solarized-base2"
+														onClick={() => {
+															setCompiledOverride(null);
+															toast.success("Override zurückgesetzt");
+														}}
+														disabled={compiledOverride === null}
+													>
+														<RotateCcw className="h-4 w-4" />
+														Override zurücksetzen
+													</Button>
+												</div>
+
+												{compiledMessages.length === 0 ? (
+													<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-4 text-sm text-solarized-base01">
+														Kompiliere den Prompt, um die finalen Messages zu
+														sehen.
+													</div>
+												) : (
+													<div className="space-y-4">
+														<div className="space-y-2">
+															<Label className="text-sm text-solarized-base01">
+																Inputs (variablesUsed)
+															</Label>
+															<Textarea
+																readOnly
+																value={JSON.stringify(compiledVariables, null, 2)}
+																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
+															/>
+														</div>
+
+														<div className="space-y-2">
+															<Label className="text-sm text-solarized-base01">
+																Compiled Messages (editierbar)
+															</Label>
+															<div className="space-y-3">
+																{(compiledOverride ?? compiledMessages).map(
+																	(m, idx) => (
+																		<div
+																			key={`${m.role}-${idx}`}
+																			className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
+																		>
+																			<div className="flex items-center justify-between">
+																				<span className="font-mono text-xs text-solarized-base01">
+																					{m.role}
+																				</span>
+																				<Button
+																					type="button"
+																					variant="ghost"
+																					size="sm"
+																					className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
+																					onClick={async () => {
+																						await navigator.clipboard.writeText(
+																							m.content,
+																						);
+																						toast.success("Kopiert!");
+																					}}
+																				>
+																					<Copy className="h-3.5 w-3.5" />
+																					Copy
+																				</Button>
+																			</div>
+																			<Textarea
+																				value={m.content}
+																				onChange={(e) => {
+																					const next = (
+																						compiledOverride ?? compiledMessages
+																					).map((x) => ({ ...x }));
+																					next[idx] = {
+																						...next[idx],
+																						content: e.target.value,
+																					};
+																					setCompiledOverride(next);
+																				}}
+																				className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+																			/>
+																		</div>
+																	),
+																)}
+															</div>
+														</div>
+													</div>
+												)}
+											</TabsContent>
+
+											<TabsContent value="models" className="mt-0 space-y-4">
+												<div className="flex flex-wrap items-start justify-between gap-2">
+													<div className="space-y-0.5">
+														<p className="font-medium text-sm text-solarized-base00">
+															Model Runs
+														</p>
+														<p className="text-xs text-solarized-base01">
+															Definiere mehrere Modelle/Parameter, die mit
+															demselben Input und Prompt getestet werden.
+														</p>
+													</div>
+													<Button
+														type="button"
+														size="sm"
+														className="gap-2"
+														onClick={() =>
+															setModelRuns((prev) => [
+																...prev,
+																{
+																	id: crypto.randomUUID(),
+																	model: null,
+																	parameters: { ...DEFAULT_PARAMETERS },
+																},
+															])
+														}
+													>
+														<Plus className="h-4 w-4" />
+														Add
+													</Button>
+												</div>
+
+												<div className="space-y-4">
+													{modelRuns.map((run) => (
+														<div
+															key={run.id}
+															className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3 p-4"
+														>
+															<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+																<div className="min-w-0 flex-1 space-y-2">
+																	<Label className="text-sm text-solarized-base01">
+																		Modell
+																	</Label>
+																	<ModelSelector
+																		models={models}
+																		topModelIds={topModelIds}
+																		isLoading={isLoadingModels}
+																		selectedModel={run.model}
+																		onSelect={(m) =>
+																			setModelRuns((prev) =>
+																				prev.map((r) => {
+																					if (r.id !== run.id) return r;
+																					return {
+																						...r,
+																						model: m,
+																						parameters: requiresThinking(m.id)
+																							? {
+																									...r.parameters,
+																									thinking: true,
+																								}
+																							: r.parameters,
+																					};
+																				}),
+																			)
+																		}
+																	/>
+																</div>
+
 																<Button
 																	type="button"
 																	variant="ghost"
 																	size="sm"
-																	className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																	onClick={async () => {
-																		await navigator.clipboard.writeText(
-																			m.content,
+																	className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
+																	onClick={() => {
+																		setModelRuns((prev) =>
+																			prev.filter((r) => r.id !== run.id),
 																		);
-																		toast.success("Kopiert!");
+																		setRunStates((prev) => {
+																			const next = { ...prev };
+																			delete next[run.id];
+																			return next;
+																		});
 																	}}
+																	disabled={modelRuns.length === 1}
+																	title={
+																		modelRuns.length === 1
+																			? "Mindestens ein Run muss existieren"
+																			: "Run entfernen"
+																	}
 																>
-																	<Copy className="h-3.5 w-3.5" />
-																	Copy
+																	<Trash2 className="h-4 w-4" />
+																	Remove
 																</Button>
 															</div>
-															<Textarea
-																value={m.content}
-																onChange={(e) => {
-																	const next = (
-																		compiledOverride ?? compiledMessages
-																	).map((x) => ({ ...x }));
-																	next[idx] = {
-																		...next[idx],
-																		content: e.target.value,
-																	};
-																	setCompiledOverride(next);
-																}}
-																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-															/>
+
+															<Separator className="bg-solarized-base2" />
+
+															<div className="space-y-2">
+																<Label className="text-sm text-solarized-base01">
+																	Parameter
+																</Label>
+																<ParameterControls
+																	parameters={run.parameters}
+																	onChange={(p) =>
+																		setModelRuns((prev) =>
+																			prev.map((r) =>
+																				r.id === run.id
+																					? { ...r, parameters: p }
+																					: r,
+																			),
+																		)
+																	}
+																	model={run.model}
+																/>
+															</div>
 														</div>
-													),
-												)}
-											</div>
-										</div>
-									</div>
-								)}
-							</TabsContent>
-
-							<TabsContent value="models" className="mt-0 space-y-4">
-								<div className="flex items-center justify-between">
-									<div className="space-y-0.5">
-										<p className="font-medium text-sm text-solarized-base00">
-											Model Runs
-										</p>
-										<p className="text-xs text-solarized-base01">
-											Definiere mehrere Modelle/Parameter, die mit demselben
-											Input und Prompt getestet werden.
-										</p>
-									</div>
-									<Button
-										type="button"
-										size="sm"
-										className="gap-2"
-										onClick={() =>
-											setModelRuns((prev) => [
-												...prev,
-												{
-													id: crypto.randomUUID(),
-													model: null,
-													parameters: { ...DEFAULT_PARAMETERS },
-												},
-											])
-										}
-									>
-										<Plus className="h-4 w-4" />
-										Add
-									</Button>
-								</div>
-
-								<div className="space-y-4">
-									{modelRuns.map((run) => (
-										<div
-											key={run.id}
-											className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3 p-4"
-										>
-											<div className="flex items-center justify-between gap-2">
-												<div className="space-y-2">
-													<Label className="text-sm text-solarized-base01">
-														Modell
-													</Label>
-													<ModelSelector
-														models={models}
-														topModelIds={topModelIds}
-														isLoading={isLoadingModels}
-														selectedModel={run.model}
-														onSelect={(m) =>
-															setModelRuns((prev) =>
-																prev.map((r) =>
-																	r.id === run.id ? { ...r, model: m } : r,
-																),
-															)
-														}
-													/>
+													))}
 												</div>
-
-												<Button
-													type="button"
-													variant="ghost"
-													size="sm"
-													className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
-													onClick={() => {
-														setModelRuns((prev) =>
-															prev.filter((r) => r.id !== run.id),
-														);
-														setRunStates((prev) => {
-															const next = { ...prev };
-															delete next[run.id];
-															return next;
-														});
-													}}
-													disabled={modelRuns.length === 1}
-													title={
-														modelRuns.length === 1
-															? "Mindestens ein Run muss existieren"
-															: "Run entfernen"
-													}
-												>
-													<Trash2 className="h-4 w-4" />
-													Remove
-												</Button>
-											</div>
-
-											<Separator className="bg-solarized-base2" />
-
-											<div className="space-y-2">
-												<Label className="text-sm text-solarized-base01">
-													Parameter
-												</Label>
-												<ParameterControls
-													parameters={run.parameters}
-													onChange={(p) =>
-														setModelRuns((prev) =>
-															prev.map((r) =>
-																r.id === run.id ? { ...r, parameters: p } : r,
-															),
-														)
-													}
-													modelId={run.model?.id}
-												/>
-											</div>
-										</div>
-									))}
-								</div>
-							</TabsContent>
-						</CardContent>
-					</ScrollArea>
-				</Tabs>
-			</Card>
+											</TabsContent>
+										</CardContent>
+									</ScrollArea>
+								</Tabs>
+							</Card>
+						</AccordionContent>
+					</AccordionItem>
+				</Accordion>
+			</div>
 
 			{/* Right Panel - Results */}
-			<Card className="flex min-h-0 flex-1 flex-col border-solarized-base2">
+			<Card className="flex min-h-[500px] min-w-0 w-full flex-1 flex-col border-solarized-base2 lg:min-h-0">
 				<CardHeader className="shrink-0 border-b border-solarized-base2 px-3 py-2">
 					<div className="flex items-center justify-between gap-2">
 						<div className="min-w-0">
@@ -735,7 +796,7 @@ export function PlaygroundPanel({
 								{scribeDocTypeUi[documentType].label} · {promptName}
 							</p>
 						</div>
-						<div className="flex shrink-0 gap-1.5">
+						<div className="flex shrink-0 flex-wrap justify-end gap-1.5">
 							<Button
 								type="button"
 								variant="outline"
@@ -924,6 +985,8 @@ function RunCard({
 		payloadRef.current = {
 			requestId,
 			model: modelRun.model.id,
+			supportsReasoning:
+				modelRun.model.supported_parameters.includes("reasoning"),
 			parameters: modelRun.parameters,
 			documentType,
 			promptName,
@@ -968,7 +1031,7 @@ function RunCard({
 	}, [runId, runTriggersRef, startRun]);
 
 	return (
-		<div className="flex h-[400px] flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2">
+		<div className="flex h-[350px] min-w-0 flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2 lg:h-[400px]">
 			{/* Header row */}
 			<div className="flex shrink-0 items-center justify-between gap-2">
 				<div className="min-w-0 flex-1">

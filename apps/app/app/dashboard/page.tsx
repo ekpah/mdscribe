@@ -19,16 +19,15 @@ import {
 	BookmarkIcon,
 	Brain,
 	ClipboardCheck,
+	CreditCard,
 	ExternalLinkIcon,
 	FileCheck,
 	FileText,
 	Heart,
 	PlusIcon,
 	SearchIcon,
-	Settings,
 	Star,
 	Stethoscope,
-	TrendingUp,
 	Zap,
 } from "lucide-react";
 import { headers } from "next/headers";
@@ -61,6 +60,48 @@ const eventNameLabels: Record<string, string> = {
 	ai_pdf_form_parsing: "PDF-Formular analysiert",
 	admin_scribe_playground: "Playground-Generierung",
 };
+
+function getSubscriptionPlanLabel(plan?: string | null) {
+	if (!plan) {
+		return "Basis";
+	}
+
+	const normalizedPlan = plan.toLowerCase();
+	return normalizedPlan === "plus"
+		? "Plus"
+		: normalizedPlan.charAt(0).toUpperCase() + normalizedPlan.slice(1);
+}
+
+function getSubscriptionStatus(subscription?: {
+	status?: string;
+	cancelAtPeriodEnd?: boolean;
+}) {
+	if (!subscription) {
+		return {
+			label: "Kein Abonnement",
+			badgeClassName: "border-solarized-base1 text-solarized-base01",
+		};
+	}
+
+	if (subscription.cancelAtPeriodEnd) {
+		return {
+			label: "Wird gekündigt",
+			badgeClassName: "border-solarized-orange/70 text-solarized-orange",
+		};
+	}
+
+	if (subscription.status === "trialing") {
+		return {
+			label: "Testphase",
+			badgeClassName: "border-solarized-blue/70 text-solarized-blue",
+		};
+	}
+
+	return {
+		label: "Aktiv",
+		badgeClassName: "border-solarized-green/70 text-solarized-green",
+	};
+}
 
 export default async function DashboardPage() {
 	// Auth check - must happen before queries
@@ -111,7 +152,10 @@ export default async function DashboardPage() {
 
 	// Calculate monthly usage limit (same logic as subscription card)
 	const monthlyUsageLimit = activeSubscription ? 500 : 50;
-	const remainingGenerations = Math.max(0, monthlyUsageLimit - currentUsage);
+	const subscriptionPlanLabel = getSubscriptionPlanLabel(
+		activeSubscription?.plan,
+	);
+	const subscriptionStatus = getSubscriptionStatus(activeSubscription);
 
 	const aiFunctions = [
 		{
@@ -263,16 +307,6 @@ export default async function DashboardPage() {
 							</div>
 						</div>
 						<div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-							<Link href="/profile">
-								<Button
-									className="w-full gap-2 bg-transparent sm:w-auto"
-									size="sm"
-									variant="outline"
-								>
-									<Settings className="h-4 w-4" />
-									Profil bearbeiten
-								</Button>
-							</Link>
 							<Link href="/aiscribe">
 								<Button
 									className="w-full gap-2 bg-solarized-blue text-white hover:bg-solarized-blue/90 sm:w-auto"
@@ -286,80 +320,88 @@ export default async function DashboardPage() {
 					</div>
 
 					{/* Quick Stats */}
-					<div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4">
-						<Link href="/templates?activeCollection=favourites">
-							<Card className="cursor-pointer border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
-								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
-										Favoriten
-									</CardTitle>
-									<BookmarkIcon className="h-4 w-4 text-solarized-blue sm:h-5 sm:w-5" />
-								</CardHeader>
-								<CardContent>
-									<div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
-										{favoriteTemplates?.length ?? 0}
-									</div>
-									<p className="text-solarized-base01 text-xs">
-										Gespeicherte Templates
-									</p>
-								</CardContent>
-							</Card>
-						</Link>
-
-						<Link href="/templates?activeCollection=authored">
-							<Card className="cursor-pointer border-solarized-green/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl">
-								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
-										Erstellt
-									</CardTitle>
-									<PlusIcon className="h-4 w-4 text-solarized-green sm:h-5 sm:w-5" />
-								</CardHeader>
-								<CardContent>
-									<div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
-										{userTemplates?.length ?? 0}
-									</div>
-									<p className="text-solarized-base01 text-xs">
-										Eigene Templates
-									</p>
-								</CardContent>
-							</Card>
-						</Link>
-
-						<Card className="border-solarized-violet/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
+					<div className="grid grid-cols-1 gap-3 sm:gap-6 md:grid-cols-2">
+						<Card className="h-full border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
 							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
+								<CardTitle className="font-medium text-solarized-base03 text-sm">
+									Templates
+								</CardTitle>
+								<FileText className="h-5 w-5 text-solarized-blue" />
+							</CardHeader>
+							<CardContent className="space-y-3">
+								<div className="grid grid-cols-2 gap-3">
+									<Link href="/templates?activeCollection=favourites">
+										<div className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-3 transition-colors hover:bg-solarized-blue/10">
+											<div className="flex items-center gap-2 text-solarized-base01 text-xs">
+												<BookmarkIcon className="h-3 w-3 text-solarized-blue" />
+												Favoriten
+											</div>
+											<p className="mt-1 font-bold text-solarized-base03 text-xl">
+												{favoriteTemplates?.length ?? 0}
+											</p>
+										</div>
+									</Link>
+									<Link href="/templates?activeCollection=authored">
+										<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/5 p-3 transition-colors hover:bg-solarized-green/10">
+											<div className="flex items-center gap-2 text-solarized-base01 text-xs">
+												<PlusIcon className="h-3 w-3 text-solarized-green" />
+												Erstellt
+											</div>
+											<p className="mt-1 font-bold text-solarized-base03 text-xl">
+												{userTemplates?.length ?? 0}
+											</p>
+										</div>
+									</Link>
+								</div>
+								<Link
+									className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
+									href="/templates"
+								>
+									Alle Templates anzeigen
+									<ArrowRight className="h-3 w-3" />
+								</Link>
+							</CardContent>
+						</Card>
+
+						<Card className="h-full border-solarized-violet/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="font-medium text-solarized-base03 text-sm">
 									KI-Generierungen
 								</CardTitle>
-								<Brain className="h-4 w-4 text-solarized-violet sm:h-5 sm:w-5" />
+								<Brain className="h-5 w-5 text-solarized-violet" />
 							</CardHeader>
-							<CardContent>
+							<CardContent className="space-y-3">
 								<div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
-									{remainingGenerations}
+									{currentUsage}
 									<span className="font-normal text-sm text-solarized-base01">
 										{" "}
 										/ {monthlyUsageLimit}
 									</span>
 								</div>
 								<p className="text-solarized-base01 text-xs">
-									Verfügbare Generierungen
+									Im aktuellen Monat verwendet
 								</p>
-							</CardContent>
-						</Card>
-
-						<Card className="border-solarized-orange/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="font-medium text-solarized-base03 text-xs sm:text-sm">
-									KI-Generierungen
-								</CardTitle>
-								<TrendingUp className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />
-							</CardHeader>
-							<CardContent>
-								<div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
-									{currentUsage}
+								<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
+									<div className="flex flex-wrap items-center justify-between gap-2">
+										<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
+											<CreditCard className="h-3 w-3" />
+											{subscriptionPlanLabel}
+										</span>
+										<Badge
+											className={subscriptionStatus.badgeClassName}
+											variant="outline"
+										>
+											{subscriptionStatus.label}
+										</Badge>
+									</div>
+									<Link
+										className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
+										href="/subscription"
+									>
+										Abonnement verwalten
+										<ArrowRight className="h-3 w-3" />
+									</Link>
 								</div>
-								<p className="text-solarized-base01 text-xs">
-									KI-Generierungen in diesem Monat
-								</p>
 							</CardContent>
 						</Card>
 					</div>

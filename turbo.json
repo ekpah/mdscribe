@@ -1,6 +1,11 @@
 {
 	"$schema": "https://turbo.build/schema.json",
-	"globalDependencies": [".env", ".env.local"],
+	"globalDependencies": [
+		".env",
+		".env.local",
+		"biome.jsonc",
+		"apps/docs/biome.json"
+	],
 	"globalPassThroughEnv": ["SKIP_ENV_VALIDATION"],
 	"globalEnv": [
 		"POSTGRES_DATABASE_URL",

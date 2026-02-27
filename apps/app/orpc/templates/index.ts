@@ -185,7 +185,7 @@ const getTemplateHandler = pub
 
 		// Get count
 		const [countResult] = await context.db
-			.select({ count: sql<number>`COUNT(*)` })
+			.select({ count: count() })
 			.from(favourites)
 			.where(eq(favourites.templateId, input.id));
 

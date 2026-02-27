@@ -2,10 +2,5 @@
   "title": "Self-Hosting",
   "description": "Betrieb von MDScribe in eigener Infrastruktur.",
   "root": false,
-  "pages": [
-    "index"
-  ]
+  "pages": ["index"]
 }
-
-
-
