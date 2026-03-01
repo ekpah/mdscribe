@@ -52,7 +52,7 @@
 			"outputs": []
 		},
 		"typecheck": {
-			"dependsOn": ["^typecheck"],
+			"dependsOn": [],
 			"outputs": []
 		}
 	}

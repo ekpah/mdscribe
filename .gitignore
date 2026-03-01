@@ -33,6 +33,9 @@ out/
 build
 dist
 
+# TypeScript incremental cache
+*.tsbuildinfo
+
 
 # Debug
 npm-debug.log*

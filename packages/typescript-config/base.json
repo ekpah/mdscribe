@@ -6,7 +6,7 @@
 		"declarationMap": true,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
-		"incremental": false,
+		"incremental": true,
 		"isolatedModules": true,
 		"lib": ["ES2024", "DOM", "DOM.Iterable"],
 		"module": "esnext",
