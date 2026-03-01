@@ -16,12 +16,6 @@ export interface InfoTagAttrs {
   variable: string | null;
 }
 
-// TODO: Review if this interface is needed for InfoTag
-interface InfoTagItem {
-  tagName: string;
-  attributes?: Record<string, string>;
-}
-
 export const InfoTag = Node.create<InfoTagAttrs>({
   name: 'infoTag',
 

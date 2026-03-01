@@ -1,7 +1,6 @@
-import Markdoc, { type RenderableTreeNode } from '@markdoc/markdoc';
+import Markdoc from '@markdoc/markdoc';
 import React from 'react';
 import config from '../../markdoc-config';
-import { components } from '../../markdoc-config/tags/config'; // Adjusted path
 
 /**
  * Renders a Markdoc string into HTML to be used in TipTap. This could also be used to render the content in just HTML, but is most useful for TipTap, as it allows for the use of the components defined in your Markdoc config.

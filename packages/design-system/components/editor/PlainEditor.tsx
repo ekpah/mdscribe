@@ -6,12 +6,12 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
-import { Code, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 export default function PlainEditor({
 	note,
 	setContent,
-	showSource,
+	showSource: _showSource,
 	onToggleSource,
 }: {
 	note: string;

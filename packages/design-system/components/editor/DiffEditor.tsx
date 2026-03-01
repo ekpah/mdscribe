@@ -3,8 +3,7 @@
 import { cn } from "@repo/design-system/lib/utils";
 import { diffLines, diffWords } from "diff";
 import { Check, RotateCcw } from "lucide-react";
-import type { CSSProperties } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -15,7 +14,6 @@ interface DiffEditorProps {
 	onChange: (value: string) => void;
 	placeholder?: string;
 	disabled?: boolean;
-	minHeight?: number;
 	/** Called when Cmd+Enter / Ctrl+Enter is pressed */
 	onSubmit?: () => void;
 	id?: string;
@@ -34,8 +32,6 @@ interface DiffEditorProps {
 	diffMode?: "word" | "line";
 }
 
-const MIN_HEIGHT = 120;
-
 interface DiffPart {
 	value: string;
 	added?: boolean;
@@ -47,7 +43,6 @@ export function MarkdownDiffEditor({
 	onChange,
 	placeholder,
 	disabled = false,
-	minHeight = MIN_HEIGHT,
 	onSubmit,
 	id,
 	className,

@@ -15,9 +15,9 @@ import {
 
 export function CaseTagView({
 	node,
-	editor,
+	editor: _editor,
 	updateAttributes,
-	getPos,
+	getPos: _getPos,
 	deleteNode,
 	selected,
 }: NodeViewProps) {

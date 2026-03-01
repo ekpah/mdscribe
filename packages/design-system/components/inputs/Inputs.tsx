@@ -293,10 +293,10 @@ function renderInputTag(
 					typeof result === "number" ? Number(result.toFixed(2)) : result;
 
 				return roundedResult;
-			} catch (error) {
-				return 0;
-			}
-		};
+				} catch {
+					return 0;
+				}
+			};
 
 		return (
 			<div

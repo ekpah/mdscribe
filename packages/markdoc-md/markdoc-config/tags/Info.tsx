@@ -4,10 +4,10 @@ import { useVariables } from "../../render/context/VariableContext";
 
 export function Info({
 	primary,
-	type,
+	type: _type,
 	unit,
 	renderUnit,
-	description,
+	description: _description,
 }: {
 	primary: string;
 	type: string;

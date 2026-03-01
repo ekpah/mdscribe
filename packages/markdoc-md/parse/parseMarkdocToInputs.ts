@@ -1,6 +1,6 @@
 import type { RenderableTreeNode } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
-import { default as Formula, default as fparser } from "fparser";
+import Formula from "fparser";
 import config from "../markdoc-config";
 
 /**

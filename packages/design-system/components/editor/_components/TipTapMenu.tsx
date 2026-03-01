@@ -11,7 +11,7 @@ import {
 
 const MenuBar = ({
 	editor,
-	showSource,
+	showSource: _showSource,
 	onToggleSource,
 }: {
 	editor: Editor | null;

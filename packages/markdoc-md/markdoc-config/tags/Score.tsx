@@ -55,7 +55,7 @@ export function Score({ formula, unit, renderUnit }: { formula: string; unit?: s
         </Tooltip>
       </TooltipProvider>
     );
-  } catch (_error) {
+  } catch {
     return (
       <TooltipProvider delayDuration={0}>
         <Tooltip>

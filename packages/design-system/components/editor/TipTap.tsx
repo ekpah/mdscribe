@@ -1,10 +1,8 @@
 "use client";
 
 import {
-	createSuggestionsItems,
 	enableKeyboardNavigation,
 } from "@harshtalks/slash-tiptap";
-import { placeCaretAfterInsertedInlineTag } from "@repo/design-system/components/editor/_lib/placeCaretAfterInsertedInlineTag";
 import { MarkdocMD } from "@repo/design-system/components/editor/tiptap-extension";
 import { cn } from "@repo/design-system/lib/utils";
 import { htmlToMarkdoc } from "@repo/markdoc-md/parse/htmlToMarkdoc";
@@ -14,46 +12,6 @@ import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import type { MouseEvent } from "react";
 import TipTapMenu from "./_components/TipTapMenu";
-
-const suggestions = createSuggestionsItems([
-	{
-		title: "Info-Tag",
-		searchTerms: ["info"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertContent({
-					type: "infoTag",
-					attrs: {
-						primary: "...",
-					},
-				})
-				.command(placeCaretAfterInsertedInlineTag)
-				.run();
-		},
-	},
-	{
-		title: "Switch-Tag",
-		searchTerms: ["switch"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertContent({
-					type: "switchTag",
-					attrs: {
-						primary: "...",
-						cases: [{ primary: "", text: "..." }],
-					},
-				})
-				.command(placeCaretAfterInsertedInlineTag)
-				.run();
-		},
-	},
-]);
 
 export default function TipTap({
 	note,

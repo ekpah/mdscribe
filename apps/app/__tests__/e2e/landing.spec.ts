@@ -99,12 +99,7 @@ test.describe("Landing Page - Markdoc Template Examples", () => {
 		// Check that it exists
 		await expect(geschlechtSelect).toBeVisible();
 
-		// Find the rendered output section - it should initially show placeholder text
-		const renderedOutput = templateSection.locator(
-			'div:has-text("Gerenderte Notiz") + div, div:has-text("Gerenderte Notiz") ~ div',
-		);
-
-		// Initially, the rendered content should show placeholder text (because no value selected)
+			// Initially, the rendered content should show placeholder text (because no value selected)
 		// The default shows "[#Herrn/Frau#]" when Geschlecht is not selected
 		await expect(
 			templateSection.locator("text=[#Herrn/Frau#]").first(),

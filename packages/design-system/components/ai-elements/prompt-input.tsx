@@ -707,12 +707,12 @@ export const PromptInput = ({
 			form.reset();
 		}
 
-		// Convert blob URLs to data URLs asynchronously
-		Promise.all(
-			files.map(async ({ id, ...item }) => {
-				if (item.url?.startsWith("blob:")) {
-					return {
-						...item,
+			// Convert blob URLs to data URLs asynchronously
+			Promise.all(
+				files.map(async ({ id: _id, ...item }) => {
+					if (item.url?.startsWith("blob:")) {
+						return {
+							...item,
 						url: await convertBlobUrlToDataUrl(item.url),
 					};
 				}
@@ -741,10 +741,10 @@ export const PromptInput = ({
 						controller.textInput.clear();
 					}
 				}
-			} catch (_error) {
-				// Don't clear on error - user may want to retry
-			}
-		});
+				} catch {
+					// Don't clear on error - user may want to retry
+				}
+			});
 	};
 
 	// Render with or without local provider

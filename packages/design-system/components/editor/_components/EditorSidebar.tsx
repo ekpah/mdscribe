@@ -12,9 +12,7 @@ import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import { Separator } from '@repo/design-system/components/ui/separator';
 import {
   BookOpen,
-  Braces,
   Code2,
-  Info,
   ListTree,
   Sparkles,
 } from 'lucide-react';
