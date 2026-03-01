@@ -1,7 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { FlaskConical, XCircle } from "lucide-react";
+import { Button } from "@repo/design-system/components/ui/button";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FlaskConical, RefreshCw, XCircle } from "lucide-react";
 import {
 	parseAsBoolean,
 	parseAsFloat,
@@ -10,6 +11,7 @@ import {
 	useQueryStates,
 } from "nuqs";
 import { useMemo } from "react";
+import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { PlaygroundPanel } from "./_components/PlaygroundPanel";
@@ -52,19 +54,37 @@ function inferDocumentType(
 }
 
 function PlaygroundContent() {
+	const queryClient = useQueryClient();
 	const [searchParams] = useQueryStates(playgroundSearchParams);
+	const modelsQueryOptions = orpc.admin.models.list.queryOptions();
+	const topModelsQueryOptions = orpc.admin.models.topModels.queryOptions({
+		input: { limit: 5 },
+	});
 
 	// Fetch models using oRPC
 	const {
 		data: models = [],
 		isLoading: modelsLoading,
+		isFetching: isFetchingModels,
 		error: modelsError,
-	} = useQuery(orpc.admin.models.list.queryOptions());
+	} = useQuery(modelsQueryOptions);
 
 	// Fetch top models based on usage in the past 30 days
-	const { data: topModelIds = [] } = useQuery(
-		orpc.admin.models.topModels.queryOptions({ input: { limit: 5 } }),
+	const { data: topModelIds = [], isFetching: isFetchingTopModels } = useQuery(
+		topModelsQueryOptions,
 	);
+
+	const handleRefresh = async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: modelsQueryOptions.queryKey,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: topModelsQueryOptions.queryKey,
+			}),
+		]);
+		toast.success("Modelle aktualisiert");
+	};
 
 	// Parse preset from URL params (from usage tracking jump-off)
 	const preset = useMemo(() => {
@@ -128,15 +148,30 @@ function PlaygroundContent() {
 		<div className="flex h-full min-w-0 flex-col overflow-x-hidden overflow-y-auto p-2 sm:p-3 lg:overflow-hidden">
 			<div className="mx-auto flex h-full w-full min-w-0 flex-col gap-2 lg:overflow-hidden">
 				{/* Header - compact */}
-				<div className="flex shrink-0 items-center gap-2">
-					<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-solarized-violet/10">
-						<FlaskConical className="h-4 w-4 text-solarized-violet" />
+				<div className="flex shrink-0 items-center justify-between gap-4">
+					<div className="flex items-center gap-2">
+						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-solarized-violet/10">
+							<FlaskConical className="h-4 w-4 text-solarized-violet" />
+						</div>
+						<div>
+							<h1 className="font-semibold text-base text-solarized-base00">
+								AI Playground
+							</h1>
+						</div>
 					</div>
-					<div>
-						<h1 className="font-semibold text-base text-solarized-base00">
-							AI Playground
-						</h1>
-					</div>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleRefresh}
+						disabled={isFetchingModels || isFetchingTopModels}
+					>
+						<RefreshCw
+							className={`mr-2 h-4 w-4 ${
+								isFetchingModels || isFetchingTopModels ? "animate-spin" : ""
+							}`}
+						/>
+						<span className="hidden sm:inline">Aktualisieren</span>
+					</Button>
 				</div>
 
 				{/* Main Content - takes all remaining space */}

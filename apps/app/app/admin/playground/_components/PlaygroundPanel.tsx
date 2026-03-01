@@ -17,6 +17,10 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
+import {
+	ModelSelector,
+	type ModelSelectorOption,
+} from "@repo/design-system/components/ui/model-selector";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,
@@ -48,8 +52,7 @@ import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
-import { DEFAULT_PARAMETERS, requiresThinking } from "../_lib/types";
-import { ModelSelector } from "./ModelSelector";
+import { DEFAULT_PARAMETERS } from "../_lib/types";
 import { ParameterControls } from "./ParameterControls";
 import { ResultDisplay } from "./ResultDisplay";
 
@@ -162,6 +165,35 @@ interface RunState {
 	};
 	reasoning?: string;
 	requestId?: string;
+}
+
+interface PlaygroundModelSelectorOption extends ModelSelectorOption {
+	model: PlaygroundModel;
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+	anthropic: "Anthropic",
+	openai: "OpenAI",
+	google: "Google",
+	"meta-llama": "Meta Llama",
+	mistralai: "Mistral AI",
+	cohere: "Cohere",
+	deepseek: "DeepSeek",
+	qwen: "Qwen",
+	"x-ai": "xAI",
+	"z-ai": "Zhipu AI",
+};
+
+function getProviderFromModelId(modelId: string): string {
+	return modelId.split("/")[0] || "other";
+}
+
+function getProviderGroup(model: PlaygroundModel): string {
+	return (
+		model.providerProtocol ??
+		model.connectionProtocol ??
+		getProviderFromModelId(model.modelId)
+	);
 }
 
 export function PlaygroundPanel({
@@ -313,15 +345,15 @@ export function PlaygroundPanel({
 		setModelRuns((prev) => {
 			const first = prev.at(0);
 			if (!first || first.model) return prev;
-			const match = models.find((m) => m.id === presetModel);
+			const match = models.find(
+				(m) => m.id === presetModel || m.modelId === presetModel,
+			);
 			if (!match) return prev;
 			return [
 				{
 					...first,
 					model: match,
-					parameters: requiresThinking(match.id)
-						? { ...first.parameters, thinking: true }
-						: first.parameters,
+					parameters: first.parameters,
 				},
 				...prev.slice(1),
 			];
@@ -372,6 +404,26 @@ export function PlaygroundPanel({
 		// Run all models in parallel
 		await Promise.all(triggers.map((trigger) => trigger()));
 	}, []);
+
+	const modelById = useMemo(
+		() => new Map(models.map((model) => [model.id, model] as const)),
+		[models],
+	);
+
+	const modelSelectorOptions = useMemo<PlaygroundModelSelectorOption[]>(() => {
+		const topModelIdSet = new Set(topModelIds ?? []);
+		return models.map((model) => {
+			const provider = getProviderGroup(model);
+			const isTop = topModelIdSet.has(model.modelId);
+			return {
+				value: model.id,
+				label: isTop ? `Top • ${model.name}` : model.name,
+				group: provider,
+				keywords: [model.modelId, model.name, provider],
+				model,
+			};
+		});
+	}, [models, topModelIds]);
 
 	return (
 		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
@@ -431,7 +483,9 @@ export function PlaygroundPanel({
 														Dokumenttyp
 													</Label>
 													<Select
-														onValueChange={(v) => setDocumentType(v as DocumentType)}
+														onValueChange={(v) =>
+															setDocumentType(v as DocumentType)
+														}
 														value={documentType}
 													>
 														<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
@@ -508,7 +562,9 @@ export function PlaygroundPanel({
 																size="sm"
 																className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
 																onClick={async () => {
-																	await navigator.clipboard.writeText(promptJson);
+																	await navigator.clipboard.writeText(
+																		promptJson,
+																	);
 																	toast.success("Kopiert!");
 																}}
 															>
@@ -518,7 +574,11 @@ export function PlaygroundPanel({
 														</div>
 														<Textarea
 															readOnly
-															value={JSON.stringify(JSON.parse(promptJson), null, 2)}
+															value={JSON.stringify(
+																JSON.parse(promptJson),
+																null,
+																2,
+															)}
 															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 														/>
 													</div>
@@ -598,7 +658,11 @@ export function PlaygroundPanel({
 															</Label>
 															<Textarea
 																readOnly
-																value={JSON.stringify(compiledVariables, null, 2)}
+																value={JSON.stringify(
+																	compiledVariables,
+																	null,
+																	2,
+																)}
 																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 															/>
 														</div>
@@ -700,27 +764,40 @@ export function PlaygroundPanel({
 																		Modell
 																	</Label>
 																	<ModelSelector
-																		models={models}
-																		topModelIds={topModelIds}
+																		options={modelSelectorOptions}
+																		value={run.model?.id ?? null}
 																		isLoading={isLoadingModels}
-																		selectedModel={run.model}
-																		onSelect={(m) =>
+																		placeholder="Modell auswählen..."
+																		loadingMessage="Lade Modelle..."
+																		emptyMessage="Keine Modelle gefunden."
+																		formatGroupLabel={(group) =>
+																			PROVIDER_LABELS[group] ??
+																			group.charAt(0).toUpperCase() +
+																				group.slice(1)
+																		}
+																		className="border-solarized-base2 bg-solarized-base3"
+																		popoverClassName="max-h-[min(70vh,32rem)] w-[min(26rem,calc(100vw-1rem))] overflow-auto p-0"
+																		renderSelected={(selected) => (
+																			<span className="min-w-0 truncate">
+																				{selected?.model.name ??
+																					"Modell auswählen..."}
+																			</span>
+																		)}
+																		onValueChange={(modelId) => {
+																			const model = modelById.get(modelId);
+																			if (!model) return;
+
 																			setModelRuns((prev) =>
 																				prev.map((r) => {
 																					if (r.id !== run.id) return r;
 																					return {
 																						...r,
-																						model: m,
-																						parameters: requiresThinking(m.id)
-																							? {
-																									...r.parameters,
-																									thinking: true,
-																								}
-																							: r.parameters,
+																						model,
+																						parameters: r.parameters,
 																					};
 																				}),
-																			)
-																		}
+																			);
+																		}}
 																	/>
 																</div>
 
@@ -823,11 +900,12 @@ export function PlaygroundPanel({
 					</div>
 				</CardHeader>
 				<ScrollArea className="min-h-0 flex-1">
-					<div className="space-y-3 p-3">
-						{modelRuns.map((run) => (
-							<RunCard
-								key={run.id}
-								runId={run.id}
+						<div className="space-y-3 p-3">
+							{modelRuns.map((run) => (
+								// eslint-disable-next-line no-use-before-define
+								<RunCard
+									key={run.id}
+									runId={run.id}
 								modelRun={run}
 								documentType={documentType}
 								promptJson={promptJson}
@@ -985,8 +1063,6 @@ function RunCard({
 		payloadRef.current = {
 			requestId,
 			model: modelRun.model.id,
-			supportsReasoning:
-				modelRun.model.supported_parameters.includes("reasoning"),
 			parameters: modelRun.parameters,
 			documentType,
 			promptName,
@@ -1024,9 +1100,10 @@ function RunCard({
 
 	// Register this card's run function with the parent ref
 	useEffect(() => {
-		runTriggersRef.current.set(runId, startRun);
+		const runTriggers = runTriggersRef.current;
+		runTriggers.set(runId, startRun);
 		return () => {
-			runTriggersRef.current.delete(runId);
+			runTriggers.delete(runId);
 		};
 	}, [runId, runTriggersRef, startRun]);
 
@@ -1036,7 +1113,7 @@ function RunCard({
 			<div className="flex shrink-0 items-center justify-between gap-2">
 				<div className="min-w-0 flex-1">
 					<p className="truncate font-mono text-xs text-solarized-base00">
-						{modelRun.model?.id ?? "Kein Modell gewählt"}
+						{modelRun.model?.modelId ?? "Kein Modell gewählt"}
 					</p>
 					{runState?.requestId && (
 						<p className="truncate font-mono text-[10px] text-solarized-base01">

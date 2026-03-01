@@ -10,7 +10,14 @@ export interface ModelCapabilities {
 
 export interface PlaygroundModel {
 	id: string;
+	modelId: string;
 	name: string;
+	providerId?: string;
+	providerName?: string;
+	providerProtocol?: string;
+	// Backward compatibility while payload migrates.
+	connectionId?: string;
+	connectionProtocol?: string;
 	description?: string;
 	context_length: number;
 	architecture: {
@@ -30,12 +37,16 @@ export interface PlaygroundModel {
 		is_moderated?: boolean;
 	};
 	capabilities: ModelCapabilities;
+	supported_parameters: string[];
+	inputModes?: string[];
+	supportsReasoning?: boolean;
 }
 
 export interface PlaygroundParameters {
 	temperature: number;
 	maxTokens: number;
 	thinking: boolean;
+	thinkingExplicit: boolean;
 	thinkingBudget: number;
 	topP?: number;
 	topK?: number;
@@ -103,6 +114,7 @@ export const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	temperature: 1,
 	maxTokens: 4096,
 	thinking: false,
+	thinkingExplicit: false,
 	thinkingBudget: 8000,
 	topP: undefined,
 	topK: undefined,
@@ -110,12 +122,13 @@ export const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	presencePenalty: undefined,
 };
 
-// Check if model supports thinking
-export function supportsThinking(modelId: string): boolean {
+/**
+ * Whether a model supports the reasoning/thinking parameter.
+ */
+export function supportsThinking(model: PlaygroundModel): boolean {
 	return (
-		modelId.includes("claude") ||
-		modelId.includes("glm") ||
-		modelId.includes("gemini")
+		model.supportsReasoning === true ||
+		model.supported_parameters.includes("reasoning")
 	);
 }
 

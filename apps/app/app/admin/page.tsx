@@ -123,10 +123,10 @@ const adminFeatures: AdminCardProps[] = [
 	{
 		title: "Systemeinstellungen",
 		description:
-			"Systemweite Einstellungen, API-Schlüssel und Integrationsoptionen konfigurieren.",
-		href: "/admin/settings",
+			"KI-Anbieter, Modelle, API-Schlüssel und Integrationsoptionen konfigurieren.",
+		href: "/admin/settings/models",
 		icon: <Settings className="h-5 w-5 text-solarized-yellow" />,
-		status: "coming-soon",
+		status: "active",
 	},
 ];
 
