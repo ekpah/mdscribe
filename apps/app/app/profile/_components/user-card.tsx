@@ -14,6 +14,7 @@ import {
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { LaptopIcon, Loader2, SmartphoneIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 import { UAParser } from "ua-parser-js";
 import { authClient, useSession } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
+import { sessionQueryKey } from "@/lib/session-query";
 
 export default function UserCard(props: {
 	session: Session | null;
@@ -28,8 +30,9 @@ export default function UserCard(props: {
 	subscription?: Subscription;
 }) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const { data: sessionData } = useSession();
-	const session = sessionData || props.session;
+	const session = sessionData !== undefined ? sessionData : props.session;
 	const [isLoading, setIsLoading] = useState<string>();
 
 	const [activeSessions, setActiveSessions] = useState(props.activeSessions);
@@ -79,6 +82,7 @@ export default function UserCard(props: {
 								await authClient.signOut({
 									fetchOptions: {
 										onSuccess: () => {
+											queryClient.setQueryData(sessionQueryKey, null);
 											router.refresh();
 											router.push("/");
 										},
@@ -101,7 +105,7 @@ export default function UserCard(props: {
 									toast.success("Sitzung erfolgreich beendet");
 									removeActiveSession(activeSession.id);
 								}
-							} catch (error) {
+							} catch (_error) {
 								toast.error("Sitzung konnte nicht beendet werden");
 								setIsLoading(undefined);
 							}

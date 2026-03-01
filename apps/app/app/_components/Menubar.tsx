@@ -23,6 +23,7 @@ import {
 	navigationMenuTriggerStyle,
 } from "@repo/design-system/components/ui/navigation-menu";
 import { cn } from "@repo/design-system/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	LayoutDashboard,
 	Loader2,
@@ -38,6 +39,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient, useSession } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
+import { sessionQueryKey } from "@/lib/session-query";
 import DarkLogo from "@/public/logo/dark";
 import LightLogo from "@/public/logo/light";
 
@@ -46,8 +48,12 @@ type TopMenuBarProperties = {
 	isAdmin?: boolean;
 };
 
-export default function TopMenuBar({ initialSession, isAdmin }: TopMenuBarProperties) {
+export default function TopMenuBar({
+	initialSession,
+	isAdmin,
+}: TopMenuBarProperties) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const pathname = usePathname();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -63,6 +69,7 @@ export default function TopMenuBar({ initialSession, isAdmin }: TopMenuBarProper
 		await authClient.signOut({
 			fetchOptions: {
 				onSuccess: () => {
+					queryClient.setQueryData(sessionQueryKey, null);
 					router.refresh();
 					router.push("/");
 				},
