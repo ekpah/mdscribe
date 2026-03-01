@@ -8,8 +8,8 @@
     "dev": "bun run --bun next dev --port 3004",
     "start": "bun run --bun next start",
     "postinstall": "fumadocs-mdx",
-    "lint": "biome check",
-    "format": "biome format --write",
+    "lint": "oxlint .",
+    "format": "oxfmt --write .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -30,7 +30,6 @@
     "@types/react-dom": "catalog:",
     "postcss": "catalog:",
     "tailwindcss": "^4.1.16",
-    "typescript": "catalog:",
-    "@biomejs/biome": "^2.3.2"
+    "typescript": "catalog:"
   }
 }

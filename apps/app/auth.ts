@@ -8,10 +8,6 @@ import { EmailVerificationTemplate } from "@repo/email/templates/verify";
 import { env } from "@repo/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import {
-	hashPassword as hashBetterAuthPassword,
-	verifyPassword as verifyBetterAuthPassword,
-} from "better-auth/crypto";
 import { Stripe as StripeClient } from "stripe";
 
 // Initialize stripe client (use placeholder during Docker builds where env vars aren't available)

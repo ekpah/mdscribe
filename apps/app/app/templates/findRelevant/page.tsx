@@ -157,7 +157,7 @@ export default function FindTemplatePage() {
         await orpc.templates.addFavourite.call({ templateId });
         toast.success('Favorit gespeichert');
       }
-    } catch (err) {
+    } catch  {
       // Revert the optimistic update
       setFavouriteStates((prev) => ({
         ...prev,

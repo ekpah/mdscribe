@@ -3,8 +3,8 @@
 	"globalDependencies": [
 		".env",
 		".env.local",
-		"biome.jsonc",
-		"apps/docs/biome.json"
+		".oxlintrc.json",
+		".oxfmtrc.jsonc"
 	],
 	"globalPassThroughEnv": ["SKIP_ENV_VALIDATION"],
 	"globalEnv": [

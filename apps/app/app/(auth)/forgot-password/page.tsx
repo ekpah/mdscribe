@@ -68,7 +68,7 @@ export default function ForgotPassword() {
 									"Eine E-Mail zum Zurücksetzen des Passworts wurde gesendet",
 								);
 								router.push("/sign-in");
-							} catch (err) {
+							} catch  {
 								toast.error("Ein Fehler ist aufgetreten");
 							} finally {
 								setLoading(false);

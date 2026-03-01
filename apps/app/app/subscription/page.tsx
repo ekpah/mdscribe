@@ -25,8 +25,8 @@ export default async function SubscriptionPage() {
 	);
 
 	return (
-		<div className="min-h-screen w-full bg-gradient-to-br from-solarized-base3 via-solarized-base2 to-solarized-base2">
-			<div className="container mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-6">
+		<div className="h-full w-screen overflow-y-auto bg-gradient-to-br from-solarized-base3 via-solarized-base2 to-solarized-base2">
+			<div className="container mx-auto flex max-w-3xl flex-col gap-6 p-4 pb-16 sm:p-6">
 				<Link href="/dashboard">
 					<Button className="gap-2 bg-transparent" size="sm" variant="outline">
 						<ArrowLeft className="h-4 w-4" />

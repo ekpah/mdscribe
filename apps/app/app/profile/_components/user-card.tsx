@@ -105,7 +105,7 @@ export default function UserCard(props: {
 									toast.success("Sitzung erfolgreich beendet");
 									removeActiveSession(activeSession.id);
 								}
-							} catch (_error) {
+							} catch  {
 								toast.error("Sitzung konnte nicht beendet werden");
 								setIsLoading(undefined);
 							}
