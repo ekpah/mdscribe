@@ -1,5 +1,5 @@
 import { type } from "@orpc/server";
-import { eq, favourites, inArray, sql, template } from "@repo/database";
+import { favourites, inArray, sql } from "@repo/database";
 import { env } from "@repo/env";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";

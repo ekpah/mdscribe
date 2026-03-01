@@ -45,10 +45,19 @@ export interface EnhancedFieldMapping extends FieldMapping {
 	markdocType: "Info" | "Switch";
 }
 
+function determineMarkdocType(pdfType: PDFField["type"]): "Info" | "Switch" {
+	// Checkbox, dropdown, and radio become Switch
+	if (pdfType === "checkbox" || pdfType === "dropdown" || pdfType === "radio") {
+		return "Switch";
+	}
+	// Text and multiline become Info
+	return "Info";
+}
+
 export default function CreateDocumentSection() {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
 	const [fieldMappings, setFieldMappings] = useState<EnhancedFieldMapping[]>([]);
-	const [fields, setFields] = useState<PDFField[]>([]);
+	const [, setFields] = useState<PDFField[]>([]);
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
 
@@ -64,12 +73,12 @@ export default function CreateDocumentSection() {
 		setPdfFile(file);
 
 		// get form fields from pdf
-		const { fields } = await parsePDFFormFields(file);
-		setFields(fields);
+		const { fields: parsedFields } = await parsePDFFormFields(file);
+		setFields(parsedFields);
 		
 		// set initial field mapping with enhanced properties
 		setFieldMappings(
-			fields.map((field) => ({
+			parsedFields.map((field) => ({
 				fieldName: field.name,
 				label: field.name,
 				description: "",
@@ -77,15 +86,6 @@ export default function CreateDocumentSection() {
 				markdocType: determineMarkdocType(field.type),
 			})),
 		);
-	};
-
-	const determineMarkdocType = (pdfType: PDFField["type"]): "Info" | "Switch" => {
-		// Checkbox, dropdown, and radio become Switch
-		if (pdfType === "checkbox" || pdfType === "dropdown" || pdfType === "radio") {
-			return "Switch";
-		}
-		// Text and multiline become Info
-		return "Info";
 	};
 
 	const handleFillPdf = async () => {

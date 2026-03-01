@@ -104,15 +104,7 @@ export default function AppSidebar({
   authoredTemplates: string;
   isLoggedIn: boolean;
 }) {
-  const {
-    state,
-    open,
-    setOpen,
-    openMobile,
-    setOpenMobile,
-    isMobile,
-    toggleSidebar,
-  } = useSidebar();
+  const { setOpenMobile } = useSidebar();
 
   const isMac =
     typeof window !== 'undefined' &&
@@ -169,10 +161,6 @@ export default function AppSidebar({
     setSearchTerm(e?.currentTarget?.value);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    router.push(`${orderedSegments[0].documents[0].url}`);
-  };
   // 1. List of items to search in
   const menuSegments = JSON.parse(
     (() => {
@@ -204,6 +192,14 @@ export default function AppSidebar({
   const orderedSegments = generateSegments({
     templates: searchTerm ? filteredLinks : menuSegments,
   });
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const firstUrl = orderedSegments[0]?.documents[0]?.url;
+    if (firstUrl) {
+      router.push(firstUrl);
+    }
+  };
 
   return (
     <Sidebar className="top-16 mb-16 p-1 pb-20">
@@ -281,10 +277,10 @@ export default function AppSidebar({
                   {segment.documents?.length ? (
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {segment.documents.map((item, index) => {
+                        {segment.documents.map((item, itemIndex) => {
                           // console.log(item);
                           return (
-                            <SidebarMenuSubItem key={index}>
+                            <SidebarMenuSubItem key={itemIndex}>
                               <SidebarMenuSubButton asChild isActive={false}>
                                 <Link
                                   className="flex items-center justify-between"

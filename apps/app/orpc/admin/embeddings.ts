@@ -1,6 +1,7 @@
 import { type } from "@orpc/server";
 import { count, eq, isNull, template } from "@repo/database";
 import { env } from "@repo/env";
+import { setTimeout as sleep } from "node:timers/promises";
 import { VoyageAIClient } from "voyageai";
 
 import { authed } from "@/orpc";
@@ -131,13 +132,13 @@ export const migrateEmbeddingsHandler = authed
 			}
 
 			// Wait between batches to avoid rate limiting
-			if (
-				i + batchSize < templatesToProcess.length &&
-				delayBetweenBatches > 0
-			) {
-				await new Promise((resolve) => setTimeout(resolve, delayBetweenBatches));
+				if (
+					i + batchSize < templatesToProcess.length &&
+					delayBetweenBatches > 0
+				) {
+					await sleep(delayBetweenBatches);
+				}
 			}
-		}
 
 		const modeText =
 			mode === "missing"

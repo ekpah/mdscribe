@@ -1,14 +1,9 @@
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import withBundleAnalyzer from "@next/bundle-analyzer";
-import { env } from "@repo/env";
+import markdocConfig from "@markdoc/next.js";
 import { createJiti } from "jiti";
 import type { NextConfig } from "next";
 import { createSecureHeaders } from "next-secure-headers";
 
 const jiti = createJiti(import.meta.url);
-
-import markdocConfig from "@markdoc/next.js";
 
 export const withMarkdoc = markdocConfig()({
 	pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdoc"],

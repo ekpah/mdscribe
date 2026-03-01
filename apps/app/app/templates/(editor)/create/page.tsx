@@ -4,11 +4,7 @@ import { getCreateTemplateEditorData } from "../../_lib/editor-page-data";
 
 export const dynamicParams = false;
 
-type MetadataProps = {
-	params: Promise<{ template: [category: string, name: string] }>;
-};
-
-export function generateMetadata(props: MetadataProps): Metadata {
+export function generateMetadata(): Metadata {
 	return {
 		title: "Scribe - Template erstellen",
 	};

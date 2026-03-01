@@ -11,27 +11,6 @@ export function useTextSnippets() {
     orpc.user.snippets.list.queryOptions()
   );
 
-  useHotkeys(
-    'shift+f2',
-    (event: KeyboardEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const activeElement = document.activeElement;
-      if (
-        activeElement &&
-        (activeElement.tagName === 'TEXTAREA' ||
-          activeElement.tagName === 'INPUT')
-      ) {
-        expandSnippet(activeElement as HTMLTextAreaElement | HTMLInputElement);
-      } else {
-        toast.error('Bitte fokussieren Sie ein Textfeld');
-      }
-    },
-    {
-      enableOnFormTags: ['INPUT', 'TEXTAREA'],
-    }
-  );
-
   // Find snippet by key
   const findSnippet = useCallback(
     (key: string) => {
@@ -128,6 +107,27 @@ export function useTextSnippets() {
       toast.success(`Snippet "${key}" eingefügt`);
     },
     [findSnippet]
+  );
+
+  useHotkeys(
+    'shift+f2',
+    (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const activeElement = document.activeElement;
+      if (
+        activeElement &&
+        (activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'INPUT')
+      ) {
+        expandSnippet(activeElement as HTMLTextAreaElement | HTMLInputElement);
+      } else {
+        toast.error('Bitte fokussieren Sie ein Textfeld');
+      }
+    },
+    {
+      enableOnFormTags: ['INPUT', 'TEXTAREA'],
+    }
   );
 
   return {

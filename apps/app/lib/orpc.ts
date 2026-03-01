@@ -1,10 +1,8 @@
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
-import { os, type RouterClient } from '@orpc/server';
 import { createTanstackQueryUtils } from '@orpc/tanstack-query';
-import { requiredAuthMiddleware } from '@/orpc/middlewares/auth';
-import { dbProviderMiddleware } from '@/orpc/middlewares/db';
 import { env } from '@repo/env';
+import type { RouterClient } from '@orpc/server';
 import type { router } from '@/orpc/router';
 
 const link = new RPCLink({

@@ -13,7 +13,7 @@ import {
 } from "@repo/database";
 import { env } from "@repo/env";
 import { VoyageAIClient } from "voyageai";
-import z from "zod";
+import { z } from "zod";
 
 import { authed, pub } from "@/orpc";
 

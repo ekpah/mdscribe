@@ -29,7 +29,7 @@ export function SubscriptionCard({
   // TODO: Get this from the subscription, right now hardcoded
   const monthlyUsageLimit = hasActiveSubscription ? 500 : 50;
 
-  const { data, isPending } = useQuery({
+  const { data } = useQuery({
     queryKey: ['usage'],
     queryFn: async () => {
       const res = await fetch('/api/scribe/getUsage');

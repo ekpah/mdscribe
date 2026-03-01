@@ -1,5 +1,4 @@
 import { Separator } from "@repo/design-system/components/ui/separator";
-import Link from "next/link";
 import Footer from "../_components/landing/Footer";
 
 export default function LegalLayout({

@@ -55,7 +55,6 @@ export interface VoiceFillInputPayload {
  */
 export interface ScribeInput {
 	prompt: string;
-	model?: SupportedModel;
 	audioFiles?: AudioFile[];
 }
 
@@ -84,7 +83,9 @@ export interface PromptMessage {
 /**
  * Prompt builder function type - receives typed variables and returns messages
  */
-export type PromptBuilder<T> = (variables: T) => PromptMessage[];
+export type PromptBuilder<T> = {
+	bivarianceHack: (variables: T) => PromptMessage[];
+}["bivarianceHack"];
 
 /**
  * Base variables available to all prompts
@@ -199,7 +200,6 @@ export type PromptVariables =
 export interface DocumentTypeConfig {
 	promptName: string;
 	promptLabel?: string;
-	// biome-ignore lint/suspicious/noExplicitAny: Prompt functions receive typed variables at runtime
-	prompt: (variables: any) => PromptMessage[];
+	prompt: PromptBuilder<PromptVariables>;
 	modelConfig: ModelConfig;
 }

@@ -1,4 +1,3 @@
-import { Button } from '@repo/design-system/components/ui/button';
 import { Brain, FileText, Sparkles, Stethoscope } from 'lucide-react';
 import { Skeleton } from '@repo/design-system/components/ui/skeleton';
 
@@ -114,4 +113,3 @@ export default function AIFeaturesSkeleton() {
     </section>
   );
 }
-

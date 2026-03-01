@@ -30,7 +30,7 @@ interface ResultDisplayProps {
 	compact?: boolean;
 }
 
-export function ResultDisplay({ result, compact }: ResultDisplayProps) {
+export function ResultDisplay({ result, compact: _compact }: ResultDisplayProps) {
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = async () => {

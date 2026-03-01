@@ -207,7 +207,7 @@ export function UsageEventDetail({
 					</section>
 
 					{/* Input Data Section (JSON) */}
-					{event.inputData != null && (
+					{event.inputData !== null && event.inputData !== undefined && (
 						<section>
 							<h3 className="mb-2 font-medium text-solarized-base00">
 								Eingabedaten
@@ -221,7 +221,7 @@ export function UsageEventDetail({
 					)}
 
 					{/* Metadata Section (JSON) */}
-					{event.metadata != null && (
+					{event.metadata !== null && event.metadata !== undefined && (
 						<section>
 							<h3 className="mb-2 font-medium text-solarized-base00">
 								Metadaten

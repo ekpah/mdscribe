@@ -37,17 +37,6 @@ type PDFFormField = {
 };
 
 /**
- * Parses a PDF file and extracts all fillable form fields
- * and returns them in a format similar to parseMarkdocToInputs
- */
-export async function parsePDFFormFields(
-	file: Uint8Array,
-): Promise<ParsePDFResult> {
-	const fields = await parseFormFieldsFromPDF(file);
-	return { fields };
-}
-
-/**
  * Parses a text field from PDF form
  */
 function parseTextField(
@@ -175,6 +164,17 @@ export async function parseFormFieldsFromPDF(
 		}
 	}
 	return fields;
+}
+
+/**
+ * Parses a PDF file and extracts all fillable form fields
+ * and returns them in a format similar to parseMarkdocToInputs
+ */
+export async function parsePDFFormFields(
+	file: Uint8Array,
+): Promise<ParsePDFResult> {
+	const fields = await parseFormFieldsFromPDF(file);
+	return { fields };
 }
 
 /**

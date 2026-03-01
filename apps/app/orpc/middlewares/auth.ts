@@ -3,6 +3,15 @@ import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import type { Session } from '@/lib/auth-types';
 
+async function getSession() {
+    const headerList = await headers();
+
+    const session = await auth.api.getSession({
+        headers: headerList,
+    });
+    return session;
+}
+
 export const requiredAuthMiddleware = os
     .$context<{ session?: Session }>()
     .middleware(async ({ context, next }) => {
@@ -15,12 +24,3 @@ export const requiredAuthMiddleware = os
             context: { session },
         });
     });
-
-async function getSession() {
-    const headerList = await headers();
-
-    const session = await auth.api.getSession({
-        headers: headerList,
-    });
-    return session;
-}

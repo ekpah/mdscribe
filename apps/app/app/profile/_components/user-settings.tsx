@@ -11,7 +11,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
-import { FeaturesCard } from "./features-card";
 import { ProfileCard } from "./profile-card";
 import { SnippetsCard } from "./snippets-card";
 import { SubscriptionCard } from "./subscription-card";
@@ -25,19 +24,16 @@ type User = {
 export default function UserSettings({
 	user,
 	subscription,
-	generationLimit,
 	activeSessions,
 	session,
 }: {
 	user: User;
 	subscription?: Subscription;
-	generationLimit: number;
 	activeSessions: Session["session"][];
 	session: Session;
 }) {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isManagingSubscription, setIsManagingSubscription] = useState(false);
-	const hasActiveSubscription = !!subscription;
 
 	function handleSubscriptionUpgrade() {
 		setIsManagingSubscription(true);

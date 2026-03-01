@@ -30,7 +30,7 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      const { data, error } = await authClient.resetPassword({
+      const { error } = await authClient.resetPassword({
         newPassword,
         token,
       });
@@ -42,7 +42,7 @@ export default function ResetPassword() {
 
       toast.success('Passwort erfolgreich zurückgesetzt');
       router.push('/sign-in');
-    } catch (err) {
+    } catch  {
       toast.error('Ein Fehler ist aufgetreten');
     } finally {
       setLoading(false);

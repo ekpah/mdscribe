@@ -21,6 +21,13 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
+const FALLBACK_CATEGORIES = [
+	"Kardiologie",
+	"Gastroenterologie",
+	"Diverses",
+	"Onkologie",
+] as const;
+
 export default function Editor({
 	cat,
 	categorySuggestions = [],
@@ -51,12 +58,6 @@ export default function Editor({
 		const finalCategory = category === "new" ? newCategory : category;
 		return finalCategory.trim() !== "" && name.trim() !== "";
 	})();
-	const fallbackCategories = [
-		"Kardiologie",
-		"Gastroenterologie",
-		"Diverses",
-		"Onkologie",
-	];
 	const suggestedCategories = useMemo(() => {
 		const limit = 10;
 		const result: string[] = [];
@@ -87,7 +88,7 @@ export default function Editor({
 			addCategory(value);
 		}
 
-		for (const value of fallbackCategories) {
+		for (const value of FALLBACK_CATEGORIES) {
 			if (result.length >= limit) {
 				break;
 			}

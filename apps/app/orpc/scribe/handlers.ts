@@ -1,13 +1,15 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { and, database, eq, inArray, sql, subscription, usageEvent } from "@repo/database";
-import { env } from "@repo/env";
 import {
-	type LanguageModel,
-	type ModelMessage,
-	type UIMessage,
-	streamText,
-} from "ai";
+	and,
+	eq,
+	inArray,
+	sql,
+	subscription,
+	usageEvent,
+} from "@repo/database";
+import { database } from "@repo/database/client";
+import { env } from "@repo/env";
+import { type ModelMessage, streamText, type UIMessage } from "ai";
 import { after } from "next/server";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
@@ -19,16 +21,13 @@ import {
 	type UsageInputData,
 	type UsageMetadata,
 } from "@/lib/usage-logging";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { getUsage } from "./_lib/get-usage";
-import { buildScribeContext, derivePatientContext } from "./context";
 import { documentTypeConfigs } from "./config";
-import type {
-	AudioFile,
-	DocumentType,
-	PromptVariables,
-	SupportedModel,
-} from "./types";
+import { buildScribeContext, derivePatientContext } from "./context";
+import { resolveModel } from "./providers";
+import type { AudioFile, DocumentType, PromptVariables } from "./types";
 
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
@@ -94,17 +93,29 @@ function hasAnyInput(payload: Record<string, unknown>): boolean {
 	return false;
 }
 
-/**
- * Get OpenRouter model instance based on model ID
- */
-function getModelInstance(modelId: string): {
-	model: LanguageModel;
-	supportsThinking: boolean;
-	modelName: string;
-} {
-	const openrouter = createOpenRouter({
-		apiKey: env.OPENROUTER_API_KEY as string,
-	});
+function hasFileLikeInput(value: unknown): boolean {
+	if (Array.isArray(value)) {
+		for (const entry of value) {
+			if (hasFileLikeInput(entry)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	if (value && typeof value === "object") {
+		const record = value as Record<string, unknown>;
+
+		const mimeTypeValue = record.mimeType ?? record.mediaType;
+		if (typeof mimeTypeValue === "string") {
+			const mimeType = mimeTypeValue.toLowerCase();
+			if (
+				mimeType.startsWith("image/") ||
+				mimeType.startsWith("application/pdf")
+			) {
+				return true;
+			}
+		}
 
 	switch (modelId as SupportedModel) {
 		case "glm-5":
@@ -141,7 +152,6 @@ function getActualModel(modelId: string, hasAudio?: boolean): string {
 	if (modelId === "auto") {
 		return hasAudio ? "gemini-3-pro" : "claude-opus-4.6";
 	}
-	return modelId;
 }
 
 /**
@@ -189,7 +199,9 @@ async function generateEmbeddings(content: string): Promise<number[]> {
 /**
  * Find relevant templates for procedures using vector similarity
  */
-async function findRelevantTemplateForProcedure(notes: string): Promise<string> {
+async function findRelevantTemplateForProcedure(
+	notes: string,
+): Promise<string> {
 	const defaultTemplate = `## Standard-Textbausteine (Referenz)
 
 <details>
@@ -277,7 +289,6 @@ ${similarityResults.rows[0].content}`;
 interface ScribeStreamInput {
 	documentType: DocumentType;
 	messages: UIMessage[];
-	model?: SupportedModel;
 	audioFiles?: AudioFile[];
 }
 
@@ -313,12 +324,7 @@ function extractPromptFromMessages(messages: UIMessage[]): string {
 export const scribeStreamHandler = authed
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
-		const {
-			documentType,
-			messages: inputMessages,
-			model = "auto",
-			audioFiles,
-		} = input;
+		const { documentType, messages: inputMessages, audioFiles } = input;
 
 		// Extract prompt from the last user message
 		const prompt = extractPromptFromMessages(inputMessages);
@@ -338,7 +344,7 @@ export const scribeStreamHandler = authed
 			context.db,
 		);
 
-		// Get actual model (handle 'auto')
+		// Validate input
 		const hasAudio = audioFiles && audioFiles.length > 0;
 		const rawPrompt = parsePromptPayload(prompt);
 		if (!hasAudio && !hasAnyInput(rawPrompt)) {
@@ -346,12 +352,13 @@ export const scribeStreamHandler = authed
 				message: USER_MESSAGES.missingInput,
 			});
 		}
-		const actualModel = getActualModel(model, hasAudio);
-		const {
-			model: aiModel,
-			supportsThinking,
-			modelName,
-		} = getModelInstance(actualModel);
+		const hasFileInput = hasFileLikeInput(rawPrompt);
+
+		// Resolve model from admin-configured defaults
+		const resolved = await resolveModel(context.db, {
+			requireAudio: hasAudio,
+			requireFiles: hasFileInput,
+		});
 
 		const contextSources = [{ kind: "form" as const, data: rawPrompt }];
 		let relevantTemplate: string | undefined;
@@ -385,8 +392,8 @@ export const scribeStreamHandler = authed
 
 		let messages: ModelMessage[] = compiledPrompt;
 
-		// Handle audio files for Gemini models
-		if (hasAudio && actualModel.startsWith("gemini")) {
+		// Handle audio files — capability validated by resolveModel
+		if (hasAudio && resolved.inputModes.includes("audio")) {
 			const lastMessage = messages.at(-1);
 			if (lastMessage?.role === "user") {
 				const audioContent = audioFiles.map((audioFile) => ({
@@ -414,9 +421,31 @@ export const scribeStreamHandler = authed
 			}
 		}
 
+		// Build provider options — only include OpenRouter-specific options when using OpenRouter
+		const useThinking =
+			config.modelConfig.thinking && resolved.supportsReasoning;
+		const thinkingEnabled = useThinking;
+
+		// Enable with budget when desired, otherwise omit entirely.
+		// NEVER send { enabled: false } — some models require mandatory reasoning.
+		const reasoningConfig = thinkingEnabled
+			? { max_tokens: config.modelConfig.thinkingBudget ?? 8000 }
+			: undefined;
+
+		const providerOptions = resolved.isOpenRouter
+			? {
+					openrouter: {
+						usage: { include: true },
+						user: context.session.user.email,
+						...(reasoningConfig && { reasoning: reasoningConfig }),
+						...(activeSubscription && { zdr: true }),
+					},
+				}
+			: undefined;
+
 		// Stream the response
 		const result = streamText({
-			model: aiModel,
+			model: resolved.model,
 			maxOutputTokens: config.modelConfig.maxTokens ?? 20_000,
 			temperature: config.modelConfig.temperature ?? 1,
 			providerOptions: {
@@ -432,18 +461,18 @@ export const scribeStreamHandler = authed
 			messages,
 			onFinish: (event) => {
 				// PERF: Use after() for non-blocking usage logging (faster stream completion)
-				after(async () => {
-					// Extract OpenRouter usage data
-					const openRouterUsage = extractOpenRouterUsage(
-						event.providerMetadata,
-					);
+				scheduleAfter(async () => {
+					// Extract OpenRouter usage data (graceful fallback for non-OpenRouter)
+					const openRouterUsage = resolved.isOpenRouter
+						? extractOpenRouterUsage(event.providerMetadata)
+						: undefined;
 					// Log usage to database using Drizzle
 					// Plus subscribers: skip content logging for privacy (ZDR)
 					await context.db.insert(usageEvent).values(
 						buildUsageEventData({
 							userId: context.session.user.id,
 							name: "ai_scribe_generation",
-							model: modelName,
+							model: resolved.modelName,
 							openRouterUsage,
 							standardUsage: event.usage as StandardUsage,
 							inputData: activeSubscription

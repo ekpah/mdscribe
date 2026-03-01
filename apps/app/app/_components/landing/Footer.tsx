@@ -1,5 +1,4 @@
 import { Separator } from '@repo/design-system/components/ui/separator';
-const date = new Date().getFullYear();
 export default function Footer() {
   const date = new Date().getFullYear();
   return (

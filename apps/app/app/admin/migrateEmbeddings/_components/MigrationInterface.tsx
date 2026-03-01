@@ -187,17 +187,17 @@ export default function MigrationInterface({
           <Label htmlFor="batchSize" className="text-solarized-base00">
             Batch-Größe
           </Label>
-          <Input
-            id="batchSize"
-            type="number"
-            min={1}
-            max={50}
-            value={batchSize}
-            onChange={(e) =>
-              setBatchSize(Number.parseInt(e.target.value) || 10)
-            }
-            className="border-solarized-base2"
-          />
+	          <Input
+	            id="batchSize"
+	            type="number"
+	            min={1}
+	            max={50}
+	            value={batchSize}
+	            onChange={(e) =>
+	              setBatchSize(Number.parseInt(e.target.value, 10) || 10)
+	            }
+	            className="border-solarized-base2"
+	          />
           <p className="text-solarized-base01 text-xs">
             Anzahl der Vorlagen pro Batch (1-50)
           </p>
@@ -207,16 +207,16 @@ export default function MigrationInterface({
           <Label htmlFor="delay" className="text-solarized-base00">
             Verzögerung zwischen Batches (ms)
           </Label>
-          <Input
-            id="delay"
-            type="number"
-            min={0}
-            value={delayBetweenBatches}
-            onChange={(e) =>
-              setDelayBetweenBatches(Number.parseInt(e.target.value) || 1000)
-            }
-            className="border-solarized-base2"
-          />
+	          <Input
+	            id="delay"
+	            type="number"
+	            min={0}
+	            value={delayBetweenBatches}
+	            onChange={(e) =>
+	              setDelayBetweenBatches(Number.parseInt(e.target.value, 10) || 1000)
+	            }
+	            className="border-solarized-base2"
+	          />
           <p className="text-solarized-base01 text-xs">
             Verzögerung in Millisekunden zwischen den Batches
           </p>

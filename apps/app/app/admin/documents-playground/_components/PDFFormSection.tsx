@@ -1,21 +1,51 @@
 "use client";
 
 import { Button } from "@repo/design-system/components/ui/button";
-import { Card } from "@repo/design-system/components/ui/card";
-import { useMutation } from "@tanstack/react-query";
-import { Download, Mic, Printer, Square, X } from "lucide-react";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@repo/design-system/components/ui/card";
+import { Label } from "@repo/design-system/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/design-system/components/ui/select";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/design-system/components/ui/tabs";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+	Copy,
+	Download,
+	Loader2,
+	Mic,
+	Printer,
+	ScanText,
+	Square,
+	X,
+} from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { pdfjs } from "react-pdf";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import type { AudioFile, InputField } from "@/orpc/scribe/types";
 import { fillPDFForm } from "../_lib/fillPDFForm";
 import {
+	convertPDFFieldsToInputTags,
 	type FieldMapping,
 	type PDFField,
-	convertPDFFieldsToInputTags,
 	parsePDFFormFields,
 } from "../_lib/parsePDFFormFields";
+import { MAX_PDF_UPLOAD_BYTES } from "../_lib/pdfData";
 import PDFDebugPanel from "./PDFDebugPanel";
 import PDFInputs, { type InputSource } from "./PDFInputs";
 import PDFUploadSection from "./PDFUploadSection";
@@ -23,6 +53,84 @@ import PDFUploadSection from "./PDFUploadSection";
 const PDFViewSection = dynamic(() => import("./PDFViewSection"), {
 	ssr: false,
 });
+
+// PDFViewSection sets pdfjs.GlobalWorkerOptions.workerSrc when it first mounts.
+// It is always in the DOM (TabsContent keeps it mounted), so the worker is ready
+// before any user action can trigger convertPdfToImages below.
+
+/**
+ * Renders PDF pages to JPEG canvas images using the shared pdfjs instance from react-pdf.
+ * Used for openai-compatible (Ollama) connections that accept images but not raw PDFs.
+ */
+async function convertPdfToImages(
+	pdfBytes: Uint8Array,
+	maxPages = 10,
+): Promise<string[]> {
+	const pdf = await pdfjs.getDocument({ data: pdfBytes.slice() }).promise;
+	const images: string[] = [];
+	const pageCount = Math.min(pdf.numPages, maxPages);
+
+	for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+		const page = await pdf.getPage(pageNum);
+		const viewport = page.getViewport({ scale: 1.5 });
+
+		const canvas = document.createElement("canvas");
+		const ctx = canvas.getContext("2d");
+		if (!ctx) throw new Error("Canvas context nicht verfügbar");
+
+		canvas.width = viewport.width;
+		canvas.height = viewport.height;
+		await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+
+		const base64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1] ?? "";
+		images.push(base64);
+		page.cleanup();
+	}
+
+	return images;
+}
+
+function encodeUint8ArrayToBase64(data: Uint8Array): string {
+	const chunkSize = 8192;
+	const chunks: string[] = [];
+	for (let i = 0; i < data.length; i += chunkSize) {
+		const chunk = data.subarray(i, i + chunkSize);
+		chunks.push(String.fromCharCode(...chunk));
+	}
+	return btoa(chunks.join(""));
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+	const bytes = new Uint8Array(await blob.arrayBuffer());
+	return encodeUint8ArrayToBase64(bytes);
+}
+
+function isLikelyOcrCapableModel(model: {
+	id: string;
+	modelId?: string;
+	providerId?: string;
+	providerProtocol?: string;
+	connectionProtocol?: string;
+	capabilities: { supportsImage: boolean };
+}): boolean {
+	if (model.capabilities.supportsImage) {
+		return true;
+	}
+
+	const modelId = (model.modelId ?? model.id).toLowerCase();
+	return (
+		modelId.includes("gemini") ||
+		modelId.includes("claude") ||
+		modelId.includes("gpt-4o") ||
+		modelId.includes("gpt-4.1") ||
+		modelId.includes("ocr") ||
+		modelId.includes("vision") ||
+		modelId.includes("vlm") ||
+		modelId.includes("llava") ||
+		modelId.includes("moondream") ||
+		modelId.includes("-vl")
+	);
+}
 
 interface AudioRecording {
 	blob: Blob;
@@ -41,6 +149,11 @@ export default function PDFFormSection() {
 		{},
 	);
 	const [inputsKey, setInputsKey] = useState(0);
+	const [activePreviewTab, setActivePreviewTab] = useState<"pdf" | "markdown">(
+		"pdf",
+	);
+	const [ocrMarkdown, setOcrMarkdown] = useState("");
+	const [selectedOcrModelId, setSelectedOcrModelId] = useState("");
 
 	// Audio recording state
 	const [isRecording, setIsRecording] = useState(false);
@@ -49,6 +162,47 @@ export default function PDFFormSection() {
 	const audioChunksRef = useRef<Blob[]>([]);
 	const recordingStartTimeRef = useRef<number>(0);
 	const maxRecordings = 3;
+
+	const {
+		data: connectorModels = [],
+		isLoading: isLoadingConnectorModels,
+		error: connectorModelsError,
+	} = useQuery(orpc.admin.models.list.queryOptions());
+
+	const ocrCapableModels = useMemo(
+		() => connectorModels.filter(isLikelyOcrCapableModel),
+		[connectorModels],
+	);
+
+	const preferredOcrModel = useMemo(() => {
+		return (
+			ocrCapableModels.find((model) => model.capabilities.supportsImage) ??
+			ocrCapableModels.find(
+				(model) =>
+					model.id.toLowerCase().includes("gemini") ||
+					model.id.toLowerCase().includes("claude"),
+			) ??
+			ocrCapableModels[0]
+		);
+	}, [ocrCapableModels]);
+
+	useEffect(() => {
+		if (ocrCapableModels.length === 0) {
+			setSelectedOcrModelId("");
+			return;
+		}
+		setSelectedOcrModelId((previous) => {
+			if (ocrCapableModels.some((model) => model.id === previous)) {
+				return previous;
+			}
+			return preferredOcrModel?.id ?? "";
+		});
+	}, [ocrCapableModels, preferredOcrModel]);
+
+	const selectedOcrModel = useMemo(
+		() => ocrCapableModels.find((model) => model.id === selectedOcrModelId),
+		[ocrCapableModels, selectedOcrModelId],
+	);
 
 	// Use oRPC mutation for AI enhancement
 	const enhanceMutation = useMutation(
@@ -104,6 +258,27 @@ export default function PDFFormSection() {
 		}),
 	);
 
+	const ocrToMarkdownMutation = useMutation(
+		orpc.documents.ocrToMarkdown.mutationOptions({
+			onSuccess: (data) => {
+				setOcrMarkdown(data.markdown);
+				setActivePreviewTab("markdown");
+				toast.success("Markdown aus PDF extrahiert", {
+					id: "ocr-markdown",
+				});
+			},
+			onError: (error) => {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Unbekannter Fehler aufgetreten";
+				toast.error(`OCR-Extraktion fehlgeschlagen: ${errorMessage}`, {
+					id: "ocr-markdown",
+				});
+			},
+		}),
+	);
+
 	const handleClearDocument = () => {
 		setPdfFile(null);
 		setFieldMapping([]);
@@ -113,22 +288,41 @@ export default function PDFFormSection() {
 		setFieldSources({});
 		setAudioRecordings([]);
 		setInputsKey(0);
+		setOcrMarkdown("");
+		setActivePreviewTab("pdf");
 	};
 	const { inputTags } = convertPDFFieldsToInputTags(fields, fieldMapping);
 	const handleFileUpload = async (file: Uint8Array) => {
-		setPdfFile(file);
+		// Keep an isolated in-memory copy for preview/fill operations.
+		const stableFile = new Uint8Array(file);
+		if (stableFile.byteLength > MAX_PDF_UPLOAD_BYTES) {
+			toast.error("PDF ist zu groß für den Playground");
+			return;
+		}
+
+		setPdfFile(stableFile);
+		setOcrMarkdown("");
+		setActivePreviewTab("pdf");
 
 		// get form fields from pdf
-		const { fields } = await parsePDFFormFields(file);
-		setFields(fields);
-		// set initial field mapping, changes with every change of fields
-		setFieldMapping(
-			fields.map((field) => ({
-				fieldName: field.name,
-				label: field.name,
-				description: "",
-			})),
-		);
+		try {
+			const { fields: parsedFields } = await parsePDFFormFields(stableFile);
+			setFields(parsedFields);
+			// set initial field mapping, changes with every change of fields
+			setFieldMapping(
+				parsedFields.map((field) => ({
+					fieldName: field.name,
+					label: field.name,
+					description: "",
+				})),
+			);
+		} catch (error) {
+			console.error("Error parsing uploaded PDF:", error);
+			setPdfFile(null);
+			setFields([]);
+			setFieldMapping([]);
+			toast.error("PDF konnte nicht gelesen werden");
+		}
 	};
 
 	const handleInputChange = useCallback((values: Record<string, unknown>) => {
@@ -202,16 +396,12 @@ export default function PDFFormSection() {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;
 		}
-
-		// Convert Uint8Array to base64 in chunks to avoid stack overflow for large files
-		// Using array + join is more memory efficient than string concatenation
-		const chunkSize = 8192;
-		const chunks: string[] = [];
-		for (let i = 0; i < pdfFile.length; i += chunkSize) {
-			const chunk = pdfFile.subarray(i, i + chunkSize);
-			chunks.push(String.fromCharCode(...chunk));
+		if (pdfFile.byteLength > MAX_PDF_UPLOAD_BYTES) {
+			toast.error("PDF ist zu groß für KI-Verarbeitung");
+			return;
 		}
-		const base64 = btoa(chunks.join(""));
+
+		const base64 = encodeUint8ArrayToBase64(pdfFile);
 
 		toast.loading("Eingaben werden mit KI verbessert...", {
 			id: "enhance-ai",
@@ -221,6 +411,73 @@ export default function PDFFormSection() {
 			fileBase64: base64,
 			fieldMapping,
 		});
+	};
+
+	const handleExtractMarkdown = async () => {
+		if (!pdfFile) {
+			toast.error("Keine PDF-Datei ausgewählt");
+			return;
+		}
+		if (pdfFile.byteLength > MAX_PDF_UPLOAD_BYTES) {
+			toast.error("PDF ist zu groß für OCR-Verarbeitung");
+			return;
+		}
+
+		if (ocrCapableModels.length === 0) {
+			toast.error("Keine OCR-fähigen Modelle in den Verbindungen gefunden");
+			return;
+		}
+
+		if (!selectedOcrModel) {
+			toast.error("Bitte OCR-Modell auswählen");
+			return;
+		}
+
+		const providerId =
+			selectedOcrModel.providerId ?? selectedOcrModel.connectionId;
+		if (!providerId) {
+			toast.error("Das ausgewählte Modell hat keine gültige Verbindung");
+			return;
+		}
+
+		toast.loading("Markdown wird aus PDF extrahiert...", {
+			id: "ocr-markdown",
+		});
+
+		// Ollama / openai-compatible models accept images, not raw PDFs.
+		// Convert PDF pages to JPEG images client-side before sending.
+		if (
+			(selectedOcrModel.providerProtocol ??
+				selectedOcrModel.connectionProtocol) === "openai-compatible"
+		) {
+			try {
+				const images = await convertPdfToImages(pdfFile);
+				ocrToMarkdownMutation.mutate({
+					imagesBase64: images,
+					model: selectedOcrModel.modelId ?? selectedOcrModel.id,
+					providerId,
+				});
+			} catch (error) {
+				toast.error("PDF konnte nicht in Bilder konvertiert werden", {
+					id: "ocr-markdown",
+				});
+				console.error("PDF→image conversion failed:", error);
+			}
+			return;
+		}
+
+		const base64 = encodeUint8ArrayToBase64(pdfFile);
+		ocrToMarkdownMutation.mutate({
+			fileBase64: base64,
+			model: selectedOcrModel.modelId ?? selectedOcrModel.id,
+			providerId,
+		});
+	};
+
+	const handleCopyMarkdown = async () => {
+		if (!ocrMarkdown) return;
+		await navigator.clipboard.writeText(ocrMarkdown);
+		toast.success("Markdown kopiert");
 	};
 
 	// Audio recording handlers
@@ -311,20 +568,13 @@ export default function PDFFormSection() {
 			id: "voice-fill",
 		});
 
-		// Convert audio blobs to base64
-		const audioFiles: AudioFile[] = await Promise.all(
-			audioRecordings.map(async (rec) => {
-				const reader = new FileReader();
-				const base64 = await new Promise<string>((resolve) => {
-					reader.onloadend = () => {
-						const result = reader.result as string;
-						resolve(result.split(",")[1]);
-					};
-					reader.readAsDataURL(rec.blob);
-				});
-				return { data: base64, mimeType: rec.blob.type };
-			}),
-		);
+			// Convert audio blobs to base64
+			const audioFiles: AudioFile[] = await Promise.all(
+				audioRecordings.map(async (rec) => {
+					const base64 = await blobToBase64(rec.blob);
+					return { data: base64, mimeType: rec.blob.type };
+				}),
+			);
 
 		const inputFields: InputField[] = fieldMapping.map((field) => ({
 			label: field.label,
@@ -469,12 +719,136 @@ export default function PDFFormSection() {
 						onClear={handleClearDocument}
 						pdfFile={pdfFile}
 					/>
-					<div className="mt-4 flex-1">
-						<PDFViewSection
-							key={`pdf-view-${pdfVersion}`}
-							pdfFile={filledPdf ?? pdfFile}
-							hasUploadedFile={Boolean(pdfFile)}
-						/>
+					<div className="mt-4 min-h-0 flex-1">
+						<Tabs
+							className="flex h-full min-h-0 flex-col"
+							value={activePreviewTab}
+							onValueChange={(value) =>
+								setActivePreviewTab(value as "pdf" | "markdown")
+							}
+						>
+							<TabsList className="w-fit">
+								<TabsTrigger value="pdf">PDF Vorschau</TabsTrigger>
+								<TabsTrigger value="markdown">Markdown (OCR)</TabsTrigger>
+							</TabsList>
+							<TabsContent
+								value="pdf"
+								className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+							>
+								<PDFViewSection
+									key={`pdf-view-${pdfVersion}`}
+									pdfFile={filledPdf ?? pdfFile}
+									hasUploadedFile={Boolean(pdfFile)}
+								/>
+							</TabsContent>
+							<TabsContent
+								value="markdown"
+								className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+							>
+								<Card className="flex h-full min-h-0 flex-col border-solarized-base2">
+									<CardHeader className="space-y-3 border-b border-solarized-base2 px-4 py-3">
+										<div className="space-y-1">
+											<CardTitle className="text-sm text-solarized-base00">
+												OCR Markdown
+											</CardTitle>
+											<p className="text-xs text-solarized-base01">
+												Wähle ein Modell aus den konfigurierten Verbindungen und
+												extrahiere den Dokumenttext als Markdown.
+											</p>
+										</div>
+										<div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+											<div className="space-y-2">
+												<Label className="text-sm text-solarized-base01">
+													OCR-Modell
+												</Label>
+												<Select
+													value={selectedOcrModelId}
+													onValueChange={setSelectedOcrModelId}
+													disabled={
+														isLoadingConnectorModels ||
+														ocrCapableModels.length === 0
+													}
+												>
+													<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
+														<SelectValue
+															placeholder={
+																isLoadingConnectorModels
+																	? "Modelle werden geladen..."
+																	: "Modell auswählen"
+															}
+														/>
+													</SelectTrigger>
+													<SelectContent>
+														{ocrCapableModels.map((model) => (
+															<SelectItem key={model.id} value={model.id}>
+																{model.name} (
+																{model.providerProtocol ??
+																	model.connectionProtocol}
+																)
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+												{!isLoadingConnectorModels &&
+												!connectorModelsError &&
+												ocrCapableModels.length === 0 ? (
+													<p className="text-xs text-solarized-red">
+														Keine OCR-fähigen Modelle gefunden. Aktiviere ein
+														multimodales Modell in den Connector-Einstellungen.
+													</p>
+												) : null}
+												{connectorModelsError ? (
+													<p className="text-xs text-solarized-red">
+														Fehler beim Laden der Modelle:{" "}
+														{connectorModelsError instanceof Error
+															? connectorModelsError.message
+															: "Unbekannter Fehler"}
+													</p>
+												) : null}
+											</div>
+											<div className="flex flex-col gap-2 xl:justify-end">
+												<Button
+													onClick={handleExtractMarkdown}
+													disabled={
+														!pdfFile ||
+														!selectedOcrModel ||
+														ocrToMarkdownMutation.isPending
+													}
+												>
+													{ocrToMarkdownMutation.isPending ? (
+														<>
+															<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+															Extrahiere...
+														</>
+													) : (
+														<>
+															<ScanText className="mr-2 h-4 w-4" />
+															Markdown extrahieren
+														</>
+													)}
+												</Button>
+												<Button
+													onClick={handleCopyMarkdown}
+													variant="outline"
+													disabled={!ocrMarkdown}
+												>
+													<Copy className="mr-2 h-4 w-4" />
+													Kopieren
+												</Button>
+											</div>
+										</div>
+									</CardHeader>
+									<CardContent className="min-h-0 flex-1 p-3">
+										<div className="h-full overflow-y-auto rounded-md border border-solarized-base2 bg-solarized-base3 p-3">
+											<pre className="whitespace-pre-wrap font-mono text-sm text-solarized-base00">
+												{ocrMarkdown ||
+													"Noch kein OCR-Markdown vorhanden. Lade ein PDF hoch, wähle ein Modell und starte die Extraktion."}
+											</pre>
+										</div>
+									</CardContent>
+								</Card>
+							</TabsContent>
+						</Tabs>
 					</div>
 				</div>
 			</Card>

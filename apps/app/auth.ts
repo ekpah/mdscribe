@@ -1,22 +1,17 @@
 import { stripe } from "@better-auth/stripe";
 import {
-	account,
-	database,
 	eq,
-	session,
-	subscription,
-	user,
-	verification,
+	user as userTable,
 } from "@repo/database";
+import { database } from "@repo/database/client";
 import { sendEmail } from "@repo/email";
 import { EmailChangeTemplate } from "@repo/email/templates/change-email";
 import { ResetPasswordTemplate } from "@repo/email/templates/reset-password";
 import { EmailVerificationTemplate } from "@repo/email/templates/verify";
 import { env } from "@repo/env";
-import { betterAuth, type User } from "better-auth";
+import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware } from "better-auth/api";
-import Stripe from "stripe";
+import { Stripe as StripeClient } from "stripe";
 
 // Initialize stripe client (use placeholder during Docker builds where env vars aren't available)
 const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
@@ -41,18 +36,18 @@ export const auth = betterAuth({
 		},
 	},
 	// defines a user object
-	user: {
-		// defines how a user can change their email
-		changeEmail: {
-			enabled: true,
-			sendChangeEmailVerification: async ({ user, newEmail, url }) => {
-				await sendEmail({
-					from: "noreply@mdscribe.de",
-					to: user.email, // verification email must be sent to the current user email to approve the change
-					subject: "Genehmige E-Mail-Änderung",
-					template: EmailChangeTemplate({ url, newEmail }),
-				});
-			},
+		user: {
+			// defines how a user can change their email
+			changeEmail: {
+				enabled: true,
+				sendChangeEmailVerification: async ({ user: authUser, newEmail, url }) => {
+					await sendEmail({
+						from: "noreply@mdscribe.de",
+						to: authUser.email, // verification email must be sent to the current user email to approve the change
+						subject: "Genehmige E-Mail-Änderung",
+						template: EmailChangeTemplate({ url, newEmail }),
+					});
+				},
 			callbackURL: "/dashboard", // The redirect URL after verification
 		},
 		additionalFields: {
@@ -82,15 +77,15 @@ export const auth = betterAuth({
 				});
 			}
 		},
-		onPasswordReset: async ({ user: resetUser }) => {
-			// User has proven email access by clicking the reset link,
-			// so mark their email as verified
-			await database
-				.update(user)
-				.set({ emailVerified: true })
-				.where(eq(user.id, resetUser.id));
+			onPasswordReset: async ({ user: resetUser }) => {
+				// User has proven email access by clicking the reset link,
+				// so mark their email as verified
+				await database
+					.update(userTable)
+					.set({ emailVerified: true })
+					.where(eq(userTable.id, resetUser.id));
+			},
 		},
-	},
 	// define email verification functions
 	emailVerification: {
 		autoSignInAfterVerification: true,
@@ -98,20 +93,20 @@ export const auth = betterAuth({
 		expiresIn: 3600, // 1 hour
 		sendOnSignUp: true,
 		sendOnSignIn: true,
-		sendVerificationEmail: async ({ user, url, token }) => {
-			if (env.NODE_ENV === "development") {
-				await console.log({
-					to: user.email,
-					subject: "Verify your email address",
-					text: `Click the link to verify your email: ${url}`,
-				});
-			} else {
-				await sendEmail({
-					from: "noreply@mdscribe.de",
-					to: user.email,
-					subject: "Verify your email address",
-					template: EmailVerificationTemplate({ url }),
-				});
+			sendVerificationEmail: async ({ user: authUser, url, token: _token }) => {
+				if (env.NODE_ENV === "development") {
+					await console.log({
+						to: authUser.email,
+						subject: "Verify your email address",
+						text: `Click the link to verify your email: ${url}`,
+					});
+				} else {
+					await sendEmail({
+						from: "noreply@mdscribe.de",
+						to: authUser.email,
+						subject: "Verify your email address",
+						template: EmailVerificationTemplate({ url }),
+					});
 			}
 		},
 	},

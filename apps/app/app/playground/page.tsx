@@ -1,6 +1,7 @@
 'use client';
 
-import Markdoc, { RenderableTreeNode } from '@markdoc/markdoc';
+import type { RenderableTreeNode } from '@markdoc/markdoc';
+import Markdoc from '@markdoc/markdoc';
 import TipTap from '@repo/design-system/components/editor/TipTap';
 import Inputs from '@repo/design-system/components/inputs/Inputs';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -29,15 +30,6 @@ import { useMemo, useState } from 'react';
 import { MemoizedCopySection } from '../aiscribe/_components/MemoizedCopySection';
 
 
-
-// Collapsible Object Display component for AST and renderable tree
-function ObjectDisplay({ data }: { data: unknown }) {
-  return (
-    <div className="font-mono text-xs">
-      <ObjectNode data={data} name="" level={0} />
-    </div>
-  );
-}
 
 function ObjectNode({
   data,
@@ -180,6 +172,15 @@ function ObjectNode({
     <div style={{ marginLeft: indent }} className="text-muted-foreground">
       {name && <span className="text-solarized-blue">{name}: </span>}
       <span>{String(data)}</span>
+    </div>
+  );
+}
+
+// Collapsible Object Display component for AST and renderable tree
+function ObjectDisplay({ data }: { data: unknown }) {
+  return (
+    <div className="font-mono text-xs">
+      <ObjectNode data={data} name="" level={0} />
     </div>
   );
 }
