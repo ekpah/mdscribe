@@ -1,4 +1,4 @@
-import { and, count, eq } from "drizzle-orm";
+import { count } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { hashPassword } from "better-auth/crypto";
 
@@ -17,79 +17,6 @@ export const SEED_USER = {
 const globalForSeed = globalThis as unknown as {
 	seeded: boolean | undefined;
 };
-
-function isBetterAuthScryptHash(hash: string | null): boolean {
-	if (!hash) {
-		return false;
-	}
-
-	const [salt, key, extra] = hash.split(":");
-	if (!salt || !key || extra) {
-		return false;
-	}
-
-	return (
-		/^[a-f0-9]+$/i.test(salt) &&
-		/^[a-f0-9]+$/i.test(key) &&
-		salt.length === 32 &&
-		key.length === 128
-	);
-}
-
-async function hashPasswordForBetterAuth(password: string): Promise<string> {
-	return hashPassword(password);
-}
-
-async function ensureSeedUserCredentialHash(db: SeedDatabase): Promise<void> {
-	const [seedUser] = await db
-		.select({ id: schema.user.id })
-		.from(schema.user)
-		.where(eq(schema.user.email, SEED_USER.email))
-		.limit(1);
-	if (!seedUser) {
-		return;
-	}
-
-	const [credentialAccount] = await db
-		.select({
-			id: schema.account.id,
-			password: schema.account.password,
-		})
-		.from(schema.account)
-		.where(
-			and(
-				eq(schema.account.userId, seedUser.id),
-				eq(schema.account.providerId, "credential"),
-			),
-		)
-		.limit(1);
-
-	if (!credentialAccount) {
-		const hashedPassword = await hashPasswordForBetterAuth(SEED_USER.password);
-		await db.insert(schema.account).values({
-			id: crypto.randomUUID(),
-			userId: seedUser.id,
-			accountId: seedUser.id,
-			providerId: "credential",
-			password: hashedPassword,
-		});
-		console.log("Added missing credential account for seeded test user.");
-		return;
-	}
-
-	if (isBetterAuthScryptHash(credentialAccount.password)) {
-		return;
-	}
-
-	const hashedPassword = await hashPasswordForBetterAuth(SEED_USER.password);
-	await db
-		.update(schema.account)
-		.set({ password: hashedPassword })
-		.where(eq(schema.account.id, credentialAccount.id));
-	console.log(
-		"Updated seeded test user password hash to BetterAuth-compatible format.",
-	);
-}
 
 // Template seed data
 const SEED_TEMPLATES = [
@@ -184,10 +111,7 @@ Respiratorische Insuffizienz mit Intubationspflicht
 /**
  * Seed templates into the database
  */
-async function seedTemplates(
-	db: SeedDatabase,
-	authorId: string,
-): Promise<void> {
+async function seedTemplates(db: SeedDatabase, authorId: string): Promise<void> {
 	console.log("Seeding templates...");
 
 	for (const tmpl of SEED_TEMPLATES) {
@@ -207,10 +131,7 @@ async function seedTemplates(
 /**
  * Seed usage events into the database
  */
-async function seedUsageEvents(
-	db: SeedDatabase,
-	userId: string,
-): Promise<void> {
+async function seedUsageEvents(db: SeedDatabase, userId: string): Promise<void> {
 	console.log("Seeding usage events...");
 
 	const events = [
@@ -264,10 +185,7 @@ async function seedUsageEvents(
 			outputTokens: event.outputTokens,
 			totalTokens: event.inputTokens + event.outputTokens,
 			model: event.model,
-			cost: (
-				(event.inputTokens * 0.003 + event.outputTokens * 0.015) /
-				1000
-			).toFixed(6),
+			cost: ((event.inputTokens * 0.003 + event.outputTokens * 0.015) / 1000).toFixed(6),
 		});
 	}
 
@@ -278,20 +196,15 @@ async function seedUsageEvents(
  * Seed the database with test data for local development
  * Only runs once, even across HMR reloads
  */
-export async function seedDatabase(
-	db: SeedDatabase,
-): Promise<void> {
+export async function seedDatabase(db: SeedDatabase): Promise<void> {
 	// Skip if already seeded (HMR protection)
 	if (globalForSeed.seeded) {
 		console.log("Database already seeded, skipping...");
 		return;
 	}
 
-	const [{ count: userCount }] = await db
-		.select({ count: count() })
-		.from(schema.user);
+	const [{ count: userCount }] = await db.select({ count: count() }).from(schema.user);
 	if (Number(userCount) > 0) {
-		await ensureSeedUserCredentialHash(db);
 		globalForSeed.seeded = true;
 		console.log("Database already contains user data, skipping seed.");
 		return;
@@ -310,7 +223,7 @@ export async function seedDatabase(
 	});
 
 	// Create credential account with BetterAuth-compatible password hash
-	const hashedPassword = await hashPasswordForBetterAuth(SEED_USER.password);
+	const hashedPassword = await hashPassword(SEED_USER.password);
 	await db.insert(schema.account).values({
 		id: crypto.randomUUID(),
 		userId,

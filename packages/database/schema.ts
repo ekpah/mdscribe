@@ -76,6 +76,7 @@ export const account = pgTable("Account", {
 		.defaultNow(),
 	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
 		.notNull()
+		.defaultNow()
 		.$onUpdate(() => new Date()),
 });
 
@@ -95,6 +96,7 @@ export const session = pgTable("Session", {
 		.defaultNow(),
 	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
 		.notNull()
+		.defaultNow()
 		.$onUpdate(() => new Date()),
 });
 
@@ -233,6 +235,60 @@ export const favourites = pgTable(
 	],
 );
 
+// ============ AI PROVIDER TABLES ============
+
+export const aiProvider = pgTable("AiProvider", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	name: text("name").notNull(),
+	protocol: text("protocol").notNull(), // "openai-compatible" | "openrouter" | "openai" | "anthropic"
+	baseUrl: text("baseUrl"),
+	apiKey: text("apiKey"),
+});
+
+export const aiModel = pgTable(
+	"AiModel",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		providerId: text("providerId")
+			.notNull()
+			.references(() => aiProvider.id, { onDelete: "cascade" }),
+		modelId: text("modelId").notNull(),
+		displayName: text("displayName").notNull(),
+		supportsReasoning: boolean("supportsReasoning").notNull().default(false),
+		inputModes: text("inputModes").array().notNull().default(["text"]),
+	},
+	(table) => [
+		uniqueIndex("AiModel_providerId_modelId_key").on(
+			table.providerId,
+			table.modelId,
+		),
+	],
+);
+
+export const aiDefaults = pgTable("AiDefaults", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => "global"),
+	defaultTextModelId: text("defaultTextModelId").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
+	defaultFileImageModelId: text("defaultFileImageModelId").references(
+		() => aiModel.id,
+		{ onDelete: "set null" },
+	),
+	defaultSpeechToTextModelId: text("defaultSpeechToTextModelId").references(
+		() => aiModel.id,
+		{ onDelete: "set null" },
+	),
+	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+		.notNull()
+		.$onUpdate(() => new Date()),
+});
+
 // ============ RELATIONS ============
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -279,4 +335,15 @@ export const favouritesRelations = relations(favourites, ({ one }) => ({
 		references: [template.id],
 	}),
 	user: one(user, { fields: [favourites.userId], references: [user.id] }),
+}));
+
+export const aiProviderRelations = relations(aiProvider, ({ many }) => ({
+	models: many(aiModel),
+}));
+
+export const aiModelRelations = relations(aiModel, ({ one }) => ({
+	provider: one(aiProvider, {
+		fields: [aiModel.providerId],
+		references: [aiProvider.id],
+	}),
 }));

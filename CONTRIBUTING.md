@@ -30,12 +30,18 @@ Thank you for your interest in contributing to MDScribe! This guide will help yo
 
 4. Fill in the required environment variables in `.env`. See the [README](README.md) for details.
 
-5. Start the development server:
+5. Start local PostgreSQL:
+   ```bash
+   bun run db:up
+   ```
+   This command also runs `db:init` to apply schema and idempotent development seed data.
+
+6. Start the development server:
    ```bash
    bun dev
    ```
 
-   The app runs on `http://localhost:3000`. Local development uses PGlite (in-memory PostgreSQL), so no external database is required.
+   The app runs on `http://localhost:3000`.
 
 ## Project Structure
 
@@ -57,9 +63,12 @@ MDScribe is a monorepo managed with Bun workspaces and Turborepo:
 |---------|-------------|
 | `bun dev` | Start development server |
 | `bun run build` | Build all packages |
-| `bun run lint` | Lint all packages (Biome) |
+| `bun run lint` | Lint all packages (Ultracite/OXC) |
 | `bun run test` | Run tests |
 | `bun run knip` | Check for unused dependencies |
+| `bun run db:up` | Start local PostgreSQL container |
+| `bun run db:down` | Stop local PostgreSQL container |
+| `bun run db:init` | Re-run schema + idempotent seed |
 
 ## Branching Strategy
 
@@ -83,7 +92,7 @@ MDScribe is a monorepo managed with Bun workspaces and Turborepo:
 
 ## Code Style
 
-We use [Biome](https://biomejs.dev/) with the [ultracite](https://github.com/harshtalks/ultracite) configuration for formatting and linting.
+We use [Ultracite](https://www.ultracite.ai/) v7 with [Oxlint](https://oxc.rs/docs/guide/usage/linter.html) and [Oxfmt](https://oxc.rs/docs/guide/usage/formatter.html) for linting and formatting.
 
 Key conventions:
 

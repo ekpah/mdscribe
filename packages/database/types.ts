@@ -2,6 +2,9 @@ import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 import type {
 	account,
+	aiDefaults,
+	aiModel,
+	aiProvider,
 	favourites,
 	session,
 	subscription,
@@ -33,3 +36,11 @@ export type NewSubscription = InferInsertModel<typeof subscription>;
 export type NewUsageEvent = InferInsertModel<typeof usageEvent>;
 export type NewTextSnippet = InferInsertModel<typeof textSnippet>;
 export type NewFavourite = InferInsertModel<typeof favourites>;
+
+// AI Provider types
+export type AiProvider = InferSelectModel<typeof aiProvider>;
+export type AiModel = InferSelectModel<typeof aiModel>;
+export type AiDefaults = InferSelectModel<typeof aiDefaults>;
+export type NewAiProvider = InferInsertModel<typeof aiProvider>;
+export type NewAiModel = InferInsertModel<typeof aiModel>;
+export type NewAiDefaults = InferInsertModel<typeof aiDefaults>;

@@ -34,9 +34,6 @@ export const config: NextConfig = {
 		formats: ["image/avif", "image/webp"],
 	},
 
-	// Externalize PGlite to prevent bundling issues with WASM file resolution
-	serverExternalPackages: ["@electric-sql/pglite"],
-
 	// PERF: Optimize barrel file imports (15-70% faster dev boot, 28% faster builds)
 	experimental: {
 		optimizePackageImports: [

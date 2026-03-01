@@ -25,7 +25,7 @@ See `apps/docs/content/docs/self-hosting/index.mdx` for the self-hosting runbook
 
 - **Framework**: Next.js 16 (App Router, React 19)
 - **Runtime**: Bun
-- **Database**: PostgreSQL with Drizzle ORM (PGlite for local dev, Neon for production) + pgvector
+- **Database**: PostgreSQL with Drizzle ORM + pgvector
 - **Authentication**: BetterAuth with Stripe integration
 - **AI**: OpenRouter (multi-model), Voyage AI (embeddings), Langfuse (prompt management)
 - **API**: oRPC for type-safe client-server communication
@@ -60,7 +60,7 @@ See `apps/docs/content/docs/self-hosting/index.mdx` for the self-hosting runbook
    Required variables:
    | Variable | Description |
    |----------|-------------|
-   | `POSTGRES_DATABASE_URL` | PostgreSQL connection string (optional for local dev — uses PGlite) |
+   | `POSTGRES_DATABASE_URL` | PostgreSQL connection string |
    | `ADMIN_EMAIL` | Email address of the instance administrator |
    | `OPENROUTER_API_KEY` | OpenRouter API key for AI model access |
    | `BETTER_AUTH_SECRET` | Secret for authentication |
@@ -71,12 +71,18 @@ See `apps/docs/content/docs/self-hosting/index.mdx` for the self-hosting runbook
    | `STRIPE_PLUS_PRICE_ID_ANNUAL` | Stripe price ID for annual plan |
    | `VOYAGE_API_KEY` | Voyage AI API key for embeddings |
 
-4. Start the development server:
+4. Start local PostgreSQL (OrbStack/Docker):
+   ```bash
+   bun run db:up
+   ```
+   This command also runs `db:init` to apply schema and an idempotent development seed.
+
+5. Start the development server:
    ```bash
    bun dev
    ```
 
-   The app runs on [http://localhost:3000](http://localhost:3000). Local development uses PGlite (in-memory PostgreSQL), so no external database setup is required.
+   The app runs on [http://localhost:3000](http://localhost:3000).
 
 ## Project Structure
 
@@ -107,6 +113,11 @@ mdscribe/
 | `bun run test` | Full monorepo tests via Turbo |
 | `bun run test:affected` | Test only changed/affected packages (fast path) |
 | `bun run knip` | Check for unused dependencies |
+| `bun run db:up` | Start local PostgreSQL container for development |
+| `bun run db:down` | Stop local PostgreSQL container |
+| `bun run db:reset` | Stop local PostgreSQL and remove its volume |
+| `bun run db:logs` | Tail PostgreSQL logs |
+| `bun run db:init` | Re-run schema + idempotent seed against local Postgres |
 
 Performance tips:
 - Use `bun run lint:affected && bun run test:affected` during normal development.

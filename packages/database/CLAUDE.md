@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-This is the `@repo/database` package - the Drizzle ORM layer for MDScribe. It uses PostgreSQL with pgvector extension for template embeddings, with dual runtime support:
-- **Local Development**: PGlite (in-memory PostgreSQL)
-- **Production**: PostgreSQL via node-postgres (`pg`)
+This is the `@repo/database` package - the Drizzle ORM layer for MDScribe. It uses PostgreSQL with pgvector extension for template embeddings in all environments.
 
 ## Commands
 
@@ -22,31 +20,30 @@ bun run migrate
 
 # Push schema changes directly (development)
 bun run push
+
+# Apply schema + idempotent seed to local dev database
+bun run bootstrap
 ```
 
 ## Architecture
 
 ### Key Files
 - `schema.ts` - Drizzle schema definitions for all tables
-- `client.ts` - Database client with dual runtime (PGlite/node-postgres)
+- `client.ts` - Database client (postgres-js)
 - `types.ts` - Auto-generated TypeScript types from schema
-- `init-schema.ts` - SQL initialization for PGlite
+- `init-schema.ts` - SQL initialization used by test helpers
 - `test.ts` - Testing utilities
 - `drizzle.config.ts` - Drizzle Kit configuration
 
 ### Database Client
 
-The client automatically detects the environment:
+The client uses postgres-js with one shared process-local client:
 
 ```typescript
-// Local development: Uses PGlite (in-memory)
-// - No external database required
-// - Fast startup, isolated per session
-// - Schema auto-initialized on startup
-
-// Production: Uses node-postgres (pg)
-// - Connection pooling via pg Pool
+// All environments:
 // - Requires POSTGRES_DATABASE_URL
+// - Uses drizzle-orm/postgres-js
+// - Shared global singleton client to avoid reconnect churn in dev
 ```
 
 ### Schema Tables
@@ -79,7 +76,7 @@ const vector = customType<{ data: number[]; driverData: string }>({
 
 ```typescript
 // Database client
-import { database } from "@repo/database";
+import { database } from "@repo/database/client";
 
 // Schema tables
 import { user, template, subscription, usageEvent, ... } from "@repo/database";
@@ -105,12 +102,13 @@ await close();
 ## Environment Variables
 
 ```
-POSTGRES_DATABASE_URL  # Required for production, optional for local dev
+POSTGRES_DATABASE_URL  # Required in all environments
+POSTGRES_DATABASE_URL_TEST  # Optional override used by @repo/database/test
 ```
 
 ## Important Notes
 
 - Package is marked `server-only` - cannot be imported in client components
 - Template embeddings are 1024-dimensional (Voyage AI compatible)
-- PGlite uses in-memory mode to avoid file lock conflicts with Next.js HMR
+- Local development uses a real PostgreSQL instance (recommended via `docker-compose.dev-db.yml`)
 - Relations are defined bidirectionally for Drizzle query builder support

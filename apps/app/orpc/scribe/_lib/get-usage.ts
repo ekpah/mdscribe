@@ -1,4 +1,5 @@
-import { and, database, eq, gte, lte, usageEvent } from "@repo/database";
+import { and, eq, gte, lte, usageEvent } from "@repo/database";
+import { database } from "@repo/database/client";
 
 export async function getUsage(
 	session: { user: { id: string } },

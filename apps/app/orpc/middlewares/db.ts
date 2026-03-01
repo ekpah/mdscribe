@@ -1,6 +1,6 @@
 import { os } from "@orpc/server";
 import type { Database } from "@repo/database";
-import { database } from "@repo/database";
+import { database } from "@repo/database/client";
 
 export const dbProviderMiddleware = os
 	.$context<{ db?: Database }>()

@@ -83,7 +83,7 @@ export const findRelevantTemplateHandler = authed
 			LIMIT 5
 		`);
 
-		const templateIds = similarityResults.rows.map((t) => t.id);
+		const templateIds = similarityResults.map((t) => t.id);
 
 		if (templateIds.length === 0) {
 			return { templates: [], count: 0 };
@@ -111,7 +111,7 @@ export const findRelevantTemplateHandler = authed
 		);
 
 		// Merge similarity scores with template data
-		const templates = similarityResults.rows.map((simResult) => {
+		const templates = similarityResults.map((simResult) => {
 			const favs = favouritesByTemplate[simResult.id] || [];
 			return {
 				...simResult,

@@ -1,7 +1,6 @@
-import { PGlite } from "@electric-sql/pglite";
-import { vector } from "@electric-sql/pglite/vector";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
 import { initSchemaSQL } from "./init-schema";
 import * as schema from "./schema";
@@ -14,25 +13,49 @@ export interface TestServer {
 	close: () => Promise<void>;
 }
 
+function getTestConnectionString(): string {
+	return (
+		process.env.POSTGRES_DATABASE_URL_TEST ??
+		process.env.POSTGRES_DATABASE_URL ??
+		"postgres://postgres:postgres@127.0.0.1:5432/mdscribe"
+	);
+}
+
+function createTestSchemaName(testName: string): string {
+	const normalized = testName
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "_")
+		.replace(/^_+|_+$/g, "")
+		.slice(0, 40);
+	const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+	return `test_${normalized || "case"}_${suffix}`;
+}
+
 /**
- * Starts a test server with an in-memory PGlite database
+ * Starts a test server with an isolated Postgres schema.
  */
-export async function startTestServer(_testName: string): Promise<TestServer> {
-	// Use in-memory PGlite for tests with vector extension (no path = in-memory)
-	const client = new PGlite({
-		extensions: { vector },
+export async function startTestServer(testName: string): Promise<TestServer> {
+	const connectionString = getTestConnectionString();
+	const schemaName = createTestSchemaName(testName);
+	const client = postgres(connectionString, {
+		max: 1,
+		prepare: false,
 	});
 
-	// Create the Drizzle instance
-	const db = drizzle({ client, schema });
+	await client.unsafe(`CREATE SCHEMA "${schemaName}"`);
+	await client.unsafe(`SET search_path TO "${schemaName}", public`);
+	await client.unsafe(initSchemaSQL);
 
-	// Initialize schema
-	await client.exec(initSchemaSQL);
+	const db = drizzle(client, { schema });
 
 	return {
 		db,
 		close: async () => {
-			await client.close();
+			try {
+				await client.unsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+			} finally {
+				await client.end({ timeout: 5 });
+			}
 		},
 	};
 }
@@ -58,7 +81,6 @@ export async function createTestUser(
 	const stripeCustomerId = options?.stripeCustomerId ?? `cus_test_${Date.now()}`;
 	const userId = crypto.randomUUID();
 
-	// Create user
 	await db.insert(user).values({
 		id: userId,
 		email,
@@ -67,8 +89,11 @@ export async function createTestUser(
 		stripeCustomerId,
 	});
 
-	// Fetch the user we just created
-	const [fetchedUser] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+	const [fetchedUser] = await db
+		.select()
+		.from(user)
+		.where(eq(user.id, userId))
+		.limit(1);
 
 	if (!fetchedUser) {
 		throw new Error("Failed to create test user");

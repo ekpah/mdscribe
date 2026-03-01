@@ -95,7 +95,7 @@ Routes: `/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`
 
 ## Testing
 
-Tests use Bun test with PGlite for isolated database:
+Tests use Bun test with the Postgres-backed helpers from `@repo/database/test`:
 
 ```typescript
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
