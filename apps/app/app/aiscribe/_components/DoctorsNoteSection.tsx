@@ -8,10 +8,11 @@ import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
+import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import type { DocumentType } from "@/orpc/scribe/types";
-import { orpc } from "@/lib/orpc";
 
 const MIN_HEIGHT = 120;
 
@@ -29,10 +30,7 @@ export interface DoctorsNoteSectionConfig {
 	 * @param context - Values from other visible sections (keyed by section id)
 	 * @returns The prompt body to send to the API
 	 */
-	buildPrompt?: (
-		notes: string,
-		context: Record<string, string>,
-	) => Record<string, unknown>;
+	buildPrompt?: (notes: string, context: Record<string, string>) => Record<string, unknown>;
 }
 
 interface DoctorsNoteSectionProps {
@@ -89,9 +87,7 @@ export function DoctorsNoteSection({
 
 	// Extract completion text from the last assistant message
 	const completion = useMemo(() => {
-		const lastAssistantMessage = messages.findLast(
-			(m) => m.role === "assistant",
-		);
+		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
 		if (!lastAssistantMessage) return "";
 		if (lastAssistantMessage.parts) {
 			return lastAssistantMessage.parts
@@ -177,9 +173,7 @@ export function DoctorsNoteSection({
 					<div className="h-1.5 w-1.5 rounded-full bg-solarized-blue" />
 					{config.label}
 					{isLoading && (
-						<span className="ml-2 text-muted-foreground text-xs">
-							Wird generiert...
-						</span>
+						<span className="ml-2 text-muted-foreground text-xs">Wird generiert...</span>
 					)}
 				</Label>
 			</div>
@@ -199,11 +193,7 @@ export function DoctorsNoteSection({
 							)}
 							disabled={!canEnhance}
 							onClick={handleEnhance}
-							title={
-								isLoading
-									? "Wird generiert..."
-									: "Mit KI generieren/verbessern (⌘↵)"
-							}
+							title={isLoading ? "Wird generiert..." : "Mit KI generieren/verbessern (⌘↵)"}
 							type="button"
 						>
 							{isLoading ? (

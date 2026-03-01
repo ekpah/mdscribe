@@ -1,5 +1,10 @@
 import { mock } from "bun:test";
 
+process.env.POSTGRES_DATABASE_URL ??=
+	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
+process.env.POSTGRES_DATABASE_URL_TEST ??=
+	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
+
 // Mock server-only to allow testing server components
 mock.module("server-only", () => ({}));
 

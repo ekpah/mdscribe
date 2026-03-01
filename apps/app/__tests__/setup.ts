@@ -1,9 +1,9 @@
 // Re-export test utilities from the database package
 export {
-	startTestServer,
 	createTestUser,
-	type TestServer,
+	startTestServer,
 	type TestDatabase,
+	type TestServer,
 } from "@repo/database/test";
 
 import type { TestDatabase } from "@repo/database/test";
@@ -67,6 +67,14 @@ export function createMockSession(user: {
 	};
 }
 
+function getRequiredRow<T>(rows: T[], message: string): T {
+	const row = rows[0];
+	if (!row) {
+		throw new Error(message);
+	}
+	return row;
+}
+
 /**
  * Helper to create a template in the test database
  */
@@ -91,11 +99,12 @@ export async function createTestTemplate(
 			content: options?.content ?? "Test content",
 			authorId,
 			updatedAt: new Date(),
-			embedding: options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
+			embedding:
+				options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
 		})
 		.returning();
 
-	return result[0]!;
+	return getRequiredRow(result, "Failed to create test template");
 }
 
 /**
@@ -121,7 +130,7 @@ export async function createTestSnippet(
 		})
 		.returning();
 
-	return result[0]!;
+	return getRequiredRow(result, "Failed to create test snippet");
 }
 
 /**
@@ -151,7 +160,7 @@ export async function createTestSubscription(
 		})
 		.returning();
 
-	return result[0]!;
+	return getRequiredRow(result, "Failed to create test subscription");
 }
 
 /**
@@ -176,11 +185,65 @@ export async function createTestUsageEvent(
 			name: options?.name ?? "ai_scribe_generation",
 			inputTokens: options?.inputTokens ?? 100,
 			outputTokens: options?.outputTokens ?? 200,
-			totalTokens: (options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
+			totalTokens:
+				(options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
 			model: "test-model",
 			timestamp: new Date(),
 		})
 		.returning();
 
-	return result[0]!;
+	return getRequiredRow(result, "Failed to create test usage event");
+}
+
+/**
+ * Seed a minimal provider/model/default setup so resolver-based handlers can run.
+ */
+export async function createTestAiDefaults(db: TestDatabase): Promise<{
+	providerId: string;
+	modelRecordId: string;
+	modelId: string;
+}> {
+	const { aiDefaults, aiModel, aiProvider } = await import("@repo/database");
+
+	const providerId = crypto.randomUUID();
+	const modelRecordId = crypto.randomUUID();
+	const modelId = "openrouter/test-model";
+
+	await db.insert(aiProvider).values({
+		id: providerId,
+		name: "Test Provider",
+		protocol: "openrouter",
+		baseUrl: null,
+		apiKey: null,
+	});
+
+	await db.insert(aiModel).values({
+		id: modelRecordId,
+		providerId,
+		modelId,
+		displayName: "Test Model",
+		supportsReasoning: true,
+		inputModes: ["text", "audio", "file", "image"],
+	});
+
+	await db
+		.insert(aiDefaults)
+		.values({
+			id: "global",
+			defaultTextModelId: modelRecordId,
+			defaultFileImageModelId: modelRecordId,
+			defaultSpeechToTextModelId: modelRecordId,
+			updatedAt: new Date(),
+		})
+		.onConflictDoUpdate({
+			target: aiDefaults.id,
+			set: {
+				defaultTextModelId: modelRecordId,
+				defaultFileImageModelId: modelRecordId,
+				defaultSpeechToTextModelId: modelRecordId,
+				updatedAt: new Date(),
+			},
+		});
+
+	return { providerId, modelRecordId, modelId };
 }

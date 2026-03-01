@@ -270,11 +270,11 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 			LIMIT 1
 		`);
 
-		if (similarityResults.rows[0]?.content) {
+		if (similarityResults[0]?.content) {
 			return `## Relevante Textbaustein-Vorlage (Referenz)
 
 Nutze die folgende Vorlage als Beispiel eines Textbausteins. Dieser ist anhand der gegebenen Informationen ausgewählt und potenziell relevant, der Assistent baut also darauf auf. Bei Diskrepanzen, nutze auf jeden Fall die Informationen aus der Nutzereingabe!
-${similarityResults.rows[0].content}`;
+${similarityResults[0].content}`;
 		}
 	} catch (error) {
 		console.error("Failed to find relevant procedure template:", error);

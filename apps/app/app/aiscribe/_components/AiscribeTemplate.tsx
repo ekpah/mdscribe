@@ -6,11 +6,6 @@ import {
 	PromptInput,
 	PromptInputActionMenu,
 	PromptInputBody,
-	PromptInputModelSelect,
-	PromptInputModelSelectContent,
-	PromptInputModelSelectItem,
-	PromptInputModelSelectTrigger,
-	PromptInputModelSelectValue,
 	PromptInputSubmit,
 	PromptInputTextarea,
 	PromptInputToolbar,
@@ -52,14 +47,9 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
-import { USER_MESSAGES } from "@/lib/user-messages";
-import type {
-	AudioFile,
-	DocumentType,
-	SupportedModel,
-} from "@/orpc/scribe/types";
-
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
+import type { AudioFile, DocumentType } from "@/orpc/scribe/types";
 import { MemoizedCopySection } from "./MemoizedCopySection";
 
 interface AdditionalInputField {
@@ -111,13 +101,6 @@ export interface AiscribeTemplateConfig {
 	) => Promise<unknown>;
 }
 
-const models: Array<{ id: SupportedModel; name: string }> = [
-	{ id: "auto", name: "Auto" },
-	{ id: "glm-5", name: "GLM 5" },
-	{ id: "claude-opus-4.6", name: "Claude Opus 4.6" },
-	{ id: "gemini-3-pro", name: "Gemini 3 Pro" },
-];
-
 interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
 }
@@ -128,6 +111,21 @@ interface AudioRecording {
 	id: string;
 }
 
+function encodeUint8ArrayToBase64(data: Uint8Array): string {
+	const chunkSize = 8192;
+	const chunks: string[] = [];
+	for (let i = 0; i < data.length; i += chunkSize) {
+		const chunk = data.subarray(i, i + chunkSize);
+		chunks.push(String.fromCharCode(...chunk));
+	}
+	return btoa(chunks.join(""));
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+	const bytes = new Uint8Array(await blob.arrayBuffer());
+	return encodeUint8ArrayToBase64(bytes);
+}
+
 export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const [activeTab, setActiveTab] = useState("input");
 	const [inputData, setInputData] = useState("");
@@ -135,8 +133,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		Record<string, string>
 	>({});
 	const [values, setValues] = useState<Record<string, unknown>>({});
-	const [model, setModel] = useState<SupportedModel>(models[0].id);
-	const selectedModelRef = useRef<SupportedModel>(models[0].id);
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
 	// Use ref for audio files to avoid race condition between setState and sendMessage
@@ -145,6 +141,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const audioChunksRef = useRef<Blob[]>([]);
 	const recordingStartTimeRef = useRef<number>(0);
 	const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
+	const { customApiCall, customPromptProcessor, inputFieldName } = config;
 
 	// Initialize text snippets hook
 	useTextSnippets();
@@ -161,7 +158,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 						{
 							documentType: config.documentType,
 							messages: options.messages,
-							model: selectedModelRef.current,
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
 						},
 						{ signal: options.abortSignal },
@@ -208,8 +204,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		setValues(data);
 	}, []);
 
-	// Check if audio recording is supported for current model
-	const isAudioSupported = model === "auto" || model === "gemini-3-pro";
 	const maxRecordings = 3;
 	const canRecord = audioRecordings.length < maxRecordings;
 
@@ -365,35 +359,28 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		setMessages([]);
 		setActiveTab("output");
 
-		try {
-			// Handle custom API call if provided
-			if (config.customApiCall) {
-				await config.customApiCall(inputData, additionalInputData);
-			}
+			try {
+				// Handle custom API call if provided
+				if (customApiCall) {
+					await customApiCall(inputData, additionalInputData);
+				}
 
-			// Prepare prompt
-			const prompt = config.customPromptProcessor
-				? config.customPromptProcessor(inputData, additionalInputData)
-				: JSON.stringify({
-						[config.inputFieldName]: inputData,
-						...additionalInputData,
-					});
+				// Prepare prompt
+				const prompt = customPromptProcessor
+					? customPromptProcessor(inputData, additionalInputData)
+					: JSON.stringify({
+							[inputFieldName]: inputData,
+							...additionalInputData,
+						});
 
 			// Prepare audio files if available - update ref synchronously before sendMessage
-			if (audioRecordings.length > 0 && isAudioSupported) {
-				const audioFiles = await Promise.all(
-					audioRecordings.map(async (recording) => {
-						const reader = new FileReader();
-						const audioBase64 = await new Promise<string>((resolve) => {
-							reader.onloadend = () => {
-								const base64String = (reader.result as string).split(",")[1];
-								resolve(base64String);
-							};
-							reader.readAsDataURL(recording.blob);
-						});
-						return {
-							data: audioBase64,
-							mimeType: recording.blob.type,
+				if (audioRecordings.length > 0) {
+					const audioFiles = await Promise.all(
+						audioRecordings.map(async (recording) => {
+							const audioBase64 = await blobToBase64(recording.blob);
+							return {
+								data: audioBase64,
+								mimeType: recording.blob.type,
 						};
 					}),
 				);
@@ -424,15 +411,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		areRequiredFieldsFilled,
 		hasMissingRequiredFields,
 		requiredFieldsMessage,
-		setMessages,
-		sendMessage,
-		config.customApiCall,
-		config.customPromptProcessor,
-		config.inputFieldName,
-		model,
-		audioRecordings,
-		isAudioSupported,
-	]);
+			setMessages,
+			sendMessage,
+			customApiCall,
+			customPromptProcessor,
+			inputFieldName,
+			audioRecordings,
+		]);
 
 	useHotkeys(
 		["meta+shift+1", "ctrl+shift+1"],
@@ -451,7 +436,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		(event: KeyboardEvent) => {
 			event.preventDefault();
 			event.stopPropagation();
-			if (!isLoading && !hasMissingRequiredFields && areRequiredFieldsFilled()) {
+			if (
+				!isLoading &&
+				!hasMissingRequiredFields &&
+				areRequiredFieldsFilled()
+			) {
 				handleGenerate();
 			}
 		},
@@ -689,48 +678,19 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 											</PromptInputBody>
 											<PromptInputToolbar>
 												<PromptInputTools>
-													<PromptInputActionMenu>
-														<PromptInputModelSelect
-															onValueChange={(value) => {
-											const nextModel = value as SupportedModel;
-											selectedModelRef.current = nextModel;
-											setModel(nextModel);
-										}}
-															value={model}
-														>
-															<PromptInputModelSelectTrigger>
-																<PromptInputModelSelectValue />
-															</PromptInputModelSelectTrigger>
-															<PromptInputModelSelectContent>
-																{models.map((m) => (
-																	<PromptInputModelSelectItem
-																		key={m.id}
-																		value={m.id}
-																	>
-																		{m.name}
-																	</PromptInputModelSelectItem>
-																))}
-															</PromptInputModelSelectContent>
-														</PromptInputModelSelect>
-													</PromptInputActionMenu>
+													<PromptInputActionMenu />
 
 													<Button
 														className={isRecording ? "bg-solarized-red" : ""}
-														disabled={
-															!isAudioSupported ||
-															isLoading ||
-															!(canRecord || isRecording)
-														}
+														disabled={isLoading || !(canRecord || isRecording)}
 														onClick={handleToggleRecording}
 														size="sm"
 														title={
-															isAudioSupported
-																? canRecord || isRecording
-																	? isRecording
-																		? "Aufnahme stoppen"
-																		: "Audioaufnahme starten"
-																	: `Maximal ${maxRecordings} Aufnahmen möglich`
-																: "Nur mit Auto oder Gemini 3 Pro verfügbar"
+															canRecord || isRecording
+																? isRecording
+																	? "Aufnahme stoppen"
+																	: "Audioaufnahme starten"
+																: `Maximal ${maxRecordings} Aufnahmen möglich`
 														}
 														type="button"
 														variant="ghost"

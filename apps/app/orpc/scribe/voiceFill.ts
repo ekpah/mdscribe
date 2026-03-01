@@ -1,17 +1,19 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
-import { env } from "@repo/env";
+import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { buildUsageEventData } from "@/lib/usage-logging";
-import { authed } from "@/orpc";
-import type { AudioFile, InputField, VoiceFillInputPayload } from "./types";
 import {
-	voiceFillConfig,
+	buildUsageEventData,
+	extractOpenRouterUsage,
+} from "@/lib/usage-logging";
+import { authed } from "@/orpc";
+import { resolveModel } from "./providers";
+import type { InputField, VoiceFillInputPayload } from "./types";
+import {
 	type VoiceFillFieldDefinition,
+	voiceFillConfig,
 } from "./voiceFillConfig";
-import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 
 /**
  * Schema for voice fill response
@@ -40,10 +42,6 @@ function normalizeVoiceFillObject(
 
 	throw new Error("Invalid voice fill response format");
 }
-
-const openrouter = createOpenRouter({
-	apiKey: env.OPENROUTER_API_KEY as string,
-});
 
 const deriveFieldsFromTags = (
 	inputTags: InputTagType[],
@@ -125,8 +123,8 @@ const normalizeInputFields = (
 /**
  * Voice fill handler - fills generic inputs from audio input using AI
  *
- * Takes input fields and audio files, returns filled field values
- * Uses Gemini 3 Flash for audio processing and field extraction
+ * Takes input fields and audio files, returns filled field values.
+ * Uses the admin-configured speech-to-text default model.
  */
 export const voiceFillHandler = authed
 	.input(type<VoiceFillInputPayload>())
@@ -145,11 +143,13 @@ export const voiceFillHandler = authed
 			? JSON.stringify(inputTags, null, 2)
 			: undefined;
 
+		// Resolve the admin-configured speech-to-text model
+		const resolved = await resolveModel(context.db, {
+			requireAudio: true,
+		});
+
 		// Build prompt from config
 		const promptMessages = config.prompt({ fields, inputTagsJson });
-
-		const modelName = "google/gemini-3-flash-preview";
-		const model = openrouter(modelName);
 
 		// Build messages with audio content
 		// Config returns [system, user] messages - user message contains field labels
@@ -174,7 +174,7 @@ export const voiceFillHandler = authed
 		];
 
 		const result = await generateObject({
-			model,
+			model: resolved.model,
 			messages,
 			schema: voiceFillSchema,
 			temperature: config.modelConfig.temperature ?? 0.3,
@@ -184,35 +184,21 @@ export const voiceFillHandler = authed
 		const { object, usage } = result;
 		const normalized = normalizeVoiceFillObject(object);
 
-		// Extract OpenRouter usage if available from provider metadata
-		const providerMetadata = (
-			result as { providerMetadata?: Record<string, unknown> }
-		).providerMetadata;
-		const openrouterUsage = (
-			providerMetadata?.openrouter as {
-				usage?: {
-					promptTokens?: number;
-					completionTokens?: number;
-					totalTokens?: number;
-					cost?: number;
-				};
-			}
-		)?.usage;
+		// Extract usage data (graceful fallback for non-OpenRouter providers)
+		const openrouterUsage = resolved.isOpenRouter
+			? extractOpenRouterUsage(
+					(result as { providerMetadata?: Record<string, unknown> })
+						.providerMetadata,
+				)
+			: undefined;
 
 		// Log usage event
 		await context.db.insert(usageEvent).values(
 			buildUsageEventData({
 				userId: context.session.user.id,
 				name: "ai_input_voice_fill",
-				model: modelName,
-				openRouterUsage: openrouterUsage
-					? {
-							promptTokens: openrouterUsage.promptTokens ?? 0,
-							completionTokens: openrouterUsage.completionTokens ?? 0,
-							totalTokens: openrouterUsage.totalTokens ?? 0,
-							cost: openrouterUsage.cost,
-						}
-					: null,
+				model: resolved.modelName,
+				openRouterUsage: openrouterUsage ?? null,
 				standardUsage: usage
 					? {
 							inputTokens: (usage as { promptTokens?: number }).promptTokens,

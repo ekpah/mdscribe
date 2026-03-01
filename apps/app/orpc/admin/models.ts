@@ -7,41 +7,10 @@ import {
 	ne,
 	usageEvent,
 } from "@repo/database";
-import { env } from "@repo/env";
 import { z } from "zod";
+
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "../middlewares/admin";
-
-interface OpenRouterModel {
-	id: string;
-	name: string;
-	description?: string;
-	context_length: number;
-	architecture: {
-		modality: string;
-		tokenizer: string;
-		instruct_type?: string;
-	};
-	pricing: {
-		prompt: string;
-		completion: string;
-		image?: string;
-		request?: string;
-	};
-	top_provider?: {
-		context_length?: number;
-		max_completion_tokens?: number;
-		is_moderated?: boolean;
-	};
-	per_request_limits?: {
-		prompt_tokens?: string;
-		completion_tokens?: string;
-	};
-}
-
-interface OpenRouterModelsResponse {
-	data: OpenRouterModel[];
-}
 
 interface ModelCapabilities {
 	supportsText: boolean;
@@ -55,7 +24,14 @@ interface ModelCapabilities {
 
 interface PlaygroundModel {
 	id: string;
+	modelId: string;
 	name: string;
+	providerId: string;
+	providerName: string;
+	providerProtocol: string;
+	// Backward compatibility while frontend payload migrates fully.
+	connectionId: string;
+	connectionProtocol: string;
 	description?: string;
 	context_length: number;
 	architecture: {
@@ -75,102 +51,72 @@ interface PlaygroundModel {
 		is_moderated?: boolean;
 	};
 	capabilities: ModelCapabilities;
+	supported_parameters: string[];
+	inputModes: string[];
+	supportsReasoning: boolean;
 }
 
-function parseModality(modality: string): ModelCapabilities {
-	const [input, output] = modality.split("->");
-	const inputs = input?.toLowerCase() || "";
-	const outputs = output?.toLowerCase() || "";
-
+function toCapabilities(inputModes: string[]): ModelCapabilities {
+	const modes = new Set(inputModes);
 	return {
-		supportsText: inputs.includes("text"),
-		supportsImage: inputs.includes("image"),
-		supportsAudio: inputs.includes("audio"),
-		supportsVideo: inputs.includes("video"),
-		outputsText: outputs.includes("text"),
-		outputsImage: outputs.includes("image"),
-		outputsAudio: outputs.includes("audio"),
+		supportsText: true,
+		supportsImage: modes.has("image"),
+		supportsAudio: modes.has("audio"),
+		supportsVideo: false,
+		outputsText: true,
+		outputsImage: false,
+		outputsAudio: false,
 	};
 }
 
-// Cache for models list (1 hour TTL)
-let modelsCache: { data: PlaygroundModel[]; timestamp: number } | null = null;
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+function toModality(inputModes: string[]): string {
+	const inputs = ["text"];
+	if (inputModes.includes("image")) inputs.push("image");
+	if (inputModes.includes("audio")) inputs.push("audio");
+	return `${inputs.join("+")}->text`;
+}
 
-/**
- * List all available OpenRouter models
- */
 const listModelsHandler = authed
 	.use(requiredAdminMiddleware)
-	.handler(async () => {
-		// Check cache
-		if (modelsCache && Date.now() - modelsCache.timestamp < CACHE_TTL) {
-			return modelsCache.data;
-		}
-
-		const response = await fetch("https://openrouter.ai/api/v1/models", {
-			headers: {
-				Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-			},
+	.handler(async ({ context }) => {
+		const providers = await context.db.query.aiProvider.findMany({
+			with: { models: true },
+			orderBy: (provider, { asc }) => asc(provider.name),
 		});
 
-		if (!response.ok) {
-			throw new Error(`OpenRouter API error: ${response.status}`);
-		}
-
-		const data: OpenRouterModelsResponse = await response.json();
-
-		// Transform and sort models - prioritize popular providers
-		const priorityProviders = [
-			"anthropic",
-			"openai",
-			"google",
-			"meta-llama",
-			"mistralai",
-			"cohere",
-			"deepseek",
-			"qwen",
-		];
-
-		const sortedModels = data.data.sort((a, b) => {
-			const aProvider = a.id.split("/")[0];
-			const bProvider = b.id.split("/")[0];
-			const aIndex = priorityProviders.indexOf(aProvider);
-			const bIndex = priorityProviders.indexOf(bProvider);
-
-			if (aIndex !== -1 && bIndex !== -1) {
-				return aIndex - bIndex;
+		const models: PlaygroundModel[] = [];
+		for (const provider of providers) {
+			for (const model of provider.models) {
+				const capabilities = toCapabilities(model.inputModes);
+				models.push({
+					id: model.id,
+					modelId: model.modelId,
+					name: model.displayName,
+					providerId: provider.id,
+					providerName: provider.name,
+					providerProtocol: provider.protocol,
+					connectionId: provider.id,
+					connectionProtocol: provider.protocol,
+					context_length: 0,
+					architecture: {
+						modality: toModality(model.inputModes),
+						tokenizer: "unknown",
+					},
+					pricing: { prompt: "0", completion: "0" },
+					capabilities,
+					supported_parameters: model.supportsReasoning ? ["reasoning"] : [],
+					inputModes: model.inputModes,
+					supportsReasoning: model.supportsReasoning,
+				});
 			}
-			if (aIndex !== -1) return -1;
-			if (bIndex !== -1) return 1;
-			return a.name.localeCompare(b.name);
-		});
+		}
 
-		// Add parsed modality info
-		const modelsWithCapabilities: PlaygroundModel[] = sortedModels.map(
-			(model) => ({
-				id: model.id,
-				name: model.name,
-				description: model.description,
-				context_length: model.context_length,
-				architecture: model.architecture,
-				pricing: model.pricing,
-				top_provider: model.top_provider,
-				capabilities: parseModality(
-					model.architecture?.modality || "text->text",
-				),
-			}),
-		);
-
-		// Update cache
-		modelsCache = { data: modelsWithCapabilities, timestamp: Date.now() };
-
-		return modelsWithCapabilities;
+		return models;
 	});
 
 /**
- * Get the top N most used models from the past 30 days
- * Excludes "auto" and null models from the count
+ * Get the top N most used models from the past 30 days.
+ * Excludes "auto" and null models from the count.
  */
 const getTopModelsHandler = authed
 	.use(requiredAdminMiddleware)
@@ -184,7 +130,6 @@ const getTopModelsHandler = authed
 	.handler(async ({ context, input }) => {
 		const limit = input?.limit ?? 5;
 
-		// Get date 30 days ago
 		const thirtyDaysAgo = new Date();
 		thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
