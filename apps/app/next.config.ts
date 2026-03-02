@@ -44,8 +44,7 @@ export const config: NextConfig = {
 		],
 	},
 
-	// biome-ignore lint/suspicious/useAwait: headers is async
-	async headers() {
+	headers() {
 		return [
 			{
 				source: "/(.*)",

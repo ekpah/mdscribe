@@ -28,8 +28,8 @@ mock.module("@repo/env", () => ({
 
 // Mock next/headers to avoid runtime errors in tests
 mock.module("next/headers", () => ({
-	headers: async () => new Headers(),
-	cookies: async () => ({
+	headers: () => Promise.resolve(new Headers()),
+	cookies: () => Promise.resolve({
 		get: () => null,
 		set: () => {},
 		delete: () => {},
@@ -52,23 +52,24 @@ mock.module("voyageai", () => ({
 
 // Mock @repo/email to avoid email sending during tests
 mock.module("@repo/email", () => ({
-	sendEmail: async () => ({ success: true }),
+	sendEmail: () => Promise.resolve({ success: true }),
 }));
 
 // Mock Stripe
 mock.module("stripe", () => ({
 	default: class MockStripe {
 		customers = {
-			create: async () => ({ id: "cus_test_123" }),
-			retrieve: async () => ({ id: "cus_test_123" }),
+			create: () => Promise.resolve({ id: "cus_test_123" }),
+			retrieve: () => Promise.resolve({ id: "cus_test_123" }),
 		};
 		subscriptions = {
-			list: async () => ({ data: [] }),
-			create: async () => ({ id: "sub_test_123", status: "active" }),
+			list: () => Promise.resolve({ data: [] }),
+			create: () => Promise.resolve({ id: "sub_test_123", status: "active" }),
 		};
 		checkout = {
 			sessions: {
-				create: async () => ({ id: "cs_test_123", url: "https://checkout.stripe.com/test" }),
+				create: () =>
+					Promise.resolve({ id: "cs_test_123", url: "https://checkout.stripe.com/test" }),
 			},
 		};
 		webhooks = {
@@ -142,30 +143,32 @@ mock.module("ai", () => {
 		};
 	};
 
-	return {
-		streamText: (options: { onFinish?: (event: unknown) => void }) => {
-			return createMockStreamResult(options);
-		},
-		generateText: async () => ({
-			text: "Generated text response",
-			usage: {
-				promptTokens: 50,
-				completionTokens: 25,
-				totalTokens: 75,
+		return {
+			streamText: (options: { onFinish?: (event: unknown) => void }) => {
+				return createMockStreamResult(options);
 			},
-			finishReason: "stop" as const,
-		}),
-		generateObject: async () => ({
-			object: { test: "value" },
-			usage: {
-				promptTokens: 50,
-				completionTokens: 25,
-				totalTokens: 75,
-			},
-			finishReason: "stop" as const,
-		}),
-	};
-});
+			generateText: () =>
+				Promise.resolve({
+					text: "Generated text response",
+					usage: {
+						promptTokens: 50,
+						completionTokens: 25,
+						totalTokens: 75,
+					},
+					finishReason: "stop" as const,
+				}),
+			generateObject: () =>
+				Promise.resolve({
+					object: { test: "value" },
+					usage: {
+						promptTokens: 50,
+						completionTokens: 25,
+						totalTokens: 75,
+					},
+					finishReason: "stop" as const,
+				}),
+		};
+	});
 
 // Mock OpenRouter provider to return a MockLanguageModelV3-compatible model
 mock.module("@openrouter/ai-sdk-provider", () => ({
@@ -173,34 +176,36 @@ mock.module("@openrouter/ai-sdk-provider", () => ({
 		/**
 		 * Creates a mock model following AI SDK's LanguageModelV3 specification
 		 */
-		const mockModel = (modelId: string) => ({
-			modelId,
-			provider: "openrouter",
-			specificationVersion: "v3",
-			// LanguageModelV3 interface methods
-			doGenerate: async () => ({
-				finishReason: "stop" as const,
-				usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
-				content: [{ type: "text" as const, text: "Hello, world!" }],
-				warnings: [],
-			}),
-			doStream: async () => ({
-				stream: new ReadableStream({
-					start(controller) {
-						controller.enqueue({ type: "text-start", id: "text-1" });
-						controller.enqueue({ type: "text-delta", id: "text-1", delta: "Hello, " });
-						controller.enqueue({ type: "text-delta", id: "text-1", delta: "world!" });
-						controller.enqueue({ type: "text-end", id: "text-1" });
-						controller.enqueue({
-							type: "finish",
-							finishReason: "stop",
-							usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
-						});
-						controller.close();
-					},
-				}),
-			}),
-		});
+			const mockModel = (modelId: string) => ({
+				modelId,
+				provider: "openrouter",
+				specificationVersion: "v3",
+				// LanguageModelV3 interface methods
+				doGenerate: () =>
+					Promise.resolve({
+						finishReason: "stop" as const,
+						usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+						content: [{ type: "text" as const, text: "Hello, world!" }],
+						warnings: [],
+					}),
+				doStream: () =>
+					Promise.resolve({
+						stream: new ReadableStream({
+							start(controller) {
+								controller.enqueue({ type: "text-start", id: "text-1" });
+								controller.enqueue({ type: "text-delta", id: "text-1", delta: "Hello, " });
+								controller.enqueue({ type: "text-delta", id: "text-1", delta: "world!" });
+								controller.enqueue({ type: "text-end", id: "text-1" });
+								controller.enqueue({
+									type: "finish",
+									finishReason: "stop",
+									usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+								});
+								controller.close();
+							},
+						}),
+					}),
+			});
 		return mockModel;
 	},
 }));
