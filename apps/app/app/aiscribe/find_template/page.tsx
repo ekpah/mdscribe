@@ -33,7 +33,7 @@ export default function FindTemplatePage() {
   const isLoading = searchMutation.isPending;
   const error = searchMutation.error?.message ?? null;
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 

@@ -33,9 +33,10 @@ export const auth = betterAuth({
 				.where(eq(userTable.id, resetUser.id));
 		},
 		requireEmailVerification: true,
-		sendResetPassword: async ({ user: resetUser, url }) => {
-			if (env.NODE_ENV === "development") {
-				console.log({
+			sendResetPassword: ({ user: resetUser, url }) => {
+				if (env.NODE_ENV === "development") {
+					console.log({
+						to: resetUser.email,
 					subject: "Setze dein Passwort zurück",
 					text: `Klicke auf den Link, um dein Passwort zurückzusetzen: ${url}`,
 					to: resetUser.email,

@@ -44,7 +44,7 @@ export default async function Page(props: DocsPageProps) {
   );
 }
 
-export async function generateStaticParams() {
+export function generateStaticParams() {
   return source
     .generateParams()
     .filter((params) => Array.isArray(params.slug) && params.slug.length > 0);

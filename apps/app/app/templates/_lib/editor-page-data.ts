@@ -18,7 +18,7 @@ interface EditorContextData {
 	canEditSource: boolean;
 }
 
-const getCommonEditorData = async (
+const getCommonEditorData = (
 	queryClient: QueryClient,
 ): Promise<EditorContextData> => {
 	return queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());

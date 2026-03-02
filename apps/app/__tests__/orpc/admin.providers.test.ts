@@ -30,7 +30,7 @@ describe("Admin Providers Handler", () => {
 	});
 
 	test("connections.create validates provider before persistence", async () => {
-		globalThis.fetch = (async () =>
+		globalThis.fetch = (() =>
 			new Response("unauthorized", { status: 401 })) as unknown as typeof fetch;
 
 		await expect(
@@ -52,7 +52,7 @@ describe("Admin Providers Handler", () => {
 	});
 
 	test("connections.create syncs fetched provider models", async () => {
-		globalThis.fetch = (async () =>
+		globalThis.fetch = (() =>
 			new Response(
 				JSON.stringify({
 					data: [
@@ -112,7 +112,7 @@ describe("Admin Providers Handler", () => {
 
 	test("connections.refreshModels upserts and removes stale models", async () => {
 		let callCount = 0;
-		globalThis.fetch = (async () => {
+		globalThis.fetch = (() => {
 			callCount += 1;
 			if (callCount === 1) {
 				return new Response(
@@ -202,7 +202,7 @@ describe("Admin Providers Handler", () => {
 
 	test("connections.create rejects openai-compatible providers without base URL", async () => {
 		let fetchCalled = false;
-		globalThis.fetch = (async () => {
+		globalThis.fetch = (() => {
 			fetchCalled = true;
 			return new Response("unexpected", { status: 500 });
 		}) as unknown as typeof fetch;
@@ -224,7 +224,7 @@ describe("Admin Providers Handler", () => {
 	});
 
 	test("connections.delete cascades provider models and nulls defaults", async () => {
-		globalThis.fetch = (async () =>
+		globalThis.fetch = (() =>
 			new Response(
 				JSON.stringify({
 					data: [

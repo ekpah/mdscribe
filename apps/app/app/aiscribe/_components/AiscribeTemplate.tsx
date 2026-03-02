@@ -251,7 +251,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 				audioChunksRef.current.push(event.data);
 			});
 
-			mediaRecorder.addEventListener("stop", async () => {
+			mediaRecorder.addEventListener("stop", () => {
 				const audioBlob = new Blob(audioChunksRef.current, {
 					type: "audio/wav",
 				});

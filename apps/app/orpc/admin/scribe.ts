@@ -252,18 +252,18 @@ export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
 	run: runHandler,
 	prompts: {
-		list: authed
-			.use(requiredAdminMiddleware)
+			list: authed
+				.use(requiredAdminMiddleware)
 			.input(
 				type<{
 					query?: string;
 					limit?: number;
 				}>(),
 			)
-			.handler(async ({ input }) => {
-				const allPromptNames = Object.values(documentTypeConfigs).map(
-					(config) => config.promptName,
-				);
+				.handler(({ input }) => {
+					const allPromptNames = Object.values(documentTypeConfigs).map(
+						(config) => config.promptName,
+					);
 
 				let filteredNames = allPromptNames;
 				if (input.query?.trim()) {
@@ -279,13 +279,13 @@ export const scribeHandler = {
 				};
 			}),
 
-		get: authed
-			.use(requiredAdminMiddleware)
-			.input(type<{ name: string }>())
-			.handler(async ({ input }) => {
-				const entry = Object.entries(documentTypeConfigs).find(
-					([_, config]) => config.promptName === input.name,
-				);
+			get: authed
+				.use(requiredAdminMiddleware)
+				.input(type<{ name: string }>())
+				.handler(({ input }) => {
+					const entry = Object.entries(documentTypeConfigs).find(
+						([_, config]) => config.promptName === input.name,
+					);
 
 				if (!entry) {
 					throw new ORPCError("NOT_FOUND", {

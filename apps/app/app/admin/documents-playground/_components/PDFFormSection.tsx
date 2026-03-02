@@ -391,7 +391,7 @@ export default function PDFFormSection() {
 		}
 	};
 
-	const handleEnhanceWithAI = async () => {
+	const handleEnhanceWithAI = () => {
 		if (!pdfFile) {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;
