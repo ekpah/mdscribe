@@ -132,12 +132,12 @@ export default function UserCard(props: {
 									<span className="text-muted-foreground text-xs">
 										{activeSession.userAgent?.includes("tauri-plugin-http")
 											? "App"
-											: parser.os.name && parser.browser.name
+											: (parser.os.name && parser.browser.name
 												? `${parser.os.name}, ${parser.browser.name}`
 												: parser.os.name ||
 													parser.browser.name ||
 													activeSession.userAgent ||
-													"Unbekannt"}
+													"Unbekannt")}
 									</span>
 								</div>
 

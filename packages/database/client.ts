@@ -28,7 +28,7 @@ function registerShutdownHandlers(client: ReturnType<typeof postgres>): void {
 	let isShuttingDown = false;
 
 	const handleShutdown = async (signal: string) => {
-		if (isShuttingDown) return;
+		if (isShuttingDown) {return;}
 		isShuttingDown = true;
 
 		console.log(`\nReceived ${signal}, closing Postgres client...`);
@@ -42,12 +42,8 @@ function registerShutdownHandlers(client: ReturnType<typeof postgres>): void {
 		process.exit(0);
 	};
 
-	process.on("SIGINT", () => {
-		void handleShutdown("SIGINT");
-	});
-	process.on("SIGTERM", () => {
-		void handleShutdown("SIGTERM");
-	});
+	process.on("SIGINT", () => {});
+	process.on("SIGTERM", () => {});
 
 	globalForDatabase.shutdownHandlersRegistered = true;
 }

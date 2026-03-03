@@ -94,7 +94,8 @@ function normalizeMarkdownLineBreaks(markdown: string): string {
 function parseMarkdocIntoBlocks(markdown: string): string[] {
 	// Parse with Markdoc to validate syntax, but use line-by-line for block extraction
 	try {
-		Markdoc.parse(markdown); // This validates the Markdoc syntax
+		// This validates the Markdoc syntax.
+		Markdoc.parse(markdown);
 	} catch (error) {
 		console.warn(
 			"Markdoc parsing error, falling back to basic parsing:",
@@ -170,15 +171,13 @@ const MemoizedMarkdownBlock = memo(
 	}: {
 		content: string;
 		values?: Record<string, unknown>;
-	}) => {
-		return (
+	}) => (
 			<DynamicMarkdocRenderer variables={values} markdocContent={content} />
-		);
-	},
+		),
 	(prevProps, nextProps) => {
-		if (prevProps.content !== nextProps.content) return false;
+		if (prevProps.content !== nextProps.content) {return false;}
 		if (JSON.stringify(prevProps.values) !== JSON.stringify(nextProps.values))
-			return false;
+			{return false;}
 		return true;
 	},
 );
@@ -256,7 +255,7 @@ export const MemoizedCopySection = memo(
 					textArea.value = textContent || renderedContent || "";
 					textArea.style.position = "fixed";
 					textArea.style.opacity = "0";
-					document.body.appendChild(textArea);
+					document.body.append(textArea);
 					textArea.select();
 					const success = document.execCommand("copy");
 					document.body.removeChild(textArea);
@@ -265,7 +264,7 @@ export const MemoizedCopySection = memo(
 						setIsCopied(true);
 						toast.success("Text kopiert (Fallback)");
 					} else {
-						throw new Error("Legacy copy failed");
+						throw new Error("Legacy copy failed", { cause: error });
 					}
 				} catch (legacyError) {
 					toast.error("Kopieren fehlgeschlagen. Bitte manuell kopieren.");
@@ -297,8 +296,7 @@ export const MemoizedCopySection = memo(
 							const contentElement = contentRef.current;
 							if (contentElement) {
 								const renderedContent = contentElement.innerHTML;
-								const textContent =
-									contentElement.innerText || contentElement.textContent || "";
+								const textContent = contentElement.textContent || "";
 								handleCopy(renderedContent, textContent);
 							} else {
 								toast.error(

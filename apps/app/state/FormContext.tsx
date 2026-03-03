@@ -8,8 +8,6 @@ export const FormContext = createContext({});
 export const FormContextProvider = ({
   children,
   defaultValue = {},
-}: { children: ReactNode; defaultValue: {} }) => {
-  return (
+}: { children: ReactNode; defaultValue: {} }) => (
     <FormContext.Provider value={defaultValue}>{children}</FormContext.Provider>
   );
-};

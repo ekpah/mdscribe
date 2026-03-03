@@ -28,7 +28,8 @@ import { Database, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
-import { type AdminTemplateRow, columns, getUserDisplayName } from "./columns";
+import { columns, getUserDisplayName } from './columns';
+import type { AdminTemplateRow } from './columns';
 
 type EmbeddingFilter = "all" | "with" | "without";
 type MigrationMode = "missing" | "all";
@@ -87,7 +88,7 @@ export default function AdminTemplatesPage() {
 			});
 		}
 
-		return [...map.values()].sort((a, b) =>
+		return [...map.values()].toSorted((a, b) =>
 			a.label.localeCompare(b.label, "de-DE"),
 		);
 	}, [templateRows]);
@@ -104,7 +105,7 @@ export default function AdminTemplatesPage() {
 			}
 		}
 
-		return [...map.values()].sort((a, b) =>
+		return [...map.values()].toSorted((a, b) =>
 			a.label.localeCompare(b.label, "de-DE"),
 		);
 	}, [templateRows]);
@@ -131,8 +132,8 @@ export default function AdminTemplatesPage() {
 		const safeDelay = Math.max(0, delayBetweenBatches);
 		const numberOfBatches = Math.ceil(templatesToProcess / safeBatchSize);
 		const totalDelayMs = Math.max(0, numberOfBatches - 1) * safeDelay;
-		const estimatedEmbeddingMs = templatesToProcess * 2_000;
-		return Math.round((totalDelayMs + estimatedEmbeddingMs) / 1_000);
+		const estimatedEmbeddingMs = templatesToProcess * 2000;
+		return Math.round((totalDelayMs + estimatedEmbeddingMs) / 1000);
 	}, [
 		batchSize,
 		delayBetweenBatches,
@@ -196,16 +197,16 @@ export default function AdminTemplatesPage() {
 			batchSize: number;
 			delayBetweenBatches: number;
 		}) => orpc.admin.embeddings.migrate.call(input),
-		onSuccess: async (result) => {
-			toast.success(result.message ?? "Embedding-Migration abgeschlossen");
-			await refreshOverview();
-		},
 		onError: (error) => {
 			toast.error(
 				error instanceof Error
 					? error.message
 					: "Migration konnte nicht ausgeführt werden",
 			);
+		},
+		onSuccess: async (result) => {
+			toast.success(result.message ?? "Embedding-Migration abgeschlossen");
+			await refreshOverview();
 		},
 	});
 
@@ -232,9 +233,9 @@ export default function AdminTemplatesPage() {
 		}
 
 		migrateMutation.mutate({
-			mode: migrationMode,
 			batchSize: Math.max(1, batchSize),
 			delayBetweenBatches: Math.max(0, delayBetweenBatches),
+			mode: migrationMode,
 		});
 	};
 
@@ -246,9 +247,9 @@ export default function AdminTemplatesPage() {
 	const queryErrorMessage =
 		queryError instanceof Error
 			? queryError.message
-			: queryError
+			: (queryError
 				? String(queryError)
-				: "Seite konnte nicht geladen werden";
+				: "Seite konnte nicht geladen werden");
 
 	if (isInitialLoading) {
 		return (

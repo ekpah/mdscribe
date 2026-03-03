@@ -247,12 +247,12 @@ export function EditorSidebar() {
                 <span className="text-solarized-cyan">•</span>
                 <span>Klicken Sie auf Tags, um sie zu bearbeiten</span>
               </li>
-              <li className="flex items-start gap-2">
-                <span className="text-solarized-cyan">•</span>
-                <span>
-                  Nutzen Sie "Show Source" um den Markdoc-Code direkt zu sehen
-                </span>
-              </li>
+	              <li className="flex items-start gap-2">
+	                <span className="text-solarized-cyan">•</span>
+	                <span>
+	                  Nutzen Sie &quot;Show Source&quot; um den Markdoc-Code direkt zu sehen
+	                </span>
+	              </li>
             </ul>
           </div>
         </div>

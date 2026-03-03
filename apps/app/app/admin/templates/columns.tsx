@@ -17,11 +17,11 @@ export interface AdminTemplateRow {
 		name: string | null;
 		email: string;
 	} | null;
-	favouriteOf: Array<{
+	favouriteOf: {
 		id: string;
 		name: string | null;
 		email: string;
-	}>;
+	}[];
 	_count: {
 		favouriteOf: number;
 	};
@@ -55,10 +55,6 @@ const columnHelper = createColumnHelper<AdminTemplateRow>();
 
 export const columns = [
 	columnHelper.accessor("title", {
-		id: "template",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Vorlage" />
-		),
 		cell: ({ row, getValue }) => (
 			<div className="space-y-1">
 				<div className="font-medium text-solarized-base00">{getValue()}</div>
@@ -71,7 +67,7 @@ export const columns = [
 			const title = (row.getValue(id) as string).toLowerCase();
 			const category = row.original.category.toLowerCase();
 			const author = getUserDisplayName(
-				row.original.author ?? { name: null, email: "" },
+				row.original.author ?? { email: "", name: null },
 			).toLowerCase();
 			const search = filterValue.toLowerCase();
 
@@ -81,10 +77,12 @@ export const columns = [
 				author.includes(search)
 			);
 		},
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Vorlage" />
+		),
+		id: "template",
 	}),
 	columnHelper.accessor("author", {
-		id: "author",
-		header: "Autor",
 		cell: ({ getValue }) => {
 			const author = getValue();
 			if (!author) {
@@ -101,12 +99,10 @@ export const columns = [
 			);
 		},
 		enableSorting: false,
+		header: "Autor",
+		id: "author",
 	}),
 	columnHelper.accessor("_count.favouriteOf", {
-		id: "favourites",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Favoriten" />
-		),
 		cell: ({ row, getValue }) => {
 			const visibleFavouriteUsers = row.original.favouriteOf.slice(0, 2);
 			const remainingFavourites = Math.max(
@@ -133,12 +129,12 @@ export const columns = [
 				</div>
 			);
 		},
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Favoriten" />
+		),
+		id: "favourites",
 	}),
 	columnHelper.accessor("hasEmbedding", {
-		id: "embedding",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Embedding" />
-		),
 		cell: ({ getValue }) =>
 			getValue() ? (
 				<Badge
@@ -157,16 +153,20 @@ export const columns = [
 					Fehlt
 				</Badge>
 			),
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Embedding" />
+		),
+		id: "embedding",
 	}),
 	columnHelper.accessor("updatedAt", {
-		id: "updatedAt",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Aktualisiert" />
-		),
 		cell: ({ getValue }) => (
 			<span className="text-solarized-base01 text-xs">
 				{formatTimestamp(getValue())}
 			</span>
 		),
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Aktualisiert" />
+		),
+		id: "updatedAt",
 	}),
 ];

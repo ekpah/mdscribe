@@ -24,8 +24,8 @@ function getTestConnectionString(): string {
 function createTestSchemaName(testName: string): string {
 	const normalized = testName
 		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "_")
-		.replace(/^_+|_+$/g, "")
+		.replaceAll(/[^a-z0-9]+/g, "_")
+		.replaceAll(/^_+|_+$/g, "")
 		.slice(0, 40);
 	const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
 	return `test_${normalized || "case"}_${suffix}`;
@@ -49,7 +49,6 @@ export async function startTestServer(testName: string): Promise<TestServer> {
 	const db = drizzle(client, { schema });
 
 	return {
-		db,
 		close: async () => {
 			try {
 				await client.unsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
@@ -57,6 +56,7 @@ export async function startTestServer(testName: string): Promise<TestServer> {
 				await client.end({ timeout: 5 });
 			}
 		},
+		db,
 	};
 }
 
@@ -82,10 +82,10 @@ export async function createTestUser(
 	const userId = crypto.randomUUID();
 
 	await db.insert(user).values({
-		id: userId,
 		email,
-		name,
 		emailVerified: true,
+		id: userId,
+		name,
 		stripeCustomerId,
 	});
 
@@ -100,9 +100,9 @@ export async function createTestUser(
 	}
 
 	return {
-		user: fetchedUser,
 		session: {
 			user: fetchedUser,
 		},
+		user: fetchedUser,
 	};
 }

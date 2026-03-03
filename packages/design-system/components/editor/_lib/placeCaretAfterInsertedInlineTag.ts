@@ -1,4 +1,5 @@
-import { TextSelection, type Transaction } from "@tiptap/pm/state";
+import { TextSelection } from '@tiptap/pm/state';
+import type { Transaction } from '@tiptap/pm/state';
 
 export const placeCaretAfterInsertedInlineTag = ({
 	tr,

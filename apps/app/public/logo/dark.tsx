@@ -30,13 +30,13 @@ export default function DarkLogo() {
         fontFamily="Arial, sans-serif"
         fontSize="24"
         fontWeight="bold"
-        fill="#93a1a1" /* solarized-base1 - lighter gray */
+        fill="#93a1a1"
       >
         Scribe
       </text>
       <path
         fill="none"
-        stroke="#93a1a1" /* solarized-base1 - lighter blue */
+        stroke="#93a1a1"
         strokeWidth="4"
         d="M160 50q20-20 20 0t20 0"
       />

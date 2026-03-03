@@ -111,15 +111,15 @@ export interface PlaygroundPanelState {
 
 // Default parameters
 export const DEFAULT_PARAMETERS: PlaygroundParameters = {
-	temperature: 1,
-	maxTokens: 4096,
-	thinking: false,
-	thinkingExplicit: false,
-	thinkingBudget: 8000,
-	topP: undefined,
-	topK: undefined,
 	frequencyPenalty: undefined,
+	maxTokens: 4096,
 	presencePenalty: undefined,
+	temperature: 1,
+	thinking: false,
+	thinkingBudget: 8000,
+	thinkingExplicit: false,
+	topK: undefined,
+	topP: undefined,
 };
 
 /**
@@ -134,19 +134,19 @@ export function supportsThinking(model: PlaygroundModel): boolean {
 
 // Format cost for display
 export function formatCost(cost: number | undefined): string {
-	if (cost === undefined || cost === null) return "-";
+	if (cost === undefined || cost === null) {return "-";}
 	return `$${cost.toFixed(6)}`;
 }
 
 // Format tokens for display
 export function formatTokens(tokens: number | undefined): string {
-	if (tokens === undefined || tokens === null) return "-";
+	if (tokens === undefined || tokens === null) {return "-";}
 	return tokens.toLocaleString("de-DE");
 }
 
 // Format latency for display
 export function formatLatency(ms: number | undefined): string {
-	if (ms === undefined || ms === null) return "-";
-	if (ms < 1000) return `${ms}ms`;
+	if (ms === undefined || ms === null) {return "-";}
+	if (ms < 1000) {return `${ms}ms`;}
 	return `${(ms / 1000).toFixed(2)}s`;
 }

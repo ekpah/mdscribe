@@ -15,7 +15,9 @@ async function bootstrapDatabase(): Promise<void> {
 	}
 }
 
-bootstrapDatabase().catch((error) => {
+try {
+	await bootstrapDatabase();
+} catch (error) {
 	console.error("Database bootstrap failed:", error);
 	process.exit(1);
-});
+}

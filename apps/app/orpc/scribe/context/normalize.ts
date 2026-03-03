@@ -1,9 +1,9 @@
 import type { ContextSource, PatientContextData } from "./types";
 
 const emptyPatientContext: PatientContextData = {
-	diagnoseblock: "",
 	anamnese: "",
 	befunde: "",
+	diagnoseblock: "",
 	notes: "",
 };
 
@@ -11,8 +11,8 @@ const toTrimmedString = (value: unknown): string =>
 	typeof value === "string" ? value.trim() : "";
 
 const mergeField = (current: string, next: string): string => {
-	if (!current) return next;
-	if (!next) return current;
+	if (!current) {return next;}
+	if (!next) {return current;}
 	return `${current}\n\n${next}`;
 };
 
@@ -20,9 +20,9 @@ const mergePatientContext = (
 	current: PatientContextData,
 	next: PatientContextData,
 ): PatientContextData => ({
-	diagnoseblock: mergeField(current.diagnoseblock, next.diagnoseblock),
 	anamnese: mergeField(current.anamnese, next.anamnese),
 	befunde: mergeField(current.befunde, next.befunde),
+	diagnoseblock: mergeField(current.diagnoseblock, next.diagnoseblock),
 	notes: mergeField(current.notes, next.notes),
 });
 
@@ -33,9 +33,9 @@ const normalizeFormSource = (data: Record<string, unknown>): PatientContextData 
 	const notes = toTrimmedString(data.notes);
 
 	return {
-		diagnoseblock,
 		anamnese,
 		befunde,
+		diagnoseblock,
 		notes,
 	};
 };

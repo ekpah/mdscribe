@@ -1,12 +1,6 @@
 import { ORPCError, type } from "@orpc/server";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	type Database,
-	eq,
-	inArray,
-} from "@repo/database";
+import { aiDefaults, aiModel, aiProvider, eq, inArray } from '@repo/database';
+import type { Database } from '@repo/database';
 import { z } from "zod";
 
 import { decrypt, encrypt } from "@/lib/encryption";
@@ -47,9 +41,9 @@ const normalizeOptionalBaseUrl = (
 	value: string | undefined,
 	ctx: z.RefinementCtx,
 ): string | undefined => {
-	if (value === undefined) return undefined;
+	if (value === undefined) {return undefined;}
 	const trimmed = value.trim();
-	if (!trimmed) return undefined;
+	if (!trimmed) {return undefined;}
 
 	try {
 		return normalizeProviderBaseUrl(trimmed);
@@ -71,7 +65,7 @@ const updateBaseUrlSchema = z
 	.string()
 	.nullish()
 	.transform((value, ctx) => {
-		if (value === null || value === undefined) return value;
+		if (value === null || value === undefined) {return value;}
 		return normalizeOptionalBaseUrl(value, ctx);
 	});
 
@@ -207,22 +201,22 @@ async function fetchProviderModels(
 		}
 
 		const body = (await response.json()) as {
-			data?: Array<{
+			data?: {
 				id: string;
 				name?: string;
 				display_name?: string;
 				supported_parameters?: string[];
 				architecture?: { modality?: string };
-			}>;
+			}[];
 		};
 
 		return (body.data ?? []).map((model) => ({
-			modelId: model.id,
 			displayName: model.display_name ?? model.name ?? model.id,
+			inputModes: parseOpenRouterInputModes(model.architecture?.modality),
+			modelId: model.id,
 			supportsReasoning: (model.supported_parameters ?? []).includes(
 				"reasoning",
 			),
-			inputModes: parseOpenRouterInputModes(model.architecture?.modality),
 		}));
 	}
 
@@ -241,17 +235,17 @@ async function fetchProviderModels(
 		}
 
 		const body = (await response.json()) as {
-			data?: Array<{
+			data?: {
 				id: string;
 				display_name?: string;
-			}>;
+			}[];
 		};
 
 		return (body.data ?? []).map((model) => ({
-			modelId: model.id,
 			displayName: model.display_name ?? model.id,
-			supportsReasoning: false,
 			inputModes: inferInputModesFromModelId(model.id),
+			modelId: model.id,
+			supportsReasoning: false,
 		}));
 	}
 
@@ -270,11 +264,11 @@ async function fetchProviderModels(
 		}
 
 		const body = (await response.json()) as {
-			data?: Array<{
+			data?: {
 				id: string;
 				display_name?: string;
 				name?: string;
-			}>;
+			}[];
 		};
 
 		return (body.data ?? [])
@@ -282,10 +276,10 @@ async function fetchProviderModels(
 				(model) => !model.id.includes("embed") && !model.id.includes("tts"),
 			)
 			.map((model) => ({
-				modelId: model.id,
 				displayName: model.display_name ?? model.name ?? model.id,
-				supportsReasoning: false,
 				inputModes: inferInputModesFromModelId(model.id),
+				modelId: model.id,
+				supportsReasoning: false,
 			}));
 	}
 
@@ -301,18 +295,18 @@ async function fetchProviderModels(
 	}
 
 	const body = (await response.json()) as {
-		data?: Array<{
+		data?: {
 			id: string;
 			display_name?: string;
 			name?: string;
-		}>;
+		}[];
 	};
 
 	return (body.data ?? []).map((model) => ({
-		modelId: model.id,
 		displayName: model.display_name ?? model.name ?? model.id,
-		supportsReasoning: false,
 		inputModes: inferInputModesFromModelId(model.id),
+		modelId: model.id,
+		supportsReasoning: false,
 	}));
 }
 
@@ -344,12 +338,12 @@ async function syncFetchedModelsForProvider(
 		const existing = existingByModelId.get(model.modelId);
 		if (!existing) {
 			await db.insert(aiModel).values({
-				id: crypto.randomUUID(),
-				providerId,
-				modelId: model.modelId,
 				displayName: model.displayName,
-				supportsReasoning: model.supportsReasoning,
+				id: crypto.randomUUID(),
 				inputModes: model.inputModes,
+				modelId: model.modelId,
+				providerId,
+				supportsReasoning: model.supportsReasoning,
 			});
 			inserted += 1;
 			continue;
@@ -359,8 +353,8 @@ async function syncFetchedModelsForProvider(
 		const sameSupportsReasoning =
 			existing.supportsReasoning === model.supportsReasoning;
 		const sameInputModes =
-			JSON.stringify([...existing.inputModes].sort()) ===
-			JSON.stringify([...model.inputModes].sort());
+			JSON.stringify([...existing.inputModes].toSorted()) ===
+			JSON.stringify([...model.inputModes].toSorted());
 
 		if (sameDisplayName && sameSupportsReasoning && sameInputModes) {
 			continue;
@@ -370,8 +364,8 @@ async function syncFetchedModelsForProvider(
 			.update(aiModel)
 			.set({
 				displayName: model.displayName,
-				supportsReasoning: model.supportsReasoning,
 				inputModes: model.inputModes,
+				supportsReasoning: model.supportsReasoning,
 			})
 			.where(eq(aiModel.id, existing.id));
 		updated += 1;
@@ -388,8 +382,8 @@ async function syncFetchedModelsForProvider(
 
 	return {
 		inserted,
-		updated,
 		removed: staleModelIds.length,
+		updated,
 	};
 }
 
@@ -409,21 +403,21 @@ async function getProviderById(db: Database, id: string) {
 
 const listProvidersHandler = admin.handler(async ({ context }) => {
 	const providers = await context.db.query.aiProvider.findMany({
-		with: { models: true },
 		orderBy: (provider, { asc }) => asc(provider.name),
+		with: { models: true },
 	});
 
 	return providers.map((provider) => ({
 		...provider,
-		hasApiKey: !!provider.apiKey,
 		apiKey: undefined,
+		hasApiKey: !!provider.apiKey,
 	}));
 });
 
 const previewProviderInput = z.object({
-	protocol: z.enum(PROVIDER_PROTOCOLS),
-	baseUrl: createBaseUrlSchema,
 	apiKey: z.string().optional(),
+	baseUrl: createBaseUrlSchema,
+	protocol: z.enum(PROVIDER_PROTOCOLS),
 });
 
 const previewProviderHandler = admin
@@ -435,9 +429,9 @@ const previewProviderHandler = admin
 			requireConfiguredBaseUrl(parsed.protocol, baseUrl);
 		}
 		const models = await fetchProviderModels({
-			protocol: parsed.protocol,
-			baseUrl,
 			apiKey: parsed.apiKey,
+			baseUrl,
+			protocol: parsed.protocol,
 		});
 
 		return {
@@ -446,10 +440,10 @@ const previewProviderHandler = admin
 	});
 
 const createProviderInput = z.object({
+	apiKey: z.string().optional(),
+	baseUrl: createBaseUrlSchema,
 	name: z.string().min(1),
 	protocol: z.enum(PROVIDER_PROTOCOLS),
-	baseUrl: createBaseUrlSchema,
-	apiKey: z.string().optional(),
 });
 
 const createProviderHandler = admin
@@ -462,9 +456,9 @@ const createProviderHandler = admin
 		}
 
 		const models = await fetchProviderModels({
-			protocol: parsed.protocol,
-			baseUrl,
 			apiKey: parsed.apiKey,
+			baseUrl,
+			protocol: parsed.protocol,
 		});
 
 		const encryptedApiKey = parsed.apiKey ? await encrypt(parsed.apiKey) : null;
@@ -472,11 +466,11 @@ const createProviderHandler = admin
 		const [provider] = await context.db
 			.insert(aiProvider)
 			.values({
+				apiKey: encryptedApiKey,
+				baseUrl,
 				id: crypto.randomUUID(),
 				name: parsed.name,
 				protocol: parsed.protocol,
-				baseUrl,
-				apiKey: encryptedApiKey,
 			})
 			.returning();
 
@@ -494,19 +488,19 @@ const createProviderHandler = admin
 
 		return {
 			...provider,
-			hasApiKey: !!provider.apiKey,
 			apiKey: undefined,
+			hasApiKey: !!provider.apiKey,
 			modelCount: models.length,
 			syncResult,
 		};
 	});
 
 const updateProviderInput = z.object({
+	apiKey: z.string().nullish(),
+	baseUrl: updateBaseUrlSchema,
 	id: z.string(),
 	name: z.string().min(1).optional(),
 	protocol: z.enum(PROVIDER_PROTOCOLS).optional(),
-	baseUrl: updateBaseUrlSchema,
-	apiKey: z.string().nullish(),
 });
 
 const updateProviderHandler = admin
@@ -549,9 +543,9 @@ const updateProviderHandler = admin
 			| undefined;
 		if (needsValidation) {
 			const fetchedModels = await fetchProviderModels({
-				protocol: nextProtocol,
-				baseUrl: nextBaseUrl,
 				apiKey: nextApiKeyPlain,
+				baseUrl: nextBaseUrl,
+				protocol: nextProtocol,
 			});
 			syncResult = await syncFetchedModelsForProvider(
 				context.db,
@@ -563,10 +557,10 @@ const updateProviderHandler = admin
 		const [provider] = await context.db
 			.update(aiProvider)
 			.set({
+				apiKey: nextApiKeyEncrypted,
+				baseUrl: nextBaseUrl,
 				name: parsed.name ?? existing.name,
 				protocol: nextProtocol,
-				baseUrl: nextBaseUrl,
-				apiKey: nextApiKeyEncrypted,
 			})
 			.where(eq(aiProvider.id, parsed.id))
 			.returning();
@@ -577,8 +571,8 @@ const updateProviderHandler = admin
 
 		return {
 			...provider,
-			hasApiKey: !!provider.apiKey,
 			apiKey: undefined,
+			hasApiKey: !!provider.apiKey,
 			syncResult,
 		};
 	});
@@ -605,9 +599,9 @@ const refreshProviderModelsHandler = admin
 		const apiKey = provider.apiKey ? await decrypt(provider.apiKey) : undefined;
 
 		const models = await fetchProviderModels({
-			protocol: provider.protocol as ProviderProtocol,
-			baseUrl: provider.baseUrl,
 			apiKey,
+			baseUrl: provider.baseUrl,
+			protocol: provider.protocol as ProviderProtocol,
 		});
 		const syncResult = await syncFetchedModelsForProvider(
 			context.db,
@@ -624,13 +618,13 @@ const refreshProviderModelsHandler = admin
 // ============ Model handlers ============
 
 const createModelInput = z.object({
-	providerId: z.string(),
-	modelId: z.string().min(1),
 	displayName: z.string().min(1),
-	supportsReasoning: z.boolean().default(false),
 	inputModes: z
 		.array(z.enum(["text", "audio", "file", "image"]))
 		.default(["text"]),
+	modelId: z.string().min(1),
+	providerId: z.string(),
+	supportsReasoning: z.boolean().default(false),
 });
 
 const createModelHandler = admin
@@ -640,12 +634,12 @@ const createModelHandler = admin
 		const [model] = await context.db
 			.insert(aiModel)
 			.values({
-				id: crypto.randomUUID(),
-				providerId: parsed.providerId,
-				modelId: parsed.modelId,
 				displayName: parsed.displayName,
-				supportsReasoning: parsed.supportsReasoning,
+				id: crypto.randomUUID(),
 				inputModes: normalizeInputModes(parsed.inputModes),
+				modelId: parsed.modelId,
+				providerId: parsed.providerId,
+				supportsReasoning: parsed.supportsReasoning,
 			})
 			.returning();
 
@@ -653,11 +647,11 @@ const createModelHandler = admin
 	});
 
 const updateModelInput = z.object({
-	id: z.string(),
-	modelId: z.string().min(1).optional(),
 	displayName: z.string().min(1).optional(),
-	supportsReasoning: z.boolean().optional(),
+	id: z.string(),
 	inputModes: z.array(z.enum(["text", "audio", "file", "image"])).optional(),
+	modelId: z.string().min(1).optional(),
+	supportsReasoning: z.boolean().optional(),
 });
 
 const updateModelHandler = admin
@@ -667,12 +661,12 @@ const updateModelHandler = admin
 		const [model] = await context.db
 			.update(aiModel)
 			.set({
-				modelId: parsed.modelId,
 				displayName: parsed.displayName,
-				supportsReasoning: parsed.supportsReasoning,
 				inputModes: parsed.inputModes
 					? normalizeInputModes(parsed.inputModes)
 					: undefined,
+				modelId: parsed.modelId,
+				supportsReasoning: parsed.supportsReasoning,
 			})
 			.where(eq(aiModel.id, parsed.id))
 			.returning();
@@ -707,9 +701,9 @@ const getDefaultsHandler = admin.handler(async ({ context }) => {
 	});
 
 	return {
-		defaultTextModelId: defaults?.defaultTextModelId ?? null,
 		defaultFileImageModelId: defaults?.defaultFileImageModelId ?? null,
 		defaultSpeechToTextModelId: defaults?.defaultSpeechToTextModelId ?? null,
+		defaultTextModelId: defaults?.defaultTextModelId ?? null,
 	};
 });
 
@@ -736,32 +730,35 @@ const setDefaultHandler = admin
 		});
 
 		const next = {
-			id: "global",
-			defaultTextModelId: current?.defaultTextModelId ?? null,
 			defaultFileImageModelId: current?.defaultFileImageModelId ?? null,
 			defaultSpeechToTextModelId: current?.defaultSpeechToTextModelId ?? null,
+			defaultTextModelId: current?.defaultTextModelId ?? null,
+			id: "global",
 			updatedAt: new Date(),
 		};
 
 		switch (parsed.defaultType) {
-			case "text":
+			case "text": {
 				next.defaultTextModelId = parsed.modelId;
 				break;
-			case "file-image":
+			}
+			case "file-image": {
 				next.defaultFileImageModelId = parsed.modelId;
 				break;
-			case "speech-to-text":
+			}
+			case "speech-to-text": {
 				next.defaultSpeechToTextModelId = parsed.modelId;
 				break;
+			}
 		}
 
 		if (current) {
 			await context.db
 				.update(aiDefaults)
 				.set({
-					defaultTextModelId: next.defaultTextModelId,
 					defaultFileImageModelId: next.defaultFileImageModelId,
 					defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
+					defaultTextModelId: next.defaultTextModelId,
 					updatedAt: next.updatedAt,
 				})
 				.where(eq(aiDefaults.id, "global"));
@@ -770,28 +767,28 @@ const setDefaultHandler = admin
 		}
 
 		return {
-			defaultTextModelId: next.defaultTextModelId,
 			defaultFileImageModelId: next.defaultFileImageModelId,
 			defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
+			defaultTextModelId: next.defaultTextModelId,
 		};
 	});
 
 export const providersHandler = {
 	connections: {
+		create: createProviderHandler,
+		delete: deleteProviderHandler,
 		list: listProvidersHandler,
 		previewModels: previewProviderHandler,
-		create: createProviderHandler,
-		update: updateProviderHandler,
-		delete: deleteProviderHandler,
 		refreshModels: refreshProviderModelsHandler,
-	},
-	models: {
-		create: createModelHandler,
-		update: updateModelHandler,
-		delete: deleteModelHandler,
+		update: updateProviderHandler,
 	},
 	defaults: {
 		get: getDefaultsHandler,
 		set: setDefaultHandler,
+	},
+	models: {
+		create: createModelHandler,
+		delete: deleteModelHandler,
+		update: updateModelHandler,
 	},
 };

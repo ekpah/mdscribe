@@ -8,7 +8,8 @@ import {
   TooltipTrigger,
 } from '@repo/design-system/components/ui/tooltip';
 import { cn } from '@repo/design-system/lib/utils';
-import { type LucideIcon, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { ComponentProps, HTMLAttributes } from 'react';
 
 export type ArtifactProps = HTMLAttributes<HTMLDivElement>;

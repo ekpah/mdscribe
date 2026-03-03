@@ -3,7 +3,7 @@
 import { Bot } from "lucide-react";
 import { Button } from "../../ui/button";
 
-export type SuggestionBadgeProps = {
+export interface SuggestionBadgeProps {
 	/** The suggested value to display */
 	value: string | number;
 	/** Label describing the suggestion source (e.g., "KI-Vorschlag") */
@@ -14,7 +14,7 @@ export type SuggestionBadgeProps = {
 	hasExistingValue?: boolean;
 	/** Callback when user accepts the suggestion */
 	onAccept?: () => void;
-};
+}
 
 export function SuggestionBadge({
 	value,

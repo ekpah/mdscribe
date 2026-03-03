@@ -4,18 +4,16 @@ import { getEditTemplateEditorData } from "../../../_lib/editor-page-data";
 
 export const dynamicParams = false;
 
-type MetadataProps = {
+interface MetadataProps {
 	params: Promise<{ template: [category: string, name: string] }>;
-};
+}
 
 export async function generateMetadata(
 	props: MetadataProps,
 ): Promise<Metadata> {
 	const params = await props.params;
 	const { template: templateParam } = params;
-	const [_category, name] = templateParam
-		? templateParam
-		: [undefined, "Scribe"];
+	const [_category, name] = templateParam || [undefined, "Scribe"];
 	return {
 		title: `Scribe - ${name}`,
 	};

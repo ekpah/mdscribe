@@ -2,15 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call } from "@orpc/server";
 import { aiModel, eq } from "@repo/database";
 import { modelsHandler } from "@/orpc/admin/models";
-import {
-	ADMIN_EMAIL,
-	createMockSession,
-	createTestAiDefaults,
-	createTestContext,
-	createTestUser,
-	startTestServer,
-	type TestServer,
-} from "../setup";
+import { ADMIN_EMAIL, createMockSession, createTestAiDefaults, createTestContext, createTestUser, startTestServer } from '../setup';
+import type { TestServer } from '../setup';
 
 describe("Admin Models Handler", () => {
 	let server: TestServer;

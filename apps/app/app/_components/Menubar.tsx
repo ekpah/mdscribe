@@ -43,10 +43,10 @@ import { sessionQueryKey } from "@/lib/session-query";
 import DarkLogo from "@/public/logo/dark";
 import LightLogo from "@/public/logo/light";
 
-type TopMenuBarProperties = {
+interface TopMenuBarProperties {
 	initialSession: Session | null;
 	isAdmin?: boolean;
-};
+}
 
 export default function TopMenuBar({
 	initialSession,
@@ -148,7 +148,7 @@ export default function TopMenuBar({
 							</Avatar>
 							<Loader2 className="absolute h-4 w-4 animate-spin text-muted-foreground" />
 						</Button>
-					) : session?.user ? (
+					) : (session?.user ? (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button
@@ -216,7 +216,7 @@ export default function TopMenuBar({
 						<Link href={signInUrl}>
 							<Button>Anmelden</Button>
 						</Link>
-					)}
+					))}
 				</div>
 			</div>
 
@@ -267,7 +267,7 @@ export default function TopMenuBar({
 									</div>
 								</div>
 							</div>
-						) : session?.user ? (
+						) : (session?.user ? (
 							<>
 								<div className="mb-3 flex items-center gap-3 px-2">
 									<Avatar className="h-10 w-10">
@@ -345,7 +345,7 @@ export default function TopMenuBar({
 									<Button className="w-full">Jetzt anmelden</Button>
 								</Link>
 							</div>
-						)}
+						))}
 					</div>
 				</div>
 			</div>

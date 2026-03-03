@@ -68,7 +68,7 @@ export function SwitchTagView({
     value: string
   ) => {
     const nextCases = cases.map((caseItem, caseIndex) => {
-      if (caseIndex !== index) return caseItem;
+      if (caseIndex !== index) {return caseItem;}
       return {
         ...caseItem,
         [field]: value,

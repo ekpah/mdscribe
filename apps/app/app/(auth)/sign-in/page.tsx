@@ -38,17 +38,8 @@ export default function SignIn() {
 					setLoading(true);
 					try {
 						await signIn.email(
-							{ email, password, rememberMe, callbackURL: redirect },
+							{ callbackURL: redirect, email, password, rememberMe },
 							{
-								onRequest: () => {
-									//show loading
-									setLoading(true);
-								},
-								onSuccess: () => {
-									//redirect to the original page or dashboard
-									router.push(redirect);
-									setLoading(false);
-								},
 								onError: (ctx) => {
 									// Handle the error 403 - not email verified
 									if (ctx.error.status === 403) {
@@ -56,6 +47,15 @@ export default function SignIn() {
 									} else {
 										toast.error(ctx.error.message);
 									}
+									setLoading(false);
+								},
+								onRequest: () => {
+									//show loading
+									setLoading(true);
+								},
+								onSuccess: () => {
+									//redirect to the original page or dashboard
+									router.push(redirect);
 									setLoading(false);
 								},
 							},

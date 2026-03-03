@@ -14,14 +14,18 @@ export function getAiscribeErrorMessage(error: unknown): string | null {
 	if (error instanceof ORPCError) {
 		// Server already sends localised messages — prefer them
 		switch (error.code) {
-			case "UNAUTHORIZED":
+			case "UNAUTHORIZED": {
 				return error.message || USER_MESSAGES.unauthorized;
-			case "FORBIDDEN":
+			}
+			case "FORBIDDEN": {
 				return error.message || USER_MESSAGES.subscriptionRequired;
-			case "BAD_REQUEST":
+			}
+			case "BAD_REQUEST": {
 				return error.message || USER_MESSAGES.missingInput;
-			default:
+			}
+			default: {
 				return error.message || USER_MESSAGES.unknownError;
+			}
 		}
 	}
 

@@ -31,7 +31,8 @@ interface DynamicMarkdocRendererProps {
 export function DynamicMarkdocRenderer({
   markdocContent,
   variables,
-  className = 'prose prose-slate grow', // Default class matching Note.tsx
+  // Default class matching Note.tsx
+  className = 'prose prose-slate grow',
 }: DynamicMarkdocRendererProps) {
   const renderedContent = useMemo(() => renderMarkdocAsReact(markdocContent), [markdocContent]);
 

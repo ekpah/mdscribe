@@ -66,8 +66,8 @@ export default function MigrationInterface({
       const embeddingTime = templates * 2000;
       const totalMs = totalDelay + embeddingTime;
 
-      const minutes = Math.floor(totalMs / 60000);
-      const seconds = Math.floor((totalMs % 60000) / 1000);
+      const minutes = Math.floor(totalMs / 60_000);
+      const seconds = Math.floor((totalMs % 60_000) / 1000);
 
       if (minutes > 0) {
         return `~${minutes}m ${seconds}s`;
@@ -99,16 +99,16 @@ export default function MigrationInterface({
 
     try {
       const response = await fetch('/api/admin/migrate-embeddings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           batchSize,
           delayBetweenBatches,
           dryRun: false,
           mode: effectiveMode,
         }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
       });
 
       const result = await response.json();

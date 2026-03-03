@@ -5,19 +5,19 @@ describe("createAiscribeContext", () => {
 	test("formats all sections and builds prompt", () => {
 		const result = createAiscribeContext({
 			context: {
-				Patient: "Max Muster",
-				Alter: 54,
 				Allergien: "",
+				Alter: 54,
+				Patient: "Max Muster",
 			},
-			practitionerInfo: [
-				{ label: "Name", value: "Dr. Jane Doe" },
-				{ label: "Fachgebiet", value: "Kardiologie" },
-			],
 			organizationInfo: {
 				Institution: "Klinikum Nord",
 				Kontakt: ["030-123", "030-456"],
 				Standards: undefined,
 			},
+			practitionerInfo: [
+				{ label: "Name", value: "Dr. Jane Doe" },
+				{ label: "Fachgebiet", value: "Kardiologie" },
+			],
 		});
 
 		expect(result.context).toBe("Patient: Max Muster\nAlter: 54");

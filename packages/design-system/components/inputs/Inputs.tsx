@@ -35,25 +35,25 @@ interface InputsProps {
 	onSuggestedValuesChange?: (values: Record<string, SuggestedValue>) => void;
 }
 
-type VoiceFillInputField = {
+interface VoiceFillInputField {
 	label: string;
 	description?: string;
-};
+}
 
-export type VoiceFillAudioFile = {
+export interface VoiceFillAudioFile {
 	data: string;
 	mimeType: string;
-};
+}
 
 export type VoiceFillResult = Record<string, string>;
 
 export type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
 
-export type SuggestedValue = {
+export interface SuggestedValue {
 	value: string | number;
 	source?: SuggestedValueSource;
 	label?: string;
-};
+}
 
 interface AudioRecording {
 	blob: Blob;
@@ -61,9 +61,9 @@ interface AudioRecording {
 	id: string;
 }
 
-type InputMeta = {
+interface InputMeta {
 	type: "string" | "number" | "date" | "switch";
-};
+}
 
 type InputSource = "ai" | "manual";
 
@@ -77,8 +77,8 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 		description: string | undefined,
 		type: InputMeta["type"],
 	) => {
-		if (!label || seen.has(label)) return;
-		fields.push({ label, description });
+		if (!label || seen.has(label)) {return;}
+		fields.push({ description, label });
 		meta.set(label, { type });
 		seen.add(label);
 	};
@@ -90,27 +90,37 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 				input.attributes.description,
 				input.attributes.type ?? "string",
 			);
-			input.children?.forEach(visit);
+			for (const child of input.children ?? []) {
+				visit(child);
+			}
 			return;
 		}
 
 		if (input.name === "Switch") {
 			pushField(input.attributes.primary, undefined, "switch");
-			input.children?.forEach(visit);
+			for (const child of input.children ?? []) {
+				visit(child);
+			}
 			return;
 		}
 
 		if (input.name === "Case") {
-			input.children?.forEach(visit);
+			for (const child of input.children ?? []) {
+				visit(child);
+			}
 			return;
 		}
 
 		if (input.name === "Score") {
-			input.children?.forEach(visit);
+			for (const child of input.children ?? []) {
+				visit(child);
+			}
 		}
 	};
 
-	inputTags.forEach(visit);
+	for (const inputTag of inputTags) {
+		visit(inputTag);
+	}
 
 	return { fields, meta };
 };
@@ -119,7 +129,7 @@ const normalizeVoiceValue = (
 	value: string,
 	meta?: InputMeta,
 ): string | number | undefined => {
-	if (!meta) return value;
+	if (!meta) {return value;}
 
 	if (meta.type === "number") {
 		const normalized = Number(value.replace(",", "."));
@@ -138,15 +148,15 @@ const isEmptyValue = (value: unknown) =>
 
 const SUGGESTION_SOURCE_LABELS: Record<SuggestedValueSource, string> = {
 	ai: "KI-Vorschlag",
-	note: "Notiz",
 	document: "Dokument",
+	note: "Notiz",
 	prefill: "Vorausgefüllt",
 };
 
 const getSuggestionLabel = (suggestion?: SuggestedValue): string => {
-	if (!suggestion) return "Vorschlag";
-	if (suggestion.label) return suggestion.label;
-	if (suggestion.source) return SUGGESTION_SOURCE_LABELS[suggestion.source];
+	if (!suggestion) {return "Vorschlag";}
+	if (suggestion.label) {return suggestion.label;}
+	if (suggestion.source) {return SUGGESTION_SOURCE_LABELS[suggestion.source];}
 	return "Vorschlag";
 };
 
@@ -161,22 +171,22 @@ const getInputStateClassName = (source?: InputSource) => {
 };
 
 function SourceIndicator({ source }: { source: InputSource | undefined }) {
-	if (!source) return null;
+	if (!source) {return null;}
 
 	const config = {
 		ai: {
+			className: "text-solarized-orange",
 			icon: Bot,
 			label: "KI-Erkennung",
-			className: "text-solarized-orange",
 		},
 		manual: {
+			className: "text-solarized-green",
 			icon: Pencil,
 			label: "Manuell bearbeitet",
-			className: "text-solarized-green",
 		},
 	}[source];
 
-	if (!config) return null;
+	if (!config) {return null;}
 
 	const Icon = config.icon;
 
@@ -196,13 +206,13 @@ function SourceIndicator({ source }: { source: InputSource | undefined }) {
 	);
 }
 
-type RenderContext = {
+interface RenderContext {
 	values: Record<string, unknown>;
 	suggestedValues: Record<string, SuggestedValue>;
 	fieldSources: Record<string, InputSource>;
 	onChange: (name: string, value: unknown) => void;
 	onApplySuggestion: (name: string) => void;
-};
+}
 
 function renderInputTag(
 	input: InputTagType,
@@ -323,11 +333,11 @@ function renderInputTag(
 									{input.attributes.formula ? (
 										<span className=" text-muted-foreground">
 											{input.attributes.formula
-												?.replace(
+												?.replaceAll(
 													/(\[[\w_]+\])|([^a-zA-Z[\]])/g,
-													(_match, p1, p2) => (p1 ? p1 : ` ${p2} `),
+													(_match, p1, p2) => (p1 || ` ${p2} `),
 												)
-												.replace(/\s+/g, " ")
+												.replaceAll(/\s+/g, " ")
 												.trim()}
 										</span>
 									) : (
@@ -419,7 +429,7 @@ export default function Inputs({
 	const [suggestedValues, setSuggestedValues] = useState<
 		Record<string, SuggestedValue>
 	>(suggestedValuesProp ?? {});
-	const stateRef = useRef({ values, fieldSources, suggestedValues });
+	const stateRef = useRef({ fieldSources, suggestedValues, values });
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
 	const [isVoiceFillPending, setIsVoiceFillPending] = useState(false);
@@ -433,7 +443,7 @@ export default function Inputs({
 	}, [values, onChange]);
 
 	useEffect(() => {
-		stateRef.current = { values, fieldSources, suggestedValues };
+		stateRef.current = { fieldSources, suggestedValues, values };
 	}, [values, fieldSources, suggestedValues]);
 
 	const applySuggestions = useCallback(
@@ -468,7 +478,7 @@ export default function Inputs({
 	);
 
 	useEffect(() => {
-		if (!suggestedValuesProp) return;
+		if (!suggestedValuesProp) {return;}
 		setSuggestedValues(suggestedValuesProp);
 		applySuggestions(suggestedValuesProp);
 	}, [suggestedValuesProp, applySuggestions]);
@@ -496,7 +506,7 @@ export default function Inputs({
 
 	const handleApplySuggestion = (key: string) => {
 		const suggestion = suggestedValues[key];
-		if (!suggestion) return;
+		if (!suggestion) {return;}
 		setValues((prevValues) => ({
 			...prevValues,
 			[key]: suggestion.value,
@@ -629,15 +639,15 @@ export default function Inputs({
 					voiceInputMeta.get(field),
 				);
 				if (
-					typeof normalizedValue === "undefined" ||
+					normalizedValue === undefined ||
 					isEmptyValue(normalizedValue)
 				) {
 					delete nextSuggestions[field];
 					continue;
 				}
 				nextSuggestions[field] = {
-					value: normalizedValue,
 					source: "ai",
+					value: normalizedValue,
 				};
 
 			}
@@ -667,11 +677,11 @@ export default function Inputs({
 
 	const shouldShowVoiceInput = Boolean(showVoiceInput && onVoiceFill);
 	const renderContext: RenderContext = {
-		values,
-		suggestedValues,
 		fieldSources,
-		onChange: handleInputChange,
 		onApplySuggestion: handleApplySuggestion,
+		onChange: handleInputChange,
+		suggestedValues,
+		values,
 	};
 
 	return (
@@ -701,9 +711,9 @@ export default function Inputs({
 							size="icon"
 							title={
 								canRecord || isRecording
-									? isRecording
+									? (isRecording
 										? "Aufnahme stoppen"
-										: "Audioaufnahme starten"
+										: "Audioaufnahme starten")
 									: `Maximal ${maxRecordings} Aufnahmen möglich`
 							}
 							type="button"

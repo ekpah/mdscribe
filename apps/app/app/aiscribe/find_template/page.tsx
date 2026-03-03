@@ -35,7 +35,7 @@ export default function FindTemplatePage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim()) {return;}
 
     searchMutation.mutate({ query: query.trim() });
   };
@@ -138,12 +138,13 @@ export default function FindTemplatePage() {
         )}
 
         {/* Help Text */}
-        <div className="mt-8 text-center text-sm text-solarized-base01">
-          <p>
-            Versuchen Sie Suchbegriffe wie "Entlassungsbrief", "Aufnahme"
-            oder "Behandlungsplan", um relevante Vorlagen zu finden.
-          </p>
-        </div>
+	        <div className="mt-8 text-center text-sm text-solarized-base01">
+	          <p>
+	            Versuchen Sie Suchbegriffe wie &quot;Entlassungsbrief&quot;,
+	            &quot;Aufnahme&quot; oder &quot;Behandlungsplan&quot;, um relevante
+	            Vorlagen zu finden.
+	          </p>
+	        </div>
       </div>
     </div>
   );

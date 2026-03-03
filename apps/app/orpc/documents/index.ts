@@ -3,15 +3,13 @@ import { usageEvent } from "@repo/database";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 
-import {
-	buildUsageEventData,
-	extractOpenRouterUsage,
-	type StandardUsage,
-} from "@/lib/usage-logging";
+import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
+import type { StandardUsage } from '@/lib/usage-logging';
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "../middlewares/admin";
 import { resolveModel, resolveProviderModel } from "../scribe/providers";
-import { type FieldMapping, pdfDocumentConfigs } from "./config";
+import { pdfDocumentConfigs } from './config';
+import type { FieldMapping } from './config';
 
 /**
  * Enhanced field mapping response schema
@@ -19,9 +17,9 @@ import { type FieldMapping, pdfDocumentConfigs } from "./config";
 const enhancedFieldMappingSchema = z.object({
 	fieldMapping: z.array(
 		z.object({
+			description: z.string(),
 			fieldName: z.string(),
 			label: z.string(),
-			description: z.string(),
 		}),
 	),
 });
@@ -34,18 +32,18 @@ const ocrToMarkdownPrompt = [
 ].join("\n");
 
 const ocrToMarkdownInput = z.object({
+	// Backward compatibility while frontend payload migrates fully.
+	connectionId: z.string().min(1).optional(),
 	fileBase64: z.string().min(1).optional(),
 	imagesBase64: z.array(z.string().min(1)).optional(),
 	model: z.string().min(1),
 	providerId: z.string().min(1).optional(),
-	// Backward compatibility while frontend payload migrates fully.
-	connectionId: z.string().min(1).optional(),
 });
 
 function stripCodeFence(markdown: string): string {
 	const trimmed = markdown.trim();
 	const fencedMatch = trimmed.match(/^```(?:md|markdown)?\n([\s\S]*?)\n```$/i);
-	if (!fencedMatch) return trimmed;
+	if (!fencedMatch) {return trimmed;}
 	return fencedMatch[1]?.trim() ?? "";
 }
 
@@ -71,6 +69,23 @@ export const parseFormHandler = authed
 		});
 
 		const result = await generateObject({
+			experimental_telemetry: { isEnabled: true },
+			messages: [
+				{
+					content: [{ text: promptText, type: "text" }],
+					role: "user",
+				},
+				{
+					content: [
+						{
+							data: bytes,
+							mediaType: "application/pdf",
+							type: "file",
+						},
+					],
+					role: "user",
+				},
+			],
 			model: resolvedModel.model,
 			providerOptions: resolvedModel.isOpenRouter
 				? {
@@ -80,25 +95,8 @@ export const parseFormHandler = authed
 						},
 					}
 				: undefined,
-			messages: [
-				{
-					role: "user",
-					content: [{ type: "text", text: promptText }],
-				},
-				{
-					role: "user",
-					content: [
-						{
-							type: "file",
-							data: bytes,
-							mediaType: "application/pdf",
-						},
-					],
-				},
-			],
-			temperature: config.modelConfig.temperature ?? 0.3,
 			schema: enhancedFieldMappingSchema,
-			experimental_telemetry: { isEnabled: true },
+			temperature: config.modelConfig.temperature ?? 0.3,
 		});
 
 		const { object, usage } = result;
@@ -111,16 +109,16 @@ export const parseFormHandler = authed
 
 		await context.db.insert(usageEvent).values(
 			buildUsageEventData({
-				userId: context.session.user.id,
-				name: "ai_pdf_form_parsing",
-				model: resolvedModel.modelName,
-				openRouterUsage,
-				standardUsage: usage as StandardUsage,
 				inputData: { fieldCount: fieldMapping.length },
 				metadata: {
 					promptName: config.promptName,
 					promptSource: "local",
 				},
+				model: resolvedModel.modelName,
+				name: "ai_pdf_form_parsing",
+				openRouterUsage,
+				standardUsage: usage as StandardUsage,
+				userId: context.session.user.id,
 			}),
 		);
 
@@ -152,11 +150,9 @@ const ocrToMarkdownHandler = authed
 			context.db,
 		);
 
-		const userContent: Array<
-			| { type: "text"; text: string }
+		const userContent: (| { type: "text"; text: string }
 			| { type: "image"; image: Uint8Array; mediaType: string }
-			| { type: "file"; data: Uint8Array; mediaType: string }
-		> = [{ type: "text", text: ocrToMarkdownPrompt }];
+			| { type: "file"; data: Uint8Array; mediaType: string })[] = [{ text: ocrToMarkdownPrompt, type: "text" }];
 
 		let fileSizeBytes = 0;
 		if (parsed.imagesBase64?.length) {
@@ -164,13 +160,13 @@ const ocrToMarkdownHandler = authed
 				const bytes = new Uint8Array(Buffer.from(imgBase64, "base64"));
 				fileSizeBytes += bytes.length;
 				userContent.push({
-					type: "image",
 					image: bytes,
 					mediaType: "image/jpeg",
+					type: "image",
 				});
 			}
 		} else {
-			const fileBase64 = parsed.fileBase64;
+			const {fileBase64} = parsed;
 			if (!fileBase64) {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "fileBase64 fehlt",
@@ -179,18 +175,19 @@ const ocrToMarkdownHandler = authed
 			const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
 			fileSizeBytes = bytes.length;
 			userContent.push({
-				type: "file",
 				data: bytes,
 				mediaType: "application/pdf",
+				type: "file",
 			});
 		}
 
 		let result: Awaited<ReturnType<typeof generateText>>;
 		try {
 			result = await generateText({
-				model: resolvedModel.model,
-				temperature: 0,
+				experimental_telemetry: { isEnabled: true },
 				maxOutputTokens: 24_000,
+				messages: [{ content: userContent, role: "user" }],
+				model: resolvedModel.model,
 				providerOptions: resolvedModel.isOpenRouter
 					? {
 							openrouter: {
@@ -199,8 +196,7 @@ const ocrToMarkdownHandler = authed
 							},
 						}
 					: undefined,
-				messages: [{ role: "user", content: userContent }],
-				experimental_telemetry: { isEnabled: true },
+				temperature: 0,
 			});
 		} catch (error) {
 			const details =
@@ -220,14 +216,9 @@ const ocrToMarkdownHandler = authed
 
 		await context.db.insert(usageEvent).values(
 			buildUsageEventData({
-				userId: context.session.user.id,
-				name: "ai_pdf_ocr_markdown",
-				model: resolvedModel.modelName,
-				openRouterUsage,
-				standardUsage: result.usage as StandardUsage,
 				inputData: {
-					fileType: parsed.imagesBase64?.length ? "images" : "pdf",
 					fileSizeBytes,
+					fileType: parsed.imagesBase64?.length ? "images" : "pdf",
 					pageCount: parsed.imagesBase64?.length,
 				},
 				metadata: {
@@ -235,7 +226,12 @@ const ocrToMarkdownHandler = authed
 					promptSource: "local",
 					providerId,
 				},
+				model: resolvedModel.modelName,
+				name: "ai_pdf_ocr_markdown",
+				openRouterUsage,
 				result: markdown,
+				standardUsage: result.usage as StandardUsage,
+				userId: context.session.user.id,
 			}),
 		);
 
@@ -243,6 +239,6 @@ const ocrToMarkdownHandler = authed
 	});
 
 export const documentsHandler = {
-	parseForm: parseFormHandler,
 	ocrToMarkdown: ocrToMarkdownHandler,
+	parseForm: parseFormHandler,
 };

@@ -39,15 +39,12 @@ import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import type { AudioFile, InputField } from "@/orpc/scribe/types";
 import { fillPDFForm } from "../_lib/fillPDFForm";
-import {
-	convertPDFFieldsToInputTags,
-	type FieldMapping,
-	type PDFField,
-	parsePDFFormFields,
-} from "../_lib/parsePDFFormFields";
+import { convertPDFFieldsToInputTags, parsePDFFormFields } from '../_lib/parsePDFFormFields';
+import type { FieldMapping, PDFField } from '../_lib/parsePDFFormFields';
 import { MAX_PDF_UPLOAD_BYTES } from "../_lib/pdfData";
 import PDFDebugPanel from "./PDFDebugPanel";
-import PDFInputs, { type InputSource } from "./PDFInputs";
+import PDFInputs from './PDFInputs';
+import type { InputSource } from './PDFInputs';
 import PDFUploadSection from "./PDFUploadSection";
 
 const PDFViewSection = dynamic(() => import("./PDFViewSection"), {
@@ -66,17 +63,17 @@ async function convertPdfToImages(
 	pdfBytes: Uint8Array,
 	maxPages = 10,
 ): Promise<string[]> {
-	const pdf = await pdfjs.getDocument({ data: pdfBytes.slice() }).promise;
+	const pdf = await pdfjs.getDocument({ data: [...pdfBytes] }).promise;
 	const images: string[] = [];
 	const pageCount = Math.min(pdf.numPages, maxPages);
 
-	for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+	for (let pageNum = 1; pageNum <= pageCount; pageNum += 1) {
 		const page = await pdf.getPage(pageNum);
 		const viewport = page.getViewport({ scale: 1.5 });
 
 		const canvas = document.createElement("canvas");
 		const ctx = canvas.getContext("2d");
-		if (!ctx) throw new Error("Canvas context nicht verfügbar");
+		if (!ctx) {throw new Error("Canvas context nicht verfügbar");}
 
 		canvas.width = viewport.width;
 		canvas.height = viewport.height;
@@ -95,7 +92,7 @@ function encodeUint8ArrayToBase64(data: Uint8Array): string {
 	const chunks: string[] = [];
 	for (let i = 0; i < data.length; i += chunkSize) {
 		const chunk = data.subarray(i, i + chunkSize);
-		chunks.push(String.fromCharCode(...chunk));
+		chunks.push(String.fromCodePoint(...chunk));
 	}
 	return btoa(chunks.join(""));
 }
@@ -174,8 +171,7 @@ export default function PDFFormSection() {
 		[connectorModels],
 	);
 
-	const preferredOcrModel = useMemo(() => {
-		return (
+	const preferredOcrModel = useMemo(() => (
 			ocrCapableModels.find((model) => model.capabilities.supportsImage) ??
 			ocrCapableModels.find(
 				(model) =>
@@ -183,8 +179,7 @@ export default function PDFFormSection() {
 					model.id.toLowerCase().includes("claude"),
 			) ??
 			ocrCapableModels[0]
-		);
-	}, [ocrCapableModels]);
+		), [ocrCapableModels]);
 
 	useEffect(() => {
 		if (ocrCapableModels.length === 0) {
@@ -207,10 +202,6 @@ export default function PDFFormSection() {
 	// Use oRPC mutation for AI enhancement
 	const enhanceMutation = useMutation(
 		orpc.documents.parseForm.mutationOptions({
-			onSuccess: (data) => {
-				setFieldMapping(data.fieldMapping);
-				toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
-			},
 			onError: (error) => {
 				const errorMessage =
 					error instanceof Error
@@ -221,12 +212,25 @@ export default function PDFFormSection() {
 					{ id: "enhance-ai" },
 				);
 			},
+			onSuccess: (data) => {
+				setFieldMapping(data.fieldMapping);
+				toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
+			},
 		}),
 	);
 
 	// Voice fill mutation
 	const voiceFillMutation = useMutation(
 		orpc.scribe.voiceFill.mutationOptions({
+			onError: (error) => {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Unbekannter Fehler aufgetreten";
+				toast.error(`Sprachausfüllung fehlgeschlagen: ${errorMessage}`, {
+					id: "voice-fill",
+				});
+			},
 			onSuccess: (data) => {
 				// Update field values with AI-filled values
 				setFieldValues((prev) => ({ ...prev, ...data.fieldValues }));
@@ -246,33 +250,24 @@ export default function PDFFormSection() {
 					id: "voice-fill",
 				});
 			},
-			onError: (error) => {
-				const errorMessage =
-					error instanceof Error
-						? error.message
-						: "Unbekannter Fehler aufgetreten";
-				toast.error(`Sprachausfüllung fehlgeschlagen: ${errorMessage}`, {
-					id: "voice-fill",
-				});
-			},
 		}),
 	);
 
 	const ocrToMarkdownMutation = useMutation(
 		orpc.documents.ocrToMarkdown.mutationOptions({
-			onSuccess: (data) => {
-				setOcrMarkdown(data.markdown);
-				setActivePreviewTab("markdown");
-				toast.success("Markdown aus PDF extrahiert", {
-					id: "ocr-markdown",
-				});
-			},
 			onError: (error) => {
 				const errorMessage =
 					error instanceof Error
 						? error.message
 						: "Unbekannter Fehler aufgetreten";
 				toast.error(`OCR-Extraktion fehlgeschlagen: ${errorMessage}`, {
+					id: "ocr-markdown",
+				});
+			},
+			onSuccess: (data) => {
+				setOcrMarkdown(data.markdown);
+				setActivePreviewTab("markdown");
+				toast.success("Markdown aus PDF extrahiert", {
 					id: "ocr-markdown",
 				});
 			},
@@ -311,9 +306,9 @@ export default function PDFFormSection() {
 			// set initial field mapping, changes with every change of fields
 			setFieldMapping(
 				parsedFields.map((field) => ({
+					description: "",
 					fieldName: field.name,
 					label: field.name,
-					description: "",
 				})),
 			);
 		} catch (error) {
@@ -367,7 +362,7 @@ export default function PDFFormSection() {
 		const link = document.createElement("a");
 		link.href = url;
 		link.download = `formular-${new Date().toISOString().split("T")[0]}.pdf`;
-		document.body.appendChild(link);
+		document.body.append(link);
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
@@ -408,8 +403,8 @@ export default function PDFFormSection() {
 		});
 
 		enhanceMutation.mutate({
-			fileBase64: base64,
 			fieldMapping,
+			fileBase64: base64,
 		});
 	};
 
@@ -475,7 +470,7 @@ export default function PDFFormSection() {
 	};
 
 	const handleCopyMarkdown = async () => {
-		if (!ocrMarkdown) return;
+		if (!ocrMarkdown) {return;}
 		await navigator.clipboard.writeText(ocrMarkdown);
 		toast.success("Markdown kopiert");
 	};
@@ -577,10 +572,10 @@ export default function PDFFormSection() {
 			);
 
 		const inputFields: InputField[] = fieldMapping.map((field) => ({
-			label: field.label,
 			description: field.description,
+			label: field.label,
 		}));
-		voiceFillMutation.mutate({ inputFields, audioFiles });
+		voiceFillMutation.mutate({ audioFiles, inputFields });
 	};
 
 	return (
@@ -632,9 +627,9 @@ export default function PDFFormSection() {
 									size="sm"
 									title={
 										canRecord || isRecording
-											? isRecording
+											? (isRecording
 												? "Aufnahme stoppen"
-												: "Audioaufnahme starten"
+												: "Audioaufnahme starten")
 											: `Maximal ${maxRecordings} Aufnahmen möglich`
 									}
 									variant={isRecording ? "default" : "outline"}

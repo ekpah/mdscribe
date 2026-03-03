@@ -1,115 +1,113 @@
 "use client";
 
 import { BedDouble } from "lucide-react";
-import {
-	DoctorsNoteEditor,
-	type DoctorsNoteEditorConfig,
-} from "../../_components/DoctorsNoteEditor";
+import { DoctorsNoteEditor } from '../../_components/DoctorsNoteEditor';
+import type { DoctorsNoteEditorConfig } from '../../_components/DoctorsNoteEditor';
 
 // Section configuration for inpatient (Normalstation) documentation
 // Each section defines its own endpoint and prompt builder
 const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
-	title: "Stationäre Dokumentation",
 	description:
 		"Erstellen und verbessern Sie strukturierte stationäre Dokumentation mit KI-Unterstützung für Entlassungsbriefe",
 	icon: BedDouble,
 	sections: [
 		{
+			buildPrompt: (notes, context) => ({
+				anamnese: context.anamnese || "",
+				befunde: context.befunde || "",
+				diagnoseblock: context.diagnosen || "",
+				notes,
+			}),
+			description: "Haupt- und Nebendiagnosen sowie relevante Vorerkrankungen",
+			documentType: "diagnosis",
 			id: "diagnosen",
 			label: "Diagnosen",
 			placeholder:
 				"Diagnosen eingeben (z.B. Hauptdiagnosen, Nebendiagnosen, Vorerkrankungen)...",
-			description: "Haupt- und Nebendiagnosen sowie relevante Vorerkrankungen",
-			documentType: "diagnosis",
-			buildPrompt: (notes, context) => ({
-				notes,
-				anamnese: context.anamnese || "",
-				befunde: context.befunde || "",
-				diagnoseblock: context.diagnosen || "",
-			}),
 		},
 		{
+			buildPrompt: (notes, context) => ({
+				befunde: context.befunde || "",
+				diagnoseblock: context.diagnosen || "",
+				notes,
+			}),
+			description:
+				"Anamnese bei stationärer Aufnahme, Aufnahmegrund und relevante Vorgeschichte",
+			documentType: "anamnese",
 			id: "anamnese",
 			label: "Aufnahmeanamnese",
 			placeholder:
 				"Aufnahmeanamnese eingeben (Aufnahmegrund, Symptome, Vorgeschichte)...",
-			description:
-				"Anamnese bei stationärer Aufnahme, Aufnahmegrund und relevante Vorgeschichte",
-			documentType: "anamnese",
-			buildPrompt: (notes, context) => ({
-				notes,
-				diagnoseblock: context.diagnosen || "",
-				befunde: context.befunde || "",
-			}),
 		},
 		{
+			description:
+				"Körperliche Untersuchung bei Aufnahme (Vitalzeichen, Inspektion, Palpation, etc.)",
 			id: "koerperlicher_befund",
 			label: "Körperlicher Befund",
 			placeholder: "Körperlichen Untersuchungsbefund bei Aufnahme eingeben...",
-			description:
-				"Körperliche Untersuchung bei Aufnahme (Vitalzeichen, Inspektion, Palpation, etc.)",
 		},
 		{
+			buildPrompt: (notes, context) => ({
+				anamnese: context.anamnese || "",
+				diagnoseblock: context.diagnosen || "",
+				notes,
+			}),
+			description:
+				"Laborwerte, Bildgebung, EKG und weitere diagnostische Befunde sowie Verlauf",
+			documentType: "befunde",
 			id: "befunde",
 			label: "Befunde & Verlauf",
 			placeholder:
 				"Labor-, Bildgebungs- und weitere Befunde während des Aufenthalts eingeben...",
-			description:
-				"Laborwerte, Bildgebung, EKG und weitere diagnostische Befunde sowie Verlauf",
-			documentType: "befunde",
-			buildPrompt: (notes, context) => ({
-				notes,
-				diagnoseblock: context.diagnosen || "",
-				anamnese: context.anamnese || "",
-			}),
 		},
 		// Toggle between Discharge home (Entlassbrief) and Transfer to ICU/other ward
 		{
-			type: "toggle",
-			id: "disposition",
 			defaultOption: "entlassung",
+			id: "disposition",
 			options: [
 				{
 					id: "entlassung",
 					label: "Entlassung nach Hause",
 					section: {
+						buildPrompt: (notes, context) => ({
+							anamnese: context.anamnese || "",
+							befunde: context.befunde || "",
+							diagnoseblock: context.diagnosen || "",
+							notes,
+						}),
+						description:
+							"Zusammenfassung des stationären Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
+						documentType: "discharge",
 						id: "entlassungsbrief",
 						label: "Entlassungsbrief",
 						placeholder:
 							"Notizen für Entlassungsbrief eingeben (Therapie, Empfehlungen, Nachsorge)...",
-						description:
-							"Zusammenfassung des stationären Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
-						documentType: "discharge",
-						buildPrompt: (notes, context) => ({
-							notes,
-							anamnese: context.anamnese || "",
-							diagnoseblock: context.diagnosen || "",
-							befunde: context.befunde || "",
-						}),
 					},
 				},
 				{
 					id: "verlegung",
 					label: "Verlegung",
 					section: {
+						buildPrompt: (notes, context) => ({
+							anamnese: context.anamnese || "",
+							befunde: context.befunde || "",
+							diagnoseblock: context.diagnosen || "",
+							notes,
+						}),
+						description:
+							"Zusammenfassung des Aufenthalts und Verlegungsinformationen für die weiterbehandelnde Station",
+						documentType: "discharge",
 						id: "verlegungsbrief",
 						label: "Verlegungsbrief",
 						placeholder:
 							"Notizen für Verlegungsbrief eingeben (Verlegungsgrund, aktueller Zustand, offene Punkte)...",
-						description:
-							"Zusammenfassung des Aufenthalts und Verlegungsinformationen für die weiterbehandelnde Station",
-						documentType: "discharge",
-						buildPrompt: (notes, context) => ({
-							notes,
-							anamnese: context.anamnese || "",
-							diagnoseblock: context.diagnosen || "",
-							befunde: context.befunde || "",
-						}),
 					},
 				},
 			],
+			type: "toggle",
 		},
 	],
+	title: "Stationäre Dokumentation",
 };
 
 export default function InpatientEditorPage() {

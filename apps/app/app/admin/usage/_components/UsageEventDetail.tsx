@@ -31,14 +31,14 @@ const promptNameToDocumentType = new Map(
 function inferDocumentType(
 	metadata: Record<string, unknown> | null,
 ): DocumentType | undefined {
-	if (!metadata) return undefined;
+	if (!metadata) {return undefined;}
 
-	const endpoint = metadata.endpoint;
+	const {endpoint} = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
 		return endpoint as DocumentType;
 	}
 
-	const promptName = metadata.promptName;
+	const {promptName} = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
 		return promptNameToDocumentType.get(promptName);
 	}
@@ -105,12 +105,12 @@ function StatBox({ label, value }: { label: string; value: number | null }) {
 function formatDate(date: Date | string) {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	return new Intl.DateTimeFormat("de-DE", {
-		year: "numeric",
-		month: "2-digit",
 		day: "2-digit",
 		hour: "2-digit",
 		minute: "2-digit",
+		month: "2-digit",
 		second: "2-digit",
+		year: "numeric",
 	}).format(dateObj);
 }
 
@@ -119,7 +119,7 @@ export function UsageEventDetail({
 	open,
 	onOpenChange,
 }: UsageEventDetailProps) {
-	if (!event) return null;
+	if (!event) {return null;}
 
 	const cost = event.cost ? Number(event.cost) : null;
 

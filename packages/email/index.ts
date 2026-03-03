@@ -14,12 +14,12 @@ function getClient(): postmark.ServerClient {
 	return client;
 }
 
-type SendEmailOptions = {
+interface SendEmailOptions {
 	from: string;
 	to: string;
 	subject: string;
 	template: ReactElement;
-};
+}
 
 export async function sendEmail({
 	from,
@@ -31,8 +31,8 @@ export async function sendEmail({
 
 	return getClient().sendEmail({
 		From: from,
-		To: to,
-		Subject: subject,
 		HtmlBody: htmlBody,
+		Subject: subject,
+		To: to,
 	});
 }

@@ -18,9 +18,6 @@ const vector = customType<{ data: number[]; driverData: string }>({
 	dataType() {
 		return "vector(1024)";
 	},
-	toDriver(value: number[]): string {
-		return `[${value.join(",")}]`;
-	},
 	fromDriver(value: string): number[] {
 		// Parse "[1,2,3]" format
 		return value
@@ -28,109 +25,112 @@ const vector = customType<{ data: number[]; driverData: string }>({
 			.split(",")
 			.map((v) => Number.parseFloat(v));
 	},
+	toDriver(value: number[]): string {
+		return `[${value.join(",")}]`;
+	},
 });
 
 // ============ AUTH TABLES (BetterAuth compatible) ============
 
 export const user = pgTable("User", {
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow(),
+	email: text("email").notNull().unique(),
+	emailVerified: boolean("emailVerified").notNull().default(false),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
-	name: text("name"),
-	email: text("email").notNull().unique(),
-	emailVerified: boolean("emailVerified").notNull().default(false),
 	image: text("image"),
-	createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
-		.notNull()
-		.defaultNow(),
-	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+	name: text("name"),
+	stripeCustomerId: text("stripeCustomerId"),
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.$onUpdate(() => new Date()),
-	stripeCustomerId: text("stripeCustomerId"),
 });
 
 export const account = pgTable("Account", {
+	accessToken: text("accessToken"),
+	accessTokenExpiresAt: timestamp("accessTokenExpiresAt", {
+		mode: "date",
+		precision: 3,
+	}),
+	accountId: text("accountId").notNull(),
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow(),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
-	userId: text("userId")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
-	accountId: text("accountId").notNull(),
-	providerId: text("providerId").notNull(),
-	accessToken: text("accessToken"),
-	refreshToken: text("refreshToken"),
-	accessTokenExpiresAt: timestamp("accessTokenExpiresAt", {
-		precision: 3,
-		mode: "date",
-	}),
-	refreshTokenExpiresAt: timestamp("refreshTokenExpiresAt", {
-		precision: 3,
-		mode: "date",
-	}),
-	scope: text("scope"),
 	idToken: text("idToken"),
 	password: text("password"),
-	createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
-		.notNull()
-		.defaultNow(),
-	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+	providerId: text("providerId").notNull(),
+	refreshToken: text("refreshToken"),
+	refreshTokenExpiresAt: timestamp("refreshTokenExpiresAt", {
+		mode: "date",
+		precision: 3,
+	}),
+	scope: text("scope"),
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.defaultNow()
 		.$onUpdate(() => new Date()),
+	userId: text("userId")
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
 });
 
 export const session = pgTable("Session", {
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow(),
+	expiresAt: timestamp("expiresAt", { mode: "date", precision: 3 }).notNull(),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
-	userId: text("userId")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
-	token: text("token").notNull().unique(),
-	expiresAt: timestamp("expiresAt", { precision: 3, mode: "date" }).notNull(),
 	ipAddress: text("ipAddress"),
-	userAgent: text("userAgent"),
-	createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
-		.notNull()
-		.defaultNow(),
-	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+	token: text("token").notNull().unique(),
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.defaultNow()
 		.$onUpdate(() => new Date()),
+	userAgent: text("userAgent"),
+	userId: text("userId")
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
 });
 
 export const verification = pgTable("Verification", {
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow(),
+	expiresAt: timestamp("expiresAt", { mode: "date", precision: 3 }).notNull(),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
 	identifier: text("identifier").notNull(),
-	value: text("value").notNull(),
-	expiresAt: timestamp("expiresAt", { precision: 3, mode: "date" }).notNull(),
-	createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
-		.notNull()
-		.defaultNow(),
-	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.$onUpdate(() => new Date()),
+	value: text("value").notNull(),
 });
 
 // ============ APPLICATION TABLES ============
 
 export const template = pgTable("Template", {
+	authorId: text("authorId")
+		.notNull()
+		.references(() => user.id),
+	category: text("category").notNull(),
+	content: text("content").notNull(),
+	embedding: vector("embedding"),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
 	title: text("title").notNull(),
-	category: text("category").notNull(),
-	content: text("content").notNull(),
-	authorId: text("authorId")
-		.notNull()
-		.references(() => user.id),
-	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.defaultNow(),
-	embedding: vector("embedding"),
 });
 
 export const templateExample = pgTable(
@@ -173,26 +173,26 @@ export const templateCollection = pgTable("TemplateCollection", {
 });
 
 export const subscription = pgTable("Subscription", {
+	cancelAtPeriodEnd: boolean("cancelAtPeriodEnd"),
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow(),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
+	periodEnd: timestamp("periodEnd", { mode: "date", precision: 3 }),
+	periodStart: timestamp("periodStart", { mode: "date", precision: 3 }),
 	plan: text("plan").notNull(),
 	referenceId: text("referenceId")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
+	seats: integer("seats"),
+	status: text("status").notNull(),
 	stripeCustomerId: text("stripeCustomerId"),
 	stripeSubscriptionId: text("stripeSubscriptionId"),
-	status: text("status").notNull(),
-	periodStart: timestamp("periodStart", { precision: 3, mode: "date" }),
-	periodEnd: timestamp("periodEnd", { precision: 3, mode: "date" }),
-	cancelAtPeriodEnd: boolean("cancelAtPeriodEnd"),
-	seats: integer("seats"),
-	trialStart: timestamp("trialStart", { precision: 3, mode: "date" }),
-	trialEnd: timestamp("trialEnd", { precision: 3, mode: "date" }),
-	createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
-		.notNull()
-		.defaultNow(),
-	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+	trialEnd: timestamp("trialEnd", { mode: "date", precision: 3 }),
+	trialStart: timestamp("trialStart", { mode: "date", precision: 3 }),
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.$onUpdate(() => new Date()),
 });
@@ -206,7 +206,7 @@ export const usageEvent = pgTable(
 		userId: text("userId")
 			.notNull()
 			.references(() => user.id),
-		timestamp: timestamp("timestamp", { precision: 3, mode: "date" })
+		timestamp: timestamp("timestamp", { mode: "date", precision: 3 })
 			.notNull()
 			.defaultNow(),
 		name: text("name").notNull(),
@@ -236,20 +236,20 @@ export const usageEvent = pgTable(
 export const textSnippet = pgTable(
 	"TextSnippet",
 	{
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow(),
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
+		key: text("key").notNull(),
+		snippet: text("snippet").notNull(),
+		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
+			.notNull()
+			.$onUpdate(() => new Date()),
 		userId: text("userId")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
-		key: text("key").notNull(),
-		snippet: text("snippet").notNull(),
-		createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
-			.notNull()
-			.defaultNow(),
-		updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
-			.notNull()
-			.$onUpdate(() => new Date()),
 	},
 	(table) => [
 		uniqueIndex("TextSnippet_userId_key_key").on(table.userId, table.key),
@@ -297,7 +297,8 @@ export const aiProvider = pgTable("AiProvider", {
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
 	name: text("name").notNull(),
-	protocol: text("protocol").notNull(), // "openai-compatible" | "openrouter" | "openai" | "anthropic"
+	// "openai-compatible" | "openrouter" | "openai" | "anthropic"
+	protocol: text("protocol").notNull(),
 	baseUrl: text("baseUrl"),
 	apiKey: text("apiKey"),
 });
@@ -305,16 +306,16 @@ export const aiProvider = pgTable("AiProvider", {
 export const aiModel = pgTable(
 	"AiModel",
 	{
+		displayName: text("displayName").notNull(),
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
+		inputModes: text("inputModes").array().notNull().default(["text"]),
+		modelId: text("modelId").notNull(),
 		providerId: text("providerId")
 			.notNull()
 			.references(() => aiProvider.id, { onDelete: "cascade" }),
-		modelId: text("modelId").notNull(),
-		displayName: text("displayName").notNull(),
 		supportsReasoning: boolean("supportsReasoning").notNull().default(false),
-		inputModes: text("inputModes").array().notNull().default(["text"]),
 	},
 	(table) => [
 		uniqueIndex("AiModel_providerId_modelId_key").on(
@@ -325,12 +326,6 @@ export const aiModel = pgTable(
 );
 
 export const aiDefaults = pgTable("AiDefaults", {
-	id: text("id")
-		.primaryKey()
-		.$defaultFn(() => "global"),
-	defaultTextModelId: text("defaultTextModelId").references(() => aiModel.id, {
-		onDelete: "set null",
-	}),
 	defaultFileImageModelId: text("defaultFileImageModelId").references(
 		() => aiModel.id,
 		{ onDelete: "set null" },
@@ -339,7 +334,13 @@ export const aiDefaults = pgTable("AiDefaults", {
 		() => aiModel.id,
 		{ onDelete: "set null" },
 	),
-	updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+	defaultTextModelId: text("defaultTextModelId").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => "global"),
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.$onUpdate(() => new Date()),
 });
@@ -383,13 +384,13 @@ export const aiScribeFormConfig = pgTable(
 
 export const userRelations = relations(user, ({ many }) => ({
 	accounts: many(account),
+	favourites: many(favourites),
 	sessions: many(session),
 	subscriptions: many(subscription),
 	templateCollections: many(templateCollection),
 	templates: many(template),
 	textSnippets: many(textSnippet),
 	usageEvents: many(usageEvent),
-	favourites: many(favourites),
 }));
 
 export const accountRelations = relations(account, ({ one }) => ({

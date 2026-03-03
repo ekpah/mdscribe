@@ -2,14 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call, ORPCError } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq } from "@repo/database";
 import { providersHandler } from "@/orpc/admin/providers";
-import {
-	ADMIN_EMAIL,
-	createMockSession,
-	createTestContext,
-	createTestUser,
-	startTestServer,
-	type TestServer,
-} from "../setup";
+import { ADMIN_EMAIL, createMockSession, createTestContext, createTestUser, startTestServer } from '../setup';
+import type { TestServer } from '../setup';
 
 describe("Admin Providers Handler", () => {
 	let server: TestServer;
@@ -37,9 +31,9 @@ describe("Admin Providers Handler", () => {
 			call(
 				providersHandler.connections.create,
 				{
+					apiKey: "invalid-key",
 					name: "Broken OpenRouter",
 					protocol: "openrouter",
-					apiKey: "invalid-key",
 				},
 				{ context },
 			),
@@ -53,38 +47,38 @@ describe("Admin Providers Handler", () => {
 
 	test("connections.create syncs fetched provider models", async () => {
 		globalThis.fetch = (() =>
-			new Response(
-				JSON.stringify({
+			Response.json(
+				{
 					data: [
 						{
+							architecture: { modality: "text+image->text" },
 							id: "anthropic/claude-3.7-sonnet",
 							name: "Claude 3.7 Sonnet",
 							supported_parameters: ["reasoning"],
-							architecture: { modality: "text+image->text" },
 						},
 						{
+							architecture: { modality: "text->text" },
 							id: "openai/gpt-4.1-mini",
 							name: "GPT-4.1 mini",
 							supported_parameters: [],
-							architecture: { modality: "text->text" },
 						},
 					],
-				}),
+				},
 				{ status: 200 },
 			)) as unknown as typeof fetch;
 
 		const created = await call(
 			providersHandler.connections.create,
 			{
+				apiKey: "or-key",
 				name: "OpenRouter",
 				protocol: "openrouter",
-				apiKey: "or-key",
 			},
 			{ context },
 		);
 
 		expect(created.modelCount).toBe(2);
-		expect(created.syncResult).toEqual({ inserted: 2, updated: 0, removed: 0 });
+		expect(created.syncResult).toEqual({ inserted: 2, removed: 0, updated: 0 });
 		expect(created.hasApiKey).toBe(true);
 
 		const providers = await server.db.select().from(aiProvider);
@@ -115,44 +109,44 @@ describe("Admin Providers Handler", () => {
 		globalThis.fetch = (() => {
 			callCount += 1;
 			if (callCount === 1) {
-				return new Response(
-					JSON.stringify({
+				return Response.json(
+					{
 						data: [
 							{
+								architecture: { modality: "text->text" },
 								id: "openai/gpt-4o-mini",
 								name: "GPT-4o mini",
 								supported_parameters: [],
-								architecture: { modality: "text->text" },
 							},
 							{
+								architecture: { modality: "text->text" },
 								id: "openai/gpt-4.1-mini",
 								name: "GPT-4.1 mini",
 								supported_parameters: [],
-								architecture: { modality: "text->text" },
 							},
 						],
-					}),
+					},
 					{ status: 200 },
 				);
 			}
 
-			return new Response(
-				JSON.stringify({
+			return Response.json(
+				{
 					data: [
 						{
+							architecture: { modality: "text+image->text" },
 							id: "openai/gpt-4o-mini",
 							name: "GPT-4o mini (updated)",
 							supported_parameters: ["reasoning"],
-							architecture: { modality: "text+image->text" },
 						},
 						{
+							architecture: { modality: "text+image->text" },
 							id: "anthropic/claude-3.7-sonnet",
 							name: "Claude 3.7 Sonnet",
 							supported_parameters: ["reasoning"],
-							architecture: { modality: "text+image->text" },
 						},
 					],
-				}),
+				},
 				{ status: 200 },
 			);
 		}) as unknown as typeof fetch;
@@ -160,9 +154,9 @@ describe("Admin Providers Handler", () => {
 		const created = await call(
 			providersHandler.connections.create,
 			{
+				apiKey: "or-key",
 				name: "OpenRouter",
 				protocol: "openrouter",
-				apiKey: "or-key",
 			},
 			{ context },
 		);
@@ -175,8 +169,8 @@ describe("Admin Providers Handler", () => {
 
 		expect(refreshed.syncResult).toEqual({
 			inserted: 1,
-			updated: 1,
 			removed: 1,
+			updated: 1,
 		});
 
 		const models = await server.db.query.aiModel.findMany({
@@ -225,26 +219,26 @@ describe("Admin Providers Handler", () => {
 
 	test("connections.delete cascades provider models and nulls defaults", async () => {
 		globalThis.fetch = (() =>
-			new Response(
-				JSON.stringify({
+			Response.json(
+				{
 					data: [
 						{
+							architecture: { modality: "text->text" },
 							id: "openai/gpt-4.1-mini",
 							name: "GPT-4.1 mini",
 							supported_parameters: [],
-							architecture: { modality: "text->text" },
 						},
 					],
-				}),
+				},
 				{ status: 200 },
 			)) as unknown as typeof fetch;
 
 		const created = await call(
 			providersHandler.connections.create,
 			{
+				apiKey: "or-key",
 				name: "OpenRouter",
 				protocol: "openrouter",
-				apiKey: "or-key",
 			},
 			{ context },
 		);

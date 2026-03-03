@@ -15,14 +15,6 @@ export interface ScoreTagAttrs {
 }
 
 export const ScoreTag = Node.create<ScoreTagAttrs>({
-  name: 'scoreTag',
-
-  group: 'inline',
-  selectable: true,
-  draggable: false,
-  inline: true,
-  atom: true,
-
   addAttributes() {
     return {
       formula: {
@@ -42,10 +34,22 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
     };
   },
 
-  renderText({ node }: { node: ProseMirrorNode }) {
-    const formula = node.attrs.formula || '';
-    const unit = node.attrs.unit ? ` unit="${node.attrs.unit}"` : '';
-    return `{% score formula="${formula}"${unit} /%}`;
+  addNodeView() {
+    return ReactNodeViewRenderer(ScoreTagView);
+  },
+  atom: true,
+  draggable: false,
+  group: 'inline',
+  inline: true,
+
+  name: 'scoreTag',
+
+  parseHTML() {
+    return [
+      {
+        tag: 'Score',
+      },
+    ];
   },
 
   renderHTML({
@@ -64,15 +68,11 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
     ];
   },
   
-  parseHTML() {
-    return [
-      {
-        tag: 'Score',
-      },
-    ];
+  renderText({ node }: { node: ProseMirrorNode }) {
+    const formula = node.attrs.formula || '';
+    const unit = node.attrs.unit ? ` unit="${node.attrs.unit}"` : '';
+    return `{% score formula="${formula}"${unit} /%}`;
   },
 
-  addNodeView() {
-    return ReactNodeViewRenderer(ScoreTagView);
-  },
+  selectable: true,
 });

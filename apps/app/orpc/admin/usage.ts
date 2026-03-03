@@ -19,8 +19,8 @@ import { requiredAdminMiddleware } from "../middlewares/admin";
 const listUsageEventsInput = z.object({
 	cursor: z.string().optional(),
 	limit: z.number().min(1).max(100).optional(),
-	userId: z.string().optional(),
 	name: z.string().optional(),
+	userId: z.string().optional(),
 });
 
 const listUsageEventsHandler = authed
@@ -59,26 +59,26 @@ const listUsageEventsHandler = authed
 
 		const events = await context.db
 			.select({
-				id: usageEvent.id,
-				userId: usageEvent.userId,
-				timestamp: usageEvent.timestamp,
-				name: usageEvent.name,
-				inputTokens: usageEvent.inputTokens,
-				outputTokens: usageEvent.outputTokens,
-				totalTokens: usageEvent.totalTokens,
-				reasoningTokens: usageEvent.reasoningTokens,
 				cachedTokens: usageEvent.cachedTokens,
 				cost: usageEvent.cost,
-				model: usageEvent.model,
+				id: usageEvent.id,
 				inputData: usageEvent.inputData,
+				inputTokens: usageEvent.inputTokens,
 				metadata: usageEvent.metadata,
-				result: usageEvent.result,
+				model: usageEvent.model,
+				name: usageEvent.name,
+				outputTokens: usageEvent.outputTokens,
 				reasoning: usageEvent.reasoning,
+				reasoningTokens: usageEvent.reasoningTokens,
+				result: usageEvent.result,
+				timestamp: usageEvent.timestamp,
+				totalTokens: usageEvent.totalTokens,
 				user: {
+					email: user.email,
 					id: user.id,
 					name: user.name,
-					email: user.email,
 				},
+				userId: usageEvent.userId,
 			})
 			.from(usageEvent)
 			.leftJoin(user, eq(usageEvent.userId, user.id))
@@ -88,12 +88,12 @@ const listUsageEventsHandler = authed
 
 		const hasMore = events.length > limit;
 		const items = hasMore ? events.slice(0, -1) : events;
-		const nextCursor = hasMore ? items[items.length - 1]?.id : undefined;
+		const nextCursor = hasMore ? items.at(-1)?.id : undefined;
 
 		return {
+			hasMore,
 			items,
 			nextCursor,
-			hasMore,
 		};
 	});
 
@@ -103,26 +103,26 @@ const getUsageEventHandler = authed
 	.handler(async ({ context, input }) => {
 		const [event] = await context.db
 			.select({
-				id: usageEvent.id,
-				userId: usageEvent.userId,
-				timestamp: usageEvent.timestamp,
-				name: usageEvent.name,
-				inputTokens: usageEvent.inputTokens,
-				outputTokens: usageEvent.outputTokens,
-				totalTokens: usageEvent.totalTokens,
-				reasoningTokens: usageEvent.reasoningTokens,
 				cachedTokens: usageEvent.cachedTokens,
 				cost: usageEvent.cost,
-				model: usageEvent.model,
+				id: usageEvent.id,
 				inputData: usageEvent.inputData,
+				inputTokens: usageEvent.inputTokens,
 				metadata: usageEvent.metadata,
-				result: usageEvent.result,
+				model: usageEvent.model,
+				name: usageEvent.name,
+				outputTokens: usageEvent.outputTokens,
 				reasoning: usageEvent.reasoning,
+				reasoningTokens: usageEvent.reasoningTokens,
+				result: usageEvent.result,
+				timestamp: usageEvent.timestamp,
+				totalTokens: usageEvent.totalTokens,
 				user: {
+					email: user.email,
 					id: user.id,
 					name: user.name,
-					email: user.email,
 				},
+				userId: usageEvent.userId,
 			})
 			.from(usageEvent)
 			.leftJoin(user, eq(usageEvent.userId, user.id))
@@ -138,26 +138,26 @@ const findByRequestIdHandler = authed
 	.handler(async ({ context, input }) => {
 		const [event] = await context.db
 			.select({
-				id: usageEvent.id,
-				userId: usageEvent.userId,
-				timestamp: usageEvent.timestamp,
-				name: usageEvent.name,
-				inputTokens: usageEvent.inputTokens,
-				outputTokens: usageEvent.outputTokens,
-				totalTokens: usageEvent.totalTokens,
-				reasoningTokens: usageEvent.reasoningTokens,
 				cachedTokens: usageEvent.cachedTokens,
 				cost: usageEvent.cost,
-				model: usageEvent.model,
+				id: usageEvent.id,
 				inputData: usageEvent.inputData,
+				inputTokens: usageEvent.inputTokens,
 				metadata: usageEvent.metadata,
-				result: usageEvent.result,
+				model: usageEvent.model,
+				name: usageEvent.name,
+				outputTokens: usageEvent.outputTokens,
 				reasoning: usageEvent.reasoning,
+				reasoningTokens: usageEvent.reasoningTokens,
+				result: usageEvent.result,
+				timestamp: usageEvent.timestamp,
+				totalTokens: usageEvent.totalTokens,
 				user: {
+					email: user.email,
 					id: user.id,
 					name: user.name,
-					email: user.email,
 				},
+				userId: usageEvent.userId,
 			})
 			.from(usageEvent)
 			.leftJoin(user, eq(usageEvent.userId, user.id))
@@ -196,8 +196,9 @@ function getDateRangeStart(
 			return start;
 		}
 		case "all":
-		default:
+		default: {
 			return null;
+		}
 	}
 }
 
@@ -213,23 +214,23 @@ const getUsageStatsHandler = authed
 
 		const [stats] = await context.db
 			.select({
-				totalEvents: count(),
 				totalCost: sum(usageEvent.cost),
+				totalEvents: count(),
 				totalTokens: sum(usageEvent.totalTokens),
 			})
 			.from(usageEvent)
 			.where(whereClause);
 
 		return {
-			totalEvents: stats?.totalEvents ?? 0,
 			totalCost: Number(stats?.totalCost) || 0,
+			totalEvents: stats?.totalEvents ?? 0,
 			totalTokens: Number(stats?.totalTokens) || 0,
 		};
 	});
 
 export const usageHandler = {
-	list: listUsageEventsHandler,
-	get: getUsageEventHandler,
 	findByRequestId: findByRequestIdHandler,
+	get: getUsageEventHandler,
+	list: listUsageEventsHandler,
 	stats: getUsageStatsHandler,
 };

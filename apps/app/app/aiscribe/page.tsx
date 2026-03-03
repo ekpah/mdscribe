@@ -44,46 +44,46 @@ const accentColorClasses: Record<
 	{ hoverBorder: string; bg: string; bgHover: string; textHover: string }
 > = {
 	"solarized-blue": {
-		hoverBorder: "hover:border-solarized-blue",
 		bg: "bg-solarized-blue/10",
 		bgHover: "group-hover:bg-solarized-blue/20",
+		hoverBorder: "hover:border-solarized-blue",
 		textHover: "group-hover:text-solarized-blue",
 	},
-	"solarized-red": {
-		hoverBorder: "hover:border-solarized-red",
-		bg: "bg-solarized-red/10",
-		bgHover: "group-hover:bg-solarized-red/20",
-		textHover: "group-hover:text-solarized-red",
-	},
-	"solarized-orange": {
-		hoverBorder: "hover:border-solarized-orange",
-		bg: "bg-solarized-orange/10",
-		bgHover: "group-hover:bg-solarized-orange/20",
-		textHover: "group-hover:text-solarized-orange",
+	"solarized-cyan": {
+		bg: "bg-solarized-cyan/10",
+		bgHover: "group-hover:bg-solarized-cyan/20",
+		hoverBorder: "hover:border-solarized-cyan",
+		textHover: "group-hover:text-solarized-cyan",
 	},
 	"solarized-green": {
-		hoverBorder: "hover:border-solarized-green",
 		bg: "bg-solarized-green/10",
 		bgHover: "group-hover:bg-solarized-green/20",
+		hoverBorder: "hover:border-solarized-green",
 		textHover: "group-hover:text-solarized-green",
 	},
+	"solarized-orange": {
+		bg: "bg-solarized-orange/10",
+		bgHover: "group-hover:bg-solarized-orange/20",
+		hoverBorder: "hover:border-solarized-orange",
+		textHover: "group-hover:text-solarized-orange",
+	},
+	"solarized-red": {
+		bg: "bg-solarized-red/10",
+		bgHover: "group-hover:bg-solarized-red/20",
+		hoverBorder: "hover:border-solarized-red",
+		textHover: "group-hover:text-solarized-red",
+	},
 	"solarized-violet": {
-		hoverBorder: "hover:border-solarized-violet",
 		bg: "bg-solarized-violet/10",
 		bgHover: "group-hover:bg-solarized-violet/20",
+		hoverBorder: "hover:border-solarized-violet",
 		textHover: "group-hover:text-solarized-violet",
 	},
 	"solarized-yellow": {
-		hoverBorder: "hover:border-solarized-yellow",
 		bg: "bg-solarized-yellow/10",
 		bgHover: "group-hover:bg-solarized-yellow/20",
+		hoverBorder: "hover:border-solarized-yellow",
 		textHover: "group-hover:text-solarized-yellow",
-	},
-	"solarized-cyan": {
-		hoverBorder: "hover:border-solarized-cyan",
-		bg: "bg-solarized-cyan/10",
-		bgHover: "group-hover:bg-solarized-cyan/20",
-		textHover: "group-hover:text-solarized-cyan",
 	},
 };
 
@@ -164,56 +164,56 @@ const quickGenerationModes: {
 	accentColor: AccentColor;
 }[] = [
 	{
-		title: "ER Modus",
+		accentColor: "solarized-red",
 		description:
 			"AI Scribe für Notaufnahme-Szenarien. Generiere Anamnesen, Differenzialdiagnosen und Dispositionen.",
 		href: "/aiscribe/er",
 		icon: <Heart className="h-4 w-4 text-solarized-red sm:h-5 sm:w-5" />,
-		accentColor: "solarized-red",
+		title: "ER Modus",
 	},
 	{
-		title: "ICU Modus",
+		accentColor: "solarized-orange",
 		description:
 			"AI Scribe für Intensivstation-Szenarien. Generiere Anamnesen, Differenzialdiagnosen und Dispositionen.",
 		href: "/aiscribe/icu",
 		icon: <Bed className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />,
-		accentColor: "solarized-orange",
+		title: "ICU Modus",
 	},
 	{
-		title: "Ambulanter Modus",
+		accentColor: "solarized-green",
 		description:
 			"AI Scribe für ambulante Konsultationen. Generiere professionelle Arztbriefe für ambulante Patienten.",
 		href: "/aiscribe/outpatient",
 		icon: (
 			<Stethoscope className="h-4 w-4 text-solarized-green sm:h-5 sm:w-5" />
 		),
-		accentColor: "solarized-green",
+		title: "Ambulanter Modus",
 	},
 	{
-		title: "Prozeduren Modus",
+		accentColor: "solarized-violet",
 		description:
 			"AI Scribe für Prozeduren. Dokumentation für medizinische Eingriffe generieren.",
 		href: "/aiscribe/procedures",
 		icon: <Syringe className="h-4 w-4 text-solarized-violet sm:h-5 sm:w-5" />,
-		accentColor: "solarized-violet",
+		title: "Prozeduren Modus",
 	},
 	{
-		title: "Entlassung Modus",
+		accentColor: "solarized-blue",
 		description:
 			"AI Scribe für Entlassungsbriefe. Strukturierte Entlassungsdokumentation erstellen.",
 		href: "/aiscribe/discharge",
 		icon: <FileText className="h-4 w-4 text-solarized-blue sm:h-5 sm:w-5" />,
-		accentColor: "solarized-blue",
+		title: "Entlassung Modus",
 	},
 	{
-		title: "Diagnoseblock Update",
+		accentColor: "solarized-yellow",
 		description:
 			"Aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen erstellen.",
 		href: "/aiscribe/diagnoseblock",
 		icon: (
 			<ClipboardList className="h-4 w-4 text-solarized-yellow sm:h-5 sm:w-5" />
 		),
-		accentColor: "solarized-yellow",
+		title: "Diagnoseblock Update",
 	},
 ];
 
@@ -225,30 +225,30 @@ const editorModes: {
 	accentColor: AccentColor;
 }[] = [
 	{
-		title: "Notaufnahme Editor",
+		accentColor: "solarized-red",
 		description:
 			"Strukturierter Editor für Notaufnahme-Dokumentation mit KI-unterstützter Textverbesserung und Vorlagen.",
 		href: "/aiscribe/editor/er",
 		icon: <Heart className="h-4 w-4 text-solarized-red sm:h-5 sm:w-5" />,
-		accentColor: "solarized-red",
+		title: "Notaufnahme Editor",
 	},
 	{
-		title: "ICU Editor",
+		accentColor: "solarized-orange",
 		description:
 			"Strukturierter Editor für ICU-Entlassungsbriefe mit KI-unterstützter Dokumentation.",
 		href: "/aiscribe/editor/icu",
 		icon: (
 			<Stethoscope className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />
 		),
-		accentColor: "solarized-orange",
+		title: "ICU Editor",
 	},
 	{
-		title: "Stationärer Editor",
+		accentColor: "solarized-yellow",
 		description:
 			"Strukturierter Editor für stationäre Dokumentation mit KI-unterstützter Entlassungsbrief-Erstellung.",
 		href: "/aiscribe/editor/inpatient",
 		icon: <Bed className="h-4 w-4 text-solarized-yellow sm:h-5 sm:w-5" />,
-		accentColor: "solarized-yellow",
+		title: "Stationärer Editor",
 	},
 ];
 

@@ -40,9 +40,9 @@ export const getEmbeddingStatsHandler = authed
 		const needingEmbeddings = missingResult?.count ?? 0;
 
 		return {
-			totalTemplates: total,
-			templatesWithoutEmbeddings: needingEmbeddings,
 			templatesWithEmbeddings: total - needingEmbeddings,
+			templatesWithoutEmbeddings: needingEmbeddings,
+			totalTemplates: total,
 		};
 	});
 
@@ -72,10 +72,10 @@ export const migrateEmbeddingsHandler = authed
 		} = input;
 
 		const stats = {
-			total: 0,
-			processed: 0,
+			errors: [] as { templateId: string; error: string }[],
 			failed: 0,
-			errors: [] as Array<{ templateId: string; error: string }>,
+			processed: 0,
+			total: 0,
 		};
 
 		// Count total templates
@@ -85,26 +85,26 @@ export const migrateEmbeddingsHandler = authed
 		stats.total = totalResult?.count ?? 0;
 
 		// Get templates to process based on mode
-		let templatesToProcess: Array<{ id: string; content: string }>;
+		let templatesToProcess: { id: string; content: string }[];
 
 		if (mode === "missing") {
 			templatesToProcess = await context.db
-				.select({ id: template.id, content: template.content })
+				.select({ content: template.content, id: template.id })
 				.from(template)
 				.where(isNull(template.embedding));
 		} else {
 			templatesToProcess = await context.db
-				.select({ id: template.id, content: template.content })
+				.select({ content: template.content, id: template.id })
 				.from(template);
 		}
 
 		if (templatesToProcess.length === 0) {
 			return {
-				totalTemplates: stats.total,
-				templatesProcessed: 0,
-				successfulEmbeddings: 0,
-				failedEmbeddings: 0,
 				errors: [],
+				failedEmbeddings: 0,
+				successfulEmbeddings: 0,
+				templatesProcessed: 0,
+				totalTemplates: stats.total,
 			};
 		}
 
@@ -119,14 +119,14 @@ export const migrateEmbeddingsHandler = authed
 						.update(template)
 						.set({ embedding })
 						.where(eq(template.id, templateItem.id));
-					stats.processed++;
+					stats.processed += 1;
 				} catch (error) {
-					stats.failed++;
+					stats.failed += 1;
 					const errorMessage =
 						error instanceof Error ? error.message : "Unknown error";
 					stats.errors.push({
-						templateId: templateItem.id,
 						error: errorMessage,
+						templateId: templateItem.id,
 					});
 				}
 			}
@@ -146,16 +146,16 @@ export const migrateEmbeddingsHandler = authed
 				: "All embeddings regenerated";
 
 		return {
-			totalTemplates: stats.total,
-			templatesProcessed: templatesToProcess.length,
-			successfulEmbeddings: stats.processed,
-			failedEmbeddings: stats.failed,
 			errors: stats.errors,
+			failedEmbeddings: stats.failed,
 			message: `${modeText}: ${stats.processed} embedded, ${stats.failed} failed`,
+			successfulEmbeddings: stats.processed,
+			templatesProcessed: templatesToProcess.length,
+			totalTemplates: stats.total,
 		};
 	});
 
 export const embeddingsHandler = {
-	stats: getEmbeddingStatsHandler,
 	migrate: migrateEmbeddingsHandler,
+	stats: getEmbeddingStatsHandler,
 };

@@ -34,7 +34,7 @@ export function ResultDisplay({ result, compact: _compact }: ResultDisplayProps)
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = async () => {
-		if (!result?.text) return;
+		if (!result?.text) {return;}
 		await navigator.clipboard.writeText(result.text);
 		setCopied(true);
 		toast.success("Kopiert!");

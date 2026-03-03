@@ -5,7 +5,7 @@ import { env } from "@repo/env";
 export const requiredAdminMiddleware = os
 	.$context<{ session: Session }>()
 	.middleware(({ context, next }) => {
-		const email = context.session.user.email;
+		const {email} = context.session.user;
 
 		if (email !== env.ADMIN_EMAIL) {
 			throw new ORPCError("FORBIDDEN");

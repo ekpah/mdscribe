@@ -1,13 +1,14 @@
 // This file is a custom extension for TipTap that allows for the use of Markdoc tags in the editor.
 
 import { Extension } from "@tiptap/core";
-import { CaseTag, type CaseTagOptions } from "./editorNodes/caseTag/caseTag";
-import { InfoTag, type InfoTagAttrs } from "./editorNodes/infoTag/infoTag";
-import { ScoreTag, type ScoreTagAttrs } from "./editorNodes/scoreTag/scoreTag";
-import {
-	SwitchTag,
-	type SwitchTagAttrs,
-} from "./editorNodes/switchTag/switchTag";
+import { CaseTag } from './editorNodes/caseTag/caseTag';
+import type { CaseTagOptions } from './editorNodes/caseTag/caseTag';
+import { InfoTag } from './editorNodes/infoTag/infoTag';
+import type { InfoTagAttrs } from './editorNodes/infoTag/infoTag';
+import { ScoreTag } from './editorNodes/scoreTag/scoreTag';
+import type { ScoreTagAttrs } from './editorNodes/scoreTag/scoreTag';
+import { SwitchTag } from './editorNodes/switchTag/switchTag';
+import type { SwitchTagAttrs } from './editorNodes/switchTag/switchTag';
 
 interface MarkdocExtensionOptions {
 	/**
@@ -47,8 +48,6 @@ interface MarkdocExtensionOptions {
  * - BracketHighlight: Auto-highlights text within [] with faint green background
  */
 export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
-	name: "markdoc-md",
-
 	addExtensions() {
 		const extensions = [];
 
@@ -70,6 +69,8 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 
 		return extensions;
 	},
+
+	name: "markdoc-md",
 });
 
 export { MarkdocValidation } from "./markdoc-validation";

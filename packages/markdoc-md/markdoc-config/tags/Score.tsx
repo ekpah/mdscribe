@@ -9,9 +9,9 @@ import {
 } from '../../../design-system/components/ui/tooltip';
 import { useVariables } from '../../render/context/VariableContext';
 
-type ValueObject = {
+interface ValueObject {
   [key: string]: number | string | ValueObject;
-};
+}
 
 export function Score({ formula, unit, renderUnit }: { formula: string; unit?: string; renderUnit: boolean }) {
   const variables = useVariables();
@@ -39,11 +39,11 @@ export function Score({ formula, unit, renderUnit }: { formula: string; unit?: s
                 {formula ? (
                   <span className=" text-muted-foreground">
                     {formula
-                      ?.replace(
+                      ?.replaceAll(
                         /(\[[\w_]+\])|([^a-zA-Z[\]])/g,
-                        (_match, p1, p2) => (p1 ? p1 : ` ${p2} `)
+                        (_match, p1, p2) => (p1 || ` ${p2} `)
                       )
-                      .replace(/\s+/g, ' ')
+                      .replaceAll(/\s+/g, ' ')
                       .trim()}
                   </span>
                 ) : (
@@ -72,11 +72,11 @@ export function Score({ formula, unit, renderUnit }: { formula: string; unit?: s
                 {formula ? (
                   <span className=" text-muted-foreground">
                     {formula
-                      ?.replace(
+                      ?.replaceAll(
                         /(\[[\w_]+\])|([^a-zA-Z[\]])/g,
-                        (_match, p1, p2) => (p1 ? p1 : ` ${p2} `)
+                        (_match, p1, p2) => (p1 || ` ${p2} `)
                       )
-                      .replace(/\s+/g, ' ')
+                      .replaceAll(/\s+/g, ' ')
                       .trim()}
                   </span>
                 ) : (

@@ -33,7 +33,7 @@ export function ScoreTagView({
   const [newTerm, setNewTerm] = useState({ variable: '', weight: '' });
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor) {return;}
 
     const updateVariables = () => {
       const variables = new Set<string>();
@@ -42,7 +42,7 @@ export function ScoreTagView({
           variables.add(docNode.attrs.primary);
         }
       });
-      setAvailableVariables(Array.from(variables).sort());
+      setAvailableVariables([...variables].toSorted());
     };
 
     updateVariables();
@@ -55,19 +55,19 @@ export function ScoreTagView({
 
   const { parsedVariables, parseError } = useMemo(() => {
     if (!formulaValue.trim()) {
-      return { parsedVariables: [], parseError: null as Error | null };
+      return { parseError: null as Error | null, parsedVariables: [] };
     }
 
     try {
       const formula = new Formula(formulaValue);
       return {
-        parsedVariables: formula.getVariables(),
         parseError: null,
+        parsedVariables: formula.getVariables(),
       };
     } catch (error) {
       return {
-        parsedVariables: [],
         parseError: error as Error,
+        parsedVariables: [],
       };
     }
   }, [formulaValue]);
@@ -105,8 +105,8 @@ export function ScoreTagView({
   };
 
   const insertVariable = (variable: string) => {
-    const normalized = variable.trim().replace(/^\[|\]$/g, '');
-    if (!normalized) return;
+    const normalized = variable.trim().replaceAll(/^\[|\]$/g, '');
+    if (!normalized) {return;}
     insertIntoFormula(`[${normalized}]`);
   };
 
@@ -116,8 +116,8 @@ export function ScoreTagView({
   };
 
   const handleAddTerm = () => {
-    const variable = newTerm.variable.trim().replace(/^\[|\]$/g, '');
-    if (!variable) return;
+    const variable = newTerm.variable.trim().replaceAll(/^\[|\]$/g, '');
+    if (!variable) {return;}
 
     const weight = newTerm.weight.trim();
     const normalizedWeight = weight === '' || weight === '1' ? '' : weight;
@@ -221,12 +221,12 @@ export function ScoreTagView({
                         <AlertTriangle className="mt-0.5 h-3 w-3" />
                         <span>Formel ist ungültig. Prüfe Klammern und Operatoren.</span>
                       </div>
-                    ) : formulaValue.trim() ? (
+                    ) : (formulaValue.trim() ? (
                       <div className="flex items-center gap-1 text-emerald-600 text-xs">
                         <CheckCircle2 className="h-3 w-3" />
                         <span>Formel sieht gültig aus.</span>
                       </div>
-                    ) : null}
+                    ) : null)}
 
                     {parsedVariables.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-1">

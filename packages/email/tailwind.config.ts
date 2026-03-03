@@ -2,38 +2,57 @@ const config = {
   theme: {
     extend: {
       colors: {
-        border: 'hsl(180 7% 60%)', // base1
-        input: 'hsl(180 7% 60%)', // base1
-        ring: 'hsl(205 69% 49%)', // blue
-        background: 'hsl(44 87% 94%)', // base3
-        foreground: 'hsl(196 13% 45%)', // base00
-        primary: {
-          DEFAULT: 'hsl(205 69% 49%)', // blue
-          foreground: 'hsl(44 87% 94%)', // base3
+        // base2
+        accent: {
+          DEFAULT: 'hsl(46 42% 88%)',
+          // base1
+          foreground: 'hsl(180 7% 60%)',
         },
-        secondary: {
-          DEFAULT: 'hsl(46 42% 88%)', // base2
-          foreground: 'hsl(196 13% 45%)', // base00
+        // base3
+        background: 'hsl(44 87% 94%)',
+        // base1
+        border: 'hsl(180 7% 60%)',
+        card: {
+          // base3
+          DEFAULT: 'hsl(44 87% 94%)',
+          // base00
+          foreground: 'hsl(196 13% 45%)',
         },
         destructive: {
-          DEFAULT: 'hsl(18 80% 44%)', // orange
-          foreground: 'hsl(192 100% 11%)', // base03
+          // orange
+          DEFAULT: 'hsl(18 80% 44%)',
+          // base03
+          foreground: 'hsl(192 100% 11%)',
         },
+        // base00
+        foreground: 'hsl(196 13% 45%)',
+        // base1
+        input: 'hsl(180 7% 60%)',
         muted: {
-          DEFAULT: 'hsl(46 42% 88%)', // base2
-          foreground: 'hsl(180 7% 60%)', // base1
-        },
-        accent: {
-          DEFAULT: 'hsl(46 42% 88%)', // base2
-          foreground: 'hsl(180 7% 60%)', // base1
+          // base2
+          DEFAULT: 'hsl(46 42% 88%)',
+          // base1
+          foreground: 'hsl(180 7% 60%)',
         },
         popover: {
-          DEFAULT: 'hsl(46 42% 88%)', // base2
-          foreground: 'hsl(180 7% 60%)', // base1
+          // base2
+          DEFAULT: 'hsl(46 42% 88%)',
+          // base1
+          foreground: 'hsl(180 7% 60%)',
         },
-        card: {
-          DEFAULT: 'hsl(44 87% 94%)', // base3
-          foreground: 'hsl(196 13% 45%)', // base00
+        primary: {
+          // blue
+          DEFAULT: 'hsl(205 69% 49%)',
+          // base3
+          foreground: 'hsl(44 87% 94%)',
+        },
+        // blue
+        ring: 'hsl(205 69% 49%)',
+        secondary: {
+          // base2
+          DEFAULT: 'hsl(46 42% 88%)',
+          // base00
+          foreground: 'hsl(196 13% 45%)',
         },
       },
     },

@@ -10,11 +10,11 @@ export async function getUsage(
 
 	const usage = await db
 		.select({
-			totalTokens: usageEvent.totalTokens,
-			inputTokens: usageEvent.inputTokens,
-			outputTokens: usageEvent.outputTokens,
 			cost: usageEvent.cost,
+			inputTokens: usageEvent.inputTokens,
 			model: usageEvent.model,
+			outputTokens: usageEvent.outputTokens,
+			totalTokens: usageEvent.totalTokens,
 		})
 		.from(usageEvent)
 		.where(
@@ -51,9 +51,9 @@ export async function getUsage(
 		(acc, event) => {
 			const model = event.model ?? "unknown";
 			if (!acc[model]) {
-				acc[model] = { count: 0, tokens: 0, cost: 0 };
+				acc[model] = { cost: 0, count: 0, tokens: 0 };
 			}
-			acc[model].count++;
+			acc[model].count += 1;
 			acc[model].tokens += event.totalTokens ?? 0;
 			acc[model].cost += Number(event.cost ?? 0);
 			return acc;
@@ -65,12 +65,12 @@ export async function getUsage(
 
 	return {
 		usage: {
+			byModel,
 			count: usageCount,
-			totalTokens,
+			totalCost,
 			totalInputTokens,
 			totalOutputTokens,
-			totalCost,
-			byModel,
+			totalTokens,
 		},
 	};
 }

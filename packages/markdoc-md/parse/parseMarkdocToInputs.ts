@@ -92,13 +92,13 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 		children: any,
 		childContext: any,
 	): InputTagType[] => {
-		if (!children) return [];
+		if (!children) {return [];}
 
 		const childrenArray = Array.isArray(children) ? children : [children];
 		const result: InputTagType[] = [];
 
 		// Use for loop for better performance than forEach/map
-		for (let i = 0; i < childrenArray.length; i++) {
+		for (let i = 0; i < childrenArray.length; i += 1) {
 			result.push(...processNode(childrenArray[i], childContext));
 		}
 
@@ -111,7 +111,7 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 		parentContext?: { type: string; path: string },
 	): InputTagType[] {
 		// Early returns for invalid nodes
-		if (!node || typeof node !== "object") return [];
+		if (!node || typeof node !== "object") {return [];}
 
 		const currentLevelTags: InputTagType[] = [];
 
@@ -128,12 +128,12 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 			// Process each tag type with optimized logic
 			if (componentNode.name === "Info" && !uniqueTags.has(tagKey)) {
 				const infoTag = {
-					name: "Info" as const,
 					attributes: componentNode.attributes,
 					children: processChildrenOptimized(componentNode.children, {
-						type: "Info",
 						path: tagKey,
+						type: "Info",
 					}),
+					name: "Info" as const,
 				} as InfoInputTagType;
 
 				currentLevelTags.push(infoTag);
@@ -144,36 +144,36 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 				componentNode.attributes.primary
 			) {
 				const switchTag = {
-					name: "Switch" as const,
 					attributes: { primary: componentNode.attributes.primary },
 					children: processChildrenOptimized(componentNode.children, {
-						type: "Switch",
 						path: tagKey,
+						type: "Switch",
 					}),
+					name: "Switch" as const,
 				} as SwitchInputTagType;
 
 				currentLevelTags.push(switchTag);
 				uniqueTags.add(tagKey);
 			} else if (componentNode.name === "Case" && !uniqueTags.has(tagKey)) {
 				const caseTag = {
-					name: "Case" as const,
 					attributes: { primary: componentNode.attributes.primary || "" },
 					children: processChildrenOptimized(componentNode.children, {
-						type: "Case",
 						path: tagKey,
+						type: "Case",
 					}),
+					name: "Case" as const,
 				} as CaseInputTagType;
 
 				currentLevelTags.push(caseTag);
 				uniqueTags.add(tagKey);
 			} else if (componentNode.name === "Score" && !uniqueTags.has(tagKey)) {
 				const scoreTag = {
-					name: "Score" as const,
 					attributes: componentNode.attributes,
 					children: processChildrenOptimized(componentNode.children, {
-						type: "Score",
 						path: tagKey,
+						type: "Score",
 					}),
+					name: "Score" as const,
 				} as ScoreInputTagType;
 
 				try {
@@ -182,11 +182,11 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 
 					for (const variable of variables) {
 						scoreTag.children.push({
-							name: "Info" as const,
 							attributes: {
 								primary: variable,
 								type: "number",
 							},
+							name: "Info" as const,
 						} as InfoInputTagType);
 					}
 				} catch (error) {

@@ -27,11 +27,8 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { toast } from "sonner";
 import { fillPDFForm } from "../../_lib/fillPDFForm";
-import {
-	type FieldMapping,
-	type PDFField,
-	parsePDFFormFields,
-} from "../../_lib/parsePDFFormFields";
+import { parsePDFFormFields } from '../../_lib/parsePDFFormFields';
+import type { FieldMapping, PDFField } from '../../_lib/parsePDFFormFields';
 import PDFDebugPanel from "../../_components/PDFDebugPanel";
 import PDFUploadSection from "../../_components/PDFUploadSection";
 import InputEditor from "./InputEditor";
@@ -79,11 +76,11 @@ export default function CreateDocumentSection() {
 		// set initial field mapping with enhanced properties
 		setFieldMappings(
 			parsedFields.map((field) => ({
+				description: "",
 				fieldName: field.name,
 				label: field.name,
-				description: "",
-				pdfType: field.type,
 				markdocType: determineMarkdocType(field.type),
+				pdfType: field.type,
 			})),
 		);
 	};
@@ -131,8 +128,8 @@ export default function CreateDocumentSection() {
 			});
 
 			const response = await fetch("/api/documents/parse-form", {
-				method: "POST",
 				body: formData,
+				method: "POST",
 			});
 			if (!response.ok) {
 				const errorText = await response.text();
@@ -147,8 +144,8 @@ export default function CreateDocumentSection() {
 				const existing = fieldMappings.find(fm => fm.fieldName === aiMapping.fieldName);
 				return {
 					...aiMapping,
-					pdfType: existing?.pdfType || "text",
 					markdocType: existing?.markdocType || "Info",
+					pdfType: existing?.pdfType || "text",
 				};
 			});
 			setFieldMappings(enhancedMappings);

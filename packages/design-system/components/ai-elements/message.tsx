@@ -5,7 +5,8 @@ import {
 } from '@repo/design-system/components/ui/avatar';
 import { cn } from '@repo/design-system/lib/utils';
 import type { UIMessage } from 'ai';
-import { cva, type VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
+import type { VariantProps } from 'class-variance-authority';
 import type { ComponentProps, HTMLAttributes } from 'react';
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
@@ -26,6 +27,9 @@ export const Message = ({ className, from, ...props }: MessageProps) => (
 const messageContentVariants = cva(
   'is-user:dark flex flex-col gap-2 overflow-hidden rounded-lg text-sm',
   {
+    defaultVariants: {
+      variant: 'contained',
+    },
     variants: {
       variant: {
         contained: [
@@ -38,9 +42,6 @@ const messageContentVariants = cva(
           'group-[.is-assistant]:text-foreground',
         ],
       },
-    },
-    defaultVariants: {
-      variant: 'contained',
     },
   }
 );
@@ -55,7 +56,7 @@ export const MessageContent = ({
   ...props
 }: MessageContentProps) => (
   <div
-    className={cn(messageContentVariants({ variant, className }))}
+    className={cn(messageContentVariants({ className, variant }))}
     {...props}
   >
     {children}

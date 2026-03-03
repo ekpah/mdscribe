@@ -15,18 +15,6 @@ import {
 function makeQueryClient() {
 	return new QueryClient({
 		defaultOptions: {
-			queries: {
-				// With SSR, set staleTime > 0 to avoid refetching immediately on the client
-				staleTime: 60 * 1000, // 1 minute
-				// Garbage collection time - how long to keep unused queries in cache
-				gcTime: 5 * 60 * 1000, // 5 minutes
-				// Retry failed queries up to 3 times with exponential backoff
-				retry: 3,
-				// Avoid focus/reconnect refetch storms for heavy authenticated queries.
-				// Query invalidation and explicit refetch calls still work as usual.
-				refetchOnWindowFocus: false,
-				refetchOnReconnect: false,
-			},
 			dehydrate: {
 				// Include pending queries in dehydration for streaming SSR
 				// This allows queries to start on the server and complete on the client
@@ -35,6 +23,20 @@ function makeQueryClient() {
 					query.state.status === "pending",
 				// Don't redact errors - let Next.js handle error boundaries
 				shouldRedactErrors: () => false,
+			},
+			queries: {
+				// Garbage collection time - how long to keep unused queries in cache
+				// 5 minutes
+				gcTime: 5 * 60 * 1000,
+				// Avoid focus/reconnect refetch storms for heavy authenticated queries.
+				// Query invalidation and explicit refetch calls still work as usual.
+				refetchOnReconnect: false,
+				refetchOnWindowFocus: false,
+				// Retry failed queries up to 3 times with exponential backoff
+				retry: 3,
+				// With SSR, set staleTime > 0 to avoid refetching immediately on the client
+				// 1 minute
+				staleTime: 60 * 1000,
 			},
 		},
 	});

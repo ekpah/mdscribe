@@ -19,11 +19,11 @@ import { allScribeDocTypes, scribeDocTypeUi } from "./_lib/scribe-doc-types";
 import type { PlaygroundParameters } from "./_lib/types";
 
 const playgroundSearchParams = {
-	referenceUsageEvent: parseAsString,
-	model: parseAsString,
 	documentType: parseAsString,
-	temperature: parseAsFloat,
 	maxTokens: parseAsInteger,
+	model: parseAsString,
+	referenceUsageEvent: parseAsString,
+	temperature: parseAsFloat,
 	thinking: parseAsBoolean,
 	thinkingBudget: parseAsInteger,
 };
@@ -38,14 +38,14 @@ const promptNameToDocumentType = new Map(
 function inferDocumentType(
 	metadata: Record<string, unknown> | null,
 ): DocumentType | undefined {
-	if (!metadata) return undefined;
+	if (!metadata) {return undefined;}
 
-	const endpoint = metadata.endpoint;
+	const {endpoint} = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
 		return endpoint as DocumentType;
 	}
 
-	const promptName = metadata.promptName;
+	const {promptName} = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
 		return promptNameToDocumentType.get(promptName);
 	}
@@ -87,21 +87,19 @@ function PlaygroundContent() {
 	};
 
 	// Parse preset from URL params (from usage tracking jump-off)
-	const preset = useMemo(() => {
-		return {
-			referenceUsageEvent: searchParams.referenceUsageEvent,
-			model: searchParams.model,
+	const preset = useMemo(() => ({
 			documentType: (searchParams.documentType || undefined) as
 				| DocumentType
 				| undefined,
+			model: searchParams.model,
 			parameters: {
-				temperature: searchParams.temperature ?? undefined,
 				maxTokens: searchParams.maxTokens ?? undefined,
+				temperature: searchParams.temperature ?? undefined,
 				thinking: searchParams.thinking ?? false,
 				thinkingBudget: searchParams.thinkingBudget ?? undefined,
 			} as Partial<PlaygroundParameters>,
-		};
-	}, [searchParams]);
+			referenceUsageEvent: searchParams.referenceUsageEvent,
+		}), [searchParams]);
 
 	const { data: usageEvent } = useQuery({
 		...orpc.admin.usage.get.queryOptions({
@@ -111,7 +109,7 @@ function PlaygroundContent() {
 	});
 
 	const presetFromUsage = useMemo(() => {
-		if (!usageEvent) return null;
+		if (!usageEvent) {return null;}
 		const metadata = usageEvent.metadata as Record<string, unknown> | null;
 		const inferredDocumentType = inferDocumentType(metadata);
 
@@ -119,10 +117,10 @@ function PlaygroundContent() {
 
 		return {
 			documentType: inferredDocumentType,
-			variables: inputData ?? undefined,
 			model: usageEvent.model ?? undefined,
 			parameters:
 				(metadata?.modelConfig as Partial<PlaygroundParameters>) ?? undefined,
+			variables: inputData ?? undefined,
 		};
 	}, [usageEvent]);
 

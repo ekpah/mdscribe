@@ -81,52 +81,52 @@ function AdminCard({
 
 const adminFeatures: AdminCardProps[] = [
 	{
-		title: "AI Playground",
 		description:
 			"Experimentiere mit verschiedenen KI-Modellen, Prompts und Parametern. Vergleiche Modelle nebeneinander und teste multimodale Eingaben.",
 		href: "/admin/playground",
 		icon: <FlaskConical className="h-5 w-5 text-solarized-violet" />,
 		status: "active",
+		title: "AI Playground",
 	},
 	{
-		title: "Template Management",
 		description:
 			"Zentrale Übersicht aller Templates inklusive Embedding-Verwaltung, Favoriten und Autoren-Filter.",
 		href: "/admin/templates",
 		icon: <Database className="h-5 w-5 text-solarized-blue" />,
 		status: "active",
+		title: "Template Management",
 	},
 	{
-		title: "Benutzerverwaltung",
 		description:
 			"Benutzerkonten, Berechtigungen und Zugriffskontrollen auf der Plattform anzeigen und verwalten.",
 		href: "/admin/users",
 		icon: <Users className="h-5 w-5 text-solarized-cyan" />,
 		status: "active",
+		title: "Benutzerverwaltung",
 	},
 	{
-		title: "Nutzungsstatistik",
 		description:
 			"Alle AI-Generierungen einsehen. Token-Nutzung, Kosten und Modelle pro Anfrage analysieren.",
 		href: "/admin/usage",
 		icon: <Activity className="h-5 w-5 text-solarized-green" />,
 		status: "active",
+		title: "Nutzungsstatistik",
 	},
 	{
-		title: "Dokumenten-Playground",
 		description:
 			"PDF-Formulare testen, Eingaben extrahieren und Sprachausfüllung für Inputs ausprobieren.",
 		href: "/admin/documents-playground",
 		icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
 		status: "active",
+		title: "Dokumenten-Playground",
 	},
 	{
-		title: "Systemeinstellungen",
 		description:
 			"KI-Anbieter, Modelle, API-Schlüssel und Integrationsoptionen konfigurieren.",
 		href: "/admin/settings/models",
 		icon: <Settings className="h-5 w-5 text-solarized-yellow" />,
 		status: "active",
+		title: "Systemeinstellungen",
 	},
 ];
 

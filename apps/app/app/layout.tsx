@@ -1,4 +1,5 @@
-import "@/lib/orpc.server"; // for pre-rendering
+// for pre-rendering
+import "@/lib/orpc.server";
 import { DesignSystemProvider } from "@repo/design-system/providers";
 import { env } from "@repo/env";
 import { getQueryClient } from "@/lib/get-query-client";
@@ -10,7 +11,8 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { type ReactNode, Suspense } from "react";
+import { Suspense } from 'react';
+import type { ReactNode } from 'react';
 import MenubarSkeleton from "./_components/landing/skeletons/MenubarSkeleton";
 import QueryProvider from "./providers/queryProvider";
 
@@ -19,8 +21,8 @@ const Menubar = dynamic(() => import("./_components/Menubar"), {
 });
 
 export const metadata: Metadata = {
-	title: "MDScribe",
 	description: "A powerful, flexible, Markdown-based authoring framework",
+	title: "MDScribe",
 };
 
 // If loading a variable font, you don't need to specify the font weight
@@ -29,9 +31,9 @@ const inter = Inter({
 	variable: "--font-inter",
 });
 
-type RootLayoutProperties = {
+interface RootLayoutProperties {
 	readonly children: ReactNode;
-};
+}
 
 export default async function RootLayout({ children }: RootLayoutProperties) {
 	const session = await getServerSession();

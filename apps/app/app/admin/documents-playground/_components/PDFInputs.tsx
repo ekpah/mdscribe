@@ -34,18 +34,18 @@ function SourceIndicator({ source }: { source: InputSource | undefined }) {
 
 	const config = {
 		ai: {
+			className: "text-solarized-orange",
 			icon: Bot,
 			label: "KI-Vorschlag",
-			className: "text-solarized-orange",
 		},
 		manual: {
+			className: "text-solarized-green",
 			icon: Pencil,
 			label: "Manuell bearbeitet",
-			className: "text-solarized-green",
 		},
 	}[source];
 
-	if (!config) return null;
+	if (!config) {return null;}
 
 	const Icon = config.icon;
 

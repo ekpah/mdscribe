@@ -14,9 +14,9 @@ import {
 
 import config from '../tailwind.config';
 
-type EmailVerificationTemplateProps = {
+interface EmailVerificationTemplateProps {
   readonly url: string;
-};
+}
 
 export const EmailVerificationTemplate = ({
   url,

@@ -57,7 +57,20 @@ export function DoctorsNoteSection({
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
 		id: `section-${config.id}`,
+		onError: (error) => {
+			const message = getAiscribeErrorMessage(error);
+			if (message) {
+				toast.error(message);
+			}
+			setProposedText(null);
+		},
+		onFinish: () => {
+			// Completion is done, proposed text is already set via the effect
+		},
 		transport: {
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
 			async sendMessages(options) {
 				return eventIteratorToUnproxiedDataStream(
 					await orpc.scribeStream.call(
@@ -69,26 +82,13 @@ export function DoctorsNoteSection({
 					),
 				);
 			},
-			reconnectToStream() {
-				throw new Error("Unsupported");
-			},
-		},
-		onError: (error) => {
-			const message = getAiscribeErrorMessage(error);
-			if (message) {
-				toast.error(message);
-			}
-			setProposedText(null);
-		},
-		onFinish: () => {
-			// Completion is done, proposed text is already set via the effect
 		},
 	});
 
 	// Extract completion text from the last assistant message
 	const completion = useMemo(() => {
 		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistantMessage) return "";
+		if (!lastAssistantMessage) {return "";}
 		if (lastAssistantMessage.parts) {
 			return lastAssistantMessage.parts
 				.filter((p) => p.type === "text")
@@ -122,7 +122,7 @@ export function DoctorsNoteSection({
 
 	// Handle enhance button click
 	const handleEnhance = useCallback(() => {
-		if (!hasEnhancement || !config.buildPrompt) return;
+		if (!hasEnhancement || !config.buildPrompt) {return;}
 
 		if (isLoading) {
 			stop();

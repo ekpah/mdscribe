@@ -4,14 +4,8 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	and,
-	type Database,
-	eq,
-} from "@repo/database";
+import { aiDefaults, aiModel, aiProvider, and, eq } from '@repo/database';
+import type { Database } from '@repo/database';
 import type { LanguageModel } from "ai";
 
 import { decrypt } from "@/lib/encryption";
@@ -75,14 +69,15 @@ function createProviderModel(
 				throw new Error("OpenAI-compatible provider is missing a base URL");
 			}
 			const provider = createOpenAICompatible({
-				name: "custom",
-				baseURL: normalizeOpenAICompatibleBaseUrl(baseUrl),
 				apiKey: apiKey ?? "placeholder",
+				baseURL: normalizeOpenAICompatibleBaseUrl(baseUrl),
+				name: "custom",
 			});
 			return provider(modelId);
 		}
-		default:
+		default: {
 			throw new Error(`Unknown provider protocol: ${protocol}`);
+		}
 	}
 }
 
@@ -100,12 +95,12 @@ async function buildResolvedModel(
 	);
 
 	return {
+		inputModes: toInputModes(model.inputModes),
+		isOpenRouter: provider.protocol === "openrouter",
 		model: languageModel,
 		modelName: model.modelId,
 		providerId: provider.id,
 		supportsReasoning: model.supportsReasoning,
-		inputModes: toInputModes(model.inputModes),
-		isOpenRouter: provider.protocol === "openrouter",
 	};
 }
 
@@ -171,9 +166,9 @@ export async function resolveModel(
 
 	const defaultModelId = options?.requireAudio
 		? defaults.defaultSpeechToTextModelId
-		: options?.requireFiles
+		: (options?.requireFiles
 			? defaults.defaultFileImageModelId
-			: defaults.defaultTextModelId;
+			: defaults.defaultTextModelId);
 
 	if (!defaultModelId) {
 		throw new Error(USER_MESSAGES.modelUnavailable);

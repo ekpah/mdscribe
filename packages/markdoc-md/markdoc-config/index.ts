@@ -7,8 +7,8 @@ import variables from './variables';
 
 export default {
   ...functions,
-  tags,
   nodes,
+  tags,
   variables,
   // add other stuff here
 };
