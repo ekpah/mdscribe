@@ -1,4 +1,4 @@
-import type { InputTagType } from "@repo/markdoc-md/parse/parseMarkdocToInputs";
+import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 
 /**
  * Supported AI models via OpenRouter

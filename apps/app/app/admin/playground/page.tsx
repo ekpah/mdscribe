@@ -1,7 +1,7 @@
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
-import PlaygroundPageClient from "./PlaygroundPageClient";
+import PlaygroundPageClient from "./playground-page-client";
 
 export default async function PlaygroundPage() {
 	const queryClient = getQueryClient();

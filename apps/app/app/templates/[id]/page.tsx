@@ -6,14 +6,14 @@ import {
 	BreadcrumbSeparator,
 } from "@repo/design-system/components/ui/breadcrumb";
 import { SidebarTrigger } from "@repo/design-system/components/ui/sidebar";
-import parseMarkdocToInputs from "@repo/markdoc-md/parse/parseMarkdocToInputs";
+import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
-import ContentSection from "./_components/ContentSection";
-import { NavActions } from "./_components/NavActions";
+import ContentSection from "./_components/content-section";
+import { NavActions } from "./_components/nav-actions";
 
 export async function generateMetadata({
 	params,

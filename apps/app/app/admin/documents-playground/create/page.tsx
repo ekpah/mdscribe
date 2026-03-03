@@ -1,6 +1,6 @@
 import { FilePlus2 } from "lucide-react";
 import type { Metadata } from "next";
-import CreateDocumentSection from "./_components/CreateDocumentSection";
+import CreateDocumentSection from "./_components/create-document-section";
 
 export const metadata: Metadata = {
 	description: "Erstellen Sie ein neues Dokument mit PDF-Formular-Integration",

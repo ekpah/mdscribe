@@ -1,6 +1,6 @@
 // PERF: Server Component - fetch session once on server, pass to children
 import { getServerSession } from "@/lib/server-session";
-import LandingPage from "./_components/landing/LandingPage";
+import LandingPage from "./_components/landing/landing-page";
 
 export default async function Page() {
 	// Fetch session on server - eliminates 4 redundant client-side auth checks

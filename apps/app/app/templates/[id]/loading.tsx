@@ -4,7 +4,7 @@ import {
   Pencil2Icon,
   PersonIcon,
 } from '@radix-ui/react-icons';
-import SkeletonContentSection from './_components/SkeletonContentSection';
+import SkeletonContentSection from './_components/skeleton-content-section';
 
 export default function Loading() {
   // You can add any UI inside Loading, including a Skeleton.

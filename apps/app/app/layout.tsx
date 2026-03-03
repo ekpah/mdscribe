@@ -13,10 +13,10 @@ import { Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
-import MenubarSkeleton from "./_components/landing/skeletons/MenubarSkeleton";
-import QueryProvider from "./providers/queryProvider";
+import MenubarSkeleton from "./_components/landing/skeletons/menubar-skeleton";
+import QueryProvider from "./providers/query-provider";
 
-const Menubar = dynamic(() => import("./_components/Menubar"), {
+const Menubar = dynamic(() => import("./_components/menubar"), {
 	loading: () => <MenubarSkeleton />,
 });
 

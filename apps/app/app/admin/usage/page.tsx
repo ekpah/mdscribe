@@ -1,7 +1,7 @@
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
-import UsagePageClient from "./UsagePageClient";
+import UsagePageClient from "./usage-page-client";
 
 export default async function UsagePage() {
 	const queryClient = getQueryClient();

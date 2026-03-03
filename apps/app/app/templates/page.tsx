@@ -7,8 +7,8 @@ import {
 } from '@repo/design-system/components/ui/breadcrumb';
 import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
 import Link from 'next/link';
-import ContentSection from './[id]/_components/ContentSection';
-import { NavActions } from './[id]/_components/NavActions';
+import ContentSection from './[id]/_components/content-section';
+import { NavActions } from './[id]/_components/nav-actions';
 export default function TemplatesPage() {
   const templateGuide = `# Template-Möglichkeiten
 

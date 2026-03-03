@@ -2,8 +2,8 @@
 
 import type { RenderableTreeNode } from '@markdoc/markdoc';
 import Markdoc from '@markdoc/markdoc';
-import TipTap from '@repo/design-system/components/editor/TipTap';
-import Inputs from '@repo/design-system/components/inputs/Inputs';
+import TipTap from '@repo/design-system/components/editor/tip-tap';
+import Inputs from '@repo/design-system/components/inputs/inputs';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Card,
@@ -15,7 +15,7 @@ import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
 import { Switch } from '@repo/design-system/components/ui/switch';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import config from '@repo/markdoc-md/markdoc-config';
-import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
+import parseMarkdocToInputs from '@repo/markdoc-md/parse/parse-markdoc-to-inputs';
 import {
   ChevronDown,
   ChevronRight,
@@ -27,7 +27,7 @@ import {
   TreePine,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { MemoizedCopySection } from '../aiscribe/_components/MemoizedCopySection';
+import { MemoizedCopySection } from '../aiscribe/_components/memoized-copy-section';
 
 
 

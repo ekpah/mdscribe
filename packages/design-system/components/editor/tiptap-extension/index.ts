@@ -1,14 +1,14 @@
 // This file is a custom extension for TipTap that allows for the use of Markdoc tags in the editor.
 
 import { Extension } from "@tiptap/core";
-import { CaseTag } from './editorNodes/caseTag/caseTag';
-import type { CaseTagOptions } from './editorNodes/caseTag/caseTag';
-import { InfoTag } from './editorNodes/infoTag/infoTag';
-import type { InfoTagAttrs } from './editorNodes/infoTag/infoTag';
-import { ScoreTag } from './editorNodes/scoreTag/scoreTag';
-import type { ScoreTagAttrs } from './editorNodes/scoreTag/scoreTag';
-import { SwitchTag } from './editorNodes/switchTag/switchTag';
-import type { SwitchTagAttrs } from './editorNodes/switchTag/switchTag';
+import { CaseTag } from './editorNodes/case-tag/case-tag';
+import type { CaseTagOptions } from './editorNodes/case-tag/case-tag';
+import { InfoTag } from './editorNodes/info-tag/info-tag';
+import type { InfoTagAttrs } from './editorNodes/info-tag/info-tag';
+import { ScoreTag } from './editorNodes/score-tag/score-tag';
+import type { ScoreTagAttrs } from './editorNodes/score-tag/score-tag';
+import { SwitchTag } from './editorNodes/switch-tag/switch-tag';
+import type { SwitchTagAttrs } from './editorNodes/switch-tag/switch-tag';
 
 interface MarkdocExtensionOptions {
 	/**

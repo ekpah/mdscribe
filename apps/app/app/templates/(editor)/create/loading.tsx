@@ -1,4 +1,4 @@
-import SkeletonEditor from "@repo/design-system/components/editor/SkeletonEditor";
+import SkeletonEditor from "@repo/design-system/components/editor/skeleton-editor";
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 
 export default function Loading() {
