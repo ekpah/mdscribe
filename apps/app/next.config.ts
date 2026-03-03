@@ -1,3 +1,5 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import markdocConfig from "@markdoc/next.js";
 import { createJiti } from "jiti";
 import type { NextConfig } from "next";
