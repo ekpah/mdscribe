@@ -22,9 +22,9 @@ export default function ContentSection({
 	const { data: session } = useSession();
 	const isLoggedIn = Boolean(session?.user?.id);
 
-	const handleFormChange = (data: Record<string, unknown>) => {
+	const handleFormChange = useCallback((data: Record<string, unknown>) => {
 		setValues(data);
-	};
+	}, []);
 
 	const handleVoiceFill = useCallback(
 		async (inputTags: InputTagType[], audioFiles: VoiceFillAudioFile[]) => {

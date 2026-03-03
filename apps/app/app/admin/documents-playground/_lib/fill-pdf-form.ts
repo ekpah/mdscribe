@@ -14,11 +14,11 @@ interface PDFFormField {
  * Maps from label (primary) back to field name using the fieldMapping
  * Returns the filled PDF as a Uint8Array
  */
-export async function fillPDFForm(
+export const fillPDFForm = async (
 	file: Uint8Array,
 	fieldValues: Record<string, unknown>,
 	fieldMapping: FieldMapping[],
-): Promise<Uint8Array> {
+): Promise<Uint8Array> => {
 	// Load from a copy so callers can safely keep using their original upload bytes.
 	const stableBytes = new Uint8Array(file);
 	const pdfDoc = await PDFDocument.load(stableBytes);
@@ -92,4 +92,4 @@ export async function fillPDFForm(
 	// form.flatten();
 
 	return pdfDoc.save();
-}
+};

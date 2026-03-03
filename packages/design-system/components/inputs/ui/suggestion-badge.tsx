@@ -16,13 +16,13 @@ export interface SuggestionBadgeProps {
 	onAccept?: () => void;
 }
 
-export function SuggestionBadge({
+export const SuggestionBadge = ({
 	value,
 	label = "Vorschlag",
 	unit,
 	hasExistingValue = false,
 	onAccept,
-}: SuggestionBadgeProps) {
+}: SuggestionBadgeProps) => {
 	const displayText = unit ? `${value} ${unit}` : `${value}`;
 
 	return (
@@ -45,4 +45,4 @@ export function SuggestionBadge({
 			)}
 		</div>
 	);
-}
+};

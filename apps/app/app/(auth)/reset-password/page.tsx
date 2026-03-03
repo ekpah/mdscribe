@@ -13,7 +13,7 @@ import { Input } from '@repo/design-system/components/ui/input';
 import { Label } from '@repo/design-system/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 export default function ResetPassword() {
@@ -21,7 +21,7 @@ export default function ResetPassword() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = useCallback(async () => {
     const token = new URLSearchParams(window.location.search).get('token');
     if (!token) {
       toast.error('Ungültiger oder fehlender Token');
@@ -47,7 +47,14 @@ export default function ResetPassword() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [newPassword, router]);
+
+  const handlePasswordChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setNewPassword(event.target.value);
+    },
+    [],
+  );
 
   return (
     <Card className="z-50 max-w-md rounded-md rounded-t-none">
@@ -68,9 +75,7 @@ export default function ResetPassword() {
               type="password"
               placeholder="Neues Passwort"
               required
-              onChange={(e) => {
-                setNewPassword(e.target.value);
-              }}
+              onChange={handlePasswordChange}
               value={newPassword}
             />
           </div>

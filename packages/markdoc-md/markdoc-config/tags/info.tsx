@@ -2,7 +2,7 @@
 
 import { useVariables } from "../../render/context/variable-context";
 
-export function Info({
+export const Info = ({
 	primary,
 	type: _type,
 	unit,
@@ -14,7 +14,7 @@ export function Info({
 	unit: string;
 	renderUnit: boolean;
 	description: string;
-}) {
+}) => {
 	const variables = useVariables();
 	// Look up the value from context using the 'primary' prop as the key.
 	// Provide an empty string as a fallback if the variable doesn't exist.
@@ -32,4 +32,4 @@ export function Info({
 			</span>
 		</span>
 	);
-}
+};

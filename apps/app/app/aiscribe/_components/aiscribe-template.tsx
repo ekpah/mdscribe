@@ -33,10 +33,11 @@ import {
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import { FileText, Loader2, Mic, Square, X } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { FileText, Loader2, Mic, Square, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
@@ -105,7 +106,7 @@ interface AudioRecording {
 	id: string;
 }
 
-function encodeUint8ArrayToBase64(data: Uint8Array): string {
+const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
 	const chunkSize = 8192;
 	const chunks: string[] = [];
 	for (let i = 0; i < data.length; i += chunkSize) {
@@ -113,14 +114,14 @@ function encodeUint8ArrayToBase64(data: Uint8Array): string {
 		chunks.push(String.fromCodePoint(...chunk));
 	}
 	return btoa(chunks.join(""));
-}
+};
 
-async function blobToBase64(blob: Blob): Promise<string> {
+const blobToBase64 = async (blob: Blob): Promise<string> => {
 	const bytes = new Uint8Array(await blob.arrayBuffer());
 	return encodeUint8ArrayToBase64(bytes);
-}
+};
 
-export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
+export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	const [activeTab, setActiveTab] = useState("input");
 	const [inputData, setInputData] = useState("");
 	const [additionalInputData, setAdditionalInputData] = useState<
@@ -202,7 +203,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const canRecord = audioRecordings.length < maxRecordings;
 
 	// Handle audio recording
-	const handleStartRecording = async () => {
+	const handleStartRecording = useCallback(async () => {
 		if (!canRecord) {
 			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
 			return;
@@ -244,23 +245,23 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			console.error("Error starting recording:", error);
 			toast.error("Fehler beim Starten der Aufnahme");
 		}
-	};
+	}, [canRecord, maxRecordings]);
 
-	const handleStopRecording = () => {
+	const handleStopRecording = useCallback(() => {
 		if (mediaRecorderRef.current && isRecording) {
 			mediaRecorderRef.current.stop();
 			setIsRecording(false);
 			toast.success("Aufnahme beendet");
 		}
-	};
+	}, [isRecording]);
 
-	const handleToggleRecording = () => {
+	const handleToggleRecording = useCallback(() => {
 		if (isRecording) {
 			handleStopRecording();
 		} else {
 			handleStartRecording();
 		}
-	};
+	}, [handleStartRecording, handleStopRecording, isRecording]);
 
 	// PERF: Use useCallback with functional setState for stable callback reference
 	const handleRemoveRecording = useCallback((id: string) => {
@@ -285,6 +286,45 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		},
 		[],
 	);
+
+	const additionalInputChangeHandlers = useMemo<
+		Record<
+			string,
+			(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
+		>
+	>(() => {
+		const handlers: Record<
+			string,
+			(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
+		> = {};
+		for (const field of config.additionalInputs ?? []) {
+			handlers[field.name] = (event) => {
+				handleAdditionalInputChange(field.name, event.target.value);
+			};
+		}
+		return handlers;
+	}, [config.additionalInputs, handleAdditionalInputChange]);
+
+	const recordingRemoveHandlers = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const recording of audioRecordings) {
+			handlers[recording.id] = () => {
+				handleRemoveRecording(recording.id);
+			};
+		}
+		return handlers;
+	}, [audioRecordings, handleRemoveRecording]);
+
+	const handleMainInputChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			setInputData(event.target.value);
+		},
+		[],
+	);
+
+	const handleSwitchToInputTab = useCallback(() => {
+		setActiveTab("input");
+	}, []);
 
 	const missingRequiredFields = useMemo(() => {
 		if (!config.additionalInputs) {
@@ -386,9 +426,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 				preparedAudioFilesRef.current = [];
 			}
 
-			// Keep transport reads in sync with latest selection before submit
-			selectedModelRef.current = model;
-
 			// Send message using AI SDK useChat
 			const promptText =
 				typeof prompt === "string" ? prompt : JSON.stringify(prompt);
@@ -419,7 +456,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		(event: KeyboardEvent) => {
 			event.preventDefault();
 			event.stopPropagation();
-			document.querySelector("#input-field")?.focus();
+			mainTextareaRef.current?.focus();
 		},
 		{
 			enableOnFormTags: ["INPUT", "TEXTAREA"],
@@ -587,12 +624,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 																		className="min-h-[180px] resize-y border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
 																		disabled={isLoading}
 																		id={field.name}
-																		onChange={(e) =>
-																			handleAdditionalInputChange(
-																				field.name,
-																				e.target.value,
-																			)
-																		}
+																			onChange={
+																				additionalInputChangeHandlers[field.name]
+																			}
 																		placeholder={field.placeholder}
 																		value={
 																			additionalInputData[field.name] || ""
@@ -603,12 +637,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 																		className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
 																		disabled={isLoading}
 																		id={field.name}
-																		onChange={(e) =>
-																			handleAdditionalInputChange(
-																				field.name,
-																				e.target.value,
-																			)
-																		}
+																			onChange={
+																				additionalInputChangeHandlers[field.name]
+																			}
 																		placeholder={field.placeholder}
 																		value={
 																			additionalInputData[field.name] || ""
@@ -642,13 +673,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 																	{formatDuration(recording.duration)})
 																</span>
 															</div>
-															<Button
-																onClick={() =>
-																	handleRemoveRecording(recording.id)
-																}
-																size="sm"
-																type="button"
-																variant="ghost"
+																<Button
+																	onClick={
+																		recordingRemoveHandlers[recording.id]
+																	}
+																	size="sm"
+																	type="button"
+																	variant="ghost"
 															>
 																<X className="h-4 w-4" />
 															</Button>
@@ -661,11 +692,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 										{/* Main Input Field */}
 										<PromptInput onSubmit={handleGenerate}>
 											<PromptInputBody>
-												<PromptInputTextarea
+													<PromptInputTextarea
 													className="min-h-[400px] resize-none rounded-t-lg border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
 													disabled={isLoading}
 													id="input-field"
-													onChange={(e) => setInputData(e.target.value)}
+														onChange={handleMainInputChange}
 													placeholder={config.inputPlaceholder}
 													ref={mainTextareaRef}
 													value={inputData}
@@ -794,11 +825,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 														<p className="max-w-md text-sm">
 															{config.emptyStateDescription}
 														</p>
-														<Button
-															className="mt-4"
-															onClick={() => setActiveTab("input")}
-															variant="outline"
-														>
+															<Button
+																className="mt-4"
+																onClick={handleSwitchToInputTab}
+																variant="outline"
+															>
 															Zu Eingabe wechseln
 														</Button>
 													</div>
@@ -814,4 +845,4 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			</div>
 		</div>
 	);
-}
+};

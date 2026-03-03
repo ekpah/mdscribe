@@ -12,7 +12,7 @@ import {
  * - gcTime: 5 minutes - keeps unused queries in cache for quick re-access
  * - Pending query dehydration - enables streaming SSR (queries start on server, complete on client)
  */
-function makeQueryClient() {
+const makeQueryClient = () => {
 	return new QueryClient({
 		defaultOptions: {
 			dehydrate: {
@@ -40,7 +40,7 @@ function makeQueryClient() {
 			},
 		},
 	});
-}
+};
 
 let browserQueryClient: QueryClient | undefined;
 
@@ -52,7 +52,7 @@ let browserQueryClient: QueryClient | undefined;
  *
  * This pattern is recommended by TanStack Query for Next.js App Router
  */
-export function getQueryClient() {
+export const getQueryClient = () => {
 	if (isServer) {
 		// Server: always make a new query client to prevent state sharing between requests
 		return makeQueryClient();
@@ -63,4 +63,4 @@ export function getQueryClient() {
 		browserQueryClient = makeQueryClient();
 	}
 	return browserQueryClient;
-}
+};

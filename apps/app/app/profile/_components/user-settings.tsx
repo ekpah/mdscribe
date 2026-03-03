@@ -7,7 +7,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@repo/design-system/components/ui/tabs";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
@@ -35,7 +35,7 @@ export default function UserSettings({
 	const [isLoading, setIsLoading] = useState(false);
 	const [isManagingSubscription, setIsManagingSubscription] = useState(false);
 
-	function handleSubscriptionUpgrade() {
+	const handleSubscriptionUpgrade = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
 			() =>
@@ -51,9 +51,9 @@ export default function UserSettings({
 				success: "Abonnement erfolgreich aktualisiert!",
 			},
 		);
-	}
+	}, []);
 
-	function handleSubscriptionCancel() {
+	const handleSubscriptionCancel = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
 			() =>
@@ -67,7 +67,7 @@ export default function UserSettings({
 				success: "Abonnement erfolgreich storniert!",
 			},
 		);
-	}
+	}, []);
 
 	return (
 		<div className="overflow-y-auto">

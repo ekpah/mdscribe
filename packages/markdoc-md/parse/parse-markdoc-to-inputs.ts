@@ -106,10 +106,10 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 	};
 
 	// Optimized main processing function
-	function processNode(
+	const processNode = (
 		node: RenderableTreeNode,
 		parentContext?: { type: string; path: string },
-	): InputTagType[] {
+	): InputTagType[] => {
 		// Early returns for invalid nodes
 		if (!node || typeof node !== "object") {return [];}
 
@@ -208,7 +208,7 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 		}
 
 		return currentLevelTags;
-	}
+	};
 
 	// Start processing from the root
 	inputTags.push(...processNode(nodes));
@@ -217,8 +217,10 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 };
 
 // function to take markdoc content and return parsed tags
-export default function parseMarkdocToInputs(content: string): InputTagType[] {
+const parseMarkdocToInputs = (content: string): InputTagType[] => {
 	const ast = Markdoc.parse(content);
 	const nodes = Markdoc.transform(ast, config);
 	return parseTagsToInputs({ nodes });
-}
+};
+
+export default parseMarkdocToInputs;

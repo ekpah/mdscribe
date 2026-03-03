@@ -8,7 +8,7 @@ const TAG_LENGTH = 16;
 /**
  * Derive a 256-bit key from BETTER_AUTH_SECRET using SHA-256.
  */
-async function deriveKey(): Promise<CryptoKey> {
+const deriveKey = async (): Promise<CryptoKey> => {
 	const keyMaterial = new TextEncoder().encode(
 		env.BETTER_AUTH_SECRET as string,
 	);
@@ -17,13 +17,13 @@ async function deriveKey(): Promise<CryptoKey> {
 		"encrypt",
 		"decrypt",
 	]);
-}
+};
 
 /**
  * Encrypt plaintext using AES-256-GCM.
  * Returns a base64 string containing IV + ciphertext + auth tag.
  */
-export async function encrypt(plaintext: string): Promise<string> {
+export const encrypt = async (plaintext: string): Promise<string> => {
 	const key = await deriveKey();
 	const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
 	const encoded = new TextEncoder().encode(plaintext);
@@ -40,12 +40,12 @@ export async function encrypt(plaintext: string): Promise<string> {
 	combined.set(new Uint8Array(cipherBuffer), IV_LENGTH);
 
 	return Buffer.from(combined).toString("base64");
-}
+};
 
 /**
  * Decrypt a base64 string produced by encrypt().
  */
-export async function decrypt(base64: string): Promise<string> {
+export const decrypt = async (base64: string): Promise<string> => {
 	const key = await deriveKey();
 	const combined = new Uint8Array(Buffer.from(base64, "base64"));
 
@@ -59,4 +59,4 @@ export async function decrypt(base64: string): Promise<string> {
 	);
 
 	return new TextDecoder().decode(decrypted);
-}
+};

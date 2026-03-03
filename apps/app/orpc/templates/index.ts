@@ -31,11 +31,11 @@ type TemplateWithRelations = Template & {
 // Embedding Generation
 // ============================================================================
 
-async function generateEmbeddings(
+const generateEmbeddings = async (
 	content: string,
 	title: string,
 	category: string,
-): Promise<{ embedding: number[] }> {
+): Promise<{ embedding: number[] }> => {
 	const contentWithMetadata = `---
 title: ${title}
 category: ${category}
@@ -50,7 +50,7 @@ ${content}`;
 		.then((res) => res.data?.[0].embedding ?? []);
 
 	return { embedding };
-}
+};
 
 // ============================================================================
 // Input Schemas

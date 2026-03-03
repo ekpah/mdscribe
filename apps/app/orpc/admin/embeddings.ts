@@ -14,13 +14,13 @@ const voyageClient = new VoyageAIClient({
 /**
  * Generate embeddings for content using Voyage AI
  */
-async function generateEmbeddings(content: string): Promise<number[]> {
+const generateEmbeddings = async (content: string): Promise<number[]> => {
 	const result = await voyageClient.embed({
 		input: content,
 		model: "voyage-3-large",
 	});
 	return result.data?.[0]?.embedding ?? [];
-}
+};
 
 /**
  * Get embedding statistics - counts of templates with and without embeddings

@@ -3,7 +3,7 @@
 import { Calendar, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-export function LiveTime() {
+export const LiveTime = () => {
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -32,4 +32,4 @@ export function LiveTime() {
             })}
         </div></>
     );
-} 
+};

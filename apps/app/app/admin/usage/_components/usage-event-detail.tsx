@@ -28,9 +28,9 @@ const promptNameToDocumentType = new Map(
 	]),
 );
 
-function inferDocumentType(
+const inferDocumentType = (
 	metadata: Record<string, unknown> | null,
-): DocumentType | undefined {
+): DocumentType | undefined => {
 	if (!metadata) {return undefined;}
 
 	const {endpoint} = metadata;
@@ -44,9 +44,9 @@ function inferDocumentType(
 	}
 
 	return undefined;
-}
+};
 
-function buildPlaygroundUrl(event: UsageEventWithUser): string {
+const buildPlaygroundUrl = (event: UsageEventWithUser): string => {
 	const params = new URLSearchParams();
 
 	// Use referenceUsageEvent for persistent URL state
@@ -83,7 +83,7 @@ function buildPlaygroundUrl(event: UsageEventWithUser): string {
 	}
 
 	return `/admin/playground?${params.toString()}`;
-}
+};
 
 interface UsageEventDetailProps {
 	event: UsageEventWithUser | null | undefined;
@@ -91,7 +91,7 @@ interface UsageEventDetailProps {
 	onOpenChange: (open: boolean) => void;
 }
 
-function StatBox({ label, value }: { label: string; value: number | null }) {
+const StatBox = ({ label, value }: { label: string; value: number | null }) => {
 	return (
 		<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-2">
 			<p className="text-xs text-solarized-base01">{label}</p>
@@ -100,9 +100,9 @@ function StatBox({ label, value }: { label: string; value: number | null }) {
 			</p>
 		</div>
 	);
-}
+};
 
-function formatDate(date: Date | string) {
+const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	return new Intl.DateTimeFormat("de-DE", {
 		day: "2-digit",
@@ -112,13 +112,13 @@ function formatDate(date: Date | string) {
 		second: "2-digit",
 		year: "numeric",
 	}).format(dateObj);
-}
+};
 
-export function UsageEventDetail({
+export const UsageEventDetail = ({
 	event,
 	open,
 	onOpenChange,
-}: UsageEventDetailProps) {
+}: UsageEventDetailProps) => {
 	if (!event) {return null;}
 
 	const cost = event.cost ? Number(event.cost) : null;
@@ -265,4 +265,4 @@ export function UsageEventDetail({
 			</SheetContent>
 		</Sheet>
 	);
-}
+};

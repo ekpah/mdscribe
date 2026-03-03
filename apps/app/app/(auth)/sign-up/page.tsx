@@ -13,7 +13,7 @@ import { Label } from "@repo/design-system/components/ui/label";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { signUp } from "@/lib/auth-client";
 
@@ -23,6 +23,56 @@ export default function SignUp() {
 	const [passwordConfirmation, setPasswordConfirmation] = useState("");
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
+
+	const handleEmailChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setEmail(event.target.value);
+		},
+		[],
+	);
+
+	const handlePasswordChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setPassword(event.target.value);
+		},
+		[],
+	);
+
+	const handlePasswordConfirmationChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setPasswordConfirmation(event.target.value);
+		},
+		[],
+	);
+
+	const handleSignUp = useCallback(async () => {
+		if (password !== passwordConfirmation) {
+			toast.error("Passwörter stimmen nicht überein");
+			return;
+		}
+
+		await signUp.email({
+			callbackURL: "/email-verified",
+			email,
+			fetchOptions: {
+				onError: (ctx) => {
+					toast.error(ctx.error.message);
+				},
+				onRequest: () => {
+					setLoading(true);
+				},
+				onResponse: () => {
+					setLoading(false);
+				},
+				onSuccess: () => {
+					toast.success("Konto erstellt! Bitte bestätige deine E-Mail.");
+					router.push("/verification-pending");
+				},
+			},
+			name: email.split("@")[0] || "User",
+			password,
+		});
+	}, [email, password, passwordConfirmation, router]);
 
 	return (
 		<Card
@@ -39,11 +89,9 @@ export default function SignUp() {
 				<div className="grid gap-4">
 					<div className="grid gap-2">
 						<Label htmlFor="email">E-Mail</Label>
-						<Input
-							id="email"
-							onChange={(e) => {
-								setEmail(e.target.value);
-							}}
+							<Input
+								id="email"
+								onChange={handleEmailChange}
 							placeholder="m@beispiel.de"
 							required
 							type="email"
@@ -52,10 +100,10 @@ export default function SignUp() {
 					</div>
 					<div className="grid gap-2">
 						<Label htmlFor="password">Passwort</Label>
-						<Input
-							autoComplete="new-password"
-							id="password"
-							onChange={(e) => setPassword(e.target.value)}
+							<Input
+								autoComplete="new-password"
+								id="password"
+								onChange={handlePasswordChange}
 							placeholder="Passwort"
 							type="password"
 							value={password}
@@ -63,51 +111,22 @@ export default function SignUp() {
 					</div>
 					<div className="grid gap-2">
 						<Label htmlFor="password">Passwort bestätigen</Label>
-						<Input
-							autoComplete="new-password"
-							id="password_confirmation"
-							onChange={(e) => setPasswordConfirmation(e.target.value)}
+							<Input
+								autoComplete="new-password"
+								id="password_confirmation"
+								onChange={handlePasswordConfirmationChange}
 							placeholder="Passwort bestätigen"
 							type="password"
 							value={passwordConfirmation}
 						/>
 					</div>
 
-					<Button
-						className="w-full"
-						disabled={loading}
-						onClick={async () => {
-							if (password !== passwordConfirmation) {
-								toast.error("Passwörter stimmen nicht überein");
-								return;
-							}
-
-							await signUp.email({
-								callbackURL: "/email-verified",
-								email,
-								fetchOptions: {
-									onError: (ctx) => {
-										toast.error(ctx.error.message);
-									},
-									onRequest: () => {
-										setLoading(true);
-									},
-									onResponse: () => {
-										setLoading(false);
-									},
-									onSuccess: () => {
-										toast.success(
-											"Konto erstellt! Bitte bestätige deine E-Mail.",
-										);
-										router.push("/verification-pending");
-									},
-								},
-								name: email.split("@")[0] || "User",
-								password,
-							});
-						}}
-						type="submit"
-					>
+						<Button
+							className="w-full"
+							disabled={loading}
+							onClick={handleSignUp}
+							type="submit"
+						>
 						{loading ? (
 							<Loader2 className="animate-spin" size={16} />
 						) : (

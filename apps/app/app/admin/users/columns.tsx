@@ -26,16 +26,16 @@ export interface UserData {
 
 const columnHelper = createColumnHelper<UserData>();
 
-function getSubscriptionLabel(user: UserData) {
+const getSubscriptionLabel = (user: UserData) => {
 	if (user.hasActiveSubscription) {
 		const plan = (user.subscriptionPlan ?? "plus").toLowerCase();
 		return plan === "plus" ? "Plus" : plan.charAt(0).toUpperCase() + plan.slice(1);
 	}
 
 	return "Free";
-}
+};
 
-function formatDate(date: Date | string) {
+const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	return new Intl.DateTimeFormat("de-DE", {
 		day: "2-digit",
@@ -44,7 +44,7 @@ function formatDate(date: Date | string) {
 		month: "2-digit",
 		year: "numeric",
 	}).format(dateObj);
-}
+};
 
 export const columns = [
 	columnHelper.accessor(

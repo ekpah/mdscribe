@@ -10,7 +10,7 @@
  * @param node - The DOM node to process.
  * @returns The Markdoc or HTML string representation of the node.
  */
-function processNodeForMarkdoc(node: Node): string {
+const processNodeForMarkdoc = (node: Node): string => {
 	if (node.nodeType === Node.TEXT_NODE) {
 		return node.textContent || "";
 	}
@@ -162,7 +162,7 @@ function processNodeForMarkdoc(node: Node): string {
 
 	// Ignore comments and other node types.
 	return "";
-}
+};
 
 /**
  * Convert HTML containing custom Markdoc elements (<markdoc-*>) back to Markdoc syntax.
@@ -173,7 +173,7 @@ function processNodeForMarkdoc(node: Node): string {
  *               <markdoc-switch>, <markdoc-case>, and standard HTML elements.
  * @returns String in Markdoc format mixed with any preserved HTML.
  */
-export function htmlToMarkdoc(html: string): string {
+export const htmlToMarkdoc = (html: string): string => {
 	if (typeof window === "undefined" || !window.DOMParser) {
 		console.error(
 			"DOMParser is not available. Cannot convert HTML to Markdoc.",
@@ -188,4 +188,4 @@ export function htmlToMarkdoc(html: string): string {
 	// Start processing from the body to skip implicit <html><head><body> tags
 	// and handle potentially fragmented HTML inputs correctly.
 	return processNodeForMarkdoc(doc.body);
-}
+};

@@ -9,7 +9,6 @@ import "@repo/design-system/styles/globals.css";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
-import { Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
@@ -24,12 +23,6 @@ export const metadata: Metadata = {
 	description: "A powerful, flexible, Markdown-based authoring framework",
 	title: "MDScribe",
 };
-
-// If loading a variable font, you don't need to specify the font weight
-const inter = Inter({
-	subsets: ["latin"],
-	variable: "--font-inter",
-});
 
 interface RootLayoutProperties {
 	readonly children: ReactNode;
@@ -51,7 +44,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 				<link href="/favicon.ico" rel="icon" />
 			</head>
 			<body
-				className={`${inter.variable} items-center bg-background font-sans text-foreground`}
+				className="items-center bg-background font-sans text-foreground"
 			>
 				<NuqsAdapter>
 					<QueryProvider>

@@ -26,10 +26,10 @@ interface TemplateSearchResult {
 /**
  * Generate embeddings for a query using Voyage AI
  */
-async function generateEmbeddings(
+const generateEmbeddings = async (
 	content: string,
 	differentialDiagnosis?: string,
-): Promise<number[]> {
+): Promise<number[]> => {
 	const contentWithMetadata = differentialDiagnosis
 		? `---
 diagnosis: ${differentialDiagnosis}
@@ -43,7 +43,7 @@ ${content}`
 	});
 
 	return result.data?.[0]?.embedding ?? [];
-}
+};
 
 /**
  * Find relevant templates using vector similarity search

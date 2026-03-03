@@ -10,7 +10,7 @@ import {
 	parseAsString,
 	useQueryStates,
 } from "nuqs";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -35,9 +35,9 @@ const promptNameToDocumentType = new Map(
 	]),
 );
 
-function inferDocumentType(
+const inferDocumentType = (
 	metadata: Record<string, unknown> | null,
-): DocumentType | undefined {
+): DocumentType | undefined => {
 	if (!metadata) {return undefined;}
 
 	const {endpoint} = metadata;
@@ -51,9 +51,9 @@ function inferDocumentType(
 	}
 
 	return undefined;
-}
+};
 
-function PlaygroundContent() {
+const PlaygroundContent = () => {
 	const queryClient = useQueryClient();
 	const [searchParams] = useQueryStates(playgroundSearchParams);
 	const modelsQueryOptions = orpc.admin.models.list.queryOptions();
@@ -74,7 +74,7 @@ function PlaygroundContent() {
 		topModelsQueryOptions,
 	);
 
-	const handleRefresh = async () => {
+	const handleRefresh = useCallback(async () => {
 		await Promise.all([
 			queryClient.invalidateQueries({
 				queryKey: modelsQueryOptions.queryKey,
@@ -84,7 +84,7 @@ function PlaygroundContent() {
 			}),
 		]);
 		toast.success("Modelle aktualisiert");
-	};
+	}, [queryClient, modelsQueryOptions.queryKey, topModelsQueryOptions.queryKey]);
 
 	// Parse preset from URL params (from usage tracking jump-off)
 	const preset = useMemo(() => ({
@@ -191,7 +191,7 @@ function PlaygroundContent() {
 			</div>
 		</div>
 	);
-}
+};
 
 export default function PlaygroundPage() {
 	return <PlaygroundContent />;

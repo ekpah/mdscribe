@@ -13,7 +13,7 @@ interface ValueObject {
   [key: string]: number | string | ValueObject;
 }
 
-export function Score({ formula, unit, renderUnit }: { formula: string; unit?: string; renderUnit: boolean }) {
+export const Score = ({ formula, unit, renderUnit }: { formula: string; unit?: string; renderUnit: boolean }) => {
   const variables = useVariables();
 
   try {
@@ -89,4 +89,4 @@ export function Score({ formula, unit, renderUnit }: { formula: string; unit?: s
       </TooltipProvider>
     );
   }
-}
+};

@@ -4,11 +4,11 @@ import { getCreateTemplateEditorData } from "../../_lib/editor-page-data";
 
 export const dynamicParams = false;
 
-export function generateMetadata(): Metadata {
+export const generateMetadata = (): Metadata => {
 	return {
 		title: "Scribe - Template erstellen",
 	};
-}
+};
 
 export default async function CreateTemplate({
 	searchParams,

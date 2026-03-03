@@ -13,15 +13,15 @@ export interface TestServer {
 	close: () => Promise<void>;
 }
 
-function getTestConnectionString(): string {
+const getTestConnectionString = (): string => {
 	return (
 		process.env.POSTGRES_DATABASE_URL_TEST ??
 		process.env.POSTGRES_DATABASE_URL ??
 		"postgres://postgres:postgres@127.0.0.1:5432/mdscribe"
 	);
-}
+};
 
-function createTestSchemaName(testName: string): string {
+const createTestSchemaName = (testName: string): string => {
 	const normalized = testName
 		.toLowerCase()
 		.replaceAll(/[^a-z0-9]+/g, "_")
@@ -29,12 +29,14 @@ function createTestSchemaName(testName: string): string {
 		.slice(0, 40);
 	const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
 	return `test_${normalized || "case"}_${suffix}`;
-}
+};
 
 /**
  * Starts a test server with an isolated Postgres schema.
  */
-export async function startTestServer(testName: string): Promise<TestServer> {
+export const startTestServer = async (
+	testName: string,
+): Promise<TestServer> => {
 	const connectionString = getTestConnectionString();
 	const schemaName = createTestSchemaName(testName);
 	const client = postgres(connectionString, {
@@ -58,12 +60,12 @@ export async function startTestServer(testName: string): Promise<TestServer> {
 		},
 		db,
 	};
-}
+};
 
 /**
  * Creates a test user with session for authenticated handler tests
  */
-export async function createTestUser(
+export const createTestUser = async (
 	db: TestDatabase,
 	options?: {
 		email?: string;
@@ -75,7 +77,7 @@ export async function createTestUser(
 	session: {
 		user: typeof schema.user.$inferSelect;
 	};
-}> {
+}> => {
 	const email = options?.email ?? `test-${Date.now()}@example.com`;
 	const name = options?.name ?? "Test User";
 	const stripeCustomerId = options?.stripeCustomerId ?? `cus_test_${Date.now()}`;
@@ -105,4 +107,4 @@ export async function createTestUser(
 		},
 		user: fetchedUser,
 	};
-}
+};

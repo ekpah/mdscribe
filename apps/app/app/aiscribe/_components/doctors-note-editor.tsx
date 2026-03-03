@@ -3,9 +3,9 @@
 import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { cn } from "@repo/design-system/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useState } from "react";
-import { DoctorsNoteSection } from './doctors-note-section';
-import type { DoctorsNoteSectionConfig } from './doctors-note-section';
+import { useCallback, useMemo, useState } from "react";
+import { DoctorsNoteSection } from "./doctors-note-section";
+import type { DoctorsNoteSectionConfig } from "./doctors-note-section";
 
 // A toggleable section group where user picks which section to show
 export interface DoctorsNoteSectionToggle {
@@ -25,11 +25,11 @@ export type DoctorsNoteConfigItem =
 	| DoctorsNoteSectionToggle;
 
 // Type guard to check if item is a toggle
-function isToggle(
+const isToggle = (
 	item: DoctorsNoteConfigItem,
-): item is DoctorsNoteSectionToggle {
+): item is DoctorsNoteSectionToggle => {
 	return "type" in item && item.type === "toggle";
-}
+};
 
 export interface DoctorsNoteEditorConfig {
 	title: string;
@@ -55,9 +55,9 @@ interface DoctorsNoteEditorProps {
 }
 
 // Get all section configs (flattening toggles)
-function getAllSectionConfigs(
+const getAllSectionConfigs = (
 	items: DoctorsNoteConfigItem[],
-): DoctorsNoteSectionConfig[] {
+): DoctorsNoteSectionConfig[] => {
 	const sections: DoctorsNoteSectionConfig[] = [];
 	for (const item of items) {
 		if (isToggle(item)) {
@@ -69,14 +69,14 @@ function getAllSectionConfigs(
 		}
 	}
 	return sections;
-}
+};
 
-export function DoctorsNoteEditor({
+export const DoctorsNoteEditor = ({
 	config,
 	onValuesChange,
 	initialValues = {},
 	disabled = false,
-}: DoctorsNoteEditorProps) {
+}: DoctorsNoteEditorProps) => {
 	// Get all possible sections for state initialization
 	const allSections = getAllSectionConfigs(config.sections);
 
@@ -156,6 +156,35 @@ export function DoctorsNoteEditor({
 		[sectionValues, getVisibleSections],
 	);
 
+	const sectionChangeHandlers = useMemo<Record<string, (value: string) => void>>(
+		() => {
+			const handlers: Record<string, (value: string) => void> = {};
+			for (const section of allSections) {
+				handlers[section.id] = (value) => {
+					handleSectionChange(section.id, value);
+				};
+			}
+			return handlers;
+		},
+		[allSections, handleSectionChange],
+	);
+
+	const toggleOptionHandlers = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const item of config.sections) {
+			if (!isToggle(item)) {
+				continue;
+			}
+			for (const option of item.options) {
+				const key = `${item.id}::${option.id}`;
+				handlers[key] = () => {
+					handleToggleChange(item.id, option.id);
+				};
+			}
+		}
+		return handlers;
+	}, [config.sections, handleToggleChange]);
+
 	const IconComponent = config.icon;
 
 	return (
@@ -193,8 +222,8 @@ export function DoctorsNoteEditor({
 								<div className="space-y-2" key={item.id}>
 									{/* Toggle buttons */}
 									<div className="flex items-center gap-1 rounded-lg bg-muted/50 p-1">
-										{item.options.map((opt) => (
-											<button
+											{item.options.map((opt) => (
+												<button
 												className={cn(
 													"flex-1 rounded-md px-3 py-1.5 font-medium text-sm transition-all",
 													selectedOption === opt.id
@@ -202,9 +231,11 @@ export function DoctorsNoteEditor({
 														: "text-muted-foreground hover:text-foreground",
 												)}
 												key={opt.id}
-												onClick={() => handleToggleChange(item.id, opt.id)}
-												type="button"
-											>
+													onClick={
+														toggleOptionHandlers[`${item.id}::${opt.id}`]
+													}
+													type="button"
+												>
 												{opt.label}
 											</button>
 										))}
@@ -212,31 +243,29 @@ export function DoctorsNoteEditor({
 
 									{/* Selected section */}
 									{option && (
-										<DoctorsNoteSection
-											config={option.section}
-											context={getContextForSection(option.section.id)}
-											disabled={disabled}
-											onChange={(value) =>
-												handleSectionChange(option.section.id, value)
-											}
-											value={sectionValues[option.section.id] || ""}
-										/>
+											<DoctorsNoteSection
+												config={option.section}
+												context={getContextForSection(option.section.id)}
+												disabled={disabled}
+												onChange={sectionChangeHandlers[option.section.id]}
+												value={sectionValues[option.section.id] || ""}
+											/>
 									)}
 								</div>
 							);
 						}
 
-						return (
-							<DoctorsNoteSection
-								config={item}
-								context={getContextForSection(item.id)}
-								disabled={disabled}
-								key={item.id}
-								onChange={(value) => handleSectionChange(item.id, value)}
-								value={sectionValues[item.id] || ""}
-							/>
-						);
-					})}
+							return (
+								<DoctorsNoteSection
+									config={item}
+									context={getContextForSection(item.id)}
+									disabled={disabled}
+									key={item.id}
+									onChange={sectionChangeHandlers[item.id]}
+									value={sectionValues[item.id] || ""}
+								/>
+							);
+						})}
 				</div>
 
 				{/* Footer hint */}
@@ -251,7 +280,7 @@ export function DoctorsNoteEditor({
 			</div>
 		</div>
 	);
-}
+};
 
 // Re-export types for convenience
 export type { DoctorsNoteSectionConfig };

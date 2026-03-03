@@ -28,12 +28,12 @@ interface DynamicMarkdocRendererProps {
  * Custom tags within the Markdoc content should use the `useVariables` hook
  * to access and react to changes in the provided `variables` object.
  */
-export function DynamicMarkdocRenderer({
+export const DynamicMarkdocRenderer = ({
   markdocContent,
   variables,
   // Default class matching Note.tsx
   className = 'prose prose-slate grow',
-}: DynamicMarkdocRendererProps) {
+}: DynamicMarkdocRendererProps) => {
   const renderedContent = useMemo(() => renderMarkdocAsReact(markdocContent), [markdocContent]);
 
   return (
@@ -41,4 +41,4 @@ export function DynamicMarkdocRenderer({
       <div className={className}>{renderedContent}</div>
     </VariableProvider>
   );
-}
+};

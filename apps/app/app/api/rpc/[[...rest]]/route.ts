@@ -5,13 +5,13 @@ export const dynamic = "force-dynamic";
 
 const handler = new RPCHandler(router);
 
-async function handleRequest(request: Request) {
+const handleRequest = async (request: Request) => {
 	const { response } = await handler.handle(request, {
 		context: {},
 		prefix: "/api/rpc",
 	});
 	return response ?? new Response("Not found", { status: 404 });
-}
+};
 
 export const HEAD = handleRequest;
 export const GET = handleRequest;

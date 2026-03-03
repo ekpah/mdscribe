@@ -7,7 +7,7 @@ const germanFormatter = new DateFormatter("de-DE", { dateStyle: "short" });
  * Parse date input from ISO (YYYY-MM-DD) or German (D.M.YYYY) format.
  * Returns null for invalid or empty input.
  */
-export function parseDateInput(input: unknown): DateValue | null {
+export const parseDateInput = (input: unknown): DateValue | null => {
 	if (!input || typeof input !== "string") {return null;}
 	const trimmed = input.trim();
 	if (!trimmed) {return null;}
@@ -35,7 +35,7 @@ export function parseDateInput(input: unknown): DateValue | null {
 	}
 
 	return null;
-}
+};
 
 /** Format a DateValue to German locale (e.g., "15.01.2024") */
 export const formatDateGerman = (date: DateValue) =>

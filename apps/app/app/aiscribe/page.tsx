@@ -93,14 +93,14 @@ interface ScribeCardProps {
 	accentColor?: AccentColor;
 }
 
-function ScribeCard({
+const ScribeCard = ({
 	title,
 	description,
 	href,
 	icon,
 	isLoggedIn,
 	accentColor = "solarized-blue",
-}: ScribeCardProps) {
+}: ScribeCardProps) => {
 	const colorClasses = accentColorClasses[accentColor];
 
 	if (!isLoggedIn) {
@@ -151,7 +151,7 @@ function ScribeCard({
 			</Card>
 		</Link>
 	);
-}
+};
 
 const quickGenerationModes: {
 	title: string;

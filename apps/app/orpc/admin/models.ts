@@ -56,7 +56,7 @@ interface PlaygroundModel {
 	supportsReasoning: boolean;
 }
 
-function toCapabilities(inputModes: string[]): ModelCapabilities {
+const toCapabilities = (inputModes: string[]): ModelCapabilities => {
 	const modes = new Set(inputModes);
 	return {
 		outputsAudio: false,
@@ -67,14 +67,14 @@ function toCapabilities(inputModes: string[]): ModelCapabilities {
 		supportsText: true,
 		supportsVideo: false,
 	};
-}
+};
 
-function toModality(inputModes: string[]): string {
+const toModality = (inputModes: string[]): string => {
 	const inputs = ["text"];
 	if (inputModes.includes("image")) {inputs.push("image");}
 	if (inputModes.includes("audio")) {inputs.push("audio");}
 	return `${inputs.join("+")}->text`;
-}
+};
 
 const listModelsHandler = authed
 	.use(requiredAdminMiddleware)

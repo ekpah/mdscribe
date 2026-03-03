@@ -26,12 +26,62 @@ import {
   Settings,
   TreePine,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { MemoizedCopySection } from '../aiscribe/_components/memoized-copy-section';
 
 
 
-function ObjectNode({
+const DEFAULT_TEMPLATE = `# Patient Score
+
+Patient: {% info "patient_name" /%}
+Alter: {% info "age" /%}
+
+## Score Berechnung
+{% score formula="[age]*2+[gender_score]*3+[diabetes]*2+[hypertension]*2+[heart_failure]*2+[vascular_disease]*2+[stroke]*2+[smoking]*1" unit="Punkte" /%}
+
+{% info "age" label="Alter" type="number" /%}
+{% info "gender" label="Geschlecht" type="select" options="male,female" /%}
+{% info "diabetes" label="Diabetes mellitus" type="boolean" /%}
+{% info "hypertension" label="Arterielle Hypertonie" type="boolean" /%}
+{% info "heart_failure" label="Herzinsuffizienz" type="boolean" /%}
+{% info "vascular_disease" label="Gefäßerkrankung" type="boolean" /%}
+{% info "stroke" label="Schlaganfall/TIA" type="boolean" /%}
+{% info "smoking" label="Rauchen" type="boolean" /%}
+
+## Geschlecht
+{% switch "gender" %}
+  {% case "male" %}Männlich{% /case %}
+  {% case "female" %}Weiblich{% /case %}
+  {% case "other" %}Divers{% /case %}
+{% /switch %}`;
+
+const RESET_TEMPLATE = `# Beispiel Arztbericht
+
+Patient: {% info "patient_name" /%}
+Alter: {% info "age" /%}
+Datum: {% info "date" /%}
+
+## Hauptbeschwerde
+{% info "chief_complaint" /%}
+
+## Bewertung
+{% info "assessment" /%}
+
+## Behandlungsplan
+{% info "plan" /%}
+
+## Geschlecht
+# Beispiel Arztbericht
+
+## Geschlecht
+{% switch "gender" %}
+  {% case "male" %}Männlich{% /case %}
+  {% case "female" %}Weiblich{% /case %}
+  {% case "other" %}Divers{% /case %}
+{% /switch %}`;
+
+const ObjectNode = ({
   data,
   name,
   level,
@@ -39,13 +89,15 @@ function ObjectNode({
   data: unknown;
   name: string;
   level: number;
-}) {
+}) => {
   // Auto-expand first 2 levels.
   const [isExpanded, setIsExpanded] = useState(level < 2);
 
   const indent = level * 16;
 
-  const toggleExpanded = () => setIsExpanded(!isExpanded);
+  const toggleExpanded = useCallback(() => {
+    setIsExpanded((prev) => !prev);
+  }, []);
 
   if (data === null) {
     return (
@@ -175,41 +227,19 @@ function ObjectNode({
       <span>{String(data)}</span>
     </div>
   );
-}
+};
 
 // Collapsible Object Display component for AST and renderable tree
-function ObjectDisplay({ data }: { data: unknown }) {
+const ObjectDisplay = ({ data }: { data: unknown }) => {
   return (
     <div className="font-mono text-xs">
       <ObjectNode data={data} name="" level={0} />
     </div>
   );
-}
+};
 
 export default function PlaygroundPage() {
-  const [template, setTemplate] = useState(`# Patient Score
-
-Patient: {% info "patient_name" /%}
-Alter: {% info "age" /%}
-
-## Score Berechnung
-{% score formula="[age]*2+[gender_score]*3+[diabetes]*2+[hypertension]*2+[heart_failure]*2+[vascular_disease]*2+[stroke]*2+[smoking]*1" unit="Punkte" /%}
-
-{% info "age" label="Alter" type="number" /%}
-{% info "gender" label="Geschlecht" type="select" options="male,female" /%}
-{% info "diabetes" label="Diabetes mellitus" type="boolean" /%}
-{% info "hypertension" label="Arterielle Hypertonie" type="boolean" /%}
-{% info "heart_failure" label="Herzinsuffizienz" type="boolean" /%}
-{% info "vascular_disease" label="Gefäßerkrankung" type="boolean" /%}
-{% info "stroke" label="Schlaganfall/TIA" type="boolean" /%}
-{% info "smoking" label="Rauchen" type="boolean" /%}
-
-## Geschlecht
-{% switch "gender" %}
-  {% case "male" %}Männlich{% /case %}
-  {% case "female" %}Weiblich{% /case %}
-  {% case "other" %}Divers{% /case %}
-{% /switch %}`);
+  const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
 
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [useTipTap, setUseTipTap] = useState(false);
@@ -219,9 +249,37 @@ Alter: {% info "age" /%}
   );
 
   // Handle values change from inputs
-  const handleValuesChange = (data: Record<string, unknown>) => {
+  const handleValuesChange = useCallback((data: Record<string, unknown>) => {
     setValues(data);
-  };
+  }, []);
+
+  const handleTemplateChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
+    setTemplate(event.target.value);
+  }, []);
+
+  const handleResetTemplate = useCallback(() => {
+    setTemplate(RESET_TEMPLATE);
+  }, []);
+
+  const handleShowInputView = useCallback(() => {
+    setMiddleView('inputs');
+  }, []);
+
+  const handleShowJsonView = useCallback(() => {
+    setMiddleView('json');
+  }, []);
+
+  const handleShowPreviewView = useCallback(() => {
+    setRightView('preview');
+  }, []);
+
+  const handleShowTransformView = useCallback(() => {
+    setRightView('transform');
+  }, []);
+
+  const handleShowAstView = useCallback(() => {
+    setRightView('ast');
+  }, []);
 
   // Parse markdoc to get input tags
   const parsedInputs = parseMarkdocToInputs(template);
@@ -305,7 +363,7 @@ Alter: {% info "age" /%}
                       placeholder="Geben Sie hier Ihre Markdoc-Vorlage mit info-Tags ein..."
                       className="h-full resize-none border-input bg-background font-mono text-foreground text-sm transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
                       value={template}
-                      onChange={(e) => setTemplate(e.target.value)}
+                      onChange={handleTemplateChange}
                     />
                   )}
                 </div>
@@ -313,32 +371,7 @@ Alter: {% info "age" /%}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      setTemplate(`# Beispiel Arztbericht
-
-Patient: {% info "patient_name" /%}
-Alter: {% info "age" /%}
-Datum: {% info "date" /%}
-
-## Hauptbeschwerde
-{% info "chief_complaint" /%}
-
-## Bewertung
-{% info "assessment" /%}
-
-## Behandlungsplan
-{% info "plan" /%}
-
-## Geschlecht
-# Beispiel Arztbericht
-
-## Geschlecht
-{% switch "gender" %}
-  {% case "male" %}Männlich{% /case %}
-  {% case "female" %}Weiblich{% /case %}
-  {% case "other" %}Divers{% /case %}
-{% /switch %}`)
-                    }
+                    onClick={handleResetTemplate}
                     className="w-full"
                   >
                     Vorlage zurücksetzen
@@ -363,7 +396,7 @@ Datum: {% info "date" /%}
                     <Button
                       variant={middleView === 'inputs' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setMiddleView('inputs')}
+                      onClick={handleShowInputView}
                       className="h-8 px-3 text-xs"
                     >
                       <Settings className="mr-1 h-3 w-3" />
@@ -372,7 +405,7 @@ Datum: {% info "date" /%}
                     <Button
                       variant={middleView === 'json' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setMiddleView('json')}
+                      onClick={handleShowJsonView}
                       className="h-8 px-3 text-xs"
                     >
                       <Code className="mr-1 h-3 w-3" />
@@ -451,7 +484,7 @@ Datum: {% info "date" /%}
                     <Button
                       variant={rightView === 'preview' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setRightView('preview')}
+                      onClick={handleShowPreviewView}
                       className="h-8 px-2 text-xs"
                     >
                       <Eye className="mr-1 h-3 w-3" />
@@ -462,7 +495,7 @@ Datum: {% info "date" /%}
                         rightView === 'transform' ? 'default' : 'outline'
                       }
                       size="sm"
-                      onClick={() => setRightView('transform')}
+                      onClick={handleShowTransformView}
                       className="h-8 px-2 text-xs"
                     >
                       <Layers className="mr-1 h-3 w-3" />
@@ -471,7 +504,7 @@ Datum: {% info "date" /%}
                     <Button
                       variant={rightView === 'ast' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setRightView('ast')}
+                      onClick={handleShowAstView}
                       className="h-8 px-2 text-xs"
                     >
                       <TreePine className="mr-1 h-3 w-3" />

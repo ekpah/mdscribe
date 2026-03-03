@@ -11,6 +11,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import type { MouseEvent } from "react";
+import { useCallback } from "react";
 import TipTapMenu from "./_components/tip-tap-menu";
 
 export default function TipTap({
@@ -63,7 +64,7 @@ export default function TipTap({
 	});
 
 	// Wrap toggle to sync content before switching views
-	const handleToggleSource = () => {
+	const handleToggleSource = useCallback(() => {
 		if (editor && onToggleSource) {
 			// Force sync content before switching to source view
 			const html = editor.getHTML();
@@ -73,13 +74,13 @@ export default function TipTap({
 				onToggleSource();
 			}, 0);
 		}
-	};
+	}, [editor, onToggleSource, setContent]);
 
 	if (!editor) {
 		return null;
 	}
 
-	const handleEditorSurfaceMouseDown = (
+	const handleEditorSurfaceMouseDown = useCallback((
 		event: MouseEvent<HTMLDivElement>,
 	) => {
 		if (event.target !== event.currentTarget) {
@@ -88,7 +89,7 @@ export default function TipTap({
 
 		event.preventDefault();
 		editor.chain().focus().run();
-	};
+	}, [editor]);
 
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden">

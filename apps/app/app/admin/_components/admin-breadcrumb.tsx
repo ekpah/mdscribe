@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-function getPageTitle(pathname: string): string {
+const getPageTitle = (pathname: string): string => {
 	if (pathname === "/admin") {
 		return "Dashboard";
 	}
@@ -37,9 +37,9 @@ function getPageTitle(pathname: string): string {
 		return "Systemeinstellungen";
 	}
 	return "Admin";
-}
+};
 
-export function AdminBreadcrumb() {
+export const AdminBreadcrumb = () => {
 	const pathname = usePathname();
 	const isDashboard = pathname === "/admin";
 	const pageTitle = getPageTitle(pathname);
@@ -72,5 +72,4 @@ export function AdminBreadcrumb() {
 			</BreadcrumbList>
 		</Breadcrumb>
 	);
-}
-
+};

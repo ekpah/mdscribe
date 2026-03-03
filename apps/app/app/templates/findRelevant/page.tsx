@@ -11,7 +11,7 @@ import { StarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { redirect, usePathname } from 'next/navigation';
 import type React from 'react';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/lib/auth-client';
 import { orpc } from '@/lib/orpc';
@@ -65,7 +65,7 @@ export default function FindTemplatePage() {
     redirect(createSignInRedirect(pathname || '/templates/findRelevant'));
   }
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) {
       return;
@@ -132,9 +132,9 @@ export default function FindTemplatePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [query, session?.user?.id]);
 
-  const handleToggleFavourite = async (
+  const handleToggleFavourite = useCallback(async (
     templateId: string,
     currentState: boolean
   ) => {
@@ -165,7 +165,30 @@ export default function FindTemplatePage() {
       }));
       toast.error('Fehler beim Aktualisieren der Favoriten');
     }
-  };
+  }, [isLoggedIn]);
+
+  const handleQueryChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setQuery(event.target.value);
+    },
+    [],
+  );
+
+  const favouriteToggleHandlers = useMemo(
+    () =>
+      Object.fromEntries(
+        results.map((template) => [
+          template.id,
+          () => {
+            void handleToggleFavourite(
+              template.id,
+              Boolean(favouriteStates[template.id]),
+            );
+          },
+        ]),
+      ) as Record<string, () => void>,
+    [favouriteStates, handleToggleFavourite, results],
+  );
 
   return (
     <div className="container mx-auto max-w-4xl p-6">
@@ -184,7 +207,7 @@ export default function FindTemplatePage() {
         <form className="flex gap-2" onSubmit={handleSearch}>
           <Input
             className="flex-1"
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleQueryChange}
             placeholder="Beschreiben Sie, nach welcher Art von Vorlage Sie suchen..."
             type="text"
             value={query}
@@ -283,9 +306,7 @@ export default function FindTemplatePage() {
                       {isLoggedIn && (
                         <Button
                           className="gap-1"
-                          onClick={() =>
-                            handleToggleFavourite(template.id, isFavorited)
-                          }
+                          onClick={favouriteToggleHandlers[template.id]}
                           size="sm"
                           variant="ghost"
                         >

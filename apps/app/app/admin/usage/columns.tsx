@@ -13,6 +13,8 @@ import {
 import { createColumnHelper } from "@tanstack/react-table";
 import { FlaskConical, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
+import { useCallback } from "react";
+import type { MouseEvent } from "react";
 import type { DocumentType } from "@/orpc/scribe/types";
 import {
 	allScribeDocTypes,
@@ -30,9 +32,9 @@ const promptNameToDocumentType = new Map(
 	]),
 );
 
-function inferDocumentType(
+const inferDocumentType = (
 	metadata: Record<string, unknown> | null,
-): DocumentType | undefined {
+): DocumentType | undefined => {
 	if (!metadata) {return undefined;}
 
 	const {endpoint} = metadata;
@@ -46,9 +48,9 @@ function inferDocumentType(
 	}
 
 	return undefined;
-}
+};
 
-function formatDate(date: Date | string) {
+const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	return new Intl.DateTimeFormat("de-DE", {
 		day: "2-digit",
@@ -56,23 +58,23 @@ function formatDate(date: Date | string) {
 		minute: "2-digit",
 		month: "2-digit",
 	}).format(dateObj);
-}
+};
 
-function formatCost(cost: unknown): string {
+const formatCost = (cost: unknown): string => {
 	if (cost === null || cost === undefined) {return "-";}
 	const num = typeof cost === "number" ? cost : Number(cost);
 	if (Number.isNaN(num)) {return "-";}
 	return `$${num.toFixed(4)}`;
-}
+};
 
-function getPromptLabel(metadata: Record<string, unknown> | null): string {
+const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
 	if (!metadata) {return "-";}
 	const endpoint = metadata.endpoint as string | undefined;
 	const promptName = metadata.promptName as string | undefined;
 	return endpoint ?? promptName ?? "-";
-}
+};
 
-function buildPlaygroundUrl(event: UsageEventWithUser): string {
+const buildPlaygroundUrl = (event: UsageEventWithUser): string => {
 	const params = new URLSearchParams();
 	params.set("referenceUsageEvent", event.id);
 
@@ -105,9 +107,61 @@ function buildPlaygroundUrl(event: UsageEventWithUser): string {
 	}
 
 	return `/admin/playground?${params.toString()}`;
-}
+};
 
 const columnHelper = createColumnHelper<UsageEventWithUser>();
+
+interface UsageActionsCellProps {
+	event: UsageEventWithUser;
+	onViewDetails: (id: string) => void;
+}
+
+const UsageActionsCell = ({ event, onViewDetails }: UsageActionsCellProps) => {
+	const handleStopPropagation = useCallback(
+		(clickEvent: MouseEvent<HTMLElement>) => {
+			clickEvent.stopPropagation();
+		},
+		[],
+	);
+
+	const handleViewDetails = useCallback(
+		(clickEvent: MouseEvent<HTMLElement>) => {
+			clickEvent.stopPropagation();
+			onViewDetails(event.id);
+		},
+		[event.id, onViewDetails],
+	);
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={handleStopPropagation}
+					className="h-8 w-8"
+				>
+					<MoreHorizontal className="h-4 w-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
+				<DropdownMenuItem onClick={handleViewDetails}>
+					Details anzeigen
+				</DropdownMenuItem>
+				<DropdownMenuItem asChild>
+					<Link
+						href={buildPlaygroundUrl(event)}
+						onClick={handleStopPropagation}
+						className="flex items-center gap-2"
+					>
+						<FlaskConical className="h-4 w-4" />
+						Im Playground öffnen
+					</Link>
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+};
 
 export const createColumns = (onViewDetails: (id: string) => void) => [
 	columnHelper.accessor("timestamp", {
@@ -223,38 +277,7 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 	}),
 	columnHelper.display({
 		cell: ({ row }) => (
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={(e) => e.stopPropagation()}
-						className="h-8 w-8"
-					>
-						<MoreHorizontal className="h-4 w-4" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuItem
-						onClick={(e) => {
-							e.stopPropagation();
-							onViewDetails(row.original.id);
-						}}
-					>
-						Details anzeigen
-					</DropdownMenuItem>
-					<DropdownMenuItem asChild>
-						<Link
-							href={buildPlaygroundUrl(row.original)}
-							onClick={(e) => e.stopPropagation()}
-							className="flex items-center gap-2"
-						>
-							<FlaskConical className="h-4 w-4" />
-							Im Playground öffnen
-						</Link>
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+			<UsageActionsCell event={row.original} onViewDetails={onViewDetails} />
 		),
 		header: "",
 		id: "actions",

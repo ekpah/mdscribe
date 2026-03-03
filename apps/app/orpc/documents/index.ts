@@ -40,12 +40,12 @@ const ocrToMarkdownInput = z.object({
 	providerId: z.string().min(1).optional(),
 });
 
-function stripCodeFence(markdown: string): string {
+const stripCodeFence = (markdown: string): string => {
 	const trimmed = markdown.trim();
 	const fencedMatch = trimmed.match(/^```(?:md|markdown)?\n([\s\S]*?)\n```$/i);
 	if (!fencedMatch) {return trimmed;}
 	return fencedMatch[1]?.trim() ?? "";
-}
+};
 
 /**
  * Parse and enhance PDF form fields using AI.

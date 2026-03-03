@@ -14,9 +14,10 @@ import {
 } from '@repo/design-system/components/ui/sidebar';
 import { ChevronDown, Command } from 'lucide-react';
 import type React from 'react';
+import { useMemo } from 'react';
 import { useSession } from '@/lib/auth-client';
 
-export function CollectionSwitcher({
+export const CollectionSwitcher = ({
   collections = [
     {
       key: 'authored',
@@ -36,9 +37,25 @@ export function CollectionSwitcher({
   count: number;
   activeCollection: string;
   setActiveCollection: (collection: string) => void;
-}) {
+}) => {
   const { data: session } = useSession();
   const _isLoggedIn = !!session?.user?.id;
+  const activeCollectionItem = useMemo(
+    () => collections.find((collection) => collection.key === activeCollection),
+    [collections, activeCollection],
+  );
+  const collectionClickHandlers = useMemo(
+    () =>
+      Object.fromEntries(
+        collections.map((collection) => [
+          collection.key,
+          () => {
+            setActiveCollection(collection.key);
+          },
+        ]),
+      ) as Record<string, () => void>,
+    [collections, setActiveCollection],
+  );
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -46,24 +63,13 @@ export function CollectionSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="w-fit px-1.5">
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                {(() => {
-                  const active = collections.find(
-                    (collection) => collection.key === activeCollection
-                  );
-                  if (active?.logo) {
-                    const Logo = active.logo;
-                    return <Logo className="size-4" />;
-                  }
-                  return null;
-                })()}
+                {activeCollectionItem?.logo ? (
+                  <activeCollectionItem.logo className="size-4" />
+                ) : null}
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-semibold">
-                  {
-                    collections.find(
-                      (collection) => collection.key === activeCollection
-                    )?.name
-                  }
+                  {activeCollectionItem?.name}
                 </span>
                 <span className="">
                   {count} {count === 1 ? 'Dokument' : 'Dokumente'}
@@ -85,7 +91,7 @@ export function CollectionSwitcher({
               <DropdownMenuItem
                 className="gap-2 p-2"
                 key={collection.name}
-                onClick={() => setActiveCollection(collection.key)}
+                onClick={collectionClickHandlers[collection.key]}
               >
                 <div className="flex size-6 items-center justify-center rounded-sm border">
                   <collection.logo className="size-4 shrink-0" />
@@ -98,4 +104,4 @@ export function CollectionSwitcher({
       </SidebarMenuItem>
     </SidebarMenu>
   );
-}
+};

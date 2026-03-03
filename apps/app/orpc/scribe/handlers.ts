@@ -29,7 +29,7 @@ const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
 });
 
-function parsePromptPayload(prompt: string): Record<string, unknown> {
+const parsePromptPayload = (prompt: string): Record<string, unknown> => {
 	if (!prompt.trim()) {
 		return {};
 	}
@@ -49,9 +49,9 @@ function parsePromptPayload(prompt: string): Record<string, unknown> {
 			message: USER_MESSAGES.inputInvalid,
 		});
 	}
-}
+};
 
-function hasNonEmptyInput(value: unknown): boolean {
+const hasNonEmptyInput = (value: unknown): boolean => {
 	if (typeof value === "string") {
 		return value.trim().length > 0;
 	}
@@ -74,18 +74,18 @@ function hasNonEmptyInput(value: unknown): boolean {
 		}
 	}
 	return false;
-}
+};
 
-function hasAnyInput(payload: Record<string, unknown>): boolean {
+const hasAnyInput = (payload: Record<string, unknown>): boolean => {
 	for (const entry of Object.values(payload)) {
 		if (hasNonEmptyInput(entry)) {
 			return true;
 		}
 	}
 	return false;
-}
+};
 
-function hasFileLikeInput(value: unknown): boolean {
+const hasFileLikeInput = (value: unknown): boolean => {
 	if (Array.isArray(value)) {
 		for (const entry of value) {
 			if (hasFileLikeInput(entry)) {
@@ -117,9 +117,9 @@ function hasFileLikeInput(value: unknown): boolean {
 	}
 
 	return false;
-}
+};
 
-function scheduleAfter(callback: () => Promise<void>): void {
+const scheduleAfter = (callback: () => Promise<void>): void => {
 	const run = async () => {
 		try {
 			await callback();
@@ -135,16 +135,16 @@ function scheduleAfter(callback: () => Promise<void>): void {
 		// Fallback for non-request contexts (e.g. direct handler unit tests).
 		void run();
 	}
-}
+};
 
 /**
  * Check subscription and usage limits
  */
-async function checkUsageLimit(
+const checkUsageLimit = async (
 	userId: string,
 	session: { user: { id: string } },
 	db: typeof database,
-) {
+) => {
 	const subscriptions = await db
 		.select()
 		.from(subscription)
@@ -166,25 +166,25 @@ async function checkUsageLimit(
 	}
 
 	return { activeSubscription, usage };
-}
+};
 
 /**
  * Generate embeddings using Voyage AI
  */
-async function generateEmbeddings(content: string): Promise<number[]> {
+const generateEmbeddings = async (content: string): Promise<number[]> => {
 	const result = await voyageClient.embed({
 		input: content,
 		model: "voyage-3-large",
 	});
 	return result.data?.[0]?.embedding ?? [];
-}
+};
 
 /**
  * Find relevant templates for procedures using vector similarity
  */
-async function findRelevantTemplateForProcedure(
+const findRelevantTemplateForProcedure = async (
 	notes: string,
-): Promise<string> {
+): Promise<string> => {
 	const defaultTemplate = `## Standard-Textbausteine (Referenz)
 
 <details>
@@ -264,7 +264,7 @@ ${similarityResults[0].content}`;
 	}
 
 	return defaultTemplate;
-}
+};
 
 /**
  * Scribe input type - uses UIMessage[] for AI SDK useChat compatibility
@@ -278,7 +278,7 @@ interface ScribeStreamInput {
 /**
  * Extract prompt text from the last user message
  */
-function extractPromptFromMessages(messages: UIMessage[]): string {
+const extractPromptFromMessages = (messages: UIMessage[]): string => {
 	const lastUserMessage = messages.findLast((m) => m.role === "user");
 	if (!lastUserMessage) {return "";}
 
@@ -299,7 +299,7 @@ function extractPromptFromMessages(messages: UIMessage[]): string {
 	}
 
 	return "";
-}
+};
 
 /**
  * Main streaming handler for all scribe document types

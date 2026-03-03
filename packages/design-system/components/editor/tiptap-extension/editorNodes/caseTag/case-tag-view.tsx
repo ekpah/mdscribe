@@ -3,6 +3,7 @@
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper } from "@tiptap/react";
 import { X } from "lucide-react";
+import type { ChangeEvent } from "react";
 import { useCallback } from "react";
 import { Button } from "../../../../ui/button";
 import { Input } from "../../../../ui/input";
@@ -13,17 +14,17 @@ import {
 	PopoverTrigger,
 } from "../../../../ui/popover";
 
-export function CaseTagView({
+export const CaseTagView = ({
 	node,
 	editor: _editor,
 	updateAttributes,
 	getPos: _getPos,
 	deleteNode,
 	selected,
-}: NodeViewProps) {
-	const handlePrimaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		updateAttributes({ primary: e.target.value });
-	};
+}: NodeViewProps) => {
+	const handlePrimaryChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		updateAttributes({ primary: event.target.value });
+	}, [updateAttributes]);
 
 	const handleRemoveCase = useCallback(() => {
 		deleteNode();
@@ -120,4 +121,4 @@ export function CaseTagView({
 			</div>
 		</NodeViewWrapper>
 	);
-}
+};

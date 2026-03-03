@@ -15,11 +15,11 @@ import { getServerSession } from "@/lib/server-session";
 import ContentSection from "./_components/content-section";
 import { NavActions } from "./_components/nav-actions";
 
-export async function generateMetadata({
+export const generateMetadata = async ({
 	params,
 }: {
 	params: Promise<{ id: string }>;
-}): Promise<Metadata> {
+}): Promise<Metadata> => {
 	const { id } = await params;
 	const queryClient = new QueryClient();
 	const doc = await queryClient.fetchQuery(
@@ -29,7 +29,7 @@ export async function generateMetadata({
 	return {
 		title: doc?.title,
 	};
-}
+};
 
 export default async function NotePage({
 	params,

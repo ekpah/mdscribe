@@ -17,7 +17,7 @@ import { cn } from "@repo/design-system/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { LaptopIcon, Loader2, SmartphoneIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { UAParser } from "ua-parser-js";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -36,8 +36,62 @@ export default function UserCard(props: {
 	const [isLoading, setIsLoading] = useState<string>();
 
 	const [activeSessions, setActiveSessions] = useState(props.activeSessions);
-	const removeActiveSession = (id: string) =>
-		setActiveSessions(activeSessions.filter((s) => s.id !== id));
+	const removeActiveSession = useCallback((id: string) => {
+		setActiveSessions((currentSessions) =>
+			currentSessions.filter((activeSession) => activeSession.id !== id),
+		);
+	}, []);
+
+	const handleRevokeSession = useCallback(
+		async (activeSession: Session["session"]) => {
+			const isCurrentSession = activeSession.id === session?.session?.id;
+			setIsLoading(activeSession.id);
+
+			if (isCurrentSession) {
+				await authClient.signOut({
+					fetchOptions: {
+						onSuccess: () => {
+							queryClient.setQueryData(sessionQueryKey, null);
+							router.refresh();
+							router.push("/");
+						},
+					},
+				});
+				return;
+			}
+
+			try {
+				const res = await authClient.revokeSession({
+					token: activeSession.token,
+				});
+
+				if (res.error) {
+					toast.error(res.error.message || "Sitzung konnte nicht beendet werden");
+					setIsLoading(undefined);
+				} else {
+					toast.success("Sitzung erfolgreich beendet");
+					removeActiveSession(activeSession.id);
+				}
+			} catch {
+				toast.error("Sitzung konnte nicht beendet werden");
+				setIsLoading(undefined);
+			}
+		},
+		[queryClient, removeActiveSession, router, session?.session?.id],
+	);
+
+	const revokeHandlers = useMemo(
+		() =>
+			Object.fromEntries(
+				activeSessions.map((activeSession) => [
+					activeSession.id,
+					() => {
+						void handleRevokeSession(activeSession);
+					},
+				]),
+			) as Record<string, () => void>,
+		[activeSessions, handleRevokeSession],
+	);
 
 	return (
 		<Card>
@@ -70,48 +124,12 @@ export default function UserCard(props: {
 
 				<div className="flex flex-col gap-3">
 					<p className="font-medium text-xs">Aktive Sitzungen</p>
-					{activeSessions.map((activeSession) => {
-						const isCurrentSession = activeSession.id === session?.session?.id;
-						const parser = UAParser(activeSession.userAgent as string);
-						const isMobile = parser.device.type === "mobile";
+						{activeSessions.map((activeSession) => {
+							const isCurrentSession = activeSession.id === session?.session?.id;
+							const parser = UAParser(activeSession.userAgent as string);
+							const isMobile = parser.device.type === "mobile";
 
-						const handleRevoke = async () => {
-							setIsLoading(activeSession.id);
-
-							if (isCurrentSession) {
-								await authClient.signOut({
-									fetchOptions: {
-										onSuccess: () => {
-											queryClient.setQueryData(sessionQueryKey, null);
-											router.refresh();
-											router.push("/");
-										},
-									},
-								});
-								return;
-							}
-
-							try {
-								const res = await authClient.revokeSession({
-									token: activeSession.token,
-								});
-
-								if (res.error) {
-									toast.error(
-										res.error.message || "Sitzung konnte nicht beendet werden",
-									);
-									setIsLoading(undefined);
-								} else {
-									toast.success("Sitzung erfolgreich beendet");
-									removeActiveSession(activeSession.id);
-								}
-							} catch  {
-								toast.error("Sitzung konnte nicht beendet werden");
-								setIsLoading(undefined);
-							}
-						};
-
-						return (
+							return (
 							<Card
 								key={activeSession.id}
 								className={cn("flex flex-row items-center gap-3 px-4 py-3")}
@@ -141,13 +159,13 @@ export default function UserCard(props: {
 									</span>
 								</div>
 
-								<Button
+									<Button
 									className="relative ms-auto"
 									disabled={isLoading === activeSession.id}
 									size="sm"
 									variant="outline"
-									onClick={handleRevoke}
-								>
+										onClick={revokeHandlers[activeSession.id]}
+									>
 									{isLoading === activeSession.id && (
 										<Loader2 className="animate-spin" />
 									)}

@@ -17,7 +17,7 @@ const globalForDatabase = globalThis as unknown as {
 	shutdownHandlersRegistered: boolean | undefined;
 };
 
-function registerShutdownHandlers(client: ReturnType<typeof postgres>): void {
+const registerShutdownHandlers = (client: ReturnType<typeof postgres>): void => {
 	if (globalForDatabase.shutdownHandlersRegistered) {
 		return;
 	}
@@ -43,9 +43,9 @@ function registerShutdownHandlers(client: ReturnType<typeof postgres>): void {
 	process.on("SIGTERM", () => {});
 
 	globalForDatabase.shutdownHandlersRegistered = true;
-}
+};
 
-function createDatabase() {
+const createDatabase = () => {
 	if (globalForDatabase.database) {
 		return globalForDatabase.database;
 	}
@@ -64,7 +64,7 @@ function createDatabase() {
 	globalForDatabase.database = database;
 
 	return database;
-}
+};
 
 const database = createDatabase();
 

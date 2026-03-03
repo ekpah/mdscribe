@@ -3,6 +3,7 @@
 import { cn } from "@repo/design-system/lib/utils";
 import { diffLines, diffWords } from "diff";
 import { Check, RotateCcw } from "lucide-react";
+import type { ChangeEvent } from "react";
 import { useCallback, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "../ui/button";
@@ -38,7 +39,7 @@ interface DiffPart {
 	removed?: boolean;
 }
 
-export function MarkdownDiffEditor({
+export const MarkdownDiffEditor = ({
 	value,
 	onChange,
 	placeholder,
@@ -52,7 +53,7 @@ export function MarkdownDiffEditor({
 	onSuggestionRejected,
 	actionSlot,
 	diffMode = "word",
-}: DiffEditorProps) {
+}: DiffEditorProps) => {
 	// Determine if we're in diff mode
 	const isInDiffMode = suggestedValue !== undefined && suggestedValue !== null;
 
@@ -135,6 +136,13 @@ export function MarkdownDiffEditor({
 		if (isStreaming) {return;}
 		onSuggestionRejected?.();
 	}, [isStreaming, onSuggestionRejected]);
+
+	const handleEditorChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			onChange(event.currentTarget.value);
+		},
+		[onChange],
+	);
 
 	if (isInDiffMode) {
 		// Show loading state while waiting for first stream content
@@ -299,7 +307,7 @@ export function MarkdownDiffEditor({
 				className,
 			)}
 		>
-			<Textarea
+				<Textarea
 				className={cn(
 					"min-h-[var(--editor-min-height)] w-full resize-none overflow-hidden bg-background text-foreground text-sm leading-relaxed shadow-none [field-sizing:content]",
 					"focus-visible:border-solarized-blue focus-visible:ring-1 focus-visible:ring-solarized-blue/20",
@@ -307,17 +315,17 @@ export function MarkdownDiffEditor({
 				)}
 				disabled={disabled}
 				id={id}
-				onChange={(event) => onChange(event.currentTarget.value)}
-				placeholder={placeholder}
-				value={value}
-			/>
+					onChange={handleEditorChange}
+					placeholder={placeholder}
+					value={value}
+				/>
 			{/* Action slot (e.g., enhance button) - positioned top-right */}
 			{actionSlot && (
 				<div className="absolute top-2 right-2 z-10">{actionSlot}</div>
 			)}
 		</div>
-	);
-}
+		);
+};
 
 /** @deprecated Use MarkdownDiffEditor - renamed for backwards compatibility */
 export const DiffEditor = MarkdownDiffEditor;

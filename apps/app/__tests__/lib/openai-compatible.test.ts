@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+	PROVIDER_BASE_URL_ERROR_MESSAGE,
 	normalizeOpenAICompatibleBaseUrl,
 	normalizeProviderBaseUrl,
-	PROVIDER_BASE_URL_ERROR_MESSAGE,
 } from "@/lib/openai-compatible";
 
 describe("normalizeProviderBaseUrl", () => {

@@ -10,9 +10,9 @@ const providers = [
 	userContextProvider,
 ];
 
-export async function buildScribeContext(
+export const buildScribeContext = async (
 	input: ContextBuildInput,
-): Promise<{ blocks: ContextBlock[]; contextXml: string }> {
+): Promise<{ blocks: ContextBlock[]; contextXml: string }> => {
 	const blocks = (
 		await Promise.all(
 			providers.map((provider) => provider.build(input)),
@@ -23,4 +23,4 @@ export async function buildScribeContext(
 		blocks,
 		contextXml: renderContextXml(blocks),
 	};
-}
+};

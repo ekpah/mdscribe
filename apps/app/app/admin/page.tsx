@@ -25,13 +25,13 @@ interface AdminCardProps {
 	status?: "active" | "coming-soon";
 }
 
-function AdminCard({
+const AdminCard = ({
 	title,
 	description,
 	href,
 	icon,
 	status = "active",
-}: AdminCardProps) {
+}: AdminCardProps) => {
 	const isActive = status === "active";
 
 	if (!isActive) {
@@ -77,7 +77,7 @@ function AdminCard({
 			</Card>
 		</Link>
 	);
-}
+};
 
 const adminFeatures: AdminCardProps[] = [
 	{

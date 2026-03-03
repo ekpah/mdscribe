@@ -170,7 +170,9 @@ const getInputStateClassName = (source?: InputSource) => {
 	return "";
 };
 
-function SourceIndicator({ source }: { source: InputSource | undefined }) {
+const SourceIndicator = ({
+	source,
+}: { source: InputSource | undefined }) => {
 	if (!source) {return null;}
 
 	const config = {
@@ -202,22 +204,22 @@ function SourceIndicator({ source }: { source: InputSource | undefined }) {
 					{config.label}
 				</TooltipContent>
 			</Tooltip>
-		</TooltipProvider>
-	);
-}
+			</TooltipProvider>
+		);
+};
 
 interface RenderContext {
 	values: Record<string, unknown>;
 	suggestedValues: Record<string, SuggestedValue>;
 	fieldSources: Record<string, InputSource>;
-	onChange: (name: string, value: unknown) => void;
-	onApplySuggestion: (name: string) => void;
+	changeHandlers: Record<string, (value: unknown) => void>;
+	applySuggestionHandlers: Record<string, () => void>;
 }
 
-function renderInputTag(
+const renderInputTag = (
 	input: InputTagType,
 	context: RenderContext,
-): React.ReactNode | null {
+): React.ReactNode | null => {
 	if (!input.attributes.primary) {
 		return null;
 	}
@@ -226,6 +228,8 @@ function renderInputTag(
 	const suggestedValue = context.suggestedValues[fieldKey];
 	const inputState = context.fieldSources[fieldKey];
 	const inputStateClassName = getInputStateClassName(inputState);
+	const handleFieldChange = context.changeHandlers[fieldKey];
+	const handleApplySuggestion = context.applySuggestionHandlers[fieldKey];
 
 	if (input.name === "Info") {
 		return (
@@ -235,16 +239,16 @@ function renderInputTag(
 						<SourceIndicator source={inputState} />
 					</div>
 				)}
-				<InfoInput
-					input={input}
-					inputClassName={inputStateClassName}
-					onAcceptSuggestedValue={
-						suggestedValue ? () => context.onApplySuggestion(fieldKey) : undefined
-					}
-					onChange={(value) => context.onChange(fieldKey, value)}
-					suggestedValue={suggestedValue?.value}
-					suggestionLabel={getSuggestionLabel(suggestedValue)}
-					value={context.values[fieldKey] as string | number | undefined}
+					<InfoInput
+						input={input}
+						inputClassName={inputStateClassName}
+						onAcceptSuggestedValue={
+							suggestedValue ? handleApplySuggestion : undefined
+						}
+						onChange={handleFieldChange}
+						suggestedValue={suggestedValue?.value}
+						suggestionLabel={getSuggestionLabel(suggestedValue)}
+						value={context.values[fieldKey] as string | number | undefined}
 				/>
 			</div>
 		);
@@ -260,14 +264,12 @@ function renderInputTag(
 						<SourceIndicator source={inputState} />
 					</div>
 				)}
-				<SwitchInput
-					input={input}
-					onChange={(value) =>
-						context.onChange(fieldKey, value)
-					}
-					onAcceptSuggestedValue={
-						suggestedValue ? () => context.onApplySuggestion(fieldKey) : undefined
-					}
+					<SwitchInput
+						input={input}
+						onChange={handleFieldChange}
+						onAcceptSuggestedValue={
+							suggestedValue ? handleApplySuggestion : undefined
+						}
 					inputClassName={inputStateClassName}
 					suggestedValue={suggestedValue?.value}
 					suggestionLabel={getSuggestionLabel(suggestedValue)}
@@ -369,9 +371,12 @@ function renderInputTag(
 								{(() => {
 									const childKey = child.attributes.primary;
 									const childSuggestion = context.suggestedValues[childKey];
-									const childInputState = context.fieldSources[childKey];
-									const childInputStateClassName =
-										getInputStateClassName(childInputState);
+										const childInputState = context.fieldSources[childKey];
+										const childInputStateClassName =
+											getInputStateClassName(childInputState);
+										const childApplySuggestionHandler =
+											context.applySuggestionHandlers[childKey];
+										const childChangeHandler = context.changeHandlers[childKey];
 
 									return (
 										<div className="relative">
@@ -390,12 +395,12 @@ function renderInputTag(
 													} as InfoInputTagType
 												}
 												inputClassName={childInputStateClassName}
-												onAcceptSuggestedValue={
-													childSuggestion
-														? () => context.onApplySuggestion(childKey)
-														: undefined
-												}
-												onChange={(value) => context.onChange(childKey, value)}
+													onAcceptSuggestedValue={
+														childSuggestion
+															? childApplySuggestionHandler
+															: undefined
+													}
+													onChange={childChangeHandler}
 												suggestedValue={childSuggestion?.value}
 												suggestionLabel={getSuggestionLabel(childSuggestion)}
 												value={context.values[childKey] as number | undefined}
@@ -412,7 +417,7 @@ function renderInputTag(
 	}
 
 	return null;
-}
+};
 
 export default function Inputs({
 	inputTags = [],
@@ -483,7 +488,7 @@ export default function Inputs({
 		applySuggestions(suggestedValuesProp);
 	}, [suggestedValuesProp, applySuggestions]);
 
-	const handleInputChange = (key: string, value: unknown) => {
+	const handleInputChange = useCallback((key: string, value: unknown) => {
 		setValues((prevValues) => ({
 			...prevValues,
 			[key]: value,
@@ -500,11 +505,11 @@ export default function Inputs({
 				return nextSources;
 			}
 			delete nextSources[key];
-			return nextSources;
-		});
-	};
+				return nextSources;
+			});
+	}, [suggestedValues]);
 
-	const handleApplySuggestion = (key: string) => {
+	const handleApplySuggestion = useCallback((key: string) => {
 		const suggestion = suggestedValues[key];
 		if (!suggestion) {return;}
 		setValues((prevValues) => ({
@@ -515,7 +520,46 @@ export default function Inputs({
 			...prevSources,
 			[key]: "ai",
 		}));
-	};
+	}, [suggestedValues]);
+
+	const fieldKeys = useMemo(() => {
+		const keys = new Set<string>();
+		const visit = (inputTag: InputTagType) => {
+			const fieldKey = inputTag.attributes.primary;
+			if (fieldKey) {
+				keys.add(fieldKey);
+			}
+			for (const child of inputTag.children ?? []) {
+				visit(child);
+			}
+		};
+
+		for (const inputTag of inputTags) {
+			visit(inputTag);
+		}
+
+		return [...keys];
+	}, [inputTags]);
+
+	const changeHandlers = useMemo<Record<string, (value: unknown) => void>>(() => {
+		const handlers: Record<string, (value: unknown) => void> = {};
+		for (const fieldKey of fieldKeys) {
+			handlers[fieldKey] = (value) => {
+				handleInputChange(fieldKey, value);
+			};
+		}
+		return handlers;
+	}, [fieldKeys, handleInputChange]);
+
+	const applySuggestionHandlers = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const fieldKey of fieldKeys) {
+			handlers[fieldKey] = () => {
+				handleApplySuggestion(fieldKey);
+			};
+		}
+		return handlers;
+	}, [fieldKeys, handleApplySuggestion]);
 
 	const { fields: voiceInputFields, meta: voiceInputMeta } = useMemo(
 		() => collectVoiceInputFields(inputTags),
@@ -524,7 +568,7 @@ export default function Inputs({
 
 	const canRecord = audioRecordings.length < maxRecordings;
 
-	const handleStartRecording = async () => {
+	const handleStartRecording = useCallback(async () => {
 		if (!canRecord) {
 			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
 			return;
@@ -564,29 +608,29 @@ export default function Inputs({
 			console.error("Error starting recording:", error);
 			toast.error("Fehler beim Starten der Aufnahme");
 		}
-	};
+	}, [canRecord, maxRecordings]);
 
-	const handleStopRecording = () => {
+	const handleStopRecording = useCallback(() => {
 		if (mediaRecorderRef.current && isRecording) {
 			mediaRecorderRef.current.stop();
 			setIsRecording(false);
 			toast.success("Aufnahme beendet");
 		}
-	};
+	}, [isRecording]);
 
-	const handleToggleRecording = () => {
+	const handleToggleRecording = useCallback(() => {
 		if (isRecording) {
 			handleStopRecording();
 		} else {
 			handleStartRecording();
 		}
-	};
+	}, [handleStartRecording, handleStopRecording, isRecording]);
 
-	const handleRemoveRecording = (id: string) => {
+	const handleRemoveRecording = useCallback((id: string) => {
 		setAudioRecordings((prev) =>
 			prev.filter((recording) => recording.id !== id),
 		);
-	};
+	}, []);
 
 	const formatDuration = (seconds: number): string => {
 		const mins = Math.floor(seconds / 60);
@@ -594,7 +638,7 @@ export default function Inputs({
 		return `${mins}:${secs.toString().padStart(2, "0")}`;
 	};
 
-	const handleVoiceFill = async () => {
+	const handleVoiceFill = useCallback(async () => {
 		if (!onVoiceFill) {
 			return;
 		}
@@ -669,7 +713,25 @@ export default function Inputs({
 		} finally {
 			setIsVoiceFillPending(false);
 		}
-	};
+	}, [
+		audioRecordings,
+		applySuggestions,
+		inputTags,
+		onSuggestedValuesChange,
+		onVoiceFill,
+		voiceInputFields.length,
+		voiceInputMeta,
+	]);
+
+	const recordingRemoveHandlers = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const recording of audioRecordings) {
+			handlers[recording.id] = () => {
+				handleRemoveRecording(recording.id);
+			};
+		}
+		return handlers;
+	}, [audioRecordings, handleRemoveRecording]);
 
 	if (inputTags.length === 0 || !inputTags) {
 		return null;
@@ -677,9 +739,9 @@ export default function Inputs({
 
 	const shouldShowVoiceInput = Boolean(showVoiceInput && onVoiceFill);
 	const renderContext: RenderContext = {
+		applySuggestionHandlers,
+		changeHandlers,
 		fieldSources,
-		onApplySuggestion: handleApplySuggestion,
-		onChange: handleInputChange,
 		suggestedValues,
 		values,
 	};
@@ -740,12 +802,12 @@ export default function Inputs({
 											#{index + 1} · {formatDuration(recording.duration)}
 										</span>
 									</div>
-									<Button
-										aria-label="Aufnahme entfernen"
-										onClick={() => handleRemoveRecording(recording.id)}
-										size="icon"
-										type="button"
-										variant="ghost"
+										<Button
+											aria-label="Aufnahme entfernen"
+											onClick={recordingRemoveHandlers[recording.id]}
+											size="icon"
+											type="button"
+											variant="ghost"
 									>
 										<X className="h-4 w-4" />
 									</Button>

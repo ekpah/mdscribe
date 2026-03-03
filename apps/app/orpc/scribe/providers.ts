@@ -31,7 +31,7 @@ interface ResolveModelOptions {
 type AiModelRow = typeof aiModel.$inferSelect;
 type AiProviderRow = typeof aiProvider.$inferSelect;
 
-function toInputModes(modes: string[]): InputMode[] {
+const toInputModes = (modes: string[]): InputMode[] => {
 	const allowed = new Set<InputMode>(["text", "audio", "file", "image"]);
 	const resolved = new Set<InputMode>();
 	for (const mode of modes) {
@@ -43,14 +43,14 @@ function toInputModes(modes: string[]): InputMode[] {
 		resolved.add("text");
 	}
 	return [...resolved];
-}
+};
 
-function createProviderModel(
+const createProviderModel = (
 	protocol: string,
 	modelId: string,
 	apiKey: string | undefined,
 	baseUrl: string | null,
-): LanguageModel {
+): LanguageModel => {
 	switch (protocol) {
 		case "openrouter": {
 			const provider = createOpenRouter({ apiKey: apiKey ?? "" });
@@ -79,12 +79,12 @@ function createProviderModel(
 			throw new Error(`Unknown provider protocol: ${protocol}`);
 		}
 	}
-}
+};
 
-async function buildResolvedModel(
+const buildResolvedModel = async (
 	model: AiModelRow,
 	provider: AiProviderRow,
-): Promise<ResolvedModel> {
+): Promise<ResolvedModel> => {
 	const apiKey = provider.apiKey ? await decrypt(provider.apiKey) : undefined;
 
 	const languageModel = createProviderModel(
@@ -102,12 +102,12 @@ async function buildResolvedModel(
 		providerId: provider.id,
 		supportsReasoning: model.supportsReasoning,
 	};
-}
+};
 
-export async function resolveModelByRecordId(
+export const resolveModelByRecordId = async (
 	modelRecordId: string,
 	db: Database,
-): Promise<ResolvedModel> {
+): Promise<ResolvedModel> => {
 	const rows = await db
 		.select({
 			model: aiModel,
@@ -124,13 +124,13 @@ export async function resolveModelByRecordId(
 	}
 
 	return buildResolvedModel(row.model, row.provider);
-}
+};
 
-export async function resolveProviderModel(
+export const resolveProviderModel = async (
 	providerId: string,
 	modelId: string,
 	db: Database,
-): Promise<ResolvedModel> {
+): Promise<ResolvedModel> => {
 	const provider = await db.query.aiProvider.findFirst({
 		where: eq(aiProvider.id, providerId),
 	});
@@ -150,12 +150,12 @@ export async function resolveProviderModel(
 	}
 
 	throw new Error(USER_MESSAGES.modelUnavailable);
-}
+};
 
-export async function resolveModel(
+export const resolveModel = async (
 	db: Database,
 	options?: ResolveModelOptions,
-): Promise<ResolvedModel> {
+): Promise<ResolvedModel> => {
 	const defaults = await db.query.aiDefaults.findFirst({
 		where: eq(aiDefaults.id, "global"),
 	});
@@ -187,4 +187,4 @@ export async function resolveModel(
 	}
 
 	return resolved;
-}
+};

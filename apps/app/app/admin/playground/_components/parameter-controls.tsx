@@ -16,6 +16,8 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { Brain, HelpCircle, Settings2 } from "lucide-react";
+import { useCallback } from "react";
+import type { ChangeEvent } from "react";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
 import { supportsThinking } from "../_lib/types";
 
@@ -26,20 +28,91 @@ interface ParameterControlsProps {
 	disabled?: boolean;
 }
 
-export function ParameterControls({
+export const ParameterControls = ({
 	parameters,
 	onChange,
 	model,
 	disabled,
-}: ParameterControlsProps) {
+}: ParameterControlsProps) => {
 	const thinkingSupported = model ? supportsThinking(model) : false;
 
-	const updateParam = <K extends keyof PlaygroundParameters>(
+	const updateParam = useCallback(<K extends keyof PlaygroundParameters>(
 		key: K,
 		value: PlaygroundParameters[K],
 	) => {
 		onChange({ ...parameters, [key]: value });
-	};
+	}, [onChange, parameters]);
+
+	const handleThinkingChange = useCallback((checked: boolean) => {
+		onChange({
+			...parameters,
+			thinking: checked,
+			thinkingExplicit: true,
+		});
+	}, [onChange, parameters]);
+
+	const handleThinkingBudgetChange = useCallback((values: number[]) => {
+		const [value] = values;
+		updateParam("thinkingBudget", value);
+	}, [updateParam]);
+
+	const handleTemperatureChange = useCallback((values: number[]) => {
+		const [value] = values;
+		updateParam("temperature", value);
+	}, [updateParam]);
+
+	const handleMaxTokensChange = useCallback((values: number[]) => {
+		const [value] = values;
+		updateParam("maxTokens", value);
+	}, [updateParam]);
+
+	const handleTopPChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			updateParam(
+				"topP",
+				event.target.value
+					? Number.parseFloat(event.target.value)
+					: undefined,
+			);
+		},
+		[updateParam],
+	);
+
+	const handleTopKChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			updateParam(
+				"topK",
+				event.target.value
+					? Number.parseInt(event.target.value, 10)
+					: undefined,
+			);
+		},
+		[updateParam],
+	);
+
+	const handleFrequencyPenaltyChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			updateParam(
+				"frequencyPenalty",
+				event.target.value
+					? Number.parseFloat(event.target.value)
+					: undefined,
+			);
+		},
+		[updateParam],
+	);
+
+	const handlePresencePenaltyChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			updateParam(
+				"presencePenalty",
+				event.target.value
+					? Number.parseFloat(event.target.value)
+					: undefined,
+			);
+		},
+		[updateParam],
+	);
 
 	return (
 		<div className="space-y-4">
@@ -64,17 +137,11 @@ export function ParameterControls({
 								</TooltipContent>
 							</Tooltip>
 						</div>
-						<Switch
-							checked={parameters.thinking}
-							onCheckedChange={(checked) =>
-								onChange({
-									...parameters,
-									thinking: checked,
-									thinkingExplicit: true,
-								})
-							}
-							disabled={disabled}
-						/>
+							<Switch
+								checked={parameters.thinking}
+								onCheckedChange={handleThinkingChange}
+								disabled={disabled}
+							/>
 					</div>
 
 					{parameters.thinking && (
@@ -87,11 +154,9 @@ export function ParameterControls({
 									{parameters.thinkingBudget.toLocaleString()} tokens
 								</span>
 							</div>
-							<Slider
-								value={[parameters.thinkingBudget]}
-								onValueChange={([value]) =>
-									updateParam("thinkingBudget", value)
-								}
+								<Slider
+									value={[parameters.thinkingBudget]}
+									onValueChange={handleThinkingBudgetChange}
 								min={1000}
 								max={50_000}
 								step={1000}
@@ -128,9 +193,9 @@ export function ParameterControls({
 							{parameters.temperature.toFixed(2)}
 						</span>
 					</div>
-					<Slider
-						value={[parameters.temperature]}
-						onValueChange={([value]) => updateParam("temperature", value)}
+						<Slider
+							value={[parameters.temperature]}
+							onValueChange={handleTemperatureChange}
 						min={0}
 						max={2}
 						step={0.01}
@@ -162,9 +227,9 @@ export function ParameterControls({
 							{parameters.maxTokens.toLocaleString()}
 						</span>
 					</div>
-					<Slider
-						value={[parameters.maxTokens]}
-						onValueChange={([value]) => updateParam("maxTokens", value)}
+						<Slider
+							value={[parameters.maxTokens]}
+							onValueChange={handleMaxTokensChange}
 						min={256}
 						max={128_000}
 						step={256}
@@ -202,17 +267,10 @@ export function ParameterControls({
 										</TooltipContent>
 									</Tooltip>
 								</div>
-								<Input
-									type="number"
-									value={parameters.topP ?? ""}
-									onChange={(e) =>
-										updateParam(
-											"topP",
-											e.target.value
-												? Number.parseFloat(e.target.value)
-												: undefined,
-										)
-									}
+									<Input
+										type="number"
+										value={parameters.topP ?? ""}
+										onChange={handleTopPChange}
 									min={0}
 									max={1}
 									step={0.01}
@@ -240,17 +298,10 @@ export function ParameterControls({
 										</TooltipContent>
 									</Tooltip>
 								</div>
-								<Input
-									type="number"
-									value={parameters.topK ?? ""}
-									onChange={(e) =>
-											updateParam(
-												"topK",
-												e.target.value
-													? Number.parseInt(e.target.value, 10)
-													: undefined,
-											)
-										}
+									<Input
+										type="number"
+										value={parameters.topK ?? ""}
+										onChange={handleTopKChange}
 									min={0}
 									placeholder="-"
 									disabled={disabled}
@@ -278,17 +329,10 @@ export function ParameterControls({
 										</TooltipContent>
 									</Tooltip>
 								</div>
-								<Input
-									type="number"
-									value={parameters.frequencyPenalty ?? ""}
-									onChange={(e) =>
-										updateParam(
-											"frequencyPenalty",
-											e.target.value
-												? Number.parseFloat(e.target.value)
-												: undefined,
-										)
-									}
+									<Input
+										type="number"
+										value={parameters.frequencyPenalty ?? ""}
+										onChange={handleFrequencyPenaltyChange}
 									min={-2}
 									max={2}
 									step={0.1}
@@ -318,17 +362,10 @@ export function ParameterControls({
 										</TooltipContent>
 									</Tooltip>
 								</div>
-								<Input
-									type="number"
-									value={parameters.presencePenalty ?? ""}
-									onChange={(e) =>
-										updateParam(
-											"presencePenalty",
-											e.target.value
-												? Number.parseFloat(e.target.value)
-												: undefined,
-										)
-									}
+									<Input
+										type="number"
+										value={parameters.presencePenalty ?? ""}
+										onChange={handlePresencePenaltyChange}
 									min={-2}
 									max={2}
 									step={0.1}
@@ -343,4 +380,4 @@ export function ParameterControls({
 			</Accordion>
 		</div>
 	);
-}
+};

@@ -25,7 +25,8 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, Loader2, RefreshCw, XCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { columns, getUserDisplayName } from './columns';
@@ -34,7 +35,7 @@ import type { AdminTemplateRow } from './columns';
 type EmbeddingFilter = "all" | "with" | "without";
 type MigrationMode = "missing" | "all";
 
-function formatDuration(seconds: number): string {
+const formatDuration = (seconds: number): string => {
 	if (seconds < 60) {
 		return `~${seconds}s`;
 	}
@@ -42,7 +43,34 @@ function formatDuration(seconds: number): string {
 	const minutes = Math.floor(seconds / 60);
 	const remainingSeconds = seconds % 60;
 	return `~${minutes}m ${remainingSeconds}s`;
-}
+};
+
+const TemplateTableToolbar = ({ table }: { table: any }) => {
+	const handleTemplateFilterChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			table
+				.getColumn("template")
+				?.setFilterValue(event.target.value);
+		},
+		[table],
+	);
+
+	return (
+		<div className="flex items-center justify-between gap-2">
+			<Input
+				placeholder="Vorlage, Kategorie oder Autor suchen..."
+				value={
+					(table
+						.getColumn("template")
+						?.getFilterValue() as string) ?? ""
+				}
+				onChange={handleTemplateFilterChange}
+				className="max-w-sm"
+			/>
+			<DataTableViewOptions table={table} />
+		</div>
+	);
+};
 
 export default function AdminTemplatesPage() {
 	const queryClient = useQueryClient();
@@ -179,7 +207,7 @@ export default function AdminTemplatesPage() {
 		],
 	);
 
-	const refreshOverview = async () => {
+	const refreshOverview = useCallback(async () => {
 		await Promise.all([
 			queryClient.invalidateQueries({
 				queryKey: templatesQueryOptions.queryKey,
@@ -189,7 +217,7 @@ export default function AdminTemplatesPage() {
 			}),
 		]);
 		toast.success("Vorlagenübersicht aktualisiert");
-	};
+	}, [queryClient, statsQueryOptions.queryKey, templatesQueryOptions.queryKey]);
 
 	const migrateMutation = useMutation({
 		mutationFn: (input: {
@@ -210,7 +238,7 @@ export default function AdminTemplatesPage() {
 		},
 	});
 
-	const handleRunMigration = () => {
+	const handleRunMigration = useCallback(() => {
 		const templatesToProcess =
 			migrationMode === "missing" ? templatesWithoutEmbeddings : totalTemplates;
 
@@ -237,7 +265,48 @@ export default function AdminTemplatesPage() {
 			delayBetweenBatches: Math.max(0, delayBetweenBatches),
 			mode: migrationMode,
 		});
-	};
+	}, [
+		batchSize,
+		delayBetweenBatches,
+		migrateMutation,
+		migrationMode,
+		templatesWithoutEmbeddings,
+		totalTemplates,
+	]);
+
+	const handleMigrationModeChange = useCallback((value: string) => {
+		setMigrationMode(value as MigrationMode);
+	}, []);
+
+	const handleBatchSizeChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			setBatchSize(Number.parseInt(event.target.value, 10) || 10);
+		},
+		[],
+	);
+
+	const handleDelayBetweenBatchesChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			setDelayBetweenBatches(
+				Number.parseInt(event.target.value, 10) || 0,
+			);
+		},
+		[],
+	);
+
+	const handleEmbeddingFilterChange = useCallback((value: string) => {
+		setEmbeddingFilter(value as EmbeddingFilter);
+	}, []);
+
+	const renderTableToolbar = useCallback(
+		(table: any) => <TemplateTableToolbar table={table} />,
+		[],
+	);
+
+	const renderTablePagination = useCallback(
+		(table: any) => <DataTablePagination table={table} />,
+		[],
+	);
 
 	const isInitialLoading =
 		(isLoadingTemplates && templateRows.length === 0) ||
@@ -385,9 +454,7 @@ export default function AdminTemplatesPage() {
 								<Label>Migrationsmodus</Label>
 								<Select
 									value={migrationMode}
-									onValueChange={(value) =>
-										setMigrationMode(value as MigrationMode)
-									}
+									onValueChange={handleMigrationModeChange}
 								>
 									<SelectTrigger>
 										<SelectValue />
@@ -410,9 +477,7 @@ export default function AdminTemplatesPage() {
 									min={1}
 									max={50}
 									value={batchSize}
-									onChange={(event) =>
-										setBatchSize(Number.parseInt(event.target.value, 10) || 10)
-									}
+									onChange={handleBatchSizeChange}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -422,11 +487,7 @@ export default function AdminTemplatesPage() {
 									type="number"
 									min={0}
 									value={delayBetweenBatches}
-									onChange={(event) =>
-										setDelayBetweenBatches(
-											Number.parseInt(event.target.value, 10) || 0,
-										)
-									}
+									onChange={handleDelayBetweenBatchesChange}
 								/>
 							</div>
 						</div>
@@ -519,9 +580,7 @@ export default function AdminTemplatesPage() {
 								<Label>Embedding</Label>
 								<Select
 									value={embeddingFilter}
-									onValueChange={(value) =>
-										setEmbeddingFilter(value as EmbeddingFilter)
-									}
+									onValueChange={handleEmbeddingFilterChange}
 								>
 									<SelectTrigger>
 										<SelectValue placeholder="Alle" />
@@ -543,28 +602,8 @@ export default function AdminTemplatesPage() {
 							columns={columns}
 							data={filteredTemplates}
 							emptyMessage="Keine Vorlagen für die aktuellen Filter gefunden."
-							renderToolbar={(table) => (
-								<div className="flex items-center justify-between gap-2">
-									<Input
-										placeholder="Vorlage, Kategorie oder Autor suchen..."
-										value={
-											(table
-												.getColumn("template")
-												?.getFilterValue() as string) ?? ""
-										}
-										onChange={(event) =>
-											table
-												.getColumn("template")
-												?.setFilterValue(event.target.value)
-										}
-										className="max-w-sm"
-									/>
-									<DataTableViewOptions table={table} />
-								</div>
-							)}
-							renderPagination={(table) => (
-								<DataTablePagination table={table} />
-							)}
+							renderToolbar={renderTableToolbar}
+							renderPagination={renderTablePagination}
 						/>
 					</CardContent>
 				</Card>

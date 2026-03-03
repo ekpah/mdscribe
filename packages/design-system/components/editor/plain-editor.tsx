@@ -7,6 +7,8 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { Pencil } from "lucide-react";
+import type { ChangeEvent } from "react";
+import { useCallback } from "react";
 
 export default function PlainEditor({
 	note,
@@ -19,6 +21,13 @@ export default function PlainEditor({
 	showSource?: boolean;
 	onToggleSource?: () => void;
 }) {
+	const handlePlainEditorChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			setContent(event.target.value);
+		},
+		[setContent],
+	);
+
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden">
 			{/* Menu bar matching TipTapMenu height */}
@@ -63,11 +72,11 @@ export default function PlainEditor({
 
 			{/* Editor Content */}
 			<div className="min-h-0 flex-1">
-				<Textarea
-					className="h-full w-full resize-none border-0 p-3 font-mono text-sm focus-visible:ring-0"
-					onChange={(e) => setContent(e.target.value)}
-					value={note}
-				/>
+					<Textarea
+						className="h-full w-full resize-none border-0 p-3 font-mono text-sm focus-visible:ring-0"
+						onChange={handlePlainEditorChange}
+						value={note}
+					/>
 			</div>
 		</div>
 	);

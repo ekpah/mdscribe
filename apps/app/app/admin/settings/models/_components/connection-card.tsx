@@ -10,6 +10,7 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, Trash2 } from "lucide-react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
@@ -42,7 +43,7 @@ interface ConnectionCardProps {
 	connection: ProviderData;
 }
 
-export function ConnectionCard({ connection }: ConnectionCardProps) {
+export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 	const queryClient = useQueryClient();
 	const listKey = orpc.admin.providers.connections.list.queryOptions().queryKey;
 
@@ -76,6 +77,16 @@ export function ConnectionCard({ connection }: ConnectionCardProps) {
 		},
 	});
 
+	const handleDeleteClick = useCallback(() => {
+		if (confirm("Provider und alle Modelle löschen?")) {
+			deleteMutation.mutate();
+		}
+	}, [deleteMutation]);
+
+	const handleRefreshModels = useCallback(() => {
+		refreshModelsMutation.mutate();
+	}, [refreshModelsMutation]);
+
 	return (
 		<Card className="border-solarized-base2">
 			<CardHeader className="p-4 sm:p-6">
@@ -94,16 +105,12 @@ export function ConnectionCard({ connection }: ConnectionCardProps) {
 						)}
 					</div>
 					<div className="flex items-center gap-2">
-						<Button
-							size="sm"
-							variant="ghost"
-							onClick={() => {
-								if (confirm("Provider und alle Modelle löschen?")) {
-									deleteMutation.mutate();
-								}
-							}}
-							disabled={deleteMutation.isPending}
-						>
+							<Button
+								size="sm"
+								variant="ghost"
+								onClick={handleDeleteClick}
+								disabled={deleteMutation.isPending}
+							>
 							<Trash2 className="h-4 w-4 text-solarized-red" />
 						</Button>
 					</div>
@@ -121,12 +128,12 @@ export function ConnectionCard({ connection }: ConnectionCardProps) {
 						{connection.models.length} Modell
 						{connection.models.length === 1 ? "" : "e"} bekannt
 					</p>
-					<Button
-						size="sm"
-						variant="outline"
-						onClick={() => refreshModelsMutation.mutate()}
-						disabled={refreshModelsMutation.isPending}
-					>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={handleRefreshModels}
+							disabled={refreshModelsMutation.isPending}
+						>
 						{refreshModelsMutation.isPending ? (
 							<Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
 						) : (
@@ -164,6 +171,6 @@ export function ConnectionCard({ connection }: ConnectionCardProps) {
 					</div>
 				)}
 			</CardContent>
-		</Card>
-	);
-}
+			</Card>
+		);
+};

@@ -19,7 +19,8 @@ import {
 } from "@repo/design-system/components/ui/toggle-group";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, Loader2, RefreshCw, XCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { UsageEventDetail } from "./_components/usage-event-detail";
@@ -33,6 +34,28 @@ const filterLabels: Record<StatsFilter, string> = {
 	month: "Monat",
 	today: "Heute",
 	week: "Woche",
+};
+
+const UsageToolbar = ({
+	table,
+	searchFilter,
+	onSearchFilterChange,
+}: {
+	table: any;
+	searchFilter: string;
+	onSearchFilterChange: (event: ChangeEvent<HTMLInputElement>) => void;
+}) => {
+	return (
+		<div className="flex items-center justify-between gap-2">
+			<Input
+				placeholder="Benutzer oder Aktion suchen..."
+				value={searchFilter}
+				onChange={onSearchFilterChange}
+				className="max-w-sm"
+			/>
+			<DataTableViewOptions table={table} />
+		</div>
+	);
 };
 
 export default function UsagePage() {
@@ -72,7 +95,7 @@ export default function UsagePage() {
 		placeholderData: (prev) => prev,
 	});
 
-	const handleRefresh = async () => {
+	const handleRefresh = useCallback(async () => {
 		setCursor(undefined);
 		await Promise.all([
 			queryClient.invalidateQueries({
@@ -83,7 +106,7 @@ export default function UsagePage() {
 			}),
 		]);
 		toast.success("Nutzungsdaten aktualisiert");
-	};
+	}, [listQueryKey, queryClient, statsQueryOptions.queryKey]);
 
 	// Accumulate items when new data arrives
 	useEffect(() => {
@@ -112,16 +135,46 @@ export default function UsagePage() {
 		enabled: !!selectedEventId,
 	});
 
-	const handleLoadMore = () => {
+	const handleLoadMore = useCallback(() => {
 		if (data?.nextCursor) {
 			setCursor(data.nextCursor);
 		}
-	};
+	}, [data?.nextCursor]);
+
+	const handleRowClick = useCallback((row: UsageEventWithUser) => {
+		setSelectedEventId(row.id);
+	}, []);
 
 	const columns = useMemo(
 		() => createColumns((id) => setSelectedEventId(id)),
 		[],
 	);
+
+	const handleStatsFilterChange = useCallback((value: string) => {
+		if (value) {setStatsFilter(value as StatsFilter);}
+	}, []);
+
+	const handleSearchFilterChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			setSearchFilter(event.target.value);
+		},
+		[],
+	);
+
+	const renderUsageToolbar = useCallback(
+		(table: any) => (
+			<UsageToolbar
+				table={table}
+				searchFilter={searchFilter}
+				onSearchFilterChange={handleSearchFilterChange}
+			/>
+		),
+		[handleSearchFilterChange, searchFilter],
+	);
+
+	const handleDetailOpenChange = useCallback((open: boolean) => {
+		if (!open) {setSelectedEventId(null);}
+	}, []);
 
 	// Filter items based on search - matches user name/email OR action name
 	const filteredItems = useMemo(() => {
@@ -221,15 +274,13 @@ export default function UsagePage() {
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
 						{/* Filter Tabs */}
-						<ToggleGroup
-							type="single"
-							value={statsFilter}
-							variant="outline"
-							onValueChange={(value) => {
-								if (value) {setStatsFilter(value as StatsFilter);}
-							}}
-							className="mb-4 w-full"
-						>
+							<ToggleGroup
+								type="single"
+								value={statsFilter}
+								variant="outline"
+								onValueChange={handleStatsFilterChange}
+								className="mb-4 w-full"
+							>
 							{(Object.keys(filterLabels) as StatsFilter[]).map((filter) => (
 								<ToggleGroupItem key={filter} value={filter} className="flex-1">
 									{filterLabels[filter]}
@@ -292,25 +343,15 @@ export default function UsagePage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<DataTable
-							columns={columns}
-							data={filteredItems}
-							onRowClick={(row) => setSelectedEventId(row.id)}
-							enablePagination={false}
-							enableFiltering={false}
-							emptyMessage="Keine Events gefunden"
-							renderToolbar={(table) => (
-								<div className="flex items-center justify-between gap-2">
-									<Input
-										placeholder="Benutzer oder Aktion suchen..."
-										value={searchFilter}
-										onChange={(event) => setSearchFilter(event.target.value)}
-										className="max-w-sm"
-									/>
-									<DataTableViewOptions table={table} />
-								</div>
-							)}
-						/>
+							<DataTable
+								columns={columns}
+								data={filteredItems}
+								onRowClick={handleRowClick}
+								enablePagination={false}
+								enableFiltering={false}
+								emptyMessage="Keine Events gefunden"
+								renderToolbar={renderUsageToolbar}
+							/>
 
 						{/* Load More Button */}
 						{data?.hasMore && (
@@ -337,13 +378,11 @@ export default function UsagePage() {
 			</div>
 
 			{/* Detail Sheet */}
-			<UsageEventDetail
-				event={selectedEvent}
-				open={!!selectedEventId}
-				onOpenChange={(open) => {
-					if (!open) {setSelectedEventId(null);}
-				}}
-			/>
-		</div>
-	);
-}
+				<UsageEventDetail
+					event={selectedEvent}
+					open={!!selectedEventId}
+					onOpenChange={handleDetailOpenChange}
+				/>
+			</div>
+		);
+	}

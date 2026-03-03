@@ -17,7 +17,7 @@ import {
 } from "@repo/design-system/components/ui/select";
 import markdocConfig from "@repo/markdoc-md/markdoc-config";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
@@ -108,7 +108,7 @@ export default function Editor({
 		}
 	};
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = useCallback(async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!isFormValid) {
 			return;
@@ -153,7 +153,30 @@ export default function Editor({
 		} finally {
 			setIsSubmitting(false);
 		}
-	};
+	}, [category, content, id, isFormValid, name, newCategory, router]);
+
+	const handleNewCategoryChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setNewCategory(event.target.value);
+		},
+		[],
+	);
+
+	const handleNameChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setName(event.target.value);
+		},
+		[],
+	);
+
+	const handleSwitchToVisualEditor = useCallback(() => {
+		editorKeyRef.current += 1;
+		setShowSource(false);
+	}, []);
+
+	const handleSwitchToSource = useCallback(() => {
+		setShowSource(true);
+	}, []);
 
 	return (
 		<div className="flex h-[calc(100vh-(--spacing(16))-(--spacing(6)))] gap-4">
@@ -203,11 +226,11 @@ export default function Editor({
 								<Label htmlFor="newCategory">
 									Neue Kategorie <span className="text-solarized-red">*</span>
 								</Label>
-								<Input
-									id="newCategory"
-									onChange={(e) => setNewCategory(e.target.value)}
-									placeholder="Füge eine Kategorie hinzu"
-									value={newCategory}
+									<Input
+										id="newCategory"
+										onChange={handleNewCategoryChange}
+										placeholder="Füge eine Kategorie hinzu"
+										value={newCategory}
 									className={
 										newCategory.trim() === "" ? "border-solarized-red" : ""
 									}
@@ -223,12 +246,12 @@ export default function Editor({
 							<Label htmlFor="name">
 								Name <span className="text-solarized-red">*</span>
 							</Label>
-							<Input
-								id="name"
-								name="name"
-								onChange={(e) => setName(e.target.value)}
-								placeholder="Vorlagenname eingeben"
-								value={name}
+								<Input
+									id="name"
+									name="name"
+									onChange={handleNameChange}
+									placeholder="Vorlagenname eingeben"
+									value={name}
 								className={name.trim() === "" ? "border-solarized-red" : ""}
 							/>
 							{name.trim() === "" && (
@@ -242,25 +265,20 @@ export default function Editor({
 					<div className="flex min-h-0 grow flex-col gap-2">
 						<div className="min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
 							{showSource ? (
-								<PlainEditor
-									note={content}
-									onToggleSource={() => {
-										editorKeyRef.current += 1;
-										setShowSource(false);
-									}}
-									setContent={setContent}
-									showSource={showSource}
-								/>
+									<PlainEditor
+										note={content}
+										onToggleSource={handleSwitchToVisualEditor}
+										setContent={setContent}
+										showSource={showSource}
+									/>
 							) : (
-								<TipTap
+									<TipTap
 									key={`tiptap-${editorKeyRef.current}`}
 									note={content}
-									onToggleSource={
-										canEditSource ? () => setShowSource(true) : undefined
-									}
-									setContent={setContent}
-									showSource={showSource}
-								/>
+										onToggleSource={canEditSource ? handleSwitchToSource : undefined}
+										setContent={setContent}
+										showSource={showSource}
+									/>
 							)}
 						</div>
 					</div>

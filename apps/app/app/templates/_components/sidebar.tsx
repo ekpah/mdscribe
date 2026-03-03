@@ -35,7 +35,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryState } from 'nuqs';
 import type React from 'react';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { useHotkeys } from 'react-hotkeys-hook';
 import { CollectionSwitcher } from './collection-switcher';
@@ -157,9 +157,9 @@ export default function AppSidebar({
         },
       ];
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e?.currentTarget?.value);
-  };
+  }, []);
 
   // 1. List of items to search in
   const menuSegments = JSON.parse(
@@ -193,13 +193,17 @@ export default function AppSidebar({
     templates: searchTerm ? filteredLinks : menuSegments,
   });
 
-  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const firstUrl = orderedSegments[0]?.documents[0]?.url;
     if (firstUrl) {
       router.push(firstUrl);
     }
-  };
+  }, [orderedSegments, router]);
+
+  const handleCloseMobile = useCallback(() => {
+    setOpenMobile(false);
+  }, [setOpenMobile]);
 
   return (
     <Sidebar className="top-16 mb-16 p-1 pb-20">
@@ -283,9 +287,7 @@ export default function AppSidebar({
                                 <Link
                                   className="flex items-center justify-between"
                                   href={`${item.url}?activeCollection=${encodeURIComponent(activeCollection)}`}
-                                  onClick={() => {
-                                    setOpenMobile(false);
-                                  }}
+                                  onClick={handleCloseMobile}
                                 >
                                   <span>{item.title}</span>
                                   {item.favouritesCount > 0 && (

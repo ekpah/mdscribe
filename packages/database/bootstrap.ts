@@ -2,14 +2,14 @@ import { database } from "./runtime-client";
 import { initSchemaSQL } from "./init-schema";
 import { seedDatabase } from "./seed";
 
-async function bootstrapDatabase(): Promise<void> {
+const bootstrapDatabase = async (): Promise<void> => {
 	console.log("Applying development database schema...");
 	await database.$client.unsafe(initSchemaSQL);
 	console.log("Schema ready");
 
 	await seedDatabase(database);
 	console.log("Development seed complete");
-}
+};
 
 try {
 	await bootstrapDatabase();

@@ -17,8 +17,8 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ModelSelector } from '@repo/design-system/components/ui/model-selector';
-import type { ModelSelectorOption } from '@repo/design-system/components/ui/model-selector';
+import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
+import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,
@@ -37,8 +37,8 @@ import {
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, MutableRefObject } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -63,10 +63,10 @@ interface PlaygroundPanelProps {
  * Reverse mapping from stored usage input back to form field names.
  * Normalization happens centrally now; we keep these mappings for UI hydration.
  */
-function parseVariablesToFormFields(
+const parseVariablesToFormFields = (
 	documentType: DocumentType,
 	variables: Record<string, unknown>,
-): { main: string; additional: Record<string, string> } {
+): { main: string; additional: Record<string, string> } => {
 	const v = variables as Record<string, unknown>;
 
 	const pickString = (...keys: string[]): string => {
@@ -142,7 +142,7 @@ function parseVariablesToFormFields(
 	}
 
 	return result;
-}
+};
 
 interface ModelRunConfig {
 	id: string;
@@ -183,19 +183,19 @@ const PROVIDER_LABELS: Record<string, string> = {
 	"z-ai": "Zhipu AI",
 };
 
-function getProviderFromModelId(modelId: string): string {
+const getProviderFromModelId = (modelId: string): string => {
 	return modelId.split("/")[0] || "other";
-}
+};
 
-function getProviderGroup(model: PlaygroundModel): string {
+const getProviderGroup = (model: PlaygroundModel): string => {
 	return (
 		model.providerProtocol ??
 		model.connectionProtocol ??
 		getProviderFromModelId(model.modelId)
 	);
-}
+};
 
-export function PlaygroundPanel({
+export const PlaygroundPanel = ({
 	models,
 	topModelIds,
 	isLoadingModels,
@@ -203,7 +203,7 @@ export function PlaygroundPanel({
 	presetParameters,
 	presetDocumentType,
 	presetVariables,
-}: PlaygroundPanelProps) {
+}: PlaygroundPanelProps) => {
 	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">(
 		"input",
 	);
@@ -282,7 +282,7 @@ export function PlaygroundPanel({
 		return JSON.stringify(data);
 	}, [docUi, formMain, formAdditional]);
 
-	const compile = async () => {
+	const compile = useCallback(async () => {
 		setIsCompiling(true);
 		try {
 			const res = await orpc.admin.scribe.compilePrompt.call({
@@ -310,7 +310,7 @@ export function PlaygroundPanel({
 		} finally {
 			setIsCompiling(false);
 		}
-	};
+	}, [documentType, promptJson, promptName]);
 
 	const [modelRuns, setModelRuns] = useState<ModelRunConfig[]>(() => [
 		{
@@ -424,20 +424,220 @@ export function PlaygroundPanel({
 		});
 	}, [models, topModelIds]);
 
+	const handleInputAccordionValueChange = useCallback(
+		(value: string) => {
+			if (!isMobile) {return;}
+			setMobileInputPanelValue(value || undefined);
+		},
+		[isMobile],
+	);
+
+	const handleTabValueChange = useCallback((value: string) => {
+		setActiveTab(value as "input" | "prompt" | "models");
+	}, []);
+
+	const handleDocumentTypeValueChange = useCallback((value: string) => {
+		setDocumentType(value as DocumentType);
+	}, []);
+
+	const handleMainInputChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			setFormMain(event.target.value);
+		},
+		[],
+	);
+
+	const additionalFieldChangeHandlers = useMemo<
+		Record<string, (event: ChangeEvent<HTMLTextAreaElement>) => void>
+	>(() => {
+		const handlers: Record<
+			string,
+			(event: ChangeEvent<HTMLTextAreaElement>) => void
+		> = {};
+		for (const field of docUi.additionalFields) {
+			handlers[field.name] = (event) => {
+				setFormAdditional((prev) => ({
+					...prev,
+					[field.name]: event.target.value,
+				}));
+			};
+		}
+		return handlers;
+	}, [docUi.additionalFields]);
+
+	const handleCopyPromptJson = useCallback(async () => {
+		await navigator.clipboard.writeText(promptJson);
+		toast.success("Kopiert!");
+	}, [promptJson]);
+
+	const handlePromptNameChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			setPromptName(event.target.value);
+		},
+		[],
+	);
+
+	const handlePromptLabelValueChange = useCallback((value: string) => {
+		setPromptLabel(value as "staging" | "production");
+	}, []);
+
+	const handleResetCompiledOverride = useCallback(() => {
+		setCompiledOverride(null);
+		toast.success("Override zurückgesetzt");
+	}, []);
+
+	const compiledMessagesForEditing = compiledOverride ?? compiledMessages;
+
+	const handleCompiledMessageValueChange = useCallback(
+		(index: number, value: string) => {
+			const next = compiledMessagesForEditing.map((message) => ({ ...message }));
+			next[index] = {
+				...next[index],
+				content: value,
+			};
+			setCompiledOverride(next);
+		},
+		[compiledMessagesForEditing],
+	);
+
+	const compiledMessageChangeHandlers = useMemo(
+		() =>
+			compiledMessagesForEditing.map(
+				(_, index) => (event: ChangeEvent<HTMLTextAreaElement>) => {
+					handleCompiledMessageValueChange(index, event.target.value);
+				},
+			),
+		[compiledMessagesForEditing, handleCompiledMessageValueChange],
+	);
+
+	const compiledMessageCopyHandlers = useMemo(
+		() =>
+			compiledMessagesForEditing.map((message) => async () => {
+				await navigator.clipboard.writeText(message.content);
+				toast.success("Kopiert!");
+			}),
+		[compiledMessagesForEditing],
+	);
+
+	const handleAddModelRun = useCallback(() => {
+		setModelRuns((prev) => [
+			...prev,
+			{
+				id: crypto.randomUUID(),
+				model: null,
+				parameters: { ...DEFAULT_PARAMETERS },
+			},
+		]);
+	}, []);
+
+	const handleModelRunModelChange = useCallback(
+		(runId: string, modelId: string) => {
+			const model = modelById.get(modelId);
+			if (!model) {return;}
+
+			setModelRuns((prev) =>
+				prev.map((run) => {
+					if (run.id !== runId) {return run;}
+					return {
+						...run,
+						model,
+						parameters: run.parameters,
+					};
+				}),
+			);
+		},
+		[modelById],
+	);
+
+	const modelRunModelChangeHandlers = useMemo<
+		Record<string, (modelId: string) => void>
+	>(() => {
+		const handlers: Record<string, (modelId: string) => void> = {};
+		for (const run of modelRuns) {
+			handlers[run.id] = (modelId) => {
+				handleModelRunModelChange(run.id, modelId);
+			};
+		}
+		return handlers;
+	}, [modelRuns, handleModelRunModelChange]);
+
+	const handleRemoveModelRun = useCallback((runId: string) => {
+		setModelRuns((prev) => prev.filter((run) => run.id !== runId));
+		setRunStates((prev) => {
+			const next = { ...prev };
+			delete next[runId];
+			return next;
+		});
+	}, []);
+
+	const modelRunRemoveHandlers = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const run of modelRuns) {
+			handlers[run.id] = () => {
+				handleRemoveModelRun(run.id);
+			};
+		}
+		return handlers;
+	}, [modelRuns, handleRemoveModelRun]);
+
+	const handleModelRunParameterChange = useCallback(
+		(runId: string, parameters: PlaygroundParameters) => {
+			setModelRuns((prev) =>
+				prev.map((run) =>
+					run.id === runId ? { ...run, parameters } : run,
+				),
+			);
+		},
+		[],
+	);
+
+	const modelRunParameterChangeHandlers = useMemo<
+		Record<string, (parameters: PlaygroundParameters) => void>
+	>(() => {
+		const handlers: Record<
+			string,
+			(parameters: PlaygroundParameters) => void
+		> = {};
+		for (const run of modelRuns) {
+			handlers[run.id] = (parameters) => {
+				handleModelRunParameterChange(run.id, parameters);
+			};
+		}
+		return handlers;
+	}, [modelRuns, handleModelRunParameterChange]);
+
+	const formatModelGroupLabel = useCallback((group: string) => {
+		return (
+			PROVIDER_LABELS[group] ??
+			group.charAt(0).toUpperCase() + group.slice(1)
+		);
+	}, []);
+
+	const renderSelectedModel = useCallback(
+		(selected: PlaygroundModelSelectorOption | null) => (
+			<span className="min-w-0 truncate">
+				{selected?.model.name ?? "Modell auswählen..."}
+			</span>
+		),
+		[],
+	);
+
+	const handleResetRunResults = useCallback(() => {
+		setRunStates({});
+		toast.success("Ergebnisse zurückgesetzt");
+	}, []);
+
 	return (
 		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
 			{/* Left Panel - Tabs */}
 			<div className="w-full min-w-0 lg:w-[460px] lg:shrink-0">
-				<Accordion
-					type="single"
-					collapsible={isMobile}
-					value={isMobile ? mobileInputPanelValue : "input-config"}
-					onValueChange={(value) => {
-						if (!isMobile) {return;}
-						setMobileInputPanelValue(value || undefined);
-					}}
-					className="w-full"
-				>
+					<Accordion
+						type="single"
+						collapsible={isMobile}
+						value={isMobile ? mobileInputPanelValue : "input-config"}
+						onValueChange={handleInputAccordionValueChange}
+						className="w-full"
+					>
 					<AccordionItem
 						value="input-config"
 						className="border-solarized-base2 lg:border-0"
@@ -453,13 +653,11 @@ export function PlaygroundPanel({
 									</CardTitle>
 								</CardHeader>
 
-								<Tabs
-									className="flex min-h-0 min-w-0 flex-1 flex-col"
-									onValueChange={(v) =>
-										setActiveTab(v as "input" | "prompt" | "models")
-									}
-									value={activeTab}
-								>
+									<Tabs
+										className="flex min-h-0 min-w-0 flex-1 flex-col"
+										onValueChange={handleTabValueChange}
+										value={activeTab}
+									>
 									<div className="border-b border-solarized-base2 px-3 py-2">
 										<TabsList className="grid h-8 w-full grid-cols-3">
 											<TabsTrigger value="input" className="text-xs">
@@ -481,12 +679,10 @@ export function PlaygroundPanel({
 													<Label className="text-sm text-solarized-base01">
 														Dokumenttyp
 													</Label>
-													<Select
-														onValueChange={(v) =>
-															setDocumentType(v as DocumentType)
-														}
-														value={documentType}
-													>
+														<Select
+															onValueChange={handleDocumentTypeValueChange}
+															value={documentType}
+														>
 														<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
 															<SelectValue />
 														</SelectTrigger>
@@ -508,13 +704,13 @@ export function PlaygroundPanel({
 														>
 															{docUi.mainField.label}
 														</Label>
-														<Textarea
-															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-															id="main-input"
-															onChange={(e) => setFormMain(e.target.value)}
-															placeholder={docUi.mainField.placeholder}
-															value={formMain}
-														/>
+															<Textarea
+																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+																id="main-input"
+																onChange={handleMainInputChange}
+																placeholder={docUi.mainField.placeholder}
+																value={formMain}
+															/>
 														{docUi.mainField.description && (
 															<p className="text-xs text-solarized-base01">
 																{docUi.mainField.description}
@@ -533,18 +729,15 @@ export function PlaygroundPanel({
 																	>
 																		{field.label}
 																	</Label>
-																	<Textarea
-																		className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																		id={field.name}
-																		onChange={(e) =>
-																			setFormAdditional((prev) => ({
-																				...prev,
-																				[field.name]: e.target.value,
-																			}))
-																		}
-																		placeholder={field.placeholder}
-																		value={formAdditional[field.name] ?? ""}
-																	/>
+																		<Textarea
+																			className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+																			id={field.name}
+																			onChange={
+																				additionalFieldChangeHandlers[field.name]
+																			}
+																			placeholder={field.placeholder}
+																			value={formAdditional[field.name] ?? ""}
+																		/>
 																</div>
 															))}
 														</div>
@@ -555,18 +748,13 @@ export function PlaygroundPanel({
 															<Label className="text-sm text-solarized-base01">
 																Prompt JSON (gesendet an Server)
 															</Label>
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																onClick={async () => {
-																	await navigator.clipboard.writeText(
-																		promptJson,
-																	);
-																	toast.success("Kopiert!");
-																}}
-															>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
+																	onClick={handleCopyPromptJson}
+																>
 																<Copy className="h-4 w-4" />
 																Kopieren
 															</Button>
@@ -590,23 +778,21 @@ export function PlaygroundPanel({
 														<Label className="text-sm text-solarized-base01">
 															Prompt Name
 														</Label>
-														<Input
-															className="border-solarized-base2 bg-solarized-base3"
-															onChange={(e) => setPromptName(e.target.value)}
-															value={promptName}
-															placeholder="z.B. Inpatient_discharge_chat"
-														/>
+															<Input
+																className="border-solarized-base2 bg-solarized-base3"
+																onChange={handlePromptNameChange}
+																value={promptName}
+																placeholder="z.B. Inpatient_discharge_chat"
+															/>
 													</div>
 													<div className="space-y-2">
 														<Label className="text-sm text-solarized-base01">
 															Label
 														</Label>
-														<Select
-															onValueChange={(v) =>
-																setPromptLabel(v as "staging" | "production")
-															}
-															value={promptLabel}
-														>
+															<Select
+																onValueChange={handlePromptLabelValueChange}
+																value={promptLabel}
+															>
 															<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
 																<SelectValue />
 															</SelectTrigger>
@@ -629,16 +815,13 @@ export function PlaygroundPanel({
 													>
 														{isCompiling ? "Kompiliere..." : "Kompilieren"}
 													</Button>
-													<Button
-														type="button"
-														variant="outline"
-														className="border-solarized-base2"
-														onClick={() => {
-															setCompiledOverride(null);
-															toast.success("Override zurückgesetzt");
-														}}
-														disabled={compiledOverride === null}
-													>
+														<Button
+															type="button"
+															variant="outline"
+															className="border-solarized-base2"
+															onClick={handleResetCompiledOverride}
+															disabled={compiledOverride === null}
+														>
 														<RotateCcw className="h-4 w-4" />
 														Override zurücksetzen
 													</Button>
@@ -671,8 +854,8 @@ export function PlaygroundPanel({
 																Compiled Messages (editierbar)
 															</Label>
 															<div className="space-y-3">
-																{(compiledOverride ?? compiledMessages).map(
-																	(m, idx) => (
+																	{compiledMessagesForEditing.map(
+																		(m, idx) => (
 																		<div
 																			key={`${m.role}-${idx}`}
 																			className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
@@ -681,36 +864,26 @@ export function PlaygroundPanel({
 																				<span className="font-mono text-xs text-solarized-base01">
 																					{m.role}
 																				</span>
-																				<Button
-																					type="button"
-																					variant="ghost"
-																					size="sm"
-																					className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																					onClick={async () => {
-																						await navigator.clipboard.writeText(
-																							m.content,
-																						);
-																						toast.success("Kopiert!");
-																					}}
-																				>
+																					<Button
+																						type="button"
+																						variant="ghost"
+																						size="sm"
+																						className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
+																						onClick={
+																							compiledMessageCopyHandlers[idx]
+																						}
+																					>
 																					<Copy className="h-3.5 w-3.5" />
 																					Copy
 																				</Button>
 																			</div>
-																			<Textarea
-																				value={m.content}
-																				onChange={(e) => {
-																					const next = (
-																						compiledOverride ?? compiledMessages
-																					).map((x) => ({ ...x }));
-																					next[idx] = {
-																						...next[idx],
-																						content: e.target.value,
-																					};
-																					setCompiledOverride(next);
-																				}}
-																				className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																			/>
+																				<Textarea
+																					value={m.content}
+																					onChange={
+																						compiledMessageChangeHandlers[idx]
+																					}
+																					className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+																				/>
 																		</div>
 																	),
 																)}
@@ -731,21 +904,12 @@ export function PlaygroundPanel({
 															demselben Input und Prompt getestet werden.
 														</p>
 													</div>
-													<Button
-														type="button"
-														size="sm"
-														className="gap-2"
-														onClick={() =>
-															setModelRuns((prev) => [
-																...prev,
-																{
-																	id: crypto.randomUUID(),
-																	model: null,
-																	parameters: { ...DEFAULT_PARAMETERS },
-																},
-															])
-														}
-													>
+														<Button
+															type="button"
+															size="sm"
+															className="gap-2"
+															onClick={handleAddModelRun}
+														>
 														<Plus className="h-4 w-4" />
 														Add
 													</Button>
@@ -762,59 +926,29 @@ export function PlaygroundPanel({
 																	<Label className="text-sm text-solarized-base01">
 																		Modell
 																	</Label>
-																	<ModelSelector
+																		<ModelSelector
 																		options={modelSelectorOptions}
 																		value={run.model?.id ?? null}
 																		isLoading={isLoadingModels}
 																		placeholder="Modell auswählen..."
 																		loadingMessage="Lade Modelle..."
 																		emptyMessage="Keine Modelle gefunden."
-																		formatGroupLabel={(group) =>
-																			PROVIDER_LABELS[group] ??
-																			group.charAt(0).toUpperCase() +
-																				group.slice(1)
-																		}
+																			formatGroupLabel={formatModelGroupLabel}
 																		className="border-solarized-base2 bg-solarized-base3"
 																		popoverClassName="max-h-[min(70vh,32rem)] w-[min(26rem,calc(100vw-1rem))] overflow-auto p-0"
-																		renderSelected={(selected) => (
-																			<span className="min-w-0 truncate">
-																				{selected?.model.name ??
-																					"Modell auswählen..."}
-																			</span>
-																		)}
-																		onValueChange={(modelId) => {
-																			const model = modelById.get(modelId);
-																			if (!model) {return;}
-
-																			setModelRuns((prev) =>
-																				prev.map((r) => {
-																					if (r.id !== run.id) {return r;}
-																					return {
-																						...r,
-																						model,
-																						parameters: r.parameters,
-																					};
-																				}),
-																			);
-																		}}
-																	/>
+																			renderSelected={renderSelectedModel}
+																			onValueChange={
+																				modelRunModelChangeHandlers[run.id]
+																			}
+																		/>
 																</div>
 
-																<Button
+																	<Button
 																	type="button"
 																	variant="ghost"
 																	size="sm"
 																	className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
-																	onClick={() => {
-																		setModelRuns((prev) =>
-																			prev.filter((r) => r.id !== run.id),
-																		);
-																		setRunStates((prev) => {
-																			const next = { ...prev };
-																			delete next[run.id];
-																			return next;
-																		});
-																	}}
+																		onClick={modelRunRemoveHandlers[run.id]}
 																	disabled={modelRuns.length === 1}
 																	title={
 																		modelRuns.length === 1
@@ -833,19 +967,13 @@ export function PlaygroundPanel({
 																<Label className="text-sm text-solarized-base01">
 																	Parameter
 																</Label>
-																<ParameterControls
-																	parameters={run.parameters}
-																	onChange={(p) =>
-																		setModelRuns((prev) =>
-																			prev.map((r) =>
-																				r.id === run.id
-																					? { ...r, parameters: p }
-																					: r,
-																			),
-																		)
-																	}
-																	model={run.model}
-																/>
+																	<ParameterControls
+																		parameters={run.parameters}
+																		onChange={
+																			modelRunParameterChangeHandlers[run.id]
+																		}
+																		model={run.model}
+																	/>
 															</div>
 														</div>
 													))}
@@ -873,16 +1001,13 @@ export function PlaygroundPanel({
 							</p>
 						</div>
 						<div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
-								onClick={() => {
-									setRunStates({});
-									toast.success("Ergebnisse zurückgesetzt");
-								}}
-							>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
+									onClick={handleResetRunResults}
+								>
 								<RotateCcw className="h-3.5 w-3.5" />
 								Reset
 							</Button>
@@ -921,9 +1046,9 @@ export function PlaygroundPanel({
 			</Card>
 		</div>
 	);
-}
+};
 
-function RunCard({
+const RunCard = ({
 	runId,
 	modelRun,
 	documentType,
@@ -951,7 +1076,7 @@ function RunCard({
 	runState: RunState | undefined;
 	setRunState: (id: string, patch: Partial<RunState>) => void;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
-}) {
+}) => {
 	const payloadRef = useRef<
 		null | Parameters<typeof orpc.admin.scribe.run.call>[0]
 	>(null);
@@ -1047,6 +1172,11 @@ function RunCard({
 
 	const isRunning = status === "streaming" || status === "submitted";
 
+	const handleStopRun = useCallback(() => {
+		stop();
+		setRunState(runId, { isStreaming: false });
+	}, [runId, setRunState, stop]);
+
 	const startRun = useCallback(async () => {
 		if (!modelRun.model) {
 			toast.error("Bitte Modell auswählen");
@@ -1122,17 +1252,14 @@ function RunCard({
 				</div>
 
 				<div className="flex shrink-0 gap-1.5">
-					{isRunning ? (
-						<Button
-							type="button"
-							variant="destructive"
-							size="sm"
-							className="h-7 px-2 text-xs"
-							onClick={() => {
-								stop();
-								setRunState(runId, { isStreaming: false });
-							}}
-						>
+						{isRunning ? (
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								className="h-7 px-2 text-xs"
+								onClick={handleStopRun}
+							>
 							Stop
 						</Button>
 					) : (
@@ -1168,4 +1295,4 @@ function RunCard({
 			</div>
 		</div>
 	);
-}
+};

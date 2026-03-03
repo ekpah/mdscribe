@@ -11,6 +11,7 @@ import {
 	UploadIcon,
 	XIcon,
 } from "lucide-react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { MAX_PDF_UPLOAD_BYTES } from "../_lib/pdf-data";
 
@@ -62,6 +63,12 @@ export default function PDFUploadSection({
 	});
 
 	const file = files[0];
+	const handleClearFile = useCallback(() => {
+		if (file) {
+			removeFile(file.id);
+		}
+		onClear();
+	}, [file, onClear, removeFile]);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -133,17 +140,12 @@ export default function PDFUploadSection({
 								</div>
 							</div>
 
-							<Button
-								aria-label="Datei entfernen"
-								className="-me-2 size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
-								onClick={() => {
-									if (file) {
-										removeFile(files[0]?.id);
-									}
-									onClear();
-								}}
-								size="icon"
-								variant="ghost"
+								<Button
+									aria-label="Datei entfernen"
+									className="-me-2 size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
+									onClick={handleClearFile}
+									size="icon"
+									variant="ghost"
 							>
 								<XIcon aria-hidden="true" className="size-4" />
 							</Button>

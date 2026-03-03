@@ -20,9 +20,9 @@ const voiceFillSchema = z.object({
 	fieldValues: z.record(z.string(), z.string()),
 });
 
-function normalizeVoiceFillObject(
+const normalizeVoiceFillObject = (
 	object: unknown,
-): z.infer<typeof voiceFillSchema> {
+): z.infer<typeof voiceFillSchema> => {
 	const parsed = voiceFillSchema.safeParse(object);
 	if (parsed.success) {
 		return parsed.data;
@@ -39,7 +39,7 @@ function normalizeVoiceFillObject(
 	}
 
 	throw new Error("Invalid voice fill response format");
-}
+};
 
 const deriveFieldsFromTags = (
 	inputTags: InputTagType[],

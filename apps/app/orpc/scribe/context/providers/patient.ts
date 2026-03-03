@@ -38,7 +38,7 @@ const patientContextSections: ContextSectionSpec[] = [
 	},
 ];
 
-function renderSection(spec: ContextSectionSpec, content: string): string {
+const renderSection = (spec: ContextSectionSpec, content: string): string => {
 	const trimmedContent = content.trim();
 	if (!trimmedContent) {return "";}
 
@@ -54,7 +54,7 @@ function renderSection(spec: ContextSectionSpec, content: string): string {
 		"</content>",
 		`</${spec.tag}>`,
 	].join("\n");
-}
+};
 
 export const patientContextProvider: ContextProvider = {
 	build: ({ sources }) => {

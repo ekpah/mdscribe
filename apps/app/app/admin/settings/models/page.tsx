@@ -10,6 +10,7 @@ import {
 } from "@repo/design-system/components/ui/tabs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, Loader2, RefreshCw, Settings, Sparkles } from "lucide-react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
@@ -31,12 +32,12 @@ export default function ModelsSettingsPage() {
 		connections?.reduce((sum, provider) => sum + provider.models.length, 0) ??
 		0;
 
-	const handleRefresh = async () => {
+	const handleRefresh = useCallback(async () => {
 		await queryClient.invalidateQueries({
 			queryKey: orpc.admin.providers.connections.list.queryOptions().queryKey,
 		});
 		toast.success("Provider aktualisiert");
-	};
+	}, [queryClient]);
 
 	return (
 		<div className="p-4 sm:p-6">

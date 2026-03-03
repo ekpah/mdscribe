@@ -7,10 +7,10 @@ import config from '../../markdoc-config';
  * @param markdocString The raw Markdoc content.
  * @returns A string representing the Markdoc content as HTML.
  */
-export function renderTipTapHTML(markdocString: string): string {
+export const renderTipTapHTML = (markdocString: string): string => {
   const ast = Markdoc.parse(markdocString);
   // Apply transformations using your Markdoc config
   // This is where tags and nodes get processed initially
   const content = Markdoc.transform(ast, config);
   return Markdoc.renderers.html(content);
-}
+};

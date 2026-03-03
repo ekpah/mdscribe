@@ -1,7 +1,8 @@
-'use client';
-import { Button } from '@repo/design-system/components/ui/button';
-import Link from 'next/link';
-import React from 'react';
+"use client";
+import { Button } from "@repo/design-system/components/ui/button";
+import Link from "next/link";
+import { useCallback, useState } from "react";
+import type { MouseEvent } from "react";
 import {
   BookmarkFilledIcon,
   BookmarkIcon,
@@ -9,19 +10,19 @@ import {
   Pencil2Icon,
   PersonIcon,
   Share1Icon,
-} from '@radix-ui/react-icons';
+} from "@radix-ui/react-icons";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@repo/design-system/components/ui/tooltip';
-import { toast } from 'sonner';
-import { orpc } from '@/lib/orpc';
+} from "@repo/design-system/components/ui/tooltip";
+import { toast } from "sonner";
+import { orpc } from "@/lib/orpc";
 
 // 1: Define a type that includes the relation to `Post`
 
-export function NavActions({
+export const NavActions = ({
   author,
   isAuthor,
   isFavourite,
@@ -38,9 +39,9 @@ export function NavActions({
   lastEdited: Date;
   templateId?: string;
   favouriteOfCount: number;
-}) {
-  const [isBookmark, setBookmark] = React.useState(isFavourite);
-  async function makeFavourite(event: React.MouseEvent<HTMLElement>) {
+}) => {
+  const [isBookmark, setBookmark] = useState(isFavourite);
+  const makeFavourite = useCallback(async (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
     if (!templateId) {
       return;
@@ -48,31 +49,31 @@ export function NavActions({
     setBookmark(true);
     await orpc.templates.addFavourite.call({ templateId });
 
-    toast.success('Favorit gespeichert');
-  }
-  async function unmakeFavourite(event: React.MouseEvent<HTMLElement>) {
+    toast.success("Favorit gespeichert");
+  }, [templateId]);
+  const unmakeFavourite = useCallback(async (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
     if (!templateId) {
       return;
     }
     setBookmark(false);
     await orpc.templates.removeFavourite.call({ templateId });
-    toast.success('Favorit entfernt');
-  }
+    toast.success("Favorit entfernt");
+  }, [templateId]);
 
   return (
     <div className="flex items-center gap-2 text-sm">
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <PersonIcon />
-        Autor: {author || 'Anonym'}
+        Autor: {author || "Anonym"}
       </div>
 
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <ClockIcon />
-        Zuletzt bearbeitet am{' '}
+        Zuletzt bearbeitet am{" "}
         {lastEdited &&
-          new Date(lastEdited).toLocaleString('de-DE', {
-            dateStyle: 'medium',
+          new Date(lastEdited).toLocaleString("de-DE", {
+            dateStyle: "medium",
           })}
       </div>
 
@@ -83,7 +84,7 @@ export function NavActions({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={(e) => unmakeFavourite(e)}
+            onClick={unmakeFavourite}
           >
             <BookmarkFilledIcon />
           </Button>
@@ -92,7 +93,7 @@ export function NavActions({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={(e) => makeFavourite(e)}
+            onClick={makeFavourite}
           >
             <BookmarkIcon />
           </Button>
@@ -131,4 +132,4 @@ export function NavActions({
       )}
     </div>
   );
-}
+};

@@ -172,9 +172,9 @@ const statsFilterInput = z.object({
 	filter: z.enum(["today", "week", "month", "all"]).optional(),
 });
 
-function getDateRangeStart(
+const getDateRangeStart = (
 	filter: "today" | "week" | "month" | "all" | undefined,
-): Date | null {
+): Date | null => {
 	const now = new Date();
 
 	switch (filter) {
@@ -200,7 +200,7 @@ function getDateRangeStart(
 			return null;
 		}
 	}
-}
+};
 
 const getUsageStatsHandler = authed
 	.use(requiredAdminMiddleware)

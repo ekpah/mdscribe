@@ -106,6 +106,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@react-email/preview-server": "^5.1.1",
+        "@react-email/render": "2.0.0",
         "react-email": "5.1.1",
       },
       "devDependencies": {

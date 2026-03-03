@@ -21,7 +21,8 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 import {
 	normalizeProviderBaseUrl,
@@ -39,13 +40,13 @@ const PROTOCOLS = [
 	{ label: "Anthropic", value: "anthropic" },
 ] as const;
 
-function normalizeMaybeBaseUrl(value: string): string | undefined {
+const normalizeMaybeBaseUrl = (value: string): string | undefined => {
 	const trimmed = value.trim();
 	if (!trimmed) {return undefined;}
 	return normalizeProviderBaseUrl(trimmed);
-}
+};
 
-export function AddProviderDialog() {
+export const AddProviderDialog = () => {
 	const [open, setOpen] = useState(false);
 	const [name, setName] = useState("");
 	const [protocol, setProtocol] = useState<string>("openai-compatible");
@@ -74,14 +75,14 @@ export function AddProviderDialog() {
 		};
 	}, [name, protocol, baseUrl, apiKey]);
 
-	const handleReset = () => {
+	const handleReset = useCallback(() => {
 		setName("");
 		setProtocol("openai-compatible");
 		setBaseUrl("");
 		setApiKey("");
 		setValidated(false);
 		setOpen(false);
-	};
+	}, []);
 
 	const checkMutation = useMutation({
 		mutationFn: () =>
@@ -126,15 +127,31 @@ export function AddProviderDialog() {
 		},
 		});
 
-	const handleFieldChange = (
+	const handleFieldChange = useCallback((
 		setter: (value: string) => void,
 		value: string,
 	) => {
 		setter(value);
 		setValidated(false);
-	};
+	}, []);
 
-	const handleCheck = () => {
+	const handleNameChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		handleFieldChange(setName, event.target.value);
+	}, [handleFieldChange]);
+
+	const handleProtocolChange = useCallback((value: string) => {
+		handleFieldChange(setProtocol, value);
+	}, [handleFieldChange]);
+
+	const handleBaseUrlChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		handleFieldChange(setBaseUrl, event.target.value);
+	}, [handleFieldChange]);
+
+	const handleApiKeyChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		handleFieldChange(setApiKey, event.target.value);
+	}, [handleFieldChange]);
+
+	const handleCheck = useCallback(() => {
 		if (!providerPayload.name) {
 			toast.error("Bitte einen Namen eingeben");
 			return;
@@ -159,15 +176,15 @@ export function AddProviderDialog() {
 		}
 
 		checkMutation.mutate();
-	};
+	}, [baseUrl, checkMutation, providerPayload]);
 
-	const handleCreate = () => {
+	const handleCreate = useCallback(() => {
 		if (!validated) {
 			toast.error("Bitte zuerst die Verbindung prüfen");
 			return;
 		}
 		createMutation.mutate();
-	};
+	}, [createMutation, validated]);
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -189,22 +206,20 @@ export function AddProviderDialog() {
 				<div className="space-y-4 py-4">
 					<div className="space-y-2">
 						<Label htmlFor="provider-name">Name</Label>
-						<Input
-							id="provider-name"
-							placeholder="z.B. OpenRouter oder Local llama.cpp"
-							value={name}
-							onChange={(event) =>
-								handleFieldChange(setName, event.target.value)
-							}
-						/>
+							<Input
+								id="provider-name"
+								placeholder="z.B. OpenRouter oder Local llama.cpp"
+								value={name}
+								onChange={handleNameChange}
+							/>
 					</div>
 
 					<div className="space-y-2">
 						<Label>Protokoll</Label>
-						<Select
-							value={protocol}
-							onValueChange={(value) => handleFieldChange(setProtocol, value)}
-						>
+							<Select
+								value={protocol}
+								onValueChange={handleProtocolChange}
+							>
 							<SelectTrigger>
 								<SelectValue />
 							</SelectTrigger>
@@ -225,31 +240,27 @@ export function AddProviderDialog() {
 								? " (erforderlich)"
 								: " (optional)"}
 						</Label>
-						<Input
+							<Input
 							id="provider-url"
 							placeholder={
 								protocol === "openai-compatible"
 									? "http://localhost:11434/v1"
 									: "https://api.openai.com/v1"
 							}
-							value={baseUrl}
-							onChange={(event) =>
-								handleFieldChange(setBaseUrl, event.target.value)
-							}
-						/>
+								value={baseUrl}
+								onChange={handleBaseUrlChange}
+							/>
 					</div>
 
 					<div className="space-y-2">
 						<Label htmlFor="provider-key">API Key (optional)</Label>
-						<Input
+							<Input
 							id="provider-key"
 							type="password"
 							placeholder="sk-..."
-							value={apiKey}
-							onChange={(event) =>
-								handleFieldChange(setApiKey, event.target.value)
-							}
-						/>
+								value={apiKey}
+								onChange={handleApiKeyChange}
+							/>
 					</div>
 
 					{validated && (
@@ -287,7 +298,7 @@ export function AddProviderDialog() {
 			</DialogContent>
 		</Dialog>
 	);
-}
+};
 
 // Backward-compatible export during migration of import sites.
 export { AddProviderDialog as AddConnectionDialog };

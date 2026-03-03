@@ -1,4 +1,4 @@
-export function HeroDivider() {
+export const HeroDivider = () => {
   return (
     <div>
       <svg viewBox="0 0 1428 174">
@@ -40,4 +40,4 @@ export function HeroDivider() {
       </svg>
     </div>
   );
-}
+};

@@ -11,6 +11,7 @@ import { Label } from "@repo/design-system/components/ui/label";
 import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SlidersHorizontal } from "lucide-react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
@@ -44,15 +45,15 @@ type DefaultType = "text" | "file-image" | "speech-to-text";
 
 const NONE_VALUE = "__none__";
 
-function getSafeSelectValue(
+const getSafeSelectValue = (
 	value: string | null | undefined,
 	options: ModelOption[],
-): string {
+) : string => {
 	if (!value) {return NONE_VALUE;}
 	return options.some((option) => option.value === value) ? value : NONE_VALUE;
-}
+};
 
-export function ModelsTab({ connections }: ModelsTabProps) {
+export const ModelsTab = ({ connections }: ModelsTabProps) => {
 	const queryClient = useQueryClient();
 	const listKey = orpc.admin.providers.connections.list.queryOptions().queryKey;
 	const defaultsKey = orpc.admin.providers.defaults.get.queryOptions().queryKey;
@@ -94,6 +95,37 @@ export function ModelsTab({ connections }: ModelsTabProps) {
 
 	const isUpdatingDefaults = isDefaultsLoading || setDefaultMutation.isPending;
 
+	const handleDefaultModelChange = useCallback(
+		(defaultType: DefaultType, value: string) => {
+			setDefaultMutation.mutate({
+				defaultType,
+				modelId: value === NONE_VALUE ? null : value,
+			});
+		},
+		[setDefaultMutation],
+	);
+
+	const handleTextModelChange = useCallback(
+		(value: string) => {
+			handleDefaultModelChange("text", value);
+		},
+		[handleDefaultModelChange],
+	);
+
+	const handleFileImageModelChange = useCallback(
+		(value: string) => {
+			handleDefaultModelChange("file-image", value);
+		},
+		[handleDefaultModelChange],
+	);
+
+	const handleSpeechModelChange = useCallback(
+		(value: string) => {
+			handleDefaultModelChange("speech-to-text", value);
+		},
+		[handleDefaultModelChange],
+	);
+
 	return (
 		<div className="space-y-4">
 			<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
@@ -114,19 +146,14 @@ export function ModelsTab({ connections }: ModelsTabProps) {
 						<ModelSelector
 							id="default-text-model"
 							options={selectorOptions}
-							value={getSafeSelectValue(
-								defaults?.defaultTextModelId,
-								enabledModelOptions,
-							)}
-							onValueChange={(value) =>
-								setDefaultMutation.mutate({
-									defaultType: "text",
-									modelId: value === NONE_VALUE ? null : value,
-								})
-							}
-							disabled={isUpdatingDefaults}
-							placeholder="Textmodell auswählen"
-							className="border-solarized-base2 bg-solarized-base3"
+								value={getSafeSelectValue(
+									defaults?.defaultTextModelId,
+									enabledModelOptions,
+								)}
+								onValueChange={handleTextModelChange}
+								disabled={isUpdatingDefaults}
+								placeholder="Textmodell auswählen"
+								className="border-solarized-base2 bg-solarized-base3"
 						/>
 					</div>
 
@@ -137,19 +164,14 @@ export function ModelsTab({ connections }: ModelsTabProps) {
 						<ModelSelector
 							id="default-file-image-model"
 							options={selectorOptions}
-							value={getSafeSelectValue(
-								defaults?.defaultFileImageModelId,
-								enabledModelOptions,
-							)}
-							onValueChange={(value) =>
-								setDefaultMutation.mutate({
-									defaultType: "file-image",
-									modelId: value === NONE_VALUE ? null : value,
-								})
-							}
-							disabled={isUpdatingDefaults}
-							placeholder="File/Image-Modell auswählen"
-							className="border-solarized-base2 bg-solarized-base3"
+								value={getSafeSelectValue(
+									defaults?.defaultFileImageModelId,
+									enabledModelOptions,
+								)}
+								onValueChange={handleFileImageModelChange}
+								disabled={isUpdatingDefaults}
+								placeholder="File/Image-Modell auswählen"
+								className="border-solarized-base2 bg-solarized-base3"
 						/>
 					</div>
 
@@ -160,19 +182,14 @@ export function ModelsTab({ connections }: ModelsTabProps) {
 						<ModelSelector
 							id="default-speech-model"
 							options={selectorOptions}
-							value={getSafeSelectValue(
-								defaults?.defaultSpeechToTextModelId,
-								enabledModelOptions,
-							)}
-							onValueChange={(value) =>
-								setDefaultMutation.mutate({
-									defaultType: "speech-to-text",
-									modelId: value === NONE_VALUE ? null : value,
-								})
-							}
-							disabled={isUpdatingDefaults}
-							placeholder="Speech-Modell auswählen"
-							className="border-solarized-base2 bg-solarized-base3"
+								value={getSafeSelectValue(
+									defaults?.defaultSpeechToTextModelId,
+									enabledModelOptions,
+								)}
+								onValueChange={handleSpeechModelChange}
+								disabled={isUpdatingDefaults}
+								placeholder="Speech-Modell auswählen"
+								className="border-solarized-base2 bg-solarized-base3"
 						/>
 					</div>
 				</CardContent>
@@ -184,6 +201,6 @@ export function ModelsTab({ connections }: ModelsTabProps) {
 						prüfen und Modelle aktualisieren.
 					</p>
 				)}
-		</div>
-	);
-}
+			</div>
+		);
+};

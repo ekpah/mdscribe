@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { authClient, useSession } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
 import { sessionQueryKey } from "@/lib/session-query";
@@ -65,21 +65,27 @@ export default function TopMenuBar({
 
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
-	const handleSignOut = async () => {
+	const handleSignOutSuccess = useCallback(() => {
+		queryClient.setQueryData(sessionQueryKey, null);
+		router.refresh();
+		router.push("/");
+	}, [queryClient, router]);
+
+	const handleSignOut = useCallback(async () => {
 		await authClient.signOut({
 			fetchOptions: {
-				onSuccess: () => {
-					queryClient.setQueryData(sessionQueryKey, null);
-					router.refresh();
-					router.push("/");
-				},
+				onSuccess: handleSignOutSuccess,
 			},
 		});
-	};
+	}, [handleSignOutSuccess]);
 
-	const toggleMobileMenu = () => {
-		setMobileMenuOpen(!mobileMenuOpen);
-	};
+	const toggleMobileMenu = useCallback(() => {
+		setMobileMenuOpen((prev) => !prev);
+	}, []);
+
+	const closeMobileMenu = useCallback(() => {
+		setMobileMenuOpen(false);
+	}, []);
 
 	return (
 		<div className="relative">
@@ -291,28 +297,28 @@ export default function TopMenuBar({
 									</div>
 								</div>
 								<div className="flex flex-col gap-1">
-									<Link
-										href="/dashboard"
-										onClick={() => setMobileMenuOpen(false)}
-										className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
-									>
+										<Link
+											href="/dashboard"
+											onClick={closeMobileMenu}
+											className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
+										>
 										<LayoutDashboard className="h-4 w-4" />
 										Dashboard
 									</Link>
-									<Link
-										href="/profile"
-										onClick={() => setMobileMenuOpen(false)}
-										className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
-									>
+										<Link
+											href="/profile"
+											onClick={closeMobileMenu}
+											className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
+										>
 										<Settings className="h-4 w-4" />
 										Einstellungen
 									</Link>
 									{isAdmin && (
-										<Link
-											href="/admin"
-											onClick={() => setMobileMenuOpen(false)}
-											className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
-										>
+											<Link
+												href="/admin"
+												onClick={closeMobileMenu}
+												className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
+											>
 											<Shield className="h-4 w-4" />
 											Admin
 										</Link>
@@ -337,11 +343,11 @@ export default function TopMenuBar({
 								<div className="flex items-center justify-between px-2">
 									<ModeToggleSwitch />
 								</div>
-								<Link
-									className="w-full"
-									href={signInUrl}
-									onClick={() => setMobileMenuOpen(false)}
-								>
+									<Link
+										className="w-full"
+										href={signInUrl}
+										onClick={closeMobileMenu}
+									>
 									<Button className="w-full">Jetzt anmelden</Button>
 								</Link>
 							</div>

@@ -16,10 +16,10 @@ interface FeaturesCardProps {
   onUpgrade: () => void;
 }
 
-export function FeaturesCard({
+export const FeaturesCard = ({
   hasActiveSubscription,
   onUpgrade,
-}: FeaturesCardProps) {
+}: FeaturesCardProps) => {
   const features = [
     'Unbegrenzt Textbausteine nutzen',
     'Favoriten-Bibliothek verwalten',
@@ -56,4 +56,4 @@ export function FeaturesCard({
       </CardFooter>
     </Card>
   );
-}
+};

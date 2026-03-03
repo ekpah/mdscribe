@@ -10,7 +10,7 @@ import {
   Syringe,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export default function Features() {
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -18,13 +18,13 @@ export default function Features() {
     Record<string, unknown>
   >({});
 
-  const handleValuesChange = (data: Record<string, unknown>) => {
+  const handleValuesChange = useCallback((data: Record<string, unknown>) => {
     setValues(data);
-  };
+  }, []);
 
-  const handleProcedureValuesChange = (data: Record<string, unknown>) => {
+  const handleProcedureValuesChange = useCallback((data: Record<string, unknown>) => {
     setProcedureValues(data);
-  };
+  }, []);
 
   const sampleMarkdocContent = `
 Die notfallmäßige stationäre Aufnahme von {% switch "Geschlecht" %}{% case %}[#Herrn/Frau#]{%/case%}{% case "männlich" %}Herrn{%/case%}{% case "weiblich" %}Frau{%/case%}{%/switch%}{% info "Nachnahme" /%} erfolgte bei kardialer Dekompensation.

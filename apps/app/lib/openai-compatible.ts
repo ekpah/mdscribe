@@ -12,7 +12,7 @@ export const PROVIDER_BASE_URL_ERROR_MESSAGE =
  * - strip trailing slash(es)
  * - reject query/hash components
  */
-export function normalizeProviderBaseUrl(url: string): string {
+export const normalizeProviderBaseUrl = (url: string): string => {
 	const trimmed = url.trim();
 	if (!trimmed) {
 		throw new Error(PROVIDER_BASE_URL_ERROR_MESSAGE);
@@ -43,22 +43,22 @@ export function normalizeProviderBaseUrl(url: string): string {
 	}
 
 	return `${parsed.origin}${normalizedPath}`;
-}
+};
 
 /**
  * Normalize OpenAI-compatible base URLs to always end with `/v1`.
  */
-export function normalizeOpenAICompatibleBaseUrl(url: string): string {
+export const normalizeOpenAICompatibleBaseUrl = (url: string): string => {
 	const trimmed = normalizeProviderBaseUrl(url).replace(/\/+$/, "");
 	if (trimmed.toLowerCase().endsWith("/v1")) {
 		return trimmed;
 	}
 	return `${trimmed}/v1`;
-}
+};
 
 /**
  * Derive the host root from an OpenAI-compatible base URL (strip `/v1`).
  */
-export function getOpenAICompatibleHostRoot(url: string): string {
+export const getOpenAICompatibleHostRoot = (url: string): string => {
 	return normalizeOpenAICompatibleBaseUrl(url).replace(V1_SUFFIX_REGEX, "");
-}
+};

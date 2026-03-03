@@ -4,7 +4,7 @@ import { Button } from "@repo/design-system/components/ui/button";
 import { Check, Code, Server, Shield } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 interface PricingProps {
 	isLoggedIn: boolean;
@@ -15,6 +15,12 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 	const [isYearly, setIsYearly] = useState(false);
 	const pathname = usePathname();
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
+	const handleSetMonthly = useCallback(() => {
+		setIsYearly(false);
+	}, []);
+	const handleSetYearly = useCallback(() => {
+		setIsYearly(true);
+	}, []);
 
 	return (
 		<section className="bg-muted/30 py-12 sm:py-16">
@@ -35,26 +41,26 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 
 				<div className="mb-10 flex justify-center">
 					<div className="inline-flex items-center rounded-full border p-1">
-						<button
-							className={`rounded-full px-4 py-2 font-medium text-sm transition-all ${
-								isYearly
-									? "bg-transparent hover:bg-muted"
-									: "bg-primary text-primary-foreground"
-							}`}
-							onClick={() => setIsYearly(false)}
-							type="button"
-						>
+							<button
+								className={`rounded-full px-4 py-2 font-medium text-sm transition-all ${
+									isYearly
+										? "bg-transparent hover:bg-muted"
+										: "bg-primary text-primary-foreground"
+								}`}
+								onClick={handleSetMonthly}
+								type="button"
+							>
 							Monatlich
 						</button>
-						<button
-							className={`rounded-full px-4 py-2 font-medium text-sm transition-all ${
-								isYearly
-									? "bg-primary text-primary-foreground"
-									: "bg-transparent hover:bg-muted"
-							}`}
-							onClick={() => setIsYearly(true)}
-							type="button"
-						>
+							<button
+								className={`rounded-full px-4 py-2 font-medium text-sm transition-all ${
+									isYearly
+										? "bg-primary text-primary-foreground"
+										: "bg-transparent hover:bg-muted"
+								}`}
+								onClick={handleSetYearly}
+								type="button"
+							>
 							Jährlich <span className="text-xs opacity-75">(-17%)</span>
 						</button>
 					</div>
