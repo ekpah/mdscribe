@@ -10,7 +10,6 @@
 		"./test": "./test.ts"
 	},
 	"scripts": {
-		"bootstrap": "drizzle-kit migrate",
 		"dev": "drizzle-kit studio",
 		"generate": "drizzle-kit generate",
 		"migrate": "drizzle-kit migrate",
