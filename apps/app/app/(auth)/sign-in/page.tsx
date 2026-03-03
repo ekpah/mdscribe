@@ -15,7 +15,7 @@ import { Label } from "@repo/design-system/components/ui/label";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { signIn } from "@/lib/auth-client";
 
@@ -30,41 +30,62 @@ export default function SignIn() {
 	const redirect =
 		!redirectParam || redirectParam === "/" ? "/dashboard" : redirectParam;
 
+	const handleEmailChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setEmail(event.target.value);
+		},
+		[],
+	);
+
+	const handlePasswordChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setPassword(event.target.value);
+		},
+		[],
+	);
+
+	const handleRememberMeClick = useCallback(() => {
+		setRememberMe((current) => !current);
+	}, []);
+
+	const handleSubmit = useCallback(
+		async (event: React.FormEvent<HTMLFormElement>) => {
+			event.preventDefault();
+			setLoading(true);
+			try {
+				await signIn.email(
+					{ callbackURL: redirect, email, password, rememberMe },
+					{
+						onError: (ctx) => {
+							// Handle the error 403 - not email verified
+							if (ctx.error.status === 403) {
+								toast.error("Bitte bestätigen Sie Ihre E-Mail-Adresse");
+							} else {
+								toast.error(ctx.error.message);
+							}
+							setLoading(false);
+						},
+						onRequest: () => {
+							//show loading
+							setLoading(true);
+						},
+						onSuccess: () => {
+							//redirect to the original page or dashboard
+							router.push(redirect);
+							setLoading(false);
+						},
+					},
+				);
+			} finally {
+				setLoading(false);
+			}
+		},
+		[email, password, redirect, rememberMe, router],
+	);
+
 	return (
-		<Card className="w-full max-w-md" data-testid="sign-in-card">
-			<form
-				onSubmit={async (e) => {
-					e.preventDefault();
-					setLoading(true);
-					try {
-						await signIn.email(
-							{ callbackURL: redirect, email, password, rememberMe },
-							{
-								onError: (ctx) => {
-									// Handle the error 403 - not email verified
-									if (ctx.error.status === 403) {
-										toast.error("Bitte bestätigen Sie Ihre E-Mail-Adresse");
-									} else {
-										toast.error(ctx.error.message);
-									}
-									setLoading(false);
-								},
-								onRequest: () => {
-									//show loading
-									setLoading(true);
-								},
-								onSuccess: () => {
-									//redirect to the original page or dashboard
-									router.push(redirect);
-									setLoading(false);
-								},
-							},
-						);
-					} finally {
-						setLoading(false);
-					}
-				}}
-			>
+			<Card className="w-full max-w-md" data-testid="sign-in-card">
+				<form onSubmit={handleSubmit}>
 				<CardHeader className="space-y-1">
 					<CardTitle className="text-center font-bold text-2xl">
 						In Ihren Account einloggen
@@ -76,10 +97,10 @@ export default function SignIn() {
 				<CardContent className="space-y-4">
 					<div className="space-y-2">
 						<Label htmlFor="email">E-Mail</Label>
-						<Input
-							id="email"
-							onChange={(e) => setEmail(e.target.value)}
-							placeholder="m@beispiel.de"
+							<Input
+								id="email"
+								onChange={handleEmailChange}
+								placeholder="m@beispiel.de"
 							required
 							type="email"
 							value={email}
@@ -87,20 +108,20 @@ export default function SignIn() {
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="password">Passwort</Label>
-						<Input
-							id="password"
-							onChange={(e) => setPassword(e.target.value)}
-							required
+							<Input
+								id="password"
+								onChange={handlePasswordChange}
+								required
 							type="password"
 							value={password}
 						/>
 					</div>
 					<div className="flex items-center gap-2">
-						<Checkbox
-							checked={rememberMe}
-							id="remember"
-							onClick={() => setRememberMe(!rememberMe)}
-						/>
+							<Checkbox
+								checked={rememberMe}
+								id="remember"
+								onClick={handleRememberMeClick}
+							/>
 						<Label htmlFor="remember">Angemeldet bleiben</Label>
 					</div>
 

@@ -20,7 +20,7 @@ import {
 	Hash,
 	Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { PlaygroundResult } from "../_lib/types";
 import { formatCost, formatLatency, formatTokens } from "../_lib/types";
@@ -30,16 +30,16 @@ interface ResultDisplayProps {
 	compact?: boolean;
 }
 
-export function ResultDisplay({ result, compact: _compact }: ResultDisplayProps) {
+export const ResultDisplay = ({ result, compact: _compact }: ResultDisplayProps) => {
 	const [copied, setCopied] = useState(false);
 
-	const handleCopy = async () => {
+	const handleCopy = useCallback(async () => {
 		if (!result?.text) {return;}
 		await navigator.clipboard.writeText(result.text);
 		setCopied(true);
 		toast.success("Kopiert!");
 		setTimeout(() => setCopied(false), 2000);
-	};
+	}, [result?.text]);
 
 	if (!result) {
 		return (
@@ -164,4 +164,4 @@ export function ResultDisplay({ result, compact: _compact }: ResultDisplayProps)
 			)}
 		</div>
 	);
-}
+};

@@ -125,28 +125,28 @@ export const DEFAULT_PARAMETERS: PlaygroundParameters = {
 /**
  * Whether a model supports the reasoning/thinking parameter.
  */
-export function supportsThinking(model: PlaygroundModel): boolean {
+export const supportsThinking = (model: PlaygroundModel): boolean => {
 	return (
 		model.supportsReasoning === true ||
 		model.supported_parameters.includes("reasoning")
 	);
-}
+};
 
 // Format cost for display
-export function formatCost(cost: number | undefined): string {
+export const formatCost = (cost: number | undefined): string => {
 	if (cost === undefined || cost === null) {return "-";}
 	return `$${cost.toFixed(6)}`;
-}
+};
 
 // Format tokens for display
-export function formatTokens(tokens: number | undefined): string {
+export const formatTokens = (tokens: number | undefined): string => {
 	if (tokens === undefined || tokens === null) {return "-";}
 	return tokens.toLocaleString("de-DE");
-}
+};
 
 // Format latency for display
-export function formatLatency(ms: number | undefined): string {
+export const formatLatency = (ms: number | undefined): string => {
 	if (ms === undefined || ms === null) {return "-";}
 	if (ms < 1000) {return `${ms}ms`;}
 	return `${(ms / 1000).toFixed(2)}s`;
-}
+};

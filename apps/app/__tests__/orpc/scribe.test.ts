@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { call, ORPCError } from "@orpc/server";
+import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider } from "@repo/database";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { documentTypeConfigs } from "@/orpc/scribe/config";

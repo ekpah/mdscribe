@@ -13,6 +13,7 @@ import {
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { Bot, Pencil } from "lucide-react";
+import { useCallback, useMemo } from "react";
 
 export type InputSource = "empty" | "ai" | "manual";
 
@@ -27,7 +28,7 @@ interface PDFInputsProps {
 /**
  * Status indicator component for input fields - shows as small icon with tooltip
  */
-function SourceIndicator({ source }: { source: InputSource | undefined }) {
+const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 	if (!source || source === "empty") {
 		return null;
 	}
@@ -63,14 +64,14 @@ function SourceIndicator({ source }: { source: InputSource | undefined }) {
 			</Tooltip>
 		</TooltipProvider>
 	);
-}
+};
 
-function renderInputTag(
+const renderInputTag = (
 	input: InputTagType,
 	values: Record<string, unknown>,
 	fieldSources: Record<string, InputSource>,
-	handleInputChange: (name: string, value: unknown) => void,
-): React.ReactNode | null {
+	fieldChangeHandlers: Record<string, (value: unknown) => void>,
+): React.ReactNode | null => {
 	if (!input.attributes.primary) {
 		return null;
 	}
@@ -86,11 +87,11 @@ function renderInputTag(
 						<SourceIndicator source={source} />
 					</div>
 				)}
-				<InfoInput
-					input={input}
-					onChange={(value) => handleInputChange(fieldKey, value)}
-					value={values[fieldKey] as string | number | undefined}
-				/>
+					<InfoInput
+						input={input}
+						onChange={fieldChangeHandlers[fieldKey]}
+						value={values[fieldKey] as string | number | undefined}
+					/>
 			</div>
 		);
 	}
@@ -105,11 +106,11 @@ function renderInputTag(
 						<SourceIndicator source={source} />
 					</div>
 				)}
-				<SwitchInput
-					input={input}
-					onChange={(value) => handleInputChange(fieldKey, value)}
-					value={currentValue}
-				/>
+					<SwitchInput
+						input={input}
+						onChange={fieldChangeHandlers[fieldKey] as (newValue: string) => void}
+						value={currentValue}
+					/>
 				{/* Render children of selected case */}
 				{currentValue && input.children && (
 					<div className="mt-4 ml-4 space-y-4">
@@ -119,11 +120,16 @@ function renderInputTag(
 									child.name === "Case" &&
 									child.attributes.primary === currentValue,
 							)
-							.flatMap((caseChild) =>
-								caseChild.children.map((grandChild) =>
-									renderInputTag(grandChild, values, fieldSources, handleInputChange),
-								),
-							)}
+								.flatMap((caseChild) =>
+									caseChild.children.map((grandChild) =>
+										renderInputTag(
+											grandChild,
+											values,
+											fieldSources,
+											fieldChangeHandlers,
+										),
+									),
+								)}
 					</div>
 				)}
 			</div>
@@ -131,7 +137,7 @@ function renderInputTag(
 	}
 
 	return null;
-}
+};
 
 /**
  * Color-coded inputs component for PDF form fields
@@ -151,22 +157,51 @@ export default function PDFInputs({
 	// Use initialValues directly as the source of truth (controlled component)
 	const values = initialValues ?? {};
 
-	const handleInputChange = (key: string, value: unknown) => {
+	const handleInputChange = useCallback((key: string, value: unknown) => {
 		// Update parent state directly
 		onChange({ ...values, [key]: value });
 		// Notify parent that this field was edited (will mark as manual)
 		onFieldEdit(key);
-	};
+	}, [onChange, onFieldEdit, values]);
+
+	const fieldKeys = useMemo(() => {
+		const keys = new Set<string>();
+		const walk = (tag: InputTagType): void => {
+			if (tag.attributes.primary) {
+				keys.add(tag.attributes.primary);
+			}
+			for (const child of tag.children ?? []) {
+				walk(child as InputTagType);
+			}
+		};
+		for (const inputTag of inputTags) {
+			walk(inputTag);
+		}
+		return [...keys];
+	}, [inputTags]);
+
+	const fieldChangeHandlers = useMemo(
+		() =>
+			Object.fromEntries(
+				fieldKeys.map((key) => [
+					key,
+					(value: unknown) => {
+						handleInputChange(key, value);
+					},
+				]),
+			) as Record<string, (value: unknown) => void>,
+		[fieldKeys, handleInputChange],
+	);
 
 	if (inputTags.length === 0 || !inputTags) {
 		return null;
 	}
 
 	return (
-		<form className="w-full max-w-full space-y-6 pr-4">
-			{inputTags.map((inputTag) =>
-				renderInputTag(inputTag, values, fieldSources, handleInputChange),
-			)}
-		</form>
-	);
-}
+			<form className="w-full max-w-full space-y-6 pr-4">
+				{inputTags.map((inputTag) =>
+					renderInputTag(inputTag, values, fieldSources, fieldChangeHandlers),
+				)}
+			</form>
+		);
+	}

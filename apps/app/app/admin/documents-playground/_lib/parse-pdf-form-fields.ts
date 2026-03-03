@@ -40,10 +40,10 @@ interface PDFFormField {
 /**
  * Parses a text field from PDF form
  */
-function parseTextField(
+const parseTextField = (
 	pdfFormField: PDFFormField,
 	fieldName: string,
-): PDFField {
+): PDFField => {
 	const isMultiline = pdfFormField.isMultiline?.() ?? false;
 	return {
 		label: fieldName,
@@ -51,15 +51,15 @@ function parseTextField(
 		type: isMultiline ? "multiline" : "text",
 		value: pdfFormField.getText?.() || "",
 	};
-}
+};
 
 /**
  * Parses a dropdown field from PDF form
  */
-function parseDropdownField(
+const parseDropdownField = (
 	pdfFormField: PDFFormField,
 	fieldName: string,
-): PDFField {
+): PDFField => {
 	const options = pdfFormField.getOptions?.() || [];
 	const selected = pdfFormField.getSelected?.();
 	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
@@ -70,30 +70,30 @@ function parseDropdownField(
 		type: "dropdown",
 		value: selectedValue || "",
 	};
-}
+};
 
 /**
  * Parses a checkbox field from PDF form
  */
-function parseCheckboxField(
+const parseCheckboxField = (
 	pdfFormField: PDFFormField,
 	fieldName: string,
-): PDFField {
+): PDFField => {
 	return {
 		label: fieldName,
 		name: fieldName,
 		type: "checkbox",
 		value: pdfFormField.isChecked?.() ? "true" : "false",
 	};
-}
+};
 
 /**
  * Parses a radio group field from PDF form
  */
-function parseRadioGroupField(
+const parseRadioGroupField = (
 	pdfFormField: PDFFormField,
 	fieldName: string,
-): PDFField {
+): PDFField => {
 	const options = pdfFormField.getOptions?.() || [];
 	const selected = pdfFormField.getSelected?.();
 	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
@@ -104,15 +104,15 @@ function parseRadioGroupField(
 		type: "radio",
 		value: selectedValue || "",
 	};
-}
+};
 
 /**
  * Parses a PDF file and extracts all fillable form fields
  * Similar to parseMarkdocToInputs but for PDF forms
  */
-export async function parseFormFieldsFromPDF(
+export const parseFormFieldsFromPDF = async (
 	file: Uint8Array,
-): Promise<PDFField[]> {
+): Promise<PDFField[]> => {
 	// Always parse from a copied buffer to avoid mutating/detaching shared upload state.
 	const stableBytes = new Uint8Array(file);
 	const pdfDoc = await PDFDocument.load(stableBytes);
@@ -165,18 +165,18 @@ export async function parseFormFieldsFromPDF(
 		}
 	}
 	return fields;
-}
+};
 
 /**
  * Parses a PDF file and extracts all fillable form fields
  * and returns them in a format similar to parseMarkdocToInputs
  */
-export async function parsePDFFormFields(
+export const parsePDFFormFields = async (
 	file: Uint8Array,
-): Promise<ParsePDFResult> {
+): Promise<ParsePDFResult> => {
 	const fields = await parseFormFieldsFromPDF(file);
 	return { fields };
-}
+};
 
 /**
  * Converts PDF fields to InputTagType format, similar to how switch tags are parsed.
@@ -184,12 +184,12 @@ export async function parsePDFFormFields(
  * similar to how switch tags work in parseMarkdocToInputs.
  * Checkbox fields are converted to Switch tags with Case children for "true" and "false".
  */
-export function convertPDFFieldsToInputTags(
+export const convertPDFFieldsToInputTags = (
 	fields: PDFField[],
 	fieldMapping: FieldMapping[],
 ): {
 	inputTags: InputTagType[];
-} {
+} => {
 	const inputTags: InputTagType[] = [];
 
 	for (const field of fields) {
@@ -273,4 +273,4 @@ export function convertPDFFieldsToInputTags(
 	}
 
 	return { inputTags };
-}
+};

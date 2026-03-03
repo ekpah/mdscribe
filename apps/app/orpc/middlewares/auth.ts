@@ -3,14 +3,14 @@ import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import type { Session } from '@/lib/auth-types';
 
-async function getSession() {
+const getSession = async () => {
     const headerList = await headers();
 
     const session = await auth.api.getSession({
         headers: headerList,
     });
     return session;
-}
+};
 
 export const requiredAuthMiddleware = os
     .$context<{ session?: Session }>()

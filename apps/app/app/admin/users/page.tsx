@@ -11,15 +11,39 @@ import {
 import {
 	DataTable,
 	DataTablePagination,
+	type DataTableRenderToolbarProps,
 	DataTableViewOptions,
 } from "@repo/design-system/components/ui/data-table";
 import { Input } from "@repo/design-system/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw, Users, XCircle } from "lucide-react";
+import type { ChangeEvent } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { columns } from './columns';
 import type { UserData } from './columns';
+
+const UsersTableToolbar = ({ table }: DataTableRenderToolbarProps<UserData>) => {
+	const handleUserFilterChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			table.getColumn("user")?.setFilterValue(event.target.value);
+		},
+		[table],
+	);
+
+	return (
+		<div className="flex items-center justify-between gap-2">
+			<Input
+				placeholder="Benutzer suchen..."
+				value={(table.getColumn("user")?.getFilterValue() as string) ?? ""}
+				onChange={handleUserFilterChange}
+				className="max-w-sm"
+			/>
+			<DataTableViewOptions table={table} />
+		</div>
+	);
+};
 
 export default function UsersPage() {
 	const queryClient = useQueryClient();
@@ -31,12 +55,26 @@ export default function UsersPage() {
 		error,
 	} = useQuery(orpc.admin.users.list.queryOptions());
 
-	const handleRefresh = async () => {
+	const handleRefresh = useCallback(async () => {
 		await queryClient.invalidateQueries({
 			queryKey: orpc.admin.users.list.queryOptions().queryKey,
 		});
 		toast.success("Benutzerliste aktualisiert");
-	};
+	}, [queryClient]);
+
+	const renderToolbar = useCallback(
+		(table: DataTableRenderToolbarProps<UserData>["table"]) => (
+			<UsersTableToolbar table={table} />
+		),
+		[],
+	);
+
+	const renderPagination = useCallback(
+		(table: DataTableRenderToolbarProps<UserData>["table"]) => (
+			<DataTablePagination table={table} />
+		),
+		[],
+	);
 
 	const errorMessage =
 		error instanceof Error
@@ -187,32 +225,13 @@ export default function UsersPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<DataTable
-							columns={columns}
-							data={users as UserData[]}
-							emptyMessage="Keine Benutzer gefunden"
-							renderToolbar={(table) => (
-								<div className="flex items-center justify-between gap-2">
-									<Input
-										placeholder="Benutzer suchen..."
-										value={
-											(table.getColumn("user")?.getFilterValue() as string) ??
-											""
-										}
-										onChange={(event) =>
-											table
-												.getColumn("user")
-												?.setFilterValue(event.target.value)
-										}
-										className="max-w-sm"
-									/>
-									<DataTableViewOptions table={table} />
-								</div>
-							)}
-							renderPagination={(table) => (
-								<DataTablePagination table={table} />
-							)}
-						/>
+							<DataTable
+								columns={columns}
+								data={users as UserData[]}
+								emptyMessage="Keine Benutzer gefunden"
+								renderToolbar={renderToolbar}
+								renderPagination={renderPagination}
+							/>
 					</CardContent>
 				</Card>
 			</div>

@@ -4,7 +4,7 @@ import type { DateValue } from "@internationalized/date";
 import type { InfoInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { CalendarIcon } from "lucide-react";
 import type React from "react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
 	Button,
 	DatePicker,
@@ -32,7 +32,7 @@ import {
 
 type InfoValue = string | number | DateValue | undefined;
 
-export function InfoInput({
+export const InfoInput = ({
 	input,
 	value,
 	onChange,
@@ -48,7 +48,7 @@ export function InfoInput({
 	suggestionLabel?: string;
 	onAcceptSuggestedValue?: () => void;
 	inputClassName?: string;
-}) {
+}) => {
 	const isDateType = input.attributes.type === "date";
 	const isNumberType = input.attributes.type === "number";
 
@@ -77,22 +77,22 @@ export function InfoInput({
 	const shouldShowSuggestion = hasSuggestion && !isSuggestionApplied;
 
 	// Handle date changes
-	const handleDateChange = (newDateValue: DateValue | null) => {
+	const handleDateChange = useCallback((newDateValue: DateValue | null) => {
 		if (newDateValue) {
 			onChange(formatDateGerman(newDateValue));
 		}
-	};
+	}, [onChange]);
 
 	// Handle number changes
-	const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleNumberChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 		const numValue = Number(e.target.value);
 		onChange(Number.isNaN(numValue) ? 0 : numValue);
-	};
+	}, [onChange]);
 
 	// Handle text changes
-	const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 		onChange(e.target.value);
-	};
+	}, [onChange]);
 
 	// Render suggestion badge if needed
 	const suggestionBadge = shouldShowSuggestion ? (
@@ -247,4 +247,4 @@ export function InfoInput({
 			)}
 		</div>
 	);
-}
+};

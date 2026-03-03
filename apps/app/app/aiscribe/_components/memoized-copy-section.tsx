@@ -2,7 +2,7 @@
 import Markdoc from "@markdoc/markdoc";
 import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
 import { Check, Copy } from "lucide-react";
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface MemoizedCopySectionProps {
@@ -19,7 +19,7 @@ interface MemoizedCopySectionProps {
  * - List items are properly separated from preceding content
  * - Individual text lines have trailing spaces for hard breaks
  */
-function normalizeMarkdownLineBreaks(markdown: string): string {
+const normalizeMarkdownLineBreaks = (markdown: string): string => {
 	// First, normalize all line endings to \n
 	let normalized = markdown.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
 
@@ -89,9 +89,9 @@ function normalizeMarkdownLineBreaks(markdown: string): string {
 	});
 
 	return processedLines.join("\n");
-}
+};
 
-function parseMarkdocIntoBlocks(markdown: string): string[] {
+const parseMarkdocIntoBlocks = (markdown: string): string[] => {
 	// Parse with Markdoc to validate syntax, but use line-by-line for block extraction
 	try {
 		// This validates the Markdoc syntax.
@@ -162,7 +162,7 @@ function parseMarkdocIntoBlocks(markdown: string): string[] {
 	}
 
 	return blocks.filter((block) => block.length > 0);
-}
+};
 
 const MemoizedMarkdownBlock = memo(
 	({
@@ -193,8 +193,8 @@ export const MemoizedCopySection = memo(
 		}, [content]);
 		const contentRef = useRef<HTMLDivElement>(null);
 
-		const handleCopy = async (renderedContent: string, textContent: string) => {
-			try {
+			const handleCopy = useCallback(async (renderedContent: string, textContent: string) => {
+				try {
 				// Check if we're in a secure context and have clipboard support
 				if (!navigator.clipboard) {
 					throw new Error("Clipboard API not supported");
@@ -270,10 +270,22 @@ export const MemoizedCopySection = memo(
 					toast.error("Kopieren fehlgeschlagen. Bitte manuell kopieren.");
 					console.error("All clipboard methods failed:", legacyError);
 				}
-			} finally {
-				setTimeout(() => setIsCopied(false), 2000);
-			}
-		};
+				} finally {
+					setTimeout(() => setIsCopied(false), 2000);
+				}
+			}, []);
+
+			const handleCopyClick = useCallback(() => {
+				// Use the ref to get the rendered content directly
+				const contentElement = contentRef.current;
+				if (contentElement) {
+					const renderedContent = contentElement.innerHTML;
+					const textContent = contentElement.textContent || "";
+					void handleCopy(renderedContent, textContent);
+				} else {
+					toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
+				}
+			}, [handleCopy]);
 
 		return (
 			<div className="space-y-2">
@@ -288,24 +300,12 @@ export const MemoizedCopySection = memo(
 							/>
 						))}
 					</div>
-					<button
-						type="button"
-						tabIndex={0}
-						onClick={() => {
-							// Use the ref to get the rendered content directly
-							const contentElement = contentRef.current;
-							if (contentElement) {
-								const renderedContent = contentElement.innerHTML;
-								const textContent = contentElement.textContent || "";
-								handleCopy(renderedContent, textContent);
-							} else {
-								toast.error(
-									"Problem mit dem Kopieren - bitte manuell kopieren",
-								);
-							}
-						}}
-						className="absolute top-2 right-2 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100"
-					>
+						<button
+							type="button"
+							tabIndex={0}
+							onClick={handleCopyClick}
+							className="absolute top-2 right-2 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+						>
 						{isCopied ? (
 							<Check className="h-4 w-4 text-solarized-green" />
 						) : (

@@ -3,7 +3,8 @@
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { Code2, Plus, Trash2, X } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Button } from '../../../../ui/button';
 import { Input } from '../../../../ui/input';
 import { Label } from '../../../../ui/label';
@@ -21,14 +22,14 @@ interface CaseItem {
 }
 
 // Renamed function to SwitchTagView
-export function SwitchTagView({
+export const SwitchTagView = ({
   node,
   editor,
   updateAttributes,
   getPos,
   selected,
   deleteNode,
-}: NodeViewProps) {
+}: NodeViewProps) => {
   const [newCase, setNewCase] = useState({ primary: '', text: '' });
   const cases = Array.isArray(node.attrs.cases)
     ? (node.attrs.cases as CaseItem[])
@@ -45,7 +46,7 @@ export function SwitchTagView({
     }
   }, [editor, getPos]);
 
-  const addCase = () => {
+  const addCase = useCallback(() => {
     if (!newCase.primary && !newCase.text) {
       return;
     }
@@ -55,14 +56,14 @@ export function SwitchTagView({
     ];
     updateAttributes({ cases: nextCases });
     setNewCase({ primary: '', text: '' });
-  };
+  }, [cases, newCase, updateAttributes]);
 
-  const removeCase = (index: number) => {
+  const removeCase = useCallback((index: number) => {
     const nextCases = cases.filter((_caseItem, caseIndex) => caseIndex !== index);
     updateAttributes({ cases: nextCases });
-  };
+  }, [cases, updateAttributes]);
 
-  const updateCase = (
+  const updateCase = useCallback((
     index: number,
     field: 'primary' | 'text',
     value: string
@@ -75,7 +76,85 @@ export function SwitchTagView({
       };
     });
     updateAttributes({ cases: nextCases });
-  };
+  }, [cases, updateAttributes]);
+
+  const handlePrimaryChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      updateAttributes({
+        primary: event.target.value,
+      });
+    },
+    [updateAttributes],
+  );
+
+  const casePrimaryChangeHandlers = useMemo<Record<number, (event: ChangeEvent<HTMLInputElement>) => void>>(
+    () => {
+      const handlers: Record<number, (event: ChangeEvent<HTMLInputElement>) => void> = {};
+      for (let index = 0; index < cases.length; index += 1) {
+        handlers[index] = (event) => {
+          updateCase(index, 'primary', event.target.value);
+        };
+      }
+      return handlers;
+    },
+    [cases.length, updateCase],
+  );
+
+  const caseTextChangeHandlers = useMemo<Record<number, (event: ChangeEvent<HTMLInputElement>) => void>>(
+    () => {
+      const handlers: Record<number, (event: ChangeEvent<HTMLInputElement>) => void> = {};
+      for (let index = 0; index < cases.length; index += 1) {
+        handlers[index] = (event) => {
+          updateCase(index, 'text', event.target.value);
+        };
+      }
+      return handlers;
+    },
+    [cases.length, updateCase],
+  );
+
+  const removeCaseHandlers = useMemo<Record<number, () => void>>(() => {
+    const handlers: Record<number, () => void> = {};
+    for (let index = 0; index < cases.length; index += 1) {
+      handlers[index] = () => {
+        removeCase(index);
+      };
+    }
+    return handlers;
+  }, [cases.length, removeCase]);
+
+  const handleNewCasePrimaryChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setNewCase((prev) => ({
+        ...prev,
+        primary: event.target.value,
+      }));
+    },
+    [],
+  );
+
+  const handleNewCaseTextChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setNewCase((prev) => ({
+        ...prev,
+        text: event.target.value,
+      }));
+    },
+    [],
+  );
+
+  const handleNewCaseTextKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (
+        event.key === 'Enter' &&
+        (newCase.primary || newCase.text)
+      ) {
+        event.preventDefault();
+        addCase();
+      }
+    },
+    [addCase, newCase.primary, newCase.text],
+  );
 
   return (
     // Use span for inline behavior, align-baseline for text alignment
@@ -144,11 +223,7 @@ export function SwitchTagView({
                     <Input
                       id="primary"
                       value={node.attrs.primary || ''}
-                      onChange={(e) =>
-                        updateAttributes({
-                          primary: e.target.value,
-                        })
-                      }
+                      onChange={handlePrimaryChange}
                       placeholder="z.B. patiententyp, zustand"
                       className="h-8 text-sm focus:border-solarized-green focus:ring-solarized-green/50"
                       autoFocus
@@ -180,9 +255,7 @@ export function SwitchTagView({
                                 </Label>
                                 <Input
                                   value={caseItem.primary}
-                                  onChange={(e) =>
-                                    updateCase(index, 'primary', e.target.value)
-                                  }
+                                  onChange={casePrimaryChangeHandlers[index]}
                                   placeholder="Fall-Wert"
                                   className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
                                 />
@@ -193,9 +266,7 @@ export function SwitchTagView({
                                 </Label>
                                 <Input
                                   value={caseItem.text}
-                                  onChange={(e) =>
-                                    updateCase(index, 'text', e.target.value)
-                                  }
+                                  onChange={caseTextChangeHandlers[index]}
                                   placeholder="Inhalt"
                                   className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
                                 />
@@ -204,7 +275,7 @@ export function SwitchTagView({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => removeCase(index)}
+                              onClick={removeCaseHandlers[index]}
                               className="mt-5 h-8 w-8 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                               aria-label={`Fall ${index + 1} entfernen`}
                               title="Fall entfernen"
@@ -226,34 +297,16 @@ export function SwitchTagView({
                         <div className="space-y-1.5">
                           <Input
                             value={newCase.primary}
-                            onChange={(e) =>
-                              setNewCase((prev) => ({
-                                ...prev,
-                                primary: e.target.value,
-                              }))
-                            }
+                            onChange={handleNewCasePrimaryChange}
                             placeholder="Fall-Wert (z.B. 'männlich', 'Kind', '1')"
                             className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
                           />
                           <Input
                             value={newCase.text}
-                            onChange={(e) =>
-                              setNewCase((prev) => ({
-                                ...prev,
-                                text: e.target.value,
-                              }))
-                            }
+                            onChange={handleNewCaseTextChange}
                             placeholder="Inhalt für diesen Fall"
                             className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
-                            onKeyDown={(e) => {
-                              if (
-                                e.key === 'Enter' &&
-                                (newCase.primary || newCase.text)
-                              ) {
-                                e.preventDefault();
-                                addCase();
-                              }
-                            }}
+                            onKeyDown={handleNewCaseTextKeyDown}
                           />
                           <Button
                             size="sm"
@@ -296,4 +349,4 @@ export function SwitchTagView({
       </span>
     </NodeViewWrapper>
   );
-}
+};

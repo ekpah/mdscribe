@@ -14,10 +14,10 @@ export const VariableProvider = VariableContext.Provider;
  * Hook to access the Markdoc variables within custom components.
  * Must be used within a component wrapped by VariableProvider (typically via DynamicMarkdocRenderer).
  */
-export function useVariables(): VariableMap {
+export const useVariables = (): VariableMap => {
   const context = useContext(VariableContext);
   if (context === undefined) {
     throw new Error('useVariables must be used within a VariableProvider');
   }
   return context;
-}
+};

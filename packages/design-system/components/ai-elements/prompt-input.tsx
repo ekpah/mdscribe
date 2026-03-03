@@ -107,10 +107,10 @@ export type PromptInputProviderProps = PropsWithChildren<{
  * Optional global provider that lifts PromptInput state outside of PromptInput.
  * If you don't use it, PromptInput stays fully self-managed.
  */
-export function PromptInputProvider({
+export const PromptInputProvider = ({
 	initialInput: initialTextInput = "",
 	children,
-}: PromptInputProviderProps) {
+}: PromptInputProviderProps) => {
 	// ----- textInput state
 	const [textInput, setTextInput] = useState(initialTextInput);
 	const clearInput = useCallback(() => setTextInput(""), []);
@@ -206,7 +206,7 @@ export function PromptInputProvider({
 			</ProviderAttachmentsContext.Provider>
 		</PromptInputContext.Provider>
 	);
-}
+};
 
 // ============================================================================
 // Component Context & Hooks
@@ -232,12 +232,15 @@ export type PromptInputAttachmentProps = HTMLAttributes<HTMLDivElement> & {
 	className?: string;
 };
 
-export function PromptInputAttachment({
+export const PromptInputAttachment = ({
 	data,
 	className,
 	...props
-}: PromptInputAttachmentProps) {
+}: PromptInputAttachmentProps) => {
 	const attachments = usePromptInputAttachments();
+	const handleRemoveAttachment = useCallback(() => {
+		attachments.remove(data.id);
+	}, [attachments, data.id]);
 
 	const mediaType =
 		data.mediaType?.startsWith("image/") && data.url ? "image" : "file";
@@ -280,19 +283,19 @@ export function PromptInputAttachment({
 					</Tooltip>
 				</div>
 			)}
-			<Button
-				aria-label="Remove attachment"
-				className="-right-1.5 -top-1.5 absolute h-6 w-6 rounded-full opacity-0 group-hover:opacity-100"
-				onClick={() => attachments.remove(data.id)}
-				size="icon"
-				type="button"
-				variant="outline"
-			>
-				<XIcon className="h-3 w-3" />
-			</Button>
-		</div>
-	);
-}
+				<Button
+					aria-label="Remove attachment"
+					className="-right-1.5 -top-1.5 absolute h-6 w-6 rounded-full opacity-0 group-hover:opacity-100"
+					onClick={handleRemoveAttachment}
+					size="icon"
+					type="button"
+					variant="outline"
+				>
+					<XIcon className="h-3 w-3" />
+				</Button>
+			</div>
+		);
+};
 
 export type PromptInputAttachmentsProps = Omit<
 	HTMLAttributes<HTMLDivElement>,
@@ -301,11 +304,11 @@ export type PromptInputAttachmentsProps = Omit<
 	children: (attachment: FileUIPart & { id: string }) => ReactNode;
 };
 
-export function PromptInputAttachments({
+export const PromptInputAttachments = ({
 	className,
 	children,
 	...props
-}: PromptInputAttachmentsProps) {
+}: PromptInputAttachmentsProps) => {
 	const attachments = usePromptInputAttachments();
 	const [height, setHeight] = useState(0);
 	const contentRef = useRef<HTMLDivElement>(null);
@@ -365,7 +368,7 @@ export function PromptInputAttachments({
 			</div>
 		</InputGroupAddon>
 	);
-}
+};
 
 export type PromptInputActionAddAttachmentsProps = ComponentProps<
 	typeof DropdownMenuItem
@@ -378,14 +381,15 @@ export const PromptInputActionAddAttachments = ({
 	...props
 }: PromptInputActionAddAttachmentsProps) => {
 	const attachments = usePromptInputAttachments();
+	const handleSelect = useCallback((event: Event) => {
+		event.preventDefault();
+		attachments.openFileDialog();
+	}, [attachments]);
 
 	return (
 		<DropdownMenuItem
 			{...props}
-			onSelect={(e) => {
-				e.preventDefault();
-				attachments.openFileDialog();
-			}}
+			onSelect={handleSelect}
 		>
 			<ImageIcon className="mr-2 size-4" /> {label}
 		</DropdownMenuItem>
@@ -636,13 +640,13 @@ export const PromptInput = ({
 			}
 		}, [usingProvider, files]);
 
-	const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
+	const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback((event) => {
 		if (event.currentTarget.files) {
 			add(event.currentTarget.files);
 		}
-	};
+	}, [add]);
 
-	const convertBlobUrlToDataUrl = async (url: string): Promise<string> => {
+	const convertBlobUrlToDataUrl = useCallback(async (url: string): Promise<string> => {
 		const response = await fetch(url);
 		const blob = await response.blob();
 		const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -652,7 +656,7 @@ export const PromptInput = ({
 		}
 		const base64 = btoa(binary);
 		return `data:${blob.type || "application/octet-stream"};base64,${base64}`;
-	};
+	}, []);
 
 	const ctx = useMemo<AttachmentsContext>(
 		() => ({
@@ -666,7 +670,7 @@ export const PromptInput = ({
 		[files, add, remove, clear, openFileDialog],
 	);
 
-	const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+	const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback((event) => {
 		event.preventDefault();
 
 		const form = event.currentTarget;
@@ -708,7 +712,7 @@ export const PromptInput = ({
 			}
 		};
 		run();
-	};
+	}, [clear, controller, convertBlobUrlToDataUrl, files, onSubmit, usingProvider]);
 
 	// Render with or without local provider
 	const inner = (
@@ -765,21 +769,21 @@ export const PromptInputTextarea = ({
 	const controller = useOptionalPromptInputController();
 	const attachments = usePromptInputAttachments();
 
-	const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
-		if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-			if (e.nativeEvent.isComposing) {
-				return;
+		const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = useCallback((e) => {
+			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+				if (e.nativeEvent.isComposing) {
+					return;
 			}
 			if (e.shiftKey) {
 				return;
 			}
 			e.preventDefault();
-			e.currentTarget.form?.requestSubmit();
-		}
-	};
+				e.currentTarget.form?.requestSubmit();
+			}
+		}, []);
 
-	const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = (event) => {
-		const items = event.clipboardData?.items;
+		const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = useCallback((event) => {
+			const items = event.clipboardData?.items;
 
 		if (!items) {
 			return;
@@ -796,11 +800,11 @@ export const PromptInputTextarea = ({
 			}
 		}
 
-		if (files.length > 0) {
-			event.preventDefault();
-			attachments.add(files);
-		}
-	};
+			if (files.length > 0) {
+				event.preventDefault();
+				attachments.add(files);
+			}
+		}, [attachments]);
 
 	const controlledProps = controller
 		? {

@@ -51,16 +51,16 @@ export interface OpenRouterUsage {
 /**
  * Extract OpenRouter usage data from AI SDK provider metadata
  */
-export function extractOpenRouterUsage(
+export const extractOpenRouterUsage = (
 	providerMetadata: Record<string, unknown> | undefined,
-): OpenRouterUsage | null {
+): OpenRouterUsage | null => {
 	if (!providerMetadata) {return null;}
 
 	const openrouterData = providerMetadata.openrouter as
 		| { usage?: OpenRouterUsage }
 		| undefined;
 	return openrouterData?.usage ?? null;
-}
+};
 
 /**
  * Standard AI SDK usage data (fallback when OpenRouter usage isn't available)
@@ -92,9 +92,9 @@ export interface CreateUsageEventParams {
  * Normalize reasoning to a string or undefined
  * Handles arrays (from thinking mode), strings, and other types
  */
-function normalizeReasoning(
+const normalizeReasoning = (
 	reasoning: string | string[] | unknown,
-): string | undefined {
+): string | undefined => {
 	if (reasoning === undefined || reasoning === null) {
 		return undefined;
 	}
@@ -114,14 +114,14 @@ function normalizeReasoning(
 	}
 	// For other types, try to convert to string
 	return String(reasoning) || undefined;
-}
+};
 
 /**
  * Build a consistent usage event data object for database insertion
  */
-export function buildUsageEventData(
+export const buildUsageEventData = (
 	params: CreateUsageEventParams,
-): NewUsageEvent {
+): NewUsageEvent => {
 	const {
 		userId,
 		name,
@@ -157,4 +157,4 @@ export function buildUsageEventData(
 		totalTokens,
 		userId,
 	};
-}
+};

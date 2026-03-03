@@ -5,6 +5,7 @@ import { NodeViewWrapper } from '@tiptap/react';
 import Formula from 'fparser';
 import { AlertTriangle, Calculator, CheckCircle2, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Button } from '../../../../ui/button';
 import { Input } from '../../../../ui/input';
 import { Label } from '../../../../ui/label';
@@ -15,14 +16,14 @@ import {
 } from '../../../../ui/popover';
 import { Textarea } from '../../../../ui/textarea';
 
-export function ScoreTagView({
+export const ScoreTagView = ({
   node,
   selected,
   editor,
   updateAttributes,
   deleteNode,
   getPos,
-}: NodeViewProps) {
+}: NodeViewProps) => {
   const formulaValue = node.attrs.formula ?? '';
   const unitValue = node.attrs.unit ?? '';
   const formulaInputRef = useRef<HTMLTextAreaElement>(null);
@@ -83,7 +84,7 @@ export function ScoreTagView({
     }
   }, [editor, getPos]);
 
-  const insertIntoFormula = (snippet: string) => {
+  const insertIntoFormula = useCallback((snippet: string) => {
     const current = formulaValue;
     const input = formulaInputRef.current;
 
@@ -102,20 +103,20 @@ export function ScoreTagView({
       const cursor = start + snippet.length;
       input.setSelectionRange(cursor, cursor);
     });
-  };
+  }, [formulaValue, updateAttributes]);
 
-  const insertVariable = (variable: string) => {
+  const insertVariable = useCallback((variable: string) => {
     const normalized = variable.trim().replaceAll(/^\[|\]$/g, '');
     if (!normalized) {return;}
     insertIntoFormula(`[${normalized}]`);
-  };
+  }, [insertIntoFormula]);
 
-  const insertOperator = (operator: string) => {
+  const insertOperator = useCallback((operator: string) => {
     const snippet = formulaValue.trim() ? ` ${operator} ` : operator;
     insertIntoFormula(snippet);
-  };
+  }, [formulaValue, insertIntoFormula]);
 
-  const handleAddTerm = () => {
+  const handleAddTerm = useCallback(() => {
     const variable = newTerm.variable.trim().replaceAll(/^\[|\]$/g, '');
     if (!variable) {return;}
 
@@ -133,7 +134,76 @@ export function ScoreTagView({
     requestAnimationFrame(() => {
       formulaInputRef.current?.focus();
     });
-  };
+  }, [formulaValue, newTerm, updateAttributes]);
+
+  const handleFormulaChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      updateAttributes({
+        formula: event.target.value,
+      });
+    },
+    [updateAttributes],
+  );
+
+  const handleUnitChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      updateAttributes({
+        unit: event.target.value,
+      });
+    },
+    [updateAttributes],
+  );
+
+  const handleNewTermVariableChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setNewTerm((prev) => ({
+        ...prev,
+        variable: event.target.value,
+      }));
+    },
+    [],
+  );
+
+  const handleNewTermWeightChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setNewTerm((prev) => ({
+        ...prev,
+        weight: event.target.value,
+      }));
+    },
+    [],
+  );
+
+  const handleNewTermKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter' && newTerm.variable.trim()) {
+        event.preventDefault();
+        handleAddTerm();
+      }
+    },
+    [handleAddTerm, newTerm.variable],
+  );
+
+  const variableInsertHandlers = useMemo<Record<string, () => void>>(() => {
+    const handlers: Record<string, () => void> = {};
+    for (const variable of availableVariables) {
+      handlers[variable] = () => {
+        insertVariable(variable);
+      };
+    }
+    return handlers;
+  }, [availableVariables, insertVariable]);
+
+  const operators = ['+', '-', '*', '/', '(', ')'] as const;
+  const operatorInsertHandlers = useMemo<Record<string, () => void>>(() => {
+    const handlers: Record<string, () => void> = {};
+    for (const operator of operators) {
+      handlers[operator] = () => {
+        insertOperator(operator);
+      };
+    }
+    return handlers;
+  }, [insertOperator, operators]);
 
   return (
     <NodeViewWrapper
@@ -202,11 +272,7 @@ export function ScoreTagView({
                       id="formula"
                       ref={formulaInputRef}
                       value={formulaValue}
-                      onChange={(e) =>
-                        updateAttributes({
-                          formula: e.target.value,
-                        })
-                      }
+                      onChange={handleFormulaChange}
                       placeholder="z.B. [age] * 2 + [crp] * 3"
                       className="min-h-[72px] text-sm font-mono focus:border-solarized-orange focus:ring-solarized-orange/50"
                       autoFocus
@@ -251,7 +317,7 @@ export function ScoreTagView({
                           <button
                             key={variable}
                             type="button"
-                            onClick={() => insertVariable(variable)}
+                            onClick={variableInsertHandlers[variable]}
                             className="inline-flex items-center rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange transition hover:border-solarized-orange/50 hover:bg-solarized-orange/15"
                           >
                             [{variable}]
@@ -264,11 +330,11 @@ export function ScoreTagView({
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {['+', '-', '*', '/', '(', ')'].map((operator) => (
+                      {operators.map((operator) => (
                         <button
                           key={operator}
                           type="button"
-                          onClick={() => insertOperator(operator)}
+                          onClick={operatorInsertHandlers[operator]}
                           className="inline-flex items-center rounded-md border border-solarized-orange/20 bg-background px-2 py-0.5 font-mono text-[11px] text-foreground transition hover:border-solarized-orange/40 hover:bg-solarized-orange/5"
                         >
                           {operator}
@@ -285,39 +351,19 @@ export function ScoreTagView({
                     <div className="grid grid-cols-3 gap-2">
                       <Input
                         value={newTerm.variable}
-                        onChange={(e) =>
-                          setNewTerm((prev) => ({
-                            ...prev,
-                            variable: e.target.value,
-                          }))
-                        }
+                        onChange={handleNewTermVariableChange}
                         list={datalistIdRef.current}
                         placeholder="Variable"
                         className="h-8 text-xs font-mono focus:border-solarized-orange focus:ring-solarized-orange/50"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && newTerm.variable.trim()) {
-                            e.preventDefault();
-                            handleAddTerm();
-                          }
-                        }}
+                        onKeyDown={handleNewTermKeyDown}
                       />
                       <Input
                         value={newTerm.weight}
-                        onChange={(e) =>
-                          setNewTerm((prev) => ({
-                            ...prev,
-                            weight: e.target.value,
-                          }))
-                        }
+                        onChange={handleNewTermWeightChange}
                         placeholder="Gewicht (z.B. 2)"
                         inputMode="decimal"
                         className="h-8 text-xs focus:border-solarized-orange focus:ring-solarized-orange/50"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && newTerm.variable.trim()) {
-                            e.preventDefault();
-                            handleAddTerm();
-                          }
-                        }}
+                        onKeyDown={handleNewTermKeyDown}
                       />
                       <Button
                         size="sm"
@@ -345,11 +391,7 @@ export function ScoreTagView({
                     <Input
                       id="unit"
                       value={unitValue}
-                      onChange={(e) =>
-                        updateAttributes({
-                          unit: e.target.value,
-                        })
-                      }
+                      onChange={handleUnitChange}
                       placeholder="z.B. kg, mm, °C, Punkte"
                       className="h-8 text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
                     />
@@ -373,4 +415,4 @@ export function ScoreTagView({
       </span>
     </NodeViewWrapper>
   );
-}
+};

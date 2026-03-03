@@ -22,7 +22,8 @@ import { Label } from '@repo/design-system/components/ui/label';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import { orpc } from '@/lib/orpc';
 
@@ -34,7 +35,7 @@ interface TextSnippet {
   updatedAt: Date;
 }
 
-export function SnippetsCard() {
+export const SnippetsCard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<TextSnippet | null>(
     null
@@ -76,7 +77,7 @@ export function SnippetsCard() {
     })
   );
 
-  const handleOpenDialog = (snippet?: TextSnippet) => {
+  const handleOpenDialog = useCallback((snippet?: TextSnippet) => {
     if (snippet) {
       setEditingSnippet(snippet);
       setFormData({ key: snippet.key, snippet: snippet.snippet });
@@ -85,15 +86,15 @@ export function SnippetsCard() {
       setFormData({ key: '', snippet: '' });
     }
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleCloseDialog = () => {
+  const handleCloseDialog = useCallback(() => {
     setIsDialogOpen(false);
     setEditingSnippet(null);
     setFormData({ key: '', snippet: '' });
-  };
+  }, []);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!(formData.key.trim() && formData.snippet.trim())) {
       toast.error('Bitte füllen Sie alle Felder aus');
       return;
@@ -123,9 +124,9 @@ export function SnippetsCard() {
           : 'Fehler beim Erstellen des Snippets'
       );
     }
-  };
+  }, [createMutation, editingSnippet, formData.key, formData.snippet, handleCloseDialog, updateMutation]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Möchten Sie dieses Snippet wirklich löschen?')) {
       return;
     }
@@ -137,7 +138,39 @@ export function SnippetsCard() {
       console.error('Error deleting snippet:', error);
       toast.error('Fehler beim Löschen des Snippets');
     }
-  };
+  }, [deleteMutation]);
+
+  const handleCreateSnippetClick = useCallback(() => {
+    handleOpenDialog();
+  }, [handleOpenDialog]);
+
+  const handleSnippetKeyChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setFormData((previous) => ({ ...previous, key: event.target.value }));
+  }, []);
+
+  const handleSnippetTextChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
+    setFormData((previous) => ({ ...previous, snippet: event.target.value }));
+  }, []);
+
+  const editSnippetHandlers = useMemo<Record<string, () => void>>(() => {
+    const handlers: Record<string, () => void> = {};
+    for (const snippet of snippets as TextSnippet[]) {
+      handlers[snippet.id] = () => {
+        handleOpenDialog(snippet);
+      };
+    }
+    return handlers;
+  }, [handleOpenDialog, snippets]);
+
+  const deleteSnippetHandlers = useMemo<Record<string, () => void>>(() => {
+    const handlers: Record<string, () => void> = {};
+    for (const snippet of snippets as TextSnippet[]) {
+      handlers[snippet.id] = () => {
+        handleDelete(snippet.id);
+      };
+    }
+    return handlers;
+  }, [handleDelete, snippets]);
 
   return (
     <Card>
@@ -154,7 +187,7 @@ export function SnippetsCard() {
           <Dialog onOpenChange={setIsDialogOpen} open={isDialogOpen}>
             <DialogTrigger asChild>
               <Button
-                onClick={() => handleOpenDialog()}
+                onClick={handleCreateSnippetClick}
                 size="sm"
                 type="button"
               >
@@ -178,9 +211,7 @@ export function SnippetsCard() {
                   <Input
                     id="key"
                     maxLength={50}
-                    onChange={(e) =>
-                      setFormData({ ...formData, key: e.target.value })
-                    }
+                    onChange={handleSnippetKeyChange}
                     placeholder="z.B. ty"
                     value={formData.key}
                   />
@@ -194,9 +225,7 @@ export function SnippetsCard() {
                     className="min-h-[150px]"
                     id="snippet"
                     maxLength={5000}
-                    onChange={(e) =>
-                      setFormData({ ...formData, snippet: e.target.value })
-                    }
+                    onChange={handleSnippetTextChange}
                     placeholder="z.B. Vielen Dank für Ihre Zeit"
                     value={formData.snippet}
                   />
@@ -254,7 +283,7 @@ export function SnippetsCard() {
                 </div>
                 <div className="flex gap-1">
                   <Button
-                    onClick={() => handleOpenDialog(snippet)}
+                    onClick={editSnippetHandlers[snippet.id]}
                     size="sm"
                     type="button"
                     variant="ghost"
@@ -262,7 +291,7 @@ export function SnippetsCard() {
                     <Edit2 className="h-4 w-4" />
                   </Button>
                   <Button
-                    onClick={() => handleDelete(snippet.id)}
+                    onClick={deleteSnippetHandlers[snippet.id]}
                     size="sm"
                     type="button"
                     variant="ghost"
@@ -277,4 +306,4 @@ export function SnippetsCard() {
       </CardContent>
     </Card>
   );
-}
+};

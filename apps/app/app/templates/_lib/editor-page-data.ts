@@ -24,11 +24,11 @@ const getCommonEditorData = (
 	return queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());
 };
 
-export async function getCreateTemplateEditorData({
+export const getCreateTemplateEditorData = async ({
 	forkId,
 }: {
 	forkId?: string;
-}): Promise<TemplateEditorData> {
+}): Promise<TemplateEditorData> => {
 	const queryClient = new QueryClient();
 	const sharedData = await getCommonEditorData(queryClient);
 	const forkedTemplate = forkId
@@ -44,13 +44,13 @@ export async function getCreateTemplateEditorData({
 		note: JSON.stringify(forkedTemplate?.content || ""),
 		examples: (forkedTemplate?.examples ?? []).map((example) => example.content),
 	};
-}
+};
 
-export async function getEditTemplateEditorData({
+export const getEditTemplateEditorData = async ({
 	id,
 }: {
 	id: string;
-}): Promise<TemplateEditorData> {
+}): Promise<TemplateEditorData> => {
 	const queryClient = new QueryClient();
 	const sharedData = await getCommonEditorData(queryClient);
 	const doc = await queryClient.fetchQuery(
@@ -69,4 +69,4 @@ export async function getEditTemplateEditorData({
 		examples: (doc.examples ?? []).map((example) => example.content),
 		id,
 	};
-}
+};

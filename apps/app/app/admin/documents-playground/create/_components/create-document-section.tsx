@@ -24,11 +24,11 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { fillPDFForm } from "../../_lib/fill-pdf-form";
-import { parsePDFFormFields } from '../../_lib/parse-pdf-form-fields';
-import type { FieldMapping, PDFField } from '../../_lib/parse-pdf-form-fields';
+import { parsePDFFormFields } from "../../_lib/parse-pdf-form-fields";
+import type { FieldMapping, PDFField } from "../../_lib/parse-pdf-form-fields";
 import PDFDebugPanel from "../../_components/pdf-debug-panel";
 import PDFUploadSection from "../../_components/pdf-upload-section";
 import InputEditor from "./input-editor";
@@ -42,14 +42,14 @@ export interface EnhancedFieldMapping extends FieldMapping {
 	markdocType: "Info" | "Switch";
 }
 
-function determineMarkdocType(pdfType: PDFField["type"]): "Info" | "Switch" {
+const determineMarkdocType = (pdfType: PDFField["type"]): "Info" | "Switch" => {
 	// Checkbox, dropdown, and radio become Switch
 	if (pdfType === "checkbox" || pdfType === "dropdown" || pdfType === "radio") {
 		return "Switch";
 	}
 	// Text and multiline become Info
 	return "Info";
-}
+};
 
 export default function CreateDocumentSection() {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
@@ -58,15 +58,15 @@ export default function CreateDocumentSection() {
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
 
-	const handleClearDocument = () => {
+	const handleClearDocument = useCallback(() => {
 		setPdfFile(null);
 		setFieldMappings([]);
 		setFields([]);
 		setFieldValues({});
 		setFilledPdf(null);
-	};
+	}, []);
 
-	const handleFileUpload = async (file: Uint8Array) => {
+	const handleFileUpload = useCallback(async (file: Uint8Array) => {
 		setPdfFile(file);
 
 		// get form fields from pdf
@@ -83,9 +83,9 @@ export default function CreateDocumentSection() {
 				pdfType: field.type,
 			})),
 		);
-	};
+	}, []);
 
-	const handleFillPdf = async () => {
+	const handleFillPdf = useCallback(async () => {
 		if (!pdfFile) {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;
@@ -97,13 +97,13 @@ export default function CreateDocumentSection() {
 		);
 		setFilledPdf(filledPdfResult);
 		toast.success("PDF-Formular ausgefüllt");
-	};
+	}, [pdfFile, fieldMappings, fieldValues]);
 
-	const handleFieldMappingsChange = (newMappings: EnhancedFieldMapping[]) => {
+	const handleFieldMappingsChange = useCallback((newMappings: EnhancedFieldMapping[]) => {
 		setFieldMappings(newMappings);
-	};
+	}, []);
 
-	const handleEnhanceWithAI = async () => {
+	const handleEnhanceWithAI = useCallback(async () => {
 		if (!pdfFile) {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;
@@ -139,12 +139,14 @@ export default function CreateDocumentSection() {
 			}
 			const data = await response.json();
 			
-			// Update field mappings with AI-enhanced version, preserving other fields
-			const enhancedMappings = data.fieldMapping.map((aiMapping: FieldMapping) => {
-				const existing = fieldMappings.find(fm => fm.fieldName === aiMapping.fieldName);
-				return {
-					...aiMapping,
-					markdocType: existing?.markdocType || "Info",
+				// Update field mappings with AI-enhanced version, preserving other fields
+				const enhancedMappings = data.fieldMapping.map((aiMapping: FieldMapping) => {
+					const existing = fieldMappings.find(
+						(fieldMapping) => fieldMapping.fieldName === aiMapping.fieldName,
+					);
+					return {
+						...aiMapping,
+						markdocType: existing?.markdocType || "Info",
 					pdfType: existing?.pdfType || "text",
 				};
 			});
@@ -156,11 +158,11 @@ export default function CreateDocumentSection() {
 				error instanceof Error
 					? error.message
 					: "Unbekannter Fehler aufgetreten";
-			toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
-				id: "enhance-ai",
-			});
-		}
-	};
+				toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
+					id: "enhance-ai",
+				});
+			}
+	}, [fieldMappings, pdfFile]);
 
 	return (
 		<>
@@ -181,7 +183,7 @@ export default function CreateDocumentSection() {
 							Eingaben mit KI verbessern
 						</Button>
 					</div>
-					<InputEditor 
+					<InputEditor
 						fieldMappings={fieldMappings}
 						onFieldMappingsChange={handleFieldMappingsChange}
 					/>

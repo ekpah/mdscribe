@@ -42,13 +42,13 @@ interface DoctorsNoteSectionProps {
 	disabled?: boolean;
 }
 
-export function DoctorsNoteSection({
+export const DoctorsNoteSection = ({
 	config,
 	value,
 	onChange,
 	context,
 	disabled = false,
-}: DoctorsNoteSectionProps) {
+}: DoctorsNoteSectionProps) => {
 	const [proposedText, setProposedText] = useState<string | null>(null);
 
 	// Check if enhancement is available (has documentType and buildPrompt)
@@ -224,4 +224,4 @@ export function DoctorsNoteSection({
 			)}
 		</div>
 	);
-}
+};

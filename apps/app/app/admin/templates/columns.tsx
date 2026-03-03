@@ -27,19 +27,19 @@ export interface AdminTemplateRow {
 	};
 }
 
-export function getUserDisplayName(user: {
+export const getUserDisplayName = (user: {
 	name: string | null;
 	email: string;
-}): string {
+}): string => {
 	const trimmedName = user.name?.trim();
 	if (trimmedName) {
 		return trimmedName;
 	}
 
 	return user.email;
-}
+};
 
-function formatTimestamp(value: Date | string): string {
+const formatTimestamp = (value: Date | string): string => {
 	const date = value instanceof Date ? value : new Date(value);
 	if (Number.isNaN(date.getTime())) {
 		return "-";
@@ -49,7 +49,7 @@ function formatTimestamp(value: Date | string): string {
 		dateStyle: "medium",
 		timeStyle: "short",
 	});
-}
+};
 
 const columnHelper = createColumnHelper<AdminTemplateRow>();
 

@@ -2,7 +2,7 @@
 
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "../components/ui/button";
 import {
 	DropdownMenu,
@@ -20,6 +20,18 @@ const themes = [
 
 export const ModeToggle = () => {
 	const { setTheme } = useTheme();
+	const themeClickHandlers = useMemo(
+		() =>
+			Object.fromEntries(
+				themes.map(({ value }) => [
+					value,
+					() => {
+						setTheme(value);
+					},
+				]),
+			) as Record<string, () => void>,
+		[setTheme],
+	);
 
 	return (
 		<DropdownMenu>
@@ -34,12 +46,12 @@ export const ModeToggle = () => {
 					<span className="sr-only">Toggle theme</span>
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent>
-				{themes.map(({ label, value }) => (
-					<DropdownMenuItem key={value} onClick={() => setTheme(value)}>
-						{label}
-					</DropdownMenuItem>
-				))}
+				<DropdownMenuContent>
+					{themes.map(({ label, value }) => (
+						<DropdownMenuItem key={value} onClick={themeClickHandlers[value]}>
+							{label}
+						</DropdownMenuItem>
+					))}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -48,6 +60,15 @@ export const ModeToggle = () => {
 export const ModeToggleSwitch = ({ className }: { className?: string }) => {
 	const { theme, setTheme } = useTheme();
 	const [mounted, setMounted] = useState(false);
+	const handleSetLightTheme = useCallback(() => {
+		setTheme("light");
+	}, [setTheme]);
+	const handleSetDarkTheme = useCallback(() => {
+		setTheme("dark");
+	}, [setTheme]);
+	const handleSetSystemTheme = useCallback(() => {
+		setTheme("system");
+	}, [setTheme]);
 
 	useEffect(() => {
 		setMounted(true);
@@ -60,39 +81,39 @@ export const ModeToggleSwitch = ({ className }: { className?: string }) => {
 				className,
 			)}
 		>
-			<Button
+				<Button
 				variant="ghost"
 				size="icon"
 				className={cn(
 					"h-7 flex-1 rounded-sm",
 					mounted && theme === "light" && "bg-background shadow-sm",
 				)}
-				onClick={() => setTheme("light")}
-			>
+					onClick={handleSetLightTheme}
+				>
 				<SunIcon className="h-4 w-4" />
 				<span className="sr-only">Light mode</span>
 			</Button>
-			<Button
+				<Button
 				variant="ghost"
 				size="icon"
 				className={cn(
 					"h-7 flex-1 rounded-sm",
 					mounted && theme === "dark" && "bg-background shadow-sm",
 				)}
-				onClick={() => setTheme("dark")}
-			>
+					onClick={handleSetDarkTheme}
+				>
 				<MoonIcon className="h-4 w-4" />
 				<span className="sr-only">Dark mode</span>
 			</Button>
-			<Button
+				<Button
 				variant="ghost"
 				size="icon"
 				className={cn(
 					"h-7 flex-1 rounded-sm",
 					mounted && theme === "system" && "bg-background shadow-sm",
 				)}
-				onClick={() => setTheme("system")}
-			>
+					onClick={handleSetSystemTheme}
+				>
 				<MonitorIcon className="h-4 w-4" />
 				<span className="sr-only">System mode</span>
 			</Button>

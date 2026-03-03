@@ -111,7 +111,10 @@ Respiratorische Insuffizienz mit Intubationspflicht
 /**
  * Seed templates into the database
  */
-async function seedTemplates(db: SeedDatabase, authorId: string): Promise<void> {
+const seedTemplates = async (
+	db: SeedDatabase,
+	authorId: string,
+): Promise<void> => {
 	console.log("Seeding templates...");
 
 	for (const tmpl of SEED_TEMPLATES) {
@@ -126,12 +129,15 @@ async function seedTemplates(db: SeedDatabase, authorId: string): Promise<void> 
 	}
 
 	console.log(`Seeded ${SEED_TEMPLATES.length} templates`);
-}
+};
 
 /**
  * Seed usage events into the database
  */
-async function seedUsageEvents(db: SeedDatabase, userId: string): Promise<void> {
+const seedUsageEvents = async (
+	db: SeedDatabase,
+	userId: string,
+): Promise<void> => {
 	console.log("Seeding usage events...");
 
 	const events = [
@@ -190,13 +196,13 @@ async function seedUsageEvents(db: SeedDatabase, userId: string): Promise<void> 
 	}
 
 	console.log(`Seeded ${events.length} usage events`);
-}
+};
 
 /**
  * Seed the database with test data for local development
  * Only runs once, even across HMR reloads
  */
-export async function seedDatabase(db: SeedDatabase): Promise<void> {
+export const seedDatabase = async (db: SeedDatabase): Promise<void> => {
 	// Skip if already seeded (HMR protection)
 	if (globalForSeed.seeded) {
 		console.log("Database already seeded, skipping...");
@@ -254,4 +260,4 @@ export async function seedDatabase(db: SeedDatabase): Promise<void> {
 	globalForSeed.seeded = true;
 	console.log("Database seeding complete!");
 	console.log(`Test user: ${SEED_USER.email} / ${SEED_USER.password}`);
-}
+};

@@ -52,17 +52,33 @@ export default function PDFViewSection({
 		};
 	}, [containerRef, onResize]);
 
-	function onDocumentLoadSuccess({
-		numPages: nextNumPages,
-	}: {
-		numPages: number;
-	}): void {
+	const handleDocumentLoadSuccess = useCallback(
+		({
+			numPages: nextNumPages,
+		}: {
+			numPages: number;
+		}): void => {
 		setNumPages(nextNumPages);
-	}
+		},
+		[],
+	);
 
-	function onDocumentLoadError(error: Error): void {
+	const handleDocumentLoadError = useCallback((error: Error): void => {
 		console.error("PDF load error:", error);
-	}
+	}, []);
+
+	const handlePreviousPage = useCallback(() => {
+		setPageNumber((currentPage) => Math.max(1, currentPage - 1));
+	}, []);
+
+	const handleNextPage = useCallback(() => {
+		setPageNumber((currentPage) => {
+			if (!numPages) {
+				return currentPage + 1;
+			}
+			return Math.min(numPages, currentPage + 1);
+		});
+	}, [numPages]);
 
 	const pdfUrl = useMemo(() => toPdfBlobUrl(pdfFile), [pdfFile]);
 
@@ -104,23 +120,23 @@ export default function PDFViewSection({
 					<div className="relative flex h-full min-h-0 w-full items-start justify-center overflow-auto">
 						{numPages && numPages > 1 && hasUploadedFile ? (
 							<>
-								<Button
-									variant="outline"
-									size="icon"
-									onClick={() => setPageNumber(pageNumber - 1)}
-									disabled={pageNumber <= 1}
-									className="absolute top-1/2 left-2 z-10 -translate-y-1/2"
-								>
+									<Button
+										variant="outline"
+										size="icon"
+										onClick={handlePreviousPage}
+										disabled={pageNumber <= 1}
+										className="absolute top-1/2 left-2 z-10 -translate-y-1/2"
+									>
 									<ChevronLeftIcon className="h-4 w-4" />
 								</Button>
 								<div className="flex min-h-full flex-col items-center justify-start py-2">
-									<Document
-										file={pdfUrl}
-										onLoadSuccess={onDocumentLoadSuccess}
-										onLoadError={onDocumentLoadError}
-										options={options}
-										className="max-w-full"
-									>
+										<Document
+											file={pdfUrl}
+											onLoadSuccess={handleDocumentLoadSuccess}
+											onLoadError={handleDocumentLoadError}
+											options={options}
+											className="max-w-full"
+										>
 										<Page
 											key={`page_${pageNumber}`}
 											pageNumber={pageNumber}
@@ -135,25 +151,25 @@ export default function PDFViewSection({
 										</div>
 									) : null}
 								</div>
-								<Button
-									variant="outline"
-									size="icon"
-									onClick={() => setPageNumber(pageNumber + 1)}
-									disabled={pageNumber >= numPages}
-									className="absolute top-1/2 right-2 z-10 -translate-y-1/2"
-								>
+									<Button
+										variant="outline"
+										size="icon"
+										onClick={handleNextPage}
+										disabled={pageNumber >= numPages}
+										className="absolute top-1/2 right-2 z-10 -translate-y-1/2"
+									>
 									<ChevronRightIcon className="h-4 w-4" />
 								</Button>
 							</>
 						) : (
 							<div className="flex min-h-full flex-col items-center justify-start py-2">
-								<Document
-									file={pdfUrl}
-									onLoadSuccess={onDocumentLoadSuccess}
-									onLoadError={onDocumentLoadError}
-									options={options}
-									className="max-w-full"
-								>
+									<Document
+										file={pdfUrl}
+										onLoadSuccess={handleDocumentLoadSuccess}
+										onLoadError={handleDocumentLoadError}
+										options={options}
+										className="max-w-full"
+									>
 									<Page
 										key={`page_${pageNumber}`}
 										pageNumber={pageNumber}

@@ -18,12 +18,12 @@ interface SubscriptionCardProps {
   onCancel: () => void;
 }
 
-export function SubscriptionCard({
+export const SubscriptionCard = ({
   subscription,
   isManagingSubscription,
   onUpgrade,
   onCancel,
-}: SubscriptionCardProps) {
+}: SubscriptionCardProps) => {
   const hasActiveSubscription = !!subscription;
 
   // TODO: Get this from the subscription, right now hardcoded
@@ -156,4 +156,4 @@ export function SubscriptionCard({
       )}
     </Card>
   );
-}
+};

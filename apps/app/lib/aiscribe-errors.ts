@@ -5,7 +5,7 @@ import { USER_MESSAGES } from "./user-messages";
  * Map an error from oRPC or the network layer to a user-facing German message.
  * Returns `null` for aborted requests (no toast needed).
  */
-export function getAiscribeErrorMessage(error: unknown): string | null {
+export const getAiscribeErrorMessage = (error: unknown): string | null => {
 	// Aborted fetch / cancelled stream — silent
 	if (error instanceof DOMException && error.name === "AbortError") {
 		return null;
@@ -38,4 +38,4 @@ export function getAiscribeErrorMessage(error: unknown): string | null {
 	}
 
 	return USER_MESSAGES.unknownError;
-}
+};

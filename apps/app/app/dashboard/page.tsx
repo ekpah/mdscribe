@@ -61,7 +61,7 @@ const eventNameLabels: Record<string, string> = {
 	ai_scribe_generation: "KI-Dokumentation generiert",
 };
 
-function getSubscriptionPlanLabel(plan?: string | null) {
+const getSubscriptionPlanLabel = (plan?: string | null) => {
 	if (!plan) {
 		return "Basis";
 	}
@@ -70,12 +70,12 @@ function getSubscriptionPlanLabel(plan?: string | null) {
 	return normalizedPlan === "plus"
 		? "Plus"
 		: normalizedPlan.charAt(0).toUpperCase() + normalizedPlan.slice(1);
-}
+};
 
-function getSubscriptionStatus(subscription?: {
+const getSubscriptionStatus = (subscription?: {
 	status?: string;
 	cancelAtPeriodEnd?: boolean;
-}) {
+}) => {
 	if (!subscription) {
 		return {
 			badgeClassName: "border-solarized-base1 text-solarized-base01",
@@ -101,7 +101,7 @@ function getSubscriptionStatus(subscription?: {
 		badgeClassName: "border-solarized-green/70 text-solarized-green",
 		label: "Aktiv",
 	};
-}
+};
 
 export default async function DashboardPage() {
 	// Auth check - must happen before queries

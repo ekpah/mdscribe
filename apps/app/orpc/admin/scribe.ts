@@ -16,13 +16,13 @@ import {
 } from "../scribe/providers";
 import type { PromptVariables } from "../scribe/types";
 
-function todaysDateDE(): string {
+const todaysDateDE = (): string => {
 	return new Date().toLocaleDateString("de-DE", {
 		day: "2-digit",
 		month: "2-digit",
 		year: "numeric",
 	});
-}
+};
 
 const compilePromptInput = z.object({
 	documentType: z.string(),
@@ -31,7 +31,7 @@ const compilePromptInput = z.object({
 	variables: z.record(z.unknown()).optional(),
 });
 
-function parsePromptJson(promptJson?: string): Record<string, unknown> {
+const parsePromptJson = (promptJson?: string): Record<string, unknown> => {
 	if (!promptJson) {return {};}
 	try {
 		const parsed = JSON.parse(promptJson) as unknown;
@@ -44,7 +44,7 @@ function parsePromptJson(promptJson?: string): Record<string, unknown> {
 			message: "Invalid prompt JSON",
 		});
 	}
-}
+};
 
 const compilePromptHandler = authed
 	.use(requiredAdminMiddleware)

@@ -12,11 +12,11 @@ import {
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
 import { CreditCard, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
-function getPlanLabel(plan?: string | null) {
+const getPlanLabel = (plan?: string | null) => {
 	if (!plan) {
 		return "Basis";
 	}
@@ -25,9 +25,9 @@ function getPlanLabel(plan?: string | null) {
 	return normalizedPlan === "plus"
 		? "Plus"
 		: normalizedPlan.charAt(0).toUpperCase() + normalizedPlan.slice(1);
-}
+};
 
-function getStatusBadge(subscription?: Subscription) {
+const getStatusBadge = (subscription?: Subscription) => {
 	if (!subscription) {
 		return {
 			className: "border-solarized-base1 text-solarized-base01",
@@ -53,20 +53,20 @@ function getStatusBadge(subscription?: Subscription) {
 		className: "border-solarized-green text-solarized-green",
 		label: "Aktiv",
 	};
-}
+};
 
-export function SubscriptionManagementCard({
+export const SubscriptionManagementCard = ({
 	subscription,
 }: {
 	subscription?: Subscription;
-}) {
+}) => {
 	const [isManagingSubscription, setIsManagingSubscription] = useState(false);
 	const hasActiveSubscription = Boolean(subscription);
 	const usageLimit = hasActiveSubscription ? 500 : 50;
 	const statusBadge = getStatusBadge(subscription);
 	const planLabel = getPlanLabel(subscription?.plan);
 
-	function handleUpgrade() {
+	const handleUpgrade = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
 			() =>
@@ -82,9 +82,9 @@ export function SubscriptionManagementCard({
 				success: "Abonnement erfolgreich aktualisiert.",
 			},
 		);
-	}
+	}, []);
 
-	function handleCancel() {
+	const handleCancel = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
 			() =>
@@ -98,9 +98,9 @@ export function SubscriptionManagementCard({
 				success: "Abonnement erfolgreich storniert.",
 			},
 		);
-	}
+	}, []);
 
-	function handleBillingPortal() {
+	const handleBillingPortal = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
 			() =>
@@ -114,7 +114,7 @@ export function SubscriptionManagementCard({
 				success: "Weiterleitung zum Zahlungsportal...",
 			},
 		);
-	}
+	}, []);
 
 	return (
 		<Card className="border-solarized-violet/30 bg-solarized-base3 shadow-xl">
@@ -206,4 +206,4 @@ export function SubscriptionManagementCard({
 			</CardFooter>
 		</Card>
 	);
-}
+};

@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 
 let client: postmark.ServerClient | null = null;
 
-function getClient(): postmark.ServerClient {
+const getClient = (): postmark.ServerClient => {
 	if (!client) {
 		if (!process.env.AUTH_POSTMARK_KEY) {
 			throw new Error("AUTH_POSTMARK_KEY is not set");
@@ -12,7 +12,7 @@ function getClient(): postmark.ServerClient {
 		client = new postmark.ServerClient(process.env.AUTH_POSTMARK_KEY);
 	}
 	return client;
-}
+};
 
 interface SendEmailOptions {
 	from: string;
@@ -21,12 +21,12 @@ interface SendEmailOptions {
 	template: ReactElement;
 }
 
-export async function sendEmail({
+export const sendEmail = async ({
 	from,
 	to,
 	subject,
 	template,
-}: SendEmailOptions) {
+}: SendEmailOptions) => {
 	const htmlBody = await render(template);
 
 	return getClient().sendEmail({
@@ -35,4 +35,4 @@ export async function sendEmail({
 		Subject: subject,
 		To: to,
 	});
-}
+};

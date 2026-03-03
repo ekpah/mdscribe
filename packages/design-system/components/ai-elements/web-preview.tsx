@@ -16,7 +16,7 @@ import {
 import { cn } from '@repo/design-system/lib/utils';
 import { ChevronDownIcon } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 export interface WebPreviewContextValue {
   url: string;
@@ -50,10 +50,10 @@ export const WebPreview = ({
   const [url, setUrl] = useState(defaultUrl);
   const [consoleOpen, setConsoleOpen] = useState(false);
 
-  const handleUrlChange = (newUrl: string) => {
+  const handleUrlChange = useCallback((newUrl: string) => {
     setUrl(newUrl);
     onUrlChange?.(newUrl);
-  };
+  }, [onUrlChange]);
 
   const contextValue: WebPreviewContextValue = {
     consoleOpen,
@@ -140,18 +140,18 @@ export const WebPreviewUrl = ({
     setInputValue(url);
   }, [url]);
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(event.target.value);
     onChange?.(event);
-  };
+  }, [onChange]);
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       const target = event.target as HTMLInputElement;
       setUrl(target.value);
     }
     onKeyDown?.(event);
-  };
+  }, [onKeyDown, setUrl]);
 
   return (
     <Input

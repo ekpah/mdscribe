@@ -18,27 +18,27 @@ export const ADMIN_EMAIL = "admin@test.com";
  * Creates a test context for oRPC handlers
  * This allows calling handlers directly without HTTP overhead
  */
-export function createTestContext(options: {
+export const createTestContext = (options: {
 	db: TestDatabase;
 	session?: Session;
-}) {
+}) => {
 	return {
 		db: options.db,
 		session: options.session,
 	};
-}
+};
 
 /**
  * Creates a mock session for authenticated handler tests
  */
-export function createMockSession(user: {
+export const createMockSession = (user: {
 	id: string;
 	email: string;
 	name?: string | null;
 	stripeCustomerId?: string | null;
 	emailVerified?: boolean;
 	[key: string]: unknown;
-}): Session {
+}): Session => {
 	return {
 		session: {
 			createdAt: new Date(),
@@ -66,20 +66,20 @@ export function createMockSession(user: {
 			updatedAt: new Date(),
 		},
 	};
-}
+};
 
-function getRequiredRow<T>(rows: T[], message: string): T {
+const getRequiredRow = <T,>(rows: T[], message: string): T => {
 	const row = rows[0];
 	if (!row) {
 		throw new Error(message);
 	}
 	return row;
-}
+};
 
 /**
  * Helper to create a template in the test database
  */
-export async function createTestTemplate(
+export const createTestTemplate = async (
 	db: TestDatabase,
 	authorId: string,
 	options?: {
@@ -88,7 +88,7 @@ export async function createTestTemplate(
 		content?: string;
 		embedding?: number[];
 	},
-) {
+) => {
 	const { template } = await import("@repo/database");
 
 	const result = await db
@@ -106,19 +106,19 @@ export async function createTestTemplate(
 		.returning();
 
 	return getRequiredRow(result, "Failed to create test template");
-}
+};
 
 /**
  * Helper to create a text snippet in the test database
  */
-export async function createTestSnippet(
+export const createTestSnippet = async (
 	db: TestDatabase,
 	userId: string,
 	options?: {
 		key?: string;
 		snippet?: string;
 	},
-) {
+) => {
 	const { textSnippet } = await import("@repo/database");
 
 	const result = await db
@@ -132,19 +132,19 @@ export async function createTestSnippet(
 		.returning();
 
 	return getRequiredRow(result, "Failed to create test snippet");
-}
+};
 
 /**
  * Helper to create a subscription in the test database
  */
-export async function createTestSubscription(
+export const createTestSubscription = async (
 	db: TestDatabase,
 	userId: string,
 	options?: {
 		plan?: string;
 		status?: string;
 	},
-) {
+) => {
 	const { subscription } = await import("@repo/database");
 
 	const result = await db
@@ -162,12 +162,12 @@ export async function createTestSubscription(
 		.returning();
 
 	return getRequiredRow(result, "Failed to create test subscription");
-}
+};
 
 /**
  * Helper to create a usage event in the test database
  */
-export async function createTestUsageEvent(
+export const createTestUsageEvent = async (
 	db: TestDatabase,
 	userId: string,
 	options?: {
@@ -175,7 +175,7 @@ export async function createTestUsageEvent(
 		inputTokens?: number;
 		outputTokens?: number;
 	},
-) {
+) => {
 	const { usageEvent } = await import("@repo/database");
 
 	const result = await db
@@ -194,16 +194,16 @@ export async function createTestUsageEvent(
 		.returning();
 
 	return getRequiredRow(result, "Failed to create test usage event");
-}
+};
 
 /**
  * Seed a minimal provider/model/default setup so resolver-based handlers can run.
  */
-export async function createTestAiDefaults(db: TestDatabase): Promise<{
+export const createTestAiDefaults = async (db: TestDatabase): Promise<{
 	providerId: string;
 	modelRecordId: string;
 	modelId: string;
-}> {
+}> => {
 	const { aiDefaults, aiModel, aiProvider } = await import("@repo/database");
 
 	const providerId = crypto.randomUUID();
@@ -247,4 +247,4 @@ export async function createTestAiDefaults(db: TestDatabase): Promise<{
 		});
 
 	return { modelId, modelRecordId, providerId };
-}
+};

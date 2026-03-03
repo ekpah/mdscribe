@@ -21,7 +21,8 @@ import {
   FormMessage,
 } from '@repo/design-system/components/ui/form';
 import { Input } from '@repo/design-system/components/ui/input';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
+import type { ControllerRenderProps } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -54,11 +55,11 @@ interface ProfileCardProps {
   setIsLoading: (value: boolean) => void;
 }
 
-export function ProfileCard({
+export const ProfileCard = ({
   user,
   isLoading,
   setIsLoading,
-}: ProfileCardProps) {
+}: ProfileCardProps) => {
   const form = useForm<ProfileFormValues>({
     defaultValues: {
       email: '',
@@ -76,7 +77,7 @@ export function ProfileCard({
     }
   }, [user, form]);
 
-  function onSubmit(data: ProfileFormValues) {
+  const onSubmit = useCallback((data: ProfileFormValues) => {
     setIsLoading(true);
     toast.promise(
       authClient.updateUser({
@@ -90,7 +91,40 @@ export function ProfileCard({
       }
     );
     setIsLoading(false);
-  }
+  }, [setIsLoading]);
+
+  const renderNameField = useCallback(
+    ({ field }: { field: ControllerRenderProps<ProfileFormValues, 'name'> }) => (
+      <FormItem>
+        <FormLabel>Name</FormLabel>
+        <FormControl>
+          <Input placeholder="Dr. Maria Mustermann" {...field} />
+        </FormControl>
+        <FormDescription>
+          Dies ist Dein vollständiger Name, wie er für andere Benutzer erscheint.
+        </FormDescription>
+        <FormMessage />
+      </FormItem>
+    ),
+    [],
+  );
+
+  const renderEmailField = useCallback(
+    ({ field }: { field: ControllerRenderProps<ProfileFormValues, 'email'> }) => (
+      <FormItem>
+        <FormLabel>E-Mail</FormLabel>
+        <FormControl>
+          <Input placeholder={user?.email} {...field} disabled />
+        </FormControl>
+        <FormDescription>
+          Deine E-Mail-Adresse wird zum Login verwendet und kann aktuell nicht
+          verändert werden.
+        </FormDescription>
+        <FormMessage />
+      </FormItem>
+    ),
+    [user?.email],
+  );
 
   return (
     <Card>
@@ -106,35 +140,11 @@ export function ProfileCard({
           <CardContent className="space-y-6">
             <FormField
               name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Dr. Maria Mustermann" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Dies ist Dein vollständiger Name, wie er für andere Benutzer
-                    erscheint.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={renderNameField}
             />
             <FormField
               name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-Mail</FormLabel>
-                  <FormControl>
-                    <Input placeholder={user?.email} {...field} disabled />
-                  </FormControl>
-                  <FormDescription>
-                    Deine E-Mail-Adresse wird zum Login verwendet und kann
-                    aktuell nicht verändert werden.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={renderEmailField}
             />
           </CardContent>
           <CardFooter className="mt-auto">
@@ -146,4 +156,4 @@ export function ProfileCard({
       </Form>
     </Card>
   );
-}
+};

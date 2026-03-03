@@ -14,7 +14,7 @@ import {
   RefreshCw,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface MigrationResult {
@@ -80,7 +80,7 @@ export default function MigrationInterface({
     );
   }, [templatesToProcess, batchSize, delayBetweenBatches]);
 
-  const handleMigration = async () => {
+  const handleMigration = useCallback(async () => {
     const actionText =
       effectiveMode === 'missing'
         ? `Embeddings für ${templatesToProcess} Vorlagen ohne Embeddings generieren`
@@ -133,11 +133,33 @@ export default function MigrationInterface({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [batchSize, delayBetweenBatches, effectiveMode, templatesToProcess]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     onRefreshStats();
-  };
+  }, [onRefreshStats]);
+
+  const handleMissingModeChange = useCallback(() => {
+    setMigrationMode('missing');
+  }, []);
+
+  const handleAllModeChange = useCallback(() => {
+    setMigrationMode('all');
+  }, []);
+
+  const handleBatchSizeChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setBatchSize(Number.parseInt(event.target.value, 10) || 10);
+    },
+    [],
+  );
+
+  const handleDelayChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setDelayBetweenBatches(Number.parseInt(event.target.value, 10) || 1000);
+    },
+    [],
+  );
 
   return (
     <div className="space-y-6">
@@ -152,9 +174,7 @@ export default function MigrationInterface({
                 name="migrationMode"
                 value="missing"
                 checked={migrationMode === 'missing'}
-                onChange={(e) =>
-                  setMigrationMode(e.target.value as 'missing' | 'all')
-                }
+                onChange={handleMissingModeChange}
                 className="text-solarized-blue"
               />
               <span className="text-sm text-solarized-base00">
@@ -168,9 +188,7 @@ export default function MigrationInterface({
                 name="migrationMode"
                 value="all"
                 checked={migrationMode === 'all'}
-                onChange={(e) =>
-                  setMigrationMode(e.target.value as 'missing' | 'all')
-                }
+                onChange={handleAllModeChange}
                 className="text-solarized-blue"
               />
               <span className="text-sm text-solarized-base00">
@@ -187,17 +205,15 @@ export default function MigrationInterface({
           <Label htmlFor="batchSize" className="text-solarized-base00">
             Batch-Größe
           </Label>
-	          <Input
+		          <Input
 	            id="batchSize"
 	            type="number"
 	            min={1}
 	            max={50}
 	            value={batchSize}
-	            onChange={(e) =>
-	              setBatchSize(Number.parseInt(e.target.value, 10) || 10)
-	            }
-	            className="border-solarized-base2"
-	          />
+		            onChange={handleBatchSizeChange}
+		            className="border-solarized-base2"
+		          />
           <p className="text-solarized-base01 text-xs">
             Anzahl der Vorlagen pro Batch (1-50)
           </p>
@@ -207,16 +223,14 @@ export default function MigrationInterface({
           <Label htmlFor="delay" className="text-solarized-base00">
             Verzögerung zwischen Batches (ms)
           </Label>
-	          <Input
+		          <Input
 	            id="delay"
 	            type="number"
 	            min={0}
 	            value={delayBetweenBatches}
-	            onChange={(e) =>
-	              setDelayBetweenBatches(Number.parseInt(e.target.value, 10) || 1000)
-	            }
-	            className="border-solarized-base2"
-	          />
+		            onChange={handleDelayChange}
+		            className="border-solarized-base2"
+		          />
           <p className="text-solarized-base01 text-xs">
             Verzögerung in Millisekunden zwischen den Batches
           </p>

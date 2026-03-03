@@ -447,7 +447,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		(event: KeyboardEvent) => {
 			event.preventDefault();
 			event.stopPropagation();
-			document.getElementById("input-field")?.focus();
+			mainTextareaRef.current?.focus();
 		},
 		{
 			enableOnFormTags: ["INPUT", "TEXTAREA"],

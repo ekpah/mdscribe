@@ -7,10 +7,10 @@ export const SwitchContext = React.createContext<string | null>(null);
 
 // this component mainly needs to handle reactivity around the Condition
 
-export function Switch({
+export const Switch = ({
   primary,
   children,
-}: { primary: string | null; children: ReactNode[] }) {
+}: { primary: string | null; children: ReactNode[] }) => {
   const variables = useVariables();
   let resolvedSwitchValue: string | null = null;
   if (primary !== null) {
@@ -39,4 +39,4 @@ export function Switch({
       </span>
     </SwitchContext.Provider>
   );
-}
+};

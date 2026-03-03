@@ -59,10 +59,10 @@ const PDFViewSection = dynamic(() => import("./pdf-view-section"), {
  * Renders PDF pages to JPEG canvas images using the shared pdfjs instance from react-pdf.
  * Used for openai-compatible (Ollama) connections that accept images but not raw PDFs.
  */
-async function convertPdfToImages(
+const convertPdfToImages = async (
 	pdfBytes: Uint8Array,
 	maxPages = 10,
-): Promise<string[]> {
+): Promise<string[]> => {
 	const pdf = await pdfjs.getDocument({ data: [...pdfBytes] }).promise;
 	const images: string[] = [];
 	const pageCount = Math.min(pdf.numPages, maxPages);
@@ -85,9 +85,9 @@ async function convertPdfToImages(
 	}
 
 	return images;
-}
+};
 
-function encodeUint8ArrayToBase64(data: Uint8Array): string {
+const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
 	const chunkSize = 8192;
 	const chunks: string[] = [];
 	for (let i = 0; i < data.length; i += chunkSize) {
@@ -95,21 +95,21 @@ function encodeUint8ArrayToBase64(data: Uint8Array): string {
 		chunks.push(String.fromCodePoint(...chunk));
 	}
 	return btoa(chunks.join(""));
-}
+};
 
-async function blobToBase64(blob: Blob): Promise<string> {
+const blobToBase64 = async (blob: Blob): Promise<string> => {
 	const bytes = new Uint8Array(await blob.arrayBuffer());
 	return encodeUint8ArrayToBase64(bytes);
-}
+};
 
-function isLikelyOcrCapableModel(model: {
+const isLikelyOcrCapableModel = (model: {
 	id: string;
 	modelId?: string;
 	providerId?: string;
 	providerProtocol?: string;
 	connectionProtocol?: string;
 	capabilities: { supportsImage: boolean };
-}): boolean {
+}): boolean => {
 	if (model.capabilities.supportsImage) {
 		return true;
 	}
@@ -127,7 +127,7 @@ function isLikelyOcrCapableModel(model: {
 		modelId.includes("moondream") ||
 		modelId.includes("-vl")
 	);
-}
+};
 
 interface AudioRecording {
 	blob: Blob;
@@ -135,7 +135,7 @@ interface AudioRecording {
 	id: string;
 }
 
-export default function PDFFormSection() {
+const PDFFormSection = () => {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
 	const [fieldMapping, setFieldMapping] = useState<FieldMapping[]>([]);
 	const [fields, setFields] = useState<PDFField[]>([]);
@@ -274,7 +274,7 @@ export default function PDFFormSection() {
 		}),
 	);
 
-	const handleClearDocument = () => {
+	const handleClearDocument = useCallback(() => {
 		setPdfFile(null);
 		setFieldMapping([]);
 		setFields([]);
@@ -285,9 +285,9 @@ export default function PDFFormSection() {
 		setInputsKey(0);
 		setOcrMarkdown("");
 		setActivePreviewTab("pdf");
-	};
+	}, []);
 	const { inputTags } = convertPDFFieldsToInputTags(fields, fieldMapping);
-	const handleFileUpload = async (file: Uint8Array) => {
+	const handleFileUpload = useCallback(async (file: Uint8Array) => {
 		// Keep an isolated in-memory copy for preview/fill operations.
 		const stableFile = new Uint8Array(file);
 		if (stableFile.byteLength > MAX_PDF_UPLOAD_BYTES) {
@@ -318,7 +318,7 @@ export default function PDFFormSection() {
 			setFieldMapping([]);
 			toast.error("PDF konnte nicht gelesen werden");
 		}
-	};
+	}, []);
 
 	const handleInputChange = useCallback((values: Record<string, unknown>) => {
 		setFieldValues(values);
@@ -328,7 +328,7 @@ export default function PDFFormSection() {
 		setFieldSources((prev) => ({ ...prev, [fieldName]: "manual" }));
 	}, []);
 
-	const handleFillPdf = async () => {
+	const handleFillPdf = useCallback(async () => {
 		if (!pdfFile) {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;
@@ -341,14 +341,14 @@ export default function PDFFormSection() {
 		setFilledPdf(filledPdfResult);
 		setPdfVersion((prev) => prev + 1);
 		toast.success("PDF-Formular ausgefüllt");
-	};
+	}, [fieldMapping, fieldValues, pdfFile]);
 
-	const copyInputTagsToClipboard = () => {
+	const copyInputTagsToClipboard = useCallback(() => {
 		navigator.clipboard.writeText(JSON.stringify(fieldMapping, null, 2));
 		toast.success("Eingabe-Tags in Zwischenablage kopiert");
-	};
+	}, [fieldMapping]);
 
-	const handleDownloadPdf = () => {
+	const handleDownloadPdf = useCallback(() => {
 		if (!filledPdf) {
 			toast.error("Bitte zuerst das PDF ausfüllen");
 			return;
@@ -367,9 +367,9 @@ export default function PDFFormSection() {
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
 		toast.success("PDF heruntergeladen");
-	};
+	}, [filledPdf]);
 
-	const handlePrintPdf = () => {
+	const handlePrintPdf = useCallback(() => {
 		if (!filledPdf) {
 			toast.error("Bitte zuerst das PDF ausfüllen");
 			return;
@@ -384,9 +384,9 @@ export default function PDFFormSection() {
 		if (printWindow) {
 			printWindow.addEventListener("load", () => printWindow.print());
 		}
-	};
+	}, [filledPdf]);
 
-	const handleEnhanceWithAI = () => {
+	const handleEnhanceWithAI = useCallback(() => {
 		if (!pdfFile) {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;
@@ -406,9 +406,9 @@ export default function PDFFormSection() {
 			fieldMapping,
 			fileBase64: base64,
 		});
-	};
+	}, [enhanceMutation, fieldMapping, pdfFile]);
 
-	const handleExtractMarkdown = async () => {
+	const handleExtractMarkdown = useCallback(async () => {
 		if (!pdfFile) {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;
@@ -467,18 +467,18 @@ export default function PDFFormSection() {
 			model: selectedOcrModel.modelId ?? selectedOcrModel.id,
 			providerId,
 		});
-	};
+	}, [ocrCapableModels.length, ocrToMarkdownMutation, pdfFile, selectedOcrModel]);
 
-	const handleCopyMarkdown = async () => {
+	const handleCopyMarkdown = useCallback(async () => {
 		if (!ocrMarkdown) {return;}
 		await navigator.clipboard.writeText(ocrMarkdown);
 		toast.success("Markdown kopiert");
-	};
+	}, [ocrMarkdown]);
 
 	// Audio recording handlers
 	const canRecord = audioRecordings.length < maxRecordings;
 
-	const handleStartRecording = async () => {
+	const handleStartRecording = useCallback(async () => {
 		if (!canRecord) {
 			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
 			return;
@@ -518,29 +518,29 @@ export default function PDFFormSection() {
 			console.error("Error starting recording:", error);
 			toast.error("Fehler beim Starten der Aufnahme");
 		}
-	};
+	}, [canRecord, maxRecordings]);
 
-	const handleStopRecording = () => {
+	const handleStopRecording = useCallback(() => {
 		if (mediaRecorderRef.current && isRecording) {
 			mediaRecorderRef.current.stop();
 			setIsRecording(false);
 			toast.success("Aufnahme beendet");
 		}
-	};
+	}, [isRecording]);
 
-	const handleToggleRecording = () => {
+	const handleToggleRecording = useCallback(() => {
 		if (isRecording) {
 			handleStopRecording();
 		} else {
 			handleStartRecording();
 		}
-	};
+	}, [handleStartRecording, handleStopRecording, isRecording]);
 
-	const handleRemoveRecording = (id: string) => {
+	const handleRemoveRecording = useCallback((id: string) => {
 		setAudioRecordings((prev) =>
 			prev.filter((recording) => recording.id !== id),
 		);
-	};
+	}, []);
 
 	const formatDuration = (seconds: number): string => {
 		const mins = Math.floor(seconds / 60);
@@ -548,7 +548,7 @@ export default function PDFFormSection() {
 		return `${mins}:${secs.toString().padStart(2, "0")}`;
 	};
 
-	const handleVoiceFill = async () => {
+	const handleVoiceFill = useCallback(async () => {
 		if (audioRecordings.length === 0) {
 			toast.error("Bitte zuerst Audio aufnehmen");
 			return;
@@ -563,20 +563,34 @@ export default function PDFFormSection() {
 			id: "voice-fill",
 		});
 
-			// Convert audio blobs to base64
-			const audioFiles: AudioFile[] = await Promise.all(
-				audioRecordings.map(async (rec) => {
-					const base64 = await blobToBase64(rec.blob);
-					return { data: base64, mimeType: rec.blob.type };
-				}),
-			);
+		// Convert audio blobs to base64
+		const audioFiles: AudioFile[] = await Promise.all(
+			audioRecordings.map(async (rec) => {
+				const base64 = await blobToBase64(rec.blob);
+				return { data: base64, mimeType: rec.blob.type };
+			}),
+		);
 
 		const inputFields: InputField[] = fieldMapping.map((field) => ({
 			description: field.description,
 			label: field.label,
 		}));
 		voiceFillMutation.mutate({ audioFiles, inputFields });
-	};
+	}, [audioRecordings, fieldMapping, voiceFillMutation]);
+
+	const recordingRemoveHandlers = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const recording of audioRecordings) {
+			handlers[recording.id] = () => {
+				handleRemoveRecording(recording.id);
+			};
+		}
+		return handlers;
+	}, [audioRecordings, handleRemoveRecording]);
+
+	const handlePreviewTabValueChange = useCallback((value: string) => {
+		setActivePreviewTab(value as "pdf" | "markdown");
+	}, []);
 
 	return (
 		<>
@@ -651,7 +665,7 @@ export default function PDFFormSection() {
 							{/* Audio Recordings List */}
 							{audioRecordings.length > 0 && (
 								<div className="mb-3 space-y-2">
-									{audioRecordings.map((recording, index) => (
+										{audioRecordings.map((recording, index) => (
 										<div
 											className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2"
 											key={recording.id}
@@ -663,11 +677,11 @@ export default function PDFFormSection() {
 													{formatDuration(recording.duration)})
 												</span>
 											</div>
-											<Button
-												onClick={() => handleRemoveRecording(recording.id)}
-												size="sm"
-												variant="ghost"
-											>
+												<Button
+													onClick={recordingRemoveHandlers[recording.id]}
+													size="sm"
+													variant="ghost"
+												>
 												<X className="h-4 w-4" />
 											</Button>
 										</div>
@@ -715,13 +729,11 @@ export default function PDFFormSection() {
 						pdfFile={pdfFile}
 					/>
 					<div className="mt-4 min-h-0 flex-1">
-						<Tabs
-							className="flex h-full min-h-0 flex-col"
-							value={activePreviewTab}
-							onValueChange={(value) =>
-								setActivePreviewTab(value as "pdf" | "markdown")
-							}
-						>
+							<Tabs
+								className="flex h-full min-h-0 flex-col"
+								value={activePreviewTab}
+								onValueChange={handlePreviewTabValueChange}
+							>
 							<TabsList className="w-fit">
 								<TabsTrigger value="pdf">PDF Vorschau</TabsTrigger>
 								<TabsTrigger value="markdown">Markdown (OCR)</TabsTrigger>
@@ -850,4 +862,6 @@ export default function PDFFormSection() {
 			<PDFDebugPanel values={fieldValues} fieldMapping={fieldMapping} />
 		</>
 	);
-}
+};
+
+export default PDFFormSection;

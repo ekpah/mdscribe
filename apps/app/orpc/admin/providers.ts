@@ -69,15 +69,15 @@ const updateBaseUrlSchema = z
 		return normalizeOptionalBaseUrl(value, ctx);
 	});
 
-function ensureV1BaseUrl(url: string): string {
+const ensureV1BaseUrl = (url: string): string => {
 	const trimmed = normalizeProviderBaseUrl(url).replace(/\/+$/, "");
 	if (trimmed.toLowerCase().endsWith("/v1")) {
 		return trimmed;
 	}
 	return `${trimmed}/v1`;
-}
+};
 
-function inferInputModesFromModelId(modelId: string): InputMode[] {
+const inferInputModesFromModelId = (modelId: string): InputMode[] => {
 	const id = modelId.toLowerCase();
 	const modes = new Set<InputMode>(["text"]);
 
@@ -108,9 +108,11 @@ function inferInputModesFromModelId(modelId: string): InputMode[] {
 	}
 
 	return [...modes];
-}
+};
 
-function parseOpenRouterInputModes(modality: string | undefined): InputMode[] {
+const parseOpenRouterInputModes = (
+	modality: string | undefined,
+): InputMode[] => {
 	const value = modality?.toLowerCase() ?? "";
 	const modes = new Set<InputMode>(["text"]);
 
@@ -128,9 +130,9 @@ function parseOpenRouterInputModes(modality: string | undefined): InputMode[] {
 	}
 
 	return [...modes];
-}
+};
 
-function normalizeInputModes(modes: string[]): InputMode[] {
+const normalizeInputModes = (modes: string[]): InputMode[] => {
 	const allowed = new Set<InputMode>(["text", "audio", "file", "image"]);
 	const unique = new Set<InputMode>();
 	for (const mode of modes) {
@@ -142,12 +144,12 @@ function normalizeInputModes(modes: string[]): InputMode[] {
 		unique.add("text");
 	}
 	return [...unique];
-}
+};
 
-function normalizeConfiguredBaseUrl(
+const normalizeConfiguredBaseUrl = (
 	protocol: ProviderProtocol,
 	baseUrl: string | undefined | null,
-): string | null {
+): string | null => {
 	if (!baseUrl) {
 		return null;
 	}
@@ -161,12 +163,12 @@ function normalizeConfiguredBaseUrl(
 	}
 
 	return normalizeProviderBaseUrl(baseUrl);
-}
+};
 
-function requireConfiguredBaseUrl(
+const requireConfiguredBaseUrl = (
 	protocol: ProviderProtocol,
 	baseUrl: string | null,
-): string {
+): string => {
 	if (!baseUrl) {
 		throw new ORPCError("BAD_REQUEST", {
 			message:
@@ -177,11 +179,11 @@ function requireConfiguredBaseUrl(
 	}
 
 	return baseUrl;
-}
+};
 
-async function fetchProviderModels(
+const fetchProviderModels = async (
 	config: ProviderFetchConfig,
-): Promise<FetchedProviderModel[]> {
+): Promise<FetchedProviderModel[]> => {
 	const signal = AbortSignal.timeout(15_000);
 
 	if (config.protocol === "openrouter") {
@@ -308,13 +310,13 @@ async function fetchProviderModels(
 		modelId: model.id,
 		supportsReasoning: false,
 	}));
-}
+};
 
-async function syncFetchedModelsForProvider(
+const syncFetchedModelsForProvider = async (
 	db: Database,
 	providerId: string,
 	fetchedModels: FetchedProviderModel[],
-): Promise<{ inserted: number; updated: number; removed: number }> {
+): Promise<{ inserted: number; updated: number; removed: number }> => {
 	const deduped = new Map<string, FetchedProviderModel>();
 	for (const model of fetchedModels) {
 		deduped.set(model.modelId, {
@@ -385,9 +387,9 @@ async function syncFetchedModelsForProvider(
 		removed: staleModelIds.length,
 		updated,
 	};
-}
+};
 
-async function getProviderById(db: Database, id: string) {
+const getProviderById = async (db: Database, id: string) => {
 	const provider = await db.query.aiProvider.findFirst({
 		where: eq(aiProvider.id, id),
 	});
@@ -397,7 +399,7 @@ async function getProviderById(db: Database, id: string) {
 	}
 
 	return provider;
-}
+};
 
 // ============ Provider handlers ============
 

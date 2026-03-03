@@ -3,6 +3,7 @@
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { Info, X } from 'lucide-react';
+import type { ChangeEvent } from 'react';
 import { useCallback } from 'react';
 import { Button } from '../../../../ui/button';
 import { Input } from '../../../../ui/input';
@@ -13,24 +14,33 @@ import {
   PopoverTrigger,
 } from '../../../../ui/popover';
 
-export function InfoTagView({
+export const InfoTagView = ({
   node,
   selected,
   editor,
   updateAttributes,
   deleteNode,
   getPos,
-}: NodeViewProps) {
+}: NodeViewProps) => {
   const handleRemoveInfo = useCallback(() => {
     deleteNode();
   }, [deleteNode]);
 
-  const handleSelectTag = useCallback(() => {
-    const pos = getPos?.();
+	  const handleSelectTag = useCallback(() => {
+	    const pos = getPos?.();
     if (typeof pos === 'number') {
       editor.chain().focus().setNodeSelection(pos).run();
     }
-  }, [editor, getPos]);
+	  }, [editor, getPos]);
+
+	  const handlePrimaryChange = useCallback(
+	    (event: ChangeEvent<HTMLInputElement>) => {
+	      updateAttributes({
+	        primary: event.target.value,
+	      });
+	    },
+	    [updateAttributes],
+	  );
 
   return (
     // Use span for inline behavior, NodeViewWrapper handles selection styling
@@ -93,18 +103,14 @@ export function InfoTagView({
                     <Label className="font-medium text-xs" htmlFor="primary">
                       Variablenname
                     </Label>
-                    <Input
+	                    <Input
                       autoFocus
                       className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
                       id="primary"
-                      onChange={(e) =>
-                        updateAttributes({
-                          primary: e.target.value,
-                        })
-                      }
-                      placeholder="z.B. patientenname, alter"
-                      value={node.attrs.primary || ''}
-                    />
+	                      onChange={handlePrimaryChange}
+	                      placeholder="z.B. patientenname, alter"
+	                      value={node.attrs.primary || ''}
+	                    />
                   </div>
                 </div>
               </div>
@@ -123,6 +129,6 @@ export function InfoTagView({
           <X className="h-3 w-3" />
         </Button>
       </span>
-    </NodeViewWrapper>
-  );
-}
+	    </NodeViewWrapper>
+	  );
+};

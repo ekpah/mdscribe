@@ -2,6 +2,7 @@
 
 import type { SwitchInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { cn } from "@repo/design-system/lib/utils";
+import { useCallback } from "react";
 import { Label } from "../../ui/label";
 import {
 	Select,
@@ -13,7 +14,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "../../ui/toggle-group";
 import { SuggestionBadge } from "./suggestion-badge";
 
-export function SwitchInput({
+export const SwitchInput = ({
 	input,
 	value,
 	onChange,
@@ -29,7 +30,7 @@ export function SwitchInput({
 	suggestionLabel?: string;
 	onAcceptSuggestedValue?: () => void;
 	inputClassName?: string;
-}) {
+}) => {
 	const options = input.children?.filter(
 		(caseTag) => caseTag.name === "Case" && caseTag.attributes.primary,
 	);
@@ -37,9 +38,9 @@ export function SwitchInput({
 
 	const currentValue = value ?? "";
 
-	const handleChange = (newValue: string) => {
+	const handleChange = useCallback((newValue: string) => {
 		onChange(newValue);
-	};
+	}, [onChange]);
 
 	// Normalize suggestion for comparison (could be number from AI)
 	const normalizedSuggestion =
@@ -118,4 +119,4 @@ export function SwitchInput({
 			)}
 		</div>
 	);
-}
+};

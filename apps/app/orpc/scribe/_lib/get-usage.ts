@@ -1,10 +1,10 @@
 import { and, eq, gte, lte, usageEvent } from "@repo/database";
 import { database } from "@repo/database/client";
 
-export async function getUsage(
+export const getUsage = async (
 	session: { user: { id: string } },
 	db: typeof database = database,
-) {
+) => {
 	const now = new Date();
 	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -73,4 +73,4 @@ export async function getUsage(
 			totalTokens,
 		},
 	};
-}
+};

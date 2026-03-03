@@ -44,15 +44,15 @@ export default async function Page(props: DocsPageProps) {
   );
 }
 
-export function generateStaticParams() {
+export const generateStaticParams = () => {
   return source
     .generateParams()
     .filter((params) => Array.isArray(params.slug) && params.slug.length > 0);
-}
+};
 
-export async function generateMetadata(
+export const generateMetadata = async (
   props: DocsPageProps,
-): Promise<Metadata> {
+): Promise<Metadata> => {
   const params = await props.params;
   const page = source.getPage(params.slug);
   if (!page) {notFound();}
@@ -64,4 +64,4 @@ export async function generateMetadata(
     },
     title: page.data.title,
   };
-}
+};

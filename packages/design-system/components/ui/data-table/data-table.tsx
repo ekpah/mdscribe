@@ -24,6 +24,10 @@ import {
 	TableRow,
 } from "../table";
 
+interface DataTableRenderToolbarProps<TData> {
+	table: TanStackTable<TData>;
+}
+
 // biome-ignore lint/suspicious/noExplicitAny: TanStack Table columns have mixed value types
 interface DataTableProps<TData> {
 	columns: ColumnDef<TData, any>[];
@@ -36,8 +40,12 @@ interface DataTableProps<TData> {
 	globalFilter?: string;
 	onGlobalFilterChange?: (value: string) => void;
 	enableColumnVisibility?: boolean;
-	renderToolbar?: (table: TanStackTable<TData>) => React.ReactNode;
-	renderPagination?: (table: TanStackTable<TData>) => React.ReactNode;
+	renderToolbar?: (
+		table: DataTableRenderToolbarProps<TData>["table"],
+	) => React.ReactNode;
+	renderPagination?: (
+		table: DataTableRenderToolbarProps<TData>["table"],
+	) => React.ReactNode;
 	emptyMessage?: string;
 }
 
@@ -155,4 +163,4 @@ function DataTable<TData>({
 	);
 }
 
-export { DataTable, type DataTableProps };
+export { DataTable, type DataTableProps, type DataTableRenderToolbarProps };

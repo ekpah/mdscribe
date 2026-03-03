@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { orpc } from '@/lib/orpc';
 
-export function useTextSnippets() {
+export const useTextSnippets = () => {
   const { data: snippets = [], isLoading } = useQuery(
     orpc.user.snippets.list.queryOptions()
   );
@@ -134,4 +134,4 @@ export function useTextSnippets() {
     isLoading,
     snippets,
   };
-}
+};

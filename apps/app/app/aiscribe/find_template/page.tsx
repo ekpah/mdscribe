@@ -3,7 +3,7 @@
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { orpc } from '@/lib/orpc';
 
 // Type definition for template search results
@@ -33,12 +33,17 @@ export default function FindTemplatePage() {
   const isLoading = searchMutation.isPending;
   const error = searchMutation.error?.message ?? null;
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) {return;}
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {return;}
 
-    searchMutation.mutate({ query: query.trim() });
-  };
+    searchMutation.mutate({ query: trimmedQuery });
+  }, [query, searchMutation]);
+
+  const handleQueryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  }, []);
 
   return (
     <div className="container mx-auto max-w-4xl p-6">
@@ -59,7 +64,7 @@ export default function FindTemplatePage() {
             type="text"
             placeholder="Beschreiben Sie, welche Art von Vorlage Sie suchen..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleQueryChange}
             className="flex-1"
           />
           <Button type="submit" disabled={isLoading || !query.trim()}>
