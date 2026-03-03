@@ -178,16 +178,16 @@ Arbeite immer transparent und strukturiert entsprechend diesen Vorgaben.`,
 			{
 				content: `<template>
 ((Schreibe eine Anamnese für die Notaufnahme. Erstelle aus den vorliegenden Informationen einen Text, der alles Relevante über die aktuelle Vorstellung zusammenfasst.))
-[Einleitender Satz zur Hauptbeschwerde, z.B. "Die notfallmäßige Vorstellung erfolgt bei ..."]((Erläutere das primäre Problem des Patienten bzw. die klinische Verdachtsdiagnose und ordne den Vorstellungskontext ein.))
+[Einleitender Satz zur Hauptbeschwerde, z.B. "Die notfallmäßige Vorstellung erfolgt bei ..."]((Erläutere das primäre Problem des Patienten bzw. die klinische Verdachtsdiagnose und ordne den Vorstellungskontext ein. Frühere Diagnosen oder Vorerkrankungen nur dann erwähnen, wenn sie für die aktuelle Vorstellung unmittelbar relevant sind; keine bloße Wiederholung historischer Diagnosen, da diese im Diagnoseblock stehen.))
 [Unterstützende Anamnese]((Erläutere die Historie und weitere Informationen, die zur Beurteilung des primären Problems beitragen. Wiederhole nicht das primäre Problem.))
 
 [Vitalparameter:]((Nur angeben, wenn Daten vorliegen, sonst diesen Abschnitt weglassen.))
-[Vitalparameter des Patienten]((Füge die Vitalparameter des Patienten ein, soweit bekannt, ansonsten diesen Bereich frei lassen.))
+[Vitalparameter des Patienten]((Füge die Vitalparameter des Patienten ein, soweit bekannt, ansonsten diesen Bereich frei lassen. Gib alle Vitalparameter in genau einer Zeile aus, komma-separiert (z. B. "RR 130/80 mmHg, HF 92/min, SpO2 96 % RA, Temp. 37,2 °C").))
 
 [Untersuchungsbefunde:]((Nur aufführen, wenn vorhanden. Liste in Aufzählungsform. Andernfalls Abschnitt weglassen.))
 -[Untersuchung]:[Befund]
 
-((Hinweis: Niemals eigene Patientendetails, Bewertungen, Diagnose, Differentialdiagnose, Pläne, Interventionen etc. erfinden. Verwende ausschließlich die gelieferten Transkriptinformationen, Notizen oder klinische Kontextinfos. Falls keine Daten vorhanden, Abschnitt leer lassen. Gib so viele Sätze an, wie für die vollständige Darstellung aller relevanten Transkript- und Kontextinformationen nötig.))
+((Hinweis: Niemals eigene Patientendetails, Bewertungen, Diagnose, Differentialdiagnose, Pläne, Interventionen etc. erfinden. Verwende ausschließlich die gelieferten Transkriptinformationen, Notizen oder klinische Kontextinfos. Falls keine Daten vorhanden, Abschnitt leer lassen. Gib so viele Sätze an, wie für die vollständige Darstellung aller relevanten Transkript- und Kontextinformationen nötig. Diagnoseblock-Inhalte nicht erneut als historische Zusammenfassung ausschreiben, außer bei direktem Bezug zur aktuellen Vorstellung.))
 </template>
 ${vars.contextXml}`,
 				role: "user",
