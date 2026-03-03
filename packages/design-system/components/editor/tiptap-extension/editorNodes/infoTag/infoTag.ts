@@ -17,16 +17,6 @@ export interface InfoTagAttrs {
 }
 
 export const InfoTag = Node.create<InfoTagAttrs>({
-  name: 'infoTag',
-
-  selectable: true,
-
-  group: 'inline',
-  inline: true,
-  draggable: false,
-  atom: true,
-  isolating: true,
-
   addAttributes() {
     return {
       primary: {
@@ -39,8 +29,24 @@ export const InfoTag = Node.create<InfoTagAttrs>({
     };
   },
 
-  renderText({ node }: { node: ProseMirrorNode }) {
-    return `{% info "${node.attrs.primary}" /%}`;
+  addNodeView() {
+    return ReactNodeViewRenderer(InfoTagView);
+  },
+
+  atom: true,
+  draggable: false,
+  group: 'inline',
+  inline: true,
+  isolating: true,
+
+  name: 'infoTag',
+
+  parseHTML() {
+    return [
+      {
+        tag: 'Info',
+      },
+    ];
   },
 
   renderHTML({
@@ -57,15 +63,9 @@ export const InfoTag = Node.create<InfoTagAttrs>({
       }),
     ];
   },
-  parseHTML() {
-    return [
-      {
-        tag: 'Info',
-      },
-    ];
+  renderText({ node }: { node: ProseMirrorNode }) {
+    return `{% info "${node.attrs.primary}" /%}`;
   },
 
-  addNodeView() {
-    return ReactNodeViewRenderer(InfoTagView);
-  },
+  selectable: true,
 });

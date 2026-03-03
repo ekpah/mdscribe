@@ -38,20 +38,18 @@ function getSubscriptionLabel(user: UserData) {
 function formatDate(date: Date | string) {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	return new Intl.DateTimeFormat("de-DE", {
-		year: "numeric",
-		month: "2-digit",
 		day: "2-digit",
 		hour: "2-digit",
 		minute: "2-digit",
+		month: "2-digit",
+		year: "numeric",
 	}).format(dateObj);
 }
 
 export const columns = [
 	columnHelper.accessor(
-		(row) => ({ name: row.name, email: row.email, image: row.image }),
+		(row) => ({ email: row.email, image: row.image, name: row.name }),
 		{
-			id: "user",
-			header: "Benutzer",
 			cell: ({ getValue }) => {
 				const { name, email, image } = getValue();
 				return (
@@ -91,11 +89,11 @@ export const columns = [
 					email.toLowerCase().includes(search)
 				);
 			},
+			header: "Benutzer",
+			id: "user",
 		},
 	),
 	columnHelper.accessor("emailVerified", {
-		id: "status",
-		header: "Status",
 		cell: ({ getValue }) => {
 			const verified = getValue();
 			return verified ? (
@@ -117,12 +115,10 @@ export const columns = [
 			);
 		},
 		enableSorting: false,
+		header: "Status",
+		id: "status",
 	}),
 	columnHelper.accessor((row) => row, {
-		id: "subscription",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Abo" />
-		),
 		cell: ({ getValue }) => {
 			const user = getValue();
 			const isPlus = user.hasActiveSubscription;
@@ -142,6 +138,10 @@ export const columns = [
 				</Badge>
 			);
 		},
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Abo" />
+		),
+		id: "subscription",
 		sortingFn: (rowA, rowB) => {
 			const a = getSubscriptionLabel(rowA.original);
 			const b = getSubscriptionLabel(rowB.original);
@@ -149,41 +149,41 @@ export const columns = [
 		},
 	}),
 	columnHelper.accessor("_count.templates", {
-		id: "templates",
+		cell: ({ getValue }) => (
+			<span className="text-solarized-base00">{getValue()}</span>
+		),
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Vorlagen" />
 		),
+		id: "templates",
+	}),
+	columnHelper.accessor("_count.favourites", {
 		cell: ({ getValue }) => (
 			<span className="text-solarized-base00">{getValue()}</span>
 		),
-	}),
-	columnHelper.accessor("_count.favourites", {
-		id: "favourites",
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Favoriten" />
 		),
+		id: "favourites",
+	}),
+	columnHelper.accessor("_count.usageEvents", {
 		cell: ({ getValue }) => (
 			<span className="text-solarized-base00">{getValue()}</span>
 		),
-	}),
-	columnHelper.accessor("_count.usageEvents", {
-		id: "generations",
 		header: ({ column }) => (
 			<DataTableColumnHeader column={column} title="Generierungen" />
 		),
-		cell: ({ getValue }) => (
-			<span className="text-solarized-base00">{getValue()}</span>
-		),
+		id: "generations",
 	}),
 	columnHelper.accessor("createdAt", {
-		id: "createdAt",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Registriert" />
-		),
 		cell: ({ getValue }) => (
 			<span className="text-xs text-solarized-base01">
 				{formatDate(getValue())}
 			</span>
 		),
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Registriert" />
+		),
+		id: "createdAt",
 	}),
 ];

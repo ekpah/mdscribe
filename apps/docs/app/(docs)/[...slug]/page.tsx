@@ -11,14 +11,14 @@ import { notFound } from "next/navigation";
 import { getPageImage, source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 
-type DocsPageProps = {
+interface DocsPageProps {
   params: Promise<{ slug: string[] }>;
-};
+}
 
 export default async function Page(props: DocsPageProps) {
   const params = await props.params;
   const page = source.getPage(params.slug);
-  if (!page) notFound();
+  if (!page) {notFound();}
 
   const data = page.data as typeof page.data & {
     body: MDXContent;
@@ -55,13 +55,13 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const params = await props.params;
   const page = source.getPage(params.slug);
-  if (!page) notFound();
+  if (!page) {notFound();}
 
   return {
-    title: page.data.title,
     description: page.data.description,
     openGraph: {
       images: getPageImage(page).url,
     },
+    title: page.data.title,
   };
 }

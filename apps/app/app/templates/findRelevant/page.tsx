@@ -26,7 +26,7 @@ interface TemplateSearchResult {
   authorId: string;
   updatedAt: Date;
   similarity: number;
-  favouriteOf?: Array<{ id: string }>;
+  favouriteOf?: { id: string }[];
   _count?: { favouriteOf: number };
 }
 
@@ -79,11 +79,11 @@ export default function FindTemplatePage() {
       const differentialDiagnosisResponse = await fetch(
         '/api/scribe/diagnosis',
         {
-          method: 'POST',
+          body: JSON.stringify({ prompt: JSON.stringify({ anamnese: query }) }),
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ prompt: JSON.stringify({ anamnese: query }) }),
+          method: 'POST',
         }
       );
 
@@ -96,14 +96,14 @@ export default function FindTemplatePage() {
       const { text: differentialDiagnosis } =
         await differentialDiagnosisResponse.json();
       const response = await fetch('/api/findRelevantTemplate', {
-        method: 'POST',
+        body: JSON.stringify({
+          differentialDiagnosis,
+          query: query.trim(),
+        }),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          query: query.trim(),
-          differentialDiagnosis,
-        }),
+        method: 'POST',
       });
 
       if (!response.ok) {
@@ -125,9 +125,9 @@ export default function FindTemplatePage() {
         initialFavoriteStates[template.id] = isFavorited ?? false;
       }
       setFavouriteStates(initialFavoriteStates);
-    } catch (err) {
+    } catch (caughtError) {
       setError(
-        err instanceof Error ? err.message : 'Fehler beim Suchen der Vorlagen'
+        caughtError instanceof Error ? caughtError.message : 'Fehler beim Suchen der Vorlagen'
       );
     } finally {
       setIsLoading(false);
@@ -318,13 +318,15 @@ export default function FindTemplatePage() {
         )}
 
         {/* Help Text */}
-        <div className="mt-8 text-center text-sm text-solarized-base01">
-          <p>
-            Versuchen Sie nach Dingen wie "medizinische Entlassungsnotizen",
-            "Patientenbewertung" oder "Behandlungspläne" zu suchen, um relevante
-            Vorlagen zu finden.
-          </p>
-        </div>
+	        <div className="mt-8 text-center text-sm text-solarized-base01">
+	          <p>
+	            Versuchen Sie nach Dingen wie
+	            &quot;medizinische Entlassungsnotizen&quot;,
+	            &quot;Patientenbewertung&quot; oder
+	            &quot;Behandlungspläne&quot; zu suchen, um relevante Vorlagen zu
+	            finden.
+	          </p>
+	        </div>
       </div>
     </div>
   );

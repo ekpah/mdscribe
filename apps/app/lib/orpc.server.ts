@@ -13,6 +13,7 @@ globalThis.$client = createRouterClient(router, {
      * For per-request context, use middleware context or pass a function as the initial context.
      */
     context: async () => ({
-        headers: await headers(), // provide headers if initial context required
+        // Provide headers if initial context is required.
+        headers: await headers(),
     }),
 });

@@ -40,7 +40,8 @@ function ObjectNode({
   name: string;
   level: number;
 }) {
-  const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand first 2 levels
+  // Auto-expand first 2 levels.
+  const [isExpanded, setIsExpanded] = useState(level < 2);
 
   const indent = level * 16;
 
@@ -64,14 +65,14 @@ function ObjectNode({
     );
   }
 
-  if (typeof data === 'string') {
-    return (
-      <div style={{ marginLeft: indent }} className="text-solarized-green">
-        {name && <span className="text-solarized-blue">{name}: </span>}
-        <span>"{data}"</span>
-      </div>
-    );
-  }
+	  if (typeof data === 'string') {
+	    return (
+	      <div style={{ marginLeft: indent }} className="text-solarized-green">
+	        {name && <span className="text-solarized-blue">{name}: </span>}
+	        <span>&quot;{data}&quot;</span>
+	      </div>
+	    );
+	  }
 
   if (typeof data === 'number' || typeof data === 'boolean') {
     return (
@@ -442,9 +443,9 @@ Datum: {% info "date" /%}
                     <Eye className="h-5 w-5 text-solarized-cyan" />
                     {rightView === 'preview'
                       ? 'Gerenderte Ausgabe'
-                      : rightView === 'ast'
+                      : (rightView === 'ast'
                         ? 'AST'
-                        : 'Renderable Tree'}
+                        : 'Renderable Tree')}
                   </CardTitle>
                   <div className="flex items-center gap-1">
                     <Button

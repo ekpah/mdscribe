@@ -14,10 +14,10 @@ import {
 
 import config from '../tailwind.config';
 
-type EmailChangeTemplateProps = {
+interface EmailChangeTemplateProps {
   readonly url: string;
   readonly newEmail: string;
-};
+}
 
 export const EmailChangeTemplate = ({
   url,

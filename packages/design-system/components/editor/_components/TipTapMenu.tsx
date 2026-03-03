@@ -124,10 +124,10 @@ const MenuBar = ({
 							.chain()
 							.focus()
 							.insertContent({
-								type: "infoTag",
 								attrs: {
 									primary: "...",
 								},
+								type: "infoTag",
 							})
 							.command(placeCaretAfterInsertedInlineTag)
 							.run()
@@ -145,11 +145,11 @@ const MenuBar = ({
 							.chain()
 							.focus()
 							.insertContent({
-								type: "switchTag",
 								attrs: {
-									primary: "...",
 									cases: [{ primary: "", text: "..." }],
+									primary: "...",
 								},
+								type: "switchTag",
 							})
 							.command(placeCaretAfterInsertedInlineTag)
 							.run()
@@ -168,11 +168,11 @@ const MenuBar = ({
 							.chain()
 							.focus()
 							.insertContent({
-								type: "scoreTag",
 								attrs: {
 									formula: "",
 									unit: "",
 								},
+								type: "scoreTag",
 							})
 							.command(placeCaretAfterInsertedInlineTag)
 							.run()

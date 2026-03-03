@@ -8,14 +8,8 @@ import {
 	usageEvent,
 } from "@repo/database";
 import { voiceFillHandler } from "@/orpc/scribe/voiceFill";
-import {
-	createMockSession,
-	createTestAiDefaults,
-	createTestContext,
-	createTestUser,
-	startTestServer,
-	type TestServer,
-} from "../setup";
+import { createMockSession, createTestAiDefaults, createTestContext, createTestUser, startTestServer } from '../setup';
+import type { TestServer } from '../setup';
 
 describe("Scribe voiceFill Handler", () => {
 	let server: TestServer;
@@ -37,16 +31,16 @@ describe("Scribe voiceFill Handler", () => {
 		const result = await call(
 			voiceFillHandler,
 			{
-				inputFields: [
-					{
-						label: "Field 1",
-						description: "",
-					},
-				],
 				audioFiles: [
 					{
 						data: Buffer.from("test").toString("base64"),
 						mimeType: "audio/wav",
+					},
+				],
+				inputFields: [
+					{
+						description: "",
+						label: "Field 1",
 					},
 				],
 			},
@@ -64,47 +58,47 @@ describe("Scribe voiceFill Handler", () => {
 		const speechModelRecordId = crypto.randomUUID();
 
 		await server.db.insert(aiProvider).values({
+			apiKey: null,
+			baseUrl: null,
 			id: providerId,
 			name: "Speech Provider",
 			protocol: "openrouter",
-			baseUrl: null,
-			apiKey: null,
 		});
 		await server.db.insert(aiModel).values([
 			{
-				id: textModelRecordId,
-				providerId,
-				modelId: "openrouter/text-model",
 				displayName: "Text Model",
-				supportsReasoning: false,
+				id: textModelRecordId,
 				inputModes: ["text"],
+				modelId: "openrouter/text-model",
+				providerId,
+				supportsReasoning: false,
 			},
 			{
-				id: speechModelRecordId,
-				providerId,
-				modelId: "openrouter/speech-model",
 				displayName: "Speech Model",
-				supportsReasoning: false,
+				id: speechModelRecordId,
 				inputModes: ["text", "audio"],
+				modelId: "openrouter/speech-model",
+				providerId,
+				supportsReasoning: false,
 			},
 		]);
 		await server.db
 			.insert(aiDefaults)
 			.values({
-				id: "global",
-				defaultTextModelId: textModelRecordId,
 				defaultFileImageModelId: textModelRecordId,
 				defaultSpeechToTextModelId: speechModelRecordId,
+				defaultTextModelId: textModelRecordId,
+				id: "global",
 				updatedAt: new Date(),
 			})
 			.onConflictDoUpdate({
-				target: aiDefaults.id,
 				set: {
-					defaultTextModelId: textModelRecordId,
 					defaultFileImageModelId: textModelRecordId,
 					defaultSpeechToTextModelId: speechModelRecordId,
+					defaultTextModelId: textModelRecordId,
 					updatedAt: new Date(),
 				},
+				target: aiDefaults.id,
 			});
 
 		const { user } = await createTestUser(server.db);
@@ -114,16 +108,16 @@ describe("Scribe voiceFill Handler", () => {
 		await call(
 			voiceFillHandler,
 			{
-				inputFields: [
-					{
-						label: "Field 1",
-						description: "",
-					},
-				],
 				audioFiles: [
 					{
 						data: Buffer.from("test").toString("base64"),
 						mimeType: "audio/wav",
+					},
+				],
+				inputFields: [
+					{
+						description: "",
+						label: "Field 1",
 					},
 				],
 			},

@@ -14,11 +14,6 @@ export interface CaseTagOptions {
  * {% /case %}
  */
 export const CaseTag = Node.create<CaseTagOptions>({
-  name: 'caseTag',
-  inline: true,
-  content: 'inline*',
-  selectable: true,
-  draggable: false,
   addAttributes() {
     return {
       primary: {
@@ -30,11 +25,19 @@ export const CaseTag = Node.create<CaseTagOptions>({
       },
     };
   },
-  renderText({ node }: { node: ProseMirrorNode }) {
-    const casePrimary = node.attrs.primary;
-    const casePrimaryValue = casePrimary ? JSON.stringify(casePrimary) : '""';
-    const caseContent = node.textContent;
-    return `{% case ${casePrimaryValue} %}${caseContent}{% /case %}`;
+  addNodeView() {
+    return ReactNodeViewRenderer(CaseTagView);
+  },
+  content: 'inline*',
+  draggable: false,
+  inline: true,
+  name: 'caseTag',
+  parseHTML() {
+    return [
+      {
+        tag: 'Case',
+      },
+    ];
   },
   renderHTML({
     HTMLAttributes,
@@ -48,15 +51,12 @@ export const CaseTag = Node.create<CaseTagOptions>({
       0,
     ];
   },
-  parseHTML() {
-    return [
-      {
-        tag: 'Case',
-      },
-    ];
+  renderText({ node }: { node: ProseMirrorNode }) {
+    const casePrimary = node.attrs.primary;
+    const casePrimaryValue = casePrimary ? JSON.stringify(casePrimary) : '""';
+    const caseContent = node.textContent;
+    return `{% case ${casePrimaryValue} %}${caseContent}{% /case %}`;
   },
-  addNodeView() {
-    return ReactNodeViewRenderer(CaseTagView);
-  },
+  selectable: true,
 });
 

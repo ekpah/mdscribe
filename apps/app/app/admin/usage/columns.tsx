@@ -33,14 +33,14 @@ const promptNameToDocumentType = new Map(
 function inferDocumentType(
 	metadata: Record<string, unknown> | null,
 ): DocumentType | undefined {
-	if (!metadata) return undefined;
+	if (!metadata) {return undefined;}
 
-	const endpoint = metadata.endpoint;
+	const {endpoint} = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
 		return endpoint as DocumentType;
 	}
 
-	const promptName = metadata.promptName;
+	const {promptName} = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
 		return promptNameToDocumentType.get(promptName);
 	}
@@ -51,22 +51,22 @@ function inferDocumentType(
 function formatDate(date: Date | string) {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	return new Intl.DateTimeFormat("de-DE", {
-		month: "2-digit",
 		day: "2-digit",
 		hour: "2-digit",
 		minute: "2-digit",
+		month: "2-digit",
 	}).format(dateObj);
 }
 
 function formatCost(cost: unknown): string {
-	if (cost === null || cost === undefined) return "-";
+	if (cost === null || cost === undefined) {return "-";}
 	const num = typeof cost === "number" ? cost : Number(cost);
-	if (Number.isNaN(num)) return "-";
+	if (Number.isNaN(num)) {return "-";}
 	return `$${num.toFixed(4)}`;
 }
 
 function getPromptLabel(metadata: Record<string, unknown> | null): string {
-	if (!metadata) return "-";
+	if (!metadata) {return "-";}
 	const endpoint = metadata.endpoint as string | undefined;
 	const promptName = metadata.promptName as string | undefined;
 	return endpoint ?? promptName ?? "-";
@@ -111,19 +111,17 @@ const columnHelper = createColumnHelper<UsageEventWithUser>();
 
 export const createColumns = (onViewDetails: (id: string) => void) => [
 	columnHelper.accessor("timestamp", {
-		id: "timestamp",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Zeitpunkt" />
-		),
 		cell: (info) => (
 			<span className="whitespace-nowrap text-xs sm:text-sm">
 				{formatDate(info.getValue())}
 			</span>
 		),
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Zeitpunkt" />
+		),
+		id: "timestamp",
 	}),
 	columnHelper.accessor("user", {
-		id: "user",
-		header: "Benutzer",
 		cell: (info) => {
 			const user = info.getValue();
 			if (!user) {
@@ -140,23 +138,23 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 				</div>
 			);
 		},
+		enableSorting: false,
 		filterFn: (row, id, filterValue: string) => {
 			const user = row.getValue(id) as {
 				name: string | null;
 				email: string;
 			} | null;
-			if (!user) return false;
+			if (!user) {return false;}
 			const search = filterValue.toLowerCase();
 			return (
 				(user.name?.toLowerCase().includes(search) ?? false) ||
 				user.email.toLowerCase().includes(search)
 			);
 		},
-		enableSorting: false,
+		header: "Benutzer",
+		id: "user",
 	}),
 	columnHelper.accessor("name", {
-		id: "action",
-		header: () => <span className="hidden sm:inline">Aktion</span>,
 		cell: (info) => (
 			<Badge
 				variant="outline"
@@ -165,25 +163,25 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 				{info.getValue()}
 			</Badge>
 		),
+		enableSorting: false,
 		filterFn: (row, id, filterValue: string) => {
 			const name = row.getValue(id) as string;
 			return name.toLowerCase().includes(filterValue.toLowerCase());
 		},
-		enableSorting: false,
+		header: () => <span className="hidden sm:inline">Aktion</span>,
+		id: "action",
 	}),
 	columnHelper.accessor("model", {
-		id: "model",
-		header: () => <span className="hidden md:inline">Modell</span>,
 		cell: (info) => (
 			<span className="hidden font-mono text-xs md:inline">
 				{info.getValue()?.split("/").pop() || "-"}
 			</span>
 		),
 		enableSorting: false,
+		header: () => <span className="hidden md:inline">Modell</span>,
+		id: "model",
 	}),
 	columnHelper.accessor("metadata", {
-		id: "prompt",
-		header: () => <span className="hidden lg:inline">Prompt</span>,
 		cell: (info) => {
 			const metadata = info.getValue() as Record<string, unknown> | null;
 			return (
@@ -196,34 +194,34 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 			);
 		},
 		enableSorting: false,
+		header: () => <span className="hidden lg:inline">Prompt</span>,
+		id: "prompt",
 	}),
 	columnHelper.accessor("cost", {
-		id: "cost",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Kosten" />
-		),
 		cell: (info) => (
 			<span className="whitespace-nowrap font-mono text-xs">
 				{formatCost(info.getValue())}
 			</span>
 		),
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Kosten" />
+		),
+		id: "cost",
 	}),
 	columnHelper.accessor("totalTokens", {
-		id: "tokens",
-		header: ({ column }) => (
-			<span className="hidden sm:inline">
-				<DataTableColumnHeader column={column} title="Tokens" />
-			</span>
-		),
 		cell: (info) => (
 			<span className="hidden font-mono text-xs sm:inline">
 				{info.getValue()?.toLocaleString("de-DE") ?? "-"}
 			</span>
 		),
+		header: ({ column }) => (
+			<span className="hidden sm:inline">
+				<DataTableColumnHeader column={column} title="Tokens" />
+			</span>
+		),
+		id: "tokens",
 	}),
 	columnHelper.display({
-		id: "actions",
-		header: "",
 		cell: ({ row }) => (
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
@@ -258,5 +256,7 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 				</DropdownMenuContent>
 			</DropdownMenu>
 		),
+		header: "",
+		id: "actions",
 	}),
 ];

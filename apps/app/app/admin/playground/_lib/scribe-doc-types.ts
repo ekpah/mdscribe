@@ -20,207 +20,207 @@ export interface ScribeDocTypeUiConfig {
  * but is kept lightweight and admin-focused.
  */
 export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
-	discharge: {
-		label: "Entlassungsbrief",
-		defaultPromptName: "Inpatient_discharge_chat",
-		mainField: {
-			name: "notes",
-			label: "Entlassungsnotizen",
-			placeholder: "Geben Sie hier Ihre Entlassungsnotizen ein...",
-			description:
-				"Krankheitsverlauf, Behandlung, Empfehlungen. Optional auch bisherigen Brief einfügen.",
-		},
+	"admission-todos": {
 		additionalFields: [
 			{
-				name: "diagnoseblock",
-				label: "Diagnoseblock",
-				placeholder: "Diagnoseblock eingeben...",
-			},
-			{
-				name: "anamnese",
-				label: "Aufnahmeanamnese",
-				placeholder: "Initiale Anamnese bei Aufnahme eingeben...",
-			},
-			{
-				name: "befunde",
-				label: "Befunde",
-				placeholder: "Befunde aus dem stationären Aufenthalt eingeben...",
-			},
-		],
-	},
-
-	outpatient: {
-		label: "Ambulante Vorstellung",
-		defaultPromptName: "Outpatient_visit_chat",
-		mainField: {
-			name: "notes",
-			label: "Notizen",
-			placeholder: "Geben Sie hier Ihre Notizen ein...",
-		},
-		additionalFields: [
-			{
-				name: "diagnoseblock",
-				label: "Diagnoseblock",
-				placeholder: "Diagnoseblock eingeben...",
-			},
-			{
-				name: "anamnese",
 				label: "Anamnese",
+				name: "anamnese",
 				placeholder: "Anamnese eingeben...",
 			},
 			{
-				name: "befunde",
+				label: "Vordiagnosen",
+				name: "diagnoseblock",
+				placeholder: "Vordiagnosen eingeben...",
+			},
+			{
 				label: "Befunde",
+				name: "befunde",
 				placeholder: "Befunde eingeben...",
 			},
 		],
-	},
-
-	procedures: {
-		label: "Prozeduren",
-		defaultPromptName: "Procedure_chat",
+		defaultPromptName: "ER_Admission_Todos_chat",
+		label: "ER Admission TODOs",
 		mainField: {
+			label: "Notizen",
 			name: "notes",
-			label: "Prozedur-Notizen",
-			placeholder: "Geben Sie hier Ihre Prozedur-Notizen ein...",
+			placeholder: "Notizen eingeben...",
 		},
-		additionalFields: [],
 	},
 
 	anamnese: {
-		label: "ER Anamnese",
+		additionalFields: [
+			{
+				label: "Befunde",
+				name: "befunde",
+				placeholder: "Befunde eingeben...",
+			},
+			{
+				label: "Vordiagnosen",
+				name: "diagnoseblock",
+				placeholder: "Vordiagnosen eingeben...",
+			},
+		],
 		defaultPromptName: "ER_Anamnese_chat",
+		label: "ER Anamnese",
 		mainField: {
-			name: "notes",
 			label: "Notizen",
+			name: "notes",
 			placeholder: "Anamnese-Notizen eingeben...",
 		},
-		additionalFields: [
-			{
-				name: "befunde",
-				label: "Befunde",
-				placeholder: "Befunde eingeben...",
-			},
-			{
-				name: "diagnoseblock",
-				label: "Vordiagnosen",
-				placeholder: "Vordiagnosen eingeben...",
-			},
-		],
-	},
-
-	"physical-exam": {
-		label: "ER Körperliche Untersuchung",
-		defaultPromptName: "ER_Koerperliche_Untersuchung_chat",
-		mainField: {
-			name: "notes",
-			label: "Notizen",
-			placeholder: "Untersuchungsbefund eingeben...",
-		},
-		additionalFields: [],
-	},
-
-	diagnosis: {
-		label: "Diagnoseblock Update",
-		defaultPromptName: "diagnoseblock_update",
-		mainField: {
-			name: "notes",
-			label: "Notizen",
-			placeholder: "Notizen zur Aktualisierung eingeben...",
-		},
-		additionalFields: [
-			{
-				name: "anamnese",
-				label: "Anamnese",
-				placeholder: "Anamnese eingeben...",
-			},
-			{
-				name: "diagnoseblock",
-				label: "Diagnoseblock (alt)",
-				placeholder: "Bestehenden Diagnoseblock eingeben...",
-			},
-			{
-				name: "befunde",
-				label: "Befunde",
-				placeholder: "Befunde eingeben...",
-			},
-		],
-	},
-
-	"admission-todos": {
-		label: "ER Admission TODOs",
-		defaultPromptName: "ER_Admission_Todos_chat",
-		mainField: {
-			name: "notes",
-			label: "Notizen",
-			placeholder: "Notizen eingeben...",
-		},
-		additionalFields: [
-			{
-				name: "anamnese",
-				label: "Anamnese",
-				placeholder: "Anamnese eingeben...",
-			},
-			{
-				name: "diagnoseblock",
-				label: "Vordiagnosen",
-				placeholder: "Vordiagnosen eingeben...",
-			},
-			{
-				name: "befunde",
-				label: "Befunde",
-				placeholder: "Befunde eingeben...",
-			},
-		],
 	},
 
 	befunde: {
-		label: "ER Befunde",
-		defaultPromptName: "ER_Befunde_chat",
-		mainField: {
-			name: "notes",
-			label: "Notizen",
-			placeholder: "Notizen eingeben...",
-		},
 		additionalFields: [
 			{
-				name: "anamnese",
 				label: "Anamnese",
+				name: "anamnese",
 				placeholder: "Anamnese eingeben...",
 			},
 			{
-				name: "diagnoseblock",
 				label: "Vordiagnosen",
+				name: "diagnoseblock",
 				placeholder: "Vordiagnosen eingeben...",
 			},
 		],
+		defaultPromptName: "ER_Befunde_chat",
+		label: "ER Befunde",
+		mainField: {
+			label: "Notizen",
+			name: "notes",
+			placeholder: "Notizen eingeben...",
+		},
 	},
 
-	"icu-transfer": {
-		label: "ICU Transfer",
-		defaultPromptName: "ICU_transfer_chat",
-		mainField: {
-			name: "notes",
-			label: "Notizen",
-			placeholder: "Notizen für Verlegung/Übergabe eingeben...",
-		},
+	diagnosis: {
 		additionalFields: [
 			{
-				name: "anamnese",
 				label: "Anamnese",
+				name: "anamnese",
 				placeholder: "Anamnese eingeben...",
 			},
 			{
+				label: "Diagnoseblock (alt)",
 				name: "diagnoseblock",
-				label: "Diagnoseblock",
-				placeholder: "Diagnoseblock eingeben...",
+				placeholder: "Bestehenden Diagnoseblock eingeben...",
 			},
 			{
-				name: "befunde",
 				label: "Befunde",
+				name: "befunde",
 				placeholder: "Befunde eingeben...",
 			},
 		],
+		defaultPromptName: "diagnoseblock_update",
+		label: "Diagnoseblock Update",
+		mainField: {
+			label: "Notizen",
+			name: "notes",
+			placeholder: "Notizen zur Aktualisierung eingeben...",
+		},
+	},
+
+	discharge: {
+		additionalFields: [
+			{
+				label: "Diagnoseblock",
+				name: "diagnoseblock",
+				placeholder: "Diagnoseblock eingeben...",
+			},
+			{
+				label: "Aufnahmeanamnese",
+				name: "anamnese",
+				placeholder: "Initiale Anamnese bei Aufnahme eingeben...",
+			},
+			{
+				label: "Befunde",
+				name: "befunde",
+				placeholder: "Befunde aus dem stationären Aufenthalt eingeben...",
+			},
+		],
+		defaultPromptName: "Inpatient_discharge_chat",
+		label: "Entlassungsbrief",
+		mainField: {
+			description:
+				"Krankheitsverlauf, Behandlung, Empfehlungen. Optional auch bisherigen Brief einfügen.",
+			label: "Entlassungsnotizen",
+			name: "notes",
+			placeholder: "Geben Sie hier Ihre Entlassungsnotizen ein...",
+		},
+	},
+
+	"icu-transfer": {
+		additionalFields: [
+			{
+				label: "Anamnese",
+				name: "anamnese",
+				placeholder: "Anamnese eingeben...",
+			},
+			{
+				label: "Diagnoseblock",
+				name: "diagnoseblock",
+				placeholder: "Diagnoseblock eingeben...",
+			},
+			{
+				label: "Befunde",
+				name: "befunde",
+				placeholder: "Befunde eingeben...",
+			},
+		],
+		defaultPromptName: "ICU_transfer_chat",
+		label: "ICU Transfer",
+		mainField: {
+			label: "Notizen",
+			name: "notes",
+			placeholder: "Notizen für Verlegung/Übergabe eingeben...",
+		},
+	},
+
+	outpatient: {
+		additionalFields: [
+			{
+				label: "Diagnoseblock",
+				name: "diagnoseblock",
+				placeholder: "Diagnoseblock eingeben...",
+			},
+			{
+				label: "Anamnese",
+				name: "anamnese",
+				placeholder: "Anamnese eingeben...",
+			},
+			{
+				label: "Befunde",
+				name: "befunde",
+				placeholder: "Befunde eingeben...",
+			},
+		],
+		defaultPromptName: "Outpatient_visit_chat",
+		label: "Ambulante Vorstellung",
+		mainField: {
+			label: "Notizen",
+			name: "notes",
+			placeholder: "Geben Sie hier Ihre Notizen ein...",
+		},
+	},
+
+	"physical-exam": {
+		additionalFields: [],
+		defaultPromptName: "ER_Koerperliche_Untersuchung_chat",
+		label: "ER Körperliche Untersuchung",
+		mainField: {
+			label: "Notizen",
+			name: "notes",
+			placeholder: "Untersuchungsbefund eingeben...",
+		},
+	},
+
+	procedures: {
+		additionalFields: [],
+		defaultPromptName: "Procedure_chat",
+		label: "Prozeduren",
+		mainField: {
+			label: "Prozedur-Notizen",
+			name: "notes",
+			placeholder: "Geben Sie hier Ihre Prozedur-Notizen ein...",
+		},
 	},
 };
 

@@ -41,23 +41,21 @@ export interface AiscribeContextResult {
 	prompt: string;
 }
 
-const SECTION_DEFINITIONS: Array<
-	Omit<AiscribeContextSection, "content">
-> = [
+const SECTION_DEFINITIONS: Omit<AiscribeContextSection, "content">[] = [
 	{
 		key: "context",
-		title: "Kontext",
 		tag: "context",
+		title: "Kontext",
 	},
 	{
 		key: "practitionerInfo",
-		title: "Behandlerinformationen",
 		tag: "practitioner_info",
+		title: "Behandlerinformationen",
 	},
 	{
 		key: "organizationInfo",
-		title: "Team/Organisation",
 		tag: "organization_info",
+		title: "Team/Organisation",
 	},
 ];
 
@@ -138,14 +136,18 @@ const getSectionContent = (
 	>,
 ): string => {
 	switch (key) {
-		case "context":
+		case "context": {
 			return contents.context;
-		case "practitionerInfo":
+		}
+		case "practitionerInfo": {
 			return contents.practitionerInfo;
-		case "organizationInfo":
+		}
+		case "organizationInfo": {
 			return contents.organizationInfo;
-		default:
+		}
+		default: {
 			return "";
+		}
 	}
 };
 
@@ -169,8 +171,8 @@ export const createAiscribeContext = (
 ): AiscribeContextResult => {
 	const contents = {
 		context: formatSectionInput(input.context),
-		practitionerInfo: formatSectionInput(input.practitionerInfo),
 		organizationInfo: formatSectionInput(input.organizationInfo),
+		practitionerInfo: formatSectionInput(input.practitionerInfo),
 	};
 
 	const sections: AiscribeContextSection[] = [];
@@ -184,7 +186,7 @@ export const createAiscribeContext = (
 
 	return {
 		...contents,
-		sections,
 		prompt: buildPrompt(sections),
+		sections,
 	};
 };

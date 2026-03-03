@@ -31,17 +31,17 @@ import { orpc } from "@/lib/orpc";
 
 const PROTOCOLS = [
 	{
-		value: "openai-compatible",
 		label: "OpenAI-kompatibel (llama.cpp / vLLM / LM Studio)",
+		value: "openai-compatible",
 	},
-	{ value: "openrouter", label: "OpenRouter" },
-	{ value: "openai", label: "OpenAI" },
-	{ value: "anthropic", label: "Anthropic" },
+	{ label: "OpenRouter", value: "openrouter" },
+	{ label: "OpenAI", value: "openai" },
+	{ label: "Anthropic", value: "anthropic" },
 ] as const;
 
 function normalizeMaybeBaseUrl(value: string): string | undefined {
 	const trimmed = value.trim();
-	if (!trimmed) return undefined;
+	if (!trimmed) {return undefined;}
 	return normalizeProviderBaseUrl(trimmed);
 }
 
@@ -63,14 +63,14 @@ export function AddProviderDialog() {
 		}
 
 		return {
+			apiKey: apiKey.trim() || undefined,
+			baseUrl: normalizedBaseUrl,
 			name: name.trim(),
 			protocol: protocol as
 				| "openai-compatible"
 				| "openrouter"
 				| "openai"
 				| "anthropic",
-			baseUrl: normalizedBaseUrl,
-			apiKey: apiKey.trim() || undefined,
 		};
 	}, [name, protocol, baseUrl, apiKey]);
 
@@ -86,32 +86,37 @@ export function AddProviderDialog() {
 	const checkMutation = useMutation({
 		mutationFn: () =>
 			orpc.admin.providers.connections.previewModels.call({
-				protocol: providerPayload.protocol,
-				baseUrl: providerPayload.baseUrl,
 				apiKey: providerPayload.apiKey,
+				baseUrl: providerPayload.baseUrl,
+				protocol: providerPayload.protocol,
 			}),
-		onSuccess: (data) => {
-			setValidated(true);
-			toast.success("Provider validiert", {
-				description: `${data.models.length} Modelle gefunden`,
-			});
-		},
 		onError: (error) => {
 			setValidated(false);
 			toast.error(
 				error instanceof Error ? error.message : "Validierung fehlgeschlagen",
 			);
 		},
+		onSuccess: (data) => {
+			setValidated(true);
+			toast.success("Provider validiert", {
+				description: `${data.models.length} Modelle gefunden`,
+			});
+		},
 	});
 
 	const createMutation = useMutation({
 		mutationFn: () =>
 			orpc.admin.providers.connections.create.call({
+				apiKey: providerPayload.apiKey,
+				baseUrl: providerPayload.baseUrl,
 				name: providerPayload.name,
 				protocol: providerPayload.protocol,
-				baseUrl: providerPayload.baseUrl,
-				apiKey: providerPayload.apiKey,
 			}),
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Fehler beim Erstellen",
+			);
+			},
 		onSuccess: async (result) => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
 			toast.success("Provider erstellt", {
@@ -119,11 +124,6 @@ export function AddProviderDialog() {
 			});
 			handleReset();
 		},
-		onError: (error) => {
-			toast.error(
-				error instanceof Error ? error.message : "Fehler beim Erstellen",
-			);
-			},
 		});
 
 	const handleFieldChange = (

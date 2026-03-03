@@ -37,8 +37,8 @@ export default function PDFUploadSection({
 			getInputProps,
 		},
 	] = useFileUpload({
-		maxSize: MAX_PDF_UPLOAD_BYTES,
 		accept: "application/pdf",
+		maxSize: MAX_PDF_UPLOAD_BYTES,
 		multiple: false,
 		onFilesAdded: async (addedFiles) => {
 			const firstFile = addedFiles[0]?.file;

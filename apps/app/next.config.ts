@@ -47,19 +47,19 @@ export const config: NextConfig = {
 	headers() {
 		return [
 			{
-				source: "/(.*)",
 				headers: createSecureHeaders({
 					// HSTS Preload: https://hstspreload.org/
 					forceHTTPSRedirect: [
 						true,
-						{ maxAge: 63_072_000, includeSubDomains: true, preload: true },
+						{ includeSubDomains: true, maxAge: 63_072_000, preload: true },
 					],
 				}),
+				source: "/(.*)",
 			},
 		];
 	},
 };
 
-let nextConfig: NextConfig = { ...config };
+const nextConfig: NextConfig = { ...config };
 
 export default nextConfig;

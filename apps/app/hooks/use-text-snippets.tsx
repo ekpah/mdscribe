@@ -13,9 +13,7 @@ export function useTextSnippets() {
 
   // Find snippet by key
   const findSnippet = useCallback(
-    (key: string) => {
-      return snippets.find((s) => s.key === key);
-    },
+    (key: string) => snippets.find((s) => s.key === key),
     [snippets]
   );
 
@@ -23,14 +21,14 @@ export function useTextSnippets() {
   const expandSnippet = useCallback(
     (textarea: HTMLTextAreaElement | HTMLInputElement) => {
       const cursorPosition = textarea.selectionStart ?? 0;
-      const textBeforeCursor = textarea.value.substring(0, cursorPosition);
+      const textBeforeCursor = textarea.value.slice(0, cursorPosition);
 
       // Find the last space before the cursor
       const lastSpaceIndex = textBeforeCursor.lastIndexOf(' ');
       const key =
         lastSpaceIndex === -1
           ? textBeforeCursor
-          : textBeforeCursor.substring(lastSpaceIndex + 1);
+          : textBeforeCursor.slice(lastSpaceIndex + 1);
 
       if (!key) {
         toast.error('Kein Kürzel gefunden');
@@ -45,9 +43,9 @@ export function useTextSnippets() {
       }
 
       // Replace the key with the snippet
-      const textAfterCursor = textarea.value.substring(cursorPosition ?? 0);
+      const textAfterCursor = textarea.value.slice(cursorPosition ?? 0);
       const newText =
-        textBeforeCursor.substring(
+        textBeforeCursor.slice(
           0,
           lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1
         ) +
@@ -90,13 +88,13 @@ export function useTextSnippets() {
 
       // Set target and currentTarget properties that React expects
       Object.defineProperty(inputEvent, 'target', {
-        enumerable: true,
         configurable: true,
+        enumerable: true,
         value: textarea,
       });
       Object.defineProperty(inputEvent, 'currentTarget', {
-        enumerable: true,
         configurable: true,
+        enumerable: true,
         value: textarea,
       });
 
@@ -114,7 +112,7 @@ export function useTextSnippets() {
     (event: KeyboardEvent) => {
       event.preventDefault();
       event.stopPropagation();
-      const activeElement = document.activeElement;
+      const {activeElement} = document;
       if (
         activeElement &&
         (activeElement.tagName === 'TEXTAREA' ||
@@ -131,9 +129,9 @@ export function useTextSnippets() {
   );
 
   return {
-    snippets,
-    isLoading,
     expandSnippet,
     findSnippet,
+    isLoading,
+    snippets,
   };
 }

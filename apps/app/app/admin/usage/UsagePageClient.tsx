@@ -23,21 +23,22 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { UsageEventDetail } from "./_components/UsageEventDetail";
-import { createColumns, type UsageEventWithUser } from "./columns";
+import { createColumns } from './columns';
+import type { UsageEventWithUser } from './columns';
 
 type StatsFilter = "today" | "week" | "month" | "all";
 
 const filterLabels: Record<StatsFilter, string> = {
+	all: "Gesamt",
+	month: "Monat",
 	today: "Heute",
 	week: "Woche",
-	month: "Monat",
-	all: "Gesamt",
 };
 
 export default function UsagePage() {
 	const queryClient = useQueryClient();
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-	const [cursor, setCursor] = useState<string | undefined>(undefined);
+	const [cursor, setCursor] = useState<string | undefined>();
 	const [allItems, setAllItems] = useState<UsageEventWithUser[]>([]);
 	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
 	const [searchFilter, setSearchFilter] = useState("");
@@ -124,7 +125,7 @@ export default function UsagePage() {
 
 	// Filter items based on search - matches user name/email OR action name
 	const filteredItems = useMemo(() => {
-		if (!searchFilter.trim()) return allItems;
+		if (!searchFilter.trim()) {return allItems;}
 		const search = searchFilter.toLowerCase();
 		return allItems.filter((item) => {
 			const userName = item.user?.name?.toLowerCase() ?? "";
@@ -141,9 +142,9 @@ export default function UsagePage() {
 	const errorMessage =
 		error instanceof Error
 			? error.message
-			: error
+			: (error
 				? String(error)
-				: "Fehler beim Laden der Events";
+				: "Fehler beim Laden der Events");
 
 	if (isLoading && allItems.length === 0) {
 		return (
@@ -225,7 +226,7 @@ export default function UsagePage() {
 							value={statsFilter}
 							variant="outline"
 							onValueChange={(value) => {
-								if (value) setStatsFilter(value as StatsFilter);
+								if (value) {setStatsFilter(value as StatsFilter);}
 							}}
 							className="mb-4 w-full"
 						>
@@ -269,11 +270,11 @@ export default function UsagePage() {
 								<p className="text-base font-semibold text-solarized-green sm:text-lg">
 									{statsLoading ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
-									) : stats?.totalCost !== undefined ? (
+									) : (stats?.totalCost !== undefined ? (
 										`$${stats.totalCost.toFixed(2)}`
 									) : (
 										"-"
-									)}
+									))}
 								</p>
 							</div>
 						</div>
@@ -340,7 +341,7 @@ export default function UsagePage() {
 				event={selectedEvent}
 				open={!!selectedEventId}
 				onOpenChange={(open) => {
-					if (!open) setSelectedEventId(null);
+					if (!open) {setSelectedEventId(null);}
 				}}
 			/>
 		</div>

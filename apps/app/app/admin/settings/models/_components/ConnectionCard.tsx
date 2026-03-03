@@ -32,10 +32,10 @@ interface ProviderData {
 }
 
 const PROTOCOL_LABELS: Record<string, string> = {
+	anthropic: "Anthropic",
+	openai: "OpenAI",
 	"openai-compatible": "OpenAI-kompatibel",
 	openrouter: "OpenRouter",
-	openai: "OpenAI",
-	anthropic: "Anthropic",
 };
 
 interface ConnectionCardProps {
@@ -49,12 +49,12 @@ export function ConnectionCard({ connection }: ConnectionCardProps) {
 	const deleteMutation = useMutation({
 		mutationFn: () =>
 			orpc.admin.providers.connections.delete.call({ id: connection.id }),
+		onError: (error) =>
+			toast.error(error instanceof Error ? error.message : "Fehler"),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
 			toast.success("Provider gelöscht");
 		},
-		onError: (error) =>
-			toast.error(error instanceof Error ? error.message : "Fehler"),
 	});
 
 	const refreshModelsMutation = useMutation({
@@ -62,6 +62,8 @@ export function ConnectionCard({ connection }: ConnectionCardProps) {
 			orpc.admin.providers.connections.refreshModels.call({
 				id: connection.id,
 			}),
+		onError: (error) =>
+			toast.error(error instanceof Error ? error.message : "Fehler"),
 		onSuccess: async (data) => {
 			const preview = data.models
 				.slice(0, 3)
@@ -72,8 +74,6 @@ export function ConnectionCard({ connection }: ConnectionCardProps) {
 			});
 			await queryClient.invalidateQueries({ queryKey: listKey });
 		},
-		onError: (error) =>
-			toast.error(error instanceof Error ? error.message : "Fehler"),
 	});
 
 	return (

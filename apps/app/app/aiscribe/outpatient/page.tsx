@@ -1,10 +1,8 @@
 "use client";
 
 import { Stethoscope } from "lucide-react";
-import {
-	AiscribeTemplate,
-	type AiscribeTemplateConfig,
-} from "../_components/AiscribeTemplate";
+import { AiscribeTemplate } from '../_components/AiscribeTemplate';
+import type { AiscribeTemplateConfig } from '../_components/AiscribeTemplate';
 
 const OUTPATIENT_CONFIG: AiscribeTemplateConfig = {
 	// Page identity

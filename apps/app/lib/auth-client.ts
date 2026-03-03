@@ -17,7 +17,8 @@ export const authClient = createAuthClient({
 		inferAdditionalFields<typeof auth>(),
 		// stripe plugin for subscription management
 		stripeClient({
-			subscription: true, // if you want to enable subscription management
+			// if you want to enable subscription management
+			subscription: true,
 		}),
 	],
 });
@@ -32,8 +33,8 @@ const fetchSession = async (): Promise<Session | null> => {
 
 export const useSession = () =>
 	useQuery({
-		queryKey: sessionQueryKey,
 		queryFn: fetchSession,
+		queryKey: sessionQueryKey,
 		staleTime: sessionQueryStaleTime,
 	});
 

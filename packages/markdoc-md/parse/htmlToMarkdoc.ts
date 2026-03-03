@@ -153,13 +153,15 @@ function processNodeForMarkdoc(node: Node): string {
 				return innerContent;
 			}
 
-			default:
+			default: {
 				// Fallback for unknown tags: just return content
 				return innerContent;
+			}
 		}
 	}
 
-	return ""; // Ignore comments, other node types
+	// Ignore comments and other node types.
+	return "";
 }
 
 /**
@@ -176,8 +178,8 @@ export function htmlToMarkdoc(html: string): string {
 		console.error(
 			"DOMParser is not available. Cannot convert HTML to Markdoc.",
 		);
-		// Fallback or throw error depending on desired behavior in non-browser env
-		return html; // Return original HTML as a basic fallback
+		// Fallback or throw error depending on desired behavior in non-browser env.
+		return html;
 	}
 
 	const parser = new DOMParser();

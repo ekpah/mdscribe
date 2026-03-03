@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import CreateDocumentSection from "./_components/CreateDocumentSection";
 
 export const metadata: Metadata = {
-	title: "Dokument erstellen",
 	description: "Erstellen Sie ein neues Dokument mit PDF-Formular-Integration",
+	title: "Dokument erstellen",
 };
 
 export default function CreateDocumentPage() {

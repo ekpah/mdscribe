@@ -29,15 +29,15 @@ export default async function DashboardPage() {
 
 	return (
 		<UserSettings
-			activeSessions={JSON.parse(JSON.stringify(activeSessions))}
+			activeSessions={structuredClone(activeSessions)}
 			generationLimit={generationLimit}
-			session={JSON.parse(JSON.stringify(session))}
+			session={structuredClone(session)}
 			subscription={
 				activeSubscription
-					? JSON.parse(JSON.stringify(activeSubscription))
+					? structuredClone(activeSubscription)
 					: undefined
 			}
-			user={JSON.parse(JSON.stringify(session.user))}
+			user={structuredClone(session.user)}
 		/>
 	);
 }

@@ -29,7 +29,7 @@ export async function encrypt(plaintext: string): Promise<string> {
 	const encoded = new TextEncoder().encode(plaintext);
 
 	const cipherBuffer = await crypto.subtle.encrypt(
-		{ name: "AES-GCM", iv, tagLength: TAG_LENGTH * 8 },
+		{ iv, name: "AES-GCM", tagLength: TAG_LENGTH * 8 },
 		key,
 		encoded,
 	);
@@ -53,7 +53,7 @@ export async function decrypt(base64: string): Promise<string> {
 	const ciphertext = combined.slice(IV_LENGTH);
 
 	const decrypted = await crypto.subtle.decrypt(
-		{ name: "AES-GCM", iv, tagLength: TAG_LENGTH * 8 },
+		{ iv, name: "AES-GCM", tagLength: TAG_LENGTH * 8 },
 		key,
 		ciphertext,
 	);

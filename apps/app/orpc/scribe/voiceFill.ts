@@ -10,10 +10,8 @@ import {
 import { authed } from "@/orpc";
 import { resolveModel } from "./providers";
 import type { InputField, VoiceFillInputPayload } from "./types";
-import {
-	type VoiceFillFieldDefinition,
-	voiceFillConfig,
-} from "./voiceFillConfig";
+import { voiceFillConfig } from './voiceFillConfig';
+import type { VoiceFillFieldDefinition } from './voiceFillConfig';
 
 /**
  * Schema for voice fill response
@@ -50,14 +48,14 @@ const deriveFieldsFromTags = (
 	const seen = new Set<string>();
 
 	const pushField = (field: VoiceFillFieldDefinition) => {
-		if (!field.label || seen.has(field.label)) return;
+		if (!field.label || seen.has(field.label)) {return;}
 		fields.push(field);
 		seen.add(field.label);
 	};
 
 	const visit = (input: unknown) => {
 		// Guard against non-object inputs (e.g., strings, nulls)
-		if (!input || typeof input !== "object") return;
+		if (!input || typeof input !== "object") {return;}
 		const tag = input as Record<string, unknown>;
 		const name = tag.name as string | undefined;
 		const attributes = tag.attributes as Record<string, unknown> | undefined;
@@ -65,19 +63,21 @@ const deriveFieldsFromTags = (
 
 		if (name === "Info" && attributes?.primary) {
 			pushField({
-				label: attributes.primary as string,
 				description: attributes.description as string | undefined,
+				label: attributes.primary as string,
 				type: (attributes.type as "string" | "number" | "date") ?? "string",
 				unit: attributes.unit as string | undefined,
 			});
-			children?.forEach(visit);
+			for (const child of children ?? []) {
+				visit(child);
+			}
 			return;
 		}
 
 		if (name === "Switch" && attributes?.primary) {
 			const options = (children ?? [])
 				.filter((child) => {
-					if (!child || typeof child !== "object") return false;
+					if (!child || typeof child !== "object") {return false;}
 					const c = child as Record<string, unknown>;
 					return (
 						c.name === "Case" &&
@@ -90,24 +90,32 @@ const deriveFieldsFromTags = (
 				});
 			pushField({
 				label: attributes.primary as string,
-				type: "switch",
 				options,
+				type: "switch",
 			});
-			children?.forEach(visit);
+			for (const child of children ?? []) {
+				visit(child);
+			}
 			return;
 		}
 
 		if (name === "Case") {
-			children?.forEach(visit);
+			for (const child of children ?? []) {
+				visit(child);
+			}
 			return;
 		}
 
 		if (name === "Score") {
-			children?.forEach(visit);
+			for (const child of children ?? []) {
+				visit(child);
+			}
 		}
 	};
 
-	inputTags.forEach(visit);
+	for (const inputTag of inputTags) {
+		visit(inputTag);
+	}
 
 	return fields;
 };
@@ -116,8 +124,8 @@ const normalizeInputFields = (
 	inputFields: InputField[] | undefined,
 ): VoiceFillFieldDefinition[] =>
 	(inputFields ?? []).map((field) => ({
-		label: field.label,
 		description: field.description,
+		label: field.label,
 	}));
 
 /**
@@ -155,30 +163,30 @@ export const voiceFillHandler = authed
 		// Config returns [system, user] messages - user message contains field labels
 		const messages = [
 			{
-				role: "system" as const,
 				content: promptMessages[0].content,
+				role: "system" as const,
 			},
 			{
-				role: "user" as const,
 				content: [
 					// Include field labels text from config
-					{ type: "text" as const, text: promptMessages[1].content },
+					{ text: promptMessages[1].content, type: "text" as const },
 					// Append audio files
 					...audioFiles.map((af) => ({
-						type: "file" as const,
 						data: Buffer.from(af.data, "base64"),
 						mediaType: af.mimeType,
+						type: "file" as const,
 					})),
 				],
+				role: "user" as const,
 			},
 		];
 
 		const result = await generateObject({
-			model: resolved.model,
+			experimental_telemetry: { isEnabled: true },
 			messages,
+			model: resolved.model,
 			schema: voiceFillSchema,
 			temperature: config.modelConfig.temperature ?? 0.3,
-			experimental_telemetry: { isEnabled: true },
 		});
 
 		const { object, usage } = result;
@@ -195,9 +203,16 @@ export const voiceFillHandler = authed
 		// Log usage event
 		await context.db.insert(usageEvent).values(
 			buildUsageEventData({
-				userId: context.session.user.id,
-				name: "ai_input_voice_fill",
+				inputData: {
+					audioCount: audioFiles.length,
+					fieldCount: fields.length,
+				},
+				metadata: {
+					promptName: config.promptName,
+					promptSource: "local",
+				},
 				model: resolved.modelName,
+				name: "ai_input_voice_fill",
 				openRouterUsage: openrouterUsage ?? null,
 				standardUsage: usage
 					? {
@@ -207,14 +222,7 @@ export const voiceFillHandler = authed
 							totalTokens: (usage as { totalTokens?: number }).totalTokens,
 						}
 					: undefined,
-				inputData: {
-					fieldCount: fields.length,
-					audioCount: audioFiles.length,
-				},
-				metadata: {
-					promptName: config.promptName,
-					promptSource: "local",
-				},
+				userId: context.session.user.id,
 			}),
 		);
 

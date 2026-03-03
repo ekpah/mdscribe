@@ -48,7 +48,7 @@ function getSafeSelectValue(
 	value: string | null | undefined,
 	options: ModelOption[],
 ): string {
-	if (!value) return NONE_VALUE;
+	if (!value) {return NONE_VALUE;}
 	return options.some((option) => option.value === value) ? value : NONE_VALUE;
 }
 
@@ -64,30 +64,30 @@ export function ModelsTab({ connections }: ModelsTabProps) {
 	const setDefaultMutation = useMutation({
 		mutationFn: (data: { defaultType: DefaultType; modelId: string | null }) =>
 			orpc.admin.providers.defaults.set.call(data),
+		onError: (error) =>
+			toast.error(error instanceof Error ? error.message : "Fehler"),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: defaultsKey });
 			await queryClient.invalidateQueries({ queryKey: listKey });
 			toast.success("Standardmodell aktualisiert");
 		},
-		onError: (error) =>
-			toast.error(error instanceof Error ? error.message : "Fehler"),
 	});
 
 	const enabledModelOptions = connections.flatMap((provider) =>
 		provider.models.map((model) => ({
-			value: model.id,
-			label: model.displayName,
 			group: provider.name,
 			keywords: [provider.name, model.modelId, model.displayName],
+			label: model.displayName,
+			value: model.id,
 		})),
 	);
 
 	const selectorOptions: ModelOption[] = [
 		{
-			value: NONE_VALUE,
-			label: "Kein Standard",
 			group: "",
 			keywords: ["none", "kein", "standard"],
+			label: "Kein Standard",
+			value: NONE_VALUE,
 		},
 		...enabledModelOptions,
 	];
@@ -178,12 +178,12 @@ export function ModelsTab({ connections }: ModelsTabProps) {
 				</CardContent>
 			</Card>
 
-			{enabledModelOptions.length === 0 && (
-				<p className="text-solarized-base01 text-sm">
-					Keine Modelle synchronisiert. Unter "Verbindungen" zuerst Provider
-					prüfen und Modelle aktualisieren.
-				</p>
-			)}
+				{enabledModelOptions.length === 0 && (
+					<p className="text-solarized-base01 text-sm">
+						Keine Modelle synchronisiert. Unter &quot;Verbindungen&quot; zuerst Provider
+						prüfen und Modelle aktualisieren.
+					</p>
+				)}
 		</div>
 	);
 }

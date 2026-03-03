@@ -55,10 +55,10 @@ const getAuthoredTemplates = async (
 const generateSidebarLinks = async (queryClient: QueryClient) => {
 	const templates = await getTemplates(queryClient);
 	return templates.map((temp) => ({
-		url: `/templates/${temp.id}`,
 		category: temp.category,
-		title: temp.title,
 		favouritesCount: temp._count.favouriteOf,
+		title: temp.title,
+		url: `/templates/${temp.id}`,
 	}));
 };
 
@@ -68,10 +68,10 @@ const generateFavouriteTemplates = async (
 ) => {
 	const templates = await getFavouriteTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
-		url: `/templates/${temp.id}`,
 		category: temp.category,
-		title: temp.title,
 		favouritesCount: temp._count.favouriteOf,
+		title: temp.title,
+		url: `/templates/${temp.id}`,
 	}));
 };
 
@@ -81,10 +81,10 @@ const generateAuthoredTemplates = async (
 ) => {
 	const templates = await getAuthoredTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
-		url: `/templates/${temp.id}`,
 		category: temp.category,
-		title: temp.title,
 		favouritesCount: temp._count.favouriteOf,
+		title: temp.title,
+		url: `/templates/${temp.id}`,
 	}));
 };
 
@@ -103,11 +103,11 @@ export default async function Layout({
 				<Suspense
 					fallback={
 						<AppSidebar
-							authoredTemplates={"[]"}
-							favouriteTemplates={"[]"}
+							authoredTemplates="[]"
+							favouriteTemplates="[]"
 							isLoggedIn={isLoggedIn}
 							key="Sidebar"
-							templates={"[]"}
+							templates="[]"
 						/>
 					}
 				>

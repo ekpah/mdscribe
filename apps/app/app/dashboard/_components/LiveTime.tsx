@@ -18,10 +18,10 @@ export function LiveTime() {
         <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
             {currentTime.toLocaleDateString('de-DE', {
+                day: 'numeric',
+                month: 'long',
                 weekday: 'long',
                 year: 'numeric',
-                month: 'long',
-                day: 'numeric',
             })}
         </div>
         <div className="flex items-center gap-1">

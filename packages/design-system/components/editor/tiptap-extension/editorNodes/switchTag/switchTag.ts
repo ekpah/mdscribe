@@ -1,7 +1,9 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { Fragment } from '@tiptap/pm/model';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { SwitchTagView } from './switchTagView'; // Renamed import
+// Renamed import
+import { SwitchTagView } from './switchTagView';
 
 export interface SwitchCase {
   primary: string;
@@ -20,21 +22,17 @@ export interface SwitchTagAttrs {
   /**
    * Optional variable name for dynamic content (might not be needed for switch)
    */
-  variable: string | null; // Keep for consistency for now, might remove later
+  // Keep for consistency for now, might remove later
+  variable: string | null;
 }
 
 export const SwitchTag = Node.create<SwitchTagAttrs>({
-  name: 'switchTag',
-
-  group: 'inline',
-  inline: true,
-  atom: true,
-  selectable: true,
-  draggable: false,
-  isolating: true,
-
   addAttributes() {
     return {
+      cases: {
+        default: [],
+        renderHTML: () => ({}),
+      },
       primary: {
         default: null,
         parseHTML: (element) => element.getAttribute('primary'),
@@ -42,32 +40,43 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
           primary: attributes.primary,
         }),
       },
-      cases: {
-        default: [],
-        renderHTML: () => ({}),
-      },
     };
   },
 
-  renderText({ node }: { node: ProseMirrorNode }) {
-    const switchPrimary = node.attrs.primary;
-    const switchPrimaryValue = switchPrimary
-      ? JSON.stringify(switchPrimary)
-      : '""';
-    const cases: SwitchCase[] = Array.isArray(node.attrs.cases)
-      ? node.attrs.cases
-      : [];
-    const content = cases
-      .map((caseItem) => {
-        const casePrimaryValue = caseItem.primary
-          ? JSON.stringify(caseItem.primary)
-          : '""';
-        const caseText = caseItem.text ?? '';
-        return `{% case ${casePrimaryValue} %}${caseText}{% /case %}`;
-      })
-      .join('');
+  addNodeView() {
+    return ReactNodeViewRenderer(SwitchTagView);
+  },
+  atom: true,
+  draggable: false,
+  group: 'inline',
+  inline: true,
+  isolating: true,
 
-    return `{% switch ${switchPrimaryValue} %}${content}{% /switch %}`;
+  name: 'switchTag',
+
+  parseHTML() {
+    return [
+      {
+        getAttrs: (element) => {
+          if (!(element instanceof HTMLElement)) {return false;}
+          const primary = element.getAttribute('primary');
+          const caseElements = [...element.children].filter(
+            (child) => child.tagName.toLowerCase() === 'case'
+          );
+          const cases = caseElements.map((child) => ({
+            primary: child.getAttribute('primary') ?? '',
+            text: (child.textContent ?? '').trim(),
+          }));
+
+          return {
+            cases,
+            primary,
+          };
+        },
+        getContent: () => Fragment.empty,
+        tag: 'Switch',
+      },
+    ];
   },
 
   renderHTML({
@@ -94,32 +103,26 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
       ...caseNodes,
     ];
   },
-  parseHTML() {
-    return [
-      {
-        tag: 'Switch',
-        getAttrs: (element) => {
-          if (!(element instanceof HTMLElement)) return false;
-          const primary = element.getAttribute('primary');
-          const caseElements = Array.from(element.children).filter(
-            (child) => child.tagName.toLowerCase() === 'case'
-          );
-          const cases = caseElements.map((child) => ({
-            primary: child.getAttribute('primary') ?? '',
-            text: (child.textContent ?? '').trim(),
-          }));
+  renderText({ node }: { node: ProseMirrorNode }) {
+    const switchPrimary = node.attrs.primary;
+    const switchPrimaryValue = switchPrimary
+      ? JSON.stringify(switchPrimary)
+      : '""';
+    const cases: SwitchCase[] = Array.isArray(node.attrs.cases)
+      ? node.attrs.cases
+      : [];
+    const content = cases
+      .map((caseItem) => {
+        const casePrimaryValue = caseItem.primary
+          ? JSON.stringify(caseItem.primary)
+          : '""';
+        const caseText = caseItem.text ?? '';
+        return `{% case ${casePrimaryValue} %}${caseText}{% /case %}`;
+      })
+      .join('');
 
-          return {
-            primary,
-            cases,
-          };
-        },
-        getContent: () => Fragment.empty,
-      },
-    ];
+    return `{% switch ${switchPrimaryValue} %}${content}{% /switch %}`;
   },
 
-  addNodeView() {
-    return ReactNodeViewRenderer(SwitchTagView);
-  },
+  selectable: true,
 });

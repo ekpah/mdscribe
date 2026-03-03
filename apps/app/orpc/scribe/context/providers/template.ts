@@ -5,6 +5,6 @@ import type { ContextProvider } from "../types";
  * Intentionally returns null until template sources are fully integrated.
  */
 export const templateContextProvider: ContextProvider = {
-	id: "template",
 	build: () => null,
+	id: "template",
 };

@@ -1,10 +1,8 @@
 'use client';
 
 import { ClipboardCheck } from 'lucide-react';
-import {
-  AiscribeTemplate,
-  type AiscribeTemplateConfig,
-} from '../_components/AiscribeTemplate';
+import { AiscribeTemplate } from '../_components/AiscribeTemplate';
+import type { AiscribeTemplateConfig } from '../_components/AiscribeTemplate';
 
 const PROCEDURES_CONFIG: AiscribeTemplateConfig = {
   // Page identity

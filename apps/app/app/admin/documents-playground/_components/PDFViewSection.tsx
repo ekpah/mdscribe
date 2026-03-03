@@ -66,13 +66,11 @@ export default function PDFViewSection({
 
 	const pdfUrl = useMemo(() => toPdfBlobUrl(pdfFile), [pdfFile]);
 
-	useEffect(() => {
-		return () => {
+	useEffect(() => () => {
 			if (pdfUrl) {
 				URL.revokeObjectURL(pdfUrl);
 			}
-		};
-	}, [pdfUrl]);
+		}, [pdfUrl]);
 
 	useEffect(() => {
 		if (!pdfUrl) {

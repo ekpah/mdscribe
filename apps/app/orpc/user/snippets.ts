@@ -46,9 +46,9 @@ const createSnippetHandler = authed
 		const [snippet] = await context.db
 			.insert(textSnippet)
 			.values({
-				userId: context.session.user.id,
 				key: input.key,
 				snippet: input.snippet,
+				userId: context.session.user.id,
 			})
 			.returning();
 
@@ -123,9 +123,9 @@ const deleteSnippetHandler = authed
 	});
 
 export const snippetsHandler = {
+	create: createSnippetHandler,
+	delete: deleteSnippetHandler,
 	get: getSnippetByIDHandler,
 	list: listSnippetsHandler,
-	create: createSnippetHandler,
 	update: updateSnippetHandler,
-	delete: deleteSnippetHandler,
 };

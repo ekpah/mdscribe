@@ -1,10 +1,5 @@
-import {
-	DateFormatter,
-	type DateValue,
-	getLocalTimeZone,
-	parseDate,
-	today,
-} from "@internationalized/date";
+import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date';
+import type { DateValue } from '@internationalized/date';
 
 const germanFormatter = new DateFormatter("de-DE", { dateStyle: "short" });
 
@@ -13,9 +8,9 @@ const germanFormatter = new DateFormatter("de-DE", { dateStyle: "short" });
  * Returns null for invalid or empty input.
  */
 export function parseDateInput(input: unknown): DateValue | null {
-	if (!input || typeof input !== "string") return null;
+	if (!input || typeof input !== "string") {return null;}
 	const trimmed = input.trim();
-	if (!trimmed) return null;
+	if (!trimmed) {return null;}
 
 	// ISO format: YYYY-MM-DD
 	if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {

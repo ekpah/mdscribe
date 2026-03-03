@@ -9,8 +9,8 @@ type SeedDatabase = PostgresJsDatabase<typeof schema>;
 // Constants for test credentials
 export const SEED_USER = {
 	email: "test@test.com",
-	password: "password123",
 	name: "Test User",
+	password: "password123",
 } as const;
 
 // Global flag to prevent re-seeding during HMR
@@ -21,7 +21,6 @@ const globalForSeed = globalThis as unknown as {
 // Template seed data
 const SEED_TEMPLATES = [
 	{
-		title: "Akute Appendizitis",
 		category: "Prozeduren",
 		content: `# Appendektomie
 
@@ -37,9 +36,9 @@ Akute Appendizitis
 - Kostaufbau nach Toleranz
 - Frühmobilisation
 - Entlassung nach 1-2 Tagen bei komplikationslosem Verlauf`,
+		title: "Akute Appendizitis",
 	},
 	{
-		title: "Pneumonie Aufnahme",
 		category: "Anamnese",
 		content: `# Pneumonie - Aufnahmeanamnese
 
@@ -54,9 +53,9 @@ Akute Appendizitis
 - Rauchen: __ PY
 - Immunsuppression
 - Aspiration`,
+		title: "Pneumonie Aufnahme",
 	},
 	{
-		title: "Herzinsuffizienz Entlassbrief",
 		category: "Entlassbrief",
 		content: `# Entlassbrief - Herzinsuffizienz
 
@@ -75,18 +74,18 @@ Unter diuretischer Therapie zeigte sich eine rasche Rekompensation.
 - Flüssigkeitsrestriktion 1.5L/Tag
 - Tägliche Gewichtskontrolle
 - Kardiologische Wiedervorstellung in 4 Wochen`,
+		title: "Herzinsuffizienz Entlassbrief",
 	},
 	{
-		title: "Diabetes Mellitus Typ 2",
 		category: "Diagnoseblock",
 		content: `## Diagnoseblock
 E11.9 Diabetes mellitus Typ 2 ohne Komplikationen
 - HbA1c: ___%
 - Metformin __ mg 1-0-1
 - Diätberatung erfolgt`,
+		title: "Diabetes Mellitus Typ 2",
 	},
 	{
-		title: "Intensivverlegung ARDS",
 		category: "ICU-Transfer",
 		content: `# Intensivverlegung - ARDS
 
@@ -105,6 +104,7 @@ Respiratorische Insuffizienz mit Intubationspflicht
 ## Offene Maßnahmen
 - CT Thorax ausstehend
 - Bronchoskopie geplant`,
+		title: "Intensivverlegung ARDS",
 	},
 ];
 
@@ -116,12 +116,12 @@ async function seedTemplates(db: SeedDatabase, authorId: string): Promise<void> 
 
 	for (const tmpl of SEED_TEMPLATES) {
 		await db.insert(schema.template).values({
-			id: crypto.randomUUID(),
-			title: tmpl.title,
+			authorId,
 			category: tmpl.category,
 			content: tmpl.content,
-			authorId,
 			embedding: null,
+			id: crypto.randomUUID(),
+			title: tmpl.title,
 		});
 	}
 
@@ -136,39 +136,39 @@ async function seedUsageEvents(db: SeedDatabase, userId: string): Promise<void> 
 
 	const events = [
 		{
-			name: "ai_scribe_generation",
-			inputTokens: 1500,
-			outputTokens: 800,
-			model: "anthropic/claude-3.5-sonnet",
 			daysAgo: 0,
+			inputTokens: 1500,
+			model: "anthropic/claude-3.5-sonnet",
+			name: "ai_scribe_generation",
+			outputTokens: 800,
 		},
 		{
-			name: "ai_scribe_generation",
-			inputTokens: 2200,
-			outputTokens: 1200,
-			model: "anthropic/claude-3.5-sonnet",
 			daysAgo: 1,
-		},
-		{
-			name: "ai_scribe_generation",
-			inputTokens: 1800,
-			outputTokens: 950,
-			model: "google/gemini-2.0-flash-exp",
-			daysAgo: 2,
-		},
-		{
-			name: "ai_scribe_generation",
-			inputTokens: 3000,
-			outputTokens: 1500,
+			inputTokens: 2200,
 			model: "anthropic/claude-3.5-sonnet",
-			daysAgo: 3,
+			name: "ai_scribe_generation",
+			outputTokens: 1200,
 		},
 		{
-			name: "ai_scribe_generation",
-			inputTokens: 1200,
-			outputTokens: 600,
+			daysAgo: 2,
+			inputTokens: 1800,
 			model: "google/gemini-2.0-flash-exp",
+			name: "ai_scribe_generation",
+			outputTokens: 950,
+		},
+		{
+			daysAgo: 3,
+			inputTokens: 3000,
+			model: "anthropic/claude-3.5-sonnet",
+			name: "ai_scribe_generation",
+			outputTokens: 1500,
+		},
+		{
 			daysAgo: 5,
+			inputTokens: 1200,
+			model: "google/gemini-2.0-flash-exp",
+			name: "ai_scribe_generation",
+			outputTokens: 600,
 		},
 	];
 
@@ -177,15 +177,15 @@ async function seedUsageEvents(db: SeedDatabase, userId: string): Promise<void> 
 		timestamp.setDate(timestamp.getDate() - event.daysAgo);
 
 		await db.insert(schema.usageEvent).values({
-			id: crypto.randomUUID(),
-			userId,
-			timestamp,
-			name: event.name,
-			inputTokens: event.inputTokens,
-			outputTokens: event.outputTokens,
-			totalTokens: event.inputTokens + event.outputTokens,
-			model: event.model,
 			cost: ((event.inputTokens * 0.003 + event.outputTokens * 0.015) / 1000).toFixed(6),
+			id: crypto.randomUUID(),
+			inputTokens: event.inputTokens,
+			model: event.model,
+			name: event.name,
+			outputTokens: event.outputTokens,
+			timestamp,
+			totalTokens: event.inputTokens + event.outputTokens,
+			userId,
 		});
 	}
 
@@ -215,32 +215,33 @@ export async function seedDatabase(db: SeedDatabase): Promise<void> {
 	// Create test user
 	const userId = crypto.randomUUID();
 	await db.insert(schema.user).values({
-		id: userId,
 		email: SEED_USER.email,
-		name: SEED_USER.name,
 		emailVerified: true,
+		id: userId,
+		name: SEED_USER.name,
 		stripeCustomerId: `cus_test_${Date.now()}`,
 	});
 
 	// Create credential account with BetterAuth-compatible password hash
 	const hashedPassword = await hashPassword(SEED_USER.password);
 	await db.insert(schema.account).values({
-		id: crypto.randomUUID(),
-		userId,
 		accountId: userId,
-		providerId: "credential",
+		id: crypto.randomUUID(),
 		password: hashedPassword,
+		providerId: "credential",
+		userId,
 	});
 
 	// Create active session for immediate login
 	const sessionToken = crypto.randomUUID();
 	await db.insert(schema.session).values({
+		// 30 days
+		expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
 		id: crypto.randomUUID(),
-		userId,
-		token: sessionToken,
-		expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
 		ipAddress: "127.0.0.1",
+		token: sessionToken,
 		userAgent: "seed-script",
+		userId,
 	});
 
 	// Seed templates

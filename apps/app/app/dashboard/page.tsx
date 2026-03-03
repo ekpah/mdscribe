@@ -42,23 +42,23 @@ import { LiveTime } from "./_components/LiveTime";
 
 /** Readable German labels for AI scribe document types */
 const documentTypeLabels: Record<DocumentType, string> = {
-	discharge: "Entlassungsbrief",
+	"admission-todos": "ER Admission TODOs",
 	anamnese: "ER Anamnese",
+	befunde: "ER Befunde",
 	diagnosis: "Diagnoseblock Update",
+	discharge: "Entlassungsbrief",
+	"icu-transfer": "ICU Transfer",
+	outpatient: "Ambulante Vorstellung",
 	"physical-exam": "ER Körperliche Untersuchung",
 	procedures: "Prozeduren",
-	"admission-todos": "ER Admission TODOs",
-	befunde: "ER Befunde",
-	outpatient: "Ambulante Vorstellung",
-	"icu-transfer": "ICU Transfer",
 };
 
 /** Readable German labels for usage event names */
 const eventNameLabels: Record<string, string> = {
-	ai_scribe_generation: "KI-Dokumentation generiert",
+	admin_scribe_playground: "Playground-Generierung",
 	ai_input_voice_fill: "Spracheingabe verarbeitet",
 	ai_pdf_form_parsing: "PDF-Formular analysiert",
-	admin_scribe_playground: "Playground-Generierung",
+	ai_scribe_generation: "KI-Dokumentation generiert",
 };
 
 function getSubscriptionPlanLabel(plan?: string | null) {
@@ -78,28 +78,28 @@ function getSubscriptionStatus(subscription?: {
 }) {
 	if (!subscription) {
 		return {
-			label: "Kein Abonnement",
 			badgeClassName: "border-solarized-base1 text-solarized-base01",
+			label: "Kein Abonnement",
 		};
 	}
 
 	if (subscription.cancelAtPeriodEnd) {
 		return {
-			label: "Wird gekündigt",
 			badgeClassName: "border-solarized-orange/70 text-solarized-orange",
+			label: "Wird gekündigt",
 		};
 	}
 
 	if (subscription.status === "trialing") {
 		return {
-			label: "Testphase",
 			badgeClassName: "border-solarized-blue/70 text-solarized-blue",
+			label: "Testphase",
 		};
 	}
 
 	return {
-		label: "Aktiv",
 		badgeClassName: "border-solarized-green/70 text-solarized-green",
+		label: "Aktiv",
 	};
 }
 
@@ -159,64 +159,64 @@ export default async function DashboardPage() {
 
 	const aiFunctions = [
 		{
-			title: "Notfall Anamnese",
-			description:
-				"Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten",
-			icon: Heart,
-			href: "/aiscribe/er",
-			color: "text-solarized-red",
 			bgColor: "bg-solarized-red/10",
 			borderColor: "border-solarized-red/20",
+			color: "text-solarized-red",
+			description:
+				"Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten",
+			href: "/aiscribe/er",
+			icon: Heart,
+			title: "Notfall Anamnese",
 		},
 		{
-			title: "Entlassungsbrief",
-			description:
-				"Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
-			icon: FileCheck,
-			href: "/aiscribe/discharge",
-			color: "text-solarized-blue",
 			bgColor: "bg-solarized-blue/10",
 			borderColor: "border-solarized-blue/20",
+			color: "text-solarized-blue",
+			description:
+				"Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
+			href: "/aiscribe/discharge",
+			icon: FileCheck,
+			title: "Entlassungsbrief",
 		},
 		{
-			title: "Prozedur-Dokumentation",
-			description:
-				"Erstellen Sie professionelle Dokumentationen für medizinische Eingriffe",
-			icon: ClipboardCheck,
-			href: "/aiscribe/procedures",
-			color: "text-solarized-orange",
 			bgColor: "bg-solarized-orange/10",
 			borderColor: "border-solarized-orange/20",
+			color: "text-solarized-orange",
+			description:
+				"Erstellen Sie professionelle Dokumentationen für medizinische Eingriffe",
+			href: "/aiscribe/procedures",
+			icon: ClipboardCheck,
+			title: "Prozedur-Dokumentation",
 		},
 		{
-			title: "ICU Verlegungsbrief",
-			description:
-				"Erstellen Sie professionelle Verlegungsbriefe für Ihre ICU-Patienten",
-			icon: Stethoscope,
-			href: "/aiscribe/icu",
-			color: "text-solarized-green",
 			bgColor: "bg-solarized-green/10",
 			borderColor: "border-solarized-green/20",
+			color: "text-solarized-green",
+			description:
+				"Erstellen Sie professionelle Verlegungsbriefe für Ihre ICU-Patienten",
+			href: "/aiscribe/icu",
+			icon: Stethoscope,
+			title: "ICU Verlegungsbrief",
 		},
 		{
-			title: "Ambulante Konsultation",
-			description:
-				"Erstellen Sie Dokumentationen für ambulante Patientenbesuche",
-			icon: FileText,
-			href: "/aiscribe/outpatient",
-			color: "text-solarized-violet",
 			bgColor: "bg-solarized-violet/10",
 			borderColor: "border-solarized-violet/20",
+			color: "text-solarized-violet",
+			description:
+				"Erstellen Sie Dokumentationen für ambulante Patientenbesuche",
+			href: "/aiscribe/outpatient",
+			icon: FileText,
+			title: "Ambulante Konsultation",
 		},
 		{
-			title: "Diagnoseblock Update",
-			description:
-				"Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
-			icon: FileText,
-			href: "/aiscribe/diagnoseblock",
-			color: "text-solarized-cyan",
 			bgColor: "bg-solarized-cyan/10",
 			borderColor: "border-solarized-cyan/20",
+			color: "text-solarized-cyan",
+			description:
+				"Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
+			href: "/aiscribe/diagnoseblock",
+			icon: FileText,
+			title: "Diagnoseblock Update",
 		},
 	];
 
@@ -259,11 +259,11 @@ export default async function DashboardPage() {
 		}
 
 		return {
-			id: event.id,
-			type: event.name,
-			title,
-			time: timeStr,
 			icon,
+			id: event.id,
+			time: timeStr,
+			title,
+			type: event.name,
 		};
 	});
 
@@ -512,7 +512,7 @@ export default async function DashboardPage() {
 																	{template.title}
 																</h3>
 																<p className="mb-2 line-clamp-2 text-sm text-solarized-base01">
-																	{template.content.substring(0, 100)}...
+																	{template.content.slice(0, 100)}...
 																</p>
 															</div>
 															<Link href={`/templates/${template.id}`}>

@@ -25,27 +25,9 @@ export default function TipTap({
 	onToggleSource?: () => void;
 }) {
 	const editor = useEditor({
-		immediatelyRender: false,
-		extensions: [
-			StarterKit,
-			Markdown,
-			MarkdocMD,
-			// Placeholder.configure({
-			//   placeholder: ({ node }) => {
-			//     return 'Ergänze hier deinen Textbaustein...';
-			//   },
-			// }),
-		],
+		autofocus: true,
 		content: renderTipTapHTML(note),
-		onUpdate: ({ editor }) => {
-			// Get the HTML and convert to markdoc format
-			const html = editor.getHTML();
-			setContent(htmlToMarkdoc(html));
-		},
 		editorProps: {
-			handleDOMEvents: {
-				keydown: (_, v) => enableKeyboardNavigation(v),
-			},
 			attributes: {
 				class: cn(
 					"prose h-full min-h-full w-full max-w-none cursor-text whitespace-pre-wrap focus:outline-none",
@@ -57,9 +39,27 @@ export default function TipTap({
 					"[&_.is-empty]:before:pointer-events-none",
 				),
 			},
+			handleDOMEvents: {
+				keydown: (_, v) => enableKeyboardNavigation(v),
+			},
 		},
-		autofocus: true,
+		extensions: [
+			StarterKit,
+			Markdown,
+			MarkdocMD,
+			// Placeholder.configure({
+			//   placeholder: ({ node }) => {
+			//     return 'Ergänze hier deinen Textbaustein...';
+			//   },
+			// }),
+		],
+		immediatelyRender: false,
 		injectCSS: false,
+		onUpdate: ({ editor }) => {
+			// Get the HTML and convert to markdoc format
+			const html = editor.getHTML();
+			setContent(htmlToMarkdoc(html));
+		},
 	});
 
 	// Wrap toggle to sync content before switching views

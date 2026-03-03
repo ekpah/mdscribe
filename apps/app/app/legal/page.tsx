@@ -485,10 +485,10 @@ export default function LegalPage() {
 							<div className="space-y-4">
 								<div className="space-y-2">
 									<h4 className="font-medium">1. Geltungsbereich</h4>
-									<p>
-										Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die
-										Nutzung der Website mdscribe.de (im Folgenden "Plattform"),
-										betrieben von Dr. med. Nils Hapke. Sie regeln das Verhältnis
+										<p>
+											Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die
+											Nutzung der Website mdscribe.de (im Folgenden &quot;Plattform&quot;),
+											betrieben von Dr. med. Nils Hapke. Sie regeln das Verhältnis
 										zwischen dem Anbieter und den registrierten sowie nicht
 										registrierten Nutzern der Plattform.
 									</p>

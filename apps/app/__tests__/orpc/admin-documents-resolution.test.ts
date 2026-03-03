@@ -9,15 +9,8 @@ import {
 } from "@repo/database";
 import { scribeHandler } from "@/orpc/admin/scribe";
 import { documentsHandler } from "@/orpc/documents";
-import {
-	ADMIN_EMAIL,
-	createMockSession,
-	createTestAiDefaults,
-	createTestContext,
-	createTestUser,
-	startTestServer,
-	type TestServer,
-} from "../setup";
+import { ADMIN_EMAIL, createMockSession, createTestAiDefaults, createTestContext, createTestUser, startTestServer } from '../setup';
+import type { TestServer } from '../setup';
 
 describe("Shared Resolver Usage (admin/documents)", () => {
 	let server: TestServer;
@@ -40,23 +33,23 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const result = await call(
 			scribeHandler.run,
 			{
-				requestId: "req-1",
-				model: seeded.modelId,
-				providerId: seeded.providerId,
-				parameters: {
-					temperature: 0.7,
-					maxTokens: 512,
-					thinking: true,
-					thinkingExplicit: true,
-					thinkingBudget: 8000,
-				},
-				documentType: "anamnese",
 				compiledMessagesOverride: [
 					{
-						role: "user",
 						content: "test",
+						role: "user",
 					},
 				],
+				documentType: "anamnese",
+				model: seeded.modelId,
+				parameters: {
+					maxTokens: 512,
+					temperature: 0.7,
+					thinking: true,
+					thinkingBudget: 8000,
+					thinkingExplicit: true,
+				},
+				providerId: seeded.providerId,
+				requestId: "req-1",
 			},
 			{ context },
 		);
@@ -66,7 +59,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 
 		// Drain stream so onFinish usage logging has a chance to complete.
 		for await (const _ of result) {
-			void _;
+			undefined;
 		}
 		await new Promise((resolve) => setTimeout(resolve, 80));
 	});
@@ -77,9 +70,9 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const result = await call(
 			documentsHandler.ocrToMarkdown,
 			{
+				connectionId: seeded.providerId,
 				imagesBase64: [imageBase64],
 				model: seeded.modelId,
-				connectionId: seeded.providerId,
 			},
 			{ context },
 		);
@@ -93,54 +86,54 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const fileModelRecordId = crypto.randomUUID();
 
 		await server.db.insert(aiProvider).values({
+			apiKey: null,
+			baseUrl: null,
 			id: providerId,
 			name: "OCR Provider",
 			protocol: "openrouter",
-			baseUrl: null,
-			apiKey: null,
 		});
 		await server.db.insert(aiModel).values([
 			{
-				id: textModelRecordId,
-				providerId,
-				modelId: "openrouter/text-model",
 				displayName: "Text Model",
-				supportsReasoning: false,
+				id: textModelRecordId,
 				inputModes: ["text"],
+				modelId: "openrouter/text-model",
+				providerId,
+				supportsReasoning: false,
 			},
 			{
-				id: fileModelRecordId,
-				providerId,
-				modelId: "openrouter/file-model",
 				displayName: "File Model",
-				supportsReasoning: false,
+				id: fileModelRecordId,
 				inputModes: ["text", "file", "image"],
+				modelId: "openrouter/file-model",
+				providerId,
+				supportsReasoning: false,
 			},
 		]);
 		await server.db
 			.insert(aiDefaults)
 			.values({
-				id: "global",
-				defaultTextModelId: textModelRecordId,
 				defaultFileImageModelId: fileModelRecordId,
 				defaultSpeechToTextModelId: textModelRecordId,
+				defaultTextModelId: textModelRecordId,
+				id: "global",
 				updatedAt: new Date(),
 			})
 			.onConflictDoUpdate({
-				target: aiDefaults.id,
 				set: {
-					defaultTextModelId: textModelRecordId,
 					defaultFileImageModelId: fileModelRecordId,
 					defaultSpeechToTextModelId: textModelRecordId,
+					defaultTextModelId: textModelRecordId,
 					updatedAt: new Date(),
 				},
+				target: aiDefaults.id,
 			});
 
 		const result = await call(
 			documentsHandler.parseForm,
 			{
-				fileBase64: Buffer.from("fake-pdf").toString("base64"),
 				fieldMapping: [],
+				fileBase64: Buffer.from("fake-pdf").toString("base64"),
 			},
 			{ context },
 		);

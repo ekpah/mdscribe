@@ -1,10 +1,8 @@
 'use client';
 
 import { Heart } from 'lucide-react';
-import {
-  AiscribeTemplate,
-  type AiscribeTemplateConfig,
-} from '../_components/AiscribeTemplate';
+import { AiscribeTemplate } from '../_components/AiscribeTemplate';
+import type { AiscribeTemplateConfig } from '../_components/AiscribeTemplate';
 
 const ER_CONFIG: AiscribeTemplateConfig = {
   // Page identity
@@ -29,22 +27,22 @@ const ER_CONFIG: AiscribeTemplateConfig = {
   // Additional input fields
   additionalInputs: [
     {
-      name: 'diagnoseblock',
+      description:
+        'Bekannte Vorerkrankungen, chronische Leiden, bisherige Diagnosen',
       label: 'Vordiagnosen',
+      name: 'diagnoseblock',
       placeholder: 'Bekannte Vorerkrankungen und Diagnosen eingeben...',
       required: false,
       type: 'textarea',
-      description:
-        'Bekannte Vorerkrankungen, chronische Leiden, bisherige Diagnosen',
     },
     {
-      name: 'befunde',
+      description:
+        'Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während der Notaufnahme',
       label: 'Befunde',
+      name: 'befunde',
       placeholder: 'Befunde aus der Notaufnahme eingeben...',
       required: false,
       type: 'textarea',
-      description:
-        'Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während der Notaufnahme',
     },
   ],
 

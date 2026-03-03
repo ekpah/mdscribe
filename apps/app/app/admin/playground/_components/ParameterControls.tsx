@@ -93,7 +93,7 @@ export function ParameterControls({
 									updateParam("thinkingBudget", value)
 								}
 								min={1000}
-								max={50000}
+								max={50_000}
 								step={1000}
 								disabled={disabled}
 								className="w-full"
@@ -166,7 +166,7 @@ export function ParameterControls({
 						value={[parameters.maxTokens]}
 						onValueChange={([value]) => updateParam("maxTokens", value)}
 						min={256}
-						max={128000}
+						max={128_000}
 						step={256}
 						disabled={disabled}
 						className="w-full"

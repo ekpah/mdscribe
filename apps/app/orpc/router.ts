@@ -24,59 +24,53 @@ import { snippetsHandler } from "./user/snippets";
  * - Admin tools
  */
 
-const getUsageHandler = authed.handler(({ context }) => {
-	return getUsage(context.session);
-});
+const getUsageHandler = authed.handler(({ context }) => getUsage(context.session));
 
 export const router = {
-	// AI document generation
-	scribe: {
-		voiceFill: voiceFillHandler,
-	},
-	scribeStream: scribeStreamHandler,
-	getUsage: getUsageHandler,
-
-	// Template operations (all CRUD under templates)
-	templates: {
-		...templatesHandler,
-		findRelevant: findRelevantTemplateHandler,
-	},
-
-	// Document operations
-	documents: {
-		...documentsHandler,
-	},
-
-	// User-specific operations
-	user: {
-		...activityHandler,
-		snippets: {
-			...snippetsHandler,
-		},
-	},
-
 	// Admin operations
 	admin: {
-		users: {
-			...adminUsersHandler,
-		},
-		scribe: {
-			...adminScribeHandler,
-		},
-		usage: {
-			...adminUsageHandler,
-		},
 		embeddings: {
 			...embeddingsHandler,
-		},
-		templates: {
-			...adminTemplatesHandler,
 		},
 		models: {
 			...adminModelsHandler,
 		},
 		providers: {
 			...adminProvidersHandler,
+		},
+		scribe: {
+			...adminScribeHandler,
+		},
+		templates: {
+			...adminTemplatesHandler,
+		},
+		usage: {
+			...adminUsageHandler,
+		},
+		users: {
+			...adminUsersHandler,
+		},
+	},
+	// Document operations
+	documents: {
+		...documentsHandler,
+	},
+	getUsage: getUsageHandler,
+	// AI document generation
+	scribe: {
+		voiceFill: voiceFillHandler,
+	},
+	scribeStream: scribeStreamHandler,
+	// Template operations (all CRUD under templates)
+	templates: {
+		...templatesHandler,
+		findRelevant: findRelevantTemplateHandler,
+	},
+	// User-specific operations
+	user: {
+		...activityHandler,
+		snippets: {
+			...snippetsHandler,
 		},
 	},
 };

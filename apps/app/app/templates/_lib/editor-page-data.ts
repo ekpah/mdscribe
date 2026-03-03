@@ -19,9 +19,7 @@ interface EditorContextData {
 
 const getCommonEditorData = (
 	queryClient: QueryClient,
-): Promise<EditorContextData> => {
-	return queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());
-};
+): Promise<EditorContextData> => queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());
 
 export async function getCreateTemplateEditorData({
 	forkId,
@@ -39,8 +37,8 @@ export async function getCreateTemplateEditorData({
 	return {
 		...sharedData,
 		cat: forkedTemplate?.category || "",
-		tit: forkedTemplate?.title || "",
 		note: JSON.stringify(forkedTemplate?.content || ""),
+		tit: forkedTemplate?.title || "",
 	};
 }
 
@@ -62,8 +60,8 @@ export async function getEditTemplateEditorData({
 	return {
 		...sharedData,
 		cat: doc.category || "",
-		tit: doc.title || "",
-		note: JSON.stringify(doc.content || ""),
 		id,
+		note: JSON.stringify(doc.content || ""),
+		tit: doc.title || "",
 	};
 }

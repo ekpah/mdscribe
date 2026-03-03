@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("Sign-up Visual Regression", () => {
 	test.use({
 		colorScheme: "light",
-		viewport: { width: 1280, height: 900 },
+		viewport: { height: 900, width: 1280 },
 	});
 
 	test("should match the sign-up card layout", async ({ page }) => {

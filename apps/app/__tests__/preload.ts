@@ -1,211 +1,213 @@
-import { mock } from "bun:test";
+import { beforeAll, mock } from "bun:test";
 
 process.env.POSTGRES_DATABASE_URL ??=
 	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
 process.env.POSTGRES_DATABASE_URL_TEST ??=
 	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
 
-// Mock server-only to allow testing server components
-mock.module("server-only", () => ({}));
+const createUIMessageStream = () => {
+	const encoder = new TextEncoder();
 
-// Mock @repo/env with test values
-mock.module("@repo/env", () => ({
-	env: {
-		POSTGRES_DATABASE_URL: "mock://test",
-		OPENROUTER_API_KEY: "test-key",
-		AUTH_POSTMARK_KEY: "test-key",
-		BETTER_AUTH_SECRET: "test-secret-key-for-testing-32chars",
-		STRIPE_SECRET_KEY: "sk_test_mock_key",
-		STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
-		STRIPE_PLUS_PRICE_ID: "price_test_plus",
-		STRIPE_PLUS_PRICE_ID_ANNUAL: "price_test_plus_annual",
-		VOYAGE_API_KEY: "test-voyage-key",
-		ADMIN_EMAIL: "admin@test.com",
-		NODE_ENV: "test",
-		NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
-	},
-}));
+	return new ReadableStream({
+		start(controller) {
+			controller.enqueue(encoder.encode('0:"This is a test response."\n'));
+			controller.close();
+		},
+	});
+};
 
-// Mock next/headers to avoid runtime errors in tests
-mock.module("next/headers", () => ({
-	headers: () => Promise.resolve(new Headers()),
-	cookies: () => Promise.resolve({
-		get: () => null,
-		set: () => {},
-		delete: () => {},
-		getAll: () => [],
-	}),
-}));
+const resolveAsync = async <T,>(value: T) => {
+	await Bun.sleep(0);
+	return value;
+};
 
-// Mock VoyageAI
-mock.module("voyageai", () => ({
-	VoyageAIClient: class MockVoyageAIClient {
-		embed() {
-			// Return a mock 1024-dimensional embedding
-			const mockEmbedding = Array.from({ length: 1024 }, () => Math.random());
-			return Promise.resolve({
-				data: [{ embedding: mockEmbedding }],
-			});
-		}
-	},
-}));
+const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void }) => {
+	const fullText = "This is a test response.";
+	const onFinish = options?.onFinish;
 
-// Mock @repo/email to avoid email sending during tests
-mock.module("@repo/email", () => ({
-	sendEmail: () => Promise.resolve({ success: true }),
-}));
-
-// Mock Stripe
-mock.module("stripe", () => ({
-	default: class MockStripe {
-		customers = {
-			create: () => Promise.resolve({ id: "cus_test_123" }),
-			retrieve: () => Promise.resolve({ id: "cus_test_123" }),
-		};
-		subscriptions = {
-			list: () => Promise.resolve({ data: [] }),
-			create: () => Promise.resolve({ id: "sub_test_123", status: "active" }),
-		};
-		checkout = {
-			sessions: {
-				create: () =>
-					Promise.resolve({ id: "cs_test_123", url: "https://checkout.stripe.com/test" }),
-			},
-		};
-		webhooks = {
-			constructEvent: () => ({ type: "test.event" }),
-		};
-	},
-}));
-
-// Mock AI SDK - using patterns from AI SDK testing documentation
-// See: https://ai-sdk.dev/docs/ai-sdk-core/testing
-// Note: We mock at the module level because bun has compatibility issues with ai/test
-mock.module("ai", () => {
-	/**
-	 * Creates a mock stream result matching AI SDK's streamText return type
-	 * Returns a proper ReadableStream for toUIMessageStream() so oRPC's streamToEventIterator works
-	 */
-	const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void }) => {
-		const fullText = "This is a test response.";
-
-		// Create a proper ReadableStream for UI message stream (required by oRPC's streamToEventIterator)
-		const createUIMessageStream = () => {
-			const encoder = new TextEncoder();
-			return new ReadableStream({
-				start(controller) {
-					// Enqueue some mock UI message stream data
-					controller.enqueue(encoder.encode('0:"This is a test response."\n'));
-					controller.close();
-				},
-			});
-		};
-
-		// Schedule onFinish callback (simulates stream completion)
-		if (options?.onFinish) {
-			setTimeout(() => {
-				options.onFinish!({
-					text: fullText,
-					usage: {
-						promptTokens: 100,
-						completionTokens: 50,
-						totalTokens: 150,
-					},
-					finishReason: "stop",
-					providerMetadata: {
-						openrouter: {
-							usage: {
-								prompt_tokens: 100,
-								completion_tokens: 50,
-								total_tokens: 150,
-								total_cost: 0.001,
-							},
+	if (onFinish) {
+		setTimeout(() => {
+			onFinish({
+				finishReason: "stop",
+				providerMetadata: {
+					openrouter: {
+						usage: {
+							completion_tokens: 50,
+							prompt_tokens: 100,
+							total_cost: 0.001,
+							total_tokens: 150,
 						},
 					},
-					reasoningText: undefined,
-				});
-			}, 50);
-		}
-
-		return {
-			textStream: createUIMessageStream(),
-			fullStream: createUIMessageStream(),
-			text: Promise.resolve(fullText),
-			usage: Promise.resolve({
-				promptTokens: 100,
-				completionTokens: 50,
-				totalTokens: 150,
-			}),
-			finishReason: Promise.resolve("stop" as const),
-			experimental_providerMetadata: {},
-			toUIMessageStream: () => createUIMessageStream(),
-			toDataStream: () => createUIMessageStream(),
-		};
-	};
-
-		return {
-			streamText: (options: { onFinish?: (event: unknown) => void }) => {
-				return createMockStreamResult(options);
-			},
-			generateText: () =>
-				Promise.resolve({
-					text: "Generated text response",
-					usage: {
-						promptTokens: 50,
-						completionTokens: 25,
-						totalTokens: 75,
-					},
-					finishReason: "stop" as const,
-				}),
-			generateObject: () =>
-				Promise.resolve({
-					object: { test: "value" },
-					usage: {
-						promptTokens: 50,
-						completionTokens: 25,
-						totalTokens: 75,
-					},
-					finishReason: "stop" as const,
-				}),
-		};
-	});
-
-// Mock OpenRouter provider to return a MockLanguageModelV3-compatible model
-mock.module("@openrouter/ai-sdk-provider", () => ({
-	createOpenRouter: () => {
-		/**
-		 * Creates a mock model following AI SDK's LanguageModelV3 specification
-		 */
-			const mockModel = (modelId: string) => ({
-				modelId,
-				provider: "openrouter",
-				specificationVersion: "v3",
-				// LanguageModelV3 interface methods
-				doGenerate: () =>
-					Promise.resolve({
-						finishReason: "stop" as const,
-						usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
-						content: [{ type: "text" as const, text: "Hello, world!" }],
-						warnings: [],
-					}),
-				doStream: () =>
-					Promise.resolve({
-						stream: new ReadableStream({
-							start(controller) {
-								controller.enqueue({ type: "text-start", id: "text-1" });
-								controller.enqueue({ type: "text-delta", id: "text-1", delta: "Hello, " });
-								controller.enqueue({ type: "text-delta", id: "text-1", delta: "world!" });
-								controller.enqueue({ type: "text-end", id: "text-1" });
-								controller.enqueue({
-									type: "finish",
-									finishReason: "stop",
-									usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
-								});
-								controller.close();
-							},
-						}),
-					}),
+				},
+				reasoningText: undefined,
+				text: fullText,
+				usage: {
+					completionTokens: 50,
+					promptTokens: 100,
+					totalTokens: 150,
+				},
 			});
-		return mockModel;
-	},
-}));
+		}, 50);
+	}
+
+	return {
+		experimental_providerMetadata: {},
+		finishReason: resolveAsync("stop" as const),
+		fullStream: createUIMessageStream(),
+		text: resolveAsync(fullText),
+		textStream: createUIMessageStream(),
+		toDataStream: () => createUIMessageStream(),
+		toUIMessageStream: () => createUIMessageStream(),
+		usage: resolveAsync({
+			completionTokens: 50,
+			promptTokens: 100,
+			totalTokens: 150,
+		}),
+	};
+};
+
+const createOpenRouterMockModel = (modelId: string) => ({
+	doGenerate: () =>
+		resolveAsync({
+			content: [{ text: "Hello, world!", type: "text" as const }],
+			finishReason: "stop" as const,
+			usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+			warnings: [],
+		}),
+	doStream: () =>
+		resolveAsync({
+			stream: new ReadableStream({
+				start(controller) {
+					controller.enqueue({ id: "text-1", type: "text-start" });
+					controller.enqueue({ delta: "Hello, ", id: "text-1", type: "text-delta" });
+					controller.enqueue({ delta: "world!", id: "text-1", type: "text-delta" });
+					controller.enqueue({ id: "text-1", type: "text-end" });
+					controller.enqueue({
+						finishReason: "stop",
+						type: "finish",
+						usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+					});
+					controller.close();
+				},
+			}),
+		}),
+	modelId,
+	provider: "openrouter",
+	specificationVersion: "v3",
+});
+
+const MockVoyageAIClient = function MockVoyageAIClient() {
+	return {
+		embed: () => {
+			const mockEmbedding = Array.from(
+				{ length: 1024 },
+				() => Math.random(),
+			);
+			return resolveAsync({
+				data: [{ embedding: mockEmbedding }],
+			});
+		},
+	};
+};
+
+const MockStripe = function MockStripe() {
+	return {
+		checkout: {
+			sessions: {
+				create: () =>
+					resolveAsync({
+						id: "cs_test_123",
+						url: "https://checkout.stripe.com/test",
+					}),
+			},
+		},
+		customers: {
+			create: () => resolveAsync({ id: "cus_test_123" }),
+			retrieve: () => resolveAsync({ id: "cus_test_123" }),
+		},
+		subscriptions: {
+			create: () =>
+				resolveAsync({
+					id: "sub_test_123",
+					status: "active",
+				}),
+			list: () => resolveAsync({ data: [] }),
+		},
+		webhooks: {
+			constructEvent: () => ({ type: "test.event" }),
+		},
+	};
+};
+
+beforeAll(() => {
+	mock.module("server-only", () => ({}));
+
+	mock.module("@repo/env", () => ({
+		env: {
+			ADMIN_EMAIL: "admin@test.com",
+			AUTH_POSTMARK_KEY: "test-key",
+			BETTER_AUTH_SECRET: "test-secret-key-for-testing-32chars",
+			NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
+			NODE_ENV: "test",
+			OPENROUTER_API_KEY: "test-key",
+			POSTGRES_DATABASE_URL: "mock://test",
+			STRIPE_PLUS_PRICE_ID: "price_test_plus",
+			STRIPE_PLUS_PRICE_ID_ANNUAL: "price_test_plus_annual",
+			STRIPE_SECRET_KEY: "sk_test_mock_key",
+			STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
+			VOYAGE_API_KEY: "test-voyage-key",
+		},
+	}));
+
+	mock.module("next/headers", () => ({
+		cookies: () =>
+			resolveAsync({
+				delete: () => null,
+				get: () => null,
+				getAll: () => [],
+				set: () => null,
+			}),
+		headers: () => resolveAsync(new Headers()),
+	}));
+
+	mock.module("voyageai", () => ({
+		VoyageAIClient: MockVoyageAIClient,
+	}));
+
+	mock.module("@repo/email", () => ({
+		sendEmail: () => resolveAsync({ success: true }),
+	}));
+
+	mock.module("stripe", () => ({
+		default: MockStripe,
+	}));
+
+	mock.module("ai", () => ({
+		generateObject: () =>
+			resolveAsync({
+				finishReason: "stop" as const,
+				object: { test: "value" },
+				usage: {
+					completionTokens: 25,
+					promptTokens: 50,
+					totalTokens: 75,
+				},
+			}),
+		generateText: () =>
+			resolveAsync({
+				finishReason: "stop" as const,
+				text: "Generated text response",
+				usage: {
+					completionTokens: 25,
+					promptTokens: 50,
+					totalTokens: 75,
+				},
+			}),
+		streamText: (options: { onFinish?: (event: unknown) => void }) =>
+			createMockStreamResult(options),
+	}));
+
+	mock.module("@openrouter/ai-sdk-provider", () => ({
+		createOpenRouter: () => createOpenRouterMockModel,
+	}));
+});

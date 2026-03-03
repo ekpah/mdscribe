@@ -1,10 +1,8 @@
 "use client";
 
 import { FileText } from "lucide-react";
-import {
-	AiscribeTemplate,
-	type AiscribeTemplateConfig,
-} from "../_components/AiscribeTemplate";
+import { AiscribeTemplate } from '../_components/AiscribeTemplate';
+import type { AiscribeTemplateConfig } from '../_components/AiscribeTemplate';
 
 const DIAGNOSEBLOCK_CONFIG: AiscribeTemplateConfig = {
 	// Page identity
@@ -28,31 +26,31 @@ const DIAGNOSEBLOCK_CONFIG: AiscribeTemplateConfig = {
 	// Additional input fields
 	additionalInputs: [
 		{
-			name: "diagnoseblock",
+			description:
+				"Diagnoseblock des aktuellen Arztbriefes inkl. aktueller Diagnose und Vorerkrankungen (chronische Erkrankungen, Z.n. Operationen etc.)",
 			label: "Diagnoseblock",
+			name: "diagnoseblock",
 			placeholder: "Diagnoseblock eingeben...",
 			required: false,
 			type: "textarea",
-			description:
-				"Diagnoseblock des aktuellen Arztbriefes inkl. aktueller Diagnose und Vorerkrankungen (chronische Erkrankungen, Z.n. Operationen etc.)",
 		},
 		{
-			name: "anamnese",
+			description:
+				"Anamnese bei Aufnahme inkl. Aufnahmegrund und initiale Verdachtsdiagnose",
 			label: "Aufnahmeanamnese",
+			name: "anamnese",
 			placeholder: "Initiale Anamnese bei Aufnahme eingeben...",
 			required: false,
 			type: "textarea",
-			description:
-				"Anamnese bei Aufnahme inkl. Aufnahmegrund und initiale Verdachtsdiagnose",
 		},
 		{
-			name: "befunde",
+			description:
+				"Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während des Aufenthalts",
 			label: "Befunde",
+			name: "befunde",
 			placeholder: "Befunde aus dem stationären Aufenthalt eingeben...",
 			required: false,
 			type: "textarea",
-			description:
-				"Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während des Aufenthalts",
 		},
 	],
 	// Button text

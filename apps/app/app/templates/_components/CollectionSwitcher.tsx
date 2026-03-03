@@ -19,9 +19,9 @@ import { useSession } from '@/lib/auth-client';
 export function CollectionSwitcher({
   collections = [
     {
-      name: 'Meine Textbausteine',
-      logo: Command,
       key: 'authored',
+      logo: Command,
+      name: 'Meine Textbausteine',
     },
   ],
   count,

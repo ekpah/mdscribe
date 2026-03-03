@@ -16,19 +16,19 @@ const listAdminTemplatesHandler = authed
 	.handler(async ({ context }) => {
 		const templates = await context.db
 			.select({
-				id: template.id,
-				title: template.title,
-				category: template.category,
+				author: {
+					email: user.email,
+					id: user.id,
+					name: user.name,
+				},
 				authorId: template.authorId,
-				updatedAt: template.updatedAt,
+				category: template.category,
 				hasEmbedding: sql<boolean>`${template.embedding} IS NOT NULL`.as(
 					"hasEmbedding",
 				),
-				author: {
-					id: user.id,
-					name: user.name,
-					email: user.email,
-				},
+				id: template.id,
+				title: template.title,
+				updatedAt: template.updatedAt,
 			})
 			.from(template)
 			.leftJoin(user, eq(template.authorId, user.id))
@@ -43,9 +43,9 @@ const listAdminTemplatesHandler = authed
 			.select({
 				templateId: favourites.templateId,
 				user: {
+					email: user.email,
 					id: user.id,
 					name: user.name,
-					email: user.email,
 				},
 			})
 			.from(favourites)
@@ -54,11 +54,11 @@ const listAdminTemplatesHandler = authed
 
 		const favouritesByTemplate = new Map<
 			string,
-			Array<{
+			{
 				id: string;
 				name: string | null;
 				email: string;
-			}>
+			}[]
 		>();
 
 		for (const row of favouriteRows) {
@@ -71,10 +71,10 @@ const listAdminTemplatesHandler = authed
 			const favouriteOf = favouritesByTemplate.get(item.id) ?? [];
 			return {
 				...item,
-				favouriteOf,
 				_count: {
 					favouriteOf: favouriteOf.length,
 				},
+				favouriteOf,
 			};
 		});
 	});

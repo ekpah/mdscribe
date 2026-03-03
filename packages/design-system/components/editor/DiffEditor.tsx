@@ -69,9 +69,9 @@ export function MarkdownDiffEditor({
 			onSubmit?.();
 		},
 		{
-			enabled: hotkeyEnabled,
-			enableOnFormTags: ["INPUT", "TEXTAREA"],
 			enableOnContentEditable: true,
+			enableOnFormTags: ["INPUT", "TEXTAREA"],
+			enabled: hotkeyEnabled,
 		},
 	);
 
@@ -100,9 +100,9 @@ export function MarkdownDiffEditor({
 		) {
 			const result: DiffPart[] = [];
 			if (value) {
-				result.push({ value, removed: true });
+				result.push({ removed: true, value });
 			}
-			result.push({ value: suggestedValue, added: true });
+			result.push({ added: true, value: suggestedValue });
 			return result;
 		}
 
@@ -132,7 +132,7 @@ export function MarkdownDiffEditor({
 
 	// Reject the suggestion
 	const handleReject = useCallback(() => {
-		if (isStreaming) return;
+		if (isStreaming) {return;}
 		onSuggestionRejected?.();
 	}, [isStreaming, onSuggestionRejected]);
 

@@ -1,14 +1,12 @@
 "use client";
 
 import type { NewTemplate } from "@repo/database";
-import Inputs, {
-	type VoiceFillAudioFile,
-} from "@repo/design-system/components/inputs/Inputs";
+import Inputs from '@repo/design-system/components/inputs/Inputs';
+import type { VoiceFillAudioFile } from '@repo/design-system/components/inputs/Inputs';
 import { Card } from "@repo/design-system/components/ui/card";
 import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
-import parseMarkdocToInputs, {
-	type InputTagType,
-} from "@repo/markdoc-md/parse/parseMarkdocToInputs";
+import parseMarkdocToInputs from '@repo/markdoc-md/parse/parseMarkdocToInputs';
+import type { InputTagType } from '@repo/markdoc-md/parse/parseMarkdocToInputs';
 import { useCallback, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
@@ -31,8 +29,8 @@ export default function ContentSection({
 	const handleVoiceFill = useCallback(
 		async (inputTags: InputTagType[], audioFiles: VoiceFillAudioFile[]) => {
 			const result = await orpc.scribe.voiceFill.call({
-				inputTags,
 				audioFiles,
+				inputTags,
 			});
 			return result.fieldValues;
 		},

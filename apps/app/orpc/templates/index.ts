@@ -1,16 +1,6 @@
 import { type } from "@orpc/server";
-import {
-	and,
-	count,
-	desc,
-	eq,
-	favourites,
-	sql,
-	template,
-	user,
-	type Template,
-	type User,
-} from "@repo/database";
+import { and, count, desc, eq, favourites, sql, template, user } from '@repo/database';
+import type { Template, User } from '@repo/database';
 import { env } from "@repo/env";
 import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
@@ -32,7 +22,7 @@ const favouriteCount = (templateId: typeof template.id) =>
 // ============================================================================
 
 type TemplateWithRelations = Template & {
-	favouriteOf: Array<{ id: string }>;
+	favouriteOf: { id: string }[];
 	author: User;
 	_count: { favouriteOf: number };
 };
@@ -72,15 +62,15 @@ const getTemplateInput = z.object({
 
 const createTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
-	name: z.string().min(1, "Name is required"),
 	content: z.string(),
+	name: z.string().min(1, "Name is required"),
 });
 
 const updateTemplateInput = z.object({
-	id: z.string(),
 	category: z.string().min(1, "Category is required"),
-	name: z.string().min(1, "Name is required"),
 	content: z.string(),
+	id: z.string(),
+	name: z.string().min(1, "Name is required"),
 });
 
 const favouriteInput = z.object({
@@ -124,16 +114,16 @@ const addCategories = (
 const listTemplatesHandler = pub.handler(async ({ context }) => {
 	const templates = await context.db
 		.select({
-			id: template.id,
-			title: template.title,
-			category: template.category,
-			content: template.content,
-			authorId: template.authorId,
-			updatedAt: template.updatedAt,
-			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
+			authorId: template.authorId,
+			category: template.category,
+			content: template.content,
+			embedding: template.embedding,
+			id: template.id,
+			title: template.title,
+			updatedAt: template.updatedAt,
 		})
 		.from(template);
 
@@ -150,23 +140,23 @@ const getTemplateHandler = pub
 		// Get template with author
 		const [templateData] = await context.db
 			.select({
-				id: template.id,
-				title: template.title,
-				category: template.category,
-				content: template.content,
-				authorId: template.authorId,
-				updatedAt: template.updatedAt,
-				embedding: template.embedding,
 				author: {
-					id: user.id,
-					name: user.name,
+					createdAt: user.createdAt,
 					email: user.email,
 					emailVerified: user.emailVerified,
+					id: user.id,
 					image: user.image,
-					createdAt: user.createdAt,
-					updatedAt: user.updatedAt,
+					name: user.name,
 					stripeCustomerId: user.stripeCustomerId,
+					updatedAt: user.updatedAt,
 				},
+				authorId: template.authorId,
+				category: template.category,
+				content: template.content,
+				embedding: template.embedding,
+				id: template.id,
+				title: template.title,
+				updatedAt: template.updatedAt,
 			})
 			.from(template)
 			.leftJoin(user, eq(template.authorId, user.id))
@@ -191,9 +181,9 @@ const getTemplateHandler = pub
 
 		return {
 			...templateData,
-			favouriteOf: favouriteUsers,
-			author: templateData.author as User,
 			_count: { favouriteOf: Number(countResult?.count ?? 0) },
+			author: templateData.author as User,
+			favouriteOf: favouriteUsers,
 		};
 	});
 
@@ -207,16 +197,16 @@ const getTemplateHandler = pub
 const getFavouritesHandler = authed.handler(async ({ context }) => {
 	const favoriteTemplates = await context.db
 		.select({
-			id: template.id,
-			title: template.title,
-			category: template.category,
-			content: template.content,
-			authorId: template.authorId,
-			updatedAt: template.updatedAt,
-			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
+			authorId: template.authorId,
+			category: template.category,
+			content: template.content,
+			embedding: template.embedding,
+			id: template.id,
+			title: template.title,
+			updatedAt: template.updatedAt,
 		})
 		.from(template)
 		.innerJoin(favourites, eq(favourites.templateId, template.id))
@@ -232,16 +222,16 @@ const getFavouritesHandler = authed.handler(async ({ context }) => {
 const getAuthoredHandler = authed.handler(async ({ context }) => {
 	const userTemplates = await context.db
 		.select({
-			id: template.id,
-			title: template.title,
-			category: template.category,
-			content: template.content,
-			authorId: template.authorId,
-			updatedAt: template.updatedAt,
-			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
+			authorId: template.authorId,
+			category: template.category,
+			content: template.content,
+			embedding: template.embedding,
+			id: template.id,
+			title: template.title,
+			updatedAt: template.updatedAt,
 		})
 		.from(template)
 		.where(eq(template.authorId, context.session.user.id))
@@ -307,8 +297,8 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 	}
 
 	return {
-		categorySuggestions,
 		canEditSource: context.session.user.email === env.ADMIN_EMAIL,
+		categorySuggestions,
 	};
 });
 
@@ -331,12 +321,12 @@ const createTemplateHandler = authed
 		const result = await context.db
 			.insert(template)
 			.values({
-				category: input.category,
-				title: input.name,
-				content: input.content,
 				authorId: context.session.user.id,
-				updatedAt: new Date(),
+				category: input.category,
+				content: input.content,
 				embedding: embedding,
+				title: input.name,
+				updatedAt: new Date(),
 			})
 			.returning();
 
@@ -364,10 +354,10 @@ const updateTemplateHandler = authed
 			.update(template)
 			.set({
 				category: input.category,
-				title: input.name,
 				content: input.content,
-				updatedAt: new Date(),
 				embedding: embedding,
+				title: input.name,
+				updatedAt: new Date(),
 			})
 			.where(
 				and(

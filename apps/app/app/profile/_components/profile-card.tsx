@@ -27,6 +27,12 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 
 const profileFormSchema = z.object({
+  email: z
+    .string()
+    .email({
+      message: 'Bitte gib eine gültige E-Mail-Adresse ein.',
+    })
+    .optional(),
   name: z
     .string()
     .min(2, {
@@ -35,12 +41,6 @@ const profileFormSchema = z.object({
     .max(30, {
       message: 'Name darf nicht länger als 30 Zeichen sein.',
     }),
-  email: z
-    .string()
-    .email({
-      message: 'Bitte gib eine gültige E-Mail-Adresse ein.',
-    })
-    .optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -60,18 +60,18 @@ export function ProfileCard({
   setIsLoading,
 }: ProfileCardProps) {
   const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: '',
       email: '',
+      name: '',
     },
+    resolver: zodResolver(profileFormSchema),
   });
 
   useEffect(() => {
     if (user) {
       form.reset({
-        name: user.name || '',
         email: user.email || '',
+        name: user.name || '',
       });
     }
   }, [user, form]);
@@ -83,10 +83,10 @@ export function ProfileCard({
         name: data.name,
       }),
       {
-        loading: 'Dein Profil wird aktualisiert...',
-        success: 'Dein Profil wurde erfolgreich aktualisiert.',
         error:
           'Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut.',
+        loading: 'Dein Profil wird aktualisiert...',
+        success: 'Dein Profil wurde erfolgreich aktualisiert.',
       }
     );
     setIsLoading(false);

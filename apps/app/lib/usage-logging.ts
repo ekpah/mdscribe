@@ -54,7 +54,7 @@ export interface OpenRouterUsage {
 export function extractOpenRouterUsage(
 	providerMetadata: Record<string, unknown> | undefined,
 ): OpenRouterUsage | null {
-	if (!providerMetadata) return null;
+	if (!providerMetadata) {return null;}
 
 	const openrouterData = providerMetadata.openrouter as
 		| { usage?: OpenRouterUsage }
@@ -79,11 +79,13 @@ export interface CreateUsageEventParams {
 	name: string;
 	model?: string;
 	openRouterUsage?: OpenRouterUsage | null;
-	standardUsage?: StandardUsage; // Fallback usage from AI SDK
+	// Fallback usage from AI SDK.
+	standardUsage?: StandardUsage;
 	inputData?: UsageInputData;
 	metadata?: UsageMetadata;
 	result?: string;
-	reasoning?: string | string[] | unknown; // Can be string, array, or other
+	// Can be string, array, or other.
+	reasoning?: string | string[] | unknown;
 }
 
 /**
@@ -97,7 +99,8 @@ function normalizeReasoning(
 		return undefined;
 	}
 	if (typeof reasoning === "string") {
-		return reasoning || undefined; // Return undefined for empty strings
+		// Return undefined for empty strings.
+		return reasoning || undefined;
 	}
 	if (Array.isArray(reasoning)) {
 		if (reasoning.length === 0) {
@@ -140,18 +143,18 @@ export function buildUsageEventData(
 		openRouterUsage?.totalTokens ?? standardUsage?.totalTokens;
 
 	return {
-		userId,
-		name,
-		model,
-		inputTokens,
-		outputTokens,
-		totalTokens,
-		reasoningTokens: openRouterUsage?.completionTokensDetails?.reasoningTokens,
 		cachedTokens: openRouterUsage?.promptTokensDetails?.cachedTokens,
 		cost: openRouterUsage?.cost?.toString(),
 		inputData: inputData as Record<string, unknown>,
+		inputTokens,
 		metadata: metadata as Record<string, unknown>,
-		result,
+		model,
+		name,
+		outputTokens,
 		reasoning: normalizeReasoning(reasoning),
+		reasoningTokens: openRouterUsage?.completionTokensDetails?.reasoningTokens,
+		result,
+		totalTokens,
+		userId,
 	};
 }

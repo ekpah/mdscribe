@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { account, eq, session, user, verification } from "@repo/database";
-import {
-	createMockSession,
-	createTestContext,
-	createTestUser,
-	startTestServer,
-	type TestServer,
-} from "../setup";
+import { createMockSession, createTestContext, createTestUser, startTestServer } from '../setup';
+import type { TestServer } from '../setup';
 
 /**
  * Authentication flow tests
@@ -86,8 +81,8 @@ describe("Authentication Flow", () => {
 	describe("Session Management", () => {
 		test("createMockSession creates valid session object", () => {
 			const mockSession = createMockSession({
-				id: "user-123",
 				email: "mock@example.com",
+				id: "user-123",
 				name: "Mock User",
 				stripeCustomerId: "cus_mock_123",
 			});
@@ -107,8 +102,8 @@ describe("Authentication Flow", () => {
 
 		test("createMockSession uses defaults for optional fields", () => {
 			const mockSession = createMockSession({
-				id: "user-456",
 				email: "defaults@example.com",
+				id: "user-456",
 			});
 
 			expect(mockSession.user.name).toBe("Test User");
@@ -148,12 +143,12 @@ describe("Authentication Flow", () => {
 
 			// Create session in database
 			await server.db.insert(session).values({
-				id: crypto.randomUUID(),
-				userId: testUser.id,
-				token: sessionToken,
 				expiresAt,
+				id: crypto.randomUUID(),
 				ipAddress: "127.0.0.1",
+				token: sessionToken,
 				userAgent: "test-agent",
+				userId: testUser.id,
 			});
 
 			// Retrieve session
@@ -171,14 +166,15 @@ describe("Authentication Flow", () => {
 		test("expired sessions can be identified", async () => {
 			const { user: testUser } = await createTestUser(server.db);
 			const expiredSessionToken = crypto.randomUUID();
-			const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+			// 24 hours ago
+			const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
 			// Create expired session
 			await server.db.insert(session).values({
-				id: crypto.randomUUID(),
-				userId: testUser.id,
-				token: expiredSessionToken,
 				expiresAt: pastDate,
+				id: crypto.randomUUID(),
+				token: expiredSessionToken,
+				userId: testUser.id,
 			});
 
 			// Retrieve session
@@ -199,11 +195,11 @@ describe("Authentication Flow", () => {
 
 			// Create an email/password account
 			await server.db.insert(account).values({
-				id: crypto.randomUUID(),
-				userId: testUser.id,
 				accountId: testUser.id,
-				providerId: "credential",
+				id: crypto.randomUUID(),
 				password: "hashed_password_here",
+				providerId: "credential",
+				userId: testUser.id,
 			});
 
 			// Retrieve account
@@ -223,13 +219,14 @@ describe("Authentication Flow", () => {
 		test("can create verification token", async () => {
 			const { user: testUser } = await createTestUser(server.db);
 			const verificationToken = crypto.randomUUID();
-			const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+			// 1 hour
+			const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
 			await server.db.insert(verification).values({
+				expiresAt,
 				id: crypto.randomUUID(),
 				identifier: testUser.email,
 				value: verificationToken,
-				expiresAt,
 			});
 
 			const [dbVerification] = await server.db

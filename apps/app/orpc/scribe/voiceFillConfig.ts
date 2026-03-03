@@ -1,12 +1,12 @@
 import type { ModelConfig, PromptMessage } from "./types";
 
-export type VoiceFillFieldDefinition = {
+export interface VoiceFillFieldDefinition {
 	label: string;
 	description?: string;
 	type?: "string" | "number" | "date" | "switch";
 	unit?: string;
 	options?: string[];
-};
+}
 
 interface VoiceFillVariables {
 	fields: VoiceFillFieldDefinition[];
@@ -20,10 +20,12 @@ export interface VoiceFillConfig {
 }
 
 export const voiceFillConfig: VoiceFillConfig = {
-	promptName: "input_voice_fill",
+	modelConfig: {
+		maxTokens: 4000,
+		temperature: 0.3,
+	},
 	prompt: (vars: VoiceFillVariables): PromptMessage[] => [
 		{
-			role: "system",
 			content: `Du bist ein Assistent, der Sprachaufnahmen analysiert und daraus Eingabefelder ausfüllt.
 
 Die Audioaufnahme enthält Informationen, die in Eingabefelder eingetragen werden sollen.
@@ -39,9 +41,9 @@ Regeln nach Typ:
 - number: Nur Ziffern und optional ein Dezimalpunkt (.), keine Einheiten.
 - date: Format TT.MM.JJJJ (z.B. 17.01.2026).
 - string: Freitext ohne zusätzliche Erklärungen.`,
+			role: "system",
 		},
 		{
-			role: "user",
 			content: `Verfügbare Felder für diese Eingaben:\n${vars.fields
 				.map((field) => {
 					const details = [
@@ -57,10 +59,8 @@ Regeln nach Typ:
 					return `- "${field.label}"${details ? ` (${details})` : ""}`;
 				})
 				.join("\n")}\n\nInputTagType JSON:\n${vars.inputTagsJson ?? "null"}`,
+			role: "user",
 		},
 	],
-	modelConfig: {
-		temperature: 0.3,
-		maxTokens: 4000,
-	},
+	promptName: "input_voice_fill",
 };

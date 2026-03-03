@@ -9,18 +9,14 @@ import {
 } from "@repo/database";
 import { database } from "@repo/database/client";
 import { env } from "@repo/env";
-import { type ModelMessage, streamText, type UIMessage } from "ai";
+import { streamText } from 'ai';
+import type { ModelMessage, UIMessage } from 'ai';
 import { after } from "next/server";
 import pgvector from "pgvector";
 import { VoyageAIClient } from "voyageai";
 
-import {
-	buildUsageEventData,
-	extractOpenRouterUsage,
-	type StandardUsage,
-	type UsageInputData,
-	type UsageMetadata,
-} from "@/lib/usage-logging";
+import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
+import type { StandardUsage, UsageInputData, UsageMetadata } from '@/lib/usage-logging';
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { getUsage } from "./_lib/get-usage";
@@ -32,10 +28,6 @@ import type { AudioFile, DocumentType, PromptVariables } from "./types";
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
 });
-
-const MAX_THINKING_BUDGET = 32_000;
-
-import { USER_MESSAGES } from "@/lib/user-messages";
 
 function parsePromptPayload(prompt: string): Record<string, unknown> {
 	if (!prompt.trim()) {
@@ -117,40 +109,31 @@ function hasFileLikeInput(value: unknown): boolean {
 			}
 		}
 
-	switch (modelId as SupportedModel) {
-		case "glm-5":
-			return {
-				model: openrouter("z-ai/glm-5"),
-				supportsThinking: true,
-				modelName: "z-ai/glm-5",
-			};
-		case "claude-opus-4.6":
-			return {
-				model: openrouter("anthropic/claude-opus-4.6"),
-				supportsThinking: true,
-				modelName: "anthropic/claude-opus-4.6",
-			};
-		case "gemini-3-pro":
-			return {
-				model: openrouter("google/gemini-3-pro-preview"),
-				supportsThinking: true,
-				modelName: "google/gemini-3-pro-preview",
-			};
-		default:
-			return {
-				model: openrouter("anthropic/claude-opus-4.6"),
-				supportsThinking: true,
-				modelName: "anthropic/claude-opus-4.6",
-			};
+		for (const entry of Object.values(record)) {
+			if (hasFileLikeInput(entry)) {
+				return true;
+			}
+		}
 	}
+
+	return false;
 }
 
-/**
- * Get actual model ID, handling 'auto' selection
- */
-function getActualModel(modelId: string, hasAudio?: boolean): string {
-	if (modelId === "auto") {
-		return hasAudio ? "gemini-3-pro" : "claude-opus-4.6";
+function scheduleAfter(callback: () => Promise<void>): void {
+	const run = async () => {
+		try {
+			await callback();
+		} catch (error) {
+			// Usage logging should never break request handling or tests.
+			console.error("Deferred usage logging failed:", error);
+		}
+	};
+
+	try {
+		after(run);
+	} catch {
+		// Fallback for non-request contexts (e.g. direct handler unit tests).
+		void run();
 	}
 }
 
@@ -254,10 +237,10 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 		const embedding = await generateEmbeddings(notes);
 		const embeddingSql = pgvector.toSql(embedding);
 
-		type TemplateResult = {
+		interface TemplateResult {
 			content: string;
 			similarity: number;
-		};
+		}
 
 		const similarityResults = await database.execute<TemplateResult>(sql`
 			SELECT
@@ -297,7 +280,7 @@ interface ScribeStreamInput {
  */
 function extractPromptFromMessages(messages: UIMessage[]): string {
 	const lastUserMessage = messages.findLast((m) => m.role === "user");
-	if (!lastUserMessage) return "";
+	if (!lastUserMessage) {return "";}
 
 	// Extract text from parts when available (AI SDK UIMessage)
 	if (lastUserMessage.parts) {
@@ -309,7 +292,7 @@ function extractPromptFromMessages(messages: UIMessage[]): string {
 
 	// Fallback to content string if parts are not present
 	if ("content" in lastUserMessage) {
-		const content = (lastUserMessage as { content?: unknown }).content;
+		const {content} = (lastUserMessage as { content?: unknown });
 		if (typeof content === "string") {
 			return content;
 		}
@@ -360,12 +343,12 @@ export const scribeStreamHandler = authed
 			requireFiles: hasFileInput,
 		});
 
-		const contextSources = [{ kind: "form" as const, data: rawPrompt }];
+		const contextSources = [{ data: rawPrompt, kind: "form" as const }];
 		let relevantTemplate: string | undefined;
 
 		// Special handling for procedures - add relevant template via vector search
 		if (documentType === "procedures") {
-			const notes = derivePatientContext(contextSources).notes;
+			const {notes} = derivePatientContext(contextSources);
 			relevantTemplate = await findRelevantTemplateForProcedure(notes);
 		}
 
@@ -377,15 +360,15 @@ export const scribeStreamHandler = authed
 		});
 
 		const { contextXml } = await buildScribeContext({
-			sources: contextSources,
 			sessionUser: context.session.user,
+			sources: contextSources,
 		});
 
 		// Build prompt messages using local prompt function
 		const promptVariables = {
-			todaysDate,
 			contextXml,
 			relevantTemplate,
+			todaysDate,
 		} as PromptVariables;
 
 		const compiledPrompt = config.prompt(promptVariables);
@@ -397,9 +380,9 @@ export const scribeStreamHandler = authed
 			const lastMessage = messages.at(-1);
 			if (lastMessage?.role === "user") {
 				const audioContent = audioFiles.map((audioFile) => ({
-					type: "file" as const,
 					data: audioFile.data,
 					mediaType: audioFile.mimeType,
+					type: "file" as const,
 				}));
 
 				messages = [
@@ -408,11 +391,11 @@ export const scribeStreamHandler = authed
 						...lastMessage,
 						content: [
 							{
-								type: "text" as const,
 								text:
 									typeof lastMessage.content === "string"
 										? lastMessage.content
 										: "",
+								type: "text" as const,
 							},
 							...audioContent,
 						],
@@ -444,22 +427,11 @@ export const scribeStreamHandler = authed
 			: undefined;
 
 		// Stream the response
-		const result = streamText({
-			model: resolved.model,
-			maxOutputTokens: config.modelConfig.maxTokens ?? 20_000,
-			temperature: config.modelConfig.temperature ?? 1,
-			providerOptions: {
-				openrouter: {
-					usage: { include: true },
-					user: context.session.user.email,
-					reasoning: supportsThinking
-						? { max_tokens: MAX_THINKING_BUDGET }
-						: { enabled: false },
-					...(activeSubscription && { zdr: true }),
-				},
-			},
-			messages,
-			onFinish: (event) => {
+			const result = streamText({
+				maxOutputTokens: config.modelConfig.maxTokens ?? 20_000,
+				messages,
+				model: resolved.model,
+				onFinish: (event) => {
 				// PERF: Use after() for non-blocking usage logging (faster stream completion)
 				scheduleAfter(async () => {
 					// Extract OpenRouter usage data (graceful fallback for non-OpenRouter)
@@ -470,37 +442,41 @@ export const scribeStreamHandler = authed
 					// Plus subscribers: skip content logging for privacy (ZDR)
 					await context.db.insert(usageEvent).values(
 						buildUsageEventData({
-							userId: context.session.user.id,
-							name: "ai_scribe_generation",
-							model: resolved.modelName,
-							openRouterUsage,
-							standardUsage: event.usage as StandardUsage,
 							inputData: activeSubscription
 								? undefined
 								: (rawPrompt as UsageInputData),
 							metadata: {
-								promptName: config.promptName,
-								promptSource: "local",
-								thinkingEnabled: supportsThinking,
-								thinkingBudget: supportsThinking ? MAX_THINKING_BUDGET : undefined,
-								streamingMode: true,
-								endpoint: documentType,
-								modelConfig: {
+									endpoint: documentType,
+									modelConfig: {
 									maxTokens: config.modelConfig.maxTokens,
 									temperature: config.modelConfig.temperature,
 								},
+									promptName: config.promptName,
+									promptSource: "local",
+									streamingMode: true,
+									thinkingBudget: useThinking
+										? config.modelConfig.thinkingBudget
+										: undefined,
+								thinkingEnabled: useThinking ?? false,
 								zdrEnabled: activeSubscription,
 							} as UsageMetadata,
-							result: activeSubscription
-								? "[zdr - content redacted]"
-								: event.text,
+							model: resolved.modelName,
+							name: "ai_scribe_generation",
+							openRouterUsage,
 							reasoning: activeSubscription
 								? "[zdr - content redacted]"
 								: event.reasoningText,
+								result: activeSubscription
+								? "[zdr - content redacted]"
+								: event.text,
+							standardUsage: event.usage as StandardUsage,
+							userId: context.session.user.id,
 						}),
 					);
 				});
 			},
+				providerOptions,
+				temperature: config.modelConfig.temperature ?? 1,
 		});
 
 		return streamToEventIterator(result.toUIMessageStream());

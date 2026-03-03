@@ -59,20 +59,20 @@ interface PlaygroundModel {
 function toCapabilities(inputModes: string[]): ModelCapabilities {
 	const modes = new Set(inputModes);
 	return {
-		supportsText: true,
-		supportsImage: modes.has("image"),
-		supportsAudio: modes.has("audio"),
-		supportsVideo: false,
-		outputsText: true,
-		outputsImage: false,
 		outputsAudio: false,
+		outputsImage: false,
+		outputsText: true,
+		supportsAudio: modes.has("audio"),
+		supportsImage: modes.has("image"),
+		supportsText: true,
+		supportsVideo: false,
 	};
 }
 
 function toModality(inputModes: string[]): string {
 	const inputs = ["text"];
-	if (inputModes.includes("image")) inputs.push("image");
-	if (inputModes.includes("audio")) inputs.push("audio");
+	if (inputModes.includes("image")) {inputs.push("image");}
+	if (inputModes.includes("audio")) {inputs.push("audio");}
 	return `${inputs.join("+")}->text`;
 }
 
@@ -80,8 +80,8 @@ const listModelsHandler = authed
 	.use(requiredAdminMiddleware)
 	.handler(async ({ context }) => {
 		const providers = await context.db.query.aiProvider.findMany({
-			with: { models: true },
 			orderBy: (provider, { asc }) => asc(provider.name),
+			with: { models: true },
 		});
 
 		const models: PlaygroundModel[] = [];
@@ -89,23 +89,23 @@ const listModelsHandler = authed
 			for (const model of provider.models) {
 				const capabilities = toCapabilities(model.inputModes);
 				models.push({
-					id: model.id,
-					modelId: model.modelId,
-					name: model.displayName,
-					providerId: provider.id,
-					providerName: provider.name,
-					providerProtocol: provider.protocol,
-					connectionId: provider.id,
-					connectionProtocol: provider.protocol,
-					context_length: 0,
 					architecture: {
 						modality: toModality(model.inputModes),
 						tokenizer: "unknown",
 					},
-					pricing: { prompt: "0", completion: "0" },
 					capabilities,
-					supported_parameters: model.supportsReasoning ? ["reasoning"] : [],
+					connectionId: provider.id,
+					connectionProtocol: provider.protocol,
+					context_length: 0,
+					id: model.id,
 					inputModes: model.inputModes,
+					modelId: model.modelId,
+					name: model.displayName,
+					pricing: { completion: "0", prompt: "0" },
+					providerId: provider.id,
+					providerName: provider.name,
+					providerProtocol: provider.protocol,
+					supported_parameters: model.supportsReasoning ? ["reasoning"] : [],
 					supportsReasoning: model.supportsReasoning,
 				});
 			}

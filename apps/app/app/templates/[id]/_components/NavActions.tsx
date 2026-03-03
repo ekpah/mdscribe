@@ -30,7 +30,8 @@ export function NavActions({
   templateId,
   favouriteOfCount,
 }: {
-  author?: string; //email of the author
+  // email of the author
+  author?: string;
   isAuthor: boolean;
   isFavourite: boolean;
   isLoggedIn: boolean;
@@ -47,7 +48,7 @@ export function NavActions({
     setBookmark(true);
     await orpc.templates.addFavourite.call({ templateId });
 
-    toast.success('Favorit gespeichert'); // Displays a success message
+    toast.success('Favorit gespeichert');
   }
   async function unmakeFavourite(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
@@ -56,7 +57,7 @@ export function NavActions({
     }
     setBookmark(false);
     await orpc.templates.removeFavourite.call({ templateId });
-    toast.success('Favorit entfernt'); // Displays a success message
+    toast.success('Favorit entfernt');
   }
 
   return (

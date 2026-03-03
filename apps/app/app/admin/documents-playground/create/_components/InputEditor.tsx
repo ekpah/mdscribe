@@ -80,11 +80,11 @@ export default function InputEditor({
 
 	const handleAddField = () => {
 		const newMapping: EnhancedFieldMapping = {
+			description: "",
 			fieldName: `field_${fieldMappings.length + 1}`,
 			label: `Field ${fieldMappings.length + 1}`,
-			description: "",
-			pdfType: "text",
 			markdocType: "Info",
+			pdfType: "text",
 		};
 		onFieldMappingsChange([...fieldMappings, newMapping]);
 	};
@@ -126,9 +126,9 @@ export default function InputEditor({
 					className={`cursor-move transition-all ${
 						draggedIndex === index
 							? "scale-95 opacity-50"
-							: draggedOverIndex === index
+							: (draggedOverIndex === index
 								? "border-2 border-solarized-blue bg-solarized-blue/5"
-								: ""
+								: "")
 					}`}
 				>
 					<CardContent className="p-4">

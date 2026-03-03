@@ -46,7 +46,7 @@ export default async function SubscriptionPage() {
 				<SubscriptionManagementCard
 					subscription={
 						activeSubscription
-							? JSON.parse(JSON.stringify(activeSubscription))
+							? structuredClone(activeSubscription)
 							: undefined
 					}
 				/>

@@ -18,7 +18,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw, Users, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
-import { columns, type UserData } from "./columns";
+import { columns } from './columns';
+import type { UserData } from './columns';
 
 export default function UsersPage() {
 	const queryClient = useQueryClient();
@@ -40,9 +41,9 @@ export default function UsersPage() {
 	const errorMessage =
 		error instanceof Error
 			? error.message
-			: error
+			: (error
 				? String(error)
-				: "Fehler beim Laden der Benutzer";
+				: "Fehler beim Laden der Benutzer");
 	const totalGenerations = users.reduce(
 		(sum, user) => sum + Number(user._count.usageEvents ?? 0),
 		0,

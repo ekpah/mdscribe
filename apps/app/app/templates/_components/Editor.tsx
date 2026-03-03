@@ -126,10 +126,10 @@ export default function Editor({
 			if (id) {
 				// Update existing template
 				const updatedTemplate = await orpc.templates.update.call({
-					id,
 					category: finalCategory,
-					name,
 					content,
+					id,
+					name,
 				});
 				toast.success("Textbaustein aktualisiert");
 				router.push(`/templates/${updatedTemplate.id}`);
@@ -137,8 +137,8 @@ export default function Editor({
 				// Create new template
 				const newTemplate = await orpc.templates.create.call({
 					category: finalCategory,
-					name,
 					content,
+					name,
 				});
 				toast.success("Textbaustein erstellt");
 				router.push(`/templates/${newTemplate.id}`);

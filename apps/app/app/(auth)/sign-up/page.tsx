@@ -83,19 +83,17 @@ export default function SignUp() {
 							}
 
 							await signUp.email({
-								email,
-								password,
-								name: email.split("@")[0] || "User",
 								callbackURL: "/email-verified",
+								email,
 								fetchOptions: {
-									onResponse: () => {
-										setLoading(false);
+									onError: (ctx) => {
+										toast.error(ctx.error.message);
 									},
 									onRequest: () => {
 										setLoading(true);
 									},
-									onError: (ctx) => {
-										toast.error(ctx.error.message);
+									onResponse: () => {
+										setLoading(false);
 									},
 									onSuccess: () => {
 										toast.success(
@@ -104,6 +102,8 @@ export default function SignUp() {
 										router.push("/verification-pending");
 									},
 								},
+								name: email.split("@")[0] || "User",
+								password,
 							});
 						}}
 						type="submit"

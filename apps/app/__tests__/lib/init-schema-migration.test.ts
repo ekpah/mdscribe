@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	type Database,
-	eq,
-	sql,
-} from "@repo/database";
-import { startTestServer, type TestServer } from "../setup";
+import { aiDefaults, aiModel, aiProvider, eq, sql } from '@repo/database';
+import type { Database } from '@repo/database';
+import { startTestServer } from '../setup';
+import type { TestServer } from '../setup';
 
 describe("legacy AI schema migration semantics", () => {
 	let server: TestServer;
@@ -15,7 +10,7 @@ describe("legacy AI schema migration semantics", () => {
 
 	beforeEach(async () => {
 		server = await startTestServer("ai-schema-migration-semantics");
-		db = server.db;
+		({ db } = server);
 	});
 
 	afterEach(async () => {
@@ -27,20 +22,20 @@ describe("legacy AI schema migration semantics", () => {
 		const modelRecordId = crypto.randomUUID();
 
 		await db.insert(aiProvider).values({
+			apiKey: null,
+			baseUrl: null,
 			id: providerId,
 			name: "Legacy Provider",
 			protocol: "openrouter",
-			baseUrl: null,
-			apiKey: null,
 		});
 
 		await db.insert(aiModel).values({
-			id: modelRecordId,
-			providerId,
-			modelId: "openrouter/legacy-model",
 			displayName: "Legacy Model",
-			supportsReasoning: false,
+			id: modelRecordId,
 			inputModes: ["text"],
+			modelId: "openrouter/legacy-model",
+			providerId,
+			supportsReasoning: false,
 		});
 
 		await db.execute(

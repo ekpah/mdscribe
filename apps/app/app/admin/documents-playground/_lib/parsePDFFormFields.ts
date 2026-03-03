@@ -11,7 +11,8 @@ export interface PDFField {
 	type: "text" | "multiline" | "dropdown" | "checkbox" | "radio";
 	value?: string;
 	options?: string[];
-	rect?: [number, number, number, number]; // [x1, y1, x2, y2]
+	// [x1, y1, x2, y2]
+	rect?: [number, number, number, number];
 }
 
 export interface FieldMapping {
@@ -25,7 +26,7 @@ export interface ParsePDFResult {
 }
 
 // Type for PDF form field with unknown methods
-type PDFFormField = {
+interface PDFFormField {
 	getAlternateName?: () => string;
 	getTooltip?: () => string;
 	getPartialName?: () => string;
@@ -34,7 +35,7 @@ type PDFFormField = {
 	getOptions?: () => string[];
 	getSelected?: () => string | string[];
 	isChecked?: () => boolean;
-};
+}
 
 /**
  * Parses a text field from PDF form
@@ -45,8 +46,8 @@ function parseTextField(
 ): PDFField {
 	const isMultiline = pdfFormField.isMultiline?.() ?? false;
 	return {
-		name: fieldName,
 		label: fieldName,
+		name: fieldName,
 		type: isMultiline ? "multiline" : "text",
 		value: pdfFormField.getText?.() || "",
 	};
@@ -63,10 +64,10 @@ function parseDropdownField(
 	const selected = pdfFormField.getSelected?.();
 	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
 	return {
-		name: fieldName,
 		label: fieldName,
-		type: "dropdown",
+		name: fieldName,
 		options,
+		type: "dropdown",
 		value: selectedValue || "",
 	};
 }
@@ -79,8 +80,8 @@ function parseCheckboxField(
 	fieldName: string,
 ): PDFField {
 	return {
-		name: fieldName,
 		label: fieldName,
+		name: fieldName,
 		type: "checkbox",
 		value: pdfFormField.isChecked?.() ? "true" : "false",
 	};
@@ -97,10 +98,10 @@ function parseRadioGroupField(
 	const selected = pdfFormField.getSelected?.();
 	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
 	return {
-		name: fieldName,
 		label: fieldName,
-		type: "radio",
+		name: fieldName,
 		options,
+		type: "radio",
 		value: selectedValue || "",
 	};
 }
@@ -151,8 +152,8 @@ export async function parseFormFieldsFromPDF(
 			default: {
 				// Unknown field type, treat as text
 				pdfField = {
-					name: fieldName,
 					label: fieldName,
+					name: fieldName,
 					type: "text",
 					value: "",
 				};
@@ -202,29 +203,29 @@ export function convertPDFFieldsToInputTags(
 			const caseChildren: InputTagType[] = [
 				{
 					$$mdtype: "Tag",
-					name: "Case" as const,
 					attributes: {
 						primary: "true",
 					},
 					children: [],
+					name: "Case" as const,
 				} as InputTagType,
 				{
 					$$mdtype: "Tag",
-					name: "Case" as const,
 					attributes: {
 						primary: "false",
 					},
 					children: [],
+					name: "Case" as const,
 				} as InputTagType,
 			];
 
 			const switchTag: SwitchInputTagType = {
 				$$mdtype: "Tag",
-				name: "Switch" as const,
 				attributes: {
 					primary,
 				},
 				children: caseChildren,
+				name: "Switch" as const,
 			};
 
 			inputTags.push(switchTag);
@@ -235,21 +236,21 @@ export function convertPDFFieldsToInputTags(
 				(option) =>
 					({
 						$$mdtype: "Tag",
-						name: "Case" as const,
 						attributes: {
 							primary: option,
 						},
 						children: [],
+						name: "Case" as const,
 					}) as InputTagType,
 			);
 
 			const switchTag: SwitchInputTagType = {
 				$$mdtype: "Tag",
-				name: "Switch" as const,
 				attributes: {
 					primary,
 				},
 				children: caseChildren,
+				name: "Switch" as const,
 			};
 
 			inputTags.push(switchTag);
@@ -258,13 +259,13 @@ export function convertPDFFieldsToInputTags(
 		else {
 			const infoTag: InfoInputTagType = {
 				$$mdtype: "Tag",
-				name: "Info" as const,
 				attributes: {
+					description: mapping?.description || "",
 					primary,
 					type: "string",
-					description: mapping?.description || "",
 				},
 				children: [],
+				name: "Info" as const,
 			};
 
 			inputTags.push(infoTag);

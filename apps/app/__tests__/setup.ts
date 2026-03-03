@@ -40,29 +40,30 @@ export function createMockSession(user: {
 	[key: string]: unknown;
 }): Session {
 	return {
-		user: {
-			id: user.id,
-			email: user.email,
-			name: user.name ?? "Test User",
-			emailVerified: user.emailVerified ?? true,
+		session: {
 			createdAt: new Date(),
+			// 24 hours
+			expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+			id: crypto.randomUUID(),
+			ipAddress: "127.0.0.1",
+			token: crypto.randomUUID(),
 			updatedAt: new Date(),
+			userAgent: "test-agent",
+			userId: user.id,
+		},
+		user: {
+			createdAt: new Date(),
+			email: user.email,
+			emailVerified: user.emailVerified ?? true,
+			id: user.id,
 			image: null,
+			name: user.name ?? "Test User",
 			// Use explicit undefined check to allow passing null to override the default
 			stripeCustomerId:
 				"stripeCustomerId" in user
 					? user.stripeCustomerId
 					: `cus_test_${Date.now()}`,
-		},
-		session: {
-			id: crypto.randomUUID(),
-			userId: user.id,
-			token: crypto.randomUUID(),
-			expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-			createdAt: new Date(),
 			updatedAt: new Date(),
-			ipAddress: "127.0.0.1",
-			userAgent: "test-agent",
 		},
 	};
 }
@@ -93,14 +94,14 @@ export async function createTestTemplate(
 	const result = await db
 		.insert(template)
 		.values({
-			id: crypto.randomUUID(),
-			title: options?.title ?? "Test Template",
+			authorId,
 			category: options?.category ?? "Test Category",
 			content: options?.content ?? "Test content",
-			authorId,
-			updatedAt: new Date(),
 			embedding:
 				options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
+			id: crypto.randomUUID(),
+			title: options?.title ?? "Test Template",
+			updatedAt: new Date(),
 		})
 		.returning();
 
@@ -124,9 +125,9 @@ export async function createTestSnippet(
 		.insert(textSnippet)
 		.values({
 			id: crypto.randomUUID(),
-			userId,
 			key: options?.key ?? `test-key-${Date.now()}`,
 			snippet: options?.snippet ?? "Test snippet content",
+			userId,
 		})
 		.returning();
 
@@ -150,13 +151,13 @@ export async function createTestSubscription(
 		.insert(subscription)
 		.values({
 			id: crypto.randomUUID(),
-			referenceId: userId,
+			periodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+			periodStart: new Date(),
 			plan: options?.plan ?? "plus",
+			referenceId: userId,
 			status: options?.status ?? "active",
 			stripeCustomerId: `cus_test_${Date.now()}`,
 			stripeSubscriptionId: `sub_test_${Date.now()}`,
-			periodStart: new Date(),
-			periodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
 		})
 		.returning();
 
@@ -181,14 +182,14 @@ export async function createTestUsageEvent(
 		.insert(usageEvent)
 		.values({
 			id: crypto.randomUUID(),
-			userId,
-			name: options?.name ?? "ai_scribe_generation",
 			inputTokens: options?.inputTokens ?? 100,
+			model: "test-model",
+			name: options?.name ?? "ai_scribe_generation",
 			outputTokens: options?.outputTokens ?? 200,
+			timestamp: new Date(),
 			totalTokens:
 				(options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
-			model: "test-model",
-			timestamp: new Date(),
+			userId,
 		})
 		.returning();
 
@@ -210,40 +211,40 @@ export async function createTestAiDefaults(db: TestDatabase): Promise<{
 	const modelId = "openrouter/test-model";
 
 	await db.insert(aiProvider).values({
+		apiKey: null,
+		baseUrl: null,
 		id: providerId,
 		name: "Test Provider",
 		protocol: "openrouter",
-		baseUrl: null,
-		apiKey: null,
 	});
 
 	await db.insert(aiModel).values({
-		id: modelRecordId,
-		providerId,
-		modelId,
 		displayName: "Test Model",
-		supportsReasoning: true,
+		id: modelRecordId,
 		inputModes: ["text", "audio", "file", "image"],
+		modelId,
+		providerId,
+		supportsReasoning: true,
 	});
 
 	await db
 		.insert(aiDefaults)
 		.values({
-			id: "global",
-			defaultTextModelId: modelRecordId,
 			defaultFileImageModelId: modelRecordId,
 			defaultSpeechToTextModelId: modelRecordId,
+			defaultTextModelId: modelRecordId,
+			id: "global",
 			updatedAt: new Date(),
 		})
 		.onConflictDoUpdate({
-			target: aiDefaults.id,
 			set: {
-				defaultTextModelId: modelRecordId,
 				defaultFileImageModelId: modelRecordId,
 				defaultSpeechToTextModelId: modelRecordId,
+				defaultTextModelId: modelRecordId,
 				updatedAt: new Date(),
 			},
+			target: aiDefaults.id,
 		});
 
-	return { providerId, modelRecordId, modelId };
+	return { modelId, modelRecordId, providerId };
 }

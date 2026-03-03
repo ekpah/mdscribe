@@ -4,20 +4,18 @@ import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { cn } from "@repo/design-system/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useState } from "react";
-import {
-	DoctorsNoteSection,
-	type DoctorsNoteSectionConfig,
-} from "./DoctorsNoteSection";
+import { DoctorsNoteSection } from './DoctorsNoteSection';
+import type { DoctorsNoteSectionConfig } from './DoctorsNoteSection';
 
 // A toggleable section group where user picks which section to show
 export interface DoctorsNoteSectionToggle {
 	type: "toggle";
 	id: string;
-	options: Array<{
+	options: {
 		id: string;
 		label: string;
 		section: DoctorsNoteSectionConfig;
-	}>;
+	}[];
 	defaultOption?: string;
 }
 

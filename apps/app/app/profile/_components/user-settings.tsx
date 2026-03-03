@@ -16,10 +16,10 @@ import { SnippetsCard } from "./snippets-card";
 import { SubscriptionCard } from "./subscription-card";
 import UserCard from "./user-card";
 
-type User = {
+interface User {
 	name: string;
 	email: string;
-};
+}
 
 export default function UserSettings({
 	user,
@@ -40,15 +40,15 @@ export default function UserSettings({
 		toast.promise(
 			() =>
 				authClient.subscription.upgrade({
+					cancelUrl: "/dashboard",
 					plan: "plus",
 					successUrl: "/dashboard",
-					cancelUrl: "/dashboard",
 				}),
 			{
-				loading: "Dein Abonnement wird aktualisiert...",
-				success: "Abonnement erfolgreich aktualisiert!",
 				error: "Dein Abonnement konnte nicht aktualisiert werden.",
 				finally: () => setIsManagingSubscription(false),
+				loading: "Dein Abonnement wird aktualisiert...",
+				success: "Abonnement erfolgreich aktualisiert!",
 			},
 		);
 	}
@@ -61,10 +61,10 @@ export default function UserSettings({
 					returnUrl: "/dashboard",
 				}),
 			{
-				loading: "Dein Abonnement wird storniert...",
-				success: "Abonnement erfolgreich storniert!",
 				error: "Dein Abonnement konnte nicht storniert werden.",
 				finally: () => setIsManagingSubscription(false),
+				loading: "Dein Abonnement wird storniert...",
+				success: "Abonnement erfolgreich storniert!",
 			},
 		);
 	}
@@ -97,8 +97,8 @@ export default function UserSettings({
 						</TabsContent>
 						<TabsContent className="h-full" value="login">
 							<UserCard
-								activeSessions={JSON.parse(JSON.stringify(activeSessions))}
-								session={JSON.parse(JSON.stringify(session))}
+								activeSessions={structuredClone(activeSessions)}
+								session={structuredClone(session)}
 								subscription={subscription}
 							/>
 						</TabsContent>

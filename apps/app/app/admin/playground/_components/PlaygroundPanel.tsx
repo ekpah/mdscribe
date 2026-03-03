@@ -17,10 +17,8 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import {
-	ModelSelector,
-	type ModelSelectorOption,
-} from "@repo/design-system/components/ui/model-selector";
+import { ModelSelector } from '@repo/design-system/components/ui/model-selector';
+import type { ModelSelectorOption } from '@repo/design-system/components/ui/model-selector';
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,
@@ -39,14 +37,8 @@ import {
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import {
-	type MutableRefObject,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MutableRefObject } from 'react';
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -88,58 +80,65 @@ function parseVariablesToFormFields(
 	};
 
 	const result: { main: string; additional: Record<string, string> } = {
-		main: "",
 		additional: {},
+		main: "",
 	};
 
 	switch (documentType) {
 		case "discharge":
-		case "outpatient":
+		case "outpatient": {
 			result.main = pickString("notes", "dischargeNotes", "consultationNotes");
 			result.additional = {
-				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 				anamnese: pickString("anamnese"),
 				befunde: pickString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		case "procedures":
+		case "procedures": {
 			result.main = pickString("notes", "procedureNotes");
 			break;
+		}
 
-		case "anamnese":
+		case "anamnese": {
 			result.main = pickString("notes");
 			result.additional = {
 				befunde: pickString("befunde"),
 				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		case "physical-exam":
+		case "physical-exam": {
 			result.main = pickString("notes");
 			break;
+		}
 
 		case "diagnosis":
 		case "admission-todos":
-		case "icu-transfer":
+		case "icu-transfer": {
 			result.main = pickString("notes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
-				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 				befunde: pickString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		case "befunde":
+		case "befunde": {
 			result.main = pickString("notes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
 				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		default:
+		default: {
 			result.main = pickString("notes", "dischargeNotes", "procedureNotes");
+		}
 	}
 
 	return result;
@@ -173,12 +172,12 @@ interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 
 const PROVIDER_LABELS: Record<string, string> = {
 	anthropic: "Anthropic",
-	openai: "OpenAI",
+	cohere: "Cohere",
+	deepseek: "DeepSeek",
 	google: "Google",
 	"meta-llama": "Meta Llama",
 	mistralai: "Mistral AI",
-	cohere: "Cohere",
-	deepseek: "DeepSeek",
+	openai: "OpenAI",
 	qwen: "Qwen",
 	"x-ai": "xAI",
 	"z-ai": "Zhipu AI",
@@ -236,8 +235,8 @@ export function PlaygroundPanel({
 
 	// Apply async preset document type once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetDocTypeRef.current) return;
-		if (!presetDocumentType) return;
+		if (hasAppliedPresetDocTypeRef.current) {return;}
+		if (!presetDocumentType) {return;}
 
 		setDocumentType(presetDocumentType);
 		hasAppliedPresetDocTypeRef.current = true;
@@ -245,8 +244,8 @@ export function PlaygroundPanel({
 
 	// Apply async preset variables once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetFieldsRef.current) return;
-		if (!parsedPreset) return;
+		if (hasAppliedPresetFieldsRef.current) {return;}
+		if (!parsedPreset) {return;}
 
 		setFormMain(parsedPreset.main);
 		setFormAdditional(parsedPreset.additional);
@@ -259,7 +258,7 @@ export function PlaygroundPanel({
 		"staging",
 	);
 	const [compiledMessages, setCompiledMessages] = useState<
-		Array<{ role: "system" | "user" | "assistant"; content: string }>
+		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
 	const [compiledOverride, setCompiledOverride] = useState<Array<{
 		role: "system" | "user" | "assistant";
@@ -288,18 +287,18 @@ export function PlaygroundPanel({
 		try {
 			const res = await orpc.admin.scribe.compilePrompt.call({
 				documentType,
-				promptName,
 				promptJson,
+				promptName,
 			});
 
 			setCompiledVariables(res.variablesUsed ?? {});
 			setCompiledMessages(
 				(res.compiledMessages ?? []).map((m) => ({
-					role: m.role,
 					content:
 						typeof m.content === "string"
 							? m.content
 							: JSON.stringify(m.content),
+					role: m.role,
 				})),
 			);
 			setCompiledOverride(null);
@@ -318,37 +317,37 @@ export function PlaygroundPanel({
 			id: crypto.randomUUID(),
 			model: null,
 			parameters: {
-				temperature:
-					presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
-				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
-				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
-				thinkingExplicit:
-					presetParameters?.thinkingExplicit ??
-					DEFAULT_PARAMETERS.thinkingExplicit,
-				thinkingBudget:
-					presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
-				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
-				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
 				frequencyPenalty:
 					presetParameters?.frequencyPenalty ??
 					DEFAULT_PARAMETERS.frequencyPenalty,
+				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
 				presencePenalty:
 					presetParameters?.presencePenalty ??
 					DEFAULT_PARAMETERS.presencePenalty,
+				temperature:
+					presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
+				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
+				thinkingBudget:
+					presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
+				thinkingExplicit:
+					presetParameters?.thinkingExplicit ??
+					DEFAULT_PARAMETERS.thinkingExplicit,
+				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
+				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
 			},
 		},
 	]);
 
 	// Apply preset model when models load (first run config only)
 	useEffect(() => {
-		if (!presetModel || models.length === 0) return;
+		if (!presetModel || models.length === 0) {return;}
 		setModelRuns((prev) => {
 			const first = prev.at(0);
-			if (!first || first.model) return prev;
+			if (!first || first.model) {return prev;}
 			const match = models.find(
 				(m) => m.id === presetModel || m.modelId === presetModel,
 			);
-			if (!match) return prev;
+			if (!match) {return prev;}
 			return [
 				{
 					...first,
@@ -373,9 +372,9 @@ export function PlaygroundPanel({
 	const setRunState = useCallback((id: string, patch: Partial<RunState>) => {
 		setRunStates((prev) => {
 			const base: RunState = prev[id] ?? {
-				text: "",
 				isStreaming: false,
 				metrics: { latencyMs: 0 },
+				text: "",
 			};
 
 			return {
@@ -385,7 +384,7 @@ export function PlaygroundPanel({
 					...patch,
 					metrics: {
 						...base.metrics,
-						...(patch.metrics ?? {}),
+						...patch.metrics,
 					},
 				},
 			};
@@ -396,7 +395,7 @@ export function PlaygroundPanel({
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
 
 	const runAllModels = useCallback(async () => {
-		const triggers = Array.from(runTriggersRef.current.values());
+		const triggers = [...runTriggersRef.current.values()];
 		if (triggers.length === 0) {
 			toast.error("Keine Modelle konfiguriert");
 			return;
@@ -411,16 +410,16 @@ export function PlaygroundPanel({
 	);
 
 	const modelSelectorOptions = useMemo<PlaygroundModelSelectorOption[]>(() => {
-		const topModelIdSet = new Set(topModelIds ?? []);
+		const topModelIdSet = new Set(topModelIds);
 		return models.map((model) => {
 			const provider = getProviderGroup(model);
 			const isTop = topModelIdSet.has(model.modelId);
 			return {
-				value: model.id,
-				label: isTop ? `Top • ${model.name}` : model.name,
 				group: provider,
 				keywords: [model.modelId, model.name, provider],
+				label: isTop ? `Top • ${model.name}` : model.name,
 				model,
+				value: model.id,
 			};
 		});
 	}, [models, topModelIds]);
@@ -434,7 +433,7 @@ export function PlaygroundPanel({
 					collapsible={isMobile}
 					value={isMobile ? mobileInputPanelValue : "input-config"}
 					onValueChange={(value) => {
-						if (!isMobile) return;
+						if (!isMobile) {return;}
 						setMobileInputPanelValue(value || undefined);
 					}}
 					className="w-full"
@@ -785,11 +784,11 @@ export function PlaygroundPanel({
 																		)}
 																		onValueChange={(modelId) => {
 																			const model = modelById.get(modelId);
-																			if (!model) return;
+																			if (!model) {return;}
 
 																			setModelRuns((prev) =>
 																				prev.map((r) => {
-																					if (r.id !== run.id) return r;
+																					if (r.id !== run.id) {return r;}
 																					return {
 																						...r,
 																						model,
@@ -945,10 +944,10 @@ function RunCard({
 		role: "system" | "user" | "assistant";
 		content: string;
 	}> | null;
-	compiledMessages: Array<{
+	compiledMessages: {
 		role: "system" | "user" | "assistant";
 		content: string;
-	}>;
+	}[];
 	runState: RunState | undefined;
 	setRunState: (id: string, patch: Partial<RunState>) => void;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
@@ -959,35 +958,20 @@ function RunCard({
 
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
 		id: `admin-scribe-playground-${modelRun.id}`,
-		transport: {
-			async sendMessages(options) {
-				if (!payloadRef.current) {
-					throw new Error("Missing payload");
-				}
-				return eventIteratorToUnproxiedDataStream(
-					await orpc.admin.scribe.run.call(payloadRef.current, {
-						signal: options.abortSignal,
-					}),
-				);
-			},
-			reconnectToStream() {
-				throw new Error("Unsupported");
-			},
-		},
 		onError: (error) => {
 			setRunState(runId, {
-				isStreaming: false,
 				error: error.message,
+				isStreaming: false,
 			});
 		},
 		onFinish: async () => {
 			const requestId = payloadRef.current?.requestId;
-			if (!requestId) return;
+			if (!requestId) {return;}
 			try {
 				const event = await orpc.admin.usage.findByRequestId.call({
 					requestId,
 				});
-				if (!event) return;
+				if (!event) {return;}
 
 				const latencyMs =
 					typeof (event.metadata as Record<string, unknown> | null)
@@ -998,23 +982,38 @@ function RunCard({
 				setRunState(runId, {
 					isStreaming: false,
 					metrics: {
-						latencyMs,
-						inputTokens: event.inputTokens ?? undefined,
-						outputTokens: event.outputTokens ?? undefined,
-						totalTokens: event.totalTokens ?? undefined,
-						reasoningTokens: event.reasoningTokens ?? undefined,
 						cost: event.cost ? Number(event.cost) : undefined,
+						inputTokens: event.inputTokens ?? undefined,
+						latencyMs,
+						outputTokens: event.outputTokens ?? undefined,
+						reasoningTokens: event.reasoningTokens ?? undefined,
+						totalTokens: event.totalTokens ?? undefined,
 					},
 				});
 			} catch {
 				// Best effort; output is still useful even without metrics.
 			}
 		},
+		transport: {
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
+			async sendMessages(options) {
+				if (!payloadRef.current) {
+					throw new Error("Missing payload");
+				}
+				return eventIteratorToUnproxiedDataStream(
+					await orpc.admin.scribe.run.call(payloadRef.current, {
+						signal: options.abortSignal,
+					}),
+				);
+			},
+		},
 	});
 
 	const { completion, reasoning } = useMemo(() => {
 		const lastAssistant = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistant) return { completion: "", reasoning: "" };
+		if (!lastAssistant) {return { completion: "", reasoning: "" };}
 		// Extract text and reasoning from parts (AI SDK v4 format)
 		if (lastAssistant.parts && lastAssistant.parts.length > 0) {
 			const textParts = lastAssistant.parts
@@ -1034,14 +1033,14 @@ function RunCard({
 		if (status === "streaming" || status === "submitted") {
 			setRunState(runId, {
 				isStreaming: true,
-				text: completion,
 				reasoning: reasoning || undefined,
+				text: completion,
 			});
 		} else if (completion) {
 			setRunState(runId, {
 				isStreaming: false,
-				text: completion,
 				reasoning: reasoning || undefined,
+				text: completion,
 			});
 		}
 	}, [completion, reasoning, status, runId, setRunState]);
@@ -1061,26 +1060,26 @@ function RunCard({
 			(compiledMessages.length > 0 ? compiledMessages : undefined);
 
 		payloadRef.current = {
-			requestId,
-			model: modelRun.model.id,
-			parameters: modelRun.parameters,
-			documentType,
-			promptName,
-			promptJson,
 			compiledMessagesOverride: compiledMessagesOverride
 				? compiledMessagesOverride.map((m) => ({
-						role: m.role,
 						content: m.content,
+						role: m.role,
 					}))
 				: undefined,
+			documentType,
+			model: modelRun.model.id,
+			parameters: modelRun.parameters,
+			promptJson,
+			promptName,
+			requestId,
 		};
 
 		setRunState(runId, {
-			requestId,
 			error: undefined,
-			text: "",
-			metrics: { latencyMs: 0 },
 			isStreaming: true,
+			metrics: { latencyMs: 0 },
+			requestId,
+			text: "",
 		});
 		setMessages([]);
 		await sendMessage({ text: "run" });
@@ -1157,11 +1156,11 @@ function RunCard({
 					result={
 						runState
 							? {
-									text: runState.text,
-									metrics: runState.metrics,
-									isStreaming: runState.isStreaming,
-									reasoning: runState.reasoning,
 									error: runState.error,
+									isStreaming: runState.isStreaming,
+									metrics: runState.metrics,
+									reasoning: runState.reasoning,
+									text: runState.text,
 								}
 							: null
 					}

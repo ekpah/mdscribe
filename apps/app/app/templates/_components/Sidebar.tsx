@@ -54,23 +54,23 @@ interface SidebarSegment {
 
 const generateSegments = ({ templates }: { templates: Template[] }) => {
   const segments = templates.reduce<SidebarSegment[]>((acc, current) => {
-    const category = current.category;
+    const {category} = current;
     const template = current.title;
     const route = current.url;
-    const favouritesCount = current.favouritesCount;
+    const {favouritesCount} = current;
     const existingCategory = acc.find(
       (segment) => segment.category === category
     );
     if (existingCategory) {
       existingCategory.documents.push({
+        favouritesCount,
         title: template,
         url: route,
-        favouritesCount,
       });
     } else {
       acc.push({
         category,
-        documents: [{ title: template, url: route, favouritesCount }],
+        documents: [{ favouritesCount, title: template, url: route }],
       });
     }
 
@@ -134,26 +134,26 @@ export default function AppSidebar({
   const collections = isLoggedIn
     ? [
         {
-          name: 'Alle Textbausteine',
-          logo: Library,
           key: 'all',
+          logo: Library,
+          name: 'Alle Textbausteine',
         },
         {
-          name: 'Favoriten',
-          logo: BookmarkFilledIcon,
           key: 'favourites',
+          logo: BookmarkFilledIcon,
+          name: 'Favoriten',
         },
         {
-          name: 'Von Dir erstellt',
-          logo: Pencil1Icon,
           key: 'authored',
+          logo: Pencil1Icon,
+          name: 'Von Dir erstellt',
         },
       ]
     : [
         {
-          name: 'Alle Textbausteine',
-          logo: Library,
           key: 'all',
+          logo: Library,
+          name: 'Alle Textbausteine',
         },
       ];
 
@@ -183,7 +183,7 @@ export default function AppSidebar({
   const filteredLinks = fuse
     .search(searchTerm, { limit: 10 })
     .map((res) => res.item)
-    .sort(
+    .toSorted(
       (a, b) =>
         (b as Template).favouritesCount - (a as Template).favouritesCount
     );
@@ -244,8 +244,8 @@ export default function AppSidebar({
           </SidebarGroupContent>
           {showCreateTemplateButton && (
             <SidebarGroupContent className="relative">
-              <Link href={'/templates/create'}>
-                <Button className="w-full" variant={'default'}>
+              <Link href="/templates/create">
+                <Button className="w-full" variant="default">
                   <PlusCircledIcon className="mr-2 h-4 w-4" />
                   Neuer Textbaustein
                 </Button>
@@ -277,9 +277,7 @@ export default function AppSidebar({
                   {segment.documents?.length ? (
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {segment.documents.map((item, itemIndex) => {
-                          // console.log(item);
-                          return (
+                        {segment.documents.map((item, itemIndex) => (
                             <SidebarMenuSubItem key={itemIndex}>
                               <SidebarMenuSubButton asChild isActive={false}>
                                 <Link
@@ -299,8 +297,7 @@ export default function AppSidebar({
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
-                          );
-                        })}
+                          ))}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   ) : null}

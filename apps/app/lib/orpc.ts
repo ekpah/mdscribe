@@ -6,7 +6,6 @@ import type { RouterClient } from '@orpc/server';
 import type { router } from '@/orpc/router';
 
 const link = new RPCLink({
-    url: `${typeof window !== 'undefined' ? window.location.origin : env.NEXT_PUBLIC_BASE_URL}/api/rpc`,
     headers: async () => {
         if (typeof window !== 'undefined') {
             return {};
@@ -15,6 +14,7 @@ const link = new RPCLink({
         const { headers } = await import('next/headers');
         return Object.fromEntries(await headers());
     },
+    url: `${typeof window !== 'undefined' ? window.location.origin : env.NEXT_PUBLIC_BASE_URL}/api/rpc`,
 });
 
 /**

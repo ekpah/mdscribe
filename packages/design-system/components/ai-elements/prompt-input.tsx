@@ -38,49 +38,28 @@ import {
 	XIcon,
 } from "lucide-react";
 import { nanoid } from "nanoid";
-import {
-	type ChangeEvent,
-	type ChangeEventHandler,
-	Children,
-	type ClipboardEventHandler,
-	type ComponentProps,
-	createContext,
-	type FormEvent,
-	type FormEventHandler,
-	Fragment,
-	type HTMLAttributes,
-	type KeyboardEventHandler,
-	type PropsWithChildren,
-	type ReactNode,
-	type RefObject,
-	useCallback,
-	useContext,
-	useEffect,
-	useLayoutEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { Children, createContext, Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, ChangeEventHandler, ClipboardEventHandler, ComponentProps, FormEvent, FormEventHandler, HTMLAttributes, KeyboardEventHandler, PropsWithChildren, ReactNode, RefObject } from 'react';
 // ============================================================================
 // Provider Context & Types
 // ============================================================================
 
-export type AttachmentsContext = {
+export interface AttachmentsContext {
 	files: (FileUIPart & { id: string })[];
 	add: (files: File[] | FileList) => void;
 	remove: (id: string) => void;
 	clear: () => void;
 	openFileDialog: () => void;
 	fileInputRef: RefObject<HTMLInputElement | null>;
-};
+}
 
-export type TextInputContext = {
+export interface TextInputContext {
 	value: string;
 	setInput: (v: string) => void;
 	clear: () => void;
-};
+}
 
-export type PromptInputController = {
+export interface PromptInputController {
 	textInput: TextInputContext;
 	attachments: AttachmentsContext;
 	/** INTERNAL: Allows PromptInput to register its file textInput + "open" callback */
@@ -88,7 +67,7 @@ export type PromptInputController = {
 		ref: RefObject<HTMLInputElement | null>,
 		open: () => void,
 	) => void;
-};
+}
 
 const PromptInputContext = createContext<PromptInputController | null>(null);
 const ProviderAttachmentsContext = createContext<AttachmentsContext | null>(
@@ -106,9 +85,7 @@ export const usePromptInputController = () => {
 };
 
 // Optional variants (do NOT throw). Useful for dual-mode components.
-const useOptionalPromptInputController = () => {
-	return useContext(PromptInputContext);
-};
+const useOptionalPromptInputController = () => useContext(PromptInputContext);
 
 export const useProviderAttachments = () => {
 	const ctx = useContext(ProviderAttachmentsContext);
@@ -120,9 +97,7 @@ export const useProviderAttachments = () => {
 	return ctx;
 };
 
-const useOptionalProviderAttachments = () => {
-	return useContext(ProviderAttachmentsContext);
-};
+const useOptionalProviderAttachments = () => useContext(ProviderAttachmentsContext);
 
 export type PromptInputProviderProps = PropsWithChildren<{
 	initialInput?: string;
@@ -148,7 +123,7 @@ export function PromptInputProvider({
 	const openRef = useRef<() => void>(() => {});
 
 	const add = useCallback((files: File[] | FileList) => {
-		const incoming = Array.from(files);
+		const incoming = [...files];
 		if (incoming.length === 0) {
 			return;
 		}
@@ -156,11 +131,11 @@ export function PromptInputProvider({
 		setAttachements((prev) =>
 			prev.concat(
 				incoming.map((file) => ({
+					filename: file.name,
 					id: nanoid(),
+					mediaType: file.type,
 					type: "file" as const,
 					url: URL.createObjectURL(file),
-					mediaType: file.type,
-					filename: file.name,
 				})),
 			),
 		);
@@ -193,12 +168,12 @@ export function PromptInputProvider({
 
 	const attachments = useMemo<AttachmentsContext>(
 		() => ({
-			files: attachements,
 			add,
-			remove,
 			clear,
-			openFileDialog,
 			fileInputRef,
+			files: attachements,
+			openFileDialog,
+			remove,
 		}),
 		[attachements, add, remove, clear, openFileDialog],
 	);
@@ -213,13 +188,13 @@ export function PromptInputProvider({
 
 	const controller = useMemo<PromptInputController>(
 		() => ({
-			textInput: {
-				value: textInput,
-				setInput: setTextInput,
-				clear: clearInput,
-			},
-			attachments,
 			__registerFileInput,
+			attachments,
+			textInput: {
+				clear: clearInput,
+				setInput: setTextInput,
+				value: textInput,
+			},
 		}),
 		[textInput, clearInput, attachments, __registerFileInput],
 	);
@@ -417,16 +392,17 @@ export const PromptInputActionAddAttachments = ({
 	);
 };
 
-export type PromptInputMessage = {
+export interface PromptInputMessage {
 	text?: string;
 	files?: FileUIPart[];
-};
+}
 
 export type PromptInputProps = Omit<
 	HTMLAttributes<HTMLFormElement>,
 	"onSubmit"
 > & {
-	accept?: string; // e.g., "image/*" or leave undefined for any
+	// e.g., "image/*" or leave undefined for any
+	accept?: string;
 	multiple?: boolean;
 	// When true, accepts drops anywhere on document. Default false (opt-in).
 	globalDrop?: boolean;
@@ -434,7 +410,8 @@ export type PromptInputProps = Omit<
 	syncHiddenInput?: boolean;
 	// Minimal constraints
 	maxFiles?: number;
-	maxFileSize?: number; // bytes
+	// bytes
+	maxFileSize?: number;
 	onError?: (err: {
 		code: "max_files" | "max_file_size" | "accept";
 		message: string;
@@ -499,7 +476,7 @@ export const PromptInput = ({
 
 	const addLocal = useCallback(
 		(fileList: File[] | FileList) => {
-			const incoming = Array.from(fileList);
+			const incoming = [...fileList];
 			const accepted = incoming.filter((f) => matchesAccept(f));
 			if (incoming.length && accepted.length === 0) {
 				onError?.({
@@ -535,11 +512,11 @@ export const PromptInput = ({
 				const next: (FileUIPart & { id: string })[] = [];
 				for (const file of capped) {
 					next.push({
+						filename: file.name,
 						id: nanoid(),
+						mediaType: file.type,
 						type: "file",
 						url: URL.createObjectURL(file),
-						mediaType: file.type,
-						filename: file.name,
 					});
 				}
 				return prev.concat(next);
@@ -649,8 +626,7 @@ export const PromptInput = ({
 		};
 	}, [add, globalDrop]);
 
-	useEffect(() => {
-		return () => {
+	useEffect(() => () => {
 			if (!usingProvider) {
 				for (const f of files) {
 					if (f.url) {
@@ -658,8 +634,7 @@ export const PromptInput = ({
 					}
 				}
 			}
-		};
-	}, [usingProvider, files]);
+		}, [usingProvider, files]);
 
 	const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
 		if (event.currentTarget.files) {
@@ -670,22 +645,23 @@ export const PromptInput = ({
 	const convertBlobUrlToDataUrl = async (url: string): Promise<string> => {
 		const response = await fetch(url);
 		const blob = await response.blob();
-		return new Promise((resolve, reject) => {
-			const reader = new FileReader();
-			reader.onloadend = () => resolve(reader.result as string);
-			reader.onerror = reject;
-			reader.readAsDataURL(blob);
-		});
+		const bytes = new Uint8Array(await blob.arrayBuffer());
+		let binary = "";
+		for (const byte of bytes) {
+			binary += String.fromCharCode(byte);
+		}
+		const base64 = btoa(binary);
+		return `data:${blob.type || "application/octet-stream"};base64,${base64}`;
 	};
 
 	const ctx = useMemo<AttachmentsContext>(
 		() => ({
-			files: files.map((item) => ({ ...item, id: item.id })),
 			add,
-			remove,
 			clear,
-			openFileDialog,
 			fileInputRef: inputRef,
+			files: files.map((item) => ({ ...item, id: item.id })),
+			openFileDialog,
+			remove,
 		}),
 		[files, add, remove, clear, openFileDialog],
 	);
@@ -707,44 +683,31 @@ export const PromptInput = ({
 			form.reset();
 		}
 
-			// Convert blob URLs to data URLs asynchronously
-			Promise.all(
-				files.map(async ({ id: _id, ...item }) => {
-					if (item.url?.startsWith("blob:")) {
+		const run = async () => {
+			try {
+				const convertedFiles: FileUIPart[] = await Promise.all(
+					files.map(async ({ id: _id, ...item }) => {
+						if (!item.url?.startsWith("blob:")) {
+							return item;
+						}
+
 						return {
 							...item,
-						url: await convertBlobUrlToDataUrl(item.url),
-					};
-				}
-				return item;
-			}),
-		).then((convertedFiles: FileUIPart[]) => {
-			try {
-				const result = onSubmit({ text, files: convertedFiles }, event);
+							url: await convertBlobUrlToDataUrl(item.url),
+						};
+					}),
+				);
 
-				// Handle both sync and async onSubmit
-				if (result instanceof Promise) {
-					result
-						.then(() => {
-							clear();
-							if (usingProvider) {
-								controller.textInput.clear();
-							}
-						})
-						.catch(() => {
-							// Don't clear on error - user may want to retry
-						});
-				} else {
-					// Sync function completed without throwing, clear attachments
-					clear();
-					if (usingProvider) {
-						controller.textInput.clear();
-					}
+				await onSubmit({ files: convertedFiles, text }, event);
+				clear();
+				if (usingProvider) {
+					controller.textInput.clear();
 				}
-				} catch {
-					// Don't clear on error - user may want to retry
-				}
-			});
+			} catch {
+				// Don't clear on error - user may want to retry
+			}
+		};
+		run();
 	};
 
 	// Render with or without local provider
@@ -841,11 +804,11 @@ export const PromptInputTextarea = ({
 
 	const controlledProps = controller
 		? {
-				value: controller.textInput.value,
 				onChange: (e: ChangeEvent<HTMLTextAreaElement>) => {
 					controller.textInput.setInput(e.currentTarget.value);
 					onChange?.(e);
 				},
+				value: controller.textInput.value,
 			}
 		: {
 				onChange,
@@ -1009,23 +972,23 @@ interface SpeechRecognitionEvent extends Event {
 	results: SpeechRecognitionResultList;
 }
 
-type SpeechRecognitionResultList = {
+interface SpeechRecognitionResultList {
 	readonly length: number;
 	item(index: number): SpeechRecognitionResult;
 	[index: number]: SpeechRecognitionResult;
-};
+}
 
-type SpeechRecognitionResult = {
+interface SpeechRecognitionResult {
 	readonly length: number;
 	item(index: number): SpeechRecognitionAlternative;
 	[index: number]: SpeechRecognitionAlternative;
 	isFinal: boolean;
-};
+}
 
-type SpeechRecognitionAlternative = {
+interface SpeechRecognitionAlternative {
 	transcript: string;
 	confidence: number;
-};
+}
 
 interface SpeechRecognitionErrorEvent extends Event {
 	error: string;
@@ -1033,12 +996,8 @@ interface SpeechRecognitionErrorEvent extends Event {
 
 declare global {
 	interface Window {
-		SpeechRecognition: {
-			new (): SpeechRecognition;
-		};
-		webkitSpeechRecognition: {
-			new (): SpeechRecognition;
-		};
+		SpeechRecognition: new () => SpeechRecognition;
+		webkitSpeechRecognition: new () => SpeechRecognition;
 	}
 }
 
@@ -1085,7 +1044,7 @@ export const PromptInputSpeechButton = ({
 			speechRecognition.onresult = (event) => {
 				let finalTranscript = "";
 
-				for (let i = 0; i < event.results.length; i++) {
+				for (let i = 0; i < event.results.length; i += 1) {
 					if (event.results[i].isFinal) {
 						finalTranscript += event.results[i][0].transcript;
 					}

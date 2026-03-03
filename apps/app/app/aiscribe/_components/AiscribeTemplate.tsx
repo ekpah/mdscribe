@@ -33,14 +33,8 @@ import {
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parseMarkdocToInputs";
-import {
-	FileText,
-	Loader2,
-	type LucideIcon,
-	Mic,
-	Square,
-	X,
-} from "lucide-react";
+import { FileText, Loader2, Mic, Square, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -116,7 +110,7 @@ function encodeUint8ArrayToBase64(data: Uint8Array): string {
 	const chunks: string[] = [];
 	for (let i = 0; i < data.length; i += chunkSize) {
 		const chunk = data.subarray(i, i + chunkSize);
-		chunks.push(String.fromCharCode(...chunk));
+		chunks.push(String.fromCodePoint(...chunk));
 	}
 	return btoa(chunks.join(""));
 }
@@ -149,25 +143,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, setMessages } = useChat({
 		id: `scribe-${config.documentType}`,
-		transport: {
-			async sendMessages(options) {
-				// Read from ref to get the latest audio files synchronously
-				const audioFiles = preparedAudioFilesRef.current;
-				return eventIteratorToUnproxiedDataStream(
-					await orpc.scribeStream.call(
-						{
-							documentType: config.documentType,
-							messages: options.messages,
-							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
-						},
-						{ signal: options.abortSignal },
-					),
-				);
-			},
-			reconnectToStream() {
-				throw new Error("Unsupported");
-			},
-		},
 		onError: (error) => {
 			const message = getAiscribeErrorMessage(error);
 			if (message) {
@@ -179,6 +154,25 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			// Clear prepared audio files ref after generation
 			preparedAudioFilesRef.current = [];
 		},
+		transport: {
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
+			async sendMessages(options) {
+				// Read from ref to get the latest audio files synchronously
+				const audioFiles = preparedAudioFilesRef.current;
+				return eventIteratorToUnproxiedDataStream(
+					await orpc.scribeStream.call(
+						{
+							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+							documentType: config.documentType,
+							messages: options.messages,
+						},
+						{ signal: options.abortSignal },
+					),
+				);
+			},
+		},
 	});
 
 	// Extract completion text from the last assistant message
@@ -186,7 +180,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		const lastAssistantMessage = messages.findLast(
 			(m) => m.role === "assistant",
 		);
-		if (!lastAssistantMessage) return "";
+		if (!lastAssistantMessage) {return "";}
 		if (lastAssistantMessage.parts) {
 			return lastAssistantMessage.parts
 				.filter((p) => p.type === "text")
@@ -229,7 +223,8 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 				const audioBlob = new Blob(audioChunksRef.current, {
 					type: "audio/wav",
 				});
-				const duration = (Date.now() - recordingStartTimeRef.current) / 1000; // in seconds
+				// in seconds
+				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
 				const newRecording: AudioRecording = {
 					blob: audioBlob,
 					duration,
@@ -424,7 +419,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		(event: KeyboardEvent) => {
 			event.preventDefault();
 			event.stopPropagation();
-			document.getElementById("input-field")?.focus();
+			document.querySelector("#input-field")?.focus();
 		},
 		{
 			enableOnFormTags: ["INPUT", "TEXTAREA"],
@@ -687,9 +682,9 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 														size="sm"
 														title={
 															canRecord || isRecording
-																? isRecording
+																? (isRecording
 																	? "Aufnahme stoppen"
-																	: "Audioaufnahme starten"
+																	: "Audioaufnahme starten")
 																: `Maximal ${maxRecordings} Aufnahmen möglich`
 														}
 														type="button"

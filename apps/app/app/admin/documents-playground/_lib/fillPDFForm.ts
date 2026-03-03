@@ -2,12 +2,12 @@ import { PDFDocument } from "pdf-lib";
 import type { FieldMapping } from "./parsePDFFormFields";
 
 // Type for PDF form field with unknown methods
-type PDFFormField = {
+interface PDFFormField {
 	setText?: (value: string) => void;
 	select?: (value: string) => void;
 	check?: () => void;
 	uncheck?: () => void;
-};
+}
 
 /**
  * Fills a PDF form with the provided field values
@@ -32,7 +32,7 @@ export async function fillPDFForm(
 			console.warn(`No field mapping found for label: ${label}`);
 			continue;
 		}
-		const fieldName = mapping.fieldName;
+		const {fieldName} = mapping;
 
 		// Convert field value to string for PDF filling
 		const stringValue =
@@ -76,8 +76,9 @@ export async function fillPDFForm(
 					break;
 				}
 
-				default:
+				default: {
 					console.warn(`Unknown field type: ${fieldType} for ${fieldName}`);
+				}
 			}
 		} catch (error) {
 			console.error(

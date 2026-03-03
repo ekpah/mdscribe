@@ -30,28 +30,28 @@ function getPlanLabel(plan?: string | null) {
 function getStatusBadge(subscription?: Subscription) {
 	if (!subscription) {
 		return {
-			label: "Kein Abonnement",
 			className: "border-solarized-base1 text-solarized-base01",
+			label: "Kein Abonnement",
 		};
 	}
 
 	if (subscription.cancelAtPeriodEnd) {
 		return {
-			label: "Wird gekündigt",
 			className: "border-solarized-orange text-solarized-orange",
+			label: "Wird gekündigt",
 		};
 	}
 
 	if (subscription.status === "trialing") {
 		return {
-			label: "Testphase",
 			className: "border-solarized-blue text-solarized-blue",
+			label: "Testphase",
 		};
 	}
 
 	return {
-		label: "Aktiv",
 		className: "border-solarized-green text-solarized-green",
+		label: "Aktiv",
 	};
 }
 
@@ -71,15 +71,15 @@ export function SubscriptionManagementCard({
 		toast.promise(
 			() =>
 				authClient.subscription.upgrade({
+					cancelUrl: "/subscription",
 					plan: "plus",
 					successUrl: "/subscription",
-					cancelUrl: "/subscription",
 				}),
 			{
-				loading: "Abonnement wird aktualisiert...",
-				success: "Abonnement erfolgreich aktualisiert.",
 				error: "Abonnement konnte nicht aktualisiert werden.",
 				finally: () => setIsManagingSubscription(false),
+				loading: "Abonnement wird aktualisiert...",
+				success: "Abonnement erfolgreich aktualisiert.",
 			},
 		);
 	}
@@ -92,10 +92,10 @@ export function SubscriptionManagementCard({
 					returnUrl: "/subscription",
 				}),
 			{
-				loading: "Abonnement wird storniert...",
-				success: "Abonnement erfolgreich storniert.",
 				error: "Abonnement konnte nicht storniert werden.",
 				finally: () => setIsManagingSubscription(false),
+				loading: "Abonnement wird storniert...",
+				success: "Abonnement erfolgreich storniert.",
 			},
 		);
 	}
@@ -108,10 +108,10 @@ export function SubscriptionManagementCard({
 					returnUrl: "/subscription",
 				}),
 			{
-				loading: "Abonnement wird geöffnet...",
-				success: "Weiterleitung zum Zahlungsportal...",
 				error: "Zahlungsportal konnte nicht geöffnet werden.",
 				finally: () => setIsManagingSubscription(false),
+				loading: "Abonnement wird geöffnet...",
+				success: "Weiterleitung zum Zahlungsportal...",
 			},
 		);
 	}

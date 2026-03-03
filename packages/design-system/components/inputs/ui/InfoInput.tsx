@@ -54,14 +54,14 @@ export function InfoInput({
 
 	// Parse date value, defaulting to today only if no value provided
 	const dateValue = useMemo(() => {
-		if (!isDateType) return getTodayDate();
+		if (!isDateType) {return getTodayDate();}
 		const parsed = parseDateInput(value);
 		return parsed ?? getTodayDate();
 	}, [isDateType, value]);
 
 	// Parse suggested date value for display
 	const formattedSuggestedValue = useMemo(() => {
-		if (!isDateType || suggestedValue === undefined) return suggestedValue;
+		if (!isDateType || suggestedValue === undefined) {return suggestedValue;}
 		const parsed = parseDateInput(suggestedValue);
 		return parsed ? formatDateGerman(parsed) : suggestedValue;
 	}, [isDateType, suggestedValue]);

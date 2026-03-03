@@ -30,7 +30,6 @@ export function SubscriptionCard({
   const monthlyUsageLimit = hasActiveSubscription ? 500 : 50;
 
   const { data } = useQuery({
-    queryKey: ['usage'],
     queryFn: async () => {
       const res = await fetch('/api/scribe/getUsage');
       if (!res.ok) {
@@ -38,6 +37,7 @@ export function SubscriptionCard({
       }
       return res.json();
     },
+    queryKey: ['usage'],
   });
 
   const { usage } = data || {};

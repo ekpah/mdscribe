@@ -58,7 +58,7 @@ export default async function NotePage({
 				<Breadcrumb>
 					<BreadcrumbList>
 						<BreadcrumbItem className="hidden md:block">
-							<Link href={"/templates"}>Textbausteine</Link>
+							<Link href="/templates">Textbausteine</Link>
 						</BreadcrumbItem>
 						<BreadcrumbSeparator className="hidden md:block" />
 						<BreadcrumbItem>

@@ -1,14 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call } from "@orpc/server";
 import { templatesHandler } from "@/orpc/templates";
-import {
-	createMockSession,
-	createTestContext,
-	createTestTemplate,
-	createTestUser,
-	startTestServer,
-	type TestServer,
-} from "../setup";
+import { createMockSession, createTestContext, createTestTemplate, createTestUser, startTestServer } from '../setup';
+import type { TestServer } from '../setup';
 
 /**
  * Integration tests for templates oRPC handlers
@@ -45,9 +39,9 @@ describe("Templates oRPC Handlers", () => {
 				// Create a user and template
 				const { user } = await createTestUser(server.db);
 				const template = await createTestTemplate(server.db, user.id, {
-					title: "ZVK Anlage",
 					category: "Prozeduren",
 					content: "ZVK Anlage Vorlage...",
+					title: "ZVK Anlage",
 				});
 
 				const context = createTestContext({ db: server.db });
@@ -169,7 +163,7 @@ describe("Templates oRPC Handlers", () => {
 				const { user } = await createTestUser(server.db);
 
 				// Create 4 templates
-				for (let i = 1; i <= 4; i++) {
+				for (let i = 1; i <= 4; i += 1) {
 					await createTestTemplate(server.db, user.id, {
 						title: `Template ${i}`,
 					});
@@ -196,9 +190,9 @@ describe("Templates oRPC Handlers", () => {
 				const result = await call(
 					templatesHandler.create,
 					{
-						name: "New Template",
 						category: "Test Category",
 						content: "Template content here",
+						name: "New Template",
 					},
 					{ context },
 				);
@@ -226,10 +220,10 @@ describe("Templates oRPC Handlers", () => {
 				const result = await call(
 					templatesHandler.update,
 					{
-						id: template.id,
-						name: "Updated Title",
 						category: "Updated Category",
 						content: "Updated content",
+						id: template.id,
+						name: "Updated Title",
 					},
 					{ context },
 				);
@@ -256,10 +250,10 @@ describe("Templates oRPC Handlers", () => {
 					call(
 						templatesHandler.update,
 						{
-							id: template.id,
-							name: "Hacked",
 							category: "Hacked",
 							content: "Hacked",
+							id: template.id,
+							name: "Hacked",
 						},
 						{ context },
 					),

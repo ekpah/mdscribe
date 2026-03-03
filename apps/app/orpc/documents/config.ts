@@ -34,12 +34,13 @@ interface ParseFormVariables {
  */
 export const pdfDocumentConfigs: Record<string, PDFDocumentConfig> = {
 	parseForm: {
-		promptName: "pdf_form_enhancement",
+		modelConfig: {
+			temperature: 0.3,
+		},
 		prompt: (vars: Record<string, unknown>): PromptMessage[] => {
 			const { fieldMapping } = vars as unknown as ParseFormVariables;
 			return [
 				{
-					role: "user",
 					content: `Du analysierst ein PDF-Formular-Dokument. Ich habe die folgenden Formularfeld-Zuordnungen aus dem PDF extrahiert:
 
 ${JSON.stringify(fieldMapping, null, 2)}
@@ -61,12 +62,11 @@ Achte darauf:
 - Alle originalen fieldName-Werte beizubehalten
 - Die Beschreibungen kurz und aussagekräftig zu halten
 - fieldName exakt wie im Input zu übernehmen`,
+					role: "user",
 				},
 			];
 		},
-		modelConfig: {
-			temperature: 0.3,
-		},
+		promptName: "pdf_form_enhancement",
 	},
 
 };

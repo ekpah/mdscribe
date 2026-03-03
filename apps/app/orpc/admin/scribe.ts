@@ -1,15 +1,11 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
-import { type ModelMessage, streamText } from "ai";
+import { streamText } from 'ai';
+import type { ModelMessage } from 'ai';
 import { z } from "zod";
 
-import {
-	buildUsageEventData,
-	extractOpenRouterUsage,
-	type StandardUsage,
-	type UsageInputData,
-	type UsageMetadata,
-} from "@/lib/usage-logging";
+import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
+import type { StandardUsage, UsageInputData, UsageMetadata } from '@/lib/usage-logging';
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "../middlewares/admin";
 import { documentTypeConfigs } from "../scribe/config";
@@ -30,13 +26,13 @@ function todaysDateDE(): string {
 
 const compilePromptInput = z.object({
 	documentType: z.string(),
+	promptJson: z.string().optional(),
 	promptName: z.string().optional(),
 	variables: z.record(z.unknown()).optional(),
-	promptJson: z.string().optional(),
 });
 
 function parsePromptJson(promptJson?: string): Record<string, unknown> {
-	if (!promptJson) return {};
+	if (!promptJson) {return {};}
 	try {
 		const parsed = JSON.parse(promptJson) as unknown;
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -77,55 +73,55 @@ const compilePromptHandler = authed
 		}
 
 		const { contextXml } = await buildScribeContext({
-			sources: [{ kind: "form", data: variablesUsed }],
 			sessionUser: context.session.user,
+			sources: [{ data: variablesUsed, kind: "form" }],
 		});
 
 		const promptVariables = {
 			...variablesUsed,
-			todaysDate: todaysDateDE(),
 			contextXml,
+			todaysDate: todaysDateDE(),
 		} as PromptVariables;
 
 		const compiledMessages = config.prompt(promptVariables);
 
 		return {
 			compiledMessages,
-			resolvedPromptName,
 			promptSource: "local",
+			resolvedPromptName,
 			variablesUsed,
 		};
 	});
 
 const runInput = z.object({
-	requestId: z.string(),
-	model: z.string(),
-	providerId: z.string().optional(),
-	// Backward compatibility while frontend payload migrates fully.
-	connectionId: z.string().optional(),
-	parameters: z.object({
-		temperature: z.number().min(0).max(2).optional().default(1),
-		maxTokens: z.number().min(1).max(100000).optional().default(4096),
-		thinking: z.boolean().optional().default(false),
-		thinkingExplicit: z.boolean().optional().default(false),
-		thinkingBudget: z.number().min(1000).max(50000).optional().default(8000),
-		topP: z.number().min(0).max(1).optional(),
-		topK: z.number().min(0).optional(),
-		frequencyPenalty: z.number().min(-2).max(2).optional(),
-		presencePenalty: z.number().min(-2).max(2).optional(),
-	}),
-	documentType: z.string(),
-	promptName: z.string().optional(),
-	variables: z.record(z.unknown()).optional(),
-	promptJson: z.string().optional(),
 	compiledMessagesOverride: z
 		.array(
 			z.object({
-				role: z.enum(["system", "user", "assistant"]),
 				content: z.union([z.string(), z.array(z.unknown())]),
+				role: z.enum(["system", "user", "assistant"]),
 			}),
 		)
 		.optional(),
+	// Backward compatibility while frontend payload migrates fully.
+	connectionId: z.string().optional(),
+	documentType: z.string(),
+	model: z.string(),
+	parameters: z.object({
+		frequencyPenalty: z.number().min(-2).max(2).optional(),
+		maxTokens: z.number().min(1).max(100_000).optional().default(4096),
+		presencePenalty: z.number().min(-2).max(2).optional(),
+		temperature: z.number().min(0).max(2).optional().default(1),
+		thinking: z.boolean().optional().default(false),
+		thinkingBudget: z.number().min(1000).max(50_000).optional().default(8000),
+		thinkingExplicit: z.boolean().optional().default(false),
+		topK: z.number().min(0).optional(),
+		topP: z.number().min(0).max(1).optional(),
+	}),
+	promptJson: z.string().optional(),
+	promptName: z.string().optional(),
+	providerId: z.string().optional(),
+	requestId: z.string(),
+	variables: z.record(z.unknown()).optional(),
 });
 
 const runHandler = authed
@@ -163,14 +159,14 @@ const runHandler = authed
 			messages = parsed.compiledMessagesOverride as unknown as ModelMessage[];
 		} else {
 			const { contextXml } = await buildScribeContext({
-				sources: [{ kind: "form", data: variablesUsed }],
 				sessionUser: context.session.user,
+				sources: [{ data: variablesUsed, kind: "form" }],
 			});
 
 			const promptVariables = {
 				...variablesUsed,
-				todaysDate: todaysDateDE(),
 				contextXml,
+				todaysDate: todaysDateDE(),
 			} as PromptVariables;
 
 			messages = config.prompt(promptVariables);
@@ -196,15 +192,10 @@ const runHandler = authed
 			: undefined;
 
 		const result = streamText({
-			model: resolved.model,
-			maxOutputTokens: parsed.parameters.maxTokens,
-			temperature: parsed.parameters.temperature,
-			topP: parsed.parameters.topP,
-			topK: parsed.parameters.topK,
 			frequencyPenalty: parsed.parameters.frequencyPenalty,
-			presencePenalty: parsed.parameters.presencePenalty,
-			providerOptions,
+			maxOutputTokens: parsed.parameters.maxTokens,
 			messages,
+			model: resolved.model,
 			onFinish: async (event) => {
 				const latencyMs = Date.now() - startTime;
 				const openRouterUsage = resolved.isOpenRouter
@@ -213,36 +204,41 @@ const runHandler = authed
 
 				await context.db.insert(usageEvent).values(
 					buildUsageEventData({
-						userId: context.session.user.id,
-						name: "admin_scribe_playground",
-						model: resolved.modelName,
-						openRouterUsage,
-						standardUsage: event.usage as StandardUsage,
 						inputData: variablesUsed as UsageInputData,
 						metadata: {
-							requestId: parsed.requestId,
+							endpoint: parsed.documentType,
+							latencyMs,
+							modelConfig: {
+								frequencyPenalty: parsed.parameters.frequencyPenalty,
+								maxTokens: parsed.parameters.maxTokens,
+								presencePenalty: parsed.parameters.presencePenalty,
+								temperature: parsed.parameters.temperature,
+								topK: parsed.parameters.topK,
+								topP: parsed.parameters.topP,
+							},
 							promptName: resolvedPromptName,
 							promptSource: "local",
-							thinkingEnabled,
+							requestId: parsed.requestId,
 							thinkingBudget: thinkingEnabled
 								? parsed.parameters.thinkingBudget
 								: undefined,
-							latencyMs,
-							endpoint: parsed.documentType,
-							modelConfig: {
-								maxTokens: parsed.parameters.maxTokens,
-								temperature: parsed.parameters.temperature,
-								topP: parsed.parameters.topP,
-								topK: parsed.parameters.topK,
-								frequencyPenalty: parsed.parameters.frequencyPenalty,
-								presencePenalty: parsed.parameters.presencePenalty,
-							},
+							thinkingEnabled,
 						} as UsageMetadata,
-						result: event.text,
+						model: resolved.modelName,
+						name: "admin_scribe_playground",
+						openRouterUsage,
 						reasoning: event.reasoningText,
+						result: event.text,
+						standardUsage: event.usage as StandardUsage,
+						userId: context.session.user.id,
 					}),
 				);
 			},
+			presencePenalty: parsed.parameters.presencePenalty,
+			providerOptions,
+			temperature: parsed.parameters.temperature,
+			topK: parsed.parameters.topK,
+			topP: parsed.parameters.topP,
 		});
 
 		return streamToEventIterator(result.toUIMessageStream());
@@ -250,8 +246,44 @@ const runHandler = authed
 
 export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
-	run: runHandler,
 	prompts: {
+			get: authed
+				.use(requiredAdminMiddleware)
+				.input(type<{ name: string }>())
+				.handler(({ input }) => {
+					const entry = Object.entries(documentTypeConfigs).find(
+						([_, config]) => config.promptName === input.name,
+					);
+
+				if (!entry) {
+					throw new ORPCError("NOT_FOUND", {
+						message: `Prompt not found: ${input.name}`,
+					});
+				}
+
+				const [documentType, config] = entry;
+
+				const sampleVariables = {
+					anamnese: "[Anamnese]",
+					befunde: "[Befunde]",
+					contextXml: "<patient_context></patient_context>",
+					diagnoseblock: "[Diagnoseblock]",
+					notes: "[Notizen]",
+					relevantTemplate: "[Relevante Vorlage]",
+					todaysDate: todaysDateDE(),
+				} as PromptVariables;
+
+				const messages = config.prompt(sampleVariables);
+
+				return {
+					documentType,
+					messages,
+					modelConfig: config.modelConfig,
+					name: config.promptName,
+					source: "local",
+				};
+			}),
+
 			list: authed
 				.use(requiredAdminMiddleware)
 			.input(
@@ -278,42 +310,6 @@ export const scribeHandler = {
 					items: filteredNames.slice(0, limit),
 				};
 			}),
-
-			get: authed
-				.use(requiredAdminMiddleware)
-				.input(type<{ name: string }>())
-				.handler(({ input }) => {
-					const entry = Object.entries(documentTypeConfigs).find(
-						([_, config]) => config.promptName === input.name,
-					);
-
-				if (!entry) {
-					throw new ORPCError("NOT_FOUND", {
-						message: `Prompt not found: ${input.name}`,
-					});
-				}
-
-				const [documentType, config] = entry;
-
-				const sampleVariables = {
-					todaysDate: todaysDateDE(),
-					anamnese: "[Anamnese]",
-					befunde: "[Befunde]",
-					diagnoseblock: "[Diagnoseblock]",
-					notes: "[Notizen]",
-					relevantTemplate: "[Relevante Vorlage]",
-					contextXml: "<patient_context></patient_context>",
-				} as PromptVariables;
-
-				const messages = config.prompt(sampleVariables);
-
-				return {
-					name: config.promptName,
-					documentType,
-					source: "local",
-					modelConfig: config.modelConfig,
-					messages,
-				};
-			}),
 	},
+	run: runHandler,
 };

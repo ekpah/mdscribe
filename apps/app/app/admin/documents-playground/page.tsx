@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import PDFFormSection from "./_components/PDFFormSection";
 
 export const metadata: Metadata = {
-	title: "PDF-Formular ausfüllen",
 	description: "PDF-Formulare hochladen und ausfüllen",
+	title: "PDF-Formular ausfüllen",
 };
 
 export default function DocumentsPage() {
