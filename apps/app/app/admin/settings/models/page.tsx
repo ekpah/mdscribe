@@ -20,9 +20,9 @@ import {
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
-import { AddProviderDialog } from "./_components/AddConnectionDialog";
-import { ConnectionCard } from "./_components/ConnectionCard";
-import { ModelsTab } from "./_components/ModelsTab";
+import { AddProviderDialog } from "./_components/add-connection-dialog";
+import { ConnectionCard } from "./_components/connection-card";
+import { ModelsTab } from "./_components/models-tab";
 import { ScribeFormsTab } from "./_components/ScribeFormsTab";
 
 export default function ModelsSettingsPage() {

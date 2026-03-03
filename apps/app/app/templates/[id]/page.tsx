@@ -11,8 +11,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
-import ContentSection from "./_components/ContentSection";
-import { NavActions } from "./_components/NavActions";
+import ContentSection from "./_components/content-section";
+import { NavActions } from "./_components/nav-actions";
 
 type TemplateContentView = "template" | "examples";
 

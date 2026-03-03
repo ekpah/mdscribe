@@ -1,9 +1,9 @@
-export { default as parseMarkdocToInputs } from './parse/parseMarkdocToInputs';
-export { DynamicMarkdocRenderer } from './render/components/DynamicMarkdocRenderer';
+export { default as parseMarkdocToInputs } from './parse/parse-markdoc-to-inputs';
+export { DynamicMarkdocRenderer } from './render/components/dynamic-markdoc-renderer';
 export {
   useVariables,
   VariableProvider,
-} from './render/context/VariableContext';
+} from './render/context/variable-context';
 
 // Optionally, you could also export the lower-level functions if needed elsewhere
 // export { parseMarkdoc, renderMarkdocNode } from './renderNote';

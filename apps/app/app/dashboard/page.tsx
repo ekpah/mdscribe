@@ -38,7 +38,7 @@ import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 import type { DocumentType } from "@/orpc/scribe/types";
-import { LiveTime } from "./_components/LiveTime";
+import { LiveTime } from "./_components/live-time";
 
 /** Readable German labels for AI scribe document types */
 const documentTypeLabels: Record<DocumentType, string> = {

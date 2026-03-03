@@ -1,5 +1,5 @@
 import { Separator } from "@repo/design-system/components/ui/separator";
-import Footer from "../_components/landing/Footer";
+import Footer from "../_components/landing/footer";
 
 export default function LegalLayout({
 	children,

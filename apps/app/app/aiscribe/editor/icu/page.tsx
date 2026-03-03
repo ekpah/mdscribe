@@ -1,8 +1,8 @@
 "use client";
 
 import { Stethoscope } from "lucide-react";
-import { DoctorsNoteEditor } from '../../_components/DoctorsNoteEditor';
-import type { DoctorsNoteEditorConfig } from '../../_components/DoctorsNoteEditor';
+import { DoctorsNoteEditor } from '../../_components/doctors-note-editor';
+import type { DoctorsNoteEditorConfig } from '../../_components/doctors-note-editor';
 
 // Section configuration for ICU documentation
 // Each section defines its own endpoint and prompt builder

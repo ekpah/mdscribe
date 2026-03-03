@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Editor from "../../_components/Editor";
+import Editor from "../../_components/editor";
 import { getCreateTemplateEditorData } from "../../_lib/editor-page-data";
 
 export const dynamicParams = false;

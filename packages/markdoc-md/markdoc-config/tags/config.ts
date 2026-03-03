@@ -1,9 +1,9 @@
 import { Tag } from '@markdoc/markdoc';
 import type { Config, Node } from '@markdoc/markdoc';
-import { Case } from "./Case";
-import { Info } from "./Info";
-import { Score } from "./Score";
-import { Switch } from "./Switch";
+import { Case } from "./case";
+import { Info } from "./info";
+import { Score } from "./score";
+import { Switch } from "./switch";
 
 export default {
 	info: {

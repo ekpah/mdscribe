@@ -1,2 +1,2 @@
 export { scribeStreamHandler } from "./handlers";
-export { voiceFillHandler } from "./voiceFill";
+export { voiceFillHandler } from "./voice-fill";

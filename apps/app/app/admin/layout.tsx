@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
-import { AdminBreadcrumb } from "./_components/AdminBreadcrumb";
+import { AdminBreadcrumb } from "./_components/admin-breadcrumb";
 
 interface AdminLayoutProps {
 	children: ReactNode;

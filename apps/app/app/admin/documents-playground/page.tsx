@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 import type { Metadata } from "next";
-import PDFFormSection from "./_components/PDFFormSection";
+import PDFFormSection from "./_components/pdf-form-section";
 
 export const metadata: Metadata = {
 	description: "PDF-Formulare hochladen und ausfüllen",
