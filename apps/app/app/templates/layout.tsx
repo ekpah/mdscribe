@@ -5,7 +5,7 @@ import { Suspense } from "react";
 
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
-import AppSidebar from "./_components/Sidebar";
+import AppSidebar from "./_components/sidebar";
 
 const getTemplates = async (queryClient: QueryClient) => {
 	const templates = await queryClient.fetchQuery(
@@ -52,13 +52,31 @@ const getAuthoredTemplates = async (
 	}
 };
 
+const getCustomCollections = async (
+	queryClient: QueryClient,
+	isLoggedIn: boolean,
+) => {
+	if (!isLoggedIn) {
+		return [];
+	}
+	try {
+		const collections = await queryClient.fetchQuery(
+			orpc.user.collections.list.queryOptions(),
+		);
+		return collections;
+	} catch (error) {
+		console.warn("Failed to fetch custom collections:", error);
+		return [];
+	}
+};
+
 const generateSidebarLinks = async (queryClient: QueryClient) => {
 	const templates = await getTemplates(queryClient);
 	return templates.map((temp) => ({
-		url: `/templates/${temp.id}`,
 		category: temp.category,
-		title: temp.title,
 		favouritesCount: temp._count.favouriteOf,
+		title: temp.title,
+		url: `/templates/${temp.id}`,
 	}));
 };
 
@@ -68,10 +86,10 @@ const generateFavouriteTemplates = async (
 ) => {
 	const templates = await getFavouriteTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
-		url: `/templates/${temp.id}`,
 		category: temp.category,
-		title: temp.title,
 		favouritesCount: temp._count.favouriteOf,
+		title: temp.title,
+		url: `/templates/${temp.id}`,
 	}));
 };
 
@@ -81,10 +99,10 @@ const generateAuthoredTemplates = async (
 ) => {
 	const templates = await getAuthoredTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
-		url: `/templates/${temp.id}`,
 		category: temp.category,
-		title: temp.title,
 		favouritesCount: temp._count.favouriteOf,
+		title: temp.title,
+		url: `/templates/${temp.id}`,
 	}));
 };
 
@@ -103,17 +121,21 @@ export default async function Layout({
 				<Suspense
 					fallback={
 						<AppSidebar
-							authoredTemplates={"[]"}
-							favouriteTemplates={"[]"}
+							authoredTemplates="[]"
+							customCollections="[]"
+							favouriteTemplates="[]"
 							isLoggedIn={isLoggedIn}
 							key="Sidebar"
-							templates={"[]"}
+							templates="[]"
 						/>
 					}
 				>
 					<AppSidebar
 						authoredTemplates={JSON.stringify(
 							await generateAuthoredTemplates(queryClient, isLoggedIn),
+						)}
+						customCollections={JSON.stringify(
+							await getCustomCollections(queryClient, isLoggedIn),
 						)}
 						favouriteTemplates={JSON.stringify(
 							await generateFavouriteTemplates(queryClient, isLoggedIn),

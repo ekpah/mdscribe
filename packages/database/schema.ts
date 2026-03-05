@@ -133,6 +133,24 @@ export const template = pgTable("Template", {
 	embedding: vector("embedding"),
 });
 
+export const templateCollection = pgTable("TemplateCollection", {
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow(),
+	description: text("description"),
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	name: text("name").notNull(),
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow()
+		.$onUpdate(() => new Date()),
+	userId: text("userId")
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+});
+
 export const subscription = pgTable("Subscription", {
 	id: text("id")
 		.primaryKey()
@@ -235,6 +253,22 @@ export const favourites = pgTable(
 	],
 );
 
+export const templateCollectionTemplate = pgTable(
+	"TemplateCollectionTemplate",
+	{
+		collectionId: text("collectionId")
+			.notNull()
+			.references(() => templateCollection.id, { onDelete: "cascade" }),
+		templateId: text("templateId")
+			.notNull()
+			.references(() => template.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		primaryKey({ columns: [table.collectionId, table.templateId] }),
+		index("TemplateCollectionTemplate_templateId_idx").on(table.templateId),
+	],
+);
+
 // ============ AI PROVIDER TABLES ============
 
 export const aiProvider = pgTable("AiProvider", {
@@ -295,6 +329,7 @@ export const userRelations = relations(user, ({ many }) => ({
 	accounts: many(account),
 	sessions: many(session),
 	subscriptions: many(subscription),
+	templateCollections: many(templateCollection),
 	templates: many(template),
 	textSnippets: many(textSnippet),
 	usageEvents: many(usageEvent),
@@ -311,6 +346,7 @@ export const sessionRelations = relations(session, ({ one }) => ({
 
 export const templateRelations = relations(template, ({ one, many }) => ({
 	author: one(user, { fields: [template.authorId], references: [user.id] }),
+	collectionTemplates: many(templateCollectionTemplate),
 	favouriteOf: many(favourites),
 }));
 
@@ -336,6 +372,31 @@ export const favouritesRelations = relations(favourites, ({ one }) => ({
 	}),
 	user: one(user, { fields: [favourites.userId], references: [user.id] }),
 }));
+
+export const templateCollectionRelations = relations(
+	templateCollection,
+	({ one, many }) => ({
+		templates: many(templateCollectionTemplate),
+		user: one(user, {
+			fields: [templateCollection.userId],
+			references: [user.id],
+		}),
+	}),
+);
+
+export const templateCollectionTemplateRelations = relations(
+	templateCollectionTemplate,
+	({ one }) => ({
+		collection: one(templateCollection, {
+			fields: [templateCollectionTemplate.collectionId],
+			references: [templateCollection.id],
+		}),
+		template: one(template, {
+			fields: [templateCollectionTemplate.templateId],
+			references: [template.id],
+		}),
+	}),
+);
 
 export const aiProviderRelations = relations(aiProvider, ({ many }) => ({
 	models: many(aiModel),

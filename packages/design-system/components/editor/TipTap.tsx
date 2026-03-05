@@ -3,49 +3,38 @@
 import {
 	enableKeyboardNavigation,
 } from "@harshtalks/slash-tiptap";
-import { MarkdocMD } from "@repo/design-system/components/editor/tiptap-extension";
+import {
+	MarkdocMD,
+	MarkdocValidation,
+	type MarkdocValidationHighlight,
+} from "@repo/design-system/components/editor/tiptap-extension";
 import { cn } from "@repo/design-system/lib/utils";
-import { htmlToMarkdoc } from "@repo/markdoc-md/parse/htmlToMarkdoc";
-import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/renderMarkdocAsTipTapHTML";
+import { htmlToMarkdoc } from "@repo/markdoc-md/parse/html-to-markdoc";
+import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";
 import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
+import TipTapStarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
+import { useCallback, useEffect } from "react";
 import type { MouseEvent } from "react";
-import TipTapMenu from "./_components/TipTapMenu";
+import TipTapMenu from "./_components/tip-tap-menu";
 
 export default function TipTap({
 	note,
 	setContent,
+	validationHighlights = [],
 	showSource,
 	onToggleSource,
 }: {
 	note: string;
 	setContent: (content: string) => void;
+	validationHighlights?: MarkdocValidationHighlight[];
 	showSource?: boolean;
 	onToggleSource?: () => void;
 }) {
 	const editor = useEditor({
-		immediatelyRender: false,
-		extensions: [
-			StarterKit,
-			Markdown,
-			MarkdocMD,
-			// Placeholder.configure({
-			//   placeholder: ({ node }) => {
-			//     return 'Ergänze hier deinen Textbaustein...';
-			//   },
-			// }),
-		],
+		autofocus: true,
 		content: renderTipTapHTML(note),
-		onUpdate: ({ editor }) => {
-			// Get the HTML and convert to markdoc format
-			const html = editor.getHTML();
-			setContent(htmlToMarkdoc(html));
-		},
 		editorProps: {
-			handleDOMEvents: {
-				keydown: (_, v) => enableKeyboardNavigation(v),
-			},
 			attributes: {
 				class: cn(
 					"prose h-full min-h-full w-full max-w-none cursor-text whitespace-pre-wrap focus:outline-none",
@@ -57,13 +46,40 @@ export default function TipTap({
 					"[&_.is-empty]:before:pointer-events-none",
 				),
 			},
+			handleDOMEvents: {
+				keydown: (_, v) => enableKeyboardNavigation(v),
+			},
 		},
-		autofocus: true,
+		extensions: [
+			TipTapStarterKit,
+			Markdown,
+			MarkdocMD,
+			MarkdocValidation,
+			// Placeholder.configure({
+			//   placeholder: ({ node }) => {
+			//     return 'Ergänze hier deinen Textbaustein...';
+			//   },
+			// }),
+		],
+		immediatelyRender: false,
 		injectCSS: false,
+		onUpdate: ({ editor: updatedEditor }) => {
+			// Get the HTML and convert to markdoc format
+			const html = updatedEditor.getHTML();
+			setContent(htmlToMarkdoc(html));
+		},
 	});
 
+	useEffect(() => {
+		if (!editor) {
+			return;
+		}
+
+		editor.commands.setMarkdocValidation(validationHighlights);
+	}, [editor, validationHighlights]);
+
 	// Wrap toggle to sync content before switching views
-	const handleToggleSource = () => {
+	const handleToggleSource = useCallback(() => {
 		if (editor && onToggleSource) {
 			// Force sync content before switching to source view
 			const html = editor.getHTML();
@@ -73,22 +89,23 @@ export default function TipTap({
 				onToggleSource();
 			}, 0);
 		}
-	};
+	}, [editor, onToggleSource, setContent]);
 
-	if (!editor) {
-		return null;
-	}
-
-	const handleEditorSurfaceMouseDown = (
-		event: MouseEvent<HTMLDivElement>,
-	) => {
+	const handleEditorSurfaceMouseDown = useCallback(
+		(event: MouseEvent<HTMLDivElement>) => {
 		if (event.target !== event.currentTarget) {
 			return;
 		}
 
 		event.preventDefault();
 		editor.chain().focus().run();
-	};
+		},
+		[editor],
+	);
+
+	if (!editor) {
+		return null;
+	}
 
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden">
@@ -102,6 +119,7 @@ export default function TipTap({
 			<div
 				className="min-h-0 flex-1 overflow-y-auto p-3"
 				onMouseDown={handleEditorSurfaceMouseDown}
+				role="none"
 			>
 				<EditorContent
 					className="h-full [&_.ProseMirror]:h-full [&_.ProseMirror]:min-h-full"

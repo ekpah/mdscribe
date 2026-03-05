@@ -104,10 +104,11 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - Admin settings: `/admin/settings/models` — vertical tabs `Verbindungen` + `Modelle`. Validate connectivity before creating provider.
 
 ### Template Editor
-- WYSIWYG: Markdoc valid by construction — no inline validation in TipTap mode
+- WYSIWYG: Inline Markdoc validation in TipTap mode (red squiggles + hover errors); block save when Markdoc validation has errors
 - Source editing: Admin only (`session.user.email === env.ADMIN_EMAIL`)
 - Page data centralized in `app/templates/_lib/editor-page-data.ts`. Routes under `(editor)/` with auth redirect.
 - Categories: Fetch via `orpc.templates.editorContext`, pass as `categorySuggestions`.
+- Collections: User-managed template collections via `orpc.user.collections.*` with `TemplateCollection` / `TemplateCollectionTemplate` tables.
 
 ### Misc
 - Nuqs + menubar: Keep menubar auth loading client-side — async server wrapper under `NuqsAdapter` causes crashes

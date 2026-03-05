@@ -1,9 +1,13 @@
 "use client";
 
-import Markdoc from "@markdoc/markdoc";
-import { EditorSidebar } from "@repo/design-system/components/editor/_components/EditorSidebar";
-import PlainEditor from "@repo/design-system/components/editor/PlainEditor";
-import TipTap from "@repo/design-system/components/editor/TipTap";
+import Markdoc, { type ValidateError } from "@markdoc/markdoc";
+import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
+import PlainEditor from "@repo/design-system/components/editor/plain-editor";
+import TipTap from "@repo/design-system/components/editor/tip-tap";
+import type {
+	MarkdocTagName,
+	MarkdocValidationHighlight,
+} from "@repo/design-system/components/editor/tiptap-extension";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -16,8 +20,10 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import markdocConfig from "@repo/markdoc-md/markdoc-config";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
@@ -27,6 +33,168 @@ const FALLBACK_CATEGORIES = [
 	"Diverses",
 	"Onkologie",
 ] as const;
+const SAVE_TOAST_ID = "template-save";
+const MARKDOC_TAG_REGEX = /{%\s*(\/?)([A-Za-z][\w-]*)[^%]*?%}/g;
+const MARKDOC_TAG_NAMES: MarkdocTagName[] = ["info", "score", "switch", "case"];
+const MARKDOC_TAG_NAME_SET = new Set<MarkdocTagName>(MARKDOC_TAG_NAMES);
+
+interface TagOccurrence {
+	tagName: MarkdocTagName;
+	index: number;
+	startOffset: number;
+	endOffset: number;
+}
+
+interface MarkdocErrorLocation {
+	start?: {
+		line?: number;
+	};
+}
+
+const isMarkdocTagName = (value: string): value is MarkdocTagName =>
+	MARKDOC_TAG_NAME_SET.has(value as MarkdocTagName);
+
+const buildLineStartOffsets = (source: string) => {
+	const offsets = [0];
+
+	for (let index = 0; index < source.length; index += 1) {
+		if (source[index] === "\n") {
+			offsets.push(index + 1);
+		}
+	}
+
+	return offsets;
+};
+
+const getOffsetFromLocation = (
+	lineStarts: number[],
+	location: MarkdocErrorLocation | undefined,
+	contentLength: number,
+) => {
+	const line = location?.start?.line;
+
+	if (!line) {
+		return null;
+	}
+
+	const lineIndex = line - 1;
+	const lineStart = lineStarts[lineIndex];
+
+	if (lineStart === undefined) {
+		return null;
+	}
+
+	return Math.min(lineStart, contentLength);
+};
+
+const findTagOccurrences = (source: string): TagOccurrence[] => {
+	const occurrences: TagOccurrence[] = [];
+	const counts: Record<MarkdocTagName, number> = {
+		info: 0,
+		score: 0,
+		switch: 0,
+		case: 0,
+	};
+
+	MARKDOC_TAG_REGEX.lastIndex = 0;
+	let match = MARKDOC_TAG_REGEX.exec(source);
+
+	while (match) {
+		const isClosingTag = match[1] === "/";
+		const rawTagName = match[2];
+
+		if (!isClosingTag && rawTagName) {
+			const normalizedTagName = rawTagName.toLowerCase();
+
+			if (isMarkdocTagName(normalizedTagName)) {
+				const index = counts[normalizedTagName];
+
+				occurrences.push({
+					tagName: normalizedTagName,
+					index,
+					startOffset: match.index,
+					endOffset: match.index + match[0].length,
+				});
+
+				counts[normalizedTagName] = index + 1;
+			}
+		}
+
+		match = MARKDOC_TAG_REGEX.exec(source);
+	}
+
+	return occurrences;
+};
+
+const formatValidationMessage = (error: ValidateError) => {
+	const message = error.error?.message ?? "Unbekannter Validierungsfehler";
+	const line = error.error?.location?.start?.line;
+
+	if (!line) {
+		return message;
+	}
+
+	return `${message} (Zeile ${line})`;
+};
+
+const buildValidationHighlights = (
+	source: string,
+	errors: ValidateError[],
+): MarkdocValidationHighlight[] => {
+	if (errors.length === 0 || source.trim() === "") {
+		return [];
+	}
+
+	const occurrences = findTagOccurrences(source);
+	if (occurrences.length === 0) {
+		return [];
+	}
+
+	const lineStarts = buildLineStartOffsets(source);
+	const highlightsByKey = new Map<string, MarkdocValidationHighlight>();
+
+	for (const error of errors) {
+		const offset = getOffsetFromLocation(
+			lineStarts,
+			error.error?.location,
+			source.length,
+		);
+
+		if (offset === null) {
+			continue;
+		}
+
+		const matchedOccurrence = occurrences.find(
+			(occurrence) =>
+				offset >= occurrence.startOffset && offset <= occurrence.endOffset,
+		);
+
+		if (!matchedOccurrence) {
+			continue;
+		}
+
+		const message = formatValidationMessage(error);
+		const key = `${matchedOccurrence.tagName}:${matchedOccurrence.index}`;
+		const existingHighlight = highlightsByKey.get(key);
+
+		if (existingHighlight) {
+			highlightsByKey.set(key, {
+				...existingHighlight,
+				message: `${existingHighlight.message}\n${message}`,
+			});
+		} else {
+			highlightsByKey.set(key, {
+				tagName: matchedOccurrence.tagName,
+				index: matchedOccurrence.index,
+				message,
+			});
+		}
+	}
+
+	return Array.from(highlightsByKey.values());
+};
+
+const isActionableError = (error: unknown): error is Error => error instanceof Error;
 
 export default function Editor({
 	cat,
@@ -44,24 +212,49 @@ export default function Editor({
 	canEditSource?: boolean;
 }) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const [category, setCategory] = useState<string>(cat);
 	const [name, setName] = useState(tit);
 	const [content, setContent] = useState(note ? JSON.parse(note) : "");
 	const [newCategory, setNewCategory] = useState("");
 	const [showSource, setShowSource] = useState(false);
+	const [validationErrors, setValidationErrors] = useState<ValidateError[]>([]);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const validationTimerRef = useRef<number | null>(null);
 	// Counter to force TipTap remount when switching from source view
 	const editorKeyRef = useRef(0);
+
+	const createMutation = useMutation(orpc.templates.create.mutationOptions());
+	const updateMutation = useMutation(orpc.templates.update.mutationOptions());
+
+	const invalidateTemplateQueries = useCallback(async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: orpc.templates.list.queryOptions().queryKey,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: orpc.templates.favourites.queryOptions().queryKey,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: orpc.templates.authored.queryOptions().queryKey,
+			}),
+			queryClient.invalidateQueries({
+				queryKey: orpc.templates.editorContext.queryOptions().queryKey,
+			}),
+		]);
+	}, [queryClient]);
 
 	// Validation for required fields
 	const isFormValid = (() => {
 		const finalCategory = category === "new" ? newCategory : category;
 		return finalCategory.trim() !== "" && name.trim() !== "";
 	})();
+
 	const suggestedCategories = useMemo(() => {
 		const limit = 10;
 		const result: string[] = [];
 		const seen = new Set<string>();
+
 		const addCategory = (value: string) => {
 			const normalized = value.trim();
 			if (!normalized) {
@@ -98,62 +291,213 @@ export default function Editor({
 		return result.slice(0, limit);
 	}, [cat, categorySuggestions]);
 
-	const isMarkdocValid = (contentToValidate: string) => {
+	const validateContent = useCallback((source: string): ValidateError[] => {
 		try {
-			const ast = Markdoc.parse(contentToValidate);
+			const ast = Markdoc.parse(source);
 			const validation = Markdoc.validate(ast, markdocConfig);
-			return !validation.some((result) => result.type === "error");
-		} catch {
-			return false;
+			return validation.filter((result) => result.type === "error");
+		} catch (parseError) {
+			const syntheticError: ValidateError = {
+				type: "error" as const,
+				error: {
+					id: "parse-error",
+					level: "error",
+					message:
+						parseError instanceof Error
+							? parseError.message
+							: "Unbekannter Parse-Fehler",
+					location: {
+						start: { line: 1 },
+						end: { line: 1 },
+					},
+				},
+				lines: [],
+			};
+
+			return [syntheticError];
 		}
-	};
+	}, []);
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!isFormValid) {
-			return;
+	const validationHighlights = useMemo(
+		() => buildValidationHighlights(content, validationErrors),
+		[content, validationErrors],
+	);
+
+	useEffect(() => {
+		if (validationTimerRef.current !== null) {
+			window.clearTimeout(validationTimerRef.current);
 		}
 
-		if (!isMarkdocValid(content)) {
-			toast.error("Bitte behebe die Markdoc-Fehler vor dem Speichern");
-			return;
-		}
+		validationTimerRef.current = window.setTimeout(() => {
+			setValidationErrors(validateContent(content));
+		}, 300);
 
-		setIsSubmitting(true);
-		const finalCategory = category === "new" ? newCategory : category;
-
-		try {
-			if (id) {
-				// Update existing template
-				const updatedTemplate = await orpc.templates.update.call({
-					id,
-					category: finalCategory,
-					name,
-					content,
-				});
-				toast.success("Textbaustein aktualisiert");
-				router.push(`/templates/${updatedTemplate.id}`);
-			} else {
-				// Create new template
-				const newTemplate = await orpc.templates.create.call({
-					category: finalCategory,
-					name,
-					content,
-				});
-				toast.success("Textbaustein erstellt");
-				router.push(`/templates/${newTemplate.id}`);
+		return () => {
+			if (validationTimerRef.current !== null) {
+				window.clearTimeout(validationTimerRef.current);
 			}
-		} catch (error) {
-			console.error("Error saving template:", error);
+		};
+	}, [content, validateContent]);
+
+	const checkContent = useCallback(() => {
+		const checkErrors = validateContent(content);
+		setValidationErrors(checkErrors);
+
+		if (checkErrors.length > 0) {
+			toast.error(`${checkErrors.length} Fehler in der Markdoc-Syntax gefunden`);
+		} else {
+			toast.success("Markdoc-Syntax ist korrekt");
+		}
+	}, [content, validateContent]);
+
+	const handleCreateError = useCallback((error: unknown) => {
+		toast.error(
+			isActionableError(error)
+				? error.message
+				: "Fehler beim Speichern des Textbausteins",
+			{
+				action: {
+					label: "Im Editor bleiben",
+					onClick: () => undefined,
+				},
+				id: SAVE_TOAST_ID,
+			},
+		);
+	}, []);
+
+	const handleEditError = useCallback(
+		(error: unknown, templateId: string) => {
 			toast.error(
-				error instanceof Error
+				isActionableError(error)
 					? error.message
 					: "Fehler beim Speichern des Textbausteins",
+				{
+					action: {
+						label: "Zurück zum Editor",
+						onClick: () => {
+							window.location.assign(`/templates/${templateId}/edit`);
+						},
+					},
+					id: SAVE_TOAST_ID,
+				},
 			);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
+		},
+		[],
+	);
+
+	const handleSubmit = useCallback(
+		async (e: React.FormEvent) => {
+			e.preventDefault();
+			if (!isFormValid) {
+				return;
+			}
+
+			const checkErrors = validateContent(content);
+			if (checkErrors.length > 0) {
+				setValidationErrors(checkErrors);
+				toast.error("Bitte behebe die Markdoc-Fehler vor dem Speichern");
+				return;
+			}
+
+			setIsSubmitting(true);
+			const finalCategory = category === "new" ? newCategory : category;
+
+			if (id) {
+				toast.loading("Änderungen werden im Hintergrund gespeichert...", {
+					id: SAVE_TOAST_ID,
+				});
+
+				const savePromise = updateMutation.mutateAsync({
+					category: finalCategory,
+					content,
+					id,
+					name,
+				});
+
+				router.push(`/templates/${id}`);
+
+				void (async () => {
+					try {
+						const updatedTemplate = await savePromise;
+						await invalidateTemplateQueries();
+						await queryClient.invalidateQueries({
+							queryKey: orpc.templates.get.queryOptions({
+								input: { id: updatedTemplate.id },
+							}).queryKey,
+						});
+						toast.success("Textbaustein aktualisiert", { id: SAVE_TOAST_ID });
+						router.refresh();
+					} catch (error) {
+						handleEditError(error, id);
+					} finally {
+						setIsSubmitting(false);
+					}
+				})();
+				return;
+			}
+
+			toast.loading("Textbaustein wird gespeichert...", { id: SAVE_TOAST_ID });
+			try {
+				const newTemplate = await createMutation.mutateAsync({
+					category: finalCategory,
+					content,
+					name,
+				});
+
+				await invalidateTemplateQueries();
+				await queryClient.invalidateQueries({
+					queryKey: orpc.templates.get.queryOptions({
+						input: { id: newTemplate.id },
+					}).queryKey,
+				});
+				toast.success("Textbaustein erstellt", { id: SAVE_TOAST_ID });
+				router.push(`/templates/${newTemplate.id}`);
+			} catch (error) {
+				handleCreateError(error);
+			} finally {
+				setIsSubmitting(false);
+			}
+		},
+		[
+			category,
+			content,
+			createMutation,
+			handleCreateError,
+			handleEditError,
+			id,
+			invalidateTemplateQueries,
+			isFormValid,
+			name,
+			newCategory,
+			queryClient,
+			router,
+			updateMutation,
+			validateContent,
+		],
+	);
+
+	const handleNewCategoryChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setNewCategory(event.target.value);
+		},
+		[],
+	);
+
+	const handleNameChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setName(event.target.value);
+		},
+		[],
+	);
+
+	const handleSwitchToVisualEditor = useCallback(() => {
+		editorKeyRef.current += 1;
+		setShowSource(false);
+	}, []);
+
+	const handleSwitchToSource = useCallback(() => {
+		setShowSource(true);
+	}, []);
 
 	return (
 		<div className="flex h-[calc(100vh-(--spacing(16))-(--spacing(6)))] gap-4">
@@ -205,7 +549,7 @@ export default function Editor({
 								</Label>
 								<Input
 									id="newCategory"
-									onChange={(e) => setNewCategory(e.target.value)}
+									onChange={handleNewCategoryChange}
 									placeholder="Füge eine Kategorie hinzu"
 									value={newCategory}
 									className={
@@ -226,7 +570,7 @@ export default function Editor({
 							<Input
 								id="name"
 								name="name"
-								onChange={(e) => setName(e.target.value)}
+								onChange={handleNameChange}
 								placeholder="Vorlagenname eingeben"
 								value={name}
 								className={name.trim() === "" ? "border-solarized-red" : ""}
@@ -244,10 +588,7 @@ export default function Editor({
 							{showSource ? (
 								<PlainEditor
 									note={content}
-									onToggleSource={() => {
-										editorKeyRef.current += 1;
-										setShowSource(false);
-									}}
+									onToggleSource={handleSwitchToVisualEditor}
 									setContent={setContent}
 									showSource={showSource}
 								/>
@@ -255,19 +596,62 @@ export default function Editor({
 								<TipTap
 									key={`tiptap-${editorKeyRef.current}`}
 									note={content}
-									onToggleSource={
-										canEditSource ? () => setShowSource(true) : undefined
-									}
+									onToggleSource={canEditSource ? handleSwitchToSource : undefined}
 									setContent={setContent}
 									showSource={showSource}
+									validationHighlights={validationHighlights}
 								/>
 							)}
 						</div>
+
+						{validationErrors.length > 0 && (
+							<div className="mt-2 max-h-32 shrink-0 space-y-2 overflow-y-auto">
+								<div className="rounded-md border border-solarized-red bg-solarized-red/10 p-3">
+									<div className="flex items-center space-x-2 font-medium text-sm text-solarized-red">
+										<AlertCircle className="h-4 w-4" />
+										<span>Fehler ({validationErrors.length})</span>
+									</div>
+									<ul className="mt-2 space-y-1 text-sm text-solarized-red/80">
+										{validationErrors.map((error, index) => (
+											<li
+												className="flex items-start space-x-2"
+												key={`error-${error.error?.message || "unknown"}-${index}`}
+											>
+												<span className="text-solarized-red">•</span>
+												<div className="flex-1">
+													<div className="flex items-center space-x-2">
+														{error.error?.location && (
+															<span className="rounded bg-solarized-red/20 px-2 py-1 font-mono text-solarized-red text-xs">
+																Zeile {error.error.location.start?.line || "unknown"}
+															</span>
+														)}
+														<span className="font-medium text-solarized-red">
+															{error.type === "error" ? "Fehler" : "Warnung"}
+														</span>
+													</div>
+													<p className="mt-1 text-solarized-red/90">
+														{error.error?.message || "Unbekannter Validierungsfehler"}
+													</p>
+												</div>
+											</li>
+										))}
+									</ul>
+								</div>
+							</div>
+						)}
 					</div>
 					<div className="flex shrink-0 flex-row gap-2">
 						<Button
+							className="mt-2 w-1/10"
+							onClick={checkContent}
+							type="button"
+							variant="secondary"
+						>
+							Prüfen
+						</Button>
+						<Button
 							className="mt-2 w-full"
-							disabled={isSubmitting || !isFormValid}
+							disabled={isSubmitting || validationErrors.length > 0 || !isFormValid}
 							type="submit"
 						>
 							{(() => {
@@ -276,6 +660,9 @@ export default function Editor({
 								}
 								if (!isFormValid) {
 									return "Kategorie und Name erforderlich";
+								}
+								if (validationErrors.length > 0) {
+									return "Behebe Fehler um zu speichern";
 								}
 								return "Textbaustein speichern";
 							})()}

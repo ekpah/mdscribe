@@ -12,6 +12,7 @@ import { getUsage } from "./scribe/_lib/get-usage";
 import { templatesHandler } from "./templates";
 import { findRelevantTemplateHandler } from "./templates/search";
 import { activityHandler } from "./user/activity";
+import { collectionsHandler } from "./user/collections";
 import { snippetsHandler } from "./user/snippets";
 
 /**
@@ -50,6 +51,9 @@ export const router = {
 	// User-specific operations
 	user: {
 		...activityHandler,
+		collections: {
+			...collectionsHandler,
+		},
 		snippets: {
 			...snippetsHandler,
 		},
