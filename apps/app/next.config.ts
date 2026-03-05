@@ -2,6 +2,8 @@ import markdocConfig from "@markdoc/next.js";
 import { createJiti } from "jiti";
 import type { NextConfig } from "next";
 import { createSecureHeaders } from "next-secure-headers";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const jiti = createJiti(import.meta.url);
 
