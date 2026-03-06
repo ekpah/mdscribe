@@ -9,14 +9,14 @@ import {
 	type MarkdocValidationHighlight,
 } from "@repo/design-system/components/editor/tiptap-extension";
 import { cn } from "@repo/design-system/lib/utils";
-import { htmlToMarkdoc } from "@repo/markdoc-md/parse/html-to-markdoc";
-import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";
+import { htmlToMarkdoc } from "@repo/markdoc-md/parse/htmlToMarkdoc";
+import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/renderMarkdocAsTipTapHTML";
 import { EditorContent, useEditor } from "@tiptap/react";
 import TipTapStarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { useCallback, useEffect } from "react";
 import type { MouseEvent } from "react";
-import TipTapMenu from "./_components/tip-tap-menu";
+import TipTapMenu from "./_components/TipTapMenu";
 
 export default function TipTap({
 	note,

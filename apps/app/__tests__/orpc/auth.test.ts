@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { account, eq, session, user, verification } from "@repo/database";
-import { createMockSession, createTestContext, createTestUser, startTestServer } from '../setup';
-import type { TestServer } from '../setup';
+import { createTestContext, createTestUser, startTestServer } from "../setup";
+import type { TestServer } from "../setup";
 
 /**
  * Authentication flow tests
@@ -78,41 +78,6 @@ describe("Authentication Flow", () => {
 		});
 	});
 
-	describe("Session Management", () => {
-		test("createMockSession creates valid session object", () => {
-			const mockSession = createMockSession({
-				email: "mock@example.com",
-				id: "user-123",
-				name: "Mock User",
-				stripeCustomerId: "cus_mock_123",
-			});
-
-			expect(mockSession).toBeDefined();
-			expect(mockSession.user.id).toBe("user-123");
-			expect(mockSession.user.email).toBe("mock@example.com");
-			expect(mockSession.user.name).toBe("Mock User");
-			expect(mockSession.user.stripeCustomerId).toBe("cus_mock_123");
-			expect(mockSession.session.userId).toBe("user-123");
-			expect(mockSession.session.token).toBeDefined();
-			expect(mockSession.session.expiresAt).toBeInstanceOf(Date);
-			expect(mockSession.session.expiresAt.getTime()).toBeGreaterThan(
-				Date.now(),
-			);
-		});
-
-		test("createMockSession uses defaults for optional fields", () => {
-			const mockSession = createMockSession({
-				email: "defaults@example.com",
-				id: "user-456",
-			});
-
-			expect(mockSession.user.name).toBe("Test User");
-			expect(mockSession.user.emailVerified).toBe(true);
-			expect(mockSession.user.stripeCustomerId).toBeDefined();
-			expect(mockSession.user.stripeCustomerId).toMatch(/^cus_test_/);
-		});
-	});
-
 	describe("Test Context", () => {
 		test("createTestContext creates context with database", () => {
 			const context = createTestContext({ db: server.db });
@@ -122,15 +87,15 @@ describe("Authentication Flow", () => {
 		});
 
 		test("createTestContext includes session when provided", async () => {
-			const { user: testUser } = await createTestUser(server.db);
-			const mockSession = createMockSession(testUser);
+			const { session: testSession, user: testUser } =
+				await createTestUser(server.db);
 			const context = createTestContext({
 				db: server.db,
-				session: mockSession,
+				session: testSession,
 			});
 
 			expect(context.db).toBe(server.db);
-			expect(context.session).toBe(mockSession);
+			expect(context.session).toBe(testSession);
 			expect(context.session?.user.id).toBe(testUser.id);
 		});
 	});

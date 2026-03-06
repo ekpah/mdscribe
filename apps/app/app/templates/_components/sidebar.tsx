@@ -65,7 +65,7 @@ import {
 import { useHotkeys } from 'react-hotkeys-hook';
 import { toast } from 'sonner';
 import { orpc } from '@/lib/orpc';
-import { CollectionSwitcher } from './collection-switcher';
+import { CollectionSwitcher } from './CollectionSwitcher';
 
 interface Template {
   category: string;
