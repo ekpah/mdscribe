@@ -1,14 +1,17 @@
 import { type } from "@orpc/server";
 import {
 	and,
+	asc,
 	count,
 	desc,
 	eq,
 	favourites,
 	sql,
 	template,
+	templateExample,
 	user,
 	type Template,
+	type TemplateExample,
 	type User,
 } from "@repo/database";
 import { env } from "@repo/env";
@@ -33,9 +36,12 @@ const favouriteCount = (templateId: typeof template.id) =>
 
 type TemplateWithRelations = Template & {
 	favouriteOf: Array<{ id: string }>;
+	examples: TemplateExampleSummary[];
 	author: User;
 	_count: { favouriteOf: number };
 };
+
+type TemplateExampleSummary = Pick<TemplateExample, "id" | "content">;
 
 // ============================================================================
 // Embedding Generation
@@ -62,6 +68,12 @@ ${content}`;
 	return { embedding };
 }
 
+const buildTemplateExampleRows = (templateId: string, examples: string[]) =>
+	examples.map((example) => ({
+		templateId,
+		content: example,
+	}));
+
 // ============================================================================
 // Input Schemas
 // ============================================================================
@@ -74,6 +86,10 @@ const createTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
 	name: z.string().min(1, "Name is required"),
 	content: z.string(),
+	examples: z
+		.array(z.string().trim().min(1, "Example content is required"))
+		.max(10, "A maximum of 10 examples is allowed")
+		.default([]),
 });
 
 const updateTemplateInput = z.object({
@@ -81,6 +97,10 @@ const updateTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
 	name: z.string().min(1, "Name is required"),
 	content: z.string(),
+	examples: z
+		.array(z.string().trim().min(1, "Example content is required"))
+		.max(10, "A maximum of 10 examples is allowed")
+		.default([]),
 });
 
 const favouriteInput = z.object({
@@ -177,21 +197,30 @@ const getTemplateHandler = pub
 			return null;
 		}
 
-		// Get users who favourited this template
-		const favouriteUsers = await context.db
-			.select({ id: favourites.userId })
-			.from(favourites)
-			.where(eq(favourites.templateId, input.id));
-
-		// Get count
-		const [countResult] = await context.db
-			.select({ count: count() })
-			.from(favourites)
-			.where(eq(favourites.templateId, input.id));
+		const [favouriteUsers, countResult, examples] = await Promise.all([
+			context.db
+				.select({ id: favourites.userId })
+				.from(favourites)
+				.where(eq(favourites.templateId, input.id)),
+			context.db
+				.select({ count: count() })
+				.from(favourites)
+				.where(eq(favourites.templateId, input.id))
+				.then((result) => result[0]),
+			context.db
+				.select({
+					id: templateExample.id,
+					content: templateExample.content,
+				})
+				.from(templateExample)
+				.where(eq(templateExample.templateId, input.id))
+				.orderBy(asc(templateExample.createdAt)),
+		]);
 
 		return {
 			...templateData,
 			favouriteOf: favouriteUsers,
+			examples,
 			author: templateData.author as User,
 			_count: { favouriteOf: Number(countResult?.count ?? 0) },
 		};
@@ -327,25 +356,34 @@ const createTemplateHandler = authed
 			input.name,
 			input.category,
 		);
+		const examples = input.examples.map((example) => example.trim());
 
-		const result = await context.db
-			.insert(template)
-			.values({
-				category: input.category,
-				title: input.name,
-				content: input.content,
-				authorId: context.session.user.id,
-				updatedAt: new Date(),
-				embedding: embedding,
-			})
-			.returning();
+		return context.db.transaction(async (tx) => {
+			const result = await tx
+				.insert(template)
+				.values({
+					category: input.category,
+					title: input.name,
+					content: input.content,
+					authorId: context.session.user.id,
+					updatedAt: new Date(),
+					embedding: embedding,
+				})
+				.returning();
 
-		const newTemplate = result[0];
-		if (!newTemplate) {
-			throw new Error("Failed to create template");
-		}
+			const newTemplate = result[0];
+			if (!newTemplate) {
+				throw new Error("Failed to create template");
+			}
 
-		return newTemplate;
+			if (examples.length > 0) {
+				await tx
+					.insert(templateExample)
+					.values(buildTemplateExampleRows(newTemplate.id, examples));
+			}
+
+			return newTemplate;
+		});
 	});
 
 /**
@@ -359,30 +397,43 @@ const updateTemplateHandler = authed
 			input.name,
 			input.category,
 		);
+		const examples = input.examples.map((example) => example.trim());
 
-		const result = await context.db
-			.update(template)
-			.set({
-				category: input.category,
-				title: input.name,
-				content: input.content,
-				updatedAt: new Date(),
-				embedding: embedding,
-			})
-			.where(
-				and(
-					eq(template.id, input.id),
-					eq(template.authorId, context.session.user.id),
-				),
-			)
-			.returning();
+		return context.db.transaction(async (tx) => {
+			const result = await tx
+				.update(template)
+				.set({
+					category: input.category,
+					title: input.name,
+					content: input.content,
+					updatedAt: new Date(),
+					embedding: embedding,
+				})
+				.where(
+					and(
+						eq(template.id, input.id),
+						eq(template.authorId, context.session.user.id),
+					),
+				)
+				.returning();
 
-		const updatedTemplate = result[0];
-		if (!updatedTemplate) {
-			throw new Error("Failed to update template or template not found");
-		}
+			const updatedTemplate = result[0];
+			if (!updatedTemplate) {
+				throw new Error("Failed to update template or template not found");
+			}
 
-		return updatedTemplate;
+			await tx
+				.delete(templateExample)
+				.where(eq(templateExample.templateId, updatedTemplate.id));
+
+			if (examples.length > 0) {
+				await tx
+					.insert(templateExample)
+					.values(buildTemplateExampleRows(updatedTemplate.id, examples));
+			}
+
+			return updatedTemplate;
+		});
 	});
 
 // ============================================================================

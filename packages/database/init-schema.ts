@@ -62,6 +62,16 @@ export const initSchemaSQL = `
 		"embedding" vector(1024)
 	);
 
+	CREATE TABLE IF NOT EXISTS "TemplateExample" (
+		"id" TEXT PRIMARY KEY,
+		"templateId" TEXT NOT NULL REFERENCES "Template"("id") ON DELETE CASCADE,
+		"content" TEXT NOT NULL,
+		"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS "TemplateExample_templateId_idx" ON "TemplateExample"("templateId");
+
 	CREATE TABLE IF NOT EXISTS "TemplateCollection" (
 		"id" TEXT PRIMARY KEY,
 		"userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,

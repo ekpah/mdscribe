@@ -359,28 +359,28 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		setMessages([]);
 		setActiveTab("output");
 
-			try {
-				// Handle custom API call if provided
-				if (customApiCall) {
-					await customApiCall(inputData, additionalInputData);
-				}
+		try {
+			// Handle custom API call if provided
+			if (customApiCall) {
+				await customApiCall(inputData, additionalInputData);
+			}
 
-				// Prepare prompt
-				const prompt = customPromptProcessor
-					? customPromptProcessor(inputData, additionalInputData)
-					: JSON.stringify({
-							[inputFieldName]: inputData,
-							...additionalInputData,
-						});
+			// Prepare prompt
+			const prompt = customPromptProcessor
+				? customPromptProcessor(inputData, additionalInputData)
+				: JSON.stringify({
+						[inputFieldName]: inputData,
+						...additionalInputData,
+					});
 
 			// Prepare audio files if available - update ref synchronously before sendMessage
-				if (audioRecordings.length > 0) {
-					const audioFiles = await Promise.all(
-						audioRecordings.map(async (recording) => {
-							const audioBase64 = await blobToBase64(recording.blob);
-							return {
-								data: audioBase64,
-								mimeType: recording.blob.type,
+			if (audioRecordings.length > 0) {
+				const audioFiles = await Promise.all(
+					audioRecordings.map(async (recording) => {
+						const audioBase64 = await blobToBase64(recording.blob);
+						return {
+							data: audioBase64,
+							mimeType: recording.blob.type,
 						};
 					}),
 				);
@@ -390,9 +390,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 				// Clear ref if no audio recordings
 				preparedAudioFilesRef.current = [];
 			}
-
-			// Keep transport reads in sync with latest selection before submit
-			selectedModelRef.current = model;
 
 			// Send message using AI SDK useChat
 			const promptText =
@@ -411,13 +408,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		areRequiredFieldsFilled,
 		hasMissingRequiredFields,
 		requiredFieldsMessage,
-			setMessages,
-			sendMessage,
-			customApiCall,
-			customPromptProcessor,
-			inputFieldName,
-			audioRecordings,
-		]);
+		setMessages,
+		sendMessage,
+		customApiCall,
+		customPromptProcessor,
+		inputFieldName,
+		audioRecordings,
+	]);
 
 	useHotkeys(
 		["meta+shift+1", "ctrl+shift+1"],

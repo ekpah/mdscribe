@@ -3,6 +3,7 @@
 import { cn } from "@repo/design-system/lib/utils";
 import { diffLines, diffWords } from "diff";
 import { Check, RotateCcw } from "lucide-react";
+import type { ChangeEvent, CSSProperties } from "react";
 import { useCallback, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "../ui/button";
@@ -30,6 +31,8 @@ interface DiffEditorProps {
 	actionSlot?: React.ReactNode;
 	/** Diff algorithm to use: "word" for word-level diff, "line" for line-level diff */
 	diffMode?: "word" | "line";
+	/** Minimum editor height in pixels */
+	minHeight?: number;
 }
 
 interface DiffPart {
@@ -52,6 +55,7 @@ export function MarkdownDiffEditor({
 	onSuggestionRejected,
 	actionSlot,
 	diffMode = "word",
+	minHeight = 120,
 }: DiffEditorProps) {
 	// Determine if we're in diff mode
 	const isInDiffMode = suggestedValue !== undefined && suggestedValue !== null;
@@ -136,11 +140,29 @@ export function MarkdownDiffEditor({
 		onSuggestionRejected?.();
 	}, [isStreaming, onSuggestionRejected]);
 
+	const handleEditorChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			onChange(event.currentTarget.value);
+		},
+		[onChange],
+	);
+
+	const editorStyle = useMemo(
+		() =>
+			({
+				"--editor-min-height": `${minHeight}px`,
+			}) as CSSProperties,
+		[minHeight],
+	);
+
 	if (isInDiffMode) {
 		// Show loading state while waiting for first stream content
 		if (isStreaming && suggestedValue === "") {
 			return (
-				<div className="relative min-h-[var(--editor-min-height)] rounded-lg border border-solarized-blue/30 bg-background ring-2 ring-solarized-blue/20 field-sizing-content">
+				<div
+					className="relative min-h-[var(--editor-min-height)] rounded-lg border border-solarized-blue/30 bg-background ring-2 ring-solarized-blue/20 field-sizing-content"
+					style={editorStyle}
+				>
 					{/* Loading overlay */}
 					<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 rounded-lg">
 						<div className="h-5 w-5 animate-spin rounded-full border-2 border-solarized-blue border-t-transparent" />
@@ -156,7 +178,7 @@ export function MarkdownDiffEditor({
 		// If there are no changes after streaming completes, show the text with a subtle note
 		if (!hasChanges && !isStreaming) {
 			return (
-				<div className="space-y-2">
+				<div className="space-y-2" style={editorStyle}>
 					{/* Show the text as-is */}
 					<div className="min-h-[var(--editor-min-height)] whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-sm leading-relaxed field-sizing-content">
 						{value || " "}
@@ -189,6 +211,7 @@ export function MarkdownDiffEditor({
 					"ring-2 ring-solarized-blue/20",
 					isStreaming && "animate-pulse",
 				)}
+				style={editorStyle}
 			>
 				<div className="space-y-3 p-3">
 					{/* Diff view - word or line level highlighting, no individual scrolling */}
@@ -298,6 +321,7 @@ export function MarkdownDiffEditor({
 				disabled && "cursor-not-allowed opacity-50",
 				className,
 			)}
+			style={editorStyle}
 		>
 			<Textarea
 				className={cn(
@@ -307,7 +331,7 @@ export function MarkdownDiffEditor({
 				)}
 				disabled={disabled}
 				id={id}
-				onChange={(event) => onChange(event.currentTarget.value)}
+				onChange={handleEditorChange}
 				placeholder={placeholder}
 				value={value}
 			/>

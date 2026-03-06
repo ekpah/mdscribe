@@ -1,8 +1,11 @@
-import "server-only";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import * as schema from "./schema";
+
+if (typeof window !== "undefined") {
+	throw new Error("Database client can only run on the server");
+}
 
 const connectionString = process.env.POSTGRES_DATABASE_URL;
 

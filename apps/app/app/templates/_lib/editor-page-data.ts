@@ -8,6 +8,7 @@ export interface TemplateEditorData {
 	categorySuggestions: string[];
 	tit: string;
 	note: string;
+	examples: string[];
 	id?: string;
 	canEditSource: boolean;
 }
@@ -41,6 +42,7 @@ export async function getCreateTemplateEditorData({
 		cat: forkedTemplate?.category || "",
 		tit: forkedTemplate?.title || "",
 		note: JSON.stringify(forkedTemplate?.content || ""),
+		examples: (forkedTemplate?.examples ?? []).map((example) => example.content),
 	};
 }
 
@@ -64,6 +66,7 @@ export async function getEditTemplateEditorData({
 		cat: doc.category || "",
 		tit: doc.title || "",
 		note: JSON.stringify(doc.content || ""),
+		examples: (doc.examples ?? []).map((example) => example.content),
 		id,
 	};
 }

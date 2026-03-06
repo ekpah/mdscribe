@@ -64,7 +64,9 @@ Größe: {% info "Patientengroesse" type="number" unit="cm" renderUnit=true /%},
           </BreadcrumbList>
         </Breadcrumb>
         <NavActions
+          contentView="template"
           favouriteOfCount={0}
+          hasExamples={false}
           isAuthor={false}
           isFavourite={false}
           isLoggedIn={false}
@@ -72,7 +74,7 @@ Größe: {% info "Patientengroesse" type="number" unit="cm" renderUnit=true /%},
           templateId={''}
         />
       </div>
-      <ContentSection inputTags={JSON.stringify([])} note={templateGuide} />
+      <ContentSection examples={[]} note={templateGuide} />
     </div>
   );
 }

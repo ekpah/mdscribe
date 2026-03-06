@@ -6,7 +6,6 @@ import {
 	BreadcrumbSeparator,
 } from "@repo/design-system/components/ui/breadcrumb";
 import { SidebarTrigger } from "@repo/design-system/components/ui/sidebar";
-import parseMarkdocToInputs from "@repo/markdoc-md/parse/parseMarkdocToInputs";
 import { QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -14,6 +13,8 @@ import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 import ContentSection from "./_components/ContentSection";
 import { NavActions } from "./_components/NavActions";
+
+type TemplateContentView = "template" | "examples";
 
 export async function generateMetadata({
 	params,
@@ -33,10 +34,14 @@ export async function generateMetadata({
 
 export default async function NotePage({
 	params,
+	searchParams,
 }: PageProps<"/templates/[id]">) {
 	const queryClient = new QueryClient();
 	const session = await getServerSession();
 	const { id } = await params;
+	const { view } = await searchParams;
+	const contentView: TemplateContentView =
+		view === "examples" ? "examples" : "template";
 	const doc = await queryClient.fetchQuery(
 		orpc.templates.get.queryOptions({ input: { id } }),
 	);
@@ -44,7 +49,6 @@ export default async function NotePage({
 		throw new Error("Document not found");
 	}
 
-	const inputTags = parseMarkdocToInputs(doc.content);
 	const author = doc.author || { email: "Anonym" };
 	const isFavourite = doc?.favouriteOf.some(
 		(user: { id: string | undefined }) => user.id === session?.user?.id,
@@ -74,11 +78,14 @@ export default async function NotePage({
 					isLoggedIn={!!session?.user?.id}
 					lastEdited={doc.updatedAt}
 					templateId={doc.id}
+					contentView={contentView}
+					hasExamples={doc.examples.length > 0}
 				/>
 			</div>
 			<ContentSection
-				inputTags={JSON.stringify(inputTags)}
+				examples={doc.examples.map((example) => example.content)}
 				note={doc.content}
+				showExamples={contentView === "examples"}
 			/>
 		</div>
 	);

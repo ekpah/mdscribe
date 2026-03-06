@@ -1,9 +1,9 @@
 "use client";
 
 import Markdoc, { type ValidateError } from "@markdoc/markdoc";
-import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
-import PlainEditor from "@repo/design-system/components/editor/plain-editor";
-import TipTap from "@repo/design-system/components/editor/tip-tap";
+import { EditorSidebar } from "@repo/design-system/components/editor/_components/EditorSidebar";
+import PlainEditor from "@repo/design-system/components/editor/PlainEditor";
+import TipTap from "@repo/design-system/components/editor/TipTap";
 import type {
 	MarkdocTagName,
 	MarkdocValidationHighlight,
@@ -19,9 +19,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/design-system/components/ui/tabs";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
 import markdocConfig from "@repo/markdoc-md/markdoc-config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -33,6 +40,7 @@ const FALLBACK_CATEGORIES = [
 	"Diverses",
 	"Onkologie",
 ] as const;
+const MAX_TEMPLATE_EXAMPLES = 10;
 const SAVE_TOAST_ID = "template-save";
 const MARKDOC_TAG_REGEX = /{%\s*(\/?)([A-Za-z][\w-]*)[^%]*?%}/g;
 const MARKDOC_TAG_NAMES: MarkdocTagName[] = ["info", "score", "switch", "case"];
@@ -201,6 +209,7 @@ export default function Editor({
 	categorySuggestions = [],
 	tit,
 	note,
+	examples: initialExamples = [],
 	id,
 	canEditSource = false,
 }: {
@@ -208,6 +217,7 @@ export default function Editor({
 	categorySuggestions?: string[];
 	tit: string;
 	note: string;
+	examples?: string[];
 	id?: string;
 	canEditSource?: boolean;
 }) {
@@ -216,6 +226,9 @@ export default function Editor({
 	const [category, setCategory] = useState<string>(cat);
 	const [name, setName] = useState(tit);
 	const [content, setContent] = useState(note ? JSON.parse(note) : "");
+	const [examples, setExamples] = useState<string[]>(
+		initialExamples.slice(0, MAX_TEMPLATE_EXAMPLES),
+	);
 	const [newCategory, setNewCategory] = useState("");
 	const [showSource, setShowSource] = useState(false);
 	const [validationErrors, setValidationErrors] = useState<ValidateError[]>([]);
@@ -290,6 +303,32 @@ export default function Editor({
 
 		return result.slice(0, limit);
 	}, [cat, categorySuggestions]);
+
+	const hasExampleCapacity = examples.length < MAX_TEMPLATE_EXAMPLES;
+
+	const handleAddExample = useCallback(() => {
+		setExamples((currentExamples) => {
+			if (currentExamples.length >= MAX_TEMPLATE_EXAMPLES) {
+				return currentExamples;
+			}
+
+			return [...currentExamples, ""];
+		});
+	}, []);
+
+	const handleRemoveExample = useCallback((indexToRemove: number) => {
+		setExamples((currentExamples) =>
+			currentExamples.filter((_, index) => index !== indexToRemove),
+		);
+	}, []);
+
+	const handleExampleChange = useCallback((indexToUpdate: number, value: string) => {
+		setExamples((currentExamples) =>
+			currentExamples.map((example, index) =>
+				index === indexToUpdate ? value : example,
+			),
+		);
+	}, []);
 
 	const validateContent = useCallback((source: string): ValidateError[] => {
 		try {
@@ -401,6 +440,10 @@ export default function Editor({
 
 			setIsSubmitting(true);
 			const finalCategory = category === "new" ? newCategory : category;
+			const sanitizedExamples = examples
+				.map((example) => example.trim())
+				.filter((example) => example.length > 0)
+				.slice(0, MAX_TEMPLATE_EXAMPLES);
 
 			if (id) {
 				toast.loading("Änderungen werden im Hintergrund gespeichert...", {
@@ -410,6 +453,7 @@ export default function Editor({
 				const savePromise = updateMutation.mutateAsync({
 					category: finalCategory,
 					content,
+					examples: sanitizedExamples,
 					id,
 					name,
 				});
@@ -441,6 +485,7 @@ export default function Editor({
 				const newTemplate = await createMutation.mutateAsync({
 					category: finalCategory,
 					content,
+					examples: sanitizedExamples,
 					name,
 				});
 
@@ -462,6 +507,7 @@ export default function Editor({
 			category,
 			content,
 			createMutation,
+			examples,
 			handleCreateError,
 			handleEditError,
 			id,
@@ -583,63 +629,128 @@ export default function Editor({
 						</div>
 					</div>
 
-					<div className="flex min-h-0 grow flex-col gap-2">
-						<div className="min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
-							{showSource ? (
-								<PlainEditor
-									note={content}
-									onToggleSource={handleSwitchToVisualEditor}
-									setContent={setContent}
-									showSource={showSource}
-								/>
-							) : (
-								<TipTap
-									key={`tiptap-${editorKeyRef.current}`}
-									note={content}
-									onToggleSource={canEditSource ? handleSwitchToSource : undefined}
-									setContent={setContent}
-									showSource={showSource}
-									validationHighlights={validationHighlights}
-								/>
-							)}
-						</div>
+					<Tabs className="min-h-0 grow" defaultValue="template">
+						<TabsList className="mb-2 grid w-fit grid-cols-2">
+							<TabsTrigger value="template">Template</TabsTrigger>
+							<TabsTrigger value="examples">Beispiele</TabsTrigger>
+						</TabsList>
 
-						{validationErrors.length > 0 && (
-							<div className="mt-2 max-h-32 shrink-0 space-y-2 overflow-y-auto">
-								<div className="rounded-md border border-solarized-red bg-solarized-red/10 p-3">
-									<div className="flex items-center space-x-2 font-medium text-sm text-solarized-red">
-										<AlertCircle className="h-4 w-4" />
-										<span>Fehler ({validationErrors.length})</span>
-									</div>
-									<ul className="mt-2 space-y-1 text-sm text-solarized-red/80">
-										{validationErrors.map((error, index) => (
-											<li
-												className="flex items-start space-x-2"
-												key={`error-${error.error?.message || "unknown"}-${index}`}
-											>
-												<span className="text-solarized-red">•</span>
-												<div className="flex-1">
-													<div className="flex items-center space-x-2">
-														{error.error?.location && (
-															<span className="rounded bg-solarized-red/20 px-2 py-1 font-mono text-solarized-red text-xs">
-																Zeile {error.error.location.start?.line || "unknown"}
-															</span>
-														)}
-														<span className="font-medium text-solarized-red">
-															{error.type === "error" ? "Fehler" : "Warnung"}
-														</span>
-													</div>
-													<p className="mt-1 text-solarized-red/90">
-														{error.error?.message || "Unbekannter Validierungsfehler"}
-													</p>
-												</div>
-											</li>
-										))}
-									</ul>
-								</div>
+						<TabsContent className="mt-0 flex min-h-0 grow flex-col gap-2" value="template">
+							<div className="min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
+								{showSource ? (
+									<PlainEditor
+										note={content}
+										onToggleSource={handleSwitchToVisualEditor}
+										setContent={setContent}
+										showSource={showSource}
+									/>
+								) : (
+									<TipTap
+										key={`tiptap-${editorKeyRef.current}`}
+										note={content}
+										onToggleSource={canEditSource ? handleSwitchToSource : undefined}
+										setContent={setContent}
+										showSource={showSource}
+										validationHighlights={validationHighlights}
+									/>
+								)}
 							</div>
-						)}
-					</div>
+
+							{validationErrors.length > 0 && (
+								<div className="mt-2 max-h-32 shrink-0 space-y-2 overflow-y-auto">
+									<div className="rounded-md border border-solarized-red bg-solarized-red/10 p-3">
+										<div className="flex items-center space-x-2 font-medium text-sm text-solarized-red">
+											<AlertCircle className="h-4 w-4" />
+											<span>Fehler ({validationErrors.length})</span>
+										</div>
+										<ul className="mt-2 space-y-1 text-sm text-solarized-red/80">
+											{validationErrors.map((error, index) => (
+												<li
+													className="flex items-start space-x-2"
+													key={`error-${error.error?.message || "unknown"}-${index}`}
+												>
+													<span className="text-solarized-red">•</span>
+													<div className="flex-1">
+														<div className="flex items-center space-x-2">
+															{error.error?.location && (
+																<span className="rounded bg-solarized-red/20 px-2 py-1 font-mono text-solarized-red text-xs">
+																	Zeile {error.error.location.start?.line || "unknown"}
+																</span>
+															)}
+															<span className="font-medium text-solarized-red">
+																{error.type === "error" ? "Fehler" : "Warnung"}
+															</span>
+														</div>
+														<p className="mt-1 text-solarized-red/90">
+															{error.error?.message || "Unbekannter Validierungsfehler"}
+														</p>
+													</div>
+												</li>
+											))}
+										</ul>
+									</div>
+								</div>
+							)}
+						</TabsContent>
+
+						<TabsContent className="mt-0 min-h-0 grow overflow-y-auto rounded-md border p-3" value="examples">
+							<div className="mb-3 flex items-center justify-between gap-2">
+								<div>
+									<p className="font-medium text-sm">Beispiel-Ausgaben</p>
+									<p className="text-muted-foreground text-xs">
+										Finale Ausgaben fuer Few-Shot Guidance ({examples.length}/
+										{MAX_TEMPLATE_EXAMPLES})
+									</p>
+								</div>
+								<Button
+									disabled={!hasExampleCapacity}
+									onClick={handleAddExample}
+									type="button"
+									variant="secondary"
+								>
+									<Plus className="mr-2 h-4 w-4" />
+									Beispiel hinzufuegen
+								</Button>
+							</div>
+
+							{examples.length === 0 ? (
+								<p className="text-muted-foreground text-sm">
+									Noch keine Beispiele hinzugefuegt.
+								</p>
+							) : (
+								<div className="space-y-3">
+									{examples.map((example, index) => (
+										<div className="space-y-2" key={`template-example-${index}`}>
+											<div className="flex items-center justify-between">
+												<Label htmlFor={`template-example-${index}`}>
+													Beispiel {index + 1}
+												</Label>
+												<Button
+													onClick={() => {
+														handleRemoveExample(index);
+													}}
+													size="icon"
+													type="button"
+													variant="ghost"
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</div>
+											<Textarea
+												id={`template-example-${index}`}
+												onChange={(event) => {
+													handleExampleChange(index, event.target.value);
+												}}
+												placeholder="Finale Beispiel-Ausgabe eingeben"
+												rows={4}
+												value={example}
+											/>
+										</div>
+									))}
+								</div>
+							)}
+						</TabsContent>
+					</Tabs>
 					<div className="flex shrink-0 flex-row gap-2">
 						<Button
 							className="mt-2 w-1/10"

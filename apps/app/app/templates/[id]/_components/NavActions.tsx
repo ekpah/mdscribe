@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  BookmarkFilledIcon,
   BookmarkIcon,
   ClockIcon,
   Pencil2Icon,
@@ -9,32 +8,26 @@ import {
   Share1Icon,
 } from '@radix-ui/react-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FolderPlus } from 'lucide-react';
+import { FileText, FolderPlus, ListChecks } from 'lucide-react';
 import Link from 'next/link';
-import type { ChangeEvent, MouseEvent } from 'react';
-import { useCallback, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { orpc } from '@/lib/orpc';
-import { Button } from '@repo/design-system/components/ui/button';
-import { Checkbox } from '@repo/design-system/components/ui/checkbox';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@repo/design-system/components/ui/dialog';
-import { Input } from '@repo/design-system/components/ui/input';
-import { Label } from '@repo/design-system/components/ui/label';
-import { Textarea } from '@repo/design-system/components/ui/textarea';
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/design-system/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/design-system/components/ui/tooltip';
+import { Button } from '@repo/design-system/components/ui/button';
+import { orpc } from '@/lib/orpc';
 
 interface TemplateCollection {
   id: string;
@@ -51,6 +44,8 @@ export const NavActions = ({
   lastEdited,
   templateId,
   favouriteOfCount,
+  contentView,
+  hasExamples,
 }: {
   author?: string;
   isAuthor: boolean;
@@ -59,29 +54,71 @@ export const NavActions = ({
   lastEdited: Date;
   templateId?: string;
   favouriteOfCount: number;
+  contentView: 'template' | 'examples';
+  hasExamples: boolean;
 }) => {
   const [isBookmark, setBookmark] = useState(isFavourite);
   const queryClient = useQueryClient();
-  const [isCollectionDialogOpen, setIsCollectionDialogOpen] = useState(false);
-  const [collectionForm, setCollectionForm] = useState({
-    name: '',
-    description: '',
-  });
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const collectionsQueryKey = orpc.user.collections.list.queryOptions().queryKey;
+  const favouritesQueryKey = orpc.templates.favourites.queryOptions().queryKey;
+  const templatesQueryKey = orpc.templates.list.queryOptions().queryKey;
+
   const invalidateCollections = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: collectionsQueryKey });
   }, [queryClient, collectionsQueryKey]);
 
-  const { data: collections = [], isLoading: isCollectionsLoading } = useQuery({
+  const invalidateTemplateLists = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: favouritesQueryKey }),
+      queryClient.invalidateQueries({ queryKey: templatesQueryKey }),
+    ]);
+  }, [queryClient, favouritesQueryKey, templatesQueryKey]);
+
+  const { data: collections = [] } = useQuery({
     ...orpc.user.collections.list.queryOptions(),
     enabled: isLoggedIn && Boolean(templateId),
   });
+
   const typedCollections = collections as TemplateCollection[];
 
-  const createCollectionMutation = useMutation(
-    orpc.user.collections.create.mutationOptions()
-  );
+  const collectionsContainingTemplate = useMemo(() => {
+    if (!templateId) {
+      return new Set<string>();
+    }
+
+    return new Set(
+      typedCollections
+        .filter((collection) =>
+          collection.templates.some((collectionTemplate) => {
+            return collectionTemplate.id === templateId;
+          })
+        )
+        .map((collection) => collection.id)
+    );
+  }, [templateId, typedCollections]);
+
+  const favouriteMutation = useMutation({
+    mutationFn: async (shouldBeFavourite: boolean) => {
+      if (!templateId) {
+        return;
+      }
+
+      if (shouldBeFavourite) {
+        await orpc.templates.addFavourite.call({ templateId });
+      } else {
+        await orpc.templates.removeFavourite.call({ templateId });
+      }
+    },
+    onSuccess: async (_, shouldBeFavourite) => {
+      setBookmark(shouldBeFavourite);
+      await invalidateTemplateLists();
+    },
+  });
+
   const addTemplateMutation = useMutation(
     orpc.user.collections.addTemplate.mutationOptions({
       onSuccess: () => {
@@ -89,6 +126,7 @@ export const NavActions = ({
       },
     })
   );
+
   const removeTemplateMutation = useMutation(
     orpc.user.collections.removeTemplate.mutationOptions({
       onSuccess: () => {
@@ -97,31 +135,21 @@ export const NavActions = ({
     })
   );
 
-  const makeFavourite = useCallback(
-    async (event: MouseEvent<HTMLElement>) => {
-      event.preventDefault();
-      if (!templateId) {
+  const handleToggleFavourite = useCallback(
+    async (checked: boolean) => {
+      if (!templateId || checked === isBookmark) {
         return;
       }
-      setBookmark(true);
-      await orpc.templates.addFavourite.call({ templateId });
 
-      toast.success('Favorit gespeichert');
-    },
-    [templateId]
-  );
-
-  const unmakeFavourite = useCallback(
-    async (event: MouseEvent<HTMLElement>) => {
-      event.preventDefault();
-      if (!templateId) {
-        return;
+      try {
+        await favouriteMutation.mutateAsync(checked);
+        toast.success(checked ? 'Favorit gespeichert' : 'Favorit entfernt');
+      } catch (error) {
+        console.error('Error updating favourite:', error);
+        toast.error('Fehler beim Aktualisieren der Favoriten');
       }
-      setBookmark(false);
-      await orpc.templates.removeFavourite.call({ templateId });
-      toast.success('Favorit entfernt');
     },
-    [templateId]
+    [templateId, isBookmark, favouriteMutation]
   );
 
   const handleToggleCollection = useCallback(
@@ -145,71 +173,26 @@ export const NavActions = ({
     [templateId, addTemplateMutation, removeTemplateMutation]
   );
 
-  const handleCreateCollection = useCallback(async () => {
-    if (!collectionForm.name.trim()) {
-      toast.error('Bitte geben Sie einen Namen an');
+  const isCollectionMutationPending =
+    addTemplateMutation.isPending || removeTemplateMutation.isPending;
+
+  const handleToggleContentView = useCallback(() => {
+    if (!hasExamples) {
       return;
     }
-    try {
-      const collection = await createCollectionMutation.mutateAsync({
-        description: collectionForm.description,
-        name: collectionForm.name,
-      });
 
-      await invalidateCollections();
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    const nextView = contentView === 'examples' ? 'template' : 'examples';
 
-      if (templateId) {
-        await addTemplateMutation.mutateAsync({
-          collectionId: collection.id,
-          templateId,
-        });
-      }
-
-      setCollectionForm({ name: '', description: '' });
-      toast.success('Sammlung erstellt');
-    } catch (error) {
-      console.error('Error creating collection:', error);
-      toast.error('Fehler beim Erstellen der Sammlung');
+    if (nextView === 'examples') {
+      nextSearchParams.set('view', 'examples');
+    } else {
+      nextSearchParams.delete('view');
     }
-  }, [
-    addTemplateMutation,
-    collectionForm.description,
-    collectionForm.name,
-    createCollectionMutation,
-    invalidateCollections,
-    templateId,
-  ]);
 
-  const handleCollectionDialogChange = useCallback((open: boolean) => {
-    setIsCollectionDialogOpen(open);
-    if (!open) {
-      setCollectionForm({ name: '', description: '' });
-    }
-  }, []);
-
-  const handleCloseCollectionDialog = useCallback(() => {
-    setIsCollectionDialogOpen(false);
-  }, []);
-
-  const handleCollectionNameChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      setCollectionForm((current) => ({
-        ...current,
-        name: event.target.value,
-      }));
-    },
-    []
-  );
-
-  const handleCollectionDescriptionChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      setCollectionForm((current) => ({
-        ...current,
-        description: event.target.value,
-      }));
-    },
-    []
-  );
+    const nextQuery = nextSearchParams.toString();
+    router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  }, [contentView, hasExamples, pathname, router, searchParams]);
 
   return (
     <div className="flex items-center gap-2 text-sm">
@@ -227,143 +210,85 @@ export const NavActions = ({
           })}
       </div>
 
-      {isLoggedIn &&
-        templateId &&
-        (isBookmark ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={unmakeFavourite}
-          >
-            <BookmarkFilledIcon />
-          </Button>
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={makeFavourite}
-          >
-            <BookmarkIcon />
-          </Button>
-        ))}
-
       {isLoggedIn && templateId && (
-        <Dialog
-          onOpenChange={handleCollectionDialogChange}
-          open={isCollectionDialogOpen}
-        >
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="h-7 w-7" size="icon" variant="ghost">
               <FolderPlus className="h-4 w-4" />
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Sammlungen</DialogTitle>
-              <DialogDescription>
-                Ordnen Sie diesen Textbaustein Sammlungen zu.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2 rounded-md border p-3">
-                <div className="space-y-2">
-                  <Label htmlFor="collection-name">Name</Label>
-                  <Input
-                    id="collection-name"
-                    maxLength={100}
-                    onChange={handleCollectionNameChange}
-                    placeholder="Neue Sammlung"
-                    value={collectionForm.name}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="collection-description">Beschreibung</Label>
-                  <Textarea
-                    id="collection-description"
-                    maxLength={500}
-                    onChange={handleCollectionDescriptionChange}
-                    placeholder="Optional"
-                    value={collectionForm.description}
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  disabled={createCollectionMutation.isPending}
-                  onClick={handleCreateCollection}
-                  type="button"
-                  variant="outline"
-                >
-                  {createCollectionMutation.isPending
-                    ? 'Sammlung wird erstellt...'
-                    : 'Sammlung erstellen'}
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {isCollectionsLoading && (
-                  <div className="text-muted-foreground text-sm">
-                    Lade Sammlungen...
-                  </div>
-                )}
-                {!isCollectionsLoading && typedCollections.length === 0 && (
-                  <div className="text-muted-foreground text-sm">
-                    Keine Sammlungen vorhanden.
-                  </div>
-                )}
-                {!isCollectionsLoading && typedCollections.length > 0 && (
-                  <div className="max-h-56 space-y-2 overflow-y-auto">
-                    {typedCollections.map((collection) => {
-                      const isInCollection = collection.templates.some(
-                        (collectionTemplate) => collectionTemplate.id === templateId
-                      );
-                      return (
-                        <label
-                          className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm"
-                          htmlFor={`collection-${collection.id}`}
-                          key={collection.id}
-                        >
-                          <Checkbox
-                            checked={isInCollection}
-                            disabled={
-                              addTemplateMutation.isPending ||
-                              removeTemplateMutation.isPending
-                            }
-                            id={`collection-${collection.id}`}
-                            onCheckedChange={(checked) => {
-                              void handleToggleCollection(
-                                collection.id,
-                                Boolean(checked)
-                              );
-                            }}
-                          />
-                          <div className="flex flex-col">
-                            <span className="font-medium">{collection.name}</span>
-                            {collection.description && (
-                              <span className="text-muted-foreground text-xs">
-                                {collection.description}
-                              </span>
-                            )}
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={handleCloseCollectionDialog}
-                type="button"
-                variant="outline"
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuCheckboxItem
+              checked={isBookmark}
+              disabled={favouriteMutation.isPending}
+              onCheckedChange={(checked) => {
+                void handleToggleFavourite(Boolean(checked));
+              }}
+              onSelect={(event) => {
+                event.preventDefault();
+              }}
+            >
+              <span className="font-medium">Favoriten</span>
+            </DropdownMenuCheckboxItem>
+
+            {typedCollections.length > 0 ? <DropdownMenuSeparator /> : null}
+
+            {typedCollections.map((collection) => (
+              <DropdownMenuCheckboxItem
+                checked={collectionsContainingTemplate.has(collection.id)}
+                className="items-start py-2"
+                disabled={isCollectionMutationPending}
+                key={collection.id}
+                onCheckedChange={(checked) => {
+                  void handleToggleCollection(collection.id, Boolean(checked));
+                }}
+                onSelect={(event) => {
+                  event.preventDefault();
+                }}
               >
-                Schließen
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                <div className="flex flex-col">
+                  <span className="font-medium">{collection.name}</span>
+                  {collection.description ? (
+                    <span className="text-muted-foreground text-xs">
+                      {collection.description}
+                    </span>
+                  ) : null}
+                </div>
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
+
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              className="h-7 w-7"
+              disabled={!hasExamples}
+              onClick={handleToggleContentView}
+              size="icon"
+              type="button"
+              variant={contentView === 'examples' ? 'secondary' : 'ghost'}
+            >
+              {contentView === 'examples' ? (
+                <FileText className="h-4 w-4" />
+              ) : (
+                <ListChecks className="h-4 w-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>
+              {hasExamples
+                ? contentView === 'examples'
+                  ? 'Template anzeigen'
+                  : 'Beispiele anzeigen'
+                : 'Keine Beispiele vorhanden'}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       {!isLoggedIn && <BookmarkIcon />}
       <span className="flex w-12 flex-row font-medium text-muted-foreground">
@@ -372,13 +297,13 @@ export const NavActions = ({
       {isLoggedIn && templateId ? (
         isAuthor ? (
           <Link href={`/templates/${templateId}/edit`}>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Button className="h-7 w-7" size="icon" variant="ghost">
               <Pencil2Icon />
             </Button>
           </Link>
         ) : (
           <Link href={`/templates/create?fork=${templateId}`}>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Button className="h-7 w-7" size="icon" variant="ghost">
               <Share1Icon />
             </Button>
           </Link>

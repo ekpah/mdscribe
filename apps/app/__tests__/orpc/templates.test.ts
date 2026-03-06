@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call } from "@orpc/server";
+import { eq, templateExample } from "@repo/database";
 import { templatesHandler } from "@/orpc/templates";
 import {
 	createMockSession,
@@ -67,6 +68,7 @@ describe("Templates oRPC Handlers", () => {
 				expect(result?.author?.id).toBe(user.id);
 				expect(result?._count?.favouriteOf).toBe(0);
 				expect(result?.favouriteOf).toEqual([]);
+				expect(result?.examples).toEqual([]);
 			});
 
 			test("returns correct favourite count when template is favourited", async () => {
@@ -99,6 +101,35 @@ describe("Templates oRPC Handlers", () => {
 
 				expect(result?._count?.favouriteOf).toBe(2);
 				expect(result?.favouriteOf).toHaveLength(2);
+			});
+
+			test("returns template examples", async () => {
+				const { user } = await createTestUser(server.db);
+				const createdTemplate = await createTestTemplate(server.db, user.id);
+
+				await server.db.insert(templateExample).values([
+					{
+						templateId: createdTemplate.id,
+						content: "Second example",
+					},
+					{
+						templateId: createdTemplate.id,
+						content: "First example",
+					},
+				]);
+
+				const context = createTestContext({ db: server.db });
+
+				const result = await call(
+					templatesHandler.get,
+					{ id: createdTemplate.id },
+					{ context },
+				);
+
+				expect(result?.examples).toHaveLength(2);
+				expect(result?.examples.map((example) => example.content)).toEqual(
+					expect.arrayContaining(["First example", "Second example"]),
+				);
 			});
 		});
 	});
@@ -188,7 +219,7 @@ describe("Templates oRPC Handlers", () => {
 		});
 
 		describe("templates.create", () => {
-			test("creates a new template with embedding", async () => {
+			test("creates a new template with embedding and examples", async () => {
 				const { user } = await createTestUser(server.db);
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
@@ -199,6 +230,7 @@ describe("Templates oRPC Handlers", () => {
 						name: "New Template",
 						category: "Test Category",
 						content: "Template content here",
+						examples: ["Example output one", "Example output two"],
 					},
 					{ context },
 				);
@@ -210,6 +242,15 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.authorId).toBe(user.id);
 				expect(result.embedding).toBeDefined();
 				expect(result.embedding).toHaveLength(1024);
+
+				const savedExamples = await server.db
+					.select()
+					.from(templateExample)
+					.where(eq(templateExample.templateId, result.id));
+				expect(savedExamples).toHaveLength(2);
+				expect(savedExamples.map((example) => example.content)).toEqual(
+					expect.arrayContaining(["Example output one", "Example output two"]),
+				);
 			});
 		});
 
@@ -218,6 +259,10 @@ describe("Templates oRPC Handlers", () => {
 				const { user } = await createTestUser(server.db);
 				const template = await createTestTemplate(server.db, user.id, {
 					title: "Original Title",
+				});
+				await server.db.insert(templateExample).values({
+					templateId: template.id,
+					content: "Old example",
 				});
 
 				const session = createMockSession(user);
@@ -230,6 +275,7 @@ describe("Templates oRPC Handlers", () => {
 						name: "Updated Title",
 						category: "Updated Category",
 						content: "Updated content",
+						examples: ["Updated example one", "Updated example two"],
 					},
 					{ context },
 				);
@@ -237,6 +283,15 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.title).toBe("Updated Title");
 				expect(result.category).toBe("Updated Category");
 				expect(result.content).toBe("Updated content");
+
+				const savedExamples = await server.db
+					.select()
+					.from(templateExample)
+					.where(eq(templateExample.templateId, template.id));
+				expect(savedExamples).toHaveLength(2);
+				expect(savedExamples.map((example) => example.content)).toEqual(
+					expect.arrayContaining(["Updated example one", "Updated example two"]),
+				);
 			});
 
 			test("throws error when updating template not owned by user", async () => {
@@ -260,6 +315,7 @@ describe("Templates oRPC Handlers", () => {
 							name: "Hacked",
 							category: "Hacked",
 							content: "Hacked",
+							examples: [],
 						},
 						{ context },
 					),

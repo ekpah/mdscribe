@@ -133,6 +133,27 @@ export const template = pgTable("Template", {
 	embedding: vector("embedding"),
 });
 
+export const templateExample = pgTable(
+	"TemplateExample",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		templateId: text("templateId")
+			.notNull()
+			.references(() => template.id, { onDelete: "cascade" }),
+		content: text("content").notNull(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow()
+			.$onUpdate(() => new Date()),
+	},
+	(table) => [index("TemplateExample_templateId_idx").on(table.templateId)],
+);
+
 export const templateCollection = pgTable("TemplateCollection", {
 	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
 		.notNull()
@@ -348,7 +369,18 @@ export const templateRelations = relations(template, ({ one, many }) => ({
 	author: one(user, { fields: [template.authorId], references: [user.id] }),
 	collectionTemplates: many(templateCollectionTemplate),
 	favouriteOf: many(favourites),
+	examples: many(templateExample),
 }));
+
+export const templateExampleRelations = relations(
+	templateExample,
+	({ one }) => ({
+		template: one(template, {
+			fields: [templateExample.templateId],
+			references: [template.id],
+		}),
+	}),
+);
 
 export const subscriptionRelations = relations(subscription, ({ one }) => ({
 	user: one(user, {

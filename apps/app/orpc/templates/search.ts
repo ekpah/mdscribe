@@ -13,7 +13,7 @@ const voyageClient = new VoyageAIClient({
 /**
  * Template search result type
  */
-type TemplateSearchResult = {
+interface TemplateSearchResult extends Record<string, unknown> {
 	id: string;
 	title: string;
 	category: string;

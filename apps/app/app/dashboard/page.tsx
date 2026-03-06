@@ -108,7 +108,9 @@ export default async function DashboardPage() {
 	const requestHeaders = await headers();
 	const [session, subscriptions] = await Promise.all([
 		getServerSession(),
-		auth.api.listActiveSubscriptions({ headers: requestHeaders }),
+		auth.api.listActiveSubscriptions({
+			headers: requestHeaders,
+		}),
 	]).catch((_e) => {
 		throw redirect("/sign-in");
 	});

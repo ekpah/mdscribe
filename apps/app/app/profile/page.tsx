@@ -24,20 +24,17 @@ export default async function DashboardPage() {
 	const activeSubscription = subscriptions.find(
 		(sub) => sub.status === "active" || sub.status === "trialing",
 	);
-	const generationLimit =
-		(activeSubscription?.limits?.ai_scribe_generations as number) || 0;
 
 	return (
 		<UserSettings
-			activeSessions={JSON.parse(JSON.stringify(activeSessions))}
-			generationLimit={generationLimit}
-			session={JSON.parse(JSON.stringify(session))}
+			activeSessions={structuredClone(activeSessions)}
+			session={structuredClone(session)}
 			subscription={
 				activeSubscription
-					? JSON.parse(JSON.stringify(activeSubscription))
+					? structuredClone(activeSubscription)
 					: undefined
 			}
-			user={JSON.parse(JSON.stringify(session.user))}
+			user={structuredClone(session.user)}
 		/>
 	);
 }
