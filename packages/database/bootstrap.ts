@@ -1,4 +1,4 @@
-import { database } from "./runtime-client";
+import { database } from "./client";
 import { initSchemaSQL } from "./init-schema";
 import { seedDatabase } from "./seed";
 

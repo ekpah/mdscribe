@@ -17,34 +17,6 @@ const globalForDatabase = globalThis as unknown as {
 	shutdownHandlersRegistered: boolean | undefined;
 };
 
-const registerShutdownHandlers = (client: ReturnType<typeof postgres>): void => {
-	if (globalForDatabase.shutdownHandlersRegistered) {
-		return;
-	}
-
-	let isShuttingDown = false;
-
-	const handleShutdown = async (signal: string) => {
-		if (isShuttingDown) {return;}
-		isShuttingDown = true;
-
-		console.log(`\nReceived ${signal}, closing Postgres client...`);
-		try {
-			await client.end({ timeout: 5 });
-			console.log("Postgres shutdown complete");
-		} catch (error) {
-			console.error("Error during Postgres shutdown:", error);
-		}
-		process.exitCode = 0;
-		process.exit(0);
-	};
-
-	process.on("SIGINT", () => {});
-	process.on("SIGTERM", () => {});
-
-	globalForDatabase.shutdownHandlersRegistered = true;
-};
-
 const createDatabase = () => {
 	if (globalForDatabase.database) {
 		return globalForDatabase.database;
@@ -58,7 +30,6 @@ const createDatabase = () => {
 		});
 
 	globalForDatabase.pgClient = client;
-	registerShutdownHandlers(client);
 
 	const database = drizzle(client, { schema });
 	globalForDatabase.database = database;
