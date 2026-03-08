@@ -41,7 +41,11 @@ Vor dem ersten Produktivstart und bei jedem Schema-Change sollten die Drizzle-Mi
 bun run db:migrate
 ```
 
-Wenn Sie MDScribe per Dockerfile deployen, fuehrt das Produktions-Image diese Migrationen beim Container-Start automatisch aus und startet danach erst die App.
+Wenn Sie MDScribe per Dockerfile ueber Coolify deployen, setzen Sie dafuer einen `Post-deployment`-Hook:
+
+```sh
+cd /app/packages/database && bunx drizzle-kit migrate --config=drizzle.config.ts
+```
 
 ## 2. Umgebungsvariablen (Self-Hosted)
 
@@ -100,7 +104,7 @@ Wenn Sie striktere Grenzen benötigen (z.B. keine externen KI-Endpunkte), ist zu
 
 - [ ] Alle erforderlichen Environment-Variablen gesetzt und valide
 - [ ] TLS und Zugriffsschutz (Auth, Rollen, Admin-Zugänge) geprüft
-- [ ] `bun run db:migrate` erfolgreich gegen die Ziel-Datenbank ausgeführt
+- [ ] `bun run db:migrate` oder der Coolify-Post-deployment-Hook erfolgreich gegen die Ziel-Datenbank ausgeführt
 - [ ] Backup/Restore erfolgreich getestet
 - [ ] Secret-Rotation-Prozess dokumentiert
 - [ ] Logging-/Monitoring-Policy dokumentiert

@@ -126,15 +126,19 @@ Performance tips:
 
 ## Production Database Migrations
 
-For Dockerfile-based deployments such as Coolify, the production image runs Drizzle migrations before the app starts.
+For Dockerfile-based deployments such as Coolify, configure a `Post-deployment` hook instead of running migrations during container startup:
+
+```sh
+cd /app/packages/database && bunx drizzle-kit migrate --config=drizzle.config.ts
+```
+
+The runtime image ships `packages/database` so the hook can read the checked-in Drizzle config and SQL migration files.
 
 If you need to run the same migration step manually against the target database, use:
 
 ```bash
 bun run db:migrate
 ```
-
-Set `RUN_DB_MIGRATIONS_ON_START=false` if you need to skip the startup migration step for a specific container run.
 
 ## Contributing
 

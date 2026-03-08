@@ -59,8 +59,9 @@ bun run db:migrate       # Run Drizzle migrations
 - Use `turbo run lint --filter=app` for package-scoped checks
 - Avoid direct `ultracite check` / `oxlint` / `bun test` at repo level — use Turbo for caching
 - When using Bun with a package-specific cwd, use `bun run --cwd <dir> <script>` or `cd <dir> && bun run <script>`; avoid `bun --cwd <dir> run <script>`
-- Production deploys run through Coolify via the Dockerfile webhook flow; the production image runs startup migrations before the app server starts
-- When changing Docker deploy behavior, keep the runner image shipping the bundled `packages/database/migrate-deploy.mjs` file together with `packages/database/drizzle`
+- Coolify Dockerfile deploys should use a `Post-deployment` hook for DB migrations: `cd /app/packages/database && bunx drizzle-kit migrate --config=drizzle.config.ts`
+- Do not add Docker startup migration entrypoints or bundled migration runners unless the user explicitly asks for that tradeoff
+- Keep `packages/database` in the final runtime image so the Coolify post-deployment hook can read `drizzle.config.ts` and the checked-in `drizzle/` SQL files
 - Database: `cd packages/database && bun run push|generate|dev`
 
 ## Architecture
