@@ -43,6 +43,12 @@ bun run db:migrate
 
 Das Docker-Image startet nur die App und fuehrt keine Migrationen beim Container-Start aus.
 
+Wenn Sie MDScribe per Dockerfile ueber Coolify deployen, setzen Sie dafuer einen `Post-deployment`-Hook:
+
+```sh
+cd /app/packages/database && bunx drizzle-kit migrate --config=drizzle.config.ts
+```
+
 ## 2. Umgebungsvariablen (Self-Hosted)
 
 Fuer Self-Hosting ohne integrierte SaaS-Abrechnung sind nur die Kernvariablen relevant:
@@ -100,7 +106,7 @@ Wenn Sie striktere Grenzen benötigen (z.B. keine externen KI-Endpunkte), ist zu
 
 - [ ] Alle erforderlichen Environment-Variablen gesetzt und valide
 - [ ] TLS und Zugriffsschutz (Auth, Rollen, Admin-Zugänge) geprüft
-- [ ] `bun run db:migrate` erfolgreich gegen die Ziel-Datenbank ausgeführt
+- [ ] `bun run db:migrate` oder der Coolify-Post-deployment-Hook erfolgreich gegen die Ziel-Datenbank ausgeführt
 - [ ] Backup/Restore erfolgreich getestet
 - [ ] Secret-Rotation-Prozess dokumentiert
 - [ ] Logging-/Monitoring-Policy dokumentiert

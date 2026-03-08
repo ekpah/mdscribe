@@ -128,6 +128,14 @@ Performance tips:
 
 Run `bun run db:migrate` in CI/CD before rolling out a version that includes schema changes. The Docker image is expected to start the app only and does not run migrations on container startup. `bun run db:migrate:deploy` remains as a compatibility alias if your deploy system already uses it.
 
+For Dockerfile-based deployments such as Coolify, configure a `Post-deployment` hook instead of running migrations during container startup:
+
+```sh
+cd /app/packages/database && bunx drizzle-kit migrate --config=drizzle.config.ts
+```
+
+The runtime image ships `packages/database` so the hook can read the checked-in Drizzle config and SQL migration files.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
