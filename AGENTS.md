@@ -39,6 +39,7 @@ MDScribe is a medical documentation webapp (monorepo) for organizing medical tem
 ## Git Workflow
 
 - `main` ← `staging` ← feature branches. **AI agents always target `staging`.**
+- Verify the active branch before making claims about CI/CD, deployment files, or release behavior; `main` and `staging` may differ materially.
 - Branch naming: `<agent>/<description>-<session-id>`, `feature/<desc>`, `fix/<desc>`, `review/prs-<numbers>`
 - **Never commit without explicit user confirmation.** Leave changes unstaged for review.
 - **No AI attribution** in commits — no `Co-Authored-By`, no model/tool names.

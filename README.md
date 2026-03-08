@@ -126,7 +126,7 @@ Performance tips:
 
 ## Production Database Migrations
 
-Run `bun run db:migrate` in CI/CD before rolling out a version that includes schema changes. The Docker image is expected to start the app only and does not run migrations on container startup.
+Run `bun run db:migrate` in CI/CD before rolling out a version that includes schema changes. The Docker image is expected to start the app only and does not run migrations on container startup. `bun run db:migrate:deploy` remains as a compatibility alias if your deploy system already uses it.
 
 ## Contributing
 
