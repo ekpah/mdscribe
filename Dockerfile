@@ -18,6 +18,18 @@ WORKDIR /app
 COPY --from=pruner /app/out/json/ ./
 RUN bun install --frozen-lockfile
 
+# ---- Migration Builder ----
+FROM base AS migration-builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=pruner /app/out/full/ ./
+
+RUN bun build packages/database/migrate-deploy.ts \
+	--outfile packages/database/migrate-deploy.mjs \
+	--format esm \
+	--target bun
+
 # ---- Builder ----
 # Use Node for Next.js build compatibility (Next 16 build workers rely on
 # worker_threads options that Bun doesn't fully implement yet).
@@ -54,12 +66,9 @@ COPY --from=builder --chown=bun:bun /app/apps/app/.next/static ./apps/app/.next/
 # Copy public files
 COPY --from=builder --chown=bun:bun /app/apps/app/public ./apps/app/public
 
-# Copy deployment migration assets and the Bun package store entries they resolve through.
-COPY --from=deps --chown=bun:bun /app/node_modules/.bun ./node_modules/.bun
-COPY --from=deps --chown=bun:bun /app/packages/database/node_modules ./packages/database/node_modules
-COPY --from=builder --chown=bun:bun /app/packages/database/package.json ./packages/database/package.json
-COPY --from=builder --chown=bun:bun /app/packages/database/migrate-deploy.ts ./packages/database/migrate-deploy.ts
-COPY --from=builder --chown=bun:bun /app/packages/database/drizzle ./packages/database/drizzle
+# Copy deployment migration assets and bundled startup runner.
+COPY --from=migration-builder --chown=bun:bun /app/packages/database/migrate-deploy.mjs ./packages/database/migrate-deploy.mjs
+COPY --from=migration-builder --chown=bun:bun /app/packages/database/drizzle ./packages/database/drizzle
 COPY --chown=bun:bun --chmod=755 scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 
 EXPOSE 3000
