@@ -118,9 +118,7 @@ mdscribe/
 | `bun run db:reset` | Stop local PostgreSQL and remove its volume |
 | `bun run db:logs` | Tail PostgreSQL logs |
 | `bun run db:init` | Re-run schema + idempotent seed against local Postgres |
-| `bun run migrate` | Apply tracked Drizzle migrations against the configured database |
-| `bun run migrate:kit` | Run the Drizzle Kit CLI migrator (dev environments only) |
-| `bun run db:migrate:deploy` | Alias for the deploy-safe migration runner |
+| `bun run db:migrate` | Apply tracked Drizzle migrations against the configured database |
 
 Performance tips:
 - Use `bun run lint:affected && bun run test:affected` during normal development.
@@ -128,21 +126,13 @@ Performance tips:
 
 ## Production Database Migrations
 
-For Docker-based deployments, the production image now runs Drizzle migrations before the app starts. This is the default behavior used by Coolify.
-
-If you need to run the same migration step manually against a production database, use:
+Run migrations in CI/CD before rolling out a version that includes schema changes:
 
 ```bash
-bun run migrate
+bun run db:migrate
 ```
 
-Inside the deployed container, the equivalent command is:
-
-```bash
-bun run --cwd packages/database migrate
-```
-
-Set `RUN_DB_MIGRATIONS_ON_START=false` if you need to skip startup migrations for a specific container run.
+`bun run db:migrate:deploy` remains as a compatibility alias if your deploy system already uses it.
 
 ## Contributing
 

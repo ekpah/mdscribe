@@ -39,6 +39,7 @@ MDScribe is a medical documentation webapp (monorepo) for organizing medical tem
 ## Git Workflow
 
 - `main` ← `staging` ← feature branches. **AI agents always target `staging`.**
+- Verify the active branch before making claims about CI/CD, deployment files, or release behavior; `main` and `staging` may differ materially.
 - Branch naming: `<agent>/<description>-<session-id>`, `feature/<desc>`, `fix/<desc>`, `review/prs-<numbers>`
 - **Never commit without explicit user confirmation.** Leave changes unstaged for review.
 - **No AI attribution** in commits — no `Co-Authored-By`, no model/tool names.
@@ -52,12 +53,13 @@ bun dev                  # Dev server (port 3000)
 bun run build            # Build all (Turbo)
 bun run lint:affected    # Lint changed packages (preferred)
 bun run test:affected    # Test changed packages (preferred)
-bun run migrate          # Run Drizzle migrations
+bun run db:migrate       # Run Drizzle migrations
 ```
 
 - Use `turbo run lint --filter=app` for package-scoped checks
 - Avoid direct `ultracite check` / `oxlint` / `bun test` at repo level — use Turbo for caching
 - When using Bun with a package-specific cwd, use `bun run --cwd <dir> <script>` or `cd <dir> && bun run <script>`; avoid `bun --cwd <dir> run <script>`
+- Production deploys should run `bun run db:migrate` in CI/CD before rollout; do not rely on Docker startup migrations
 - Database: `cd packages/database && bun run push|generate|dev`
 
 ## Architecture
