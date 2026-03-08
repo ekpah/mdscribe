@@ -1,5 +1,5 @@
-import type { DiagnosisVariables } from "../types";
-import { CONTEXT_GUIDANCE_TOKEN, type PromptHarness } from "./shared";
+import type { DiagnosisVariables } from "../../types";
+import { CONTEXT_GUIDANCE_TOKEN, type PromptHarness } from "../shared";
 
 export const diagnosisPromptHarness: PromptHarness<DiagnosisVariables> = {
 	system: `<system_role>

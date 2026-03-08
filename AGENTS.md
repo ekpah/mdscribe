@@ -76,7 +76,7 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 
 ### Key Architecture (details in `apps/app/CLAUDE.md`)
 - **oRPC**: Base handlers (`pub`, `authed`) in `apps/app/orpc.ts`. Router in `orpc/router.ts`.
-- **AI Streaming**: Unified handler in `orpc/scribe/handlers.ts` with per-document-type config. Client uses `useScribeStream` hook.
+- **AI Streaming**: Unified handler modules live in `orpc/scribe/handlers/`. Prompt composition lives in `orpc/scribe/prompts`, context composition lives in `orpc/scribe/context`. Client uses `useScribeStream` hook.
 - **Auth**: BetterAuth in `auth.ts`. Server: `auth.api.getSession(...)`. Client: `useSession()`.
 - **Auth API calls**: Prefer direct `auth.api.*` calls where used; avoid one-off wrapper helpers unless they provide shared behavior beyond simple forwarding.
 - **Templates**: Custom Markdoc tags + TipTap editor. 1024-dim Voyage AI embeddings for vector search.
@@ -99,7 +99,7 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 ### AI / Scribe
 - Use admin-configured providers from DB — no hardcoded fallbacks
 - Prompts managed in Langfuse (production/staging labels). Usage logged to `UsageEvent`.
-- Prompt harnesses live under `apps/app/orpc/scribe/prompt-harnesses/`; keep context guidance separate from the harness text so prompt structure stays understandable.
+- Prompt harnesses live under `apps/app/orpc/scribe/prompts/prompt-harnesses/`; keep prompt registry/composition in `apps/app/orpc/scribe/prompts/` and keep context guidance separate from the harness text so prompt structure stays understandable.
 - Context engine: Build via providers in `orpc/scribe/context`, inject single `contextXml` variable. Add new domains as separate providers, don't extend `patient_context`.
 - Canonical input keys: `notes`, `diagnoseblock`, `anamnese`, `befunde` only. Legacy keys accepted only in playground hydration layer.
 - Planned AI Forms should be additive custom AIScribe pages on top of the existing built-in pages, not DB overrides of built-in page configs, unless explicitly requested otherwise.

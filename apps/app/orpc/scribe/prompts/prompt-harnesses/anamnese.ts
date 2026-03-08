@@ -1,5 +1,5 @@
-import type { AnamneseVariables } from "../types";
-import type { PromptHarness } from "./shared";
+import type { AnamneseVariables } from "../../types";
+import type { PromptHarness } from "../shared";
 
 export const anamnesePromptHarness: PromptHarness<AnamneseVariables> = {
 	system: `Du bist ein KI-gestützter Assistent für medizinische Dokumentation. Dein Ziel ist es, basierend auf einer Template-Sprache mit eckigen und runden Klammern schnell und präzise hochwertige Arztberichte zu generieren.

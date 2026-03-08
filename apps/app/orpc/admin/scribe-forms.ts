@@ -1,31 +1,19 @@
 import { ORPCError, type } from "@orpc/server";
-import {
-	aiModel,
-	aiScribeFormConfig,
-	eq,
-	template,
-	type Database,
-} from "@repo/database";
+import { aiModel, aiScribeFormConfig, eq, template, type Database } from "@repo/database";
 import { z } from "zod";
 
-import {
-	AI_SCRIBE_FORM_SLUG_REGEX,
-	isReservedAiScribeFormSlug,
-} from "@/lib/ai-scribe-forms";
+import { AI_SCRIBE_FORM_SLUG_REGEX, isReservedAiScribeFormSlug } from "@/lib/ai-scribe-forms";
 import { authed } from "@/orpc";
+
 import { requiredAdminMiddleware } from "../middlewares/admin";
-import {
-	type PromptHarnessId,
-	PROMPT_HARNESS_IDS,
-} from "../scribe/prompt-harnesses";
+import { type PromptHarnessId, PROMPT_HARNESS_IDS } from "../scribe/prompts";
 
 const promptHarnessSchema = z
 	.string({
 		required_error: "Basis-Prompt ist erforderlich",
 	})
 	.refine(
-		(value): value is PromptHarnessId =>
-			PROMPT_HARNESS_IDS.includes(value as PromptHarnessId),
+		(value): value is PromptHarnessId => PROMPT_HARNESS_IDS.includes(value as PromptHarnessId),
 		{
 			message: "Basis-Prompt ist ungültig",
 		},
@@ -37,10 +25,7 @@ const slugSchema = z
 	})
 	.trim()
 	.min(1, "Aus dem Namen konnte kein gültiger Pfad erzeugt werden")
-	.regex(
-		AI_SCRIBE_FORM_SLUG_REGEX,
-		"Aus dem Namen konnte kein gültiger Pfad erzeugt werden",
-	)
+	.regex(AI_SCRIBE_FORM_SLUG_REGEX, "Aus dem Namen konnte kein gültiger Pfad erzeugt werden")
 	.refine((value) => !isReservedAiScribeFormSlug(value), {
 		message: "Dieser Name erzeugt einen reservierten Pfad",
 	});
@@ -70,10 +55,7 @@ const deleteFormInput = z.object({
 	id: z.string(),
 });
 
-const parseWithBadRequest = <T>(
-	schema: z.ZodType<T>,
-	input: unknown,
-): T => {
+const parseWithBadRequest = <T>(schema: z.ZodType<T>, input: unknown): T => {
 	const parsed = schema.safeParse(input);
 	if (!parsed.success) {
 		throw new ORPCError("BAD_REQUEST", {
@@ -161,37 +143,35 @@ async function ensureSlugUnique(
 	}
 }
 
-const listFormsHandler = authed
-	.use(requiredAdminMiddleware)
-	.handler(async ({ context }) => {
-		return context.db.query.aiScribeFormConfig.findMany({
-			columns: {
-				description: true,
-				enabled: true,
-				id: true,
-				modelId: true,
-				name: true,
-				promptHarness: true,
-				slug: true,
-				templateId: true,
-			},
-			orderBy: (form, { asc }) => [asc(form.createdAt)],
-			with: {
-				model: {
-					columns: {
-						displayName: true,
-						id: true,
-					},
-				},
-				template: {
-					columns: {
-						id: true,
-						title: true,
-					},
+const listFormsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
+	return context.db.query.aiScribeFormConfig.findMany({
+		columns: {
+			description: true,
+			enabled: true,
+			id: true,
+			modelId: true,
+			name: true,
+			promptHarness: true,
+			slug: true,
+			templateId: true,
+		},
+		orderBy: (form, { asc }) => [asc(form.createdAt)],
+		with: {
+			model: {
+				columns: {
+					displayName: true,
+					id: true,
 				},
 			},
-		});
+			template: {
+				columns: {
+					id: true,
+					title: true,
+				},
+			},
+		},
 	});
+});
 
 const createFormHandler = authed
 	.use(requiredAdminMiddleware)
@@ -237,9 +217,7 @@ const deleteFormHandler = authed
 	.input(type<z.infer<typeof deleteFormInput>>())
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(deleteFormInput, input);
-		await context.db
-			.delete(aiScribeFormConfig)
-			.where(eq(aiScribeFormConfig.id, parsed.id));
+		await context.db.delete(aiScribeFormConfig).where(eq(aiScribeFormConfig.id, parsed.id));
 
 		return { success: true };
 	});

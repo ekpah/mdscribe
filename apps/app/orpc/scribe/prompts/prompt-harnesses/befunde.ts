@@ -1,5 +1,5 @@
-import type { BefundeVariables } from "../types";
-import type { PromptHarness } from "./shared";
+import type { BefundeVariables } from "../../types";
+import type { PromptHarness } from "../shared";
 
 export const befundePromptHarness: PromptHarness<BefundeVariables> = {
 	system: `<system_role>

@@ -1,5 +1,5 @@
-import type { DischargeVariables } from "../types";
-import { CONTEXT_GUIDANCE_TOKEN, type PromptHarness } from "./shared";
+import type { DischargeVariables } from "../../types";
+import { CONTEXT_GUIDANCE_TOKEN, type PromptHarness } from "../shared";
 
 export const dischargePromptHarness: PromptHarness<DischargeVariables> = {
 	system: `<system_role>

@@ -1,9 +1,8 @@
-import type { AdmissionTodosVariables } from "../types";
-import type { PromptHarness } from "./shared";
+import type { AdmissionTodosVariables } from "../../types";
+import type { PromptHarness } from "../shared";
 
-export const admissionTodosPromptHarness: PromptHarness<AdmissionTodosVariables> =
-	{
-		system: `<system_role>
+export const admissionTodosPromptHarness: PromptHarness<AdmissionTodosVariables> = {
+	system: `<system_role>
 Sie sind ein erfahrener Notaufnahme-Arzt mit strukturierter Dokumentationskompetenz.
 
 Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen eine klar strukturierte Übergabe für die stationäre Aufnahme zu erstellen, die ausschließlich die in der Notaufnahme bereits erfolgten Maßnahmen sowie die noch offenen Punkte für die weitere stationäre Behandlung aufführt.
@@ -98,16 +97,16 @@ Erstellen Sie eine präzise, stichpunktartige Dokumentation mit drei Abschnitten
 <execution_instruction>
 BEGINNEN SIE JETZT mit der Erstellung der Abschnitte <in_der_ZNA>, <procedere> und <todo> basierend auf den bereitgestellten Informationen. Verwenden Sie ausschließlich stichpunktartige Darstellung entsprechend der oben definierten Struktur.
 </execution_instruction>`,
-		userMessages: (vars) => [
-			{
-				role: "user",
-				content: `Das heutige Datum ist der ${vars.todaysDate}.
+	userMessages: (vars) => [
+		{
+			role: "user",
+			content: `Das heutige Datum ist der ${vars.todaysDate}.
 
 ${vars.contextXml}
 
 <task_execution>
 Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
 </task_execution>`,
-			},
-		],
-	};
+		},
+	],
+};

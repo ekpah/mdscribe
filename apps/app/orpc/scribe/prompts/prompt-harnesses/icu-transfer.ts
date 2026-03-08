@@ -1,5 +1,5 @@
-import type { IcuTransferVariables } from "../types";
-import type { PromptHarness } from "./shared";
+import type { IcuTransferVariables } from "../../types";
+import type { PromptHarness } from "../shared";
 
 export const icuTransferPromptHarness: PromptHarness<IcuTransferVariables> = {
 	system: `Sie sind ein erfahrener Arzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. 

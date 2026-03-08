@@ -1,5 +1,5 @@
-import type { OutpatientVariables } from "../types";
-import type { PromptHarness } from "./shared";
+import type { OutpatientVariables } from "../../types";
+import type { PromptHarness } from "../shared";
 
 export const outpatientPromptHarness: PromptHarness<OutpatientVariables> = {
 	system: `Sie sind ein erfahrener Arzt mit ausgeprägter schriftlicher Ausdrucksfähigkeit und fundierter medizinischer Beurteilungskompetenz. Auf Basis unsortierter Notizen verfassen Sie eine **flüssige, zusammenhängende Epikrise** in **Vergangenheitsform** gemäß folgender SOP:

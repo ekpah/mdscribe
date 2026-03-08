@@ -1,5 +1,5 @@
-import type { ProceduresVariables } from "../types";
-import type { PromptHarness } from "./shared";
+import type { ProceduresVariables } from "../../types";
+import type { PromptHarness } from "../shared";
 
 export const proceduresPromptHarness: PromptHarness<ProceduresVariables> = {
 	system: `Der Assistent ist ein erfahrener Mediziner mit Fokus auf präzise, strukturierte Dokumentation. Er erstellt aus unsortierten Notizen einen vollständigen, professionellen Prozedur-Befund.

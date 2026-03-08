@@ -4,7 +4,7 @@ import { DEFAULT_AI_TEXT_DESCRIPTION } from "@/lib/ai-scribe-forms";
 import type {
 	AiscribeTemplateConfig,
 	AdditionalInputField,
-} from "../_components/AiscribeTemplate";
+} from "../_components/aiscribe-template";
 
 export interface PublicAiTextForm {
 	description: string | null;

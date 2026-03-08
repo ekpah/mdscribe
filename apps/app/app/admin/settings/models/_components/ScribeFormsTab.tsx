@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
@@ -29,29 +28,16 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	ExternalLinkIcon,
-	FileText,
-	Info,
-	Loader2,
-	Plus,
-	Trash2,
-} from "lucide-react";
+import { ExternalLinkIcon, FileText, Info, Loader2, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import {
-	DEFAULT_AI_TEXT_DESCRIPTION,
-	slugifyAiScribeFormName,
-} from "@/lib/ai-scribe-forms";
+import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
 import { orpc } from "@/lib/orpc";
-import type { PromptHarnessId } from "@/orpc/scribe/prompt-harnesses";
+import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 
 const NONE_VALUE = "__none__";
 const FIELD_EXPLANATIONS = {
@@ -59,8 +45,7 @@ const FIELD_EXPLANATIONS = {
 		"Legt fest, welches KI-Modell den Text generiert. Ohne Auswahl wird das Standardmodell verwendet.",
 	prompt:
 		"Der Basis-Prompt ist das Prompt-Harness, das Inhalt, Ton und Struktur der Generierung vorgibt.",
-	template:
-		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor.",
+	template: "Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor.",
 } as const;
 
 type ScribeFormList = Awaited<ReturnType<typeof orpc.admin.scribeForms.list.call>>;
@@ -100,9 +85,8 @@ const toDraft = (form: ScribeFormRecord): FormDraft => ({
 const toNullableSelectValue = (value: string): string | null =>
 	value === NONE_VALUE ? null : value;
 
-const resolveDraftSlug = (
-	draft: Pick<FormDraft, "id" | "name" | "slug">,
-): string => (draft.id ? draft.slug?.trim() ?? "" : slugifyAiScribeFormName(draft.name));
+const resolveDraftSlug = (draft: Pick<FormDraft, "id" | "name" | "slug">): string =>
+	draft.id ? (draft.slug?.trim() ?? "") : slugifyAiScribeFormName(draft.name);
 
 const buildFormMutationInput = ({
 	description,
@@ -142,9 +126,7 @@ function InfoHint({ text }: { text: string }) {
 					<Info className="h-3.5 w-3.5" />
 				</button>
 			</TooltipTrigger>
-			<TooltipContent className="max-w-64 text-xs leading-relaxed">
-				{text}
-			</TooltipContent>
+			<TooltipContent className="max-w-64 text-xs leading-relaxed">{text}</TooltipContent>
 		</Tooltip>
 	);
 }
@@ -166,13 +148,7 @@ function LabelWithInfo({
 	);
 }
 
-function SectionLabelWithInfo({
-	children,
-	info,
-}: {
-	children: string;
-	info: string;
-}) {
+function SectionLabelWithInfo({ children, info }: { children: string; info: string }) {
 	return (
 		<div className="flex items-center gap-1.5">
 			<span className="font-medium">{children}</span>
@@ -209,8 +185,7 @@ export function ScribeFormsTab() {
 	const promptNames = prompts?.items ?? [];
 	const availablePromptNames = new Set(promptNames);
 	const hasUnavailableDraftPrompt =
-		Boolean(draft.promptHarness) &&
-		!availablePromptNames.has(draft.promptHarness);
+		Boolean(draft.promptHarness) && !availablePromptNames.has(draft.promptHarness);
 	const modelOptions = [
 		{
 			value: NONE_VALUE,
@@ -288,13 +263,7 @@ export function ScribeFormsTab() {
 	});
 
 	const toggleEnabledMutation = useMutation({
-		mutationFn: async ({
-			enabled,
-			form,
-		}: {
-			enabled: boolean;
-			form: ScribeFormRecord;
-		}) =>
+		mutationFn: async ({ enabled, form }: { enabled: boolean; form: ScribeFormRecord }) =>
 			orpc.admin.scribeForms.update.call({
 				id: form.id,
 				...buildFormMutationInput({
@@ -311,10 +280,10 @@ export function ScribeFormsTab() {
 			await queryClient.cancelQueries({ queryKey: listKey });
 
 			const previousForms = queryClient.getQueryData<ScribeFormList>(listKey);
-			queryClient.setQueryData<ScribeFormList>(listKey, (current) =>
-				current?.map((entry) =>
-					entry.id === form.id ? { ...entry, enabled } : entry,
-				) ?? [],
+			queryClient.setQueryData<ScribeFormList>(
+				listKey,
+				(current) =>
+					current?.map((entry) => (entry.id === form.id ? { ...entry, enabled } : entry)) ?? [],
 			);
 
 			return { previousForms };
@@ -374,8 +343,8 @@ export function ScribeFormsTab() {
 							<CardTitle>AI Textbausteine</CardTitle>
 						</div>
 						<CardDescription>
-							Zusätzliche AIScribe-Texte mit festem klinischem Kontext
-							(Diagnoseblock, Anamnese, Befunde und Notizen).
+							Zusätzliche AIScribe-Texte mit festem klinischem Kontext (Diagnoseblock, Anamnese,
+							Befunde und Notizen).
 						</CardDescription>
 					</div>
 					<Button onClick={handleOpenCreate} size="sm">
@@ -396,17 +365,13 @@ export function ScribeFormsTab() {
 					{forms.map((form) => {
 						const isPromptAvailable = availablePromptNames.has(form.promptHarness);
 						const isDeleteConfirming = pendingDeleteId === form.id;
-						const isDeletingCurrentForm =
-							deleteMutation.isPending && isDeleteConfirming;
+						const isDeletingCurrentForm = deleteMutation.isPending && isDeleteConfirming;
 						const isTogglingCurrentForm =
 							toggleEnabledMutation.isPending &&
 							toggleEnabledMutation.variables?.form.id === form.id;
 
 						return (
-							<Card
-								key={form.id}
-								className="border-solarized-base2 bg-solarized-base3/80"
-							>
+							<Card key={form.id} className="border-solarized-base2 bg-solarized-base3/80">
 								<CardHeader className="space-y-2">
 									<div className="flex items-start justify-between gap-4">
 										<div className="space-y-1">
@@ -455,9 +420,7 @@ export function ScribeFormsTab() {
 										</SectionLabelWithInfo>
 										<div
 											className={`min-w-0 break-words ${
-												isPromptAvailable
-													? "text-solarized-base00"
-													: "text-solarized-base01"
+												isPromptAvailable ? "text-solarized-base00" : "text-solarized-base01"
 											}`}
 										>
 											{form.promptHarness}
@@ -475,9 +438,7 @@ export function ScribeFormsTab() {
 													rel="noreferrer"
 													className="inline-flex max-w-full items-center gap-1.5 underline underline-offset-4 hover:text-solarized-cyan"
 												>
-													<span className="break-words">
-														{form.template.title}
-													</span>
+													<span className="break-words">{form.template.title}</span>
 													<ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
 												</Link>
 											) : (
@@ -493,11 +454,7 @@ export function ScribeFormsTab() {
 										</div>
 									</div>
 									<div className="flex justify-end gap-2">
-										<Button
-											onClick={() => handleOpenEdit(form)}
-											size="sm"
-											variant="outline"
-										>
+										<Button onClick={() => handleOpenEdit(form)} size="sm" variant="outline">
 											Bearbeiten
 										</Button>
 										<div className="flex w-[176px] justify-end gap-2">
@@ -549,12 +506,9 @@ export function ScribeFormsTab() {
 			<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
 				<DialogContent className="sm:max-w-xl">
 					<DialogHeader>
-						<DialogTitle>
-							{draft.id ? "AI Text bearbeiten" : "Neuer AI Text"}
-						</DialogTitle>
+						<DialogTitle>{draft.id ? "AI Text bearbeiten" : "Neuer AI Text"}</DialogTitle>
 						<DialogDescription>
-							Konfigurieren Sie einen zusätzlichen AI Textbaustein für die
-							AIScribe-Übersicht.
+							Konfigurieren Sie einen zusätzlichen AI Textbaustein für die AIScribe-Übersicht.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -578,9 +532,7 @@ export function ScribeFormsTab() {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="scribe-form-description">
-								Kurzbeschreibung für `/aiscribe`
-							</Label>
+							<Label htmlFor="scribe-form-description">Kurzbeschreibung für `/aiscribe`</Label>
 							<Textarea
 								id="scribe-form-description"
 								value={draft.description}
@@ -597,9 +549,7 @@ export function ScribeFormsTab() {
 
 						<div className="grid gap-4 md:grid-cols-2">
 							<div className="space-y-2">
-								<LabelWithInfo info={FIELD_EXPLANATIONS.prompt}>
-									Basis-Prompt
-								</LabelWithInfo>
+								<LabelWithInfo info={FIELD_EXPLANATIONS.prompt}>Basis-Prompt</LabelWithInfo>
 								<Select
 									value={draft.promptHarness}
 									onValueChange={(value) =>
@@ -628,9 +578,7 @@ export function ScribeFormsTab() {
 							</div>
 
 							<div className="space-y-2">
-								<LabelWithInfo info={FIELD_EXPLANATIONS.template}>
-									Template
-								</LabelWithInfo>
+								<LabelWithInfo info={FIELD_EXPLANATIONS.template}>Template</LabelWithInfo>
 								<Select
 									value={draft.templateId}
 									onValueChange={(value) =>
@@ -643,10 +591,7 @@ export function ScribeFormsTab() {
 									<SelectContent>
 										<SelectItem value={NONE_VALUE}>Keins</SelectItem>
 										{templates.map((templateOption) => (
-											<SelectItem
-												key={templateOption.id}
-												value={templateOption.id}
-											>
+											<SelectItem key={templateOption.id} value={templateOption.id}>
 												{templateOption.title}
 											</SelectItem>
 										))}
@@ -655,15 +600,11 @@ export function ScribeFormsTab() {
 							</div>
 
 							<div className="space-y-2">
-								<LabelWithInfo info={FIELD_EXPLANATIONS.model}>
-									KI-Modell
-								</LabelWithInfo>
+								<LabelWithInfo info={FIELD_EXPLANATIONS.model}>KI-Modell</LabelWithInfo>
 								<ModelSelector
 									options={modelOptions}
 									value={draft.modelId}
-									onValueChange={(value) =>
-										setDraft((current) => ({ ...current, modelId: value }))
-									}
+									onValueChange={(value) => setDraft((current) => ({ ...current, modelId: value }))}
 									placeholder="Modell wählen"
 									searchPlaceholder="Modell suchen..."
 									className="border-solarized-base2 bg-solarized-base3"
@@ -700,9 +641,7 @@ export function ScribeFormsTab() {
 								!resolvedDraftSlug
 							}
 						>
-							{saveMutation.isPending && (
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							)}
+							{saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 							Speichern
 						</Button>
 					</DialogFooter>

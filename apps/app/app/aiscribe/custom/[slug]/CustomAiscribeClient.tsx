@@ -1,6 +1,6 @@
 "use client";
 
-import { AiscribeTemplate } from "../../_components/AiscribeTemplate";
+import { AiscribeTemplate } from "../../_components/aiscribe-template";
 import {
 	buildCustomAiscribeTemplateConfig,
 	type PublicAiTextForm,

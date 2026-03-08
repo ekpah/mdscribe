@@ -1,5 +1,5 @@
-import type { PhysicalExamVariables } from "../types";
-import type { PromptHarness } from "./shared";
+import type { PhysicalExamVariables } from "../../types";
+import type { PromptHarness } from "../shared";
 
 export const physicalExamPromptHarness: PromptHarness<PhysicalExamVariables> = {
 	system: `<system_role>
