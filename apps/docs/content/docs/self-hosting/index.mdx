@@ -35,6 +35,12 @@ Für Produktionsumgebungen ist ein Build vor Deployment erforderlich:
 bun run build
 ```
 
+Vor dem ersten Produktivstart und bei jedem Schema-Change sollten die Drizzle-Migrationen ausgeführt werden:
+
+```bash
+bun run migrate
+```
+
 ## 2. Umgebungsvariablen (Self-Hosted)
 
 Fuer Self-Hosting ohne integrierte SaaS-Abrechnung sind nur die Kernvariablen relevant:
@@ -82,21 +88,40 @@ Wenn Sie striktere Grenzen benötigen (z.B. keine externen KI-Endpunkte), ist zu
 - Testen Sie Recovery regelmäßig in einer separaten Umgebung.
 - Dokumentieren Sie RTO/RPO für Ihren Betrieb.
 
-## 8. Telemetrie- und Compliance-Hinweise
+## 8. Docker-Deployments und Migrationen
+
+Wenn Sie MDScribe per Dockerfile deployen, fuehrt das Produktions-Image beim Container-Start automatisch die vorhandenen Drizzle-Migrationen aus und startet danach erst die App.
+
+Manuelle Ausfuehrung gegen die produktive Datenbank:
+
+```bash
+bun run migrate
+```
+
+Direkt innerhalb eines laufenden Containers:
+
+```bash
+bun run --cwd packages/database migrate
+```
+
+Der automatische Schritt laesst sich fuer einen einzelnen Run mit `RUN_DB_MIGRATIONS_ON_START=false` deaktivieren.
+
+## 9. Telemetrie- und Compliance-Hinweise
 
 - Prüfen Sie vor Produktivbetrieb, welche externen Dienste in Ihrem Setup aktiv sind.
 - Prüfen Sie vertragliche und regulatorische Anforderungen (z.B. Datenschutz, Dokumentationspflichten) für Ihre Organisation.
 - ZDR- oder Provider-Einstellungen können Risiken reduzieren, ersetzen aber keine eigene Compliance-Prüfung.
 
-## 9. Go-Live Checkliste (Self-Hosted)
+## 10. Go-Live Checkliste (Self-Hosted)
 
 - [ ] Alle erforderlichen Environment-Variablen gesetzt und valide
 - [ ] TLS und Zugriffsschutz (Auth, Rollen, Admin-Zugänge) geprüft
+- [ ] `bun run migrate` erfolgreich gegen die Ziel-Datenbank ausgeführt
 - [ ] Backup/Restore erfolgreich getestet
 - [ ] Secret-Rotation-Prozess dokumentiert
 - [ ] Logging-/Monitoring-Policy dokumentiert
 - [ ] Datenfluss und Drittanbieter-Nutzung intern freigegeben
 
-## 10. Verantwortlichkeit
+## 11. Verantwortlichkeit
 
 Diese Seite beschreibt technische Leitplanken. Sie ersetzt keine rechtliche Beratung. Der Betreiber ist verantwortlich für die Einhaltung aller anwendbaren Datenschutz- und Compliance-Vorgaben im jeweiligen Einsatzkontext.

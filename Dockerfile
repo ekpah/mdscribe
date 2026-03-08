@@ -54,8 +54,14 @@ COPY --from=builder --chown=bun:bun /app/apps/app/.next/static ./apps/app/.next/
 # Copy public files
 COPY --from=builder --chown=bun:bun /app/apps/app/public ./apps/app/public
 
+# Copy deployment migration assets and startup wrapper.
+COPY --from=builder --chown=bun:bun /app/packages/database/package.json ./packages/database/package.json
+COPY --from=builder --chown=bun:bun /app/packages/database/migrate-deploy.ts ./packages/database/migrate-deploy.ts
+COPY --from=builder --chown=bun:bun /app/packages/database/drizzle ./packages/database/drizzle
+COPY --chown=bun:bun --chmod=755 scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
+
 EXPOSE 3000
 
 USER bun
 
-CMD ["bun", "apps/app/server.js"]
+CMD ["./scripts/docker-entrypoint.sh"]

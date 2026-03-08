@@ -27,8 +27,10 @@
 		"db:logs": "docker compose -f docker-compose.dev-db.yml logs -f postgres",
 		"db:init": "cd packages/database && bun run bootstrap",
 		"bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && bun install",
-		"db:bootstrap": "bun --cwd packages/database run bootstrap",
-		"migrate": "bun --cwd packages/database run migrate",
+		"db:bootstrap": "bun run --cwd packages/database bootstrap",
+		"db:migrate:deploy": "bun run --cwd packages/database migrate:deploy",
+		"migrate": "bun run --cwd packages/database migrate",
+		"migrate:kit": "bun run --cwd packages/database migrate:kit",
 		"knip": "knip"
 	},
 	"catalog": {

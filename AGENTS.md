@@ -57,6 +57,7 @@ bun run migrate          # Run Drizzle migrations
 
 - Use `turbo run lint --filter=app` for package-scoped checks
 - Avoid direct `ultracite check` / `oxlint` / `bun test` at repo level — use Turbo for caching
+- When using Bun with a package-specific cwd, use `bun run --cwd <dir> <script>` or `cd <dir> && bun run <script>`; avoid `bun --cwd <dir> run <script>`
 - Database: `cd packages/database && bun run push|generate|dev`
 
 ## Architecture
