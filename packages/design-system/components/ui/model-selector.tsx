@@ -1,17 +1,18 @@
 "use client"
 
-import { Loader2 } from "lucide-react"
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
 import * as React from "react"
 
 import { cn } from "../../lib/utils"
 import {
-	Select,
-	SelectContent,
-	SelectGroup,
-	SelectItem,
-	SelectLabel,
-	SelectTrigger,
-} from "./select"
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "./command"
+import { Popover, PopoverContent, PopoverTrigger } from "./popover"
 
 export interface ModelSelectorOption {
 	key?: string
@@ -31,6 +32,7 @@ interface ModelSelectorProps<TOption extends ModelSelectorOption> {
 	loadingMessage?: string
 	disabled?: boolean
 	isLoading?: boolean
+	searchPlaceholder?: string
 	className?: string
 	popoverClassName?: string
 	listClassName?: string
@@ -54,6 +56,7 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 	loadingMessage = "Lade Modelle...",
 	disabled = false,
 	isLoading = false,
+	searchPlaceholder = "Modell suchen...",
 	className,
 	popoverClassName,
 	listClassName,
@@ -61,12 +64,37 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 	renderSelected,
 	renderOption,
 }: ModelSelectorProps<TOption>) {
+	const [isOpen, setIsOpen] = React.useState(false)
+	const [searchQuery, setSearchQuery] = React.useState("")
+	const searchInputId = React.useId()
+
 	const normalizedOptions = React.useMemo<NormalizedOption<TOption>[]>(() => {
 		return options.map((option) => ({
 			key: option.key ?? option.value,
 			option,
 		}))
 	}, [options])
+
+	const deferredSearchQuery = React.useDeferredValue(searchQuery)
+	const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase()
+
+	const filteredOptions = React.useMemo(() => {
+		if (!normalizedSearchQuery) {
+			return normalizedOptions
+		}
+
+		return normalizedOptions.filter(({ option }) => {
+			const haystacks = [
+				option.label,
+				option.group,
+				...(option.keywords ?? []),
+			]
+
+			return haystacks.some((entry) =>
+				entry?.toLowerCase().includes(normalizedSearchQuery)
+			)
+		})
+	}, [normalizedOptions, normalizedSearchQuery])
 
 	const optionByKey = React.useMemo(() => {
 		return new Map(normalizedOptions.map((entry) => [entry.key, entry.option]))
@@ -88,7 +116,7 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 	const groupedOptions = React.useMemo<[string, NormalizedOption<TOption>[]][]>(
 		() => {
 			const groups = new Map<string, NormalizedOption<TOption>[]>()
-			for (const entry of normalizedOptions) {
+			for (const entry of filteredOptions) {
 				const group = entry.option.group ?? ""
 				const existing = groups.get(group)
 				if (existing) {
@@ -99,78 +127,151 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 			}
 			return Array.from(groups.entries())
 		},
-		[normalizedOptions]
+		[filteredOptions]
 	)
 
 	const handleSelect = React.useCallback(
 		(nextKey: string) => {
 			const selected = optionByKey.get(nextKey)
 			if (!selected) return
+			setIsOpen(false)
+			setSearchQuery("")
 			onValueChange(selected.value)
 		},
 		[onValueChange, optionByKey]
 	)
 
+	const handleOpenChange = React.useCallback((open: boolean) => {
+		setIsOpen(open)
+		if (!open) {
+			setSearchQuery("")
+		}
+	}, [])
+
+	React.useEffect(() => {
+		if (!isOpen) return
+
+		const focusHandle = window.requestAnimationFrame(() => {
+			const searchInput = document.getElementById(searchInputId)
+			if (!(searchInput instanceof HTMLInputElement)) return
+			searchInput.focus()
+			searchInput.select()
+		})
+
+		return () => window.cancelAnimationFrame(focusHandle)
+	}, [isOpen, searchInputId])
+
 	return (
-		<Select
-			disabled={disabled || isLoading}
-			onValueChange={handleSelect}
-			value={selectedKey}
-		>
-			<SelectTrigger
-				id={id}
+		<Popover open={isOpen} onOpenChange={handleOpenChange}>
+			<PopoverTrigger asChild>
+				<button
+					id={id}
+					type="button"
+					role="combobox"
+					aria-haspopup="listbox"
+					aria-expanded={isOpen}
+					className={cn(
+						"border-input text-foreground data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex min-h-9 w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+						className,
+						isLoading && "cursor-wait"
+					)}
+					disabled={disabled || isLoading}
+				>
+					<div className="min-w-0 flex-1 text-left">
+						{isLoading ? (
+							<div className="flex items-center gap-2">
+								<Loader2 className="h-4 w-4 animate-spin" />
+								<span>{loadingMessage}</span>
+							</div>
+						) : selectedOption ? (
+							renderSelected ? (
+								renderSelected(selectedOption)
+							) : (
+								<span className="block min-w-0 truncate">
+									{selectedOption.label}
+								</span>
+							)
+						) : (
+							<span className="block text-muted-foreground">{placeholder}</span>
+						)}
+					</div>
+					<ChevronsUpDown className="text-muted-foreground h-4 w-4 shrink-0 opacity-70" />
+				</button>
+			</PopoverTrigger>
+			<PopoverContent
+				side="bottom"
+				align="start"
+				sideOffset={8}
+				collisionPadding={12}
+				sticky="always"
 				className={cn(
-					"w-full min-w-0 text-left font-normal",
-					className,
-					isLoading && "cursor-wait"
+					"w-[max(var(--radix-popover-trigger-width),18rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 shadow-lg",
+					popoverClassName
 				)}
+				onOpenAutoFocus={(event) => event.preventDefault()}
 			>
-				{isLoading ? (
-					<div className="flex items-center gap-2">
-						<Loader2 className="h-4 w-4 animate-spin" />
-						<span>{loadingMessage}</span>
-					</div>
-				) : selectedOption ? (
-					renderSelected ? (
-						renderSelected(selectedOption)
-					) : (
-						<span className="min-w-0 truncate">{selectedOption.label}</span>
-					)
-				) : (
-					<span className="text-muted-foreground">{placeholder}</span>
-				)}
-			</SelectTrigger>
-			<SelectContent
-				position="popper"
-				className={cn("max-h-[min(60vh,24rem)]", popoverClassName)}
-			>
-				{groupedOptions.length === 0 ? (
-					<div className="px-2 py-6 text-center text-muted-foreground text-sm">
-						{emptyMessage}
-					</div>
-				) : (
-					<div className={cn(listClassName)}>
-						{groupedOptions.map(([group, entries]) => (
-							<SelectGroup key={group || "__ungrouped__"}>
-								{group ? (
-									<SelectLabel>
-										{formatGroupLabel ? formatGroupLabel(group) : group}
-									</SelectLabel>
-								) : null}
-								{entries.map(({ key, option }) => (
-									<SelectItem key={key} value={key} className="min-w-0 py-2">
-										{renderOption ? (
-											renderOption(option, option.value === value)
-										) : (
-											<span className="min-w-0 truncate">{option.label}</span>
-										)}
-									</SelectItem>
-								))}
-							</SelectGroup>
-						))}
-					</div>
-				)}
-			</SelectContent>
-		</Select>
+				<Command shouldFilter={false} className="bg-popover">
+					<CommandInput
+						id={searchInputId}
+						value={searchQuery}
+						onValueChange={setSearchQuery}
+						placeholder={searchPlaceholder}
+						className="h-10"
+					/>
+					<CommandList
+						className={cn(
+							"max-h-[min(22rem,calc(var(--radix-popover-content-available-height)-3.5rem))] overflow-x-hidden overflow-y-auto overscroll-contain",
+							listClassName
+						)}
+					>
+						{groupedOptions.length === 0 ? (
+							<CommandEmpty>{emptyMessage}</CommandEmpty>
+						) : (
+							groupedOptions.map(([group, entries]) => (
+								<CommandGroup
+									key={group || "__ungrouped__"}
+									heading={
+										group
+											? formatGroupLabel
+												? formatGroupLabel(group)
+												: group
+											: undefined
+									}
+								>
+									{entries.map(({ key, option }) => {
+										const isSelected = key === selectedKey
+
+										return (
+											<CommandItem
+												key={key}
+												value={key}
+												onSelect={handleSelect}
+												className="gap-3 px-3 py-2"
+											>
+												<div className="min-w-0 flex-1">
+													{renderOption ? (
+														renderOption(option, isSelected)
+													) : (
+														<span className="block min-w-0 truncate">
+															{option.label}
+														</span>
+													)}
+												</div>
+												<Check
+													className={cn(
+														"h-4 w-4 shrink-0",
+														isSelected ? "opacity-100" : "opacity-0"
+													)}
+												/>
+											</CommandItem>
+										)
+									})}
+								</CommandGroup>
+							))
+						)}
+					</CommandList>
+				</Command>
+			</PopoverContent>
+		</Popover>
 	)
 }

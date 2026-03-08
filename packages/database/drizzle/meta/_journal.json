@@ -43,6 +43,13 @@
 			"when": 1772956800000,
 			"tag": "0005_template_examples_drop_position",
 			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1773043200000,
+			"tag": "0006_ai_scribe_forms",
+			"breakpoints": true
 		}
 	]
 }

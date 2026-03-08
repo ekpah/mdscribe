@@ -3,11 +3,13 @@ import { embeddingsHandler } from "./admin/embeddings";
 import { modelsHandler as adminModelsHandler } from "./admin/models";
 import { providersHandler as adminProvidersHandler } from "./admin/providers";
 import { scribeHandler as adminScribeHandler } from "./admin/scribe";
+import { scribeFormsHandler as adminScribeFormsHandler } from "./admin/scribe-forms";
 import { templatesHandler as adminTemplatesHandler } from "./admin/templates";
 import { usageHandler as adminUsageHandler } from "./admin/usage";
 import { usersHandler as adminUsersHandler } from "./admin/users";
 import { documentsHandler } from "./documents";
 import { scribeStreamHandler, voiceFillHandler } from "./scribe";
+import { scribeFormsHandler } from "./scribe-forms";
 import { getUsage } from "./scribe/_lib/get-usage";
 import { templatesHandler } from "./templates";
 import { findRelevantTemplateHandler } from "./templates/search";
@@ -33,6 +35,9 @@ export const router = {
 	// AI document generation
 	scribe: {
 		voiceFill: voiceFillHandler,
+	},
+	scribeForms: {
+		...scribeFormsHandler,
 	},
 	scribeStream: scribeStreamHandler,
 	getUsage: getUsageHandler,
@@ -66,6 +71,9 @@ export const router = {
 		},
 		scribe: {
 			...adminScribeHandler,
+		},
+		scribeForms: {
+			...adminScribeFormsHandler,
 		},
 		usage: {
 			...adminUsageHandler,

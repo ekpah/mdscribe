@@ -3,6 +3,7 @@ import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import type {
 	account,
 	aiDefaults,
+	aiScribeFormConfig,
 	aiModel,
 	aiProvider,
 	favourites,
@@ -54,6 +55,8 @@ export type NewFavourite = InferInsertModel<typeof favourites>;
 export type AiProvider = InferSelectModel<typeof aiProvider>;
 export type AiModel = InferSelectModel<typeof aiModel>;
 export type AiDefaults = InferSelectModel<typeof aiDefaults>;
+export type AiScribeFormConfig = InferSelectModel<typeof aiScribeFormConfig>;
 export type NewAiProvider = InferInsertModel<typeof aiProvider>;
 export type NewAiModel = InferInsertModel<typeof aiModel>;
 export type NewAiDefaults = InferInsertModel<typeof aiDefaults>;
+export type NewAiScribeFormConfig = InferInsertModel<typeof aiScribeFormConfig>;

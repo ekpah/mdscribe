@@ -25,10 +25,11 @@
 		"db:down": "docker compose -f docker-compose.dev-db.yml down",
 		"db:reset": "docker compose -f docker-compose.dev-db.yml down -v",
 		"db:logs": "docker compose -f docker-compose.dev-db.yml logs -f postgres",
-		"db:init": "cd packages/database && bun run bootstrap",
+		"db:init": "bun run --cwd packages/database bootstrap",
 		"bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && bun install",
-		"db:bootstrap": "bun --cwd packages/database run bootstrap",
-		"migrate": "bun --cwd packages/database run migrate",
+		"db:bootstrap": "bun run --cwd packages/database bootstrap",
+		"db:migrate": "bun run --cwd packages/database migrate",
+		"migrate": "bun run db:migrate",
 		"knip": "knip"
 	},
 	"catalog": {

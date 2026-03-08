@@ -52,7 +52,7 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import type { AudioFile, DocumentType } from "@/orpc/scribe/types";
 import { MemoizedCopySection } from "./MemoizedCopySection";
 
-interface AdditionalInputField {
+export interface AdditionalInputField {
 	name: string;
 	label: string;
 	placeholder: string;
@@ -61,14 +61,11 @@ interface AdditionalInputField {
 	description?: string;
 }
 
-export interface AiscribeTemplateConfig {
+interface AiscribeTemplateBaseConfig {
 	// Page identity
 	title: string;
 	description: string;
 	icon: LucideIcon;
-
-	// Document type for oRPC (replaces apiEndpoint)
-	documentType: DocumentType;
 
 	// Tab configuration
 	inputTabTitle: string;
@@ -100,6 +97,20 @@ export interface AiscribeTemplateConfig {
 		additionalInputs: Record<string, string>,
 	) => Promise<unknown>;
 }
+
+interface DocumentTypeAiscribeTemplateConfig extends AiscribeTemplateBaseConfig {
+	documentType: DocumentType;
+	formId?: never;
+}
+
+interface CustomFormAiscribeTemplateConfig extends AiscribeTemplateBaseConfig {
+	documentType?: never;
+	formId: string;
+}
+
+export type AiscribeTemplateConfig =
+	| DocumentTypeAiscribeTemplateConfig
+	| CustomFormAiscribeTemplateConfig;
 
 interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
@@ -146,22 +157,37 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	// Initialize text snippets hook
 	useTextSnippets();
 
+	const isCustomFormConfig =
+		"formId" in config && typeof config.formId === "string";
+	const chatId = isCustomFormConfig
+		? `scribe-form-${config.formId}`
+		: `scribe-${config.documentType}`;
+
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, setMessages } = useChat({
-		id: `scribe-${config.documentType}`,
+		id: chatId,
 		transport: {
 			async sendMessages(options) {
 				// Read from ref to get the latest audio files synchronously
 				const audioFiles = preparedAudioFilesRef.current;
-				return eventIteratorToUnproxiedDataStream(
-					await orpc.scribeStream.call(
-						{
+				const requestInput = isCustomFormConfig
+					? {
+							source: "customForm" as const,
+							formId: config.formId,
+							messages: options.messages,
+							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+						}
+					: {
+							source: "documentType" as const,
 							documentType: config.documentType,
 							messages: options.messages,
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
-						},
-						{ signal: options.abortSignal },
-					),
+						};
+
+				return eventIteratorToUnproxiedDataStream(
+					await orpc.scribeStream.call(requestInput, {
+						signal: options.abortSignal,
+					}),
 				);
 			},
 			reconnectToStream() {

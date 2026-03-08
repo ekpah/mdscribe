@@ -35,6 +35,14 @@ Für Produktionsumgebungen ist ein Build vor Deployment erforderlich:
 bun run build
 ```
 
+Bei Schema-Aenderungen sollten die Drizzle-Migrationen im Deployment-Schritt vor dem Rollout der neuen App-Version laufen:
+
+```bash
+bun run db:migrate
+```
+
+Das Docker-Image startet nur die App und fuehrt keine Migrationen beim Container-Start aus.
+
 ## 2. Umgebungsvariablen (Self-Hosted)
 
 Fuer Self-Hosting ohne integrierte SaaS-Abrechnung sind nur die Kernvariablen relevant:
@@ -92,6 +100,7 @@ Wenn Sie striktere Grenzen benötigen (z.B. keine externen KI-Endpunkte), ist zu
 
 - [ ] Alle erforderlichen Environment-Variablen gesetzt und valide
 - [ ] TLS und Zugriffsschutz (Auth, Rollen, Admin-Zugänge) geprüft
+- [ ] `bun run db:migrate` erfolgreich gegen die Ziel-Datenbank ausgeführt
 - [ ] Backup/Restore erfolgreich getestet
 - [ ] Secret-Rotation-Prozess dokumentiert
 - [ ] Logging-/Monitoring-Policy dokumentiert

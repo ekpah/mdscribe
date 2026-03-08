@@ -8,13 +8,9 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@repo/design-system/components/ui/accordion";
+import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/design-system/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
@@ -30,26 +26,16 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import {
-	type MutableRefObject,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
+
 import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
 import { DEFAULT_PARAMETERS } from "../_lib/types";
@@ -169,6 +155,8 @@ interface RunState {
 
 interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 	model: PlaygroundModel;
+	isTop: boolean;
+	providerLabel: string;
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -190,9 +178,7 @@ function getProviderFromModelId(modelId: string): string {
 
 function getProviderGroup(model: PlaygroundModel): string {
 	return (
-		model.providerProtocol ??
-		model.connectionProtocol ??
-		getProviderFromModelId(model.modelId)
+		model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId)
 	);
 }
 
@@ -205,17 +191,14 @@ export function PlaygroundPanel({
 	presetDocumentType,
 	presetVariables,
 }: PlaygroundPanelProps) {
-	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">(
-		"input",
-	);
+	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">("input");
 	const isMobile = useIsMobile();
-	const [mobileInputPanelValue, setMobileInputPanelValue] = useState<
-		string | undefined
-	>("input-config");
+	const [mobileInputPanelValue, setMobileInputPanelValue] = useState<string | undefined>(
+		"input-config",
+	);
 
 	const initialDocType = presetDocumentType ?? "discharge";
-	const [documentType, setDocumentType] =
-		useState<DocumentType>(initialDocType);
+	const [documentType, setDocumentType] = useState<DocumentType>(initialDocType);
 
 	// Parse preset variables from usage event into form fields
 	const parsedPreset = useMemo(() => {
@@ -255,9 +238,7 @@ export function PlaygroundPanel({
 
 	// Prompt selection / compilation
 	const [promptName, setPromptName] = useState<string>(docUi.defaultPromptName);
-	const [promptLabel, setPromptLabel] = useState<"staging" | "production">(
-		"staging",
-	);
+	const [promptLabel, setPromptLabel] = useState<"staging" | "production">("staging");
 	const [compiledMessages, setCompiledMessages] = useState<
 		Array<{ role: "system" | "user" | "assistant"; content: string }>
 	>([]);
@@ -265,9 +246,7 @@ export function PlaygroundPanel({
 		role: "system" | "user" | "assistant";
 		content: string;
 	}> | null>(null);
-	const [compiledVariables, setCompiledVariables] = useState<
-		Record<string, unknown>
-	>({});
+	const [compiledVariables, setCompiledVariables] = useState<Record<string, unknown>>({});
 	const [isCompiling, setIsCompiling] = useState(false);
 
 	const promptJson = useMemo(() => {
@@ -296,18 +275,13 @@ export function PlaygroundPanel({
 			setCompiledMessages(
 				(res.compiledMessages ?? []).map((m) => ({
 					role: m.role,
-					content:
-						typeof m.content === "string"
-							? m.content
-							: JSON.stringify(m.content),
+					content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
 				})),
 			);
 			setCompiledOverride(null);
 			toast.success("Prompt kompiliert");
 		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : "Fehler beim Kompilieren",
-			);
+			toast.error(error instanceof Error ? error.message : "Fehler beim Kompilieren");
 		} finally {
 			setIsCompiling(false);
 		}
@@ -318,23 +292,15 @@ export function PlaygroundPanel({
 			id: crypto.randomUUID(),
 			model: null,
 			parameters: {
-				temperature:
-					presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
+				temperature: presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
 				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
 				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
-				thinkingExplicit:
-					presetParameters?.thinkingExplicit ??
-					DEFAULT_PARAMETERS.thinkingExplicit,
-				thinkingBudget:
-					presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
+				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
+				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
 				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
 				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
-				frequencyPenalty:
-					presetParameters?.frequencyPenalty ??
-					DEFAULT_PARAMETERS.frequencyPenalty,
-				presencePenalty:
-					presetParameters?.presencePenalty ??
-					DEFAULT_PARAMETERS.presencePenalty,
+				frequencyPenalty: presetParameters?.frequencyPenalty ?? DEFAULT_PARAMETERS.frequencyPenalty,
+				presencePenalty: presetParameters?.presencePenalty ?? DEFAULT_PARAMETERS.presencePenalty,
 			},
 		},
 	]);
@@ -345,9 +311,7 @@ export function PlaygroundPanel({
 		setModelRuns((prev) => {
 			const first = prev.at(0);
 			if (!first || first.model) return prev;
-			const match = models.find(
-				(m) => m.id === presetModel || m.modelId === presetModel,
-			);
+			const match = models.find((m) => m.id === presetModel || m.modelId === presetModel);
 			if (!match) return prev;
 			return [
 				{
@@ -415,12 +379,16 @@ export function PlaygroundPanel({
 		return models.map((model) => {
 			const provider = getProviderGroup(model);
 			const isTop = topModelIdSet.has(model.modelId);
+			const providerLabel =
+				PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 			return {
 				value: model.id,
-				label: isTop ? `Top • ${model.name}` : model.name,
+				label: model.name,
 				group: provider,
-				keywords: [model.modelId, model.name, provider],
+				keywords: [model.modelId, model.name, provider, providerLabel],
 				model,
+				isTop,
+				providerLabel,
 			};
 		});
 	}, [models, topModelIds]);
@@ -439,10 +407,7 @@ export function PlaygroundPanel({
 					}}
 					className="w-full"
 				>
-					<AccordionItem
-						value="input-config"
-						className="border-solarized-base2 lg:border-0"
-					>
+					<AccordionItem value="input-config" className="border-solarized-base2 lg:border-0">
 						<AccordionTrigger className="py-2 text-xs text-solarized-base00 hover:no-underline lg:hidden">
 							Input & Konfiguration
 						</AccordionTrigger>
@@ -456,9 +421,7 @@ export function PlaygroundPanel({
 
 								<Tabs
 									className="flex min-h-0 min-w-0 flex-1 flex-col"
-									onValueChange={(v) =>
-										setActiveTab(v as "input" | "prompt" | "models")
-									}
+									onValueChange={(v) => setActiveTab(v as "input" | "prompt" | "models")}
 									value={activeTab}
 								>
 									<div className="border-b border-solarized-base2 px-3 py-2">
@@ -479,13 +442,9 @@ export function PlaygroundPanel({
 										<CardContent className="min-w-0 space-y-4 p-3">
 											<TabsContent value="input" className="mt-0 space-y-3">
 												<div className="space-y-2">
-													<Label className="text-sm text-solarized-base01">
-														Dokumenttyp
-													</Label>
+													<Label className="text-sm text-solarized-base01">Dokumenttyp</Label>
 													<Select
-														onValueChange={(v) =>
-															setDocumentType(v as DocumentType)
-														}
+														onValueChange={(v) => setDocumentType(v as DocumentType)}
 														value={documentType}
 													>
 														<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
@@ -503,10 +462,7 @@ export function PlaygroundPanel({
 
 												<div className="space-y-4">
 													<div className="space-y-2">
-														<Label
-															className="text-sm text-solarized-base01"
-															htmlFor="main-input"
-														>
+														<Label className="text-sm text-solarized-base01" htmlFor="main-input">
 															{docUi.mainField.label}
 														</Label>
 														<Textarea
@@ -562,9 +518,7 @@ export function PlaygroundPanel({
 																size="sm"
 																className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
 																onClick={async () => {
-																	await navigator.clipboard.writeText(
-																		promptJson,
-																	);
+																	await navigator.clipboard.writeText(promptJson);
 																	toast.success("Kopiert!");
 																}}
 															>
@@ -574,11 +528,7 @@ export function PlaygroundPanel({
 														</div>
 														<Textarea
 															readOnly
-															value={JSON.stringify(
-																JSON.parse(promptJson),
-																null,
-																2,
-															)}
+															value={JSON.stringify(JSON.parse(promptJson), null, 2)}
 															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 														/>
 													</div>
@@ -588,9 +538,7 @@ export function PlaygroundPanel({
 											<TabsContent value="prompt" className="mt-0 space-y-4">
 												<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01">
-															Prompt Name
-														</Label>
+														<Label className="text-sm text-solarized-base01">Prompt Name</Label>
 														<Input
 															className="border-solarized-base2 bg-solarized-base3"
 															onChange={(e) => setPromptName(e.target.value)}
@@ -599,13 +547,9 @@ export function PlaygroundPanel({
 														/>
 													</div>
 													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01">
-															Label
-														</Label>
+														<Label className="text-sm text-solarized-base01">Label</Label>
 														<Select
-															onValueChange={(v) =>
-																setPromptLabel(v as "staging" | "production")
-															}
+															onValueChange={(v) => setPromptLabel(v as "staging" | "production")}
 															value={promptLabel}
 														>
 															<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
@@ -613,9 +557,7 @@ export function PlaygroundPanel({
 															</SelectTrigger>
 															<SelectContent>
 																<SelectItem value="staging">staging</SelectItem>
-																<SelectItem value="production">
-																	production
-																</SelectItem>
+																<SelectItem value="production">production</SelectItem>
 															</SelectContent>
 														</Select>
 													</div>
@@ -647,8 +589,7 @@ export function PlaygroundPanel({
 
 												{compiledMessages.length === 0 ? (
 													<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-4 text-sm text-solarized-base01">
-														Kompiliere den Prompt, um die finalen Messages zu
-														sehen.
+														Kompiliere den Prompt, um die finalen Messages zu sehen.
 													</div>
 												) : (
 													<div className="space-y-4">
@@ -658,11 +599,7 @@ export function PlaygroundPanel({
 															</Label>
 															<Textarea
 																readOnly
-																value={JSON.stringify(
-																	compiledVariables,
-																	null,
-																	2,
-																)}
+																value={JSON.stringify(compiledVariables, null, 2)}
 																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 															/>
 														</div>
@@ -672,49 +609,45 @@ export function PlaygroundPanel({
 																Compiled Messages (editierbar)
 															</Label>
 															<div className="space-y-3">
-																{(compiledOverride ?? compiledMessages).map(
-																	(m, idx) => (
-																		<div
-																			key={`${m.role}-${idx}`}
-																			className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
-																		>
-																			<div className="flex items-center justify-between">
-																				<span className="font-mono text-xs text-solarized-base01">
-																					{m.role}
-																				</span>
-																				<Button
-																					type="button"
-																					variant="ghost"
-																					size="sm"
-																					className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																					onClick={async () => {
-																						await navigator.clipboard.writeText(
-																							m.content,
-																						);
-																						toast.success("Kopiert!");
-																					}}
-																				>
-																					<Copy className="h-3.5 w-3.5" />
-																					Copy
-																				</Button>
-																			</div>
-																			<Textarea
-																				value={m.content}
-																				onChange={(e) => {
-																					const next = (
-																						compiledOverride ?? compiledMessages
-																					).map((x) => ({ ...x }));
-																					next[idx] = {
-																						...next[idx],
-																						content: e.target.value,
-																					};
-																					setCompiledOverride(next);
+																{(compiledOverride ?? compiledMessages).map((m, idx) => (
+																	<div
+																		key={`${m.role}-${idx}`}
+																		className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
+																	>
+																		<div className="flex items-center justify-between">
+																			<span className="font-mono text-xs text-solarized-base01">
+																				{m.role}
+																			</span>
+																			<Button
+																				type="button"
+																				variant="ghost"
+																				size="sm"
+																				className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
+																				onClick={async () => {
+																					await navigator.clipboard.writeText(m.content);
+																					toast.success("Kopiert!");
 																				}}
-																				className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																			/>
+																			>
+																				<Copy className="h-3.5 w-3.5" />
+																				Copy
+																			</Button>
 																		</div>
-																	),
-																)}
+																		<Textarea
+																			value={m.content}
+																			onChange={(e) => {
+																				const next = (compiledOverride ?? compiledMessages).map(
+																					(x) => ({ ...x }),
+																				);
+																				next[idx] = {
+																					...next[idx],
+																					content: e.target.value,
+																				};
+																				setCompiledOverride(next);
+																			}}
+																			className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+																		/>
+																	</div>
+																))}
 															</div>
 														</div>
 													</div>
@@ -724,12 +657,10 @@ export function PlaygroundPanel({
 											<TabsContent value="models" className="mt-0 space-y-4">
 												<div className="flex flex-wrap items-start justify-between gap-2">
 													<div className="space-y-0.5">
-														<p className="font-medium text-sm text-solarized-base00">
-															Model Runs
-														</p>
+														<p className="font-medium text-sm text-solarized-base00">Model Runs</p>
 														<p className="text-xs text-solarized-base01">
-															Definiere mehrere Modelle/Parameter, die mit
-															demselben Input und Prompt getestet werden.
+															Definiere mehrere Modelle/Parameter, die mit demselben Input und
+															Prompt getestet werden.
 														</p>
 													</div>
 													<Button
@@ -760,28 +691,66 @@ export function PlaygroundPanel({
 														>
 															<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 																<div className="min-w-0 flex-1 space-y-2">
-																	<Label className="text-sm text-solarized-base01">
-																		Modell
-																	</Label>
+																	<Label className="text-sm text-solarized-base01">Modell</Label>
 																	<ModelSelector
 																		options={modelSelectorOptions}
 																		value={run.model?.id ?? null}
 																		isLoading={isLoadingModels}
+																		searchPlaceholder="Modell oder Anbieter suchen..."
 																		placeholder="Modell auswählen..."
 																		loadingMessage="Lade Modelle..."
 																		emptyMessage="Keine Modelle gefunden."
 																		formatGroupLabel={(group) =>
 																			PROVIDER_LABELS[group] ??
-																			group.charAt(0).toUpperCase() +
-																				group.slice(1)
+																			group.charAt(0).toUpperCase() + group.slice(1)
 																		}
-																		className="border-solarized-base2 bg-solarized-base3"
-																		popoverClassName="max-h-[min(70vh,32rem)] w-[min(26rem,calc(100vw-1rem))] overflow-auto p-0"
-																		renderSelected={(selected) => (
-																			<span className="min-w-0 truncate">
-																				{selected?.model.name ??
-																					"Modell auswählen..."}
-																			</span>
+																		className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
+																		popoverClassName="sm:w-[28rem]"
+																		renderSelected={(selected) =>
+																			selected ? (
+																				<div className="min-w-0">
+																					<p className="truncate font-medium text-solarized-base00">
+																						{selected.model.name}
+																					</p>
+																					<p className="truncate text-solarized-base01 text-xs">
+																						{selected.providerLabel}
+																					</p>
+																				</div>
+																			) : (
+																				<span className="text-solarized-base01">
+																					Modell auswählen...
+																				</span>
+																			)
+																		}
+																		renderOption={(option) => (
+																			<div className="flex min-w-0 items-start justify-between gap-3">
+																				<div className="min-w-0 space-y-1">
+																					<p className="truncate font-medium text-solarized-base00">
+																						{option.model.name}
+																					</p>
+																					<p className="truncate text-solarized-base01 text-xs">
+																						{option.model.modelId}
+																					</p>
+																				</div>
+																				<div className="flex shrink-0 items-center gap-1">
+																					{option.isTop ? (
+																						<Badge
+																							variant="outline"
+																							className="border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet"
+																						>
+																							Top
+																						</Badge>
+																					) : null}
+																					{option.model.supportsReasoning ? (
+																						<Badge
+																							variant="outline"
+																							className="border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan"
+																						>
+																							Reasoning
+																						</Badge>
+																					) : null}
+																				</div>
+																			</div>
 																		)}
 																		onValueChange={(modelId) => {
 																			const model = modelById.get(modelId);
@@ -807,9 +776,7 @@ export function PlaygroundPanel({
 																	size="sm"
 																	className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
 																	onClick={() => {
-																		setModelRuns((prev) =>
-																			prev.filter((r) => r.id !== run.id),
-																		);
+																		setModelRuns((prev) => prev.filter((r) => r.id !== run.id));
 																		setRunStates((prev) => {
 																			const next = { ...prev };
 																			delete next[run.id];
@@ -831,17 +798,13 @@ export function PlaygroundPanel({
 															<Separator className="bg-solarized-base2" />
 
 															<div className="space-y-2">
-																<Label className="text-sm text-solarized-base01">
-																	Parameter
-																</Label>
+																<Label className="text-sm text-solarized-base01">Parameter</Label>
 																<ParameterControls
 																	parameters={run.parameters}
 																	onChange={(p) =>
 																		setModelRuns((prev) =>
 																			prev.map((r) =>
-																				r.id === run.id
-																					? { ...r, parameters: p }
-																					: r,
+																				r.id === run.id ? { ...r, parameters: p } : r,
 																			),
 																		)
 																	}
@@ -866,9 +829,7 @@ export function PlaygroundPanel({
 				<CardHeader className="shrink-0 border-b border-solarized-base2 px-3 py-2">
 					<div className="flex items-center justify-between gap-2">
 						<div className="min-w-0">
-							<CardTitle className="truncate text-sm text-solarized-base00">
-								Ergebnisse
-							</CardTitle>
+							<CardTitle className="truncate text-sm text-solarized-base00">Ergebnisse</CardTitle>
 							<p className="truncate text-xs text-solarized-base01">
 								{scribeDocTypeUi[documentType].label} · {promptName}
 							</p>
@@ -900,12 +861,12 @@ export function PlaygroundPanel({
 					</div>
 				</CardHeader>
 				<ScrollArea className="min-h-0 flex-1">
-						<div className="space-y-3 p-3">
-							{modelRuns.map((run) => (
-								// eslint-disable-next-line no-use-before-define
-								<RunCard
-									key={run.id}
-									runId={run.id}
+					<div className="space-y-3 p-3">
+						{modelRuns.map((run) => (
+							// eslint-disable-next-line no-use-before-define
+							<RunCard
+								key={run.id}
+								runId={run.id}
 								modelRun={run}
 								documentType={documentType}
 								promptJson={promptJson}
@@ -953,9 +914,7 @@ function RunCard({
 	setRunState: (id: string, patch: Partial<RunState>) => void;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 }) {
-	const payloadRef = useRef<
-		null | Parameters<typeof orpc.admin.scribe.run.call>[0]
-	>(null);
+	const payloadRef = useRef<null | Parameters<typeof orpc.admin.scribe.run.call>[0]>(null);
 
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
 		id: `admin-scribe-playground-${modelRun.id}`,
@@ -990,8 +949,7 @@ function RunCard({
 				if (!event) return;
 
 				const latencyMs =
-					typeof (event.metadata as Record<string, unknown> | null)
-						?.latencyMs === "number"
+					typeof (event.metadata as Record<string, unknown> | null)?.latencyMs === "number"
 						? ((event.metadata as Record<string, unknown>).latencyMs as number)
 						: 0;
 
@@ -1057,8 +1015,7 @@ function RunCard({
 		const requestId = crypto.randomUUID();
 
 		const compiledMessagesOverride =
-			compiledOverride ??
-			(compiledMessages.length > 0 ? compiledMessages : undefined);
+			compiledOverride ?? (compiledMessages.length > 0 ? compiledMessages : undefined);
 
 		payloadRef.current = {
 			requestId,

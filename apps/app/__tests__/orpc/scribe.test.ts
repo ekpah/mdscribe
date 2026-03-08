@@ -99,13 +99,26 @@ describe("Context Builder", () => {
 		expect(contextXml).toContain("<name>Dr. Test</name>");
 	});
 
-	test("does not emit template_context while provider is a stub", async () => {
+	test("emits template_context with template content and examples", async () => {
 		const { contextXml } = await buildScribeContext({
-			sources: [{ kind: "template", data: { template: "foo" } }],
+			sources: [
+				{
+					kind: "template",
+					data: {
+						title: "ER Vorlage",
+						content: "## Abschnitt",
+						examples: ["Beispiel A", "Beispiel B"],
+					},
+				},
+			],
 			sessionUser: null,
 		});
 
-		expect(contextXml).not.toContain("<template_context>");
+		expect(contextXml).toContain("<template_context>");
+		expect(contextXml).toContain("<title>ER Vorlage</title>");
+		expect(contextXml).toContain("<content>## Abschnitt</content>");
+		expect(contextXml).toContain("<example>Beispiel A</example>");
+		expect(contextXml).toContain("<example>Beispiel B</example>");
 	});
 });
 

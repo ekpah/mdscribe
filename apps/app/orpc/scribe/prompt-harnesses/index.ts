@@ -7,4 +7,9 @@ export { icuTransferPromptHarness } from "./icu-transfer";
 export { outpatientPromptHarness } from "./outpatient";
 export { physicalExamPromptHarness } from "./physical-exam";
 export { proceduresPromptHarness } from "./procedures";
+export {
+	getPromptHarnessById,
+	PROMPT_HARNESS_IDS,
+	type PromptHarnessId,
+} from "./registry";
 export { createPromptMessages } from "./shared";

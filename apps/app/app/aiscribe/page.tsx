@@ -24,7 +24,10 @@ import {
 	Zap,
 } from "lucide-react";
 import Link from "next/link";
+import { getQueryClient } from "@/lib/get-query-client";
+import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
+import { buildCustomAiscribeTemplateConfig } from "./_lib/custom-form-config";
 
 type AccentColor =
 	| "solarized-blue"
@@ -250,7 +253,11 @@ const editorModes: {
 ];
 
 export default async function AIScribeLandingPage() {
+	const queryClient = getQueryClient();
 	const session = await getServerSession();
+	const customForms = await queryClient.fetchQuery(
+		orpc.scribeForms.listAvailable.queryOptions(),
+	);
 	const isLoggedIn = !!session?.user;
 
 	return (
@@ -333,6 +340,41 @@ export default async function AIScribeLandingPage() {
 							))}
 						</div>
 					</div>
+
+					{customForms.length > 0 && (
+						<div className="space-y-3 sm:space-y-4">
+							<div className="flex items-center gap-2">
+								<FileText className="h-5 w-5 text-solarized-cyan" />
+								<h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
+									AI Textbausteine
+								</h2>
+							</div>
+							<p className="text-xs text-solarized-base01 sm:text-sm">
+								Zusätzliche, konfigurierbare AIScribe-Texte für
+								wiederkehrende Dokumentationsaufgaben.
+							</p>
+							<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+								{customForms.map((form) => {
+									const formConfig = buildCustomAiscribeTemplateConfig(form);
+									const Icon = formConfig.icon;
+
+									return (
+										<ScribeCard
+											key={form.id}
+											title={form.name}
+											description={form.description ?? formConfig.description}
+											href={`/aiscribe/custom/${form.slug}`}
+											icon={
+												<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />
+											}
+											isLoggedIn={isLoggedIn}
+											accentColor="solarized-cyan"
+										/>
+									);
+								})}
+							</div>
+						</div>
+					)}
 
 					{/* Editor Section */}
 					<div className="space-y-3 sm:space-y-4">

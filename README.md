@@ -118,10 +118,15 @@ mdscribe/
 | `bun run db:reset` | Stop local PostgreSQL and remove its volume |
 | `bun run db:logs` | Tail PostgreSQL logs |
 | `bun run db:init` | Re-run schema + idempotent seed against local Postgres |
+| `bun run db:migrate` | Apply tracked Drizzle migrations against the configured database |
 
 Performance tips:
 - Use `bun run lint:affected && bun run test:affected` during normal development.
 - Use Turbo filters for focused runs (for example `turbo run lint --filter=app`).
+
+## Production Database Migrations
+
+Run `bun run db:migrate` in CI/CD before rolling out a version that includes schema changes. The Docker image is expected to start the app only and does not run migrations on container startup.
 
 ## Contributing
 

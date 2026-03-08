@@ -344,6 +344,41 @@ export const aiDefaults = pgTable("AiDefaults", {
 		.$onUpdate(() => new Date()),
 });
 
+export const aiScribeFormConfig = pgTable(
+	"AiScribeFormConfig",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		slug: text("slug").notNull(),
+		name: text("name").notNull(),
+		description: text("description"),
+		enabled: boolean("enabled").notNull().default(true),
+		inputPreset: text("inputPreset").notNull(),
+		promptHarness: text("promptHarness").notNull(),
+		templateId: text("templateId").references(() => template.id, {
+			onDelete: "set null",
+		}),
+		modelId: text("modelId").references(() => aiModel.id, {
+			onDelete: "set null",
+		}),
+		temperature: numeric("temperature", { precision: 3, scale: 2 }),
+		maxTokens: integer("maxTokens"),
+		thinkingBudget: integer("thinkingBudget"),
+		createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+			.notNull()
+			.defaultNow()
+			.$onUpdate(() => new Date()),
+	},
+	(table) => [
+		uniqueIndex("AiScribeFormConfig_slug_key").on(table.slug),
+		index("AiScribeFormConfig_enabled_idx").on(table.enabled),
+	],
+);
+
 // ============ RELATIONS ============
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -440,3 +475,17 @@ export const aiModelRelations = relations(aiModel, ({ one }) => ({
 		references: [aiProvider.id],
 	}),
 }));
+
+export const aiScribeFormConfigRelations = relations(
+	aiScribeFormConfig,
+	({ one }) => ({
+		model: one(aiModel, {
+			fields: [aiScribeFormConfig.modelId],
+			references: [aiModel.id],
+		}),
+		template: one(template, {
+			fields: [aiScribeFormConfig.templateId],
+			references: [template.id],
+		}),
+	}),
+);
