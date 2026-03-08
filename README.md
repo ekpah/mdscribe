@@ -126,13 +126,15 @@ Performance tips:
 
 ## Production Database Migrations
 
-Run migrations in CI/CD before rolling out a version that includes schema changes:
+For Dockerfile-based deployments such as Coolify, the production image runs Drizzle migrations before the app starts.
+
+If you need to run the same migration step manually against the target database, use:
 
 ```bash
 bun run db:migrate
 ```
 
-`bun run db:migrate:deploy` remains as a compatibility alias if your deploy system already uses it.
+Set `RUN_DB_MIGRATIONS_ON_START=false` if you need to skip the startup migration step for a specific container run.
 
 ## Contributing
 

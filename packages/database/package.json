@@ -12,9 +12,9 @@
 	"scripts": {
 		"dev": "drizzle-kit studio",
 		"generate": "drizzle-kit generate",
-		"migrate": "drizzle-kit migrate",
+		"migrate": "bun run migrate-deploy.ts",
 		"migrate:kit": "drizzle-kit migrate",
-		"migrate:deploy": "drizzle-kit migrate",
+		"migrate:deploy": "bun run migrate-deploy.ts",
 		"push": "drizzle-kit push",
 		"bootstrap": "bun run bootstrap.ts",
 		"typecheck": "tsc --noEmit"

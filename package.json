@@ -28,10 +28,10 @@
 		"db:init": "bun run --cwd packages/database bootstrap",
 		"bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && bun install",
 		"db:bootstrap": "bun run --cwd packages/database bootstrap",
-		"db:migrate": "bun run --cwd packages/database migrate",
+		"db:migrate": "bun run --cwd packages/database migrate:deploy",
 		"db:migrate:deploy": "bun run db:migrate",
 		"migrate": "bun run db:migrate",
-		"migrate:kit": "bun run db:migrate",
+		"migrate:kit": "bun run --cwd packages/database migrate:kit",
 		"knip": "knip"
 	},
 	"catalog": {

@@ -35,11 +35,13 @@ Für Produktionsumgebungen ist ein Build vor Deployment erforderlich:
 bun run build
 ```
 
-Vor dem ersten Produktivstart und bei jedem Schema-Change sollten die Drizzle-Migrationen im Deployment-Schritt vor dem Rollout laufen:
+Vor dem ersten Produktivstart und bei jedem Schema-Change sollten die Drizzle-Migrationen ausgeführt werden:
 
 ```bash
 bun run db:migrate
 ```
+
+Wenn Sie MDScribe per Dockerfile deployen, fuehrt das Produktions-Image diese Migrationen beim Container-Start automatisch aus und startet danach erst die App.
 
 ## 2. Umgebungsvariablen (Self-Hosted)
 
@@ -87,8 +89,6 @@ Wenn Sie striktere Grenzen benötigen (z.B. keine externen KI-Endpunkte), ist zu
 - Definieren Sie klare Aufbewahrungsfristen und Offsite-Backups.
 - Testen Sie Recovery regelmäßig in einer separaten Umgebung.
 - Dokumentieren Sie RTO/RPO für Ihren Betrieb.
-
-Das Docker-Image startet nur die App und fuehrt keine Migrationen beim Container-Start aus.
 
 ## 8. Telemetrie- und Compliance-Hinweise
 
