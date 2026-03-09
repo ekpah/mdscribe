@@ -31,6 +31,7 @@ export default async function DashboardPage() {
 			session={structuredClone(session)}
 			subscription={
 				activeSubscription
+					? structuredClone(activeSubscription)
 					: undefined
 			}
 			user={structuredClone(session.user)}

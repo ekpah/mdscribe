@@ -17,7 +17,7 @@ import { cn } from "@repo/design-system/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { LaptopIcon, Loader2, SmartphoneIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { UAParser } from "ua-parser-js";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -80,19 +80,6 @@ export default function UserCard(props: {
 		[queryClient, removeActiveSession, router, session?.session?.id],
 	);
 
-	const revokeHandlers = useMemo(
-		() =>
-			Object.fromEntries(
-				activeSessions.map((activeSession) => [
-					activeSession.id,
-					() => {
-						void handleRevokeSession(activeSession);
-					},
-				]),
-			) as Record<string, () => void>,
-		[activeSessions, handleRevokeSession],
-	);
-
 	return (
 		<Card>
 			<CardHeader>
@@ -128,6 +115,9 @@ export default function UserCard(props: {
 							const isCurrentSession = activeSession.id === session?.session?.id;
 							const parser = UAParser(activeSession.userAgent as string);
 							const isMobile = parser.device.type === "mobile";
+							const handleRevokeClick = () => {
+								void handleRevokeSession(activeSession);
+							};
 
 							return (
 							<Card
@@ -164,7 +154,7 @@ export default function UserCard(props: {
 									disabled={isLoading === activeSession.id}
 									size="sm"
 									variant="outline"
-										onClick={revokeHandlers[activeSession.id]}
+									onClick={handleRevokeClick}
 									>
 									{isLoading === activeSession.id && (
 										<Loader2 className="animate-spin" />

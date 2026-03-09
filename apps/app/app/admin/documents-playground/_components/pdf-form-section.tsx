@@ -578,16 +578,6 @@ const PDFFormSection = () => {
 		voiceFillMutation.mutate({ audioFiles, inputFields });
 	}, [audioRecordings, fieldMapping, voiceFillMutation]);
 
-	const recordingRemoveHandlers = useMemo<Record<string, () => void>>(() => {
-		const handlers: Record<string, () => void> = {};
-		for (const recording of audioRecordings) {
-			handlers[recording.id] = () => {
-				handleRemoveRecording(recording.id);
-			};
-		}
-		return handlers;
-	}, [audioRecordings, handleRemoveRecording]);
-
 	const handlePreviewTabValueChange = useCallback((value: string) => {
 		setActivePreviewTab(value as "pdf" | "markdown");
 	}, []);
@@ -665,27 +655,33 @@ const PDFFormSection = () => {
 							{/* Audio Recordings List */}
 							{audioRecordings.length > 0 && (
 								<div className="mb-3 space-y-2">
-										{audioRecordings.map((recording, index) => (
-										<div
-											className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2"
-											key={recording.id}
-										>
-											<div className="flex items-center gap-2 text-sm text-solarized-green">
-												<Mic className="h-4 w-4" />
-												<span>
-													Aufnahme {index + 1} (
-													{formatDuration(recording.duration)})
-												</span>
-											</div>
+									{audioRecordings.map((recording, index) => {
+										const handleRemoveClick = () => {
+											handleRemoveRecording(recording.id);
+										};
+
+										return (
+											<div
+												className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2"
+												key={recording.id}
+											>
+												<div className="flex items-center gap-2 text-sm text-solarized-green">
+													<Mic className="h-4 w-4" />
+													<span>
+														Aufnahme {index + 1} (
+														{formatDuration(recording.duration)})
+													</span>
+												</div>
 												<Button
-													onClick={recordingRemoveHandlers[recording.id]}
+													onClick={handleRemoveClick}
 													size="sm"
 													variant="ghost"
 												>
-												<X className="h-4 w-4" />
-											</Button>
-										</div>
-									))}
+													<X className="h-4 w-4" />
+												</Button>
+											</div>
+										);
+									})}
 								</div>
 							)}
 

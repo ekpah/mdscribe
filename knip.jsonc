@@ -1,0 +1,31 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema-jsonc.json",
+	"ignoreBinaries": ["jq", "npm-check-updates"],
+	"ignoreIssues": {
+		"packages/design-system/styles/globals.css": ["unresolved"],
+		"packages/typescript-config/nextjs.json": ["unresolved"]
+	},
+	"workspaces": {
+		"apps/app": {
+			"entry": [
+				// Keep Next.js auto-detected entrypoints from plugins.
+				// These entries only cover Bun test discovery that Knip cannot infer.
+				"__tests__/preload.ts",
+				"__tests__/setup.ts",
+				"__tests__/{lib,orpc}/**/*.test.ts"
+			]
+		},
+		"apps/docs": {
+			"entry": [
+				// Keep Next.js plugin entries; add Fumadocs source config explicitly.
+				"source.config.ts"
+			]
+		},
+		"apps/email": {
+			"entry": [
+				// Keep package/plugin entries; add React Email template discovery.
+				"emails/**/*.tsx"
+			]
+		}
+	}
+}

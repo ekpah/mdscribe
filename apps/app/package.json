@@ -50,6 +50,7 @@
 		"react-hook-form": "^7.58.1",
 		"react-hotkeys-hook": "^5.1.0",
 		"react-pdf": "^10.2.0",
+		"server-only": "^0.0.1",
 		"sonner": "catalog:",
 		"stripe": "^18.2.1",
 		"ua-parser-js": "^2.0.4",

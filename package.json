@@ -31,7 +31,10 @@
 		"db:migrate": "bun run --cwd packages/database migrate",
 		"db:migrate:deploy": "bun run db:migrate",
 		"migrate": "bun run db:migrate",
-		"knip": "knip"
+		"knip": "knip --config knip.jsonc --cache",
+		"knip:strict": "knip --config knip.jsonc --cache --strict",
+		"knip:production": "knip --config knip.jsonc --cache --production --strict",
+		"knip:ci": "bun run knip"
 	},
 	"catalog": {
 		"react": "^19.2.3",
