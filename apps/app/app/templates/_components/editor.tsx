@@ -1,9 +1,9 @@
 "use client";
 
 import Markdoc, { type ValidateError } from "@markdoc/markdoc";
-import { EditorSidebar } from "@repo/design-system/components/editor/_components/EditorSidebar";
-import PlainEditor from "@repo/design-system/components/editor/PlainEditor";
-import TipTap from "@repo/design-system/components/editor/TipTap";
+import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
+import PlainEditor from "@repo/design-system/components/editor/plain-editor";
+import TipTap from "@repo/design-system/components/editor/tip-tap";
 import type {
 	MarkdocTagName,
 	MarkdocValidationHighlight,

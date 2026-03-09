@@ -5,7 +5,7 @@ import { Suspense } from "react";
 
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
-import AppSidebar from "./_components/Sidebar";
+import AppSidebar from "./_components/sidebar";
 
 const getTemplates = async (queryClient: QueryClient) => {
 	const templates = await queryClient.fetchQuery(
