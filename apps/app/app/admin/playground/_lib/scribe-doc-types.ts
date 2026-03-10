@@ -225,3 +225,6 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 };
 
 export const allScribeDocTypes = Object.keys(scribeDocTypeUi) as DocumentType[];
+
+export const isScribeDocType = (value: string): value is DocumentType =>
+	value in scribeDocTypeUi;
