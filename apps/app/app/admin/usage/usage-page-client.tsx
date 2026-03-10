@@ -10,6 +10,7 @@ import {
 } from "@repo/design-system/components/ui/card";
 import {
 	DataTable,
+	type DataTableRenderToolbarProps,
 	DataTableViewOptions,
 } from "@repo/design-system/components/ui/data-table";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -24,8 +25,8 @@ import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { UsageEventDetail } from "./_components/usage-event-detail";
-import { createColumns } from './columns';
-import type { UsageEventWithUser } from './columns';
+import { createColumns } from "./columns";
+import type { UsageEventWithUser } from "./columns";
 
 type StatsFilter = "today" | "week" | "month" | "all";
 
@@ -41,7 +42,7 @@ const UsageToolbar = ({
 	searchFilter,
 	onSearchFilterChange,
 }: {
-	table: any;
+	table: DataTableRenderToolbarProps<UsageEventWithUser>["table"];
 	searchFilter: string;
 	onSearchFilterChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }) => {
@@ -162,7 +163,7 @@ export default function UsagePage() {
 	);
 
 	const renderUsageToolbar = useCallback(
-		(table: any) => (
+		(table: DataTableRenderToolbarProps<UsageEventWithUser>["table"]) => (
 			<UsageToolbar
 				table={table}
 				searchFilter={searchFilter}

@@ -1,26 +1,40 @@
-"use client";
-import { Button } from "@repo/design-system/components/ui/button";
-import Link from "next/link";
-import { useCallback, useState } from "react";
-import type { MouseEvent } from "react";
+'use client';
+
 import {
-  BookmarkFilledIcon,
   BookmarkIcon,
   ClockIcon,
   Pencil2Icon,
   PersonIcon,
   Share1Icon,
-} from "@radix-ui/react-icons";
+} from '@radix-ui/react-icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { FileText, FolderPlus, ListChecks } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/design-system/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
-import { toast } from "sonner";
-import { orpc } from "@/lib/orpc";
+} from '@repo/design-system/components/ui/tooltip';
+import { Button } from '@repo/design-system/components/ui/button';
+import { orpc } from '@/lib/orpc';
 
-// 1: Define a type that includes the relation to `Post`
+interface TemplateCollection {
+  id: string;
+  name: string;
+  description: string | null;
+  templates: { id: string }[];
+}
 
 export const NavActions = ({
   author,
@@ -30,8 +44,9 @@ export const NavActions = ({
   lastEdited,
   templateId,
   favouriteOfCount,
+  contentView,
+  hasExamples,
 }: {
-  // email of the author
   author?: string;
   isAuthor: boolean;
   isFavourite: boolean;
@@ -39,65 +54,242 @@ export const NavActions = ({
   lastEdited: Date;
   templateId?: string;
   favouriteOfCount: number;
+  contentView: 'template' | 'examples';
+  hasExamples: boolean;
 }) => {
   const [isBookmark, setBookmark] = useState(isFavourite);
-  const makeFavourite = useCallback(async (event: MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    if (!templateId) {
-      return;
-    }
-    setBookmark(true);
-    await orpc.templates.addFavourite.call({ templateId });
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-    toast.success("Favorit gespeichert");
-  }, [templateId]);
-  const unmakeFavourite = useCallback(async (event: MouseEvent<HTMLElement>) => {
-    event.preventDefault();
+  const collectionsQueryKey = orpc.user.collections.list.queryOptions().queryKey;
+  const favouritesQueryKey = orpc.templates.favourites.queryOptions().queryKey;
+  const templatesQueryKey = orpc.templates.list.queryOptions().queryKey;
+
+  const invalidateCollections = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: collectionsQueryKey });
+  }, [queryClient, collectionsQueryKey]);
+
+  const invalidateTemplateLists = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: favouritesQueryKey }),
+      queryClient.invalidateQueries({ queryKey: templatesQueryKey }),
+    ]);
+  }, [queryClient, favouritesQueryKey, templatesQueryKey]);
+
+  const { data: collections = [] } = useQuery({
+    ...orpc.user.collections.list.queryOptions(),
+    enabled: isLoggedIn && Boolean(templateId),
+  });
+
+  const typedCollections = collections as TemplateCollection[];
+
+  const collectionsContainingTemplate = useMemo(() => {
     if (!templateId) {
+      return new Set<string>();
+    }
+
+    return new Set(
+      typedCollections
+        .filter((collection) =>
+          collection.templates.some((collectionTemplate) => {
+            return collectionTemplate.id === templateId;
+          })
+        )
+        .map((collection) => collection.id)
+    );
+  }, [templateId, typedCollections]);
+
+  const favouriteMutation = useMutation({
+    mutationFn: async (shouldBeFavourite: boolean) => {
+      if (!templateId) {
+        return;
+      }
+
+      if (shouldBeFavourite) {
+        await orpc.templates.addFavourite.call({ templateId });
+      } else {
+        await orpc.templates.removeFavourite.call({ templateId });
+      }
+    },
+    onSuccess: async (_, shouldBeFavourite) => {
+      setBookmark(shouldBeFavourite);
+      await invalidateTemplateLists();
+    },
+  });
+
+  const addTemplateMutation = useMutation(
+    orpc.user.collections.addTemplate.mutationOptions({
+      onSuccess: () => {
+        void invalidateCollections();
+      },
+    })
+  );
+
+  const removeTemplateMutation = useMutation(
+    orpc.user.collections.removeTemplate.mutationOptions({
+      onSuccess: () => {
+        void invalidateCollections();
+      },
+    })
+  );
+
+  const handleToggleFavourite = useCallback(
+    async (checked: boolean) => {
+      if (!templateId || checked === isBookmark) {
+        return;
+      }
+
+      try {
+        await favouriteMutation.mutateAsync(checked);
+        toast.success(checked ? 'Favorit gespeichert' : 'Favorit entfernt');
+      } catch (error) {
+        console.error('Error updating favourite:', error);
+        toast.error('Fehler beim Aktualisieren der Favoriten');
+      }
+    },
+    [templateId, isBookmark, favouriteMutation]
+  );
+
+  const handleToggleCollection = useCallback(
+    async (collectionId: string, shouldInclude: boolean) => {
+      if (!templateId) {
+        return;
+      }
+      try {
+        if (shouldInclude) {
+          await addTemplateMutation.mutateAsync({ collectionId, templateId });
+          toast.success('Zur Sammlung hinzugefügt');
+        } else {
+          await removeTemplateMutation.mutateAsync({ collectionId, templateId });
+          toast.success('Aus Sammlung entfernt');
+        }
+      } catch (error) {
+        console.error('Error updating collection:', error);
+        toast.error('Fehler beim Aktualisieren der Sammlung');
+      }
+    },
+    [templateId, addTemplateMutation, removeTemplateMutation]
+  );
+
+  const isCollectionMutationPending =
+    addTemplateMutation.isPending || removeTemplateMutation.isPending;
+
+  const handleToggleContentView = useCallback(() => {
+    if (!hasExamples) {
       return;
     }
-    setBookmark(false);
-    await orpc.templates.removeFavourite.call({ templateId });
-    toast.success("Favorit entfernt");
-  }, [templateId]);
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    const nextView = contentView === 'examples' ? 'template' : 'examples';
+
+    if (nextView === 'examples') {
+      nextSearchParams.set('view', 'examples');
+    } else {
+      nextSearchParams.delete('view');
+    }
+
+    const nextQuery = nextSearchParams.toString();
+    router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  }, [contentView, hasExamples, pathname, router, searchParams]);
 
   return (
     <div className="flex items-center gap-2 text-sm">
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <PersonIcon />
-        Autor: {author || "Anonym"}
+        Autor: {author || 'Anonym'}
       </div>
 
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <ClockIcon />
-        Zuletzt bearbeitet am{" "}
+        Zuletzt bearbeitet am{' '}
         {lastEdited &&
-          new Date(lastEdited).toLocaleString("de-DE", {
-            dateStyle: "medium",
+          new Date(lastEdited).toLocaleString('de-DE', {
+            dateStyle: 'medium',
           })}
       </div>
 
-      {isLoggedIn &&
-        templateId &&
-        (isBookmark ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={unmakeFavourite}
-          >
-            <BookmarkFilledIcon />
-          </Button>
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={makeFavourite}
-          >
-            <BookmarkIcon />
-          </Button>
-        ))}
+      {isLoggedIn && templateId && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="h-7 w-7" size="icon" variant="ghost">
+              <FolderPlus className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuCheckboxItem
+              checked={isBookmark}
+              disabled={favouriteMutation.isPending}
+              onCheckedChange={(checked) => {
+                void handleToggleFavourite(Boolean(checked));
+              }}
+              onSelect={(event) => {
+                event.preventDefault();
+              }}
+            >
+              <span className="font-medium">Favoriten</span>
+            </DropdownMenuCheckboxItem>
+
+            {typedCollections.length > 0 ? <DropdownMenuSeparator /> : null}
+
+            {typedCollections.map((collection) => (
+              <DropdownMenuCheckboxItem
+                checked={collectionsContainingTemplate.has(collection.id)}
+                className="items-start py-2"
+                disabled={isCollectionMutationPending}
+                key={collection.id}
+                onCheckedChange={(checked) => {
+                  void handleToggleCollection(collection.id, Boolean(checked));
+                }}
+                onSelect={(event) => {
+                  event.preventDefault();
+                }}
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium">{collection.name}</span>
+                  {collection.description ? (
+                    <span className="text-muted-foreground text-xs">
+                      {collection.description}
+                    </span>
+                  ) : null}
+                </div>
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              className="h-7 w-7"
+              disabled={!hasExamples}
+              onClick={handleToggleContentView}
+              size="icon"
+              type="button"
+              variant={contentView === 'examples' ? 'secondary' : 'ghost'}
+            >
+              {contentView === 'examples' ? (
+                <FileText className="h-4 w-4" />
+              ) : (
+                <ListChecks className="h-4 w-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>
+              {hasExamples
+                ? contentView === 'examples'
+                  ? 'Template anzeigen'
+                  : 'Beispiele anzeigen'
+                : 'Keine Beispiele vorhanden'}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
       {!isLoggedIn && <BookmarkIcon />}
       <span className="flex w-12 flex-row font-medium text-muted-foreground">
         {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
@@ -105,13 +297,13 @@ export const NavActions = ({
       {isLoggedIn && templateId ? (
         isAuthor ? (
           <Link href={`/templates/${templateId}/edit`}>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Button className="h-7 w-7" size="icon" variant="ghost">
               <Pencil2Icon />
             </Button>
           </Link>
         ) : (
           <Link href={`/templates/create?fork=${templateId}`}>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
+            <Button className="h-7 w-7" size="icon" variant="ghost">
               <Share1Icon />
             </Button>
           </Link>

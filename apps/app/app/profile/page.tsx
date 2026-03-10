@@ -24,13 +24,10 @@ export default async function DashboardPage() {
 	const activeSubscription = subscriptions.find(
 		(sub) => sub.status === "active" || sub.status === "trialing",
 	);
-	const generationLimit =
-		(activeSubscription?.limits?.ai_scribe_generations as number) || 0;
 
 	return (
 		<UserSettings
 			activeSessions={structuredClone(activeSessions)}
-			generationLimit={generationLimit}
 			session={structuredClone(session)}
 			subscription={
 				activeSubscription

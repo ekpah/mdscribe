@@ -133,6 +133,45 @@ export const template = pgTable("Template", {
 		.defaultNow(),
 });
 
+export const templateExample = pgTable(
+	"TemplateExample",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		templateId: text("templateId")
+			.notNull()
+			.references(() => template.id, { onDelete: "cascade" }),
+		content: text("content").notNull(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow()
+			.$onUpdate(() => new Date()),
+	},
+	(table) => [index("TemplateExample_templateId_idx").on(table.templateId)],
+);
+
+export const templateCollection = pgTable("TemplateCollection", {
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow(),
+	description: text("description"),
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	name: text("name").notNull(),
+	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
+		.notNull()
+		.defaultNow()
+		.$onUpdate(() => new Date()),
+	userId: text("userId")
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+});
+
 export const subscription = pgTable("Subscription", {
 	cancelAtPeriodEnd: boolean("cancelAtPeriodEnd"),
 	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
@@ -235,6 +274,22 @@ export const favourites = pgTable(
 	],
 );
 
+export const templateCollectionTemplate = pgTable(
+	"TemplateCollectionTemplate",
+	{
+		collectionId: text("collectionId")
+			.notNull()
+			.references(() => templateCollection.id, { onDelete: "cascade" }),
+		templateId: text("templateId")
+			.notNull()
+			.references(() => template.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		primaryKey({ columns: [table.collectionId, table.templateId] }),
+		index("TemplateCollectionTemplate_templateId_idx").on(table.templateId),
+	],
+);
+
 // ============ AI PROVIDER TABLES ============
 
 export const aiProvider = pgTable("AiProvider", {
@@ -290,6 +345,41 @@ export const aiDefaults = pgTable("AiDefaults", {
 		.$onUpdate(() => new Date()),
 });
 
+export const aiScribeFormConfig = pgTable(
+	"AiScribeFormConfig",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		slug: text("slug").notNull(),
+		name: text("name").notNull(),
+		description: text("description"),
+		enabled: boolean("enabled").notNull().default(true),
+		inputPreset: text("inputPreset").notNull(),
+		promptHarness: text("promptHarness").notNull(),
+		templateId: text("templateId").references(() => template.id, {
+			onDelete: "set null",
+		}),
+		modelId: text("modelId").references(() => aiModel.id, {
+			onDelete: "set null",
+		}),
+		temperature: numeric("temperature", { precision: 3, scale: 2 }),
+		maxTokens: integer("maxTokens"),
+		thinkingBudget: integer("thinkingBudget"),
+		createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+			.notNull()
+			.defaultNow()
+			.$onUpdate(() => new Date()),
+	},
+	(table) => [
+		uniqueIndex("AiScribeFormConfig_slug_key").on(table.slug),
+		index("AiScribeFormConfig_enabled_idx").on(table.enabled),
+	],
+);
+
 // ============ RELATIONS ============
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -297,6 +387,7 @@ export const userRelations = relations(user, ({ many }) => ({
 	favourites: many(favourites),
 	sessions: many(session),
 	subscriptions: many(subscription),
+	templateCollections: many(templateCollection),
 	templates: many(template),
 	textSnippets: many(textSnippet),
 	usageEvents: many(usageEvent),
@@ -312,8 +403,20 @@ export const sessionRelations = relations(session, ({ one }) => ({
 
 export const templateRelations = relations(template, ({ one, many }) => ({
 	author: one(user, { fields: [template.authorId], references: [user.id] }),
+	collectionTemplates: many(templateCollectionTemplate),
 	favouriteOf: many(favourites),
+	examples: many(templateExample),
 }));
+
+export const templateExampleRelations = relations(
+	templateExample,
+	({ one }) => ({
+		template: one(template, {
+			fields: [templateExample.templateId],
+			references: [template.id],
+		}),
+	}),
+);
 
 export const subscriptionRelations = relations(subscription, ({ one }) => ({
 	user: one(user, {
@@ -338,6 +441,31 @@ export const favouritesRelations = relations(favourites, ({ one }) => ({
 	user: one(user, { fields: [favourites.userId], references: [user.id] }),
 }));
 
+export const templateCollectionRelations = relations(
+	templateCollection,
+	({ one, many }) => ({
+		templates: many(templateCollectionTemplate),
+		user: one(user, {
+			fields: [templateCollection.userId],
+			references: [user.id],
+		}),
+	}),
+);
+
+export const templateCollectionTemplateRelations = relations(
+	templateCollectionTemplate,
+	({ one }) => ({
+		collection: one(templateCollection, {
+			fields: [templateCollectionTemplate.collectionId],
+			references: [templateCollection.id],
+		}),
+		template: one(template, {
+			fields: [templateCollectionTemplate.templateId],
+			references: [template.id],
+		}),
+	}),
+);
+
 export const aiProviderRelations = relations(aiProvider, ({ many }) => ({
 	models: many(aiModel),
 }));
@@ -348,3 +476,17 @@ export const aiModelRelations = relations(aiModel, ({ one }) => ({
 		references: [aiProvider.id],
 	}),
 }));
+
+export const aiScribeFormConfigRelations = relations(
+	aiScribeFormConfig,
+	({ one }) => ({
+		model: one(aiModel, {
+			fields: [aiScribeFormConfig.modelId],
+			references: [aiModel.id],
+		}),
+		template: one(template, {
+			fields: [aiScribeFormConfig.templateId],
+			references: [template.id],
+		}),
+	}),
+);

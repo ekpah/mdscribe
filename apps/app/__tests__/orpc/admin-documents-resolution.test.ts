@@ -9,8 +9,14 @@ import {
 } from "@repo/database";
 import { scribeHandler } from "@/orpc/admin/scribe";
 import { documentsHandler } from "@/orpc/documents";
-import { ADMIN_EMAIL, createMockSession, createTestAiDefaults, createTestContext, createTestUser, startTestServer } from '../setup';
-import type { TestServer } from '../setup';
+import {
+	ADMIN_EMAIL,
+	createTestAiDefaults,
+	createTestContext,
+	createTestUser,
+	startTestServer,
+} from "../setup";
+import type { TestServer } from "../setup";
 
 describe("Shared Resolver Usage (admin/documents)", () => {
 	let server: TestServer;
@@ -19,8 +25,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 
 	beforeEach(async () => {
 		server = await startTestServer("admin-documents-resolution");
-		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
-		const session = createMockSession(user);
+		const { session } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		context = createTestContext({ db: server.db, session });
 		seeded = await createTestAiDefaults(server.db);
 	});

@@ -8,17 +8,15 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@repo/design-system/components/ui/accordion";
+import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/design-system/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
-import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
+import {
+	ModelSelector,
+	type ModelSelectorOption,
+} from "@repo/design-system/components/ui/model-selector";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,
@@ -28,20 +26,16 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, MutableRefObject } from "react";
+import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
+
 import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
 import { DEFAULT_PARAMETERS } from "../_lib/types";
@@ -63,10 +57,10 @@ interface PlaygroundPanelProps {
  * Reverse mapping from stored usage input back to form field names.
  * Normalization happens centrally now; we keep these mappings for UI hydration.
  */
-const parseVariablesToFormFields = (
+function parseVariablesToFormFields(
 	documentType: DocumentType,
 	variables: Record<string, unknown>,
-): { main: string; additional: Record<string, string> } => {
+): { main: string; additional: Record<string, string> } {
 	const v = variables as Record<string, unknown>;
 
 	const pickString = (...keys: string[]): string => {
@@ -80,69 +74,62 @@ const parseVariablesToFormFields = (
 	};
 
 	const result: { main: string; additional: Record<string, string> } = {
-		additional: {},
 		main: "",
+		additional: {},
 	};
 
 	switch (documentType) {
 		case "discharge":
-		case "outpatient": {
+		case "outpatient":
 			result.main = pickString("notes", "dischargeNotes", "consultationNotes");
 			result.additional = {
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 				anamnese: pickString("anamnese"),
 				befunde: pickString("befunde"),
-				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
-		}
 
-		case "procedures": {
+		case "procedures":
 			result.main = pickString("notes", "procedureNotes");
 			break;
-		}
 
-		case "anamnese": {
+		case "anamnese":
 			result.main = pickString("notes");
 			result.additional = {
 				befunde: pickString("befunde"),
 				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
-		}
 
-		case "physical-exam": {
+		case "physical-exam":
 			result.main = pickString("notes");
 			break;
-		}
 
 		case "diagnosis":
 		case "admission-todos":
-		case "icu-transfer": {
+		case "icu-transfer":
 			result.main = pickString("notes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 				befunde: pickString("befunde"),
-				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
-		}
 
-		case "befunde": {
+		case "befunde":
 			result.main = pickString("notes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
 				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
-		}
 
-		default: {
+		default:
 			result.main = pickString("notes", "dischargeNotes", "procedureNotes");
-		}
 	}
 
 	return result;
-};
+}
 
 interface ModelRunConfig {
 	id: string;
@@ -168,34 +155,34 @@ interface RunState {
 
 interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 	model: PlaygroundModel;
+	isTop: boolean;
+	providerLabel: string;
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
 	anthropic: "Anthropic",
-	cohere: "Cohere",
-	deepseek: "DeepSeek",
+	openai: "OpenAI",
 	google: "Google",
 	"meta-llama": "Meta Llama",
 	mistralai: "Mistral AI",
-	openai: "OpenAI",
+	cohere: "Cohere",
+	deepseek: "DeepSeek",
 	qwen: "Qwen",
 	"x-ai": "xAI",
 	"z-ai": "Zhipu AI",
 };
 
-const getProviderFromModelId = (modelId: string): string => {
+function getProviderFromModelId(modelId: string): string {
 	return modelId.split("/")[0] || "other";
-};
+}
 
-const getProviderGroup = (model: PlaygroundModel): string => {
+function getProviderGroup(model: PlaygroundModel): string {
 	return (
-		model.providerProtocol ??
-		model.connectionProtocol ??
-		getProviderFromModelId(model.modelId)
+		model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId)
 	);
-};
+}
 
-export const PlaygroundPanel = ({
+export function PlaygroundPanel({
 	models,
 	topModelIds,
 	isLoadingModels,
@@ -203,18 +190,15 @@ export const PlaygroundPanel = ({
 	presetParameters,
 	presetDocumentType,
 	presetVariables,
-}: PlaygroundPanelProps) => {
-	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">(
-		"input",
-	);
+}: PlaygroundPanelProps) {
+	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">("input");
 	const isMobile = useIsMobile();
-	const [mobileInputPanelValue, setMobileInputPanelValue] = useState<
-		string | undefined
-	>("input-config");
+	const [mobileInputPanelValue, setMobileInputPanelValue] = useState<string | undefined>(
+		"input-config",
+	);
 
 	const initialDocType = presetDocumentType ?? "discharge";
-	const [documentType, setDocumentType] =
-		useState<DocumentType>(initialDocType);
+	const [documentType, setDocumentType] = useState<DocumentType>(initialDocType);
 
 	// Parse preset variables from usage event into form fields
 	const parsedPreset = useMemo(() => {
@@ -235,8 +219,8 @@ export const PlaygroundPanel = ({
 
 	// Apply async preset document type once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetDocTypeRef.current) {return;}
-		if (!presetDocumentType) {return;}
+		if (hasAppliedPresetDocTypeRef.current) return;
+		if (!presetDocumentType) return;
 
 		setDocumentType(presetDocumentType);
 		hasAppliedPresetDocTypeRef.current = true;
@@ -244,8 +228,8 @@ export const PlaygroundPanel = ({
 
 	// Apply async preset variables once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetFieldsRef.current) {return;}
-		if (!parsedPreset) {return;}
+		if (hasAppliedPresetFieldsRef.current) return;
+		if (!parsedPreset) return;
 
 		setFormMain(parsedPreset.main);
 		setFormAdditional(parsedPreset.additional);
@@ -254,19 +238,15 @@ export const PlaygroundPanel = ({
 
 	// Prompt selection / compilation
 	const [promptName, setPromptName] = useState<string>(docUi.defaultPromptName);
-	const [promptLabel, setPromptLabel] = useState<"staging" | "production">(
-		"staging",
-	);
+	const [promptLabel, setPromptLabel] = useState<"staging" | "production">("staging");
 	const [compiledMessages, setCompiledMessages] = useState<
-		{ role: "system" | "user" | "assistant"; content: string }[]
+		Array<{ role: "system" | "user" | "assistant"; content: string }>
 	>([]);
 	const [compiledOverride, setCompiledOverride] = useState<Array<{
 		role: "system" | "user" | "assistant";
 		content: string;
 	}> | null>(null);
-	const [compiledVariables, setCompiledVariables] = useState<
-		Record<string, unknown>
-	>({});
+	const [compiledVariables, setCompiledVariables] = useState<Record<string, unknown>>({});
 	const [isCompiling, setIsCompiling] = useState(false);
 
 	const promptJson = useMemo(() => {
@@ -282,72 +262,57 @@ export const PlaygroundPanel = ({
 		return JSON.stringify(data);
 	}, [docUi, formMain, formAdditional]);
 
-	const compile = useCallback(async () => {
+	const compile = async () => {
 		setIsCompiling(true);
 		try {
 			const res = await orpc.admin.scribe.compilePrompt.call({
 				documentType,
-				promptJson,
 				promptName,
+				promptJson,
 			});
 
 			setCompiledVariables(res.variablesUsed ?? {});
 			setCompiledMessages(
 				(res.compiledMessages ?? []).map((m) => ({
-					content:
-						typeof m.content === "string"
-							? m.content
-							: JSON.stringify(m.content),
 					role: m.role,
+					content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
 				})),
 			);
 			setCompiledOverride(null);
 			toast.success("Prompt kompiliert");
 		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : "Fehler beim Kompilieren",
-			);
+			toast.error(error instanceof Error ? error.message : "Fehler beim Kompilieren");
 		} finally {
 			setIsCompiling(false);
 		}
-	}, [documentType, promptJson, promptName]);
+	};
 
 	const [modelRuns, setModelRuns] = useState<ModelRunConfig[]>(() => [
 		{
 			id: crypto.randomUUID(),
 			model: null,
 			parameters: {
-				frequencyPenalty:
-					presetParameters?.frequencyPenalty ??
-					DEFAULT_PARAMETERS.frequencyPenalty,
+				temperature: presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
 				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
-				presencePenalty:
-					presetParameters?.presencePenalty ??
-					DEFAULT_PARAMETERS.presencePenalty,
-				temperature:
-					presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
 				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
-				thinkingBudget:
-					presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
-				thinkingExplicit:
-					presetParameters?.thinkingExplicit ??
-					DEFAULT_PARAMETERS.thinkingExplicit,
-				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
+				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
+				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
 				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
+				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
+				frequencyPenalty: presetParameters?.frequencyPenalty ?? DEFAULT_PARAMETERS.frequencyPenalty,
+				presencePenalty: presetParameters?.presencePenalty ?? DEFAULT_PARAMETERS.presencePenalty,
 			},
 		},
 	]);
 
 	// Apply preset model when models load (first run config only)
 	useEffect(() => {
-		if (!presetModel || models.length === 0) {return;}
+		if (!presetModel || models.length === 0) return;
 		setModelRuns((prev) => {
 			const first = prev.at(0);
-			if (!first || first.model) {return prev;}
-			const match = models.find(
-				(m) => m.id === presetModel || m.modelId === presetModel,
-			);
-			if (!match) {return prev;}
+			if (!first || first.model) return prev;
+			const match = models.find((m) => m.id === presetModel || m.modelId === presetModel);
+			if (!match) return prev;
 			return [
 				{
 					...first,
@@ -372,9 +337,9 @@ export const PlaygroundPanel = ({
 	const setRunState = useCallback((id: string, patch: Partial<RunState>) => {
 		setRunStates((prev) => {
 			const base: RunState = prev[id] ?? {
+				text: "",
 				isStreaming: false,
 				metrics: { latencyMs: 0 },
-				text: "",
 			};
 
 			return {
@@ -384,7 +349,7 @@ export const PlaygroundPanel = ({
 					...patch,
 					metrics: {
 						...base.metrics,
-						...patch.metrics,
+						...(patch.metrics ?? {}),
 					},
 				},
 			};
@@ -395,7 +360,7 @@ export const PlaygroundPanel = ({
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
 
 	const runAllModels = useCallback(async () => {
-		const triggers = [...runTriggersRef.current.values()];
+		const triggers = Array.from(runTriggersRef.current.values());
 		if (triggers.length === 0) {
 			toast.error("Keine Modelle konfiguriert");
 			return;
@@ -410,238 +375,39 @@ export const PlaygroundPanel = ({
 	);
 
 	const modelSelectorOptions = useMemo<PlaygroundModelSelectorOption[]>(() => {
-		const topModelIdSet = new Set(topModelIds);
+		const topModelIdSet = new Set(topModelIds ?? []);
 		return models.map((model) => {
 			const provider = getProviderGroup(model);
 			const isTop = topModelIdSet.has(model.modelId);
+			const providerLabel =
+				PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 			return {
-				group: provider,
-				keywords: [model.modelId, model.name, provider],
-				label: isTop ? `Top • ${model.name}` : model.name,
-				model,
 				value: model.id,
+				label: model.name,
+				group: provider,
+				keywords: [model.modelId, model.name, provider, providerLabel],
+				model,
+				isTop,
+				providerLabel,
 			};
 		});
 	}, [models, topModelIds]);
-
-	const handleInputAccordionValueChange = useCallback(
-		(value: string) => {
-			if (!isMobile) {return;}
-			setMobileInputPanelValue(value || undefined);
-		},
-		[isMobile],
-	);
-
-	const handleTabValueChange = useCallback((value: string) => {
-		setActiveTab(value as "input" | "prompt" | "models");
-	}, []);
-
-	const handleDocumentTypeValueChange = useCallback((value: string) => {
-		setDocumentType(value as DocumentType);
-	}, []);
-
-	const handleMainInputChange = useCallback(
-		(event: ChangeEvent<HTMLTextAreaElement>) => {
-			setFormMain(event.target.value);
-		},
-		[],
-	);
-
-	const additionalFieldChangeHandlers = useMemo<
-		Record<string, (event: ChangeEvent<HTMLTextAreaElement>) => void>
-	>(() => {
-		const handlers: Record<
-			string,
-			(event: ChangeEvent<HTMLTextAreaElement>) => void
-		> = {};
-		for (const field of docUi.additionalFields) {
-			handlers[field.name] = (event) => {
-				setFormAdditional((prev) => ({
-					...prev,
-					[field.name]: event.target.value,
-				}));
-			};
-		}
-		return handlers;
-	}, [docUi.additionalFields]);
-
-	const handleCopyPromptJson = useCallback(async () => {
-		await navigator.clipboard.writeText(promptJson);
-		toast.success("Kopiert!");
-	}, [promptJson]);
-
-	const handlePromptNameChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			setPromptName(event.target.value);
-		},
-		[],
-	);
-
-	const handlePromptLabelValueChange = useCallback((value: string) => {
-		setPromptLabel(value as "staging" | "production");
-	}, []);
-
-	const handleResetCompiledOverride = useCallback(() => {
-		setCompiledOverride(null);
-		toast.success("Override zurückgesetzt");
-	}, []);
-
-	const compiledMessagesForEditing = compiledOverride ?? compiledMessages;
-
-	const handleCompiledMessageValueChange = useCallback(
-		(index: number, value: string) => {
-			const next = compiledMessagesForEditing.map((message) => ({ ...message }));
-			next[index] = {
-				...next[index],
-				content: value,
-			};
-			setCompiledOverride(next);
-		},
-		[compiledMessagesForEditing],
-	);
-
-	const compiledMessageChangeHandlers = useMemo(
-		() =>
-			compiledMessagesForEditing.map(
-				(_, index) => (event: ChangeEvent<HTMLTextAreaElement>) => {
-					handleCompiledMessageValueChange(index, event.target.value);
-				},
-			),
-		[compiledMessagesForEditing, handleCompiledMessageValueChange],
-	);
-
-	const compiledMessageCopyHandlers = useMemo(
-		() =>
-			compiledMessagesForEditing.map((message) => async () => {
-				await navigator.clipboard.writeText(message.content);
-				toast.success("Kopiert!");
-			}),
-		[compiledMessagesForEditing],
-	);
-
-	const handleAddModelRun = useCallback(() => {
-		setModelRuns((prev) => [
-			...prev,
-			{
-				id: crypto.randomUUID(),
-				model: null,
-				parameters: { ...DEFAULT_PARAMETERS },
-			},
-		]);
-	}, []);
-
-	const handleModelRunModelChange = useCallback(
-		(runId: string, modelId: string) => {
-			const model = modelById.get(modelId);
-			if (!model) {return;}
-
-			setModelRuns((prev) =>
-				prev.map((run) => {
-					if (run.id !== runId) {return run;}
-					return {
-						...run,
-						model,
-						parameters: run.parameters,
-					};
-				}),
-			);
-		},
-		[modelById],
-	);
-
-	const modelRunModelChangeHandlers = useMemo<
-		Record<string, (modelId: string) => void>
-	>(() => {
-		const handlers: Record<string, (modelId: string) => void> = {};
-		for (const run of modelRuns) {
-			handlers[run.id] = (modelId) => {
-				handleModelRunModelChange(run.id, modelId);
-			};
-		}
-		return handlers;
-	}, [modelRuns, handleModelRunModelChange]);
-
-	const handleRemoveModelRun = useCallback((runId: string) => {
-		setModelRuns((prev) => prev.filter((run) => run.id !== runId));
-		setRunStates((prev) => {
-			const next = { ...prev };
-			delete next[runId];
-			return next;
-		});
-	}, []);
-
-	const modelRunRemoveHandlers = useMemo<Record<string, () => void>>(() => {
-		const handlers: Record<string, () => void> = {};
-		for (const run of modelRuns) {
-			handlers[run.id] = () => {
-				handleRemoveModelRun(run.id);
-			};
-		}
-		return handlers;
-	}, [modelRuns, handleRemoveModelRun]);
-
-	const handleModelRunParameterChange = useCallback(
-		(runId: string, parameters: PlaygroundParameters) => {
-			setModelRuns((prev) =>
-				prev.map((run) =>
-					run.id === runId ? { ...run, parameters } : run,
-				),
-			);
-		},
-		[],
-	);
-
-	const modelRunParameterChangeHandlers = useMemo<
-		Record<string, (parameters: PlaygroundParameters) => void>
-	>(() => {
-		const handlers: Record<
-			string,
-			(parameters: PlaygroundParameters) => void
-		> = {};
-		for (const run of modelRuns) {
-			handlers[run.id] = (parameters) => {
-				handleModelRunParameterChange(run.id, parameters);
-			};
-		}
-		return handlers;
-	}, [modelRuns, handleModelRunParameterChange]);
-
-	const formatModelGroupLabel = useCallback((group: string) => {
-		return (
-			PROVIDER_LABELS[group] ??
-			group.charAt(0).toUpperCase() + group.slice(1)
-		);
-	}, []);
-
-	const renderSelectedModel = useCallback(
-		(selected: PlaygroundModelSelectorOption | null) => (
-			<span className="min-w-0 truncate">
-				{selected?.model.name ?? "Modell auswählen..."}
-			</span>
-		),
-		[],
-	);
-
-	const handleResetRunResults = useCallback(() => {
-		setRunStates({});
-		toast.success("Ergebnisse zurückgesetzt");
-	}, []);
 
 	return (
 		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
 			{/* Left Panel - Tabs */}
 			<div className="w-full min-w-0 lg:w-[460px] lg:shrink-0">
-					<Accordion
-						type="single"
-						collapsible={isMobile}
-						value={isMobile ? mobileInputPanelValue : "input-config"}
-						onValueChange={handleInputAccordionValueChange}
-						className="w-full"
-					>
-					<AccordionItem
-						value="input-config"
-						className="border-solarized-base2 lg:border-0"
-					>
+				<Accordion
+					type="single"
+					collapsible={isMobile}
+					value={isMobile ? mobileInputPanelValue : "input-config"}
+					onValueChange={(value) => {
+						if (!isMobile) return;
+						setMobileInputPanelValue(value || undefined);
+					}}
+					className="w-full"
+				>
+					<AccordionItem value="input-config" className="border-solarized-base2 lg:border-0">
 						<AccordionTrigger className="py-2 text-xs text-solarized-base00 hover:no-underline lg:hidden">
 							Input & Konfiguration
 						</AccordionTrigger>
@@ -653,11 +419,11 @@ export const PlaygroundPanel = ({
 									</CardTitle>
 								</CardHeader>
 
-									<Tabs
-										className="flex min-h-0 min-w-0 flex-1 flex-col"
-										onValueChange={handleTabValueChange}
-										value={activeTab}
-									>
+								<Tabs
+									className="flex min-h-0 min-w-0 flex-1 flex-col"
+									onValueChange={(v) => setActiveTab(v as "input" | "prompt" | "models")}
+									value={activeTab}
+								>
 									<div className="border-b border-solarized-base2 px-3 py-2">
 										<TabsList className="grid h-8 w-full grid-cols-3">
 											<TabsTrigger value="input" className="text-xs">
@@ -676,13 +442,11 @@ export const PlaygroundPanel = ({
 										<CardContent className="min-w-0 space-y-4 p-3">
 											<TabsContent value="input" className="mt-0 space-y-3">
 												<div className="space-y-2">
-													<Label className="text-sm text-solarized-base01">
-														Dokumenttyp
-													</Label>
-														<Select
-															onValueChange={handleDocumentTypeValueChange}
-															value={documentType}
-														>
+													<Label className="text-sm text-solarized-base01">Dokumenttyp</Label>
+													<Select
+														onValueChange={(v) => setDocumentType(v as DocumentType)}
+														value={documentType}
+													>
 														<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
 															<SelectValue />
 														</SelectTrigger>
@@ -698,19 +462,16 @@ export const PlaygroundPanel = ({
 
 												<div className="space-y-4">
 													<div className="space-y-2">
-														<Label
-															className="text-sm text-solarized-base01"
-															htmlFor="main-input"
-														>
+														<Label className="text-sm text-solarized-base01" htmlFor="main-input">
 															{docUi.mainField.label}
 														</Label>
-															<Textarea
-																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																id="main-input"
-																onChange={handleMainInputChange}
-																placeholder={docUi.mainField.placeholder}
-																value={formMain}
-															/>
+														<Textarea
+															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+															id="main-input"
+															onChange={(e) => setFormMain(e.target.value)}
+															placeholder={docUi.mainField.placeholder}
+															value={formMain}
+														/>
 														{docUi.mainField.description && (
 															<p className="text-xs text-solarized-base01">
 																{docUi.mainField.description}
@@ -729,15 +490,18 @@ export const PlaygroundPanel = ({
 																	>
 																		{field.label}
 																	</Label>
-																		<Textarea
-																			className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																			id={field.name}
-																			onChange={
-																				additionalFieldChangeHandlers[field.name]
-																			}
-																			placeholder={field.placeholder}
-																			value={formAdditional[field.name] ?? ""}
-																		/>
+																	<Textarea
+																		className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+																		id={field.name}
+																		onChange={(e) =>
+																			setFormAdditional((prev) => ({
+																				...prev,
+																				[field.name]: e.target.value,
+																			}))
+																		}
+																		placeholder={field.placeholder}
+																		value={formAdditional[field.name] ?? ""}
+																	/>
 																</div>
 															))}
 														</div>
@@ -748,24 +512,23 @@ export const PlaygroundPanel = ({
 															<Label className="text-sm text-solarized-base01">
 																Prompt JSON (gesendet an Server)
 															</Label>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="sm"
-																	className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																	onClick={handleCopyPromptJson}
-																>
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
+																onClick={async () => {
+																	await navigator.clipboard.writeText(promptJson);
+																	toast.success("Kopiert!");
+																}}
+															>
 																<Copy className="h-4 w-4" />
 																Kopieren
 															</Button>
 														</div>
 														<Textarea
 															readOnly
-															value={JSON.stringify(
-																JSON.parse(promptJson),
-																null,
-																2,
-															)}
+															value={JSON.stringify(JSON.parse(promptJson), null, 2)}
 															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 														/>
 													</div>
@@ -775,32 +538,26 @@ export const PlaygroundPanel = ({
 											<TabsContent value="prompt" className="mt-0 space-y-4">
 												<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01">
-															Prompt Name
-														</Label>
-															<Input
-																className="border-solarized-base2 bg-solarized-base3"
-																onChange={handlePromptNameChange}
-																value={promptName}
-																placeholder="z.B. Inpatient_discharge_chat"
-															/>
+														<Label className="text-sm text-solarized-base01">Prompt Name</Label>
+														<Input
+															className="border-solarized-base2 bg-solarized-base3"
+															onChange={(e) => setPromptName(e.target.value)}
+															value={promptName}
+															placeholder="z.B. Inpatient_discharge_chat"
+														/>
 													</div>
 													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01">
-															Label
-														</Label>
-															<Select
-																onValueChange={handlePromptLabelValueChange}
-																value={promptLabel}
-															>
+														<Label className="text-sm text-solarized-base01">Label</Label>
+														<Select
+															onValueChange={(v) => setPromptLabel(v as "staging" | "production")}
+															value={promptLabel}
+														>
 															<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
 																<SelectValue />
 															</SelectTrigger>
 															<SelectContent>
 																<SelectItem value="staging">staging</SelectItem>
-																<SelectItem value="production">
-																	production
-																</SelectItem>
+																<SelectItem value="production">production</SelectItem>
 															</SelectContent>
 														</Select>
 													</div>
@@ -815,13 +572,16 @@ export const PlaygroundPanel = ({
 													>
 														{isCompiling ? "Kompiliere..." : "Kompilieren"}
 													</Button>
-														<Button
-															type="button"
-															variant="outline"
-															className="border-solarized-base2"
-															onClick={handleResetCompiledOverride}
-															disabled={compiledOverride === null}
-														>
+													<Button
+														type="button"
+														variant="outline"
+														className="border-solarized-base2"
+														onClick={() => {
+															setCompiledOverride(null);
+															toast.success("Override zurückgesetzt");
+														}}
+														disabled={compiledOverride === null}
+													>
 														<RotateCcw className="h-4 w-4" />
 														Override zurücksetzen
 													</Button>
@@ -829,8 +589,7 @@ export const PlaygroundPanel = ({
 
 												{compiledMessages.length === 0 ? (
 													<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-4 text-sm text-solarized-base01">
-														Kompiliere den Prompt, um die finalen Messages zu
-														sehen.
+														Kompiliere den Prompt, um die finalen Messages zu sehen.
 													</div>
 												) : (
 													<div className="space-y-4">
@@ -840,11 +599,7 @@ export const PlaygroundPanel = ({
 															</Label>
 															<Textarea
 																readOnly
-																value={JSON.stringify(
-																	compiledVariables,
-																	null,
-																	2,
-																)}
+																value={JSON.stringify(compiledVariables, null, 2)}
 																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
 															/>
 														</div>
@@ -854,39 +609,45 @@ export const PlaygroundPanel = ({
 																Compiled Messages (editierbar)
 															</Label>
 															<div className="space-y-3">
-																	{compiledMessagesForEditing.map(
-																		(m, idx) => (
-																		<div
-																			key={`${m.role}-${idx}`}
-																			className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
-																		>
-																			<div className="flex items-center justify-between">
-																				<span className="font-mono text-xs text-solarized-base01">
-																					{m.role}
-																				</span>
-																					<Button
-																						type="button"
-																						variant="ghost"
-																						size="sm"
-																						className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																						onClick={
-																							compiledMessageCopyHandlers[idx]
-																						}
-																					>
-																					<Copy className="h-3.5 w-3.5" />
-																					Copy
-																				</Button>
-																			</div>
-																				<Textarea
-																					value={m.content}
-																					onChange={
-																						compiledMessageChangeHandlers[idx]
-																					}
-																					className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																				/>
+																{(compiledOverride ?? compiledMessages).map((m, idx) => (
+																	<div
+																		key={`${m.role}-${idx}`}
+																		className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
+																	>
+																		<div className="flex items-center justify-between">
+																			<span className="font-mono text-xs text-solarized-base01">
+																				{m.role}
+																			</span>
+																			<Button
+																				type="button"
+																				variant="ghost"
+																				size="sm"
+																				className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
+																				onClick={async () => {
+																					await navigator.clipboard.writeText(m.content);
+																					toast.success("Kopiert!");
+																				}}
+																			>
+																				<Copy className="h-3.5 w-3.5" />
+																				Copy
+																			</Button>
 																		</div>
-																	),
-																)}
+																		<Textarea
+																			value={m.content}
+																			onChange={(e) => {
+																				const next = (compiledOverride ?? compiledMessages).map(
+																					(x) => ({ ...x }),
+																				);
+																				next[idx] = {
+																					...next[idx],
+																					content: e.target.value,
+																				};
+																				setCompiledOverride(next);
+																			}}
+																			className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+																		/>
+																	</div>
+																))}
 															</div>
 														</div>
 													</div>
@@ -896,20 +657,27 @@ export const PlaygroundPanel = ({
 											<TabsContent value="models" className="mt-0 space-y-4">
 												<div className="flex flex-wrap items-start justify-between gap-2">
 													<div className="space-y-0.5">
-														<p className="font-medium text-sm text-solarized-base00">
-															Model Runs
-														</p>
+														<p className="font-medium text-sm text-solarized-base00">Model Runs</p>
 														<p className="text-xs text-solarized-base01">
-															Definiere mehrere Modelle/Parameter, die mit
-															demselben Input und Prompt getestet werden.
+															Definiere mehrere Modelle/Parameter, die mit demselben Input und
+															Prompt getestet werden.
 														</p>
 													</div>
-														<Button
-															type="button"
-															size="sm"
-															className="gap-2"
-															onClick={handleAddModelRun}
-														>
+													<Button
+														type="button"
+														size="sm"
+														className="gap-2"
+														onClick={() =>
+															setModelRuns((prev) => [
+																...prev,
+																{
+																	id: crypto.randomUUID(),
+																	model: null,
+																	parameters: { ...DEFAULT_PARAMETERS },
+																},
+															])
+														}
+													>
 														<Plus className="h-4 w-4" />
 														Add
 													</Button>
@@ -923,32 +691,98 @@ export const PlaygroundPanel = ({
 														>
 															<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 																<div className="min-w-0 flex-1 space-y-2">
-																	<Label className="text-sm text-solarized-base01">
-																		Modell
-																	</Label>
-																		<ModelSelector
+																	<Label className="text-sm text-solarized-base01">Modell</Label>
+																	<ModelSelector
 																		options={modelSelectorOptions}
 																		value={run.model?.id ?? null}
 																		isLoading={isLoadingModels}
+																		searchPlaceholder="Modell oder Anbieter suchen..."
 																		placeholder="Modell auswählen..."
 																		loadingMessage="Lade Modelle..."
 																		emptyMessage="Keine Modelle gefunden."
-																			formatGroupLabel={formatModelGroupLabel}
-																		className="border-solarized-base2 bg-solarized-base3"
-																		popoverClassName="max-h-[min(70vh,32rem)] w-[min(26rem,calc(100vw-1rem))] overflow-auto p-0"
-																			renderSelected={renderSelectedModel}
-																			onValueChange={
-																				modelRunModelChangeHandlers[run.id]
-																			}
-																		/>
+																		formatGroupLabel={(group) =>
+																			PROVIDER_LABELS[group] ??
+																			group.charAt(0).toUpperCase() + group.slice(1)
+																		}
+																		className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
+																		popoverClassName="sm:w-[28rem]"
+																		renderSelected={(selected) =>
+																			selected ? (
+																				<div className="min-w-0">
+																					<p className="truncate font-medium text-solarized-base00">
+																						{selected.model.name}
+																					</p>
+																					<p className="truncate text-solarized-base01 text-xs">
+																						{selected.providerLabel}
+																					</p>
+																				</div>
+																			) : (
+																				<span className="text-solarized-base01">
+																					Modell auswählen...
+																				</span>
+																			)
+																		}
+																		renderOption={(option) => (
+																			<div className="flex min-w-0 items-start justify-between gap-3">
+																				<div className="min-w-0 space-y-1">
+																					<p className="truncate font-medium text-solarized-base00">
+																						{option.model.name}
+																					</p>
+																					<p className="truncate text-solarized-base01 text-xs">
+																						{option.model.modelId}
+																					</p>
+																				</div>
+																				<div className="flex shrink-0 items-center gap-1">
+																					{option.isTop ? (
+																						<Badge
+																							variant="outline"
+																							className="border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet"
+																						>
+																							Top
+																						</Badge>
+																					) : null}
+																					{option.model.supportsReasoning ? (
+																						<Badge
+																							variant="outline"
+																							className="border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan"
+																						>
+																							Reasoning
+																						</Badge>
+																					) : null}
+																				</div>
+																			</div>
+																		)}
+																		onValueChange={(modelId) => {
+																			const model = modelById.get(modelId);
+																			if (!model) return;
+
+																			setModelRuns((prev) =>
+																				prev.map((r) => {
+																					if (r.id !== run.id) return r;
+																					return {
+																						...r,
+																						model,
+																						parameters: r.parameters,
+																					};
+																				}),
+																			);
+																		}}
+																	/>
 																</div>
 
-																	<Button
+																<Button
 																	type="button"
 																	variant="ghost"
 																	size="sm"
 																	className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
-																		onClick={modelRunRemoveHandlers[run.id]}
+																	onClick={() => {
+																		setModelRuns((prev) => prev.filter((r) => r.id !== run.id));
+																		setRunStates((prev) => {
+																			const next = { ...prev };
+																			delete next[run.id];
+																			return next;
+																		});
+																	}}
 																	disabled={modelRuns.length === 1}
 																	title={
 																		modelRuns.length === 1
@@ -964,16 +798,18 @@ export const PlaygroundPanel = ({
 															<Separator className="bg-solarized-base2" />
 
 															<div className="space-y-2">
-																<Label className="text-sm text-solarized-base01">
-																	Parameter
-																</Label>
-																	<ParameterControls
-																		parameters={run.parameters}
-																		onChange={
-																			modelRunParameterChangeHandlers[run.id]
-																		}
-																		model={run.model}
-																	/>
+																<Label className="text-sm text-solarized-base01">Parameter</Label>
+																<ParameterControls
+																	parameters={run.parameters}
+																	onChange={(p) =>
+																		setModelRuns((prev) =>
+																			prev.map((r) =>
+																				r.id === run.id ? { ...r, parameters: p } : r,
+																			),
+																		)
+																	}
+																	model={run.model}
+																/>
 															</div>
 														</div>
 													))}
@@ -993,21 +829,22 @@ export const PlaygroundPanel = ({
 				<CardHeader className="shrink-0 border-b border-solarized-base2 px-3 py-2">
 					<div className="flex items-center justify-between gap-2">
 						<div className="min-w-0">
-							<CardTitle className="truncate text-sm text-solarized-base00">
-								Ergebnisse
-							</CardTitle>
+							<CardTitle className="truncate text-sm text-solarized-base00">Ergebnisse</CardTitle>
 							<p className="truncate text-xs text-solarized-base01">
 								{scribeDocTypeUi[documentType].label} · {promptName}
 							</p>
 						</div>
 						<div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
-									onClick={handleResetRunResults}
-								>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
+								onClick={() => {
+									setRunStates({});
+									toast.success("Ergebnisse zurückgesetzt");
+								}}
+							>
 								<RotateCcw className="h-3.5 w-3.5" />
 								Reset
 							</Button>
@@ -1024,12 +861,12 @@ export const PlaygroundPanel = ({
 					</div>
 				</CardHeader>
 				<ScrollArea className="min-h-0 flex-1">
-						<div className="space-y-3 p-3">
-							{modelRuns.map((run) => (
-								// eslint-disable-next-line no-use-before-define
-								<RunCard
-									key={run.id}
-									runId={run.id}
+					<div className="space-y-3 p-3">
+						{modelRuns.map((run) => (
+							// eslint-disable-next-line no-use-before-define
+							<RunCard
+								key={run.id}
+								runId={run.id}
 								modelRun={run}
 								documentType={documentType}
 								promptJson={promptJson}
@@ -1046,9 +883,9 @@ export const PlaygroundPanel = ({
 			</Card>
 		</div>
 	);
-};
+}
 
-const RunCard = ({
+function RunCard({
 	runId,
 	modelRun,
 	documentType,
@@ -1069,60 +906,19 @@ const RunCard = ({
 		role: "system" | "user" | "assistant";
 		content: string;
 	}> | null;
-	compiledMessages: {
+	compiledMessages: Array<{
 		role: "system" | "user" | "assistant";
 		content: string;
-	}[];
+	}>;
 	runState: RunState | undefined;
 	setRunState: (id: string, patch: Partial<RunState>) => void;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
-}) => {
-	const payloadRef = useRef<
-		null | Parameters<typeof orpc.admin.scribe.run.call>[0]
-	>(null);
+}) {
+	const payloadRef = useRef<null | Parameters<typeof orpc.admin.scribe.run.call>[0]>(null);
 
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
 		id: `admin-scribe-playground-${modelRun.id}`,
-		onError: (error) => {
-			setRunState(runId, {
-				error: error.message,
-				isStreaming: false,
-			});
-		},
-		onFinish: async () => {
-			const requestId = payloadRef.current?.requestId;
-			if (!requestId) {return;}
-			try {
-				const event = await orpc.admin.usage.findByRequestId.call({
-					requestId,
-				});
-				if (!event) {return;}
-
-				const latencyMs =
-					typeof (event.metadata as Record<string, unknown> | null)
-						?.latencyMs === "number"
-						? ((event.metadata as Record<string, unknown>).latencyMs as number)
-						: 0;
-
-				setRunState(runId, {
-					isStreaming: false,
-					metrics: {
-						cost: event.cost ? Number(event.cost) : undefined,
-						inputTokens: event.inputTokens ?? undefined,
-						latencyMs,
-						outputTokens: event.outputTokens ?? undefined,
-						reasoningTokens: event.reasoningTokens ?? undefined,
-						totalTokens: event.totalTokens ?? undefined,
-					},
-				});
-			} catch {
-				// Best effort; output is still useful even without metrics.
-			}
-		},
 		transport: {
-			reconnectToStream() {
-				throw new Error("Unsupported");
-			},
 			async sendMessages(options) {
 				if (!payloadRef.current) {
 					throw new Error("Missing payload");
@@ -1133,12 +929,50 @@ const RunCard = ({
 					}),
 				);
 			},
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
+		},
+		onError: (error) => {
+			setRunState(runId, {
+				isStreaming: false,
+				error: error.message,
+			});
+		},
+		onFinish: async () => {
+			const requestId = payloadRef.current?.requestId;
+			if (!requestId) return;
+			try {
+				const event = await orpc.admin.usage.findByRequestId.call({
+					requestId,
+				});
+				if (!event) return;
+
+				const latencyMs =
+					typeof (event.metadata as Record<string, unknown> | null)?.latencyMs === "number"
+						? ((event.metadata as Record<string, unknown>).latencyMs as number)
+						: 0;
+
+				setRunState(runId, {
+					isStreaming: false,
+					metrics: {
+						latencyMs,
+						inputTokens: event.inputTokens ?? undefined,
+						outputTokens: event.outputTokens ?? undefined,
+						totalTokens: event.totalTokens ?? undefined,
+						reasoningTokens: event.reasoningTokens ?? undefined,
+						cost: event.cost ? Number(event.cost) : undefined,
+					},
+				});
+			} catch {
+				// Best effort; output is still useful even without metrics.
+			}
 		},
 	});
 
 	const { completion, reasoning } = useMemo(() => {
 		const lastAssistant = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistant) {return { completion: "", reasoning: "" };}
+		if (!lastAssistant) return { completion: "", reasoning: "" };
 		// Extract text and reasoning from parts (AI SDK v4 format)
 		if (lastAssistant.parts && lastAssistant.parts.length > 0) {
 			const textParts = lastAssistant.parts
@@ -1158,24 +992,19 @@ const RunCard = ({
 		if (status === "streaming" || status === "submitted") {
 			setRunState(runId, {
 				isStreaming: true,
-				reasoning: reasoning || undefined,
 				text: completion,
+				reasoning: reasoning || undefined,
 			});
 		} else if (completion) {
 			setRunState(runId, {
 				isStreaming: false,
-				reasoning: reasoning || undefined,
 				text: completion,
+				reasoning: reasoning || undefined,
 			});
 		}
 	}, [completion, reasoning, status, runId, setRunState]);
 
 	const isRunning = status === "streaming" || status === "submitted";
-
-	const handleStopRun = useCallback(() => {
-		stop();
-		setRunState(runId, { isStreaming: false });
-	}, [runId, setRunState, stop]);
 
 	const startRun = useCallback(async () => {
 		if (!modelRun.model) {
@@ -1186,30 +1015,29 @@ const RunCard = ({
 		const requestId = crypto.randomUUID();
 
 		const compiledMessagesOverride =
-			compiledOverride ??
-			(compiledMessages.length > 0 ? compiledMessages : undefined);
+			compiledOverride ?? (compiledMessages.length > 0 ? compiledMessages : undefined);
 
 		payloadRef.current = {
-			compiledMessagesOverride: compiledMessagesOverride
-				? compiledMessagesOverride.map((m) => ({
-						content: m.content,
-						role: m.role,
-					}))
-				: undefined,
-			documentType,
+			requestId,
 			model: modelRun.model.id,
 			parameters: modelRun.parameters,
-			promptJson,
+			documentType,
 			promptName,
-			requestId,
+			promptJson,
+			compiledMessagesOverride: compiledMessagesOverride
+				? compiledMessagesOverride.map((m) => ({
+						role: m.role,
+						content: m.content,
+					}))
+				: undefined,
 		};
 
 		setRunState(runId, {
-			error: undefined,
-			isStreaming: true,
-			metrics: { latencyMs: 0 },
 			requestId,
+			error: undefined,
 			text: "",
+			metrics: { latencyMs: 0 },
+			isStreaming: true,
 		});
 		setMessages([]);
 		await sendMessage({ text: "run" });
@@ -1252,14 +1080,17 @@ const RunCard = ({
 				</div>
 
 				<div className="flex shrink-0 gap-1.5">
-						{isRunning ? (
-							<Button
-								type="button"
-								variant="destructive"
-								size="sm"
-								className="h-7 px-2 text-xs"
-								onClick={handleStopRun}
-							>
+					{isRunning ? (
+						<Button
+							type="button"
+							variant="destructive"
+							size="sm"
+							className="h-7 px-2 text-xs"
+							onClick={() => {
+								stop();
+								setRunState(runId, { isStreaming: false });
+							}}
+						>
 							Stop
 						</Button>
 					) : (
@@ -1283,11 +1114,11 @@ const RunCard = ({
 					result={
 						runState
 							? {
-									error: runState.error,
-									isStreaming: runState.isStreaming,
-									metrics: runState.metrics,
-									reasoning: runState.reasoning,
 									text: runState.text,
+									metrics: runState.metrics,
+									isStreaming: runState.isStreaming,
+									reasoning: runState.reasoning,
+									error: runState.error,
 								}
 							: null
 					}
@@ -1295,4 +1126,4 @@ const RunCard = ({
 			</div>
 		</div>
 	);
-};
+}

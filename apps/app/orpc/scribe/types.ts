@@ -84,7 +84,7 @@ export interface PromptMessage {
  * Prompt builder function type - receives typed variables and returns messages
  */
 export type PromptBuilder<T> = {
-	bivarianceHack: (variables: T) => PromptMessage[];
+	bivarianceHack(variables: T): PromptMessage[];
 }["bivarianceHack"];
 
 /**

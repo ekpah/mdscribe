@@ -8,8 +8,13 @@ import {
 	usageEvent,
 } from "@repo/database";
 import { voiceFillHandler } from "@/orpc/scribe/voice-fill";
-import { createMockSession, createTestAiDefaults, createTestContext, createTestUser, startTestServer } from '../setup';
-import type { TestServer } from '../setup';
+import {
+	createTestAiDefaults,
+	createTestContext,
+	createTestUser,
+	startTestServer,
+} from "../setup";
+import type { TestServer } from "../setup";
 
 describe("Scribe voiceFill Handler", () => {
 	let server: TestServer;
@@ -24,8 +29,7 @@ describe("Scribe voiceFill Handler", () => {
 	});
 
 	test("returns fieldValues for valid input", async () => {
-		const { user } = await createTestUser(server.db);
-		const session = createMockSession(user);
+		const { session } = await createTestUser(server.db);
 		const context = createTestContext({ db: server.db, session });
 
 		const result = await call(
@@ -101,8 +105,7 @@ describe("Scribe voiceFill Handler", () => {
 				target: aiDefaults.id,
 			});
 
-		const { user } = await createTestUser(server.db);
-		const session = createMockSession(user);
+		const { session } = await createTestUser(server.db);
 		const context = createTestContext({ db: server.db, session });
 
 		await call(

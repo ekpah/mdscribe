@@ -56,7 +56,6 @@ COPY --from=builder --chown=bun:bun /app/apps/app/public ./apps/app/public
 
 # Copy the checked-in Drizzle config + SQL files so Coolify can run a post-deploy migration hook.
 COPY --from=builder --chown=bun:bun /app/packages/database ./packages/database
-
 EXPOSE 3000
 
 USER bun

@@ -13,7 +13,7 @@ const voyageClient = new VoyageAIClient({
 /**
  * Template search result type
  */
-interface TemplateSearchResult {
+interface TemplateSearchResult extends Record<string, unknown> {
 	id: string;
 	title: string;
 	category: string;
@@ -21,7 +21,7 @@ interface TemplateSearchResult {
 	authorId: string;
 	updatedAt: Date;
 	similarity: number;
-}
+};
 
 /**
  * Generate embeddings for a query using Voyage AI
@@ -59,7 +59,7 @@ export const findRelevantTemplateHandler = authed
 		const { query, differentialDiagnosis } = input;
 
 		if (!query || typeof query !== "string") {
-			return { count: 0, templates: [] };
+			return { templates: [], count: 0 };
 		}
 
 		// Generate embeddings for the query
@@ -86,7 +86,7 @@ export const findRelevantTemplateHandler = authed
 		const templateIds = similarityResults.map((t) => t.id);
 
 		if (templateIds.length === 0) {
-			return { count: 0, templates: [] };
+			return { templates: [], count: 0 };
 		}
 
 		// Fetch favourite users for each template
@@ -107,7 +107,7 @@ export const findRelevantTemplateHandler = authed
 				acc[fav.templateId].push({ id: fav.userId });
 				return acc;
 			},
-			{} as Record<string, { id: string }[]>,
+			{} as Record<string, Array<{ id: string }>>,
 		);
 
 		// Merge similarity scores with template data
@@ -115,10 +115,10 @@ export const findRelevantTemplateHandler = authed
 			const favs = favouritesByTemplate[simResult.id] || [];
 			return {
 				...simResult,
-				_count: { favouriteOf: favs.length },
 				favouriteOf: favs,
+				_count: { favouriteOf: favs.length },
 			};
 		});
 
-		return { count: templates.length, templates };
+		return { templates, count: templates.length };
 	});

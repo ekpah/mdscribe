@@ -35,11 +35,13 @@ Für Produktionsumgebungen ist ein Build vor Deployment erforderlich:
 bun run build
 ```
 
-Vor dem ersten Produktivstart und bei jedem Schema-Change sollten die Drizzle-Migrationen ausgeführt werden:
+Bei Schema-Aenderungen sollten die Drizzle-Migrationen im Deployment-Schritt vor dem Rollout der neuen App-Version laufen:
 
 ```bash
 bun run db:migrate
 ```
+
+Das Docker-Image startet nur die App und fuehrt keine Migrationen beim Container-Start aus.
 
 Wenn Sie MDScribe per Dockerfile ueber Coolify deployen, setzen Sie dafuer einen `Post-deployment`-Hook:
 

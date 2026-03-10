@@ -1,0 +1,652 @@
+"use client";
+
+import { Button } from "@repo/design-system/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@repo/design-system/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@repo/design-system/components/ui/dialog";
+import { Input } from "@repo/design-system/components/ui/input";
+import { Label } from "@repo/design-system/components/ui/label";
+import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/design-system/components/ui/select";
+import { Switch } from "@repo/design-system/components/ui/switch";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ExternalLinkIcon, FileText, Info, Loader2, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
+import { orpc } from "@/lib/orpc";
+import type { PromptHarnessId } from "@/orpc/scribe/prompts";
+
+const NONE_VALUE = "__none__";
+const FIELD_EXPLANATIONS = {
+	model:
+		"Legt fest, welches KI-Modell den Text generiert. Ohne Auswahl wird das Standardmodell verwendet.",
+	prompt:
+		"Der Basis-Prompt ist das Prompt-Harness, das Inhalt, Ton und Struktur der Generierung vorgibt.",
+	template: "Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor.",
+} as const;
+
+type ScribeFormList = Awaited<ReturnType<typeof orpc.admin.scribeForms.list.call>>;
+type ScribeFormRecord = ScribeFormList[number];
+
+interface FormDraft {
+	description: string;
+	enabled: boolean;
+	id?: string;
+	modelId: string;
+	name: string;
+	promptHarness: PromptHarnessId | "";
+	slug?: string;
+	templateId: string;
+}
+
+const createEmptyDraft = (): FormDraft => ({
+	description: "",
+	enabled: true,
+	modelId: NONE_VALUE,
+	name: "",
+	promptHarness: "",
+	templateId: NONE_VALUE,
+});
+
+const toDraft = (form: ScribeFormRecord): FormDraft => ({
+	description: form.description ?? "",
+	enabled: form.enabled,
+	id: form.id,
+	modelId: form.modelId ?? NONE_VALUE,
+	name: form.name,
+	promptHarness: form.promptHarness as PromptHarnessId,
+	slug: form.slug,
+	templateId: form.templateId ?? NONE_VALUE,
+});
+
+const toNullableSelectValue = (value: string): string | null =>
+	value === NONE_VALUE ? null : value;
+
+const resolveDraftSlug = (draft: Pick<FormDraft, "id" | "name" | "slug">): string =>
+	draft.id ? (draft.slug?.trim() ?? "") : slugifyAiScribeFormName(draft.name);
+
+const buildFormMutationInput = ({
+	description,
+	enabled,
+	modelId,
+	name,
+	promptHarness,
+	slug,
+	templateId,
+}: {
+	description: string | null;
+	enabled: boolean;
+	modelId: string | null;
+	name: string;
+	promptHarness: PromptHarnessId;
+	slug: string;
+	templateId: string | null;
+}) => ({
+	description: description?.trim() || null,
+	enabled,
+	modelId,
+	name: name.trim(),
+	promptHarness,
+	slug,
+	templateId,
+});
+
+function InfoHint({ text }: { text: string }) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type="button"
+					aria-label={text}
+					className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
+				>
+					<Info className="h-3.5 w-3.5" />
+				</button>
+			</TooltipTrigger>
+			<TooltipContent className="max-w-64 text-xs leading-relaxed">{text}</TooltipContent>
+		</Tooltip>
+	);
+}
+
+function LabelWithInfo({
+	children,
+	htmlFor,
+	info,
+}: {
+	children: string;
+	htmlFor?: string;
+	info: string;
+}) {
+	return (
+		<div className="flex items-center gap-1.5">
+			<Label htmlFor={htmlFor}>{children}</Label>
+			<InfoHint text={info} />
+		</div>
+	);
+}
+
+function SectionLabelWithInfo({ children, info }: { children: string; info: string }) {
+	return (
+		<div className="flex items-center gap-1.5">
+			<span className="font-medium">{children}</span>
+			<InfoHint text={info} />
+		</div>
+	);
+}
+
+export function ScribeFormsTab() {
+	const queryClient = useQueryClient();
+	const formsQueryOptions = orpc.admin.scribeForms.list.queryOptions();
+	const modelsQueryOptions = orpc.admin.models.list.queryOptions();
+	const promptsQueryOptions = orpc.admin.scribe.prompts.list.queryOptions({
+		input: { limit: 200 },
+	});
+	const templatesQueryOptions = orpc.admin.templates.list.queryOptions();
+
+	const {
+		data: forms = [],
+		isLoading: isFormsLoading,
+		error: formsError,
+	} = useQuery(formsQueryOptions);
+	const { data: models = [] } = useQuery(modelsQueryOptions);
+	const { data: prompts } = useQuery(promptsQueryOptions);
+	const { data: templates = [] } = useQuery(templatesQueryOptions);
+
+	const [dialogOpen, setDialogOpen] = useState(false);
+	const [draft, setDraft] = useState<FormDraft>(createEmptyDraft());
+	const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+	const listKey = formsQueryOptions.queryKey;
+	const resolvedDraftSlug = resolveDraftSlug(draft);
+	const routePreview = `/aiscribe/custom/${resolvedDraftSlug || "ai-text"}`;
+	const promptNames = prompts?.items ?? [];
+	const availablePromptNames = new Set(promptNames);
+	const hasUnavailableDraftPrompt =
+		Boolean(draft.promptHarness) && !availablePromptNames.has(draft.promptHarness);
+	const modelOptions = [
+		{
+			value: NONE_VALUE,
+			label: "Standardmodell",
+			group: "",
+			keywords: ["standard", "default"],
+		},
+		...models.map((model) => ({
+			value: model.id,
+			label: model.name,
+			group: model.providerName,
+			keywords: [model.name, model.modelId, model.providerName],
+		})),
+	];
+
+	const saveMutation = useMutation({
+		mutationFn: async (currentDraft: FormDraft) => {
+			const trimmedName = currentDraft.name.trim();
+			const slug = resolveDraftSlug(currentDraft);
+
+			if (!trimmedName) {
+				throw new Error("Bitte Namen eingeben");
+			}
+
+			if (!currentDraft.promptHarness) {
+				throw new Error("Bitte Basis-Prompt auswählen");
+			}
+
+			if (!slug) {
+				throw new Error("Aus dem Namen konnte kein gültiger Pfad erzeugt werden");
+			}
+
+			const payload = buildFormMutationInput({
+				description: currentDraft.description,
+				enabled: currentDraft.enabled,
+				modelId: toNullableSelectValue(currentDraft.modelId),
+				name: trimmedName,
+				promptHarness: currentDraft.promptHarness,
+				slug,
+				templateId: toNullableSelectValue(currentDraft.templateId),
+			});
+
+			if (currentDraft.id) {
+				return orpc.admin.scribeForms.update.call({
+					id: currentDraft.id,
+					...payload,
+				});
+			}
+
+			return orpc.admin.scribeForms.create.call(payload);
+		},
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: listKey });
+			toast.success("AI Text gespeichert");
+			setDialogOpen(false);
+			setDraft(createEmptyDraft());
+			setPendingDeleteId(null);
+		},
+		onError: (error) => {
+			toast.error(error instanceof Error ? error.message : "Fehler");
+		},
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (id: string) => orpc.admin.scribeForms.delete.call({ id }),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: listKey });
+			setPendingDeleteId(null);
+			toast.success("AI Text gelöscht");
+		},
+		onError: (error) => {
+			setPendingDeleteId(null);
+			toast.error(error instanceof Error ? error.message : "Fehler");
+		},
+	});
+
+	const toggleEnabledMutation = useMutation({
+		mutationFn: async ({ enabled, form }: { enabled: boolean; form: ScribeFormRecord }) =>
+			orpc.admin.scribeForms.update.call({
+				id: form.id,
+				...buildFormMutationInput({
+					description: form.description,
+					enabled,
+					modelId: form.modelId,
+					name: form.name,
+					promptHarness: form.promptHarness as PromptHarnessId,
+					slug: form.slug,
+					templateId: form.templateId,
+				}),
+			}),
+		onMutate: async ({ enabled, form }) => {
+			await queryClient.cancelQueries({ queryKey: listKey });
+
+			const previousForms = queryClient.getQueryData<ScribeFormList>(listKey);
+			queryClient.setQueryData<ScribeFormList>(
+				listKey,
+				(current) =>
+					current?.map((entry) => (entry.id === form.id ? { ...entry, enabled } : entry)) ?? [],
+			);
+
+			return { previousForms };
+		},
+		onError: (error, _variables, context) => {
+			if (context) {
+				queryClient.setQueryData<ScribeFormList>(listKey, context.previousForms);
+			}
+			toast.error(error instanceof Error ? error.message : "Fehler");
+		},
+		onSettled: async () => {
+			await queryClient.invalidateQueries({ queryKey: listKey });
+		},
+	});
+
+	const handleOpenCreate = () => {
+		setDraft(createEmptyDraft());
+		setPendingDeleteId(null);
+		setDialogOpen(true);
+	};
+
+	const handleOpenEdit = (form: ScribeFormRecord) => {
+		setDraft(toDraft(form));
+		setPendingDeleteId(null);
+		setDialogOpen(true);
+	};
+
+	if (isFormsLoading) {
+		return (
+			<div className="flex items-center justify-center py-12">
+				<Loader2 className="h-6 w-6 animate-spin text-solarized-base01" />
+			</div>
+		);
+	}
+
+	if (formsError) {
+		return (
+			<Card className="border-solarized-red/20 bg-solarized-red/10">
+				<CardContent className="p-4 text-center text-solarized-red text-sm">
+					{formsError instanceof Error
+						? formsError.message
+						: "Fehler beim Laden der AI Textbausteine"}
+				</CardContent>
+			</Card>
+		);
+	}
+
+	return (
+		<div className="space-y-4">
+			<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/40">
+				<CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div className="space-y-1">
+						<div className="flex items-center gap-2">
+							<div className="rounded-lg bg-solarized-cyan/10 p-2 text-solarized-cyan">
+								<FileText className="h-4 w-4" />
+							</div>
+							<CardTitle>AI Textbausteine</CardTitle>
+						</div>
+						<CardDescription>
+							Zusätzliche AIScribe-Texte mit festem klinischem Kontext (Diagnoseblock, Anamnese,
+							Befunde und Notizen).
+						</CardDescription>
+					</div>
+					<Button onClick={handleOpenCreate} size="sm">
+						<Plus className="mr-1.5 h-4 w-4" />
+						Neuer AI Text
+					</Button>
+				</CardHeader>
+			</Card>
+
+			{forms.length === 0 ? (
+				<Card className="border-solarized-base2 border-dashed bg-solarized-base3">
+					<CardContent className="p-8 text-center text-solarized-base01 text-sm">
+						Noch keine AI Textbausteine vorhanden.
+					</CardContent>
+				</Card>
+			) : (
+				<div className="grid gap-4 xl:grid-cols-2">
+					{forms.map((form) => {
+						const isPromptAvailable = availablePromptNames.has(form.promptHarness);
+						const isDeleteConfirming = pendingDeleteId === form.id;
+						const isDeletingCurrentForm = deleteMutation.isPending && isDeleteConfirming;
+						const isTogglingCurrentForm =
+							toggleEnabledMutation.isPending &&
+							toggleEnabledMutation.variables?.form.id === form.id;
+
+						return (
+							<Card key={form.id} className="border-solarized-base2 bg-solarized-base3/80">
+								<CardHeader className="space-y-2">
+									<div className="flex items-start justify-between gap-4">
+										<div className="space-y-1">
+											{form.enabled ? (
+												<Link
+													href={`/aiscribe/custom/${form.slug}`}
+													target="_blank"
+													rel="noreferrer"
+													className="inline-flex items-center gap-1.5 transition-colors hover:text-solarized-cyan"
+												>
+													<CardTitle className="text-base">{form.name}</CardTitle>
+													<ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
+												</Link>
+											) : (
+												<CardTitle className="text-base">{form.name}</CardTitle>
+											)}
+											<CardDescription>
+												{form.description ?? DEFAULT_AI_TEXT_DESCRIPTION}
+											</CardDescription>
+										</div>
+										<div className="flex items-center gap-2 pt-0.5">
+											<Label
+												htmlFor={`scribe-form-enabled-card-${form.id}`}
+												className="text-solarized-base01 text-xs"
+											>
+												Aktiviert
+											</Label>
+											<Switch
+												id={`scribe-form-enabled-card-${form.id}`}
+												checked={form.enabled}
+												onCheckedChange={(checked) =>
+													toggleEnabledMutation.mutate({
+														enabled: checked,
+														form,
+													})
+												}
+												disabled={isTogglingCurrentForm}
+											/>
+										</div>
+									</div>
+								</CardHeader>
+								<CardContent className="space-y-3 pt-0">
+									<div className="grid gap-x-4 gap-y-2 rounded-md border border-solarized-base2/70 bg-solarized-base2/15 p-3 text-sm sm:grid-cols-[150px_minmax(0,1fr)]">
+										<SectionLabelWithInfo info={FIELD_EXPLANATIONS.prompt}>
+											Basis-Prompt
+										</SectionLabelWithInfo>
+										<div
+											className={`min-w-0 break-words ${
+												isPromptAvailable ? "text-solarized-base00" : "text-solarized-base01"
+											}`}
+										>
+											{form.promptHarness}
+											{!isPromptAvailable ? " (nicht verfügbar)" : ""}
+										</div>
+
+										<SectionLabelWithInfo info={FIELD_EXPLANATIONS.template}>
+											Template
+										</SectionLabelWithInfo>
+										<div className="min-w-0 break-words">
+											{form.template ? (
+												<Link
+													href={`/templates/${form.template.id}`}
+													target="_blank"
+													rel="noreferrer"
+													className="inline-flex max-w-full items-center gap-1.5 underline underline-offset-4 hover:text-solarized-cyan"
+												>
+													<span className="break-words">{form.template.title}</span>
+													<ExternalLinkIcon className="h-3.5 w-3.5 shrink-0" />
+												</Link>
+											) : (
+												"Keins"
+											)}
+										</div>
+
+										<SectionLabelWithInfo info={FIELD_EXPLANATIONS.model}>
+											KI-Modell
+										</SectionLabelWithInfo>
+										<div className="min-w-0 break-words">
+											{form.model?.displayName ?? "Standard"}
+										</div>
+									</div>
+									<div className="flex justify-end gap-2">
+										<Button onClick={() => handleOpenEdit(form)} size="sm" variant="outline">
+											Bearbeiten
+										</Button>
+										<div className="flex w-[176px] justify-end gap-2">
+											{isDeleteConfirming ? (
+												<>
+													<Button
+														onClick={() => setPendingDeleteId(null)}
+														size="sm"
+														variant="outline"
+														disabled={deleteMutation.isPending}
+													>
+														Abbrechen
+													</Button>
+													<Button
+														onClick={() => deleteMutation.mutate(form.id)}
+														size="sm"
+														variant="destructive"
+														disabled={deleteMutation.isPending}
+													>
+														{isDeletingCurrentForm ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : null}
+														Löschen
+													</Button>
+												</>
+											) : (
+												<>
+													<div className="w-[80px]" />
+													<Button
+														onClick={() => setPendingDeleteId(form.id)}
+														size="sm"
+														variant="ghost"
+														className="w-8 px-0"
+														disabled={deleteMutation.isPending}
+													>
+														<Trash2 className="h-4 w-4" />
+													</Button>
+												</>
+											)}
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+						);
+					})}
+				</div>
+			)}
+
+			<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+				<DialogContent className="sm:max-w-xl">
+					<DialogHeader>
+						<DialogTitle>{draft.id ? "AI Text bearbeiten" : "Neuer AI Text"}</DialogTitle>
+						<DialogDescription>
+							Konfigurieren Sie einen zusätzlichen AI Textbaustein für die AIScribe-Übersicht.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-5 py-2">
+						<div className="space-y-2">
+							<Label htmlFor="scribe-form-name">Name</Label>
+							<Input
+								id="scribe-form-name"
+								value={draft.name}
+								onChange={(event) =>
+									setDraft((current) => ({
+										...current,
+										name: event.target.value,
+									}))
+								}
+								placeholder="z. B. Echo-Befund"
+							/>
+							<p className="text-solarized-base01 text-xs">
+								Pfad: <span className="font-mono">{routePreview}</span>
+							</p>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="scribe-form-description">Kurzbeschreibung für `/aiscribe`</Label>
+							<Textarea
+								id="scribe-form-description"
+								value={draft.description}
+								onChange={(event) =>
+									setDraft((current) => ({
+										...current,
+										description: event.target.value,
+									}))
+								}
+								placeholder={DEFAULT_AI_TEXT_DESCRIPTION}
+								className="min-h-24"
+							/>
+						</div>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<div className="space-y-2">
+								<LabelWithInfo info={FIELD_EXPLANATIONS.prompt}>Basis-Prompt</LabelWithInfo>
+								<Select
+									value={draft.promptHarness}
+									onValueChange={(value) =>
+										setDraft((current) => ({
+											...current,
+											promptHarness: value as PromptHarnessId,
+										}))
+									}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Basis-Prompt wählen" />
+									</SelectTrigger>
+									<SelectContent>
+										{hasUnavailableDraftPrompt ? (
+											<SelectItem value={draft.promptHarness}>
+												{draft.promptHarness} (nicht verfügbar)
+											</SelectItem>
+										) : null}
+										{promptNames.map((promptName) => (
+											<SelectItem key={promptName} value={promptName}>
+												{promptName}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-2">
+								<LabelWithInfo info={FIELD_EXPLANATIONS.template}>Template</LabelWithInfo>
+								<Select
+									value={draft.templateId}
+									onValueChange={(value) =>
+										setDraft((current) => ({ ...current, templateId: value }))
+									}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Template wählen" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value={NONE_VALUE}>Keins</SelectItem>
+										{templates.map((templateOption) => (
+											<SelectItem key={templateOption.id} value={templateOption.id}>
+												{templateOption.title}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-2">
+								<LabelWithInfo info={FIELD_EXPLANATIONS.model}>KI-Modell</LabelWithInfo>
+								<ModelSelector
+									options={modelOptions}
+									value={draft.modelId}
+									onValueChange={(value) => setDraft((current) => ({ ...current, modelId: value }))}
+									placeholder="Modell wählen"
+									searchPlaceholder="Modell suchen..."
+									className="border-solarized-base2 bg-solarized-base3"
+								/>
+							</div>
+
+							<div className="flex items-center justify-between pt-2 md:col-span-2">
+								<Label htmlFor="scribe-form-enabled">Aktiviert</Label>
+								<Switch
+									id="scribe-form-enabled"
+									checked={draft.enabled}
+									onCheckedChange={(checked) =>
+										setDraft((current) => ({ ...current, enabled: checked }))
+									}
+								/>
+							</div>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setDialogOpen(false)}
+							disabled={saveMutation.isPending}
+						>
+							Abbrechen
+						</Button>
+						<Button
+							onClick={() => saveMutation.mutate(draft)}
+							disabled={
+								saveMutation.isPending ||
+								!draft.name.trim() ||
+								!draft.promptHarness ||
+								!resolvedDraftSlug
+							}
+						>
+							{saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							Speichern
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</div>
+	);
+}

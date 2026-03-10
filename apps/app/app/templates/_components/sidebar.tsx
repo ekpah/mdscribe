@@ -11,6 +11,16 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@repo/design-system/components/ui/collapsible';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@repo/design-system/components/ui/dialog';
+import { Input } from '@repo/design-system/components/ui/input';
 import { Kbd } from '@repo/design-system/components/ui/kbd';
 import { Label } from '@repo/design-system/components/ui/label';
 import {
@@ -29,15 +39,32 @@ import {
   SidebarRail,
   useSidebar,
 } from '@repo/design-system/components/ui/sidebar';
+import { Textarea } from '@repo/design-system/components/ui/textarea';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
-import { Library, Minus, Plus, Search, StarIcon } from 'lucide-react';
+import {
+  Folder,
+  FolderPlus,
+  Library,
+  Minus,
+  Plus,
+  Search,
+  StarIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryState } from 'nuqs';
 import type React from 'react';
-import { useCallback, useRef, useState } from 'react';
-
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { toast } from 'sonner';
+import { orpc } from '@/lib/orpc';
 import { CollectionSwitcher } from './collection-switcher';
 
 interface Template {
@@ -47,6 +74,18 @@ interface Template {
   favouritesCount: number;
 }
 
+interface CustomCollection {
+  id: string;
+  name: string;
+  description: string | null;
+  templates: {
+    id: string;
+    title: string;
+    category: string;
+    favouritesCount: number;
+  }[];
+}
+
 interface SidebarSegment {
   category: string;
   documents: { title: string; url: string; favouritesCount: number }[];
@@ -54,10 +93,10 @@ interface SidebarSegment {
 
 const generateSegments = ({ templates }: { templates: Template[] }) => {
   const segments = templates.reduce<SidebarSegment[]>((acc, current) => {
-    const {category} = current;
+    const { category } = current;
     const template = current.title;
     const route = current.url;
-    const {favouritesCount} = current;
+    const { favouritesCount } = current;
     const existingCategory = acc.find(
       (segment) => segment.category === category
     );
@@ -97,11 +136,13 @@ export default function AppSidebar({
   templates,
   favouriteTemplates,
   authoredTemplates,
+  customCollections,
   isLoggedIn,
 }: {
   templates: string;
   favouriteTemplates: string;
   authoredTemplates: string;
+  customCollections: string;
   isLoggedIn: boolean;
 }) {
   const { setOpenMobile } = useSidebar();
@@ -119,6 +160,62 @@ export default function AppSidebar({
     { defaultValue: 'all' }
   );
 
+  const queryClient = useQueryClient();
+  const initialTemplates = useMemo(
+    () => JSON.parse(templates) as Template[],
+    [templates]
+  );
+  const initialFavouriteTemplates = useMemo(
+    () => JSON.parse(favouriteTemplates) as Template[],
+    [favouriteTemplates]
+  );
+  const initialAuthoredTemplates = useMemo(
+    () => JSON.parse(authoredTemplates) as Template[],
+    [authoredTemplates]
+  );
+  const initialCustomCollections = useMemo(
+    () => JSON.parse(customCollections) as CustomCollection[],
+    [customCollections]
+  );
+
+  const { data: customCollectionsData = initialCustomCollections } = useQuery({
+    ...orpc.user.collections.list.queryOptions(),
+    enabled: isLoggedIn,
+    initialData: initialCustomCollections,
+  });
+
+  const customCollectionsWithUrls = useMemo(
+    () =>
+      customCollectionsData.map((collection) => ({
+        ...collection,
+        templates: collection.templates.map((collectionTemplate) => ({
+          ...collectionTemplate,
+          url: `/templates/${collectionTemplate.id}`,
+        })),
+      })),
+    [customCollectionsData]
+  );
+
+  const [isCreateCollectionOpen, setIsCreateCollectionOpen] = useState(false);
+  const [collectionForm, setCollectionForm] = useState({
+    name: '',
+    description: '',
+  });
+
+  const createCollectionMutation = useMutation(
+    orpc.user.collections.create.mutationOptions({
+      onSuccess: (collection) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.user.collections.list.queryOptions().queryKey,
+        });
+        setCollectionForm({ name: '', description: '' });
+        setIsCreateCollectionOpen(false);
+        setActiveCollection(collection.id);
+        toast.success('Sammlung erstellt');
+      },
+    })
+  );
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useHotkeys(['meta+k', 'ctrl+k'], (event: KeyboardEvent) => {
@@ -130,14 +227,16 @@ export default function AppSidebar({
     }
   });
 
-  // collections depending on if the user is logged in or not
-  const collections = isLoggedIn
+  const baseCollections = [
+    {
+      key: 'all',
+      logo: Library,
+      name: 'Alle Textbausteine',
+    },
+  ];
+
+  const userCollections = isLoggedIn
     ? [
-        {
-          key: 'all',
-          logo: Library,
-          name: 'Alle Textbausteine',
-        },
         {
           key: 'favourites',
           logo: BookmarkFilledIcon,
@@ -149,37 +248,108 @@ export default function AppSidebar({
           name: 'Von Dir erstellt',
         },
       ]
-    : [
-        {
-          key: 'all',
-          logo: Library,
-          name: 'Alle Textbausteine',
-        },
-      ];
+    : [];
 
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e?.currentTarget?.value);
-  }, []);
-
-  // 1. List of items to search in
-  const menuSegments = JSON.parse(
-    (() => {
-      if (activeCollection === 'favourites') {
-        return favouriteTemplates;
-      }
-      if (activeCollection === 'authored') {
-        return authoredTemplates;
-      }
-      return templates;
-    })()
+  const customCollectionEntries = useMemo(
+    () =>
+      customCollectionsWithUrls.map((collection) => ({
+        key: collection.id,
+        logo: Folder,
+        name: collection.name,
+      })),
+    [customCollectionsWithUrls]
   );
 
-  // 2. Set up the Fuse instance
+  const collections = isLoggedIn
+    ? [...baseCollections, ...userCollections, ...customCollectionEntries]
+    : baseCollections;
+
+  const activeCollectionValue = collections.some(
+    (collection) => collection.key === activeCollection
+  )
+    ? activeCollection
+    : 'all';
+
+  useEffect(() => {
+    if (activeCollectionValue !== activeCollection) {
+      setActiveCollection(activeCollectionValue);
+    }
+  }, [activeCollection, activeCollectionValue, setActiveCollection]);
+
+  const handleSearch = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.currentTarget.value);
+  }, []);
+
+  const handleCloseCreateCollection = useCallback(() => {
+    setIsCreateCollectionOpen(false);
+    setCollectionForm({ name: '', description: '' });
+  }, []);
+
+  const handleCreateCollection = useCallback(async () => {
+    if (!collectionForm.name.trim()) {
+      toast.error('Bitte geben Sie einen Namen an');
+      return;
+    }
+
+    try {
+      await createCollectionMutation.mutateAsync({
+        description: collectionForm.description,
+        name: collectionForm.name,
+      });
+    } catch (error) {
+      console.error('Error creating collection:', error);
+      toast.error('Fehler beim Erstellen der Sammlung');
+    }
+  }, [
+    collectionForm.description,
+    collectionForm.name,
+    createCollectionMutation,
+  ]);
+
+  const handleCreateCollectionDialogChange = useCallback((open: boolean) => {
+    setIsCreateCollectionOpen(open);
+    if (!open) {
+      setCollectionForm({ name: '', description: '' });
+    }
+  }, []);
+
+  const handleCollectionNameChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setCollectionForm((current) => ({
+        ...current,
+        name: event.target.value,
+      }));
+    },
+    []
+  );
+
+  const handleCollectionDescriptionChange = useCallback(
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setCollectionForm((current) => ({
+        ...current,
+        description: event.target.value,
+      }));
+    },
+    []
+  );
+
+  const activeCustomCollection = customCollectionsWithUrls.find(
+    (collection) => collection.id === activeCollectionValue
+  );
+
+  const menuSegments =
+    activeCollectionValue === 'favourites'
+      ? initialFavouriteTemplates
+      : activeCollectionValue === 'authored'
+        ? initialAuthoredTemplates
+        : activeCollectionValue === 'all'
+          ? initialTemplates
+          : activeCustomCollection?.templates ?? [];
+
   const fuse = new Fuse(menuSegments, {
     keys: ['category', 'title'],
   });
 
-  // 3. Now search!
   const filteredLinks = fuse
     .search(searchTerm, { limit: 10 })
     .map((res) => res.item)
@@ -188,18 +358,20 @@ export default function AppSidebar({
         (b as Template).favouritesCount - (a as Template).favouritesCount
     );
 
-  // generate ordered segments to be visualized in the sidebar
   const orderedSegments = generateSegments({
     templates: searchTerm ? filteredLinks : menuSegments,
   });
 
-  const handleSearchSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const firstUrl = orderedSegments[0]?.documents[0]?.url;
-    if (firstUrl) {
-      router.push(firstUrl);
-    }
-  }, [orderedSegments, router]);
+  const handleSearchSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const firstUrl = orderedSegments[0]?.documents[0]?.url;
+      if (firstUrl) {
+        router.push(firstUrl);
+      }
+    },
+    [orderedSegments, router]
+  );
 
   const handleCloseMobile = useCallback(() => {
     setOpenMobile(false);
@@ -210,9 +382,9 @@ export default function AppSidebar({
       <SidebarHeader className="z-30 gap-4">
         {isLoggedIn && (
           <CollectionSwitcher
-            activeCollection={activeCollection}
+            activeCollection={activeCollectionValue}
             collections={collections}
-            count={menuSegments?.length}
+            count={menuSegments.length}
             setActiveCollection={setActiveCollection}
           />
         )}
@@ -227,6 +399,73 @@ export default function AppSidebar({
               </Link>
             )}
           </SidebarGroupContent>
+          {isLoggedIn && (
+            <SidebarGroupContent className="relative">
+              <Dialog
+                onOpenChange={handleCreateCollectionDialogChange}
+                open={isCreateCollectionOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button
+                    className="w-full justify-start gap-2 px-2"
+                    type="button"
+                    variant="outline"
+                  >
+                    <FolderPlus className="h-4 w-4" />
+                    <span>Neue Sammlung</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Neue Sammlung</DialogTitle>
+                    <DialogDescription>
+                      Erstellen Sie eine Sammlung für Ihre Textbausteine.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="collection-name">Name</Label>
+                      <Input
+                        id="collection-name"
+                        maxLength={100}
+                        onChange={handleCollectionNameChange}
+                        placeholder="z.B. Notfall"
+                        value={collectionForm.name}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="collection-description">Beschreibung</Label>
+                      <Textarea
+                        id="collection-description"
+                        maxLength={500}
+                        onChange={handleCollectionDescriptionChange}
+                        placeholder="Optional"
+                        value={collectionForm.description}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={handleCloseCreateCollection}
+                      type="button"
+                      variant="outline"
+                    >
+                      Abbrechen
+                    </Button>
+                    <Button
+                      disabled={createCollectionMutation.isPending}
+                      onClick={handleCreateCollection}
+                      type="button"
+                    >
+                      {createCollectionMutation.isPending
+                        ? 'Speichern...'
+                        : 'Erstellen'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </SidebarGroupContent>
+          )}
           <SidebarGroupContent className="relative">
             <form key="search" onSubmit={handleSearchSubmit}>
               <Label className="sr-only" htmlFor="search">
@@ -282,24 +521,24 @@ export default function AppSidebar({
                     <CollapsibleContent>
                       <SidebarMenuSub>
                         {segment.documents.map((item, itemIndex) => (
-                            <SidebarMenuSubItem key={itemIndex}>
-                              <SidebarMenuSubButton asChild isActive={false}>
-                                <Link
-                                  className="flex items-center justify-between"
-                                  href={`${item.url}?activeCollection=${encodeURIComponent(activeCollection)}`}
-                                  onClick={handleCloseMobile}
-                                >
-                                  <span>{item.title}</span>
-                                  {item.favouritesCount > 0 && (
-                                    <span className="ml-2 flex items-center text-muted-foreground text-xs">
-                                      <StarIcon className="mr-0.5 h-3 w-3" />
-                                      {formatCount(item.favouritesCount)}
-                                    </span>
-                                  )}
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
+                          <SidebarMenuSubItem key={itemIndex}>
+                            <SidebarMenuSubButton asChild isActive={false}>
+                              <Link
+                                className="flex items-center justify-between"
+                                href={`${item.url}?activeCollection=${encodeURIComponent(activeCollectionValue)}`}
+                                onClick={handleCloseMobile}
+                              >
+                                <span>{item.title}</span>
+                                {item.favouritesCount > 0 && (
+                                  <span className="ml-2 flex items-center text-muted-foreground text-xs">
+                                    <StarIcon className="mr-0.5 h-3 w-3" />
+                                    {formatCount(item.favouritesCount)}
+                                  </span>
+                                )}
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   ) : null}

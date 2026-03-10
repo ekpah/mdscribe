@@ -12,6 +12,7 @@ import {
 import {
 	DataTable,
 	DataTablePagination,
+	type DataTableRenderToolbarProps,
 	DataTableViewOptions,
 } from "@repo/design-system/components/ui/data-table";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -29,8 +30,8 @@ import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
-import { columns, getUserDisplayName } from './columns';
-import type { AdminTemplateRow } from './columns';
+import { columns, getUserDisplayName } from "./columns";
+import type { AdminTemplateRow } from "./columns";
 
 type EmbeddingFilter = "all" | "with" | "without";
 type MigrationMode = "missing" | "all";
@@ -45,7 +46,11 @@ const formatDuration = (seconds: number): string => {
 	return `~${minutes}m ${remainingSeconds}s`;
 };
 
-const TemplateTableToolbar = ({ table }: { table: any }) => {
+const TemplateTableToolbar = ({
+	table,
+}: {
+	table: DataTableRenderToolbarProps<AdminTemplateRow>["table"];
+}) => {
 	const handleTemplateFilterChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
 			table
@@ -299,12 +304,16 @@ export default function AdminTemplatesPage() {
 	}, []);
 
 	const renderTableToolbar = useCallback(
-		(table: any) => <TemplateTableToolbar table={table} />,
+		(table: DataTableRenderToolbarProps<AdminTemplateRow>["table"]) => (
+			<TemplateTableToolbar table={table} />
+		),
 		[],
 	);
 
 	const renderTablePagination = useCallback(
-		(table: any) => <DataTablePagination table={table} />,
+		(table: DataTableRenderToolbarProps<AdminTemplateRow>["table"]) => (
+			<DataTablePagination table={table} />
+		),
 		[],
 	);
 

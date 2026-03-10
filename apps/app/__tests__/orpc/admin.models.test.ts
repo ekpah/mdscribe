@@ -2,8 +2,14 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call } from "@orpc/server";
 import { aiModel, eq } from "@repo/database";
 import { modelsHandler } from "@/orpc/admin/models";
-import { ADMIN_EMAIL, createMockSession, createTestAiDefaults, createTestContext, createTestUser, startTestServer } from '../setup';
-import type { TestServer } from '../setup';
+import {
+	ADMIN_EMAIL,
+	createTestAiDefaults,
+	createTestContext,
+	createTestUser,
+	startTestServer,
+} from "../setup";
+import type { TestServer } from "../setup";
 
 describe("Admin Models Handler", () => {
 	let server: TestServer;
@@ -12,8 +18,7 @@ describe("Admin Models Handler", () => {
 
 	beforeEach(async () => {
 		server = await startTestServer("admin-models");
-		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
-		const session = createMockSession(user);
+		const { session } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		context = createTestContext({ db: server.db, session });
 		seeded = await createTestAiDefaults(server.db);
 	});

@@ -13,7 +13,7 @@ import {
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { Bot, Pencil } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 export type InputSource = "empty" | "ai" | "manual";
 
@@ -70,7 +70,7 @@ const renderInputTag = (
 	input: InputTagType,
 	values: Record<string, unknown>,
 	fieldSources: Record<string, InputSource>,
-	fieldChangeHandlers: Record<string, (value: unknown) => void>,
+	handleInputChange: (key: string, value: unknown) => void,
 ): React.ReactNode | null => {
 	if (!input.attributes.primary) {
 		return null;
@@ -78,6 +78,9 @@ const renderInputTag = (
 
 	const fieldKey = input.attributes.primary;
 	const source = fieldSources[fieldKey];
+	const handleFieldValueChange = (value: unknown) => {
+		handleInputChange(fieldKey, value);
+	};
 
 	if (input.name === "Info") {
 		return (
@@ -89,7 +92,7 @@ const renderInputTag = (
 				)}
 					<InfoInput
 						input={input}
-						onChange={fieldChangeHandlers[fieldKey]}
+						onChange={handleFieldValueChange}
 						value={values[fieldKey] as string | number | undefined}
 					/>
 			</div>
@@ -108,7 +111,7 @@ const renderInputTag = (
 				)}
 					<SwitchInput
 						input={input}
-						onChange={fieldChangeHandlers[fieldKey] as (newValue: string) => void}
+						onChange={handleFieldValueChange as (newValue: string) => void}
 						value={currentValue}
 					/>
 				{/* Render children of selected case */}
@@ -126,7 +129,7 @@ const renderInputTag = (
 											grandChild,
 											values,
 											fieldSources,
-											fieldChangeHandlers,
+											handleInputChange,
 										),
 									),
 								)}
@@ -159,48 +162,19 @@ export default function PDFInputs({
 
 	const handleInputChange = useCallback((key: string, value: unknown) => {
 		// Update parent state directly
-		onChange({ ...values, [key]: value });
+		onChange({ ...(initialValues ?? {}), [key]: value });
 		// Notify parent that this field was edited (will mark as manual)
 		onFieldEdit(key);
-	}, [onChange, onFieldEdit, values]);
-
-	const fieldKeys = useMemo(() => {
-		const keys = new Set<string>();
-		const walk = (tag: InputTagType): void => {
-			if (tag.attributes.primary) {
-				keys.add(tag.attributes.primary);
-			}
-			for (const child of tag.children ?? []) {
-				walk(child as InputTagType);
-			}
-		};
-		for (const inputTag of inputTags) {
-			walk(inputTag);
-		}
-		return [...keys];
-	}, [inputTags]);
-
-	const fieldChangeHandlers = useMemo(
-		() =>
-			Object.fromEntries(
-				fieldKeys.map((key) => [
-					key,
-					(value: unknown) => {
-						handleInputChange(key, value);
-					},
-				]),
-			) as Record<string, (value: unknown) => void>,
-		[fieldKeys, handleInputChange],
-	);
+	}, [initialValues, onChange, onFieldEdit]);
 
 	if (inputTags.length === 0 || !inputTags) {
 		return null;
 	}
 
-	return (
+		return (
 			<form className="w-full max-w-full space-y-6 pr-4">
 				{inputTags.map((inputTag) =>
-					renderInputTag(inputTag, values, fieldSources, fieldChangeHandlers),
+					renderInputTag(inputTag, values, fieldSources, handleInputChange),
 				)}
 			</form>
 		);

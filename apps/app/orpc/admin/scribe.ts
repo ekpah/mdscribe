@@ -1,28 +1,27 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
-import { streamText } from 'ai';
-import type { ModelMessage } from 'ai';
+import { type ModelMessage, streamText } from "ai";
 import { z } from "zod";
 
-import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
-import type { StandardUsage, UsageInputData, UsageMetadata } from '@/lib/usage-logging';
+import {
+	buildUsageEventData,
+	extractOpenRouterUsage,
+	type StandardUsage,
+	type UsageInputData,
+	type UsageMetadata,
+} from "@/lib/usage-logging";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "../middlewares/admin";
-import { documentTypeConfigs } from "../scribe/config";
-import { buildScribeContext } from "../scribe/context";
+import { composeScribeContext } from "../scribe/context";
+import {
+	composeDocumentTypePrompt,
+	documentTypeConfigs,
+} from "../scribe/prompts";
 import {
 	resolveModelByRecordId,
 	resolveProviderModel,
 } from "../scribe/providers";
 import type { PromptVariables } from "../scribe/types";
-
-const todaysDateDE = (): string => {
-	return new Date().toLocaleDateString("de-DE", {
-		day: "2-digit",
-		month: "2-digit",
-		year: "numeric",
-	});
-};
 
 const compilePromptInput = z.object({
 	documentType: z.string(),
@@ -65,25 +64,22 @@ const compilePromptHandler = authed
 
 		const variablesUsed =
 			parsed.variables ?? parsePromptJson(parsed.promptJson);
-		if (
-			parsed.documentType === "procedures" &&
-			typeof variablesUsed.relevantTemplate !== "string"
-		) {
-			variablesUsed.relevantTemplate = "";
-		}
 
-		const { contextXml } = await buildScribeContext({
+		const { contextXml } = await composeScribeContext({
+			formData: variablesUsed,
 			sessionUser: context.session.user,
-			sources: [{ data: variablesUsed, kind: "form" }],
 		});
 
-		const promptVariables = {
-			...variablesUsed,
-			contextXml,
-			todaysDate: todaysDateDE(),
-		} as PromptVariables;
-
-		const compiledMessages = config.prompt(promptVariables);
+		const compiledMessages = composeDocumentTypePrompt(
+			parsed.documentType as keyof typeof documentTypeConfigs,
+			{
+				contextXml,
+				relevantTemplate:
+					typeof variablesUsed.relevantTemplate === "string"
+						? variablesUsed.relevantTemplate
+						: undefined,
+			},
+		);
 
 		return {
 			compiledMessages,
@@ -142,12 +138,6 @@ const runHandler = authed
 		const resolvedPromptName = parsed.promptName ?? config.promptName;
 		const variablesUsed =
 			parsed.variables ?? parsePromptJson(parsed.promptJson);
-		if (
-			parsed.documentType === "procedures" &&
-			typeof variablesUsed.relevantTemplate !== "string"
-		) {
-			variablesUsed.relevantTemplate = "";
-		}
 
 		const providerId = parsed.providerId ?? parsed.connectionId;
 		const resolved = providerId
@@ -158,18 +148,21 @@ const runHandler = authed
 		if (parsed.compiledMessagesOverride) {
 			messages = parsed.compiledMessagesOverride as unknown as ModelMessage[];
 		} else {
-			const { contextXml } = await buildScribeContext({
+			const { contextXml } = await composeScribeContext({
+				formData: variablesUsed,
 				sessionUser: context.session.user,
-				sources: [{ data: variablesUsed, kind: "form" }],
 			});
 
-			const promptVariables = {
-				...variablesUsed,
-				contextXml,
-				todaysDate: todaysDateDE(),
-			} as PromptVariables;
-
-			messages = config.prompt(promptVariables);
+			messages = composeDocumentTypePrompt(
+				parsed.documentType as keyof typeof documentTypeConfigs,
+				{
+					contextXml,
+					relevantTemplate:
+						typeof variablesUsed.relevantTemplate === "string"
+						? variablesUsed.relevantTemplate
+						: undefined,
+				},
+			);
 		}
 
 		const startTime = Date.now();
@@ -247,13 +240,13 @@ const runHandler = authed
 export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
 	prompts: {
-			get: authed
-				.use(requiredAdminMiddleware)
-				.input(type<{ name: string }>())
-				.handler(({ input }) => {
-					const entry = Object.entries(documentTypeConfigs).find(
-						([_, config]) => config.promptName === input.name,
-					);
+		get: authed
+			.use(requiredAdminMiddleware)
+			.input(type<{ name: string }>())
+			.handler(({ input }) => {
+				const entry = Object.entries(documentTypeConfigs).find(
+					([_, config]) => config.promptName === input.name,
+				);
 
 				if (!entry) {
 					throw new ORPCError("NOT_FOUND", {
@@ -264,38 +257,41 @@ export const scribeHandler = {
 				const [documentType, config] = entry;
 
 				const sampleVariables = {
+					todaysDate: new Date().toLocaleDateString("de-DE", {
+						day: "2-digit",
+						month: "2-digit",
+						year: "numeric",
+					}),
 					anamnese: "[Anamnese]",
 					befunde: "[Befunde]",
-					contextXml: "<patient_context></patient_context>",
 					diagnoseblock: "[Diagnoseblock]",
 					notes: "[Notizen]",
 					relevantTemplate: "[Relevante Vorlage]",
-					todaysDate: todaysDateDE(),
+					contextXml: "<patient_context></patient_context>",
 				} as PromptVariables;
 
 				const messages = config.prompt(sampleVariables);
 
 				return {
-					documentType,
-					messages,
-					modelConfig: config.modelConfig,
 					name: config.promptName,
+					documentType,
 					source: "local",
+					modelConfig: config.modelConfig,
+					messages,
 				};
 			}),
-
-			list: authed
-				.use(requiredAdminMiddleware)
+		list: authed
+			.use(requiredAdminMiddleware)
 			.input(
 				type<{
 					query?: string;
 					limit?: number;
 				}>(),
 			)
-				.handler(({ input }) => {
-					const allPromptNames = Object.values(documentTypeConfigs).map(
-						(config) => config.promptName,
-					);
+			.handler(({ input }) => {
+				const allPromptNames = Object.values(documentTypeConfigs).map(
+					(config) => config.promptName,
+				);
 
 				let filteredNames = allPromptNames;
 				if (input.query?.trim()) {

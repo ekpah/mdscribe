@@ -2,16 +2,6 @@
 
 Medical documentation platform powered by AI. MDScribe helps doctors reduce documentation time by generating discharge letters, admission notes, and other clinical documents from structured inputs.
 
-## Privacy & Hosting (OSS)
-
-Our short-term privacy position for the open-source launch:
-
-- Cloud-hosted usage should not be treated as safe for sensitive patient PII/PHI until stronger compliance controls are complete.
-- Self-hosting is the recommended path for users who need full control over where data is processed and stored.
-
-This guidance is risk-based and intended to help teams choose an appropriate deployment model for their data sensitivity.
-See `apps/docs/content/docs/self-hosting/index.mdx` for the self-hosting runbook.
-
 ## Features
 
 - **AI Document Generation** — Generate discharge letters, admission notes, diagnoses, and more from structured prompts with streaming output
@@ -42,17 +32,20 @@ See `apps/docs/content/docs/self-hosting/index.mdx` for the self-hosting runbook
 ### Setup
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/ekpah/mdscribe.git
    cd mdscribe
    ```
 
 2. Install dependencies:
+
    ```bash
    bun install
    ```
 
 3. Copy and configure environment variables:
+
    ```bash
    cp .env.example .env
    ```
@@ -72,12 +65,15 @@ See `apps/docs/content/docs/self-hosting/index.mdx` for the self-hosting runbook
    | `VOYAGE_API_KEY` | Voyage AI API key for embeddings |
 
 4. Start local PostgreSQL (OrbStack/Docker):
+
    ```bash
    bun run db:up
    ```
+
    This command also runs `db:init` to apply schema and an idempotent development seed.
 
 5. Start the development server:
+
    ```bash
    bun dev
    ```
@@ -102,29 +98,19 @@ mdscribe/
 └── ee/               # Enterprise features (commercial license)
 ```
 
-## Commands
+## Privacy & Hosting (OSS)
 
-| Command | Description |
-|---------|-------------|
-| `bun dev` | Start development server |
-| `bun run build` | Build all packages |
-| `bun run lint` | Full monorepo lint via Turbo |
-| `bun run lint:affected` | Lint only changed/affected packages (fast path) |
-| `bun run test` | Full monorepo tests via Turbo |
-| `bun run test:affected` | Test only changed/affected packages (fast path) |
-| `bun run knip` | Check for unused dependencies |
-| `bun run db:up` | Start local PostgreSQL container for development |
-| `bun run db:down` | Stop local PostgreSQL container |
-| `bun run db:reset` | Stop local PostgreSQL and remove its volume |
-| `bun run db:logs` | Tail PostgreSQL logs |
-| `bun run db:init` | Re-run schema + idempotent seed against local Postgres |
-| `bun run db:migrate` | Apply tracked Drizzle migrations against the configured database |
+Our short-term privacy position for the open-source launch:
 
-Performance tips:
-- Use `bun run lint:affected && bun run test:affected` during normal development.
-- Use Turbo filters for focused runs (for example `turbo run lint --filter=app`).
+- Cloud-hosted usage should not be treated as safe for sensitive patient PII/PHI until stronger compliance controls are complete.
+- Self-hosting is the recommended path for users who need full control over where data is processed and stored.
+
+This guidance is risk-based and intended to help teams choose an appropriate deployment model for their data sensitivity.
+See `apps/docs/content/docs/self-hosting/index.mdx` for the self-hosting runbook.
 
 ## Production Database Migrations
+
+Run `bun run db:migrate` in CI/CD before rolling out a version that includes schema changes. The Docker image is expected to start the app only and does not run migrations on container startup. `bun run db:migrate:deploy` remains as a compatibility alias if your deploy system already uses it.
 
 For Dockerfile-based deployments such as Coolify, configure a `Post-deployment` hook instead of running migrations during container startup:
 
@@ -133,12 +119,6 @@ cd /app/packages/database && bunx drizzle-kit migrate --config=drizzle.config.ts
 ```
 
 The runtime image ships `packages/database` so the hook can read the checked-in Drizzle config and SQL migration files.
-
-If you need to run the same migration step manually against the target database, use:
-
-```bash
-bun run db:migrate
-```
 
 ## Contributing
 

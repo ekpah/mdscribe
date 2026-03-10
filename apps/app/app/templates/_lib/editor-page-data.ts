@@ -8,6 +8,7 @@ export interface TemplateEditorData {
 	categorySuggestions: string[];
 	tit: string;
 	note: string;
+	examples: string[];
 	id?: string;
 	canEditSource: boolean;
 }
@@ -19,7 +20,9 @@ interface EditorContextData {
 
 const getCommonEditorData = (
 	queryClient: QueryClient,
-): Promise<EditorContextData> => queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());
+): Promise<EditorContextData> => {
+	return queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());
+};
 
 export const getCreateTemplateEditorData = async ({
 	forkId,
@@ -37,8 +40,9 @@ export const getCreateTemplateEditorData = async ({
 	return {
 		...sharedData,
 		cat: forkedTemplate?.category || "",
-		note: JSON.stringify(forkedTemplate?.content || ""),
 		tit: forkedTemplate?.title || "",
+		note: JSON.stringify(forkedTemplate?.content || ""),
+		examples: (forkedTemplate?.examples ?? []).map((example) => example.content),
 	};
 };
 
@@ -60,8 +64,9 @@ export const getEditTemplateEditorData = async ({
 	return {
 		...sharedData,
 		cat: doc.category || "",
-		id,
-		note: JSON.stringify(doc.content || ""),
 		tit: doc.title || "",
+		note: JSON.stringify(doc.content || ""),
+		examples: (doc.examples ?? []).map((example) => example.content),
+		id,
 	};
 };

@@ -22,7 +22,7 @@ import { Label } from '@repo/design-system/components/ui/label';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import { orpc } from '@/lib/orpc';
@@ -152,26 +152,6 @@ export const SnippetsCard = () => {
     setFormData((previous) => ({ ...previous, snippet: event.target.value }));
   }, []);
 
-  const editSnippetHandlers = useMemo<Record<string, () => void>>(() => {
-    const handlers: Record<string, () => void> = {};
-    for (const snippet of snippets as TextSnippet[]) {
-      handlers[snippet.id] = () => {
-        handleOpenDialog(snippet);
-      };
-    }
-    return handlers;
-  }, [handleOpenDialog, snippets]);
-
-  const deleteSnippetHandlers = useMemo<Record<string, () => void>>(() => {
-    const handlers: Record<string, () => void> = {};
-    for (const snippet of snippets as TextSnippet[]) {
-      handlers[snippet.id] = () => {
-        handleDelete(snippet.id);
-      };
-    }
-    return handlers;
-  }, [handleDelete, snippets]);
-
   return (
     <Card>
       <CardHeader>
@@ -267,39 +247,50 @@ export const SnippetsCard = () => {
         {!isLoading && snippets && snippets.length > 0 && (
           <div className="space-y-2">
             {snippets.map((snippet) => (
-              <div
-                className="flex items-start justify-between rounded-lg border p-3"
-                key={snippet.id}
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <code className="rounded bg-muted px-2 py-1 font-mono text-sm">
-                      {snippet.key}
-                    </code>
+              (() => {
+                const handleEditClick = () => {
+                  handleOpenDialog(snippet);
+                };
+                const handleDeleteClick = () => {
+                  void handleDelete(snippet.id);
+                };
+
+                return (
+                  <div
+                    className="flex items-start justify-between rounded-lg border p-3"
+                    key={snippet.id}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <code className="rounded bg-muted px-2 py-1 font-mono text-sm">
+                          {snippet.key}
+                        </code>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-muted-foreground text-sm">
+                        {snippet.snippet}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        onClick={handleEditClick}
+                        size="sm"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={handleDeleteClick}
+                        size="sm"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 className="h-4 w-4 text-solarized-red" />
+                      </Button>
+                    </div>
                   </div>
-                  <p className="mt-2 line-clamp-2 text-muted-foreground text-sm">
-                    {snippet.snippet}
-                  </p>
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    onClick={editSnippetHandlers[snippet.id]}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    onClick={deleteSnippetHandlers[snippet.id]}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Trash2 className="h-4 w-4 text-solarized-red" />
-                  </Button>
-                </div>
-              </div>
+                );
+              })()
             ))}
           </div>
         )}

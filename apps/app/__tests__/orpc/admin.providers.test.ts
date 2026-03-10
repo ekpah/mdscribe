@@ -2,8 +2,13 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq } from "@repo/database";
 import { providersHandler } from "@/orpc/admin/providers";
-import { ADMIN_EMAIL, createMockSession, createTestContext, createTestUser, startTestServer } from '../setup';
-import type { TestServer } from '../setup';
+import {
+	ADMIN_EMAIL,
+	createTestContext,
+	createTestUser,
+	startTestServer,
+} from "../setup";
+import type { TestServer } from "../setup";
 
 describe("Admin Providers Handler", () => {
 	let server: TestServer;
@@ -12,8 +17,7 @@ describe("Admin Providers Handler", () => {
 
 	beforeEach(async () => {
 		server = await startTestServer("admin-providers");
-		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
-		const session = createMockSession(user);
+		const { session } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		context = createTestContext({ db: server.db, session });
 		originalFetch = globalThis.fetch;
 	});

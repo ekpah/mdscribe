@@ -70,7 +70,7 @@ export const createTestUser = async (
 	options?: {
 		email?: string;
 		name?: string;
-		stripeCustomerId?: string;
+		stripeCustomerId?: string | null;
 	},
 ): Promise<{
 	user: typeof schema.user.$inferSelect;
@@ -80,7 +80,10 @@ export const createTestUser = async (
 }> => {
 	const email = options?.email ?? `test-${Date.now()}@example.com`;
 	const name = options?.name ?? "Test User";
-	const stripeCustomerId = options?.stripeCustomerId ?? `cus_test_${Date.now()}`;
+	const stripeCustomerId =
+		options && "stripeCustomerId" in options
+			? options.stripeCustomerId
+			: `cus_test_${Date.now()}`;
 	const userId = crypto.randomUUID();
 
 	await db.insert(user).values({

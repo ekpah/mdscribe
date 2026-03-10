@@ -1,6 +1,19 @@
 import { type } from "@orpc/server";
-import { and, count, desc, eq, favourites, sql, template, user } from '@repo/database';
-import type { Template, User } from '@repo/database';
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	favourites,
+	sql,
+	template,
+	templateExample,
+	user,
+	type Template,
+	type TemplateExample,
+	type User,
+} from "@repo/database";
 import { env } from "@repo/env";
 import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
@@ -22,10 +35,13 @@ const favouriteCount = (templateId: typeof template.id) =>
 // ============================================================================
 
 type TemplateWithRelations = Template & {
-	favouriteOf: { id: string }[];
+	favouriteOf: Array<{ id: string }>;
+	examples: TemplateExampleSummary[];
 	author: User;
 	_count: { favouriteOf: number };
 };
+
+type TemplateExampleSummary = Pick<TemplateExample, "id" | "content">;
 
 // ============================================================================
 // Embedding Generation
@@ -52,6 +68,12 @@ ${content}`;
 	return { embedding };
 };
 
+const buildTemplateExampleRows = (templateId: string, examples: string[]) =>
+	examples.map((example) => ({
+		templateId,
+		content: example,
+	}));
+
 // ============================================================================
 // Input Schemas
 // ============================================================================
@@ -62,15 +84,23 @@ const getTemplateInput = z.object({
 
 const createTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
-	content: z.string(),
 	name: z.string().min(1, "Name is required"),
+	content: z.string(),
+	examples: z
+		.array(z.string().trim().min(1, "Example content is required"))
+		.max(10, "A maximum of 10 examples is allowed")
+		.default([]),
 });
 
 const updateTemplateInput = z.object({
-	category: z.string().min(1, "Category is required"),
-	content: z.string(),
 	id: z.string(),
+	category: z.string().min(1, "Category is required"),
 	name: z.string().min(1, "Name is required"),
+	content: z.string(),
+	examples: z
+		.array(z.string().trim().min(1, "Example content is required"))
+		.max(10, "A maximum of 10 examples is allowed")
+		.default([]),
 });
 
 const favouriteInput = z.object({
@@ -114,16 +144,16 @@ const addCategories = (
 const listTemplatesHandler = pub.handler(async ({ context }) => {
 	const templates = await context.db
 		.select({
+			id: template.id,
+			title: template.title,
+			category: template.category,
+			content: template.content,
+			authorId: template.authorId,
+			updatedAt: template.updatedAt,
+			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
-			authorId: template.authorId,
-			category: template.category,
-			content: template.content,
-			embedding: template.embedding,
-			id: template.id,
-			title: template.title,
-			updatedAt: template.updatedAt,
 		})
 		.from(template);
 
@@ -140,23 +170,23 @@ const getTemplateHandler = pub
 		// Get template with author
 		const [templateData] = await context.db
 			.select({
-				author: {
-					createdAt: user.createdAt,
-					email: user.email,
-					emailVerified: user.emailVerified,
-					id: user.id,
-					image: user.image,
-					name: user.name,
-					stripeCustomerId: user.stripeCustomerId,
-					updatedAt: user.updatedAt,
-				},
-				authorId: template.authorId,
-				category: template.category,
-				content: template.content,
-				embedding: template.embedding,
 				id: template.id,
 				title: template.title,
+				category: template.category,
+				content: template.content,
+				authorId: template.authorId,
 				updatedAt: template.updatedAt,
+				embedding: template.embedding,
+				author: {
+					id: user.id,
+					name: user.name,
+					email: user.email,
+					emailVerified: user.emailVerified,
+					image: user.image,
+					createdAt: user.createdAt,
+					updatedAt: user.updatedAt,
+					stripeCustomerId: user.stripeCustomerId,
+				},
 			})
 			.from(template)
 			.leftJoin(user, eq(template.authorId, user.id))
@@ -167,23 +197,32 @@ const getTemplateHandler = pub
 			return null;
 		}
 
-		// Get users who favourited this template
-		const favouriteUsers = await context.db
-			.select({ id: favourites.userId })
-			.from(favourites)
-			.where(eq(favourites.templateId, input.id));
-
-		// Get count
-		const [countResult] = await context.db
-			.select({ count: count() })
-			.from(favourites)
-			.where(eq(favourites.templateId, input.id));
+		const [favouriteUsers, countResult, examples] = await Promise.all([
+			context.db
+				.select({ id: favourites.userId })
+				.from(favourites)
+				.where(eq(favourites.templateId, input.id)),
+			context.db
+				.select({ count: count() })
+				.from(favourites)
+				.where(eq(favourites.templateId, input.id))
+				.then((result) => result[0]),
+			context.db
+				.select({
+					id: templateExample.id,
+					content: templateExample.content,
+				})
+				.from(templateExample)
+				.where(eq(templateExample.templateId, input.id))
+				.orderBy(asc(templateExample.createdAt)),
+		]);
 
 		return {
 			...templateData,
-			_count: { favouriteOf: Number(countResult?.count ?? 0) },
-			author: templateData.author as User,
 			favouriteOf: favouriteUsers,
+			examples,
+			author: templateData.author as User,
+			_count: { favouriteOf: Number(countResult?.count ?? 0) },
 		};
 	});
 
@@ -197,16 +236,16 @@ const getTemplateHandler = pub
 const getFavouritesHandler = authed.handler(async ({ context }) => {
 	const favoriteTemplates = await context.db
 		.select({
+			id: template.id,
+			title: template.title,
+			category: template.category,
+			content: template.content,
+			authorId: template.authorId,
+			updatedAt: template.updatedAt,
+			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
-			authorId: template.authorId,
-			category: template.category,
-			content: template.content,
-			embedding: template.embedding,
-			id: template.id,
-			title: template.title,
-			updatedAt: template.updatedAt,
 		})
 		.from(template)
 		.innerJoin(favourites, eq(favourites.templateId, template.id))
@@ -222,16 +261,16 @@ const getFavouritesHandler = authed.handler(async ({ context }) => {
 const getAuthoredHandler = authed.handler(async ({ context }) => {
 	const userTemplates = await context.db
 		.select({
+			id: template.id,
+			title: template.title,
+			category: template.category,
+			content: template.content,
+			authorId: template.authorId,
+			updatedAt: template.updatedAt,
+			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
-			authorId: template.authorId,
-			category: template.category,
-			content: template.content,
-			embedding: template.embedding,
-			id: template.id,
-			title: template.title,
-			updatedAt: template.updatedAt,
 		})
 		.from(template)
 		.where(eq(template.authorId, context.session.user.id))
@@ -297,8 +336,8 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 	}
 
 	return {
-		canEditSource: context.session.user.email === env.ADMIN_EMAIL,
 		categorySuggestions,
+		canEditSource: context.session.user.email === env.ADMIN_EMAIL,
 	};
 });
 
@@ -317,25 +356,34 @@ const createTemplateHandler = authed
 			input.name,
 			input.category,
 		);
+		const examples = input.examples.map((example) => example.trim());
 
-		const result = await context.db
-			.insert(template)
-			.values({
-				authorId: context.session.user.id,
-				category: input.category,
-				content: input.content,
-				embedding: embedding,
-				title: input.name,
-				updatedAt: new Date(),
-			})
-			.returning();
+		return context.db.transaction(async (tx) => {
+			const result = await tx
+				.insert(template)
+				.values({
+					category: input.category,
+					title: input.name,
+					content: input.content,
+					authorId: context.session.user.id,
+					updatedAt: new Date(),
+					embedding: embedding,
+				})
+				.returning();
 
-		const newTemplate = result[0];
-		if (!newTemplate) {
-			throw new Error("Failed to create template");
-		}
+			const newTemplate = result[0];
+			if (!newTemplate) {
+				throw new Error("Failed to create template");
+			}
 
-		return newTemplate;
+			if (examples.length > 0) {
+				await tx
+					.insert(templateExample)
+					.values(buildTemplateExampleRows(newTemplate.id, examples));
+			}
+
+			return newTemplate;
+		});
 	});
 
 /**
@@ -349,30 +397,43 @@ const updateTemplateHandler = authed
 			input.name,
 			input.category,
 		);
+		const examples = input.examples.map((example) => example.trim());
 
-		const result = await context.db
-			.update(template)
-			.set({
-				category: input.category,
-				content: input.content,
-				embedding: embedding,
-				title: input.name,
-				updatedAt: new Date(),
-			})
-			.where(
-				and(
-					eq(template.id, input.id),
-					eq(template.authorId, context.session.user.id),
-				),
-			)
-			.returning();
+		return context.db.transaction(async (tx) => {
+			const result = await tx
+				.update(template)
+				.set({
+					category: input.category,
+					title: input.name,
+					content: input.content,
+					updatedAt: new Date(),
+					embedding: embedding,
+				})
+				.where(
+					and(
+						eq(template.id, input.id),
+						eq(template.authorId, context.session.user.id),
+					),
+				)
+				.returning();
 
-		const updatedTemplate = result[0];
-		if (!updatedTemplate) {
-			throw new Error("Failed to update template or template not found");
-		}
+			const updatedTemplate = result[0];
+			if (!updatedTemplate) {
+				throw new Error("Failed to update template or template not found");
+			}
 
-		return updatedTemplate;
+			await tx
+				.delete(templateExample)
+				.where(eq(templateExample.templateId, updatedTemplate.id));
+
+			if (examples.length > 0) {
+				await tx
+					.insert(templateExample)
+					.values(buildTemplateExampleRows(updatedTemplate.id, examples));
+			}
+
+			return updatedTemplate;
+		});
 	});
 
 // ============================================================================

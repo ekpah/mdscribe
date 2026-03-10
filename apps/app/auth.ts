@@ -33,7 +33,7 @@ export const auth = betterAuth({
 				.where(eq(userTable.id, resetUser.id));
 		},
 		requireEmailVerification: true,
-		sendResetPassword: ({ user: resetUser, url }) => {
+		sendResetPassword: async ({ user: resetUser, url }) => {
 			if (env.NODE_ENV === "development") {
 				console.log({
 					subject: "Setze dein Passwort zurück",
@@ -42,7 +42,7 @@ export const auth = betterAuth({
 				});
 				return;
 			}
-			sendEmail({
+			await sendEmail({
 				from: "noreply@mdscribe.de",
 				subject: "Setze dein Passwort zurück",
 				template: ResetPasswordTemplate({ url }),
@@ -84,7 +84,7 @@ export const auth = betterAuth({
 			stripeClient,
 			stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET as string,
 			subscription: {
-				enabled: true,
+				enabled: true as const,
 				plans: [
 					{
 						annualDiscountPriceId: env.STRIPE_PLUS_PRICE_ID_ANNUAL as string,

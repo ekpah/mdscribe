@@ -62,6 +62,25 @@ export const initSchemaSQL = `
 		"embedding" vector(1024)
 	);
 
+	CREATE TABLE IF NOT EXISTS "TemplateExample" (
+		"id" TEXT PRIMARY KEY,
+		"templateId" TEXT NOT NULL REFERENCES "Template"("id") ON DELETE CASCADE,
+		"content" TEXT NOT NULL,
+		"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS "TemplateExample_templateId_idx" ON "TemplateExample"("templateId");
+
+	CREATE TABLE IF NOT EXISTS "TemplateCollection" (
+		"id" TEXT PRIMARY KEY,
+		"userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+		"name" TEXT NOT NULL,
+		"description" TEXT,
+		"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS "Subscription" (
 		"id" TEXT PRIMARY KEY,
 		"plan" TEXT NOT NULL,
@@ -118,6 +137,14 @@ export const initSchemaSQL = `
 	);
 
 	CREATE INDEX IF NOT EXISTS "_favourites_B_index" ON "_favourites"("B");
+
+	CREATE TABLE IF NOT EXISTS "TemplateCollectionTemplate" (
+		"collectionId" TEXT NOT NULL REFERENCES "TemplateCollection"("id") ON DELETE CASCADE,
+		"templateId" TEXT NOT NULL REFERENCES "Template"("id") ON DELETE CASCADE,
+		PRIMARY KEY ("collectionId", "templateId")
+	);
+
+	CREATE INDEX IF NOT EXISTS "TemplateCollectionTemplate_templateId_idx" ON "TemplateCollectionTemplate"("templateId");
 
 	DO $$
 	BEGIN
@@ -236,6 +263,26 @@ export const initSchemaSQL = `
 		"defaultSpeechToTextModelId" TEXT REFERENCES "AiModel"("id") ON DELETE SET NULL,
 		"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE TABLE IF NOT EXISTS "AiScribeFormConfig" (
+		"id" TEXT PRIMARY KEY,
+		"slug" TEXT NOT NULL,
+		"name" TEXT NOT NULL,
+		"description" TEXT,
+		"enabled" BOOLEAN NOT NULL DEFAULT true,
+		"inputPreset" TEXT NOT NULL,
+		"promptHarness" TEXT NOT NULL,
+		"templateId" TEXT REFERENCES "Template"("id") ON DELETE SET NULL,
+		"modelId" TEXT REFERENCES "AiModel"("id") ON DELETE SET NULL,
+		"temperature" NUMERIC(3, 2),
+		"maxTokens" INTEGER,
+		"thinkingBudget" INTEGER,
+		"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE UNIQUE INDEX IF NOT EXISTS "AiScribeFormConfig_slug_key" ON "AiScribeFormConfig"("slug");
+	CREATE INDEX IF NOT EXISTS "AiScribeFormConfig_enabled_idx" ON "AiScribeFormConfig"("enabled");
 
 	DO $$
 	BEGIN

@@ -9,6 +9,8 @@ export {
 import type { TestDatabase } from "@repo/database/test";
 import type { Session } from "@/lib/auth-types";
 
+type TestSession = Pick<Session, "user">;
+
 /**
  * Admin email address used in tests (matches ADMIN_EMAIL in preload.ts mock)
  */
@@ -20,51 +22,11 @@ export const ADMIN_EMAIL = "admin@test.com";
  */
 export const createTestContext = (options: {
 	db: TestDatabase;
-	session?: Session;
+	session?: TestSession;
 }) => {
 	return {
 		db: options.db,
 		session: options.session,
-	};
-};
-
-/**
- * Creates a mock session for authenticated handler tests
- */
-export const createMockSession = (user: {
-	id: string;
-	email: string;
-	name?: string | null;
-	stripeCustomerId?: string | null;
-	emailVerified?: boolean;
-	[key: string]: unknown;
-}): Session => {
-	return {
-		session: {
-			createdAt: new Date(),
-			// 24 hours
-			expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-			id: crypto.randomUUID(),
-			ipAddress: "127.0.0.1",
-			token: crypto.randomUUID(),
-			updatedAt: new Date(),
-			userAgent: "test-agent",
-			userId: user.id,
-		},
-		user: {
-			createdAt: new Date(),
-			email: user.email,
-			emailVerified: user.emailVerified ?? true,
-			id: user.id,
-			image: null,
-			name: user.name ?? "Test User",
-			// Use explicit undefined check to allow passing null to override the default
-			stripeCustomerId:
-				"stripeCustomerId" in user
-					? user.stripeCustomerId
-					: `cus_test_${Date.now()}`,
-			updatedAt: new Date(),
-		},
 	};
 };
 

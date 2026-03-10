@@ -9,14 +9,21 @@ import {
 	TabsTrigger,
 } from "@repo/design-system/components/ui/tabs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Database, Loader2, RefreshCw, Settings, Sparkles } from "lucide-react";
-import { useCallback } from "react";
+import {
+	Database,
+	FileText,
+	Loader2,
+	RefreshCw,
+	Settings,
+	Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
 import { AddProviderDialog } from "./_components/add-connection-dialog";
 import { ConnectionCard } from "./_components/connection-card";
 import { ModelsTab } from "./_components/models-tab";
+import { ScribeFormsTab } from "./_components/ScribeFormsTab";
 
 export default function ModelsSettingsPage() {
 	const queryClient = useQueryClient();
@@ -26,18 +33,18 @@ export default function ModelsSettingsPage() {
 		isFetching,
 		error,
 	} = useQuery(orpc.admin.providers.connections.list.queryOptions());
+	const safeConnections = connections ?? [];
 
-	const totalProviders = connections?.length ?? 0;
+	const totalProviders = safeConnections.length;
 	const totalModels =
-		connections?.reduce((sum, provider) => sum + provider.models.length, 0) ??
-		0;
+		safeConnections.reduce((sum, provider) => sum + provider.models.length, 0);
 
-	const handleRefresh = useCallback(async () => {
+	const handleRefresh = async () => {
 		await queryClient.invalidateQueries({
 			queryKey: orpc.admin.providers.connections.list.queryOptions().queryKey,
 		});
 		toast.success("Provider aktualisiert");
-	}, [queryClient]);
+	};
 
 	return (
 		<div className="p-4 sm:p-6">
@@ -106,27 +113,12 @@ export default function ModelsSettingsPage() {
 							{error instanceof Error ? error.message : "Unbekannter Fehler"}
 						</CardContent>
 					</Card>
-				) : !connections || connections.length === 0 ? (
-					<Card className="border-solarized-base2 border-dashed bg-solarized-base3">
-						<CardContent className="p-8 text-center">
-							<Settings className="mx-auto mb-3 h-8 w-8 text-solarized-base01" />
-							<p className="font-medium text-solarized-base00">
-								Keine Provider konfiguriert
-							</p>
-							<p className="mt-1 text-sm text-solarized-base01">
-								Erstellen Sie einen Provider, um KI-Modelle zu nutzen.
-							</p>
-							<div className="mt-4">
-								<AddProviderDialog />
-							</div>
-						</CardContent>
-					</Card>
 				) : (
 					<Tabs
 						defaultValue="connections"
 						className="gap-4 md:flex-row md:items-start"
 					>
-						<TabsList className="grid w-full grid-cols-2 md:sticky md:top-6 md:flex md:w-56 md:flex-col md:gap-1">
+						<TabsList className="grid w-full grid-cols-3 md:sticky md:top-6 md:flex md:w-56 md:flex-col md:gap-1">
 							<TabsTrigger
 								value="connections"
 								className="w-full justify-start gap-2 text-left"
@@ -141,6 +133,13 @@ export default function ModelsSettingsPage() {
 								<Sparkles className="h-4 w-4" />
 								Modelle
 							</TabsTrigger>
+							<TabsTrigger
+								value="scribe-forms"
+								className="w-full justify-start gap-2 text-left"
+							>
+								<FileText className="h-4 w-4" />
+								AI Textbausteine
+							</TabsTrigger>
 						</TabsList>
 
 						<div className="min-w-0 flex-1">
@@ -148,18 +147,36 @@ export default function ModelsSettingsPage() {
 								<div className="flex justify-end">
 									<AddProviderDialog />
 								</div>
-								<div className="space-y-4">
-									{connections.map((connection) => (
-										<ConnectionCard
-											key={connection.id}
-											connection={connection}
-										/>
-									))}
-								</div>
+								{safeConnections.length === 0 ? (
+									<Card className="border-solarized-base2 border-dashed bg-solarized-base3">
+										<CardContent className="p-8 text-center">
+											<Settings className="mx-auto mb-3 h-8 w-8 text-solarized-base01" />
+											<p className="font-medium text-solarized-base00">
+												Keine Provider konfiguriert
+											</p>
+											<p className="mt-1 text-sm text-solarized-base01">
+												Erstellen Sie einen Provider, um KI-Modelle zu nutzen.
+											</p>
+										</CardContent>
+									</Card>
+								) : (
+									<div className="space-y-4">
+										{safeConnections.map((connection) => (
+											<ConnectionCard
+												key={connection.id}
+												connection={connection}
+											/>
+										))}
+									</div>
+								)}
 							</TabsContent>
 
 							<TabsContent value="models" className="mt-0">
-								<ModelsTab connections={connections} />
+								<ModelsTab connections={safeConnections} />
+							</TabsContent>
+
+							<TabsContent value="scribe-forms" className="mt-0">
+								<ScribeFormsTab />
 							</TabsContent>
 						</div>
 					</Tabs>
