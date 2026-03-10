@@ -96,6 +96,12 @@ describe("Context Builder", () => {
 		});
 
 		expect(contextXml).toContain("<user_context>");
+		expect(contextXml).toContain(
+			"<purpose>Informationen über den Arzt/Nutzer, der den Prompt ausfüllt</purpose>",
+		);
+		expect(contextXml).toContain(
+			"Diese Daten gehören NICHT zum Patientenfall",
+		);
 		expect(contextXml).toContain("<name>Dr. Test</name>");
 	});
 
