@@ -3,7 +3,7 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useCallback, useTransition } from "react";
 import { AdminBreadcrumb } from "./admin-breadcrumb";
 
 const REFRESHABLE_ADMIN_PATHS = [
@@ -21,11 +21,11 @@ export const AdminLayoutHeader = () => {
 		pathname.startsWith(path),
 	);
 
-	const handleRefresh = () => {
+	const handleRefresh = useCallback(() => {
 		startTransition(() => {
 			router.refresh();
 		});
-	};
+	}, [router, startTransition]);
 
 		return (
 		<div className="shrink-0 bg-solarized-base2 px-4 py-1.5">

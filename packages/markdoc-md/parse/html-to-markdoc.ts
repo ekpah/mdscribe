@@ -3,165 +3,147 @@
  * Supports info, switch, and case tags.
  */
 
+const headingPrefixes: Record<string, string> = {
+	h1: "#",
+	h2: "##",
+	h3: "###",
+	h4: "####",
+	h5: "#####",
+	h6: "######",
+};
+
+const inlineRenderers: Partial<Record<string, (innerContent: string) => string>> = {
+	b: (innerContent) => `**${innerContent}**`,
+	br: () => "\n",
+	em: (innerContent) => `*${innerContent}*`,
+	hr: () => "\n---\n\n",
+	i: (innerContent) => `*${innerContent}*`,
+	ol: (innerContent) => `${innerContent}\n`,
+	p: (innerContent) => `${innerContent}\n\n`,
+	strong: (innerContent) => `**${innerContent}**`,
+	ul: (innerContent) => `${innerContent}\n`,
+};
+
+const customMarkdocRenderers: Partial<
+	Record<string, (element: Element, innerContent: string) => string>
+> = {
+	case: (element, innerContent) => {
+		const casePrimary = element.getAttribute("primary") || "";
+		return `{% case "${casePrimary}" %}${innerContent.trim()}{% /case %}`;
+	},
+	info: (element) => {
+		const infoPrimary = element.getAttribute("primary") || "";
+		return `{% info "${infoPrimary}" /%}`;
+	},
+	score: (element) => {
+		const formula = element.getAttribute("formula") || "";
+		const unit = element.getAttribute("unit") || "";
+		const unitAttribute = unit ? ` unit="${unit}"` : "";
+		return `{% score formula="${formula}"${unitAttribute} /%}`;
+	},
+	switch: (element, innerContent) => {
+		const switchPrimary = element.getAttribute("primary") || "";
+		const primary = switchPrimary ? `"${switchPrimary}"` : '""';
+		return `{% switch ${primary} %}${innerContent}{% /switch %}`;
+	},
+};
+
+const renderListItem = (element: Element, innerContent: string): string => {
+	const parentTagName = element.parentElement?.tagName.toLowerCase();
+	if (parentTagName === "ol") {
+		return `1. ${innerContent.trim()}\n`;
+	}
+	return `- ${innerContent.trim()}\n`;
+};
+
+const renderBlockquote = (innerContent: string): string => {
+	const lines = innerContent.trim().split("\n");
+	return `${lines.map((line) => `> ${line}`).join("\n")}\n\n`;
+};
+
+const renderCode = (element: Element, innerContent: string): string => {
+	const parentTagName = element.parentElement?.tagName.toLowerCase();
+	if (parentTagName === "pre") {
+		return innerContent;
+	}
+	return `\`${innerContent}\``;
+};
+
+const renderAnchor = (element: Element, innerContent: string): string => {
+	const href = element.getAttribute("href") || "";
+	return `[${innerContent}](${href})`;
+};
+
+const renderHeading = (tagName: string, innerContent: string): string => {
+	const headingPrefix = headingPrefixes[tagName];
+	return `${headingPrefix} ${innerContent}\n\n`;
+};
+
+const htmlElementRenderers: Partial<
+	Record<string, (element: Element, innerContent: string) => string>
+> = {
+	a: renderAnchor,
+	blockquote: (_element, innerContent) => renderBlockquote(innerContent),
+	body: (_element, innerContent) => innerContent,
+	code: renderCode,
+	div: (_element, innerContent) => innerContent,
+	html: (_element, innerContent) => innerContent,
+	li: renderListItem,
+	pre: (_element, innerContent) => `\`\`\`\n${innerContent}\n\`\`\`\n\n`,
+	span: (_element, innerContent) => innerContent,
+};
+
+const renderHtmlElement = (
+	element: Element,
+	tagName: string,
+	innerContent: string,
+): string => {
+	if (tagName in headingPrefixes) {
+		return renderHeading(tagName, innerContent);
+	}
+
+	const htmlRenderer = htmlElementRenderers[tagName];
+	if (htmlRenderer) {
+		return htmlRenderer(element, innerContent);
+	}
+
+	const inlineRenderer = inlineRenderers[tagName];
+	return inlineRenderer ? inlineRenderer(innerContent) : innerContent;
+};
+
+const processChildrenForMarkdoc = (
+	node: Node,
+	processNode: (childNode: Node) => string,
+): string => {
+	let innerContent = "";
+	for (const child of node.childNodes) {
+		innerContent += processNode(child);
+	}
+	return innerContent;
+};
+
 /**
  * Recursively processes a DOM node to convert custom Markdoc elements
  * and potentially standard HTML back into Markdoc or HTML string format.
  * This function is designed for client-side (browser) execution.
- * @param node - The DOM node to process.
- * @returns The Markdoc or HTML string representation of the node.
+ * @param {Node} node - The DOM node to process.
+ * @returns {string} The Markdoc or HTML string representation of the node.
  */
 const processNodeForMarkdoc = (node: Node): string => {
 	if (node.nodeType === Node.TEXT_NODE) {
 		return node.textContent || "";
 	}
-
-	if (node.nodeType === Node.ELEMENT_NODE) {
-		const element = node as Element;
-		const tagName = element.tagName.toLowerCase();
-
-		// Recursively process children *first* to get their Markdoc/HTML representation
-		let innerContent = "";
-		for (const child of element.childNodes) {
-			innerContent += processNodeForMarkdoc(child);
-		}
-
-		switch (tagName) {
-			// Custom Markdoc tags
-			case "info": {
-				const infoPrimary = element.getAttribute("primary") || "";
-				// Assuming info is always self-closing
-				return `{% info "${infoPrimary}" /%}`;
-			}
-
-			case "score": {
-				const formula = element.getAttribute("formula") || "";
-				const unit = element.getAttribute("unit") || "";
-				const unitAttr = unit ? ` unit="${unit}"` : "";
-				return `{% score formula="${formula}"${unitAttr} /%}`;
-			}
-
-			case "switch": {
-				// This attribute is rendered as 'data-primary' by Markdoc
-				const switchPrimary = element.getAttribute("primary") || "";
-				// innerContent already contains the processed children (case tags)
-				return `{% switch ${switchPrimary ? `"${switchPrimary}"` : '""'} %}${innerContent}{% /switch %}`;
-			}
-
-			case "case": {
-				// This attribute is rendered as 'data-primary' by Markdoc
-				const casePrimary = element.getAttribute("primary") || "";
-				// Trim whitespace that might be introduced during HTML parsing/processing
-				return `{% case "${casePrimary}" %}${innerContent.trim()}{% /case %}`;
-			}
-
-			// HTML block elements - preserve structure with line breaks
-			case "p": {
-				return `${innerContent}\n\n`;
-			}
-
-			case "br": {
-				return "\n";
-			}
-
-			case "h1": {
-				return `# ${innerContent}\n\n`;
-			}
-
-			case "h2": {
-				return `## ${innerContent}\n\n`;
-			}
-
-			case "h3": {
-				return `### ${innerContent}\n\n`;
-			}
-
-			case "h4": {
-				return `#### ${innerContent}\n\n`;
-			}
-
-			case "h5": {
-				return `##### ${innerContent}\n\n`;
-			}
-
-			case "h6": {
-				return `###### ${innerContent}\n\n`;
-			}
-
-			case "ul": {
-				return `${innerContent}\n`;
-			}
-
-			case "ol": {
-				return `${innerContent}\n`;
-			}
-
-			case "li": {
-				// Check if parent is ol or ul
-				const parent = element.parentElement;
-				if (parent?.tagName.toLowerCase() === "ol") {
-					// For ordered lists, we'd need to track the index
-					// For simplicity, use "1." which markdown renderers auto-number
-					return `1. ${innerContent.trim()}\n`;
-				}
-				return `- ${innerContent.trim()}\n`;
-			}
-
-			case "blockquote": {
-				// Prefix each line with >
-				const lines = innerContent.trim().split("\n");
-				return lines.map((line) => `> ${line}`).join("\n") + "\n\n";
-			}
-
-			case "pre": {
-				return `\`\`\`\n${innerContent}\n\`\`\`\n\n`;
-			}
-
-			case "code": {
-				// Check if inside a pre tag (code block) or inline
-				const parent = element.parentElement;
-				if (parent?.tagName.toLowerCase() === "pre") {
-					return innerContent;
-				}
-				return `\`${innerContent}\``;
-			}
-
-			// Inline formatting
-			case "strong":
-			case "b": {
-				return `**${innerContent}**`;
-			}
-
-			case "em":
-			case "i": {
-				return `*${innerContent}*`;
-			}
-
-			case "a": {
-				const href = element.getAttribute("href") || "";
-				return `[${innerContent}](${href})`;
-			}
-
-			case "hr": {
-				return "\n---\n\n";
-			}
-
-			// Container elements that should just pass through content
-			case "div":
-			case "span":
-			case "body":
-			case "html": {
-				return innerContent;
-			}
-
-			default: {
-				// Fallback for unknown tags: just return content
-				return innerContent;
-			}
-		}
+	if (node.nodeType !== Node.ELEMENT_NODE) {
+		return "";
 	}
 
-	// Ignore comments and other node types.
-	return "";
+	const element = node as Element;
+	const tagName = element.tagName.toLowerCase();
+	const innerContent = processChildrenForMarkdoc(element, processNodeForMarkdoc);
+	const customRenderer = customMarkdocRenderers[tagName];
+	return customRenderer
+		? customRenderer(element, innerContent)
+		: renderHtmlElement(element, tagName, innerContent);
 };
 
 /**
@@ -169,9 +151,9 @@ const processNodeForMarkdoc = (node: Node): string => {
  * Uses the browser's DOMParser for robust HTML parsing. This function is
  * intended for client-side execution.
  *
- * @param html - String in HTML format, potentially containing <markdoc-info>,
+ * @param {string} html - String in HTML format, potentially containing <markdoc-info>,
  *               <markdoc-switch>, <markdoc-case>, and standard HTML elements.
- * @returns String in Markdoc format mixed with any preserved HTML.
+ * @returns {string} String in Markdoc format mixed with any preserved HTML.
  */
 export const htmlToMarkdoc = (html: string): string => {
 	if (typeof window === "undefined" || !window.DOMParser) {

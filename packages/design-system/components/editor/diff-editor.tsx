@@ -6,9 +6,9 @@ import { Check, RotateCcw } from "lucide-react";
 import type { ChangeEvent, CSSProperties } from "react";
 import { useCallback, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { Button } from "../ui/button";
-import { Textarea } from "../ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Button } from "@repo/design-system/components/ui/button";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 
 interface DiffEditorProps {
 	value: string;
@@ -41,7 +41,7 @@ interface DiffPart {
 	removed?: boolean;
 }
 
-export function MarkdownDiffEditor({
+export const MarkdownDiffEditor = ({
 	value,
 	onChange,
 	placeholder,
@@ -56,7 +56,7 @@ export function MarkdownDiffEditor({
 	actionSlot,
 	diffMode = "word",
 	minHeight = 120,
-}: DiffEditorProps) {
+}: DiffEditorProps) => {
 	// Determine if we're in diff mode
 	const isInDiffMode = suggestedValue !== undefined && suggestedValue !== null;
 
@@ -221,20 +221,21 @@ export function MarkdownDiffEditor({
 							diffMode === "line" ? "whitespace-pre" : "whitespace-pre-wrap",
 						)}
 					>
-						{diffParts.map((part, idx) => {
-							// Added - green background
-							if (part.added) {
-								return (
+							{diffParts.map((part) => {
+								const partKey = `${part.added ? "added" : part.removed ? "removed" : "unchanged"}:${part.value}`;
+								// Added - green background
+								if (part.added) {
+									return (
 									<span
 										className={cn(
 											"bg-solarized-green/20 text-solarized-green",
 											diffMode === "word" && "rounded-sm",
 											diffMode === "line" && "block",
 										)}
-										key={idx}
-									>
-										{part.value}
-									</span>
+											key={partKey}
+										>
+											{part.value}
+										</span>
 								);
 							}
 
@@ -247,16 +248,16 @@ export function MarkdownDiffEditor({
 											diffMode === "word" && "rounded-sm",
 											diffMode === "line" && "block",
 										)}
-										key={idx}
-									>
-										{part.value}
-									</span>
-								);
-							}
+											key={partKey}
+										>
+											{part.value}
+										</span>
+									);
+								}
 
-							// Unchanged - no styling (neutral)
-							return <span key={idx}>{part.value}</span>;
-						})}
+								// Unchanged - no styling (neutral)
+								return <span key={partKey}>{part.value}</span>;
+							})}
 					</div>
 
 					{/* Bottom row with legend and action buttons */}
@@ -341,7 +342,7 @@ export function MarkdownDiffEditor({
 			)}
 		</div>
 	);
-}
+};
 
 /** @deprecated Use MarkdownDiffEditor - renamed for backwards compatibility */
 export const DiffEditor = MarkdownDiffEditor;

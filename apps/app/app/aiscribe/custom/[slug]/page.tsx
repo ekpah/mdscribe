@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
-import { CustomAiscribeClient } from "../../_components/custom-aiscribe-client";
+import { CustomAiscribeClient } from "@/app/aiscribe/_components/custom-aiscribe-client";
 
 export default async function CustomAiscribePage(
 	props: PageProps<"/aiscribe/custom/[slug]">,

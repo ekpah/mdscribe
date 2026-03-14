@@ -10,7 +10,7 @@ import {
   type InputHTMLAttributes,
 } from "react"
 
-export type FileMetadata = {
+type FileMetadata = {
   name: string
   size: number
   type: string
@@ -18,13 +18,13 @@ export type FileMetadata = {
   id: string
 }
 
-export type FileWithPreview = {
+type FileWithPreview = {
   file: File | FileMetadata
   id: string
   preview?: string
 }
 
-export type FileUploadOptions = {
+type FileUploadOptions = {
   maxFiles?: number // Only used when multiple is true, defaults to Infinity
   maxSize?: number // in bytes
   accept?: string
@@ -34,13 +34,13 @@ export type FileUploadOptions = {
   onFilesAdded?: (addedFiles: FileWithPreview[]) => void // Callback when new files are added
 }
 
-export type FileUploadState = {
+type FileUploadState = {
   files: FileWithPreview[]
   isDragging: boolean
   errors: string[]
 }
 
-export type FileUploadActions = {
+type FileUploadActions = {
   addFiles: (files: FileList | File[]) => void
   removeFile: (id: string) => void
   clearFiles: () => void

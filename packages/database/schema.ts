@@ -136,16 +136,16 @@ export const template = pgTable("Template", {
 export const templateExample = pgTable(
 	"TemplateExample",
 	{
+		content: text("content").notNull(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow(),
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
 		templateId: text("templateId")
 			.notNull()
 			.references(() => template.id, { onDelete: "cascade" }),
-		content: text("content").notNull(),
-		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow(),
 		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 			.notNull()
 			.defaultNow()
@@ -200,32 +200,31 @@ export const subscription = pgTable("Subscription", {
 export const usageEvent = pgTable(
 	"UsageEvent",
 	{
-		id: text("id")
-			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
-		userId: text("userId")
-			.notNull()
-			.references(() => user.id),
-		timestamp: timestamp("timestamp", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow(),
-		name: text("name").notNull(),
-		// Token usage
-		inputTokens: integer("inputTokens"),
-		outputTokens: integer("outputTokens"),
-		totalTokens: integer("totalTokens"),
-		reasoningTokens: integer("reasoningTokens"),
 		cachedTokens: integer("cachedTokens"),
 		// Cost (Decimal(10, 6))
 		cost: numeric("cost", { precision: 10, scale: 6 }),
-		// Model used
-		model: text("model"),
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
 		// Flexible JSON fields
 		inputData: jsonb("inputData"),
+		inputTokens: integer("inputTokens"),
 		metadata: jsonb("metadata"),
+		// Model used
+		model: text("model"),
+		name: text("name").notNull(),
+		outputTokens: integer("outputTokens"),
 		// AI output
-		result: text("result"),
 		reasoning: text("reasoning"),
+		reasoningTokens: integer("reasoningTokens"),
+		result: text("result"),
+		timestamp: timestamp("timestamp", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow(),
+		totalTokens: integer("totalTokens"),
+		userId: text("userId")
+			.notNull()
+			.references(() => user.id),
 	},
 	(table) => [
 		index("UsageEvent_userId_timestamp_idx").on(table.userId, table.timestamp),
@@ -293,14 +292,14 @@ export const templateCollectionTemplate = pgTable(
 // ============ AI PROVIDER TABLES ============
 
 export const aiProvider = pgTable("AiProvider", {
+	apiKey: text("apiKey"),
+	baseUrl: text("baseUrl"),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
 	name: text("name").notNull(),
 	// "openai-compatible" | "openrouter" | "openai" | "anthropic"
 	protocol: text("protocol").notNull(),
-	baseUrl: text("baseUrl"),
-	apiKey: text("apiKey"),
 });
 
 export const aiModel = pgTable(
@@ -348,28 +347,28 @@ export const aiDefaults = pgTable("AiDefaults", {
 export const aiScribeFormConfig = pgTable(
 	"AiScribeFormConfig",
 	{
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow(),
+		description: text("description"),
+		enabled: boolean("enabled").notNull().default(true),
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
-		slug: text("slug").notNull(),
-		name: text("name").notNull(),
-		description: text("description"),
-		enabled: boolean("enabled").notNull().default(true),
 		inputPreset: text("inputPreset").notNull(),
-		promptHarness: text("promptHarness").notNull(),
-		templateId: text("templateId").references(() => template.id, {
-			onDelete: "set null",
-		}),
+		maxTokens: integer("maxTokens"),
 		modelId: text("modelId").references(() => aiModel.id, {
 			onDelete: "set null",
 		}),
+		name: text("name").notNull(),
+		promptHarness: text("promptHarness").notNull(),
+		slug: text("slug").notNull(),
 		temperature: numeric("temperature", { precision: 3, scale: 2 }),
-		maxTokens: integer("maxTokens"),
+		templateId: text("templateId").references(() => template.id, {
+			onDelete: "set null",
+		}),
 		thinkingBudget: integer("thinkingBudget"),
-		createdAt: timestamp("createdAt", { precision: 3, mode: "date" })
-			.notNull()
-			.defaultNow(),
-		updatedAt: timestamp("updatedAt", { precision: 3, mode: "date" })
+		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 			.notNull()
 			.defaultNow()
 			.$onUpdate(() => new Date()),
@@ -404,8 +403,8 @@ export const sessionRelations = relations(session, ({ one }) => ({
 export const templateRelations = relations(template, ({ one, many }) => ({
 	author: one(user, { fields: [template.authorId], references: [user.id] }),
 	collectionTemplates: many(templateCollectionTemplate),
-	favouriteOf: many(favourites),
 	examples: many(templateExample),
+	favouriteOf: many(favourites),
 }));
 
 export const templateExampleRelations = relations(

@@ -1,4 +1,3 @@
-const V1_SUFFIX_REGEX = /\/v1\/?$/i;
 const HTTP_SCHEME_REGEX = /^https?:\/\//i;
 
 export const PROVIDER_BASE_URL_ERROR_MESSAGE =
@@ -54,11 +53,4 @@ export const normalizeOpenAICompatibleBaseUrl = (url: string): string => {
 		return trimmed;
 	}
 	return `${trimmed}/v1`;
-};
-
-/**
- * Derive the host root from an OpenAI-compatible base URL (strip `/v1`).
- */
-export const getOpenAICompatibleHostRoot = (url: string): string => {
-	return normalizeOpenAICompatibleBaseUrl(url).replace(V1_SUFFIX_REGEX, "");
 };

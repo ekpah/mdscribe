@@ -38,10 +38,10 @@ import { pdfjs } from "react-pdf";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import type { AudioFile, InputField } from "@/orpc/scribe/types";
-import { fillPDFForm } from "../_lib/fill-pdf-form";
-import { convertPDFFieldsToInputTags, parsePDFFormFields } from '../_lib/parse-pdf-form-fields';
-import type { FieldMapping, PDFField } from '../_lib/parse-pdf-form-fields';
-import { MAX_PDF_UPLOAD_BYTES } from "../_lib/pdf-data";
+import { fillPDFForm } from "@/app/admin/documents-playground/_lib/fill-pdf-form";
+import { convertPDFFieldsToInputTags, parsePDFFormFields } from '@/app/admin/documents-playground/_lib/parse-pdf-form-fields';
+import type { FieldMapping, PDFField } from '@/app/admin/documents-playground/_lib/parse-pdf-form-fields';
+import { MAX_PDF_UPLOAD_BYTES } from "@/app/admin/documents-playground/_lib/pdf-data";
 import PDFDebugPanel from "./pdf-debug-panel";
 import PDFInputs from './pdf-inputs';
 import type { InputSource } from './pdf-inputs';
@@ -55,36 +55,58 @@ const PDFViewSection = dynamic(() => import("./pdf-view-section"), {
 // It is always in the DOM (TabsContent keeps it mounted), so the worker is ready
 // before any user action can trigger convertPdfToImages below.
 
+interface PdfPageRenderable {
+	cleanup: () => void;
+	getViewport: (params: { scale: number }) => { height: number; width: number };
+	render: (params: {
+		canvas: HTMLCanvasElement;
+		canvasContext: CanvasRenderingContext2D;
+		viewport: { height: number; width: number };
+	}) => { promise: Promise<unknown> };
+}
+
+interface PdfDocumentRenderable {
+	getPage: (pageNum: number) => Promise<PdfPageRenderable>;
+	numPages: number;
+}
+
 /**
  * Renders PDF pages to JPEG canvas images using the shared pdfjs instance from react-pdf.
  * Used for openai-compatible (Ollama) connections that accept images but not raw PDFs.
  */
+const renderPdfPageToBase64Jpeg = async (
+	pdf: PdfDocumentRenderable,
+	pageNum: number,
+) => {
+	const page = await pdf.getPage(pageNum);
+	const viewport = page.getViewport({ scale: 1.5 });
+	const canvas = document.createElement("canvas");
+	const ctx = canvas.getContext("2d");
+	if (!ctx) {
+		throw new Error("Canvas context nicht verfügbar");
+	}
+
+	Object.assign(canvas, {
+		height: viewport.height,
+		width: viewport.width,
+	});
+	await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+	page.cleanup();
+	return canvas.toDataURL("image/jpeg", 0.85).split(",")[1] ?? "";
+};
+
 const convertPdfToImages = async (
 	pdfBytes: Uint8Array,
 	maxPages = 10,
 ): Promise<string[]> => {
-	const pdf = await pdfjs.getDocument({ data: [...pdfBytes] }).promise;
-	const images: string[] = [];
+	const pdf = (await pdfjs.getDocument({
+		data: [...pdfBytes],
+	}).promise) as unknown as PdfDocumentRenderable;
 	const pageCount = Math.min(pdf.numPages, maxPages);
-
-	for (let pageNum = 1; pageNum <= pageCount; pageNum += 1) {
-		const page = await pdf.getPage(pageNum);
-		const viewport = page.getViewport({ scale: 1.5 });
-
-		const canvas = document.createElement("canvas");
-		const ctx = canvas.getContext("2d");
-		if (!ctx) {throw new Error("Canvas context nicht verfügbar");}
-
-		canvas.width = viewport.width;
-		canvas.height = viewport.height;
-		await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-
-		const base64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1] ?? "";
-		images.push(base64);
-		page.cleanup();
-	}
-
-	return images;
+	const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1);
+	return Promise.all(
+		pageNumbers.map((pageNum) => renderPdfPageToBase64Jpeg(pdf, pageNum)),
+	);
 };
 
 const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
@@ -102,14 +124,59 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
 	return encodeUint8ArrayToBase64(bytes);
 };
 
-const isLikelyOcrCapableModel = (model: {
+const toPdfBlob = (pdfBytes: Uint8Array): Blob => {
+	const arrayBuffer = pdfBytes.buffer.slice(
+		pdfBytes.byteOffset,
+		pdfBytes.byteOffset + pdfBytes.byteLength,
+	) as ArrayBuffer;
+	return new Blob([arrayBuffer], { type: "application/pdf" });
+};
+
+const downloadPdfBlob = (blob: Blob) => {
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = `formular-${new Date().toISOString().split("T")[0]}.pdf`;
+	document.body.append(link);
+	link.click();
+	link.remove();
+	URL.revokeObjectURL(url);
+};
+
+const printPdfBlob = (blob: Blob) => {
+	const url = URL.createObjectURL(blob);
+	const printWindow = window.open(url, "_blank");
+	if (!printWindow) {
+		return;
+	}
+	printWindow.addEventListener("load", () => printWindow.print());
+};
+
+const toDefaultFieldMapping = (fields: PDFField[]): FieldMapping[] =>
+	fields.map((field) => ({
+		description: "",
+		fieldName: field.name,
+		label: field.name,
+	}));
+
+const formatDuration = (seconds: number): string => {
+	const mins = Math.floor(seconds / 60);
+	const secs = Math.floor(seconds % 60);
+	return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
+interface OcrModelCandidate {
+	capabilities: { supportsImage: boolean };
+	connectionId?: string;
+	connectionProtocol?: string;
 	id: string;
 	modelId?: string;
+	name?: string;
 	providerId?: string;
 	providerProtocol?: string;
-	connectionProtocol?: string;
-	capabilities: { supportsImage: boolean };
-}): boolean => {
+}
+
+const isLikelyOcrCapableModel = (model: OcrModelCandidate): boolean => {
 	if (model.capabilities.supportsImage) {
 		return true;
 	}
@@ -129,11 +196,63 @@ const isLikelyOcrCapableModel = (model: {
 	);
 };
 
+const getOcrModelId = (model: OcrModelCandidate) => model.modelId ?? model.id;
+
+const getOcrProviderId = (model: OcrModelCandidate) =>
+	model.providerId ?? model.connectionId ?? "";
+
+const usesOpenAiCompatibleProtocol = (model: OcrModelCandidate): boolean =>
+	(model.providerProtocol ?? model.connectionProtocol) === "openai-compatible";
+
+const getOcrValidationError = (
+	pdfFile: Uint8Array | null,
+	ocrCapableModels: OcrModelCandidate[],
+	selectedOcrModel: OcrModelCandidate | undefined,
+): string | null => {
+	const checks: [condition: boolean, message: string][] = [
+		[!pdfFile, "Keine PDF-Datei ausgewählt"],
+		[
+			Boolean(pdfFile && pdfFile.byteLength > MAX_PDF_UPLOAD_BYTES),
+			"PDF ist zu groß für OCR-Verarbeitung",
+		],
+		[ocrCapableModels.length === 0, "Keine OCR-fähigen Modelle in den Verbindungen gefunden"],
+		[!selectedOcrModel, "Bitte OCR-Modell auswählen"],
+		[
+			Boolean(selectedOcrModel && !getOcrProviderId(selectedOcrModel)),
+			"Das ausgewählte Modell hat keine gültige Verbindung",
+		],
+	];
+
+	for (const [condition, message] of checks) {
+		if (condition) {
+			return message;
+		}
+	}
+	return null;
+};
+
 interface AudioRecording {
 	blob: Blob;
 	duration: number;
 	id: string;
 }
+
+const stopMediaStreamTracks = (stream: MediaStream) => {
+	for (const track of stream.getTracks()) {
+		track.stop();
+	}
+};
+
+const createAudioRecording = (
+	audioChunks: Blob[],
+	recordingStartTime: number,
+): AudioRecording => ({
+	blob: new Blob(audioChunks, {
+		type: "audio/wav",
+	}),
+	duration: (Date.now() - recordingStartTime) / 1000,
+	id: `audio-${Date.now()}`,
+});
 
 const PDFFormSection = () => {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
@@ -304,13 +423,7 @@ const PDFFormSection = () => {
 			const { fields: parsedFields } = await parsePDFFormFields(stableFile);
 			setFields(parsedFields);
 			// set initial field mapping, changes with every change of fields
-			setFieldMapping(
-				parsedFields.map((field) => ({
-					description: "",
-					fieldName: field.name,
-					label: field.name,
-				})),
-			);
+			setFieldMapping(toDefaultFieldMapping(parsedFields));
 		} catch (error) {
 			console.error("Error parsing uploaded PDF:", error);
 			setPdfFile(null);
@@ -353,19 +466,8 @@ const PDFFormSection = () => {
 			toast.error("Bitte zuerst das PDF ausfüllen");
 			return;
 		}
-		const arrayBuffer = filledPdf.buffer.slice(
-			filledPdf.byteOffset,
-			filledPdf.byteOffset + filledPdf.byteLength,
-		) as ArrayBuffer;
-		const blob = new Blob([arrayBuffer], { type: "application/pdf" });
-		const url = URL.createObjectURL(blob);
-		const link = document.createElement("a");
-		link.href = url;
-		link.download = `formular-${new Date().toISOString().split("T")[0]}.pdf`;
-		document.body.append(link);
-		link.click();
-		document.body.removeChild(link);
-		URL.revokeObjectURL(url);
+		const blob = toPdfBlob(filledPdf);
+		downloadPdfBlob(blob);
 		toast.success("PDF heruntergeladen");
 	}, [filledPdf]);
 
@@ -374,16 +476,7 @@ const PDFFormSection = () => {
 			toast.error("Bitte zuerst das PDF ausfüllen");
 			return;
 		}
-		const arrayBuffer = filledPdf.buffer.slice(
-			filledPdf.byteOffset,
-			filledPdf.byteOffset + filledPdf.byteLength,
-		) as ArrayBuffer;
-		const blob = new Blob([arrayBuffer], { type: "application/pdf" });
-		const url = URL.createObjectURL(blob);
-		const printWindow = window.open(url, "_blank");
-		if (printWindow) {
-			printWindow.addEventListener("load", () => printWindow.print());
-		}
+		printPdfBlob(toPdfBlob(filledPdf));
 	}, [filledPdf]);
 
 	const handleEnhanceWithAI = useCallback(() => {
@@ -409,29 +502,16 @@ const PDFFormSection = () => {
 	}, [enhanceMutation, fieldMapping, pdfFile]);
 
 	const handleExtractMarkdown = useCallback(async () => {
-		if (!pdfFile) {
-			toast.error("Keine PDF-Datei ausgewählt");
+		const validationError = getOcrValidationError(
+			pdfFile,
+			ocrCapableModels,
+			selectedOcrModel,
+		);
+		if (validationError) {
+			toast.error(validationError);
 			return;
 		}
-		if (pdfFile.byteLength > MAX_PDF_UPLOAD_BYTES) {
-			toast.error("PDF ist zu groß für OCR-Verarbeitung");
-			return;
-		}
-
-		if (ocrCapableModels.length === 0) {
-			toast.error("Keine OCR-fähigen Modelle in den Verbindungen gefunden");
-			return;
-		}
-
-		if (!selectedOcrModel) {
-			toast.error("Bitte OCR-Modell auswählen");
-			return;
-		}
-
-		const providerId =
-			selectedOcrModel.providerId ?? selectedOcrModel.connectionId;
-		if (!providerId) {
-			toast.error("Das ausgewählte Modell hat keine gültige Verbindung");
+		if (!pdfFile || !selectedOcrModel) {
 			return;
 		}
 
@@ -439,17 +519,16 @@ const PDFFormSection = () => {
 			id: "ocr-markdown",
 		});
 
-		// Ollama / openai-compatible models accept images, not raw PDFs.
-		// Convert PDF pages to JPEG images client-side before sending.
-		if (
-			(selectedOcrModel.providerProtocol ??
-				selectedOcrModel.connectionProtocol) === "openai-compatible"
-		) {
+		const providerId = getOcrProviderId(selectedOcrModel);
+		const model = getOcrModelId(selectedOcrModel);
+
+		// OpenAI-compatible endpoints usually accept images, not raw PDF bytes.
+		if (usesOpenAiCompatibleProtocol(selectedOcrModel)) {
 			try {
 				const images = await convertPdfToImages(pdfFile);
 				ocrToMarkdownMutation.mutate({
 					imagesBase64: images,
-					model: selectedOcrModel.modelId ?? selectedOcrModel.id,
+					model,
 					providerId,
 				});
 			} catch (error) {
@@ -464,10 +543,10 @@ const PDFFormSection = () => {
 		const base64 = encodeUint8ArrayToBase64(pdfFile);
 		ocrToMarkdownMutation.mutate({
 			fileBase64: base64,
-			model: selectedOcrModel.modelId ?? selectedOcrModel.id,
+			model,
 			providerId,
 		});
-	}, [ocrCapableModels.length, ocrToMarkdownMutation, pdfFile, selectedOcrModel]);
+	}, [ocrCapableModels, ocrToMarkdownMutation, pdfFile, selectedOcrModel]);
 
 	const handleCopyMarkdown = useCallback(async () => {
 		if (!ocrMarkdown) {return;}
@@ -496,19 +575,12 @@ const PDFFormSection = () => {
 			});
 
 			mediaRecorder.addEventListener("stop", () => {
-				const audioBlob = new Blob(audioChunksRef.current, {
-					type: "audio/wav",
-				});
-				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
-				const newRecording: AudioRecording = {
-					blob: audioBlob,
-					duration,
-					id: `audio-${Date.now()}`,
-				};
+				const newRecording = createAudioRecording(
+					audioChunksRef.current,
+					recordingStartTimeRef.current,
+				);
 				setAudioRecordings((prev) => [...prev, newRecording]);
-				for (const track of stream.getTracks()) {
-					track.stop();
-				}
+				stopMediaStreamTracks(stream);
 			});
 
 			mediaRecorder.start();
@@ -542,11 +614,25 @@ const PDFFormSection = () => {
 		);
 	}, []);
 
-	const formatDuration = (seconds: number): string => {
-		const mins = Math.floor(seconds / 60);
-		const secs = Math.floor(seconds % 60);
-		return `${mins}:${secs.toString().padStart(2, "0")}`;
-	};
+	const handleRemoveRecordingById = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const recording of audioRecordings) {
+			handlers[recording.id] = () => {
+				handleRemoveRecording(recording.id);
+			};
+		}
+		return handlers;
+	}, [audioRecordings, handleRemoveRecording]);
+
+	const recordingButtonTitle = (() => {
+		if (!canRecord && !isRecording) {
+			return `Maximal ${maxRecordings} Aufnahmen möglich`;
+		}
+		if (isRecording) {
+			return "Aufnahme stoppen";
+		}
+		return "Audioaufnahme starten";
+	})();
 
 	const handleVoiceFill = useCallback(async () => {
 		if (audioRecordings.length === 0) {
@@ -624,20 +710,14 @@ const PDFFormSection = () => {
 						<div className="mb-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
 							<div className="mb-3 flex items-center justify-between">
 								<h3 className="font-medium text-sm">Sprachausfüllung</h3>
-								<Button
-									className={isRecording ? "bg-solarized-red" : ""}
-									disabled={!(canRecord || isRecording)}
-									onClick={handleToggleRecording}
-									size="sm"
-									title={
-										canRecord || isRecording
-											? (isRecording
-												? "Aufnahme stoppen"
-												: "Audioaufnahme starten")
-											: `Maximal ${maxRecordings} Aufnahmen möglich`
-									}
-									variant={isRecording ? "default" : "outline"}
-								>
+									<Button
+										className={isRecording ? "bg-solarized-red" : ""}
+										disabled={!(canRecord || isRecording)}
+										onClick={handleToggleRecording}
+										size="sm"
+										title={recordingButtonTitle}
+										variant={isRecording ? "default" : "outline"}
+									>
 									{isRecording ? (
 										<>
 											<Square className="mr-2 h-4 w-4" />
@@ -652,15 +732,10 @@ const PDFFormSection = () => {
 								</Button>
 							</div>
 
-							{/* Audio Recordings List */}
-							{audioRecordings.length > 0 && (
-								<div className="mb-3 space-y-2">
-									{audioRecordings.map((recording, index) => {
-										const handleRemoveClick = () => {
-											handleRemoveRecording(recording.id);
-										};
-
-										return (
+								{/* Audio Recordings List */}
+								{audioRecordings.length > 0 && (
+									<div className="mb-3 space-y-2">
+										{audioRecordings.map((recording, index) => (
 											<div
 												className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2"
 												key={recording.id}
@@ -673,17 +748,16 @@ const PDFFormSection = () => {
 													</span>
 												</div>
 												<Button
-													onClick={handleRemoveClick}
+													onClick={handleRemoveRecordingById[recording.id]}
 													size="sm"
 													variant="ghost"
 												>
 													<X className="h-4 w-4" />
 												</Button>
 											</div>
-										);
-									})}
-								</div>
-							)}
+										))}
+									</div>
+								)}
 
 							{/* Voice Fill Button */}
 							<Button

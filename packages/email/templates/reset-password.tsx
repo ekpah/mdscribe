@@ -53,4 +53,3 @@ export const ResetPasswordTemplate = ({ url }: ResetPasswordTemplateProps) => (
     </Html>
   </Tailwind>
 );
-

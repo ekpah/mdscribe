@@ -1,11 +1,6 @@
 import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 
 /**
- * Supported AI models via OpenRouter
- */
-export type SupportedModel = "auto" | "glm-5" | "claude-opus-4.6" | "gemini-3-pro";
-
-/**
  * Model configuration for streaming responses
  */
 export interface ModelConfig {
@@ -35,7 +30,7 @@ export interface InputField {
 /**
  * Input tags for voice fill
  */
-export type VoiceFillInputTag = InputTagType;
+type VoiceFillInputTag = InputTagType;
 
 /**
  * Voice fill input payload
@@ -44,14 +39,6 @@ export interface VoiceFillInputPayload {
 	inputTags?: VoiceFillInputTag[];
 	inputFields?: InputField[];
 	audioFiles: AudioFile[];
-}
-
-/**
- * Base input for scribe endpoints
- */
-export interface ScribeInput {
-	prompt: string;
-	audioFiles?: AudioFile[];
 }
 
 /**
@@ -78,7 +65,7 @@ export interface PromptMessage {
 /**
  * Prompt builder function type - receives typed variables and returns messages
  */
-export type PromptBuilder<T> = {
+type PromptBuilder<T> = {
 	bivarianceHack(variables: T): PromptMessage[];
 }["bivarianceHack"];
 

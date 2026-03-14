@@ -1,4 +1,4 @@
-import type { DocumentType, ModelConfig, PromptMessage, PromptVariables } from "../types";
+import type { DocumentType, ModelConfig, PromptMessage, PromptVariables } from "@/orpc/scribe/types";
 import { TEMPLATE_USAGE_INSTRUCTION } from "./families/narrative/shared/template-usage";
 import {
 	documentTypeConfigs,
@@ -6,7 +6,7 @@ import {
 	getPromptHarnessById,
 } from "./registry";
 
-export interface PromptCompositionInput {
+interface PromptCompositionInput {
 	contextXml: string;
 	relevantTemplate?: string;
 	todaysDate?: string;
@@ -23,7 +23,7 @@ const toNumberOrUndefined = (value: number | string | null | undefined): number 
 	return undefined;
 };
 
-export const todaysDateDE = (): string =>
+const todaysDateDE = (): string =>
 	new Date().toLocaleDateString("de-DE", {
 		day: "2-digit",
 		month: "2-digit",
@@ -47,10 +47,10 @@ export const injectCustomTemplateInstruction = (
 
 	const [firstMessage, ...rest] = messages;
 	if (firstMessage?.role === "system") {
-		return [firstMessage, { role: "system", content: TEMPLATE_USAGE_INSTRUCTION }, ...rest];
+		return [firstMessage, { content: TEMPLATE_USAGE_INSTRUCTION, role: "system" }, ...rest];
 	}
 
-	return [{ role: "system", content: TEMPLATE_USAGE_INSTRUCTION }, ...messages];
+	return [{ content: TEMPLATE_USAGE_INSTRUCTION, role: "system" }, ...messages];
 };
 
 export const composeDocumentTypePrompt = (
@@ -84,7 +84,10 @@ export const resolveCustomModelConfig = (form: {
 	return {
 		maxTokens: form.maxTokens ?? fallbackConfig?.maxTokens ?? 20_000,
 		temperature: toNumberOrUndefined(form.temperature) ?? fallbackConfig?.temperature ?? 1,
-		thinking: explicitThinkingBudget !== undefined ? true : (fallbackConfig?.thinking ?? false),
+		thinking:
+			explicitThinkingBudget === undefined
+				? (fallbackConfig?.thinking ?? false)
+				: true,
 		thinkingBudget,
 	};
 };

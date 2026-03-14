@@ -1,3 +1,6 @@
+import type { TestDatabase } from "@repo/database/test";
+import type { Session } from "@/lib/auth-types";
+
 // Re-export test utilities from the database package
 export {
 	createTestUser,
@@ -5,9 +8,6 @@ export {
 	type TestDatabase,
 	type TestServer,
 } from "@repo/database/test";
-
-import type { TestDatabase } from "@repo/database/test";
-import type { Session } from "@/lib/auth-types";
 
 type TestSession = Pick<Session, "user">;
 
@@ -23,15 +23,13 @@ export const ADMIN_EMAIL = "admin@test.com";
 export const createTestContext = (options: {
 	db: TestDatabase;
 	session?: TestSession;
-}) => {
-	return {
-		db: options.db,
-		session: options.session,
-	};
-};
+}) => ({
+	db: options.db,
+	session: options.session,
+});
 
 const getRequiredRow = <T,>(rows: T[], message: string): T => {
-	const row = rows[0];
+	const [row] = rows;
 	if (!row) {
 		throw new Error(message);
 	}

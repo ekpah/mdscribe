@@ -1,4 +1,4 @@
-import type { ContextSource, TemplateContextInput } from "../types";
+import type { ContextSource, TemplateContextInput } from "@/orpc/scribe/context/types";
 
 const toTrimmedString = (value: unknown): string =>
 	typeof value === "string" ? value.trim() : "";
@@ -13,6 +13,26 @@ const toExamples = (value: unknown): string[] => {
 		.filter((entry) => entry.length > 0);
 };
 
+const appendTemplateTag = (parts: string[], tag: string, value: string) => {
+	if (!value) {
+		return;
+	}
+
+	parts.push(`<${tag}>`, value, `</${tag}>`);
+};
+
+const appendTemplateExamples = (parts: string[], examples: string[]) => {
+	if (examples.length === 0) {
+		return;
+	}
+
+	parts.push("<examples>");
+	for (const example of examples) {
+		parts.push("<example>", example, "</example>");
+	}
+	parts.push("</examples>");
+};
+
 const renderTemplateEntry = (data: Record<string, unknown>): string => {
 	const title = toTrimmedString(data.title);
 	const content = toTrimmedString(data.content);
@@ -23,23 +43,9 @@ const renderTemplateEntry = (data: Record<string, unknown>): string => {
 	}
 
 	const parts: string[] = ["<template>"];
-
-	if (title) {
-		parts.push("<title>", title, "</title>");
-	}
-
-	if (content) {
-		parts.push("<content>", content, "</content>");
-	}
-
-	if (examples.length > 0) {
-		parts.push("<examples>");
-		for (const example of examples) {
-			parts.push("<example>", example, "</example>");
-		}
-		parts.push("</examples>");
-	}
-
+	appendTemplateTag(parts, "title", title);
+	appendTemplateTag(parts, "content", content);
+	appendTemplateExamples(parts, examples);
 	parts.push("</template>");
 	return parts.join("\n");
 };
@@ -76,7 +82,7 @@ export const composeTemplateContextFromSources = (
 
 export const buildSelectedTemplateReference = (templateData: {
 	content: string;
-	examples: Array<{ content: string }>;
+	examples: { content: string }[];
 	title: string;
 }): string => {
 	const sections = [

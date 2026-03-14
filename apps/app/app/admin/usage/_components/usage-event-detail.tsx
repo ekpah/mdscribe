@@ -14,8 +14,8 @@ import type { DocumentType } from "@/orpc/scribe/types";
 import {
 	allScribeDocTypes,
 	scribeDocTypeUi,
-} from "../../playground/_lib/scribe-doc-types";
-import type { UsageDetailEvent } from "../types";
+} from "@/app/admin/playground/_lib/scribe-doc-types";
+import type { UsageDetailEvent } from "@/app/admin/usage/types";
 
 const promptNameToDocumentType = new Map(
 	allScribeDocTypes.map((documentType) => [
@@ -87,8 +87,7 @@ interface UsageEventDetailProps {
 	onOpenChange: (open: boolean) => void;
 }
 
-const StatBox = ({ label, value }: { label: string; value: number | null }) => {
-	return (
+const StatBox = ({ label, value }: { label: string; value: number | null }) => (
 		<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-2">
 			<p className="text-xs text-solarized-base01">{label}</p>
 			<p className="font-mono text-sm text-solarized-base00">
@@ -96,7 +95,6 @@ const StatBox = ({ label, value }: { label: string; value: number | null }) => {
 			</p>
 		</div>
 	);
-};
 
 const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
@@ -182,7 +180,7 @@ export const UsageEventDetail = ({
 							<div className="flex justify-between">
 								<span className="text-solarized-base01">Kosten</span>
 								<span className="font-mono text-sm text-solarized-base00">
-									{cost !== null ? `$${cost.toFixed(6)}` : "-"}
+									{cost === null ? "-" : `$${cost.toFixed(6)}`}
 								</span>
 							</div>
 						</div>

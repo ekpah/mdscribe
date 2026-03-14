@@ -1,6 +1,6 @@
 export {
 	DataTable,
-	type DataTableProps,
+	
 	type DataTableRenderToolbarProps,
 } from "./data-table";
 export { DataTableColumnHeader } from "./data-table-column-header";

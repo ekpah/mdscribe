@@ -33,16 +33,11 @@ import {
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import {
-	FileText,
-	Loader2,
-	type LucideIcon,
-	Mic,
-	Square,
-	X,
-} from "lucide-react";
+import { FileText, Loader2, Mic, Square, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
@@ -122,22 +117,28 @@ interface AudioRecording {
 	id: string;
 }
 
-function encodeUint8ArrayToBase64(data: Uint8Array): string {
+const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
 	const chunkSize = 8192;
 	const chunks: string[] = [];
 	for (let i = 0; i < data.length; i += chunkSize) {
 		const chunk = data.subarray(i, i + chunkSize);
-		chunks.push(String.fromCharCode(...chunk));
+		chunks.push(String.fromCodePoint(...chunk));
 	}
 	return btoa(chunks.join(""));
-}
+};
 
-async function blobToBase64(blob: Blob): Promise<string> {
+const blobToBase64 = async (blob: Blob): Promise<string> => {
 	const bytes = new Uint8Array(await blob.arrayBuffer());
 	return encodeUint8ArrayToBase64(bytes);
-}
+};
 
-export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
+const formatDuration = (seconds: number): string => {
+	const mins = Math.floor(seconds / 60);
+	const secs = Math.floor(seconds % 60);
+	return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
+export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	const [activeTab, setActiveTab] = useState("input");
 	const [inputData, setInputData] = useState("");
 	const [additionalInputData, setAdditionalInputData] = useState<
@@ -166,34 +167,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, setMessages } = useChat({
 		id: chatId,
-		transport: {
-			async sendMessages(options) {
-				// Read from ref to get the latest audio files synchronously
-				const audioFiles = preparedAudioFilesRef.current;
-				const requestInput = isCustomFormConfig
-					? {
-							source: "customForm" as const,
-							formId: config.formId,
-							messages: options.messages,
-							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
-						}
-					: {
-							source: "documentType" as const,
-							documentType: config.documentType,
-							messages: options.messages,
-							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
-						};
-
-				return eventIteratorToUnproxiedDataStream(
-					await orpc.scribeStream.call(requestInput, {
-						signal: options.abortSignal,
-					}),
-				);
-			},
-			reconnectToStream() {
-				throw new Error("Unsupported");
-			},
-		},
 		onError: (error) => {
 			const message = getAiscribeErrorMessage(error);
 			if (message) {
@@ -205,6 +178,34 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			// Clear prepared audio files ref after generation
 			preparedAudioFilesRef.current = [];
 		},
+		transport: {
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
+			async sendMessages(options) {
+				// Read from ref to get the latest audio files synchronously
+				const audioFiles = preparedAudioFilesRef.current;
+				const requestInput = isCustomFormConfig
+					? {
+							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+							formId: config.formId,
+							messages: options.messages,
+							source: "customForm" as const,
+						}
+					: {
+							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+							documentType: config.documentType,
+							messages: options.messages,
+							source: "documentType" as const,
+						};
+
+				return eventIteratorToUnproxiedDataStream(
+					await orpc.scribeStream.call(requestInput, {
+						signal: options.abortSignal,
+					}),
+				);
+			},
+		},
 	});
 
 	// Extract completion text from the last assistant message
@@ -212,7 +213,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		const lastAssistantMessage = messages.findLast(
 			(m) => m.role === "assistant",
 		);
-		if (!lastAssistantMessage) return "";
+		if (!lastAssistantMessage) {return "";}
 		if (lastAssistantMessage.parts) {
 			return lastAssistantMessage.parts
 				.filter((p) => p.type === "text")
@@ -234,7 +235,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 	const canRecord = audioRecordings.length < maxRecordings;
 
 	// Handle audio recording
-	const handleStartRecording = async () => {
+	const handleStartRecording = useCallback(async () => {
 		if (!canRecord) {
 			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
 			return;
@@ -255,7 +256,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 				const audioBlob = new Blob(audioChunksRef.current, {
 					type: "audio/wav",
 				});
-				const duration = (Date.now() - recordingStartTimeRef.current) / 1000; // in seconds
+				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
 				const newRecording: AudioRecording = {
 					blob: audioBlob,
 					duration,
@@ -275,23 +276,32 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			console.error("Error starting recording:", error);
 			toast.error("Fehler beim Starten der Aufnahme");
 		}
-	};
+	}, [canRecord, maxRecordings]);
 
-	const handleStopRecording = () => {
+	const handleStopRecording = useCallback(() => {
 		if (mediaRecorderRef.current && isRecording) {
 			mediaRecorderRef.current.stop();
 			setIsRecording(false);
 			toast.success("Aufnahme beendet");
 		}
-	};
+	}, [isRecording]);
 
-	const handleToggleRecording = () => {
+	const handleToggleRecording = useCallback(() => {
 		if (isRecording) {
 			handleStopRecording();
 		} else {
-			handleStartRecording();
+			void handleStartRecording();
 		}
-	};
+	}, [handleStartRecording, handleStopRecording, isRecording]);
+	const recordingButtonTitle = (() => {
+		if (!canRecord && !isRecording) {
+			return `Maximal ${maxRecordings} Aufnahmen möglich`;
+		}
+		if (isRecording) {
+			return "Aufnahme stoppen";
+		}
+		return "Audioaufnahme starten";
+	})();
 
 	// PERF: Use useCallback with functional setState for stable callback reference
 	const handleRemoveRecording = useCallback((id: string) => {
@@ -299,12 +309,6 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			prev.filter((recording) => recording.id !== id),
 		);
 	}, []);
-
-	const formatDuration = (seconds: number): string => {
-		const mins = Math.floor(seconds / 60);
-		const secs = Math.floor(seconds % 60);
-		return `${mins}:${secs.toString().padStart(2, "0")}`;
-	};
 
 	// PERF: Use useCallback with functional setState for stable callback reference
 	const handleAdditionalInputChange = useCallback(
@@ -316,6 +320,39 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		},
 		[],
 	);
+
+	const handleMainInputChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			setInputData(event.target.value);
+		},
+		[],
+	);
+
+	const handleSwitchToInputTab = useCallback(() => {
+		setActiveTab("input");
+	}, []);
+
+	const additionalInputChangeHandlers = useMemo(() => {
+		const handlers: Record<
+			string,
+			(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
+		> = {};
+		for (const field of config.additionalInputs ?? []) {
+			handlers[field.name] = (event) => {
+				handleAdditionalInputChange(field.name, event.target.value);
+			};
+		}
+		return handlers;
+	}, [config.additionalInputs, handleAdditionalInputChange]);
+	const removeRecordingHandlers = useMemo(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const recording of audioRecordings) {
+			handlers[recording.id] = () => {
+				handleRemoveRecording(recording.id);
+			};
+		}
+		return handlers;
+	}, [audioRecordings, handleRemoveRecording]);
 
 	const missingRequiredFields = useMemo(() => {
 		if (!config.additionalInputs) {
@@ -598,106 +635,106 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 															Zusätzliche Informationen
 														</h4>
 													</div>
-													<div className="grid gap-4">
-														{config.additionalInputs.map((field) => (
-															<div className="space-y-2" key={field.name}>
-																<Label
-																	className="font-medium text-sm"
-																	htmlFor={field.name}
-																>
-																	{field.label}
-																	{field.required && (
-																		<span className="ml-1 text-red-500">*</span>
-																	)}
-																</Label>
-																{field.type === "textarea" ? (
-																	<Textarea
-																		className="min-h-[180px] resize-y border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-																		disabled={isLoading}
-																		id={field.name}
-																		onChange={(e) =>
-																			handleAdditionalInputChange(
-																				field.name,
-																				e.target.value,
-																			)
-																		}
-																		placeholder={field.placeholder}
-																		value={
-																			additionalInputData[field.name] || ""
-																		}
-																	/>
-																) : (
-																	<Input
-																		className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-																		disabled={isLoading}
-																		id={field.name}
-																		onChange={(e) =>
-																			handleAdditionalInputChange(
-																				field.name,
-																				e.target.value,
-																			)
-																		}
-																		placeholder={field.placeholder}
-																		value={
-																			additionalInputData[field.name] || ""
-																		}
-																	/>
-																)}
-																{field.description && (
-																	<p className="text-muted-foreground text-xs">
-																		{field.description}
-																	</p>
-																)}
-															</div>
-														))}
-													</div>
+														<div className="grid gap-4">
+															{config.additionalInputs.map((field) => {
+																const handleAdditionalInputFieldChange =
+																	additionalInputChangeHandlers[field.name];
+																if (!handleAdditionalInputFieldChange) {
+																	return null;
+																}
+
+																return (
+																	<div className="space-y-2" key={field.name}>
+																		<Label
+																			className="font-medium text-sm"
+																			htmlFor={field.name}
+																		>
+																			{field.label}
+																			{field.required && (
+																				<span className="ml-1 text-red-500">*</span>
+																			)}
+																		</Label>
+																		{field.type === "textarea" ? (
+																			<Textarea
+																				className="min-h-[180px] resize-y border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+																				disabled={isLoading}
+																				id={field.name}
+																				onChange={handleAdditionalInputFieldChange}
+																				placeholder={field.placeholder}
+																				value={additionalInputData[field.name] || ""}
+																			/>
+																		) : (
+																			<Input
+																				className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+																				disabled={isLoading}
+																				id={field.name}
+																				onChange={handleAdditionalInputFieldChange}
+																				placeholder={field.placeholder}
+																				value={additionalInputData[field.name] || ""}
+																			/>
+																		)}
+																		{field.description && (
+																			<p className="text-muted-foreground text-xs">
+																				{field.description}
+																			</p>
+																		)}
+																	</div>
+																);
+															})}
+														</div>
 												</div>
 											)}
 
 										{/* Audio Recordings Indicator */}
 										{audioRecordings.length > 0 && (
 											<div className="space-y-2">
-												{audioRecordings.map((recording, index) => (
-													<div
-														className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-3"
-														key={recording.id}
-													>
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-2 text-sm text-solarized-green">
-																<Mic className="h-4 w-4" />
-																<span>
-																	Aufnahme {index + 1} (
-																	{formatDuration(recording.duration)})
-																</span>
-															</div>
-															<Button
-																onClick={() =>
-																	handleRemoveRecording(recording.id)
-																}
-																size="sm"
-																type="button"
-																variant="ghost"
+													{audioRecordings.map((recording, index) => {
+														const handleRemoveRecordedAudio =
+															removeRecordingHandlers[recording.id];
+														if (!handleRemoveRecordedAudio) {
+															return null;
+														}
+
+														return (
+															<div
+																className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-3"
+																key={recording.id}
 															>
-																<X className="h-4 w-4" />
-															</Button>
-														</div>
-													</div>
-												))}
+																<div className="flex items-center justify-between">
+																	<div className="flex items-center gap-2 text-sm text-solarized-green">
+																		<Mic className="h-4 w-4" />
+																		<span>
+																			Aufnahme {index + 1} (
+																			{formatDuration(recording.duration)})
+																		</span>
+																	</div>
+																	<Button
+																		onClick={handleRemoveRecordedAudio}
+																		size="sm"
+																		type="button"
+																		variant="ghost"
+																	>
+																		<X className="h-4 w-4" />
+																	</Button>
+																</div>
+															</div>
+														);
+													})}
 											</div>
 										)}
 
 										{/* Main Input Field */}
 										<PromptInput onSubmit={handleGenerate}>
 											<PromptInputBody>
-												<PromptInputTextarea
-													className="min-h-[400px] resize-none rounded-t-lg border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-													disabled={isLoading}
-													id="input-field"
-													onChange={(e) => setInputData(e.target.value)}
-													placeholder={config.inputPlaceholder}
-													ref={mainTextareaRef}
-													value={inputData}
-												/>
+													<PromptInputTextarea
+														className="min-h-[400px] resize-none rounded-t-lg border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
+														disabled={isLoading}
+														id="input-field"
+														onChange={handleMainInputChange}
+														placeholder={config.inputPlaceholder}
+														ref={mainTextareaRef}
+														value={inputData}
+													/>
 											</PromptInputBody>
 											<PromptInputToolbar>
 												<PromptInputTools>
@@ -708,13 +745,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 														disabled={isLoading || !(canRecord || isRecording)}
 														onClick={handleToggleRecording}
 														size="sm"
-														title={
-															canRecord || isRecording
-																? isRecording
-																	? "Aufnahme stoppen"
-																	: "Audioaufnahme starten"
-																: `Maximal ${maxRecordings} Aufnahmen möglich`
-														}
+														title={recordingButtonTitle}
 														type="button"
 														variant="ghost"
 													>
@@ -822,11 +853,11 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 														<p className="max-w-md text-sm">
 															{config.emptyStateDescription}
 														</p>
-														<Button
-															className="mt-4"
-															onClick={() => setActiveTab("input")}
-															variant="outline"
-														>
+															<Button
+																className="mt-4"
+																onClick={handleSwitchToInputTab}
+																variant="outline"
+															>
 															Zu Eingabe wechseln
 														</Button>
 													</div>
@@ -842,4 +873,4 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			</div>
 		</div>
 	);
-}
+};

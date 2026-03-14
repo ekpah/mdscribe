@@ -22,7 +22,7 @@ import { Label } from '@repo/design-system/components/ui/label';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import { orpc } from '@/lib/orpc';
@@ -40,6 +40,7 @@ export const SnippetsCard = () => {
   const [editingSnippet, setEditingSnippet] = useState<TextSnippet | null>(
     null
   );
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ key: '', snippet: '' });
   const queryClient = useQueryClient();
 
@@ -127,22 +128,28 @@ export const SnippetsCard = () => {
   }, [createMutation, editingSnippet, formData.key, formData.snippet, handleCloseDialog, updateMutation]);
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm('Möchten Sie dieses Snippet wirklich löschen?')) {
-      return;
-    }
-
     try {
       await deleteMutation.mutateAsync({ id });
       toast.success('Snippet gelöscht');
     } catch (error) {
       console.error('Error deleting snippet:', error);
       toast.error('Fehler beim Löschen des Snippets');
+    } finally {
+      setPendingDeleteId(null);
     }
   }, [deleteMutation]);
 
   const handleCreateSnippetClick = useCallback(() => {
     handleOpenDialog();
   }, [handleOpenDialog]);
+
+  const handleDeleteRequest = useCallback((id: string) => {
+    setPendingDeleteId(id);
+  }, []);
+
+  const handleDeleteCancel = useCallback(() => {
+    setPendingDeleteId(null);
+  }, []);
 
   const handleSnippetKeyChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setFormData((previous) => ({ ...previous, key: event.target.value }));
@@ -151,6 +158,40 @@ export const SnippetsCard = () => {
   const handleSnippetTextChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
     setFormData((previous) => ({ ...previous, snippet: event.target.value }));
   }, []);
+
+  const editSnippetHandlers = useMemo(() => {
+    const handlers: Record<string, () => void> = {};
+    for (const snippet of snippets) {
+      handlers[snippet.id] = () => {
+        handleOpenDialog(snippet);
+      };
+    }
+    return handlers;
+  }, [handleOpenDialog, snippets]);
+
+  const deleteConfirmHandlers = useMemo(() => {
+    const handlers: Record<string, () => Promise<void>> = {};
+    for (const snippet of snippets) {
+      handlers[snippet.id] = async () => {
+        try {
+          await handleDelete(snippet.id);
+        } catch (error) {
+          console.error('Error deleting snippet:', error);
+        }
+      };
+    }
+    return handlers;
+  }, [handleDelete, snippets]);
+
+  const deleteRequestHandlers = useMemo(() => {
+    const handlers: Record<string, () => void> = {};
+    for (const snippet of snippets) {
+      handlers[snippet.id] = () => {
+        handleDeleteRequest(snippet.id);
+      };
+    }
+    return handlers;
+  }, [handleDeleteRequest, snippets]);
 
   return (
     <Card>
@@ -246,52 +287,72 @@ export const SnippetsCard = () => {
         )}
         {!isLoading && snippets && snippets.length > 0 && (
           <div className="space-y-2">
-            {snippets.map((snippet) => (
-              (() => {
-                const handleEditClick = () => {
-                  handleOpenDialog(snippet);
-                };
-                const handleDeleteClick = () => {
-                  void handleDelete(snippet.id);
-                };
+            {snippets.map((snippet) => {
+              const isDeletePending = pendingDeleteId === snippet.id;
+              const handleEditSnippet = editSnippetHandlers[snippet.id];
+              const handleDeleteConfirm = deleteConfirmHandlers[snippet.id];
+              const handleDeleteRequestClick = deleteRequestHandlers[snippet.id];
+              if (!handleEditSnippet || !handleDeleteConfirm || !handleDeleteRequestClick) {
+                return null;
+              }
 
-                return (
-                  <div
-                    className="flex items-start justify-between rounded-lg border p-3"
-                    key={snippet.id}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <code className="rounded bg-muted px-2 py-1 font-mono text-sm">
-                          {snippet.key}
-                        </code>
-                      </div>
-                      <p className="mt-2 line-clamp-2 text-muted-foreground text-sm">
-                        {snippet.snippet}
-                      </p>
+              return (
+                <div
+                  className="flex items-start justify-between rounded-lg border p-3"
+                  key={snippet.id}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <code className="rounded bg-muted px-2 py-1 font-mono text-sm">
+                        {snippet.key}
+                      </code>
                     </div>
-                    <div className="flex gap-1">
+                    <p className="mt-2 line-clamp-2 text-muted-foreground text-sm">
+                      {snippet.snippet}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      onClick={handleEditSnippet}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    {isDeletePending ? (
+                      <>
+                        <Button
+                          onClick={handleDeleteConfirm}
+                          size="sm"
+                          type="button"
+                          variant="destructive"
+                        >
+                          Löschen
+                        </Button>
+                        <Button
+                          onClick={handleDeleteCancel}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          Abbrechen
+                        </Button>
+                      </>
+                    ) : (
                       <Button
-                        onClick={handleEditClick}
-                        size="sm"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        onClick={handleDeleteClick}
+                        onClick={handleDeleteRequestClick}
                         size="sm"
                         type="button"
                         variant="ghost"
                       >
                         <Trash2 className="h-4 w-4 text-solarized-red" />
                       </Button>
-                    </div>
+                    )}
                   </div>
-                );
-              })()
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

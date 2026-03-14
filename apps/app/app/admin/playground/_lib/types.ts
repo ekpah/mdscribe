@@ -1,4 +1,4 @@
-export interface ModelCapabilities {
+interface ModelCapabilities {
 	supportsText: boolean;
 	supportsImage: boolean;
 	supportsAudio: boolean;
@@ -54,34 +54,6 @@ export interface PlaygroundParameters {
 	presencePenalty?: number;
 }
 
-export interface PlaygroundMessage {
-	role: "system" | "user" | "assistant";
-	content: string;
-}
-
-export interface AudioFile {
-	id: string;
-	blob: Blob;
-	duration: number;
-	mimeType: string;
-}
-
-export interface ImageFile {
-	id: string;
-	blob: Blob;
-	url: string;
-	mimeType: string;
-	filename: string;
-}
-
-export interface DocumentFile {
-	id: string;
-	blob: Blob;
-	url: string;
-	mimeType: string;
-	filename: string;
-}
-
 export interface PlaygroundResult {
 	text: string;
 	reasoning?: string;
@@ -95,18 +67,6 @@ export interface PlaygroundResult {
 	};
 	isStreaming: boolean;
 	error?: string;
-}
-
-export interface PlaygroundPanelState {
-	model: PlaygroundModel | null;
-	parameters: PlaygroundParameters;
-	messages: PlaygroundMessage[];
-	systemPrompt: string;
-	userPrompt: string;
-	audioFiles: AudioFile[];
-	imageFiles: ImageFile[];
-	documentFiles: DocumentFile[];
-	result: PlaygroundResult | null;
 }
 
 // Default parameters
@@ -125,12 +85,10 @@ export const DEFAULT_PARAMETERS: PlaygroundParameters = {
 /**
  * Whether a model supports the reasoning/thinking parameter.
  */
-export const supportsThinking = (model: PlaygroundModel): boolean => {
-	return (
+export const supportsThinking = (model: PlaygroundModel): boolean => (
 		model.supportsReasoning === true ||
 		model.supported_parameters.includes("reasoning")
 	);
-};
 
 // Format cost for display
 export const formatCost = (cost: number | undefined): string => {

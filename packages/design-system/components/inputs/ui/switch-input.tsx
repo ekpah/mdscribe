@@ -3,15 +3,15 @@
 import type { SwitchInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { cn } from "@repo/design-system/lib/utils";
 import { useCallback } from "react";
-import { Label } from "../../ui/label";
+import { Label } from "@repo/design-system/components/ui/label";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "../../ui/select";
-import { ToggleGroup, ToggleGroupItem } from "../../ui/toggle-group";
+} from "@repo/design-system/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@repo/design-system/components/ui/toggle-group";
 import { SuggestionBadge } from "./suggestion-badge";
 
 export const SwitchInput = ({

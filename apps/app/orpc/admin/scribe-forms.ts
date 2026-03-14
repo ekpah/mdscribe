@@ -1,12 +1,14 @@
 import { ORPCError, type } from "@orpc/server";
-import { aiModel, aiScribeFormConfig, eq, template, type Database } from "@repo/database";
+import { aiModel, aiScribeFormConfig, eq, template } from '@repo/database';
+import type { Database } from '@repo/database';
 import { z } from "zod";
 
 import { AI_SCRIBE_FORM_SLUG_REGEX, isReservedAiScribeFormSlug } from "@/lib/ai-scribe-forms";
 import { authed } from "@/orpc";
 
-import { requiredAdminMiddleware } from "../middlewares/admin";
-import { type PromptHarnessId, PROMPT_HARNESS_IDS } from "../scribe/prompts";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { PROMPT_HARNESS_IDS } from '@/orpc/scribe/prompts';
+import type { PromptHarnessId } from '@/orpc/scribe/prompts';
 
 const promptHarnessSchema = z
 	.string({
@@ -77,10 +79,10 @@ const toNullableText = (value?: string | null): string | null => {
 	return trimmed.length > 0 ? trimmed : null;
 };
 
-async function ensureModelAndTemplateExist(
+const ensureModelAndTemplateExist = async (
 	context: { db: Database },
 	input: { modelId?: string | null; templateId?: string | null },
-): Promise<void> {
+): Promise<void> => {
 	if (input.modelId) {
 		const existingModel = await context.db.query.aiModel.findFirst({
 			where: eq(aiModel.id, input.modelId),
@@ -102,7 +104,7 @@ async function ensureModelAndTemplateExist(
 			});
 		}
 	}
-}
+};
 
 const toScribeFormValues = (input: {
 	description?: string | null;
@@ -127,11 +129,11 @@ const toScribeFormValues = (input: {
 	updatedAt: new Date(),
 });
 
-async function ensureSlugUnique(
+const ensureSlugUnique = async (
 	context: { db: Database },
 	slug: string,
 	excludeId?: string,
-): Promise<void> {
+): Promise<void> => {
 	const existing = await context.db.query.aiScribeFormConfig.findFirst({
 		where: eq(aiScribeFormConfig.slug, slug),
 	});
@@ -141,10 +143,9 @@ async function ensureSlugUnique(
 			message: "Eine Vorlage mit diesem Namen existiert bereits",
 		});
 	}
-}
+};
 
-const listFormsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
-	return context.db.query.aiScribeFormConfig.findMany({
+const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context }) => context.db.query.aiScribeFormConfig.findMany({
 		columns: {
 			description: true,
 			enabled: true,
@@ -170,8 +171,7 @@ const listFormsHandler = authed.use(requiredAdminMiddleware).handler(async ({ co
 				},
 			},
 		},
-	});
-});
+	}));
 
 const createFormHandler = authed
 	.use(requiredAdminMiddleware)

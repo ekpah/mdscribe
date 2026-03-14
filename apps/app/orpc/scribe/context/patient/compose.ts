@@ -1,4 +1,4 @@
-import type { ContextSource, PatientContextData } from "../types";
+import type { ContextSource, PatientContextData } from "@/orpc/scribe/context/types";
 import { PATIENT_CONTEXT_SECTIONS } from "./guidance";
 
 const EMPTY_PATIENT_CONTEXT: PatientContextData = {

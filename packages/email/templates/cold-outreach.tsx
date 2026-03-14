@@ -78,5 +78,3 @@ export const ColdOutreachTemplate = ({
         </Html>
     </Tailwind>
 );
-
-export default ColdOutreachTemplate;

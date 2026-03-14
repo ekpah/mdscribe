@@ -6,8 +6,8 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '../../../design-system/components/ui/tooltip';
-import { useVariables } from '../../render/context/variable-context';
+} from '@repo/design-system/components/ui/tooltip';
+import { useVariables } from '@/render/context/variable-context';
 
 interface ValueObject {
   [key: string]: number | string | ValueObject;

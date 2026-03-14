@@ -5,8 +5,8 @@ import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database"
 
 import { voiceFillHandler } from "@/orpc/scribe/handlers/voice-fill";
 
-import { createTestAiDefaults, createTestContext, createTestUser, startTestServer } from "../setup";
-import type { TestServer } from "../setup";
+import { createTestAiDefaults, createTestContext, createTestUser, startTestServer } from "@/__tests__/setup";
+import type { TestServer } from "@/__tests__/setup";
 
 describe("Scribe voiceFill Handler", () => {
 	let server: TestServer;

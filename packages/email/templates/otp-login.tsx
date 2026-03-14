@@ -57,5 +57,3 @@ export const OTPLoginTemplate = ({
     </Html>
   </Tailwind>
 );
-
-export default OTPLoginTemplate;

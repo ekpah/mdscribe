@@ -7,14 +7,14 @@ import type { router } from '@/orpc/router';
 
 const link = new RPCLink({
     headers: async () => {
-        if (typeof window !== 'undefined') {
-            return {};
+        if (typeof window === 'undefined') {
+            const { headers } = await import('next/headers');
+            return Object.fromEntries(await headers());
         }
 
-        const { headers } = await import('next/headers');
-        return Object.fromEntries(await headers());
+        return {};
     },
-    url: `${typeof window !== 'undefined' ? window.location.origin : env.NEXT_PUBLIC_BASE_URL}/api/rpc`,
+    url: `${typeof window === 'undefined' ? env.NEXT_PUBLIC_BASE_URL : window.location.origin}/api/rpc`,
 });
 
 /**

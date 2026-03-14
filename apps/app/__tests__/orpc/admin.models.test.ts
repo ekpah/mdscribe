@@ -8,8 +8,8 @@ import {
 	createTestContext,
 	createTestUser,
 	startTestServer,
-} from "../setup";
-import type { TestServer } from "../setup";
+} from "@/__tests__/setup";
+import type { TestServer } from "@/__tests__/setup";
 
 describe("Admin Models Handler", () => {
 	let server: TestServer;

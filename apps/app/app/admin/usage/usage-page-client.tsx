@@ -9,11 +9,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import {
-	DataTable,
-	type DataTableRenderToolbarProps,
-	DataTableViewOptions,
-} from "@repo/design-system/components/ui/data-table";
+import { DataTable, DataTableViewOptions } from '@repo/design-system/components/ui/data-table';
+import type { DataTableRenderToolbarProps } from '@repo/design-system/components/ui/data-table';
 import { Input } from "@repo/design-system/components/ui/input";
 import {
 	ToggleGroup,
@@ -52,8 +49,7 @@ const UsageToolbar = ({
 	table: DataTableRenderToolbarProps<UsageListEvent>["table"];
 	searchFilter: string;
 	onSearchFilterChange: (event: ChangeEvent<HTMLInputElement>) => void;
-}) => {
-	return (
+}) => (
 		<div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
 			<Input
 				placeholder="Benutzer oder Aktion suchen..."
@@ -66,7 +62,6 @@ const UsageToolbar = ({
 			</div>
 		</div>
 	);
-};
 
 export default function UsagePage() {
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -182,14 +177,37 @@ export default function UsagePage() {
 				actionName.includes(search)
 			);
 		});
-	}, [allItems, searchFilter]);
+		}, [allItems, searchFilter]);
 
-	const errorMessage =
-		error instanceof Error
-			? error.message
-			: (error
-				? String(error)
-				: "Fehler beim Laden der Events");
+	const handleEventSelectionById = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const item of filteredItems) {
+			handlers[item.id] = () => {
+				setSelectedEventId(item.id);
+			};
+		}
+		return handlers;
+	}, [filteredItems]);
+
+	const errorMessage = (() => {
+		if (error instanceof Error) {
+			return error.message;
+		}
+		if (error) {
+			return String(error);
+		}
+		return "Fehler beim Laden der Events";
+	})();
+
+	const totalCostLabel = (() => {
+		if (statsLoading) {
+			return <Loader2 className="h-4 w-4 animate-spin" />;
+		}
+		if (stats?.totalCost === undefined) {
+			return "-";
+		}
+		return `$${stats.totalCost.toFixed(2)}`;
+	})();
 
 	if (isLoading && allItems.length === 0) {
 		return (
@@ -296,20 +314,14 @@ export default function UsagePage() {
 									)}
 								</p>
 							</div>
-							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-									Kosten
-								</p>
-								<p className="text-base font-semibold text-solarized-green sm:text-lg">
-									{statsLoading ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (stats?.totalCost !== undefined ? (
-										`$${stats.totalCost.toFixed(2)}`
-									) : (
-										"-"
-									))}
-								</p>
-							</div>
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
+										Kosten
+									</p>
+									<p className="text-base font-semibold text-solarized-green sm:text-lg">
+										{totalCostLabel}
+									</p>
+								</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -390,12 +402,12 @@ export default function UsagePage() {
 												</div>
 											</div>
 
-											<div className="mt-3 flex flex-col gap-2">
-												<Button
-													variant="outline"
-													onClick={() => setSelectedEventId(item.id)}
-													className="w-full"
-												>
+												<div className="mt-3 flex flex-col gap-2">
+													<Button
+														variant="outline"
+														onClick={handleEventSelectionById[item.id]}
+														className="w-full"
+													>
 													Details anzeigen
 												</Button>
 												<Button asChild className="w-full" variant="secondary">

@@ -1,6 +1,6 @@
 "use client";
 
-import type { FieldMapping } from "../_lib/parse-pdf-form-fields";
+import type { FieldMapping } from "@/app/admin/documents-playground/_lib/parse-pdf-form-fields";
 import { Card } from "@repo/design-system/components/ui/card";
 
 interface PDFDebugPanelProps {

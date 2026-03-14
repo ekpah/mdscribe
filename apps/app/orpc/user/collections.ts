@@ -71,31 +71,28 @@ const listCollectionsHandler = authed.handler(async ({ context }) => {
 		.where(inArray(templateCollectionTemplate.collectionId, collectionIds))
 		.orderBy(desc(template.updatedAt));
 
-	const templatesByCollection = templates.reduce(
-		(acc, row) => {
-			const entry = {
-				category: row.category,
-				favouritesCount: Number(row.favouritesCount ?? 0),
-				id: row.id,
-				title: row.title,
-			};
-			if (!acc[row.collectionId]) {
-				acc[row.collectionId] = [entry];
-			} else {
-				acc[row.collectionId]?.push(entry);
-			}
-			return acc;
-		},
-		{} as Record<
-			string,
-			Array<{
-				category: string;
-				favouritesCount: number;
-				id: string;
-				title: string;
-			}>
-		>,
-	);
+	const templatesByCollection: Record<
+		string,
+		{
+			category: string;
+			favouritesCount: number;
+			id: string;
+			title: string;
+		}[]
+	> = {};
+	for (const row of templates) {
+		const entry = {
+			category: row.category,
+			favouritesCount: Number(row.favouritesCount ?? 0),
+			id: row.id,
+			title: row.title,
+		};
+		if (templatesByCollection[row.collectionId]) {
+			templatesByCollection[row.collectionId]?.push(entry);
+		} else {
+			templatesByCollection[row.collectionId] = [entry];
+		}
+	}
 
 	return collections.map((collection) => ({
 		...collection,

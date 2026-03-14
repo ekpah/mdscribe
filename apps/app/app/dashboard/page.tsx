@@ -294,9 +294,9 @@ export default async function DashboardPage() {
 							<div>
 								<h1 className="mb-2 font-bold text-2xl text-solarized-base03 sm:text-3xl lg:text-4xl">
 									Willkommen zurück,{" "}
-									{session.user.name !== ""
-										? session.user.name
-										: session.user.email}
+									{session.user.name === ""
+										? session.user.email
+										: session.user.name}
 									!
 								</h1>
 								<p className="mb-1 text-base text-solarized-base01 sm:text-lg">

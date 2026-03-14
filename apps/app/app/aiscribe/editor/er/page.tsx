@@ -1,8 +1,8 @@
 "use client";
 
 import { Heart } from "lucide-react";
-import { DoctorsNoteEditor } from '../../_components/doctors-note-editor';
-import type { DoctorsNoteEditorConfig } from '../../_components/doctors-note-editor';
+import { DoctorsNoteEditor } from '@/app/aiscribe/_components/doctors-note-editor';
+import type { DoctorsNoteEditorConfig } from '@/app/aiscribe/_components/doctors-note-editor';
 
 // Section configuration for ER documentation
 // Each section defines its own endpoint and prompt builder

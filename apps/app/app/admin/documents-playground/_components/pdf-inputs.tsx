@@ -1,8 +1,5 @@
 "use client";
 
-import type {
-	InputTagType,
-} from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { InfoInput } from "@repo/design-system/components/inputs/ui/info-input";
 import { SwitchInput } from "@repo/design-system/components/inputs/ui/switch-input";
 import {
@@ -12,8 +9,10 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
+import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { Bot, Pencil } from "lucide-react";
 import { useCallback } from "react";
+import type { ReactNode } from "react";
 
 export type InputSource = "empty" | "ai" | "manual";
 
@@ -46,10 +45,11 @@ const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 		},
 	}[source];
 
-	if (!config) {return null;}
+	if (!config) {
+		return null;
+	}
 
 	const Icon = config.icon;
-
 	return (
 		<TooltipProvider delayDuration={200}>
 			<Tooltip>
@@ -66,80 +66,158 @@ const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 	);
 };
 
-const renderInputTag = (
+const SourceOverlay = ({ source }: { source: InputSource | undefined }) => {
+	if (!source || source === "empty") {
+		return null;
+	}
+	return (
+		<div className="absolute -top-1 right-0 z-10">
+			<SourceIndicator source={source} />
+		</div>
+	);
+};
+
+interface RenderInputTagProps {
+	input: InputTagType;
+	values: Record<string, unknown>;
+	fieldSources: Record<string, InputSource>;
+	onInputChange: (key: string, value: unknown) => void;
+}
+
+const getMatchingCaseChildren = (
 	input: InputTagType,
-	values: Record<string, unknown>,
-	fieldSources: Record<string, InputSource>,
-	handleInputChange: (key: string, value: unknown) => void,
-): React.ReactNode | null => {
-	if (!input.attributes.primary) {
+	currentValue: string,
+): InputTagType[] => {
+	if (!input.children) {
+		return [];
+	}
+
+	return input.children
+		.filter(
+			(child) =>
+				child.name === "Case" && child.attributes.primary === currentValue,
+		)
+			.flatMap((caseChild) => caseChild.children);
+};
+
+const renderInfoTagInput = ({
+	fieldKey,
+	handleFieldValueChange,
+	input,
+	source,
+	values,
+}: {
+	fieldKey: string;
+	handleFieldValueChange: (value: unknown) => void;
+	input: InputTagType;
+	source: InputSource | undefined;
+	values: Record<string, unknown>;
+}): ReactNode => (
+	<div className="relative" key={`info-wrapper-${fieldKey}`}>
+		<SourceOverlay source={source} />
+		<InfoInput
+			input={input}
+			onChange={handleFieldValueChange}
+			value={values[fieldKey] as string | number | undefined}
+		/>
+	</div>
+);
+
+const renderSwitchTagInput = ({
+	fieldKey,
+	handleFieldValueChange,
+	input,
+	renderNestedInputTag,
+	source,
+	values,
+}: {
+	fieldKey: string;
+	handleFieldValueChange: (value: unknown) => void;
+	input: InputTagType;
+	renderNestedInputTag: (child: InputTagType, key: string) => ReactNode;
+	source: InputSource | undefined;
+	values: Record<string, unknown>;
+}): ReactNode => {
+	const currentValue = values[fieldKey] as string | undefined;
+	const matchingCaseChildren = currentValue
+		? getMatchingCaseChildren(input, currentValue)
+		: [];
+
+	return (
+		<div className="relative" key={`switch-wrapper-${fieldKey}`}>
+			<SourceOverlay source={source} />
+			<SwitchInput
+				input={input}
+				onChange={handleFieldValueChange as (newValue: string) => void}
+				value={currentValue}
+			/>
+			{matchingCaseChildren.length > 0 ? (
+				<div className="mt-4 ml-4 space-y-4">
+					{matchingCaseChildren.map((child) =>
+						renderNestedInputTag(
+							child,
+							`${fieldKey}-${child.name}-${child.attributes.primary ?? ""}`,
+						),
+					)}
+				</div>
+			) : null}
+		</div>
+	);
+};
+
+const RenderInputTag = ({
+	input,
+	values,
+	fieldSources,
+	onInputChange,
+}: RenderInputTagProps): ReactNode => {
+	const fieldPrimary = input.attributes.primary;
+	const fieldKey = fieldPrimary ?? "";
+	const source = fieldSources[fieldKey];
+	const handleFieldValueChange = useCallback(
+		(value: unknown) => {
+			onInputChange(fieldKey, value);
+		},
+		[fieldKey, onInputChange],
+	);
+	const handleRenderNestedInput = useCallback(
+		(child: InputTagType, key: string) => (
+			<RenderInputTag
+				key={key}
+				input={child}
+				values={values}
+				fieldSources={fieldSources}
+				onInputChange={onInputChange}
+			/>
+		),
+		[fieldSources, onInputChange, values],
+	);
+
+	if (!fieldPrimary) {
 		return null;
 	}
 
-	const fieldKey = input.attributes.primary;
-	const source = fieldSources[fieldKey];
-	const handleFieldValueChange = (value: unknown) => {
-		handleInputChange(fieldKey, value);
-	};
-
 	if (input.name === "Info") {
-		return (
-			<div className="relative" key={`info-wrapper-${fieldKey}`}>
-				{source && source !== "empty" && (
-					<div className="absolute -top-1 right-0 z-10">
-						<SourceIndicator source={source} />
-					</div>
-				)}
-					<InfoInput
-						input={input}
-						onChange={handleFieldValueChange}
-						value={values[fieldKey] as string | number | undefined}
-					/>
-			</div>
-		);
+		return renderInfoTagInput({
+			fieldKey,
+			handleFieldValueChange,
+			input,
+			source,
+			values,
+		});
+	}
+	if (input.name !== "Switch") {
+		return null;
 	}
 
-	if (input.name === "Switch") {
-		const currentValue = values[fieldKey] as string | undefined;
-
-		return (
-			<div className="relative" key={`switch-wrapper-${fieldKey}`}>
-				{source && source !== "empty" && (
-					<div className="absolute -top-1 right-0 z-10">
-						<SourceIndicator source={source} />
-					</div>
-				)}
-					<SwitchInput
-						input={input}
-						onChange={handleFieldValueChange as (newValue: string) => void}
-						value={currentValue}
-					/>
-				{/* Render children of selected case */}
-				{currentValue && input.children && (
-					<div className="mt-4 ml-4 space-y-4">
-						{input.children
-							.filter(
-								(child) =>
-									child.name === "Case" &&
-									child.attributes.primary === currentValue,
-							)
-								.flatMap((caseChild) =>
-									caseChild.children.map((grandChild) =>
-										renderInputTag(
-											grandChild,
-											values,
-											fieldSources,
-											handleInputChange,
-										),
-									),
-								)}
-					</div>
-				)}
-			</div>
-		);
-	}
-
-	return null;
+	return renderSwitchTagInput({
+		fieldKey,
+		handleFieldValueChange,
+		input,
+		renderNestedInputTag: handleRenderNestedInput,
+		source,
+		values,
+	});
 };
 
 /**
@@ -157,25 +235,31 @@ export default function PDFInputs({
 	onChange,
 	onFieldEdit,
 }: PDFInputsProps) {
-	// Use initialValues directly as the source of truth (controlled component)
 	const values = initialValues ?? {};
 
-	const handleInputChange = useCallback((key: string, value: unknown) => {
-		// Update parent state directly
-		onChange({ ...(initialValues ?? {}), [key]: value });
-		// Notify parent that this field was edited (will mark as manual)
-		onFieldEdit(key);
-	}, [initialValues, onChange, onFieldEdit]);
+	const handleInputChange = useCallback(
+		(key: string, value: unknown) => {
+			onChange({ ...initialValues, [key]: value });
+			onFieldEdit(key);
+		},
+		[initialValues, onChange, onFieldEdit],
+	);
 
-	if (inputTags.length === 0 || !inputTags) {
+	if (inputTags.length === 0) {
 		return null;
 	}
 
-		return (
-			<form className="w-full max-w-full space-y-6 pr-4">
-				{inputTags.map((inputTag) =>
-					renderInputTag(inputTag, values, fieldSources, handleInputChange),
-				)}
-			</form>
-		);
-	}
+	return (
+		<form className="w-full max-w-full space-y-6 pr-4">
+			{inputTags.map((inputTag) => (
+				<RenderInputTag
+					key={`${inputTag.name}-${inputTag.attributes.primary ?? ""}`}
+					input={inputTag}
+					values={values}
+					fieldSources={fieldSources}
+					onInputChange={handleInputChange}
+				/>
+			))}
+		</form>
+	);
+}

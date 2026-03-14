@@ -1,12 +1,10 @@
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import type { PublicAiTextForm } from "./custom-form-config";
-import {
-	getBuiltInAiscribeOverrideSlug,
-	type BuiltInAiscribeTemplateKey,
-} from "./built-in-form-config";
+import { getBuiltInAiscribeOverrideSlug } from './built-in-form-config';
+import type { BuiltInAiscribeTemplateKey } from './built-in-form-config';
 
-export const resolveBuiltInAiscribeOverrideForm = async (
+export const resolveBuiltInAiscribeOverrideForm = (
 	template: BuiltInAiscribeTemplateKey,
 ): Promise<PublicAiTextForm | null> => {
 	const queryClient = getQueryClient();

@@ -1,4 +1,4 @@
-import { DIAGNOSIS_CONTEXT_GUIDANCE } from "../context/patient/guidance";
+import { DIAGNOSIS_CONTEXT_GUIDANCE } from "@/orpc/scribe/context/patient/guidance";
 import type {
 	AnamneseVariables,
 	BefundeVariables,
@@ -13,7 +13,7 @@ import type {
 	ProceduresVariables,
 	PromptMessage,
 	PromptVariables,
-} from "../types";
+} from "@/orpc/scribe/types";
 import { ANAMNESE_SYSTEM_PROMPT } from "./families/anamnese/anamnese";
 import { DIAGNOSIS_SYSTEM_PROMPT, DIAGNOSIS_TASK_EXECUTION } from "./families/diagnosis/diagnosis";
 import { DISCHARGE_SYSTEM_PROMPT, DISCHARGE_TASK_EXECUTION } from "./families/narrative/discharge";
@@ -25,7 +25,8 @@ import { OUTPATIENT_SYSTEM_PROMPT } from "./families/narrative/outpatient";
 import { PROCEDURES_INPUT_LABEL, PROCEDURES_SYSTEM_PROMPT } from "./families/procedures/procedures";
 import { BEFUNDE_SYSTEM_PROMPT, BEFUNDE_TASK_EXECUTION } from "./families/reports/befunde";
 import { PHYSICAL_EXAM_SYSTEM_PROMPT } from "./families/reports/physical-exam";
-import { createPromptMessages, type PromptPart } from "./shared";
+import { createPromptMessages } from './shared';
+import type { PromptPart } from './shared';
 
 const ANAMNESE_FALLBACK_TEMPLATE = `
 # Anamnese
@@ -42,7 +43,7 @@ Puls 60/min, RR 180/20 mmHg, SpO2 99%, AF 15/min, Blutzucker 120 mg/dl
 
 `
 
-export interface RegisteredPromptHarness {
+interface RegisteredPromptHarness {
 	buildPrompt: (variables: PromptVariables) => PromptMessage[];
 	id: PromptHarnessId;
 	label: string;
@@ -73,57 +74,97 @@ const buildDateLine = <T extends PromptVariables>(vars: T): string =>
 	`Das heutige Datum ist der ${vars.todaysDate}.`;
 
 const documentPromptDefinitions = {
-	discharge: createDocumentPromptDefinition<DischargeVariables>({
-		harness: {
-			systemParts: [DISCHARGE_SYSTEM_PROMPT],
-			userParts: [buildDateLine, (vars) => vars.contextXml, DISCHARGE_TASK_EXECUTION],
-		},
-		label: "Inpatient_discharge",
-		modelConfig: {
-			thinking: true,
-			thinkingBudget: 12_000,
-			maxTokens: 20_000,
-			temperature: 0.3,
-		},
-		promptName: "Inpatient_discharge",
-	}),
 	anamnese: createDocumentPromptDefinition<AnamneseVariables>({
 		harness: {
 			systemParts: [ANAMNESE_SYSTEM_PROMPT],
 			userParts: [ANAMNESE_FALLBACK_TEMPLATE, (vars) => vars.contextXml],
 		},
-		label: "ER Anamnese",
-		modelConfig: {
-			thinking: false,
-			maxTokens: 20_000,
-			temperature: 1,
-		},
+			label: "ER Anamnese",
+			modelConfig: {
+				maxTokens: 20_000,
+				temperature: 1,
+				thinking: false,
+			},
 		promptName: "ER_Anamnese_chat",
+	}),
+	befunde: createDocumentPromptDefinition<BefundeVariables>({
+		harness: {
+			systemParts: [BEFUNDE_SYSTEM_PROMPT],
+			userParts: [buildDateLine, (vars) => vars.contextXml, BEFUNDE_TASK_EXECUTION],
+		},
+			label: "diagnostic_results",
+			modelConfig: {
+				maxTokens: 20_000,
+				temperature: 1,
+				thinking: false,
+			},
+		promptName: "diagnostic_results",
 	}),
 	diagnosis: createDocumentPromptDefinition<DiagnosisVariables>({
 		harness: {
 			systemParts: [DIAGNOSIS_SYSTEM_PROMPT, DIAGNOSIS_CONTEXT_GUIDANCE],
 			userParts: [buildDateLine, (vars) => vars.contextXml, DIAGNOSIS_TASK_EXECUTION],
 		},
-		label: "Diagnoses",
-		modelConfig: {
-			thinking: false,
-			maxTokens: 2000,
-			temperature: 0.1,
-		},
+			label: "Diagnoses",
+			modelConfig: {
+				maxTokens: 2000,
+				temperature: 0.1,
+				thinking: false,
+			},
 		promptName: "Diagnoses",
+	}),
+	discharge: createDocumentPromptDefinition<DischargeVariables>({
+		harness: {
+			systemParts: [DISCHARGE_SYSTEM_PROMPT],
+			userParts: [buildDateLine, (vars) => vars.contextXml, DISCHARGE_TASK_EXECUTION],
+		},
+			label: "Inpatient_discharge",
+			modelConfig: {
+				maxTokens: 20_000,
+				temperature: 0.3,
+				thinking: true,
+				thinkingBudget: 12_000,
+			},
+		promptName: "Inpatient_discharge",
+	}),
+	"icu-transfer": createDocumentPromptDefinition<IcuTransferVariables>({
+		harness: {
+			systemParts: [ICU_TRANSFER_SYSTEM_PROMPT],
+			userParts: [ICU_TRANSFER_OUTPUT_PROMPT, buildDateLine, (vars) => vars.contextXml],
+		},
+			label: "icu_transfer",
+			modelConfig: {
+				maxTokens: 2000,
+				temperature: 0.1,
+				thinking: false,
+			},
+		promptName: "icu_transfer",
+	}),
+	outpatient: createDocumentPromptDefinition<OutpatientVariables>({
+		harness: {
+			systemParts: [OUTPATIENT_SYSTEM_PROMPT],
+			userParts: [(vars) => vars.contextXml],
+		},
+			label: "outpatient_visit",
+			modelConfig: {
+				maxTokens: 20_000,
+				temperature: 1,
+				thinking: true,
+				thinkingBudget: 8000,
+			},
+		promptName: "outpatient_visit",
 	}),
 	"physical-exam": createDocumentPromptDefinition<PhysicalExamVariables>({
 		harness: {
 			systemParts: [PHYSICAL_EXAM_SYSTEM_PROMPT],
 			userParts: [buildDateLine, (vars) => vars.contextXml],
 		},
-		label: "physical_exam",
-		modelConfig: {
-			thinking: false,
-			maxTokens: 20_000,
-			temperature: 1,
-		},
+			label: "physical_exam",
+			modelConfig: {
+				maxTokens: 20_000,
+				temperature: 1,
+				thinking: false,
+			},
 		promptName: "physical_exam",
 	}),
 	procedures: createDocumentPromptDefinition<ProceduresVariables>({
@@ -135,54 +176,14 @@ const documentPromptDefinitions = {
 				(vars) => vars.contextXml,
 			],
 		},
-		label: "procedure",
-		modelConfig: {
-			thinking: false,
-			thinkingBudget: 8000,
-			maxTokens: 20_000,
-			temperature: 1,
-		},
+			label: "procedure",
+			modelConfig: {
+				maxTokens: 20_000,
+				temperature: 1,
+				thinking: false,
+				thinkingBudget: 8000,
+			},
 		promptName: "procedure",
-	}),
-	befunde: createDocumentPromptDefinition<BefundeVariables>({
-		harness: {
-			systemParts: [BEFUNDE_SYSTEM_PROMPT],
-			userParts: [buildDateLine, (vars) => vars.contextXml, BEFUNDE_TASK_EXECUTION],
-		},
-		label: "diagnostic_results",
-		modelConfig: {
-			thinking: false,
-			maxTokens: 20_000,
-			temperature: 1,
-		},
-		promptName: "diagnostic_results",
-	}),
-	outpatient: createDocumentPromptDefinition<OutpatientVariables>({
-		harness: {
-			systemParts: [OUTPATIENT_SYSTEM_PROMPT],
-			userParts: [(vars) => vars.contextXml],
-		},
-		label: "outpatient_visit",
-		modelConfig: {
-			thinking: true,
-			thinkingBudget: 8000,
-			maxTokens: 20_000,
-			temperature: 1,
-		},
-		promptName: "outpatient_visit",
-	}),
-	"icu-transfer": createDocumentPromptDefinition<IcuTransferVariables>({
-		harness: {
-			systemParts: [ICU_TRANSFER_SYSTEM_PROMPT],
-			userParts: [ICU_TRANSFER_OUTPUT_PROMPT, buildDateLine, (vars) => vars.contextXml],
-		},
-		label: "icu_transfer",
-		modelConfig: {
-			thinking: false,
-			maxTokens: 2000,
-			temperature: 0.1,
-		},
-		promptName: "icu_transfer",
 	}),
 } satisfies Record<DocumentType, DocumentPromptDefinition>;
 
@@ -202,16 +203,16 @@ export type PromptHarnessId =
 
 type PromptHarnessRegistry = Record<PromptHarnessId, RegisteredPromptHarness>;
 
-const promptHarnessRegistry = exposedPromptHarnessDocumentTypes.reduce((registry, documentType) => {
+const promptHarnessRegistry: PromptHarnessRegistry = {};
+for (const documentType of exposedPromptHarnessDocumentTypes) {
 	const definition = documentPromptDefinitions[documentType];
 	const id = definition.promptName as PromptHarnessId;
-	registry[id] = {
+	promptHarnessRegistry[id] = {
 		buildPrompt: definition.prompt,
 		id,
 		label: definition.label,
 	};
-	return registry;
-}, {} as PromptHarnessRegistry);
+}
 
 export const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> =
 	documentPromptDefinitions;

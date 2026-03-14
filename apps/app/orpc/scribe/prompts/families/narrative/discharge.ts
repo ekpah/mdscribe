@@ -1,4 +1,4 @@
-import { NARRATIVE_CONTENT_REQUIREMENTS } from "../../core/content-requirements";
+import { NARRATIVE_CONTENT_REQUIREMENTS } from "@/orpc/scribe/prompts/core/content-requirements";
 import { NARRATIVE_OUTPUT_STRUCTURE } from "./discharge/output-structure";
 import { NARRATIVE_EXECUTION_INSTRUCTION } from "./shared/execution-instruction";
 import { NARRATIVE_PRIMARY_OBJECTIVE } from "./shared/primary-objective";

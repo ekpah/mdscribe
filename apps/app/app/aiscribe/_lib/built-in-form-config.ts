@@ -4,7 +4,7 @@ import type { DocumentType } from "@/orpc/scribe/types";
 import type {
 	AdditionalInputField,
 	AiscribeTemplateConfig,
-} from "../_components/aiscribe-template";
+} from "@/app/aiscribe/_components/aiscribe-template";
 import type { PublicAiTextForm } from "./custom-form-config";
 
 interface BuiltInAiscribeTemplateDefinition {

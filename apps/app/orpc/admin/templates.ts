@@ -9,7 +9,7 @@ import {
 } from "@repo/database";
 
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "../middlewares/admin";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
 const listAdminTemplatesHandler = authed
 	.use(requiredAdminMiddleware)

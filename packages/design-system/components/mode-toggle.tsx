@@ -3,14 +3,14 @@
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "../components/ui/button";
+import { Button } from "@repo/design-system/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { cn } from "../lib/utils";
+} from "@repo/design-system/components/ui/dropdown-menu";
+import { cn } from "@repo/design-system/lib/utils";
 
 const themes = [
 	{ label: "Light", value: "light" },
@@ -47,11 +47,15 @@ export const ModeToggle = () => {
 				</Button>
 			</DropdownMenuTrigger>
 				<DropdownMenuContent>
-					{themes.map(({ label, value }) => (
-						<DropdownMenuItem key={value} onClick={themeClickHandlers[value]}>
-							{label}
-						</DropdownMenuItem>
-					))}
+					{themes.map(({ label, value }) => {
+						const handleThemeClick = themeClickHandlers[value];
+
+						return (
+							<DropdownMenuItem key={value} onClick={handleThemeClick}>
+								{label}
+							</DropdownMenuItem>
+						);
+					})}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

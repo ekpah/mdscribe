@@ -1,13 +1,13 @@
 import type { DocumentType } from "@/orpc/scribe/types";
 
-export interface ScribeDocTypeUiField {
+interface ScribeDocTypeUiField {
 	name: string;
 	label: string;
 	placeholder: string;
 	description?: string;
 }
 
-export interface ScribeDocTypeUiConfig {
+interface ScribeDocTypeUiConfig {
 	label: string;
 	mainField: ScribeDocTypeUiField;
 	additionalFields: ScribeDocTypeUiField[];

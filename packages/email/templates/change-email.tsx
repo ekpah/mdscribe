@@ -58,4 +58,3 @@ export const EmailChangeTemplate = ({
     </Html>
   </Tailwind>
 );
-

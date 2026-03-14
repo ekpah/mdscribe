@@ -93,9 +93,7 @@ export const NavActions = ({
     return new Set(
       typedCollections
         .filter((collection) =>
-          collection.templates.some((collectionTemplate) => {
-            return collectionTemplate.id === templateId;
-          })
+          collection.templates.some((collectionTemplate) => collectionTemplate.id === templateId)
         )
         .map((collection) => collection.id)
     );
@@ -107,11 +105,11 @@ export const NavActions = ({
         return;
       }
 
-      if (shouldBeFavourite) {
-        await orpc.templates.addFavourite.call({ templateId });
-      } else {
-        await orpc.templates.removeFavourite.call({ templateId });
-      }
+      await (
+        shouldBeFavourite
+          ? orpc.templates.addFavourite.call({ templateId })
+          : orpc.templates.removeFavourite.call({ templateId })
+      );
     },
     onSuccess: async (_, shouldBeFavourite) => {
       setBookmark(shouldBeFavourite);
@@ -121,16 +119,16 @@ export const NavActions = ({
 
   const addTemplateMutation = useMutation(
     orpc.user.collections.addTemplate.mutationOptions({
-      onSuccess: () => {
-        void invalidateCollections();
+      onSuccess: async () => {
+        await invalidateCollections();
       },
     })
   );
 
   const removeTemplateMutation = useMutation(
     orpc.user.collections.removeTemplate.mutationOptions({
-      onSuccess: () => {
-        void invalidateCollections();
+      onSuccess: async () => {
+        await invalidateCollections();
       },
     })
   );
@@ -194,6 +192,82 @@ export const NavActions = ({
     router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   }, [contentView, hasExamples, pathname, router, searchParams]);
 
+  const contentViewTooltip = (() => {
+    if (!hasExamples) {
+      return 'Keine Beispiele vorhanden';
+    }
+    if (contentView === 'examples') {
+      return 'Template anzeigen';
+    }
+    return 'Beispiele anzeigen';
+  })();
+
+  const handleDropdownItemSelect = useCallback((event: Event) => {
+    event.preventDefault();
+  }, []);
+
+  const handleFavouriteCheckedChange = useCallback(
+    async (checked: boolean) => {
+      try {
+        await handleToggleFavourite(Boolean(checked));
+      } catch (error) {
+        console.error('Error toggling favourite:', error);
+      }
+    },
+    [handleToggleFavourite]
+  );
+
+  const collectionCheckedHandlers = useMemo(() => {
+    const handlers: Record<string, (checked: boolean) => Promise<void>> = {};
+    for (const collection of typedCollections) {
+      handlers[collection.id] = async (checked: boolean) => {
+        try {
+          await handleToggleCollection(collection.id, Boolean(checked));
+        } catch (error) {
+          console.error('Error toggling collection:', error);
+        }
+      };
+    }
+    return handlers;
+  }, [handleToggleCollection, typedCollections]);
+
+  const editorAction = (() => {
+    if (isLoggedIn && templateId) {
+      if (isAuthor) {
+        return (
+          <Link href={`/templates/${templateId}/edit`}>
+            <Button className="h-7 w-7" size="icon" variant="ghost">
+              <Pencil2Icon />
+            </Button>
+          </Link>
+        );
+      }
+
+      return (
+        <Link href={`/templates/create?fork=${templateId}`}>
+          <Button className="h-7 w-7" size="icon" variant="ghost">
+            <Share1Icon />
+          </Button>
+        </Link>
+      );
+    }
+
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href="#">
+              <Pencil2Icon />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Nur für registrierte Nutzer</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  })();
+
   return (
     <div className="flex items-center gap-2 text-sm">
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
@@ -221,41 +295,40 @@ export const NavActions = ({
             <DropdownMenuCheckboxItem
               checked={isBookmark}
               disabled={favouriteMutation.isPending}
-              onCheckedChange={(checked) => {
-                void handleToggleFavourite(Boolean(checked));
-              }}
-              onSelect={(event) => {
-                event.preventDefault();
-              }}
+              onCheckedChange={handleFavouriteCheckedChange}
+              onSelect={handleDropdownItemSelect}
             >
               <span className="font-medium">Favoriten</span>
             </DropdownMenuCheckboxItem>
 
             {typedCollections.length > 0 ? <DropdownMenuSeparator /> : null}
 
-            {typedCollections.map((collection) => (
-              <DropdownMenuCheckboxItem
-                checked={collectionsContainingTemplate.has(collection.id)}
-                className="items-start py-2"
-                disabled={isCollectionMutationPending}
-                key={collection.id}
-                onCheckedChange={(checked) => {
-                  void handleToggleCollection(collection.id, Boolean(checked));
-                }}
-                onSelect={(event) => {
-                  event.preventDefault();
-                }}
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium">{collection.name}</span>
-                  {collection.description ? (
-                    <span className="text-muted-foreground text-xs">
-                      {collection.description}
-                    </span>
-                  ) : null}
-                </div>
-              </DropdownMenuCheckboxItem>
-            ))}
+            {typedCollections.map((collection) => {
+              const handleCollectionCheckedChange = collectionCheckedHandlers[collection.id];
+              if (!handleCollectionCheckedChange) {
+                return null;
+              }
+
+              return (
+                <DropdownMenuCheckboxItem
+                  checked={collectionsContainingTemplate.has(collection.id)}
+                  className="items-start py-2"
+                  disabled={isCollectionMutationPending}
+                  key={collection.id}
+                  onCheckedChange={handleCollectionCheckedChange}
+                  onSelect={handleDropdownItemSelect}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{collection.name}</span>
+                    {collection.description ? (
+                      <span className="text-muted-foreground text-xs">
+                        {collection.description}
+                      </span>
+                    ) : null}
+                  </div>
+                </DropdownMenuCheckboxItem>
+              );
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -279,13 +352,7 @@ export const NavActions = ({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>
-              {hasExamples
-                ? contentView === 'examples'
-                  ? 'Template anzeigen'
-                  : 'Beispiele anzeigen'
-                : 'Keine Beispiele vorhanden'}
-            </p>
+            <p>{contentViewTooltip}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -294,34 +361,7 @@ export const NavActions = ({
       <span className="flex w-12 flex-row font-medium text-muted-foreground">
         {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
       </span>
-      {isLoggedIn && templateId ? (
-        isAuthor ? (
-          <Link href={`/templates/${templateId}/edit`}>
-            <Button className="h-7 w-7" size="icon" variant="ghost">
-              <Pencil2Icon />
-            </Button>
-          </Link>
-        ) : (
-          <Link href={`/templates/create?fork=${templateId}`}>
-            <Button className="h-7 w-7" size="icon" variant="ghost">
-              <Share1Icon />
-            </Button>
-          </Link>
-        )
-      ) : (
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link href="#">
-                <Pencil2Icon />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Nur für registrierte Nutzer</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+      {editorAction}
     </div>
   );
 };

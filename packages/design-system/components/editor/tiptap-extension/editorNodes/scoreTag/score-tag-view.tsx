@@ -6,15 +6,17 @@ import Formula from 'fparser';
 import { AlertTriangle, Calculator, CheckCircle2, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
-import { Button } from '../../../../ui/button';
-import { Input } from '../../../../ui/input';
-import { Label } from '../../../../ui/label';
+import { Button } from '@repo/design-system/components/ui/button';
+import { Input } from '@repo/design-system/components/ui/input';
+import { Label } from '@repo/design-system/components/ui/label';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '../../../../ui/popover';
-import { Textarea } from '../../../../ui/textarea';
+} from '@repo/design-system/components/ui/popover';
+import { Textarea } from '@repo/design-system/components/ui/textarea';
+
+const SCORE_OPERATORS = ['+', '-', '*', '/', '(', ')'] as const;
 
 export const ScoreTagView = ({
   node,
@@ -194,16 +196,15 @@ export const ScoreTagView = ({
     return handlers;
   }, [availableVariables, insertVariable]);
 
-  const operators = ['+', '-', '*', '/', '(', ')'] as const;
   const operatorInsertHandlers = useMemo<Record<string, () => void>>(() => {
     const handlers: Record<string, () => void> = {};
-    for (const operator of operators) {
+    for (const operator of SCORE_OPERATORS) {
       handlers[operator] = () => {
         insertOperator(operator);
       };
     }
     return handlers;
-  }, [insertOperator, operators]);
+  }, [insertOperator]);
 
   return (
     <NodeViewWrapper
@@ -282,17 +283,18 @@ export const ScoreTagView = ({
                       <span className="font-mono">[age]</span>.
                     </p>
 
-                    {parseError ? (
-                      <div className="flex items-start gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive text-xs">
-                        <AlertTriangle className="mt-0.5 h-3 w-3" />
-                        <span>Formel ist ungültig. Prüfe Klammern und Operatoren.</span>
-                      </div>
-                    ) : (formulaValue.trim() ? (
-                      <div className="flex items-center gap-1 text-emerald-600 text-xs">
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>Formel sieht gültig aus.</span>
-                      </div>
-                    ) : null)}
+	                    {parseError ? (
+	                      <div className="flex items-start gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive text-xs">
+	                        <AlertTriangle className="mt-0.5 h-3 w-3" />
+	                        <span>Formel ist ungültig. Prüfe Klammern und Operatoren.</span>
+	                      </div>
+	                    ) : null}
+	                    {!parseError && formulaValue.trim() ? (
+	                      <div className="flex items-center gap-1 text-emerald-600 text-xs">
+	                        <CheckCircle2 className="h-3 w-3" />
+	                        <span>Formel sieht gültig aus.</span>
+	                      </div>
+	                    ) : null}
 
                     {parsedVariables.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
@@ -313,16 +315,20 @@ export const ScoreTagView = ({
                     <Label className="font-medium text-xs">Schnell einfügen</Label>
                     <div className="flex flex-wrap gap-1.5">
                       {availableVariables.length > 0 ? (
-                        availableVariables.map((variable) => (
-                          <button
-                            key={variable}
-                            type="button"
-                            onClick={variableInsertHandlers[variable]}
-                            className="inline-flex items-center rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange transition hover:border-solarized-orange/50 hover:bg-solarized-orange/15"
-                          >
-                            [{variable}]
-                          </button>
-                        ))
+                        availableVariables.map((variable) => {
+                          const handleInsertVariable = variableInsertHandlers[variable];
+
+                          return (
+                            <button
+                              key={variable}
+                              type="button"
+                              onClick={handleInsertVariable}
+                              className="inline-flex items-center rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange transition hover:border-solarized-orange/50 hover:bg-solarized-orange/15"
+                            >
+                              [{variable}]
+                            </button>
+                          );
+                        })
                       ) : (
                         <span className="text-muted-foreground text-xs">
                           Noch keine Info-Variablen im Dokument.
@@ -330,16 +336,20 @@ export const ScoreTagView = ({
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {operators.map((operator) => (
-                        <button
-                          key={operator}
-                          type="button"
-                          onClick={operatorInsertHandlers[operator]}
-                          className="inline-flex items-center rounded-md border border-solarized-orange/20 bg-background px-2 py-0.5 font-mono text-[11px] text-foreground transition hover:border-solarized-orange/40 hover:bg-solarized-orange/5"
-                        >
-                          {operator}
-                        </button>
-                      ))}
+                      {operators.map((operator) => {
+                        const handleInsertOperator = operatorInsertHandlers[operator];
+
+                        return (
+                          <button
+                            key={operator}
+                            type="button"
+                            onClick={handleInsertOperator}
+                            className="inline-flex items-center rounded-md border border-solarized-orange/20 bg-background px-2 py-0.5 font-mono text-[11px] text-foreground transition hover:border-solarized-orange/40 hover:bg-solarized-orange/5"
+                          >
+                            {operator}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

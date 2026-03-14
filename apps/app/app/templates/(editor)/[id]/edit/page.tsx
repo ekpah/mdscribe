@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Editor from "../../../_components/editor";
-import { getEditTemplateEditorData } from "../../../_lib/editor-page-data";
+import Editor from "@/app/templates/_components/editor";
+import { getEditTemplateEditorData } from "@/app/templates/_lib/editor-page-data";
 
 export const dynamicParams = false;
 

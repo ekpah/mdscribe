@@ -1,28 +1,24 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
-import { type ModelMessage, streamText } from "ai";
+import { streamText } from 'ai';
+import type { ModelMessage } from 'ai';
 import { z } from "zod";
 
-import {
-	buildUsageEventData,
-	extractOpenRouterUsage,
-	type StandardUsage,
-	type UsageInputData,
-	type UsageMetadata,
-} from "@/lib/usage-logging";
+import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
+import type { StandardUsage, UsageInputData, UsageMetadata } from '@/lib/usage-logging';
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "../middlewares/admin";
-import { composeScribeContext } from "../scribe/context";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { composeScribeContext } from "@/orpc/scribe/context";
 import {
 	createPromptVariables,
 	composeDocumentTypePrompt,
 	documentTypeConfigs,
-} from "../scribe/prompts";
+} from "@/orpc/scribe/prompts";
 import {
 	resolveModelByRecordId,
 	resolveProviderModel,
-} from "../scribe/providers";
-import type { PromptVariables } from "../scribe/types";
+} from "@/orpc/scribe/providers";
+import type { PromptVariables } from "@/orpc/scribe/types";
 
 const compilePromptInput = z.object({
 	documentType: z.string(),
@@ -89,8 +85,8 @@ const compilePromptHandler = authed
 
 		return {
 			compiledMessages,
-			promptVariables,
 			promptSource: "local",
+			promptVariables,
 			resolvedPromptName,
 			variablesUsed,
 		};
@@ -264,27 +260,27 @@ export const scribeHandler = {
 				const [documentType, config] = entry;
 
 				const sampleVariables = {
+					anamnese: "[Anamnese]",
+					befunde: "[Befunde]",
+					contextXml: "<patient_context></patient_context>",
+					diagnoseblock: "[Diagnoseblock]",
+					notes: "[Notizen]",
+					relevantTemplate: "[Relevante Vorlage]",
 					todaysDate: new Date().toLocaleDateString("de-DE", {
 						day: "2-digit",
 						month: "2-digit",
 						year: "numeric",
 					}),
-					anamnese: "[Anamnese]",
-					befunde: "[Befunde]",
-					diagnoseblock: "[Diagnoseblock]",
-					notes: "[Notizen]",
-					relevantTemplate: "[Relevante Vorlage]",
-					contextXml: "<patient_context></patient_context>",
 				} as PromptVariables;
 
 				const messages = config.prompt(sampleVariables);
 
 				return {
-					name: config.promptName,
 					documentType,
-					source: "local",
-					modelConfig: config.modelConfig,
 					messages,
+					modelConfig: config.modelConfig,
+					name: config.promptName,
+					source: "local",
 				};
 			}),
 		list: authed

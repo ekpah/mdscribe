@@ -1,13 +1,6 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import {
-	and,
-	aiScribeFormConfig,
-	eq,
-	inArray,
-	subscription,
-	type Database,
-	usageEvent,
-} from "@repo/database";
+import { and, aiScribeFormConfig, eq, inArray, subscription, usageEvent } from '@repo/database';
+import type { Database } from '@repo/database';
 import { streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
 import { after } from "next/server";
@@ -17,23 +10,18 @@ import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-l
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 
-import { getUsage } from "../_lib/get-usage";
-import {
-	buildSelectedTemplateReference,
-	composeScribeContext,
-	findRelevantTemplateForProcedure,
-	type ContextBuildInput,
-	type TemplateContextInput,
-} from "../context";
+import { getUsage } from "@/orpc/scribe/_lib/get-usage";
+import { buildSelectedTemplateReference, composeScribeContext, findRelevantTemplateForProcedure } from '@/orpc/scribe/context';
+import type { ContextBuildInput, TemplateContextInput } from '@/orpc/scribe/context';
 import {
 	composeDocumentTypePrompt,
 	composePromptHarnessPrompt,
 	documentTypeConfigs,
 	injectCustomTemplateInstruction,
 	resolveCustomModelConfig,
-} from "../prompts";
-import { resolveModel, resolveModelByRecordId } from "../providers";
-import type { AudioFile, DocumentType, ModelConfig, PromptMessage } from "../types";
+} from "@/orpc/scribe/prompts";
+import { resolveModel, resolveModelByRecordId } from "@/orpc/scribe/providers";
+import type { AudioFile, DocumentType, ModelConfig, PromptMessage } from "@/orpc/scribe/types";
 
 const parsePromptPayload = (prompt: string): Record<string, unknown> => {
 	if (!prompt.trim()) {
@@ -122,10 +110,10 @@ const hasFileLikeInput = (value: unknown): boolean => {
 	return false;
 };
 
-const scheduleAfter = (callback: () => Promise<void>): void => {
+const scheduleAfter = (task: Promise<void>): void => {
 	const run = async () => {
 		try {
-			await callback();
+			await task;
 		} catch (error) {
 			// Usage logging should never break request handling or tests.
 			console.error("Deferred usage logging failed:", error);
@@ -136,7 +124,7 @@ const scheduleAfter = (callback: () => Promise<void>): void => {
 		after(run);
 	} catch {
 		// Fallback for non-request contexts (e.g. direct handler unit tests).
-		void run();
+		run();
 	}
 };
 
@@ -251,7 +239,7 @@ const extractPromptFromMessages = (messages: UIMessage[]): string => {
 
 const toTemplateContextInput = (template: {
 	content: string;
-	examples: Array<{ content: string }>;
+	examples: { content: string }[];
 	title: string;
 }): TemplateContextInput => ({
 	content: template.content,
@@ -329,11 +317,12 @@ const resolveCustomFormRequest = async ({
 		template,
 	});
 
-	const relevantTemplate = customForm.template
-		? buildSelectedTemplateReference(customForm.template)
-		: customForm.promptHarness === "procedure"
-			? await findRelevantTemplateForProcedure(patientContext.notes)
-			: undefined;
+	let relevantTemplate: string | undefined;
+	if (customForm.template) {
+		relevantTemplate = buildSelectedTemplateReference(customForm.template);
+	} else if (customForm.promptHarness === "procedure") {
+		relevantTemplate = await findRelevantTemplateForProcedure(patientContext.notes);
+	}
 
 	const promptMessages = composePromptHarnessPrompt(customForm.promptHarness, {
 		contextXml,
@@ -366,7 +355,7 @@ export const scribeStreamHandler = authed
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
 		const inputMessages = input.messages;
-		const audioFiles = input.audioFiles;
+		const {audioFiles} = input;
 
 		// Extract prompt from the last user message
 		const prompt = extractPromptFromMessages(inputMessages);
@@ -472,7 +461,7 @@ export const scribeStreamHandler = authed
 			model: resolved.model,
 			onFinish: (event) => {
 				// PERF: Use after() for non-blocking usage logging (faster stream completion)
-				scheduleAfter(async () => {
+				scheduleAfter((async () => {
 					// Extract OpenRouter usage data (graceful fallback for non-OpenRouter)
 					const openRouterUsage = resolved.isOpenRouter
 						? extractOpenRouterUsage(event.providerMetadata)
@@ -505,8 +494,8 @@ export const scribeStreamHandler = authed
 							standardUsage: event.usage as StandardUsage,
 							userId: context.session.user.id,
 						}),
-					);
-				});
+						);
+					})());
 			},
 			providerOptions,
 			temperature: resolvedRequest.config.modelConfig.temperature ?? 1,

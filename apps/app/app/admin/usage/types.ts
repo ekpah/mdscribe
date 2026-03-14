@@ -1,4 +1,4 @@
-export interface UsageEventUser {
+interface UsageEventUser {
 	email: string;
 	id: string;
 	name: string | null;

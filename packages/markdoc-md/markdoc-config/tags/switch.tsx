@@ -1,7 +1,7 @@
 'use client';
 import type { ReactNode } from 'react';
 import React from 'react';
-import { useVariables } from '../../render/context/variable-context';
+import { useVariables } from '@/render/context/variable-context';
 
 export const SwitchContext = React.createContext<string | null>(null);
 
@@ -15,20 +15,11 @@ export const Switch = ({
   let resolvedSwitchValue: string | null = null;
   if (primary !== null) {
     const valueFromContext = variables[primary];
-
-    if (typeof valueFromContext === 'string' || valueFromContext === null) {
-      resolvedSwitchValue = valueFromContext;
-    } else {
-      // valueFromContext is undefined (key not in variables), or a non-string/non-null type.
-      // Default to null to satisfy SwitchContext's type string | null.
-      // This implicitly handles the "TODO: error, if variable does not exist"
-      // by providing null as the value for the context.
-      resolvedSwitchValue = null;
-      // Optionally, one could add a console.warn here if valueFromContext was defined but not a string/null:
-      // if (valueFromContext !== undefined) {
-      //   console.warn(`Switch: Variable "${primary}" in context was type ${typeof valueFromContext}, expected string or null. Using null for SwitchContext.`);
-      // }
-    }
+    // valueFromContext can be undefined or a non-string/non-null type; map those to null.
+    resolvedSwitchValue =
+      typeof valueFromContext === 'string' || valueFromContext === null
+        ? valueFromContext
+        : null;
   }
   // If primary was initially null, resolvedSwitchValue remains null.
 

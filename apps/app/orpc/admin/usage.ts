@@ -14,7 +14,7 @@ import {
 import { z } from "zod";
 
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "../middlewares/admin";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
 const listUsageEventsInput = z.object({
 	cursor: z.string().optional(),
@@ -187,10 +187,9 @@ const getDateRangeStart = (
 			start.setHours(0, 0, 0, 0);
 			return start;
 		}
-		case "all":
-		default: {
-			return null;
-		}
+			default: {
+				return null;
+			}
 	}
 };
 

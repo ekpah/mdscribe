@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
-import Editor from "../../_components/editor";
-import { getCreateTemplateEditorData } from "../../_lib/editor-page-data";
+import Editor from "@/app/templates/_components/editor";
+import { getCreateTemplateEditorData } from "@/app/templates/_lib/editor-page-data";
 
 export const dynamicParams = false;
 
-export const generateMetadata = (): Metadata => {
-	return {
+export const generateMetadata = (): Metadata => ({
 		title: "Scribe - Template erstellen",
-	};
-};
+	});
 
 export default async function CreateTemplate({
 	searchParams,

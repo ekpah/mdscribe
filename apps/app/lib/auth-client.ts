@@ -3,7 +3,7 @@ import { env } from "@repo/env";
 import { useQuery } from "@tanstack/react-query";
 import { inferAdditionalFields } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
-import type { auth } from "../auth.ts";
+import type { auth } from "@/auth.ts";
 import type { Session } from "./auth-types";
 import {
 	normalizeSession,

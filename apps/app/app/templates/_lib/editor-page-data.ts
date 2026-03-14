@@ -3,7 +3,7 @@ import "server-only";
 import { QueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
-export interface TemplateEditorData {
+interface TemplateEditorData {
 	cat: string;
 	categorySuggestions: string[];
 	tit: string;
@@ -20,9 +20,7 @@ interface EditorContextData {
 
 const getCommonEditorData = (
 	queryClient: QueryClient,
-): Promise<EditorContextData> => {
-	return queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());
-};
+): Promise<EditorContextData> => queryClient.fetchQuery(orpc.templates.editorContext.queryOptions());
 
 export const getCreateTemplateEditorData = async ({
 	forkId,
@@ -40,9 +38,9 @@ export const getCreateTemplateEditorData = async ({
 	return {
 		...sharedData,
 		cat: forkedTemplate?.category || "",
-		tit: forkedTemplate?.title || "",
-		note: JSON.stringify(forkedTemplate?.content || ""),
 		examples: (forkedTemplate?.examples ?? []).map((example) => example.content),
+		note: JSON.stringify(forkedTemplate?.content || ""),
+		tit: forkedTemplate?.title || "",
 	};
 };
 
@@ -64,9 +62,9 @@ export const getEditTemplateEditorData = async ({
 	return {
 		...sharedData,
 		cat: doc.category || "",
-		tit: doc.title || "",
-		note: JSON.stringify(doc.content || ""),
 		examples: (doc.examples ?? []).map((example) => example.content),
 		id,
+		note: JSON.stringify(doc.content || ""),
+		tit: doc.title || "",
 	};
 };

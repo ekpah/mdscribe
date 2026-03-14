@@ -15,8 +15,8 @@ import {
 	createTestContext,
 	createTestUser,
 	startTestServer,
-} from "../setup";
-import type { TestServer } from "../setup";
+} from "@/__tests__/setup";
+import type { TestServer } from "@/__tests__/setup";
 
 describe("Shared Resolver Usage (admin/documents)", () => {
 	let server: TestServer;
@@ -59,15 +59,17 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			{ context },
 		);
 
-		expect(result).toBeDefined();
-		expect(typeof result[Symbol.asyncIterator]).toBe("function");
+			expect(result).toBeDefined();
+			expect(typeof result[Symbol.asyncIterator]).toBe("function");
 
-		// Drain stream so onFinish usage logging has a chance to complete.
-		for await (const _ of result) {
-			undefined;
-		}
-		await new Promise((resolve) => setTimeout(resolve, 80));
-	});
+			// Drain stream so onFinish usage logging has a chance to complete.
+			let streamedChunkCount = 0;
+			for await (const _chunk of result) {
+				streamedChunkCount += 1;
+			}
+			expect(streamedChunkCount).toBeGreaterThanOrEqual(0);
+			await Bun.sleep(80);
+		});
 
 	test("documents.ocrToMarkdown resolves model via legacy connectionId alias", async () => {
 		const imageBase64 = Buffer.from("fake-image").toString("base64");

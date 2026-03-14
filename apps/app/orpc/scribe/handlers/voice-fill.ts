@@ -7,8 +7,8 @@ import { z } from "zod";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
 
-import { resolveModel } from "../providers";
-import type { InputField, VoiceFillInputPayload } from "../types";
+import { resolveModel } from "@/orpc/scribe/providers";
+import type { InputField, VoiceFillInputPayload } from "@/orpc/scribe/types";
 import { voiceFillConfig } from "./voice-fill-config";
 import type { VoiceFillFieldDefinition } from "./voice-fill-config";
 

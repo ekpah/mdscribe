@@ -156,6 +156,6 @@ function NavigationMenuIndicator({
 }
 
 export {
-  NavigationMenu, NavigationMenuContent,  NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle, 
+  NavigationMenu,   NavigationMenuItem, NavigationMenuLink, NavigationMenuList,  navigationMenuTriggerStyle, 
 }
 

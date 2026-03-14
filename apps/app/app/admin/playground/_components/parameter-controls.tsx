@@ -18,8 +18,8 @@ import {
 import { Brain, HelpCircle, Settings2 } from "lucide-react";
 import { useCallback } from "react";
 import type { ChangeEvent } from "react";
-import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
-import { supportsThinking } from "../_lib/types";
+import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
+import { supportsThinking } from "@/app/admin/playground/_lib/types";
 
 interface ParameterControlsProps {
 	parameters: PlaygroundParameters;

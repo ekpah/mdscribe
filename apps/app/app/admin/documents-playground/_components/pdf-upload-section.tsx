@@ -13,13 +13,38 @@ import {
 } from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { MAX_PDF_UPLOAD_BYTES } from "../_lib/pdf-data";
+import { MAX_PDF_UPLOAD_BYTES } from "@/app/admin/documents-playground/_lib/pdf-data";
 
 interface PDFUploadSectionProps {
 	pdfFile: Uint8Array | null;
 	onFileUpload: (file: Uint8Array) => void;
 	onClear: () => void;
 }
+
+const getFirstBrowserFile = (addedFiles: { file: unknown }[]): File | null => {
+	const firstFile = addedFiles[0]?.file;
+	return firstFile instanceof File ? firstFile : null;
+};
+
+const handleAddedPdfFiles = async (
+	addedFiles: { file: unknown }[],
+	onFileUpload: (file: Uint8Array) => void,
+) => {
+	const firstFile = getFirstBrowserFile(addedFiles);
+	if (!firstFile) {
+		return;
+	}
+	if (firstFile.size > MAX_PDF_UPLOAD_BYTES) {
+		toast.error(
+			`Datei zu groß. Maximal erlaubt: ${formatBytes(MAX_PDF_UPLOAD_BYTES)}`,
+		);
+		return;
+	}
+
+	const arrayBuffer = await firstFile.arrayBuffer();
+	onFileUpload(new Uint8Array(arrayBuffer));
+	toast.success("Dokument hochgeladen");
+};
 
 export default function PDFUploadSection({
 	pdfFile,
@@ -41,28 +66,11 @@ export default function PDFUploadSection({
 		accept: "application/pdf",
 		maxSize: MAX_PDF_UPLOAD_BYTES,
 		multiple: false,
-		onFilesAdded: async (addedFiles) => {
-			const firstFile = addedFiles[0]?.file;
-			if (!firstFile) {
-				return;
-			}
-			if (!(firstFile instanceof File)) {
-				return;
-			}
-			if (firstFile.size > MAX_PDF_UPLOAD_BYTES) {
-				toast.error(
-					`Datei zu groß. Maximal erlaubt: ${formatBytes(MAX_PDF_UPLOAD_BYTES)}`,
-				);
-				return;
-			}
-			const arrayBuffer = await firstFile.arrayBuffer();
-			const file = new Uint8Array(arrayBuffer);
-			onFileUpload(file);
-			toast.success("Dokument hochgeladen");
-		},
+		onFilesAdded: (addedFiles) =>
+			handleAddedPdfFiles(addedFiles as { file: unknown }[], onFileUpload),
 	});
 
-	const file = files[0];
+	const [file] = files;
 	const handleClearFile = useCallback(() => {
 		if (file) {
 			removeFile(file.id);

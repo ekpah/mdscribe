@@ -1,6 +1,6 @@
-import type { PatientContextData } from "../types";
+import type { PatientContextData } from "@/orpc/scribe/context/types";
 
-export interface PatientContextSection {
+interface PatientContextSection {
 	getContent: (input: PatientContextData) => string;
 	purpose: string;
 	tag: "diagnoseblock" | "anamnese" | "befunde" | "notizen";

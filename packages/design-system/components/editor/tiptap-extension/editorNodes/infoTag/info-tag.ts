@@ -3,8 +3,8 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { InfoTagView } from './info-tag-view';
 
-// TODO: Refactor attributes to match InfoTagMenu (primary, variable)
-// The current attributes (tagName) seem incorrect for InfoTag.
+// Keep only `primary` serialized in the node attributes for now.
+// `variable` remains part of the runtime attrs contract used by the view.
 export interface InfoTagAttrs {
   /**
    * The primary text value for the info tag

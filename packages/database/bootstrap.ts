@@ -2,7 +2,7 @@ import { database } from "./client";
 import { initSchemaSQL } from "./init-schema";
 import { seedDatabase } from "./seed";
 
-async function bootstrapDatabase(): Promise<void> {
+const bootstrapDatabase = async (): Promise<void> => {
 	try {
 		console.log("Applying development database schema...");
 		await database.$client.unsafe(initSchemaSQL);
@@ -13,7 +13,7 @@ async function bootstrapDatabase(): Promise<void> {
 	} finally {
 		await database.$client.end({ timeout: 5 });
 	}
-}
+};
 
 try {
 	await bootstrapDatabase();

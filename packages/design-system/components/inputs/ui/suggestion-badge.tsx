@@ -1,9 +1,9 @@
 "use client";
 
 import { Bot } from "lucide-react";
-import { Button } from "../../ui/button";
+import { Button } from "@repo/design-system/components/ui/button";
 
-export interface SuggestionBadgeProps {
+interface SuggestionBadgeProps {
 	/** The suggested value to display */
 	value: string | number;
 	/** Label describing the suggestion source (e.g., "KI-Vorschlag") */

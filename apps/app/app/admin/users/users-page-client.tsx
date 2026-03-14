@@ -8,12 +8,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import {
-	DataTable,
-	DataTablePagination,
-	type DataTableRenderToolbarProps,
-	DataTableViewOptions,
-} from "@repo/design-system/components/ui/data-table";
+import { DataTable, DataTablePagination, DataTableViewOptions } from '@repo/design-system/components/ui/data-table';
+import type { DataTableRenderToolbarProps } from '@repo/design-system/components/ui/data-table';
 import { Input } from "@repo/design-system/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -29,12 +25,8 @@ import Image from "next/image";
 import type { ChangeEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { orpc } from "@/lib/orpc";
-import {
-	columns,
-	formatDate,
-	getSubscriptionLabel,
-	type UserData,
-} from "./columns";
+import { columns, formatDate, getSubscriptionLabel } from './columns';
+import type { UserData } from './columns';
 
 const UsersTableToolbar = ({
 	onSearchFilterChange,
@@ -101,12 +93,15 @@ export default function UsersPageClient() {
 		[],
 	);
 
-	const errorMessage =
-		error instanceof Error
-			? error.message
-			: (error
-				? String(error)
-				: "Fehler beim Laden der Benutzer");
+	const errorMessage = (() => {
+		if (error instanceof Error) {
+			return error.message;
+		}
+		if (error) {
+			return String(error);
+		}
+		return "Fehler beim Laden der Benutzer";
+	})();
 	const totalGenerations = users.reduce(
 		(sum, user) => sum + Number(user._count.usageEvents ?? 0),
 		0,

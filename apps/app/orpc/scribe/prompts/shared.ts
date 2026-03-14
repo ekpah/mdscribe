@@ -1,4 +1,4 @@
-import type { PromptMessage } from "../types";
+import type { PromptMessage } from "@/orpc/scribe/types";
 
 export type PromptPart<T> = string | ((vars: T) => string | undefined);
 
@@ -8,7 +8,7 @@ const hasContent = (value?: string): value is string =>
 const renderPromptPart = <T>(part: PromptPart<T>, vars: T): string | undefined =>
 	typeof part === "function" ? part(vars) : part;
 
-export const joinPromptParts = <T>(parts: PromptPart<T>[], vars: T): string =>
+const joinPromptParts = <T>(parts: PromptPart<T>[], vars: T): string =>
 	parts
 		.map((part) => renderPromptPart(part, vars))
 		.filter(hasContent)

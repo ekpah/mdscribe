@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { account, eq, session, user, verification } from "@repo/database";
-import { createTestContext, createTestUser, startTestServer } from "../setup";
-import type { TestServer } from "../setup";
+import { createTestContext, createTestUser, startTestServer } from "@/__tests__/setup";
+import type { TestServer } from "@/__tests__/setup";
 
 /**
  * Authentication flow tests

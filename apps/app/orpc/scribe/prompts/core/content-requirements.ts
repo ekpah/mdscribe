@@ -1,7 +1,7 @@
 import {
 	NARRATIVE_SHARED_CORE_PRINCIPLES,
 	NARRATIVE_SHARED_EXCLUSION_CRITERIA,
-} from "../families/narrative/shared/common-fragments";
+} from "@/orpc/scribe/prompts/families/narrative/shared/common-fragments";
 
 const narrativeCorePrinciples = [
 	...NARRATIVE_SHARED_CORE_PRINCIPLES,

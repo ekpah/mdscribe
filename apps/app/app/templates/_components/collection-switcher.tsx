@@ -43,6 +43,15 @@ export const CollectionSwitcher = ({
       collections[0],
     [collections, activeCollection]
   );
+  const handleCollectionClickByKey = useMemo(() => {
+    const handlers: Record<string, () => void> = {};
+    for (const collection of collections) {
+      handlers[collection.key] = () => {
+        setActiveCollection(collection.key);
+      };
+    }
+    return handlers;
+  }, [collections, setActiveCollection]);
   const ActiveCollectionLogo = activeCollectionItem?.logo;
 
   return (
@@ -78,9 +87,7 @@ export const CollectionSwitcher = ({
               <DropdownMenuItem
                 className="gap-2 p-2"
                 key={collection.key}
-                onClick={() => {
-                  setActiveCollection(collection.key);
-                }}
+                onClick={handleCollectionClickByKey[collection.key]}
               >
                 <div className="flex size-6 items-center justify-center rounded-sm border">
                   <collection.logo className="size-4 shrink-0" />

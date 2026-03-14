@@ -1,39 +1,39 @@
-export type AiscribeContextSectionKey =
+type AiscribeContextSectionKey =
 	| "context"
 	| "practitionerInfo"
 	| "organizationInfo";
 
-export type AiscribeContextValue = string | number | boolean;
+type AiscribeContextValue = string | number | boolean;
 
-export type AiscribeContextRecord = Record<
+type AiscribeContextRecord = Record<
 	string,
 	AiscribeContextValue | AiscribeContextValue[] | null | undefined
 >;
 
-export interface AiscribeContextEntry {
+interface AiscribeContextEntry {
 	label: string;
 	value?: AiscribeContextValue | AiscribeContextValue[] | null;
 }
 
-export type AiscribeContextSectionInput =
+type AiscribeContextSectionInput =
 	| string
 	| AiscribeContextRecord
 	| AiscribeContextEntry[];
 
-export interface CreateAiscribeContextInput {
+interface CreateAiscribeContextInput {
 	context?: AiscribeContextSectionInput;
 	practitionerInfo?: AiscribeContextSectionInput;
 	organizationInfo?: AiscribeContextSectionInput;
 }
 
-export interface AiscribeContextSection {
+interface AiscribeContextSection {
 	key: AiscribeContextSectionKey;
 	title: string;
 	tag: string;
 	content: string;
 }
 
-export interface AiscribeContextResult {
+interface AiscribeContextResult {
 	context: string;
 	practitionerInfo: string;
 	organizationInfo: string;

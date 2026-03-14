@@ -4,7 +4,6 @@ import {
 } from "./patient";
 import {
 	buildSelectedTemplateReference,
-	composeTemplateContext,
 	composeTemplateContextFromSources,
 } from "./template";
 import { findRelevantTemplateForProcedure } from "./template/relevant-template";
@@ -18,24 +17,16 @@ import type {
 import { composeUserContext } from "./user";
 
 export type {
-	ComposedScribeContext,
-	ComposeScribeContextInput,
 	ContextBuildInput,
-	ContextSource,
-	PatientContextData,
 	TemplateContextInput,
 } from "./types";
 
 export {
 	buildSelectedTemplateReference,
-	composePatientContext,
-	composeTemplateContext,
-	composeUserContext,
-	derivePatientContext,
 	findRelevantTemplateForProcedure,
 };
 
-export const createContextSources = ({
+const createContextSources = ({
 	formData,
 	template,
 }: Pick<ComposeScribeContextInput, "formData" | "template">): ContextSource[] => {
@@ -54,10 +45,10 @@ export const createContextSources = ({
 const joinContextSections = (sections: string[]): string =>
 	sections.filter((section) => section.trim().length > 0).join("\n\n");
 
-export const buildScribeContext = async ({
+export const buildScribeContext = ({
 	sessionUser,
 	sources,
-}: ContextBuildInput): Promise<Pick<ComposedScribeContext, "contextXml" | "patientContext">> => {
+}: ContextBuildInput): Pick<ComposedScribeContext, "contextXml" | "patientContext"> => {
 	const patientContext = derivePatientContext(sources);
 
 	return {
@@ -70,11 +61,11 @@ export const buildScribeContext = async ({
 	};
 };
 
-export const composeScribeContext = async (
+export const composeScribeContext = (
 	input: ComposeScribeContextInput,
-): Promise<ComposedScribeContext> => {
+): ComposedScribeContext => {
 	const sources = createContextSources(input);
-	const { contextXml, patientContext } = await buildScribeContext({
+	const { contextXml, patientContext } = buildScribeContext({
 		sessionUser: input.sessionUser,
 		sources,
 	});

@@ -55,4 +55,3 @@ export const EmailVerificationTemplate = ({
     </Html>
   </Tailwind>
 );
-

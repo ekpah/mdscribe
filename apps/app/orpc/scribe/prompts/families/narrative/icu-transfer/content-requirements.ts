@@ -1,7 +1,7 @@
 import {
 	NARRATIVE_SHARED_CORE_PRINCIPLES,
 	NARRATIVE_SHARED_EXCLUSION_CRITERIA,
-} from "../shared/common-fragments";
+} from "@/orpc/scribe/prompts/families/narrative/shared/common-fragments";
 
 const icuTransferCorePrinciples = [
 	...NARRATIVE_SHARED_CORE_PRINCIPLES,

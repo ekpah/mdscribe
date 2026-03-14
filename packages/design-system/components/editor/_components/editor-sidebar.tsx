@@ -17,8 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export const EditorSidebar = () => {
-  return (
+export const EditorSidebar = () => (
     <Card className="h-full p-4">
       <ScrollArea className="h-full">
         <div className="space-y-4">
@@ -259,4 +258,3 @@ export const EditorSidebar = () => {
       </ScrollArea>
     </Card>
   );
-};

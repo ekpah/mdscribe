@@ -10,7 +10,7 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, Trash2 } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
@@ -46,13 +46,17 @@ interface ConnectionCardProps {
 export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 	const queryClient = useQueryClient();
 	const listKey = orpc.admin.providers.connections.list.queryOptions().queryKey;
+	const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
 
 	const deleteMutation = useMutation({
 		mutationFn: () =>
 			orpc.admin.providers.connections.delete.call({ id: connection.id }),
-		onError: (error) =>
-			toast.error(error instanceof Error ? error.message : "Fehler"),
+		onError: (error) => {
+			setIsDeleteConfirming(false);
+			toast.error(error instanceof Error ? error.message : "Fehler");
+		},
 		onSuccess: async () => {
+			setIsDeleteConfirming(false);
 			await queryClient.invalidateQueries({ queryKey: listKey });
 			toast.success("Provider gelöscht");
 		},
@@ -78,10 +82,16 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 	});
 
 	const handleDeleteClick = useCallback(() => {
-		if (confirm("Provider und alle Modelle löschen?")) {
-			deleteMutation.mutate();
+		if (!isDeleteConfirming) {
+			setIsDeleteConfirming(true);
+			return;
 		}
-	}, [deleteMutation]);
+		deleteMutation.mutate();
+	}, [deleteMutation, isDeleteConfirming]);
+
+	const handleCancelDelete = useCallback(() => {
+		setIsDeleteConfirming(false);
+	}, []);
 
 	const handleRefreshModels = useCallback(() => {
 		refreshModelsMutation.mutate();
@@ -107,12 +117,26 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 					<div className="flex items-center gap-2 self-end sm:self-auto">
 						<Button
 							size="sm"
-							variant="ghost"
+							variant={isDeleteConfirming ? "destructive" : "ghost"}
 							onClick={handleDeleteClick}
 							disabled={deleteMutation.isPending}
 						>
-							<Trash2 className="h-4 w-4 text-solarized-red" />
+							{isDeleteConfirming ? (
+								<span className="text-xs">Löschen bestätigen</span>
+							) : (
+								<Trash2 className="h-4 w-4 text-solarized-red" />
+							)}
 						</Button>
+						{isDeleteConfirming && (
+							<Button
+								size="sm"
+								variant="ghost"
+								onClick={handleCancelDelete}
+								disabled={deleteMutation.isPending}
+							>
+								Abbrechen
+							</Button>
+						)}
 					</div>
 				</div>
 				{connection.baseUrl && (

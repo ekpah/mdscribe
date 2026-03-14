@@ -4,7 +4,7 @@ import postgres from "postgres";
 import * as schema from "./schema";
 
 if (typeof window !== "undefined") {
-	throw new Error("Database client can only run on the server");
+	throw new TypeError("Database client can only run on the server");
 }
 
 const connectionString = process.env.POSTGRES_DATABASE_URL;
@@ -42,8 +42,25 @@ const registerShutdownHandlers = (client: ReturnType<typeof postgres>): void => 
 		process.exit(0);
 	};
 
-	process.on("SIGINT", () => {});
-	process.on("SIGTERM", () => {});
+	const handleSignal = (signal: "SIGINT" | "SIGTERM") => {
+		const runShutdown = async () => {
+			try {
+				await handleShutdown(signal);
+			} catch (error) {
+				console.error("Error handling shutdown signal:", error);
+				process.exit(1);
+			}
+		};
+
+		runShutdown();
+	};
+
+	process.on("SIGINT", () => {
+		handleSignal("SIGINT");
+	});
+	process.on("SIGTERM", () => {
+		handleSignal("SIGTERM");
+	});
 
 	globalForDatabase.shutdownHandlersRegistered = true;
 };

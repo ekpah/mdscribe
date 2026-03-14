@@ -1,4 +1,4 @@
-import { NARRATIVE_SHARED_STYLE_LANGUAGE_TONE } from "../shared/common-fragments";
+import { NARRATIVE_SHARED_STYLE_LANGUAGE_TONE } from "@/orpc/scribe/prompts/families/narrative/shared/common-fragments";
 
 const icuTransferStyleLanguageTone = [
 	...NARRATIVE_SHARED_STYLE_LANGUAGE_TONE,

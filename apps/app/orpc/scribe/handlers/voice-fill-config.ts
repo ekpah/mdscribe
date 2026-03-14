@@ -13,7 +13,7 @@ interface VoiceFillVariables {
 	inputTagsJson?: string;
 }
 
-export interface VoiceFillConfig {
+interface VoiceFillConfig {
 	promptName: string;
 	prompt: (vars: VoiceFillVariables) => PromptMessage[];
 	modelConfig: ModelConfig;

@@ -9,19 +9,17 @@ import { Bot, Pencil, Sigma } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@repo/design-system/lib/utils";
-import { Badge } from "../ui/badge";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import {
-	VoiceInputControls,
-	type VoiceFillAudioFile,
-} from "./voice-input-controls";
+import { Badge } from "@repo/design-system/components/ui/badge";
+import { Input } from "@repo/design-system/components/ui/input";
+import { Label } from "@repo/design-system/components/ui/label";
+import { VoiceInputControls } from './voice-input-controls';
+import type { VoiceFillAudioFile } from './voice-input-controls';
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "../ui/tooltip";
+} from "@repo/design-system/components/ui/tooltip";
 import { normalizeDateValue } from "./ui/date-utils";
 import { InfoInput } from "./ui/info-input";
 import { SwitchInput } from "./ui/switch-input";
@@ -45,11 +43,11 @@ interface VoiceFillInputField {
 	description?: string;
 }
 
-export type VoiceFillResult = Record<string, string>;
+type VoiceFillResult = Record<string, string>;
 
-export type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
+type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
 
-export interface SuggestedValue {
+interface SuggestedValue {
 	value: string | number;
 	source?: SuggestedValueSource;
 	label?: string;
@@ -139,6 +137,14 @@ const normalizeVoiceValue = (
 
 const isEmptyValue = (value: unknown) =>
 	value === "" || value === undefined || value === null;
+
+const withoutRecordKey = <T extends Record<string, unknown>>(
+	record: T,
+	key: string,
+): T => {
+	const { [key]: _removed, ...remaining } = record;
+	return remaining as T;
+};
 
 const SUGGESTION_SOURCE_LABELS: Record<SuggestedValueSource, string> = {
 	ai: "KI-Vorschlag",
@@ -481,19 +487,18 @@ export default function Inputs({
 			[key]: value,
 		}));
 		setFieldSources((prevSources) => {
-			const nextSources = { ...prevSources };
 			if (isEmptyValue(value)) {
-				delete nextSources[key];
-				return nextSources;
+				return withoutRecordKey(prevSources, key);
 			}
 			const hasSuggestion = Boolean(suggestedValues[key]);
 			if (hasSuggestion || prevSources[key] === "ai") {
-				nextSources[key] = "manual";
-				return nextSources;
+				return {
+					...prevSources,
+					[key]: "manual",
+				};
 			}
-			delete nextSources[key];
-				return nextSources;
-			});
+			return withoutRecordKey(prevSources, key);
+		});
 	}, [suggestedValues]);
 
 	const handleApplySuggestion = useCallback((key: string) => {
@@ -567,23 +572,23 @@ export default function Inputs({
 			id: "voice-fill",
 		});
 
-		try {
-			const fieldValues = await onVoiceFill(inputTags, audioFiles);
+			try {
+				const fieldValues = await onVoiceFill(inputTags, audioFiles);
 
-			const nextSuggestions = { ...stateRef.current.suggestedValues };
+				let nextSuggestions = { ...stateRef.current.suggestedValues };
 
 			for (const [field, value] of Object.entries(fieldValues)) {
 				const normalizedValue = normalizeVoiceValue(
 					value,
 					voiceInputMeta.get(field),
 				);
-				if (
-					normalizedValue === undefined ||
-					isEmptyValue(normalizedValue)
-				) {
-					delete nextSuggestions[field];
-					continue;
-				}
+					if (
+						normalizedValue === undefined ||
+						isEmptyValue(normalizedValue)
+					) {
+						nextSuggestions = withoutRecordKey(nextSuggestions, field);
+						continue;
+					}
 				nextSuggestions[field] = {
 					source: "ai",
 					value: normalizedValue,

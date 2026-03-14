@@ -9,12 +9,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import {
-	DataTable,
-	DataTablePagination,
-	type DataTableRenderToolbarProps,
-	DataTableViewOptions,
-} from "@repo/design-system/components/ui/data-table";
+import { DataTable, DataTablePagination, DataTableViewOptions } from '@repo/design-system/components/ui/data-table';
+import type { DataTableRenderToolbarProps } from '@repo/design-system/components/ui/data-table';
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
@@ -110,6 +106,7 @@ export default function AdminTemplatesPageClient() {
 	const [batchSize, setBatchSize] = useState(10);
 	const [delayBetweenBatches, setDelayBetweenBatches] = useState(1000);
 	const [migrationMode, setMigrationMode] = useState<MigrationMode>("missing");
+	const [isMigrationConfirming, setIsMigrationConfirming] = useState(false);
 	const [searchFilter, setSearchFilter] = useState("");
 
 	const authorOptions = useMemo(() => {
@@ -267,6 +264,7 @@ export default function AdminTemplatesPageClient() {
 			migrationMode === "missing" ? templatesWithoutEmbeddings : totalTemplates;
 
 		if (templatesToProcess === 0) {
+			setIsMigrationConfirming(false);
 			toast.error("Keine Vorlagen für die gewählte Migration verfügbar");
 			return;
 		}
@@ -276,11 +274,9 @@ export default function AdminTemplatesPageClient() {
 				? `Embeddings für ${templatesToProcess} Vorlagen ohne Embeddings generieren`
 				: `Embeddings für alle ${templatesToProcess} Vorlagen neu generieren`;
 
-		if (
-			!confirm(
-				`${actionText}? Dieser Vorgang kann je nach Umfang mehrere Minuten dauern.`,
-			)
-		) {
+		if (!isMigrationConfirming) {
+			setIsMigrationConfirming(true);
+			toast.info(`${actionText}. Klicken Sie erneut auf "Migration starten", um zu bestätigen.`);
 			return;
 		}
 
@@ -289,21 +285,26 @@ export default function AdminTemplatesPageClient() {
 			delayBetweenBatches: Math.max(0, delayBetweenBatches),
 			mode: migrationMode,
 		});
+		setIsMigrationConfirming(false);
 	}, [
 		batchSize,
 		delayBetweenBatches,
+		isMigrationConfirming,
 		migrateMutation,
 		migrationMode,
+		setIsMigrationConfirming,
 		templatesWithoutEmbeddings,
 		totalTemplates,
 	]);
 
 	const handleMigrationModeChange = useCallback((value: string) => {
+		setIsMigrationConfirming(false);
 		setMigrationMode(value as MigrationMode);
 	}, []);
 
 	const handleBatchSizeChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
+			setIsMigrationConfirming(false);
 			setBatchSize(Number.parseInt(event.target.value, 10) || 10);
 		},
 		[],
@@ -311,6 +312,7 @@ export default function AdminTemplatesPageClient() {
 
 	const handleDelayBetweenBatchesChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
+			setIsMigrationConfirming(false);
 			setDelayBetweenBatches(
 				Number.parseInt(event.target.value, 10) || 0,
 			);
@@ -352,12 +354,15 @@ export default function AdminTemplatesPageClient() {
 		(isLoadingStats && !embeddingStats);
 	const queryError = templatesError ?? statsError;
 
-	const queryErrorMessage =
-		queryError instanceof Error
-			? queryError.message
-			: (queryError
-				? String(queryError)
-				: "Seite konnte nicht geladen werden");
+	const queryErrorMessage = (() => {
+		if (queryError instanceof Error) {
+			return queryError.message;
+		}
+		if (queryError) {
+			return String(queryError);
+		}
+		return "Seite konnte nicht geladen werden";
+	})();
 
 	if (isInitialLoading) {
 		return (
@@ -534,7 +539,9 @@ export default function AdminTemplatesPageClient() {
 								{migrateMutation.isPending && (
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 								)}
-								Migration starten
+								{isMigrationConfirming
+									? "Erneut klicken zum Bestätigen"
+									: "Migration starten"}
 							</Button>
 							{migrateMutation.data && (
 								<div className="text-sm text-solarized-base01">

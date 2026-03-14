@@ -1,13 +1,9 @@
 "use client";
 
-import {
-	buildBuiltInAiscribeTemplateConfig,
-	type BuiltInAiscribeTemplateKey,
-} from "../_lib/built-in-form-config";
-import {
-	buildCustomAiscribeTemplateConfig,
-	type PublicAiTextForm,
-} from "../_lib/custom-form-config";
+import { buildBuiltInAiscribeTemplateConfig } from '@/app/aiscribe/_lib/built-in-form-config';
+import type { BuiltInAiscribeTemplateKey } from '@/app/aiscribe/_lib/built-in-form-config';
+import { buildCustomAiscribeTemplateConfig } from '@/app/aiscribe/_lib/custom-form-config';
+import type { PublicAiTextForm } from '@/app/aiscribe/_lib/custom-form-config';
 import { AiscribeTemplate } from "./aiscribe-template";
 
 type CustomAiscribeClientProps =
@@ -21,7 +17,7 @@ type CustomAiscribeClientProps =
 			template: BuiltInAiscribeTemplateKey;
 	  };
 
-export function CustomAiscribeClient(props: CustomAiscribeClientProps) {
+export const CustomAiscribeClient = (props: CustomAiscribeClientProps) => {
 	const config =
 		props.mode === "custom"
 			? buildCustomAiscribeTemplateConfig(props.form)
@@ -31,4 +27,4 @@ export function CustomAiscribeClient(props: CustomAiscribeClientProps) {
 				});
 
 	return <AiscribeTemplate config={config} />;
-}
+};

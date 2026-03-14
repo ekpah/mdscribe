@@ -10,7 +10,7 @@ import {
 import { z } from "zod";
 
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "../middlewares/admin";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
 interface ModelCapabilities {
 	supportsText: boolean;

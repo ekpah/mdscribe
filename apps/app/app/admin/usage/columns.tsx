@@ -18,7 +18,7 @@ import type { DocumentType } from "@/orpc/scribe/types";
 import {
 	allScribeDocTypes,
 	scribeDocTypeUi,
-} from "../playground/_lib/scribe-doc-types";
+} from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { UsageListEvent } from "./types";
 
 const promptNameToDocumentType = new Map(

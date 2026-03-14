@@ -16,11 +16,6 @@ const createUIMessageStream = () => {
 	});
 };
 
-const resolveAsync = async <T,>(value: T) => {
-	await Bun.sleep(0);
-	return value;
-};
-
 const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void }) => {
 	const fullText = "This is a test response.";
 	const onFinish = options?.onFinish;

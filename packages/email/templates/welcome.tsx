@@ -67,5 +67,3 @@ export const WelcomeTemplate = ({
     </Html>
   </Tailwind>
 );
-
-export default WelcomeTemplate;

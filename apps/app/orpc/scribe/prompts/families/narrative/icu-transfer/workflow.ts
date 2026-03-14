@@ -1,4 +1,4 @@
-import { NARRATIVE_SHARED_WORKFLOW_STEPS } from "../shared/common-fragments";
+import { NARRATIVE_SHARED_WORKFLOW_STEPS } from "@/orpc/scribe/prompts/families/narrative/shared/common-fragments";
 
 const icuTransferWorkflowSteps = [
 	NARRATIVE_SHARED_WORKFLOW_STEPS.mainDiagnosis,

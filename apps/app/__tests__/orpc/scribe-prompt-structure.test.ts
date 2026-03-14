@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { composeDocumentTypePrompt } from "@/orpc/scribe/prompts/compose";
 
-const getLastUserContent = (messages: Array<{ content: string; role: string }>): string =>
+const getLastUserContent = (messages: { content: string; role: string }[]): string =>
 	messages.findLast((message) => message.role === "user")?.content ?? "";
 
 describe("Scribe Prompt Structure", () => {

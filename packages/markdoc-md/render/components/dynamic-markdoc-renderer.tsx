@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { VariableProvider } from '../context/variable-context';
-import renderMarkdocAsReact from '../utils/render-markdoc-as-react';
+import { VariableProvider } from '@/render/context/variable-context';
+import renderMarkdocAsReact from '@/render/utils/render-markdoc-as-react';
 
 interface DynamicMarkdocRendererProps {
   /**
@@ -11,7 +11,7 @@ interface DynamicMarkdocRendererProps {
    * An object containing key-value pairs for dynamic variables
    * used within the Markdoc content (e.g., via custom tags like Info).
    */
-  variables?: Record<string, any>;
+  variables?: Record<string, unknown>;
   /**
    * Optional CSS class name(s) to apply to the wrapping div.
    * Defaults to 'prose prose-slate grow' if not provided.

@@ -26,14 +26,14 @@ export default async function Page(props: DocsPageProps) {
     full?: boolean;
   };
 
-  const MDX = data.body;
+  const MdxContent = data.body;
 
   return (
     <DocsPage toc={data.toc} full={data.full}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
-        <MDX
+        <MdxContent
           components={getMDXComponents({
             // this allows you to link to other pages with relative file paths
             a: createRelativeLink(source, page),
@@ -44,11 +44,9 @@ export default async function Page(props: DocsPageProps) {
   );
 }
 
-export const generateStaticParams = () => {
-  return source
+export const generateStaticParams = () => source
     .generateParams()
     .filter((params) => Array.isArray(params.slug) && params.slug.length > 0);
-};
 
 export const generateMetadata = async (
   props: DocsPageProps,

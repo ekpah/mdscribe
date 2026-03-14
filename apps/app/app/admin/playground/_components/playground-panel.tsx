@@ -2,10 +2,8 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import {
-	type VoiceFillAudioFile,
-	VoiceInputControls,
-} from "@repo/design-system/components/inputs/voice-input-controls";
+import { VoiceInputControls } from '@repo/design-system/components/inputs/voice-input-controls';
+import type { VoiceFillAudioFile } from '@repo/design-system/components/inputs/voice-input-controls';
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -13,10 +11,8 @@ import {
 	CardContent,
 } from "@repo/design-system/components/ui/card";
 import { Label } from "@repo/design-system/components/ui/label";
-import {
-	ModelSelector,
-	type ModelSelectorOption,
-} from "@repo/design-system/components/ui/model-selector";
+import { ModelSelector } from '@repo/design-system/components/ui/model-selector';
+import type { ModelSelectorOption } from '@repo/design-system/components/ui/model-selector';
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,
@@ -30,27 +26,17 @@ import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@repo/design-system/lib/utils";
 import { ChevronLeft, ChevronRight, Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import {
-	type MutableRefObject,
-	type UIEvent,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, MutableRefObject, UIEvent } from 'react';
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 
-import {
-	allScribeDocTypes,
-	type PlaygroundDocumentType,
-	scribeDocTypeUi,
-} from "../_lib/scribe-doc-types";
-import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
-import { DEFAULT_PARAMETERS } from "../_lib/types";
+import { allScribeDocTypes, scribeDocTypeUi } from '@/app/admin/playground/_lib/scribe-doc-types';
+import type { PlaygroundDocumentType } from '@/app/admin/playground/_lib/scribe-doc-types';
+import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
+import { DEFAULT_PARAMETERS } from "@/app/admin/playground/_lib/types";
 import { ParameterControls } from "./parameter-controls";
 import { ResultDisplay } from "./result-display";
 
@@ -69,10 +55,10 @@ interface PlaygroundPanelProps {
  * Reverse mapping from stored usage input back to form field names.
  * Normalization happens centrally now; we keep these mappings for UI hydration.
  */
-function parseVariablesToFormFields(
+const parseVariablesToFormFields = (
 	documentType: DocumentType,
 	variables: Record<string, unknown>,
-): { main: string; additional: Record<string, string> } {
+): { main: string; additional: Record<string, string> } => {
 	const v = variables as Record<string, unknown>;
 
 	const pickString = (...keys: string[]): string => {
@@ -86,61 +72,68 @@ function parseVariablesToFormFields(
 	};
 
 	const result: { main: string; additional: Record<string, string> } = {
-		main: "",
 		additional: {},
+		main: "",
 	};
 
 	switch (documentType) {
 		case "discharge":
-		case "outpatient":
+		case "outpatient": {
 			result.main = pickString("notes", "dischargeNotes", "consultationNotes");
 			result.additional = {
-				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 				anamnese: pickString("anamnese"),
 				befunde: pickString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		case "procedures":
+		case "procedures": {
 			result.main = pickString("notes", "procedureNotes");
 			break;
+		}
 
-		case "anamnese":
+		case "anamnese": {
 			result.main = pickString("notes");
 			result.additional = {
 				befunde: pickString("befunde"),
 				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		case "physical-exam":
+		case "physical-exam": {
 			result.main = pickString("notes");
 			break;
+		}
 
 		case "diagnosis":
-		case "icu-transfer":
+		case "icu-transfer": {
 			result.main = pickString("notes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
-				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 				befunde: pickString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		case "befunde":
+		case "befunde": {
 			result.main = pickString("notes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
 				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		default:
+		default: {
 			result.main = pickString("notes", "dischargeNotes", "procedureNotes");
+		}
 	}
 
 	return result;
-}
+};
 
 const isPlaygroundDocumentType = (
 	documentType: DocumentType,
@@ -176,26 +169,21 @@ interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 
 const PROVIDER_LABELS: Record<string, string> = {
 	anthropic: "Anthropic",
-	openai: "OpenAI",
+	cohere: "Cohere",
+	deepseek: "DeepSeek",
 	google: "Google",
 	"meta-llama": "Meta Llama",
 	mistralai: "Mistral AI",
-	cohere: "Cohere",
-	deepseek: "DeepSeek",
+	openai: "OpenAI",
 	qwen: "Qwen",
 	"x-ai": "xAI",
 	"z-ai": "Zhipu AI",
 };
 
-function getProviderFromModelId(modelId: string): string {
-	return modelId.split("/")[0] || "other";
-}
+const getProviderFromModelId = (modelId: string): string => modelId.split("/")[0] || "other";
 
-function getProviderGroup(model: PlaygroundModel): string {
-	return (
-		model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId)
-	);
-}
+const getProviderGroup = (model: PlaygroundModel): string =>
+	model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId);
 
 type PlaygroundView =
 	| "config"
@@ -216,6 +204,10 @@ const PLAYGROUND_VIEW_META: Record<
 	PlaygroundView,
 	{ description: string; label: string }
 > = {
+	compiled: {
+		description: "Prompt mit Inline-Markierungen",
+		label: "Prompt",
+	},
 	config: {
 		description: "Prompt-Harness und Template konfigurieren",
 		label: "Config",
@@ -223,10 +215,6 @@ const PLAYGROUND_VIEW_META: Record<
 	inputs: {
 		description: "Quelltexte, Zusatzfelder und Spracheingabe",
 		label: "Inputs",
-	},
-	compiled: {
-		description: "Prompt mit Inline-Markierungen",
-		label: "Prompt",
 	},
 	models: {
 		description: "Modelle und Parameter für Vergleichsruns",
@@ -255,7 +243,7 @@ const promptHarnessToDocumentType = new Map(
 
 const buildSelectedTemplateReference = (templateData: {
 	content: string;
-	examples: Array<{ content: string }>;
+	examples: { content: string }[];
 	title: string;
 }): string => {
 	const sections = [
@@ -315,6 +303,18 @@ interface PromptHighlightSegment {
 	text: string;
 }
 
+const getSegmentHighlightClassName = (
+	source: PromptHighlightSegment["source"],
+): string => {
+	if (source === "runtime") {
+		return "rounded-[3px] border border-solarized-orange/40 bg-solarized-orange/12 px-0.5 text-solarized-orange";
+	}
+	if (source === "input") {
+		return "rounded-[3px] border border-solarized-blue/40 bg-solarized-blue/12 px-0.5 text-solarized-blue";
+	}
+	return "";
+};
+
 const buildPromptHighlightSegments = (
 	content: string,
 	variables: PromptPreviewVariable[],
@@ -334,7 +334,7 @@ const buildPromptHighlightSegments = (
 		return [{ source: "plain", text: content }];
 	}
 
-	const marks: Array<PromptVariableSource | "plain"> = Array.from(
+	const marks: (PromptVariableSource | "plain")[] = Array.from(
 		{ length: content.length },
 		() => "plain",
 	);
@@ -413,6 +413,13 @@ const HighlightedPromptEditor = ({
 		overlayContent.style.transform = `translate(${-event.currentTarget.scrollLeft}px, ${-event.currentTarget.scrollTop}px)`;
 	}, []);
 
+	const handleValueChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			onChange(event.target.value);
+		},
+		[onChange],
+	);
+
 	return (
 		<div className="relative">
 			<div
@@ -423,25 +430,21 @@ const HighlightedPromptEditor = ({
 					ref={overlayContentRef}
 					className="whitespace-pre-wrap break-words px-3 py-2 font-mono text-xs leading-6 text-solarized-base00"
 				>
-						{segments.map((segment, index) => (
-							<span
-								className={cn(
-								segment.source === "runtime"
-									? "rounded-[3px] border border-solarized-orange/40 bg-solarized-orange/12 px-0.5 text-solarized-orange"
-									: segment.source === "input"
-										? "rounded-[3px] border border-solarized-blue/40 bg-solarized-blue/12 px-0.5 text-solarized-blue"
-										: "",
-								)}
-								key={`${segment.source}-${index}`}
-							>
-								{segment.text}
-							</span>
-					))}
+						{segments.map((segment) => (
+									<span
+										className={cn(
+											getSegmentHighlightClassName(segment.source),
+										)}
+										key={`${segment.source}-${segment.text}`}
+									>
+									{segment.text}
+								</span>
+						))}
 				</div>
 			</div>
 			<textarea
 				value={value}
-				onChange={(event) => onChange(event.target.value)}
+				onChange={handleValueChange}
 				onScroll={handleScroll}
 				spellCheck={false}
 				className="border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex min-h-[240px] w-full resize-y rounded-md border border-solarized-base2 bg-transparent px-3 py-2 font-mono text-xs leading-6 text-transparent shadow-xs transition-[color,box-shadow] outline-none caret-solarized-base00 selection:bg-solarized-base2/70 selection:text-solarized-base00 focus-visible:ring-[3px]"
@@ -457,19 +460,37 @@ const PromptHarnessPreview = ({
 	runtimeItems,
 }: {
 	inputItems: PromptPreviewVariable[];
-	messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+	messages: { role: "system" | "user" | "assistant"; content: string }[];
 	onMessageChange: (index: number, content: string) => void;
 	runtimeItems: PromptPreviewVariable[];
 }) => {
-		if (messages.length === 0) {
-			return (
-				<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-6 text-sm text-solarized-base01">
-					Kompiliere den Prompt, um Harness, dynamische Inserts und gerenderte Nachrichten zu sehen.
-				</div>
-			);
-		}
-
 	const allPreviewItems = [...runtimeItems, ...inputItems];
+	const copyMessageHandlers = useMemo(
+		() =>
+			messages.map(
+				(message) => async () => {
+					await navigator.clipboard.writeText(message.content);
+					toast.success("Kopiert!");
+				},
+			),
+		[messages],
+	);
+
+	const messageChangeHandlers = useMemo(
+		() =>
+			messages.map(
+				(_, index) => (content: string) => onMessageChange(index, content),
+			),
+		[messages, onMessageChange],
+	);
+
+	if (messages.length === 0) {
+		return (
+			<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-6 text-sm text-solarized-base01">
+				Kompiliere den Prompt, um Harness, dynamische Inserts und gerenderte Nachrichten zu sehen.
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
@@ -500,6 +521,12 @@ const PromptHarnessPreview = ({
 
 			<div className="space-y-4">
 				{messages.map((message, index) => {
+					const copyMessageHandler = copyMessageHandlers[index];
+					const messageChangeHandler = messageChangeHandlers[index];
+					if (!copyMessageHandler || !messageChangeHandler) {
+						return null;
+					}
+
 					const matchingItems = getPromptMessageMatches(
 						message.content,
 						allPreviewItems,
@@ -508,7 +535,7 @@ const PromptHarnessPreview = ({
 					return (
 						<div
 							className="space-y-3 rounded-lg border border-solarized-base2 bg-solarized-base3 p-4"
-							key={`${message.role}-${index}`}
+							key={`${message.role}-${message.content}`}
 						>
 							<div className="flex flex-wrap items-center justify-between gap-2">
 								<div className="flex items-center gap-2">
@@ -524,10 +551,7 @@ const PromptHarnessPreview = ({
 									variant="ghost"
 									size="sm"
 									className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
-									onClick={async () => {
-										await navigator.clipboard.writeText(message.content);
-										toast.success("Kopiert!");
-									}}
+									onClick={copyMessageHandler}
 								>
 									<Copy className="h-3.5 w-3.5" />
 									Copy
@@ -554,7 +578,7 @@ const PromptHarnessPreview = ({
 
 							<HighlightedPromptEditor
 								value={message.content}
-								onChange={(content) => onMessageChange(index, content)}
+								onChange={messageChangeHandler}
 								highlightVariables={allPreviewItems}
 							/>
 						</div>
@@ -565,7 +589,7 @@ const PromptHarnessPreview = ({
 	);
 };
 
-export function PlaygroundPanel({
+export const PlaygroundPanel = ({
 	models,
 	topModelIds,
 	isLoadingModels,
@@ -573,7 +597,7 @@ export function PlaygroundPanel({
 	presetParameters,
 	presetDocumentType,
 	presetVariables,
-}: PlaygroundPanelProps) {
+}: PlaygroundPanelProps) => {
 	const [activeView, setActiveView] = useState<PlaygroundView>("config");
 
 	const resolvedPresetDocumentType = presetDocumentType ?? "discharge";
@@ -604,9 +628,9 @@ export function PlaygroundPanel({
 
 	// Apply async preset document type once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetDocTypeRef.current) return;
-		if (!presetDocumentType) return;
-		if (!isPlaygroundDocumentType(presetDocumentType)) return;
+		if (hasAppliedPresetDocTypeRef.current) {return;}
+		if (!presetDocumentType) {return;}
+		if (!isPlaygroundDocumentType(presetDocumentType)) {return;}
 
 		setDocumentType(presetDocumentType);
 		hasAppliedPresetDocTypeRef.current = true;
@@ -614,8 +638,8 @@ export function PlaygroundPanel({
 
 	// Apply async preset variables once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetFieldsRef.current) return;
-		if (!parsedPreset) return;
+		if (hasAppliedPresetFieldsRef.current) {return;}
+		if (!parsedPreset) {return;}
 
 		setFormMain(parsedPreset.main);
 		setFormAdditional(parsedPreset.additional);
@@ -635,7 +659,7 @@ export function PlaygroundPanel({
 		NONE_TEMPLATE_VALUE,
 	);
 	const [compiledMessages, setCompiledMessages] = useState<
-		Array<{ role: "system" | "user" | "assistant"; content: string }>
+		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
 	const [compiledOverride, setCompiledOverride] = useState<Array<{
 		role: "system" | "user" | "assistant";
@@ -716,6 +740,16 @@ export function PlaygroundPanel({
 		}
 	}, [selectedTemplateExampleCount, selectedTemplateExampleIndex]);
 
+	const handlePreviousTemplateExample = useCallback(() => {
+		setSelectedTemplateExampleIndex((prev) => Math.max(prev - 1, 0));
+	}, []);
+
+	const handleNextTemplateExample = useCallback(() => {
+		setSelectedTemplateExampleIndex((prev) =>
+			Math.min(prev + 1, selectedTemplateExampleCount - 1),
+		);
+	}, [selectedTemplateExampleCount]);
+
 	const promptJson = useMemo(() => {
 		const data: Record<string, unknown> = {
 			[docUi.mainField.name]: formMain,
@@ -786,8 +820,8 @@ export function PlaygroundPanel({
 		try {
 			const res = await orpc.admin.scribe.compilePrompt.call({
 				documentType,
-				promptName,
 				promptJson,
+				promptName,
 			});
 
 			if (compileRequestRef.current !== requestId) {
@@ -796,8 +830,8 @@ export function PlaygroundPanel({
 
 			setCompiledMessages(
 				(res.compiledMessages ?? []).map((m) => ({
-					role: m.role,
 					content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+					role: m.role,
 				})),
 			);
 			setCompiledOverride(null);
@@ -819,14 +853,22 @@ export function PlaygroundPanel({
 	}, [documentType, promptJson, promptName]);
 
 	useEffect(() => {
-		if (selectedTemplateId !== NONE_TEMPLATE_VALUE) {
-			if (isFetchingSelectedTemplate || !selectedTemplateDetails) {
-				return;
-			}
+		if (
+			selectedTemplateId !== NONE_TEMPLATE_VALUE &&
+			(isFetchingSelectedTemplate || !selectedTemplateDetails)
+		) {
+			return;
 		}
 
 		const timeoutId = window.setTimeout(() => {
-			void compilePrompt();
+			const runCompilePrompt = async () => {
+				try {
+					await compilePrompt();
+				} catch (error) {
+					console.error("Error compiling prompt:", error);
+				}
+			};
+			runCompilePrompt();
 		}, 250);
 
 		return () => {
@@ -844,27 +886,27 @@ export function PlaygroundPanel({
 			id: crypto.randomUUID(),
 			model: null,
 			parameters: {
-				temperature: DEFAULT_PARAMETERS.temperature,
-				maxTokens: DEFAULT_PARAMETERS.maxTokens,
-				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
-				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
-				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
-				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
-				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
 				frequencyPenalty: presetParameters?.frequencyPenalty ?? DEFAULT_PARAMETERS.frequencyPenalty,
+				maxTokens: DEFAULT_PARAMETERS.maxTokens,
 				presencePenalty: presetParameters?.presencePenalty ?? DEFAULT_PARAMETERS.presencePenalty,
+				temperature: DEFAULT_PARAMETERS.temperature,
+				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
+				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
+				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
+				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
+				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
 			},
 		},
 	]);
 
 	// Apply preset model when models load (first run config only)
 	useEffect(() => {
-		if (!presetModel || models.length === 0) return;
+		if (!presetModel || models.length === 0) {return;}
 		setModelRuns((prev) => {
 			const first = prev.at(0);
-			if (!first || first.model) return prev;
+			if (!first || first.model) {return prev;}
 			const match = models.find((m) => m.id === presetModel || m.modelId === presetModel);
-			if (!match) return prev;
+			if (!match) {return prev;}
 			return [
 				{
 					...first,
@@ -889,9 +931,9 @@ export function PlaygroundPanel({
 	const setRunState = useCallback((id: string, patch: Partial<RunState>) => {
 		setRunStates((prev) => {
 			const base: RunState = prev[id] ?? {
-				text: "",
 				isStreaming: false,
 				metrics: { latencyMs: 0 },
+				text: "",
 			};
 
 			return {
@@ -901,7 +943,7 @@ export function PlaygroundPanel({
 					...patch,
 					metrics: {
 						...base.metrics,
-						...(patch.metrics ?? {}),
+						...patch.metrics,
 					},
 				},
 			};
@@ -912,7 +954,7 @@ export function PlaygroundPanel({
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
 
 	const runAllModels = useCallback(async () => {
-		const triggers = Array.from(runTriggersRef.current.values());
+		const triggers = [...runTriggersRef.current.values()];
 		if (triggers.length === 0) {
 			toast.error("Keine Modelle konfiguriert");
 			return;
@@ -927,23 +969,80 @@ export function PlaygroundPanel({
 	);
 
 	const modelSelectorOptions = useMemo<PlaygroundModelSelectorOption[]>(() => {
-		const topModelIdSet = new Set(topModelIds ?? []);
+		const topModelIdSet = new Set(topModelIds);
 		return models.map((model) => {
 			const provider = getProviderGroup(model);
 			const isTop = topModelIdSet.has(model.modelId);
 			const providerLabel =
 				PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 			return {
-				value: model.id,
-				label: model.name,
 				group: provider,
-				keywords: [model.modelId, model.name, provider, providerLabel],
-				model,
 				isTop,
+				keywords: [model.modelId, model.name, provider, providerLabel],
+				label: model.name,
+				model,
 				providerLabel,
+				value: model.id,
 			};
 		});
 	}, [models, topModelIds]);
+
+		const formatModelGroupLabel = useCallback(
+			(group: string) =>
+				PROVIDER_LABELS[group] ?? group.charAt(0).toUpperCase() + group.slice(1),
+			[],
+		);
+
+	const renderSelectedModelOption = useCallback((selected: PlaygroundModelSelectorOption | null) => {
+		if (!selected) {
+			return <span className="text-solarized-base01">Modell auswählen...</span>;
+		}
+
+		return (
+			<div className="min-w-0">
+				<p className="truncate font-medium text-solarized-base00">
+					{selected.model.name}
+				</p>
+				<p className="truncate text-solarized-base01 text-xs">
+					{selected.providerLabel}
+				</p>
+			</div>
+		);
+	}, []);
+
+		const renderModelSelectorOption = useCallback(
+			(option: PlaygroundModelSelectorOption) => (
+				<div className="flex min-w-0 items-start justify-between gap-3">
+					<div className="min-w-0 space-y-1">
+						<p className="truncate font-medium text-solarized-base00">
+						{option.model.name}
+					</p>
+					<p className="truncate text-solarized-base01 text-xs">
+						{option.model.modelId}
+					</p>
+				</div>
+				<div className="flex shrink-0 items-center gap-1">
+					{option.isTop ? (
+						<Badge
+							variant="outline"
+							className="border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet"
+						>
+							Top
+						</Badge>
+					) : null}
+					{option.model.supportsReasoning ? (
+						<Badge
+							variant="outline"
+							className="border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan"
+						>
+							Reasoning
+						</Badge>
+					) : null}
+					</div>
+				</div>
+			),
+			[],
+		);
 
 	const inputPreviewItems = useMemo<PromptPreviewVariable[]>(
 		() => [
@@ -965,20 +1064,20 @@ export function PlaygroundPanel({
 
 	const runtimePromptItems = useMemo<PromptPreviewVariable[]>(() => {
 		const preferredOrder = ["todaysDate", "contextXml", "relevantTemplate"];
-		return Object.entries(promptRuntimeVariables)
-			.map(([key, value]) => ({
+			return Object.entries(promptRuntimeVariables)
+				.map(([key, value]) => ({
 				key,
 				label: PROMPT_RUNTIME_LABELS[key] ?? key,
 				source: "runtime" as const,
 				value: serializePromptVariable(value),
-			}))
-			.filter((item) => item.value.trim().length > 0)
-			.sort((a, b) => {
-				const aIndex = preferredOrder.indexOf(a.key);
-				const bIndex = preferredOrder.indexOf(b.key);
+				}))
+				.filter((item) => item.value.trim().length > 0)
+				.toSorted((a, b) => {
+					const aIndex = preferredOrder.indexOf(a.key);
+					const bIndex = preferredOrder.indexOf(b.key);
 				if (aIndex !== -1 || bIndex !== -1) {
-					if (aIndex === -1) return 1;
-					if (bIndex === -1) return -1;
+					if (aIndex === -1) {return 1;}
+					if (bIndex === -1) {return -1;}
 					return aIndex - bIndex;
 				}
 				return a.key.localeCompare(b.key);
@@ -1029,7 +1128,7 @@ export function PlaygroundPanel({
 							: "Noch keine Ergebnisse",
 					view: "results",
 				},
-			]) as Array<{ summary: string; view: PlaygroundView }>,
+			]) as { summary: string; view: PlaygroundView }[],
 		[
 			compiledMessages.length,
 			inputPreviewItems.length,
@@ -1039,6 +1138,69 @@ export function PlaygroundPanel({
 			selectedTemplateId,
 		],
 	);
+
+	const modelSelectionHandlers = useMemo(() => {
+		const handlers = new Map<string, (modelId: string) => void>();
+		for (const run of modelRuns) {
+			handlers.set(run.id, (modelId: string) => {
+				const model = modelById.get(modelId);
+				if (!model) {
+					return;
+				}
+
+				setModelRuns((prev) =>
+					prev.map((entry) =>
+						entry.id === run.id
+							? {
+									...entry,
+									model,
+									parameters: entry.parameters,
+								}
+							: entry,
+					),
+				);
+			});
+		}
+		return handlers;
+	}, [modelById, modelRuns]);
+
+	const removeModelRunHandlers = useMemo(() => {
+		const handlers = new Map<string, () => void>();
+		for (const run of modelRuns) {
+			handlers.set(run.id, () => {
+				setModelRuns((prev) => prev.filter((entry) => entry.id !== run.id));
+				setRunStates((prev) => {
+					const { [run.id]: _removedRunState, ...next } = prev;
+					return next;
+				});
+			});
+		}
+		return handlers;
+	}, [modelRuns]);
+
+	const modelParameterChangeHandlers = useMemo(() => {
+		const handlers = new Map<string, (parameters: PlaygroundParameters) => void>();
+		for (const run of modelRuns) {
+			handlers.set(run.id, (parameters: PlaygroundParameters) => {
+				setModelRuns((prev) =>
+					prev.map((entry) =>
+						entry.id === run.id ? { ...entry, parameters } : entry,
+					),
+				);
+			});
+		}
+		return handlers;
+	}, [modelRuns]);
+
+	const navigationClickHandlers = useMemo(() => {
+		const handlers = new Map<PlaygroundView, () => void>();
+		for (const item of navigationItems) {
+			handlers.set(item.view, () => {
+				setActiveView(item.view);
+			});
+		}
+		return handlers;
+	}, [navigationItems]);
 
 	const handleAddModelRun = useCallback(() => {
 		setModelRuns((prev) => [
@@ -1068,6 +1230,43 @@ export function PlaygroundPanel({
 		}
 	}, []);
 
+	const handleMainInputChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			setFormMain(event.target.value);
+		},
+		[],
+	);
+
+	const additionalFieldChangeHandlers = useMemo(() => {
+		const handlers = new Map<string, (event: ChangeEvent<HTMLTextAreaElement>) => void>();
+		for (const field of docUi.additionalFields) {
+			handlers.set(field.name, (event: ChangeEvent<HTMLTextAreaElement>) => {
+				const fieldValue = event.target.value;
+				setFormAdditional((prev) => ({
+					...prev,
+					[field.name]: fieldValue,
+				}));
+			});
+		}
+		return handlers;
+	}, [docUi.additionalFields]);
+
+	const handleResetCompiledOverride = useCallback(() => {
+		setCompiledOverride(null);
+		toast.success("Override zurückgesetzt");
+	}, []);
+
+	const handleCompiledMessageChange = useCallback((index: number, content: string) => {
+		const next = (compiledOverride ?? compiledMessages).map((entry) => ({
+			...entry,
+		}));
+		next[index] = {
+			...next[index],
+			content,
+		};
+		setCompiledOverride(next);
+	}, [compiledMessages, compiledOverride]);
+
 	const renderInputsView = () => (
 		<ScrollArea className="h-full">
 			<div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
@@ -1083,44 +1282,48 @@ export function PlaygroundPanel({
 								</p>
 							) : null}
 						</div>
-						<Textarea
-							className="min-h-[320px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-							id="main-input"
-							onChange={(event) => setFormMain(event.target.value)}
-							placeholder={docUi.mainField.placeholder}
-							value={formMain}
-						/>
-					</div>
-
-					{docUi.additionalFields.length > 0 ? (
-						<div className="grid gap-4 xl:grid-cols-2">
-							{docUi.additionalFields.map((field) => (
-								<div
-									className="rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
-									key={field.name}
-								>
-									<div className="mb-3 space-y-1">
-										<h3 className="font-medium text-sm text-solarized-base00">
-											{field.label}
-										</h3>
-										<p className="text-xs text-solarized-base01">{field.name}</p>
-									</div>
-									<Textarea
-										className="min-h-[220px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-										id={field.name}
-										onChange={(event) =>
-											setFormAdditional((prev) => ({
-												...prev,
-												[field.name]: event.target.value,
-											}))
-										}
-										placeholder={field.placeholder}
-										value={formAdditional[field.name] ?? ""}
-									/>
-								</div>
-							))}
+							<Textarea
+								className="min-h-[320px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+								id="main-input"
+								onChange={handleMainInputChange}
+								placeholder={docUi.mainField.placeholder}
+								value={formMain}
+							/>
 						</div>
-					) : null}
+
+						{docUi.additionalFields.length > 0 ? (
+							<div className="grid gap-4 xl:grid-cols-2">
+								{docUi.additionalFields.map((field) => {
+									const handleAdditionalFieldChange = additionalFieldChangeHandlers.get(
+										field.name,
+									);
+									if (!handleAdditionalFieldChange) {
+										return null;
+									}
+
+									return (
+										<div
+											className="rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
+											key={field.name}
+										>
+											<div className="mb-3 space-y-1">
+												<h3 className="font-medium text-sm text-solarized-base00">
+													{field.label}
+												</h3>
+												<p className="text-xs text-solarized-base01">{field.name}</p>
+											</div>
+											<Textarea
+												className="min-h-[220px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+												id={field.name}
+												onChange={handleAdditionalFieldChange}
+												placeholder={field.placeholder}
+												value={formAdditional[field.name] ?? ""}
+											/>
+										</div>
+									);
+								})}
+							</div>
+						) : null}
 				</div>
 
 					<div className="space-y-4">
@@ -1145,11 +1348,140 @@ export function PlaygroundPanel({
 		</ScrollArea>
 	);
 
-	const renderConfigView = () => (
-		<ScrollArea className="h-full">
-			<div className="space-y-3 p-3">
-				<div className="grid gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2 lg:grid-cols-2">
-					<div >
+	const renderConfigView = () => {
+		const hasPromptHarnessOption = promptHarnessOptions.includes(promptName);
+
+		const promptHarnessContent = (() => {
+			if (isFetchingSelectedPromptHarness) {
+				return (
+					<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+						Lade Prompt-Harness...
+					</div>
+				);
+			}
+
+			if (selectedPromptHarnessDetails?.messages?.length) {
+				return (
+					<div className="space-y-2">
+						{selectedPromptHarnessDetails.messages.map((message) => (
+							<div
+								key={`${message.role}-${message.content}`}
+								className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3 p-2.5"
+							>
+								<Badge variant="outline" className="font-mono text-[11px] uppercase">
+									{message.role}
+								</Badge>
+								<Textarea
+									readOnly
+									value={serializePromptVariable(message.content)}
+									className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
+								/>
+							</div>
+						))}
+					</div>
+				);
+			}
+
+			return (
+				<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+					Kein Prompt-Harness-Inhalt verfügbar.
+				</div>
+			);
+		})();
+
+		const templateContent = (() => {
+			if (selectedTemplateId === NONE_TEMPLATE_VALUE) {
+				return (
+					<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+						Wähle ein Template aus, um Inhalt und Beispiele zu sehen.
+					</div>
+				);
+			}
+
+			if (isFetchingSelectedTemplate) {
+				return (
+					<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+						Lade Template...
+					</div>
+				);
+			}
+
+			if (!selectedTemplateDetails) {
+				return (
+					<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+						Template konnte nicht geladen werden.
+					</div>
+				);
+			}
+
+			return (
+				<div className="space-y-2">
+					<div className="space-y-1.5">
+						<Label className="text-xs text-solarized-base01">Template</Label>
+						<Textarea
+							readOnly
+							value={selectedTemplateDetails.content}
+							className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-xs"
+						/>
+					</div>
+
+					<div className="space-y-1.5">
+						<div className="flex flex-wrap items-center justify-between gap-1.5">
+							<Label className="text-xs text-solarized-base01">
+								Beispiel (wird unter dem Template eingefügt)
+							</Label>
+							{selectedTemplateExampleCount > 0 ? (
+								<div className="flex items-center gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											className="h-7 w-7 border-solarized-base2 p-0"
+											onClick={handlePreviousTemplateExample}
+											disabled={selectedTemplateExampleIndex === 0}
+											title="Vorheriges Beispiel"
+										>
+										<ChevronLeft className="h-4 w-4" />
+									</Button>
+									<span className="min-w-16 text-center text-xs text-solarized-base01">
+										{selectedTemplateExampleIndex + 1}/{selectedTemplateExampleCount}
+									</span>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											className="h-7 w-7 border-solarized-base2 p-0"
+											onClick={handleNextTemplateExample}
+											disabled={selectedTemplateExampleIndex >= selectedTemplateExampleCount - 1}
+											title="Nächstes Beispiel"
+										>
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								</div>
+							) : null}
+						</div>
+
+						{selectedTemplateExample ? (
+							<Textarea
+								readOnly
+								value={selectedTemplateExample.content}
+								className="min-h-[120px] resize-y border-solarized-base2 bg-solarized-base3 text-xs"
+							/>
+						) : (
+							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+								Dieses Template enthält keine Beispiele.
+							</div>
+						)}
+					</div>
+				</div>
+			);
+		})();
+
+		return (
+			<ScrollArea className="h-full">
+				<div className="space-y-3 p-3">
+					<div className="grid gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2 lg:grid-cols-2">
+						<div>
 						<Label className="text-sm text-solarized-base01">Basis-Prompt</Label>
 						<Select
 							onValueChange={handlePromptHarnessChange}
@@ -1159,11 +1491,11 @@ export function PlaygroundPanel({
 								<SelectValue placeholder="Basis-Prompt waehlen" />
 							</SelectTrigger>
 							<SelectContent>
-								{!promptHarnessOptions.includes(promptName) ? (
+								{hasPromptHarnessOption ? null : (
 									<SelectItem value={promptName}>
 										{promptName} (nicht verfuegbar)
 									</SelectItem>
-								) : null}
+								)}
 								{promptHarnessOptions.map((promptHarness) => (
 									<SelectItem key={promptHarness} value={promptHarness}>
 										{promptHarness}
@@ -1173,7 +1505,7 @@ export function PlaygroundPanel({
 						</Select>
 					</div>
 
-					<div >
+					<div>
 						<Label className="text-sm text-solarized-base01">Template</Label>
 						<Select
 							value={selectedTemplateId}
@@ -1194,127 +1526,19 @@ export function PlaygroundPanel({
 					</div>
 				</div>
 
-				<div className="grid gap-2 lg:grid-cols-2">
-					<div className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
+					<div className="grid gap-2 lg:grid-cols-2">
+						<div className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
+							{promptHarnessContent}
+						</div>
 
-						{isFetchingSelectedPromptHarness ? (
-							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-								Lade Prompt-Harness...
-							</div>
-						) : selectedPromptHarnessDetails?.messages?.length ? (
-							<div className="space-y-2">
-								{selectedPromptHarnessDetails.messages.map((message, index) => (
-									<div
-										key={`${message.role}-${index}`}
-										className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3 p-2.5"
-									>
-										<Badge variant="outline" className="font-mono text-[11px] uppercase">
-											{message.role}
-										</Badge>
-										<Textarea
-											readOnly
-											value={serializePromptVariable(message.content)}
-											className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-										/>
-									</div>
-								))}
-							</div>
-						) : (
-							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-								Kein Prompt-Harness-Inhalt verfügbar.
-							</div>
-						)}
-					</div>
-
-					<div className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
-						
-
-						{selectedTemplateId === NONE_TEMPLATE_VALUE ? (
-							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-								Wähle ein Template aus, um Inhalt und Beispiele zu sehen.
-							</div>
-						) : isFetchingSelectedTemplate ? (
-							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-								Lade Template...
-							</div>
-						) : selectedTemplateDetails ? (
-							<div className="space-y-2">
-								<div className="space-y-1.5">
-									<Label className="text-xs text-solarized-base01">Template</Label>
-									<Textarea
-										readOnly
-										value={selectedTemplateDetails.content}
-										className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-xs"
-									/>
-								</div>
-
-								<div className="space-y-1.5">
-									<div className="flex flex-wrap items-center justify-between gap-1.5">
-										<Label className="text-xs text-solarized-base01">
-											Beispiel (wird unter dem Template eingefügt)
-										</Label>
-										{selectedTemplateExampleCount > 0 ? (
-											<div className="flex items-center gap-2">
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													className="h-7 w-7 border-solarized-base2 p-0"
-													onClick={() =>
-														setSelectedTemplateExampleIndex((prev) => Math.max(prev - 1, 0))
-													}
-													disabled={selectedTemplateExampleIndex === 0}
-													title="Vorheriges Beispiel"
-												>
-													<ChevronLeft className="h-4 w-4" />
-												</Button>
-												<span className="min-w-16 text-center text-xs text-solarized-base01">
-													{selectedTemplateExampleIndex + 1}/{selectedTemplateExampleCount}
-												</span>
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													className="h-7 w-7 border-solarized-base2 p-0"
-													onClick={() =>
-														setSelectedTemplateExampleIndex((prev) =>
-															Math.min(prev + 1, selectedTemplateExampleCount - 1),
-														)
-													}
-													disabled={
-														selectedTemplateExampleIndex >= selectedTemplateExampleCount - 1
-													}
-													title="Nächstes Beispiel"
-												>
-													<ChevronRight className="h-4 w-4" />
-												</Button>
-											</div>
-										) : null}
-									</div>
-
-									{selectedTemplateExample ? (
-										<Textarea
-											readOnly
-											value={selectedTemplateExample.content}
-											className="min-h-[120px] resize-y border-solarized-base2 bg-solarized-base3 text-xs"
-										/>
-									) : (
-										<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-											Dieses Template enthält keine Beispiele.
-										</div>
-									)}
-								</div>
-							</div>
-						) : (
-							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-								Template konnte nicht geladen werden.
-							</div>
-						)}
+						<div className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
+							{templateContent}
+						</div>
 					</div>
 				</div>
-			</div>
-		</ScrollArea>
-	);
+			</ScrollArea>
+		);
+	};
 
 	const renderCompiledPromptView = () => (
 		<ScrollArea className="h-full">
@@ -1331,36 +1555,24 @@ export function PlaygroundPanel({
 					>
 						{isCompiling ? "Aktualisiere..." : "Automatisch aktuell"}
 					</Badge>
-					<Button
-						type="button"
-						variant="outline"
-						className="border-solarized-base2"
-						onClick={() => {
-							setCompiledOverride(null);
-							toast.success("Override zurückgesetzt");
-						}}
-						disabled={compiledOverride === null}
-					>
+						<Button
+							type="button"
+							variant="outline"
+							className="border-solarized-base2"
+							onClick={handleResetCompiledOverride}
+							disabled={compiledOverride === null}
+						>
 						<RotateCcw className="h-4 w-4" />
 						Override zurücksetzen
 					</Button>
 				</div>
 
-				<PromptHarnessPreview
-					inputItems={inputPreviewItems}
-					messages={compiledOverride ?? compiledMessages}
-					onMessageChange={(index, content) => {
-						const next = (compiledOverride ?? compiledMessages).map((entry) => ({
-							...entry,
-						}));
-						next[index] = {
-							...next[index],
-							content,
-						};
-						setCompiledOverride(next);
-					}}
-					runtimeItems={runtimePromptItems}
-				/>
+					<PromptHarnessPreview
+						inputItems={inputPreviewItems}
+						messages={compiledOverride ?? compiledMessages}
+						onMessageChange={handleCompiledMessageChange}
+						runtimeItems={runtimePromptItems}
+					/>
 			</div>
 		</ScrollArea>
 	);
@@ -1381,143 +1593,75 @@ export function PlaygroundPanel({
 					</Button>
 				</div>
 
-				<div className={cn("grid gap-4", modelRuns.length > 1 ? "2xl:grid-cols-2" : "")}>
-					{modelRuns.map((run) => (
-						<div
-							key={run.id}
-							className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
-						>
-							<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-								<div className="min-w-0 flex-1 space-y-2">
-									<Label className="text-sm text-solarized-base01">Modell</Label>
-									<ModelSelector
+					<div className={cn("grid gap-4", modelRuns.length > 1 ? "2xl:grid-cols-2" : "")}>
+						{modelRuns.map((run) => {
+							const handleModelSelection = modelSelectionHandlers.get(run.id);
+							const handleRemoveModelRun = removeModelRunHandlers.get(run.id);
+							const handleParameterChange = modelParameterChangeHandlers.get(run.id);
+							if (!handleModelSelection || !handleRemoveModelRun || !handleParameterChange) {
+								return null;
+							}
+
+							return (
+								<div
+									key={run.id}
+									className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
+								>
+								<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+									<div className="min-w-0 flex-1 space-y-2">
+										<Label className="text-sm text-solarized-base01">Modell</Label>
+										<ModelSelector
 										options={modelSelectorOptions}
 										value={run.model?.id ?? null}
 										isLoading={isLoadingModels}
-										searchPlaceholder="Modell oder Anbieter suchen..."
-										placeholder="Modell auswählen..."
-										loadingMessage="Lade Modelle..."
-										emptyMessage="Keine Modelle gefunden."
-										formatGroupLabel={(group) =>
-											PROVIDER_LABELS[group] ??
-											group.charAt(0).toUpperCase() + group.slice(1)
+											searchPlaceholder="Modell oder Anbieter suchen..."
+											placeholder="Modell auswählen..."
+											loadingMessage="Lade Modelle..."
+											emptyMessage="Keine Modelle gefunden."
+											formatGroupLabel={formatModelGroupLabel}
+											className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
+											popoverClassName="sm:w-[28rem]"
+											renderSelected={renderSelectedModelOption}
+											renderOption={renderModelSelectorOption}
+											onValueChange={handleModelSelection}
+										/>
+									</div>
+
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
+										onClick={handleRemoveModelRun}
+										disabled={modelRuns.length === 1}
+										title={
+											modelRuns.length === 1
+												? "Mindestens ein Run muss existieren"
+												: "Run entfernen"
 										}
-										className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
-										popoverClassName="sm:w-[28rem]"
-										renderSelected={(selected) =>
-											selected ? (
-												<div className="min-w-0">
-													<p className="truncate font-medium text-solarized-base00">
-														{selected.model.name}
-													</p>
-													<p className="truncate text-solarized-base01 text-xs">
-														{selected.providerLabel}
-													</p>
-												</div>
-											) : (
-												<span className="text-solarized-base01">Modell auswählen...</span>
-											)
-										}
-										renderOption={(option) => (
-											<div className="flex min-w-0 items-start justify-between gap-3">
-												<div className="min-w-0 space-y-1">
-													<p className="truncate font-medium text-solarized-base00">
-														{option.model.name}
-													</p>
-													<p className="truncate text-solarized-base01 text-xs">
-														{option.model.modelId}
-													</p>
-												</div>
-												<div className="flex shrink-0 items-center gap-1">
-													{option.isTop ? (
-														<Badge
-															variant="outline"
-															className="border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet"
-														>
-															Top
-														</Badge>
-													) : null}
-													{option.model.supportsReasoning ? (
-														<Badge
-															variant="outline"
-															className="border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan"
-														>
-															Reasoning
-														</Badge>
-													) : null}
-												</div>
-											</div>
-										)}
-										onValueChange={(modelId) => {
-											const model = modelById.get(modelId);
-											if (!model) return;
-
-											setModelRuns((prev) =>
-												prev.map((entry) => {
-													if (entry.id !== run.id) {
-														return entry;
-													}
-
-													return {
-														...entry,
-														model,
-														parameters: entry.parameters,
-													};
-												}),
-											);
-										}}
-									/>
-								</div>
-
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
-									onClick={() => {
-										setModelRuns((prev) => prev.filter((entry) => entry.id !== run.id));
-										setRunStates((prev) => {
-											const next = { ...prev };
-											delete next[run.id];
-											return next;
-										});
-									}}
-									disabled={modelRuns.length === 1}
-									title={
-										modelRuns.length === 1
-											? "Mindestens ein Run muss existieren"
-											: "Run entfernen"
-									}
-								>
-									<Trash2 className="h-4 w-4" />
-									Remove
+										>
+										<Trash2 className="h-4 w-4" />
+										Remove
 								</Button>
 							</div>
 
 							<Separator className="bg-solarized-base2" />
 
-							<div className="space-y-2">
-								<Label className="text-sm text-solarized-base01">Parameter</Label>
-								<ParameterControls
-									parameters={run.parameters}
-									onChange={(parameters) =>
-										setModelRuns((prev) =>
-											prev.map((entry) =>
-												entry.id === run.id
-													? { ...entry, parameters }
-													: entry,
-											),
-										)
-									}
-									model={run.model}
-								/>
+								<div className="space-y-2">
+									<Label className="text-sm text-solarized-base01">Parameter</Label>
+									<ParameterControls
+										parameters={run.parameters}
+										onChange={handleParameterChange}
+										model={run.model}
+										/>
+								</div>
 							</div>
-						</div>
-					))}
+							);
+						})}
+					</div>
 				</div>
-			</div>
-		</ScrollArea>
-	);
+			</ScrollArea>
+		);
 
 	const renderResultsView = () => (
 		<ScrollArea className="h-full">
@@ -1576,18 +1720,24 @@ export function PlaygroundPanel({
 
 	const renderActiveView = () => {
 		switch (activeView) {
-			case "config":
+			case "config": {
 				return renderConfigView();
-			case "inputs":
+			}
+			case "inputs": {
 				return renderInputsView();
-			case "compiled":
+			}
+			case "compiled": {
 				return renderCompiledPromptView();
-			case "models":
+			}
+			case "models": {
 				return renderModelsView();
-			case "results":
+			}
+			case "results": {
 				return renderResultsView();
-			default:
+			}
+			default: {
 				return null;
+			}
 		}
 	};
 
@@ -1595,22 +1745,27 @@ export function PlaygroundPanel({
 		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
 			<Card className="w-full shrink-0 border-solarized-base2 lg:min-h-0 lg:w-60">
 				<CardContent className="p-2">
-					<div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
-						{navigationItems.map((item) => {
-							const isActive = item.view === activeView;
-							return (
-								<Button
+						<div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+							{navigationItems.map((item) => {
+								const handleNavigationClick = navigationClickHandlers.get(item.view);
+								if (!handleNavigationClick) {
+									return null;
+								}
+
+								const isActive = item.view === activeView;
+								return (
+									<Button
 									type="button"
 									key={item.view}
 									variant="ghost"
 									className={cn(
 										"h-auto w-full flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left",
-										isActive
-											? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue"
-											: "border-transparent text-solarized-base01 hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00",
-									)}
-									onClick={() => setActiveView(item.view)}
-								>
+											isActive
+												? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue"
+												: "border-transparent text-solarized-base01 hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00",
+										)}
+										onClick={handleNavigationClick}
+									>
 									<span className="font-medium text-sm">
 										{PLAYGROUND_VIEW_META[item.view].label}
 									</span>
@@ -1636,7 +1791,7 @@ export function PlaygroundPanel({
 	);
 }
 
-function RunCard({
+const RunCard = ({
 	runId,
 	modelRun,
 	documentType,
@@ -1657,19 +1812,57 @@ function RunCard({
 		role: "system" | "user" | "assistant";
 		content: string;
 	}> | null;
-	compiledMessages: Array<{
+	compiledMessages: {
 		role: "system" | "user" | "assistant";
 		content: string;
-	}>;
+	}[];
 	runState: RunState | undefined;
 	setRunState: (id: string, patch: Partial<RunState>) => void;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
-}) {
+}) => {
 	const payloadRef = useRef<null | Parameters<typeof orpc.admin.scribe.run.call>[0]>(null);
 
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
 		id: `admin-scribe-playground-${modelRun.id}`,
+		onError: (error) => {
+			setRunState(runId, {
+				error: error.message,
+				isStreaming: false,
+			});
+		},
+		onFinish: async () => {
+			const requestId = payloadRef.current?.requestId;
+			if (!requestId) {return;}
+			try {
+				const event = await orpc.admin.usage.findByRequestId.call({
+					requestId,
+				});
+				if (!event) {return;}
+
+				const latencyMs =
+					typeof (event.metadata as Record<string, unknown> | null)?.latencyMs === "number"
+						? ((event.metadata as Record<string, unknown>).latencyMs as number)
+						: 0;
+
+			setRunState(runId, {
+				isStreaming: false,
+				metrics: {
+					cost: event.cost ? Number(event.cost) : undefined,
+					inputTokens: event.inputTokens ?? undefined,
+					latencyMs,
+					outputTokens: event.outputTokens ?? undefined,
+					reasoningTokens: event.reasoningTokens ?? undefined,
+					totalTokens: event.totalTokens ?? undefined,
+				},
+			});
+		} catch {
+			// Best effort; output is still useful even without metrics.
+		}
+		},
 		transport: {
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
 			async sendMessages(options) {
 				if (!payloadRef.current) {
 					throw new Error("Missing payload");
@@ -1677,53 +1870,15 @@ function RunCard({
 				return eventIteratorToUnproxiedDataStream(
 					await orpc.admin.scribe.run.call(payloadRef.current, {
 						signal: options.abortSignal,
-					}),
-				);
+						}),
+					);
 			},
-			reconnectToStream() {
-				throw new Error("Unsupported");
-			},
-		},
-		onError: (error) => {
-			setRunState(runId, {
-				isStreaming: false,
-				error: error.message,
-			});
-		},
-		onFinish: async () => {
-			const requestId = payloadRef.current?.requestId;
-			if (!requestId) return;
-			try {
-				const event = await orpc.admin.usage.findByRequestId.call({
-					requestId,
-				});
-				if (!event) return;
-
-				const latencyMs =
-					typeof (event.metadata as Record<string, unknown> | null)?.latencyMs === "number"
-						? ((event.metadata as Record<string, unknown>).latencyMs as number)
-						: 0;
-
-				setRunState(runId, {
-					isStreaming: false,
-					metrics: {
-						latencyMs,
-						inputTokens: event.inputTokens ?? undefined,
-						outputTokens: event.outputTokens ?? undefined,
-						totalTokens: event.totalTokens ?? undefined,
-						reasoningTokens: event.reasoningTokens ?? undefined,
-						cost: event.cost ? Number(event.cost) : undefined,
-					},
-				});
-			} catch {
-				// Best effort; output is still useful even without metrics.
-			}
 		},
 	});
 
 	const { completion, reasoning } = useMemo(() => {
 		const lastAssistant = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistant) return { completion: "", reasoning: "" };
+		if (!lastAssistant) {return { completion: "", reasoning: "" };}
 		// Extract text and reasoning from parts (AI SDK v4 format)
 		if (lastAssistant.parts && lastAssistant.parts.length > 0) {
 			const textParts = lastAssistant.parts
@@ -1743,19 +1898,24 @@ function RunCard({
 		if (status === "streaming" || status === "submitted") {
 			setRunState(runId, {
 				isStreaming: true,
-				text: completion,
 				reasoning: reasoning || undefined,
+				text: completion,
 			});
 		} else if (completion) {
 			setRunState(runId, {
 				isStreaming: false,
-				text: completion,
 				reasoning: reasoning || undefined,
+				text: completion,
 			});
 		}
 	}, [completion, reasoning, status, runId, setRunState]);
 
 	const isRunning = status === "streaming" || status === "submitted";
+
+	const handleStopRun = useCallback(() => {
+		stop();
+		setRunState(runId, { isStreaming: false });
+	}, [runId, setRunState, stop]);
 
 	const startRun = useCallback(async () => {
 		if (!modelRun.model) {
@@ -1768,27 +1928,27 @@ function RunCard({
 		const compiledMessagesOverride =
 			compiledOverride ?? (compiledMessages.length > 0 ? compiledMessages : undefined);
 
-		payloadRef.current = {
-			requestId,
+			payloadRef.current = {
+				compiledMessagesOverride: compiledMessagesOverride
+					? compiledMessagesOverride.map((m) => ({
+							content: m.content,
+							role: m.role,
+						}))
+					: undefined,
+			documentType,
 			model: modelRun.model.id,
 			parameters: modelRun.parameters,
-			documentType,
-			promptName,
 			promptJson,
-			compiledMessagesOverride: compiledMessagesOverride
-				? compiledMessagesOverride.map((m) => ({
-						role: m.role,
-						content: m.content,
-					}))
-				: undefined,
+			promptName,
+			requestId,
 		};
 
 		setRunState(runId, {
-			requestId,
 			error: undefined,
-			text: "",
-			metrics: { latencyMs: 0 },
 			isStreaming: true,
+			metrics: { latencyMs: 0 },
+			requestId,
+			text: "",
 		});
 		setMessages([]);
 		await sendMessage({ text: "run" });
@@ -1831,19 +1991,16 @@ function RunCard({
 				</div>
 
 				<div className="flex shrink-0 gap-1.5">
-					{isRunning ? (
-						<Button
-							type="button"
-							variant="destructive"
-							size="sm"
-							className="h-7 px-2 text-xs"
-							onClick={() => {
-								stop();
-								setRunState(runId, { isStreaming: false });
-							}}
-						>
-							Stop
-						</Button>
+						{isRunning ? (
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								className="h-7 px-2 text-xs"
+								onClick={handleStopRun}
+							>
+								Stop
+							</Button>
 					) : (
 						<Button
 							type="button"
@@ -1865,11 +2022,11 @@ function RunCard({
 					result={
 						runState
 							? {
-									text: runState.text,
-									metrics: runState.metrics,
-									isStreaming: runState.isStreaming,
-									reasoning: runState.reasoning,
 									error: runState.error,
+									isStreaming: runState.isStreaming,
+									metrics: runState.metrics,
+									reasoning: runState.reasoning,
+									text: runState.text,
 								}
 							: null
 					}

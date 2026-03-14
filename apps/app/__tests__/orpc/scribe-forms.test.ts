@@ -3,6 +3,7 @@ import { call } from "@orpc/server";
 
 import { scribeFormsHandler as adminScribeFormsHandler } from "@/orpc/admin/scribe-forms";
 import { scribeFormsHandler } from "@/orpc/scribe-forms";
+import type { TestServer } from "@/__tests__/setup";
 import {
 	ADMIN_EMAIL,
 	createMockSession,
@@ -11,8 +12,7 @@ import {
 	createTestTemplate,
 	createTestUser,
 	startTestServer,
-	type TestServer,
-} from "../setup";
+} from "@/__tests__/setup";
 
 describe("AI Scribe Forms Handlers", () => {
 	let server: TestServer;
@@ -46,19 +46,19 @@ describe("AI Scribe Forms Handlers", () => {
 	});
 
 	test("admin can create and list custom AI forms", async () => {
-		const created = await call(
-			adminScribeFormsHandler.create,
-			{
-				name: "Echo Brief",
-				slug: "echo-brief",
-				description: "Erstellt einen strukturierten Echo-Brief.",
-				enabled: true,
-				promptHarness: "Inpatient_discharge",
-				templateId,
-				modelId,
-			},
-			{ context: adminContext },
-		);
+			const created = await call(
+				adminScribeFormsHandler.create,
+				{
+					description: "Erstellt einen strukturierten Echo-Brief.",
+					enabled: true,
+					modelId,
+					name: "Echo Brief",
+					promptHarness: "Inpatient_discharge",
+					slug: "echo-brief",
+					templateId,
+				},
+				{ context: adminContext },
+			);
 
 		const listed = await call(adminScribeFormsHandler.list, undefined, {
 			context: adminContext,
@@ -77,34 +77,34 @@ describe("AI Scribe Forms Handlers", () => {
 	});
 
 	test("disabled custom AI forms are hidden from public reads", async () => {
-		const created = await call(
-			adminScribeFormsHandler.create,
-			{
-				name: "Echo Brief",
-				slug: "echo-brief",
-				description: null,
-				enabled: true,
-				promptHarness: "Diagnoses",
-				templateId: null,
-				modelId: null,
-			},
-			{ context: adminContext },
-		);
+			const created = await call(
+				adminScribeFormsHandler.create,
+				{
+					description: null,
+					enabled: true,
+					modelId: null,
+					name: "Echo Brief",
+					promptHarness: "Diagnoses",
+					slug: "echo-brief",
+					templateId: null,
+				},
+				{ context: adminContext },
+			);
 
-		await call(
-			adminScribeFormsHandler.update,
-			{
-				id: created.id,
-				name: "Echo Brief",
-				slug: "echo-brief",
-				description: null,
-				enabled: false,
-				promptHarness: "Diagnoses",
-				templateId: null,
-				modelId: null,
-			},
-			{ context: adminContext },
-		);
+			await call(
+				adminScribeFormsHandler.update,
+				{
+					description: null,
+					enabled: false,
+					id: created.id,
+					modelId: null,
+					name: "Echo Brief",
+					promptHarness: "Diagnoses",
+					slug: "echo-brief",
+					templateId: null,
+				},
+				{ context: adminContext },
+			);
 
 		const listed = await call(scribeFormsHandler.listAvailable, undefined, {
 			context: publicContext,

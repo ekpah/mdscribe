@@ -6,6 +6,12 @@ import { Score } from "./score";
 import { Switch } from "./switch";
 
 export default {
+	// cases should not contain breaks, as this will not be rendered correctly
+	case: {
+		attributes: { primary: { render: true, type: String } },
+		children: ["text", "strong", "em", "code", "link", "inline"],
+		render: "Case",
+	},
 	info: {
 		attributes: {
 			description: {
@@ -46,22 +52,27 @@ export default {
 		render: "Score",
 	},
 	switch: {
-		render: "Switch",
-		children: ["tag", "text"],
 		attributes: { primary: { required: true, type: String } },
+		children: ["tag", "text"],
+		render: "Switch",
 		selfClosing: false,
 		// this transform is necessary to only allow case tags inside switch tags to render
 		// switch tags should not contain breaks, as this will not be rendered correctly (markdoc only recognizes inline tags or full paragraphs)
 		transform(node: Node, config: Config) {
-			const getAllCaseTags = (nodes: Node[]): Node[] => nodes.reduce((acc: Node[], node) => {
-					if (node.type === "tag" && node.tag === "case") {
-						acc.push(node);
+			const getAllCaseTags = (nodes: Node[]): Node[] => {
+				const allCaseTags: Node[] = [];
+
+				for (const childNode of nodes) {
+					if (childNode.type === "tag" && childNode.tag === "case") {
+						allCaseTags.push(childNode);
 					}
-					if (node.children) {
-						acc.push(...getAllCaseTags(node.children));
+					if (childNode.children) {
+						allCaseTags.push(...getAllCaseTags(childNode.children));
 					}
-					return acc;
-				}, []);
+				}
+
+				return allCaseTags;
+			};
 			node.children = getAllCaseTags(node.children);
 			const attributes = node.transformAttributes(config);
 			const children = node.transformChildren(config);
@@ -69,15 +80,9 @@ export default {
 			return new Tag("Switch", attributes, children);
 		},
 	},
-	// cases should not contain breaks, as this will not be rendered correctly
-	case: {
-		attributes: { primary: { render: true, type: String } },
-		children: ["text", "strong", "em", "code", "link", "inline"],
-		render: "Case",
-	},
 };
 
-export const components: Record<string, React.ComponentType<any>> = {
+export const components: Record<string, React.ComponentType<unknown>> = {
 	Case,
 	Info,
 	Score,

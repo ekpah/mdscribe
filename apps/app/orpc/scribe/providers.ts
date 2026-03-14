@@ -12,9 +12,9 @@ import { decrypt } from "@/lib/encryption";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
-export type InputMode = "text" | "audio" | "file" | "image";
+type InputMode = "text" | "audio" | "file" | "image";
 
-export interface ResolvedModel {
+interface ResolvedModel {
 	model: LanguageModel;
 	modelName: string;
 	providerId: string;
@@ -118,7 +118,7 @@ export const resolveModelByRecordId = async (
 		.where(eq(aiModel.id, modelRecordId))
 		.limit(1);
 
-	const row = rows[0];
+	const [row] = rows;
 	if (!row) {
 		throw new Error(USER_MESSAGES.modelUnavailable);
 	}
@@ -164,11 +164,12 @@ export const resolveModel = async (
 		throw new Error(USER_MESSAGES.modelUnavailable);
 	}
 
-	const defaultModelId = options?.requireAudio
-		? defaults.defaultSpeechToTextModelId
-		: (options?.requireFiles
-			? defaults.defaultFileImageModelId
-			: defaults.defaultTextModelId);
+	let defaultModelId = defaults.defaultTextModelId;
+	if (options?.requireAudio) {
+		defaultModelId = defaults.defaultSpeechToTextModelId;
+	} else if (options?.requireFiles) {
+		defaultModelId = defaults.defaultFileImageModelId;
+	}
 
 	if (!defaultModelId) {
 		throw new Error(USER_MESSAGES.modelUnavailable);

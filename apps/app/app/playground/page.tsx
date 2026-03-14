@@ -1,7 +1,7 @@
 'use client';
 
 import type { RenderableTreeNode } from '@markdoc/markdoc';
-import Markdoc from '@markdoc/markdoc';
+import * as Markdoc from '@markdoc/markdoc';
 import TipTap from '@repo/design-system/components/editor/tip-tap';
 import Inputs from '@repo/design-system/components/inputs/inputs';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { MemoizedCopySection } from '../aiscribe/_components/memoized-copy-section';
+import { MemoizedCopySection } from '@/app/aiscribe/_components/memoized-copy-section';
 
 
 
@@ -80,6 +80,20 @@ Datum: {% info "date" /%}
   {% case "female" %}Weiblich{% /case %}
   {% case "other" %}Divers{% /case %}
 {% /switch %}`;
+
+const getArrayItemKey = (item: unknown): string => {
+  if (typeof item === 'object' && item !== null) {
+    if ('id' in item && typeof item.id === 'string') {
+      return `id:${item.id}`;
+    }
+    if ('key' in item && typeof item.key === 'string') {
+      return `key:${item.key}`;
+    }
+    return `json:${JSON.stringify(item)}`;
+  }
+
+  return `${typeof item}:${String(item)}`;
+};
 
 const ObjectNode = ({
   data,
@@ -145,6 +159,18 @@ const ObjectNode = ({
       );
     }
 
+    const keyedItems: { item: unknown; key: string }[] = [];
+    const keyCounts = new Map<string, number>();
+    for (const item of data) {
+      const baseKey = getArrayItemKey(item);
+      const count = keyCounts.get(baseKey) ?? 0;
+      keyCounts.set(baseKey, count + 1);
+      keyedItems.push({
+        item,
+        key: `${baseKey}:${count}`,
+      });
+    }
+
     return (
       <div>
         <button
@@ -165,9 +191,9 @@ const ObjectNode = ({
         </button>
         {isExpanded && (
           <div>
-            {data.map((item, index) => (
+            {keyedItems.map(({ item, key }, index) => (
               <ObjectNode
-                key={index}
+                key={key}
                 data={item}
                 name={`[${index}]`}
                 level={level + 1}
@@ -230,13 +256,11 @@ const ObjectNode = ({
 };
 
 // Collapsible Object Display component for AST and renderable tree
-const ObjectDisplay = ({ data }: { data: unknown }) => {
-  return (
+const ObjectDisplay = ({ data }: { data: unknown }) => (
     <div className="font-mono text-xs">
       <ObjectNode data={data} name="" level={0} />
     </div>
   );
-};
 
 export default function PlaygroundPage() {
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
@@ -299,6 +323,71 @@ export default function PlaygroundPage() {
       };
     }
   }, [template]);
+
+  const middleViewContent = (() => {
+    if (middleView === 'inputs') {
+      if (parsedInputs.length > 0) {
+        return (
+          <div className="space-y-4">
+            <Inputs
+              inputTags={parsedInputs}
+              onChange={handleValuesChange}
+            />
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex h-full flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
+          <Settings className="h-12 w-12" />
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg">
+              Keine Eingaben gefunden
+            </h3>
+            <p className="max-w-sm text-sm">
+              Fügen Sie info-Tags zu Ihrer Vorlage hinzu mit der
+              Syntax:
+              <br />
+              <code className="rounded bg-muted px-2 py-1 text-xs">
+                {`{% info "feldname" %}`}
+              </code>
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="h-full">
+        {parsedInputs.length > 0 ? (
+          <ObjectDisplay data={parsedInputs} />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
+            <Code className="h-12 w-12" />
+            <div className="space-y-2">
+              <h3 className="font-semibold text-lg">
+                Keine Inputs zum Anzeigen
+              </h3>
+              <p className="max-w-sm text-sm">
+                Fügen Sie info-Tags zu Ihrer Vorlage hinzu, um das
+                JSON zu sehen.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })();
+
+  const rightViewTitle = (() => {
+    if (rightView === 'preview') {
+      return 'Gerenderte Ausgabe';
+    }
+    if (rightView === 'ast') {
+      return 'AST';
+    }
+    return 'Renderable Tree';
+  })();
 
   return (
     <div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
@@ -416,52 +505,7 @@ export default function PlaygroundPage() {
               </CardHeader>
               <CardContent className="p-4">
                 <ScrollArea className="h-[552px] overflow-y-auto">
-                  {middleView === 'inputs' ? (
-                    parsedInputs.length > 0 ? (
-                      <div className="space-y-4">
-                        <Inputs
-                          inputTags={parsedInputs}
-                          onChange={handleValuesChange}
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
-                        <Settings className="h-12 w-12" />
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-lg">
-                            Keine Eingaben gefunden
-                          </h3>
-                          <p className="max-w-sm text-sm">
-                            Fügen Sie info-Tags zu Ihrer Vorlage hinzu mit der
-                            Syntax:
-                            <br />
-                            <code className="rounded bg-muted px-2 py-1 text-xs">
-                              {`{% info "feldname" %}`}
-                            </code>
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  ) : (
-                    <div className="h-full">
-                      {parsedInputs.length > 0 ? (
-                        <ObjectDisplay data={parsedInputs} />
-                      ) : (
-                        <div className="flex h-full flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
-                          <Code className="h-12 w-12" />
-                          <div className="space-y-2">
-                            <h3 className="font-semibold text-lg">
-                              Keine Inputs zum Anzeigen
-                            </h3>
-                            <p className="max-w-sm text-sm">
-                              Fügen Sie info-Tags zu Ihrer Vorlage hinzu, um das
-                              JSON zu sehen.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {middleViewContent}
                 </ScrollArea>
               </CardContent>
             </Card>
@@ -474,11 +518,7 @@ export default function PlaygroundPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base text-foreground">
                     <Eye className="h-5 w-5 text-solarized-cyan" />
-                    {rightView === 'preview'
-                      ? 'Gerenderte Ausgabe'
-                      : (rightView === 'ast'
-                        ? 'AST'
-                        : 'Renderable Tree')}
+                    {rightViewTitle}
                   </CardTitle>
                   <div className="flex items-center gap-1">
                     <Button

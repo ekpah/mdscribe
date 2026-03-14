@@ -11,7 +11,7 @@ import { StarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { redirect, usePathname } from 'next/navigation';
 import type React from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/lib/auth-client';
 import { orpc } from '@/lib/orpc';
@@ -174,6 +174,23 @@ export default function FindTemplatePage() {
     [],
   );
 
+  const handleFavouriteToggleByTemplateId = useMemo<Record<string, () => Promise<void>>>(() => {
+    const handlers: Record<string, () => Promise<void>> = {};
+    for (const template of results) {
+      handlers[template.id] = async () => {
+        try {
+          await handleToggleFavourite(
+            template.id,
+            Boolean(favouriteStates[template.id]),
+          );
+        } catch (toggleError) {
+          console.error('Error toggling favourite:', toggleError);
+        }
+      };
+    }
+    return handlers;
+  }, [favouriteStates, handleToggleFavourite, results]);
+
   return (
     <div className="container mx-auto max-w-4xl p-6">
       <div className="space-y-6">
@@ -228,12 +245,6 @@ export default function FindTemplatePage() {
             {results.map((template, index) => {
               const isFavorited = favouriteStates[template.id];
               const favoriteCount = template._count?.favouriteOf || 0;
-              const handleFavouriteClick = () => {
-                void handleToggleFavourite(
-                  template.id,
-                  Boolean(favouriteStates[template.id]),
-                );
-              };
 
               return (
                 <div
@@ -296,7 +307,7 @@ export default function FindTemplatePage() {
                       {isLoggedIn && (
                         <Button
                           className="gap-1"
-                          onClick={handleFavouriteClick}
+                          onClick={handleFavouriteToggleByTemplateId[template.id]}
                           size="sm"
                           variant="ghost"
                         >

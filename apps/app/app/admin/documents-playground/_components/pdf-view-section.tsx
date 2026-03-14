@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { toPdfBlobUrl } from "../_lib/pdf-data";
+import { toPdfBlobUrl } from "@/app/admin/documents-playground/_lib/pdf-data";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 const options = {
@@ -22,21 +22,28 @@ interface PDFViewSectionProps {
 	hasUploadedFile?: boolean;
 }
 
-export default function PDFViewSection({
-	pdfFile,
-	hasUploadedFile = false,
-}: PDFViewSectionProps) {
-	const [numPages, setNumPages] = useState<number>();
-	const [pageNumber, setPageNumber] = useState<number>(1);
+const getPageWidth = (
+	containerWidth: number | undefined,
+	reservedPixels: number,
+): number => {
+	if (!containerWidth) {
+		return maxWidth - reservedPixels;
+	}
+	return Math.max(240, Math.min(containerWidth - reservedPixels, maxWidth - reservedPixels));
+};
+
+const useContainerWidth = () => {
 	const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);
 	const [containerWidth, setContainerWidth] = useState<number>();
 
-	const onResize = useCallback<ResizeObserverCallback>((entries) => {
+	const handleResize = useCallback<ResizeObserverCallback>((entries) => {
 		const [entry] = entries;
-		if (entry) {
-			const nextWidth = entry.contentRect.width;
-			setContainerWidth(nextWidth > 0 ? nextWidth : undefined);
+		if (!entry) {
+			return;
 		}
+
+		const nextWidth = entry.contentRect.width;
+		setContainerWidth(nextWidth > 0 ? nextWidth : undefined);
 	}, []);
 
 	useEffect(() => {
@@ -44,21 +51,44 @@ export default function PDFViewSection({
 			return;
 		}
 
-		const resizeObserver = new ResizeObserver(onResize);
+		const resizeObserver = new ResizeObserver(handleResize);
 		resizeObserver.observe(containerRef);
-
 		return () => {
 			resizeObserver.disconnect();
 		};
-	}, [containerRef, onResize]);
+	}, [containerRef, handleResize]);
+
+	return {
+		containerWidth,
+		setContainerRef,
+	};
+};
+
+const usePdfDocumentState = (pdfFile: Uint8Array | null) => {
+	const [numPages, setNumPages] = useState<number>();
+	const [pageNumber, setPageNumber] = useState<number>(1);
+	const pdfUrl = useMemo(() => toPdfBlobUrl(pdfFile), [pdfFile]);
+
+	useEffect(
+		() => () => {
+			if (pdfUrl) {
+				URL.revokeObjectURL(pdfUrl);
+			}
+		},
+		[pdfUrl],
+	);
+
+	useEffect(() => {
+		if (!pdfUrl) {
+			return;
+		}
+		setPageNumber(1);
+		setNumPages(undefined);
+	}, [pdfUrl]);
 
 	const handleDocumentLoadSuccess = useCallback(
-		({
-			numPages: nextNumPages,
-		}: {
-			numPages: number;
-		}): void => {
-		setNumPages(nextNumPages);
+		({ numPages: nextNumPages }: { numPages: number }): void => {
+			setNumPages(nextNumPages);
 		},
 		[],
 	);
@@ -80,35 +110,50 @@ export default function PDFViewSection({
 		});
 	}, [numPages]);
 
-	const pdfUrl = useMemo(() => toPdfBlobUrl(pdfFile), [pdfFile]);
+	return {
+		handleDocumentLoadError,
+		handleDocumentLoadSuccess,
+		handleNextPage,
+		handlePreviousPage,
+		numPages,
+		pageNumber,
+		pdfUrl,
+	};
+};
 
-	useEffect(() => () => {
-			if (pdfUrl) {
-				URL.revokeObjectURL(pdfUrl);
-			}
-		}, [pdfUrl]);
+export default function PDFViewSection({
+	pdfFile,
+	hasUploadedFile = false,
+}: PDFViewSectionProps) {
+	const { containerWidth, setContainerRef } = useContainerWidth();
+	const {
+		handleDocumentLoadError,
+		handleDocumentLoadSuccess,
+		handleNextPage,
+		handlePreviousPage,
+		numPages,
+		pageNumber,
+		pdfUrl,
+	} = usePdfDocumentState(pdfFile);
 
-	useEffect(() => {
-		if (!pdfUrl) {
-			return;
-		}
-		setPageNumber(1);
-		setNumPages(undefined);
-	}, [pdfUrl]);
+	if (!pdfUrl) {
+		return (
+			<div className="h-full min-h-0">
+				<div className="flex h-full min-h-40 w-full items-center justify-center rounded-xl border border-input border-dashed p-4">
+					<div className="text-center">
+						<p className="block text-sm font-medium">
+							Laden Sie ein PDF hoch, um die Vorschau zu sehen
+						</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
-	const pageWidthWithControls = useMemo(() => {
-		if (!containerWidth) {
-			return maxWidth - 120;
-		}
-		return Math.max(240, Math.min(containerWidth - 120, maxWidth - 120));
-	}, [containerWidth]);
-
-	const pageWidth = useMemo(() => {
-		if (!containerWidth) {
-			return maxWidth;
-		}
-		return Math.max(240, Math.min(containerWidth - 16, maxWidth));
-	}, [containerWidth]);
+	const showPageControls = Boolean(numPages && numPages > 1 && hasUploadedFile);
+	const pageWidth = showPageControls
+		? getPageWidth(containerWidth, 120)
+		: getPageWidth(containerWidth, 16);
 
 	return (
 		<div className="h-full min-h-0">
@@ -116,78 +161,55 @@ export default function PDFViewSection({
 				ref={setContainerRef}
 				className="relative flex h-full min-h-0 items-start justify-center overflow-hidden"
 			>
-				{pdfUrl ? (
-					<div className="relative flex h-full min-h-0 w-full items-start justify-center overflow-auto">
-						{numPages && numPages > 1 && hasUploadedFile ? (
-							<>
-									<Button
-										variant="outline"
-										size="icon"
-										onClick={handlePreviousPage}
-										disabled={pageNumber <= 1}
-										className="absolute top-1/2 left-2 z-10 -translate-y-1/2"
-									>
-									<ChevronLeftIcon className="h-4 w-4" />
-								</Button>
-								<div className="flex min-h-full flex-col items-center justify-start py-2">
-										<Document
-											file={pdfUrl}
-											onLoadSuccess={handleDocumentLoadSuccess}
-											onLoadError={handleDocumentLoadError}
-											options={options}
-											className="max-w-full"
-										>
-										<Page
-											key={`page_${pageNumber}`}
-											pageNumber={pageNumber}
-											width={pageWidthWithControls}
-										/>
-									</Document>
-									{numPages && numPages > 1 ? (
-										<div className="mt-2">
-											<span className="text-sm font-medium">
-												Seite {pageNumber} von {numPages}
-											</span>
-										</div>
-									) : null}
-								</div>
-									<Button
-										variant="outline"
-										size="icon"
-										onClick={handleNextPage}
-										disabled={pageNumber >= numPages}
-										className="absolute top-1/2 right-2 z-10 -translate-y-1/2"
-									>
-									<ChevronRightIcon className="h-4 w-4" />
-								</Button>
-							</>
-						) : (
-							<div className="flex min-h-full flex-col items-center justify-start py-2">
-									<Document
-										file={pdfUrl}
-										onLoadSuccess={handleDocumentLoadSuccess}
-										onLoadError={handleDocumentLoadError}
-										options={options}
-										className="max-w-full"
-									>
-									<Page
-										key={`page_${pageNumber}`}
-										pageNumber={pageNumber}
-										width={pageWidth}
-									/>
-								</Document>
+				<div className="relative flex h-full min-h-0 w-full items-start justify-center overflow-auto">
+					{showPageControls ? (
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={handlePreviousPage}
+							disabled={pageNumber <= 1}
+							className="absolute top-1/2 left-2 z-10 -translate-y-1/2"
+						>
+							<ChevronLeftIcon className="h-4 w-4" />
+						</Button>
+					) : null}
+
+					<div className="flex min-h-full flex-col items-center justify-start py-2">
+						<Document
+							file={pdfUrl}
+							onLoadSuccess={handleDocumentLoadSuccess}
+							onLoadError={handleDocumentLoadError}
+							options={options}
+							className="max-w-full"
+						>
+							<Page
+								key={`page_${pageNumber}`}
+								pageNumber={pageNumber}
+								width={pageWidth}
+							/>
+						</Document>
+
+						{numPages && numPages > 1 ? (
+							<div className="mt-2">
+								<span className="text-sm font-medium">
+									Seite {pageNumber} von {numPages}
+								</span>
 							</div>
-						)}
+						) : null}
 					</div>
-				) : (
-					<div className="flex h-full min-h-40 w-full items-center justify-center rounded-xl border border-input border-dashed p-4">
-						<div className="text-center">
-							<p className="block text-sm font-medium">
-								Laden Sie ein PDF hoch, um die Vorschau zu sehen
-							</p>
-						</div>
-					</div>
-				)}
+
+					{showPageControls ? (
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={handleNextPage}
+							disabled={pageNumber >= numPages}
+							className="absolute top-1/2 right-2 z-10 -translate-y-1/2"
+						>
+							<ChevronRightIcon className="h-4 w-4" />
+						</Button>
+					) : null}
+				</div>
 			</div>
 		</div>
 	);

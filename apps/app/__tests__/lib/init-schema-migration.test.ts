@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { aiDefaults, aiModel, aiProvider, eq, sql } from '@repo/database';
 import type { Database } from '@repo/database';
-import { startTestServer } from '../setup';
-import type { TestServer } from '../setup';
+import { startTestServer } from '@/__tests__/setup';
+import type { TestServer } from '@/__tests__/setup';
 
 describe("legacy AI schema migration semantics", () => {
 	let server: TestServer;
