@@ -275,16 +275,18 @@ export const MemoizedCopySection = memo(
 				}
 			}, []);
 
-			const handleCopyClick = useCallback(() => {
-				// Use the ref to get the rendered content directly
-				const contentElement = contentRef.current;
-				if (contentElement) {
-					const renderedContent = contentElement.innerHTML;
-					const textContent = contentElement.textContent || "";
-					void handleCopy(renderedContent, textContent);
-				} else {
-					toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
-				}
+		const handleCopyClick = useCallback(() => {
+			// Use the ref to get the rendered content directly
+			const contentElement = contentRef.current;
+			if (contentElement) {
+				const renderedContent = contentElement.innerHTML;
+				const textContent = contentElement.innerText
+					.replaceAll("\r\n", "\n")
+					.replaceAll("\r", "\n");
+				void handleCopy(renderedContent, textContent);
+			} else {
+				toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
+			}
 			}, [handleCopy]);
 
 		return (
