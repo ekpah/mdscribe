@@ -1,6 +1,5 @@
-import { diagnosisContextGuidance, dischargeContextGuidance } from "../context/context-guidance";
+import { DIAGNOSIS_CONTEXT_GUIDANCE } from "../context/patient/guidance";
 import type {
-	AdmissionTodosVariables,
 	AnamneseVariables,
 	BefundeVariables,
 	DiagnosisVariables,
@@ -15,16 +14,33 @@ import type {
 	PromptMessage,
 	PromptVariables,
 } from "../types";
-import { admissionTodosPromptHarness } from "./prompt-harnesses/admission-todos";
-import { anamnesePromptHarness } from "./prompt-harnesses/anamnese";
-import { befundePromptHarness } from "./prompt-harnesses/befunde";
-import { diagnosisPromptHarness } from "./prompt-harnesses/diagnosis";
-import { dischargePromptHarness } from "./prompt-harnesses/discharge";
-import { icuTransferPromptHarness } from "./prompt-harnesses/icu-transfer";
-import { outpatientPromptHarness } from "./prompt-harnesses/outpatient";
-import { physicalExamPromptHarness } from "./prompt-harnesses/physical-exam";
-import { proceduresPromptHarness } from "./prompt-harnesses/procedures";
-import { createPromptMessages, type PromptHarness } from "./shared";
+import { ANAMNESE_SYSTEM_PROMPT } from "./families/anamnese/anamnese";
+import { DIAGNOSIS_SYSTEM_PROMPT, DIAGNOSIS_TASK_EXECUTION } from "./families/diagnosis/diagnosis";
+import { DISCHARGE_SYSTEM_PROMPT, DISCHARGE_TASK_EXECUTION } from "./families/narrative/discharge";
+import {
+	ICU_TRANSFER_OUTPUT_PROMPT,
+	ICU_TRANSFER_SYSTEM_PROMPT,
+} from "./families/narrative/icu-transfer";
+import { OUTPATIENT_SYSTEM_PROMPT } from "./families/narrative/outpatient";
+import { PROCEDURES_INPUT_LABEL, PROCEDURES_SYSTEM_PROMPT } from "./families/procedures/procedures";
+import { BEFUNDE_SYSTEM_PROMPT, BEFUNDE_TASK_EXECUTION } from "./families/reports/befunde";
+import { PHYSICAL_EXAM_SYSTEM_PROMPT } from "./families/reports/physical-exam";
+import { createPromptMessages, type PromptPart } from "./shared";
+
+const ANAMNESE_FALLBACK_TEMPLATE = `
+# Anamnese
+
+{% switch "Geschlecht" %}{% case "Männlich" %}Herr{% /case %}{% case "Weiblich" %}Frau{% /case %}{% /switch %}{% info "Name" /%} stellt sich bei XXX in unserer Notaufnahme vor.
+
+Allergien: Keine bekannt. ((hier Allergien aus Vorbefunden oder was der Patient erwähnt einfügen))
+
+Vormedikation: Keine. ((Hier nur Wirkstoffnamen nennen, außer genaueres ist bekannt. Wenn ganz genaues bekannt ist, dann in einzelnen Zeilen und mit Dosierung aufführen))
+
+Vitalparameter:
+
+Puls 60/min, RR 180/20 mmHg, SpO2 99%, AF 15/min, Blutzucker 120 mg/dl
+
+`
 
 export interface RegisteredPromptHarness {
 	buildPrompt: (variables: PromptVariables) => PromptMessage[];
@@ -37,7 +53,6 @@ interface DocumentPromptDefinition extends DocumentTypeConfig {
 }
 
 const createDocumentPromptDefinition = <T extends PromptVariables>(definition: {
-	contextGuidance?: string;
 	harness: PromptHarness<T>;
 	label: string;
 	modelConfig: ModelConfig;
@@ -45,30 +60,38 @@ const createDocumentPromptDefinition = <T extends PromptVariables>(definition: {
 }): DocumentPromptDefinition => ({
 	label: definition.label,
 	modelConfig: definition.modelConfig,
-	prompt: (variables: PromptVariables) =>
-		createPromptMessages(
-			definition.harness,
-			variables as T,
-			definition.contextGuidance,
-		),
+	prompt: (variables: PromptVariables) => createPromptMessages(definition.harness, variables as T),
 	promptName: definition.promptName,
 });
 
+interface PromptHarness<T> {
+	systemParts: PromptPart<T>[];
+	userParts: PromptPart<T>[];
+}
+
+const buildDateLine = <T extends PromptVariables>(vars: T): string =>
+	`Das heutige Datum ist der ${vars.todaysDate}.`;
+
 const documentPromptDefinitions = {
 	discharge: createDocumentPromptDefinition<DischargeVariables>({
-		contextGuidance: dischargeContextGuidance,
-		harness: dischargePromptHarness,
-		label: "Inpatient Discharge",
+		harness: {
+			systemParts: [DISCHARGE_SYSTEM_PROMPT],
+			userParts: [buildDateLine, (vars) => vars.contextXml, DISCHARGE_TASK_EXECUTION],
+		},
+		label: "Inpatient_discharge",
 		modelConfig: {
 			thinking: true,
 			thinkingBudget: 12_000,
 			maxTokens: 20_000,
 			temperature: 0.3,
 		},
-		promptName: "Inpatient_discharge_chat",
+		promptName: "Inpatient_discharge",
 	}),
 	anamnese: createDocumentPromptDefinition<AnamneseVariables>({
-		harness: anamnesePromptHarness,
+		harness: {
+			systemParts: [ANAMNESE_SYSTEM_PROMPT],
+			userParts: [ANAMNESE_FALLBACK_TEMPLATE, (vars) => vars.contextXml],
+		},
 		label: "ER Anamnese",
 		modelConfig: {
 			thinking: false,
@@ -78,113 +101,127 @@ const documentPromptDefinitions = {
 		promptName: "ER_Anamnese_chat",
 	}),
 	diagnosis: createDocumentPromptDefinition<DiagnosisVariables>({
-		contextGuidance: diagnosisContextGuidance,
-		harness: diagnosisPromptHarness,
-		label: "Diagnoseblock Update",
+		harness: {
+			systemParts: [DIAGNOSIS_SYSTEM_PROMPT, DIAGNOSIS_CONTEXT_GUIDANCE],
+			userParts: [buildDateLine, (vars) => vars.contextXml, DIAGNOSIS_TASK_EXECUTION],
+		},
+		label: "Diagnoses",
 		modelConfig: {
 			thinking: false,
 			maxTokens: 2000,
 			temperature: 0.1,
 		},
-		promptName: "diagnoseblock_update",
+		promptName: "Diagnoses",
 	}),
 	"physical-exam": createDocumentPromptDefinition<PhysicalExamVariables>({
-		harness: physicalExamPromptHarness,
-		label: "ER Koerperliche Untersuchung",
+		harness: {
+			systemParts: [PHYSICAL_EXAM_SYSTEM_PROMPT],
+			userParts: [buildDateLine, (vars) => vars.contextXml],
+		},
+		label: "physical_exam",
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
 			temperature: 1,
 		},
-		promptName: "ER_Koerperliche_Untersuchung_chat",
+		promptName: "physical_exam",
 	}),
 	procedures: createDocumentPromptDefinition<ProceduresVariables>({
-		harness: proceduresPromptHarness,
-		label: "Procedure",
+		harness: {
+			systemParts: [PROCEDURES_SYSTEM_PROMPT],
+			userParts: [
+				(vars) => vars.relevantTemplate,
+				PROCEDURES_INPUT_LABEL,
+				(vars) => vars.contextXml,
+			],
+		},
+		label: "procedure",
 		modelConfig: {
 			thinking: false,
 			thinkingBudget: 8000,
 			maxTokens: 20_000,
 			temperature: 1,
 		},
-		promptName: "Procedure_chat",
-	}),
-	"admission-todos": createDocumentPromptDefinition<AdmissionTodosVariables>({
-		harness: admissionTodosPromptHarness,
-		label: "ER Admission Todos",
-		modelConfig: {
-			thinking: false,
-			maxTokens: 20_000,
-			temperature: 1,
-		},
-		promptName: "ER_Admission_Todos_chat",
+		promptName: "procedure",
 	}),
 	befunde: createDocumentPromptDefinition<BefundeVariables>({
-		harness: befundePromptHarness,
-		label: "ER Befunde",
+		harness: {
+			systemParts: [BEFUNDE_SYSTEM_PROMPT],
+			userParts: [buildDateLine, (vars) => vars.contextXml, BEFUNDE_TASK_EXECUTION],
+		},
+		label: "diagnostic_results",
 		modelConfig: {
 			thinking: false,
 			maxTokens: 20_000,
 			temperature: 1,
 		},
-		promptName: "ER_Befunde_chat",
+		promptName: "diagnostic_results",
 	}),
 	outpatient: createDocumentPromptDefinition<OutpatientVariables>({
-		harness: outpatientPromptHarness,
-		label: "Outpatient Visit",
+		harness: {
+			systemParts: [OUTPATIENT_SYSTEM_PROMPT],
+			userParts: [(vars) => vars.contextXml],
+		},
+		label: "outpatient_visit",
 		modelConfig: {
 			thinking: true,
 			thinkingBudget: 8000,
 			maxTokens: 20_000,
 			temperature: 1,
 		},
-		promptName: "Outpatient_visit_chat",
+		promptName: "outpatient_visit",
 	}),
 	"icu-transfer": createDocumentPromptDefinition<IcuTransferVariables>({
-		harness: icuTransferPromptHarness,
-		label: "ICU Transfer",
+		harness: {
+			systemParts: [ICU_TRANSFER_SYSTEM_PROMPT],
+			userParts: [ICU_TRANSFER_OUTPUT_PROMPT, buildDateLine, (vars) => vars.contextXml],
+		},
+		label: "icu_transfer",
 		modelConfig: {
 			thinking: false,
 			maxTokens: 2000,
 			temperature: 0.1,
 		},
-		promptName: "ICU_transfer_chat",
+		promptName: "icu_transfer",
 	}),
 } satisfies Record<DocumentType, DocumentPromptDefinition>;
 
+const exposedPromptHarnessDocumentTypes = [
+	"discharge",
+	"anamnese",
+	"diagnosis",
+	"physical-exam",
+	"procedures",
+	"befunde",
+	"outpatient",
+	"icu-transfer",
+] as const satisfies DocumentType[];
+
 export type PromptHarnessId =
-	(typeof documentPromptDefinitions)[keyof typeof documentPromptDefinitions]["promptName"];
+	(typeof documentPromptDefinitions)[(typeof exposedPromptHarnessDocumentTypes)[number]]["promptName"];
 
 type PromptHarnessRegistry = Record<PromptHarnessId, RegisteredPromptHarness>;
 
-const promptHarnessRegistry = Object.values(documentPromptDefinitions).reduce(
-	(registry, definition) => {
-		const id = definition.promptName as PromptHarnessId;
-		registry[id] = {
-			buildPrompt: definition.prompt,
-			id,
-			label: definition.label,
-		};
-		return registry;
-	},
-	{} as PromptHarnessRegistry,
-);
+const promptHarnessRegistry = exposedPromptHarnessDocumentTypes.reduce((registry, documentType) => {
+	const definition = documentPromptDefinitions[documentType];
+	const id = definition.promptName as PromptHarnessId;
+	registry[id] = {
+		buildPrompt: definition.prompt,
+		id,
+		label: definition.label,
+	};
+	return registry;
+}, {} as PromptHarnessRegistry);
 
 export const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> =
 	documentPromptDefinitions;
 
-export const PROMPT_HARNESS_IDS = Object.keys(
-	promptHarnessRegistry,
-) as PromptHarnessId[];
+export const PROMPT_HARNESS_IDS = Object.keys(promptHarnessRegistry) as PromptHarnessId[];
 
 export const getDocumentTypeConfigByPromptName = (
 	promptName: string,
 ): DocumentTypeConfig | undefined =>
-	Object.values(documentTypeConfigs).find(
-		(config) => config.promptName === promptName,
-	);
+	Object.values(documentTypeConfigs).find((config) => config.promptName === promptName);
 
-export const getPromptHarnessById = (
-	id: string,
-): RegisteredPromptHarness | undefined =>
+export const getPromptHarnessById = (id: string): RegisteredPromptHarness | undefined =>
 	promptHarnessRegistry[id as PromptHarnessId];

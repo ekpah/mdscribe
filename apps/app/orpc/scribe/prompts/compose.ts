@@ -1,20 +1,10 @@
-import type {
-	DocumentType,
-	ModelConfig,
-	PromptMessage,
-	PromptVariables,
-} from "../types";
+import type { DocumentType, ModelConfig, PromptMessage, PromptVariables } from "../types";
+import { TEMPLATE_USAGE_INSTRUCTION } from "./families/narrative/shared/template-usage";
 import {
 	documentTypeConfigs,
 	getDocumentTypeConfigByPromptName,
 	getPromptHarnessById,
 } from "./registry";
-
-const CUSTOM_TEMPLATE_USAGE_INSTRUCTION = `<template_usage>
-Wenn ein <template_context> vorhanden ist, nutze die Vorlage als Zielstruktur und die Beispiele als stilistische Orientierung.
-- Übernimm niemals Inhalte aus den Beispielen, nur Struktur, Form und Stil.
-- Inhalte dürfen ausschließlich aus den bereitgestellten Eingaben stammen.
-</template_usage>`;
 
 export interface PromptCompositionInput {
 	contextXml: string;
@@ -47,27 +37,6 @@ export const createPromptVariables = (input: PromptCompositionInput): PromptVari
 		todaysDate: input.todaysDate ?? todaysDateDE(),
 	}) as PromptVariables;
 
-export const buildSelectedTemplateReference = (templateData: {
-	content: string;
-	examples: Array<{ content: string }>;
-	title: string;
-}): string => {
-	const sections = [
-		"## Ausgewaehlte Vorlage (Referenz)",
-		`Titel: ${templateData.title}`,
-		templateData.content,
-	];
-
-	if (templateData.examples.length > 0) {
-		sections.push("## Beispiele");
-		for (const example of templateData.examples) {
-			sections.push(example.content);
-		}
-	}
-
-	return sections.join("\n\n");
-};
-
 export const injectCustomTemplateInstruction = (
 	messages: PromptMessage[],
 	hasTemplateContext: boolean,
@@ -78,10 +47,10 @@ export const injectCustomTemplateInstruction = (
 
 	const [firstMessage, ...rest] = messages;
 	if (firstMessage?.role === "system") {
-		return [firstMessage, { role: "system", content: CUSTOM_TEMPLATE_USAGE_INSTRUCTION }, ...rest];
+		return [firstMessage, { role: "system", content: TEMPLATE_USAGE_INSTRUCTION }, ...rest];
 	}
 
-	return [{ role: "system", content: CUSTOM_TEMPLATE_USAGE_INSTRUCTION }, ...messages];
+	return [{ role: "system", content: TEMPLATE_USAGE_INSTRUCTION }, ...messages];
 };
 
 export const composeDocumentTypePrompt = (

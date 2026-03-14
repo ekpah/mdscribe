@@ -14,6 +14,7 @@ import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "../middlewares/admin";
 import { composeScribeContext } from "../scribe/context";
 import {
+	createPromptVariables,
 	composeDocumentTypePrompt,
 	documentTypeConfigs,
 } from "../scribe/prompts";
@@ -64,25 +65,31 @@ const compilePromptHandler = authed
 
 		const variablesUsed =
 			parsed.variables ?? parsePromptJson(parsed.promptJson);
+		const relevantTemplate =
+			typeof variablesUsed.relevantTemplate === "string"
+				? variablesUsed.relevantTemplate
+				: undefined;
 
 		const { contextXml } = await composeScribeContext({
 			formData: variablesUsed,
 			sessionUser: context.session.user,
+		});
+		const promptVariables = createPromptVariables({
+			contextXml,
+			relevantTemplate,
 		});
 
 		const compiledMessages = composeDocumentTypePrompt(
 			parsed.documentType as keyof typeof documentTypeConfigs,
 			{
 				contextXml,
-				relevantTemplate:
-					typeof variablesUsed.relevantTemplate === "string"
-						? variablesUsed.relevantTemplate
-						: undefined,
+				relevantTemplate,
 			},
 		);
 
 		return {
 			compiledMessages,
+			promptVariables,
 			promptSource: "local",
 			resolvedPromptName,
 			variablesUsed,

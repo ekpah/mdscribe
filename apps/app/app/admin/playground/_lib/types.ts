@@ -112,9 +112,9 @@ export interface PlaygroundPanelState {
 // Default parameters
 export const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	frequencyPenalty: undefined,
-	maxTokens: 4096,
+	maxTokens: 8000,
 	presencePenalty: undefined,
-	temperature: 1,
+	temperature: 0.3,
 	thinking: false,
 	thinkingBudget: 8000,
 	thinkingExplicit: false,

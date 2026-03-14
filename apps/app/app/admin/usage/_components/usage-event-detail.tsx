@@ -1,6 +1,5 @@
 "use client";
 
-import type { UsageEvent, User } from "@repo/database";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Sheet,
@@ -16,10 +15,7 @@ import {
 	allScribeDocTypes,
 	scribeDocTypeUi,
 } from "../../playground/_lib/scribe-doc-types";
-
-type UsageEventWithUser = UsageEvent & {
-	user: Pick<User, "id" | "name" | "email"> | null;
-};
+import type { UsageDetailEvent } from "../types";
 
 const promptNameToDocumentType = new Map(
 	allScribeDocTypes.map((documentType) => [
@@ -46,7 +42,7 @@ const inferDocumentType = (
 	return undefined;
 };
 
-const buildPlaygroundUrl = (event: UsageEventWithUser): string => {
+const buildPlaygroundUrl = (event: UsageDetailEvent): string => {
 	const params = new URLSearchParams();
 
 	// Use referenceUsageEvent for persistent URL state
@@ -86,7 +82,7 @@ const buildPlaygroundUrl = (event: UsageEventWithUser): string => {
 };
 
 interface UsageEventDetailProps {
-	event: UsageEventWithUser | null | undefined;
+	event: UsageDetailEvent | null | undefined;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }

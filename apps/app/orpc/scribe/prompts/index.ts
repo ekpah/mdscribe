@@ -1,6 +1,5 @@
 // High-level prompt composition and registry access for scribe flows.
 export {
-	buildSelectedTemplateReference,
 	composeDocumentTypePrompt,
 	composePromptHarnessPrompt,
 	createPromptVariables,
@@ -9,7 +8,6 @@ export {
 	todaysDateDE,
 	type PromptCompositionInput,
 } from "./compose";
-export { findRelevantTemplateForProcedure } from "./relevant-template";
 export {
 	documentTypeConfigs,
 	getDocumentTypeConfigByPromptName,
@@ -18,6 +16,3 @@ export {
 	type PromptHarnessId,
 	type RegisteredPromptHarness,
 } from "./registry";
-
-// Low-level prompt harness primitives stay available for prompt authoring.
-export { createPromptMessages } from "./shared";

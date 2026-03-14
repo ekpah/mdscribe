@@ -26,7 +26,7 @@ export interface UserData {
 
 const columnHelper = createColumnHelper<UserData>();
 
-const getSubscriptionLabel = (user: UserData) => {
+export const getSubscriptionLabel = (user: UserData) => {
 	if (user.hasActiveSubscription) {
 		const plan = (user.subscriptionPlan ?? "plus").toLowerCase();
 		return plan === "plus" ? "Plus" : plan.charAt(0).toUpperCase() + plan.slice(1);
@@ -35,7 +35,7 @@ const getSubscriptionLabel = (user: UserData) => {
 	return "Free";
 };
 
-const formatDate = (date: Date | string) => {
+export const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	return new Intl.DateTimeFormat("de-DE", {
 		day: "2-digit",

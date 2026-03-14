@@ -33,7 +33,6 @@ describe("Document Type Configurations", () => {
 			"diagnosis",
 			"physical-exam",
 			"procedures",
-			"admission-todos",
 			"befunde",
 			"outpatient",
 			"icu-transfer",

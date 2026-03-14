@@ -1,38 +1,43 @@
 import type { PromptMessage } from "../types";
 
-export const CONTEXT_GUIDANCE_TOKEN = "__CONTEXT_GUIDANCE__";
-
-export interface PromptHarness<T> {
-	system: string;
-	userMessages: (vars: T) => PromptMessage[];
-}
+export type PromptPart<T> = string | ((vars: T) => string | undefined);
 
 const hasContent = (value?: string): value is string =>
 	typeof value === "string" && value.trim().length > 0;
 
-export const renderSystemPrompt = (
-	system: string,
-	contextGuidance?: string,
-): string => {
-	if (system.includes(CONTEXT_GUIDANCE_TOKEN)) {
-		return system.replace(CONTEXT_GUIDANCE_TOKEN, contextGuidance ?? "");
-	}
+const renderPromptPart = <T>(part: PromptPart<T>, vars: T): string | undefined =>
+	typeof part === "function" ? part(vars) : part;
 
-	if (hasContent(contextGuidance)) {
-		return `${system}\n\n${contextGuidance}`;
-	}
-
-	return system;
-};
+export const joinPromptParts = <T>(parts: PromptPart<T>[], vars: T): string =>
+	parts
+		.map((part) => renderPromptPart(part, vars))
+		.filter(hasContent)
+		.join("\n\n");
 
 export const createPromptMessages = <T>(
-	harness: PromptHarness<T>,
-	vars: T,
-	contextGuidance?: string,
-): PromptMessage[] => [
-	{
-		role: "system",
-		content: renderSystemPrompt(harness.system, contextGuidance),
+	parts: {
+		systemParts: PromptPart<T>[];
+		userParts: PromptPart<T>[];
 	},
-	...harness.userMessages(vars),
-];
+	vars: T,
+): PromptMessage[] => {
+	const messages: PromptMessage[] = [];
+	const systemContent = joinPromptParts(parts.systemParts, vars);
+	const userContent = joinPromptParts(parts.userParts, vars);
+
+	if (systemContent) {
+		messages.push({
+			content: systemContent,
+			role: "system",
+		});
+	}
+
+	if (userContent) {
+		messages.push({
+			content: userContent,
+			role: "user",
+		});
+	}
+
+	return messages;
+};

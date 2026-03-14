@@ -1,34 +1,16 @@
 import type { Session } from "@/lib/auth-types";
 
-export interface ContextBuildInput {
-	sources: ContextSource[];
-	sessionUser?: Session["user"] | null;
-}
-
-export interface ContextBlock {
-	tag: string;
-	content: string;
-}
-
-export interface ContextProvider {
-	id: string;
-	build: (
-		input: ContextBuildInput,
-	) => ContextBlock | null | Promise<ContextBlock | null>;
-}
-
-export interface ContextSectionSpec {
-	tag: string;
-	purpose: string;
-	usage: string;
-	getContent: (input: PatientContextData) => string;
-}
-
 export interface PatientContextData {
 	diagnoseblock: string;
 	anamnese: string;
 	befunde: string;
 	notes: string;
+}
+
+export interface TemplateContextInput extends Record<string, unknown> {
+	content: string;
+	examples: string[];
+	title: string;
 }
 
 export type ContextSource =
@@ -48,3 +30,20 @@ export type ContextSource =
 			kind: "hl7";
 			data: unknown;
 	  };
+
+export interface ContextBuildInput {
+	sources: ContextSource[];
+	sessionUser?: Session["user"] | null;
+}
+
+export interface ComposeScribeContextInput {
+	formData: Record<string, unknown>;
+	sessionUser?: Session["user"] | null;
+	template?: TemplateContextInput | null;
+}
+
+export interface ComposedScribeContext {
+	contextXml: string;
+	patientContext: PatientContextData;
+	sources: ContextSource[];
+}

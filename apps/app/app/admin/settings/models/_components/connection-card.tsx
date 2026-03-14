@@ -90,8 +90,8 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 	return (
 		<Card className="border-solarized-base2">
 			<CardHeader className="p-4 sm:p-6">
-				<div className="flex items-center justify-between gap-2">
-					<div className="flex items-center gap-3">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div className="flex flex-wrap items-center gap-2 sm:gap-3">
 						<CardTitle className="text-sm sm:text-base">
 							{connection.name}
 						</CardTitle>
@@ -104,36 +104,37 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 							</Badge>
 						)}
 					</div>
-					<div className="flex items-center gap-2">
-							<Button
-								size="sm"
-								variant="ghost"
-								onClick={handleDeleteClick}
-								disabled={deleteMutation.isPending}
-							>
+					<div className="flex items-center gap-2 self-end sm:self-auto">
+						<Button
+							size="sm"
+							variant="ghost"
+							onClick={handleDeleteClick}
+							disabled={deleteMutation.isPending}
+						>
 							<Trash2 className="h-4 w-4 text-solarized-red" />
 						</Button>
 					</div>
 				</div>
 				{connection.baseUrl && (
-					<p className="mt-1 text-solarized-base01 text-xs">
+					<p className="mt-1 break-all text-solarized-base01 text-xs">
 						{connection.baseUrl}
 					</p>
 				)}
 			</CardHeader>
 
 			<CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
-				<div className="flex items-center justify-between gap-3">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-solarized-base01 text-sm">
 						{connection.models.length} Modell
 						{connection.models.length === 1 ? "" : "e"} bekannt
 					</p>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={handleRefreshModels}
-							disabled={refreshModelsMutation.isPending}
-						>
+					<Button
+						size="sm"
+						variant="outline"
+						onClick={handleRefreshModels}
+						disabled={refreshModelsMutation.isPending}
+						className="w-full sm:w-auto"
+					>
 						{refreshModelsMutation.isPending ? (
 							<Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
 						) : (
@@ -152,9 +153,9 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 							{refreshModelsMutation.data.models.slice(0, 3).map((model) => (
 								<div
 									key={model.modelId}
-									className="flex items-center justify-between text-xs"
+									className="flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between"
 								>
-									<span className="font-mono text-solarized-base00">
+									<span className="break-all font-mono text-solarized-base00">
 										{model.modelId}
 									</span>
 									<span className="text-solarized-base01">
@@ -171,6 +172,6 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 					</div>
 				)}
 			</CardContent>
-			</Card>
-		);
+		</Card>
+	);
 };

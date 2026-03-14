@@ -1,19 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { call } from "@orpc/server";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	eq,
-	usageEvent,
-} from "@repo/database";
-import { voiceFillHandler } from "@/orpc/scribe/voice-fill";
-import {
-	createTestAiDefaults,
-	createTestContext,
-	createTestUser,
-	startTestServer,
-} from "../setup";
+import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
+
+import { voiceFillHandler } from "@/orpc/scribe/handlers/voice-fill";
+
+import { createTestAiDefaults, createTestContext, createTestUser, startTestServer } from "../setup";
 import type { TestServer } from "../setup";
 
 describe("Scribe voiceFill Handler", () => {

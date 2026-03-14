@@ -39,7 +39,7 @@ export const getUserDisplayName = (user: {
 	return user.email;
 };
 
-const formatTimestamp = (value: Date | string): string => {
+export const formatTimestamp = (value: Date | string): string => {
 	const date = value instanceof Date ? value : new Date(value);
 	if (Number.isNaN(date.getTime())) {
 		return "-";

@@ -3,11 +3,7 @@ import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-input
 /**
  * Supported AI models via OpenRouter
  */
-export type SupportedModel =
-	| "auto"
-	| "glm-5"
-	| "claude-opus-4.6"
-	| "gemini-3-pro";
+export type SupportedModel = "auto" | "glm-5" | "claude-opus-4.6" | "gemini-3-pro";
 
 /**
  * Model configuration for streaming responses
@@ -67,7 +63,6 @@ export type DocumentType =
 	| "diagnosis"
 	| "physical-exam"
 	| "procedures"
-	| "admission-todos"
 	| "befunde"
 	| "outpatient"
 	| "icu-transfer";
@@ -140,16 +135,6 @@ export interface ProceduresVariables extends BasePromptVariables {
 }
 
 /**
- * Variables for admission-todos document type
- */
-export interface AdmissionTodosVariables extends BasePromptVariables {
-	notes: string;
-	anamnese: string;
-	diagnoseblock: string;
-	befunde: string;
-}
-
-/**
  * Variables for befunde document type
  */
 export interface BefundeVariables extends BasePromptVariables {
@@ -187,7 +172,6 @@ export type PromptVariables =
 	| DiagnosisVariables
 	| PhysicalExamVariables
 	| ProceduresVariables
-	| AdmissionTodosVariables
 	| BefundeVariables
 	| OutpatientVariables
 	| IcuTransferVariables;

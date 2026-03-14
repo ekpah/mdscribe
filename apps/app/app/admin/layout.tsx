@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
-import { AdminBreadcrumb } from "./_components/admin-breadcrumb";
+import { AdminLayoutHeader } from "./_components/admin-layout-header";
 
 interface AdminLayoutProps {
 	children: ReactNode;
@@ -27,16 +27,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden bg-solarized-base3">
-			{/* Admin header with breadcrumbs */}
-			<div className="shrink-0 border-solarized-base2 border-b bg-solarized-base2 px-4 py-1.5">
-				<div className="flex items-center justify-between">
-					<AdminBreadcrumb />
-					<div className="text-xs text-solarized-base01">
-						<span className="hidden sm:inline">Angemeldet als: </span>
-						<span className="font-medium">{session.user.email}</span>
-					</div>
-				</div>
-			</div>
+			<AdminLayoutHeader />
 			{/* Scrollable content area */}
 			<div className="flex-1 overflow-y-auto">{children}</div>
 		</div>

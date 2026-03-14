@@ -1,0 +1,1 @@
+export const PROCEDURES_EXECUTION_INSTRUCTION = `**Erstellen Sie nun einen vollständigen Prozedur-Befund basierend auf den bereitgestellten Notizen. Geben Sie nur den Befund aus ohne begleitende Erklärungen.**`;

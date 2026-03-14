@@ -1,39 +1,14 @@
-"use client";
+import { CustomAiscribeClient } from "../_components/custom-aiscribe-client";
+import { resolveBuiltInAiscribeOverrideForm } from "../_lib/resolve-built-in-form";
 
-import { Stethoscope } from "lucide-react";
-import { AiscribeTemplate } from '../_components/aiscribe-template';
-import type { AiscribeTemplateConfig } from '../_components/aiscribe-template';
+export default async function OutpatientPage() {
+	const overrideForm = await resolveBuiltInAiscribeOverrideForm("outpatient");
 
-const OUTPATIENT_CONFIG: AiscribeTemplateConfig = {
-	// Page identity
-	title: "Ambulanter Arztbrief",
-	description:
-		"Erstellen Sie professionelle Arztbriefe für Ihre ambulanten Patienten",
-	icon: Stethoscope,
-
-	// Document type for oRPC
-	documentType: "outpatient",
-
-	// Tab configuration
-	inputTabTitle: "Konsultationsnotizen",
-	outputTabTitle: "Arztbrief",
-
-	// Form configuration
-	inputFieldName: "notes",
-	inputPlaceholder: "Geben Sie hier Ihre Notizen zur Konsultation ein...",
-	inputDescription:
-		"Dokumentieren Sie den Verlauf und die Ergebnisse der ambulanten Konsultation",
-
-	// Button text
-	generateButtonText: "Arztbrief generieren",
-	regenerateButtonText: "Neu generieren",
-
-	// Empty state messages
-	emptyStateTitle: "Noch kein Arztbrief vorhanden",
-	emptyStateDescription:
-		"Bitte geben Sie zuerst Ihre Konsultationsnotizen ein und generieren Sie einen Arztbrief.",
-};
-
-export default function OutpatientPage() {
-	return <AiscribeTemplate config={OUTPATIENT_CONFIG} />;
+	return (
+		<CustomAiscribeClient
+			mode="built-in"
+			overrideForm={overrideForm}
+			template="outpatient"
+		/>
+	);
 }

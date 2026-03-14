@@ -5,14 +5,17 @@ import type {
 	InputTagType,
 } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import Formula from "fparser";
-import { Bot, Mic, Pencil, Sigma, Square, X } from "lucide-react";
+import { Bot, Pencil, Sigma } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@repo/design-system/lib/utils";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import {
+	VoiceInputControls,
+	type VoiceFillAudioFile,
+} from "./voice-input-controls";
 import {
 	Tooltip,
 	TooltipContent,
@@ -22,6 +25,8 @@ import {
 import { normalizeDateValue } from "./ui/date-utils";
 import { InfoInput } from "./ui/info-input";
 import { SwitchInput } from "./ui/switch-input";
+
+export type { VoiceFillAudioFile } from "./voice-input-controls";
 
 interface InputsProps {
 	inputTags: InputTagType[];
@@ -40,11 +45,6 @@ interface VoiceFillInputField {
 	description?: string;
 }
 
-export interface VoiceFillAudioFile {
-	data: string;
-	mimeType: string;
-}
-
 export type VoiceFillResult = Record<string, string>;
 
 export type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
@@ -53,12 +53,6 @@ export interface SuggestedValue {
 	value: string | number;
 	source?: SuggestedValueSource;
 	label?: string;
-}
-
-interface AudioRecording {
-	blob: Blob;
-	duration: number;
-	id: string;
 }
 
 interface InputMeta {
@@ -435,13 +429,6 @@ export default function Inputs({
 		Record<string, SuggestedValue>
 	>(suggestedValuesProp ?? {});
 	const stateRef = useRef({ fieldSources, suggestedValues, values });
-	const [isRecording, setIsRecording] = useState(false);
-	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
-	const [isVoiceFillPending, setIsVoiceFillPending] = useState(false);
-	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-	const audioChunksRef = useRef<Blob[]>([]);
-	const recordingStartTimeRef = useRef<number>(0);
-	const maxRecordings = 3;
 
 	useEffect(() => {
 		onChange(values);
@@ -566,85 +553,8 @@ export default function Inputs({
 		[inputTags],
 	);
 
-	const canRecord = audioRecordings.length < maxRecordings;
-
-	const handleStartRecording = useCallback(async () => {
-		if (!canRecord) {
-			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
-			return;
-		}
-
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			const mediaRecorder = new MediaRecorder(stream);
-			mediaRecorderRef.current = mediaRecorder;
-			audioChunksRef.current = [];
-			recordingStartTimeRef.current = Date.now();
-
-			mediaRecorder.addEventListener("dataavailable", (event) => {
-				audioChunksRef.current.push(event.data);
-			});
-
-			mediaRecorder.addEventListener("stop", () => {
-				const audioBlob = new Blob(audioChunksRef.current, {
-					type: "audio/wav",
-				});
-				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
-				const newRecording: AudioRecording = {
-					blob: audioBlob,
-					duration,
-					id: `audio-${Date.now()}`,
-				};
-				setAudioRecordings((prev) => [...prev, newRecording]);
-				for (const track of stream.getTracks()) {
-					track.stop();
-				}
-			});
-
-			mediaRecorder.start();
-			setIsRecording(true);
-			toast.success("Aufnahme gestartet");
-		} catch (error) {
-			console.error("Error starting recording:", error);
-			toast.error("Fehler beim Starten der Aufnahme");
-		}
-	}, [canRecord, maxRecordings]);
-
-	const handleStopRecording = useCallback(() => {
-		if (mediaRecorderRef.current && isRecording) {
-			mediaRecorderRef.current.stop();
-			setIsRecording(false);
-			toast.success("Aufnahme beendet");
-		}
-	}, [isRecording]);
-
-	const handleToggleRecording = useCallback(() => {
-		if (isRecording) {
-			handleStopRecording();
-		} else {
-			handleStartRecording();
-		}
-	}, [handleStartRecording, handleStopRecording, isRecording]);
-
-	const handleRemoveRecording = useCallback((id: string) => {
-		setAudioRecordings((prev) =>
-			prev.filter((recording) => recording.id !== id),
-		);
-	}, []);
-
-	const formatDuration = (seconds: number): string => {
-		const mins = Math.floor(seconds / 60);
-		const secs = Math.floor(seconds % 60);
-		return `${mins}:${secs.toString().padStart(2, "0")}`;
-	};
-
-	const handleVoiceFill = useCallback(async () => {
+	const handleVoiceFill = useCallback(async (audioFiles: VoiceFillAudioFile[]) => {
 		if (!onVoiceFill) {
-			return;
-		}
-
-		if (audioRecordings.length === 0) {
-			toast.error("Bitte zuerst Audio aufnehmen");
 			return;
 		}
 
@@ -653,26 +563,11 @@ export default function Inputs({
 			return;
 		}
 
-		setIsVoiceFillPending(true);
 		toast.loading("Felder werden mit Spracheingabe ausgefüllt...", {
 			id: "voice-fill",
 		});
 
 		try {
-			const audioFiles: VoiceFillAudioFile[] = await Promise.all(
-				audioRecordings.map(async (rec) => {
-					const reader = new FileReader();
-					const base64 = await new Promise<string>((resolve) => {
-						reader.onloadend = () => {
-							const result = reader.result as string;
-							resolve(result.split(",")[1]);
-						};
-						reader.readAsDataURL(rec.blob);
-					});
-					return { data: base64, mimeType: rec.blob.type };
-				}),
-			);
-
 			const fieldValues = await onVoiceFill(inputTags, audioFiles);
 
 			const nextSuggestions = { ...stateRef.current.suggestedValues };
@@ -700,7 +595,6 @@ export default function Inputs({
 			applySuggestions(nextSuggestions);
 			onSuggestedValuesChange?.(nextSuggestions);
 
-			setAudioRecordings([]);
 			toast.success("Felder mit Spracheingabe ausgefüllt", {
 				id: "voice-fill",
 			});
@@ -710,11 +604,8 @@ export default function Inputs({
 			toast.error(`Sprachausfüllung fehlgeschlagen: ${errorMessage}`, {
 				id: "voice-fill",
 			});
-		} finally {
-			setIsVoiceFillPending(false);
 		}
 	}, [
-		audioRecordings,
 		applySuggestions,
 		inputTags,
 		onSuggestedValuesChange,
@@ -722,16 +613,6 @@ export default function Inputs({
 		voiceInputFields.length,
 		voiceInputMeta,
 	]);
-
-	const recordingRemoveHandlers = useMemo<Record<string, () => void>>(() => {
-		const handlers: Record<string, () => void> = {};
-		for (const recording of audioRecordings) {
-			handlers[recording.id] = () => {
-				handleRemoveRecording(recording.id);
-			};
-		}
-		return handlers;
-	}, [audioRecordings, handleRemoveRecording]);
 
 	if (inputTags.length === 0 || !inputTags) {
 		return null;
@@ -757,82 +638,10 @@ export default function Inputs({
 			</div>
 			{/* Fixed voice input footer */}
 			{shouldShowVoiceInput && (
-				<div className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3">
-					<div className="mb-2 flex items-center justify-between">
-						<div className="flex items-center gap-2 text-muted-foreground text-xs">
-							<Mic className="h-3.5 w-3.5" />
-							<span>Sprache</span>
-						</div>
-						<Button
-							aria-label={
-								isRecording ? "Aufnahme stoppen" : "Audioaufnahme starten"
-							}
-							className={isRecording ? "bg-solarized-red text-white" : ""}
-							disabled={!(canRecord || isRecording)}
-							onClick={handleToggleRecording}
-							size="icon"
-							title={
-								canRecord || isRecording
-									? (isRecording
-										? "Aufnahme stoppen"
-										: "Audioaufnahme starten")
-									: `Maximal ${maxRecordings} Aufnahmen möglich`
-							}
-							type="button"
-							variant={isRecording ? "default" : "outline"}
-						>
-							{isRecording ? (
-								<Square className="h-4 w-4" />
-							) : (
-								<Mic className="h-4 w-4" />
-							)}
-						</Button>
-					</div>
-
-					{audioRecordings.length > 0 && (
-						<div className="mb-2 space-y-1">
-							{audioRecordings.map((recording, index) => (
-								<div
-									className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-2 py-1"
-									key={recording.id}
-								>
-									<div className="flex items-center gap-2 text-solarized-green text-xs">
-										<Mic className="h-3.5 w-3.5" />
-										<span>
-											#{index + 1} · {formatDuration(recording.duration)}
-										</span>
-									</div>
-										<Button
-											aria-label="Aufnahme entfernen"
-											onClick={recordingRemoveHandlers[recording.id]}
-											size="icon"
-											type="button"
-											variant="ghost"
-									>
-										<X className="h-4 w-4" />
-									</Button>
-								</div>
-							))}
-						</div>
-					)}
-
-					<Button
-						className="w-full"
-						disabled={audioRecordings.length === 0 || isVoiceFillPending}
-						onClick={handleVoiceFill}
-						type="button"
-						variant="default"
-					>
-						{isVoiceFillPending ? (
-							"..."
-						) : (
-							<>
-								<Mic className="mr-2 h-4 w-4" />
-								Füllen
-							</>
-						)}
-					</Button>
-				</div>
+				<VoiceInputControls
+					className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
+					onSubmit={handleVoiceFill}
+				/>
 			)}
 		</form>
 	);

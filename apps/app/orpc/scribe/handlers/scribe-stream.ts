@@ -18,13 +18,17 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 
 import { getUsage } from "../_lib/get-usage";
-import { composeScribeContext, type ContextBuildInput, type TemplateContextInput } from "../context";
 import {
 	buildSelectedTemplateReference,
+	composeScribeContext,
+	findRelevantTemplateForProcedure,
+	type ContextBuildInput,
+	type TemplateContextInput,
+} from "../context";
+import {
 	composeDocumentTypePrompt,
 	composePromptHarnessPrompt,
 	documentTypeConfigs,
-	findRelevantTemplateForProcedure,
 	injectCustomTemplateInstruction,
 	resolveCustomModelConfig,
 } from "../prompts";
@@ -327,7 +331,7 @@ const resolveCustomFormRequest = async ({
 
 	const relevantTemplate = customForm.template
 		? buildSelectedTemplateReference(customForm.template)
-		: customForm.promptHarness === "Procedure_chat"
+		: customForm.promptHarness === "procedure"
 			? await findRelevantTemplateForProcedure(patientContext.notes)
 			: undefined;
 

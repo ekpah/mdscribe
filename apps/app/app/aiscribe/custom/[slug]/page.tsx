@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
-import { CustomAiscribeClient } from "./CustomAiscribeClient";
+import { CustomAiscribeClient } from "../../_components/custom-aiscribe-client";
 
 export default async function CustomAiscribePage(
 	props: PageProps<"/aiscribe/custom/[slug]">,
@@ -19,5 +19,5 @@ export default async function CustomAiscribePage(
 		notFound();
 	}
 
-	return <CustomAiscribeClient form={form} />;
+	return <CustomAiscribeClient form={form} mode="custom" />;
 }

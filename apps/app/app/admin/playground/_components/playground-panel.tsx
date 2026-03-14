@@ -3,15 +3,15 @@
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@repo/design-system/components/ui/accordion";
+	type VoiceFillAudioFile,
+	VoiceInputControls,
+} from "@repo/design-system/components/inputs/voice-input-controls";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
-import { Input } from "@repo/design-system/components/ui/input";
+import {
+	Card,
+	CardContent,
+} from "@repo/design-system/components/ui/card";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
 	ModelSelector,
@@ -26,17 +26,29 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
-import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { cn } from "@repo/design-system/lib/utils";
+import { ChevronLeft, ChevronRight, Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+	type MutableRefObject,
+	type UIEvent,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 
-import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
+import {
+	allScribeDocTypes,
+	type PlaygroundDocumentType,
+	scribeDocTypeUi,
+} from "../_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
 import { DEFAULT_PARAMETERS } from "../_lib/types";
 import { ParameterControls } from "./parameter-controls";
@@ -106,7 +118,6 @@ function parseVariablesToFormFields(
 			break;
 
 		case "diagnosis":
-		case "admission-todos":
 		case "icu-transfer":
 			result.main = pickString("notes");
 			result.additional = {
@@ -130,6 +141,10 @@ function parseVariablesToFormFields(
 
 	return result;
 }
+
+const isPlaygroundDocumentType = (
+	documentType: DocumentType,
+): documentType is PlaygroundDocumentType => documentType in scribeDocTypeUi;
 
 interface ModelRunConfig {
 	id: string;
@@ -182,6 +197,374 @@ function getProviderGroup(model: PlaygroundModel): string {
 	);
 }
 
+type PlaygroundView =
+	| "config"
+	| "inputs"
+	| "compiled"
+	| "models"
+	| "results";
+type PromptVariableSource = "input" | "runtime";
+
+interface PromptPreviewVariable {
+	key: string;
+	label: string;
+	source: PromptVariableSource;
+	value: string;
+}
+
+const PLAYGROUND_VIEW_META: Record<
+	PlaygroundView,
+	{ description: string; label: string }
+> = {
+	config: {
+		description: "Prompt-Harness und Template konfigurieren",
+		label: "Config",
+	},
+	inputs: {
+		description: "Quelltexte, Zusatzfelder und Spracheingabe",
+		label: "Inputs",
+	},
+	compiled: {
+		description: "Prompt mit Inline-Markierungen",
+		label: "Prompt",
+	},
+	models: {
+		description: "Modelle und Parameter für Vergleichsruns",
+		label: "Models",
+	},
+	results: {
+		description: "Alle Modellantworten und Streaming-Ausgaben",
+		label: "Results",
+	},
+};
+
+const NONE_TEMPLATE_VALUE = "__none__";
+
+const PROMPT_RUNTIME_LABELS: Record<string, string> = {
+	contextXml: "Context XML",
+	relevantTemplate: "Relevante Vorlage",
+	todaysDate: "Heutiges Datum",
+};
+
+const promptHarnessToDocumentType = new Map(
+	allScribeDocTypes.map((documentType) => [
+		scribeDocTypeUi[documentType].defaultPromptName,
+		documentType,
+	]),
+);
+
+const buildSelectedTemplateReference = (templateData: {
+	content: string;
+	examples: Array<{ content: string }>;
+	title: string;
+}): string => {
+	const sections = [
+		"## Ausgewaehlte Vorlage (Referenz)",
+		`Titel: ${templateData.title}`,
+		templateData.content,
+	];
+
+	if (templateData.examples.length > 0) {
+		sections.push("## Beispiele");
+		for (const example of templateData.examples) {
+			sections.push(example.content);
+		}
+	}
+
+	return sections.join("\n\n");
+};
+
+const serializePromptVariable = (value: unknown): string => {
+	if (typeof value === "string") {
+		return value;
+	}
+
+	if (typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+
+	if (value === null || value === undefined) {
+		return "";
+	}
+
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
+	}
+};
+
+const getPromptMessageMatches = (
+	content: string,
+	variables: PromptPreviewVariable[],
+): PromptPreviewVariable[] =>
+	variables
+		.filter(
+			(variable) =>
+				variable.value.trim().length > 0 && content.includes(variable.value),
+		)
+		.sort((a, b) => {
+			if (a.source !== b.source) {
+				return a.source === "input" ? -1 : 1;
+			}
+			return a.label.localeCompare(b.label);
+		});
+
+interface PromptHighlightSegment {
+	source: PromptVariableSource | "plain";
+	text: string;
+}
+
+const buildPromptHighlightSegments = (
+	content: string,
+	variables: PromptPreviewVariable[],
+): PromptHighlightSegment[] => {
+	if (content.length === 0) {
+		return [{ source: "plain", text: "" }];
+	}
+
+	const runtimeVariables = variables.filter(
+		(variable) => variable.source === "runtime" && variable.value.trim().length > 0,
+	);
+	const inputVariables = variables.filter(
+		(variable) => variable.source === "input" && variable.value.trim().length > 0,
+	);
+	const allVariables = [...runtimeVariables, ...inputVariables];
+	if (allVariables.length === 0) {
+		return [{ source: "plain", text: content }];
+	}
+
+	const marks: Array<PromptVariableSource | "plain"> = Array.from(
+		{ length: content.length },
+		() => "plain",
+	);
+
+	const applyVariableMatches = (
+		selectedVariables: PromptPreviewVariable[],
+		source: PromptVariableSource,
+	) => {
+		for (const variable of selectedVariables) {
+			let searchStart = 0;
+
+			while (searchStart < content.length) {
+				const index = content.indexOf(variable.value, searchStart);
+				if (index === -1) {
+					break;
+				}
+
+				const end = index + variable.value.length;
+				for (let offset = index; offset < end; offset += 1) {
+					if (source === "input" || marks[offset] === "plain") {
+						marks[offset] = source;
+					}
+				}
+
+				searchStart = index + Math.max(variable.value.length, 1);
+			}
+		}
+	};
+
+	applyVariableMatches(runtimeVariables, "runtime");
+	applyVariableMatches(inputVariables, "input");
+
+	const segments: PromptHighlightSegment[] = [];
+	let segmentStart = 0;
+	let currentSource = marks[0] ?? "plain";
+	for (let index = 1; index < marks.length; index += 1) {
+		if (marks[index] === currentSource) {
+			continue;
+		}
+
+		segments.push({
+			source: currentSource,
+			text: content.slice(segmentStart, index),
+		});
+		segmentStart = index;
+		currentSource = marks[index] ?? "plain";
+	}
+	segments.push({
+		source: currentSource,
+		text: content.slice(segmentStart),
+	});
+	return segments;
+};
+
+const HighlightedPromptEditor = ({
+	highlightVariables,
+	onChange,
+	value,
+}: {
+	highlightVariables: PromptPreviewVariable[];
+	onChange: (value: string) => void;
+	value: string;
+}) => {
+	const overlayContentRef = useRef<HTMLDivElement | null>(null);
+	const segments = useMemo(
+		() => buildPromptHighlightSegments(value, highlightVariables),
+		[highlightVariables, value],
+	);
+
+	const handleScroll = useCallback((event: UIEvent<HTMLTextAreaElement>) => {
+		const overlayContent = overlayContentRef.current;
+		if (!overlayContent) {
+			return;
+		}
+
+		overlayContent.style.transform = `translate(${-event.currentTarget.scrollLeft}px, ${-event.currentTarget.scrollTop}px)`;
+	}, []);
+
+	return (
+		<div className="relative">
+			<div
+				aria-hidden
+				className="pointer-events-none absolute inset-0 overflow-hidden rounded-md"
+			>
+				<div
+					ref={overlayContentRef}
+					className="whitespace-pre-wrap break-words px-3 py-2 font-mono text-xs leading-6 text-solarized-base00"
+				>
+						{segments.map((segment, index) => (
+							<span
+								className={cn(
+								segment.source === "runtime"
+									? "rounded-[3px] border border-solarized-orange/40 bg-solarized-orange/12 px-0.5 text-solarized-orange"
+									: segment.source === "input"
+										? "rounded-[3px] border border-solarized-blue/40 bg-solarized-blue/12 px-0.5 text-solarized-blue"
+										: "",
+								)}
+								key={`${segment.source}-${index}`}
+							>
+								{segment.text}
+							</span>
+					))}
+				</div>
+			</div>
+			<textarea
+				value={value}
+				onChange={(event) => onChange(event.target.value)}
+				onScroll={handleScroll}
+				spellCheck={false}
+				className="border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex min-h-[240px] w-full resize-y rounded-md border border-solarized-base2 bg-transparent px-3 py-2 font-mono text-xs leading-6 text-transparent shadow-xs transition-[color,box-shadow] outline-none caret-solarized-base00 selection:bg-solarized-base2/70 selection:text-solarized-base00 focus-visible:ring-[3px]"
+			/>
+		</div>
+	);
+};
+
+const PromptHarnessPreview = ({
+	inputItems,
+	messages,
+	onMessageChange,
+	runtimeItems,
+}: {
+	inputItems: PromptPreviewVariable[];
+	messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+	onMessageChange: (index: number, content: string) => void;
+	runtimeItems: PromptPreviewVariable[];
+}) => {
+		if (messages.length === 0) {
+			return (
+				<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-6 text-sm text-solarized-base01">
+					Kompiliere den Prompt, um Harness, dynamische Inserts und gerenderte Nachrichten zu sehen.
+				</div>
+			);
+		}
+
+	const allPreviewItems = [...runtimeItems, ...inputItems];
+
+	return (
+		<div className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<div>
+					<h3 className="font-medium text-sm text-solarized-base00">
+						Prompt-Harness Vorschau
+					</h3>
+					<p className="text-xs text-solarized-base01">
+						Direkt editierbar. Erkannte Inputs und dynamische Inserts sind oberhalb markiert.
+					</p>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<Badge
+						variant="outline"
+						className="border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange"
+					>
+						Dynamisch
+					</Badge>
+					<Badge
+						variant="outline"
+						className="border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue"
+					>
+						Input
+					</Badge>
+				</div>
+			</div>
+
+			<div className="space-y-4">
+				{messages.map((message, index) => {
+					const matchingItems = getPromptMessageMatches(
+						message.content,
+						allPreviewItems,
+					);
+
+					return (
+						<div
+							className="space-y-3 rounded-lg border border-solarized-base2 bg-solarized-base3 p-4"
+							key={`${message.role}-${index}`}
+						>
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<div className="flex items-center gap-2">
+									<Badge variant="outline" className="font-mono text-[11px] uppercase">
+										{message.role}
+									</Badge>
+									<span className="text-xs text-solarized-base01">
+										Editierbare Fassung
+									</span>
+								</div>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
+									onClick={async () => {
+										await navigator.clipboard.writeText(message.content);
+										toast.success("Kopiert!");
+									}}
+								>
+									<Copy className="h-3.5 w-3.5" />
+									Copy
+								</Button>
+							</div>
+
+							{matchingItems.length > 0 ? (
+								<div className="flex flex-wrap gap-2">
+									{matchingItems.map((item) => (
+										<Badge
+											key={`${message.role}-${index}-${item.source}-${item.key}`}
+											variant="outline"
+											className={cn(
+												item.source === "runtime"
+													? "border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange"
+													: "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue",
+											)}
+										>
+											{item.source === "runtime" ? "Dynamisch" : "Input"} · {item.label}
+										</Badge>
+									))}
+								</div>
+							) : null}
+
+							<HighlightedPromptEditor
+								value={message.content}
+								onChange={(content) => onMessageChange(index, content)}
+								highlightVariables={allPreviewItems}
+							/>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
+};
+
 export function PlaygroundPanel({
 	models,
 	topModelIds,
@@ -191,14 +574,16 @@ export function PlaygroundPanel({
 	presetDocumentType,
 	presetVariables,
 }: PlaygroundPanelProps) {
-	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">("input");
-	const isMobile = useIsMobile();
-	const [mobileInputPanelValue, setMobileInputPanelValue] = useState<string | undefined>(
-		"input-config",
-	);
+	const [activeView, setActiveView] = useState<PlaygroundView>("config");
 
-	const initialDocType = presetDocumentType ?? "discharge";
-	const [documentType, setDocumentType] = useState<DocumentType>(initialDocType);
+	const resolvedPresetDocumentType = presetDocumentType ?? "discharge";
+	const initialDocType: PlaygroundDocumentType = isPlaygroundDocumentType(
+		resolvedPresetDocumentType,
+	)
+		? resolvedPresetDocumentType
+		: "discharge";
+	const [documentType, setDocumentType] =
+		useState<PlaygroundDocumentType>(initialDocType);
 
 	// Parse preset variables from usage event into form fields
 	const parsedPreset = useMemo(() => {
@@ -221,6 +606,7 @@ export function PlaygroundPanel({
 	useEffect(() => {
 		if (hasAppliedPresetDocTypeRef.current) return;
 		if (!presetDocumentType) return;
+		if (!isPlaygroundDocumentType(presetDocumentType)) return;
 
 		setDocumentType(presetDocumentType);
 		hasAppliedPresetDocTypeRef.current = true;
@@ -236,9 +622,18 @@ export function PlaygroundPanel({
 		hasAppliedPresetFieldsRef.current = true;
 	}, [parsedPreset]);
 
+	const promptHarnessQueryOptions = orpc.admin.scribe.prompts.list.queryOptions({
+		input: { limit: 200 },
+	});
+	const templatesQueryOptions = orpc.admin.templates.list.queryOptions();
+	const { data: promptHarnessesData } = useQuery(promptHarnessQueryOptions);
+	const { data: templateOptions = [] } = useQuery(templatesQueryOptions);
+
 	// Prompt selection / compilation
 	const [promptName, setPromptName] = useState<string>(docUi.defaultPromptName);
-	const [promptLabel, setPromptLabel] = useState<"staging" | "production">("staging");
+	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
+		NONE_TEMPLATE_VALUE,
+	);
 	const [compiledMessages, setCompiledMessages] = useState<
 		Array<{ role: "system" | "user" | "assistant"; content: string }>
 	>([]);
@@ -246,8 +641,80 @@ export function PlaygroundPanel({
 		role: "system" | "user" | "assistant";
 		content: string;
 	}> | null>(null);
-	const [compiledVariables, setCompiledVariables] = useState<Record<string, unknown>>({});
+	const [promptRuntimeVariables, setPromptRuntimeVariables] = useState<Record<string, unknown>>({});
+	const [selectedTemplateExampleIndex, setSelectedTemplateExampleIndex] = useState(0);
 	const [isCompiling, setIsCompiling] = useState(false);
+	const compileRequestRef = useRef(0);
+
+	const promptHarnessOptions = useMemo(() => {
+		const fetchedOptions = promptHarnessesData?.items ?? [];
+		if (fetchedOptions.length > 0) {
+			return fetchedOptions;
+		}
+		return allScribeDocTypes.map(
+			(docType) => scribeDocTypeUi[docType].defaultPromptName,
+		);
+	}, [promptHarnessesData?.items]);
+
+	const promptHarnessDetailsQueryOptions = orpc.admin.scribe.prompts.get.queryOptions({
+		input: { name: promptName },
+	});
+	const {
+		data: selectedPromptHarnessDetails,
+		isFetching: isFetchingSelectedPromptHarness,
+	} = useQuery({
+		...promptHarnessDetailsQueryOptions,
+		enabled: promptName.trim().length > 0,
+	});
+
+	const templateDetailsQueryOptions = orpc.templates.get.queryOptions({
+		input: {
+			id:
+				selectedTemplateId === NONE_TEMPLATE_VALUE
+					? ""
+					: selectedTemplateId,
+		},
+	});
+	const { data: selectedTemplateDetails, isFetching: isFetchingSelectedTemplate } = useQuery({
+		...templateDetailsQueryOptions,
+		enabled: selectedTemplateId !== NONE_TEMPLATE_VALUE,
+	});
+
+	const selectedTemplateReference = useMemo(() => {
+		if (!selectedTemplateDetails) {
+			return "";
+		}
+
+		return buildSelectedTemplateReference({
+			content: selectedTemplateDetails.content,
+			examples: selectedTemplateDetails.examples ?? [],
+			title: selectedTemplateDetails.title,
+		});
+	}, [selectedTemplateDetails]);
+
+	const selectedTemplateExamples = selectedTemplateDetails?.examples ?? [];
+	const selectedTemplateExampleCount = selectedTemplateExamples.length;
+	const selectedTemplateExample =
+		selectedTemplateExampleCount > 0
+			? selectedTemplateExamples[selectedTemplateExampleIndex]
+			: null;
+
+	useEffect(() => {
+		setSelectedTemplateExampleIndex(0);
+	}, [selectedTemplateId]);
+
+	useEffect(() => {
+		if (selectedTemplateExampleCount === 0) {
+			if (selectedTemplateExampleIndex !== 0) {
+				setSelectedTemplateExampleIndex(0);
+			}
+			return;
+		}
+
+		if (selectedTemplateExampleIndex >= selectedTemplateExampleCount) {
+			setSelectedTemplateExampleIndex(selectedTemplateExampleCount - 1);
+		}
+	}, [selectedTemplateExampleCount, selectedTemplateExampleIndex]);
 
 	const promptJson = useMemo(() => {
 		const data: Record<string, unknown> = {
@@ -259,10 +726,62 @@ export function PlaygroundPanel({
 				data[field.name] = value;
 			}
 		}
+		if (selectedTemplateReference.length > 0) {
+			data.relevantTemplate = selectedTemplateReference;
+		}
 		return JSON.stringify(data);
-	}, [docUi, formMain, formAdditional]);
+	}, [docUi, formMain, formAdditional, selectedTemplateReference]);
 
-	const compile = async () => {
+	const handleParseAudioToText = useCallback(async (audioFiles: VoiceFillAudioFile[]) => {
+		toast.loading("Audio wird zu Text geparst...", {
+			id: "playground-audio-parse",
+		});
+
+		try {
+			const result = await orpc.scribe.voiceFill.call({
+				audioFiles,
+				inputFields: [
+					{
+						description: [
+							docUi.mainField.label,
+							docUi.mainField.description,
+							"Transkribiere die Sprachaufnahme als Fließtext für dieses Hauptfeld.",
+						]
+							.filter(Boolean)
+							.join(" · "),
+						label: docUi.mainField.name,
+					},
+				],
+			});
+
+			const parsedText = result.fieldValues[docUi.mainField.name]?.trim();
+			if (!parsedText) {
+				throw new Error("Keine verwertbare Sprache erkannt");
+			}
+
+			setFormMain((prev) => {
+				const trimmedPrevious = prev.trim();
+				return trimmedPrevious.length > 0
+					? `${trimmedPrevious}\n\n${parsedText}`
+					: parsedText;
+			});
+
+			toast.success("Audio als Text ins Hauptfeld übernommen", {
+				id: "playground-audio-parse",
+			});
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Unbekannter Fehler";
+			toast.error(`Audio-Parsing fehlgeschlagen: ${errorMessage}`, {
+				id: "playground-audio-parse",
+			});
+			throw error;
+		}
+	}, [docUi.mainField.description, docUi.mainField.label, docUi.mainField.name]);
+
+	const compilePrompt = useCallback(async () => {
+		const requestId = compileRequestRef.current + 1;
+		compileRequestRef.current = requestId;
 		setIsCompiling(true);
 		try {
 			const res = await orpc.admin.scribe.compilePrompt.call({
@@ -271,7 +790,10 @@ export function PlaygroundPanel({
 				promptJson,
 			});
 
-			setCompiledVariables(res.variablesUsed ?? {});
+			if (compileRequestRef.current !== requestId) {
+				return;
+			}
+
 			setCompiledMessages(
 				(res.compiledMessages ?? []).map((m) => ({
 					role: m.role,
@@ -279,21 +801,51 @@ export function PlaygroundPanel({
 				})),
 			);
 			setCompiledOverride(null);
-			toast.success("Prompt kompiliert");
+			setPromptRuntimeVariables(
+				res.promptVariables
+					? ({ ...res.promptVariables } as Record<string, unknown>)
+					: {},
+			);
 		} catch (error) {
+			if (compileRequestRef.current !== requestId) {
+				return;
+			}
 			toast.error(error instanceof Error ? error.message : "Fehler beim Kompilieren");
 		} finally {
-			setIsCompiling(false);
+			if (compileRequestRef.current === requestId) {
+				setIsCompiling(false);
+			}
 		}
-	};
+	}, [documentType, promptJson, promptName]);
+
+	useEffect(() => {
+		if (selectedTemplateId !== NONE_TEMPLATE_VALUE) {
+			if (isFetchingSelectedTemplate || !selectedTemplateDetails) {
+				return;
+			}
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			void compilePrompt();
+		}, 250);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [
+		compilePrompt,
+		isFetchingSelectedTemplate,
+		selectedTemplateDetails,
+		selectedTemplateId,
+	]);
 
 	const [modelRuns, setModelRuns] = useState<ModelRunConfig[]>(() => [
 		{
 			id: crypto.randomUUID(),
 			model: null,
 			parameters: {
-				temperature: presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
-				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
+				temperature: DEFAULT_PARAMETERS.temperature,
+				maxTokens: DEFAULT_PARAMETERS.maxTokens,
 				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
 				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
 				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
@@ -329,7 +881,7 @@ export function PlaygroundPanel({
 		setPromptName(scribeDocTypeUi[documentType].defaultPromptName);
 		setCompiledMessages([]);
 		setCompiledOverride(null);
-		setCompiledVariables({});
+		setPromptRuntimeVariables({});
 	}, [documentType]);
 
 	const [runStates, setRunStates] = useState<Record<string, RunState>>({});
@@ -393,493 +945,692 @@ export function PlaygroundPanel({
 		});
 	}, [models, topModelIds]);
 
-	return (
-		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
-			{/* Left Panel - Tabs */}
-			<div className="w-full min-w-0 lg:w-[460px] lg:shrink-0">
-				<Accordion
-					type="single"
-					collapsible={isMobile}
-					value={isMobile ? mobileInputPanelValue : "input-config"}
-					onValueChange={(value) => {
-						if (!isMobile) return;
-						setMobileInputPanelValue(value || undefined);
-					}}
-					className="w-full"
-				>
-					<AccordionItem value="input-config" className="border-solarized-base2 lg:border-0">
-						<AccordionTrigger className="py-2 text-xs text-solarized-base00 hover:no-underline lg:hidden">
-							Input & Konfiguration
-						</AccordionTrigger>
-						<AccordionContent className="pb-0 pt-2 lg:pt-0">
-							<Card className="flex w-full min-w-0 flex-col border-solarized-base2 lg:overflow-hidden">
-								<CardHeader className="border-b border-solarized-base2 px-3 py-2">
-									<CardTitle className="text-sm text-solarized-base00">
-										AI Scribe Playground
-									</CardTitle>
-								</CardHeader>
+	const inputPreviewItems = useMemo<PromptPreviewVariable[]>(
+		() => [
+			{
+				key: docUi.mainField.name,
+				label: docUi.mainField.label,
+				source: "input",
+				value: formMain,
+			},
+			...docUi.additionalFields.map((field) => ({
+				key: field.name,
+				label: field.label,
+				source: "input" as const,
+				value: formAdditional[field.name] ?? "",
+			})),
+		],
+		[docUi, formAdditional, formMain],
+	);
 
-								<Tabs
-									className="flex min-h-0 min-w-0 flex-1 flex-col"
-									onValueChange={(v) => setActiveTab(v as "input" | "prompt" | "models")}
-									value={activeTab}
+	const runtimePromptItems = useMemo<PromptPreviewVariable[]>(() => {
+		const preferredOrder = ["todaysDate", "contextXml", "relevantTemplate"];
+		return Object.entries(promptRuntimeVariables)
+			.map(([key, value]) => ({
+				key,
+				label: PROMPT_RUNTIME_LABELS[key] ?? key,
+				source: "runtime" as const,
+				value: serializePromptVariable(value),
+			}))
+			.filter((item) => item.value.trim().length > 0)
+			.sort((a, b) => {
+				const aIndex = preferredOrder.indexOf(a.key);
+				const bIndex = preferredOrder.indexOf(b.key);
+				if (aIndex !== -1 || bIndex !== -1) {
+					if (aIndex === -1) return 1;
+					if (bIndex === -1) return -1;
+					return aIndex - bIndex;
+				}
+				return a.key.localeCompare(b.key);
+			});
+	}, [promptRuntimeVariables]);
+
+	const resultsWithContentCount = useMemo(
+		() =>
+			Object.values(runStates).filter(
+				(runState) =>
+					runState.error ||
+					runState.isStreaming ||
+					runState.reasoning ||
+					runState.text.trim().length > 0,
+			).length,
+		[runStates],
+	);
+
+	const navigationItems = useMemo(
+		() =>
+			([
+				{
+					summary:
+						selectedTemplateId === NONE_TEMPLATE_VALUE
+							? promptName
+							: `${promptName} · Template`,
+					view: "config",
+				},
+				{
+					summary: `${inputPreviewItems.length} Felder aktiv`,
+					view: "inputs",
+				},
+				{
+					summary:
+						compiledMessages.length > 0
+							? `${compiledMessages.length} Nachrichten kompiliert`
+							: "Noch nicht kompiliert",
+					view: "compiled",
+				},
+				{
+					summary: `${modelRuns.length} Vergleichs-Run${modelRuns.length === 1 ? "" : "s"}`,
+					view: "models",
+				},
+				{
+					summary:
+						resultsWithContentCount > 0
+							? `${resultsWithContentCount}/${modelRuns.length} mit Output`
+							: "Noch keine Ergebnisse",
+					view: "results",
+				},
+			]) as Array<{ summary: string; view: PlaygroundView }>,
+		[
+			compiledMessages.length,
+			inputPreviewItems.length,
+			modelRuns.length,
+			promptName,
+			resultsWithContentCount,
+			selectedTemplateId,
+		],
+	);
+
+	const handleAddModelRun = useCallback(() => {
+		setModelRuns((prev) => [
+			...prev,
+			{
+				id: crypto.randomUUID(),
+				model: null,
+				parameters: { ...DEFAULT_PARAMETERS },
+			},
+		]);
+	}, []);
+
+	const handleResetResults = useCallback(() => {
+		setRunStates({});
+		toast.success("Ergebnisse zurückgesetzt");
+	}, []);
+
+	const handlePromptHarnessChange = useCallback((value: string) => {
+		setPromptName(value);
+		setCompiledMessages([]);
+		setCompiledOverride(null);
+		setPromptRuntimeVariables({});
+
+		const nextDocumentType = promptHarnessToDocumentType.get(value);
+		if (nextDocumentType) {
+			setDocumentType(nextDocumentType);
+		}
+	}, []);
+
+	const renderInputsView = () => (
+		<ScrollArea className="h-full">
+			<div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
+				<div className="space-y-4">
+					<div className="rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+						<div className="mb-3 space-y-1">
+							<h3 className="font-medium text-sm text-solarized-base00">
+								{docUi.mainField.label}
+							</h3>
+							{docUi.mainField.description ? (
+								<p className="text-xs text-solarized-base01">
+									{docUi.mainField.description}
+								</p>
+							) : null}
+						</div>
+						<Textarea
+							className="min-h-[320px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+							id="main-input"
+							onChange={(event) => setFormMain(event.target.value)}
+							placeholder={docUi.mainField.placeholder}
+							value={formMain}
+						/>
+					</div>
+
+					{docUi.additionalFields.length > 0 ? (
+						<div className="grid gap-4 xl:grid-cols-2">
+							{docUi.additionalFields.map((field) => (
+								<div
+									className="rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
+									key={field.name}
 								>
-									<div className="border-b border-solarized-base2 px-3 py-2">
-										<TabsList className="grid h-8 w-full grid-cols-3">
-											<TabsTrigger value="input" className="text-xs">
-												Input
-											</TabsTrigger>
-											<TabsTrigger value="prompt" className="text-xs">
-												Prompt
-											</TabsTrigger>
-											<TabsTrigger value="models" className="text-xs">
-												Models
-											</TabsTrigger>
-										</TabsList>
+									<div className="mb-3 space-y-1">
+										<h3 className="font-medium text-sm text-solarized-base00">
+											{field.label}
+										</h3>
+										<p className="text-xs text-solarized-base01">{field.name}</p>
+									</div>
+									<Textarea
+										className="min-h-[220px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
+										id={field.name}
+										onChange={(event) =>
+											setFormAdditional((prev) => ({
+												...prev,
+												[field.name]: event.target.value,
+											}))
+										}
+										placeholder={field.placeholder}
+										value={formAdditional[field.name] ?? ""}
+									/>
+								</div>
+							))}
+						</div>
+					) : null}
+				</div>
+
+					<div className="space-y-4">
+						<div className="rounded-lg border border-solarized-blue/30 bg-solarized-blue/5 p-4">
+							<div className="mb-3 space-y-1">
+								<h3 className="font-medium text-sm text-solarized-base00">
+									Audio zu Text
+								</h3>
+								<p className="text-xs text-solarized-base01">
+									Parst die Aufnahme in Text und hängt sie an das Hauptfeld an. Dadurch erscheint sie direkt im Prompt JSON.
+								</p>
+							</div>
+							<VoiceInputControls
+								onSubmit={handleParseAudioToText}
+								pendingLabel="Wird geparst..."
+								submitLabel="Zu Text parsen"
+								title="Audioaufnahme"
+							/>
+						</div>
+				</div>
+			</div>
+		</ScrollArea>
+	);
+
+	const renderConfigView = () => (
+		<ScrollArea className="h-full">
+			<div className="space-y-3 p-3">
+				<div className="grid gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2 lg:grid-cols-2">
+					<div >
+						<Label className="text-sm text-solarized-base01">Basis-Prompt</Label>
+						<Select
+							onValueChange={handlePromptHarnessChange}
+							value={promptName}
+						>
+							<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
+								<SelectValue placeholder="Basis-Prompt waehlen" />
+							</SelectTrigger>
+							<SelectContent>
+								{!promptHarnessOptions.includes(promptName) ? (
+									<SelectItem value={promptName}>
+										{promptName} (nicht verfuegbar)
+									</SelectItem>
+								) : null}
+								{promptHarnessOptions.map((promptHarness) => (
+									<SelectItem key={promptHarness} value={promptHarness}>
+										{promptHarness}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					<div >
+						<Label className="text-sm text-solarized-base01">Template</Label>
+						<Select
+							value={selectedTemplateId}
+							onValueChange={setSelectedTemplateId}
+						>
+							<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
+								<SelectValue placeholder="Template waehlen" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={NONE_TEMPLATE_VALUE}>Keins</SelectItem>
+								{templateOptions.map((templateOption) => (
+									<SelectItem key={templateOption.id} value={templateOption.id}>
+										{templateOption.title}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+
+				<div className="grid gap-2 lg:grid-cols-2">
+					<div className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
+
+						{isFetchingSelectedPromptHarness ? (
+							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+								Lade Prompt-Harness...
+							</div>
+						) : selectedPromptHarnessDetails?.messages?.length ? (
+							<div className="space-y-2">
+								{selectedPromptHarnessDetails.messages.map((message, index) => (
+									<div
+										key={`${message.role}-${index}`}
+										className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3 p-2.5"
+									>
+										<Badge variant="outline" className="font-mono text-[11px] uppercase">
+											{message.role}
+										</Badge>
+										<Textarea
+											readOnly
+											value={serializePromptVariable(message.content)}
+											className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
+										/>
+									</div>
+								))}
+							</div>
+						) : (
+							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+								Kein Prompt-Harness-Inhalt verfügbar.
+							</div>
+						)}
+					</div>
+
+					<div className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
+						
+
+						{selectedTemplateId === NONE_TEMPLATE_VALUE ? (
+							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+								Wähle ein Template aus, um Inhalt und Beispiele zu sehen.
+							</div>
+						) : isFetchingSelectedTemplate ? (
+							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+								Lade Template...
+							</div>
+						) : selectedTemplateDetails ? (
+							<div className="space-y-2">
+								<div className="space-y-1.5">
+									<Label className="text-xs text-solarized-base01">Template</Label>
+									<Textarea
+										readOnly
+										value={selectedTemplateDetails.content}
+										className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-xs"
+									/>
+								</div>
+
+								<div className="space-y-1.5">
+									<div className="flex flex-wrap items-center justify-between gap-1.5">
+										<Label className="text-xs text-solarized-base01">
+											Beispiel (wird unter dem Template eingefügt)
+										</Label>
+										{selectedTemplateExampleCount > 0 ? (
+											<div className="flex items-center gap-2">
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													className="h-7 w-7 border-solarized-base2 p-0"
+													onClick={() =>
+														setSelectedTemplateExampleIndex((prev) => Math.max(prev - 1, 0))
+													}
+													disabled={selectedTemplateExampleIndex === 0}
+													title="Vorheriges Beispiel"
+												>
+													<ChevronLeft className="h-4 w-4" />
+												</Button>
+												<span className="min-w-16 text-center text-xs text-solarized-base01">
+													{selectedTemplateExampleIndex + 1}/{selectedTemplateExampleCount}
+												</span>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													className="h-7 w-7 border-solarized-base2 p-0"
+													onClick={() =>
+														setSelectedTemplateExampleIndex((prev) =>
+															Math.min(prev + 1, selectedTemplateExampleCount - 1),
+														)
+													}
+													disabled={
+														selectedTemplateExampleIndex >= selectedTemplateExampleCount - 1
+													}
+													title="Nächstes Beispiel"
+												>
+													<ChevronRight className="h-4 w-4" />
+												</Button>
+											</div>
+										) : null}
 									</div>
 
-									<ScrollArea className="min-h-0 min-w-0 flex-1 lg:max-h-none">
-										<CardContent className="min-w-0 space-y-4 p-3">
-											<TabsContent value="input" className="mt-0 space-y-3">
-												<div className="space-y-2">
-													<Label className="text-sm text-solarized-base01">Dokumenttyp</Label>
-													<Select
-														onValueChange={(v) => setDocumentType(v as DocumentType)}
-														value={documentType}
-													>
-														<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
-															<SelectValue />
-														</SelectTrigger>
-														<SelectContent>
-															{allScribeDocTypes.map((dt) => (
-																<SelectItem key={dt} value={dt}>
-																	{scribeDocTypeUi[dt].label}
-																</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
-												</div>
-
-												<div className="space-y-4">
-													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01" htmlFor="main-input">
-															{docUi.mainField.label}
-														</Label>
-														<Textarea
-															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-															id="main-input"
-															onChange={(e) => setFormMain(e.target.value)}
-															placeholder={docUi.mainField.placeholder}
-															value={formMain}
-														/>
-														{docUi.mainField.description && (
-															<p className="text-xs text-solarized-base01">
-																{docUi.mainField.description}
-															</p>
-														)}
-													</div>
-
-													{docUi.additionalFields.length > 0 && (
-														<div className="space-y-4">
-															<Separator className="bg-solarized-base2" />
-															{docUi.additionalFields.map((field) => (
-																<div className="space-y-2" key={field.name}>
-																	<Label
-																		className="text-sm text-solarized-base01"
-																		htmlFor={field.name}
-																	>
-																		{field.label}
-																	</Label>
-																	<Textarea
-																		className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																		id={field.name}
-																		onChange={(e) =>
-																			setFormAdditional((prev) => ({
-																				...prev,
-																				[field.name]: e.target.value,
-																			}))
-																		}
-																		placeholder={field.placeholder}
-																		value={formAdditional[field.name] ?? ""}
-																	/>
-																</div>
-															))}
-														</div>
-													)}
-
-													<div className="space-y-2">
-														<div className="flex items-center justify-between">
-															<Label className="text-sm text-solarized-base01">
-																Prompt JSON (gesendet an Server)
-															</Label>
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																onClick={async () => {
-																	await navigator.clipboard.writeText(promptJson);
-																	toast.success("Kopiert!");
-																}}
-															>
-																<Copy className="h-4 w-4" />
-																Kopieren
-															</Button>
-														</div>
-														<Textarea
-															readOnly
-															value={JSON.stringify(JSON.parse(promptJson), null, 2)}
-															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-														/>
-													</div>
-												</div>
-											</TabsContent>
-
-											<TabsContent value="prompt" className="mt-0 space-y-4">
-												<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01">Prompt Name</Label>
-														<Input
-															className="border-solarized-base2 bg-solarized-base3"
-															onChange={(e) => setPromptName(e.target.value)}
-															value={promptName}
-															placeholder="z.B. Inpatient_discharge_chat"
-														/>
-													</div>
-													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01">Label</Label>
-														<Select
-															onValueChange={(v) => setPromptLabel(v as "staging" | "production")}
-															value={promptLabel}
-														>
-															<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
-																<SelectValue />
-															</SelectTrigger>
-															<SelectContent>
-																<SelectItem value="staging">staging</SelectItem>
-																<SelectItem value="production">production</SelectItem>
-															</SelectContent>
-														</Select>
-													</div>
-												</div>
-
-												<div className="flex flex-wrap gap-2">
-													<Button
-														type="button"
-														onClick={compile}
-														disabled={isCompiling}
-														className="bg-solarized-blue hover:bg-solarized-blue/90"
-													>
-														{isCompiling ? "Kompiliere..." : "Kompilieren"}
-													</Button>
-													<Button
-														type="button"
-														variant="outline"
-														className="border-solarized-base2"
-														onClick={() => {
-															setCompiledOverride(null);
-															toast.success("Override zurückgesetzt");
-														}}
-														disabled={compiledOverride === null}
-													>
-														<RotateCcw className="h-4 w-4" />
-														Override zurücksetzen
-													</Button>
-												</div>
-
-												{compiledMessages.length === 0 ? (
-													<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-4 text-sm text-solarized-base01">
-														Kompiliere den Prompt, um die finalen Messages zu sehen.
-													</div>
-												) : (
-													<div className="space-y-4">
-														<div className="space-y-2">
-															<Label className="text-sm text-solarized-base01">
-																Inputs (variablesUsed)
-															</Label>
-															<Textarea
-																readOnly
-																value={JSON.stringify(compiledVariables, null, 2)}
-																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-															/>
-														</div>
-
-														<div className="space-y-2">
-															<Label className="text-sm text-solarized-base01">
-																Compiled Messages (editierbar)
-															</Label>
-															<div className="space-y-3">
-																{(compiledOverride ?? compiledMessages).map((m, idx) => (
-																	<div
-																		key={`${m.role}-${idx}`}
-																		className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
-																	>
-																		<div className="flex items-center justify-between">
-																			<span className="font-mono text-xs text-solarized-base01">
-																				{m.role}
-																			</span>
-																			<Button
-																				type="button"
-																				variant="ghost"
-																				size="sm"
-																				className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																				onClick={async () => {
-																					await navigator.clipboard.writeText(m.content);
-																					toast.success("Kopiert!");
-																				}}
-																			>
-																				<Copy className="h-3.5 w-3.5" />
-																				Copy
-																			</Button>
-																		</div>
-																		<Textarea
-																			value={m.content}
-																			onChange={(e) => {
-																				const next = (compiledOverride ?? compiledMessages).map(
-																					(x) => ({ ...x }),
-																				);
-																				next[idx] = {
-																					...next[idx],
-																					content: e.target.value,
-																				};
-																				setCompiledOverride(next);
-																			}}
-																			className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																		/>
-																	</div>
-																))}
-															</div>
-														</div>
-													</div>
-												)}
-											</TabsContent>
-
-											<TabsContent value="models" className="mt-0 space-y-4">
-												<div className="flex flex-wrap items-start justify-between gap-2">
-													<div className="space-y-0.5">
-														<p className="font-medium text-sm text-solarized-base00">Model Runs</p>
-														<p className="text-xs text-solarized-base01">
-															Definiere mehrere Modelle/Parameter, die mit demselben Input und
-															Prompt getestet werden.
-														</p>
-													</div>
-													<Button
-														type="button"
-														size="sm"
-														className="gap-2"
-														onClick={() =>
-															setModelRuns((prev) => [
-																...prev,
-																{
-																	id: crypto.randomUUID(),
-																	model: null,
-																	parameters: { ...DEFAULT_PARAMETERS },
-																},
-															])
-														}
-													>
-														<Plus className="h-4 w-4" />
-														Add
-													</Button>
-												</div>
-
-												<div className="space-y-4">
-													{modelRuns.map((run) => (
-														<div
-															key={run.id}
-															className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3 p-4"
-														>
-															<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-																<div className="min-w-0 flex-1 space-y-2">
-																	<Label className="text-sm text-solarized-base01">Modell</Label>
-																	<ModelSelector
-																		options={modelSelectorOptions}
-																		value={run.model?.id ?? null}
-																		isLoading={isLoadingModels}
-																		searchPlaceholder="Modell oder Anbieter suchen..."
-																		placeholder="Modell auswählen..."
-																		loadingMessage="Lade Modelle..."
-																		emptyMessage="Keine Modelle gefunden."
-																		formatGroupLabel={(group) =>
-																			PROVIDER_LABELS[group] ??
-																			group.charAt(0).toUpperCase() + group.slice(1)
-																		}
-																		className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
-																		popoverClassName="sm:w-[28rem]"
-																		renderSelected={(selected) =>
-																			selected ? (
-																				<div className="min-w-0">
-																					<p className="truncate font-medium text-solarized-base00">
-																						{selected.model.name}
-																					</p>
-																					<p className="truncate text-solarized-base01 text-xs">
-																						{selected.providerLabel}
-																					</p>
-																				</div>
-																			) : (
-																				<span className="text-solarized-base01">
-																					Modell auswählen...
-																				</span>
-																			)
-																		}
-																		renderOption={(option) => (
-																			<div className="flex min-w-0 items-start justify-between gap-3">
-																				<div className="min-w-0 space-y-1">
-																					<p className="truncate font-medium text-solarized-base00">
-																						{option.model.name}
-																					</p>
-																					<p className="truncate text-solarized-base01 text-xs">
-																						{option.model.modelId}
-																					</p>
-																				</div>
-																				<div className="flex shrink-0 items-center gap-1">
-																					{option.isTop ? (
-																						<Badge
-																							variant="outline"
-																							className="border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet"
-																						>
-																							Top
-																						</Badge>
-																					) : null}
-																					{option.model.supportsReasoning ? (
-																						<Badge
-																							variant="outline"
-																							className="border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan"
-																						>
-																							Reasoning
-																						</Badge>
-																					) : null}
-																				</div>
-																			</div>
-																		)}
-																		onValueChange={(modelId) => {
-																			const model = modelById.get(modelId);
-																			if (!model) return;
-
-																			setModelRuns((prev) =>
-																				prev.map((r) => {
-																					if (r.id !== run.id) return r;
-																					return {
-																						...r,
-																						model,
-																						parameters: r.parameters,
-																					};
-																				}),
-																			);
-																		}}
-																	/>
-																</div>
-
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="sm"
-																	className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
-																	onClick={() => {
-																		setModelRuns((prev) => prev.filter((r) => r.id !== run.id));
-																		setRunStates((prev) => {
-																			const next = { ...prev };
-																			delete next[run.id];
-																			return next;
-																		});
-																	}}
-																	disabled={modelRuns.length === 1}
-																	title={
-																		modelRuns.length === 1
-																			? "Mindestens ein Run muss existieren"
-																			: "Run entfernen"
-																	}
-																>
-																	<Trash2 className="h-4 w-4" />
-																	Remove
-																</Button>
-															</div>
-
-															<Separator className="bg-solarized-base2" />
-
-															<div className="space-y-2">
-																<Label className="text-sm text-solarized-base01">Parameter</Label>
-																<ParameterControls
-																	parameters={run.parameters}
-																	onChange={(p) =>
-																		setModelRuns((prev) =>
-																			prev.map((r) =>
-																				r.id === run.id ? { ...r, parameters: p } : r,
-																			),
-																		)
-																	}
-																	model={run.model}
-																/>
-															</div>
-														</div>
-													))}
-												</div>
-											</TabsContent>
-										</CardContent>
-									</ScrollArea>
-								</Tabs>
-							</Card>
-						</AccordionContent>
-					</AccordionItem>
-				</Accordion>
+									{selectedTemplateExample ? (
+										<Textarea
+											readOnly
+											value={selectedTemplateExample.content}
+											className="min-h-[120px] resize-y border-solarized-base2 bg-solarized-base3 text-xs"
+										/>
+									) : (
+										<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+											Dieses Template enthält keine Beispiele.
+										</div>
+									)}
+								</div>
+							</div>
+						) : (
+							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
+								Template konnte nicht geladen werden.
+							</div>
+						)}
+					</div>
+				</div>
 			</div>
+		</ScrollArea>
+	);
 
-			{/* Right Panel - Results */}
-			<Card className="flex min-h-[500px] min-w-0 w-full flex-1 flex-col border-solarized-base2 lg:min-h-0">
-				<CardHeader className="shrink-0 border-b border-solarized-base2 px-3 py-2">
-					<div className="flex items-center justify-between gap-2">
-						<div className="min-w-0">
-							<CardTitle className="truncate text-sm text-solarized-base00">Ergebnisse</CardTitle>
-							<p className="truncate text-xs text-solarized-base01">
-								{scribeDocTypeUi[documentType].label} · {promptName}
-							</p>
-						</div>
-						<div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
-								onClick={() => {
-									setRunStates({});
-									toast.success("Ergebnisse zurückgesetzt");
-								}}
-							>
-								<RotateCcw className="h-3.5 w-3.5" />
-								Reset
-							</Button>
-							<Button
-								type="button"
-								size="sm"
-								className="h-7 gap-1.5 bg-solarized-blue px-2 text-xs hover:bg-solarized-blue/90"
-								onClick={runAllModels}
-							>
-								<Play className="h-3.5 w-3.5" />
-								Run All
-							</Button>
-						</div>
+	const renderCompiledPromptView = () => (
+		<ScrollArea className="h-full">
+			<div className="space-y-3 p-3">
+				<div className="flex flex-wrap items-center justify-end gap-2">
+					<Badge
+						variant="outline"
+						className={cn(
+							"border-solarized-base2 bg-solarized-base3 text-solarized-base01",
+							isCompiling
+								? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue"
+								: "",
+						)}
+					>
+						{isCompiling ? "Aktualisiere..." : "Automatisch aktuell"}
+					</Badge>
+					<Button
+						type="button"
+						variant="outline"
+						className="border-solarized-base2"
+						onClick={() => {
+							setCompiledOverride(null);
+							toast.success("Override zurückgesetzt");
+						}}
+						disabled={compiledOverride === null}
+					>
+						<RotateCcw className="h-4 w-4" />
+						Override zurücksetzen
+					</Button>
+				</div>
+
+				<PromptHarnessPreview
+					inputItems={inputPreviewItems}
+					messages={compiledOverride ?? compiledMessages}
+					onMessageChange={(index, content) => {
+						const next = (compiledOverride ?? compiledMessages).map((entry) => ({
+							...entry,
+						}));
+						next[index] = {
+							...next[index],
+							content,
+						};
+						setCompiledOverride(next);
+					}}
+					runtimeItems={runtimePromptItems}
+				/>
+			</div>
+		</ScrollArea>
+	);
+
+	const renderModelsView = () => (
+		<ScrollArea className="h-full">
+			<div className="space-y-4 p-4">
+				<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+					<div className="space-y-1">
+						<h3 className="font-medium text-sm text-solarized-base00">Model Runs</h3>
+						<p className="text-xs text-solarized-base01">
+							Definiere mehrere Modelle und Parameter für denselben Input- und Prompt-Stand.
+						</p>
 					</div>
-				</CardHeader>
-				<ScrollArea className="min-h-0 flex-1">
-					<div className="space-y-3 p-3">
-						{modelRuns.map((run) => (
-							// eslint-disable-next-line no-use-before-define
-							<RunCard
-								key={run.id}
-								runId={run.id}
-								modelRun={run}
-								documentType={documentType}
-								promptJson={promptJson}
-								promptName={promptName}
-								compiledOverride={compiledOverride}
-								compiledMessages={compiledMessages}
-								runState={runStates[run.id]}
-								setRunState={setRunState}
-								runTriggersRef={runTriggersRef}
-							/>
-						))}
+					<Button type="button" size="sm" className="gap-2" onClick={handleAddModelRun}>
+						<Plus className="h-4 w-4" />
+						Run hinzufügen
+					</Button>
+				</div>
+
+				<div className={cn("grid gap-4", modelRuns.length > 1 ? "2xl:grid-cols-2" : "")}>
+					{modelRuns.map((run) => (
+						<div
+							key={run.id}
+							className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
+						>
+							<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+								<div className="min-w-0 flex-1 space-y-2">
+									<Label className="text-sm text-solarized-base01">Modell</Label>
+									<ModelSelector
+										options={modelSelectorOptions}
+										value={run.model?.id ?? null}
+										isLoading={isLoadingModels}
+										searchPlaceholder="Modell oder Anbieter suchen..."
+										placeholder="Modell auswählen..."
+										loadingMessage="Lade Modelle..."
+										emptyMessage="Keine Modelle gefunden."
+										formatGroupLabel={(group) =>
+											PROVIDER_LABELS[group] ??
+											group.charAt(0).toUpperCase() + group.slice(1)
+										}
+										className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
+										popoverClassName="sm:w-[28rem]"
+										renderSelected={(selected) =>
+											selected ? (
+												<div className="min-w-0">
+													<p className="truncate font-medium text-solarized-base00">
+														{selected.model.name}
+													</p>
+													<p className="truncate text-solarized-base01 text-xs">
+														{selected.providerLabel}
+													</p>
+												</div>
+											) : (
+												<span className="text-solarized-base01">Modell auswählen...</span>
+											)
+										}
+										renderOption={(option) => (
+											<div className="flex min-w-0 items-start justify-between gap-3">
+												<div className="min-w-0 space-y-1">
+													<p className="truncate font-medium text-solarized-base00">
+														{option.model.name}
+													</p>
+													<p className="truncate text-solarized-base01 text-xs">
+														{option.model.modelId}
+													</p>
+												</div>
+												<div className="flex shrink-0 items-center gap-1">
+													{option.isTop ? (
+														<Badge
+															variant="outline"
+															className="border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet"
+														>
+															Top
+														</Badge>
+													) : null}
+													{option.model.supportsReasoning ? (
+														<Badge
+															variant="outline"
+															className="border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan"
+														>
+															Reasoning
+														</Badge>
+													) : null}
+												</div>
+											</div>
+										)}
+										onValueChange={(modelId) => {
+											const model = modelById.get(modelId);
+											if (!model) return;
+
+											setModelRuns((prev) =>
+												prev.map((entry) => {
+													if (entry.id !== run.id) {
+														return entry;
+													}
+
+													return {
+														...entry,
+														model,
+														parameters: entry.parameters,
+													};
+												}),
+											);
+										}}
+									/>
+								</div>
+
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
+									onClick={() => {
+										setModelRuns((prev) => prev.filter((entry) => entry.id !== run.id));
+										setRunStates((prev) => {
+											const next = { ...prev };
+											delete next[run.id];
+											return next;
+										});
+									}}
+									disabled={modelRuns.length === 1}
+									title={
+										modelRuns.length === 1
+											? "Mindestens ein Run muss existieren"
+											: "Run entfernen"
+									}
+								>
+									<Trash2 className="h-4 w-4" />
+									Remove
+								</Button>
+							</div>
+
+							<Separator className="bg-solarized-base2" />
+
+							<div className="space-y-2">
+								<Label className="text-sm text-solarized-base01">Parameter</Label>
+								<ParameterControls
+									parameters={run.parameters}
+									onChange={(parameters) =>
+										setModelRuns((prev) =>
+											prev.map((entry) =>
+												entry.id === run.id
+													? { ...entry, parameters }
+													: entry,
+											),
+										)
+									}
+									model={run.model}
+								/>
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		</ScrollArea>
+	);
+
+	const renderResultsView = () => (
+		<ScrollArea className="h-full">
+			<div className="space-y-4 p-4">
+				<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+					<div className="space-y-1">
+						<h3 className="font-medium text-sm text-solarized-base00">Ergebnisse</h3>
+						<p className="text-xs text-solarized-base01">
+							{scribeDocTypeUi[documentType].label} · {promptName}
+						</p>
 					</div>
-				</ScrollArea>
+					<div className="flex flex-wrap gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="gap-1.5 border-solarized-base2 px-3 text-xs"
+							onClick={handleResetResults}
+						>
+							<RotateCcw className="h-3.5 w-3.5" />
+							Reset
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							className="gap-1.5 bg-solarized-blue px-3 text-xs hover:bg-solarized-blue/90"
+							onClick={runAllModels}
+						>
+							<Play className="h-3.5 w-3.5" />
+							Run All
+						</Button>
+					</div>
+				</div>
+
+				<div className={cn("grid gap-4", modelRuns.length > 1 ? "2xl:grid-cols-2" : "")}>
+					{modelRuns.map((run) => (
+						// eslint-disable-next-line no-use-before-define
+						<RunCard
+							key={run.id}
+							runId={run.id}
+							modelRun={run}
+							documentType={documentType}
+							promptJson={promptJson}
+							promptName={promptName}
+							compiledOverride={compiledOverride}
+							compiledMessages={compiledMessages}
+							runState={runStates[run.id]}
+							setRunState={setRunState}
+							runTriggersRef={runTriggersRef}
+						/>
+					))}
+				</div>
+			</div>
+		</ScrollArea>
+	);
+
+	const renderActiveView = () => {
+		switch (activeView) {
+			case "config":
+				return renderConfigView();
+			case "inputs":
+				return renderInputsView();
+			case "compiled":
+				return renderCompiledPromptView();
+			case "models":
+				return renderModelsView();
+			case "results":
+				return renderResultsView();
+			default:
+				return null;
+		}
+	};
+
+	return (
+		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
+			<Card className="w-full shrink-0 border-solarized-base2 lg:min-h-0 lg:w-60">
+				<CardContent className="p-2">
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+						{navigationItems.map((item) => {
+							const isActive = item.view === activeView;
+							return (
+								<Button
+									type="button"
+									key={item.view}
+									variant="ghost"
+									className={cn(
+										"h-auto w-full flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left",
+										isActive
+											? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue"
+											: "border-transparent text-solarized-base01 hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00",
+									)}
+									onClick={() => setActiveView(item.view)}
+								>
+									<span className="font-medium text-sm">
+										{PLAYGROUND_VIEW_META[item.view].label}
+									</span>
+									<span
+										className={cn(
+											"line-clamp-2 text-xs",
+											isActive ? "text-solarized-blue/80" : "text-solarized-base01",
+										)}
+									>
+										{item.summary}
+									</span>
+								</Button>
+							);
+						})}
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card className="flex min-h-[560px] min-w-0 flex-1 flex-col border-solarized-base2 lg:min-h-0">
+				<CardContent className="min-h-0 flex-1 p-0">{renderActiveView()}</CardContent>
 			</Card>
 		</div>
 	);
