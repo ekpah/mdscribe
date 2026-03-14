@@ -3,7 +3,10 @@
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import {
+	PromptInputAttachment,
+	PromptInputAttachments,
 	PromptInput,
+	type PromptInputMessage,
 	PromptInputActionMenu,
 	PromptInputBody,
 	PromptInputSubmit,
@@ -370,7 +373,7 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		config.additionalInputs,
 	]);
 
-	const handleGenerate = useCallback(async () => {
+	const handleGenerate = useCallback(async (message?: PromptInputMessage) => {
 		if (hasMissingRequiredFields) {
 			toast.error(requiredFieldsMessage);
 			return;
@@ -420,7 +423,10 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 			// Send message using AI SDK useChat
 			const promptText =
 				typeof prompt === "string" ? prompt : JSON.stringify(prompt);
-			await sendMessage({ text: promptText });
+			await sendMessage({
+				files: message?.files,
+				text: promptText,
+			});
 		} catch (error) {
 			// Catch any unexpected errors not handled by onError callback
 			const message = getAiscribeErrorMessage(error);
@@ -441,6 +447,13 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 		inputFieldName,
 		audioRecordings,
 	]);
+
+	const handlePromptSubmit = useCallback(
+		async (message: PromptInputMessage) => {
+			await handleGenerate(message);
+		},
+		[handleGenerate],
+	);
 
 	useHotkeys(
 		["meta+shift+1", "ctrl+shift+1"],
@@ -687,7 +700,17 @@ export function AiscribeTemplate({ config }: AiscribeTemplateProps) {
 										)}
 
 										{/* Main Input Field */}
-										<PromptInput onSubmit={handleGenerate}>
+										<PromptInput
+											accept=".pdf,.doc,.docx,.txt,.rtf,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+											maxFileSize={25 * 1024 * 1024}
+											multiple
+											onSubmit={handlePromptSubmit}
+										>
+											<PromptInputAttachments>
+												{(attachment) => (
+													<PromptInputAttachment data={attachment} />
+												)}
+											</PromptInputAttachments>
 											<PromptInputBody>
 												<PromptInputTextarea
 													className="min-h-[400px] resize-none rounded-t-lg border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
