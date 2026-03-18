@@ -53,6 +53,9 @@ jobs:
       - name: Run knip
         run: bun run knip
 
+      - name: Ensure pgvector extension
+        run: psql "$POSTGRES_DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
       - name: Migrate database
         run: bun run db:migrate
 
@@ -93,6 +96,9 @@ jobs:
 
       - name: Install Playwright browser
         run: bunx playwright install --with-deps chromium
+
+      - name: Ensure pgvector extension
+        run: psql "$POSTGRES_DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
       - name: Migrate database
         run: bun run db:migrate

@@ -1,6 +1,7 @@
 {
 	"$schema": "https://unpkg.com/knip@5/schema-jsonc.json",
 	"ignoreBinaries": ["jq", "npm-check-updates"],
+	"ignoreDependencies": ["ultracite"],
 	"ignoreIssues": {
 		"packages/design-system/styles/globals.css": ["unresolved"],
 		"packages/typescript-config/nextjs.json": ["unresolved"]
