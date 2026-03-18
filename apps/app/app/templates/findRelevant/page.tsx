@@ -1,13 +1,8 @@
 'use client';
 
-import {
-  BookmarkFilledIcon,
-  BookmarkIcon,
-  ExternalLinkIcon,
-} from '@radix-ui/react-icons';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Input } from '@repo/design-system/components/ui/input';
-import { StarIcon } from 'lucide-react';
+import { Bookmark, ExternalLink, Star } from 'lucide-react';
 import Link from 'next/link';
 import { redirect, usePathname } from 'next/navigation';
 import type React from 'react';
@@ -276,7 +271,7 @@ export default function FindTemplatePage() {
                         </span>
                         {favoriteCount > 0 && (
                           <span className="flex items-center text-muted-foreground text-xs">
-                            <StarIcon className="mr-0.5 h-3 w-3" />
+                            <Star className="mr-0.5 h-3 w-3" />
                             {formatCount(favoriteCount)}
                           </span>
                         )}
@@ -299,7 +294,7 @@ export default function FindTemplatePage() {
                         target="_blank"
                       >
                         <Button className="gap-1" size="sm" variant="outline">
-                          <ExternalLinkIcon className="h-3 w-3" />
+                          <ExternalLink className="h-3 w-3" />
                           Vorlage anzeigen
                         </Button>
                       </Link>
@@ -311,11 +306,10 @@ export default function FindTemplatePage() {
                           size="sm"
                           variant="ghost"
                         >
-                          {isFavorited ? (
-                            <BookmarkFilledIcon className="h-3 w-3" />
-                          ) : (
-                            <BookmarkIcon className="h-3 w-3" />
-                          )}
+                          <Bookmark
+                            className="h-3 w-3"
+                            fill={isFavorited ? 'currentColor' : 'none'}
+                          />
                           {isFavorited
                             ? 'Favorit entfernen'
                             : 'Favorit hinzufügen'}

@@ -1,14 +1,16 @@
 'use client';
 
-import {
-  BookmarkIcon,
-  ClockIcon,
-  Pencil2Icon,
-  PersonIcon,
-  Share1Icon,
-} from '@radix-ui/react-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, FolderPlus, ListChecks } from 'lucide-react';
+import {
+  Bookmark,
+  Clock,
+  FileText,
+  FolderPlus,
+  ListChecks,
+  Pencil,
+  Share2,
+  User,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
@@ -237,7 +239,7 @@ export const NavActions = ({
         return (
           <Link href={`/templates/${templateId}/edit`}>
             <Button className="h-7 w-7" size="icon" variant="ghost">
-              <Pencil2Icon />
+              <Pencil />
             </Button>
           </Link>
         );
@@ -246,7 +248,7 @@ export const NavActions = ({
       return (
         <Link href={`/templates/create?fork=${templateId}`}>
           <Button className="h-7 w-7" size="icon" variant="ghost">
-            <Share1Icon />
+            <Share2 />
           </Button>
         </Link>
       );
@@ -257,7 +259,7 @@ export const NavActions = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Link href="#">
-              <Pencil2Icon />
+              <Pencil />
             </Link>
           </TooltipTrigger>
           <TooltipContent>
@@ -271,12 +273,12 @@ export const NavActions = ({
   return (
     <div className="flex items-center gap-2 text-sm">
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
-        <PersonIcon />
+        <User />
         Autor: {author || 'Anonym'}
       </div>
 
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
-        <ClockIcon />
+        <Clock />
         Zuletzt bearbeitet am{' '}
         {lastEdited &&
           new Date(lastEdited).toLocaleString('de-DE', {
@@ -357,7 +359,7 @@ export const NavActions = ({
         </Tooltip>
       </TooltipProvider>
 
-      {!isLoggedIn && <BookmarkIcon />}
+      {!isLoggedIn && <Bookmark />}
       <span className="flex w-12 flex-row font-medium text-muted-foreground">
         {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
       </span>

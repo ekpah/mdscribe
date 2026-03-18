@@ -1,10 +1,5 @@
 'use client';
 
-import {
-  BookmarkFilledIcon,
-  Pencil1Icon,
-  PlusCircledIcon,
-} from '@radix-ui/react-icons';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Collapsible,
@@ -43,11 +38,14 @@ import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import {
+  Bookmark,
   Folder,
   FolderPlus,
   Library,
   Minus,
   Plus,
+  Pencil,
+  PlusCircle,
   Search,
   StarIcon,
 } from 'lucide-react';
@@ -239,12 +237,12 @@ export default function AppSidebar({
     ? [
         {
           key: 'favourites',
-          logo: BookmarkFilledIcon,
+          logo: Bookmark,
           name: 'Favoriten',
         },
         {
           key: 'authored',
-          logo: Pencil1Icon,
+          logo: Pencil,
           name: 'Von Dir erstellt',
         },
       ]
@@ -493,7 +491,7 @@ export default function AppSidebar({
             <SidebarGroupContent className="relative">
               <Link href="/templates/create">
                 <Button className="w-full" variant="default">
-                  <PlusCircledIcon className="mr-2 h-4 w-4" />
+                  <PlusCircle className="mr-2 h-4 w-4" />
                   Neuer Textbaustein
                 </Button>
               </Link>

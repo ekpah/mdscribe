@@ -1,9 +1,9 @@
 import {
-  BookmarkIcon,
-  ClockIcon,
-  Pencil2Icon,
-  PersonIcon,
-} from '@radix-ui/react-icons';
+  Bookmark,
+  Clock,
+  Pencil,
+  User,
+} from 'lucide-react';
 import SkeletonContentSection from './_components/skeleton-content-section';
 
 export default function Loading() {
@@ -15,19 +15,19 @@ export default function Loading() {
         <div className="flex h-10 items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm">
             <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
-              <PersonIcon />
+              <User />
               Autor: TBD
             </div>
 
             <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
-              <ClockIcon />
+              <Clock />
               Zuletzt bearbeitet am ??.??.????
             </div>
-            <BookmarkIcon />
+            <Bookmark />
             <span className="flex w-12 flex-row font-medium text-muted-foreground">
               X Likes
             </span>
-            <Pencil2Icon />
+            <Pencil />
           </div>
         </div>
       </div>
