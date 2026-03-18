@@ -8,7 +8,7 @@
 		"start": "bun --bun next start",
 		"lint": "oxlint .",
 		"analyze": "ANALYZE=true bun --bun next build",
-		"test": "bun test __tests__/preload.ts __tests__/orpc __tests__/lib",
+		"test": "bun test --max-concurrency=1 __tests__/orpc __tests__/lib",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

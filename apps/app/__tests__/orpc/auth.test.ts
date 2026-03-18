@@ -25,7 +25,7 @@ describe("Authentication Flow", () => {
 	});
 
 	afterEach(async () => {
-		await server.close();
+		await server?.close();
 	});
 
 	describe("User Management", () => {
@@ -112,6 +112,7 @@ describe("Authentication Flow", () => {
 				id: crypto.randomUUID(),
 				ipAddress: "127.0.0.1",
 				token: sessionToken,
+				updatedAt: new Date(),
 				userAgent: "test-agent",
 				userId: testUser.id,
 			});
@@ -139,6 +140,7 @@ describe("Authentication Flow", () => {
 				expiresAt: pastDate,
 				id: crypto.randomUUID(),
 				token: expiredSessionToken,
+				updatedAt: new Date(),
 				userId: testUser.id,
 			});
 
@@ -164,6 +166,7 @@ describe("Authentication Flow", () => {
 				id: crypto.randomUUID(),
 				password: "hashed_password_here",
 				providerId: "credential",
+				updatedAt: new Date(),
 				userId: testUser.id,
 			});
 
@@ -191,6 +194,7 @@ describe("Authentication Flow", () => {
 				expiresAt,
 				id: crypto.randomUUID(),
 				identifier: testUser.email,
+				updatedAt: new Date(),
 				value: verificationToken,
 			});
 

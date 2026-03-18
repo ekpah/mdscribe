@@ -65,8 +65,8 @@ Document generation uses unified streaming handler:
 
 ```typescript
 // Supported document types
-type DocumentType = "discharge" | "anamnese" | "diagnosis" | "physical-exam" |
-                    "procedures" | "admission-todos" | "befunde" | "outpatient" | "icu-transfer";
+type DocumentType = "discharge" | "anamnese" | "diagnosis" |
+                    "procedures" | "befunde" | "outpatient" | "icu-transfer";
 
 // Client-side usage
 const { completion, isLoading, complete } = useScribeStream({
@@ -95,11 +95,12 @@ Routes: `/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`
 
 ## Testing
 
-Tests use Bun test with the Postgres-backed helpers from `@repo/database/test`:
+Tests use Bun test with Postgres-backed helpers in `apps/app/__tests__/setup.ts`.
+Tests run with `--max-concurrency=1` and require a safe local test DB URL (`POSTGRES_DATABASE_URL_TEST`) whose database name contains `test`.
 
 ```typescript
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { startTestServer, createTestUser } from "@repo/database/test";
+import { startTestServer, createTestUser } from "@/__tests__/setup";
 
 describe("my test", () => {
   let db: Database;

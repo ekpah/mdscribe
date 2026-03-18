@@ -2,9 +2,9 @@ import * as Markdoc from '@markdoc/markdoc';
 
 import React from 'react';
 
-import { components } from '@/markdoc-config/tags/config';
+import { components } from '@repo/markdoc-md/markdoc-config/tags/config';
 
-import markdocConfig from '@/markdoc-config';
+import markdocConfig from '@repo/markdoc-md/markdoc-config';
 
 /**
  * Renders a Markdoc string into React elements.

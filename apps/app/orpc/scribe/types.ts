@@ -48,7 +48,6 @@ export type DocumentType =
 	| "discharge"
 	| "anamnese"
 	| "diagnosis"
-	| "physical-exam"
 	| "procedures"
 	| "befunde"
 	| "outpatient"
@@ -62,115 +61,17 @@ export interface PromptMessage {
 	content: string;
 }
 
-/**
- * Prompt builder function type - receives typed variables and returns messages
- */
-type PromptBuilder<T> = {
-	bivarianceHack(variables: T): PromptMessage[];
-}["bivarianceHack"];
-
-/**
- * Base variables available to all prompts
- */
-interface BasePromptVariables {
+export interface PromptVariables {
+	relevantTemplate: string;
 	todaysDate: string;
 	contextXml: string;
 }
 
 /**
- * Variables for discharge document type
- */
-export interface DischargeVariables extends BasePromptVariables {
-	anamnese: string;
-	diagnoseblock: string;
-	notes: string;
-	befunde: string;
-}
-
-/**
- * Variables for anamnese document type
- */
-export interface AnamneseVariables extends BasePromptVariables {
-	notes: string;
-	befunde: string;
-	diagnoseblock: string;
-}
-
-/**
- * Variables for diagnosis document type
- */
-export interface DiagnosisVariables extends BasePromptVariables {
-	anamnese: string;
-	notes: string;
-	diagnoseblock: string;
-	befunde: string;
-}
-
-/**
- * Variables for physical-exam document type
- */
-export interface PhysicalExamVariables extends BasePromptVariables {
-	notes: string;
-}
-
-/**
- * Variables for procedures document type
- */
-export interface ProceduresVariables extends BasePromptVariables {
-	notes: string;
-	relevantTemplate: string;
-}
-
-/**
- * Variables for befunde document type
- */
-export interface BefundeVariables extends BasePromptVariables {
-	notes: string;
-	anamnese: string;
-	diagnoseblock: string;
-}
-
-/**
- * Variables for outpatient document type
- */
-export interface OutpatientVariables extends BasePromptVariables {
-	anamnese: string;
-	diagnoseblock: string;
-	notes: string;
-	befunde: string;
-}
-
-/**
- * Variables for icu-transfer document type
- */
-export interface IcuTransferVariables extends BasePromptVariables {
-	anamnese: string;
-	notes: string;
-	diagnoseblock: string;
-	befunde: string;
-}
-
-/**
- * Union type of all prompt variable types
- */
-export type PromptVariables =
-	| DischargeVariables
-	| AnamneseVariables
-	| DiagnosisVariables
-	| PhysicalExamVariables
-	| ProceduresVariables
-	| BefundeVariables
-	| OutpatientVariables
-	| IcuTransferVariables;
-
-/**
  * Configuration for each document type
- * Note: The prompt function uses a flexible type to allow typed variable
- * interfaces in config.ts while maintaining compatibility with the union type.
  */
 export interface DocumentTypeConfig {
 	promptName: string;
 	promptLabel?: string;
-	prompt: PromptBuilder<PromptVariables>;
-	modelConfig: ModelConfig;
+	systemPrompt: string;
 }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call } from "@orpc/server";
-import { eq, templateExample } from "@repo/database";
+import { and, eq, templateExample } from "@repo/database";
 import { templatesHandler } from "@/orpc/templates";
 import type { TestServer } from "@/__tests__/setup";
 import {
@@ -25,7 +25,7 @@ describe("Templates oRPC Handlers", () => {
 	});
 
 	afterEach(async () => {
-		await server.close();
+		await server?.close();
 	});
 
 	describe("Public Endpoints", () => {

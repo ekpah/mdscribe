@@ -14,7 +14,7 @@ interface ScribeDocTypeUiConfig {
 	defaultPromptName: string;
 }
 
-export type PlaygroundDocumentType = Exclude<DocumentType, "admission-todos">;
+export type PlaygroundDocumentType = DocumentType;
 
 /**
  * Admin playground UI configs for AI Scribe document types.
@@ -173,17 +173,6 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 			label: "Notizen",
 			name: "notes",
 			placeholder: "Geben Sie hier Ihre Notizen ein...",
-		},
-	},
-
-	"physical-exam": {
-		additionalFields: [],
-		defaultPromptName: "physical_exam",
-		label: "ER Körperliche Untersuchung",
-		mainField: {
-			label: "Notizen",
-			name: "notes",
-			placeholder: "Untersuchungsbefund eingeben...",
 		},
 	},
 

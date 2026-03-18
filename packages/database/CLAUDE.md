@@ -30,9 +30,8 @@ bun run bootstrap
 ### Key Files
 - `schema.ts` - Drizzle schema definitions for all tables
 - `client.ts` - Database client (postgres-js)
+- `connect.ts` - Non-singleton database/client factory helpers
 - `types.ts` - Auto-generated TypeScript types from schema
-- `init-schema.ts` - SQL initialization used by test helpers
-- `test.ts` - Testing utilities
 - `drizzle.config.ts` - Drizzle Kit configuration
 
 ### Database Client
@@ -77,6 +76,7 @@ const vector = customType<{ data: number[]; driverData: string }>({
 ```typescript
 // Database client
 import { database } from "@repo/database/client";
+import { createDatabaseClient } from "@repo/database/connect";
 
 // Schema tables
 import { user, template, subscription, usageEvent, ... } from "@repo/database";
@@ -90,20 +90,14 @@ import { eq, and, or, sql, inArray, ... } from "@repo/database";
 
 ## Testing
 
-```typescript
-import { startTestServer, createTestUser } from "@repo/database/test";
-
-const { db, close } = await startTestServer("my-test");
-const { user, session } = await createTestUser(db, { email: "test@example.com" });
-// ... run tests ...
-await close();
-```
+App integration test helpers live in `apps/app/__tests__/setup.ts`.
+The database package no longer exports `@repo/database/test`.
 
 ## Environment Variables
 
 ```
 POSTGRES_DATABASE_URL  # Required in all environments
-POSTGRES_DATABASE_URL_TEST  # Optional override used by @repo/database/test
+POSTGRES_DATABASE_URL_TEST  # Optional test override consumed by app tests
 ```
 
 ## Important Notes

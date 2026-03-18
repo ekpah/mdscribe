@@ -19,6 +19,7 @@ export default defineConfig({
 	reporter: "html",
 	retries: process.env.CI ? 2 : 0,
 	testDir: "./__tests__/e2e",
+	testMatch: "**/*.e2e.ts",
 	use: {
 		baseURL: playwrightBaseURL,
 		trace: "on-first-retry",

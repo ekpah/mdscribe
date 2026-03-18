@@ -1,6 +1,6 @@
 "use client";
 
-import { useVariables } from "@/render/context/variable-context";
+import { useVariables } from "@repo/markdoc-md/render/context/variable-context";
 
 export const Info = ({
 	primary,

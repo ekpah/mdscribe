@@ -24,7 +24,7 @@ describe("Admin Models Handler", () => {
 	});
 
 	afterEach(async () => {
-		await server.close();
+		await server?.close();
 	});
 
 	test("list returns DB-backed models with provider metadata", async () => {

@@ -44,8 +44,6 @@ interface MarkdocExtensionOptions {
  * - InfoTag: Displays informational content
  * - ScoreTag: Displays calculated scores based on formulas
  * - SwitchTag: Creates conditional switch statements
- * - DoubleParenHighlight: Auto-highlights text within (()) with faint blue background
- * - BracketHighlight: Auto-highlights text within [] with faint green background
  */
 export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 	addExtensions() {

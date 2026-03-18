@@ -1,7 +1,7 @@
 import type { RenderableTreeNode } from "@markdoc/markdoc";
 import * as Markdoc from "@markdoc/markdoc";
 import Formula from "fparser";
-import config from "@/markdoc-config";
+import config from "@repo/markdoc-md/markdoc-config";
 
 /**
  * Union type representing all possible input tag types in the Markdoc template.

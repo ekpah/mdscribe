@@ -74,7 +74,7 @@ const ProviderAttachmentsContext = createContext<AttachmentsContext | null>(
 	null,
 );
 
-export const usePromptInputController = () => {
+const usePromptInputController = () => {
 	const ctx = useContext(PromptInputContext);
 	if (!ctx) {
 		throw new Error(
@@ -87,7 +87,7 @@ export const usePromptInputController = () => {
 // Optional variants (do NOT throw). Useful for dual-mode components.
 const useOptionalPromptInputController = () => useContext(PromptInputContext);
 
-export const useProviderAttachments = () => {
+const useProviderAttachments = () => {
 	const ctx = useContext(ProviderAttachmentsContext);
 	if (!ctx) {
 		throw new Error(
@@ -107,7 +107,7 @@ type PromptInputProviderProps = PropsWithChildren<{
  * Optional global provider that lifts PromptInput state outside of PromptInput.
  * If you don't use it, PromptInput stays fully self-managed.
  */
-export const PromptInputProvider = ({
+const PromptInputProvider = ({
 	initialInput: initialTextInput = "",
 	children,
 }: PromptInputProviderProps) => {
@@ -231,7 +231,7 @@ type PromptInputAttachmentProps = HTMLAttributes<HTMLDivElement> & {
 	className?: string;
 };
 
-export const PromptInputAttachment = ({
+const PromptInputAttachment = ({
 	data,
 	className,
 	...props
@@ -303,7 +303,7 @@ type PromptInputAttachmentsProps = Omit<
 	children: (attachment: FileUIPart & { id: string }) => ReactNode;
 };
 
-export const PromptInputAttachments = ({
+const PromptInputAttachments = ({
 	className,
 	children,
 	...props
@@ -375,7 +375,7 @@ type PromptInputActionAddAttachmentsProps = ComponentProps<
 	label?: string;
 };
 
-export const PromptInputActionAddAttachments = ({
+const PromptInputActionAddAttachments = ({
 	label = "Add photos or files",
 	...props
 }: PromptInputActionAddAttachmentsProps) => {
@@ -906,7 +906,7 @@ export const PromptInputActionMenu = (props: PromptInputActionMenuProps) => (
 
 type PromptInputActionMenuTriggerProps = PromptInputButtonProps;
 
-export const PromptInputActionMenuTrigger = ({
+const PromptInputActionMenuTrigger = ({
 	className,
 	children,
 	...props
@@ -921,7 +921,7 @@ export const PromptInputActionMenuTrigger = ({
 type PromptInputActionMenuContentProps = ComponentProps<
 	typeof DropdownMenuContent
 >;
-export const PromptInputActionMenuContent = ({
+const PromptInputActionMenuContent = ({
 	className,
 	...props
 }: PromptInputActionMenuContentProps) => (
@@ -931,7 +931,7 @@ export const PromptInputActionMenuContent = ({
 type PromptInputActionMenuItemProps = ComponentProps<
 	typeof DropdownMenuItem
 >;
-export const PromptInputActionMenuItem = ({
+const PromptInputActionMenuItem = ({
 	className,
 	...props
 }: PromptInputActionMenuItemProps) => (
@@ -1033,7 +1033,7 @@ type PromptInputSpeechButtonProps = ComponentProps<
 	onTranscriptionChange?: (text: string) => void;
 };
 
-export const PromptInputSpeechButton = ({
+const PromptInputSpeechButton = ({
 	className,
 	textareaRef,
 	onTranscriptionChange,
@@ -1134,7 +1134,7 @@ export const PromptInputSpeechButton = ({
 
 type PromptInputModelSelectProps = ComponentProps<typeof Select>;
 
-export const PromptInputModelSelect = (props: PromptInputModelSelectProps) => (
+const PromptInputModelSelect = (props: PromptInputModelSelectProps) => (
 	<Select {...props} />
 );
 
@@ -1142,7 +1142,7 @@ type PromptInputModelSelectTriggerProps = ComponentProps<
 	typeof SelectTrigger
 >;
 
-export const PromptInputModelSelectTrigger = ({
+const PromptInputModelSelectTrigger = ({
 	className,
 	...props
 }: PromptInputModelSelectTriggerProps) => (
@@ -1160,7 +1160,7 @@ type PromptInputModelSelectContentProps = ComponentProps<
 	typeof SelectContent
 >;
 
-export const PromptInputModelSelectContent = ({
+const PromptInputModelSelectContent = ({
 	className,
 	...props
 }: PromptInputModelSelectContentProps) => (
@@ -1169,7 +1169,7 @@ export const PromptInputModelSelectContent = ({
 
 type PromptInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
 
-export const PromptInputModelSelectItem = ({
+const PromptInputModelSelectItem = ({
 	className,
 	...props
 }: PromptInputModelSelectItemProps) => (
@@ -1180,7 +1180,7 @@ type PromptInputModelSelectValueProps = ComponentProps<
 	typeof SelectValue
 >;
 
-export const PromptInputModelSelectValue = ({
+const PromptInputModelSelectValue = ({
 	className,
 	...props
 }: PromptInputModelSelectValueProps) => (

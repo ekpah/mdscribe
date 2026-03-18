@@ -24,7 +24,7 @@ describe("Admin Providers Handler", () => {
 
 	afterEach(async () => {
 		globalThis.fetch = originalFetch;
-		await server.close();
+		await server?.close();
 	});
 
 	test("connections.create validates provider before persistence", async () => {

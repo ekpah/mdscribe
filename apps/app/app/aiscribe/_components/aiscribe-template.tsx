@@ -2,15 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import {
-	PromptInput,
-	PromptInputActionMenu,
-	PromptInputBody,
-	PromptInputSubmit,
-	PromptInputTextarea,
-	PromptInputToolbar,
-	PromptInputTools,
-} from "@repo/design-system/components/ai-elements/prompt-input";
 import Inputs from "@repo/design-system/components/inputs/inputs";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -21,9 +12,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { Input } from "@repo/design-system/components/ui/input";
 import { Kbd } from "@repo/design-system/components/ui/kbd";
-import { Label } from "@repo/design-system/components/ui/label";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Tabs,
@@ -31,13 +20,11 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@repo/design-system/components/ui/tabs";
-import { Textarea } from "@repo/design-system/components/ui/textarea";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import { FileText, Loader2, Mic, Square, X } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
@@ -45,6 +32,7 @@ import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import type { AudioFile, DocumentType } from "@/orpc/scribe/types";
+import { AiscribeTemplateInputSection } from "./aiscribe-template-input-section";
 import { MemoizedCopySection } from "./memoized-copy-section";
 
 export interface AdditionalInputField {
@@ -130,12 +118,6 @@ const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
 const blobToBase64 = async (blob: Blob): Promise<string> => {
 	const bytes = new Uint8Array(await blob.arrayBuffer());
 	return encodeUint8ArrayToBase64(bytes);
-};
-
-const formatDuration = (seconds: number): string => {
-	const mins = Math.floor(seconds / 60);
-	const secs = Math.floor(seconds % 60);
-	return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
 export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
@@ -321,38 +303,13 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 		[],
 	);
 
-	const handleMainInputChange = useCallback(
-		(event: ChangeEvent<HTMLTextAreaElement>) => {
-			setInputData(event.target.value);
-		},
-		[],
-	);
+	const handleMainInputValueChange = useCallback((value: string) => {
+		setInputData(value);
+	}, []);
 
 	const handleSwitchToInputTab = useCallback(() => {
 		setActiveTab("input");
 	}, []);
-
-	const additionalInputChangeHandlers = useMemo(() => {
-		const handlers: Record<
-			string,
-			(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
-		> = {};
-		for (const field of config.additionalInputs ?? []) {
-			handlers[field.name] = (event) => {
-				handleAdditionalInputChange(field.name, event.target.value);
-			};
-		}
-		return handlers;
-	}, [config.additionalInputs, handleAdditionalInputChange]);
-	const removeRecordingHandlers = useMemo(() => {
-		const handlers: Record<string, () => void> = {};
-		for (const recording of audioRecordings) {
-			handlers[recording.id] = () => {
-				handleRemoveRecording(recording.id);
-			};
-		}
-		return handlers;
-	}, [audioRecordings, handleRemoveRecording]);
 
 	const missingRequiredFields = useMemo(() => {
 		if (!config.additionalInputs) {
@@ -614,157 +571,33 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 										</CardTitle>
 										<CardDescription>{config.inputDescription}</CardDescription>
 									</CardHeader>
-									<CardContent className="space-y-4">
-										{/* Privacy Warning */}
-										<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
-											<p className="text-solarized-red leading-relaxed">
-												⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier
-												keine privaten Patientendaten ein! Diese Informationen
-												werden an eine KI gesendet. Verwenden Sie nur
-												anonymisierte Daten.
-											</p>
-										</div>
-
-										{/* Additional Input Fields */}
-										{config.additionalInputs &&
-											config.additionalInputs.length > 0 && (
-												<div className="space-y-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
-													<div className="flex items-center gap-2">
-														<div className="h-1.5 w-1.5 rounded-full bg-solarized-blue" />
-														<h4 className="font-medium text-foreground text-sm">
-															Zusätzliche Informationen
-														</h4>
-													</div>
-														<div className="grid gap-4">
-															{config.additionalInputs.map((field) => {
-																const handleAdditionalInputFieldChange =
-																	additionalInputChangeHandlers[field.name];
-																if (!handleAdditionalInputFieldChange) {
-																	return null;
-																}
-
-																return (
-																	<div className="space-y-2" key={field.name}>
-																		<Label
-																			className="font-medium text-sm"
-																			htmlFor={field.name}
-																		>
-																			{field.label}
-																			{field.required && (
-																				<span className="ml-1 text-red-500">*</span>
-																			)}
-																		</Label>
-																		{field.type === "textarea" ? (
-																			<Textarea
-																				className="min-h-[180px] resize-y border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-																				disabled={isLoading}
-																				id={field.name}
-																				onChange={handleAdditionalInputFieldChange}
-																				placeholder={field.placeholder}
-																				value={additionalInputData[field.name] || ""}
-																			/>
-																		) : (
-																			<Input
-																				className="border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-																				disabled={isLoading}
-																				id={field.name}
-																				onChange={handleAdditionalInputFieldChange}
-																				placeholder={field.placeholder}
-																				value={additionalInputData[field.name] || ""}
-																			/>
-																		)}
-																		{field.description && (
-																			<p className="text-muted-foreground text-xs">
-																				{field.description}
-																			</p>
-																		)}
-																	</div>
-																);
-															})}
-														</div>
-												</div>
-											)}
-
-										{/* Audio Recordings Indicator */}
-										{audioRecordings.length > 0 && (
-											<div className="space-y-2">
-													{audioRecordings.map((recording, index) => {
-														const handleRemoveRecordedAudio =
-															removeRecordingHandlers[recording.id];
-														if (!handleRemoveRecordedAudio) {
-															return null;
-														}
-
-														return (
-															<div
-																className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-3"
-																key={recording.id}
-															>
-																<div className="flex items-center justify-between">
-																	<div className="flex items-center gap-2 text-sm text-solarized-green">
-																		<Mic className="h-4 w-4" />
-																		<span>
-																			Aufnahme {index + 1} (
-																			{formatDuration(recording.duration)})
-																		</span>
-																	</div>
-																	<Button
-																		onClick={handleRemoveRecordedAudio}
-																		size="sm"
-																		type="button"
-																		variant="ghost"
-																	>
-																		<X className="h-4 w-4" />
-																	</Button>
-																</div>
-															</div>
-														);
-													})}
-											</div>
-										)}
-
-										{/* Main Input Field */}
-										<PromptInput onSubmit={handleGenerate}>
-											<PromptInputBody>
-													<PromptInputTextarea
-														className="min-h-[400px] resize-none rounded-t-lg border-input bg-background text-foreground transition-all placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20"
-														disabled={isLoading}
-														id="input-field"
-														onChange={handleMainInputChange}
-														placeholder={config.inputPlaceholder}
-														ref={mainTextareaRef}
-														value={inputData}
-													/>
-											</PromptInputBody>
-											<PromptInputToolbar>
-												<PromptInputTools>
-													<PromptInputActionMenu />
-
-													<Button
-														className={isRecording ? "bg-solarized-red" : ""}
-														disabled={isLoading || !(canRecord || isRecording)}
-														onClick={handleToggleRecording}
-														size="sm"
-														title={recordingButtonTitle}
-														type="button"
-														variant="ghost"
-													>
-														{isRecording ? (
-															<Square className="h-4 w-4" />
-														) : (
-															<Mic className="h-4 w-4" />
-														)}
-													</Button>
-												</PromptInputTools>
-												<PromptInputSubmit
-													disabled={
-														isLoading ||
-														hasMissingRequiredFields ||
-														!areRequiredFieldsFilled()
-													}
-												/>
-											</PromptInputToolbar>
-										</PromptInput>
+									<CardContent>
+										<AiscribeTemplateInputSection
+											additionalInputData={additionalInputData}
+											additionalInputs={config.additionalInputs}
+											audio={{
+												canRecord,
+												isRecording,
+												onRemoveRecording: handleRemoveRecording,
+												onToggleRecording: handleToggleRecording,
+												recordingButtonTitle,
+												recordings: audioRecordings.map((recording) => ({
+													duration: recording.duration,
+													id: recording.id,
+												})),
+											}}
+											inputPlaceholder={config.inputPlaceholder}
+											inputValue={inputData}
+											isLoading={isLoading}
+											onAdditionalInputChange={handleAdditionalInputChange}
+											onInputValueChange={handleMainInputValueChange}
+											onSubmit={handleGenerate}
+											submitDisabled={
+												hasMissingRequiredFields || !areRequiredFieldsFilled()
+											}
+											textareaId="input-field"
+											textareaRef={mainTextareaRef}
+										/>
 									</CardContent>
 									<CardFooter className="flex items-center justify-center bg-muted/20">
 										<div className="flex flex-wrap items-center justify-center gap-6 text-muted-foreground text-sm">

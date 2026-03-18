@@ -165,16 +165,6 @@ export default function PricingSkeleton() {
 					</div>
 				</div>
 
-				{/* Bottom CTA */}
-				<div className="mt-16 text-center">
-					<h3 className="mb-4 font-bold text-2xl">Bereit anzufangen?</h3>
-					<p className="mb-6 text-lg text-muted-foreground">
-						Starte kostenlos und upgrade nur, wenn du mehr brauchst.
-					</p>
-					<Button asChild className="px-8 py-6 font-semibold text-lg" size="lg">
-						<Link href="/sign-up">Jetzt kostenlos registrieren</Link>
-					</Button>
-				</div>
 			</div>
 		</section>
 	);

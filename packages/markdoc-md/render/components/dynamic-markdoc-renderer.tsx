@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { VariableProvider } from '@/render/context/variable-context';
-import renderMarkdocAsReact from '@/render/utils/render-markdoc-as-react';
+import { VariableProvider } from '@repo/markdoc-md/render/context/variable-context';
+import renderMarkdocAsReact from '@repo/markdoc-md/render/utils/render-markdoc-as-react';
 
 interface DynamicMarkdocRendererProps {
   /**

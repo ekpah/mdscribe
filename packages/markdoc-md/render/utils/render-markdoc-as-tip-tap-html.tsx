@@ -1,6 +1,6 @@
 import * as Markdoc from '@markdoc/markdoc';
 import React from 'react';
-import config from '@/markdoc-config';
+import config from '@repo/markdoc-md/markdoc-config';
 
 /**
  * Renders a Markdoc string into HTML to be used in TipTap. This could also be used to render the content in just HTML, but is most useful for TipTap, as it allows for the use of the components defined in your Markdoc config.

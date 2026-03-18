@@ -1,4 +1,4 @@
-import type { ModelConfig, PromptMessage } from "./types";
+import type { ModelConfig, PromptMessage } from "@/orpc/scribe/types";
 
 export interface VoiceFillFieldDefinition {
 	label: string;

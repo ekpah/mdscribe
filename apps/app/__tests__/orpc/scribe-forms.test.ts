@@ -42,7 +42,7 @@ describe("AI Scribe Forms Handlers", () => {
 	});
 
 	afterEach(async () => {
-		await server.close();
+		await server?.close();
 	});
 
 	test("admin can create and list custom AI forms", async () => {

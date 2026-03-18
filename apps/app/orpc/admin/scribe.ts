@@ -9,6 +9,7 @@ import type { StandardUsage, UsageInputData, UsageMetadata } from '@/lib/usage-l
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { composeScribeContext } from "@/orpc/scribe/context";
+import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
 import {
 	createPromptVariables,
 	composeDocumentTypePrompt,
@@ -18,7 +19,6 @@ import {
 	resolveModelByRecordId,
 	resolveProviderModel,
 } from "@/orpc/scribe/providers";
-import type { PromptVariables } from "@/orpc/scribe/types";
 
 const compilePromptInput = z.object({
 	documentType: z.string(),
@@ -66,10 +66,12 @@ const compilePromptHandler = authed
 				? variablesUsed.relevantTemplate
 				: undefined;
 
-		const { contextXml } = await composeScribeContext({
-			formData: variablesUsed,
-			sessionUser: context.session.user,
-		});
+			const { contextPrompt, contextXml } = await composeScribeContext({
+				formData: variablesUsed,
+				promptContextKey: parsed.documentType,
+				selectedTemplateReference: relevantTemplate,
+				sessionUser: context.session.user,
+			});
 		const promptVariables = createPromptVariables({
 			contextXml,
 			relevantTemplate,
@@ -78,6 +80,7 @@ const compilePromptHandler = authed
 		const compiledMessages = composeDocumentTypePrompt(
 			parsed.documentType as keyof typeof documentTypeConfigs,
 			{
+				contextPrompt,
 				contextXml,
 				relevantTemplate,
 			},
@@ -151,19 +154,23 @@ const runHandler = authed
 		if (parsed.compiledMessagesOverride) {
 			messages = parsed.compiledMessagesOverride as unknown as ModelMessage[];
 		} else {
-			const { contextXml } = await composeScribeContext({
+			const relevantTemplate =
+				typeof variablesUsed.relevantTemplate === "string"
+					? variablesUsed.relevantTemplate
+					: undefined;
+			const { contextPrompt, contextXml } = await composeScribeContext({
 				formData: variablesUsed,
+				promptContextKey: parsed.documentType,
+				selectedTemplateReference: relevantTemplate,
 				sessionUser: context.session.user,
 			});
 
 			messages = composeDocumentTypePrompt(
 				parsed.documentType as keyof typeof documentTypeConfigs,
 				{
+					contextPrompt,
 					contextXml,
-					relevantTemplate:
-						typeof variablesUsed.relevantTemplate === "string"
-						? variablesUsed.relevantTemplate
-						: undefined,
+					relevantTemplate,
 				},
 			);
 		}
@@ -246,7 +253,7 @@ export const scribeHandler = {
 		get: authed
 			.use(requiredAdminMiddleware)
 			.input(type<{ name: string }>())
-			.handler(({ input }) => {
+				.handler(({ input }) => {
 				const entry = Object.entries(documentTypeConfigs).find(
 					([_, config]) => config.promptName === input.name,
 				);
@@ -259,31 +266,31 @@ export const scribeHandler = {
 
 				const [documentType, config] = entry;
 
-				const sampleVariables = {
-					anamnese: "[Anamnese]",
-					befunde: "[Befunde]",
-					contextXml: "<patient_context></patient_context>",
-					diagnoseblock: "[Diagnoseblock]",
-					notes: "[Notizen]",
-					relevantTemplate: "[Relevante Vorlage]",
-					todaysDate: new Date().toLocaleDateString("de-DE", {
-						day: "2-digit",
-						month: "2-digit",
-						year: "numeric",
-					}),
-				} as PromptVariables;
-
-				const messages = config.prompt(sampleVariables);
+				const previewDate = new Date().toLocaleDateString("de-DE", {
+					day: "2-digit",
+					month: "2-digit",
+					year: "numeric",
+				});
+				const previewContextXml = "<context>\n<patient_context></patient_context>\n</context>";
+				const messages = composeDocumentTypePrompt(
+					documentType as keyof typeof documentTypeConfigs,
+					{
+						contextPrompt: `Das heutige Datum ist der ${previewDate}.\n\n${previewContextXml}`,
+						contextXml: previewContextXml,
+						relevantTemplate: "[Relevante Vorlage]",
+						todaysDate: previewDate,
+					},
+				);
 
 				return {
 					documentType,
 					messages,
-					modelConfig: config.modelConfig,
+					modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
 					name: config.promptName,
 					source: "local",
 				};
-			}),
-		list: authed
+				}),
+			list: authed
 			.use(requiredAdminMiddleware)
 			.input(
 				type<{

@@ -18,7 +18,7 @@ const themes = [
 	{ label: "System", value: "system" },
 ];
 
-export const ModeToggle = () => {
+const ModeToggle = () => {
 	const { setTheme } = useTheme();
 	const themeClickHandlers = useMemo(
 		() =>

@@ -31,7 +31,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 	});
 
 	afterEach(async () => {
-		await server.close();
+		await server?.close();
 	});
 
 	test("admin.scribe.run resolves model via providerId + modelId", async () => {

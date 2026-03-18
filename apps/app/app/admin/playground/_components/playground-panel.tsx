@@ -2,7 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import { VoiceInputControls } from '@repo/design-system/components/inputs/voice-input-controls';
 import type { VoiceFillAudioFile } from '@repo/design-system/components/inputs/voice-input-controls';
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
@@ -22,10 +21,9 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@repo/design-system/lib/utils";
-import { ChevronLeft, ChevronRight, Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, MutableRefObject, UIEvent } from 'react';
 import { toast } from "sonner";
@@ -33,6 +31,7 @@ import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 
+import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
 import { allScribeDocTypes, scribeDocTypeUi } from '@/app/admin/playground/_lib/scribe-doc-types';
 import type { PlaygroundDocumentType } from '@/app/admin/playground/_lib/scribe-doc-types';
 import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
@@ -102,11 +101,6 @@ const parseVariablesToFormFields = (
 			break;
 		}
 
-		case "physical-exam": {
-			result.main = pickString("notes");
-			break;
-		}
-
 		case "diagnosis":
 		case "icu-transfer": {
 			result.main = pickString("notes");
@@ -161,10 +155,21 @@ interface RunState {
 	requestId?: string;
 }
 
+interface AudioRecording {
+	blob: Blob;
+	duration: number;
+	id: string;
+}
+
 interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 	model: PlaygroundModel;
 	isTop: boolean;
 	providerLabel: string;
+}
+
+interface DirtySelectorLabelProps {
+	isDirty: boolean;
+	label: string;
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -185,10 +190,27 @@ const getProviderFromModelId = (modelId: string): string => modelId.split("/")[0
 const getProviderGroup = (model: PlaygroundModel): string =>
 	model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId);
 
+const PLAYGROUND_EDITOR_TEXTAREA_CLASS = "font-mono text-xs leading-[1.35]";
+
+const DirtySelectorLabel = ({ isDirty, label }: DirtySelectorLabelProps) => (
+	<div className="flex min-h-[30px] flex-col justify-start sm:w-24 sm:shrink-0">
+		<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
+		<span
+			className={cn(
+				"h-3 text-[9px] leading-3 transition-opacity",
+				isDirty
+					? "text-solarized-orange opacity-100"
+					: "text-solarized-base01/60 opacity-0",
+			)}
+		>
+			Geändert
+		</span>
+	</div>
+);
+
 type PlaygroundView =
 	| "config"
 	| "inputs"
-	| "compiled"
 	| "models"
 	| "results";
 type PromptVariableSource = "input" | "runtime";
@@ -204,13 +226,9 @@ const PLAYGROUND_VIEW_META: Record<
 	PlaygroundView,
 	{ description: string; label: string }
 > = {
-	compiled: {
-		description: "Prompt mit Inline-Markierungen",
-		label: "Prompt",
-	},
 	config: {
-		description: "Prompt-Harness und Template konfigurieren",
-		label: "Config",
+		description: "Prompt, Template und kompilierte Nachrichten",
+		label: "Prompt",
 	},
 	inputs: {
 		description: "Quelltexte, Zusatzfelder und Spracheingabe",
@@ -260,6 +278,21 @@ const buildSelectedTemplateReference = (templateData: {
 	}
 
 	return sections.join("\n\n");
+};
+
+const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
+	const chunkSize = 8192;
+	const chunks: string[] = [];
+	for (let i = 0; i < data.length; i += chunkSize) {
+		const chunk = data.subarray(i, i + chunkSize);
+		chunks.push(String.fromCodePoint(...chunk));
+	}
+	return btoa(chunks.join(""));
+};
+
+const blobToBase64 = async (blob: Blob): Promise<string> => {
+	const bytes = new Uint8Array(await blob.arrayBuffer());
+	return encodeUint8ArrayToBase64(bytes);
 };
 
 const serializePromptVariable = (value: unknown): string => {
@@ -313,6 +346,52 @@ const getSegmentHighlightClassName = (
 		return "rounded-[3px] border border-solarized-blue/40 bg-solarized-blue/12 px-0.5 text-solarized-blue";
 	}
 	return "";
+};
+
+const getPromptMessageRoleBadgeClassName = (
+	role: "system" | "user" | "assistant",
+): string => {
+	if (role === "system") {
+		return "border-solarized-blue/40 bg-solarized-blue/12 text-solarized-blue";
+	}
+	if (role === "user") {
+		return "border-solarized-green/40 bg-solarized-green/12 text-solarized-green";
+	}
+	return "border-solarized-base01/35 bg-solarized-base01/10 text-solarized-base00";
+};
+
+const arePromptMessagesEqual = (
+	left: { role: "system" | "user" | "assistant"; content: string }[],
+	right: { role: "system" | "user" | "assistant"; content: string }[],
+): boolean => {
+	if (left.length !== right.length) {
+		return false;
+	}
+	for (let index = 0; index < left.length; index += 1) {
+		const leftMessage = left[index];
+		const rightMessage = right[index];
+		if (!leftMessage || !rightMessage) {
+			return false;
+		}
+		if (leftMessage.role !== rightMessage.role || leftMessage.content !== rightMessage.content) {
+			return false;
+		}
+	}
+	return true;
+};
+
+const applyHarnessPlaceholders = (
+	content: string,
+	placeholderValues: Record<string, string>,
+): string => {
+	let next = content;
+	for (const [placeholder, value] of Object.entries(placeholderValues)) {
+		if (!value) {
+			continue;
+		}
+		next = next.split(placeholder).join(value);
+	}
+	return next;
 };
 
 const buildPromptHighlightSegments = (
@@ -421,14 +500,17 @@ const HighlightedPromptEditor = ({
 	);
 
 	return (
-		<div className="relative">
+		<div className="relative h-full min-h-0">
 			<div
 				aria-hidden
 				className="pointer-events-none absolute inset-0 overflow-hidden rounded-md"
 			>
 				<div
 					ref={overlayContentRef}
-					className="whitespace-pre-wrap break-words px-3 py-2 font-mono text-xs leading-6 text-solarized-base00"
+					className={cn(
+						"whitespace-pre-wrap break-words px-3 py-2 text-solarized-base00",
+						PLAYGROUND_EDITOR_TEXTAREA_CLASS,
+					)}
 				>
 						{segments.map((segment) => (
 									<span
@@ -442,15 +524,18 @@ const HighlightedPromptEditor = ({
 						))}
 				</div>
 			</div>
-			<textarea
-				value={value}
-				onChange={handleValueChange}
-				onScroll={handleScroll}
-				spellCheck={false}
-				className="border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex min-h-[240px] w-full resize-y rounded-md border border-solarized-base2 bg-transparent px-3 py-2 font-mono text-xs leading-6 text-transparent shadow-xs transition-[color,box-shadow] outline-none caret-solarized-base00 selection:bg-solarized-base2/70 selection:text-solarized-base00 focus-visible:ring-[3px]"
-			/>
-		</div>
-	);
+				<textarea
+					value={value}
+					onChange={handleValueChange}
+					onScroll={handleScroll}
+					spellCheck={false}
+					className={cn(
+						"border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-full min-h-0 w-full resize-none rounded-md border border-solarized-base2 bg-transparent px-3 py-2 text-transparent shadow-xs transition-[color,box-shadow] outline-none caret-solarized-base00 selection:bg-solarized-base2/70 selection:text-solarized-base00 focus-visible:ring-[3px]",
+						PLAYGROUND_EDITOR_TEXTAREA_CLASS,
+					)}
+				/>
+			</div>
+		);
 };
 
 const PromptHarnessPreview = ({
@@ -465,6 +550,7 @@ const PromptHarnessPreview = ({
 	runtimeItems: PromptPreviewVariable[];
 }) => {
 	const allPreviewItems = [...runtimeItems, ...inputItems];
+	const shouldStretchMessageRows = messages.length > 0 && messages.length <= 3;
 	const copyMessageHandlers = useMemo(
 		() =>
 			messages.map(
@@ -486,14 +572,14 @@ const PromptHarnessPreview = ({
 
 	if (messages.length === 0) {
 		return (
-			<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-6 text-sm text-solarized-base01">
+			<div className="flex h-full min-h-0 items-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-6 text-sm text-solarized-base01">
 				Kompiliere den Prompt, um Harness, dynamische Inserts und gerenderte Nachrichten zu sehen.
 			</div>
 		);
 	}
 
 	return (
-		<div className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+		<div className="flex h-full min-h-0 flex-col rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<div>
 					<h3 className="font-medium text-sm text-solarized-base00">
@@ -519,7 +605,19 @@ const PromptHarnessPreview = ({
 				</div>
 			</div>
 
-			<div className="space-y-4">
+			<div
+				className={cn(
+					"mt-3 min-h-0 flex-1 pr-1",
+					shouldStretchMessageRows
+						? "grid gap-3 overflow-hidden"
+						: "flex flex-col gap-3 overflow-y-auto",
+				)}
+				style={
+					shouldStretchMessageRows
+						? { gridTemplateRows: `repeat(${messages.length}, minmax(0, 1fr))` }
+						: undefined
+				}
+			>
 				{messages.map((message, index) => {
 					const copyMessageHandler = copyMessageHandlers[index];
 					const messageChangeHandler = messageChangeHandlers[index];
@@ -534,12 +632,21 @@ const PromptHarnessPreview = ({
 
 					return (
 						<div
-							className="space-y-3 rounded-lg border border-solarized-base2 bg-solarized-base3 p-4"
-							key={`${message.role}-${message.content}`}
+							className={cn(
+								"flex flex-col rounded-lg border border-solarized-base2 bg-solarized-base3 p-3",
+								shouldStretchMessageRows ? "h-full min-h-0" : "min-h-[240px]",
+							)}
+							key={`${message.role}-${index}`}
 						>
 							<div className="flex flex-wrap items-center justify-between gap-2">
 								<div className="flex items-center gap-2">
-									<Badge variant="outline" className="font-mono text-[11px] uppercase">
+									<Badge
+										variant="outline"
+										className={cn(
+											"font-mono text-[11px] uppercase",
+											getPromptMessageRoleBadgeClassName(message.role),
+										)}
+									>
 										{message.role}
 									</Badge>
 									<span className="text-xs text-solarized-base01">
@@ -559,7 +666,7 @@ const PromptHarnessPreview = ({
 							</div>
 
 							{matchingItems.length > 0 ? (
-								<div className="flex flex-wrap gap-2">
+								<div className="mt-2 flex flex-wrap gap-2">
 									{matchingItems.map((item) => (
 										<Badge
 											key={`${message.role}-${index}-${item.source}-${item.key}`}
@@ -576,11 +683,13 @@ const PromptHarnessPreview = ({
 								</div>
 							) : null}
 
-							<HighlightedPromptEditor
-								value={message.content}
-								onChange={messageChangeHandler}
-								highlightVariables={allPreviewItems}
-							/>
+							<div className="mt-3 min-h-0 flex-1">
+								<HighlightedPromptEditor
+									value={message.content}
+									onChange={messageChangeHandler}
+									highlightVariables={allPreviewItems}
+								/>
+							</div>
 						</div>
 					);
 				})}
@@ -658,6 +767,11 @@ export const PlaygroundPanel = ({
 	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
 		NONE_TEMPLATE_VALUE,
 	);
+	const [promptHarnessDraftMessages, setPromptHarnessDraftMessages] = useState<
+		{ role: "system" | "user" | "assistant"; content: string }[]
+	>([]);
+	const [templateDraftContent, setTemplateDraftContent] = useState("");
+	const [templateDraftExamples, setTemplateDraftExamples] = useState<string[]>([]);
 	const [compiledMessages, setCompiledMessages] = useState<
 		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
@@ -666,9 +780,9 @@ export const PlaygroundPanel = ({
 		content: string;
 	}> | null>(null);
 	const [promptRuntimeVariables, setPromptRuntimeVariables] = useState<Record<string, unknown>>({});
-	const [selectedTemplateExampleIndex, setSelectedTemplateExampleIndex] = useState(0);
-	const [isCompiling, setIsCompiling] = useState(false);
 	const compileRequestRef = useRef(0);
+	const loadedPromptHarnessNameRef = useRef<string | null>(null);
+	const loadedTemplateIdRef = useRef<string | null>(null);
 
 	const promptHarnessOptions = useMemo(() => {
 		const fetchedOptions = promptHarnessesData?.items ?? [];
@@ -683,10 +797,7 @@ export const PlaygroundPanel = ({
 	const promptHarnessDetailsQueryOptions = orpc.admin.scribe.prompts.get.queryOptions({
 		input: { name: promptName },
 	});
-	const {
-		data: selectedPromptHarnessDetails,
-		isFetching: isFetchingSelectedPromptHarness,
-	} = useQuery({
+	const { data: selectedPromptHarnessDetails } = useQuery({
 		...promptHarnessDetailsQueryOptions,
 		enabled: promptName.trim().length > 0,
 	});
@@ -704,51 +815,94 @@ export const PlaygroundPanel = ({
 		enabled: selectedTemplateId !== NONE_TEMPLATE_VALUE,
 	});
 
+	const promptHarnessBaseMessages = useMemo(
+		() =>
+			(selectedPromptHarnessDetails?.messages ?? []).map((message) => ({
+				content: serializePromptVariable(message.content),
+				role: message.role,
+			})),
+		[selectedPromptHarnessDetails?.messages],
+	);
+
+	useEffect(() => {
+		const currentPromptName = selectedPromptHarnessDetails?.name ?? null;
+		if (currentPromptName === null) {
+			if (loadedPromptHarnessNameRef.current !== null) {
+				setPromptHarnessDraftMessages([]);
+				loadedPromptHarnessNameRef.current = null;
+			}
+			return;
+		}
+
+		if (loadedPromptHarnessNameRef.current === currentPromptName) {
+			return;
+		}
+
+		setPromptHarnessDraftMessages(promptHarnessBaseMessages);
+		loadedPromptHarnessNameRef.current = currentPromptName;
+	}, [promptHarnessBaseMessages, selectedPromptHarnessDetails?.name]);
+
+	const isPromptHarnessDirty = useMemo(
+		() =>
+			promptHarnessBaseMessages.length > 0 &&
+			!arePromptMessagesEqual(promptHarnessDraftMessages, promptHarnessBaseMessages),
+		[promptHarnessDraftMessages, promptHarnessBaseMessages],
+	);
+
+	useEffect(() => {
+		const currentTemplateId = selectedTemplateDetails?.id ?? null;
+		if (currentTemplateId === null) {
+			if (loadedTemplateIdRef.current !== null) {
+				setTemplateDraftContent("");
+				setTemplateDraftExamples([]);
+				loadedTemplateIdRef.current = null;
+			}
+			return;
+		}
+
+		if (loadedTemplateIdRef.current === currentTemplateId) {
+			return;
+		}
+
+		setTemplateDraftContent(selectedTemplateDetails.content);
+		setTemplateDraftExamples(
+			(selectedTemplateDetails.examples ?? []).map((example) => example.content),
+		);
+		loadedTemplateIdRef.current = currentTemplateId;
+	}, [selectedTemplateDetails?.id, selectedTemplateDetails]);
+
+	const isTemplateDirty = useMemo(() => {
+		if (!selectedTemplateDetails) {
+			return false;
+		}
+		if (templateDraftContent !== selectedTemplateDetails.content) {
+			return true;
+		}
+		const baseExamples = (selectedTemplateDetails.examples ?? []).map(
+			(example) => example.content,
+		);
+		if (templateDraftExamples.length !== baseExamples.length) {
+			return true;
+		}
+		for (let index = 0; index < baseExamples.length; index += 1) {
+			if (templateDraftExamples[index] !== baseExamples[index]) {
+				return true;
+			}
+		}
+		return false;
+	}, [selectedTemplateDetails, templateDraftContent, templateDraftExamples]);
+
 	const selectedTemplateReference = useMemo(() => {
 		if (!selectedTemplateDetails) {
 			return "";
 		}
 
 		return buildSelectedTemplateReference({
-			content: selectedTemplateDetails.content,
-			examples: selectedTemplateDetails.examples ?? [],
+			content: templateDraftContent,
+			examples: templateDraftExamples.map((content) => ({ content })),
 			title: selectedTemplateDetails.title,
 		});
-	}, [selectedTemplateDetails]);
-
-	const selectedTemplateExamples = selectedTemplateDetails?.examples ?? [];
-	const selectedTemplateExampleCount = selectedTemplateExamples.length;
-	const selectedTemplateExample =
-		selectedTemplateExampleCount > 0
-			? selectedTemplateExamples[selectedTemplateExampleIndex]
-			: null;
-
-	useEffect(() => {
-		setSelectedTemplateExampleIndex(0);
-	}, [selectedTemplateId]);
-
-	useEffect(() => {
-		if (selectedTemplateExampleCount === 0) {
-			if (selectedTemplateExampleIndex !== 0) {
-				setSelectedTemplateExampleIndex(0);
-			}
-			return;
-		}
-
-		if (selectedTemplateExampleIndex >= selectedTemplateExampleCount) {
-			setSelectedTemplateExampleIndex(selectedTemplateExampleCount - 1);
-		}
-	}, [selectedTemplateExampleCount, selectedTemplateExampleIndex]);
-
-	const handlePreviousTemplateExample = useCallback(() => {
-		setSelectedTemplateExampleIndex((prev) => Math.max(prev - 1, 0));
-	}, []);
-
-	const handleNextTemplateExample = useCallback(() => {
-		setSelectedTemplateExampleIndex((prev) =>
-			Math.min(prev + 1, selectedTemplateExampleCount - 1),
-		);
-	}, [selectedTemplateExampleCount]);
+	}, [selectedTemplateDetails, templateDraftContent, templateDraftExamples]);
 
 	const promptJson = useMemo(() => {
 		const data: Record<string, unknown> = {
@@ -765,6 +919,89 @@ export const PlaygroundPanel = ({
 		}
 		return JSON.stringify(data);
 	}, [docUi, formMain, formAdditional, selectedTemplateReference]);
+
+	const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+	const [isParsingAudioRecordings, setIsParsingAudioRecordings] = useState(false);
+	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
+	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+	const audioChunksRef = useRef<Blob[]>([]);
+	const recordingStartTimeRef = useRef<number>(0);
+	const maxRecordings = 3;
+	const canRecordAudio = audioRecordings.length < maxRecordings;
+
+	const handleStartRecordingAudio = useCallback(async () => {
+		if (!canRecordAudio) {
+			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
+			return;
+		}
+
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const mediaRecorder = new MediaRecorder(stream);
+			mediaRecorderRef.current = mediaRecorder;
+			audioChunksRef.current = [];
+			recordingStartTimeRef.current = Date.now();
+
+			mediaRecorder.addEventListener("dataavailable", (event) => {
+				audioChunksRef.current.push(event.data);
+			});
+
+			mediaRecorder.addEventListener("stop", () => {
+				const audioBlob = new Blob(audioChunksRef.current, {
+					type: "audio/wav",
+				});
+				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
+				const newRecording: AudioRecording = {
+					blob: audioBlob,
+					duration,
+					id: `audio-${Date.now()}`,
+				};
+				setAudioRecordings((prev) => [...prev, newRecording]);
+				for (const track of stream.getTracks()) {
+					track.stop();
+				}
+			});
+
+			mediaRecorder.start();
+			setIsRecordingAudio(true);
+			toast.success("Aufnahme gestartet");
+		} catch (error) {
+			console.error("Error starting recording:", error);
+			toast.error("Fehler beim Starten der Aufnahme");
+		}
+	}, [canRecordAudio]);
+
+	const handleStopRecordingAudio = useCallback(() => {
+		if (mediaRecorderRef.current && isRecordingAudio) {
+			mediaRecorderRef.current.stop();
+			setIsRecordingAudio(false);
+			toast.success("Aufnahme beendet");
+		}
+	}, [isRecordingAudio]);
+
+	const handleToggleRecordingAudio = useCallback(() => {
+		if (isRecordingAudio) {
+			handleStopRecordingAudio();
+		} else {
+			void handleStartRecordingAudio();
+		}
+	}, [handleStartRecordingAudio, handleStopRecordingAudio, isRecordingAudio]);
+
+	const handleRemoveAudioRecording = useCallback((id: string) => {
+		setAudioRecordings((prev) =>
+			prev.filter((recording) => recording.id !== id),
+		);
+	}, []);
+
+	const recordingAudioButtonTitle = (() => {
+		if (!canRecordAudio && !isRecordingAudio) {
+			return `Maximal ${maxRecordings} Aufnahmen möglich`;
+		}
+		if (isRecordingAudio) {
+			return "Aufnahme stoppen";
+		}
+		return "Audioaufnahme starten";
+	})();
 
 	const handleParseAudioToText = useCallback(async (audioFiles: VoiceFillAudioFile[]) => {
 		toast.loading("Audio wird zu Text geparst...", {
@@ -813,10 +1050,30 @@ export const PlaygroundPanel = ({
 		}
 	}, [docUi.mainField.description, docUi.mainField.label, docUi.mainField.name]);
 
+	const handleParseRecordedAudioToText = useCallback(async () => {
+		if (audioRecordings.length === 0) {
+			toast.error("Bitte zuerst Audio aufnehmen");
+			return;
+		}
+
+		setIsParsingAudioRecordings(true);
+		try {
+			const audioFiles = await Promise.all(
+				audioRecordings.map(async (recording) => ({
+					data: await blobToBase64(recording.blob),
+					mimeType: recording.blob.type,
+				})),
+			);
+			await handleParseAudioToText(audioFiles);
+			setAudioRecordings([]);
+		} finally {
+			setIsParsingAudioRecordings(false);
+		}
+	}, [audioRecordings, handleParseAudioToText]);
+
 	const compilePrompt = useCallback(async () => {
 		const requestId = compileRequestRef.current + 1;
 		compileRequestRef.current = requestId;
-		setIsCompiling(true);
 		try {
 			const res = await orpc.admin.scribe.compilePrompt.call({
 				documentType,
@@ -845,10 +1102,6 @@ export const PlaygroundPanel = ({
 				return;
 			}
 			toast.error(error instanceof Error ? error.message : "Fehler beim Kompilieren");
-		} finally {
-			if (compileRequestRef.current === requestId) {
-				setIsCompiling(false);
-			}
 		}
 	}, [documentType, promptJson, promptName]);
 
@@ -1084,6 +1337,41 @@ export const PlaygroundPanel = ({
 			});
 	}, [promptRuntimeVariables]);
 
+	const harnessPlaceholderValues = useMemo(
+		() => ({
+			"<patient_context></patient_context>":
+				serializePromptVariable(promptRuntimeVariables.contextXml),
+			"[Anamnese]": formAdditional.anamnese ?? "",
+			"[Befunde]": formAdditional.befunde ?? "",
+			"[Diagnoseblock]": formAdditional.diagnoseblock ?? "",
+			"[Notizen]": formMain,
+			"[Relevante Vorlage]": selectedTemplateReference,
+		}),
+		[
+			formAdditional.anamnese,
+			formAdditional.befunde,
+			formAdditional.diagnoseblock,
+			formMain,
+			promptRuntimeVariables.contextXml,
+			selectedTemplateReference,
+		],
+	);
+
+	const promptHarnessExperimentMessages = useMemo(() => {
+		if (!isPromptHarnessDirty || promptHarnessDraftMessages.length === 0) {
+			return null;
+		}
+		return promptHarnessDraftMessages.map((message) => ({
+			...message,
+			content: applyHarnessPlaceholders(message.content, harnessPlaceholderValues),
+		}));
+	}, [harnessPlaceholderValues, isPromptHarnessDirty, promptHarnessDraftMessages]);
+
+	const effectiveCompiledMessages = useMemo(
+		() => compiledOverride ?? promptHarnessExperimentMessages ?? compiledMessages,
+		[compiledMessages, compiledOverride, promptHarnessExperimentMessages],
+	);
+
 	const resultsWithContentCount = useMemo(
 		() =>
 			Object.values(runStates).filter(
@@ -1098,24 +1386,17 @@ export const PlaygroundPanel = ({
 
 	const navigationItems = useMemo(
 		() =>
-			([
-				{
-					summary:
-						selectedTemplateId === NONE_TEMPLATE_VALUE
-							? promptName
+				([
+					{
+						summary:
+							selectedTemplateId === NONE_TEMPLATE_VALUE
+								? promptName
 							: `${promptName} · Template`,
 					view: "config",
 				},
 				{
 					summary: `${inputPreviewItems.length} Felder aktiv`,
 					view: "inputs",
-				},
-				{
-					summary:
-						compiledMessages.length > 0
-							? `${compiledMessages.length} Nachrichten kompiliert`
-							: "Noch nicht kompiliert",
-					view: "compiled",
 				},
 				{
 					summary: `${modelRuns.length} Vergleichs-Run${modelRuns.length === 1 ? "" : "s"}`,
@@ -1129,11 +1410,10 @@ export const PlaygroundPanel = ({
 					view: "results",
 				},
 			]) as { summary: string; view: PlaygroundView }[],
-		[
-			compiledMessages.length,
-			inputPreviewItems.length,
-			modelRuns.length,
-			promptName,
+			[
+				inputPreviewItems.length,
+				modelRuns.length,
+				promptName,
 			resultsWithContentCount,
 			selectedTemplateId,
 		],
@@ -1230,34 +1510,31 @@ export const PlaygroundPanel = ({
 		}
 	}, []);
 
-	const handleMainInputChange = useCallback(
-		(event: ChangeEvent<HTMLTextAreaElement>) => {
-			setFormMain(event.target.value);
-		},
-		[],
-	);
-
-	const additionalFieldChangeHandlers = useMemo(() => {
-		const handlers = new Map<string, (event: ChangeEvent<HTMLTextAreaElement>) => void>();
-		for (const field of docUi.additionalFields) {
-			handlers.set(field.name, (event: ChangeEvent<HTMLTextAreaElement>) => {
-				const fieldValue = event.target.value;
-				setFormAdditional((prev) => ({
-					...prev,
-					[field.name]: fieldValue,
-				}));
-			});
-		}
-		return handlers;
-	}, [docUi.additionalFields]);
-
-	const handleResetCompiledOverride = useCallback(() => {
-		setCompiledOverride(null);
-		toast.success("Override zurückgesetzt");
+	const handleMainInputValueChange = useCallback((value: string) => {
+		setFormMain(value);
 	}, []);
 
+	const handleAdditionalInputValueChange = useCallback((name: string, value: string) => {
+		setFormAdditional((prev) => ({
+			...prev,
+			[name]: value,
+		}));
+	}, []);
+
+	const playgroundAdditionalInputs = useMemo(
+		() =>
+			docUi.additionalFields.map((field) => ({
+				description: field.description,
+				label: field.label,
+				name: field.name,
+				placeholder: field.placeholder,
+				type: "textarea" as const,
+			})),
+		[docUi.additionalFields],
+	);
+
 	const handleCompiledMessageChange = useCallback((index: number, content: string) => {
-		const next = (compiledOverride ?? compiledMessages).map((entry) => ({
+		const next = effectiveCompiledMessages.map((entry) => ({
 			...entry,
 		}));
 		next[index] = {
@@ -1265,85 +1542,39 @@ export const PlaygroundPanel = ({
 			content,
 		};
 		setCompiledOverride(next);
-	}, [compiledMessages, compiledOverride]);
+	}, [effectiveCompiledMessages]);
 
 	const renderInputsView = () => (
 		<ScrollArea className="h-full">
-			<div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
-				<div className="space-y-4">
-					<div className="rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
-						<div className="mb-3 space-y-1">
-							<h3 className="font-medium text-sm text-solarized-base00">
-								{docUi.mainField.label}
-							</h3>
-							{docUi.mainField.description ? (
-								<p className="text-xs text-solarized-base01">
-									{docUi.mainField.description}
-								</p>
-							) : null}
-						</div>
-							<Textarea
-								className="min-h-[320px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-								id="main-input"
-								onChange={handleMainInputChange}
-								placeholder={docUi.mainField.placeholder}
-								value={formMain}
-							/>
-						</div>
-
-						{docUi.additionalFields.length > 0 ? (
-							<div className="grid gap-4 xl:grid-cols-2">
-								{docUi.additionalFields.map((field) => {
-									const handleAdditionalFieldChange = additionalFieldChangeHandlers.get(
-										field.name,
-									);
-									if (!handleAdditionalFieldChange) {
-										return null;
-									}
-
-									return (
-										<div
-											className="rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
-											key={field.name}
-										>
-											<div className="mb-3 space-y-1">
-												<h3 className="font-medium text-sm text-solarized-base00">
-													{field.label}
-												</h3>
-												<p className="text-xs text-solarized-base01">{field.name}</p>
-											</div>
-											<Textarea
-												className="min-h-[220px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-												id={field.name}
-												onChange={handleAdditionalFieldChange}
-												placeholder={field.placeholder}
-												value={formAdditional[field.name] ?? ""}
-											/>
-										</div>
-									);
-								})}
-							</div>
-						) : null}
-				</div>
-
-					<div className="space-y-4">
-						<div className="rounded-lg border border-solarized-blue/30 bg-solarized-blue/5 p-4">
-							<div className="mb-3 space-y-1">
-								<h3 className="font-medium text-sm text-solarized-base00">
-									Audio zu Text
-								</h3>
-								<p className="text-xs text-solarized-base01">
-									Parst die Aufnahme in Text und hängt sie an das Hauptfeld an. Dadurch erscheint sie direkt im Prompt JSON.
-								</p>
-							</div>
-							<VoiceInputControls
-								onSubmit={handleParseAudioToText}
-								pendingLabel="Wird geparst..."
-								submitLabel="Zu Text parsen"
-								title="Audioaufnahme"
-							/>
-						</div>
-				</div>
+			<div className="p-4">
+				<AiscribeTemplateInputSection
+					additionalInputData={formAdditional}
+					additionalInputs={playgroundAdditionalInputs}
+					additionalTextareaClassName={PLAYGROUND_EDITOR_TEXTAREA_CLASS}
+					audio={{
+						canRecord: canRecordAudio,
+						isRecording: isRecordingAudio,
+						isSubmittingRecordings: isParsingAudioRecordings,
+						onRemoveRecording: handleRemoveAudioRecording,
+						onSubmitRecordings: handleParseRecordedAudioToText,
+						onToggleRecording: handleToggleRecordingAudio,
+						recordingButtonTitle: recordingAudioButtonTitle,
+						recordings: audioRecordings.map((recording) => ({
+							duration: recording.duration,
+							id: recording.id,
+						})),
+						submitRecordingsLabel: "Zu Text parsen",
+						submitRecordingsPendingLabel: "Wird geparst...",
+					}}
+					inputPlaceholder={docUi.mainField.placeholder}
+					inputValue={formMain}
+					isLoading={isParsingAudioRecordings}
+					onAdditionalInputChange={handleAdditionalInputValueChange}
+					onInputValueChange={handleMainInputValueChange}
+					showSubmit={false}
+					mainTextareaClassName={PLAYGROUND_EDITOR_TEXTAREA_CLASS}
+					textareaId="main-input"
+				/>
 			</div>
 		</ScrollArea>
 	);
@@ -1351,143 +1582,26 @@ export const PlaygroundPanel = ({
 	const renderConfigView = () => {
 		const hasPromptHarnessOption = promptHarnessOptions.includes(promptName);
 
-		const promptHarnessContent = (() => {
-			if (isFetchingSelectedPromptHarness) {
-				return (
-					<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-						Lade Prompt-Harness...
-					</div>
-				);
-			}
-
-			if (selectedPromptHarnessDetails?.messages?.length) {
-				return (
-					<div className="space-y-2">
-						{selectedPromptHarnessDetails.messages.map((message) => (
-							<div
-								key={`${message.role}-${message.content}`}
-								className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3 p-2.5"
-							>
-								<Badge variant="outline" className="font-mono text-[11px] uppercase">
-									{message.role}
-								</Badge>
-								<Textarea
-									readOnly
-									value={serializePromptVariable(message.content)}
-									className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-								/>
-							</div>
-						))}
-					</div>
-				);
-			}
-
-			return (
-				<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-					Kein Prompt-Harness-Inhalt verfügbar.
-				</div>
-			);
-		})();
-
-		const templateContent = (() => {
-			if (selectedTemplateId === NONE_TEMPLATE_VALUE) {
-				return (
-					<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-						Wähle ein Template aus, um Inhalt und Beispiele zu sehen.
-					</div>
-				);
-			}
-
-			if (isFetchingSelectedTemplate) {
-				return (
-					<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-						Lade Template...
-					</div>
-				);
-			}
-
-			if (!selectedTemplateDetails) {
-				return (
-					<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-						Template konnte nicht geladen werden.
-					</div>
-				);
-			}
-
-			return (
-				<div className="space-y-2">
-					<div className="space-y-1.5">
-						<Label className="text-xs text-solarized-base01">Template</Label>
-						<Textarea
-							readOnly
-							value={selectedTemplateDetails.content}
-							className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-xs"
-						/>
-					</div>
-
-					<div className="space-y-1.5">
-						<div className="flex flex-wrap items-center justify-between gap-1.5">
-							<Label className="text-xs text-solarized-base01">
-								Beispiel (wird unter dem Template eingefügt)
-							</Label>
-							{selectedTemplateExampleCount > 0 ? (
-								<div className="flex items-center gap-2">
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											className="h-7 w-7 border-solarized-base2 p-0"
-											onClick={handlePreviousTemplateExample}
-											disabled={selectedTemplateExampleIndex === 0}
-											title="Vorheriges Beispiel"
-										>
-										<ChevronLeft className="h-4 w-4" />
-									</Button>
-									<span className="min-w-16 text-center text-xs text-solarized-base01">
-										{selectedTemplateExampleIndex + 1}/{selectedTemplateExampleCount}
-									</span>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											className="h-7 w-7 border-solarized-base2 p-0"
-											onClick={handleNextTemplateExample}
-											disabled={selectedTemplateExampleIndex >= selectedTemplateExampleCount - 1}
-											title="Nächstes Beispiel"
-										>
-										<ChevronRight className="h-4 w-4" />
-									</Button>
-								</div>
-							) : null}
-						</div>
-
-						{selectedTemplateExample ? (
-							<Textarea
-								readOnly
-								value={selectedTemplateExample.content}
-								className="min-h-[120px] resize-y border-solarized-base2 bg-solarized-base3 text-xs"
-							/>
-						) : (
-							<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3 p-3 text-xs text-solarized-base01">
-								Dieses Template enthält keine Beispiele.
-							</div>
-						)}
-					</div>
-				</div>
-			);
-		})();
-
 		return (
-			<ScrollArea className="h-full">
-				<div className="space-y-3 p-3">
-					<div className="grid gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2 lg:grid-cols-2">
-						<div>
-						<Label className="text-sm text-solarized-base01">Basis-Prompt</Label>
+			<div className="flex h-full min-h-0 flex-col gap-3 p-3">
+				<div className="grid gap-3 lg:grid-cols-2">
+					<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+						<DirtySelectorLabel
+							isDirty={isPromptHarnessDirty}
+							label="Basis-Prompt"
+						/>
 						<Select
 							onValueChange={handlePromptHarnessChange}
 							value={promptName}
 						>
-							<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
+							<SelectTrigger
+								className={cn(
+									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
+									isPromptHarnessDirty
+										? "border-solarized-orange/50 bg-solarized-orange/10"
+										: "",
+								)}
+							>
 								<SelectValue placeholder="Basis-Prompt waehlen" />
 							</SelectTrigger>
 							<SelectContent>
@@ -1505,13 +1619,23 @@ export const PlaygroundPanel = ({
 						</Select>
 					</div>
 
-					<div>
-						<Label className="text-sm text-solarized-base01">Template</Label>
+					<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+						<DirtySelectorLabel
+							isDirty={isTemplateDirty}
+							label="Template"
+						/>
 						<Select
 							value={selectedTemplateId}
 							onValueChange={setSelectedTemplateId}
 						>
-							<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
+							<SelectTrigger
+								className={cn(
+									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
+									isTemplateDirty
+										? "border-solarized-orange/50 bg-solarized-orange/10"
+										: "",
+								)}
+							>
 								<SelectValue placeholder="Template waehlen" />
 							</SelectTrigger>
 							<SelectContent>
@@ -1526,56 +1650,15 @@ export const PlaygroundPanel = ({
 					</div>
 				</div>
 
-					<div className="grid gap-2 lg:grid-cols-2">
-						<div className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
-							{promptHarnessContent}
-						</div>
-
-						<div className="space-y-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
-							{templateContent}
-						</div>
-					</div>
-				</div>
-			</ScrollArea>
+				<PromptHarnessPreview
+					inputItems={inputPreviewItems}
+					messages={effectiveCompiledMessages}
+					onMessageChange={handleCompiledMessageChange}
+					runtimeItems={runtimePromptItems}
+				/>
+			</div>
 		);
 	};
-
-	const renderCompiledPromptView = () => (
-		<ScrollArea className="h-full">
-			<div className="space-y-3 p-3">
-				<div className="flex flex-wrap items-center justify-end gap-2">
-					<Badge
-						variant="outline"
-						className={cn(
-							"border-solarized-base2 bg-solarized-base3 text-solarized-base01",
-							isCompiling
-								? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue"
-								: "",
-						)}
-					>
-						{isCompiling ? "Aktualisiere..." : "Automatisch aktuell"}
-					</Badge>
-						<Button
-							type="button"
-							variant="outline"
-							className="border-solarized-base2"
-							onClick={handleResetCompiledOverride}
-							disabled={compiledOverride === null}
-						>
-						<RotateCcw className="h-4 w-4" />
-						Override zurücksetzen
-					</Button>
-				</div>
-
-					<PromptHarnessPreview
-						inputItems={inputPreviewItems}
-						messages={compiledOverride ?? compiledMessages}
-						onMessageChange={handleCompiledMessageChange}
-						runtimeItems={runtimePromptItems}
-					/>
-			</div>
-		</ScrollArea>
-	);
 
 	const renderModelsView = () => (
 		<ScrollArea className="h-full">
@@ -1664,39 +1747,44 @@ export const PlaygroundPanel = ({
 		);
 
 	const renderResultsView = () => (
-		<ScrollArea className="h-full">
-			<div className="space-y-4 p-4">
-				<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
-					<div className="space-y-1">
-						<h3 className="font-medium text-sm text-solarized-base00">Ergebnisse</h3>
-						<p className="text-xs text-solarized-base01">
-							{scribeDocTypeUi[documentType].label} · {promptName}
-						</p>
-					</div>
-					<div className="flex flex-wrap gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							className="gap-1.5 border-solarized-base2 px-3 text-xs"
-							onClick={handleResetResults}
-						>
-							<RotateCcw className="h-3.5 w-3.5" />
-							Reset
-						</Button>
-						<Button
-							type="button"
-							size="sm"
-							className="gap-1.5 bg-solarized-blue px-3 text-xs hover:bg-solarized-blue/90"
-							onClick={runAllModels}
-						>
-							<Play className="h-3.5 w-3.5" />
-							Run All
-						</Button>
-					</div>
+		<div className="flex h-full min-h-0 flex-col p-4">
+			<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+				<div className="space-y-1">
+					<h3 className="font-medium text-sm text-solarized-base00">Ergebnisse</h3>
+					<p className="text-xs text-solarized-base01">
+						{scribeDocTypeUi[documentType].label} · {promptName}
+					</p>
 				</div>
+				<div className="flex flex-wrap gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="gap-1.5 border-solarized-base2 px-3 text-xs"
+						onClick={handleResetResults}
+					>
+						<RotateCcw className="h-3.5 w-3.5" />
+						Reset
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						className="gap-1.5 bg-solarized-blue px-3 text-xs hover:bg-solarized-blue/90"
+						onClick={runAllModels}
+					>
+						<Play className="h-3.5 w-3.5" />
+						Run All
+					</Button>
+				</div>
+			</div>
 
-				<div className={cn("grid gap-4", modelRuns.length > 1 ? "2xl:grid-cols-2" : "")}>
+			<ScrollArea className="mt-4 min-h-0 flex-1">
+				<div
+					className={cn(
+						"grid min-h-full auto-rows-fr gap-4",
+						modelRuns.length > 1 ? "2xl:grid-cols-2" : "",
+					)}
+				>
 					{modelRuns.map((run) => (
 						// eslint-disable-next-line no-use-before-define
 						<RunCard
@@ -1706,16 +1794,15 @@ export const PlaygroundPanel = ({
 							documentType={documentType}
 							promptJson={promptJson}
 							promptName={promptName}
-							compiledOverride={compiledOverride}
-							compiledMessages={compiledMessages}
+							messagesForRun={effectiveCompiledMessages}
 							runState={runStates[run.id]}
 							setRunState={setRunState}
 							runTriggersRef={runTriggersRef}
 						/>
 					))}
 				</div>
-			</div>
-		</ScrollArea>
+			</ScrollArea>
+		</div>
 	);
 
 	const renderActiveView = () => {
@@ -1725,9 +1812,6 @@ export const PlaygroundPanel = ({
 			}
 			case "inputs": {
 				return renderInputsView();
-			}
-			case "compiled": {
-				return renderCompiledPromptView();
 			}
 			case "models": {
 				return renderModelsView();
@@ -1797,8 +1881,7 @@ const RunCard = ({
 	documentType,
 	promptJson,
 	promptName,
-	compiledOverride,
-	compiledMessages,
+	messagesForRun,
 	runState,
 	setRunState,
 	runTriggersRef,
@@ -1808,11 +1891,7 @@ const RunCard = ({
 	documentType: DocumentType;
 	promptJson: string;
 	promptName: string;
-	compiledOverride: Array<{
-		role: "system" | "user" | "assistant";
-		content: string;
-	}> | null;
-	compiledMessages: {
+	messagesForRun: {
 		role: "system" | "user" | "assistant";
 		content: string;
 	}[];
@@ -1926,7 +2005,7 @@ const RunCard = ({
 		const requestId = crypto.randomUUID();
 
 		const compiledMessagesOverride =
-			compiledOverride ?? (compiledMessages.length > 0 ? compiledMessages : undefined);
+			messagesForRun.length > 0 ? messagesForRun : undefined;
 
 			payloadRef.current = {
 				compiledMessagesOverride: compiledMessagesOverride
@@ -1955,8 +2034,7 @@ const RunCard = ({
 	}, [
 		modelRun.model,
 		modelRun.parameters,
-		compiledOverride,
-		compiledMessages,
+		messagesForRun,
 		documentType,
 		promptName,
 		promptJson,
@@ -1976,7 +2054,7 @@ const RunCard = ({
 	}, [runId, runTriggersRef, startRun]);
 
 	return (
-		<div className="flex h-[350px] min-w-0 flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2 lg:h-[400px]">
+		<div className="flex h-full min-h-[320px] min-w-0 flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2">
 			{/* Header row */}
 			<div className="flex shrink-0 items-center justify-between gap-2">
 				<div className="min-w-0 flex-1">

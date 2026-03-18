@@ -1,15 +1,45 @@
 import type { PatientContextData } from "@/orpc/scribe/context/types";
 
-interface PatientContextSection {
-	getContent: (input: PatientContextData) => string;
+type PatientContextTag = "diagnoseblock" | "anamnese" | "befunde" | "notizen";
+
+interface ContextSection {
 	purpose: string;
-	tag: "diagnoseblock" | "anamnese" | "befunde" | "notizen";
+	tag: PatientContextTag;
 	usage: string;
 }
 
-export const PATIENT_CONTEXT_SECTIONS: PatientContextSection[] = [
+interface PatientContextSection extends ContextSection {
+	getContent: (input: PatientContextData) => string;
+}
+
+const renderPatientContextSection = ({
+	content,
+	section,
+}: {
+	content: string;
+	section: ContextSection;
+}): string => {
+	const usageBlock = section.usage.includes("\n")
+		? `\n${section.usage}\n`
+		: section.usage;
+	const trimmedContent = content.trim();
+	if (!trimmedContent) {
+		return "";
+	}
+
+	return [
+		`<${section.tag}>`,
+		`<purpose>${section.purpose}</purpose>`,
+		`<usage>${usageBlock}</usage>`,
+		"<content>",
+		trimmedContent,
+		"</content>",
+		`</${section.tag}>`,
+	].join("\n");
+};
+
+const PATIENT_CONTEXT_SECTION_GUIDANCE: ContextSection[] = [
 	{
-		getContent: (input) => input.diagnoseblock,
 		purpose:
 			'Aktuelle Diagnose und Vordiagnosen (meist durch "Vordiagnosen:" oder "Nebendiagnosen:" getrennt) wie chronische Erkrankungen und relevante Voroperationen/interventionen',
 		tag: "diagnoseblock",
@@ -17,7 +47,6 @@ export const PATIENT_CONTEXT_SECTIONS: PatientContextSection[] = [
 			"Aktuelle Diagnosen beschreiben den aktuellen Aufenthalt/Vorstellung. Vordiagnosen beziehen sich NICHT auf das aktuelle Dokument, sondern sind Kontext zu früheren Erkrankungen",
 	},
 	{
-		getContent: (input) => input.anamnese,
 		purpose: "Ausgangspunkt und Aufnahmegrund",
 		tag: "anamnese",
 		usage: [
@@ -27,7 +56,6 @@ export const PATIENT_CONTEXT_SECTIONS: PatientContextSection[] = [
 		].join("\n"),
 	},
 	{
-		getContent: (input) => input.befunde,
 		purpose: "Chronologische Dokumentation des stationären Verlaufs",
 		tag: "befunde",
 		usage: [
@@ -37,43 +65,43 @@ export const PATIENT_CONTEXT_SECTIONS: PatientContextSection[] = [
 		].join("\n"),
 	},
 	{
-		getContent: (input) => input.notes,
 		purpose: "Zusätzliche vom Nutzer bewusst eingegebene Informationen",
 		tag: "notizen",
 		usage: "PRIMÄRE BASIS FÜR DOKUMENT-ERSTELLUNG",
 	},
 ];
 
-export const DIAGNOSIS_CONTEXT_GUIDANCE = `<data_sources>
-<diagnoseblock>
-<purpose>Bereits vorformulierte Diagnosen aus Vorbefunden oder Aufnahme</purpose>
-<usage>
-- Als Ausgangsbasis verwenden
-- Aktualisieren und ergänzen basierend auf aktuellem Aufenthalt
-- Neu gesicherte Diagnosen hinzufügen
-- Vordiagnosen als Nebendiagnosen übernehmen wenn weiterhin relevant
-</usage>
-</diagnoseblock>
+const PATIENT_CONTEXT_CONTENT_EXTRACTORS: Record<
+	PatientContextTag,
+	(input: PatientContextData) => string
+> = {
+	anamnese: (input) => input.anamnese,
+	befunde: (input) => input.befunde,
+	diagnoseblock: (input) => input.diagnoseblock,
+	notizen: (input) => input.notes,
+};
 
-<anamnese>
-<purpose>Aufnahmegrund und initiale Symptomatik</purpose>
-<usage>
-- Hilft bei Identifikation der Hauptdiagnose
-- Liefert Kontext für Diagnosestellung
-</usage>
-</anamnese>
+const PATIENT_CONTEXT_SECTIONS: PatientContextSection[] =
+	PATIENT_CONTEXT_SECTION_GUIDANCE.map((section) => ({
+		...section,
+		getContent: PATIENT_CONTEXT_CONTENT_EXTRACTORS[section.tag],
+	}));
 
-<befunde>
-<purpose>Diagnostische Ergebnisse und Verlaufsdokumentation</purpose>
-<usage>
-- Grundlage für Diagnosesicherung
-- Ermöglicht Identifikation aller behandlungsrelevanten Diagnosen
-- Liefert Details für präzise Diagnoseformulierung (Stadium, Lokalisation etc.)
-</usage>
-</befunde>
+export const renderPatientContextSections = (
+	patientContext: PatientContextData,
+): string => {
+	const sections = PATIENT_CONTEXT_SECTIONS
+		.map((section) =>
+			renderPatientContextSection({
+				content: section.getContent(patientContext),
+				section,
+			}),
+		)
+		.filter((section) => section.length > 0);
 
-<notizen>
-<purpose>Zusätzliche vom Nutzer bewusst eingegebene Informationen</purpose>
-<usage>PRIMÄRE BASIS für finale Diagnosestellung und Aktualisierung</usage>
-</notizen>
-</data_sources>`;
+	if (sections.length === 0) {
+		return "";
+	}
+
+	return `<patient_context>\n${sections.join("\n\n")}\n</patient_context>`;
+};
