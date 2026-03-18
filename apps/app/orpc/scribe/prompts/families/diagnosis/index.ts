@@ -96,7 +96,3 @@ Chronische Niereninsuffizienz Stadium G3a
 <execution_instruction>
 BEGINNEN SIE JETZT mit der Erstellung des Diagnoseblocks basierend auf den bereitgestellten Informationen. Arbeiten Sie systematisch die Schritte ab und achten Sie auf korrekte Strukturierung, Vollständigkeit und medizinische Präzision.
 </execution_instruction>`;
-
-const DIAGNOSIS_TASK_EXECUTION = `<task_execution>
-Erstellen Sie basierend auf den obigen Patientendaten einen Diagnoseblock gemäß den System-Anweisungen. Ausgabe nur: Diagnoseblock
-</task_execution>`;

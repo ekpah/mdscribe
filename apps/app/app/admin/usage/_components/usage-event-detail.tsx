@@ -13,6 +13,7 @@ import Link from "next/link";
 import type { DocumentType } from "@/orpc/scribe/types";
 import {
 	allScribeDocTypes,
+	isScribeDocType,
 	scribeDocTypeUi,
 } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { UsageDetailEvent } from "@/app/admin/usage/types";
@@ -31,7 +32,7 @@ const inferDocumentType = (
 
 	const {endpoint} = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		return endpoint as DocumentType;
+		return isScribeDocType(endpoint) ? endpoint : undefined;
 	}
 
 	const {promptName} = metadata;

@@ -57,7 +57,3 @@ BEGINNEN SIE JETZT mit der strukturierten Neuformatierung der Befunde.
 Überarbeiten Sie nur Formatierung, Datumseinheitlichkeit und Rechtschreibung.  
 Geben Sie das Ergebnis im beschriebenen Format mit einem Abschnitt pro Untersuchung aus.
 </execution_instruction>`;
-
-const BEFUNDE_TASK_EXECUTION = `<task_execution>
-Formatieren Sie die bereitgestellten Befunde gemäß den System-Anweisungen. Ausgabe nur: strukturiertes Befunddokument ohne zusätzliche Erklärungen.
-</task_execution>`;

@@ -9,7 +9,8 @@ export const composeUserContext = (sessionUser?: Session["user"] | null): string
 	}
 
 	return `<user_context>
-	<usage> Diese Informationen betreffen den Nutzer und geben einen Kontext über den behandelnden Arzt. Nutze diese Informationen nicht als Patienteninformationen, insbesondere nicht den Namen!</usage>
+	<purpose>Informationen über den Arzt/Nutzer, der den Prompt ausfüllt</purpose>
+	<usage>Nur als Kontext über den Verfasser verwenden. Diese Daten gehören NICHT zum Patientenfall und dürfen niemals als Patientendaten interpretiert werden (insbesondere Namen).</usage>
 	<name>${name}</name>
 	</user_context>`;
 };

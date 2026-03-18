@@ -61,7 +61,3 @@ Erstellen Sie eine flüssige, zusammenhängende Epikrise in VERGANGENHEITSFORM, 
 <execution_instruction>
 BEGINNEN SIE JETZT mit der Erstellung der Epikrise basierend auf den bereitgestellten Informationen. Arbeiten Sie die Schritte systematisch ab und achten Sie auf alle genannten Anforderungen.
 </execution_instruction>`;
-
-const DISCHARGE_TASK_EXECUTION = `<task_execution>
-Erstellen Sie basierend auf den obigen Patientendaten eine Epikrise und ein Procedere gemäß den System-Anweisungen. Ausgabe nur: Epikrise (Fließtext) und Procedere (Stichpunkte).
-</task_execution>`;

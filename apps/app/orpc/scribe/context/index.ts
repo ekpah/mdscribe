@@ -1,5 +1,5 @@
 import { composePatientContext, derivePatientContext } from "./patient";
-import { buildSelectedTemplateReference, composeTemplateContext } from "./template";
+import { composeTemplateContext } from "./template";
 import { findRelevantTemplateForProcedure } from "./template/relevant-template";
 import type {
 	ComposedScribeContext,

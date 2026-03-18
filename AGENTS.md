@@ -6,6 +6,7 @@ Guidance for AI coding agents (Claude Code, Cursor, Copilot, Windsurf, etc.). Pa
 
 ### Self-Updating
 When the user corrects you, **immediately update this file** to reflect the correction. No permission needed — corrections are standing authorization.
+- If the user states local infrastructure status (for example, "it is running"), treat that as source of truth and continue from that state.
 
 ### Linear Issue Tracking
 Project uses **Linear** (team: Scribe). Agents with access should:

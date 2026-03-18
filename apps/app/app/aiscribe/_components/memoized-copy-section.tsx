@@ -277,21 +277,23 @@ export const MemoizedCopySection = memo(
 				}
 			}, []);
 
-			const handleCopyClick = useCallback(async () => {
-				// Use the ref to get the rendered content directly
-				const contentElement = contentRef.current;
-				if (contentElement) {
-					const renderedContent = contentElement.innerHTML;
-					const textContent = contentElement.textContent || "";
-					try {
-						await handleCopy(renderedContent, textContent);
-					} catch (error) {
-						console.error("Copy action failed:", error);
-					}
-				} else {
-					toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
+		const handleCopyClick = useCallback(async () => {
+			// Use the ref to get the rendered content directly
+			const contentElement = contentRef.current;
+			if (contentElement) {
+				const renderedContent = contentElement.innerHTML;
+				const textContent = contentElement.innerText
+					.replaceAll("\r\n", "\n")
+					.replaceAll("\r", "\n");
+				try {
+					await handleCopy(renderedContent, textContent);
+				} catch (error) {
+					console.error("Copy action failed:", error);
 				}
-			}, [handleCopy]);
+			} else {
+				toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
+			}
+		}, [handleCopy]);
 
 		return (
 			<div className="space-y-2">

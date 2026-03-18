@@ -17,6 +17,7 @@ import type { MouseEvent } from "react";
 import type { DocumentType } from "@/orpc/scribe/types";
 import {
 	allScribeDocTypes,
+	isScribeDocType,
 	scribeDocTypeUi,
 } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { UsageListEvent } from "./types";
@@ -35,7 +36,7 @@ const inferDocumentType = (
 
 	const {endpoint} = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		return endpoint as DocumentType;
+		return isScribeDocType(endpoint) ? endpoint : undefined;
 	}
 
 	const {promptName} = metadata;

@@ -16,6 +16,23 @@ jobs:
   lint-and-unit:
     name: Lint + Knip + Unit Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: mdscribe
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mdscribe"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+        ports:
+          - 5432:5432
+    env:
+      POSTGRES_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/mdscribe
+      POSTGRES_DATABASE_URL_TEST: postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,12 +53,32 @@ jobs:
       - name: Run knip
         run: bun run knip
 
+      - name: Migrate database
+        run: bun run db:migrate
+
       - name: Run affected tests
         run: bun run test:affected
 
   playwright:
     name: Playwright E2E
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: mdscribe
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mdscribe"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+        ports:
+          - 5432:5432
+    env:
+      POSTGRES_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/mdscribe
+      POSTGRES_DATABASE_URL_TEST: postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +93,9 @@ jobs:
 
       - name: Install Playwright browser
         run: bunx playwright install --with-deps chromium
+
+      - name: Migrate database
+        run: bun run db:migrate
 
       - name: Run Playwright tests
         run: bunx playwright test

@@ -13,7 +13,11 @@ import { useMemo } from "react";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { PlaygroundPanel } from "./_components/playground-panel";
-import { allScribeDocTypes, scribeDocTypeUi } from "./_lib/scribe-doc-types";
+import {
+	allScribeDocTypes,
+	isScribeDocType,
+	scribeDocTypeUi,
+} from "./_lib/scribe-doc-types";
 import type { PlaygroundParameters } from "./_lib/types";
 
 const playgroundSearchParams = {
@@ -40,7 +44,7 @@ const inferDocumentType = (
 
 	const {endpoint} = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		return endpoint as DocumentType;
+		return isScribeDocType(endpoint) ? endpoint : undefined;
 	}
 
 	const {promptName} = metadata;
