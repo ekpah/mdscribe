@@ -4,7 +4,7 @@ import { DEFAULT_AI_TEXT_DESCRIPTION } from "@/lib/ai-scribe-forms";
 import type {
 	AiscribeTemplateConfig,
 	AdditionalInputField,
-} from "../_components/aiscribe-template";
+} from "@/app/aiscribe/_components/aiscribe-template";
 
 export interface PublicAiTextForm {
 	description: string | null;
@@ -39,9 +39,9 @@ const ADDITIONAL_INPUTS: AdditionalInputField[] = [
 	},
 ];
 
-export function buildCustomAiscribeTemplateConfig(
+export const buildCustomAiscribeTemplateConfig = (
 	form: PublicAiTextForm,
-): AiscribeTemplateConfig {
+): AiscribeTemplateConfig => {
 	const description = form.description?.trim() || DEFAULT_AI_TEXT_DESCRIPTION;
 
 	return {
@@ -62,4 +62,4 @@ export function buildCustomAiscribeTemplateConfig(
 		regenerateButtonText: "Neu generieren",
 		title: form.name,
 	};
-}
+};

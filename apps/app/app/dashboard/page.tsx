@@ -42,14 +42,12 @@ import { LiveTime } from "./_components/live-time";
 
 /** Readable German labels for AI scribe document types */
 const documentTypeLabels: Record<DocumentType, string> = {
-	"admission-todos": "ER Admission TODOs",
 	anamnese: "ER Anamnese",
 	befunde: "ER Befunde",
 	diagnosis: "Diagnoseblock Update",
 	discharge: "Entlassungsbrief",
 	"icu-transfer": "ICU Transfer",
 	outpatient: "Ambulante Vorstellung",
-	"physical-exam": "ER Körperliche Untersuchung",
 	procedures: "Prozeduren",
 };
 
@@ -294,9 +292,9 @@ export default async function DashboardPage() {
 							<div>
 								<h1 className="mb-2 font-bold text-2xl text-solarized-base03 sm:text-3xl lg:text-4xl">
 									Willkommen zurück,{" "}
-									{session.user.name !== ""
-										? session.user.name
-										: session.user.email}
+									{session.user.name === ""
+										? session.user.email
+										: session.user.name}
 									!
 								</h1>
 								<p className="mb-1 text-base text-solarized-base01 sm:text-lg">
@@ -461,7 +459,7 @@ export default async function DashboardPage() {
 						</CardContent>
 					</Card>
 
-					{/* Templates and Activity Section */}
+					{/* Favorites, Templates and Activity Section */}
 					<div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
 						{/* Favorite Templates */}
 						<div className="lg:col-span-2">
@@ -556,9 +554,83 @@ export default async function DashboardPage() {
 							</Card>
 						</div>
 
-						{/* Recent Activity */}
-						<div>
-							<Card className="h-full border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
+						<div className="space-y-6">
+							{/* My Templates Section */}
+							<Card className="border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
+								<CardHeader>
+									<div className="flex items-center justify-between gap-4">
+										<div>
+											<CardTitle className="font-bold text-solarized-base03 text-xl">
+												Meine Templates
+											</CardTitle>
+											<CardDescription className="text-solarized-base01">
+												Ihre eigenen Vorlagen im schnellen Zugriff
+											</CardDescription>
+										</div>
+										<Link href="/templates/create">
+											<Button
+												className="gap-1 bg-transparent"
+												size="sm"
+												variant="outline"
+											>
+												<PlusIcon className="h-3 w-3" />
+												Neu
+											</Button>
+										</Link>
+									</div>
+								</CardHeader>
+								<CardContent>
+									<div className="space-y-2">
+										{(userTemplates?.length ?? 0) > 0 ? (
+											userTemplates?.map((template) => (
+												<div
+													className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-solarized-base2"
+													key={template.id}
+												>
+													<div className="min-w-0 flex-1">
+														<p className="truncate font-medium text-sm text-solarized-base03">
+															{template.title}
+														</p>
+														<div className="mt-1 flex items-center gap-2">
+															<Badge className="text-xs" variant="secondary">
+																{template.category}
+															</Badge>
+															<span className="text-solarized-base1 text-xs">
+																{template._count.favouriteOf} ♥
+															</span>
+														</div>
+													</div>
+													<Link href={`/templates/${template.id}`}>
+														<Button
+															className="h-8 w-8 p-0"
+															size="sm"
+															variant="ghost"
+														>
+															<ExternalLinkIcon className="h-3 w-3" />
+														</Button>
+													</Link>
+												</div>
+											))
+										) : (
+											<div className="py-4 text-center">
+												<PlusIcon className="mx-auto mb-2 h-8 w-8 text-solarized-base2" />
+												<p className="mb-2 text-sm text-solarized-base01">
+													Noch keine eigenen Templates
+												</p>
+												<Link href="/templates/create">
+													<Button className="gap-1" size="sm">
+														<PlusIcon className="h-3 w-3" />
+														Erstellen
+													</Button>
+												</Link>
+											</div>
+										)}
+									</div>
+								</CardContent>
+							</Card>
+
+							{/* Recent Activity */}
+							<Card className="border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
 								<CardHeader>
 									<CardTitle className="flex items-center gap-2 font-bold text-solarized-base03 text-xl">
 										<Activity className="h-5 w-5 text-solarized-green" />
@@ -597,71 +669,6 @@ export default async function DashboardPage() {
 												</p>
 											</div>
 										)}
-									</div>
-
-									{/* My Templates Section */}
-									<div className="mt-6 border-solarized-base1 border-t pt-6">
-										<div className="mb-4 flex items-center justify-between">
-											<h3 className="font-semibold text-solarized-base03">
-												Meine Templates
-											</h3>
-											<Link href="/templates/create">
-												<Button
-													className="gap-1 bg-transparent"
-													size="sm"
-													variant="outline"
-												>
-													<PlusIcon className="h-3 w-3" />
-													Neu
-												</Button>
-											</Link>
-										</div>
-										<div className="space-y-2">
-											{(userTemplates?.length ?? 0) > 0 ? (
-												userTemplates?.map((template) => (
-													<div
-														className="flex items-center justify-between rounded-lg p-2 transition-colors hover:bg-solarized-base2"
-														key={template.id}
-													>
-														<div className="min-w-0 flex-1">
-															<p className="truncate font-medium text-sm text-solarized-base03">
-																{template.title}
-															</p>
-															<div className="mt-1 flex items-center gap-2">
-																<Badge className="text-xs" variant="secondary">
-																	{template.category}
-																</Badge>
-																<span className="text-solarized-base1 text-xs">
-																	{template._count.favouriteOf} ♥
-																</span>
-															</div>
-														</div>
-														<Link href={`/templates/${template.id}`}>
-															<Button
-																className="h-8 w-8 p-0"
-																size="sm"
-																variant="ghost"
-															>
-																<ExternalLinkIcon className="h-3 w-3" />
-															</Button>
-														</Link>
-													</div>
-												))
-											) : (
-												<div className="py-4 text-center">
-													<PlusIcon className="mx-auto mb-2 h-8 w-8 text-solarized-base2" />
-													<p className="mb-2 text-sm text-solarized-base01">
-														Noch keine eigenen Templates
-													</p>
-													<Link href="/templates/create">
-														<Button className="gap-1" size="sm">
-															<PlusIcon className="h-3 w-3" />
-															Erstellen
-														</Button>
-													</Link>
-												</div>
-											)}
-										</div>
 									</div>
 								</CardContent>
 							</Card>

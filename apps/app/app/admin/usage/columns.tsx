@@ -1,6 +1,5 @@
 "use client";
 
-import type { UsageEvent, User } from "@repo/database";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
@@ -20,11 +19,8 @@ import {
 	allScribeDocTypes,
 	isScribeDocType,
 	scribeDocTypeUi,
-} from "../playground/_lib/scribe-doc-types";
-
-export type UsageEventWithUser = UsageEvent & {
-	user: Pick<User, "id" | "name" | "email"> | null;
-};
+} from "@/app/admin/playground/_lib/scribe-doc-types";
+import type { UsageListEvent } from "./types";
 
 const promptNameToDocumentType = new Map(
 	allScribeDocTypes.map((documentType) => [
@@ -51,7 +47,7 @@ const inferDocumentType = (
 	return undefined;
 };
 
-const formatDate = (date: Date | string) => {
+export const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
 	return new Intl.DateTimeFormat("de-DE", {
 		day: "2-digit",
@@ -61,21 +57,23 @@ const formatDate = (date: Date | string) => {
 	}).format(dateObj);
 };
 
-const formatCost = (cost: unknown): string => {
+export const formatCost = (cost: unknown): string => {
 	if (cost === null || cost === undefined) {return "-";}
 	const num = typeof cost === "number" ? cost : Number(cost);
 	if (Number.isNaN(num)) {return "-";}
 	return `$${num.toFixed(4)}`;
 };
 
-const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
+export const getPromptLabel = (
+	metadata: Record<string, unknown> | null,
+): string => {
 	if (!metadata) {return "-";}
 	const endpoint = metadata.endpoint as string | undefined;
 	const promptName = metadata.promptName as string | undefined;
 	return endpoint ?? promptName ?? "-";
 };
 
-const buildPlaygroundUrl = (event: UsageEventWithUser): string => {
+export const buildPlaygroundUrl = (event: UsageListEvent): string => {
 	const params = new URLSearchParams();
 	params.set("referenceUsageEvent", event.id);
 
@@ -110,10 +108,10 @@ const buildPlaygroundUrl = (event: UsageEventWithUser): string => {
 	return `/admin/playground?${params.toString()}`;
 };
 
-const columnHelper = createColumnHelper<UsageEventWithUser>();
+const columnHelper = createColumnHelper<UsageListEvent>();
 
 interface UsageActionsCellProps {
-	event: UsageEventWithUser;
+	event: UsageListEvent;
 	onViewDetails: (id: string) => void;
 }
 

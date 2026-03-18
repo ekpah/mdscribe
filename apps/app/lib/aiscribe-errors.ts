@@ -30,11 +30,9 @@ export const getAiscribeErrorMessage = (error: unknown): string | null => {
 	}
 
 	// Non-oRPC error with a message (e.g. network error)
-	if (error instanceof Error) {
-		// Cancelled streams sometimes surface as plain errors
-		if (/abort|cancel/i.test(error.message)) {
-			return null;
-		}
+	// Cancelled streams sometimes surface as plain errors.
+	if (error instanceof Error && /abort|cancel/i.test(error.message)) {
+		return null;
 	}
 
 	return USER_MESSAGES.unknownError;

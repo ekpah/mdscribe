@@ -26,7 +26,7 @@ export const SubscriptionCard = ({
 }: SubscriptionCardProps) => {
   const hasActiveSubscription = !!subscription;
 
-  // TODO: Get this from the subscription, right now hardcoded
+  // Keep static limits until plan metadata is exposed on the subscription payload.
   const monthlyUsageLimit = hasActiveSubscription ? 500 : 50;
 
   const { data } = useQuery({

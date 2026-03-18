@@ -14,7 +14,7 @@ import {
 import { z } from "zod";
 
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "../middlewares/admin";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
 const listUsageEventsInput = z.object({
 	cursor: z.string().optional(),
@@ -59,18 +59,11 @@ const listUsageEventsHandler = authed
 
 		const events = await context.db
 			.select({
-				cachedTokens: usageEvent.cachedTokens,
 				cost: usageEvent.cost,
 				id: usageEvent.id,
-				inputData: usageEvent.inputData,
-				inputTokens: usageEvent.inputTokens,
 				metadata: usageEvent.metadata,
 				model: usageEvent.model,
 				name: usageEvent.name,
-				outputTokens: usageEvent.outputTokens,
-				reasoning: usageEvent.reasoning,
-				reasoningTokens: usageEvent.reasoningTokens,
-				result: usageEvent.result,
 				timestamp: usageEvent.timestamp,
 				totalTokens: usageEvent.totalTokens,
 				user: {
@@ -78,7 +71,6 @@ const listUsageEventsHandler = authed
 					id: user.id,
 					name: user.name,
 				},
-				userId: usageEvent.userId,
 			})
 			.from(usageEvent)
 			.leftJoin(user, eq(usageEvent.userId, user.id))
@@ -195,10 +187,9 @@ const getDateRangeStart = (
 			start.setHours(0, 0, 0, 0);
 			return start;
 		}
-		case "all":
-		default: {
-			return null;
-		}
+			default: {
+				return null;
+			}
 	}
 };
 
@@ -214,6 +205,7 @@ const getUsageStatsHandler = authed
 
 		const [stats] = await context.db
 			.select({
+				activeUsers: sql<number>`count(distinct ${usageEvent.userId})`,
 				totalCost: sum(usageEvent.cost),
 				totalEvents: count(),
 				totalTokens: sum(usageEvent.totalTokens),
@@ -222,6 +214,7 @@ const getUsageStatsHandler = authed
 			.where(whereClause);
 
 		return {
+			activeUsers: Number(stats?.activeUsers) || 0,
 			totalCost: Number(stats?.totalCost) || 0,
 			totalEvents: stats?.totalEvents ?? 0,
 			totalTokens: Number(stats?.totalTokens) || 0,

@@ -1,13 +1,11 @@
 "use client";
 
-import Inputs, {
-	type VoiceFillAudioFile,
-} from "@repo/design-system/components/inputs/inputs";
+import Inputs from '@repo/design-system/components/inputs/inputs';
+import type { VoiceFillAudioFile } from '@repo/design-system/components/inputs/inputs';
 import { Card } from "@repo/design-system/components/ui/card";
 import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
-import parseMarkdocToInputs, {
-	type InputTagType,
-} from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import parseMarkdocToInputs from '@repo/markdoc-md/parse/parse-markdoc-to-inputs';
+import type { InputTagType } from '@repo/markdoc-md/parse/parse-markdoc-to-inputs';
 import { useCallback, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
@@ -32,8 +30,8 @@ export default function ContentSection({
 	const handleVoiceFill = useCallback(
 		async (inputTags: InputTagType[], audioFiles: VoiceFillAudioFile[]) => {
 			const result = await orpc.scribe.voiceFill.call({
-				inputTags,
 				audioFiles,
+				inputTags,
 			});
 			return result.fieldValues;
 		},
@@ -49,8 +47,8 @@ export default function ContentSection({
 					</p>
 				) : (
 					<div className="space-y-4">
-						{examples.map((example, index) => (
-							<div className="space-y-2" key={`template-example-preview-${index}`}>
+							{examples.map((example, index) => (
+								<div className="space-y-2" key={`template-example-preview-${example}`}>
 								<p className="font-medium text-sm">Beispiel {index + 1}</p>
 								<pre className="whitespace-pre-wrap rounded-md border bg-muted/30 p-3 text-sm">
 									{example}

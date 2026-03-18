@@ -17,8 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export const EditorSidebar = () => {
-  return (
+export const EditorSidebar = () => (
     <Card className="h-full p-4">
       <ScrollArea className="h-full">
         <div className="space-y-4">
@@ -29,7 +28,7 @@ export const EditorSidebar = () => {
               <h3 className="font-semibold text-lg">Editor-Hilfe</h3>
             </div>
             <p className="text-muted-foreground text-sm">
-              Nutzen Sie Tags und KI-Platzhalter für dynamische Templates
+              Nutzen Sie Tags und KI-Hinweise für dynamische Templates
             </p>
           </div>
 
@@ -43,34 +42,6 @@ export const EditorSidebar = () => {
             </div>
             
             <div className="space-y-3 rounded-lg bg-solarized-violet/5 p-3">
-              {/* Square Brackets */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className="border-solarized-violet bg-solarized-violet/10 font-mono text-solarized-violet text-xs"
-                  >
-                    [...]
-                  </Badge>
-                  <span className="font-medium text-xs">Platzhalter</span>
-                </div>
-                <p className="text-muted-foreground text-xs leading-relaxed">
-                  Eckige Klammern kennzeichnen{' '}
-                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
-                    [Platzhalter]
-                  </code>{' '}
-                  für die KI. Diese werden in AI Scribe ersetzt und sind beim
-                  Kopieren sichtbar.
-                </p>
-                <div className="mt-2 rounded border border-solarized-violet/20 bg-background p-2">
-                  <p className="font-mono text-muted-foreground text-xs">
-                    Beispiel: Der Patient [Name] zeigt [Symptome]
-                  </p>
-                </div>
-              </div>
-
-              <Separator className="my-2" />
-
               {/* Double Brackets */}
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
@@ -83,12 +54,12 @@ export const EditorSidebar = () => {
                   <span className="font-medium text-xs">KI-Hinweise</span>
                 </div>
                 <p className="text-muted-foreground text-xs leading-relaxed">
-                  Doppelte Klammern fügen{' '}
+                  Doppelte Klammern sind die empfohlene Syntax für{' '}
                   <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
                     ((Hinweise))
                   </code>{' '}
-                  für die KI hinzu. Diese sind ausgegraut sichtbar, werden aber
-                  beim Kopieren entfernt.
+                  im Template. Diese sind ausgegraut sichtbar, werden aber beim
+                  Kopieren entfernt.
                 </p>
                 <div className="mt-2 rounded border border-solarized-violet/20 bg-background p-2">
                   <p className="font-mono text-muted-foreground text-xs">
@@ -259,4 +230,3 @@ export const EditorSidebar = () => {
       </ScrollArea>
     </Card>
   );
-};

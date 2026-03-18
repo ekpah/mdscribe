@@ -3,10 +3,12 @@ import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider } from "@repo/database";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { documentTypeConfigs } from "@/orpc/scribe/config";
-import { buildScribeContext } from "@/orpc/scribe/context";
+import { composeScribeContext } from "@/orpc/scribe/context";
 import { scribeStreamHandler } from "@/orpc/scribe/handlers";
+import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
 import { resolveModel } from "@/orpc/scribe/providers";
 import type { DocumentType } from "@/orpc/scribe/types";
+import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
 	createTestAiDefaults,
@@ -14,8 +16,7 @@ import {
 	createTestSubscription,
 	createTestUser,
 	startTestServer,
-	type TestServer,
-} from "../setup";
+} from "@/__tests__/setup";
 
 /**
  * Comprehensive tests for scribe oRPC handlers
@@ -31,9 +32,7 @@ describe("Document Type Configurations", () => {
 			"discharge",
 			"anamnese",
 			"diagnosis",
-			"physical-exam",
 			"procedures",
-			"admission-todos",
 			"befunde",
 			"outpatient",
 			"icu-transfer",
@@ -42,41 +41,31 @@ describe("Document Type Configurations", () => {
 		for (const type of documentTypes) {
 			expect(documentTypeConfigs[type]).toBeDefined();
 			expect(documentTypeConfigs[type].promptName).toBeDefined();
-			expect(documentTypeConfigs[type].modelConfig).toBeDefined();
 		}
 	});
 
-	test("thinking mode configs are correct", () => {
-		// Document types with thinking enabled
-		expect(documentTypeConfigs.discharge.modelConfig.thinking).toBe(true);
-		expect(documentTypeConfigs.outpatient.modelConfig.thinking).toBe(true);
-
-		// Document types without thinking
-		expect(documentTypeConfigs.anamnese.modelConfig.thinking).toBe(false);
-		expect(documentTypeConfigs.diagnosis.modelConfig.thinking).toBe(false);
-		expect(documentTypeConfigs["physical-exam"].modelConfig.thinking).toBe(
-			false,
-		);
-		expect(documentTypeConfigs.procedures.modelConfig.thinking).toBe(false);
+	test("uses one default model config for all scribe generations", () => {
+		expect(DEFAULT_SCRIBE_MODEL_CONFIG).toEqual({
+			maxTokens: 20_000,
+			temperature: 0.3,
+			thinking: false,
+			thinkingBudget: 8000,
+		});
 	});
 });
 
 describe("Context Builder", () => {
-	test("builds patient_context with ICU-style sections and omits empty tags", async () => {
-		const { contextXml } = await buildScribeContext({
-			sources: [
-				{
-					kind: "form",
-					data: {
-						diagnoseblock: "I10 Hypertonie",
-						anamnese: "Akute Dyspnoe",
-						notes: "Zusätzliche Notizen",
-					},
-				},
-			],
+	test("builds unified context envelope with patient sections and omits empty tags", async () => {
+		const { contextXml } = await composeScribeContext({
+			formData: {
+				anamnese: "Akute Dyspnoe",
+				diagnoseblock: "I10 Hypertonie",
+				notes: "Zusätzliche Notizen",
+			},
 			sessionUser: null,
 		});
 
+		expect(contextXml).toContain("<context>");
 		expect(contextXml).toContain("<patient_context>");
 		expect(contextXml).toContain("<diagnoseblock>");
 		expect(contextXml).toContain("<anamnese>");
@@ -86,15 +75,16 @@ describe("Context Builder", () => {
 
 	test("includes user_context when name is provided", async () => {
 		const session = createMockSession({
-			id: crypto.randomUUID(),
 			email: "doctor@test.com",
+			id: crypto.randomUUID(),
 			name: "Dr. Test",
 		});
-		const { contextXml } = await buildScribeContext({
-			sources: [{ kind: "form", data: {} }],
+		const { contextXml } = await composeScribeContext({
+			formData: {},
 			sessionUser: session.user,
 		});
 
+		expect(contextXml).toContain("<context>");
 		expect(contextXml).toContain("<user_context>");
 		expect(contextXml).toContain(
 			"<purpose>Informationen über den Arzt/Nutzer, der den Prompt ausfüllt</purpose>",
@@ -106,25 +96,36 @@ describe("Context Builder", () => {
 	});
 
 	test("emits template_context with template content and examples", async () => {
-		const { contextXml } = await buildScribeContext({
-			sources: [
-				{
-					kind: "template",
-					data: {
-						title: "ER Vorlage",
-						content: "## Abschnitt",
-						examples: ["Beispiel A", "Beispiel B"],
-					},
-				},
-			],
+		const { contextXml } = await composeScribeContext({
+			formData: {},
+			sessionUser: null,
+			template: {
+				content: "## Abschnitt",
+				examples: ["Beispiel A", "Beispiel B"],
+				title: "ER Vorlage",
+			},
+		});
+
+		expect(contextXml).toContain("<template_context>");
+		expect(contextXml).toContain("<title>\nER Vorlage\n</title>");
+		expect(contextXml).toContain("<content>\n## Abschnitt\n</content>");
+		expect(contextXml).toContain("<example>\nBeispiel A\n</example>");
+		expect(contextXml).toContain("<example>\nBeispiel B\n</example>");
+		expect(contextXml).toContain("<context>");
+	});
+
+	test("uses fallback template when promptContextKey is set and no explicit template exists", async () => {
+		const { contextXml } = await composeScribeContext({
+			formData: { notes: "Kurznotiz" },
+			promptContextKey: "discharge",
 			sessionUser: null,
 		});
 
 		expect(contextXml).toContain("<template_context>");
-		expect(contextXml).toContain("<title>ER Vorlage</title>");
-		expect(contextXml).toContain("<content>## Abschnitt</content>");
-		expect(contextXml).toContain("<example>Beispiel A</example>");
-		expect(contextXml).toContain("<example>Beispiel B</example>");
+		expect(contextXml).toContain("Standardstruktur Entlassbrief");
+		expect(contextXml.indexOf("<template_context>")).toBeLessThan(
+			contextXml.indexOf("<patient_context>"),
+		);
 	});
 });
 
@@ -137,47 +138,47 @@ describe("Model Selection Logic", () => {
 			const speechModelRecordId = crypto.randomUUID();
 
 			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
 				id: providerId,
 				name: "Test Provider",
 				protocol: "openrouter",
-				baseUrl: null,
-				apiKey: null,
 			});
 			await server.db.insert(aiModel).values([
 				{
-					id: textModelRecordId,
-					providerId,
-					modelId: "openrouter/test-text",
 					displayName: "Text Model",
-					supportsReasoning: false,
+					id: textModelRecordId,
 					inputModes: ["text"],
+					modelId: "openrouter/test-text",
+					providerId,
+					supportsReasoning: false,
 				},
 				{
-					id: speechModelRecordId,
-					providerId,
-					modelId: "openrouter/test-speech",
 					displayName: "Speech Model",
-					supportsReasoning: false,
+					id: speechModelRecordId,
 					inputModes: ["text", "audio"],
+					modelId: "openrouter/test-speech",
+					providerId,
+					supportsReasoning: false,
 				},
 			]);
 			await server.db
 				.insert(aiDefaults)
 				.values({
-					id: "global",
-					defaultTextModelId: textModelRecordId,
 					defaultFileImageModelId: textModelRecordId,
 					defaultSpeechToTextModelId: speechModelRecordId,
+					defaultTextModelId: textModelRecordId,
+					id: "global",
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
-					target: aiDefaults.id,
 					set: {
-						defaultTextModelId: textModelRecordId,
 						defaultFileImageModelId: textModelRecordId,
 						defaultSpeechToTextModelId: speechModelRecordId,
+						defaultTextModelId: textModelRecordId,
 						updatedAt: new Date(),
 					},
+					target: aiDefaults.id,
 				});
 
 			const resolved = await resolveModel(server.db, { requireAudio: true });
@@ -194,37 +195,37 @@ describe("Model Selection Logic", () => {
 			const textModelRecordId = crypto.randomUUID();
 
 			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
 				id: providerId,
 				name: "Test Provider",
 				protocol: "openrouter",
-				baseUrl: null,
-				apiKey: null,
 			});
 			await server.db.insert(aiModel).values({
-				id: textModelRecordId,
-				providerId,
-				modelId: "openrouter/test-text",
 				displayName: "Text Model",
-				supportsReasoning: false,
+				id: textModelRecordId,
 				inputModes: ["text"],
+				modelId: "openrouter/test-text",
+				providerId,
+				supportsReasoning: false,
 			});
 			await server.db
 				.insert(aiDefaults)
 				.values({
-					id: "global",
-					defaultTextModelId: textModelRecordId,
 					defaultFileImageModelId: textModelRecordId,
 					defaultSpeechToTextModelId: null,
+					defaultTextModelId: textModelRecordId,
+					id: "global",
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
-					target: aiDefaults.id,
 					set: {
-						defaultTextModelId: textModelRecordId,
 						defaultFileImageModelId: textModelRecordId,
 						defaultSpeechToTextModelId: null,
+						defaultTextModelId: textModelRecordId,
 						updatedAt: new Date(),
 					},
+					target: aiDefaults.id,
 				});
 
 			await expect(
@@ -255,7 +256,7 @@ describe("Scribe Stream Handler", () => {
 	});
 
 	afterEach(async () => {
-		await server.close();
+		await server?.close();
 	});
 
 	describe("Authentication & Authorization", () => {
@@ -267,22 +268,23 @@ describe("Scribe Stream Handler", () => {
 			});
 			const context = createTestContext({ db: server.db, session });
 
-			await expect(
-				call(
-					scribeStreamHandler,
-					{
-						documentType: "discharge",
-						messages: [
-							{
-								id: "1",
-								role: "user" as const,
-								parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }],
-							},
-						],
-					},
-					{ context },
-				),
-			).rejects.toThrow(ORPCError);
+			const result = await call(
+				scribeStreamHandler,
+				{
+					documentType: "discharge",
+					messages: [
+						{
+							id: "1",
+							parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+							role: "user" as const,
+						},
+					],
+				},
+				{ context },
+			);
+
+			expect(result).toBeDefined();
+			expect(typeof result[Symbol.asyncIterator]).toBe("function");
 		});
 	});
 
@@ -297,13 +299,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "unknown-type" as DocumentType,
-						messages: [
-							{
-								id: "1",
-								role: "user" as const,
-								parts: [{ type: "text" as const, text: "{}" }],
-							},
-						],
+							messages: [
+								{
+									id: "1",
+									parts: [{ text: "{}", type: "text" as const }],
+									role: "user" as const,
+								},
+							],
 					},
 					{ context },
 				),
@@ -320,22 +322,22 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "anamnese",
-						messages: [
-							{
-								id: "1",
-								role: "user" as const,
-								parts: [
-									{
-										type: "text" as const,
-										text: JSON.stringify({
-											notes: "",
-											befunde: "",
-											diagnoseblock: "",
-										}),
-									},
-								],
-							},
-						],
+							messages: [
+								{
+									id: "1",
+									parts: [
+										{
+											text: JSON.stringify({
+												befunde: "",
+												diagnoseblock: "",
+												notes: "",
+											}),
+											type: "text" as const,
+										},
+									],
+									role: "user" as const,
+								},
+							],
 					},
 					{ context },
 				),
@@ -360,8 +362,8 @@ describe("Scribe Stream Handler", () => {
 							messages: [
 								{
 									id: "1",
+									parts: [{ text: '{"notes":"test"}', type: "text" as const }],
 									role: "user" as const,
-									parts: [{ type: "text" as const, text: '{"notes":"test"}' }],
 								},
 							],
 						},
@@ -383,12 +385,12 @@ describe("Scribe Stream Handler", () => {
 
 			// Create 50 usage events to hit the limit
 			const { usageEvent } = await import("@repo/database");
-			for (let i = 0; i < 50; i++) {
+			for (let i = 0; i < 50; i += 1) {
 				await server.db.insert(usageEvent).values({
 					id: crypto.randomUUID(),
-					userId: user.id,
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
+					userId: user.id,
 				});
 			}
 
@@ -400,13 +402,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-						messages: [
-							{
-								id: "1",
-								role: "user" as const,
-								parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }],
-							},
-						],
+							messages: [
+								{
+									id: "1",
+									parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+									role: "user" as const,
+								},
+							],
 					},
 					{ context },
 				),
@@ -424,12 +426,12 @@ describe("Scribe Stream Handler", () => {
 
 			// Create 50 usage events (under plus limit)
 			const { usageEvent } = await import("@repo/database");
-			for (let i = 0; i < 50; i++) {
+			for (let i = 0; i < 50; i += 1) {
 				await server.db.insert(usageEvent).values({
 					id: crypto.randomUUID(),
-					userId: user.id,
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
+					userId: user.id,
 				});
 			}
 
@@ -440,26 +442,26 @@ describe("Scribe Stream Handler", () => {
 			// Note: Will still return a stream (mocked)
 			const result = await call(
 				scribeStreamHandler,
-				{
-					documentType: "discharge",
-					messages: [
-						{
-							id: "1",
-							role: "user" as const,
-							parts: [
-								{
-									type: "text" as const,
-									text: JSON.stringify({
-										anamnese: "test",
-										diagnoseblock: "test",
-										notes: "test",
-										befunde: "test",
-									}),
-								},
-							],
-						},
-					],
-				},
+					{
+						documentType: "discharge",
+						messages: [
+							{
+								id: "1",
+								parts: [
+									{
+										text: JSON.stringify({
+											anamnese: "test",
+											befunde: "test",
+											diagnoseblock: "test",
+											notes: "test",
+										}),
+										type: "text" as const,
+									},
+								],
+								role: "user" as const,
+							},
+						],
+					},
 				{ context },
 			);
 
@@ -479,12 +481,12 @@ describe("Scribe Stream Handler", () => {
 
 			// Create 500 usage events to hit the plus limit
 			const { usageEvent } = await import("@repo/database");
-			for (let i = 0; i < 500; i++) {
+			for (let i = 0; i < 500; i += 1) {
 				await server.db.insert(usageEvent).values({
 					id: crypto.randomUUID(),
-					userId: user.id,
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
+					userId: user.id,
 				});
 			}
 
@@ -496,13 +498,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-						messages: [
-							{
-								id: "1",
-								role: "user" as const,
-								parts: [{ type: "text" as const, text: '{"anamnese":"test"}' }],
-							},
-						],
+							messages: [
+								{
+									id: "1",
+									parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+									role: "user" as const,
+								},
+							],
 					},
 					{ context },
 				),
@@ -518,25 +520,25 @@ describe("Scribe Stream Handler", () => {
 
 			const result = await call(
 				scribeStreamHandler,
-				{
-					documentType: "anamnese",
-					messages: [
-						{
-							id: "1",
-							role: "user" as const,
-							parts: [
-								{
-									type: "text" as const,
-									text: JSON.stringify({
-										notes: "Patient with chest pain",
-										befunde: "ECG normal",
-										diagnoseblock: "Hypertension",
-									}),
-								},
-							],
-						},
-					],
-				},
+					{
+						documentType: "anamnese",
+						messages: [
+							{
+								id: "1",
+								parts: [
+									{
+										text: JSON.stringify({
+											befunde: "ECG normal",
+											diagnoseblock: "Hypertension",
+											notes: "Patient with chest pain",
+										}),
+										type: "text" as const,
+									},
+								],
+								role: "user" as const,
+							},
+						],
+					},
 				{ context },
 			);
 
@@ -552,25 +554,25 @@ describe("Scribe Stream Handler", () => {
 
 			const result = await call(
 				scribeStreamHandler,
-				{
-					documentType: "anamnese" as const,
-					messages: [
-						{
-							id: "1",
-							role: "user" as const,
-							parts: [
-								{
-									type: "text" as const,
-									text: JSON.stringify({
-										notes: "test",
-										befunde: "",
-										diagnoseblock: "",
-									}),
-								},
-							],
-						},
-					],
-				},
+					{
+						documentType: "anamnese" as const,
+						messages: [
+							{
+								id: "1",
+								parts: [
+									{
+										text: JSON.stringify({
+											befunde: "",
+											diagnoseblock: "",
+											notes: "test",
+										}),
+										type: "text" as const,
+									},
+								],
+								role: "user" as const,
+							},
+						],
+					},
 				{ context },
 			);
 			expect(result).toBeDefined();

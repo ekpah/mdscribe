@@ -59,7 +59,7 @@ export const findRelevantTemplateHandler = authed
 		const { query, differentialDiagnosis } = input;
 
 		if (!query || typeof query !== "string") {
-			return { templates: [], count: 0 };
+			return { count: 0, templates: [] };
 		}
 
 		// Generate embeddings for the query
@@ -86,7 +86,7 @@ export const findRelevantTemplateHandler = authed
 		const templateIds = similarityResults.map((t) => t.id);
 
 		if (templateIds.length === 0) {
-			return { templates: [], count: 0 };
+			return { count: 0, templates: [] };
 		}
 
 		// Fetch favourite users for each template
@@ -99,26 +99,23 @@ export const findRelevantTemplateHandler = authed
 			.where(inArray(favourites.templateId, templateIds));
 
 		// Group favourites by template
-		const favouritesByTemplate = favouriteData.reduce(
-			(acc, fav) => {
-				if (!acc[fav.templateId]) {
-					acc[fav.templateId] = [];
-				}
-				acc[fav.templateId].push({ id: fav.userId });
-				return acc;
-			},
-			{} as Record<string, Array<{ id: string }>>,
-		);
+		const favouritesByTemplate: Record<string, { id: string }[]> = {};
+		for (const fav of favouriteData) {
+			if (!favouritesByTemplate[fav.templateId]) {
+				favouritesByTemplate[fav.templateId] = [];
+			}
+			favouritesByTemplate[fav.templateId].push({ id: fav.userId });
+		}
 
 		// Merge similarity scores with template data
 		const templates = similarityResults.map((simResult) => {
 			const favs = favouritesByTemplate[simResult.id] || [];
 			return {
 				...simResult,
-				favouriteOf: favs,
 				_count: { favouriteOf: favs.length },
+				favouriteOf: favs,
 			};
 		});
 
-		return { templates, count: templates.length };
+		return { count: templates.length, templates };
 	});

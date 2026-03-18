@@ -10,7 +10,7 @@ import {
 	PROVIDER_BASE_URL_ERROR_MESSAGE,
 } from "@/lib/openai-compatible";
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "../middlewares/admin";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
 const admin = authed.use(requiredAdminMiddleware);
 
@@ -739,34 +739,37 @@ const setDefaultHandler = admin
 			updatedAt: new Date(),
 		};
 
-		switch (parsed.defaultType) {
-			case "text": {
-				next.defaultTextModelId = parsed.modelId;
-				break;
-			}
+			switch (parsed.defaultType) {
+				case "text": {
+					next.defaultTextModelId = parsed.modelId;
+					break;
+				}
 			case "file-image": {
 				next.defaultFileImageModelId = parsed.modelId;
 				break;
 			}
-			case "speech-to-text": {
-				next.defaultSpeechToTextModelId = parsed.modelId;
-				break;
+				case "speech-to-text": {
+					next.defaultSpeechToTextModelId = parsed.modelId;
+					break;
+				}
+				default: {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "Ungültiger Standardtyp",
+					});
+				}
 			}
-		}
 
-		if (current) {
-			await context.db
-				.update(aiDefaults)
-				.set({
-					defaultFileImageModelId: next.defaultFileImageModelId,
-					defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
-					defaultTextModelId: next.defaultTextModelId,
-					updatedAt: next.updatedAt,
-				})
-				.where(eq(aiDefaults.id, "global"));
-		} else {
-			await context.db.insert(aiDefaults).values(next);
-		}
+			await (current
+				? context.db
+						.update(aiDefaults)
+						.set({
+							defaultFileImageModelId: next.defaultFileImageModelId,
+							defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
+							defaultTextModelId: next.defaultTextModelId,
+							updatedAt: next.updatedAt,
+						})
+						.where(eq(aiDefaults.id, "global"))
+				: context.db.insert(aiDefaults).values(next));
 
 		return {
 			defaultFileImageModelId: next.defaultFileImageModelId,

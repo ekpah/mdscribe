@@ -32,7 +32,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/com
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLinkIcon, FileText, Info, Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
 import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
@@ -114,24 +115,22 @@ const buildFormMutationInput = ({
 	templateId,
 });
 
-function InfoHint({ text }: { text: string }) {
-	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<button
-					type="button"
-					aria-label={text}
-					className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
-				>
-					<Info className="h-3.5 w-3.5" />
-				</button>
-			</TooltipTrigger>
-			<TooltipContent className="max-w-64 text-xs leading-relaxed">{text}</TooltipContent>
-		</Tooltip>
-	);
-}
+const InfoHint = ({ text }: { text: string }) => (
+	<Tooltip>
+		<TooltipTrigger asChild>
+			<button
+				type="button"
+				aria-label={text}
+				className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
+			>
+				<Info className="h-3.5 w-3.5" />
+			</button>
+		</TooltipTrigger>
+		<TooltipContent className="max-w-64 text-xs leading-relaxed">{text}</TooltipContent>
+	</Tooltip>
+);
 
-function LabelWithInfo({
+const LabelWithInfo = ({
 	children,
 	htmlFor,
 	info,
@@ -139,25 +138,21 @@ function LabelWithInfo({
 	children: string;
 	htmlFor?: string;
 	info: string;
-}) {
-	return (
-		<div className="flex items-center gap-1.5">
-			<Label htmlFor={htmlFor}>{children}</Label>
-			<InfoHint text={info} />
-		</div>
-	);
-}
+}) => (
+	<div className="flex items-center gap-1.5">
+		<Label htmlFor={htmlFor}>{children}</Label>
+		<InfoHint text={info} />
+	</div>
+);
 
-function SectionLabelWithInfo({ children, info }: { children: string; info: string }) {
-	return (
-		<div className="flex items-center gap-1.5">
-			<span className="font-medium">{children}</span>
-			<InfoHint text={info} />
-		</div>
-	);
-}
+const SectionLabelWithInfo = ({ children, info }: { children: string; info: string }) => (
+	<div className="flex items-center gap-1.5">
+		<span className="font-medium">{children}</span>
+		<InfoHint text={info} />
+	</div>
+);
 
-export function ScribeFormsTab() {
+export const ScribeFormsTab = () => {
 	const queryClient = useQueryClient();
 	const formsQueryOptions = orpc.admin.scribeForms.list.queryOptions();
 	const modelsQueryOptions = orpc.admin.models.list.queryOptions();
@@ -188,21 +183,21 @@ export function ScribeFormsTab() {
 		Boolean(draft.promptHarness) && !availablePromptNames.has(draft.promptHarness);
 	const modelOptions = [
 		{
-			value: NONE_VALUE,
-			label: "Standardmodell",
 			group: "",
 			keywords: ["standard", "default"],
+			label: "Standardmodell",
+			value: NONE_VALUE,
 		},
 		...models.map((model) => ({
-			value: model.id,
-			label: model.name,
 			group: model.providerName,
 			keywords: [model.name, model.modelId, model.providerName],
+			label: model.name,
+			value: model.id,
 		})),
 	];
 
 	const saveMutation = useMutation({
-		mutationFn: async (currentDraft: FormDraft) => {
+		mutationFn: (currentDraft: FormDraft) => {
 			const trimmedName = currentDraft.name.trim();
 			const slug = resolveDraftSlug(currentDraft);
 
@@ -237,6 +232,9 @@ export function ScribeFormsTab() {
 
 			return orpc.admin.scribeForms.create.call(payload);
 		},
+		onError: (error) => {
+			toast.error(error instanceof Error ? error.message : "Fehler");
+		},
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
 			toast.success("AI Text gespeichert");
@@ -244,26 +242,23 @@ export function ScribeFormsTab() {
 			setDraft(createEmptyDraft());
 			setPendingDeleteId(null);
 		},
-		onError: (error) => {
-			toast.error(error instanceof Error ? error.message : "Fehler");
-		},
 	});
 
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => orpc.admin.scribeForms.delete.call({ id }),
+		onError: (error) => {
+			setPendingDeleteId(null);
+			toast.error(error instanceof Error ? error.message : "Fehler");
+		},
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
 			setPendingDeleteId(null);
 			toast.success("AI Text gelöscht");
 		},
-		onError: (error) => {
-			setPendingDeleteId(null);
-			toast.error(error instanceof Error ? error.message : "Fehler");
-		},
 	});
 
 	const toggleEnabledMutation = useMutation({
-		mutationFn: async ({ enabled, form }: { enabled: boolean; form: ScribeFormRecord }) =>
+		mutationFn: ({ enabled, form }: { enabled: boolean; form: ScribeFormRecord }) =>
 			orpc.admin.scribeForms.update.call({
 				id: form.id,
 				...buildFormMutationInput({
@@ -276,6 +271,12 @@ export function ScribeFormsTab() {
 					templateId: form.templateId,
 				}),
 			}),
+		onError: (error, _variables, context) => {
+			if (context) {
+				queryClient.setQueryData<ScribeFormList>(listKey, context.previousForms);
+			}
+			toast.error(error instanceof Error ? error.message : "Fehler");
+		},
 		onMutate: async ({ enabled, form }) => {
 			await queryClient.cancelQueries({ queryKey: listKey });
 
@@ -288,28 +289,110 @@ export function ScribeFormsTab() {
 
 			return { previousForms };
 		},
-		onError: (error, _variables, context) => {
-			if (context) {
-				queryClient.setQueryData<ScribeFormList>(listKey, context.previousForms);
-			}
-			toast.error(error instanceof Error ? error.message : "Fehler");
-		},
 		onSettled: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
 		},
 	});
 
-	const handleOpenCreate = () => {
+	const handleOpenCreate = useCallback(() => {
 		setDraft(createEmptyDraft());
 		setPendingDeleteId(null);
 		setDialogOpen(true);
-	};
+	}, []);
 
-	const handleOpenEdit = (form: ScribeFormRecord) => {
+	const handleOpenEdit = useCallback((form: ScribeFormRecord) => {
 		setDraft(toDraft(form));
 		setPendingDeleteId(null);
 		setDialogOpen(true);
-	};
+	}, []);
+
+	const handlePendingDeleteCancel = useCallback(() => {
+		setPendingDeleteId(null);
+	}, []);
+
+	const handleDialogClose = useCallback(() => {
+		setDialogOpen(false);
+	}, []);
+
+	const handleDraftNameChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		setDraft((current) => ({
+			...current,
+			name: event.target.value,
+		}));
+	}, []);
+
+	const handleDraftDescriptionChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
+		setDraft((current) => ({
+			...current,
+			description: event.target.value,
+		}));
+	}, []);
+
+	const handleDraftPromptHarnessChange = useCallback((value: string) => {
+		setDraft((current) => ({
+			...current,
+			promptHarness: value as PromptHarnessId,
+		}));
+	}, []);
+
+	const handleDraftTemplateChange = useCallback((value: string) => {
+		setDraft((current) => ({ ...current, templateId: value }));
+	}, []);
+
+	const handleDraftModelChange = useCallback((value: string | null) => {
+		setDraft((current) => ({ ...current, modelId: value ?? NONE_VALUE }));
+	}, []);
+
+	const handleDraftEnabledChange = useCallback((checked: boolean) => {
+		setDraft((current) => ({ ...current, enabled: checked }));
+	}, []);
+
+	const handleSaveDraft = useCallback(() => {
+		saveMutation.mutate(draft);
+	}, [draft, saveMutation]);
+
+	const formEnabledToggleHandlers = useMemo(() => {
+		const handlers = new Map<string, (checked: boolean) => void>();
+		for (const form of forms) {
+			handlers.set(form.id, (checked: boolean) => {
+				toggleEnabledMutation.mutate({
+					enabled: checked,
+					form,
+				});
+			});
+		}
+		return handlers;
+	}, [forms, toggleEnabledMutation]);
+
+	const openEditHandlers = useMemo(() => {
+		const handlers = new Map<string, () => void>();
+		for (const form of forms) {
+			handlers.set(form.id, () => {
+				handleOpenEdit(form);
+			});
+		}
+		return handlers;
+	}, [forms, handleOpenEdit]);
+
+	const confirmDeleteHandlers = useMemo(() => {
+		const handlers = new Map<string, () => void>();
+		for (const form of forms) {
+			handlers.set(form.id, () => {
+				deleteMutation.mutate(form.id);
+			});
+		}
+		return handlers;
+	}, [deleteMutation, forms]);
+
+	const requestDeleteHandlers = useMemo(() => {
+		const handlers = new Map<string, () => void>();
+		for (const form of forms) {
+			handlers.set(form.id, () => {
+				setPendingDeleteId(form.id);
+			});
+		}
+		return handlers;
+	}, [forms]);
 
 	if (isFormsLoading) {
 		return (
@@ -362,16 +445,28 @@ export function ScribeFormsTab() {
 				</Card>
 			) : (
 				<div className="grid gap-4 xl:grid-cols-2">
-					{forms.map((form) => {
-						const isPromptAvailable = availablePromptNames.has(form.promptHarness);
-						const isDeleteConfirming = pendingDeleteId === form.id;
-						const isDeletingCurrentForm = deleteMutation.isPending && isDeleteConfirming;
-						const isTogglingCurrentForm =
-							toggleEnabledMutation.isPending &&
-							toggleEnabledMutation.variables?.form.id === form.id;
+						{forms.map((form) => {
+							const isPromptAvailable = availablePromptNames.has(form.promptHarness);
+							const isDeleteConfirming = pendingDeleteId === form.id;
+							const isDeletingCurrentForm = deleteMutation.isPending && isDeleteConfirming;
+							const isTogglingCurrentForm =
+								toggleEnabledMutation.isPending &&
+								toggleEnabledMutation.variables?.form.id === form.id;
+							const handleEnabledToggle = formEnabledToggleHandlers.get(form.id);
+							const handleOpenEditClick = openEditHandlers.get(form.id);
+							const handleConfirmDelete = confirmDeleteHandlers.get(form.id);
+							const handleRequestDelete = requestDeleteHandlers.get(form.id);
+							if (
+								!handleEnabledToggle ||
+								!handleOpenEditClick ||
+								!handleConfirmDelete ||
+								!handleRequestDelete
+							) {
+								return null;
+							}
 
-						return (
-							<Card key={form.id} className="border-solarized-base2 bg-solarized-base3/80">
+							return (
+								<Card key={form.id} className="border-solarized-base2 bg-solarized-base3/80">
 								<CardHeader className="space-y-2">
 									<div className="flex items-start justify-between gap-4">
 										<div className="space-y-1">
@@ -392,24 +487,19 @@ export function ScribeFormsTab() {
 												{form.description ?? DEFAULT_AI_TEXT_DESCRIPTION}
 											</CardDescription>
 										</div>
-										<div className="flex items-center gap-2 pt-0.5">
+											<div className="flex items-center gap-2 pt-0.5">
 											<Label
 												htmlFor={`scribe-form-enabled-card-${form.id}`}
 												className="text-solarized-base01 text-xs"
 											>
 												Aktiviert
 											</Label>
-											<Switch
-												id={`scribe-form-enabled-card-${form.id}`}
-												checked={form.enabled}
-												onCheckedChange={(checked) =>
-													toggleEnabledMutation.mutate({
-														enabled: checked,
-														form,
-													})
-												}
-												disabled={isTogglingCurrentForm}
-											/>
+												<Switch
+													id={`scribe-form-enabled-card-${form.id}`}
+													checked={form.enabled}
+													onCheckedChange={handleEnabledToggle}
+													disabled={isTogglingCurrentForm}
+												/>
 										</div>
 									</div>
 								</CardHeader>
@@ -424,7 +514,7 @@ export function ScribeFormsTab() {
 											}`}
 										>
 											{form.promptHarness}
-											{!isPromptAvailable ? " (nicht verfügbar)" : ""}
+											{isPromptAvailable ? "" : " (nicht verfügbar)"}
 										</div>
 
 										<SectionLabelWithInfo info={FIELD_EXPLANATIONS.template}>
@@ -454,26 +544,30 @@ export function ScribeFormsTab() {
 										</div>
 									</div>
 									<div className="flex justify-end gap-2">
-										<Button onClick={() => handleOpenEdit(form)} size="sm" variant="outline">
-											Bearbeiten
-										</Button>
+											<Button
+												onClick={handleOpenEditClick}
+												size="sm"
+												variant="outline"
+											>
+												Bearbeiten
+											</Button>
 										<div className="flex w-[176px] justify-end gap-2">
 											{isDeleteConfirming ? (
 												<>
-													<Button
-														onClick={() => setPendingDeleteId(null)}
-														size="sm"
-														variant="outline"
-														disabled={deleteMutation.isPending}
-													>
+														<Button
+															onClick={handlePendingDeleteCancel}
+															size="sm"
+															variant="outline"
+															disabled={deleteMutation.isPending}
+														>
 														Abbrechen
 													</Button>
-													<Button
-														onClick={() => deleteMutation.mutate(form.id)}
-														size="sm"
-														variant="destructive"
-														disabled={deleteMutation.isPending}
-													>
+														<Button
+															onClick={handleConfirmDelete}
+															size="sm"
+															variant="destructive"
+															disabled={deleteMutation.isPending}
+														>
 														{isDeletingCurrentForm ? (
 															<Loader2 className="h-4 w-4 animate-spin" />
 														) : null}
@@ -483,11 +577,11 @@ export function ScribeFormsTab() {
 											) : (
 												<>
 													<div className="w-[80px]" />
-													<Button
-														onClick={() => setPendingDeleteId(form.id)}
-														size="sm"
-														variant="ghost"
-														className="w-8 px-0"
+														<Button
+															onClick={handleRequestDelete}
+															size="sm"
+															variant="ghost"
+															className="w-8 px-0"
 														disabled={deleteMutation.isPending}
 													>
 														<Trash2 className="h-4 w-4" />
@@ -515,17 +609,12 @@ export function ScribeFormsTab() {
 					<div className="space-y-5 py-2">
 						<div className="space-y-2">
 							<Label htmlFor="scribe-form-name">Name</Label>
-							<Input
-								id="scribe-form-name"
-								value={draft.name}
-								onChange={(event) =>
-									setDraft((current) => ({
-										...current,
-										name: event.target.value,
-									}))
-								}
-								placeholder="z. B. Echo-Befund"
-							/>
+								<Input
+									id="scribe-form-name"
+									value={draft.name}
+									onChange={handleDraftNameChange}
+									placeholder="z. B. Echo-Befund"
+								/>
 							<p className="text-solarized-base01 text-xs">
 								Pfad: <span className="font-mono">{routePreview}</span>
 							</p>
@@ -533,32 +622,22 @@ export function ScribeFormsTab() {
 
 						<div className="space-y-2">
 							<Label htmlFor="scribe-form-description">Kurzbeschreibung für `/aiscribe`</Label>
-							<Textarea
-								id="scribe-form-description"
-								value={draft.description}
-								onChange={(event) =>
-									setDraft((current) => ({
-										...current,
-										description: event.target.value,
-									}))
-								}
-								placeholder={DEFAULT_AI_TEXT_DESCRIPTION}
-								className="min-h-24"
-							/>
+								<Textarea
+									id="scribe-form-description"
+									value={draft.description}
+									onChange={handleDraftDescriptionChange}
+									placeholder={DEFAULT_AI_TEXT_DESCRIPTION}
+									className="min-h-24"
+								/>
 						</div>
 
 						<div className="grid gap-4 md:grid-cols-2">
 							<div className="space-y-2">
 								<LabelWithInfo info={FIELD_EXPLANATIONS.prompt}>Basis-Prompt</LabelWithInfo>
-								<Select
-									value={draft.promptHarness}
-									onValueChange={(value) =>
-										setDraft((current) => ({
-											...current,
-											promptHarness: value as PromptHarnessId,
-										}))
-									}
-								>
+									<Select
+										value={draft.promptHarness}
+										onValueChange={handleDraftPromptHarnessChange}
+									>
 									<SelectTrigger>
 										<SelectValue placeholder="Basis-Prompt wählen" />
 									</SelectTrigger>
@@ -579,12 +658,10 @@ export function ScribeFormsTab() {
 
 							<div className="space-y-2">
 								<LabelWithInfo info={FIELD_EXPLANATIONS.template}>Template</LabelWithInfo>
-								<Select
-									value={draft.templateId}
-									onValueChange={(value) =>
-										setDraft((current) => ({ ...current, templateId: value }))
-									}
-								>
+									<Select
+										value={draft.templateId}
+										onValueChange={handleDraftTemplateChange}
+									>
 									<SelectTrigger>
 										<SelectValue placeholder="Template wählen" />
 									</SelectTrigger>
@@ -601,40 +678,38 @@ export function ScribeFormsTab() {
 
 							<div className="space-y-2">
 								<LabelWithInfo info={FIELD_EXPLANATIONS.model}>KI-Modell</LabelWithInfo>
-								<ModelSelector
-									options={modelOptions}
-									value={draft.modelId}
-									onValueChange={(value) => setDraft((current) => ({ ...current, modelId: value }))}
-									placeholder="Modell wählen"
-									searchPlaceholder="Modell suchen..."
-									className="border-solarized-base2 bg-solarized-base3"
+									<ModelSelector
+										options={modelOptions}
+										value={draft.modelId}
+										onValueChange={handleDraftModelChange}
+										placeholder="Modell wählen"
+										searchPlaceholder="Modell suchen..."
+										className="border-solarized-base2 bg-solarized-base3"
 								/>
 							</div>
 
 							<div className="flex items-center justify-between pt-2 md:col-span-2">
 								<Label htmlFor="scribe-form-enabled">Aktiviert</Label>
-								<Switch
-									id="scribe-form-enabled"
-									checked={draft.enabled}
-									onCheckedChange={(checked) =>
-										setDraft((current) => ({ ...current, enabled: checked }))
-									}
-								/>
+									<Switch
+										id="scribe-form-enabled"
+										checked={draft.enabled}
+										onCheckedChange={handleDraftEnabledChange}
+									/>
 							</div>
 						</div>
 					</div>
 
 					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setDialogOpen(false)}
-							disabled={saveMutation.isPending}
-						>
+							<Button
+								variant="outline"
+								onClick={handleDialogClose}
+								disabled={saveMutation.isPending}
+							>
 							Abbrechen
 						</Button>
-						<Button
-							onClick={() => saveMutation.mutate(draft)}
-							disabled={
+							<Button
+								onClick={handleSaveDraft}
+								disabled={
 								saveMutation.isPending ||
 								!draft.name.trim() ||
 								!draft.promptHarness ||
@@ -649,4 +724,4 @@ export function ScribeFormsTab() {
 			</Dialog>
 		</div>
 	);
-}
+};

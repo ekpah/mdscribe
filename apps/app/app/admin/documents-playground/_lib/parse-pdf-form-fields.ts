@@ -21,7 +21,7 @@ export interface FieldMapping {
 	description: string;
 }
 
-export interface ParsePDFResult {
+interface ParsePDFResult {
 	fields: PDFField[];
 }
 
@@ -35,6 +35,11 @@ interface PDFFormField {
 	getOptions?: () => string[];
 	getSelected?: () => string | string[];
 	isChecked?: () => boolean;
+}
+
+interface PdfLibFormField {
+	getName: () => string;
+	constructor: { name: string };
 }
 
 /**
@@ -78,14 +83,12 @@ const parseDropdownField = (
 const parseCheckboxField = (
 	pdfFormField: PDFFormField,
 	fieldName: string,
-): PDFField => {
-	return {
+): PDFField => ({
 		label: fieldName,
 		name: fieldName,
 		type: "checkbox",
 		value: pdfFormField.isChecked?.() ? "true" : "false",
-	};
-};
+	});
 
 /**
  * Parses a radio group field from PDF form
@@ -106,65 +109,47 @@ const parseRadioGroupField = (
 	};
 };
 
+const createFallbackTextField = (fieldName: string): PDFField => ({
+	label: fieldName,
+	name: fieldName,
+	type: "text",
+	value: "",
+});
+
+const pdfFieldParsers: Partial<
+	Record<string, (pdfFormField: PDFFormField, fieldName: string) => PDFField>
+> = {
+	PDFCheckBox: parseCheckboxField,
+	PDFDropdown: parseDropdownField,
+	PDFRadioGroup: parseRadioGroupField,
+	PDFTextField: parseTextField,
+};
+
+const parseSingleFormField = (field: PdfLibFormField): PDFField => {
+	const fieldName = field.getName();
+	const fieldType = field.constructor.name;
+	const pdfFormField = field as unknown as PDFFormField;
+	const parser = pdfFieldParsers[fieldType];
+	return parser
+		? parser(pdfFormField, fieldName)
+		: createFallbackTextField(fieldName);
+};
+
 /**
  * Parses a PDF file and extracts all fillable form fields
  * Similar to parseMarkdocToInputs but for PDF forms
  */
-export const parseFormFieldsFromPDF = async (
+const parseFormFieldsFromPDF = async (
 	file: Uint8Array,
 ): Promise<PDFField[]> => {
 	// Always parse from a copied buffer to avoid mutating/detaching shared upload state.
 	const stableBytes = new Uint8Array(file);
 	const pdfDoc = await PDFDocument.load(stableBytes);
 	const form = pdfDoc.getForm();
-	const fields: PDFField[] = [];
 
-	const formFields = form.getFields();
-
-	for (const field of formFields) {
-		const fieldName = field.getName();
-		const fieldType = field.constructor.name;
-		const pdfFormField = field as unknown as PDFFormField;
-
-		let pdfField: PDFField | null = null;
-
-		switch (fieldType) {
-			case "PDFTextField": {
-				pdfField = parseTextField(pdfFormField, fieldName);
-				break;
-			}
-
-			case "PDFDropdown": {
-				pdfField = parseDropdownField(pdfFormField, fieldName);
-				break;
-			}
-
-			case "PDFCheckBox": {
-				pdfField = parseCheckboxField(pdfFormField, fieldName);
-				break;
-			}
-
-			case "PDFRadioGroup": {
-				pdfField = parseRadioGroupField(pdfFormField, fieldName);
-				break;
-			}
-
-			default: {
-				// Unknown field type, treat as text
-				pdfField = {
-					label: fieldName,
-					name: fieldName,
-					type: "text",
-					value: "",
-				};
-			}
-		}
-
-		if (pdfField) {
-			fields.push(pdfField);
-		}
-	}
-	return fields;
+	return form.getFields().map((field) =>
+		parseSingleFormField(field as unknown as PdfLibFormField),
+	);
 };
 
 /**
@@ -176,6 +161,64 @@ export const parsePDFFormFields = async (
 ): Promise<ParsePDFResult> => {
 	const fields = await parseFormFieldsFromPDF(file);
 	return { fields };
+};
+
+const createCaseTag = (primary: string): InputTagType => ({
+	$$mdtype: "Tag",
+	attributes: {
+		primary,
+	},
+	children: [],
+	name: "Case" as const,
+});
+
+const createSwitchTag = (
+	primary: string,
+	options: string[],
+): SwitchInputTagType => ({
+	$$mdtype: "Tag",
+	attributes: {
+		primary,
+	},
+	children: options.map((option) => createCaseTag(option)),
+	name: "Switch" as const,
+});
+
+const createInfoTag = (
+	primary: string,
+	description: string,
+): InfoInputTagType => ({
+	$$mdtype: "Tag",
+	attributes: {
+		description,
+		primary,
+		type: "string",
+	},
+	children: [],
+	name: "Info" as const,
+});
+
+const toPrimaryLabel = (field: PDFField, mapping?: FieldMapping): string =>
+	mapping?.label ? mapping.label.trim() : field.name;
+
+const toSwitchOptions = (field: PDFField): string[] => {
+	if (field.type === "checkbox") {
+		return ["true", "false"];
+	}
+
+	return field.options || [];
+};
+
+const toInputTagFromPdfField = (
+	field: PDFField,
+	mapping?: FieldMapping,
+): InputTagType => {
+	const primary = toPrimaryLabel(field, mapping);
+	if (field.type === "checkbox" || field.type === "dropdown" || field.type === "radio") {
+		return createSwitchTag(primary, toSwitchOptions(field));
+	}
+
+	return createInfoTag(primary, mapping?.description || "");
 };
 
 /**
@@ -190,87 +233,11 @@ export const convertPDFFieldsToInputTags = (
 ): {
 	inputTags: InputTagType[];
 } => {
-	const inputTags: InputTagType[] = [];
-
-	for (const field of fields) {
-		// Use label as primary, fallback to name if label is empty
-
-		const mapping = fieldMapping.find((fm) => fm.fieldName === field.name);
-		const primary = mapping?.label ? mapping.label.trim() : field.name;
-
-		// Convert checkbox fields to Switch tags with Case children for "true" and "false"
-		if (field.type === "checkbox") {
-			const caseChildren: InputTagType[] = [
-				{
-					$$mdtype: "Tag",
-					attributes: {
-						primary: "true",
-					},
-					children: [],
-					name: "Case" as const,
-				} as InputTagType,
-				{
-					$$mdtype: "Tag",
-					attributes: {
-						primary: "false",
-					},
-					children: [],
-					name: "Case" as const,
-				} as InputTagType,
-			];
-
-			const switchTag: SwitchInputTagType = {
-				$$mdtype: "Tag",
-				attributes: {
-					primary,
-				},
-				children: caseChildren,
-				name: "Switch" as const,
-			};
-
-			inputTags.push(switchTag);
-		}
-		// Convert dropdown and radio fields to Switch tags with Case children
-		else if (field.type === "dropdown" || field.type === "radio") {
-			const caseChildren: InputTagType[] = (field.options || []).map(
-				(option) =>
-					({
-						$$mdtype: "Tag",
-						attributes: {
-							primary: option,
-						},
-						children: [],
-						name: "Case" as const,
-					}) as InputTagType,
-			);
-
-			const switchTag: SwitchInputTagType = {
-				$$mdtype: "Tag",
-				attributes: {
-					primary,
-				},
-				children: caseChildren,
-				name: "Switch" as const,
-			};
-
-			inputTags.push(switchTag);
-		}
-		// Convert text and multiline fields to Info tags
-		else {
-			const infoTag: InfoInputTagType = {
-				$$mdtype: "Tag",
-				attributes: {
-					description: mapping?.description || "",
-					primary,
-					type: "string",
-				},
-				children: [],
-				name: "Info" as const,
-			};
-
-			inputTags.push(infoTag);
-		}
-	}
-
+	const fieldMappingByName = new Map<string, FieldMapping>(
+		fieldMapping.map((mapping) => [mapping.fieldName, mapping]),
+	);
+	const inputTags = fields.map((field) =>
+		toInputTagFromPdfField(field, fieldMappingByName.get(field.name)),
+	);
 	return { inputTags };
 };

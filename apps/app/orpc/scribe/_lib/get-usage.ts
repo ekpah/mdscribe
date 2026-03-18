@@ -26,40 +26,26 @@ export const getUsage = async (
 			),
 		);
 
-	const totalTokens = usage.reduce(
-		(acc, event) => acc + (event.totalTokens ?? 0),
-		0,
-	);
+	let totalTokens = 0;
+	let totalInputTokens = 0;
+	let totalOutputTokens = 0;
+	let totalCost = 0;
+	const byModel: Record<string, { count: number; tokens: number; cost: number }> = {};
 
-	const totalInputTokens = usage.reduce(
-		(acc, event) => acc + (event.inputTokens ?? 0),
-		0,
-	);
+	for (const event of usage) {
+		totalTokens += event.totalTokens ?? 0;
+		totalInputTokens += event.inputTokens ?? 0;
+		totalOutputTokens += event.outputTokens ?? 0;
+		totalCost += Number(event.cost ?? 0);
 
-	const totalOutputTokens = usage.reduce(
-		(acc, event) => acc + (event.outputTokens ?? 0),
-		0,
-	);
-
-	const totalCost = usage.reduce(
-		(acc, event) => acc + Number(event.cost ?? 0),
-		0,
-	);
-
-	// Group by model for detailed breakdown
-	const byModel = usage.reduce(
-		(acc, event) => {
-			const model = event.model ?? "unknown";
-			if (!acc[model]) {
-				acc[model] = { cost: 0, count: 0, tokens: 0 };
-			}
-			acc[model].count += 1;
-			acc[model].tokens += event.totalTokens ?? 0;
-			acc[model].cost += Number(event.cost ?? 0);
-			return acc;
-		},
-		{} as Record<string, { count: number; tokens: number; cost: number }>,
-	);
+		const model = event.model ?? "unknown";
+		if (!byModel[model]) {
+			byModel[model] = { cost: 0, count: 0, tokens: 0 };
+		}
+		byModel[model].count += 1;
+		byModel[model].tokens += event.totalTokens ?? 0;
+		byModel[model].cost += Number(event.cost ?? 0);
+	}
 
 	const usageCount = usage.length;
 

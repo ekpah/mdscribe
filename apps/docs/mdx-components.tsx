@@ -3,9 +3,7 @@ import type { MDXComponents } from "mdx/types";
 
 export const getMDXComponents = (
 	components?: MDXComponents,
-): MDXComponents => {
-  return {
+): MDXComponents => ({
     ...defaultMdxComponents,
     ...components,
-  };
-};
+  });

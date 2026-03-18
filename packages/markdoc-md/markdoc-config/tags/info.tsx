@@ -1,6 +1,6 @@
 "use client";
 
-import { useVariables } from "../../render/context/variable-context";
+import { useVariables } from "@repo/markdoc-md/render/context/variable-context";
 
 export const Info = ({
 	primary,
@@ -20,9 +20,7 @@ export const Info = ({
 	// Provide an empty string as a fallback if the variable doesn't exist.
 	const value = variables[primary] ?? undefined;
 
-	// TODO: consider adding more robust error handling or logging
-	// if a variable is expected but not found.
-	// Example: if (variables[primary] === undefined) { console.warn(...) }
+	// Missing variables intentionally render as empty to keep template output stable.
 
 	return (
 		<span className="rounded-md bg-solarized-blue px-1 text-white opacity-90">

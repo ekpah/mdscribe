@@ -1,70 +1,14 @@
-"use client";
+import { CustomAiscribeClient } from "@/app/aiscribe/_components/custom-aiscribe-client";
+import { resolveBuiltInAiscribeOverrideForm } from "@/app/aiscribe/_lib/resolve-built-in-form";
 
-import { FileCheck } from "lucide-react";
-import { AiscribeTemplate } from '../_components/aiscribe-template';
-import type { AiscribeTemplateConfig } from '../_components/aiscribe-template';
+export default async function DischargeAIGenerator() {
+	const overrideForm = await resolveBuiltInAiscribeOverrideForm("discharge");
 
-const DISCHARGE_CONFIG: AiscribeTemplateConfig = {
-	// Page identity
-	title: "Entlassungsbrief",
-	description:
-		"Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
-	icon: FileCheck,
-
-	// Document type for oRPC
-	documentType: "discharge",
-
-	// Tab configuration
-	inputTabTitle: "Entlassungsnotizen",
-	outputTabTitle: "Entlassungsbrief",
-
-	// Form configuration
-	inputFieldName: "notes",
-	inputPlaceholder: "Geben Sie hier Ihre Entlassungsnotizen ein...",
-	inputDescription:
-		"Dokumentieren Sie den Krankheitsverlauf, die Behandlung und Empfehlungen für die Weiterbehandlung. Fügen Sie hier auch den aktuellen Stand des Entlassungsbriefes ein.",
-
-	// Additional input fields
-	additionalInputs: [
-		{
-			description:
-				"Diagnoseblock des aktuellen Arztbriefes inkl. aktueller Diagnose und Vorerkrankungen (chronische Erkrankungen, Z.n. Operationen etc.)",
-			label: "Diagnoseblock",
-			name: "diagnoseblock",
-			placeholder: "Diagnoseblock eingeben...",
-			required: false,
-			type: "textarea",
-		},
-		{
-			description:
-				"Anamnese bei Aufnahme inkl. Aufnahmegrund und initiale Verdachtsdiagnose",
-			label: "Aufnahmeanamnese",
-			name: "anamnese",
-			placeholder: "Initiale Anamnese bei Aufnahme eingeben...",
-			required: false,
-			type: "textarea",
-		},
-		{
-			description:
-				"Chronologische Auflistung aller Untersuchungen, Konsile und wichtigen Einträge während des Aufenthalts",
-			label: "Befunde",
-			name: "befunde",
-			placeholder: "Befunde aus dem stationären Aufenthalt eingeben...",
-			required: false,
-			type: "textarea",
-		},
-	],
-
-	// Button text
-	generateButtonText: "Entlassungsbrief generieren",
-	regenerateButtonText: "Neu generieren",
-
-	// Empty state messages
-	emptyStateTitle: "Noch kein Entlassungsbrief vorhanden",
-	emptyStateDescription:
-		"Bitte geben Sie zuerst Entlassungsnotizen ein und generieren Sie einen Entlassungsbrief.",
-};
-
-export default function DischargeAIGenerator() {
-	return <AiscribeTemplate config={DISCHARGE_CONFIG} />;
+	return (
+		<CustomAiscribeClient
+			mode="built-in"
+			overrideForm={overrideForm}
+			template="discharge"
+		/>
+	);
 }

@@ -38,7 +38,7 @@ export interface UsageMetadata {
  * OpenRouter usage data structure
  * Available via providerMetadata.openrouter.usage when usage: { include: true } is set
  */
-export interface OpenRouterUsage {
+interface OpenRouterUsage {
 	promptTokens: number;
 	promptTokensDetails?: { cachedTokens: number };
 	completionTokens: number;
@@ -74,7 +74,7 @@ export interface StandardUsage {
 /**
  * Parameters for creating a usage event
  */
-export interface CreateUsageEventParams {
+interface CreateUsageEventParams {
 	userId: string;
 	name: string;
 	model?: string;

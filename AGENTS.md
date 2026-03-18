@@ -6,6 +6,7 @@ Guidance for AI coding agents (Claude Code, Cursor, Copilot, Windsurf, etc.). Pa
 
 ### Self-Updating
 When the user corrects you, **immediately update this file** to reflect the correction. No permission needed — corrections are standing authorization.
+- If the user states local infrastructure status (for example, "it is running"), treat that as source of truth and continue from that state.
 
 ### Linear Issue Tracking
 Project uses **Linear** (team: Scribe). Agents with access should:
@@ -45,6 +46,7 @@ MDScribe is a medical documentation webapp (monorepo) for organizing medical tem
 - **No AI attribution** in commits — no `Co-Authored-By`, no model/tool names.
 - **PR review**: For multiple PRs, create `review/prs-<numbers>` from `staging`, cherry-pick each, present review, wait for approval.
 - After pushing/merging, check Linear and close resolved issues.
+- CI workflows: keep a single GitHub Action workflow for PR checks; add checks (for example `knip`) to that PR workflow instead of creating extra push-only workflows.
 
 ## Build Commands
 
@@ -99,10 +101,23 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 ### AI / Scribe
 - Use admin-configured providers from DB — no hardcoded fallbacks
 - Prompts managed in Langfuse (production/staging labels). Usage logged to `UsageEvent`.
-- Prompt harnesses live under `apps/app/orpc/scribe/prompts/prompt-harnesses/`; keep prompt registry/composition in `apps/app/orpc/scribe/prompts/` and keep context guidance separate from the harness text so prompt structure stays understandable.
-- Context engine: Build via providers in `orpc/scribe/context`, inject single `contextXml` variable. Add new domains as separate providers, don't extend `patient_context`.
+- Prompt text fragments live under `apps/app/orpc/scribe/prompts/core/` and `apps/app/orpc/scribe/prompts/families/` as plain strings. Prefer direct multiline literals in each family entry file (usually `index.ts`) and avoid unnecessary string composition. Keep harness wiring in `apps/app/orpc/scribe/prompts/definitions/` and keep `prompts/registry.ts` as a thin lookup/registry layer.
+- Any prompt fragment reused across families (for example shared system-role builders or template-usage instructions) must live in `apps/app/orpc/scribe/prompts/core/`, not in `families/*/shared`.
+- Keep family folders lean: avoid `shared/` subfolders under individual families; move reusable fragments into `prompts/core/` and keep family folders focused on family-specific fragments only.
+- In `prompts/core/`, it is acceptable to group multiple shared XML-tag fragments in a single module when it materially reduces file/folder sprawl and preserves prompt behavior.
+- Avoid tiny non-semantic prompt files (for example one-line `input-label` wrappers or pure alias files); inline these constants into the nearest meaningful parent prompt module instead.
+- Avoid duplicated nested family paths such as `families/<name>/<name>/...`; keep fragments directly under `families/<name>/...` with an optional `index.ts` family entry.
+- For prompt families that use XML-structured instructions, default to one family entry module with direct tag literals. Split into extra files only when text is reused across families or a single file becomes meaningfully harder to scan.
+- Prefer direct multiline template literals for static prompt text and fixed-size section composition. Use array joins only when list length is data-driven or meaningfully dynamic.
+- Avoid family-local “guidance/sections/process” split files when they only hold static one-off strings; inline those into the family entry module instead.
+- Context lives under `apps/app/orpc/scribe/context/` split by source domain (`patient`, `template`, `user`). Each domain owns its own guidance and composition, and the scribe flow injects a single combined `contextXml` variable.
+- Keep `context/template/compose.ts` minimal (selected-template reference formatting only). Keep template-context rendering/injection logic in `context/template/guidance.ts` and `context/index.ts` to avoid duplicated composition paths.
+- User prompt assembly (date/context/task ordering plus template-usage guidance) is centralized in `apps/app/orpc/scribe/context/` via the shared context user-prompt envelope; prompt registry entries should call that helper instead of hand-building user prompt order.
+- Template-capable harnesses (currently discharge, icu-transfer, procedures) use context-side template guidance resolution: inject built-in fallback template guidance only when `<template_context>` is missing, and let real template context replace fallback automatically.
+- Keep built-in fallback template content in `apps/app/orpc/scribe/context/template/fallback-templates/` (including anamnese/discharge/icu-transfer/procedures) and resolve these via context template fallback helpers (rather than embedding fallback template strings directly in family prompt modules).
 - Canonical input keys: `notes`, `diagnoseblock`, `anamnese`, `befunde` only. Legacy keys accepted only in playground hydration layer.
-- Planned AI Forms should be additive custom AIScribe pages on top of the existing built-in pages, not DB overrides of built-in page configs, unless explicitly requested otherwise.
+- Built-in `/aiscribe/*` routes keep their hardcoded UI as fallback, but can now prefer DB-backed overrides by fixed slugs (`builtin-discharge`, `builtin-er`, `builtin-icu`, `builtin-outpatient`, `builtin-procedures`, `builtin-diagnoseblock`) that route through custom-form execution when present and enabled.
+- When refactoring input UIs, treat the production `/aiscribe` inputs as the canonical component. Playground/admin input tabs should reuse that component (or a direct extraction of it) instead of introducing a parallel simplified variant.
 - User-facing wording for these custom pages is `AI Textbausteine` / `AI Text`, not `AI Forms`.
 - Custom AI Textbausteine live in `AiScribeFormConfig`, are managed from `/admin/settings/models` in the `AI Textbausteine` tab, render on `/aiscribe/custom/[slug]`, use a path auto-derived from the name, and currently always use the full clinical context inputs (`notes`, `diagnoseblock`, `anamnese`, `befunde`). The admin/public APIs for these forms should stay minimal: no configurable input preset and no per-form temperature / max-tokens / thinking-budget fields unless explicitly reintroduced. In that admin UI, use the searchable `ModelSelector`, label the model field `KI-Modell`, keep the prompt field label `Basis-Prompt`, require an explicit confirmation step before deletion, and keep the cards compact: there is no separate `/aiscribe/custom/...` path box, the title itself is the public link with an external-link icon only when the entry is enabled, prompt/template/model metadata should use a two-column layout with labels on the left and values on the right, and the enabled state in the overview card must be a real inline `Aktiviert` switch that can be changed without opening the edit dialog. Delete confirmation in the card must reserve stable space so the UI does not jump when switching between trash icon and confirm buttons. If an AI Textbaustein is disabled, its public `/aiscribe/custom/[slug]` link must render inactive because the route returns 404.
 - Only send reasoning options when model explicitly advertises support; otherwise omit entirely.

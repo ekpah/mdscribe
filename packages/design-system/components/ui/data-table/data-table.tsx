@@ -163,4 +163,4 @@ function DataTable<TData>({
 	);
 }
 
-export { DataTable, type DataTableProps, type DataTableRenderToolbarProps };
+export { DataTable,  type DataTableRenderToolbarProps };

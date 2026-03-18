@@ -4,7 +4,7 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { CaseTagView } from './case-tag-view';
 export interface CaseTagOptions {
-  HTMLAttributes: Record<string, any>;
+  HTMLAttributes: Record<string, unknown>;
 }
 
 /**
@@ -59,4 +59,3 @@ export const CaseTag = Node.create<CaseTagOptions>({
   },
   selectable: true,
 });
-

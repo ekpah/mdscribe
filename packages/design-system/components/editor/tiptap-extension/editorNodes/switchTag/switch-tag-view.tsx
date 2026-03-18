@@ -5,21 +5,23 @@ import { NodeViewWrapper } from '@tiptap/react';
 import { Code2, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
-import { Button } from '../../../../ui/button';
-import { Input } from '../../../../ui/input';
-import { Label } from '../../../../ui/label';
+import { Button } from '@repo/design-system/components/ui/button';
+import { Input } from '@repo/design-system/components/ui/input';
+import { Label } from '@repo/design-system/components/ui/label';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '../../../../ui/popover';
-import { Separator } from '../../../../ui/separator';
+} from '@repo/design-system/components/ui/popover';
+import { Separator } from '@repo/design-system/components/ui/separator';
 import type { SwitchCase } from './switch-tag';
 
 interface CaseItem {
   primary: string;
   text: string;
 }
+
+const EMPTY_CASES: CaseItem[] = [];
 
 // Renamed function to SwitchTagView
 export const SwitchTagView = ({
@@ -33,7 +35,7 @@ export const SwitchTagView = ({
   const [newCase, setNewCase] = useState({ primary: '', text: '' });
   const cases = Array.isArray(node.attrs.cases)
     ? (node.attrs.cases as CaseItem[])
-    : [];
+    : EMPTY_CASES;
 
   const handleRemoveSwitch = useCallback(() => {
     deleteNode();
@@ -242,49 +244,55 @@ export const SwitchTagView = ({
 
                     {/* Existing Cases */}
                     <div className="space-y-2">
-                      {cases.map((caseItem, index) => (
-                        <div
-                          key={index}
-                          className="group rounded-md border border-solarized-green/20 bg-background p-2.5 shadow-sm transition-all hover:border-solarized-green/40 hover:shadow"
-                        >
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1 space-y-2">
-                              <div className="space-y-1">
-                                <Label className="text-muted-foreground text-xs">
-                                  Wert
-                                </Label>
-                                <Input
-                                  value={caseItem.primary}
-                                  onChange={casePrimaryChangeHandlers[index]}
-                                  placeholder="Fall-Wert"
-                                  className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
-                                />
+                      {cases.map((caseItem, index) => {
+                        const handleCasePrimaryChange = casePrimaryChangeHandlers[index];
+                        const handleCaseTextChange = caseTextChangeHandlers[index];
+                        const handleRemoveCase = removeCaseHandlers[index];
+
+                        return (
+                          <div
+                            key={`${caseItem.primary}:${caseItem.text}`}
+                            className="group rounded-md border border-solarized-green/20 bg-background p-2.5 shadow-sm transition-all hover:border-solarized-green/40 hover:shadow"
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className="flex-1 space-y-2">
+                                <div className="space-y-1">
+                                  <Label className="text-muted-foreground text-xs">
+                                    Wert
+                                  </Label>
+                                  <Input
+                                    value={caseItem.primary}
+                                    onChange={handleCasePrimaryChange}
+                                    placeholder="Fall-Wert"
+                                    className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-muted-foreground text-xs">
+                                    Inhalt
+                                  </Label>
+                                  <Input
+                                    value={caseItem.text}
+                                    onChange={handleCaseTextChange}
+                                    placeholder="Inhalt"
+                                    className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
+                                  />
+                                </div>
                               </div>
-                              <div className="space-y-1">
-                                <Label className="text-muted-foreground text-xs">
-                                  Inhalt
-                                </Label>
-                                <Input
-                                  value={caseItem.text}
-                                  onChange={caseTextChangeHandlers[index]}
-                                  placeholder="Inhalt"
-                                  className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
-                                />
-                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleRemoveCase}
+                                className="mt-5 h-8 w-8 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                                aria-label={`Fall ${index + 1} entfernen`}
+                                title="Fall entfernen"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={removeCaseHandlers[index]}
-                              className="mt-5 h-8 w-8 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                              aria-label={`Fall ${index + 1} entfernen`}
-                              title="Fall entfernen"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Add New Case */}

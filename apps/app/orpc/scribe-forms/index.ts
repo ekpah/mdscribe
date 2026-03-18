@@ -12,18 +12,16 @@ interface PublicScribeForm {
 
 const listAvailableHandler = pub
 	.output(type<PublicScribeForm[]>())
-	.handler(async ({ context }) => {
-		return context.db
-			.select({
-				id: aiScribeFormConfig.id,
-				slug: aiScribeFormConfig.slug,
+	.handler(({ context }) => context.db
+				.select({
+					description: aiScribeFormConfig.description,
+					id: aiScribeFormConfig.id,
 				name: aiScribeFormConfig.name,
-				description: aiScribeFormConfig.description,
+				slug: aiScribeFormConfig.slug,
 			})
 			.from(aiScribeFormConfig)
 			.where(eq(aiScribeFormConfig.enabled, true))
-			.orderBy(asc(aiScribeFormConfig.createdAt));
-	});
+			.orderBy(asc(aiScribeFormConfig.createdAt)));
 
 const getBySlugHandler = pub
 	.input(type<{ slug: string }>())
@@ -31,11 +29,11 @@ const getBySlugHandler = pub
 	.handler(async ({ context, input }) => {
 		const [form] = await context.db
 			.select({
-				id: aiScribeFormConfig.id,
-				slug: aiScribeFormConfig.slug,
-				name: aiScribeFormConfig.name,
 				description: aiScribeFormConfig.description,
 				enabled: aiScribeFormConfig.enabled,
+				id: aiScribeFormConfig.id,
+				name: aiScribeFormConfig.name,
+				slug: aiScribeFormConfig.slug,
 			})
 			.from(aiScribeFormConfig)
 			.where(eq(aiScribeFormConfig.slug, input.slug))

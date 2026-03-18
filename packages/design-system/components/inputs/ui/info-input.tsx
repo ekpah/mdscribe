@@ -14,15 +14,15 @@ import {
 } from "react-aria-components";
 import { withMask } from "use-mask-input";
 import { cn } from "@repo/design-system/lib/utils";
-import { Calendar } from "../../ui/calendar-rac";
-import { DateInput } from "../../ui/datefield-rac";
-import { Input } from "../../ui/input";
-import { Label } from "../../ui/label";
+import { Calendar } from "@repo/design-system/components/ui/calendar-rac";
+import { DateInput } from "@repo/design-system/components/ui/datefield-rac";
+import { Input } from "@repo/design-system/components/ui/input";
+import { Label } from "@repo/design-system/components/ui/label";
 import {
 	Popover as DsPopover,
 	PopoverContent,
 	PopoverTrigger,
-} from "../../ui/popover";
+} from "@repo/design-system/components/ui/popover";
 import { SuggestionBadge } from "./suggestion-badge";
 import {
 	formatDateGerman,

@@ -1,52 +1,27 @@
 import type { DocumentType } from "@/orpc/scribe/types";
 
-export interface ScribeDocTypeUiField {
+interface ScribeDocTypeUiField {
 	name: string;
 	label: string;
 	placeholder: string;
 	description?: string;
 }
 
-export interface ScribeDocTypeUiConfig {
+interface ScribeDocTypeUiConfig {
 	label: string;
 	mainField: ScribeDocTypeUiField;
 	additionalFields: ScribeDocTypeUiField[];
 	defaultPromptName: string;
 }
 
+export type PlaygroundDocumentType = DocumentType;
+
 /**
  * Admin playground UI configs for AI Scribe document types.
  * This intentionally mirrors what the user sees on `/aiscribe/*` pages,
  * but is kept lightweight and admin-focused.
  */
-export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
-	"admission-todos": {
-		additionalFields: [
-			{
-				label: "Anamnese",
-				name: "anamnese",
-				placeholder: "Anamnese eingeben...",
-			},
-			{
-				label: "Vordiagnosen",
-				name: "diagnoseblock",
-				placeholder: "Vordiagnosen eingeben...",
-			},
-			{
-				label: "Befunde",
-				name: "befunde",
-				placeholder: "Befunde eingeben...",
-			},
-		],
-		defaultPromptName: "ER_Admission_Todos_chat",
-		label: "ER Admission TODOs",
-		mainField: {
-			label: "Notizen",
-			name: "notes",
-			placeholder: "Notizen eingeben...",
-		},
-	},
-
+export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConfig> = {
 	anamnese: {
 		additionalFields: [
 			{
@@ -82,7 +57,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 				placeholder: "Vordiagnosen eingeben...",
 			},
 		],
-		defaultPromptName: "ER_Befunde_chat",
+		defaultPromptName: "diagnostic_results",
 		label: "ER Befunde",
 		mainField: {
 			label: "Notizen",
@@ -109,7 +84,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 				placeholder: "Befunde eingeben...",
 			},
 		],
-		defaultPromptName: "diagnoseblock_update",
+		defaultPromptName: "Diagnoses",
 		label: "Diagnoseblock Update",
 		mainField: {
 			label: "Notizen",
@@ -136,7 +111,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 				placeholder: "Befunde aus dem stationären Aufenthalt eingeben...",
 			},
 		],
-		defaultPromptName: "Inpatient_discharge_chat",
+		defaultPromptName: "Inpatient_discharge",
 		label: "Entlassungsbrief",
 		mainField: {
 			description:
@@ -165,7 +140,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 				placeholder: "Befunde eingeben...",
 			},
 		],
-		defaultPromptName: "ICU_transfer_chat",
+		defaultPromptName: "icu_transfer",
 		label: "ICU Transfer",
 		mainField: {
 			label: "Notizen",
@@ -192,7 +167,7 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 				placeholder: "Befunde eingeben...",
 			},
 		],
-		defaultPromptName: "Outpatient_visit_chat",
+		defaultPromptName: "outpatient_visit",
 		label: "Ambulante Vorstellung",
 		mainField: {
 			label: "Notizen",
@@ -201,20 +176,9 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 		},
 	},
 
-	"physical-exam": {
-		additionalFields: [],
-		defaultPromptName: "ER_Koerperliche_Untersuchung_chat",
-		label: "ER Körperliche Untersuchung",
-		mainField: {
-			label: "Notizen",
-			name: "notes",
-			placeholder: "Untersuchungsbefund eingeben...",
-		},
-	},
-
 	procedures: {
 		additionalFields: [],
-		defaultPromptName: "Procedure_chat",
+		defaultPromptName: "procedure",
 		label: "Prozeduren",
 		mainField: {
 			label: "Prozedur-Notizen",
@@ -224,7 +188,10 @@ export const scribeDocTypeUi: Record<DocumentType, ScribeDocTypeUiConfig> = {
 	},
 };
 
-export const allScribeDocTypes = Object.keys(scribeDocTypeUi) as DocumentType[];
+export const allScribeDocTypes = Object.keys(
+	scribeDocTypeUi,
+) as PlaygroundDocumentType[];
 
-export const isScribeDocType = (value: string): value is DocumentType =>
-	value in scribeDocTypeUi;
+export const isScribeDocType = (
+	value: string,
+): value is PlaygroundDocumentType => value in scribeDocTypeUi;

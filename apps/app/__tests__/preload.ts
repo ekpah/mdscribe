@@ -1,9 +1,11 @@
-import { beforeAll, mock } from "bun:test";
+import { mock } from "bun:test";
 
 process.env.POSTGRES_DATABASE_URL ??=
 	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
 process.env.POSTGRES_DATABASE_URL_TEST ??=
-	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
+	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test";
+
+const resolveAsync = <T>(value: T): Promise<T> => Promise.resolve(value);
 
 const createUIMessageStream = () => {
 	const encoder = new TextEncoder();
@@ -16,17 +18,12 @@ const createUIMessageStream = () => {
 	});
 };
 
-const resolveAsync = async <T,>(value: T) => {
-	await Bun.sleep(0);
-	return value;
-};
-
 const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void }) => {
 	const fullText = "This is a test response.";
 	const onFinish = options?.onFinish;
 
 	if (onFinish) {
-		setTimeout(() => {
+		queueMicrotask(() => {
 			onFinish({
 				finishReason: "stop",
 				providerMetadata: {
@@ -47,7 +44,7 @@ const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void 
 					totalTokens: 150,
 				},
 			});
-		}, 50);
+		});
 	}
 
 	return {
@@ -139,75 +136,74 @@ const MockStripe = function MockStripe() {
 	};
 };
 
-beforeAll(() => {
-	mock.module("server-only", () => ({}));
+mock.module("server-only", () => ({}));
 
-	mock.module("@repo/env", () => ({
-		env: {
-			ADMIN_EMAIL: "admin@test.com",
-			AUTH_POSTMARK_KEY: "test-key",
-			BETTER_AUTH_SECRET: "test-secret-key-for-testing-32chars",
-			NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
-			NODE_ENV: "test",
-			OPENROUTER_API_KEY: "test-key",
-			POSTGRES_DATABASE_URL: "mock://test",
-			STRIPE_PLUS_PRICE_ID: "price_test_plus",
-			STRIPE_PLUS_PRICE_ID_ANNUAL: "price_test_plus_annual",
-			STRIPE_SECRET_KEY: "sk_test_mock_key",
-			STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
-			VOYAGE_API_KEY: "test-voyage-key",
-		},
-	}));
+mock.module("@repo/env", () => ({
+	env: {
+		ADMIN_EMAIL: "admin@test.com",
+		AUTH_POSTMARK_KEY: "test-key",
+		BETTER_AUTH_SECRET: "test-secret-key-for-testing-32chars",
+		NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
+		NODE_ENV: "test",
+		OPENROUTER_API_KEY: "test-key",
+		POSTGRES_DATABASE_URL: "mock://test",
+		STRIPE_PLUS_PRICE_ID: "price_test_plus",
+		STRIPE_PLUS_PRICE_ID_ANNUAL: "price_test_plus_annual",
+		STRIPE_SECRET_KEY: "sk_test_mock_key",
+		STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
+		VOYAGE_API_KEY: "test-voyage-key",
+	},
+}));
 
-	mock.module("next/headers", () => ({
-		cookies: () =>
-			resolveAsync({
-				delete: () => null,
-				get: () => null,
-				getAll: () => [],
-				set: () => null,
-			}),
-		headers: () => resolveAsync(new Headers()),
-	}));
+mock.module("next/headers", () => ({
+	cookies: () =>
+		resolveAsync({
+			delete: () => null,
+			get: () => null,
+			getAll: () => [],
+			set: () => null,
+		}),
+	headers: () => resolveAsync(new Headers()),
+}));
 
-	mock.module("voyageai", () => ({
-		VoyageAIClient: MockVoyageAIClient,
-	}));
+mock.module("voyageai", () => ({
+	VoyageAIClient: MockVoyageAIClient,
+}));
 
-	mock.module("@repo/email", () => ({
-		sendEmail: () => resolveAsync({ success: true }),
-	}));
+mock.module("@repo/email", () => ({
+	sendEmail: () => resolveAsync({ success: true }),
+}));
 
-	mock.module("stripe", () => ({
-		default: MockStripe,
-	}));
+mock.module("stripe", () => ({
+	default: MockStripe,
+	Stripe: MockStripe,
+}));
 
-	mock.module("ai", () => ({
-		generateObject: () =>
-			resolveAsync({
-				finishReason: "stop" as const,
-				object: { test: "value" },
-				usage: {
-					completionTokens: 25,
-					promptTokens: 50,
-					totalTokens: 75,
-				},
-			}),
-		generateText: () =>
-			resolveAsync({
-				finishReason: "stop" as const,
-				text: "Generated text response",
-				usage: {
-					completionTokens: 25,
-					promptTokens: 50,
-					totalTokens: 75,
-				},
-			}),
-		streamText: (options: { onFinish?: (event: unknown) => void }) =>
-			createMockStreamResult(options),
-	}));
+mock.module("ai", () => ({
+	generateObject: () =>
+		resolveAsync({
+			finishReason: "stop" as const,
+			object: { test: "value" },
+			usage: {
+				completionTokens: 25,
+				promptTokens: 50,
+				totalTokens: 75,
+			},
+		}),
+	generateText: () =>
+		resolveAsync({
+			finishReason: "stop" as const,
+			text: "Generated text response",
+			usage: {
+				completionTokens: 25,
+				promptTokens: 50,
+				totalTokens: 75,
+			},
+		}),
+	streamText: (options: { onFinish?: (event: unknown) => void }) =>
+		createMockStreamResult(options),
+}));
 
-	mock.module("@openrouter/ai-sdk-provider", () => ({
-		createOpenRouter: () => createOpenRouterMockModel,
-	}));
-});
+mock.module("@openrouter/ai-sdk-provider", () => ({
+	createOpenRouter: () => createOpenRouterMockModel,
+}));

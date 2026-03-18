@@ -7,7 +7,7 @@ import * as schema from "./schema";
 type SeedDatabase = PostgresJsDatabase<typeof schema>;
 
 // Constants for test credentials
-export const SEED_USER = {
+const SEED_USER = {
 	email: "test@test.com",
 	name: "Test User",
 	password: "password123",

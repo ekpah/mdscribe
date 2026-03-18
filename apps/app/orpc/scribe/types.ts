@@ -1,15 +1,6 @@
 import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 
 /**
- * Supported AI models via OpenRouter
- */
-export type SupportedModel =
-	| "auto"
-	| "glm-5"
-	| "claude-opus-4.6"
-	| "gemini-3-pro";
-
-/**
  * Model configuration for streaming responses
  */
 export interface ModelConfig {
@@ -39,7 +30,7 @@ export interface InputField {
 /**
  * Input tags for voice fill
  */
-export type VoiceFillInputTag = InputTagType;
+type VoiceFillInputTag = InputTagType;
 
 /**
  * Voice fill input payload
@@ -51,23 +42,13 @@ export interface VoiceFillInputPayload {
 }
 
 /**
- * Base input for scribe endpoints
- */
-export interface ScribeInput {
-	prompt: string;
-	audioFiles?: AudioFile[];
-}
-
-/**
  * Document type configurations
  */
 export type DocumentType =
 	| "discharge"
 	| "anamnese"
 	| "diagnosis"
-	| "physical-exam"
 	| "procedures"
-	| "admission-todos"
 	| "befunde"
 	| "outpatient"
 	| "icu-transfer";
@@ -80,126 +61,17 @@ export interface PromptMessage {
 	content: string;
 }
 
-/**
- * Prompt builder function type - receives typed variables and returns messages
- */
-export type PromptBuilder<T> = {
-	bivarianceHack(variables: T): PromptMessage[];
-}["bivarianceHack"];
-
-/**
- * Base variables available to all prompts
- */
-interface BasePromptVariables {
+export interface PromptVariables {
+	relevantTemplate: string;
 	todaysDate: string;
 	contextXml: string;
 }
 
 /**
- * Variables for discharge document type
- */
-export interface DischargeVariables extends BasePromptVariables {
-	anamnese: string;
-	diagnoseblock: string;
-	notes: string;
-	befunde: string;
-}
-
-/**
- * Variables for anamnese document type
- */
-export interface AnamneseVariables extends BasePromptVariables {
-	notes: string;
-	befunde: string;
-	diagnoseblock: string;
-}
-
-/**
- * Variables for diagnosis document type
- */
-export interface DiagnosisVariables extends BasePromptVariables {
-	anamnese: string;
-	notes: string;
-	diagnoseblock: string;
-	befunde: string;
-}
-
-/**
- * Variables for physical-exam document type
- */
-export interface PhysicalExamVariables extends BasePromptVariables {
-	notes: string;
-}
-
-/**
- * Variables for procedures document type
- */
-export interface ProceduresVariables extends BasePromptVariables {
-	notes: string;
-	relevantTemplate: string;
-}
-
-/**
- * Variables for admission-todos document type
- */
-export interface AdmissionTodosVariables extends BasePromptVariables {
-	notes: string;
-	anamnese: string;
-	diagnoseblock: string;
-	befunde: string;
-}
-
-/**
- * Variables for befunde document type
- */
-export interface BefundeVariables extends BasePromptVariables {
-	notes: string;
-	anamnese: string;
-	diagnoseblock: string;
-}
-
-/**
- * Variables for outpatient document type
- */
-export interface OutpatientVariables extends BasePromptVariables {
-	anamnese: string;
-	diagnoseblock: string;
-	notes: string;
-	befunde: string;
-}
-
-/**
- * Variables for icu-transfer document type
- */
-export interface IcuTransferVariables extends BasePromptVariables {
-	anamnese: string;
-	notes: string;
-	diagnoseblock: string;
-	befunde: string;
-}
-
-/**
- * Union type of all prompt variable types
- */
-export type PromptVariables =
-	| DischargeVariables
-	| AnamneseVariables
-	| DiagnosisVariables
-	| PhysicalExamVariables
-	| ProceduresVariables
-	| AdmissionTodosVariables
-	| BefundeVariables
-	| OutpatientVariables
-	| IcuTransferVariables;
-
-/**
  * Configuration for each document type
- * Note: The prompt function uses a flexible type to allow typed variable
- * interfaces in config.ts while maintaining compatibility with the union type.
  */
 export interface DocumentTypeConfig {
 	promptName: string;
 	promptLabel?: string;
-	prompt: PromptBuilder<PromptVariables>;
-	modelConfig: ModelConfig;
+	systemPrompt: string;
 }

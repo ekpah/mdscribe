@@ -1,8 +1,8 @@
 import type { ThemeProviderProps } from "next-themes";
-import { Toaster } from "../components/ui/sonner";
+import { Toaster } from "@repo/design-system/components/ui/sonner";
 import { ThemeProvider } from "./theme";
 
-import { TooltipProvider } from "../components/ui/tooltip";
+import { TooltipProvider } from "@repo/design-system/components/ui/tooltip";
 type DesignSystemProviderProperties = ThemeProviderProps;
 
 export const DesignSystemProvider = ({

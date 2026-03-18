@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call } from "@orpc/server";
-import { eq, templateExample } from "@repo/database";
+import { and, eq, templateExample } from "@repo/database";
 import { templatesHandler } from "@/orpc/templates";
+import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
 	createTestContext,
 	createTestTemplate,
 	createTestUser,
 	startTestServer,
-	type TestServer,
-} from "../setup";
+} from "@/__tests__/setup";
 
 /**
  * Integration tests for templates oRPC handlers
@@ -25,7 +25,7 @@ describe("Templates oRPC Handlers", () => {
 	});
 
 	afterEach(async () => {
-		await server.close();
+		await server?.close();
 	});
 
 	describe("Public Endpoints", () => {
@@ -42,14 +42,14 @@ describe("Templates oRPC Handlers", () => {
 				expect(result).toBeNull();
 			});
 
-			test("returns template with author and favourite count", async () => {
-				// Create a user and template
-				const { user } = await createTestUser(server.db);
-				const template = await createTestTemplate(server.db, user.id, {
-					title: "ZVK Anlage",
-					category: "Prozeduren",
-					content: "ZVK Anlage Vorlage...",
-				});
+				test("returns template with author and favourite count", async () => {
+					// Create a user and template
+					const { user } = await createTestUser(server.db);
+					const template = await createTestTemplate(server.db, user.id, {
+						category: "Prozeduren",
+						content: "ZVK Anlage Vorlage...",
+						title: "ZVK Anlage",
+					});
 
 				const context = createTestContext({ db: server.db });
 
@@ -107,16 +107,16 @@ describe("Templates oRPC Handlers", () => {
 				const { user } = await createTestUser(server.db);
 				const createdTemplate = await createTestTemplate(server.db, user.id);
 
-				await server.db.insert(templateExample).values([
-					{
-						templateId: createdTemplate.id,
-						content: "Second example",
-					},
-					{
-						templateId: createdTemplate.id,
-						content: "First example",
-					},
-				]);
+					await server.db.insert(templateExample).values([
+						{
+							content: "Second example",
+							templateId: createdTemplate.id,
+						},
+						{
+							content: "First example",
+							templateId: createdTemplate.id,
+						},
+					]);
 
 				const context = createTestContext({ db: server.db });
 
@@ -200,7 +200,7 @@ describe("Templates oRPC Handlers", () => {
 				const { user } = await createTestUser(server.db);
 
 				// Create 4 templates
-				for (let i = 1; i <= 4; i++) {
+				for (let i = 1; i <= 4; i += 1) {
 					await createTestTemplate(server.db, user.id, {
 						title: `Template ${i}`,
 					});
@@ -224,16 +224,16 @@ describe("Templates oRPC Handlers", () => {
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await call(
-					templatesHandler.create,
-					{
-						name: "New Template",
-						category: "Test Category",
-						content: "Template content here",
-						examples: ["Example output one", "Example output two"],
-					},
-					{ context },
-				);
+					const result = await call(
+						templatesHandler.create,
+						{
+							category: "Test Category",
+							content: "Template content here",
+							examples: ["Example output one", "Example output two"],
+							name: "New Template",
+						},
+						{ context },
+					);
 
 				expect(result).toBeDefined();
 				expect(result.title).toBe("New Template");
@@ -257,28 +257,28 @@ describe("Templates oRPC Handlers", () => {
 		describe("templates.update", () => {
 			test("updates template owned by user", async () => {
 				const { user } = await createTestUser(server.db);
-				const template = await createTestTemplate(server.db, user.id, {
-					title: "Original Title",
-				});
-				await server.db.insert(templateExample).values({
-					templateId: template.id,
-					content: "Old example",
-				});
+					const template = await createTestTemplate(server.db, user.id, {
+						title: "Original Title",
+					});
+					await server.db.insert(templateExample).values({
+						content: "Old example",
+						templateId: template.id,
+					});
 
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
 
-				const result = await call(
-					templatesHandler.update,
-					{
-						id: template.id,
-						name: "Updated Title",
-						category: "Updated Category",
-						content: "Updated content",
-						examples: ["Updated example one", "Updated example two"],
-					},
-					{ context },
-				);
+					const result = await call(
+						templatesHandler.update,
+						{
+							category: "Updated Category",
+							content: "Updated content",
+							examples: ["Updated example one", "Updated example two"],
+							id: template.id,
+							name: "Updated Title",
+						},
+						{ context },
+					);
 
 				expect(result.title).toBe("Updated Title");
 				expect(result.category).toBe("Updated Category");
@@ -308,17 +308,17 @@ describe("Templates oRPC Handlers", () => {
 				const context = createTestContext({ db: server.db, session });
 
 				await expect(
-					call(
-						templatesHandler.update,
-						{
-							id: template.id,
-							name: "Hacked",
-							category: "Hacked",
-							content: "Hacked",
-							examples: [],
-						},
-						{ context },
-					),
+						call(
+							templatesHandler.update,
+							{
+								category: "Hacked",
+								content: "Hacked",
+								examples: [],
+								id: template.id,
+								name: "Hacked",
+							},
+							{ context },
+						),
 				).rejects.toThrow();
 			});
 		});
@@ -343,14 +343,14 @@ describe("Templates oRPC Handlers", () => {
 				expect(result).toEqual({ success: true });
 
 				// Verify it was added
-				const { favourites, eq, and } = await import("@repo/database");
+				const { favourites, eq: dbEq, and: dbAnd } = await import("@repo/database");
 				const [fav] = await server.db
 					.select()
 					.from(favourites)
 					.where(
-						and(
-							eq(favourites.templateId, template.id),
-							eq(favourites.userId, user.id),
+						dbAnd(
+							dbEq(favourites.templateId, template.id),
+							dbEq(favourites.userId, user.id),
 						),
 					)
 					.limit(1);
@@ -394,7 +394,7 @@ describe("Templates oRPC Handlers", () => {
 				const template = await createTestTemplate(server.db, author.id);
 
 				// Add favourite first
-				const { favourites, eq, and } = await import("@repo/database");
+				const { favourites } = await import("@repo/database");
 				await server.db.insert(favourites).values({
 					templateId: template.id,
 					userId: user.id,

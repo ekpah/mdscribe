@@ -1,35 +1,31 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import {
-	and,
-	aiScribeFormConfig,
-	eq,
-	inArray,
-	subscription,
-	type Database,
-	usageEvent,
-} from "@repo/database";
+import { aiScribeFormConfig, eq } from "@repo/database";
+import type { Database } from '@repo/database';
 import { streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
-import { after } from "next/server";
-
-import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
-import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
-
-import { getUsage } from "../_lib/get-usage";
-import { composeScribeContext, type ContextBuildInput, type TemplateContextInput } from "../context";
 import {
-	buildSelectedTemplateReference,
+	composeScribeContext,
+	findRelevantTemplateForProcedure,
+} from '@/orpc/scribe/context';
+import type { ContextBuildInput, TemplateContextInput } from '@/orpc/scribe/context';
+import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
+import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
+import {
 	composeDocumentTypePrompt,
 	composePromptHarnessPrompt,
 	documentTypeConfigs,
-	findRelevantTemplateForProcedure,
-	injectCustomTemplateInstruction,
-	resolveCustomModelConfig,
-} from "../prompts";
-import { resolveModel, resolveModelByRecordId } from "../providers";
-import type { AudioFile, DocumentType, ModelConfig, PromptMessage } from "../types";
+} from "@/orpc/scribe/prompts";
+import { resolveModel, resolveModelByRecordId } from "@/orpc/scribe/providers";
+import type { AudioFile, DocumentType, ModelConfig, PromptMessage } from "@/orpc/scribe/types";
+
+export const DEFAULT_SCRIBE_MODEL_CONFIG: ModelConfig = {
+	maxTokens: 20_000,
+	temperature: 0.3,
+	thinking: false,
+	thinkingBudget: 8000,
+};
 
 const parsePromptPayload = (prompt: string): Record<string, unknown> => {
 	if (!prompt.trim()) {
@@ -78,15 +74,6 @@ const hasNonEmptyInput = (value: unknown): boolean => {
 	return false;
 };
 
-const hasAnyInput = (payload: Record<string, unknown>): boolean => {
-	for (const entry of Object.values(payload)) {
-		if (hasNonEmptyInput(entry)) {
-			return true;
-		}
-	}
-	return false;
-};
-
 const hasFileLikeInput = (value: unknown): boolean => {
 	if (Array.isArray(value)) {
 		for (const entry of value) {
@@ -116,55 +103,6 @@ const hasFileLikeInput = (value: unknown): boolean => {
 	}
 
 	return false;
-};
-
-const scheduleAfter = (callback: () => Promise<void>): void => {
-	const run = async () => {
-		try {
-			await callback();
-		} catch (error) {
-			// Usage logging should never break request handling or tests.
-			console.error("Deferred usage logging failed:", error);
-		}
-	};
-
-	try {
-		after(run);
-	} catch {
-		// Fallback for non-request contexts (e.g. direct handler unit tests).
-		void run();
-	}
-};
-
-/**
- * Check subscription and usage limits
- */
-const checkUsageLimit = async (
-	userId: string,
-	session: { user: { id: string } },
-	db: Database,
-) => {
-	const subscriptions = await db
-		.select()
-		.from(subscription)
-		.where(
-			and(
-				eq(subscription.referenceId, userId),
-				inArray(subscription.status, ["active", "trialing"]),
-			),
-		);
-
-	const activeSubscription = subscriptions.length > 0;
-	const { usage } = await getUsage(session, db);
-	const usageLimit = activeSubscription ? 500 : 50;
-
-	if (usage.count >= usageLimit) {
-		throw new ORPCError("FORBIDDEN", {
-			message: USER_MESSAGES.usageLimitReached,
-		});
-	}
-
-	return { activeSubscription, usage };
 };
 
 const assertResolvedModelSupportsInputs = (
@@ -247,13 +185,26 @@ const extractPromptFromMessages = (messages: UIMessage[]): string => {
 
 const toTemplateContextInput = (template: {
 	content: string;
-	examples: Array<{ content: string }>;
+	examples: { content: string }[];
 	title: string;
 }): TemplateContextInput => ({
 	content: template.content,
 	examples: template.examples.map((example) => example.content),
 	title: template.title,
 });
+
+const readTrimmedStringField = (
+	formData: Record<string, unknown>,
+	field: string,
+): string | undefined => {
+	const raw = formData[field];
+	if (typeof raw !== "string") {
+		return undefined;
+	}
+
+	const trimmed = raw.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+};
 
 const resolveBuiltInRequest = async ({
 	documentType,
@@ -271,21 +222,25 @@ const resolveBuiltInRequest = async ({
 		});
 	}
 
-	const { contextXml, patientContext } = await composeScribeContext({
+	const selectedTemplateReference = documentType === "procedures"
+		? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
+		: undefined;
+	const { contextPrompt, contextXml } = await composeScribeContext({
 		formData,
+		promptContextKey: documentType,
+		selectedTemplateReference,
 		sessionUser,
 	});
 
-	const relevantTemplate = documentType === "procedures"
-		? await findRelevantTemplateForProcedure(patientContext.notes)
-		: undefined;
-
 	return {
-		config,
+		config: {
+			modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
+			promptName: config.promptName,
+		},
 		endpoint: documentType,
 		promptMessages: composeDocumentTypePrompt(documentType, {
+			contextPrompt,
 			contextXml,
-			relevantTemplate,
 		}),
 	};
 };
@@ -319,21 +274,20 @@ const resolveCustomFormRequest = async ({
 	}
 
 	const template = customForm.template ? toTemplateContextInput(customForm.template) : null;
-	const { contextXml, patientContext } = await composeScribeContext({
+	const selectedTemplateReference = customForm.promptHarness === "procedure" && !template
+		? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
+		: undefined;
+	const { contextPrompt, contextXml } = await composeScribeContext({
 		formData,
+		promptContextKey: customForm.promptHarness,
+		selectedTemplateReference,
 		sessionUser,
 		template,
 	});
 
-	const relevantTemplate = customForm.template
-		? buildSelectedTemplateReference(customForm.template)
-		: customForm.promptHarness === "Procedure_chat"
-			? await findRelevantTemplateForProcedure(patientContext.notes)
-			: undefined;
-
 	const promptMessages = composePromptHarnessPrompt(customForm.promptHarness, {
+		contextPrompt,
 		contextXml,
-		relevantTemplate,
 	});
 	if (!promptMessages) {
 		throw new ORPCError("BAD_REQUEST", {
@@ -343,15 +297,12 @@ const resolveCustomFormRequest = async ({
 
 	return {
 		config: {
-			modelConfig: resolveCustomModelConfig(customForm),
+			modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
 			promptName: customForm.promptHarness,
 		},
 		endpoint: `custom:${customForm.slug}`,
 		modelId: customForm.modelId,
-		promptMessages: injectCustomTemplateInstruction(
-			promptMessages,
-			Boolean(customForm.template),
-		),
+		promptMessages,
 	};
 };
 
@@ -362,26 +313,26 @@ export const scribeStreamHandler = authed
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
 		const inputMessages = input.messages;
-		const audioFiles = input.audioFiles;
+		const {audioFiles} = input;
 
 		// Extract prompt from the last user message
 		const prompt = extractPromptFromMessages(inputMessages);
 
 		// Check usage limits
-		const { activeSubscription } = await checkUsageLimit(
-			context.session.user.id,
-			context.session,
-			context.db,
-		);
+			const { activeSubscription } = await enforceScribeUsageLimit({
+				db: context.db,
+				session: context.session,
+				userId: context.session.user.id,
+			});
 
 		// Validate input
 		const hasAudio = audioFiles && audioFiles.length > 0;
 		const rawPrompt = parsePromptPayload(prompt);
-		if (!hasAudio && !hasAnyInput(rawPrompt)) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: USER_MESSAGES.missingInput,
-			});
-		}
+	if (!hasAudio && !hasNonEmptyInput(rawPrompt)) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: USER_MESSAGES.missingInput,
+		});
+	}
 
 		const hasFileInput = hasFileLikeInput(rawPrompt);
 		const resolvedRequest = input.source === "customForm"
@@ -461,52 +412,29 @@ export const scribeStreamHandler = authed
 				}
 			: undefined;
 
-		// Stream the response
-		const result = streamText({
-			maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
-			messages,
-			model: resolved.model,
-			onFinish: (event) => {
-				// PERF: Use after() for non-blocking usage logging (faster stream completion)
-				scheduleAfter(async () => {
-					// Extract OpenRouter usage data (graceful fallback for non-OpenRouter)
-					const openRouterUsage = resolved.isOpenRouter
-						? extractOpenRouterUsage(event.providerMetadata)
-						: undefined;
-					// Log usage to database using Drizzle
-					// Plus subscribers: skip content logging for privacy (ZDR)
-					await context.db.insert(usageEvent).values(
-						buildUsageEventData({
-							inputData: activeSubscription ? undefined : (rawPrompt as UsageInputData),
-							metadata: {
-								endpoint: resolvedRequest.endpoint,
-								modelConfig: {
-									maxTokens: resolvedRequest.config.modelConfig.maxTokens,
-									temperature: resolvedRequest.config.modelConfig.temperature,
-								},
-								promptName: resolvedRequest.config.promptName,
-								promptSource: "local",
-								streamingMode: true,
-								thinkingBudget: thinkingEnabled
-									? resolvedRequest.config.modelConfig.thinkingBudget
-									: undefined,
-								thinkingEnabled,
-								zdrEnabled: activeSubscription,
-							} as UsageMetadata,
-							model: resolved.modelName,
-							name: "ai_scribe_generation",
-							openRouterUsage,
-							reasoning: activeSubscription ? "[zdr - content redacted]" : event.reasoningText,
-							result: activeSubscription ? "[zdr - content redacted]" : event.text,
-							standardUsage: event.usage as StandardUsage,
-							userId: context.session.user.id,
-						}),
-					);
-				});
-			},
-			providerOptions,
-			temperature: resolvedRequest.config.modelConfig.temperature ?? 1,
-		});
+			// Stream the response
+			const result = streamText({
+				maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
+				messages,
+				model: resolved.model,
+				onFinish: (event) => {
+					scheduleScribeUsageLogging({
+						activeSubscription,
+						db: context.db,
+						endpoint: resolvedRequest.endpoint,
+						event,
+						inputData: rawPrompt,
+						isOpenRouter: resolved.isOpenRouter,
+						modelConfig: resolvedRequest.config.modelConfig,
+						modelName: resolved.modelName,
+						promptName: resolvedRequest.config.promptName,
+						thinkingEnabled,
+						userId: context.session.user.id,
+					});
+				},
+				providerOptions,
+				temperature: resolvedRequest.config.modelConfig.temperature ?? 1,
+			});
 
 		return streamToEventIterator(result.toUIMessageStream());
 	});

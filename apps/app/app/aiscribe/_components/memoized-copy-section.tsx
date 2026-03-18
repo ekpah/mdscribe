@@ -1,5 +1,5 @@
 "use client";
-import Markdoc from "@markdoc/markdoc";
+import * as Markdoc from "@markdoc/markdoc";
 import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
 import { Check, Copy } from "lucide-react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
@@ -201,9 +201,12 @@ export const MemoizedCopySection = memo(
 				}
 
 				// Try modern approach first (for newer browsers)
-				if (typeof ClipboardItem !== "undefined" && ClipboardItem.supports) {
-					// Use ClipboardItem.supports() to check HTML support (Chrome 133+)
-					if (ClipboardItem.supports("text/html")) {
+					if (
+						typeof ClipboardItem !== "undefined" &&
+						ClipboardItem.supports &&
+						ClipboardItem.supports("text/html")
+					) {
+						// Use ClipboardItem.supports() to check HTML support (Chrome 133+)
 						const clipboardItem = new ClipboardItem({
 							"text/html": new Blob([renderedContent || ""], {
 								type: "text/html",
@@ -217,7 +220,6 @@ export const MemoizedCopySection = memo(
 						toast.success("Text kopiert (Rich-Text Format)");
 						return;
 					}
-				}
 
 				// Fallback approach for browsers with partial ClipboardItem support
 				// Try HTML-only ClipboardItem first
@@ -253,12 +255,12 @@ export const MemoizedCopySection = memo(
 				try {
 					const textArea = document.createElement("textarea");
 					textArea.value = textContent || renderedContent || "";
-					textArea.style.position = "fixed";
-					textArea.style.opacity = "0";
-					document.body.append(textArea);
-					textArea.select();
-					const success = document.execCommand("copy");
-					document.body.removeChild(textArea);
+						textArea.style.position = "fixed";
+						textArea.style.opacity = "0";
+						document.body.append(textArea);
+						textArea.select();
+						const success = document.execCommand("copy");
+						textArea.remove();
 
 					if (success) {
 						setIsCopied(true);
@@ -275,7 +277,7 @@ export const MemoizedCopySection = memo(
 				}
 			}, []);
 
-		const handleCopyClick = useCallback(() => {
+		const handleCopyClick = useCallback(async () => {
 			// Use the ref to get the rendered content directly
 			const contentElement = contentRef.current;
 			if (contentElement) {
@@ -283,22 +285,26 @@ export const MemoizedCopySection = memo(
 				const textContent = contentElement.innerText
 					.replaceAll("\r\n", "\n")
 					.replaceAll("\r", "\n");
-				void handleCopy(renderedContent, textContent);
+				try {
+					await handleCopy(renderedContent, textContent);
+				} catch (error) {
+					console.error("Copy action failed:", error);
+				}
 			} else {
 				toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
 			}
-			}, [handleCopy]);
+		}, [handleCopy]);
 
 		return (
 			<div className="space-y-2">
 				{title && <h3 className="font-medium text-lg capitalize">{title}</h3>}
 				<div className="group relative w-full whitespace-pre-line rounded-md bg-muted p-3 text-left">
 					<div ref={contentRef} data-section={title}>
-						{blocks.map((block, index) => (
+						{blocks.map((block) => (
 							<MemoizedMarkdownBlock
 								content={block}
 								values={values}
-								key={`block_${index}`}
+								key={`block_${block}`}
 							/>
 						))}
 					</div>

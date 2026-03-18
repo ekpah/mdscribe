@@ -8,8 +8,8 @@ import {
 	createTestContext,
 	createTestUser,
 	startTestServer,
-} from "../setup";
-import type { TestServer } from "../setup";
+} from "@/__tests__/setup";
+import type { TestServer } from "@/__tests__/setup";
 
 describe("Admin Models Handler", () => {
 	let server: TestServer;
@@ -24,7 +24,7 @@ describe("Admin Models Handler", () => {
 	});
 
 	afterEach(async () => {
-		await server.close();
+		await server?.close();
 	});
 
 	test("list returns DB-backed models with provider metadata", async () => {

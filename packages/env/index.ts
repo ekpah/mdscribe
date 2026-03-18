@@ -2,31 +2,24 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 const server: Parameters<typeof createEnv>[0]["server"] = {
-	POSTGRES_DATABASE_URL: z.string().min(1).url(),
-
 	ADMIN_EMAIL: z.string().email(),
-
 	ANALYZE: z.string().optional(),
-
-	OPENROUTER_API_KEY: z.string().min(1),
-
 	AUTH_POSTMARK_KEY: z.string().min(1),
-
 	BETTER_AUTH_SECRET: z.string().min(1),
 
-	STRIPE_SECRET_KEY: z.string().min(1),
-	STRIPE_WEBHOOK_SECRET: z.string().min(1),
+	// Added by Node
+	CI: z.string().optional(),
+	NEXT_RUNTIME: z.enum(["nodejs", "edge"]).optional(),
+	NODE_ENV: z.enum(["development", "production"]).default("development"),
+	OPENROUTER_API_KEY: z.string().min(1),
+	POSTGRES_DATABASE_URL: z.string().min(1).url(),
 	STRIPE_PLUS_PRICE_ID: z.string().min(1),
 	STRIPE_PLUS_PRICE_ID_ANNUAL: z.string().min(1),
-	VOYAGE_API_KEY: z.string().min(1),
-
-	// Added by Node
-	NODE_ENV: z.enum(["development", "production"]).default("development"),
-	CI: z.string().optional(),
-
+	STRIPE_SECRET_KEY: z.string().min(1),
+	STRIPE_WEBHOOK_SECRET: z.string().min(1),
 	// Added by Vercel
 	VERCEL: z.string().optional(),
-	NEXT_RUNTIME: z.enum(["nodejs", "edge"]).optional(),
+	VOYAGE_API_KEY: z.string().min(1),
 };
 
 const client: Parameters<typeof createEnv>[0]["client"] = {

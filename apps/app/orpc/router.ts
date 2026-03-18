@@ -27,11 +27,44 @@ import { snippetsHandler } from "./user/snippets";
  * - Admin tools
  */
 
-const getUsageHandler = authed.handler(({ context }) => {
-	return getUsage(context.session);
-});
+const getUsageHandler = authed.handler(({ context }) => getUsage(context.session));
 
 export const router = {
+	// Admin operations
+	admin: {
+		embeddings: {
+			...embeddingsHandler,
+		},
+		models: {
+			...adminModelsHandler,
+		},
+		providers: {
+			...adminProvidersHandler,
+		},
+		scribe: {
+			...adminScribeHandler,
+		},
+		scribeForms: {
+			...adminScribeFormsHandler,
+		},
+		templates: {
+			...adminTemplatesHandler,
+		},
+		usage: {
+			...adminUsageHandler,
+		},
+		users: {
+			...adminUsersHandler,
+		},
+	},
+
+	// Document operations
+	documents: {
+		...documentsHandler,
+	},
+
+	getUsage: getUsageHandler,
+
 	// AI document generation
 	scribe: {
 		voiceFill: voiceFillHandler,
@@ -40,17 +73,11 @@ export const router = {
 		...scribeFormsHandler,
 	},
 	scribeStream: scribeStreamHandler,
-	getUsage: getUsageHandler,
 
 	// Template operations (all CRUD under templates)
 	templates: {
 		...templatesHandler,
 		findRelevant: findRelevantTemplateHandler,
-	},
-
-	// Document operations
-	documents: {
-		...documentsHandler,
 	},
 
 	// User-specific operations
@@ -61,34 +88,6 @@ export const router = {
 		},
 		snippets: {
 			...snippetsHandler,
-		},
-	},
-
-	// Admin operations
-	admin: {
-		users: {
-			...adminUsersHandler,
-		},
-		scribe: {
-			...adminScribeHandler,
-		},
-		scribeForms: {
-			...adminScribeFormsHandler,
-		},
-		usage: {
-			...adminUsageHandler,
-		},
-		embeddings: {
-			...embeddingsHandler,
-		},
-		templates: {
-			...adminTemplatesHandler,
-		},
-		models: {
-			...adminModelsHandler,
-		},
-		providers: {
-			...adminProvidersHandler,
 		},
 	},
 };

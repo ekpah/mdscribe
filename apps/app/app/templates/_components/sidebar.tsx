@@ -1,10 +1,5 @@
 'use client';
 
-import {
-  BookmarkFilledIcon,
-  Pencil1Icon,
-  PlusCircledIcon,
-} from '@radix-ui/react-icons';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
   Collapsible,
@@ -43,11 +38,14 @@ import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import {
+  Bookmark,
   Folder,
   FolderPlus,
   Library,
   Minus,
   Plus,
+  Pencil,
+  PlusCircle,
   Search,
   StarIcon,
 } from 'lucide-react';
@@ -92,12 +90,14 @@ interface SidebarSegment {
 }
 
 const generateSegments = ({ templates }: { templates: Template[] }) => {
-  const segments = templates.reduce<SidebarSegment[]>((acc, current) => {
+  const segments: SidebarSegment[] = [];
+
+  for (const current of templates) {
     const { category } = current;
     const template = current.title;
     const route = current.url;
     const { favouritesCount } = current;
-    const existingCategory = acc.find(
+    const existingCategory = segments.find(
       (segment) => segment.category === category
     );
     if (existingCategory) {
@@ -107,14 +107,12 @@ const generateSegments = ({ templates }: { templates: Template[] }) => {
         url: route,
       });
     } else {
-      acc.push({
+      segments.push({
         category,
         documents: [{ favouritesCount, title: template, url: route }],
       });
     }
-
-    return acc;
-  }, [] as SidebarSegment[]);
+  }
 
   return segments;
 };
@@ -198,8 +196,8 @@ export default function AppSidebar({
 
   const [isCreateCollectionOpen, setIsCreateCollectionOpen] = useState(false);
   const [collectionForm, setCollectionForm] = useState({
-    name: '',
     description: '',
+    name: '',
   });
 
   const createCollectionMutation = useMutation(
@@ -208,7 +206,7 @@ export default function AppSidebar({
         queryClient.invalidateQueries({
           queryKey: orpc.user.collections.list.queryOptions().queryKey,
         });
-        setCollectionForm({ name: '', description: '' });
+        setCollectionForm({ description: '', name: '' });
         setIsCreateCollectionOpen(false);
         setActiveCollection(collection.id);
         toast.success('Sammlung erstellt');
@@ -239,12 +237,12 @@ export default function AppSidebar({
     ? [
         {
           key: 'favourites',
-          logo: BookmarkFilledIcon,
+          logo: Bookmark,
           name: 'Favoriten',
         },
         {
           key: 'authored',
-          logo: Pencil1Icon,
+          logo: Pencil,
           name: 'Von Dir erstellt',
         },
       ]
@@ -282,7 +280,7 @@ export default function AppSidebar({
 
   const handleCloseCreateCollection = useCallback(() => {
     setIsCreateCollectionOpen(false);
-    setCollectionForm({ name: '', description: '' });
+    setCollectionForm({ description: '', name: '' });
   }, []);
 
   const handleCreateCollection = useCallback(async () => {
@@ -309,7 +307,7 @@ export default function AppSidebar({
   const handleCreateCollectionDialogChange = useCallback((open: boolean) => {
     setIsCreateCollectionOpen(open);
     if (!open) {
-      setCollectionForm({ name: '', description: '' });
+      setCollectionForm({ description: '', name: '' });
     }
   }, []);
 
@@ -337,14 +335,18 @@ export default function AppSidebar({
     (collection) => collection.id === activeCollectionValue
   );
 
-  const menuSegments =
-    activeCollectionValue === 'favourites'
-      ? initialFavouriteTemplates
-      : activeCollectionValue === 'authored'
-        ? initialAuthoredTemplates
-        : activeCollectionValue === 'all'
-          ? initialTemplates
-          : activeCustomCollection?.templates ?? [];
+  const menuSegments = (() => {
+    if (activeCollectionValue === 'favourites') {
+      return initialFavouriteTemplates;
+    }
+    if (activeCollectionValue === 'authored') {
+      return initialAuthoredTemplates;
+    }
+    if (activeCollectionValue === 'all') {
+      return initialTemplates;
+    }
+    return activeCustomCollection?.templates ?? [];
+  })();
 
   const fuse = new Fuse(menuSegments, {
     keys: ['category', 'title'],
@@ -489,7 +491,7 @@ export default function AppSidebar({
             <SidebarGroupContent className="relative">
               <Link href="/templates/create">
                 <Button className="w-full" variant="default">
-                  <PlusCircledIcon className="mr-2 h-4 w-4" />
+                  <PlusCircle className="mr-2 h-4 w-4" />
                   Neuer Textbaustein
                 </Button>
               </Link>
@@ -503,11 +505,11 @@ export default function AppSidebar({
       >
         <SidebarGroup>
           <SidebarMenu>
-            {orderedSegments.map((segment, index) => (
+            {orderedSegments.map((segment) => (
               <Collapsible
                 className="group/collapsible"
                 defaultOpen={true}
-                key={index}
+                key={segment.category || 'uncategorized'}
               >
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
@@ -520,8 +522,8 @@ export default function AppSidebar({
                   {segment.documents?.length ? (
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {segment.documents.map((item, itemIndex) => (
-                          <SidebarMenuSubItem key={itemIndex}>
+                        {segment.documents.map((item) => (
+                          <SidebarMenuSubItem key={item.url}>
                             <SidebarMenuSubButton asChild isActive={false}>
                               <Link
                                 className="flex items-center justify-between"

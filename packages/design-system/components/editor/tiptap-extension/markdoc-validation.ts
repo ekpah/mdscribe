@@ -27,45 +27,58 @@ const errorDecorationClassName =
 
 const getNodeTagName = (nodeTypeName: string): MarkdocTagName | null => {
 	switch (nodeTypeName) {
-		case 'infoTag':
+		case 'infoTag': {
 			return 'info';
-		case 'scoreTag':
+		}
+		case 'scoreTag': {
 			return 'score';
-		case 'switchTag':
+		}
+		case 'switchTag': {
 			return 'switch';
-		case 'caseTag':
+		}
+		case 'caseTag': {
 			return 'case';
-		default:
+		}
+		default: {
 			return null;
+		}
 	}
 };
 
-const buildDecorations = (
-	doc: ProseMirrorNode,
-	highlights: MarkdocValidationHighlight[]
-) => {
-	if (highlights.length === 0) {
-		return DecorationSet.empty;
-	}
-
+const createHighlightMap = (highlights: MarkdocValidationHighlight[]) => {
 	const highlightMap = new Map<string, string>();
 	for (const highlight of highlights) {
 		const key = `${highlight.tagName}:${highlight.index}`;
 		const existingMessage = highlightMap.get(key);
-		if (existingMessage) {
-			highlightMap.set(key, `${existingMessage}\n${highlight.message}`);
-		} else {
-			highlightMap.set(key, highlight.message);
-		}
+		highlightMap.set(
+			key,
+			existingMessage
+				? `${existingMessage}\n${highlight.message}`
+				: highlight.message
+		);
 	}
 
-	const counts: Record<MarkdocTagName, number> = {
-		info: 0,
-		score: 0,
-		switch: 0,
-		case: 0,
-	};
+	return highlightMap;
+};
 
+const createTagCounts = (): Record<MarkdocTagName, number> => ({
+	case: 0,
+	info: 0,
+	score: 0,
+	switch: 0,
+});
+
+const createNodeDecoration = (pos: number, nodeSize: number, title: string) =>
+	Decoration.node(pos, pos + nodeSize, {
+		class: errorDecorationClassName,
+		title,
+	});
+
+const createDecorations = (
+	doc: ProseMirrorNode,
+	highlightMap: Map<string, string>
+) => {
+	const counts = createTagCounts();
 	const decorations: Decoration[] = [];
 
 	doc.descendants((node, pos) => {
@@ -82,20 +95,26 @@ const buildDecorations = (
 			return;
 		}
 
-		decorations.push(
-			Decoration.node(pos, pos + node.nodeSize, {
-				class: errorDecorationClassName,
-				title: message,
-			})
-		);
+		decorations.push(createNodeDecoration(pos, node.nodeSize, message));
 	});
 
+	return decorations;
+};
+
+const buildDecorations = (
+	doc: ProseMirrorNode,
+	highlights: MarkdocValidationHighlight[]
+) => {
+	if (highlights.length === 0) {
+		return DecorationSet.empty;
+	}
+
+	const highlightMap = createHighlightMap(highlights);
+	const decorations = createDecorations(doc, highlightMap);
 	return DecorationSet.create(doc, decorations);
 };
 
 export const MarkdocValidation = Extension.create({
-	name: 'markdocValidation',
-
 	addCommands() {
 		return {
 			setMarkdocValidation:
@@ -111,40 +130,42 @@ export const MarkdocValidation = Extension.create({
 	},
 
 	addProseMirrorPlugins() {
-		return [
-			new Plugin({
-				key: validationKey,
-				state: {
-					init: () => ({
-						highlights: [] as MarkdocValidationHighlight[],
-						decorations: DecorationSet.empty,
-					}),
-					apply: (tr, pluginState, _oldState, newState) => {
-						const meta = tr.getMeta(validationKey) as
-							| MarkdocValidationMeta
-							| undefined;
+			return [
+				new Plugin({
+					key: validationKey,
+					props: {
+						decorations: (state) =>
+							validationKey.getState(state)?.decorations ?? null,
+					},
+					state: {
+						apply: (tr, pluginState, _oldState, newState) => {
+							const meta = tr.getMeta(validationKey) as
+								| MarkdocValidationMeta
+								| undefined;
 						const hasMeta = meta !== undefined;
 						const nextHighlights = hasMeta
 							? meta.highlights
 							: pluginState.highlights;
 
-						if (hasMeta || tr.docChanged) {
-							return {
-								highlights: nextHighlights,
-								decorations: buildDecorations(newState.doc, nextHighlights),
-							};
-						}
+							if (hasMeta || tr.docChanged) {
+								return {
+									decorations: buildDecorations(newState.doc, nextHighlights),
+									highlights: nextHighlights,
+								};
+							}
 
-						return pluginState;
+							return pluginState;
+						},
+						init: () => ({
+							decorations: DecorationSet.empty,
+							highlights: [] as MarkdocValidationHighlight[],
+						}),
 					},
-				},
-				props: {
-					decorations: (state) =>
-						validationKey.getState(state)?.decorations ?? null,
-				},
-			}),
-		];
-	},
+				}),
+			];
+		},
+
+	name: 'markdocValidation',
 });
 
 declare module '@tiptap/core' {

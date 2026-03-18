@@ -1,6 +1,7 @@
 "use client";
 
-import Markdoc, { type ValidateError } from "@markdoc/markdoc";
+import * as Markdoc from '@markdoc/markdoc';
+import type { ValidateError } from '@markdoc/markdoc';
 import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
 import TipTap from "@repo/design-system/components/editor/tip-tap";
@@ -98,18 +99,18 @@ const getOffsetFromLocation = (
 const findTagOccurrences = (source: string): TagOccurrence[] => {
 	const occurrences: TagOccurrence[] = [];
 	const counts: Record<MarkdocTagName, number> = {
+		case: 0,
 		info: 0,
 		score: 0,
 		switch: 0,
-		case: 0,
 	};
 
 	MARKDOC_TAG_REGEX.lastIndex = 0;
 	let match = MARKDOC_TAG_REGEX.exec(source);
 
 	while (match) {
-		const isClosingTag = match[1] === "/";
-		const rawTagName = match[2];
+		const [, closingTagToken, rawTagName] = match;
+		const isClosingTag = closingTagToken === "/";
 
 		if (!isClosingTag && rawTagName) {
 			const normalizedTagName = rawTagName.toLowerCase();
@@ -118,10 +119,10 @@ const findTagOccurrences = (source: string): TagOccurrence[] => {
 				const index = counts[normalizedTagName];
 
 				occurrences.push({
-					tagName: normalizedTagName,
+					endOffset: match.index + match[0].length,
 					index,
 					startOffset: match.index,
-					endOffset: match.index + match[0].length,
+					tagName: normalizedTagName,
 				});
 
 				counts[normalizedTagName] = index + 1;
@@ -192,14 +193,14 @@ const buildValidationHighlights = (
 			});
 		} else {
 			highlightsByKey.set(key, {
-				tagName: matchedOccurrence.tagName,
 				index: matchedOccurrence.index,
 				message,
+				tagName: matchedOccurrence.tagName,
 			});
 		}
 	}
 
-	return Array.from(highlightsByKey.values());
+	return [...highlightsByKey.values()];
 };
 
 const isActionableError = (error: unknown): error is Error => error instanceof Error;
@@ -330,28 +331,43 @@ export default function Editor({
 		);
 	}, []);
 
+	const handleRemoveExampleByIndex = useMemo(
+		() => examples.map((_, index) => () => handleRemoveExample(index)),
+		[examples, handleRemoveExample],
+	);
+
+	const handleChangeExampleByIndex = useMemo(
+		() =>
+			examples.map(
+				(_, index) =>
+					(event: React.ChangeEvent<HTMLTextAreaElement>) =>
+						handleExampleChange(index, event.target.value),
+			),
+		[examples, handleExampleChange],
+	);
+
 	const validateContent = useCallback((source: string): ValidateError[] => {
 		try {
 			const ast = Markdoc.parse(source);
 			const validation = Markdoc.validate(ast, markdocConfig);
 			return validation.filter((result) => result.type === "error");
-		} catch (parseError) {
-			const syntheticError: ValidateError = {
-				type: "error" as const,
-				error: {
-					id: "parse-error",
-					level: "error",
-					message:
-						parseError instanceof Error
-							? parseError.message
-							: "Unbekannter Parse-Fehler",
-					location: {
-						start: { line: 1 },
-						end: { line: 1 },
+			} catch (parseError) {
+				const syntheticError: ValidateError = {
+					error: {
+						id: "parse-error",
+						level: "error",
+						location: {
+							end: { line: 1 },
+							start: { line: 1 },
+						},
+						message:
+							parseError instanceof Error
+								? parseError.message
+								: "Unbekannter Parse-Fehler",
 					},
-				},
-				lines: [],
-			};
+					lines: [],
+					type: "error" as const,
+				};
 
 			return [syntheticError];
 		}
@@ -395,10 +411,12 @@ export default function Editor({
 				? error.message
 				: "Fehler beim Speichern des Textbausteins",
 			{
-				action: {
-					label: "Im Editor bleiben",
-					onClick: () => undefined,
-				},
+					action: {
+						label: "Im Editor bleiben",
+						onClick: () => {
+							toast.dismiss(SAVE_TOAST_ID);
+						},
+					},
 				id: SAVE_TOAST_ID,
 			},
 		);
@@ -460,7 +478,7 @@ export default function Editor({
 
 				router.push(`/templates/${id}`);
 
-				void (async () => {
+				const finalizeTemplateUpdate = async () => {
 					try {
 						const updatedTemplate = await savePromise;
 						await invalidateTemplateQueries();
@@ -476,7 +494,9 @@ export default function Editor({
 					} finally {
 						setIsSubmitting(false);
 					}
-				})();
+				};
+
+				finalizeTemplateUpdate();
 				return;
 			}
 
@@ -664,11 +684,11 @@ export default function Editor({
 											<span>Fehler ({validationErrors.length})</span>
 										</div>
 										<ul className="mt-2 space-y-1 text-sm text-solarized-red/80">
-											{validationErrors.map((error, index) => (
-												<li
-													className="flex items-start space-x-2"
-													key={`error-${error.error?.message || "unknown"}-${index}`}
-												>
+												{validationErrors.map((error) => (
+													<li
+														className="flex items-start space-x-2"
+														key={`error-${error.error?.id || "unknown"}-${error.error?.location?.start?.line || "unknown"}-${error.error?.message || "unknown"}`}
+													>
 													<span className="text-solarized-red">•</span>
 													<div className="flex-1">
 														<div className="flex items-center space-x-2">
@@ -718,33 +738,29 @@ export default function Editor({
 									Noch keine Beispiele hinzugefuegt.
 								</p>
 							) : (
-								<div className="space-y-3">
-									{examples.map((example, index) => (
-										<div className="space-y-2" key={`template-example-${index}`}>
+									<div className="space-y-3">
+										{examples.map((example, index) => (
+											<div className="space-y-2" key={`template-example-${example}`}>
 											<div className="flex items-center justify-between">
 												<Label htmlFor={`template-example-${index}`}>
 													Beispiel {index + 1}
 												</Label>
-												<Button
-													onClick={() => {
-														handleRemoveExample(index);
-													}}
-													size="icon"
-													type="button"
-													variant="ghost"
-												>
+													<Button
+														onClick={handleRemoveExampleByIndex[index]}
+														size="icon"
+														type="button"
+														variant="ghost"
+													>
 													<Trash2 className="h-4 w-4" />
 												</Button>
 											</div>
-											<Textarea
-												id={`template-example-${index}`}
-												onChange={(event) => {
-													handleExampleChange(index, event.target.value);
-												}}
-												placeholder="Finale Beispiel-Ausgabe eingeben"
-												rows={4}
-												value={example}
-											/>
+												<Textarea
+													id={`template-example-${index}`}
+													onChange={handleChangeExampleByIndex[index]}
+													placeholder="Finale Beispiel-Ausgabe eingeben"
+													rows={4}
+													value={example}
+												/>
 										</div>
 									))}
 								</div>

@@ -3,11 +3,8 @@
 import {
 	enableKeyboardNavigation,
 } from "@harshtalks/slash-tiptap";
-import {
-	MarkdocMD,
-	MarkdocValidation,
-	type MarkdocValidationHighlight,
-} from "@repo/design-system/components/editor/tiptap-extension";
+import { MarkdocMD, MarkdocValidation } from '@repo/design-system/components/editor/tiptap-extension';
+import type { MarkdocValidationHighlight } from '@repo/design-system/components/editor/tiptap-extension';
 import { cn } from "@repo/design-system/lib/utils";
 import { htmlToMarkdoc } from "@repo/markdoc-md/parse/html-to-markdoc";
 import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";

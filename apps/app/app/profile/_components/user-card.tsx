@@ -17,7 +17,7 @@ import { cn } from "@repo/design-system/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { LaptopIcon, Loader2, SmartphoneIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { UAParser } from "ua-parser-js";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -32,7 +32,7 @@ export default function UserCard(props: {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const { data: sessionData } = useSession();
-	const session = sessionData !== undefined ? sessionData : props.session;
+	const session = sessionData ?? props.session;
 	const [isLoading, setIsLoading] = useState<string>();
 
 	const [activeSessions, setActiveSessions] = useState(props.activeSessions);
@@ -80,6 +80,23 @@ export default function UserCard(props: {
 		[queryClient, removeActiveSession, router, session?.session?.id],
 	);
 
+	const handleRevokeSessionById = useMemo<Record<string, () => Promise<void>>>(
+		() => {
+			const handlers: Record<string, () => Promise<void>> = {};
+			for (const activeSession of activeSessions) {
+				handlers[activeSession.id] = async () => {
+					try {
+						await handleRevokeSession(activeSession);
+					} catch (error) {
+						console.error("Error revoking session:", error);
+					}
+				};
+			}
+			return handlers;
+		},
+		[activeSessions, handleRevokeSession],
+	);
+
 	return (
 		<Card>
 			<CardHeader>
@@ -115,10 +132,20 @@ export default function UserCard(props: {
 							const isCurrentSession = activeSession.id === session?.session?.id;
 							const parser = UAParser(activeSession.userAgent as string);
 							const isMobile = parser.device.type === "mobile";
-							const handleRevokeClick = () => {
-								void handleRevokeSession(activeSession);
-							};
-
+							const sessionClientLabel = (() => {
+								if (activeSession.userAgent?.includes("tauri-plugin-http")) {
+									return "App";
+								}
+								if (parser.os.name && parser.browser.name) {
+									return `${parser.os.name}, ${parser.browser.name}`;
+								}
+								return (
+									parser.os.name ||
+									parser.browser.name ||
+									activeSession.userAgent ||
+									"Unbekannt"
+								);
+							})();
 							return (
 							<Card
 								key={activeSession.id}
@@ -138,14 +165,7 @@ export default function UserCard(props: {
 									</span>
 
 									<span className="text-muted-foreground text-xs">
-										{activeSession.userAgent?.includes("tauri-plugin-http")
-											? "App"
-											: (parser.os.name && parser.browser.name
-												? `${parser.os.name}, ${parser.browser.name}`
-												: parser.os.name ||
-													parser.browser.name ||
-													activeSession.userAgent ||
-													"Unbekannt")}
+										{sessionClientLabel}
 									</span>
 								</div>
 
@@ -154,7 +174,7 @@ export default function UserCard(props: {
 									disabled={isLoading === activeSession.id}
 									size="sm"
 									variant="outline"
-									onClick={handleRevokeClick}
+									onClick={handleRevokeSessionById[activeSession.id]}
 									>
 									{isLoading === activeSession.id && (
 										<Loader2 className="animate-spin" />

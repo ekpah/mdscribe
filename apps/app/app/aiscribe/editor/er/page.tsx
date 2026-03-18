@@ -1,8 +1,8 @@
 "use client";
 
 import { Heart } from "lucide-react";
-import { DoctorsNoteEditor } from '../../_components/doctors-note-editor';
-import type { DoctorsNoteEditorConfig } from '../../_components/doctors-note-editor';
+import { DoctorsNoteEditor } from '@/app/aiscribe/_components/doctors-note-editor';
+import type { DoctorsNoteEditorConfig } from '@/app/aiscribe/_components/doctors-note-editor';
 
 // Section configuration for ER documentation
 // Each section defines its own endpoint and prompt builder
@@ -59,51 +59,19 @@ const ER_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			label: "Befunde",
 			placeholder: "Labor-, Bildgebungs- und weitere Befunde eingeben...",
 		},
-		// Toggle between Entlassung (Epikrise) and Stationäre Aufnahme (Todos)
 		{
-			defaultOption: "entlassung",
-			id: "disposition",
-			options: [
-				{
-					id: "entlassung",
-					label: "Entlassung",
-					section: {
-						buildPrompt: (notes, context) => ({
-							anamnese: context.anamnese || "",
-							befunde: context.befunde || "",
-							diagnoseblock: context.diagnosen || "",
-							notes,
-						}),
-						description:
-							"Zusammenfassung des Aufenthalts, Therapie und Entlassungsempfehlungen",
-						documentType: "discharge",
-						id: "epikrise",
-						label: "Epikrise",
-						placeholder:
-							"Zusammenfassung und Entlassungsinformationen eingeben...",
-					},
-				},
-				{
-					id: "stationaer",
-					label: "Stationäre Aufnahme",
-					section: {
-						buildPrompt: (notes, context) => ({
-							anamnese: context.anamnese || "",
-							befunde: context.befunde || "",
-							diagnoseblock: context.diagnosen || "",
-							notes,
-						}),
-						description:
-							"Offene Aufgaben, Anordnungen und To-Dos für die Station",
-						documentType: "admission-todos",
-						id: "todos",
-						label: "Todos",
-						placeholder:
-							"Aufgaben und nächste Schritte für die stationäre Aufnahme...",
-					},
-				},
-			],
-			type: "toggle",
+			buildPrompt: (notes, context) => ({
+				anamnese: context.anamnese || "",
+				befunde: context.befunde || "",
+				diagnoseblock: context.diagnosen || "",
+				notes,
+			}),
+			description:
+				"Zusammenfassung des Aufenthalts, Therapie und Entlassungsempfehlungen",
+			documentType: "discharge",
+			id: "epikrise",
+			label: "Epikrise",
+			placeholder: "Zusammenfassung und Entlassungsinformationen eingeben...",
 		},
 	],
 	title: "Notaufnahme Dokumentation",

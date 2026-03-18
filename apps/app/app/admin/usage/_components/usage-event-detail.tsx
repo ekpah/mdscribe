@@ -1,6 +1,5 @@
 "use client";
 
-import type { UsageEvent, User } from "@repo/database";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Sheet,
@@ -16,11 +15,8 @@ import {
 	allScribeDocTypes,
 	isScribeDocType,
 	scribeDocTypeUi,
-} from "../../playground/_lib/scribe-doc-types";
-
-type UsageEventWithUser = UsageEvent & {
-	user: Pick<User, "id" | "name" | "email"> | null;
-};
+} from "@/app/admin/playground/_lib/scribe-doc-types";
+import type { UsageDetailEvent } from "@/app/admin/usage/types";
 
 const promptNameToDocumentType = new Map(
 	allScribeDocTypes.map((documentType) => [
@@ -47,7 +43,7 @@ const inferDocumentType = (
 	return undefined;
 };
 
-const buildPlaygroundUrl = (event: UsageEventWithUser): string => {
+const buildPlaygroundUrl = (event: UsageDetailEvent): string => {
 	const params = new URLSearchParams();
 
 	// Use referenceUsageEvent for persistent URL state
@@ -87,13 +83,12 @@ const buildPlaygroundUrl = (event: UsageEventWithUser): string => {
 };
 
 interface UsageEventDetailProps {
-	event: UsageEventWithUser | null | undefined;
+	event: UsageDetailEvent | null | undefined;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }
 
-const StatBox = ({ label, value }: { label: string; value: number | null }) => {
-	return (
+const StatBox = ({ label, value }: { label: string; value: number | null }) => (
 		<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-2">
 			<p className="text-xs text-solarized-base01">{label}</p>
 			<p className="font-mono text-sm text-solarized-base00">
@@ -101,7 +96,6 @@ const StatBox = ({ label, value }: { label: string; value: number | null }) => {
 			</p>
 		</div>
 	);
-};
 
 const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
@@ -187,7 +181,7 @@ export const UsageEventDetail = ({
 							<div className="flex justify-between">
 								<span className="text-solarized-base01">Kosten</span>
 								<span className="font-mono text-sm text-solarized-base00">
-									{cost !== null ? `$${cost.toFixed(6)}` : "-"}
+									{cost === null ? "-" : `$${cost.toFixed(6)}`}
 								</span>
 							</div>
 						</div>

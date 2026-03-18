@@ -6,8 +6,9 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "paths": {
-      "@/render/*": ["render/*"],
-      "@/markdoc-config/*": ["markdoc-config/*"]
+      "@repo/markdoc-md": ["index.ts"],
+      "@repo/markdoc-md/*": ["*"],
+      "@repo/design-system/*": ["../design-system/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

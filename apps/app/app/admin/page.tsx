@@ -12,10 +12,11 @@ import {
 	FileText,
 	FlaskConical,
 	Settings,
-	Shield,
 	Users,
 } from "lucide-react";
 import Link from "next/link";
+import { getQueryClient } from "@/lib/get-query-client";
+import { orpc } from "@/lib/orpc";
 
 interface AdminCardProps {
 	title: string;
@@ -130,27 +131,17 @@ const adminFeatures: AdminCardProps[] = [
 	},
 ];
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+	const queryClient = getQueryClient();
+	const weeklyStats = await queryClient.fetchQuery(
+		orpc.admin.usage.stats.queryOptions({
+			input: { filter: "week" },
+		}),
+	);
+
 	return (
 		<div className="p-4 sm:p-6">
 			<div className="mx-auto max-w-5xl space-y-6 sm:space-y-8">
-				{/* Welcome Section */}
-				<div className="space-y-2">
-					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-solarized-blue/10 sm:h-12 sm:w-12">
-							<Shield className="h-5 w-5 text-solarized-blue sm:h-6 sm:w-6" />
-						</div>
-						<div>
-							<h1 className="font-bold text-xl text-solarized-base00 sm:text-2xl">
-								Admin-Dashboard
-							</h1>
-							<p className="text-sm text-solarized-base01 sm:text-base">
-								Verwalten Sie Ihre MDScribe-Plattform von hier aus
-							</p>
-						</div>
-					</div>
-				</div>
-
 				{/* Quick Stats */}
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
@@ -176,36 +167,28 @@ export default function AdminDashboardPage() {
 										: "Entwicklung"}
 								</p>
 							</div>
-							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Admin-Tools
-								</p>
-								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
-									{adminFeatures.filter((f) => f.status === "active").length}{" "}
-									Aktiv
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Geplant
-								</p>
-								<p className="font-semibold text-base text-solarized-base01 sm:text-lg">
-									{
-										adminFeatures.filter((f) => f.status === "coming-soon")
-											.length
-									}{" "}
-									Funktionen
-								</p>
-							</div>
+								<div className="space-y-1">
+									<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
+										Wöchentlich aktive Nutzer
+									</p>
+									<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
+										{weeklyStats.activeUsers}
+									</p>
+								</div>
+								<div className="space-y-1">
+									<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
+										Wöchentliche KI-Events
+									</p>
+									<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
+										{weeklyStats.totalEvents}
+									</p>
+								</div>
 						</div>
 					</CardContent>
 				</Card>
 
 				{/* Admin Tools Grid */}
 				<div className="space-y-3 sm:space-y-4">
-					<h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
-						Admin-Tools
-					</h2>
 					<div className="grid gap-3 sm:gap-4 md:grid-cols-2">
 						{adminFeatures.map((feature) => (
 							<AdminCard key={feature.title} {...feature} />

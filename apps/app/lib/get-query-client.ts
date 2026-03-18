@@ -12,8 +12,7 @@ import {
  * - gcTime: 5 minutes - keeps unused queries in cache for quick re-access
  * - Pending query dehydration - enables streaming SSR (queries start on server, complete on client)
  */
-const makeQueryClient = () => {
-	return new QueryClient({
+const makeQueryClient = () => new QueryClient({
 		defaultOptions: {
 			dehydrate: {
 				// Include pending queries in dehydration for streaming SSR
@@ -40,7 +39,6 @@ const makeQueryClient = () => {
 			},
 		},
 	});
-};
 
 let browserQueryClient: QueryClient | undefined;
 

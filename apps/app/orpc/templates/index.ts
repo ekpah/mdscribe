@@ -1,19 +1,6 @@
 import { type } from "@orpc/server";
-import {
-	and,
-	asc,
-	count,
-	desc,
-	eq,
-	favourites,
-	sql,
-	template,
-	templateExample,
-	user,
-	type Template,
-	type TemplateExample,
-	type User,
-} from "@repo/database";
+import { and, asc, count, desc, eq, favourites, sql, template, templateExample, user } from '@repo/database';
+import type { Template, TemplateExample, User } from '@repo/database';
 import { env } from "@repo/env";
 import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
@@ -35,7 +22,7 @@ const favouriteCount = (templateId: typeof template.id) =>
 // ============================================================================
 
 type TemplateWithRelations = Template & {
-	favouriteOf: Array<{ id: string }>;
+	favouriteOf: { id: string }[];
 	examples: TemplateExampleSummary[];
 	author: User;
 	_count: { favouriteOf: number };
@@ -70,8 +57,8 @@ ${content}`;
 
 const buildTemplateExampleRows = (templateId: string, examples: string[]) =>
 	examples.map((example) => ({
-		templateId,
 		content: example,
+		templateId,
 	}));
 
 // ============================================================================
@@ -84,23 +71,23 @@ const getTemplateInput = z.object({
 
 const createTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
-	name: z.string().min(1, "Name is required"),
 	content: z.string(),
 	examples: z
 		.array(z.string().trim().min(1, "Example content is required"))
 		.max(10, "A maximum of 10 examples is allowed")
 		.default([]),
+	name: z.string().min(1, "Name is required"),
 });
 
 const updateTemplateInput = z.object({
-	id: z.string(),
 	category: z.string().min(1, "Category is required"),
-	name: z.string().min(1, "Name is required"),
 	content: z.string(),
 	examples: z
 		.array(z.string().trim().min(1, "Example content is required"))
 		.max(10, "A maximum of 10 examples is allowed")
 		.default([]),
+	id: z.string(),
+	name: z.string().min(1, "Name is required"),
 });
 
 const favouriteInput = z.object({
@@ -144,16 +131,16 @@ const addCategories = (
 const listTemplatesHandler = pub.handler(async ({ context }) => {
 	const templates = await context.db
 		.select({
-			id: template.id,
-			title: template.title,
-			category: template.category,
-			content: template.content,
-			authorId: template.authorId,
-			updatedAt: template.updatedAt,
-			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
+			authorId: template.authorId,
+			category: template.category,
+			content: template.content,
+			embedding: template.embedding,
+			id: template.id,
+			title: template.title,
+			updatedAt: template.updatedAt,
 		})
 		.from(template);
 
@@ -169,24 +156,24 @@ const getTemplateHandler = pub
 	.handler(async ({ context, input }) => {
 		// Get template with author
 		const [templateData] = await context.db
-			.select({
-				id: template.id,
-				title: template.title,
+				.select({
+					author: {
+						createdAt: user.createdAt,
+						email: user.email,
+						emailVerified: user.emailVerified,
+						id: user.id,
+						image: user.image,
+						name: user.name,
+						stripeCustomerId: user.stripeCustomerId,
+						updatedAt: user.updatedAt,
+					},
+				authorId: template.authorId,
 				category: template.category,
 				content: template.content,
-				authorId: template.authorId,
-				updatedAt: template.updatedAt,
 				embedding: template.embedding,
-				author: {
-					id: user.id,
-					name: user.name,
-					email: user.email,
-					emailVerified: user.emailVerified,
-					image: user.image,
-					createdAt: user.createdAt,
-					updatedAt: user.updatedAt,
-					stripeCustomerId: user.stripeCustomerId,
-				},
+				id: template.id,
+				title: template.title,
+				updatedAt: template.updatedAt,
 			})
 			.from(template)
 			.leftJoin(user, eq(template.authorId, user.id))
@@ -209,8 +196,8 @@ const getTemplateHandler = pub
 				.then((result) => result[0]),
 			context.db
 				.select({
-					id: templateExample.id,
 					content: templateExample.content,
+					id: templateExample.id,
 				})
 				.from(templateExample)
 				.where(eq(templateExample.templateId, input.id))
@@ -219,10 +206,10 @@ const getTemplateHandler = pub
 
 		return {
 			...templateData,
-			favouriteOf: favouriteUsers,
-			examples,
-			author: templateData.author as User,
 			_count: { favouriteOf: Number(countResult?.count ?? 0) },
+			author: templateData.author as User,
+			examples,
+			favouriteOf: favouriteUsers,
 		};
 	});
 
@@ -236,16 +223,16 @@ const getTemplateHandler = pub
 const getFavouritesHandler = authed.handler(async ({ context }) => {
 	const favoriteTemplates = await context.db
 		.select({
-			id: template.id,
-			title: template.title,
-			category: template.category,
-			content: template.content,
-			authorId: template.authorId,
-			updatedAt: template.updatedAt,
-			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
+			authorId: template.authorId,
+			category: template.category,
+			content: template.content,
+			embedding: template.embedding,
+			id: template.id,
+			title: template.title,
+			updatedAt: template.updatedAt,
 		})
 		.from(template)
 		.innerJoin(favourites, eq(favourites.templateId, template.id))
@@ -261,16 +248,16 @@ const getFavouritesHandler = authed.handler(async ({ context }) => {
 const getAuthoredHandler = authed.handler(async ({ context }) => {
 	const userTemplates = await context.db
 		.select({
-			id: template.id,
-			title: template.title,
-			category: template.category,
-			content: template.content,
-			authorId: template.authorId,
-			updatedAt: template.updatedAt,
-			embedding: template.embedding,
 			_count: {
 				favouriteOf: favouriteCount(template.id),
 			},
+			authorId: template.authorId,
+			category: template.category,
+			content: template.content,
+			embedding: template.embedding,
+			id: template.id,
+			title: template.title,
+			updatedAt: template.updatedAt,
 		})
 		.from(template)
 		.where(eq(template.authorId, context.session.user.id))
@@ -336,8 +323,8 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 	}
 
 	return {
-		categorySuggestions,
 		canEditSource: context.session.user.email === env.ADMIN_EMAIL,
+		categorySuggestions,
 	};
 });
 
@@ -362,16 +349,16 @@ const createTemplateHandler = authed
 			const result = await tx
 				.insert(template)
 				.values({
-					category: input.category,
-					title: input.name,
-					content: input.content,
 					authorId: context.session.user.id,
-					updatedAt: new Date(),
+					category: input.category,
+					content: input.content,
 					embedding: embedding,
+					title: input.name,
+					updatedAt: new Date(),
 				})
 				.returning();
 
-			const newTemplate = result[0];
+			const [newTemplate] = result;
 			if (!newTemplate) {
 				throw new Error("Failed to create template");
 			}
@@ -404,10 +391,10 @@ const updateTemplateHandler = authed
 				.update(template)
 				.set({
 					category: input.category,
-					title: input.name,
 					content: input.content,
-					updatedAt: new Date(),
 					embedding: embedding,
+					title: input.name,
+					updatedAt: new Date(),
 				})
 				.where(
 					and(
@@ -417,7 +404,7 @@ const updateTemplateHandler = authed
 				)
 				.returning();
 
-			const updatedTemplate = result[0];
+			const [updatedTemplate] = result;
 			if (!updatedTemplate) {
 				throw new Error("Failed to update template or template not found");
 			}
@@ -480,17 +467,17 @@ const removeFavouriteHandler = authed
 // ============================================================================
 
 export const templatesHandler = {
-	// Public
-	list: listTemplatesHandler,
-	get: getTemplateHandler,
-	// Authenticated - Read
-	favourites: getFavouritesHandler,
+	addFavourite: addFavouriteHandler,
 	authored: getAuthoredHandler,
-	editorContext: getEditorContextHandler,
 	// Authenticated - CRUD
 	create: createTemplateHandler,
-	update: updateTemplateHandler,
+	editorContext: getEditorContextHandler,
+	// Authenticated - Read
+	favourites: getFavouritesHandler,
+	// Public
+	get: getTemplateHandler,
+	list: listTemplatesHandler,
 	// Authenticated - Favourites
-	addFavourite: addFavouriteHandler,
 	removeFavourite: removeFavouriteHandler,
+	update: updateTemplateHandler,
 };

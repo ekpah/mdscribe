@@ -26,14 +26,14 @@ import { Card } from "@repo/design-system/components/ui/card";
 import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { fillPDFForm } from "../../_lib/fill-pdf-form";
-import { parsePDFFormFields } from "../../_lib/parse-pdf-form-fields";
-import type { FieldMapping, PDFField } from "../../_lib/parse-pdf-form-fields";
-import PDFDebugPanel from "../../_components/pdf-debug-panel";
-import PDFUploadSection from "../../_components/pdf-upload-section";
+import { fillPDFForm } from "@/app/admin/documents-playground/_lib/fill-pdf-form";
+import { parsePDFFormFields } from "@/app/admin/documents-playground/_lib/parse-pdf-form-fields";
+import type { FieldMapping, PDFField } from "@/app/admin/documents-playground/_lib/parse-pdf-form-fields";
+import PDFDebugPanel from "@/app/admin/documents-playground/_components/pdf-debug-panel";
+import PDFUploadSection from "@/app/admin/documents-playground/_components/pdf-upload-section";
 import InputEditor from "./input-editor";
 
-const PDFViewSection = dynamic(() => import("../../_components/pdf-view-section"), {
+const PDFViewSection = dynamic(() => import("@/app/admin/documents-playground/_components/pdf-view-section"), {
 	ssr: false,
 });
 
@@ -51,17 +51,67 @@ const determineMarkdocType = (pdfType: PDFField["type"]): "Info" | "Switch" => {
 	return "Info";
 };
 
+const buildEnhancedMapping = (
+	aiMapping: FieldMapping,
+	existingMappings: EnhancedFieldMapping[],
+): EnhancedFieldMapping => {
+	const existing = existingMappings.find(
+		(fieldMapping) => fieldMapping.fieldName === aiMapping.fieldName,
+	);
+	return {
+		...aiMapping,
+		markdocType: existing?.markdocType || "Info",
+		pdfType: existing?.pdfType || "text",
+	};
+};
+
+const toPdfBlob = (pdfFile: Uint8Array): Blob => {
+	const arrayBuffer = pdfFile.buffer.slice(
+		pdfFile.byteOffset,
+		pdfFile.byteOffset + pdfFile.byteLength,
+	) as ArrayBuffer;
+	return new Blob([arrayBuffer], { type: "application/pdf" });
+};
+
+const createEnhanceFormData = (
+	pdfFile: Uint8Array,
+	fieldMappings: EnhancedFieldMapping[],
+) => {
+	const file = new File([toPdfBlob(pdfFile)], "document.pdf", {
+		type: "application/pdf",
+	});
+	const formData = new FormData();
+	formData.append("file", file);
+	formData.append("fieldMapping", JSON.stringify(fieldMappings));
+	return formData;
+};
+
+const requestEnhancedMappings = async (
+	formData: FormData,
+): Promise<{ fieldMapping: FieldMapping[] }> => {
+	const response = await fetch("/api/documents/parse-form", {
+		body: formData,
+		method: "POST",
+	});
+	if (!response.ok) {
+		const errorText = await response.text();
+		throw new Error(errorText || "Eingaben konnten nicht verbessert werden");
+	}
+	return response.json();
+};
+
+const toErrorMessage = (error: unknown): string =>
+	error instanceof Error ? error.message : "Unbekannter Fehler aufgetreten";
+
 export default function CreateDocumentSection() {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
 	const [fieldMappings, setFieldMappings] = useState<EnhancedFieldMapping[]>([]);
-	const [, setFields] = useState<PDFField[]>([]);
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
 
 	const handleClearDocument = useCallback(() => {
 		setPdfFile(null);
 		setFieldMappings([]);
-		setFields([]);
 		setFieldValues({});
 		setFilledPdf(null);
 	}, []);
@@ -71,7 +121,6 @@ export default function CreateDocumentSection() {
 
 		// get form fields from pdf
 		const { fields: parsedFields } = await parsePDFFormFields(file);
-		setFields(parsedFields);
 		
 		// set initial field mapping with enhanced properties
 		setFieldMappings(
@@ -109,59 +158,25 @@ export default function CreateDocumentSection() {
 			return;
 		}
 
+		toast.loading("Eingaben werden mit KI verbessert...", {
+			id: "enhance-ai",
+		});
 		try {
-			// Convert Uint8Array to File for FormData
-			const arrayBuffer = pdfFile.buffer.slice(
-				pdfFile.byteOffset,
-				pdfFile.byteOffset + pdfFile.byteLength,
-			) as ArrayBuffer;
-			const blob = new Blob([arrayBuffer], { type: "application/pdf" });
-			const file = new File([blob], "document.pdf", {
-				type: "application/pdf",
-			});
-
-			const formData = new FormData();
-			formData.append("file", file);
-			formData.append("fieldMapping", JSON.stringify(fieldMappings));
-			toast.loading("Eingaben werden mit KI verbessert...", {
-				id: "enhance-ai",
-			});
-
-			const response = await fetch("/api/documents/parse-form", {
-				body: formData,
-				method: "POST",
-			});
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(
-					errorText || "Eingaben konnten nicht verbessert werden",
-				);
-			}
-			const data = await response.json();
-			
-				// Update field mappings with AI-enhanced version, preserving other fields
-				const enhancedMappings = data.fieldMapping.map((aiMapping: FieldMapping) => {
-					const existing = fieldMappings.find(
-						(fieldMapping) => fieldMapping.fieldName === aiMapping.fieldName,
-					);
-					return {
-						...aiMapping,
-						markdocType: existing?.markdocType || "Info",
-					pdfType: existing?.pdfType || "text",
-				};
-			});
-			setFieldMappings(enhancedMappings);
+			const formData = createEnhanceFormData(pdfFile, fieldMappings);
+			const data = await requestEnhancedMappings(formData);
+			setFieldMappings(
+				data.fieldMapping.map((aiMapping) =>
+					buildEnhancedMapping(aiMapping, fieldMappings),
+				),
+			);
 
 			toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: "Unbekannter Fehler aufgetreten";
-				toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
-					id: "enhance-ai",
-				});
-			}
+			toast.error(
+				`Eingaben konnten nicht verbessert werden: ${toErrorMessage(error)}`,
+				{ id: "enhance-ai" },
+			);
+		}
 	}, [fieldMappings, pdfFile]);
 
 	return (

@@ -2,21 +2,16 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@repo/design-system/components/ui/accordion";
+import type { VoiceFillAudioFile } from '@repo/design-system/components/inputs/voice-input-controls';
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
-import { Input } from "@repo/design-system/components/ui/input";
-import { Label } from "@repo/design-system/components/ui/label";
 import {
-	ModelSelector,
-	type ModelSelectorOption,
-} from "@repo/design-system/components/ui/model-selector";
+	Card,
+	CardContent,
+} from "@repo/design-system/components/ui/card";
+import { Label } from "@repo/design-system/components/ui/label";
+import { ModelSelector } from '@repo/design-system/components/ui/model-selector';
+import type { ModelSelectorOption } from '@repo/design-system/components/ui/model-selector';
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,
@@ -26,19 +21,21 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
-import { Textarea } from "@repo/design-system/components/ui/textarea";
-import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
+import { useQuery } from "@tanstack/react-query";
+import { cn } from "@repo/design-system/lib/utils";
 import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, MutableRefObject, UIEvent } from 'react';
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 
-import { allScribeDocTypes, scribeDocTypeUi } from "../_lib/scribe-doc-types";
-import type { PlaygroundModel, PlaygroundParameters } from "../_lib/types";
-import { DEFAULT_PARAMETERS } from "../_lib/types";
+import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
+import { allScribeDocTypes, scribeDocTypeUi } from '@/app/admin/playground/_lib/scribe-doc-types';
+import type { PlaygroundDocumentType } from '@/app/admin/playground/_lib/scribe-doc-types';
+import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
+import { DEFAULT_PARAMETERS } from "@/app/admin/playground/_lib/types";
 import { ParameterControls } from "./parameter-controls";
 import { ResultDisplay } from "./result-display";
 
@@ -57,10 +54,10 @@ interface PlaygroundPanelProps {
  * Reverse mapping from stored usage input back to form field names.
  * Normalization happens centrally now; we keep these mappings for UI hydration.
  */
-function parseVariablesToFormFields(
+const parseVariablesToFormFields = (
 	documentType: DocumentType,
 	variables: Record<string, unknown>,
-): { main: string; additional: Record<string, string> } {
+): { main: string; additional: Record<string, string> } => {
 	const v = variables as Record<string, unknown>;
 
 	const pickString = (...keys: string[]): string => {
@@ -74,62 +71,67 @@ function parseVariablesToFormFields(
 	};
 
 	const result: { main: string; additional: Record<string, string> } = {
-		main: "",
 		additional: {},
+		main: "",
 	};
 
 	switch (documentType) {
 		case "discharge":
-		case "outpatient":
+		case "outpatient": {
 			result.main = pickString("notes", "dischargeNotes", "consultationNotes");
 			result.additional = {
-				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 				anamnese: pickString("anamnese"),
 				befunde: pickString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		case "procedures":
+		case "procedures": {
 			result.main = pickString("notes", "procedureNotes");
 			break;
+		}
 
-		case "anamnese":
+		case "anamnese": {
 			result.main = pickString("notes");
 			result.additional = {
 				befunde: pickString("befunde"),
 				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
-
-		case "physical-exam":
-			result.main = pickString("notes");
-			break;
+		}
 
 		case "diagnosis":
-		case "admission-todos":
-		case "icu-transfer":
+		case "icu-transfer": {
 			result.main = pickString("notes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
-				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 				befunde: pickString("befunde"),
+				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		case "befunde":
+		case "befunde": {
 			result.main = pickString("notes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
 				diagnoseblock: pickString("diagnoseblock", "vordiagnosen"),
 			};
 			break;
+		}
 
-		default:
+		default: {
 			result.main = pickString("notes", "dischargeNotes", "procedureNotes");
+		}
 	}
 
 	return result;
-}
+};
+
+const isPlaygroundDocumentType = (
+	documentType: DocumentType,
+): documentType is PlaygroundDocumentType => documentType in scribeDocTypeUi;
 
 interface ModelRunConfig {
 	id: string;
@@ -153,36 +155,550 @@ interface RunState {
 	requestId?: string;
 }
 
+interface AudioRecording {
+	blob: Blob;
+	duration: number;
+	id: string;
+}
+
 interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 	model: PlaygroundModel;
 	isTop: boolean;
 	providerLabel: string;
 }
 
+interface DirtySelectorLabelProps {
+	isDirty: boolean;
+	label: string;
+}
+
 const PROVIDER_LABELS: Record<string, string> = {
 	anthropic: "Anthropic",
-	openai: "OpenAI",
+	cohere: "Cohere",
+	deepseek: "DeepSeek",
 	google: "Google",
 	"meta-llama": "Meta Llama",
 	mistralai: "Mistral AI",
-	cohere: "Cohere",
-	deepseek: "DeepSeek",
+	openai: "OpenAI",
 	qwen: "Qwen",
 	"x-ai": "xAI",
 	"z-ai": "Zhipu AI",
 };
 
-function getProviderFromModelId(modelId: string): string {
-	return modelId.split("/")[0] || "other";
+const getProviderFromModelId = (modelId: string): string => modelId.split("/")[0] || "other";
+
+const getProviderGroup = (model: PlaygroundModel): string =>
+	model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId);
+
+const PLAYGROUND_EDITOR_TEXTAREA_CLASS = "font-mono text-xs leading-[1.35]";
+
+const DirtySelectorLabel = ({ isDirty, label }: DirtySelectorLabelProps) => (
+	<div className="flex min-h-[30px] flex-col justify-start sm:w-24 sm:shrink-0">
+		<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
+		<span
+			className={cn(
+				"h-3 text-[9px] leading-3 transition-opacity",
+				isDirty
+					? "text-solarized-orange opacity-100"
+					: "text-solarized-base01/60 opacity-0",
+			)}
+		>
+			Geändert
+		</span>
+	</div>
+);
+
+type PlaygroundView =
+	| "config"
+	| "inputs"
+	| "models"
+	| "results";
+type PromptVariableSource = "input" | "runtime";
+
+interface PromptPreviewVariable {
+	key: string;
+	label: string;
+	source: PromptVariableSource;
+	value: string;
 }
 
-function getProviderGroup(model: PlaygroundModel): string {
-	return (
-		model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId)
+const PLAYGROUND_VIEW_META: Record<
+	PlaygroundView,
+	{ description: string; label: string }
+> = {
+	config: {
+		description: "Prompt, Template und kompilierte Nachrichten",
+		label: "Prompt",
+	},
+	inputs: {
+		description: "Quelltexte, Zusatzfelder und Spracheingabe",
+		label: "Inputs",
+	},
+	models: {
+		description: "Modelle und Parameter für Vergleichsruns",
+		label: "Models",
+	},
+	results: {
+		description: "Alle Modellantworten und Streaming-Ausgaben",
+		label: "Results",
+	},
+};
+
+const NONE_TEMPLATE_VALUE = "__none__";
+
+const PROMPT_RUNTIME_LABELS: Record<string, string> = {
+	contextXml: "Context XML",
+	relevantTemplate: "Relevante Vorlage",
+	todaysDate: "Heutiges Datum",
+};
+
+const promptHarnessToDocumentType = new Map(
+	allScribeDocTypes.map((documentType) => [
+		scribeDocTypeUi[documentType].defaultPromptName,
+		documentType,
+	]),
+);
+
+const buildSelectedTemplateReference = (templateData: {
+	content: string;
+	examples: { content: string }[];
+	title: string;
+}): string => {
+	const sections = [
+		"## Ausgewaehlte Vorlage (Referenz)",
+		`Titel: ${templateData.title}`,
+		templateData.content,
+	];
+
+	if (templateData.examples.length > 0) {
+		sections.push("## Beispiele");
+		for (const example of templateData.examples) {
+			sections.push(example.content);
+		}
+	}
+
+	return sections.join("\n\n");
+};
+
+const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
+	const chunkSize = 8192;
+	const chunks: string[] = [];
+	for (let i = 0; i < data.length; i += chunkSize) {
+		const chunk = data.subarray(i, i + chunkSize);
+		chunks.push(String.fromCodePoint(...chunk));
+	}
+	return btoa(chunks.join(""));
+};
+
+const blobToBase64 = async (blob: Blob): Promise<string> => {
+	const bytes = new Uint8Array(await blob.arrayBuffer());
+	return encodeUint8ArrayToBase64(bytes);
+};
+
+const serializePromptVariable = (value: unknown): string => {
+	if (typeof value === "string") {
+		return value;
+	}
+
+	if (typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+
+	if (value === null || value === undefined) {
+		return "";
+	}
+
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
+	}
+};
+
+const getPromptMessageMatches = (
+	content: string,
+	variables: PromptPreviewVariable[],
+): PromptPreviewVariable[] =>
+	variables
+		.filter(
+			(variable) =>
+				variable.value.trim().length > 0 && content.includes(variable.value),
+		)
+		.sort((a, b) => {
+			if (a.source !== b.source) {
+				return a.source === "input" ? -1 : 1;
+			}
+			return a.label.localeCompare(b.label);
+		});
+
+interface PromptHighlightSegment {
+	source: PromptVariableSource | "plain";
+	text: string;
+}
+
+const getSegmentHighlightClassName = (
+	source: PromptHighlightSegment["source"],
+): string => {
+	if (source === "runtime") {
+		return "rounded-[3px] border border-solarized-orange/40 bg-solarized-orange/12 px-0.5 text-solarized-orange";
+	}
+	if (source === "input") {
+		return "rounded-[3px] border border-solarized-blue/40 bg-solarized-blue/12 px-0.5 text-solarized-blue";
+	}
+	return "";
+};
+
+const getPromptMessageRoleBadgeClassName = (
+	role: "system" | "user" | "assistant",
+): string => {
+	if (role === "system") {
+		return "border-solarized-blue/40 bg-solarized-blue/12 text-solarized-blue";
+	}
+	if (role === "user") {
+		return "border-solarized-green/40 bg-solarized-green/12 text-solarized-green";
+	}
+	return "border-solarized-base01/35 bg-solarized-base01/10 text-solarized-base00";
+};
+
+const arePromptMessagesEqual = (
+	left: { role: "system" | "user" | "assistant"; content: string }[],
+	right: { role: "system" | "user" | "assistant"; content: string }[],
+): boolean => {
+	if (left.length !== right.length) {
+		return false;
+	}
+	for (let index = 0; index < left.length; index += 1) {
+		const leftMessage = left[index];
+		const rightMessage = right[index];
+		if (!leftMessage || !rightMessage) {
+			return false;
+		}
+		if (leftMessage.role !== rightMessage.role || leftMessage.content !== rightMessage.content) {
+			return false;
+		}
+	}
+	return true;
+};
+
+const applyHarnessPlaceholders = (
+	content: string,
+	placeholderValues: Record<string, string>,
+): string => {
+	let next = content;
+	for (const [placeholder, value] of Object.entries(placeholderValues)) {
+		if (!value) {
+			continue;
+		}
+		next = next.split(placeholder).join(value);
+	}
+	return next;
+};
+
+const buildPromptHighlightSegments = (
+	content: string,
+	variables: PromptPreviewVariable[],
+): PromptHighlightSegment[] => {
+	if (content.length === 0) {
+		return [{ source: "plain", text: "" }];
+	}
+
+	const runtimeVariables = variables.filter(
+		(variable) => variable.source === "runtime" && variable.value.trim().length > 0,
 	);
-}
+	const inputVariables = variables.filter(
+		(variable) => variable.source === "input" && variable.value.trim().length > 0,
+	);
+	const allVariables = [...runtimeVariables, ...inputVariables];
+	if (allVariables.length === 0) {
+		return [{ source: "plain", text: content }];
+	}
 
-export function PlaygroundPanel({
+	const marks: (PromptVariableSource | "plain")[] = Array.from(
+		{ length: content.length },
+		() => "plain",
+	);
+
+	const applyVariableMatches = (
+		selectedVariables: PromptPreviewVariable[],
+		source: PromptVariableSource,
+	) => {
+		for (const variable of selectedVariables) {
+			let searchStart = 0;
+
+			while (searchStart < content.length) {
+				const index = content.indexOf(variable.value, searchStart);
+				if (index === -1) {
+					break;
+				}
+
+				const end = index + variable.value.length;
+				for (let offset = index; offset < end; offset += 1) {
+					if (source === "input" || marks[offset] === "plain") {
+						marks[offset] = source;
+					}
+				}
+
+				searchStart = index + Math.max(variable.value.length, 1);
+			}
+		}
+	};
+
+	applyVariableMatches(runtimeVariables, "runtime");
+	applyVariableMatches(inputVariables, "input");
+
+	const segments: PromptHighlightSegment[] = [];
+	let segmentStart = 0;
+	let currentSource = marks[0] ?? "plain";
+	for (let index = 1; index < marks.length; index += 1) {
+		if (marks[index] === currentSource) {
+			continue;
+		}
+
+		segments.push({
+			source: currentSource,
+			text: content.slice(segmentStart, index),
+		});
+		segmentStart = index;
+		currentSource = marks[index] ?? "plain";
+	}
+	segments.push({
+		source: currentSource,
+		text: content.slice(segmentStart),
+	});
+	return segments;
+};
+
+const HighlightedPromptEditor = ({
+	highlightVariables,
+	onChange,
+	value,
+}: {
+	highlightVariables: PromptPreviewVariable[];
+	onChange: (value: string) => void;
+	value: string;
+}) => {
+	const overlayContentRef = useRef<HTMLDivElement | null>(null);
+	const segments = useMemo(
+		() => buildPromptHighlightSegments(value, highlightVariables),
+		[highlightVariables, value],
+	);
+
+	const handleScroll = useCallback((event: UIEvent<HTMLTextAreaElement>) => {
+		const overlayContent = overlayContentRef.current;
+		if (!overlayContent) {
+			return;
+		}
+
+		overlayContent.style.transform = `translate(${-event.currentTarget.scrollLeft}px, ${-event.currentTarget.scrollTop}px)`;
+	}, []);
+
+	const handleValueChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			onChange(event.target.value);
+		},
+		[onChange],
+	);
+
+	return (
+		<div className="relative h-full min-h-0">
+			<div
+				aria-hidden
+				className="pointer-events-none absolute inset-0 overflow-hidden rounded-md"
+			>
+				<div
+					ref={overlayContentRef}
+					className={cn(
+						"whitespace-pre-wrap break-words px-3 py-2 text-solarized-base00",
+						PLAYGROUND_EDITOR_TEXTAREA_CLASS,
+					)}
+				>
+						{segments.map((segment) => (
+									<span
+										className={cn(
+											getSegmentHighlightClassName(segment.source),
+										)}
+										key={`${segment.source}-${segment.text}`}
+									>
+									{segment.text}
+								</span>
+						))}
+				</div>
+			</div>
+				<textarea
+					value={value}
+					onChange={handleValueChange}
+					onScroll={handleScroll}
+					spellCheck={false}
+					className={cn(
+						"border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-full min-h-0 w-full resize-none rounded-md border border-solarized-base2 bg-transparent px-3 py-2 text-transparent shadow-xs transition-[color,box-shadow] outline-none caret-solarized-base00 selection:bg-solarized-base2/70 selection:text-solarized-base00 focus-visible:ring-[3px]",
+						PLAYGROUND_EDITOR_TEXTAREA_CLASS,
+					)}
+				/>
+			</div>
+		);
+};
+
+const PromptHarnessPreview = ({
+	inputItems,
+	messages,
+	onMessageChange,
+	runtimeItems,
+}: {
+	inputItems: PromptPreviewVariable[];
+	messages: { role: "system" | "user" | "assistant"; content: string }[];
+	onMessageChange: (index: number, content: string) => void;
+	runtimeItems: PromptPreviewVariable[];
+}) => {
+	const allPreviewItems = [...runtimeItems, ...inputItems];
+	const shouldStretchMessageRows = messages.length > 0 && messages.length <= 3;
+	const copyMessageHandlers = useMemo(
+		() =>
+			messages.map(
+				(message) => async () => {
+					await navigator.clipboard.writeText(message.content);
+					toast.success("Kopiert!");
+				},
+			),
+		[messages],
+	);
+
+	const messageChangeHandlers = useMemo(
+		() =>
+			messages.map(
+				(_, index) => (content: string) => onMessageChange(index, content),
+			),
+		[messages, onMessageChange],
+	);
+
+	if (messages.length === 0) {
+		return (
+			<div className="flex h-full min-h-0 items-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-6 text-sm text-solarized-base01">
+				Kompiliere den Prompt, um Harness, dynamische Inserts und gerenderte Nachrichten zu sehen.
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex h-full min-h-0 flex-col rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<div>
+					<h3 className="font-medium text-sm text-solarized-base00">
+						Prompt-Harness Vorschau
+					</h3>
+					<p className="text-xs text-solarized-base01">
+						Direkt editierbar. Erkannte Inputs und dynamische Inserts sind oberhalb markiert.
+					</p>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<Badge
+						variant="outline"
+						className="border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange"
+					>
+						Dynamisch
+					</Badge>
+					<Badge
+						variant="outline"
+						className="border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue"
+					>
+						Input
+					</Badge>
+				</div>
+			</div>
+
+			<div
+				className={cn(
+					"mt-3 min-h-0 flex-1 pr-1",
+					shouldStretchMessageRows
+						? "grid gap-3 overflow-hidden"
+						: "flex flex-col gap-3 overflow-y-auto",
+				)}
+				style={
+					shouldStretchMessageRows
+						? { gridTemplateRows: `repeat(${messages.length}, minmax(0, 1fr))` }
+						: undefined
+				}
+			>
+				{messages.map((message, index) => {
+					const copyMessageHandler = copyMessageHandlers[index];
+					const messageChangeHandler = messageChangeHandlers[index];
+					if (!copyMessageHandler || !messageChangeHandler) {
+						return null;
+					}
+
+					const matchingItems = getPromptMessageMatches(
+						message.content,
+						allPreviewItems,
+					);
+
+					return (
+						<div
+							className={cn(
+								"flex flex-col rounded-lg border border-solarized-base2 bg-solarized-base3 p-3",
+								shouldStretchMessageRows ? "h-full min-h-0" : "min-h-[240px]",
+							)}
+							key={`${message.role}-${index}`}
+						>
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<div className="flex items-center gap-2">
+									<Badge
+										variant="outline"
+										className={cn(
+											"font-mono text-[11px] uppercase",
+											getPromptMessageRoleBadgeClassName(message.role),
+										)}
+									>
+										{message.role}
+									</Badge>
+									<span className="text-xs text-solarized-base01">
+										Editierbare Fassung
+									</span>
+								</div>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
+									onClick={copyMessageHandler}
+								>
+									<Copy className="h-3.5 w-3.5" />
+									Copy
+								</Button>
+							</div>
+
+							{matchingItems.length > 0 ? (
+								<div className="mt-2 flex flex-wrap gap-2">
+									{matchingItems.map((item) => (
+										<Badge
+											key={`${message.role}-${index}-${item.source}-${item.key}`}
+											variant="outline"
+											className={cn(
+												item.source === "runtime"
+													? "border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange"
+													: "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue",
+											)}
+										>
+											{item.source === "runtime" ? "Dynamisch" : "Input"} · {item.label}
+										</Badge>
+									))}
+								</div>
+							) : null}
+
+							<div className="mt-3 min-h-0 flex-1">
+								<HighlightedPromptEditor
+									value={message.content}
+									onChange={messageChangeHandler}
+									highlightVariables={allPreviewItems}
+								/>
+							</div>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
+};
+
+export const PlaygroundPanel = ({
 	models,
 	topModelIds,
 	isLoadingModels,
@@ -190,15 +706,17 @@ export function PlaygroundPanel({
 	presetParameters,
 	presetDocumentType,
 	presetVariables,
-}: PlaygroundPanelProps) {
-	const [activeTab, setActiveTab] = useState<"input" | "prompt" | "models">("input");
-	const isMobile = useIsMobile();
-	const [mobileInputPanelValue, setMobileInputPanelValue] = useState<string | undefined>(
-		"input-config",
-	);
+}: PlaygroundPanelProps) => {
+	const [activeView, setActiveView] = useState<PlaygroundView>("config");
 
-	const initialDocType = presetDocumentType ?? "discharge";
-	const [documentType, setDocumentType] = useState<DocumentType>(initialDocType);
+	const resolvedPresetDocumentType = presetDocumentType ?? "discharge";
+	const initialDocType: PlaygroundDocumentType = isPlaygroundDocumentType(
+		resolvedPresetDocumentType,
+	)
+		? resolvedPresetDocumentType
+		: "discharge";
+	const [documentType, setDocumentType] =
+		useState<PlaygroundDocumentType>(initialDocType);
 
 	// Parse preset variables from usage event into form fields
 	const parsedPreset = useMemo(() => {
@@ -219,8 +737,9 @@ export function PlaygroundPanel({
 
 	// Apply async preset document type once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetDocTypeRef.current) return;
-		if (!presetDocumentType) return;
+		if (hasAppliedPresetDocTypeRef.current) {return;}
+		if (!presetDocumentType) {return;}
+		if (!isPlaygroundDocumentType(presetDocumentType)) {return;}
 
 		setDocumentType(presetDocumentType);
 		hasAppliedPresetDocTypeRef.current = true;
@@ -228,26 +747,162 @@ export function PlaygroundPanel({
 
 	// Apply async preset variables once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetFieldsRef.current) return;
-		if (!parsedPreset) return;
+		if (hasAppliedPresetFieldsRef.current) {return;}
+		if (!parsedPreset) {return;}
 
 		setFormMain(parsedPreset.main);
 		setFormAdditional(parsedPreset.additional);
 		hasAppliedPresetFieldsRef.current = true;
 	}, [parsedPreset]);
 
+	const promptHarnessQueryOptions = orpc.admin.scribe.prompts.list.queryOptions({
+		input: { limit: 200 },
+	});
+	const templatesQueryOptions = orpc.admin.templates.list.queryOptions();
+	const { data: promptHarnessesData } = useQuery(promptHarnessQueryOptions);
+	const { data: templateOptions = [] } = useQuery(templatesQueryOptions);
+
 	// Prompt selection / compilation
 	const [promptName, setPromptName] = useState<string>(docUi.defaultPromptName);
-	const [promptLabel, setPromptLabel] = useState<"staging" | "production">("staging");
+	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
+		NONE_TEMPLATE_VALUE,
+	);
+	const [promptHarnessDraftMessages, setPromptHarnessDraftMessages] = useState<
+		{ role: "system" | "user" | "assistant"; content: string }[]
+	>([]);
+	const [templateDraftContent, setTemplateDraftContent] = useState("");
+	const [templateDraftExamples, setTemplateDraftExamples] = useState<string[]>([]);
 	const [compiledMessages, setCompiledMessages] = useState<
-		Array<{ role: "system" | "user" | "assistant"; content: string }>
+		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
 	const [compiledOverride, setCompiledOverride] = useState<Array<{
 		role: "system" | "user" | "assistant";
 		content: string;
 	}> | null>(null);
-	const [compiledVariables, setCompiledVariables] = useState<Record<string, unknown>>({});
-	const [isCompiling, setIsCompiling] = useState(false);
+	const [promptRuntimeVariables, setPromptRuntimeVariables] = useState<Record<string, unknown>>({});
+	const compileRequestRef = useRef(0);
+	const loadedPromptHarnessNameRef = useRef<string | null>(null);
+	const loadedTemplateIdRef = useRef<string | null>(null);
+
+	const promptHarnessOptions = useMemo(() => {
+		const fetchedOptions = promptHarnessesData?.items ?? [];
+		if (fetchedOptions.length > 0) {
+			return fetchedOptions;
+		}
+		return allScribeDocTypes.map(
+			(docType) => scribeDocTypeUi[docType].defaultPromptName,
+		);
+	}, [promptHarnessesData?.items]);
+
+	const promptHarnessDetailsQueryOptions = orpc.admin.scribe.prompts.get.queryOptions({
+		input: { name: promptName },
+	});
+	const { data: selectedPromptHarnessDetails } = useQuery({
+		...promptHarnessDetailsQueryOptions,
+		enabled: promptName.trim().length > 0,
+	});
+
+	const templateDetailsQueryOptions = orpc.templates.get.queryOptions({
+		input: {
+			id:
+				selectedTemplateId === NONE_TEMPLATE_VALUE
+					? ""
+					: selectedTemplateId,
+		},
+	});
+	const { data: selectedTemplateDetails, isFetching: isFetchingSelectedTemplate } = useQuery({
+		...templateDetailsQueryOptions,
+		enabled: selectedTemplateId !== NONE_TEMPLATE_VALUE,
+	});
+
+	const promptHarnessBaseMessages = useMemo(
+		() =>
+			(selectedPromptHarnessDetails?.messages ?? []).map((message) => ({
+				content: serializePromptVariable(message.content),
+				role: message.role,
+			})),
+		[selectedPromptHarnessDetails?.messages],
+	);
+
+	useEffect(() => {
+		const currentPromptName = selectedPromptHarnessDetails?.name ?? null;
+		if (currentPromptName === null) {
+			if (loadedPromptHarnessNameRef.current !== null) {
+				setPromptHarnessDraftMessages([]);
+				loadedPromptHarnessNameRef.current = null;
+			}
+			return;
+		}
+
+		if (loadedPromptHarnessNameRef.current === currentPromptName) {
+			return;
+		}
+
+		setPromptHarnessDraftMessages(promptHarnessBaseMessages);
+		loadedPromptHarnessNameRef.current = currentPromptName;
+	}, [promptHarnessBaseMessages, selectedPromptHarnessDetails?.name]);
+
+	const isPromptHarnessDirty = useMemo(
+		() =>
+			promptHarnessBaseMessages.length > 0 &&
+			!arePromptMessagesEqual(promptHarnessDraftMessages, promptHarnessBaseMessages),
+		[promptHarnessDraftMessages, promptHarnessBaseMessages],
+	);
+
+	useEffect(() => {
+		const currentTemplateId = selectedTemplateDetails?.id ?? null;
+		if (currentTemplateId === null) {
+			if (loadedTemplateIdRef.current !== null) {
+				setTemplateDraftContent("");
+				setTemplateDraftExamples([]);
+				loadedTemplateIdRef.current = null;
+			}
+			return;
+		}
+
+		if (loadedTemplateIdRef.current === currentTemplateId) {
+			return;
+		}
+
+		setTemplateDraftContent(selectedTemplateDetails.content);
+		setTemplateDraftExamples(
+			(selectedTemplateDetails.examples ?? []).map((example) => example.content),
+		);
+		loadedTemplateIdRef.current = currentTemplateId;
+	}, [selectedTemplateDetails?.id, selectedTemplateDetails]);
+
+	const isTemplateDirty = useMemo(() => {
+		if (!selectedTemplateDetails) {
+			return false;
+		}
+		if (templateDraftContent !== selectedTemplateDetails.content) {
+			return true;
+		}
+		const baseExamples = (selectedTemplateDetails.examples ?? []).map(
+			(example) => example.content,
+		);
+		if (templateDraftExamples.length !== baseExamples.length) {
+			return true;
+		}
+		for (let index = 0; index < baseExamples.length; index += 1) {
+			if (templateDraftExamples[index] !== baseExamples[index]) {
+				return true;
+			}
+		}
+		return false;
+	}, [selectedTemplateDetails, templateDraftContent, templateDraftExamples]);
+
+	const selectedTemplateReference = useMemo(() => {
+		if (!selectedTemplateDetails) {
+			return "";
+		}
+
+		return buildSelectedTemplateReference({
+			content: templateDraftContent,
+			examples: templateDraftExamples.map((content) => ({ content })),
+			title: selectedTemplateDetails.title,
+		});
+	}, [selectedTemplateDetails, templateDraftContent, templateDraftExamples]);
 
 	const promptJson = useMemo(() => {
 		const data: Record<string, unknown> = {
@@ -259,60 +914,252 @@ export function PlaygroundPanel({
 				data[field.name] = value;
 			}
 		}
+		if (selectedTemplateReference.length > 0) {
+			data.relevantTemplate = selectedTemplateReference;
+		}
 		return JSON.stringify(data);
-	}, [docUi, formMain, formAdditional]);
+	}, [docUi, formMain, formAdditional, selectedTemplateReference]);
 
-	const compile = async () => {
-		setIsCompiling(true);
+	const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+	const [isParsingAudioRecordings, setIsParsingAudioRecordings] = useState(false);
+	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
+	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+	const audioChunksRef = useRef<Blob[]>([]);
+	const recordingStartTimeRef = useRef<number>(0);
+	const maxRecordings = 3;
+	const canRecordAudio = audioRecordings.length < maxRecordings;
+
+	const handleStartRecordingAudio = useCallback(async () => {
+		if (!canRecordAudio) {
+			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
+			return;
+		}
+
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const mediaRecorder = new MediaRecorder(stream);
+			mediaRecorderRef.current = mediaRecorder;
+			audioChunksRef.current = [];
+			recordingStartTimeRef.current = Date.now();
+
+			mediaRecorder.addEventListener("dataavailable", (event) => {
+				audioChunksRef.current.push(event.data);
+			});
+
+			mediaRecorder.addEventListener("stop", () => {
+				const audioBlob = new Blob(audioChunksRef.current, {
+					type: "audio/wav",
+				});
+				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
+				const newRecording: AudioRecording = {
+					blob: audioBlob,
+					duration,
+					id: `audio-${Date.now()}`,
+				};
+				setAudioRecordings((prev) => [...prev, newRecording]);
+				for (const track of stream.getTracks()) {
+					track.stop();
+				}
+			});
+
+			mediaRecorder.start();
+			setIsRecordingAudio(true);
+			toast.success("Aufnahme gestartet");
+		} catch (error) {
+			console.error("Error starting recording:", error);
+			toast.error("Fehler beim Starten der Aufnahme");
+		}
+	}, [canRecordAudio]);
+
+	const handleStopRecordingAudio = useCallback(() => {
+		if (mediaRecorderRef.current && isRecordingAudio) {
+			mediaRecorderRef.current.stop();
+			setIsRecordingAudio(false);
+			toast.success("Aufnahme beendet");
+		}
+	}, [isRecordingAudio]);
+
+	const handleToggleRecordingAudio = useCallback(() => {
+		if (isRecordingAudio) {
+			handleStopRecordingAudio();
+		} else {
+			void handleStartRecordingAudio();
+		}
+	}, [handleStartRecordingAudio, handleStopRecordingAudio, isRecordingAudio]);
+
+	const handleRemoveAudioRecording = useCallback((id: string) => {
+		setAudioRecordings((prev) =>
+			prev.filter((recording) => recording.id !== id),
+		);
+	}, []);
+
+	const recordingAudioButtonTitle = (() => {
+		if (!canRecordAudio && !isRecordingAudio) {
+			return `Maximal ${maxRecordings} Aufnahmen möglich`;
+		}
+		if (isRecordingAudio) {
+			return "Aufnahme stoppen";
+		}
+		return "Audioaufnahme starten";
+	})();
+
+	const handleParseAudioToText = useCallback(async (audioFiles: VoiceFillAudioFile[]) => {
+		toast.loading("Audio wird zu Text geparst...", {
+			id: "playground-audio-parse",
+		});
+
+		try {
+			const result = await orpc.scribe.voiceFill.call({
+				audioFiles,
+				inputFields: [
+					{
+						description: [
+							docUi.mainField.label,
+							docUi.mainField.description,
+							"Transkribiere die Sprachaufnahme als Fließtext für dieses Hauptfeld.",
+						]
+							.filter(Boolean)
+							.join(" · "),
+						label: docUi.mainField.name,
+					},
+				],
+			});
+
+			const parsedText = result.fieldValues[docUi.mainField.name]?.trim();
+			if (!parsedText) {
+				throw new Error("Keine verwertbare Sprache erkannt");
+			}
+
+			setFormMain((prev) => {
+				const trimmedPrevious = prev.trim();
+				return trimmedPrevious.length > 0
+					? `${trimmedPrevious}\n\n${parsedText}`
+					: parsedText;
+			});
+
+			toast.success("Audio als Text ins Hauptfeld übernommen", {
+				id: "playground-audio-parse",
+			});
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Unbekannter Fehler";
+			toast.error(`Audio-Parsing fehlgeschlagen: ${errorMessage}`, {
+				id: "playground-audio-parse",
+			});
+			throw error;
+		}
+	}, [docUi.mainField.description, docUi.mainField.label, docUi.mainField.name]);
+
+	const handleParseRecordedAudioToText = useCallback(async () => {
+		if (audioRecordings.length === 0) {
+			toast.error("Bitte zuerst Audio aufnehmen");
+			return;
+		}
+
+		setIsParsingAudioRecordings(true);
+		try {
+			const audioFiles = await Promise.all(
+				audioRecordings.map(async (recording) => ({
+					data: await blobToBase64(recording.blob),
+					mimeType: recording.blob.type,
+				})),
+			);
+			await handleParseAudioToText(audioFiles);
+			setAudioRecordings([]);
+		} finally {
+			setIsParsingAudioRecordings(false);
+		}
+	}, [audioRecordings, handleParseAudioToText]);
+
+	const compilePrompt = useCallback(async () => {
+		const requestId = compileRequestRef.current + 1;
+		compileRequestRef.current = requestId;
 		try {
 			const res = await orpc.admin.scribe.compilePrompt.call({
 				documentType,
-				promptName,
 				promptJson,
+				promptName,
 			});
 
-			setCompiledVariables(res.variablesUsed ?? {});
+			if (compileRequestRef.current !== requestId) {
+				return;
+			}
+
 			setCompiledMessages(
 				(res.compiledMessages ?? []).map((m) => ({
-					role: m.role,
 					content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+					role: m.role,
 				})),
 			);
 			setCompiledOverride(null);
-			toast.success("Prompt kompiliert");
+			setPromptRuntimeVariables(
+				res.promptVariables
+					? ({ ...res.promptVariables } as Record<string, unknown>)
+					: {},
+			);
 		} catch (error) {
+			if (compileRequestRef.current !== requestId) {
+				return;
+			}
 			toast.error(error instanceof Error ? error.message : "Fehler beim Kompilieren");
-		} finally {
-			setIsCompiling(false);
 		}
-	};
+	}, [documentType, promptJson, promptName]);
+
+	useEffect(() => {
+		if (
+			selectedTemplateId !== NONE_TEMPLATE_VALUE &&
+			(isFetchingSelectedTemplate || !selectedTemplateDetails)
+		) {
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			const runCompilePrompt = async () => {
+				try {
+					await compilePrompt();
+				} catch (error) {
+					console.error("Error compiling prompt:", error);
+				}
+			};
+			runCompilePrompt();
+		}, 250);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [
+		compilePrompt,
+		isFetchingSelectedTemplate,
+		selectedTemplateDetails,
+		selectedTemplateId,
+	]);
 
 	const [modelRuns, setModelRuns] = useState<ModelRunConfig[]>(() => [
 		{
 			id: crypto.randomUUID(),
 			model: null,
 			parameters: {
-				temperature: presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
-				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
-				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
-				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
-				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
-				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
-				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
 				frequencyPenalty: presetParameters?.frequencyPenalty ?? DEFAULT_PARAMETERS.frequencyPenalty,
+				maxTokens: DEFAULT_PARAMETERS.maxTokens,
 				presencePenalty: presetParameters?.presencePenalty ?? DEFAULT_PARAMETERS.presencePenalty,
+				temperature: DEFAULT_PARAMETERS.temperature,
+				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
+				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
+				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
+				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
+				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
 			},
 		},
 	]);
 
 	// Apply preset model when models load (first run config only)
 	useEffect(() => {
-		if (!presetModel || models.length === 0) return;
+		if (!presetModel || models.length === 0) {return;}
 		setModelRuns((prev) => {
 			const first = prev.at(0);
-			if (!first || first.model) return prev;
+			if (!first || first.model) {return prev;}
 			const match = models.find((m) => m.id === presetModel || m.modelId === presetModel);
-			if (!match) return prev;
+			if (!match) {return prev;}
 			return [
 				{
 					...first,
@@ -329,7 +1176,7 @@ export function PlaygroundPanel({
 		setPromptName(scribeDocTypeUi[documentType].defaultPromptName);
 		setCompiledMessages([]);
 		setCompiledOverride(null);
-		setCompiledVariables({});
+		setPromptRuntimeVariables({});
 	}, [documentType]);
 
 	const [runStates, setRunStates] = useState<Record<string, RunState>>({});
@@ -337,9 +1184,9 @@ export function PlaygroundPanel({
 	const setRunState = useCallback((id: string, patch: Partial<RunState>) => {
 		setRunStates((prev) => {
 			const base: RunState = prev[id] ?? {
-				text: "",
 				isStreaming: false,
 				metrics: { latencyMs: 0 },
+				text: "",
 			};
 
 			return {
@@ -349,7 +1196,7 @@ export function PlaygroundPanel({
 					...patch,
 					metrics: {
 						...base.metrics,
-						...(patch.metrics ?? {}),
+						...patch.metrics,
 					},
 				},
 			};
@@ -360,7 +1207,7 @@ export function PlaygroundPanel({
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
 
 	const runAllModels = useCallback(async () => {
-		const triggers = Array.from(runTriggersRef.current.values());
+		const triggers = [...runTriggersRef.current.values()];
 		if (triggers.length === 0) {
 			toast.error("Keine Modelle konfiguriert");
 			return;
@@ -375,524 +1222,666 @@ export function PlaygroundPanel({
 	);
 
 	const modelSelectorOptions = useMemo<PlaygroundModelSelectorOption[]>(() => {
-		const topModelIdSet = new Set(topModelIds ?? []);
+		const topModelIdSet = new Set(topModelIds);
 		return models.map((model) => {
 			const provider = getProviderGroup(model);
 			const isTop = topModelIdSet.has(model.modelId);
 			const providerLabel =
 				PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 			return {
-				value: model.id,
-				label: model.name,
 				group: provider,
-				keywords: [model.modelId, model.name, provider, providerLabel],
-				model,
 				isTop,
+				keywords: [model.modelId, model.name, provider, providerLabel],
+				label: model.name,
+				model,
 				providerLabel,
+				value: model.id,
 			};
 		});
 	}, [models, topModelIds]);
 
-	return (
-		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
-			{/* Left Panel - Tabs */}
-			<div className="w-full min-w-0 lg:w-[460px] lg:shrink-0">
-				<Accordion
-					type="single"
-					collapsible={isMobile}
-					value={isMobile ? mobileInputPanelValue : "input-config"}
-					onValueChange={(value) => {
-						if (!isMobile) return;
-						setMobileInputPanelValue(value || undefined);
-					}}
-					className="w-full"
-				>
-					<AccordionItem value="input-config" className="border-solarized-base2 lg:border-0">
-						<AccordionTrigger className="py-2 text-xs text-solarized-base00 hover:no-underline lg:hidden">
-							Input & Konfiguration
-						</AccordionTrigger>
-						<AccordionContent className="pb-0 pt-2 lg:pt-0">
-							<Card className="flex w-full min-w-0 flex-col border-solarized-base2 lg:overflow-hidden">
-								<CardHeader className="border-b border-solarized-base2 px-3 py-2">
-									<CardTitle className="text-sm text-solarized-base00">
-										AI Scribe Playground
-									</CardTitle>
-								</CardHeader>
+		const formatModelGroupLabel = useCallback(
+			(group: string) =>
+				PROVIDER_LABELS[group] ?? group.charAt(0).toUpperCase() + group.slice(1),
+			[],
+		);
 
-								<Tabs
-									className="flex min-h-0 min-w-0 flex-1 flex-col"
-									onValueChange={(v) => setActiveTab(v as "input" | "prompt" | "models")}
-									value={activeTab}
+	const renderSelectedModelOption = useCallback((selected: PlaygroundModelSelectorOption | null) => {
+		if (!selected) {
+			return <span className="text-solarized-base01">Modell auswählen...</span>;
+		}
+
+		return (
+			<div className="min-w-0">
+				<p className="truncate font-medium text-solarized-base00">
+					{selected.model.name}
+				</p>
+				<p className="truncate text-solarized-base01 text-xs">
+					{selected.providerLabel}
+				</p>
+			</div>
+		);
+	}, []);
+
+		const renderModelSelectorOption = useCallback(
+			(option: PlaygroundModelSelectorOption) => (
+				<div className="flex min-w-0 items-start justify-between gap-3">
+					<div className="min-w-0 space-y-1">
+						<p className="truncate font-medium text-solarized-base00">
+						{option.model.name}
+					</p>
+					<p className="truncate text-solarized-base01 text-xs">
+						{option.model.modelId}
+					</p>
+				</div>
+				<div className="flex shrink-0 items-center gap-1">
+					{option.isTop ? (
+						<Badge
+							variant="outline"
+							className="border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet"
+						>
+							Top
+						</Badge>
+					) : null}
+					{option.model.supportsReasoning ? (
+						<Badge
+							variant="outline"
+							className="border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan"
+						>
+							Reasoning
+						</Badge>
+					) : null}
+					</div>
+				</div>
+			),
+			[],
+		);
+
+	const inputPreviewItems = useMemo<PromptPreviewVariable[]>(
+		() => [
+			{
+				key: docUi.mainField.name,
+				label: docUi.mainField.label,
+				source: "input",
+				value: formMain,
+			},
+			...docUi.additionalFields.map((field) => ({
+				key: field.name,
+				label: field.label,
+				source: "input" as const,
+				value: formAdditional[field.name] ?? "",
+			})),
+		],
+		[docUi, formAdditional, formMain],
+	);
+
+	const runtimePromptItems = useMemo<PromptPreviewVariable[]>(() => {
+		const preferredOrder = ["todaysDate", "contextXml", "relevantTemplate"];
+			return Object.entries(promptRuntimeVariables)
+				.map(([key, value]) => ({
+				key,
+				label: PROMPT_RUNTIME_LABELS[key] ?? key,
+				source: "runtime" as const,
+				value: serializePromptVariable(value),
+				}))
+				.filter((item) => item.value.trim().length > 0)
+				.toSorted((a, b) => {
+					const aIndex = preferredOrder.indexOf(a.key);
+					const bIndex = preferredOrder.indexOf(b.key);
+				if (aIndex !== -1 || bIndex !== -1) {
+					if (aIndex === -1) {return 1;}
+					if (bIndex === -1) {return -1;}
+					return aIndex - bIndex;
+				}
+				return a.key.localeCompare(b.key);
+			});
+	}, [promptRuntimeVariables]);
+
+	const harnessPlaceholderValues = useMemo(
+		() => ({
+			"<patient_context></patient_context>":
+				serializePromptVariable(promptRuntimeVariables.contextXml),
+			"[Anamnese]": formAdditional.anamnese ?? "",
+			"[Befunde]": formAdditional.befunde ?? "",
+			"[Diagnoseblock]": formAdditional.diagnoseblock ?? "",
+			"[Notizen]": formMain,
+			"[Relevante Vorlage]": selectedTemplateReference,
+		}),
+		[
+			formAdditional.anamnese,
+			formAdditional.befunde,
+			formAdditional.diagnoseblock,
+			formMain,
+			promptRuntimeVariables.contextXml,
+			selectedTemplateReference,
+		],
+	);
+
+	const promptHarnessExperimentMessages = useMemo(() => {
+		if (!isPromptHarnessDirty || promptHarnessDraftMessages.length === 0) {
+			return null;
+		}
+		return promptHarnessDraftMessages.map((message) => ({
+			...message,
+			content: applyHarnessPlaceholders(message.content, harnessPlaceholderValues),
+		}));
+	}, [harnessPlaceholderValues, isPromptHarnessDirty, promptHarnessDraftMessages]);
+
+	const effectiveCompiledMessages = useMemo(
+		() => compiledOverride ?? promptHarnessExperimentMessages ?? compiledMessages,
+		[compiledMessages, compiledOverride, promptHarnessExperimentMessages],
+	);
+
+	const resultsWithContentCount = useMemo(
+		() =>
+			Object.values(runStates).filter(
+				(runState) =>
+					runState.error ||
+					runState.isStreaming ||
+					runState.reasoning ||
+					runState.text.trim().length > 0,
+			).length,
+		[runStates],
+	);
+
+	const navigationItems = useMemo(
+		() =>
+				([
+					{
+						summary:
+							selectedTemplateId === NONE_TEMPLATE_VALUE
+								? promptName
+							: `${promptName} · Template`,
+					view: "config",
+				},
+				{
+					summary: `${inputPreviewItems.length} Felder aktiv`,
+					view: "inputs",
+				},
+				{
+					summary: `${modelRuns.length} Vergleichs-Run${modelRuns.length === 1 ? "" : "s"}`,
+					view: "models",
+				},
+				{
+					summary:
+						resultsWithContentCount > 0
+							? `${resultsWithContentCount}/${modelRuns.length} mit Output`
+							: "Noch keine Ergebnisse",
+					view: "results",
+				},
+			]) as { summary: string; view: PlaygroundView }[],
+			[
+				inputPreviewItems.length,
+				modelRuns.length,
+				promptName,
+			resultsWithContentCount,
+			selectedTemplateId,
+		],
+	);
+
+	const modelSelectionHandlers = useMemo(() => {
+		const handlers = new Map<string, (modelId: string) => void>();
+		for (const run of modelRuns) {
+			handlers.set(run.id, (modelId: string) => {
+				const model = modelById.get(modelId);
+				if (!model) {
+					return;
+				}
+
+				setModelRuns((prev) =>
+					prev.map((entry) =>
+						entry.id === run.id
+							? {
+									...entry,
+									model,
+									parameters: entry.parameters,
+								}
+							: entry,
+					),
+				);
+			});
+		}
+		return handlers;
+	}, [modelById, modelRuns]);
+
+	const removeModelRunHandlers = useMemo(() => {
+		const handlers = new Map<string, () => void>();
+		for (const run of modelRuns) {
+			handlers.set(run.id, () => {
+				setModelRuns((prev) => prev.filter((entry) => entry.id !== run.id));
+				setRunStates((prev) => {
+					const { [run.id]: _removedRunState, ...next } = prev;
+					return next;
+				});
+			});
+		}
+		return handlers;
+	}, [modelRuns]);
+
+	const modelParameterChangeHandlers = useMemo(() => {
+		const handlers = new Map<string, (parameters: PlaygroundParameters) => void>();
+		for (const run of modelRuns) {
+			handlers.set(run.id, (parameters: PlaygroundParameters) => {
+				setModelRuns((prev) =>
+					prev.map((entry) =>
+						entry.id === run.id ? { ...entry, parameters } : entry,
+					),
+				);
+			});
+		}
+		return handlers;
+	}, [modelRuns]);
+
+	const navigationClickHandlers = useMemo(() => {
+		const handlers = new Map<PlaygroundView, () => void>();
+		for (const item of navigationItems) {
+			handlers.set(item.view, () => {
+				setActiveView(item.view);
+			});
+		}
+		return handlers;
+	}, [navigationItems]);
+
+	const handleAddModelRun = useCallback(() => {
+		setModelRuns((prev) => [
+			...prev,
+			{
+				id: crypto.randomUUID(),
+				model: null,
+				parameters: { ...DEFAULT_PARAMETERS },
+			},
+		]);
+	}, []);
+
+	const handleResetResults = useCallback(() => {
+		setRunStates({});
+		toast.success("Ergebnisse zurückgesetzt");
+	}, []);
+
+	const handlePromptHarnessChange = useCallback((value: string) => {
+		setPromptName(value);
+		setCompiledMessages([]);
+		setCompiledOverride(null);
+		setPromptRuntimeVariables({});
+
+		const nextDocumentType = promptHarnessToDocumentType.get(value);
+		if (nextDocumentType) {
+			setDocumentType(nextDocumentType);
+		}
+	}, []);
+
+	const handleMainInputValueChange = useCallback((value: string) => {
+		setFormMain(value);
+	}, []);
+
+	const handleAdditionalInputValueChange = useCallback((name: string, value: string) => {
+		setFormAdditional((prev) => ({
+			...prev,
+			[name]: value,
+		}));
+	}, []);
+
+	const playgroundAdditionalInputs = useMemo(
+		() =>
+			docUi.additionalFields.map((field) => ({
+				description: field.description,
+				label: field.label,
+				name: field.name,
+				placeholder: field.placeholder,
+				type: "textarea" as const,
+			})),
+		[docUi.additionalFields],
+	);
+
+	const handleCompiledMessageChange = useCallback((index: number, content: string) => {
+		const next = effectiveCompiledMessages.map((entry) => ({
+			...entry,
+		}));
+		next[index] = {
+			...next[index],
+			content,
+		};
+		setCompiledOverride(next);
+	}, [effectiveCompiledMessages]);
+
+	const renderInputsView = () => (
+		<ScrollArea className="h-full">
+			<div className="p-4">
+				<AiscribeTemplateInputSection
+					additionalInputData={formAdditional}
+					additionalInputs={playgroundAdditionalInputs}
+					additionalTextareaClassName={PLAYGROUND_EDITOR_TEXTAREA_CLASS}
+					audio={{
+						canRecord: canRecordAudio,
+						isRecording: isRecordingAudio,
+						isSubmittingRecordings: isParsingAudioRecordings,
+						onRemoveRecording: handleRemoveAudioRecording,
+						onSubmitRecordings: handleParseRecordedAudioToText,
+						onToggleRecording: handleToggleRecordingAudio,
+						recordingButtonTitle: recordingAudioButtonTitle,
+						recordings: audioRecordings.map((recording) => ({
+							duration: recording.duration,
+							id: recording.id,
+						})),
+						submitRecordingsLabel: "Zu Text parsen",
+						submitRecordingsPendingLabel: "Wird geparst...",
+					}}
+					inputPlaceholder={docUi.mainField.placeholder}
+					inputValue={formMain}
+					isLoading={isParsingAudioRecordings}
+					onAdditionalInputChange={handleAdditionalInputValueChange}
+					onInputValueChange={handleMainInputValueChange}
+					showSubmit={false}
+					mainTextareaClassName={PLAYGROUND_EDITOR_TEXTAREA_CLASS}
+					textareaId="main-input"
+				/>
+			</div>
+		</ScrollArea>
+	);
+
+	const renderConfigView = () => {
+		const hasPromptHarnessOption = promptHarnessOptions.includes(promptName);
+
+		return (
+			<div className="flex h-full min-h-0 flex-col gap-3 p-3">
+				<div className="grid gap-3 lg:grid-cols-2">
+					<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+						<DirtySelectorLabel
+							isDirty={isPromptHarnessDirty}
+							label="Basis-Prompt"
+						/>
+						<Select
+							onValueChange={handlePromptHarnessChange}
+							value={promptName}
+						>
+							<SelectTrigger
+								className={cn(
+									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
+									isPromptHarnessDirty
+										? "border-solarized-orange/50 bg-solarized-orange/10"
+										: "",
+								)}
+							>
+								<SelectValue placeholder="Basis-Prompt waehlen" />
+							</SelectTrigger>
+							<SelectContent>
+								{hasPromptHarnessOption ? null : (
+									<SelectItem value={promptName}>
+										{promptName} (nicht verfuegbar)
+									</SelectItem>
+								)}
+								{promptHarnessOptions.map((promptHarness) => (
+									<SelectItem key={promptHarness} value={promptHarness}>
+										{promptHarness}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+						<DirtySelectorLabel
+							isDirty={isTemplateDirty}
+							label="Template"
+						/>
+						<Select
+							value={selectedTemplateId}
+							onValueChange={setSelectedTemplateId}
+						>
+							<SelectTrigger
+								className={cn(
+									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
+									isTemplateDirty
+										? "border-solarized-orange/50 bg-solarized-orange/10"
+										: "",
+								)}
+							>
+								<SelectValue placeholder="Template waehlen" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={NONE_TEMPLATE_VALUE}>Keins</SelectItem>
+								{templateOptions.map((templateOption) => (
+									<SelectItem key={templateOption.id} value={templateOption.id}>
+										{templateOption.title}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+
+				<PromptHarnessPreview
+					inputItems={inputPreviewItems}
+					messages={effectiveCompiledMessages}
+					onMessageChange={handleCompiledMessageChange}
+					runtimeItems={runtimePromptItems}
+				/>
+			</div>
+		);
+	};
+
+	const renderModelsView = () => (
+		<ScrollArea className="h-full">
+			<div className="space-y-4 p-4">
+				<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+					<div className="space-y-1">
+						<h3 className="font-medium text-sm text-solarized-base00">Model Runs</h3>
+						<p className="text-xs text-solarized-base01">
+							Definiere mehrere Modelle und Parameter für denselben Input- und Prompt-Stand.
+						</p>
+					</div>
+					<Button type="button" size="sm" className="gap-2" onClick={handleAddModelRun}>
+						<Plus className="h-4 w-4" />
+						Run hinzufügen
+					</Button>
+				</div>
+
+					<div className={cn("grid gap-4", modelRuns.length > 1 ? "2xl:grid-cols-2" : "")}>
+						{modelRuns.map((run) => {
+							const handleModelSelection = modelSelectionHandlers.get(run.id);
+							const handleRemoveModelRun = removeModelRunHandlers.get(run.id);
+							const handleParameterChange = modelParameterChangeHandlers.get(run.id);
+							if (!handleModelSelection || !handleRemoveModelRun || !handleParameterChange) {
+								return null;
+							}
+
+							return (
+								<div
+									key={run.id}
+									className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
 								>
-									<div className="border-b border-solarized-base2 px-3 py-2">
-										<TabsList className="grid h-8 w-full grid-cols-3">
-											<TabsTrigger value="input" className="text-xs">
-												Input
-											</TabsTrigger>
-											<TabsTrigger value="prompt" className="text-xs">
-												Prompt
-											</TabsTrigger>
-											<TabsTrigger value="models" className="text-xs">
-												Models
-											</TabsTrigger>
-										</TabsList>
+								<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+									<div className="min-w-0 flex-1 space-y-2">
+										<Label className="text-sm text-solarized-base01">Modell</Label>
+										<ModelSelector
+										options={modelSelectorOptions}
+										value={run.model?.id ?? null}
+										isLoading={isLoadingModels}
+											searchPlaceholder="Modell oder Anbieter suchen..."
+											placeholder="Modell auswählen..."
+											loadingMessage="Lade Modelle..."
+											emptyMessage="Keine Modelle gefunden."
+											formatGroupLabel={formatModelGroupLabel}
+											className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
+											popoverClassName="sm:w-[28rem]"
+											renderSelected={renderSelectedModelOption}
+											renderOption={renderModelSelectorOption}
+											onValueChange={handleModelSelection}
+										/>
 									</div>
 
-									<ScrollArea className="min-h-0 min-w-0 flex-1 lg:max-h-none">
-										<CardContent className="min-w-0 space-y-4 p-3">
-											<TabsContent value="input" className="mt-0 space-y-3">
-												<div className="space-y-2">
-													<Label className="text-sm text-solarized-base01">Dokumenttyp</Label>
-													<Select
-														onValueChange={(v) => setDocumentType(v as DocumentType)}
-														value={documentType}
-													>
-														<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
-															<SelectValue />
-														</SelectTrigger>
-														<SelectContent>
-															{allScribeDocTypes.map((dt) => (
-																<SelectItem key={dt} value={dt}>
-																	{scribeDocTypeUi[dt].label}
-																</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
-												</div>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
+										onClick={handleRemoveModelRun}
+										disabled={modelRuns.length === 1}
+										title={
+											modelRuns.length === 1
+												? "Mindestens ein Run muss existieren"
+												: "Run entfernen"
+										}
+										>
+										<Trash2 className="h-4 w-4" />
+										Remove
+								</Button>
+							</div>
 
-												<div className="space-y-4">
-													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01" htmlFor="main-input">
-															{docUi.mainField.label}
-														</Label>
-														<Textarea
-															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-															id="main-input"
-															onChange={(e) => setFormMain(e.target.value)}
-															placeholder={docUi.mainField.placeholder}
-															value={formMain}
-														/>
-														{docUi.mainField.description && (
-															<p className="text-xs text-solarized-base01">
-																{docUi.mainField.description}
-															</p>
-														)}
-													</div>
+							<Separator className="bg-solarized-base2" />
 
-													{docUi.additionalFields.length > 0 && (
-														<div className="space-y-4">
-															<Separator className="bg-solarized-base2" />
-															{docUi.additionalFields.map((field) => (
-																<div className="space-y-2" key={field.name}>
-																	<Label
-																		className="text-sm text-solarized-base01"
-																		htmlFor={field.name}
-																	>
-																		{field.label}
-																	</Label>
-																	<Textarea
-																		className="min-h-[160px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																		id={field.name}
-																		onChange={(e) =>
-																			setFormAdditional((prev) => ({
-																				...prev,
-																				[field.name]: e.target.value,
-																			}))
-																		}
-																		placeholder={field.placeholder}
-																		value={formAdditional[field.name] ?? ""}
-																	/>
-																</div>
-															))}
-														</div>
-													)}
+								<div className="space-y-2">
+									<Label className="text-sm text-solarized-base01">Parameter</Label>
+									<ParameterControls
+										parameters={run.parameters}
+										onChange={handleParameterChange}
+										model={run.model}
+										/>
+								</div>
+							</div>
+							);
+						})}
+					</div>
+				</div>
+			</ScrollArea>
+		);
 
-													<div className="space-y-2">
-														<div className="flex items-center justify-between">
-															<Label className="text-sm text-solarized-base01">
-																Prompt JSON (gesendet an Server)
-															</Label>
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																className="h-8 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																onClick={async () => {
-																	await navigator.clipboard.writeText(promptJson);
-																	toast.success("Kopiert!");
-																}}
-															>
-																<Copy className="h-4 w-4" />
-																Kopieren
-															</Button>
-														</div>
-														<Textarea
-															readOnly
-															value={JSON.stringify(JSON.parse(promptJson), null, 2)}
-															className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-														/>
-													</div>
-												</div>
-											</TabsContent>
-
-											<TabsContent value="prompt" className="mt-0 space-y-4">
-												<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01">Prompt Name</Label>
-														<Input
-															className="border-solarized-base2 bg-solarized-base3"
-															onChange={(e) => setPromptName(e.target.value)}
-															value={promptName}
-															placeholder="z.B. Inpatient_discharge_chat"
-														/>
-													</div>
-													<div className="space-y-2">
-														<Label className="text-sm text-solarized-base01">Label</Label>
-														<Select
-															onValueChange={(v) => setPromptLabel(v as "staging" | "production")}
-															value={promptLabel}
-														>
-															<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
-																<SelectValue />
-															</SelectTrigger>
-															<SelectContent>
-																<SelectItem value="staging">staging</SelectItem>
-																<SelectItem value="production">production</SelectItem>
-															</SelectContent>
-														</Select>
-													</div>
-												</div>
-
-												<div className="flex flex-wrap gap-2">
-													<Button
-														type="button"
-														onClick={compile}
-														disabled={isCompiling}
-														className="bg-solarized-blue hover:bg-solarized-blue/90"
-													>
-														{isCompiling ? "Kompiliere..." : "Kompilieren"}
-													</Button>
-													<Button
-														type="button"
-														variant="outline"
-														className="border-solarized-base2"
-														onClick={() => {
-															setCompiledOverride(null);
-															toast.success("Override zurückgesetzt");
-														}}
-														disabled={compiledOverride === null}
-													>
-														<RotateCcw className="h-4 w-4" />
-														Override zurücksetzen
-													</Button>
-												</div>
-
-												{compiledMessages.length === 0 ? (
-													<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-4 text-sm text-solarized-base01">
-														Kompiliere den Prompt, um die finalen Messages zu sehen.
-													</div>
-												) : (
-													<div className="space-y-4">
-														<div className="space-y-2">
-															<Label className="text-sm text-solarized-base01">
-																Inputs (variablesUsed)
-															</Label>
-															<Textarea
-																readOnly
-																value={JSON.stringify(compiledVariables, null, 2)}
-																className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 font-mono text-xs"
-															/>
-														</div>
-
-														<div className="space-y-2">
-															<Label className="text-sm text-solarized-base01">
-																Compiled Messages (editierbar)
-															</Label>
-															<div className="space-y-3">
-																{(compiledOverride ?? compiledMessages).map((m, idx) => (
-																	<div
-																		key={`${m.role}-${idx}`}
-																		className="space-y-1.5 rounded-lg border border-solarized-base2 bg-solarized-base3 p-3"
-																	>
-																		<div className="flex items-center justify-between">
-																			<span className="font-mono text-xs text-solarized-base01">
-																				{m.role}
-																			</span>
-																			<Button
-																				type="button"
-																				variant="ghost"
-																				size="sm"
-																				className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
-																				onClick={async () => {
-																					await navigator.clipboard.writeText(m.content);
-																					toast.success("Kopiert!");
-																				}}
-																			>
-																				<Copy className="h-3.5 w-3.5" />
-																				Copy
-																			</Button>
-																		</div>
-																		<Textarea
-																			value={m.content}
-																			onChange={(e) => {
-																				const next = (compiledOverride ?? compiledMessages).map(
-																					(x) => ({ ...x }),
-																				);
-																				next[idx] = {
-																					...next[idx],
-																					content: e.target.value,
-																				};
-																				setCompiledOverride(next);
-																			}}
-																			className="min-h-[200px] resize-y border-solarized-base2 bg-solarized-base3 text-sm"
-																		/>
-																	</div>
-																))}
-															</div>
-														</div>
-													</div>
-												)}
-											</TabsContent>
-
-											<TabsContent value="models" className="mt-0 space-y-4">
-												<div className="flex flex-wrap items-start justify-between gap-2">
-													<div className="space-y-0.5">
-														<p className="font-medium text-sm text-solarized-base00">Model Runs</p>
-														<p className="text-xs text-solarized-base01">
-															Definiere mehrere Modelle/Parameter, die mit demselben Input und
-															Prompt getestet werden.
-														</p>
-													</div>
-													<Button
-														type="button"
-														size="sm"
-														className="gap-2"
-														onClick={() =>
-															setModelRuns((prev) => [
-																...prev,
-																{
-																	id: crypto.randomUUID(),
-																	model: null,
-																	parameters: { ...DEFAULT_PARAMETERS },
-																},
-															])
-														}
-													>
-														<Plus className="h-4 w-4" />
-														Add
-													</Button>
-												</div>
-
-												<div className="space-y-4">
-													{modelRuns.map((run) => (
-														<div
-															key={run.id}
-															className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3 p-4"
-														>
-															<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-																<div className="min-w-0 flex-1 space-y-2">
-																	<Label className="text-sm text-solarized-base01">Modell</Label>
-																	<ModelSelector
-																		options={modelSelectorOptions}
-																		value={run.model?.id ?? null}
-																		isLoading={isLoadingModels}
-																		searchPlaceholder="Modell oder Anbieter suchen..."
-																		placeholder="Modell auswählen..."
-																		loadingMessage="Lade Modelle..."
-																		emptyMessage="Keine Modelle gefunden."
-																		formatGroupLabel={(group) =>
-																			PROVIDER_LABELS[group] ??
-																			group.charAt(0).toUpperCase() + group.slice(1)
-																		}
-																		className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
-																		popoverClassName="sm:w-[28rem]"
-																		renderSelected={(selected) =>
-																			selected ? (
-																				<div className="min-w-0">
-																					<p className="truncate font-medium text-solarized-base00">
-																						{selected.model.name}
-																					</p>
-																					<p className="truncate text-solarized-base01 text-xs">
-																						{selected.providerLabel}
-																					</p>
-																				</div>
-																			) : (
-																				<span className="text-solarized-base01">
-																					Modell auswählen...
-																				</span>
-																			)
-																		}
-																		renderOption={(option) => (
-																			<div className="flex min-w-0 items-start justify-between gap-3">
-																				<div className="min-w-0 space-y-1">
-																					<p className="truncate font-medium text-solarized-base00">
-																						{option.model.name}
-																					</p>
-																					<p className="truncate text-solarized-base01 text-xs">
-																						{option.model.modelId}
-																					</p>
-																				</div>
-																				<div className="flex shrink-0 items-center gap-1">
-																					{option.isTop ? (
-																						<Badge
-																							variant="outline"
-																							className="border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet"
-																						>
-																							Top
-																						</Badge>
-																					) : null}
-																					{option.model.supportsReasoning ? (
-																						<Badge
-																							variant="outline"
-																							className="border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan"
-																						>
-																							Reasoning
-																						</Badge>
-																					) : null}
-																				</div>
-																			</div>
-																		)}
-																		onValueChange={(modelId) => {
-																			const model = modelById.get(modelId);
-																			if (!model) return;
-
-																			setModelRuns((prev) =>
-																				prev.map((r) => {
-																					if (r.id !== run.id) return r;
-																					return {
-																						...r,
-																						model,
-																						parameters: r.parameters,
-																					};
-																				}),
-																			);
-																		}}
-																	/>
-																</div>
-
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="sm"
-																	className="h-8 self-end gap-2 text-solarized-base01 hover:text-solarized-base00 sm:self-start"
-																	onClick={() => {
-																		setModelRuns((prev) => prev.filter((r) => r.id !== run.id));
-																		setRunStates((prev) => {
-																			const next = { ...prev };
-																			delete next[run.id];
-																			return next;
-																		});
-																	}}
-																	disabled={modelRuns.length === 1}
-																	title={
-																		modelRuns.length === 1
-																			? "Mindestens ein Run muss existieren"
-																			: "Run entfernen"
-																	}
-																>
-																	<Trash2 className="h-4 w-4" />
-																	Remove
-																</Button>
-															</div>
-
-															<Separator className="bg-solarized-base2" />
-
-															<div className="space-y-2">
-																<Label className="text-sm text-solarized-base01">Parameter</Label>
-																<ParameterControls
-																	parameters={run.parameters}
-																	onChange={(p) =>
-																		setModelRuns((prev) =>
-																			prev.map((r) =>
-																				r.id === run.id ? { ...r, parameters: p } : r,
-																			),
-																		)
-																	}
-																	model={run.model}
-																/>
-															</div>
-														</div>
-													))}
-												</div>
-											</TabsContent>
-										</CardContent>
-									</ScrollArea>
-								</Tabs>
-							</Card>
-						</AccordionContent>
-					</AccordionItem>
-				</Accordion>
+	const renderResultsView = () => (
+		<div className="flex h-full min-h-0 flex-col p-4">
+			<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
+				<div className="space-y-1">
+					<h3 className="font-medium text-sm text-solarized-base00">Ergebnisse</h3>
+					<p className="text-xs text-solarized-base01">
+						{scribeDocTypeUi[documentType].label} · {promptName}
+					</p>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="gap-1.5 border-solarized-base2 px-3 text-xs"
+						onClick={handleResetResults}
+					>
+						<RotateCcw className="h-3.5 w-3.5" />
+						Reset
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						className="gap-1.5 bg-solarized-blue px-3 text-xs hover:bg-solarized-blue/90"
+						onClick={runAllModels}
+					>
+						<Play className="h-3.5 w-3.5" />
+						Run All
+					</Button>
+				</div>
 			</div>
 
-			{/* Right Panel - Results */}
-			<Card className="flex min-h-[500px] min-w-0 w-full flex-1 flex-col border-solarized-base2 lg:min-h-0">
-				<CardHeader className="shrink-0 border-b border-solarized-base2 px-3 py-2">
-					<div className="flex items-center justify-between gap-2">
-						<div className="min-w-0">
-							<CardTitle className="truncate text-sm text-solarized-base00">Ergebnisse</CardTitle>
-							<p className="truncate text-xs text-solarized-base01">
-								{scribeDocTypeUi[documentType].label} · {promptName}
-							</p>
-						</div>
-						<div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
-								onClick={() => {
-									setRunStates({});
-									toast.success("Ergebnisse zurückgesetzt");
-								}}
-							>
-								<RotateCcw className="h-3.5 w-3.5" />
-								Reset
-							</Button>
-							<Button
-								type="button"
-								size="sm"
-								className="h-7 gap-1.5 bg-solarized-blue px-2 text-xs hover:bg-solarized-blue/90"
-								onClick={runAllModels}
-							>
-								<Play className="h-3.5 w-3.5" />
-								Run All
-							</Button>
-						</div>
+			<ScrollArea className="mt-4 min-h-0 flex-1">
+				<div
+					className={cn(
+						"grid min-h-full auto-rows-fr gap-4",
+						modelRuns.length > 1 ? "2xl:grid-cols-2" : "",
+					)}
+				>
+					{modelRuns.map((run) => (
+						// eslint-disable-next-line no-use-before-define
+						<RunCard
+							key={run.id}
+							runId={run.id}
+							modelRun={run}
+							documentType={documentType}
+							promptJson={promptJson}
+							promptName={promptName}
+							messagesForRun={effectiveCompiledMessages}
+							runState={runStates[run.id]}
+							setRunState={setRunState}
+							runTriggersRef={runTriggersRef}
+						/>
+					))}
+				</div>
+			</ScrollArea>
+		</div>
+	);
+
+	const renderActiveView = () => {
+		switch (activeView) {
+			case "config": {
+				return renderConfigView();
+			}
+			case "inputs": {
+				return renderInputsView();
+			}
+			case "models": {
+				return renderModelsView();
+			}
+			case "results": {
+				return renderResultsView();
+			}
+			default: {
+				return null;
+			}
+		}
+	};
+
+	return (
+		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
+			<Card className="w-full shrink-0 border-solarized-base2 lg:min-h-0 lg:w-60">
+				<CardContent className="p-2">
+						<div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+							{navigationItems.map((item) => {
+								const handleNavigationClick = navigationClickHandlers.get(item.view);
+								if (!handleNavigationClick) {
+									return null;
+								}
+
+								const isActive = item.view === activeView;
+								return (
+									<Button
+									type="button"
+									key={item.view}
+									variant="ghost"
+									className={cn(
+										"h-auto w-full flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left",
+											isActive
+												? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue"
+												: "border-transparent text-solarized-base01 hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00",
+										)}
+										onClick={handleNavigationClick}
+									>
+									<span className="font-medium text-sm">
+										{PLAYGROUND_VIEW_META[item.view].label}
+									</span>
+									<span
+										className={cn(
+											"line-clamp-2 text-xs",
+											isActive ? "text-solarized-blue/80" : "text-solarized-base01",
+										)}
+									>
+										{item.summary}
+									</span>
+								</Button>
+							);
+						})}
 					</div>
-				</CardHeader>
-				<ScrollArea className="min-h-0 flex-1">
-					<div className="space-y-3 p-3">
-						{modelRuns.map((run) => (
-							// eslint-disable-next-line no-use-before-define
-							<RunCard
-								key={run.id}
-								runId={run.id}
-								modelRun={run}
-								documentType={documentType}
-								promptJson={promptJson}
-								promptName={promptName}
-								compiledOverride={compiledOverride}
-								compiledMessages={compiledMessages}
-								runState={runStates[run.id]}
-								setRunState={setRunState}
-								runTriggersRef={runTriggersRef}
-							/>
-						))}
-					</div>
-				</ScrollArea>
+				</CardContent>
+			</Card>
+
+			<Card className="flex min-h-[560px] min-w-0 flex-1 flex-col border-solarized-base2 lg:min-h-0">
+				<CardContent className="min-h-0 flex-1 p-0">{renderActiveView()}</CardContent>
 			</Card>
 		</div>
 	);
 }
 
-function RunCard({
+const RunCard = ({
 	runId,
 	modelRun,
 	documentType,
 	promptJson,
 	promptName,
-	compiledOverride,
-	compiledMessages,
+	messagesForRun,
 	runState,
 	setRunState,
 	runTriggersRef,
@@ -902,23 +1891,57 @@ function RunCard({
 	documentType: DocumentType;
 	promptJson: string;
 	promptName: string;
-	compiledOverride: Array<{
+	messagesForRun: {
 		role: "system" | "user" | "assistant";
 		content: string;
-	}> | null;
-	compiledMessages: Array<{
-		role: "system" | "user" | "assistant";
-		content: string;
-	}>;
+	}[];
 	runState: RunState | undefined;
 	setRunState: (id: string, patch: Partial<RunState>) => void;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
-}) {
+}) => {
 	const payloadRef = useRef<null | Parameters<typeof orpc.admin.scribe.run.call>[0]>(null);
 
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
 		id: `admin-scribe-playground-${modelRun.id}`,
+		onError: (error) => {
+			setRunState(runId, {
+				error: error.message,
+				isStreaming: false,
+			});
+		},
+		onFinish: async () => {
+			const requestId = payloadRef.current?.requestId;
+			if (!requestId) {return;}
+			try {
+				const event = await orpc.admin.usage.findByRequestId.call({
+					requestId,
+				});
+				if (!event) {return;}
+
+				const latencyMs =
+					typeof (event.metadata as Record<string, unknown> | null)?.latencyMs === "number"
+						? ((event.metadata as Record<string, unknown>).latencyMs as number)
+						: 0;
+
+			setRunState(runId, {
+				isStreaming: false,
+				metrics: {
+					cost: event.cost ? Number(event.cost) : undefined,
+					inputTokens: event.inputTokens ?? undefined,
+					latencyMs,
+					outputTokens: event.outputTokens ?? undefined,
+					reasoningTokens: event.reasoningTokens ?? undefined,
+					totalTokens: event.totalTokens ?? undefined,
+				},
+			});
+		} catch {
+			// Best effort; output is still useful even without metrics.
+		}
+		},
 		transport: {
+			reconnectToStream() {
+				throw new Error("Unsupported");
+			},
 			async sendMessages(options) {
 				if (!payloadRef.current) {
 					throw new Error("Missing payload");
@@ -926,53 +1949,15 @@ function RunCard({
 				return eventIteratorToUnproxiedDataStream(
 					await orpc.admin.scribe.run.call(payloadRef.current, {
 						signal: options.abortSignal,
-					}),
-				);
+						}),
+					);
 			},
-			reconnectToStream() {
-				throw new Error("Unsupported");
-			},
-		},
-		onError: (error) => {
-			setRunState(runId, {
-				isStreaming: false,
-				error: error.message,
-			});
-		},
-		onFinish: async () => {
-			const requestId = payloadRef.current?.requestId;
-			if (!requestId) return;
-			try {
-				const event = await orpc.admin.usage.findByRequestId.call({
-					requestId,
-				});
-				if (!event) return;
-
-				const latencyMs =
-					typeof (event.metadata as Record<string, unknown> | null)?.latencyMs === "number"
-						? ((event.metadata as Record<string, unknown>).latencyMs as number)
-						: 0;
-
-				setRunState(runId, {
-					isStreaming: false,
-					metrics: {
-						latencyMs,
-						inputTokens: event.inputTokens ?? undefined,
-						outputTokens: event.outputTokens ?? undefined,
-						totalTokens: event.totalTokens ?? undefined,
-						reasoningTokens: event.reasoningTokens ?? undefined,
-						cost: event.cost ? Number(event.cost) : undefined,
-					},
-				});
-			} catch {
-				// Best effort; output is still useful even without metrics.
-			}
 		},
 	});
 
 	const { completion, reasoning } = useMemo(() => {
 		const lastAssistant = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistant) return { completion: "", reasoning: "" };
+		if (!lastAssistant) {return { completion: "", reasoning: "" };}
 		// Extract text and reasoning from parts (AI SDK v4 format)
 		if (lastAssistant.parts && lastAssistant.parts.length > 0) {
 			const textParts = lastAssistant.parts
@@ -992,19 +1977,24 @@ function RunCard({
 		if (status === "streaming" || status === "submitted") {
 			setRunState(runId, {
 				isStreaming: true,
-				text: completion,
 				reasoning: reasoning || undefined,
+				text: completion,
 			});
 		} else if (completion) {
 			setRunState(runId, {
 				isStreaming: false,
-				text: completion,
 				reasoning: reasoning || undefined,
+				text: completion,
 			});
 		}
 	}, [completion, reasoning, status, runId, setRunState]);
 
 	const isRunning = status === "streaming" || status === "submitted";
+
+	const handleStopRun = useCallback(() => {
+		stop();
+		setRunState(runId, { isStreaming: false });
+	}, [runId, setRunState, stop]);
 
 	const startRun = useCallback(async () => {
 		if (!modelRun.model) {
@@ -1015,37 +2005,36 @@ function RunCard({
 		const requestId = crypto.randomUUID();
 
 		const compiledMessagesOverride =
-			compiledOverride ?? (compiledMessages.length > 0 ? compiledMessages : undefined);
+			messagesForRun.length > 0 ? messagesForRun : undefined;
 
-		payloadRef.current = {
-			requestId,
+			payloadRef.current = {
+				compiledMessagesOverride: compiledMessagesOverride
+					? compiledMessagesOverride.map((m) => ({
+							content: m.content,
+							role: m.role,
+						}))
+					: undefined,
+			documentType,
 			model: modelRun.model.id,
 			parameters: modelRun.parameters,
-			documentType,
-			promptName,
 			promptJson,
-			compiledMessagesOverride: compiledMessagesOverride
-				? compiledMessagesOverride.map((m) => ({
-						role: m.role,
-						content: m.content,
-					}))
-				: undefined,
+			promptName,
+			requestId,
 		};
 
 		setRunState(runId, {
-			requestId,
 			error: undefined,
-			text: "",
-			metrics: { latencyMs: 0 },
 			isStreaming: true,
+			metrics: { latencyMs: 0 },
+			requestId,
+			text: "",
 		});
 		setMessages([]);
 		await sendMessage({ text: "run" });
 	}, [
 		modelRun.model,
 		modelRun.parameters,
-		compiledOverride,
-		compiledMessages,
+		messagesForRun,
 		documentType,
 		promptName,
 		promptJson,
@@ -1065,7 +2054,7 @@ function RunCard({
 	}, [runId, runTriggersRef, startRun]);
 
 	return (
-		<div className="flex h-[350px] min-w-0 flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2 lg:h-[400px]">
+		<div className="flex h-full min-h-[320px] min-w-0 flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2">
 			{/* Header row */}
 			<div className="flex shrink-0 items-center justify-between gap-2">
 				<div className="min-w-0 flex-1">
@@ -1080,19 +2069,16 @@ function RunCard({
 				</div>
 
 				<div className="flex shrink-0 gap-1.5">
-					{isRunning ? (
-						<Button
-							type="button"
-							variant="destructive"
-							size="sm"
-							className="h-7 px-2 text-xs"
-							onClick={() => {
-								stop();
-								setRunState(runId, { isStreaming: false });
-							}}
-						>
-							Stop
-						</Button>
+						{isRunning ? (
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								className="h-7 px-2 text-xs"
+								onClick={handleStopRun}
+							>
+								Stop
+							</Button>
 					) : (
 						<Button
 							type="button"
@@ -1114,11 +2100,11 @@ function RunCard({
 					result={
 						runState
 							? {
-									text: runState.text,
-									metrics: runState.metrics,
-									isStreaming: runState.isStreaming,
-									reasoning: runState.reasoning,
 									error: runState.error,
+									isStreaming: runState.isStreaming,
+									metrics: runState.metrics,
+									reasoning: runState.reasoning,
+									text: runState.text,
 								}
 							: null
 					}

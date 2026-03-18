@@ -16,11 +16,11 @@ import { NavActions } from "./_components/nav-actions";
 
 type TemplateContentView = "template" | "examples";
 
-export async function generateMetadata({
+export const generateMetadata = async ({
 	params,
 }: {
 	params: Promise<{ id: string }>;
-}): Promise<Metadata> {
+}): Promise<Metadata> => {
 	const { id } = await params;
 	const queryClient = new QueryClient();
 	const doc = await queryClient.fetchQuery(
@@ -30,12 +30,12 @@ export async function generateMetadata({
 	return {
 		title: doc?.title,
 	};
-}
+};
 
-export default async function NotePage({
+const NotePage = async ({
 	params,
 	searchParams,
-}: PageProps<"/templates/[id]">) {
+}: PageProps<"/templates/[id]">) => {
 	const queryClient = new QueryClient();
 	const session = await getServerSession();
 	const { id } = await params;
@@ -89,4 +89,6 @@ export default async function NotePage({
 			/>
 		</div>
 	);
-}
+};
+
+export default NotePage;

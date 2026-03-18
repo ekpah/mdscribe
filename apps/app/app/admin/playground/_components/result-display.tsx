@@ -22,8 +22,8 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import type { PlaygroundResult } from "../_lib/types";
-import { formatCost, formatLatency, formatTokens } from "../_lib/types";
+import type { PlaygroundResult } from "@/app/admin/playground/_lib/types";
+import { formatCost, formatLatency, formatTokens } from "@/app/admin/playground/_lib/types";
 
 interface ResultDisplayProps {
 	result: PlaygroundResult | null;

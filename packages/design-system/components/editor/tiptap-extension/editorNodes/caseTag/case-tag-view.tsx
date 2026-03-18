@@ -5,14 +5,14 @@ import { NodeViewContent, NodeViewWrapper } from "@tiptap/react";
 import { X } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useCallback } from "react";
-import { Button } from "../../../../ui/button";
-import { Input } from "../../../../ui/input";
-import { Label } from "../../../../ui/label";
+import { Button } from "@repo/design-system/components/ui/button";
+import { Input } from "@repo/design-system/components/ui/input";
+import { Label } from "@repo/design-system/components/ui/label";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
-} from "../../../../ui/popover";
+} from "@repo/design-system/components/ui/popover";
 
 export const CaseTagView = ({
 	node,

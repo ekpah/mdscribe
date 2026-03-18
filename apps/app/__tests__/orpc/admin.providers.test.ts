@@ -7,8 +7,8 @@ import {
 	createTestContext,
 	createTestUser,
 	startTestServer,
-} from "../setup";
-import type { TestServer } from "../setup";
+} from "@/__tests__/setup";
+import type { TestServer } from "@/__tests__/setup";
 
 describe("Admin Providers Handler", () => {
 	let server: TestServer;
@@ -24,7 +24,7 @@ describe("Admin Providers Handler", () => {
 
 	afterEach(async () => {
 		globalThis.fetch = originalFetch;
-		await server.close();
+		await server?.close();
 	});
 
 	test("connections.create validates provider before persistence", async () => {

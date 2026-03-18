@@ -6,8 +6,8 @@ import { z } from "zod";
 import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
 import type { StandardUsage } from '@/lib/usage-logging';
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "../middlewares/admin";
-import { resolveModel, resolveProviderModel } from "../scribe/providers";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { resolveModel, resolveProviderModel } from "@/orpc/scribe/providers";
 import { pdfDocumentConfigs } from './config';
 import type { FieldMapping } from './config';
 
@@ -50,7 +50,7 @@ const stripCodeFence = (markdown: string): string => {
 /**
  * Parse and enhance PDF form fields using AI.
  */
-export const parseFormHandler = authed
+const parseFormHandler = authed
 	.input(
 		type<{
 			fileBase64: string;

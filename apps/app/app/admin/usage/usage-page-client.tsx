@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
@@ -8,25 +9,28 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import {
-	DataTable,
-	type DataTableRenderToolbarProps,
-	DataTableViewOptions,
-} from "@repo/design-system/components/ui/data-table";
+import { DataTable, DataTableViewOptions } from '@repo/design-system/components/ui/data-table';
+import type { DataTableRenderToolbarProps } from '@repo/design-system/components/ui/data-table';
 import { Input } from "@repo/design-system/components/ui/input";
 import {
 	ToggleGroup,
 	ToggleGroupItem,
 } from "@repo/design-system/components/ui/toggle-group";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Loader2, RefreshCw, XCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, Loader2, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
-import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { UsageEventDetail } from "./_components/usage-event-detail";
-import { createColumns } from "./columns";
-import type { UsageEventWithUser } from "./columns";
+import {
+	buildPlaygroundUrl,
+	createColumns,
+	formatCost,
+	formatDate,
+	getPromptLabel,
+} from "./columns";
+import type { UsageDetailEvent, UsageListEvent } from "./types";
 
 type StatsFilter = "today" | "week" | "month" | "all";
 
@@ -42,42 +46,37 @@ const UsageToolbar = ({
 	searchFilter,
 	onSearchFilterChange,
 }: {
-	table: DataTableRenderToolbarProps<UsageEventWithUser>["table"];
+	table: DataTableRenderToolbarProps<UsageListEvent>["table"];
 	searchFilter: string;
 	onSearchFilterChange: (event: ChangeEvent<HTMLInputElement>) => void;
-}) => {
-	return (
-		<div className="flex items-center justify-between gap-2">
+}) => (
+		<div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
 			<Input
 				placeholder="Benutzer oder Aktion suchen..."
 				value={searchFilter}
 				onChange={onSearchFilterChange}
-				className="max-w-sm"
+				className="w-full md:max-w-sm"
 			/>
-			<DataTableViewOptions table={table} />
+			<div className="hidden md:block">
+				<DataTableViewOptions table={table} />
+			</div>
 		</div>
 	);
-};
 
 export default function UsagePage() {
-	const queryClient = useQueryClient();
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 	const [cursor, setCursor] = useState<string | undefined>();
-	const [allItems, setAllItems] = useState<UsageEventWithUser[]>([]);
+	const [allItems, setAllItems] = useState<UsageListEvent[]>([]);
 	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
 	const [searchFilter, setSearchFilter] = useState("");
 	const statsQueryOptions = orpc.admin.usage.stats.queryOptions({
 		input: { filter: statsFilter },
 	});
-	const listQueryKey = orpc.admin.usage.list.queryOptions({
-		input: { limit: 25 },
-	}).queryKey;
 
 	// Stats query
 	const {
 		data: stats,
 		isLoading: statsLoading,
-		isFetching: isFetchingStats,
 	} = useQuery(statsQueryOptions);
 
 	// List query with pagination
@@ -95,19 +94,6 @@ export default function UsagePage() {
 		}),
 		placeholderData: (prev) => prev,
 	});
-
-	const handleRefresh = useCallback(async () => {
-		setCursor(undefined);
-		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: statsQueryOptions.queryKey,
-			}),
-			queryClient.invalidateQueries({
-				queryKey: listQueryKey,
-			}),
-		]);
-		toast.success("Nutzungsdaten aktualisiert");
-	}, [listQueryKey, queryClient, statsQueryOptions.queryKey]);
 
 	// Accumulate items when new data arrives
 	useEffect(() => {
@@ -142,7 +128,7 @@ export default function UsagePage() {
 		}
 	}, [data?.nextCursor]);
 
-	const handleRowClick = useCallback((row: UsageEventWithUser) => {
+	const handleRowClick = useCallback((row: UsageListEvent) => {
 		setSelectedEventId(row.id);
 	}, []);
 
@@ -163,7 +149,7 @@ export default function UsagePage() {
 	);
 
 	const renderUsageToolbar = useCallback(
-		(table: DataTableRenderToolbarProps<UsageEventWithUser>["table"]) => (
+		(table: DataTableRenderToolbarProps<UsageListEvent>["table"]) => (
 			<UsageToolbar
 				table={table}
 				searchFilter={searchFilter}
@@ -191,14 +177,37 @@ export default function UsagePage() {
 				actionName.includes(search)
 			);
 		});
-	}, [allItems, searchFilter]);
+		}, [allItems, searchFilter]);
 
-	const errorMessage =
-		error instanceof Error
-			? error.message
-			: (error
-				? String(error)
-				: "Fehler beim Laden der Events");
+	const handleEventSelectionById = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const item of filteredItems) {
+			handlers[item.id] = () => {
+				setSelectedEventId(item.id);
+			};
+		}
+		return handlers;
+	}, [filteredItems]);
+
+	const errorMessage = (() => {
+		if (error instanceof Error) {
+			return error.message;
+		}
+		if (error) {
+			return String(error);
+		}
+		return "Fehler beim Laden der Events";
+	})();
+
+	const totalCostLabel = (() => {
+		if (statsLoading) {
+			return <Loader2 className="h-4 w-4 animate-spin" />;
+		}
+		if (stats?.totalCost === undefined) {
+			return "-";
+		}
+		return `$${stats.totalCost.toFixed(2)}`;
+	})();
 
 	if (isLoading && allItems.length === 0) {
 		return (
@@ -242,32 +251,18 @@ export default function UsagePage() {
 			<div className="mx-auto max-w-6xl space-y-4 sm:space-y-6">
 				{/* Header */}
 				<div className="space-y-2">
-					<div className="flex items-center justify-between gap-4">
-						<div className="flex items-center gap-3">
-							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-solarized-green/10 sm:h-12 sm:w-12">
-								<Activity className="h-5 w-5 text-solarized-green sm:h-6 sm:w-6" />
-							</div>
-							<div>
-								<h1 className="text-xl font-bold text-solarized-base00 sm:text-2xl md:text-3xl">
-									Nutzungsstatistik
-								</h1>
-								<p className="text-sm text-solarized-base01 sm:text-base">
-									Übersicht aller AI-Generierungen auf der Plattform
-								</p>
-							</div>
+					<div className="flex items-center gap-3">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-solarized-green/10 sm:h-12 sm:w-12">
+							<Activity className="h-5 w-5 text-solarized-green sm:h-6 sm:w-6" />
 						</div>
-						<Button
-							variant="outline"
-							onClick={handleRefresh}
-							disabled={isFetchingList || isFetchingStats}
-						>
-							<RefreshCw
-								className={`mr-2 h-4 w-4 ${
-									isFetchingList || isFetchingStats ? "animate-spin" : ""
-								}`}
-							/>
-							<span className="hidden sm:inline">Aktualisieren</span>
-						</Button>
+						<div>
+							<h1 className="text-xl font-bold text-solarized-base00 sm:text-2xl md:text-3xl">
+								Nutzungsstatistik
+							</h1>
+							<p className="text-sm text-solarized-base01 sm:text-base">
+								Übersicht aller AI-Generierungen auf der Plattform
+							</p>
+						</div>
 					</div>
 				</div>
 
@@ -275,22 +270,26 @@ export default function UsagePage() {
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
 						{/* Filter Tabs */}
-							<ToggleGroup
-								type="single"
-								value={statsFilter}
-								variant="outline"
-								onValueChange={handleStatsFilterChange}
-								className="mb-4 w-full"
-							>
+						<ToggleGroup
+							type="single"
+							value={statsFilter}
+							variant="outline"
+							onValueChange={handleStatsFilterChange}
+							className="mb-4 grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
+						>
 							{(Object.keys(filterLabels) as StatsFilter[]).map((filter) => (
-								<ToggleGroupItem key={filter} value={filter} className="flex-1">
+								<ToggleGroupItem
+									key={filter}
+									value={filter}
+									className="w-full justify-center"
+								>
 									{filterLabels[filter]}
 								</ToggleGroupItem>
 							))}
 						</ToggleGroup>
 
 						{/* Stats Grid */}
-						<div className="grid grid-cols-3 gap-4 sm:gap-6">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-6">
 							<div className="space-y-1">
 								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
 									Events
@@ -315,20 +314,14 @@ export default function UsagePage() {
 									)}
 								</p>
 							</div>
-							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-									Kosten
-								</p>
-								<p className="text-base font-semibold text-solarized-green sm:text-lg">
-									{statsLoading ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (stats?.totalCost !== undefined ? (
-										`$${stats.totalCost.toFixed(2)}`
-									) : (
-										"-"
-									))}
-								</p>
-							</div>
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
+										Kosten
+									</p>
+									<p className="text-base font-semibold text-solarized-green sm:text-lg">
+										{totalCostLabel}
+									</p>
+								</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -343,7 +336,93 @@ export default function UsagePage() {
 							Alle AI-Generierungen mit Details zu Kosten und Token-Nutzung
 						</CardDescription>
 					</CardHeader>
-					<CardContent>
+					<CardContent className="space-y-4">
+						<div className="space-y-3 md:hidden">
+							<Input
+								placeholder="Benutzer oder Aktion suchen..."
+								value={searchFilter}
+								onChange={handleSearchFilterChange}
+							/>
+							{filteredItems.length === 0 ? (
+								<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/60 p-4 text-sm text-solarized-base01">
+									Keine Events gefunden.
+								</div>
+							) : (
+								filteredItems.map((item) => {
+									const promptLabel = getPromptLabel(
+										item.metadata as Record<string, unknown> | null,
+									);
+									const modelLabel = item.model?.split("/").pop() || "-";
+
+									return (
+										<div
+											key={item.id}
+											className="rounded-lg border border-solarized-base2 bg-solarized-base3/50 p-4"
+										>
+											<div className="flex items-start justify-between gap-3">
+												<div className="min-w-0">
+													<p className="truncate font-medium text-solarized-base00">
+														{item.user?.name || "Unbekannt"}
+													</p>
+													<p className="truncate text-xs text-solarized-base01">
+														{item.user?.email || "Kein Benutzer"}
+													</p>
+												</div>
+												<div className="text-right">
+													<p className="text-xs text-solarized-base01">
+														{formatDate(item.timestamp)}
+													</p>
+													<p className="font-mono text-sm text-solarized-base00">
+														{formatCost(item.cost)}
+													</p>
+												</div>
+											</div>
+
+											<div className="mt-3 flex flex-wrap gap-2">
+												<Badge variant="outline">{item.name}</Badge>
+												{promptLabel !== "-" && (
+													<Badge variant="secondary" className="max-w-full truncate">
+														{promptLabel}
+													</Badge>
+												)}
+											</div>
+
+											<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+													<p className="text-solarized-base01">Modell</p>
+													<p className="truncate font-mono text-solarized-base00">
+														{modelLabel}
+													</p>
+												</div>
+												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+													<p className="text-solarized-base01">Tokens</p>
+													<p className="font-mono text-solarized-base00">
+														{item.totalTokens?.toLocaleString("de-DE") ?? "-"}
+													</p>
+												</div>
+											</div>
+
+												<div className="mt-3 flex flex-col gap-2">
+													<Button
+														variant="outline"
+														onClick={handleEventSelectionById[item.id]}
+														className="w-full"
+													>
+													Details anzeigen
+												</Button>
+												<Button asChild className="w-full" variant="secondary">
+													<Link href={buildPlaygroundUrl(item)}>
+														Im Playground öffnen
+													</Link>
+												</Button>
+											</div>
+										</div>
+									);
+								})
+							)}
+						</div>
+
+						<div className="hidden md:block">
 							<DataTable
 								columns={columns}
 								data={filteredItems}
@@ -353,6 +432,7 @@ export default function UsagePage() {
 								emptyMessage="Keine Events gefunden"
 								renderToolbar={renderUsageToolbar}
 							/>
+						</div>
 
 						{/* Load More Button */}
 						{data?.hasMore && (
@@ -380,7 +460,7 @@ export default function UsagePage() {
 
 			{/* Detail Sheet */}
 				<UsageEventDetail
-					event={selectedEvent}
+					event={selectedEvent as UsageDetailEvent | null | undefined}
 					open={!!selectedEventId}
 					onOpenChange={handleDetailOpenChange}
 				/>

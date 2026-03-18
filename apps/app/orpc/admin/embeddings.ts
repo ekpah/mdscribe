@@ -5,7 +5,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { VoyageAIClient } from "voyageai";
 
 import { authed } from "@/orpc";
-import { requiredAdminMiddleware } from "../middlewares/admin";
+import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
@@ -25,7 +25,7 @@ const generateEmbeddings = async (content: string): Promise<number[]> => {
 /**
  * Get embedding statistics - counts of templates with and without embeddings
  */
-export const getEmbeddingStatsHandler = authed
+const getEmbeddingStatsHandler = authed
 	.use(requiredAdminMiddleware)
 	.handler(async ({ context }) => {
 		const [totalResult] = await context.db
@@ -55,7 +55,7 @@ type MigrationMode = "missing" | "all";
 /**
  * Migrate template embeddings - generates or regenerates embeddings for templates
  */
-export const migrateEmbeddingsHandler = authed
+const migrateEmbeddingsHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(
 		type<{
@@ -85,18 +85,14 @@ export const migrateEmbeddingsHandler = authed
 		stats.total = totalResult?.count ?? 0;
 
 		// Get templates to process based on mode
-		let templatesToProcess: { id: string; content: string }[];
-
-		if (mode === "missing") {
-			templatesToProcess = await context.db
-				.select({ content: template.content, id: template.id })
-				.from(template)
-				.where(isNull(template.embedding));
-		} else {
-			templatesToProcess = await context.db
-				.select({ content: template.content, id: template.id })
-				.from(template);
-		}
+			const templatesToProcess: { id: string; content: string }[] = mode === "missing"
+				? await context.db
+						.select({ content: template.content, id: template.id })
+						.from(template)
+						.where(isNull(template.embedding))
+				: await context.db
+						.select({ content: template.content, id: template.id })
+						.from(template);
 
 		if (templatesToProcess.length === 0) {
 			return {

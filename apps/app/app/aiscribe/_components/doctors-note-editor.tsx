@@ -3,12 +3,12 @@
 import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { cn } from "@repo/design-system/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DoctorsNoteSection } from "./doctors-note-section";
 import type { DoctorsNoteSectionConfig } from "./doctors-note-section";
 
 // A toggleable section group where user picks which section to show
-export interface DoctorsNoteSectionToggle {
+interface DoctorsNoteSectionToggle {
 	type: "toggle";
 	id: string;
 	options: {
@@ -20,16 +20,14 @@ export interface DoctorsNoteSectionToggle {
 }
 
 // Config item can be a regular section or a toggle group
-export type DoctorsNoteConfigItem =
+type DoctorsNoteConfigItem =
 	| DoctorsNoteSectionConfig
 	| DoctorsNoteSectionToggle;
 
 // Type guard to check if item is a toggle
 const isToggle = (
 	item: DoctorsNoteConfigItem,
-): item is DoctorsNoteSectionToggle => {
-	return "type" in item && item.type === "toggle";
-};
+): item is DoctorsNoteSectionToggle => "type" in item && item.type === "toggle";
 
 export interface DoctorsNoteEditorConfig {
 	title: string;
@@ -124,6 +122,31 @@ export const DoctorsNoteEditor = ({
 		[],
 	);
 
+	const sectionChangeHandlers = useMemo(() => {
+		const handlers: Record<string, (value: string) => void> = {};
+		for (const section of getAllSectionConfigs(config.sections)) {
+			handlers[section.id] = (value: string) => {
+				handleSectionChange(section.id, value);
+			};
+		}
+		return handlers;
+	}, [config.sections, handleSectionChange]);
+
+	const toggleOptionClickHandlers = useMemo(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const item of config.sections) {
+			if (!isToggle(item)) {
+				continue;
+			}
+			for (const option of item.options) {
+				handlers[`${item.id}:${option.id}`] = () => {
+					handleToggleChange(item.id, option.id);
+				};
+			}
+		}
+		return handlers;
+	}, [config.sections, handleToggleChange]);
+
 	// Get visible sections (accounting for toggle states)
 	const getVisibleSections = useCallback((): DoctorsNoteSectionConfig[] => {
 		const visible: DoctorsNoteSectionConfig[] = [];
@@ -185,70 +208,71 @@ export const DoctorsNoteEditor = ({
 				{/* Sections */}
 				<div className="space-y-4">
 					{config.sections.map((item) => {
-						if (isToggle(item)) {
-							const selectedOption = toggleStates[item.id];
-							const option = item.options.find((o) => o.id === selectedOption);
-							const handleSelectedSectionChange = (value: string) => {
-								if (option) {
-									handleSectionChange(option.section.id, value);
-								}
-							};
+							if (isToggle(item)) {
+								const selectedOption = toggleStates[item.id];
+								const option = item.options.find((o) => o.id === selectedOption);
+								const selectedSectionChangeHandler = option
+									? sectionChangeHandlers[option.section.id]
+									: undefined;
 
 							return (
 								<div className="space-y-2" key={item.id}>
 									{/* Toggle buttons */}
-									<div className="flex items-center gap-1 rounded-lg bg-muted/50 p-1">
-										{item.options.map((opt) => {
-											const handleToggleOptionClick = () => {
-												handleToggleChange(item.id, opt.id);
-											};
+										<div className="flex items-center gap-1 rounded-lg bg-muted/50 p-1">
+											{item.options.map((opt) => {
+												const handleToggleOptionClick =
+													toggleOptionClickHandlers[`${item.id}:${opt.id}`];
+												if (!handleToggleOptionClick) {
+													return null;
+												}
 
-											return (
-												<button
-													className={cn(
-														"flex-1 rounded-md px-3 py-1.5 font-medium text-sm transition-all",
-														selectedOption === opt.id
-															? "bg-background text-foreground shadow-sm"
-															: "text-muted-foreground hover:text-foreground",
-													)}
-													key={opt.id}
-													onClick={handleToggleOptionClick}
-													type="button"
-												>
-													{opt.label}
-												</button>
-											);
-										})}
+												return (
+													<button
+														className={cn(
+															"flex-1 rounded-md px-3 py-1.5 font-medium text-sm transition-all",
+															selectedOption === opt.id
+																? "bg-background text-foreground shadow-sm"
+																: "text-muted-foreground hover:text-foreground",
+														)}
+														key={opt.id}
+														onClick={handleToggleOptionClick}
+														type="button"
+													>
+														{opt.label}
+													</button>
+												);
+											})}
+										</div>
+
+										{/* Selected section */}
+										{option && selectedSectionChangeHandler && (
+											<DoctorsNoteSection
+												config={option.section}
+												context={getContextForSection(option.section.id)}
+												disabled={disabled}
+												onChange={selectedSectionChangeHandler}
+												value={sectionValues[option.section.id] || ""}
+											/>
+										)}
 									</div>
+								);
+							}
 
-									{/* Selected section */}
-									{option && (
-										<DoctorsNoteSection
-											config={option.section}
-											context={getContextForSection(option.section.id)}
-											disabled={disabled}
-											onChange={handleSelectedSectionChange}
-											value={sectionValues[option.section.id] || ""}
-										/>
-									)}
-								</div>
+							const itemSectionChangeHandler = sectionChangeHandlers[item.id];
+							if (!itemSectionChangeHandler) {
+								return null;
+							}
+
+							return (
+								<DoctorsNoteSection
+									config={item}
+									context={getContextForSection(item.id)}
+									disabled={disabled}
+									key={item.id}
+									onChange={itemSectionChangeHandler}
+									value={sectionValues[item.id] || ""}
+								/>
 							);
-						}
-
-						const handleItemSectionChange = (value: string) => {
-							handleSectionChange(item.id, value);
-						};
-
-						return (
-							<DoctorsNoteSection
-								config={item}
-								context={getContextForSection(item.id)}
-								disabled={disabled}
-								key={item.id}
-								onChange={handleItemSectionChange}
-								value={sectionValues[item.id] || ""}
-							/>
-						);
 					})}
 				</div>
 
@@ -265,6 +289,3 @@ export const DoctorsNoteEditor = ({
 		</div>
 	);
 };
-
-// Re-export types for convenience
-export type { DoctorsNoteSectionConfig };

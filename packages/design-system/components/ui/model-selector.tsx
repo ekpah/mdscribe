@@ -14,6 +14,11 @@ import {
 } from "./command"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
 
+const compareSelectorText = new Intl.Collator(undefined, {
+	numeric: true,
+	sensitivity: "base",
+}).compare
+
 export interface ModelSelectorOption {
 	key?: string
 	value: string
@@ -66,7 +71,7 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 }: ModelSelectorProps<TOption>) {
 	const [isOpen, setIsOpen] = React.useState(false)
 	const [searchQuery, setSearchQuery] = React.useState("")
-	const searchInputId = React.useId()
+	const searchInputRef = React.useRef<HTMLInputElement | null>(null)
 
 	const normalizedOptions = React.useMemo<NormalizedOption<TOption>[]>(() => {
 		return options.map((option) => ({
@@ -125,9 +130,36 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 					groups.set(group, [entry])
 				}
 			}
+
 			return Array.from(groups.entries())
+				.map(([group, entries]) => [
+					group,
+					[...entries].sort((a, b) => {
+						const labelCompare = compareSelectorText(
+							a.option.label,
+							b.option.label
+						)
+						if (labelCompare !== 0) {
+							return labelCompare
+						}
+
+						return compareSelectorText(a.key, b.key)
+					}),
+				] as const)
+				.sort(([groupA], [groupB]) => {
+					if (!groupA && groupB) {
+						return 1
+					}
+					if (groupA && !groupB) {
+						return -1
+					}
+
+					const labelA = formatGroupLabel ? formatGroupLabel(groupA) : groupA
+					const labelB = formatGroupLabel ? formatGroupLabel(groupB) : groupB
+					return compareSelectorText(labelA, labelB)
+				})
 		},
-		[filteredOptions]
+		[filteredOptions, formatGroupLabel]
 	)
 
 	const handleSelect = React.useCallback(
@@ -151,15 +183,15 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 	React.useEffect(() => {
 		if (!isOpen) return
 
-		const focusHandle = window.requestAnimationFrame(() => {
-			const searchInput = document.getElementById(searchInputId)
-			if (!(searchInput instanceof HTMLInputElement)) return
+		const focusHandle = window.setTimeout(() => {
+			const searchInput = searchInputRef.current
+			if (!searchInput) return
 			searchInput.focus()
 			searchInput.select()
-		})
+		}, 0)
 
-		return () => window.cancelAnimationFrame(focusHandle)
-	}, [isOpen, searchInputId])
+		return () => window.clearTimeout(focusHandle)
+	}, [isOpen])
 
 	return (
 		<Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -212,7 +244,8 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 			>
 				<Command shouldFilter={false} className="bg-popover">
 					<CommandInput
-						id={searchInputId}
+						ref={searchInputRef}
+						autoFocus={isOpen}
 						value={searchQuery}
 						onValueChange={setSearchQuery}
 						placeholder={searchPlaceholder}

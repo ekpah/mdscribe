@@ -1,8 +1,8 @@
 "use client";
 
 import { BedDouble } from "lucide-react";
-import { DoctorsNoteEditor } from '../../_components/doctors-note-editor';
-import type { DoctorsNoteEditorConfig } from '../../_components/doctors-note-editor';
+import { DoctorsNoteEditor } from '@/app/aiscribe/_components/doctors-note-editor';
+import type { DoctorsNoteEditorConfig } from '@/app/aiscribe/_components/doctors-note-editor';
 
 // Section configuration for inpatient (Normalstation) documentation
 // Each section defines its own endpoint and prompt builder
@@ -60,51 +60,20 @@ const INPATIENT_EDITOR_CONFIG: DoctorsNoteEditorConfig = {
 			placeholder:
 				"Labor-, Bildgebungs- und weitere Befunde während des Aufenthalts eingeben...",
 		},
-		// Toggle between Discharge home (Entlassbrief) and Transfer to ICU/other ward
 		{
-			defaultOption: "entlassung",
-			id: "disposition",
-			options: [
-				{
-					id: "entlassung",
-					label: "Entlassung nach Hause",
-					section: {
-						buildPrompt: (notes, context) => ({
-							anamnese: context.anamnese || "",
-							befunde: context.befunde || "",
-							diagnoseblock: context.diagnosen || "",
-							notes,
-						}),
-						description:
-							"Zusammenfassung des stationären Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
-						documentType: "discharge",
-						id: "entlassungsbrief",
-						label: "Entlassungsbrief",
-						placeholder:
-							"Notizen für Entlassungsbrief eingeben (Therapie, Empfehlungen, Nachsorge)...",
-					},
-				},
-				{
-					id: "verlegung",
-					label: "Verlegung",
-					section: {
-						buildPrompt: (notes, context) => ({
-							anamnese: context.anamnese || "",
-							befunde: context.befunde || "",
-							diagnoseblock: context.diagnosen || "",
-							notes,
-						}),
-						description:
-							"Zusammenfassung des Aufenthalts und Verlegungsinformationen für die weiterbehandelnde Station",
-						documentType: "discharge",
-						id: "verlegungsbrief",
-						label: "Verlegungsbrief",
-						placeholder:
-							"Notizen für Verlegungsbrief eingeben (Verlegungsgrund, aktueller Zustand, offene Punkte)...",
-					},
-				},
-			],
-			type: "toggle",
+			buildPrompt: (notes, context) => ({
+				anamnese: context.anamnese || "",
+				befunde: context.befunde || "",
+				diagnoseblock: context.diagnosen || "",
+				notes,
+			}),
+			description:
+				"Zusammenfassung des stationären Aufenthalts, durchgeführte Therapien und Entlassungsempfehlungen",
+			documentType: "discharge",
+			id: "entlassungsbrief",
+			label: "Entlassungsbrief",
+			placeholder:
+				"Notizen für Entlassungsbrief eingeben (Therapie, Empfehlungen, Nachsorge)...",
 		},
 	],
 	title: "Stationäre Dokumentation",
