@@ -390,10 +390,10 @@ export const scribeStreamHandler = authed
 			}
 		}
 
-		// Build provider options — only include OpenRouter-specific options when using OpenRouter
-		const thinkingEnabled = Boolean(
-			resolvedRequest.config.modelConfig.thinking && resolved.supportsReasoning,
-		);
+			// Build provider options — only include OpenRouter-specific options when using OpenRouter
+			const thinkingEnabled = Boolean(
+				resolvedRequest.config.modelConfig.thinking && resolved.supportsReasoning,
+			);
 
 		// Enable with budget when desired, otherwise omit entirely.
 		// NEVER send { enabled: false } — some models require mandatory reasoning.
@@ -401,14 +401,15 @@ export const scribeStreamHandler = authed
 			? { max_tokens: resolvedRequest.config.modelConfig.thinkingBudget ?? 8000 }
 			: undefined;
 
-		const providerOptions = resolved.isOpenRouter
-			? {
-					openrouter: {
-						usage: { include: true },
-						user: context.session.user.email,
-						...(reasoningConfig && { reasoning: reasoningConfig }),
-						...(activeSubscription && { zdr: true }),
-					},
+			const providerOptions = resolved.isOpenRouter
+				? {
+						openrouter: {
+							cache_control: { ttl: "1h", type: "ephemeral" },
+							usage: { include: true },
+							user: context.session.user.email,
+							...(reasoningConfig && { reasoning: reasoningConfig }),
+							...(activeSubscription && { zdr: true }),
+						},
 				}
 			: undefined;
 

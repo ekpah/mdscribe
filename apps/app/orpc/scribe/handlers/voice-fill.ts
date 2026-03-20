@@ -2,6 +2,7 @@ import { type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
 import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { generateObject } from "ai";
+import type { ModelMessage } from "ai";
 import { z } from "zod";
 
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
@@ -150,10 +151,19 @@ export const voiceFillHandler = authed
 
 		// Build prompt from config
 		const promptMessages = config.prompt({ fields, inputTagsJson });
+		const providerOptions = resolved.isOpenRouter
+			? {
+					openrouter: {
+						cache_control: { ttl: "1h", type: "ephemeral" },
+						usage: { include: true },
+						user: context.session.user.email,
+					},
+				}
+			: undefined;
 
 		// Build messages with audio content
 		// Config returns [system, user] messages - user message contains field labels
-		const messages = [
+		let messages: ModelMessage[] = [
 			{
 				content: promptMessages[0].content,
 				role: "system" as const,
@@ -161,7 +171,10 @@ export const voiceFillHandler = authed
 			{
 				content: [
 					// Include field labels text from config
-					{ text: promptMessages[1].content, type: "text" as const },
+					{
+						text: promptMessages[1].content,
+						type: "text" as const,
+					},
 					// Append audio files
 					...audioFiles.map((af) => ({
 						data: Buffer.from(af.data, "base64"),
@@ -177,6 +190,7 @@ export const voiceFillHandler = authed
 			experimental_telemetry: { isEnabled: true },
 			messages,
 			model: resolved.model,
+			providerOptions,
 			schema: voiceFillSchema,
 			temperature: config.modelConfig.temperature ?? 0.3,
 		});
