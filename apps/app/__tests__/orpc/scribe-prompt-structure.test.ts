@@ -64,6 +64,34 @@ describe("Scribe Prompt Structure", () => {
 		expect(userContent).not.toContain("Standardstruktur Intensiv-Verlegungsbrief");
 	});
 
+	test("anamnese keeps date and fallback template in unified context block", () => {
+		const { contextPrompt, contextXml } = composeScribeContext({
+			formData: {
+				anamnese: "Seit gestern Thoraxschmerz mit Ausstrahlung",
+				notes: "Allergie gegen Penicillin bekannt",
+			},
+			promptContextKey: "anamnese",
+			sessionUser: null,
+			todaysDate: "11.03.2026",
+		});
+		const messages = composeDocumentTypePrompt("anamnese", {
+			contextPrompt,
+			contextXml,
+		});
+
+		const userContent = getLastUserContent(messages);
+		expect(messages).toHaveLength(2);
+		expect(messages[0]?.role).toBe("system");
+		expect(userContent).toContain("Das heutige Datum ist der 11.03.2026.");
+		expect(userContent).toContain("<context>");
+		expect(userContent).toContain("<template_context>");
+		expect(userContent).toContain("Standardstruktur Anamnese");
+		expect(userContent).toContain("<patient_context>");
+		expect(userContent.indexOf("Das heutige Datum ist der 11.03.2026.")).toBeLessThan(
+			userContent.indexOf("<context>"),
+		);
+	});
+
 	test("discharge keeps date and unified context block", () => {
 		const { contextPrompt, contextXml } = composeScribeContext({
 			formData: { notes: "Kurze Notiz" },
