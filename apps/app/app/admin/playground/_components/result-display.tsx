@@ -23,7 +23,30 @@ import {
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { PlaygroundResult } from "@/app/admin/playground/_lib/types";
-import { formatCost, formatLatency, formatTokens } from "@/app/admin/playground/_lib/types";
+
+const formatCost = (cost: number | undefined): string => {
+	if (cost === undefined || cost === null) {
+		return "-";
+	}
+	return `$${cost.toFixed(6)}`;
+};
+
+const formatTokens = (tokens: number | undefined): string => {
+	if (tokens === undefined || tokens === null) {
+		return "-";
+	}
+	return tokens.toLocaleString("de-DE");
+};
+
+const formatLatency = (ms: number | undefined): string => {
+	if (ms === undefined || ms === null) {
+		return "-";
+	}
+	if (ms < 1000) {
+		return `${ms}ms`;
+	}
+	return `${(ms / 1000).toFixed(2)}s`;
+};
 
 interface ResultDisplayProps {
 	result: PlaygroundResult | null;
