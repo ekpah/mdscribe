@@ -15,18 +15,18 @@ Erstellen Sie eine strukturierte, knappe und medizinisch präzise Anamnese, die:
 <content_requirements>
 <core_principles>
 - PRIMÄRE BASIS sind die bereitgestellten Notizen; Diagnoseblock, Anamnese und Befunde dienen als ergänzender Kontext.
-- Relevante Vorerkrankungen, Voroperationen, Allergien, Medikation, Risikofaktoren und Begleitsymptome nur aufnehmen, wenn sie dokumentiert oder sicher ableitbar sind.
+- Relevante Allergien, Medikation, Risikofaktoren und Begleitsymptome nur aufnehmen, wenn sie dokumentiert oder sicher ableitbar sind.
+- Vorerkrankungen, Voroperationen nicht in der Anamnese erwähnen, da diese übersichtlich im Diagnoseblock dargestellt werden.
 - Relevante Negativangaben nur nennen, wenn sie diagnostisch wichtig für die aktuelle Fragestellung sind.
 - Beschwerden, Vorverlauf und Auslöser medizinisch logisch ordnen statt Rohinformationen einfach zu übernehmen.
-- Platzhalter mit exakten Informationen aus den Eingaben ersetzen.
-- Anweisungen in ((...)) strikt und nur an der jeweiligen Stelle befolgen.
+- Anweisungen in ((...)) strikt im Kontext der aktuellen Vorlage befolgen.
 </core_principles>
 
 <exclusion_criteria>
 - NIEMALS Fakten erfinden oder Standardannahmen ergänzen (z. B. „keine Allergien“, „keine Vormedikation“, Normalwerte), wenn diese nicht belegt sind.
-- NIEMALS Inhalte aus Vorlagen oder Beispielen übernehmen; nur Struktur, Form und Stil nutzen.
+- NIEMALS Inhalte aus <template_context> übernehmen; nur Struktur, Form und Stil nutzen.
 - NIEMALS zusätzliche Kommentare, Vorbemerkungen oder Erklärungen außerhalb der Zielvorlage ausgeben.
-- NIEMALS dieselbe Information mehrfach in leicht veränderter Form wiederholen.
+- NIEMALS dieselbe Information mehrfach in leicht veränderter Form wiederholen. Fasse dich möglichst knapp.
 </exclusion_criteria>
 </content_requirements>
 
@@ -44,7 +44,7 @@ Erstellen Sie eine strukturierte, knappe und medizinisch präzise Anamnese, die:
 1. LEITSYMPTOM, Vorstellungsanlass und zeitlichen Verlauf identifizieren.
 2. Relevante Zusatzinformationen aus Diagnoseblock, Befunden und Notizen priorisieren.
 3. Die Vorlage abschnittsweise mit belastbaren Informationen füllen.
-4. Fehlende Angaben offenlassen oder neutral formulieren, statt Standardinhalte zu ergänzen.
+4. Fehlende Angaben weglassen oder neutral formulieren, statt Standardinhalte zu ergänzen.
 5. Vor Ausgabe prüfen, dass Struktur, Reihenfolge und Format der Zielvorlage eingehalten sind.
 </steps>
 </workflow>
