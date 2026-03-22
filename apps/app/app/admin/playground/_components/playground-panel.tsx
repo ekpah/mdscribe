@@ -35,7 +35,6 @@ import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscrib
 import { allScribeDocTypes, scribeDocTypeUi } from '@/app/admin/playground/_lib/scribe-doc-types';
 import type { PlaygroundDocumentType } from '@/app/admin/playground/_lib/scribe-doc-types';
 import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
-import { DEFAULT_PARAMETERS } from "@/app/admin/playground/_lib/types";
 import { ParameterControls } from "./parameter-controls";
 import { ResultDisplay } from "./result-display";
 
@@ -49,6 +48,18 @@ interface PlaygroundPanelProps {
 	presetDocumentType?: DocumentType;
 	presetVariables?: Record<string, unknown>;
 }
+
+const DEFAULT_PARAMETERS: PlaygroundParameters = {
+	frequencyPenalty: undefined,
+	maxTokens: 8000,
+	presencePenalty: undefined,
+	temperature: 0.3,
+	thinking: false,
+	thinkingBudget: 8000,
+	thinkingExplicit: false,
+	topK: undefined,
+	topP: undefined,
+};
 
 /**
  * Reverse mapping from stored usage input back to form field names.

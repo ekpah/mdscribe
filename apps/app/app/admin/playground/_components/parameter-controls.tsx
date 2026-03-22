@@ -19,7 +19,10 @@ import { Brain, HelpCircle, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
-import { supportsThinking } from "@/app/admin/playground/_lib/types";
+
+const supportsThinking = (model: PlaygroundModel): boolean =>
+	model.supportsReasoning === true ||
+	model.supported_parameters.includes("reasoning");
 
 interface ParameterControlsProps {
 	parameters: PlaygroundParameters;
