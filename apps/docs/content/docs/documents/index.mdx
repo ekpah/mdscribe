@@ -1,0 +1,45 @@
+---
+title: Dokumente
+description: Fillbare PDF-Formulare in MDScribe verwalten und direkt im Browser ausfuellen.
+---
+
+## Was ist die Dokumente-Funktion?
+
+Mit **Dokumente** verwalten Sie fillbare PDF-Formulare aehnlich wie Templates:
+
+- Bibliothek mit Suche und Kategorien
+- Detailseite mit Eingaben links und PDF-Vorschau rechts
+- Erstellen, Bearbeiten und Forken fuer eingeloggte Nutzer
+
+## Typischer Ablauf
+
+1. In `/documents/create` ein fillbares PDF hochladen
+2. Erkannte Felder pruefen und Labels/Beschreibungen anpassen
+3. Dokument speichern
+4. Auf der Detailseite Felder ausfuellen, Vorschau ansehen, herunterladen oder drucken
+
+## Wichtige Regeln in v1
+
+- Es werden nur AcroForm-PDFs unterstuetzt
+- `fieldName` bleibt nach dem Parsen read-only
+- Sie koennen `label`, `description`, Typen, Reihenfolge und Aktivierung anpassen
+- Deaktivierte Felder bleiben gespeichert, erscheinen aber nicht in den Eingaben
+- Ausgefuellte PDF-Ergebnisse werden nicht dauerhaft gespeichert
+
+## Voice Fill
+
+Auf der Detailseite koennen Sie die vorhandene Spracheingabe nutzen:
+
+- links Felder mit `Inputs`
+- optional `Voice Fill` ueber `orpc.scribe.voiceFill`
+- rechts Live-Aktualisierung der PDF-Vorschau
+
+## Speicherung (technisch)
+
+Pro Dokument werden gespeichert:
+
+- Original-PDF (`pdfBytes`)
+- Felddefinitionen (`fieldDefinitions`)
+- abgeleitete Eingabe-Tags (`parsedMarkdoc`) werden zur Laufzeit aus `fieldDefinitions` erzeugt und nicht gespeichert
+
+Es wird **kein** roher Markdoc-Text gespeichert.
