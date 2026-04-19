@@ -1,11 +1,26 @@
 import { ORPCError, type } from "@orpc/server";
-import { usageEvent } from "@repo/database";
+import {
+	and,
+	count,
+	desc,
+	documentTemplate,
+	eq,
+	usageEvent,
+	user,
+} from "@repo/database";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 
 import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
+import {
+	buildParsedMarkdocFromFieldDefinitions,
+} from "@/lib/documents/build-parsed-markdoc-from-field-definitions";
+import {
+	documentFieldDefinitionsSchema,
+	type DocumentFieldDefinition,
+} from "@/lib/documents/types";
 import type { StandardUsage } from '@/lib/usage-logging';
-import { authed } from "@/orpc";
+import { authed, pub } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { resolveModel, resolveProviderModel } from "@/orpc/scribe/providers";
 import { pdfDocumentConfigs } from './config';
@@ -47,6 +62,78 @@ const stripCodeFence = (markdown: string): string => {
 	return fencedMatch[1]?.trim() ?? "";
 };
 
+const MAX_CATEGORY_SUGGESTIONS = 10;
+
+const addCategories = (
+	target: string[],
+	seen: Set<string>,
+	categories: string[],
+	limit: number,
+) => {
+	for (const category of categories) {
+		const normalized = category.trim();
+		if (!normalized) {
+			continue;
+		}
+
+		const key = normalized.toLowerCase();
+		if (seen.has(key)) {
+			continue;
+		}
+
+		seen.add(key);
+		target.push(normalized);
+		if (target.length >= limit) {
+			return;
+		}
+	}
+};
+
+const createDocumentTemplateInput = z.object({
+	category: z.string().min(1, "Category is required"),
+	fieldDefinitions: documentFieldDefinitionsSchema,
+	pdfBase64: z.string().min(1, "PDF content is required"),
+	title: z.string().min(1, "Title is required"),
+});
+
+const updateDocumentTemplateInput = z.object({
+	category: z.string().min(1, "Category is required"),
+	fieldDefinitions: documentFieldDefinitionsSchema,
+	id: z.string().min(1),
+	pdfBase64: z.string().min(1).optional(),
+	title: z.string().min(1, "Title is required"),
+});
+
+const getDocumentTemplateInput = z.object({
+	id: z.string(),
+});
+
+const decodePdfBase64 = (value: string): Uint8Array => (
+	new Uint8Array(Buffer.from(value, "base64"))
+);
+
+const encodePdfBase64 = (value: Uint8Array): string =>
+	Buffer.from(value).toString("base64");
+
+const ensureValidFieldDefinitions = (
+	fieldDefinitions: DocumentFieldDefinition[],
+): {
+	normalizedFieldDefinitions: DocumentFieldDefinition[];
+} => {
+	try {
+		const { normalizedFieldDefinitions } =
+			buildParsedMarkdocFromFieldDefinitions(fieldDefinitions);
+		return { normalizedFieldDefinitions };
+	} catch (error) {
+		throw new ORPCError("BAD_REQUEST", {
+			message:
+				error instanceof Error && error.message
+					? error.message
+					: "Die Felddefinitionen ergeben kein gültiges Inputs-Format.",
+		});
+	}
+};
+
 /**
  * Parse and enhance PDF form fields using AI.
  */
@@ -64,40 +151,58 @@ const parseFormHandler = authed
 		const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
 		const promptMessages = config.prompt({ fieldMapping });
 		const promptText = promptMessages[0].content;
-		const resolvedModel = await resolveModel(context.db, {
-			requireFiles: true,
-		});
+		let resolvedModel: Awaited<ReturnType<typeof resolveModel>>;
+		try {
+			resolvedModel = await resolveModel(context.db, {
+				requireFiles: true,
+			});
+		} catch (error) {
+			const details =
+				error instanceof Error ? error.message : "Unbekannter Fehler";
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Kein kompatibles KI-Modell für PDF-Analyse verfügbar. (${details})`,
+			});
+		}
 
-		const result = await generateObject({
-			experimental_telemetry: { isEnabled: true },
-			messages: [
-				{
-					content: [{ text: promptText, type: "text" }],
-					role: "user",
-				},
-				{
-					content: [
-						{
-							data: bytes,
-							mediaType: "application/pdf",
-							type: "file",
-						},
-					],
-					role: "user",
-				},
-			],
-			model: resolvedModel.model,
-			providerOptions: resolvedModel.isOpenRouter
-				? {
-						openrouter: {
-							usage: { include: true },
-							user: context.session.user.email,
-						},
-					}
-				: undefined,
-			schema: enhancedFieldMappingSchema,
-			temperature: config.modelConfig.temperature ?? 0.3,
-		});
+		let result: Awaited<ReturnType<typeof generateObject>>;
+		try {
+			result = await generateObject({
+				experimental_telemetry: { isEnabled: true },
+				messages: [
+					{
+						content: [{ text: promptText, type: "text" }],
+						role: "user",
+					},
+					{
+						content: [
+							{
+								data: bytes,
+								mediaType: "application/pdf",
+								type: "file",
+							},
+						],
+						role: "user",
+					},
+				],
+				model: resolvedModel.model,
+				providerOptions: resolvedModel.isOpenRouter
+					? {
+							openrouter: {
+								usage: { include: true },
+								user: context.session.user.email,
+							},
+						}
+					: undefined,
+				schema: enhancedFieldMappingSchema,
+				temperature: config.modelConfig.temperature ?? 0.3,
+			});
+		} catch (error) {
+			const details =
+				error instanceof Error ? error.message : "Unbekannter Fehler";
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Eingaben konnten nicht mit KI optimiert werden. (${details})`,
+			});
+		}
 
 		const { object, usage } = result;
 		const openRouterUsage = resolvedModel.isOpenRouter
@@ -238,7 +343,227 @@ const ocrToMarkdownHandler = authed
 		return { markdown };
 	});
 
+const listDocumentTemplatesHandler = pub.handler(async ({ context }) => {
+	return context.db
+		.select({
+			author: {
+				email: user.email,
+				id: user.id,
+				name: user.name,
+			},
+			authorId: documentTemplate.authorId,
+			category: documentTemplate.category,
+			createdAt: documentTemplate.createdAt,
+			id: documentTemplate.id,
+			title: documentTemplate.title,
+			updatedAt: documentTemplate.updatedAt,
+		})
+		.from(documentTemplate)
+		.leftJoin(user, eq(documentTemplate.authorId, user.id))
+		.orderBy(desc(documentTemplate.updatedAt));
+});
+
+const getDocumentTemplateHandler = pub
+	.input(getDocumentTemplateInput)
+	.handler(async ({ context, input }) => {
+		const [templateData] = await context.db
+			.select({
+				author: {
+					email: user.email,
+					id: user.id,
+					name: user.name,
+				},
+				authorId: documentTemplate.authorId,
+				category: documentTemplate.category,
+				createdAt: documentTemplate.createdAt,
+				fieldDefinitions: documentTemplate.fieldDefinitions,
+				id: documentTemplate.id,
+				title: documentTemplate.title,
+				updatedAt: documentTemplate.updatedAt,
+			})
+			.from(documentTemplate)
+			.leftJoin(user, eq(documentTemplate.authorId, user.id))
+			.where(eq(documentTemplate.id, input.id))
+			.limit(1);
+
+		return templateData ?? null;
+	});
+
+const getDocumentTemplatePdfHandler = pub
+	.input(getDocumentTemplateInput)
+	.handler(async ({ context, input }) => {
+		const [templateData] = await context.db
+			.select({
+				id: documentTemplate.id,
+				pdfBytes: documentTemplate.pdfBytes,
+			})
+			.from(documentTemplate)
+			.where(eq(documentTemplate.id, input.id))
+			.limit(1);
+
+		if (!templateData) {
+			return null;
+		}
+
+		return {
+			id: templateData.id,
+			pdfBase64: encodePdfBase64(templateData.pdfBytes),
+		};
+	});
+
+const createDocumentTemplateHandler = authed
+	.input(createDocumentTemplateInput)
+	.handler(async ({ context, input }) => {
+		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(
+			input.fieldDefinitions,
+		);
+		const pdfBytes = decodePdfBase64(input.pdfBase64);
+
+		const [createdTemplate] = await context.db
+			.insert(documentTemplate)
+			.values({
+				authorId: context.session.user.id,
+				category: input.category.trim(),
+				fieldDefinitions: normalizedFieldDefinitions,
+				pdfBytes,
+				title: input.title.trim(),
+				updatedAt: new Date(),
+			})
+			.returning({
+				authorId: documentTemplate.authorId,
+				category: documentTemplate.category,
+				createdAt: documentTemplate.createdAt,
+				id: documentTemplate.id,
+				title: documentTemplate.title,
+				updatedAt: documentTemplate.updatedAt,
+			});
+
+		if (!createdTemplate) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Dokument konnte nicht erstellt werden.",
+			});
+		}
+
+		return createdTemplate;
+	});
+
+const updateDocumentTemplateHandler = authed
+	.input(updateDocumentTemplateInput)
+	.handler(async ({ context, input }) => {
+		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(
+			input.fieldDefinitions,
+		);
+
+		const [existingTemplate] = await context.db
+			.select({
+				authorId: documentTemplate.authorId,
+				pdfBytes: documentTemplate.pdfBytes,
+			})
+			.from(documentTemplate)
+			.where(eq(documentTemplate.id, input.id))
+			.limit(1);
+
+		if (!existingTemplate) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Dokument nicht gefunden.",
+			});
+		}
+
+		if (existingTemplate.authorId !== context.session.user.id) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "Nur der Autor darf dieses Dokument bearbeiten.",
+			});
+		}
+
+		const hasPdfReplacement = Boolean(input.pdfBase64);
+		const pdfBytes = hasPdfReplacement
+			? decodePdfBase64(input.pdfBase64 ?? "")
+			: existingTemplate.pdfBytes;
+
+		const [updatedTemplate] = await context.db
+			.update(documentTemplate)
+			.set({
+				category: input.category.trim(),
+				fieldDefinitions: normalizedFieldDefinitions,
+				pdfBytes,
+				title: input.title.trim(),
+				updatedAt: new Date(),
+			})
+			.where(
+				and(
+					eq(documentTemplate.id, input.id),
+					eq(documentTemplate.authorId, context.session.user.id),
+				),
+			)
+			.returning({
+				authorId: documentTemplate.authorId,
+				category: documentTemplate.category,
+				createdAt: documentTemplate.createdAt,
+				id: documentTemplate.id,
+				title: documentTemplate.title,
+				updatedAt: documentTemplate.updatedAt,
+			});
+
+		if (!updatedTemplate) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Dokument konnte nicht aktualisiert werden.",
+			});
+		}
+
+		return updatedTemplate;
+	});
+
+const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context }) => {
+	const userId = context.session.user.id;
+	const limit = MAX_CATEGORY_SUGGESTIONS;
+	const categorySuggestions: string[] = [];
+	const seen = new Set<string>();
+
+	const authoredCategories = await context.db
+		.select({ category: documentTemplate.category })
+		.from(documentTemplate)
+		.where(eq(documentTemplate.authorId, userId))
+		.groupBy(documentTemplate.category)
+		.orderBy(desc(count()))
+		.limit(limit);
+
+	addCategories(
+		categorySuggestions,
+		seen,
+		authoredCategories.map((item) => item.category),
+		limit,
+	);
+
+	if (categorySuggestions.length < limit) {
+		const allCategories = await context.db
+			.select({ category: documentTemplate.category })
+			.from(documentTemplate)
+			.groupBy(documentTemplate.category)
+			.orderBy(desc(count()))
+			.limit(limit);
+
+		addCategories(
+			categorySuggestions,
+			seen,
+			allCategories.map((item) => item.category),
+			limit,
+		);
+	}
+
+	return {
+		categorySuggestions,
+	};
+});
+
 export const documentsHandler = {
 	ocrToMarkdown: ocrToMarkdownHandler,
 	parseForm: parseFormHandler,
+	templates: {
+		create: createDocumentTemplateHandler,
+		editorContext: getDocumentTemplateEditorContextHandler,
+		get: getDocumentTemplateHandler,
+		getPdf: getDocumentTemplatePdfHandler,
+		list: listDocumentTemplatesHandler,
+		update: updateDocumentTemplateHandler,
+	},
 };
