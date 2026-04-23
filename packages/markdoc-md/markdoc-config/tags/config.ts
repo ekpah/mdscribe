@@ -1,5 +1,7 @@
-import { Tag } from '@markdoc/markdoc';
-import type { Config, Node } from '@markdoc/markdoc';
+import { Tag } from "@markdoc/markdoc";
+import type { Config, Node } from "@markdoc/markdoc";
+import type { ComponentType } from "react";
+
 import { Case } from "./case";
 import { Info } from "./info";
 import { Score } from "./score";
@@ -28,7 +30,7 @@ export default {
 			},
 			type: {
 				default: "string",
-				matches: ["string", "number", "date", "boolean"],
+				matches: ["string", "number", "date"],
 				type: String,
 			},
 			unit: {
@@ -52,28 +54,54 @@ export default {
 		render: "Score",
 	},
 	switch: {
-		attributes: { primary: { required: true, type: String } },
+		attributes: {
+			primary: { required: true, type: String },
+			type: {
+				required: false,
+				matches: ["string", "boolean", "checkbox"],
+				type: String,
+			},
+		},
 		children: ["tag", "text"],
 		render: "Switch",
 		selfClosing: false,
 		// this transform is necessary to only allow case tags inside switch tags to render
 		// switch tags should not contain breaks, as this will not be rendered correctly (markdoc only recognizes inline tags or full paragraphs)
 		transform(node: Node, config: Config) {
-			const getAllCaseTags = (nodes: Node[]): Node[] => {
-				const allCaseTags: Node[] = [];
-
-				for (const childNode of nodes) {
-					if (childNode.type === "tag" && childNode.tag === "case") {
-						allCaseTags.push(childNode);
-					}
-					if (childNode.children) {
-						allCaseTags.push(...getAllCaseTags(childNode.children));
-					}
+			const collectCaseTagsFromWrapper = (candidate: Node): Node[] => {
+				if (candidate.type === "tag") {
+					return candidate.tag === "case" ? [candidate] : [];
 				}
 
-				return allCaseTags;
+				// Markdoc can wrap tags inside paragraph/inline helper nodes.
+				// We unwrap those wrappers but intentionally do not traverse into
+				// non-case tags to preserve nested switch scoping.
+				if (
+					(candidate.type === "document" ||
+						candidate.type === "inline" ||
+						candidate.type === "paragraph") &&
+					candidate.children
+				) {
+					const collectedCases: Node[] = [];
+					for (const child of candidate.children) {
+						collectedCases.push(...collectCaseTagsFromWrapper(child));
+					}
+					return collectedCases;
+				}
+
+				return [];
 			};
-			node.children = getAllCaseTags(node.children);
+
+			const getImmediateCaseTags = (nodes: Node[]): Node[] => {
+				const immediateCaseTags: Node[] = [];
+
+				for (const childNode of nodes) {
+					immediateCaseTags.push(...collectCaseTagsFromWrapper(childNode));
+				}
+
+				return immediateCaseTags;
+			};
+			node.children = getImmediateCaseTags(node.children);
 			const attributes = node.transformAttributes(config);
 			const children = node.transformChildren(config);
 
@@ -82,9 +110,9 @@ export default {
 	},
 };
 
-export const components: Record<string, React.ComponentType<unknown>> = {
-	Case,
-	Info,
-	Score,
-	Switch,
+export const components: Record<string, ComponentType<unknown>> = {
+	Case: Case as ComponentType<unknown>,
+	Info: Info as ComponentType<unknown>,
+	Score: Score as ComponentType<unknown>,
+	Switch: Switch as ComponentType<unknown>,
 };

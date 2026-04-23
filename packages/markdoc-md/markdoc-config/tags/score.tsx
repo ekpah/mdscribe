@@ -2,6 +2,7 @@
 
 import Formula from 'fparser';
 import { useVariables } from '@repo/markdoc-md/render/context/variable-context';
+import { toFormulaValue } from '@repo/markdoc-md/parse/boolean-coercion';
 
 interface ValueObject {
   [key: string]: number | string | ValueObject;
@@ -24,11 +25,14 @@ const getFormulaTooltipLabel = (formula: string): string => {
 export const Score = ({ formula, unit, renderUnit }: { formula: string; unit?: string; renderUnit: boolean }) => {
   const variables = useVariables();
   const tooltipLabel = getFormulaTooltipLabel(formula);
+  const formulaVariables: ValueObject = Object.fromEntries(
+    Object.entries(variables).map(([key, value]) => [key, toFormulaValue(value)])
+  ) as ValueObject;
 
   try {
     const f = new Formula(formula);
 
-    const result = f.evaluate(variables as ValueObject);
+    const result = f.evaluate(formulaVariables);
 
     const roundedResult = typeof result === 'number' ? Number(result.toFixed(2)) : result;
 

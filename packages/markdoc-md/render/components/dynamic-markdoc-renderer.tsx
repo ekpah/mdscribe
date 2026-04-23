@@ -1,22 +1,22 @@
-import { useMemo } from 'react';
-import { VariableProvider } from '@repo/markdoc-md/render/context/variable-context';
-import renderMarkdocAsReact from '@repo/markdoc-md/render/utils/render-markdoc-as-react';
+import { VariableProvider } from "@repo/markdoc-md/render/context/variable-context";
+import renderMarkdocAsReact from "@repo/markdoc-md/render/utils/render-markdoc-as-react";
+import { useMemo } from "react";
 
 interface DynamicMarkdocRendererProps {
-  /**
-   * The raw Markdoc content string.
-   */
-  markdocContent: string;
-  /**
-   * An object containing key-value pairs for dynamic variables
-   * used within the Markdoc content (e.g., via custom tags like Info).
-   */
-  variables?: Record<string, unknown>;
-  /**
-   * Optional CSS class name(s) to apply to the wrapping div.
-   * Defaults to 'prose prose-slate grow' if not provided.
-   */
-  className?: string;
+	/**
+	 * The raw Markdoc content string.
+	 */
+	markdocContent: string;
+	/**
+	 * An object containing key-value pairs for dynamic variables
+	 * used within the Markdoc content (e.g., via custom tags like Info).
+	 */
+	variables?: Record<string, unknown>;
+	/**
+	 * Optional CSS class name(s) to apply to the wrapping div.
+	 * Defaults to 'prose prose-slate grow' if not provided.
+	 */
+	className?: string;
 }
 
 /**
@@ -29,16 +29,20 @@ interface DynamicMarkdocRendererProps {
  * to access and react to changes in the provided `variables` object.
  */
 export const DynamicMarkdocRenderer = ({
-  markdocContent,
-  variables,
-  // Default class matching Note.tsx
-  className = 'prose prose-slate grow',
+	markdocContent,
+	variables,
+	// Default class matching Note.tsx
+	className = "prose prose-slate grow",
 }: DynamicMarkdocRendererProps) => {
-  const renderedContent = useMemo(() => renderMarkdocAsReact(markdocContent), [markdocContent]);
+	const renderedContent = useMemo(() => renderMarkdocAsReact(markdocContent), [markdocContent]);
+	const normalizedVariables = (variables ?? {}) as Record<
+		string,
+		string | number | boolean | null | undefined
+	>;
 
-  return (
-    <VariableProvider value={variables ?? {}}>
-      <div className={className}>{renderedContent}</div>
-    </VariableProvider>
-  );
+	return (
+		<VariableProvider value={normalizedVariables}>
+			<div className={className}>{renderedContent}</div>
+		</VariableProvider>
+	);
 };

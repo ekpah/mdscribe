@@ -247,6 +247,12 @@ green     #859900 68 100% 30%
   body {
     @apply bg-background text-foreground;
   }
+
+  html:has([data-documents-editor-root]),
+  body:has([data-documents-editor-root]) {
+    height: 100%;
+    overflow: hidden;
+  }
 }
 
 @layer typography {

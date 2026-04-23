@@ -49,6 +49,22 @@ const formatDuration = (seconds: number): string => {
 	return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
+const getPreferredRecordingMimeType = (): string | null => {
+	const candidates = [
+		"audio/webm;codecs=opus",
+		"audio/webm",
+		"audio/mp4",
+	];
+
+	for (const candidate of candidates) {
+		if (MediaRecorder.isTypeSupported(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+};
+
 export const VoiceInputControls = ({
 	className,
 	maxRecordings = 3,
@@ -74,7 +90,10 @@ export const VoiceInputControls = ({
 
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			const mediaRecorder = new MediaRecorder(stream);
+			const preferredMimeType = getPreferredRecordingMimeType();
+			const mediaRecorder = preferredMimeType
+				? new MediaRecorder(stream, { mimeType: preferredMimeType })
+				: new MediaRecorder(stream);
 			mediaRecorderRef.current = mediaRecorder;
 			audioChunksRef.current = [];
 			recordingStartTimeRef.current = Date.now();
@@ -84,8 +103,15 @@ export const VoiceInputControls = ({
 			});
 
 			mediaRecorder.addEventListener("stop", () => {
+				const firstChunkWithMimeType = audioChunksRef.current.find(
+					(chunk) => chunk.type.length > 0,
+				);
+				const recordingMimeType =
+					firstChunkWithMimeType?.type ||
+					mediaRecorder.mimeType ||
+					"audio/webm";
 				const audioBlob = new Blob(audioChunksRef.current, {
-					type: "audio/wav",
+					type: recordingMimeType,
 				});
 				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
 				setAudioRecordings((prev) => [

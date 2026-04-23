@@ -4,6 +4,11 @@ import type {
 	InfoInputTagType,
 	InputTagType,
 } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import {
+	toBooleanValue,
+	toFormulaValue,
+	toVoiceBooleanValue,
+} from "@repo/markdoc-md/parse/boolean-coercion";
 import Formula from "fparser";
 import { Bot, Pencil, Sigma } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -48,13 +53,13 @@ type VoiceFillResult = Record<string, string>;
 type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
 
 interface SuggestedValue {
-	value: string | number;
+	value: string | number | boolean;
 	source?: SuggestedValueSource;
 	label?: string;
 }
 
 interface InputMeta {
-	type: "string" | "number" | "date" | "switch";
+	type: "string" | "number" | "date" | "switch" | "boolean";
 }
 
 type InputSource = "ai" | "manual";
@@ -89,7 +94,11 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 		}
 
 		if (input.name === "Switch") {
-			pushField(input.attributes.primary, undefined, "switch");
+			const switchType =
+				input.attributes.type === "boolean" || input.attributes.type === "checkbox"
+					? "boolean"
+					: "switch";
+			pushField(input.attributes.primary, undefined, switchType);
 			for (const child of input.children ?? []) {
 				visit(child);
 			}
@@ -120,7 +129,7 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 const normalizeVoiceValue = (
 	value: string,
 	meta?: InputMeta,
-): string | number | undefined => {
+): string | number | boolean | undefined => {
 	if (!meta) {return value;}
 
 	if (meta.type === "number") {
@@ -132,7 +141,27 @@ const normalizeVoiceValue = (
 		return normalizeDateValue(value);
 	}
 
+	if (meta.type === "boolean") {
+		return toVoiceBooleanValue(value);
+	}
+
 	return value;
+};
+
+const toSwitchCaseKey = (value: unknown): string | undefined => {
+	if (typeof value === "string") {
+		return value;
+	}
+
+	if (typeof value === "boolean") {
+		return String(value);
+	}
+
+	if (typeof value === "number" && (value === 0 || value === 1)) {
+		return String(Boolean(value));
+	}
+
+	return undefined;
 };
 
 const isEmptyValue = (value: unknown) =>
@@ -159,6 +188,10 @@ const getSuggestionLabel = (suggestion?: SuggestedValue): string => {
 	if (suggestion.source) {return SUGGESTION_SOURCE_LABELS[suggestion.source];}
 	return "Vorschlag";
 };
+
+const toTextOrNumberSuggestion = (
+	value: SuggestedValue["value"] | undefined,
+): string | number | undefined => (typeof value === "boolean" ? undefined : value);
 
 const getInputStateClassName = (source?: InputSource) => {
 	if (source === "ai") {
@@ -204,8 +237,8 @@ const SourceIndicator = ({
 					{config.label}
 				</TooltipContent>
 			</Tooltip>
-			</TooltipProvider>
-		);
+		</TooltipProvider>
+	);
 };
 
 interface RenderContext {
@@ -239,23 +272,24 @@ const renderInputTag = (
 						<SourceIndicator source={inputState} />
 					</div>
 				)}
-					<InfoInput
-						input={input}
-						inputClassName={inputStateClassName}
-						onAcceptSuggestedValue={
-							suggestedValue ? handleApplySuggestion : undefined
-						}
-						onChange={handleFieldChange}
-						suggestedValue={suggestedValue?.value}
-						suggestionLabel={getSuggestionLabel(suggestedValue)}
-						value={context.values[fieldKey] as string | number | undefined}
+				<InfoInput
+					input={input}
+					inputClassName={inputStateClassName}
+					onAcceptSuggestedValue={
+						suggestedValue ? handleApplySuggestion : undefined
+					}
+					onChange={handleFieldChange}
+					suggestedValue={toTextOrNumberSuggestion(suggestedValue?.value)}
+					suggestionLabel={getSuggestionLabel(suggestedValue)}
+					value={context.values[fieldKey] as string | number | undefined}
 				/>
 			</div>
 		);
 	}
 
 	if (input.name === "Switch") {
-		const currentValue = context.values[fieldKey] as string | undefined;
+		const currentValue = context.values[fieldKey] as string | boolean | undefined;
+		const currentCaseKey = toSwitchCaseKey(currentValue);
 
 		return (
 			<div className="relative" key={`switch-${fieldKey}`}>
@@ -264,25 +298,25 @@ const renderInputTag = (
 						<SourceIndicator source={inputState} />
 					</div>
 				)}
-					<SwitchInput
-						input={input}
-						onChange={handleFieldChange}
-						onAcceptSuggestedValue={
-							suggestedValue ? handleApplySuggestion : undefined
-						}
+				<SwitchInput
+					input={input}
+					onChange={handleFieldChange}
+					onAcceptSuggestedValue={
+						suggestedValue ? handleApplySuggestion : undefined
+					}
 					inputClassName={inputStateClassName}
 					suggestedValue={suggestedValue?.value}
 					suggestionLabel={getSuggestionLabel(suggestedValue)}
 					value={currentValue}
 				/>
 				{/* Render children of selected case */}
-				{currentValue && input.children && (
+				{currentCaseKey && input.children && (
 					<div className="mt-4 ml-4 space-y-4">
 						{input.children
 							.filter(
 								(child) =>
 									child.name === "Case" &&
-									child.attributes.primary === currentValue,
+									child.attributes.primary === currentCaseKey,
 							)
 							.flatMap((caseChild) =>
 								caseChild.children.map((grandChild) =>
@@ -299,16 +333,20 @@ const renderInputTag = (
 		const score = () => {
 			try {
 				const f = new Formula(input.attributes.formula ?? "");
-				const result = f.evaluate(context.values as Record<string, number>);
-
+				const formulaValues = Object.fromEntries(
+					Object.entries(context.values).map(([key, value]) => [
+						key,
+						toFormulaValue(value),
+					]),
+				);
+				const result = f.evaluate(formulaValues as Record<string, number>);
 				const roundedResult =
 					typeof result === "number" ? Number(result.toFixed(2)) : result;
-
 				return roundedResult;
-				} catch {
-					return 0;
-				}
-			};
+			} catch {
+				return 0;
+			}
+		};
 
 		return (
 			<div
@@ -371,12 +409,12 @@ const renderInputTag = (
 								{(() => {
 									const childKey = child.attributes.primary;
 									const childSuggestion = context.suggestedValues[childKey];
-										const childInputState = context.fieldSources[childKey];
-										const childInputStateClassName =
-											getInputStateClassName(childInputState);
-										const childApplySuggestionHandler =
-											context.applySuggestionHandlers[childKey];
-										const childChangeHandler = context.changeHandlers[childKey];
+									const childInputState = context.fieldSources[childKey];
+									const childInputStateClassName =
+										getInputStateClassName(childInputState);
+									const childApplySuggestionHandler =
+										context.applySuggestionHandlers[childKey];
+									const childChangeHandler = context.changeHandlers[childKey];
 
 									return (
 										<div className="relative">
@@ -395,13 +433,15 @@ const renderInputTag = (
 													} as InfoInputTagType
 												}
 												inputClassName={childInputStateClassName}
-													onAcceptSuggestedValue={
-														childSuggestion
-															? childApplySuggestionHandler
-															: undefined
-													}
-													onChange={childChangeHandler}
-												suggestedValue={childSuggestion?.value}
+												onAcceptSuggestedValue={
+													childSuggestion
+														? childApplySuggestionHandler
+														: undefined
+												}
+												onChange={childChangeHandler}
+												suggestedValue={toTextOrNumberSuggestion(
+													childSuggestion?.value,
+												)}
 												suggestionLabel={getSuggestionLabel(childSuggestion)}
 												value={context.values[childKey] as number | undefined}
 											/>
@@ -572,28 +612,27 @@ export default function Inputs({
 			id: "voice-fill",
 		});
 
-			try {
-				const fieldValues = await onVoiceFill(inputTags, audioFiles);
+		try {
+			const fieldValues = await onVoiceFill(inputTags, audioFiles);
 
-				let nextSuggestions = { ...stateRef.current.suggestedValues };
+			let nextSuggestions = { ...stateRef.current.suggestedValues };
 
 			for (const [field, value] of Object.entries(fieldValues)) {
 				const normalizedValue = normalizeVoiceValue(
 					value,
 					voiceInputMeta.get(field),
 				);
-					if (
-						normalizedValue === undefined ||
-						isEmptyValue(normalizedValue)
-					) {
-						nextSuggestions = withoutRecordKey(nextSuggestions, field);
-						continue;
-					}
+				if (
+					normalizedValue === undefined ||
+					isEmptyValue(normalizedValue)
+				) {
+					nextSuggestions = withoutRecordKey(nextSuggestions, field);
+					continue;
+				}
 				nextSuggestions[field] = {
 					source: "ai",
 					value: normalizedValue,
 				};
-
 			}
 
 			setSuggestedValues(nextSuggestions);
