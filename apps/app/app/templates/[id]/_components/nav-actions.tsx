@@ -59,6 +59,10 @@ export const NavActions = ({
   contentView: 'template' | 'examples';
   hasExamples: boolean;
 }) => {
+  const templateActionIconProps = {
+    className: 'h-4 w-4',
+    strokeWidth: 1.5,
+  } as const;
   const [isBookmark, setBookmark] = useState(isFavourite);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -239,7 +243,7 @@ export const NavActions = ({
         return (
           <Link href={`/templates/${templateId}/edit`}>
             <Button className="h-7 w-7" size="icon" variant="ghost">
-              <Pencil />
+              <Pencil {...templateActionIconProps} />
             </Button>
           </Link>
         );
@@ -259,7 +263,7 @@ export const NavActions = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Link href="#">
-              <Pencil />
+              <Pencil {...templateActionIconProps} />
             </Link>
           </TooltipTrigger>
           <TooltipContent>
@@ -278,7 +282,7 @@ export const NavActions = ({
       </div>
 
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
-        <Clock />
+        <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
         Zuletzt bearbeitet am{' '}
         {lastEdited &&
           new Date(lastEdited).toLocaleString('de-DE', {
@@ -359,7 +363,7 @@ export const NavActions = ({
         </Tooltip>
       </TooltipProvider>
 
-      {!isLoggedIn && <Bookmark />}
+      {!isLoggedIn && <Bookmark {...templateActionIconProps} />}
       <span className="flex w-12 flex-row font-medium text-muted-foreground">
         {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
       </span>

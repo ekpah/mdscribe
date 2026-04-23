@@ -1,0 +1,100 @@
+import { PDFDocument } from "pdf-lib";
+
+import type { DocumentFieldDefinition } from "./types";
+
+interface PdfLibFormField {
+	check?: () => void;
+	constructor: { name: string };
+	select?: (value: string) => void;
+	setText?: (value: string) => void;
+	uncheck?: () => void;
+}
+
+const toStringValue = (value: unknown): string => {
+	if (typeof value === "string") {
+		return value;
+	}
+	return value?.toString() || "";
+};
+
+const toCheckboxState = (value: string): boolean => {
+	const normalized = value.trim().toLowerCase();
+	return (
+		normalized === "true" ||
+		normalized === "1" ||
+		normalized === "yes" ||
+		normalized === "ja"
+	);
+};
+
+const toLabelKey = (label: string): string => label.trim().toLowerCase();
+
+const createFieldNamesByLabelMap = (
+	fieldDefinitions: DocumentFieldDefinition[],
+) => {
+	const map = new Map<string, string[]>();
+	for (const definition of fieldDefinitions) {
+		const key = toLabelKey(definition.label);
+		const current = map.get(key) ?? [];
+		current.push(definition.fieldName);
+		map.set(key, current);
+	}
+	return map;
+};
+
+const fieldValueHandlers: Partial<
+	Record<string, (field: PdfLibFormField, value: string) => void>
+> = {
+	PDFCheckBox: (field, value) => {
+		if (toCheckboxState(value)) {
+			field.check?.();
+			return;
+		}
+		field.uncheck?.();
+	},
+	PDFDropdown: (field, value) => {
+		if (value) {
+			field.select?.(value);
+		}
+	},
+	PDFRadioGroup: (field, value) => {
+		if (value) {
+			field.select?.(value);
+		}
+	},
+	PDFTextField: (field, value) => {
+		field.setText?.(value);
+	},
+};
+
+export const fillPDFForm = async (
+	file: Uint8Array,
+	fieldValues: Record<string, unknown>,
+	fieldDefinitions: DocumentFieldDefinition[],
+): Promise<Uint8Array> => {
+	const stableBytes = new Uint8Array(file);
+	const pdfDoc = await PDFDocument.load(stableBytes);
+	const form = pdfDoc.getForm();
+	const fieldNamesByLabel = createFieldNamesByLabelMap(fieldDefinitions);
+
+	for (const [label, fieldValue] of Object.entries(fieldValues)) {
+		const fieldNames = fieldNamesByLabel.get(toLabelKey(label));
+		if (!fieldNames) continue;
+
+		for (const fieldName of fieldNames) {
+			try {
+				const field = form.getField(fieldName) as unknown as PdfLibFormField;
+				const handler = fieldValueHandlers[field.constructor.name];
+				if (!handler) {
+					console.warn(`Unknown field type: ${field.constructor.name} for ${fieldName}`);
+					continue;
+				}
+				handler(field, toStringValue(fieldValue));
+			} catch (error) {
+				console.error(`Error filling field ${fieldName} (label: ${label}):`, error);
+			}
+		}
+	}
+
+	return pdfDoc.save();
+};

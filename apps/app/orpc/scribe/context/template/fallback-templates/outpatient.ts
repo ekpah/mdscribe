@@ -1,22 +1,14 @@
-const OUTPATIENT_OUTPUT_STRUCTURE = `<output_structure>
-<epikrise>
-<format>Fließtext</format>
-<sections>
-- BEGINN: Vorstellungsgrund und Leitsymptomatik
-- HAUPTTEIL: Diagnostik, Behandlung und Verlauf mit Bewertung
-- ENDE: Weitere Empfehlungen zum künftigen Procedere
-</sections>
-</epikrise>
+const OUTPATIENT_OUTPUT_STRUCTURE = `# Epikrise
 
-<procedere>
-<format>Stichpunkte</format>
-<content>
-- Konkrete Empfehlungen zur weiteren Behandlung (Kontrollen, Medikation, Untersuchungen)
-- Nur essenzielle, nicht-selbstverständliche Punkte
-- Knappe und übersichtliche Formulierung
-</content>
-</procedere>
-</output_structure>`;
+(( Die Patientin ..., initialer Absatz als Beginn mit Aufnahmegrund und Leitsymptomatik))
+
+(( HAUPTTEIL: Diagnostik, Behandlung, Verlauf mit medizinischer Bewertung ))
+
+(( ENDE: Zustand bei Entlassung + Übergang ambulante Versorgung ))
+
+# Procedere
+
+(( Stichpunkte mit KONKRETE EMPFEHLUNGEN zur ambulanten Weiterbehandlung. NUR NICHT-SELBSTVERSTÄNDLICHE PUNKTE (Facharztvorstellungen, spezielle Kontrolltermine, spezifische Medikation) KNAPP UND ÜBERSICHTLICH formuliert))`;
 
 export const OUTPATIENT_FALLBACK_TEMPLATE = {
 	content: OUTPATIENT_OUTPUT_STRUCTURE,

@@ -9,6 +9,13 @@ const TEMPLATE_CONTEXT_USAGE = `Nutze diese Vorlage als primäre Zielstruktur un
 - Übernimm NIEMALS Inhalte aus Beispielen oder Vorlagen, nur Struktur, Form und Stil.
 - Inhalte dürfen AUSSCHLIEßLICH aus den bereitgestellten Eingaben und dem Patientenkontext stammen.`;
 
+const MARKDOC_TAG_GUIDANCE = `Markdoc-Tags in der Vorlage sind nur Platzhalterlogik.
+- Gib in der finalen Ausgabe niemals Markdoc-Syntax aus (kein {% ... %}).
+- {% info ... /%}: durch passenden Wert ersetzen; falls unbekannt: [nicht dokumentiert].
+- {% switch ... %}{% case ... %}{% /switch %}: nur Text des passenden case ausgeben; falls unklar: [nicht dokumentiert].
+- Bei {% switch ... type="boolean" %}: case "true" für wahr, case "false" für falsch verwenden.
+- {% score ... /%}: nur mit belegten Angaben berechnen; falls nicht sicher berechenbar: [nicht berechenbar].`;
+
 const toTrimmedString = (value: unknown): string =>
 	typeof value === "string" ? value.trim() : "";
 
@@ -22,6 +29,9 @@ const toExamples = (value: unknown): string[] => {
 		.filter((entry) => entry.length > 0);
 };
 
+const renderMarkdocTagGuidance = (): string =>
+	`<markdoc_tag_guidance>\n${MARKDOC_TAG_GUIDANCE}\n</markdoc_tag_guidance>`;
+
 const renderTemplateContext = (
 	template?: TemplateContextInput | null,
 ): string => {
@@ -32,6 +42,7 @@ const renderTemplateContext = (
 	const title = toTrimmedString(template.title);
 	const content = toTrimmedString(template.content);
 	const examples = toExamples(template.examples);
+	const markdocTagGuidance = renderMarkdocTagGuidance();
 
 	const blocks = [
 		title ? `<title>\n${title}\n</title>` : "",
@@ -47,7 +58,7 @@ const renderTemplateContext = (
 		return "";
 	}
 
-	return `<template_context>\n<usage>\n${TEMPLATE_CONTEXT_USAGE}\n</usage>\n<template>\n${blocks.join("\n")}\n</template>\n</template_context>`;
+	return `<template_context>\n<usage>\n${TEMPLATE_CONTEXT_USAGE}\n</usage>\n${markdocTagGuidance}\n<template>\n${blocks.join("\n")}\n</template>\n</template_context>`;
 };
 
 export const buildTemplateFallbackContext = (

@@ -13,12 +13,14 @@ import {
 } from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { MAX_PDF_UPLOAD_BYTES } from "@/app/admin/documents-playground/_lib/pdf-data";
+
+import { MAX_PDF_UPLOAD_BYTES } from "@/app/documents/_lib/pdf-data";
 
 interface PDFUploadSectionProps {
-	pdfFile: Uint8Array | null;
-	onFileUpload: (file: Uint8Array) => void;
 	onClear: () => void;
+	onFileUpload: (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => void;
+	pdfFile: Uint8Array | null;
+	pdfFileName?: string;
 }
 
 const getFirstBrowserFile = (addedFiles: { file: unknown }[]): File | null => {
@@ -28,12 +30,13 @@ const getFirstBrowserFile = (addedFiles: { file: unknown }[]): File | null => {
 
 const handleAddedPdfFiles = async (
 	addedFiles: { file: unknown }[],
-	onFileUpload: (file: Uint8Array) => void,
+	onFileUpload: (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => void,
 ) => {
 	const firstFile = getFirstBrowserFile(addedFiles);
 	if (!firstFile) {
 		return;
 	}
+
 	if (firstFile.size > MAX_PDF_UPLOAD_BYTES) {
 		toast.error(
 			`Datei zu groß. Maximal erlaubt: ${formatBytes(MAX_PDF_UPLOAD_BYTES)}`,
@@ -42,15 +45,19 @@ const handleAddedPdfFiles = async (
 	}
 
 	const arrayBuffer = await firstFile.arrayBuffer();
-	onFileUpload(new Uint8Array(arrayBuffer));
+	onFileUpload(new Uint8Array(arrayBuffer), {
+		mimeType: firstFile.type || "application/pdf",
+		name: firstFile.name || "document.pdf",
+	});
 	toast.success("Dokument hochgeladen");
 };
 
-export default function PDFUploadSection({
-	pdfFile,
-	onFileUpload,
+export const PDFUploadSection = ({
 	onClear,
-}: PDFUploadSectionProps) {
+	onFileUpload,
+	pdfFile,
+	pdfFileName,
+}: PDFUploadSectionProps) => {
 	const [
 		{ files, isDragging, errors },
 		{
@@ -81,7 +88,6 @@ export default function PDFUploadSection({
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-col gap-2">
-				{/* Drop area - only show when no pdfFile */}
 				{!pdfFile && (
 					<>
 						<button
@@ -111,7 +117,7 @@ export default function PDFUploadSection({
 								</div>
 								<p className="mb-1.5 font-medium text-sm">Datei hochladen</p>
 								<p className="text-muted-foreground text-xs">
-									Ziehen & ablegen oder klicken zum Durchsuchen (max.{" "}
+									Ziehen & ablegen oder klicken zum Durchsuchen (max. {" "}
 									{formatBytes(MAX_PDF_UPLOAD_BYTES)})
 								</p>
 							</div>
@@ -129,7 +135,6 @@ export default function PDFUploadSection({
 					</>
 				)}
 
-				{/* File list - show when pdfFile exists or when file from hook exists */}
 				{(pdfFile || file) && (
 					<div className="space-y-2">
 						<div
@@ -143,17 +148,17 @@ export default function PDFUploadSection({
 								/>
 								<div className="min-w-0">
 									<p className="truncate font-medium text-[13px]">
-										{file?.file.name || "document.pdf"}
+										{file?.file.name || pdfFileName || "document.pdf"}
 									</p>
 								</div>
 							</div>
 
-								<Button
-									aria-label="Datei entfernen"
-									className="-me-2 size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
-									onClick={handleClearFile}
-									size="icon"
-									variant="ghost"
+							<Button
+								aria-label="Datei entfernen"
+								className="-me-2 size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground"
+								onClick={handleClearFile}
+								size="icon"
+								variant="ghost"
 							>
 								<XIcon aria-hidden="true" className="size-4" />
 							</Button>
@@ -163,4 +168,4 @@ export default function PDFUploadSection({
 			</div>
 		</div>
 	);
-}
+};

@@ -1,428 +1,419 @@
-'use client';
+"use client";
 
-import type { NodeViewProps } from '@tiptap/react';
-import { NodeViewWrapper } from '@tiptap/react';
-import Formula from 'fparser';
-import { AlertTriangle, Calculator, CheckCircle2, Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, KeyboardEvent } from 'react';
-import { Button } from '@repo/design-system/components/ui/button';
-import { Input } from '@repo/design-system/components/ui/input';
-import { Label } from '@repo/design-system/components/ui/label';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@repo/design-system/components/ui/popover';
-import { Textarea } from '@repo/design-system/components/ui/textarea';
+import { Button } from "@repo/design-system/components/ui/button";
+import { Input } from "@repo/design-system/components/ui/input";
+import { Label } from "@repo/design-system/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@repo/design-system/components/ui/popover";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
+import type { NodeViewProps } from "@tiptap/react";
+import { NodeViewWrapper } from "@tiptap/react";
+import Formula from "fparser";
+import { AlertTriangle, Calculator, CheckCircle2, Plus, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 
-const SCORE_OPERATORS = ['+', '-', '*', '/', '(', ')'] as const;
+const SCORE_OPERATORS = ["+", "-", "*", "/", "(", ")"] as const;
 
 export const ScoreTagView = ({
-  node,
-  selected,
-  editor,
-  updateAttributes,
-  deleteNode,
-  getPos,
+	node,
+	selected,
+	editor,
+	updateAttributes,
+	deleteNode,
+	getPos,
 }: NodeViewProps) => {
-  const formulaValue = node.attrs.formula ?? '';
-  const unitValue = node.attrs.unit ?? '';
-  const formulaInputRef = useRef<HTMLTextAreaElement>(null);
-  const datalistIdRef = useRef(
-    `score-variables-${Math.random().toString(36).slice(2, 9)}`
-  );
-  const [availableVariables, setAvailableVariables] = useState<string[]>([]);
-  const [newTerm, setNewTerm] = useState({ variable: '', weight: '' });
+	const formulaValue = node.attrs.formula ?? "";
+	const unitValue = node.attrs.unit ?? "";
+	const formulaInputRef = useRef<HTMLTextAreaElement>(null);
+	const datalistIdRef = useRef(`score-variables-${Math.random().toString(36).slice(2, 9)}`);
+	const [availableVariables, setAvailableVariables] = useState<string[]>([]);
+	const [newTerm, setNewTerm] = useState({ variable: "", weight: "" });
 
-  useEffect(() => {
-    if (!editor) {return;}
+	useEffect(() => {
+		if (!editor) {
+			return;
+		}
 
-    const updateVariables = () => {
-      const variables = new Set<string>();
-      editor.state.doc.descendants((docNode) => {
-        if (docNode.type.name === 'infoTag' && docNode.attrs.primary) {
-          variables.add(docNode.attrs.primary);
-        }
-      });
-      setAvailableVariables([...variables].toSorted());
-    };
+		const updateVariables = () => {
+			const variables = new Set<string>();
+			editor.state.doc.descendants((docNode) => {
+				if (docNode.type.name === "infoTag" && docNode.attrs.primary) {
+					variables.add(docNode.attrs.primary);
+				}
+			});
+			setAvailableVariables([...variables].toSorted());
+		};
 
-    updateVariables();
-    editor.on('update', updateVariables);
+		updateVariables();
+		editor.on("update", updateVariables);
 
-    return () => {
-      editor.off('update', updateVariables);
-    };
-  }, [editor]);
+		return () => {
+			editor.off("update", updateVariables);
+		};
+	}, [editor]);
 
-  const { parsedVariables, parseError } = useMemo(() => {
-    if (!formulaValue.trim()) {
-      return { parseError: null as Error | null, parsedVariables: [] };
-    }
+	const { parsedVariables, parseError } = useMemo(() => {
+		if (!formulaValue.trim()) {
+			return { parseError: null as Error | null, parsedVariables: [] };
+		}
 
-    try {
-      const formula = new Formula(formulaValue);
-      return {
-        parseError: null,
-        parsedVariables: formula.getVariables(),
-      };
-    } catch (error) {
-      return {
-        parseError: error as Error,
-        parsedVariables: [],
-      };
-    }
-  }, [formulaValue]);
+		try {
+			const formula = new Formula(formulaValue);
+			return {
+				parseError: null,
+				parsedVariables: formula.getVariables(),
+			};
+		} catch (error) {
+			return {
+				parseError: error as Error,
+				parsedVariables: [],
+			};
+		}
+	}, [formulaValue]);
 
-  const handleRemoveScore = useCallback(() => {
-    deleteNode();
-  }, [deleteNode]);
+	const handleRemoveScore = useCallback(() => {
+		deleteNode();
+	}, [deleteNode]);
 
-  const handleSelectTag = useCallback(() => {
-    const pos = getPos?.();
-    if (typeof pos === 'number') {
-      editor.chain().focus().setNodeSelection(pos).run();
-    }
-  }, [editor, getPos]);
+	const handleSelectTag = useCallback(() => {
+		const pos = getPos?.();
+		if (typeof pos === "number") {
+			editor.chain().focus().setNodeSelection(pos).run();
+		}
+	}, [editor, getPos]);
 
-  const insertIntoFormula = useCallback((snippet: string) => {
-    const current = formulaValue;
-    const input = formulaInputRef.current;
+	const insertIntoFormula = useCallback(
+		(snippet: string) => {
+			const current = formulaValue;
+			const input = formulaInputRef.current;
 
-    if (!input) {
-      updateAttributes({ formula: `${current}${snippet}` });
-      return;
-    }
+			if (!input) {
+				updateAttributes({ formula: `${current}${snippet}` });
+				return;
+			}
 
-    const start = input.selectionStart ?? current.length;
-    const end = input.selectionEnd ?? current.length;
-    const nextValue = `${current.slice(0, start)}${snippet}${current.slice(end)}`;
-    updateAttributes({ formula: nextValue });
+			const start = input.selectionStart ?? current.length;
+			const end = input.selectionEnd ?? current.length;
+			const nextValue = `${current.slice(0, start)}${snippet}${current.slice(end)}`;
+			updateAttributes({ formula: nextValue });
 
-    requestAnimationFrame(() => {
-      input.focus();
-      const cursor = start + snippet.length;
-      input.setSelectionRange(cursor, cursor);
-    });
-  }, [formulaValue, updateAttributes]);
+			requestAnimationFrame(() => {
+				input.focus();
+				const cursor = start + snippet.length;
+				input.setSelectionRange(cursor, cursor);
+			});
+		},
+		[formulaValue, updateAttributes],
+	);
 
-  const insertVariable = useCallback((variable: string) => {
-    const normalized = variable.trim().replaceAll(/^\[|\]$/g, '');
-    if (!normalized) {return;}
-    insertIntoFormula(`[${normalized}]`);
-  }, [insertIntoFormula]);
+	const insertVariable = useCallback(
+		(variable: string) => {
+			const normalized = variable.trim().replaceAll(/^\[|\]$/g, "");
+			if (!normalized) {
+				return;
+			}
+			insertIntoFormula(`[${normalized}]`);
+		},
+		[insertIntoFormula],
+	);
 
-  const insertOperator = useCallback((operator: string) => {
-    const snippet = formulaValue.trim() ? ` ${operator} ` : operator;
-    insertIntoFormula(snippet);
-  }, [formulaValue, insertIntoFormula]);
+	const insertOperator = useCallback(
+		(operator: string) => {
+			const snippet = formulaValue.trim() ? ` ${operator} ` : operator;
+			insertIntoFormula(snippet);
+		},
+		[formulaValue, insertIntoFormula],
+	);
 
-  const handleAddTerm = useCallback(() => {
-    const variable = newTerm.variable.trim().replaceAll(/^\[|\]$/g, '');
-    if (!variable) {return;}
+	const handleAddTerm = useCallback(() => {
+		const variable = newTerm.variable.trim().replaceAll(/^\[|\]$/g, "");
+		if (!variable) {
+			return;
+		}
 
-    const weight = newTerm.weight.trim();
-    const normalizedWeight = weight === '' || weight === '1' ? '' : weight;
-    const term = normalizedWeight
-      ? `${normalizedWeight} * [${variable}]`
-      : `[${variable}]`;
+		const weight = newTerm.weight.trim();
+		const normalizedWeight = weight === "" || weight === "1" ? "" : weight;
+		const term = normalizedWeight ? `${normalizedWeight} * [${variable}]` : `[${variable}]`;
 
-    const current = formulaValue.trim();
-    const nextFormula = current ? `${current} + ${term}` : term;
-    updateAttributes({ formula: nextFormula });
-    setNewTerm({ variable: '', weight: '' });
+		const current = formulaValue.trim();
+		const nextFormula = current ? `${current} + ${term}` : term;
+		updateAttributes({ formula: nextFormula });
+		setNewTerm({ variable: "", weight: "" });
 
-    requestAnimationFrame(() => {
-      formulaInputRef.current?.focus();
-    });
-  }, [formulaValue, newTerm, updateAttributes]);
+		requestAnimationFrame(() => {
+			formulaInputRef.current?.focus();
+		});
+	}, [formulaValue, newTerm, updateAttributes]);
 
-  const handleFormulaChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      updateAttributes({
-        formula: event.target.value,
-      });
-    },
-    [updateAttributes],
-  );
+	const handleFormulaChange = useCallback(
+		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			updateAttributes({
+				formula: event.target.value,
+			});
+		},
+		[updateAttributes],
+	);
 
-  const handleUnitChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      updateAttributes({
-        unit: event.target.value,
-      });
-    },
-    [updateAttributes],
-  );
+	const handleUnitChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			updateAttributes({
+				unit: event.target.value,
+			});
+		},
+		[updateAttributes],
+	);
 
-  const handleNewTermVariableChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      setNewTerm((prev) => ({
-        ...prev,
-        variable: event.target.value,
-      }));
-    },
-    [],
-  );
+	const handleNewTermVariableChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		setNewTerm((prev) => ({
+			...prev,
+			variable: event.target.value,
+		}));
+	}, []);
 
-  const handleNewTermWeightChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      setNewTerm((prev) => ({
-        ...prev,
-        weight: event.target.value,
-      }));
-    },
-    [],
-  );
+	const handleNewTermWeightChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		setNewTerm((prev) => ({
+			...prev,
+			weight: event.target.value,
+		}));
+	}, []);
 
-  const handleNewTermKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter' && newTerm.variable.trim()) {
-        event.preventDefault();
-        handleAddTerm();
-      }
-    },
-    [handleAddTerm, newTerm.variable],
-  );
+	const handleNewTermKeyDown = useCallback(
+		(event: KeyboardEvent<HTMLInputElement>) => {
+			if (event.key === "Enter" && newTerm.variable.trim()) {
+				event.preventDefault();
+				handleAddTerm();
+			}
+		},
+		[handleAddTerm, newTerm.variable],
+	);
 
-  const variableInsertHandlers = useMemo<Record<string, () => void>>(() => {
-    const handlers: Record<string, () => void> = {};
-    for (const variable of availableVariables) {
-      handlers[variable] = () => {
-        insertVariable(variable);
-      };
-    }
-    return handlers;
-  }, [availableVariables, insertVariable]);
+	const variableInsertHandlers = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const variable of availableVariables) {
+			handlers[variable] = () => {
+				insertVariable(variable);
+			};
+		}
+		return handlers;
+	}, [availableVariables, insertVariable]);
 
-  const operatorInsertHandlers = useMemo<Record<string, () => void>>(() => {
-    const handlers: Record<string, () => void> = {};
-    for (const operator of SCORE_OPERATORS) {
-      handlers[operator] = () => {
-        insertOperator(operator);
-      };
-    }
-    return handlers;
-  }, [insertOperator]);
+	const operatorInsertHandlers = useMemo<Record<string, () => void>>(() => {
+		const handlers: Record<string, () => void> = {};
+		for (const operator of SCORE_OPERATORS) {
+			handlers[operator] = () => {
+				insertOperator(operator);
+			};
+		}
+		return handlers;
+	}, [insertOperator]);
 
-  return (
-    <NodeViewWrapper
-      as="span"
-      className="inline-block align-baseline mx-1"
-      contentEditable={false}
-    >
-      <span
-        className={`group inline-flex items-center gap-1 rounded-md border px-1 py-0.5 text-xs shadow-xs transition-all ${
-          selected
-            ? 'border-solarized-orange ring-2 ring-solarized-orange/40'
-            : 'border-solarized-orange/60 hover:border-solarized-orange'
-        }`}
-      >
-        <Popover>
-          <PopoverTrigger
-            className="inline-flex cursor-pointer items-center gap-1.5 px-1 py-0.5"
-            data-type="markdoc-score"
-            data-formula={node.attrs.formula}
-            data-unit={node.attrs.unit}
-            contentEditable={false}
-            onMouseDown={handleSelectTag}
-          >
-            {/* Score Label */}
-            <span
-              data-drag-handle
-              className="inline-flex items-center gap-1 rounded bg-solarized-orange/15 px-1.5 py-0.5 font-semibold text-solarized-orange"
-            >
-              <Calculator className="h-3 w-3" />
-              Score
-            </span>
+	return (
+		<NodeViewWrapper as="span" className="inline-block align-baseline mx-1" contentEditable={false}>
+			<span
+				className={`group inline-flex items-center gap-1 rounded-md border px-1 py-0.5 text-xs shadow-xs transition-all ${
+					selected
+						? "border-solarized-orange ring-2 ring-solarized-orange/40"
+						: "border-solarized-orange/60 hover:border-solarized-orange"
+				}`}
+			>
+				<Popover>
+					<PopoverTrigger
+						className="inline-flex cursor-pointer items-center gap-1.5 px-1 py-0.5"
+						data-type="markdoc-score"
+						data-formula={node.attrs.formula}
+						data-unit={node.attrs.unit}
+						contentEditable={false}
+						onMouseDown={handleSelectTag}
+					>
+						{/* Score Label */}
+						<span
+							data-drag-handle
+							className="inline-flex items-center gap-1 rounded bg-solarized-orange/15 px-1.5 py-0.5 font-semibold text-solarized-orange"
+						>
+							<Calculator className="h-3 w-3" />
+							Score
+						</span>
 
-            {/* Content Part */}
-            <span className="max-w-[22ch] truncate font-mono text-foreground/80">
-              {formulaValue || (
-                <span className="text-muted-foreground italic">Formel</span>
-              )}
-            </span>
-            {unitValue && (
-              <span className="text-muted-foreground">· {unitValue}</span>
-            )}
-          </PopoverTrigger>
+						{/* Content Part */}
+						<span className="max-w-[22ch] truncate font-mono text-foreground/80">
+							{formulaValue || <span className="text-muted-foreground italic">Formel</span>}
+						</span>
+						{unitValue && <span className="text-muted-foreground">· {unitValue}</span>}
+					</PopoverTrigger>
 
-          {/* Score configuration popover */}
-          <PopoverContent
-            collisionPadding={12}
-            className="w-[min(420px,96vw)] max-h-[min(80vh,var(--radix-popover-content-available-height))] overflow-hidden p-0"
-          >
-            <div className="flex max-h-[min(80vh,var(--radix-popover-content-available-height))] flex-col">
-              {/* Compact header */}
-              <div className="shrink-0 border-b bg-solarized-orange/5 px-3 py-2">
-                <h3 className="flex items-center font-medium text-sm text-solarized-orange">
-                  <Calculator className="mr-1.5 h-3 w-3" />
-                  Score-Konfiguration
-                </h3>
-              </div>
+					{/* Score configuration popover */}
+					<PopoverContent
+						collisionPadding={12}
+						className="w-[min(420px,96vw)] max-h-[min(80vh,var(--radix-popover-content-available-height))] overflow-hidden p-0"
+					>
+						<div className="flex max-h-[min(80vh,var(--radix-popover-content-available-height))] flex-col">
+							{/* Compact header */}
+							<div className="shrink-0 border-b bg-solarized-orange/5 px-3 py-2">
+								<h3 className="flex items-center font-medium text-sm text-solarized-orange">
+									<Calculator className="mr-1.5 h-3 w-3" />
+									Score-Konfiguration
+								</h3>
+							</div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="space-y-4 p-3">
-                  {/* Formula Input */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="formula" className="font-medium text-xs">
-                      Formel
-                    </Label>
-                    <Textarea
-                      id="formula"
-                      ref={formulaInputRef}
-                      value={formulaValue}
-                      onChange={handleFormulaChange}
-                      placeholder="z.B. [age] * 2 + [crp] * 3"
-                      className="min-h-[72px] text-sm font-mono focus:border-solarized-orange focus:ring-solarized-orange/50"
-                      autoFocus
-                    />
-                    <p className="text-muted-foreground text-xs">
-                      Variablen in eckigen Klammern verwenden, z.B.{" "}
-                      <span className="font-mono">[age]</span>.
-                    </p>
+							<div className="min-h-0 flex-1 overflow-y-auto">
+								<div className="space-y-4 p-3">
+									{/* Formula Input */}
+									<div className="space-y-1.5">
+										<Label htmlFor="formula" className="font-medium text-xs">
+											Formel
+										</Label>
+										<Textarea
+											id="formula"
+											ref={formulaInputRef}
+											value={formulaValue}
+											onChange={handleFormulaChange}
+											placeholder="z.B. [age] * 2 + [crp] * 3"
+											className="min-h-[72px] text-sm font-mono focus:border-solarized-orange focus:ring-solarized-orange/50"
+											autoFocus
+										/>
+										<p className="text-muted-foreground text-xs">
+											Variablen in eckigen Klammern verwenden, z.B.{" "}
+											<span className="font-mono">[age]</span>.
+										</p>
 
-	                    {parseError ? (
-	                      <div className="flex items-start gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive text-xs">
-	                        <AlertTriangle className="mt-0.5 h-3 w-3" />
-	                        <span>Formel ist ungültig. Prüfe Klammern und Operatoren.</span>
-	                      </div>
-	                    ) : null}
-	                    {!parseError && formulaValue.trim() ? (
-	                      <div className="flex items-center gap-1 text-emerald-600 text-xs">
-	                        <CheckCircle2 className="h-3 w-3" />
-	                        <span>Formel sieht gültig aus.</span>
-	                      </div>
-	                    ) : null}
+										{parseError ? (
+											<div className="flex items-start gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive text-xs">
+												<AlertTriangle className="mt-0.5 h-3 w-3" />
+												<span>Formel ist ungültig. Prüfe Klammern und Operatoren.</span>
+											</div>
+										) : null}
+										{!parseError && formulaValue.trim() ? (
+											<div className="flex items-center gap-1 text-emerald-600 text-xs">
+												<CheckCircle2 className="h-3 w-3" />
+												<span>Formel sieht gültig aus.</span>
+											</div>
+										) : null}
 
-                    {parsedVariables.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {parsedVariables.map((variable) => (
-                          <span
-                            key={variable}
-                            className="rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange"
-                          >
-                            [{variable}]
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+										{parsedVariables.length > 0 && (
+											<div className="flex flex-wrap gap-1.5 pt-1">
+												{parsedVariables.map((variable) => (
+													<span
+														key={variable}
+														className="rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange"
+													>
+														[{variable}]
+													</span>
+												))}
+											</div>
+										)}
+									</div>
 
-                  {/* Quick Insert */}
-                  <div className="space-y-2">
-                    <Label className="font-medium text-xs">Schnell einfügen</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {availableVariables.length > 0 ? (
-                        availableVariables.map((variable) => {
-                          const handleInsertVariable = variableInsertHandlers[variable];
+									{/* Quick Insert */}
+									<div className="space-y-2">
+										<Label className="font-medium text-xs">Schnell einfügen</Label>
+										<div className="flex flex-wrap gap-1.5">
+											{availableVariables.length > 0 ? (
+												availableVariables.map((variable) => {
+													const handleInsertVariable = variableInsertHandlers[variable];
 
-                          return (
-                            <button
-                              key={variable}
-                              type="button"
-                              onClick={handleInsertVariable}
-                              className="inline-flex items-center rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange transition hover:border-solarized-orange/50 hover:bg-solarized-orange/15"
-                            >
-                              [{variable}]
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <span className="text-muted-foreground text-xs">
-                          Noch keine Info-Variablen im Dokument.
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {operators.map((operator) => {
-                        const handleInsertOperator = operatorInsertHandlers[operator];
+													return (
+														<button
+															key={variable}
+															type="button"
+															onClick={handleInsertVariable}
+															className="inline-flex items-center rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange transition hover:border-solarized-orange/50 hover:bg-solarized-orange/15"
+														>
+															[{variable}]
+														</button>
+													);
+												})
+											) : (
+												<span className="text-muted-foreground text-xs">
+													Noch keine Info-Variablen im Dokument.
+												</span>
+											)}
+										</div>
+										<div className="flex flex-wrap gap-1.5">
+											{SCORE_OPERATORS.map((operator) => {
+												const handleInsertOperator = operatorInsertHandlers[operator];
 
-                        return (
-                          <button
-                            key={operator}
-                            type="button"
-                            onClick={handleInsertOperator}
-                            className="inline-flex items-center rounded-md border border-solarized-orange/20 bg-background px-2 py-0.5 font-mono text-[11px] text-foreground transition hover:border-solarized-orange/40 hover:bg-solarized-orange/5"
-                          >
-                            {operator}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+												return (
+													<button
+														key={operator}
+														type="button"
+														onClick={handleInsertOperator}
+														className="inline-flex items-center rounded-md border border-solarized-orange/20 bg-background px-2 py-0.5 font-mono text-[11px] text-foreground transition hover:border-solarized-orange/40 hover:bg-solarized-orange/5"
+													>
+														{operator}
+													</button>
+												);
+											})}
+										</div>
+									</div>
 
-                  {/* Add term builder */}
-                  <div className="space-y-2">
-                    <Label className="font-medium text-xs">
-                      Komponente hinzufügen
-                    </Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Input
-                        value={newTerm.variable}
-                        onChange={handleNewTermVariableChange}
-                        list={datalistIdRef.current}
-                        placeholder="Variable"
-                        className="h-8 text-xs font-mono focus:border-solarized-orange focus:ring-solarized-orange/50"
-                        onKeyDown={handleNewTermKeyDown}
-                      />
-                      <Input
-                        value={newTerm.weight}
-                        onChange={handleNewTermWeightChange}
-                        placeholder="Gewicht (z.B. 2)"
-                        inputMode="decimal"
-                        className="h-8 text-xs focus:border-solarized-orange focus:ring-solarized-orange/50"
-                        onKeyDown={handleNewTermKeyDown}
-                      />
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={handleAddTerm}
-                        disabled={!newTerm.variable.trim()}
-                        className="h-8 text-xs"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Hinzufügen
-                      </Button>
-                    </div>
-                    <datalist id={datalistIdRef.current}>
-                      {availableVariables.map((variable) => (
-                        <option key={variable} value={variable} />
-                      ))}
-                    </datalist>
-                  </div>
+									{/* Add term builder */}
+									<div className="space-y-2">
+										<Label className="font-medium text-xs">Komponente hinzufügen</Label>
+										<div className="grid grid-cols-3 gap-2">
+											<Input
+												value={newTerm.variable}
+												onChange={handleNewTermVariableChange}
+												list={datalistIdRef.current}
+												placeholder="Variable"
+												className="h-8 text-xs font-mono focus:border-solarized-orange focus:ring-solarized-orange/50"
+												onKeyDown={handleNewTermKeyDown}
+											/>
+											<Input
+												value={newTerm.weight}
+												onChange={handleNewTermWeightChange}
+												placeholder="Gewicht (z.B. 2)"
+												inputMode="decimal"
+												className="h-8 text-xs focus:border-solarized-orange focus:ring-solarized-orange/50"
+												onKeyDown={handleNewTermKeyDown}
+											/>
+											<Button
+												size="sm"
+												variant="secondary"
+												onClick={handleAddTerm}
+												disabled={!newTerm.variable.trim()}
+												className="h-8 text-xs"
+											>
+												<Plus className="h-3.5 w-3.5" />
+												Hinzufügen
+											</Button>
+										</div>
+										<datalist id={datalistIdRef.current}>
+											{availableVariables.map((variable) => (
+												<option key={variable} value={variable} />
+											))}
+										</datalist>
+									</div>
 
-                  {/* Unit Input */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="unit" className="font-medium text-xs">
-                      Einheit (optional)
-                    </Label>
-                    <Input
-                      id="unit"
-                      value={unitValue}
-                      onChange={handleUnitChange}
-                      placeholder="z.B. kg, mm, °C, Punkte"
-                      className="h-8 text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+									{/* Unit Input */}
+									<div className="space-y-1.5">
+										<Label htmlFor="unit" className="font-medium text-xs">
+											Einheit (optional)
+										</Label>
+										<Input
+											id="unit"
+											value={unitValue}
+											onChange={handleUnitChange}
+											placeholder="z.B. kg, mm, °C, Punkte"
+											className="h-8 text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
+										/>
+									</div>
+								</div>
+							</div>
+						</div>
+					</PopoverContent>
+				</Popover>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleRemoveScore}
-          className="h-6 w-6 rounded-sm text-solarized-orange/70 hover:bg-solarized-orange/10 hover:text-solarized-orange"
-          contentEditable={false}
-          aria-label="Remove score tag"
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      </span>
-    </NodeViewWrapper>
-  );
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={handleRemoveScore}
+					className="h-6 w-6 rounded-sm text-solarized-orange/70 hover:bg-solarized-orange/10 hover:text-solarized-orange"
+					contentEditable={false}
+					aria-label="Remove score tag"
+				>
+					<X className="h-3 w-3" />
+				</Button>
+			</span>
+		</NodeViewWrapper>
+	);
 };

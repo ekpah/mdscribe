@@ -10,6 +10,7 @@ export interface PublicAiTextForm {
 	description: string | null;
 	id: string;
 	name: string;
+	promptHarness: string;
 	slug: string;
 }
 

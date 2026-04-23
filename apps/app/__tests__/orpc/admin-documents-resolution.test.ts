@@ -59,17 +59,22 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			{ context },
 		);
 
-			expect(result).toBeDefined();
-			expect(typeof result[Symbol.asyncIterator]).toBe("function");
+		expect(result).toBeDefined();
+		expect(typeof result[Symbol.asyncIterator]).toBe("function");
 
-			// Drain stream so onFinish usage logging has a chance to complete.
-			let streamedChunkCount = 0;
-			for await (const _chunk of result) {
-				streamedChunkCount += 1;
-			}
-			expect(streamedChunkCount).toBeGreaterThanOrEqual(0);
-			await Bun.sleep(80);
-		});
+		let streamedChunkCount = 0;
+		for await (const _chunk of result) {
+			streamedChunkCount += 1;
+		}
+		expect(streamedChunkCount).toBeGreaterThanOrEqual(0);
+		await Bun.sleep(80);
+
+		const [playgroundEvent] = await server.db
+			.select()
+			.from(usageEvent)
+			.where(eq(usageEvent.name, "admin_scribe_playground"));
+		expect(playgroundEvent).toBeUndefined();
+	});
 
 	test("documents.ocrToMarkdown resolves model via legacy connectionId alias", async () => {
 		const imageBase64 = Buffer.from("fake-image").toString("base64");

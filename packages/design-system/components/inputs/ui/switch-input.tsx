@@ -1,8 +1,10 @@
 "use client";
 
 import type { SwitchInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import { toBooleanValue } from "@repo/markdoc-md/parse/boolean-coercion";
 import { cn } from "@repo/design-system/lib/utils";
 import { useCallback } from "react";
+import { Checkbox } from "@repo/design-system/components/ui/checkbox";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
 	Select,
@@ -14,6 +16,24 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@repo/design-system/components/ui/toggle-group";
 import { SuggestionBadge } from "./suggestion-badge";
 
+const isBooleanSwitchInput = (
+	input: SwitchInputTagType,
+	options: Array<{ attributes: { primary: string } }> | undefined,
+): boolean => {
+	if (input.attributes.type === "boolean" || input.attributes.type === "checkbox") {
+		return true;
+	}
+
+	if (!options || options.length !== 2) {
+		return false;
+	}
+
+	const normalizedOptions = options.map((option) =>
+		option.attributes.primary.trim().toLowerCase(),
+	);
+	return normalizedOptions.includes("true") && normalizedOptions.includes("false");
+};
+
 export const SwitchInput = ({
 	input,
 	value,
@@ -24,9 +44,9 @@ export const SwitchInput = ({
 	inputClassName,
 }: {
 	input: SwitchInputTagType;
-	value: string | undefined;
-	onChange: (newValue: string) => void;
-	suggestedValue?: string | number;
+	value: string | boolean | undefined;
+	onChange: (newValue: string | boolean) => void;
+	suggestedValue?: string | number | boolean;
 	suggestionLabel?: string;
 	onAcceptSuggestedValue?: () => void;
 	inputClassName?: string;
@@ -35,21 +55,71 @@ export const SwitchInput = ({
 		(caseTag) => caseTag.name === "Case" && caseTag.attributes.primary,
 	);
 	const useSelect = options && options.length > 3;
+	const isBooleanSwitch = isBooleanSwitchInput(input, options);
 
-	const currentValue = value ?? "";
+	const currentBooleanValue = toBooleanValue(value);
+	const currentStringValue =
+		typeof value === "string" ? value : currentBooleanValue === undefined ? "" : String(currentBooleanValue);
 
-	const handleChange = useCallback((newValue: string) => {
-		onChange(newValue);
-	}, [onChange]);
+	const handleBooleanChange = useCallback(
+		(checked: boolean | "indeterminate") => {
+			onChange(checked === true);
+		},
+		[onChange],
+	);
 
-	// Normalize suggestion for comparison (could be number from AI)
-	const normalizedSuggestion =
-		typeof suggestedValue === "number" ? String(suggestedValue) : suggestedValue;
+	const handleStringChange = useCallback(
+		(newValue: string) => {
+			onChange(newValue);
+		},
+		[onChange],
+	);
 
-	const hasValue = currentValue !== "";
-	const hasSuggestion = Boolean(normalizedSuggestion && normalizedSuggestion !== "");
-	const isSuggestionApplied = hasSuggestion && currentValue === normalizedSuggestion;
+	const normalizedSuggestionBoolean = toBooleanValue(suggestedValue);
+	const normalizedSuggestionString =
+		typeof suggestedValue === "number" ? String(suggestedValue) : typeof suggestedValue === "boolean" ? String(suggestedValue) : suggestedValue;
+
+	const hasValue = isBooleanSwitch ? currentBooleanValue !== undefined : currentStringValue !== "";
+	const hasSuggestion = isBooleanSwitch
+		? normalizedSuggestionBoolean !== undefined
+		: Boolean(normalizedSuggestionString && normalizedSuggestionString !== "");
+	const isSuggestionApplied = isBooleanSwitch
+		? hasSuggestion && currentBooleanValue === normalizedSuggestionBoolean
+		: hasSuggestion && currentStringValue === normalizedSuggestionString;
 	const shouldShowSuggestion = hasSuggestion && !isSuggestionApplied;
+
+	if (isBooleanSwitch) {
+		const checked = currentBooleanValue ?? false;
+		return (
+			<div className="w-full max-w-full space-y-2" key={`switch-${input.attributes.primary}`}>
+				<Label
+					htmlFor={input.attributes.primary}
+					className={cn(
+						"flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 transition-colors hover:bg-muted/40",
+						inputClassName,
+					)}
+				>
+					<Checkbox
+						checked={checked}
+						id={input.attributes.primary}
+						name={input.attributes.primary}
+						onCheckedChange={handleBooleanChange}
+					/>
+					<span className="font-medium text-foreground text-sm leading-none">
+						{input.attributes.primary}
+					</span>
+				</Label>
+				{shouldShowSuggestion && (
+					<SuggestionBadge
+						hasExistingValue={hasValue}
+						label={suggestionLabel}
+						onAccept={onAcceptSuggestedValue}
+						value={normalizedSuggestionBoolean ? "Angehakt" : "Nicht angehakt"}
+					/>
+				)}
+			</div>
+		);
+	}
 
 	return (
 		<div
@@ -65,8 +135,8 @@ export const SwitchInput = ({
 			{useSelect ? (
 				<Select
 					name={input.attributes.primary}
-					onValueChange={handleChange}
-					value={currentValue}
+					onValueChange={handleStringChange}
+					value={currentStringValue}
 				>
 					<SelectTrigger
 						className={cn(
@@ -94,9 +164,9 @@ export const SwitchInput = ({
 						"flex w-full max-w-full flex-row overflow-hidden rounded-md border border-input bg-background",
 						inputClassName,
 					)}
-					onValueChange={handleChange}
+					onValueChange={handleStringChange}
 					type="single"
-					value={currentValue}
+					value={currentStringValue}
 				>
 					{options?.map((caseTag) => (
 						<ToggleGroupItem
@@ -114,7 +184,7 @@ export const SwitchInput = ({
 					hasExistingValue={hasValue}
 					label={suggestionLabel}
 					onAccept={onAcceptSuggestedValue}
-					value={normalizedSuggestion ?? ""}
+					value={normalizedSuggestionString ?? ""}
 				/>
 			)}
 		</div>

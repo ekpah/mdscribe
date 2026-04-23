@@ -46,10 +46,8 @@ describe("Document Type Configurations", () => {
 
 	test("uses one default model config for all scribe generations", () => {
 		expect(DEFAULT_SCRIBE_MODEL_CONFIG).toEqual({
-			maxTokens: 20_000,
+			maxTokens: 8_000,
 			temperature: 0.3,
-			thinking: false,
-			thinkingBudget: 8000,
 		});
 	});
 });
@@ -107,6 +105,7 @@ describe("Context Builder", () => {
 		});
 
 		expect(contextXml).toContain("<template_context>");
+		expect(contextXml).toContain("<markdoc_tag_guidance>");
 		expect(contextXml).toContain("<title>\nER Vorlage\n</title>");
 		expect(contextXml).toContain("<content>\n## Abschnitt\n</content>");
 		expect(contextXml).toContain("<example>\nBeispiel A\n</example>");
@@ -183,6 +182,54 @@ describe("Model Selection Logic", () => {
 
 			const resolved = await resolveModel(server.db, { requireAudio: true });
 			expect(resolved.modelName).toBe("openrouter/test-speech");
+		} finally {
+			await server.close();
+		}
+	});
+
+	test("resolveModel infers gemma 3n audio support from model id for legacy rows", async () => {
+		const server = await startTestServer("resolve-model-gemma-3n-audio");
+		try {
+			const providerId = crypto.randomUUID();
+			const modelRecordId = crypto.randomUUID();
+
+			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
+				id: providerId,
+				name: "Test Provider",
+				protocol: "openrouter",
+			});
+			await server.db.insert(aiModel).values({
+				displayName: "Gemma 3n E4B",
+				id: modelRecordId,
+				inputModes: ["text"],
+				modelId: "gemma-3n-e4b-it-q8_0",
+				providerId,
+				supportsReasoning: false,
+			});
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultFileImageModelId: modelRecordId,
+					defaultSpeechToTextModelId: modelRecordId,
+					defaultTextModelId: modelRecordId,
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultFileImageModelId: modelRecordId,
+						defaultSpeechToTextModelId: modelRecordId,
+						defaultTextModelId: modelRecordId,
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const resolved = await resolveModel(server.db, { requireAudio: true });
+			expect(resolved.modelName).toBe("gemma-3n-e4b-it-q8_0");
+			expect(resolved.inputModes).toContain("audio");
 		} finally {
 			await server.close();
 		}

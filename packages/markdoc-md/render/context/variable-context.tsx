@@ -1,7 +1,7 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext } from "react";
 
 // Define the shape of your variables object to support multiple types
-type VariableValue = string | number;
+type VariableValue = string | number | boolean | null | undefined;
 type VariableMap = Record<string, VariableValue>;
 
 type VariableContextType = Record<string, VariableValue>;
@@ -15,9 +15,9 @@ export const VariableProvider = VariableContext.Provider;
  * Must be used within a component wrapped by VariableProvider (typically via DynamicMarkdocRenderer).
  */
 export const useVariables = (): VariableMap => {
-  const context = useContext(VariableContext);
-  if (context === undefined) {
-    throw new Error('useVariables must be used within a VariableProvider');
-  }
-  return context;
+	const context = useContext(VariableContext);
+	if (context === undefined) {
+		throw new Error("useVariables must be used within a VariableProvider");
+	}
+	return context;
 };

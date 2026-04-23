@@ -44,6 +44,8 @@ Pruefen Sie das Ergebnis immer fachlich:
 
 Admins koennen unter `/admin/settings/models` im Tab `AI Textbausteine` zusaetzliche AIScribe-Texte anlegen.
 
+Die Standardmodi unter `Schnelle Dokument-Generierung` (`/aiscribe/er`, `/aiscribe/icu`, `/aiscribe/outpatient`, `/aiscribe/procedures`, `/aiscribe/discharge`, `/aiscribe/diagnoseblock`) koennen im selben Admin-Tab separat konfiguriert werden. Ohne aktive Override-Konfiguration bleibt das bisherige hardcoded Verhalten unveraendert.
+
 Jeder AI Text kann derzeit festlegen:
 
 - Name (der URL-Pfad wird automatisch daraus abgeleitet)
@@ -54,6 +56,8 @@ Jeder AI Text kann derzeit festlegen:
 Alle AI Textbausteine verwenden aktuell denselben klinischen Vollkontext mit Notizen, Diagnoseblock, Anamnese und Befunden.
 
 Aktivierte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `AI Textbausteine`.
+
+Die konfigurierbaren Standardmodi bleiben weiterhin nur unter ihren festen `/aiscribe/*`-Routen sichtbar und werden nicht im `AI Textbausteine`-Bereich gelistet.
 
 <Callout type="warn" title="Datenschutz">
   Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden. Fuer sensible Daten ist Self-Hosting der empfohlene Weg.

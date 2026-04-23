@@ -3,6 +3,7 @@ import { call } from "@orpc/server";
 
 import { scribeFormsHandler as adminScribeFormsHandler } from "@/orpc/admin/scribe-forms";
 import { scribeFormsHandler } from "@/orpc/scribe-forms";
+import { getBuiltInAiscribeOverrideSlug } from "@/lib/aiscribe-built-ins";
 import type { TestServer } from "@/__tests__/setup";
 import {
 	ADMIN_EMAIL,
@@ -117,5 +118,63 @@ describe("AI Scribe Forms Handlers", () => {
 
 		expect(listed).toEqual([]);
 		expect(publicForm).toBeNull();
+	});
+
+	test("built-in overrides stay out of custom listings but are available by slug", async () => {
+		await call(
+			adminScribeFormsHandler.upsertBuiltIn,
+			{
+				enabled: true,
+				key: "er",
+				modelId,
+				promptHarness: "ER_Anamnese_chat",
+				templateId,
+			},
+			{ context: adminContext },
+		);
+
+		const customAdminList = await call(adminScribeFormsHandler.list, undefined, {
+			context: adminContext,
+		});
+		const builtInAdminList = await call(adminScribeFormsHandler.listBuiltIn, undefined, {
+			context: adminContext,
+		});
+		const publicAvailable = await call(scribeFormsHandler.listAvailable, undefined, {
+			context: publicContext,
+		});
+		const builtInSlug = getBuiltInAiscribeOverrideSlug("er");
+		const publicBuiltIn = await call(
+			scribeFormsHandler.getBySlug,
+			{ slug: builtInSlug },
+			{ context: publicContext },
+		);
+
+		expect(customAdminList).toEqual([]);
+		expect(publicAvailable).toEqual([]);
+		expect(publicBuiltIn?.slug).toBe(builtInSlug);
+		expect(
+			builtInAdminList.find((entry) => entry.key === "er")?.override?.template?.id,
+		).toBe(templateId);
+		expect(
+			builtInAdminList.find((entry) => entry.key === "er")?.override?.model?.id,
+		).toBe(modelId);
+	});
+
+	test("custom form create rejects reserved built-in slugs", async () => {
+		await expect(
+			call(
+				adminScribeFormsHandler.create,
+				{
+					description: null,
+					enabled: true,
+					modelId: null,
+					name: "Built In ER",
+					promptHarness: "ER_Anamnese_chat",
+					slug: getBuiltInAiscribeOverrideSlug("er"),
+					templateId: null,
+				},
+				{ context: adminContext },
+			),
+		).rejects.toThrow("reservierten Pfad");
 	});
 });

@@ -11,8 +11,7 @@ import type { LanguageModel } from "ai";
 import { decrypt } from "@/lib/encryption";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
 import { USER_MESSAGES } from "@/lib/user-messages";
-
-type InputMode = "text" | "audio" | "file" | "image";
+import { resolveInputModes, type InputMode } from "@/lib/ai-model-input-modes";
 
 interface ResolvedModel {
 	model: LanguageModel;
@@ -30,20 +29,6 @@ interface ResolveModelOptions {
 
 type AiModelRow = typeof aiModel.$inferSelect;
 type AiProviderRow = typeof aiProvider.$inferSelect;
-
-const toInputModes = (modes: string[]): InputMode[] => {
-	const allowed = new Set<InputMode>(["text", "audio", "file", "image"]);
-	const resolved = new Set<InputMode>();
-	for (const mode of modes) {
-		if (allowed.has(mode as InputMode)) {
-			resolved.add(mode as InputMode);
-		}
-	}
-	if (!resolved.has("text")) {
-		resolved.add("text");
-	}
-	return [...resolved];
-};
 
 const createProviderModel = (
 	protocol: string,
@@ -95,7 +80,7 @@ const buildResolvedModel = async (
 	);
 
 	return {
-		inputModes: toInputModes(model.inputModes),
+		inputModes: resolveInputModes(model.inputModes, model.modelId),
 		isOpenRouter: provider.protocol === "openrouter",
 		model: languageModel,
 		modelName: model.modelId,
@@ -175,17 +160,5 @@ export const resolveModel = async (
 		throw new Error(USER_MESSAGES.modelUnavailable);
 	}
 
-	const resolved = await resolveModelByRecordId(defaultModelId, db);
-	if (options?.requireAudio && !resolved.inputModes.includes("audio")) {
-		throw new Error(USER_MESSAGES.audioNotSupported);
-	}
-	if (
-		options?.requireFiles &&
-		!resolved.inputModes.includes("file") &&
-		!resolved.inputModes.includes("image")
-	) {
-		throw new Error(USER_MESSAGES.filesNotSupported);
-	}
-
-	return resolved;
+	return resolveModelByRecordId(defaultModelId, db);
 };

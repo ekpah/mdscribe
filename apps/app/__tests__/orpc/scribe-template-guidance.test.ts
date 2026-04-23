@@ -21,6 +21,11 @@ describe("Scribe template helpers", () => {
 		expect(fallbackContextValue).toContain(
 			"primäre Zielstruktur und stilistische Orientierung",
 		);
+		expect(fallbackContextValue).toContain("<markdoc_tag_guidance>");
+		expect(fallbackContextValue).toContain(
+			"Markdoc-Tags in der Vorlage sind nur Platzhalterlogik",
+		);
+		expect(fallbackContextValue).toContain("kein {% ... %}");
 		expect(fallbackContextValue.indexOf("<usage>")).toBeLessThan(
 			fallbackContextValue.indexOf("<template>"),
 		);

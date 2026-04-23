@@ -113,6 +113,16 @@ export default function TopMenuBar({
 									Textbausteine
 								</NavigationMenuLink>
 							</NavigationMenuItem>
+							{isAdmin && (
+								<NavigationMenuItem>
+									<NavigationMenuLink
+										className={navigationMenuTriggerStyle()}
+										href="/documents"
+									>
+										Dokumente
+									</NavigationMenuLink>
+								</NavigationMenuItem>
+							)}
 							{showAiLink && (
 								<NavigationMenuItem>
 									<NavigationMenuLink
@@ -253,6 +263,16 @@ export default function TopMenuBar({
 									Textbausteine
 								</NavigationMenuLink>
 							</NavigationMenuItem>
+							{isAdmin && (
+								<NavigationMenuItem>
+									<NavigationMenuLink
+										className={navigationMenuTriggerStyle()}
+										href="/documents"
+									>
+										Dokumente
+									</NavigationMenuLink>
+								</NavigationMenuItem>
+							)}
 							{showAiLink && (
 								<NavigationMenuItem>
 									<NavigationMenuLink

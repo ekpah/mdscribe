@@ -30,6 +30,22 @@ const vector = customType<{ data: number[]; driverData: string }>({
 	},
 });
 
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array | string }>({
+	dataType() {
+		return "bytea";
+	},
+	fromDriver(value: Uint8Array | string): Uint8Array {
+		if (value instanceof Uint8Array) {
+			return value;
+		}
+		const normalized = value.startsWith("\\x") ? value.slice(2) : value;
+		return new Uint8Array(Buffer.from(normalized, "hex"));
+	},
+	toDriver(value: Uint8Array): Uint8Array {
+		return value;
+	},
+});
+
 // ============ AUTH TABLES (BetterAuth compatible) ============
 
 export const user = pgTable("User", {
@@ -132,6 +148,33 @@ export const template = pgTable("Template", {
 		.notNull()
 		.defaultNow(),
 });
+
+export const documentTemplate = pgTable(
+	"DocumentTemplate",
+	{
+		authorId: text("authorId")
+			.notNull()
+			.references(() => user.id),
+		category: text("category").notNull(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow(),
+		fieldDefinitions: jsonb("fieldDefinitions").notNull(),
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		pdfBytes: bytea("pdfBytes").notNull(),
+		title: text("title").notNull(),
+		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow()
+			.$onUpdate(() => new Date()),
+	},
+	(table) => [
+		index("DocumentTemplate_authorId_idx").on(table.authorId),
+		index("DocumentTemplate_category_idx").on(table.category),
+	],
+);
 
 export const templateExample = pgTable(
 	"TemplateExample",
@@ -383,6 +426,7 @@ export const aiScribeFormConfig = pgTable(
 
 export const userRelations = relations(user, ({ many }) => ({
 	accounts: many(account),
+	documentTemplates: many(documentTemplate),
 	favourites: many(favourites),
 	sessions: many(session),
 	subscriptions: many(subscription),
@@ -406,6 +450,16 @@ export const templateRelations = relations(template, ({ one, many }) => ({
 	examples: many(templateExample),
 	favouriteOf: many(favourites),
 }));
+
+export const documentTemplateRelations = relations(
+	documentTemplate,
+	({ one }) => ({
+		author: one(user, {
+			fields: [documentTemplate.authorId],
+			references: [user.id],
+		}),
+	}),
+);
 
 export const templateExampleRelations = relations(
 	templateExample,
