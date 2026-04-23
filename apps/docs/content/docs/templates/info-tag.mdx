@@ -18,7 +18,7 @@ Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung var
 | Parameter | Typ | Pflicht | Standard | Beschreibung |
 |-----------|-----|---------|----------|--------------|
 | `primary` | String | Ja | - | Der Name des Feldes/der Variable |
-| `type` | String | Nein | `"string"` | Datentyp: `"string"`, `"number"`, `"date"`, `"boolean"` |
+| `type` | String | Nein | `"string"` | Datentyp: `"string"`, `"number"`, `"date"` |
 | `unit` | String | Nein | - | Einheit für den Wert (z.B. "kg", "mmHg") |
 | `renderUnit` | Boolean | Nein | `false` | Ob die Einheit angezeigt werden soll |
 
@@ -45,7 +45,7 @@ Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung var
 
 **Blutdruck systolisch**: {% info "RR_sys" type="number" unit="mmHg" renderUnit=true /%}
 
-**Allergie bekannt**: {% info "Allergie" type="boolean" /%}
+**Allergie-Text**: {% info "Allergie" /%}
 ```
 
 ### Funktionsweise
@@ -62,7 +62,6 @@ Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung var
 - ✅ Setzen Sie **Einheiten** bei numerischen Werten
 - ❌ Vermeiden Sie **zu lange Feldnamen**
 - ❌ Verwenden Sie **keine Sonderzeichen** im Feldnamen (Ausnahme: Unterstrich)
-
 
 
 
