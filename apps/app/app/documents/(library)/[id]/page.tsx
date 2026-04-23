@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import type { DocumentFieldDefinition } from "@/lib/documents";
+import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 import ContentSection from "@/app/documents/(library)/[id]/_components/content-section";

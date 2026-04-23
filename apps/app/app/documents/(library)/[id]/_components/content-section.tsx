@@ -17,10 +17,10 @@ import {
 	fillPDFForm,
 	printPdfBlob,
 	toPdfBlob,
-} from "@/lib/documents";
-import type { DocumentFieldDefinition } from "@/lib/documents";
+} from "@/app/documents/_lib";
+import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 import { useSession } from "@/lib/auth-client";
-import { PDFViewSection } from "@/lib/documents/pdf-view-section";
+import { PDFViewSection } from "@/app/documents/_components/pdf-view-section";
 import { orpc } from "@/lib/orpc";
 
 export default function ContentSection({

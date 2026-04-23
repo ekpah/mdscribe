@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { PDFDocument } from "pdf-lib";
 
-import { fillPDFForm } from "@/lib/documents";
-import type { DocumentFieldDefinition } from "@/lib/documents";
+import { fillPDFForm } from "@/app/documents/_lib";
+import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 
 const createFormPdf = async (): Promise<Uint8Array> => {
 	const pdfDoc = await PDFDocument.create();

@@ -36,20 +36,27 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pdfjs } from "react-pdf";
 import { toast } from "sonner";
+import {
+	buildDefaultFieldDefinitionsFromPdfFields,
+	buildParsedMarkdocFromFieldDefinitions,
+	fillPDFForm,
+	MAX_PDF_UPLOAD_BYTES,
+	parsePDFFormFields,
+} from "@/app/documents/_lib";
+import type { DocumentFieldDefinition, PDFField } from "@/app/documents/_lib";
+import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
 import { orpc } from "@/lib/orpc";
 import type { AudioFile, InputField } from "@/orpc/scribe/types";
-import { fillPDFForm } from "@/app/admin/documents-playground/_lib/fill-pdf-form";
-import { convertPDFFieldsToInputTags, parsePDFFormFields } from '@/app/admin/documents-playground/_lib/parse-pdf-form-fields';
-import type { FieldMapping, PDFField } from '@/app/admin/documents-playground/_lib/parse-pdf-form-fields';
-import { MAX_PDF_UPLOAD_BYTES } from "@/app/admin/documents-playground/_lib/pdf-data";
 import PDFDebugPanel from "./pdf-debug-panel";
 import PDFInputs from './pdf-inputs';
 import type { InputSource } from './pdf-inputs';
-import PDFUploadSection from "./pdf-upload-section";
 
-const PDFViewSection = dynamic(() => import("./pdf-view-section"), {
-	ssr: false,
-});
+const PDFViewSection = dynamic(
+	async () => (await import("@/app/documents/_components/pdf-view-section")).PDFViewSection,
+	{
+		ssr: false,
+	},
+);
 
 // PDFViewSection sets pdfjs.GlobalWorkerOptions.workerSrc when it first mounts.
 // It is always in the DOM (TabsContent keeps it mounted), so the worker is ready
@@ -152,12 +159,31 @@ const printPdfBlob = (blob: Blob) => {
 	printWindow.addEventListener("load", () => printWindow.print());
 };
 
-const toDefaultFieldMapping = (fields: PDFField[]): FieldMapping[] =>
-	fields.map((field) => ({
-		description: "",
-		fieldName: field.name,
-		label: field.name,
-	}));
+const toDefaultFieldMapping = (
+	fields: PDFField[],
+): DocumentFieldDefinition[] => buildDefaultFieldDefinitionsFromPdfFields(fields);
+
+const mergeAiFieldMapping = (
+	aiFieldMapping: { description: string; fieldName: string; label: string }[],
+	currentMappings: DocumentFieldDefinition[],
+): DocumentFieldDefinition[] => {
+	return aiFieldMapping.map((mapping) => {
+		const existing = currentMappings.find(
+			(currentMapping) => currentMapping.fieldName === mapping.fieldName,
+		);
+
+		return {
+			description: mapping.description,
+			fieldName: mapping.fieldName,
+			isEnabled: existing?.isEnabled ?? true,
+			label: mapping.label,
+			markdocType: existing?.markdocType ?? "Info",
+			options: existing?.options ?? [],
+			pdfType: existing?.pdfType ?? "text",
+			valueType: existing?.valueType ?? "string",
+		};
+	});
+};
 
 const formatDuration = (seconds: number): string => {
 	const mins = Math.floor(seconds / 60);
@@ -256,8 +282,7 @@ const createAudioRecording = (
 
 const PDFFormSection = () => {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
-	const [fieldMapping, setFieldMapping] = useState<FieldMapping[]>([]);
-	const [fields, setFields] = useState<PDFField[]>([]);
+	const [fieldMapping, setFieldMapping] = useState<DocumentFieldDefinition[]>([]);
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
 	const [pdfVersion, setPdfVersion] = useState(0);
@@ -332,7 +357,9 @@ const PDFFormSection = () => {
 				);
 			},
 			onSuccess: (data) => {
-				setFieldMapping(data.fieldMapping);
+				setFieldMapping((currentMappings) =>
+					mergeAiFieldMapping(data.fieldMapping, currentMappings),
+				);
 				toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
 			},
 		}),
@@ -396,7 +423,6 @@ const PDFFormSection = () => {
 	const handleClearDocument = useCallback(() => {
 		setPdfFile(null);
 		setFieldMapping([]);
-		setFields([]);
 		setFieldValues({});
 		setFilledPdf(null);
 		setFieldSources({});
@@ -405,7 +431,14 @@ const PDFFormSection = () => {
 		setOcrMarkdown("");
 		setActivePreviewTab("pdf");
 	}, []);
-	const { inputTags } = convertPDFFieldsToInputTags(fields, fieldMapping);
+	const inputTags = useMemo(() => {
+		try {
+			return buildParsedMarkdocFromFieldDefinitions(fieldMapping).inputTags;
+		} catch (error) {
+			console.error("Failed to build parsed markdoc from field definitions:", error);
+			return [];
+		}
+	}, [fieldMapping]);
 	const handleFileUpload = useCallback(async (file: Uint8Array) => {
 		// Keep an isolated in-memory copy for preview/fill operations.
 		const stableFile = new Uint8Array(file);
@@ -421,13 +454,11 @@ const PDFFormSection = () => {
 		// get form fields from pdf
 		try {
 			const { fields: parsedFields } = await parsePDFFormFields(stableFile);
-			setFields(parsedFields);
 			// set initial field mapping, changes with every change of fields
 			setFieldMapping(toDefaultFieldMapping(parsedFields));
 		} catch (error) {
 			console.error("Error parsing uploaded PDF:", error);
 			setPdfFile(null);
-			setFields([]);
 			setFieldMapping([]);
 			toast.error("PDF konnte nicht gelesen werden");
 		}

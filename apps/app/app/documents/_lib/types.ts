@@ -29,3 +29,8 @@ export type DocumentPdfType = z.infer<typeof documentPdfTypeSchema>;
 export type DocumentMarkdocType = z.infer<typeof documentMarkdocTypeSchema>;
 export type DocumentValueType = z.infer<typeof documentValueTypeSchema>;
 export type DocumentFieldDefinition = z.infer<typeof documentFieldDefinitionSchema>;
+
+export const SWITCH_PDF_TYPES = new Set<DocumentPdfType>(["checkbox", "dropdown", "radio"]);
+
+export const isSwitchPdfType = (pdfType: DocumentPdfType): boolean =>
+	SWITCH_PDF_TYPES.has(pdfType);

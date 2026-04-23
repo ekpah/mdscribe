@@ -23,26 +23,30 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
-import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { fillPDFForm } from "@/app/admin/documents-playground/_lib/fill-pdf-form";
-import { parsePDFFormFields } from "@/app/admin/documents-playground/_lib/parse-pdf-form-fields";
-import type { FieldMapping, PDFField } from "@/app/admin/documents-playground/_lib/parse-pdf-form-fields";
 import PDFDebugPanel from "@/app/admin/documents-playground/_components/pdf-debug-panel";
-import PDFUploadSection from "@/app/admin/documents-playground/_components/pdf-upload-section";
+import {
+	encodeUint8ArrayToBase64,
+	fillPDFForm,
+	parsePDFFormFields,
+} from "@/app/documents/_lib";
+import type { DocumentFieldDefinition, DocumentPdfType } from "@/app/documents/_lib";
+import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
+import { PDFViewSection } from "@/app/documents/_components/pdf-view-section";
+import { orpc } from "@/lib/orpc";
 import InputEditor from "./input-editor";
 
-const PDFViewSection = dynamic(() => import("@/app/admin/documents-playground/_components/pdf-view-section"), {
-	ssr: false,
-});
-
-export interface EnhancedFieldMapping extends FieldMapping {
-	pdfType: PDFField["type"];
+export interface EnhancedFieldMapping {
+	description: string;
+	fieldName: string;
+	label: string;
 	markdocType: "Info" | "Switch";
+	pdfType: DocumentPdfType;
 }
 
-const determineMarkdocType = (pdfType: PDFField["type"]): "Info" | "Switch" => {
+const determineMarkdocType = (pdfType: DocumentPdfType): "Info" | "Switch" => {
 	// Checkbox, dropdown, and radio become Switch
 	if (pdfType === "checkbox" || pdfType === "dropdown" || pdfType === "radio") {
 		return "Switch";
@@ -52,7 +56,7 @@ const determineMarkdocType = (pdfType: PDFField["type"]): "Info" | "Switch" => {
 };
 
 const buildEnhancedMapping = (
-	aiMapping: FieldMapping,
+	aiMapping: { description: string; fieldName: string; label: string },
 	existingMappings: EnhancedFieldMapping[],
 ): EnhancedFieldMapping => {
 	const existing = existingMappings.find(
@@ -65,74 +69,78 @@ const buildEnhancedMapping = (
 	};
 };
 
-const toPdfBlob = (pdfFile: Uint8Array): Blob => {
-	const arrayBuffer = pdfFile.buffer.slice(
-		pdfFile.byteOffset,
-		pdfFile.byteOffset + pdfFile.byteLength,
-	) as ArrayBuffer;
-	return new Blob([arrayBuffer], { type: "application/pdf" });
-};
-
-const createEnhanceFormData = (
-	pdfFile: Uint8Array,
+const toDocumentFieldDefinitions = (
 	fieldMappings: EnhancedFieldMapping[],
-) => {
-	const file = new File([toPdfBlob(pdfFile)], "document.pdf", {
-		type: "application/pdf",
-	});
-	const formData = new FormData();
-	formData.append("file", file);
-	formData.append("fieldMapping", JSON.stringify(fieldMappings));
-	return formData;
-};
-
-const requestEnhancedMappings = async (
-	formData: FormData,
-): Promise<{ fieldMapping: FieldMapping[] }> => {
-	const response = await fetch("/api/documents/parse-form", {
-		body: formData,
-		method: "POST",
-	});
-	if (!response.ok) {
-		const errorText = await response.text();
-		throw new Error(errorText || "Eingaben konnten nicht verbessert werden");
-	}
-	return response.json();
-};
-
-const toErrorMessage = (error: unknown): string =>
-	error instanceof Error ? error.message : "Unbekannter Fehler aufgetreten";
+): DocumentFieldDefinition[] =>
+	fieldMappings.map((fieldMapping) => ({
+		description: fieldMapping.description,
+		fieldName: fieldMapping.fieldName,
+		isEnabled: true,
+		label: fieldMapping.label,
+		markdocType: fieldMapping.markdocType,
+		options: fieldMapping.pdfType === "checkbox" ? ["true", "false"] : [],
+		pdfType: fieldMapping.pdfType,
+		valueType: "string",
+	}));
 
 export default function CreateDocumentSection() {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
+	const [pdfFileName, setPdfFileName] = useState<string>("document.pdf");
 	const [fieldMappings, setFieldMappings] = useState<EnhancedFieldMapping[]>([]);
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
 
+	const enhanceMutation = useMutation(
+		orpc.documents.parseForm.mutationOptions({
+			onError: (error) => {
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: "Unbekannter Fehler aufgetreten";
+				toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
+					id: "enhance-ai",
+				});
+			},
+			onSuccess: (data) => {
+				setFieldMappings(
+					data.fieldMapping.map((aiMapping) =>
+						buildEnhancedMapping(aiMapping, fieldMappings),
+					),
+				);
+				toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
+			},
+		}),
+	);
+
 	const handleClearDocument = useCallback(() => {
 		setPdfFile(null);
+		setPdfFileName("document.pdf");
 		setFieldMappings([]);
 		setFieldValues({});
 		setFilledPdf(null);
 	}, []);
 
-	const handleFileUpload = useCallback(async (file: Uint8Array) => {
-		setPdfFile(file);
+	const handleFileUpload = useCallback(
+		async (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => {
+			setPdfFile(file);
+			setPdfFileName(fileMeta.name);
 
-		// get form fields from pdf
-		const { fields: parsedFields } = await parsePDFFormFields(file);
-		
-		// set initial field mapping with enhanced properties
-		setFieldMappings(
-			parsedFields.map((field) => ({
-				description: "",
-				fieldName: field.name,
-				label: field.name,
-				markdocType: determineMarkdocType(field.type),
-				pdfType: field.type,
-			})),
-		);
-	}, []);
+			// get form fields from pdf
+			const { fields: parsedFields } = await parsePDFFormFields(file);
+
+			// set initial field mapping with enhanced properties
+			setFieldMappings(
+				parsedFields.map((field) => ({
+					description: "",
+					fieldName: field.name,
+					label: field.name,
+					markdocType: determineMarkdocType(field.type),
+					pdfType: field.type,
+				})),
+			);
+		},
+		[],
+	);
 
 	const handleFillPdf = useCallback(async () => {
 		if (!pdfFile) {
@@ -142,7 +150,7 @@ export default function CreateDocumentSection() {
 		const filledPdfResult = await fillPDFForm(
 			pdfFile,
 			fieldValues,
-			fieldMappings,
+			toDocumentFieldDefinitions(fieldMappings),
 		);
 		setFilledPdf(filledPdfResult);
 		toast.success("PDF-Formular ausgefüllt");
@@ -161,23 +169,17 @@ export default function CreateDocumentSection() {
 		toast.loading("Eingaben werden mit KI verbessert...", {
 			id: "enhance-ai",
 		});
-		try {
-			const formData = createEnhanceFormData(pdfFile, fieldMappings);
-			const data = await requestEnhancedMappings(formData);
-			setFieldMappings(
-				data.fieldMapping.map((aiMapping) =>
-					buildEnhancedMapping(aiMapping, fieldMappings),
-				),
-			);
 
-			toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
-		} catch (error) {
-			toast.error(
-				`Eingaben konnten nicht verbessert werden: ${toErrorMessage(error)}`,
-				{ id: "enhance-ai" },
-			);
-		}
-	}, [fieldMappings, pdfFile]);
+			enhanceMutation.mutate({
+				fieldMapping: fieldMappings.map((fieldMapping) => ({
+					description: fieldMapping.description,
+					fieldName: fieldMapping.fieldName,
+					label: fieldMapping.label,
+					pdfType: fieldMapping.pdfType,
+				})),
+				fileBase64: encodeUint8ArrayToBase64(pdfFile),
+			});
+	}, [enhanceMutation, fieldMappings, pdfFile]);
 
 	return (
 		<>
@@ -211,6 +213,7 @@ export default function CreateDocumentSection() {
 						onFileUpload={handleFileUpload}
 						onClear={handleClearDocument}
 						pdfFile={pdfFile}
+						pdfFileName={pdfFileName}
 					/>
 					<div className="mt-4 flex-1">
 						<PDFViewSection

@@ -1,13 +1,7 @@
 import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 
-import type { DocumentFieldDefinition } from "@/lib/documents/types";
-
-// --- Normalization ---
-
-const SWITCH_PDF_TYPES = new Set(["checkbox", "dropdown", "radio"]);
-
-const isSwitchPdfType = (pdfType: DocumentFieldDefinition["pdfType"]): boolean =>
-	SWITCH_PDF_TYPES.has(pdfType);
+import type { DocumentFieldDefinition } from "./types";
+import { isSwitchPdfType } from "./types";
 
 const normalizeFieldDefinition = (
 	field: DocumentFieldDefinition,

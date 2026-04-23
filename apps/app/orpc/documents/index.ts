@@ -14,11 +14,11 @@ import { z } from "zod";
 import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
 import {
 	buildParsedMarkdocFromFieldDefinitions,
-} from "@/lib/documents/build-parsed-markdoc-from-field-definitions";
+} from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
 import {
 	documentFieldDefinitionsSchema,
 	type DocumentFieldDefinition,
-} from "@/lib/documents/types";
+} from "@/app/documents/_lib/types";
 import type { StandardUsage } from '@/lib/usage-logging';
 import { authed, pub } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";

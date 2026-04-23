@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	buildParsedMarkdocFromFieldDefinitions,
-} from "@/lib/documents";
-import type { DocumentFieldDefinition } from "@/lib/documents";
+} from "@/app/documents/_lib";
+import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 
 const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{

@@ -1,6 +1,7 @@
 import { PDFDocument } from "pdf-lib";
 
-import type { DocumentFieldDefinition, DocumentPdfType } from "@/lib/documents/types";
+import type { DocumentFieldDefinition, DocumentPdfType } from "./types";
+import { isSwitchPdfType } from "./types";
 
 export interface PDFField {
 	label: string;
@@ -8,10 +9,6 @@ export interface PDFField {
 	options?: string[];
 	type: DocumentPdfType;
 	value?: string;
-}
-
-interface ParsePDFResult {
-	fields: PDFField[];
 }
 
 interface PDFFormField {
@@ -25,6 +22,10 @@ interface PDFFormField {
 interface PdfLibFormField {
 	constructor: { name: string };
 	getName: () => string;
+	check?: () => void;
+	select?: (value: string) => void;
+	setText?: (value: string) => void;
+	uncheck?: () => void;
 }
 
 const parseTextField = (
@@ -37,23 +38,6 @@ const parseTextField = (
 	value: pdfFormField.getText?.() || "",
 });
 
-const parseDropdownField = (
-	pdfFormField: PDFFormField,
-	fieldName: string,
-): PDFField => {
-	const options = pdfFormField.getOptions?.() || [];
-	const selected = pdfFormField.getSelected?.();
-	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
-
-	return {
-		label: fieldName,
-		name: fieldName,
-		options,
-		type: "dropdown",
-		value: selectedValue || "",
-	};
-};
-
 const parseCheckboxField = (
 	pdfFormField: PDFFormField,
 	fieldName: string,
@@ -64,11 +48,12 @@ const parseCheckboxField = (
 	value: pdfFormField.isChecked?.() ? "true" : "false",
 });
 
-const parseRadioGroupField = (
+const parseSelectableField = (
 	pdfFormField: PDFFormField,
 	fieldName: string,
+	type: "dropdown" | "radio",
 ): PDFField => {
-	const options = pdfFormField.getOptions?.() || [];
+	const options = pdfFormField.getOptions?.() ?? [];
 	const selected = pdfFormField.getSelected?.();
 	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
 
@@ -76,24 +61,17 @@ const parseRadioGroupField = (
 		label: fieldName,
 		name: fieldName,
 		options,
-		type: "radio",
+		type,
 		value: selectedValue || "",
 	};
 };
-
-const createFallbackTextField = (fieldName: string): PDFField => ({
-	label: fieldName,
-	name: fieldName,
-	type: "text",
-	value: "",
-});
 
 const pdfFieldParsers: Partial<
 	Record<string, (pdfFormField: PDFFormField, fieldName: string) => PDFField>
 > = {
 	PDFCheckBox: parseCheckboxField,
-	PDFDropdown: parseDropdownField,
-	PDFRadioGroup: parseRadioGroupField,
+	PDFDropdown: (field, name) => parseSelectableField(field, name, "dropdown"),
+	PDFRadioGroup: (field, name) => parseSelectableField(field, name, "radio"),
 	PDFTextField: parseTextField,
 };
 
@@ -105,7 +83,7 @@ const parseSingleFormField = (field: PdfLibFormField): PDFField => {
 
 	return parser
 		? parser(pdfFormField, fieldName)
-		: createFallbackTextField(fieldName);
+		: { label: fieldName, name: fieldName, type: "text", value: "" };
 };
 
 const parseFormFieldsFromPDF = async (file: Uint8Array): Promise<PDFField[]> => {
@@ -120,18 +98,9 @@ const parseFormFieldsFromPDF = async (file: Uint8Array): Promise<PDFField[]> => 
 
 export const parsePDFFormFields = async (
 	file: Uint8Array,
-): Promise<ParsePDFResult> => {
+): Promise<{ fields: PDFField[] }> => {
 	const fields = await parseFormFieldsFromPDF(file);
 	return { fields };
-};
-
-const inferMarkdocType = (
-	pdfType: DocumentPdfType,
-): DocumentFieldDefinition["markdocType"] => {
-	if (pdfType === "checkbox" || pdfType === "dropdown" || pdfType === "radio") {
-		return "Switch";
-	}
-	return "Info";
 };
 
 const inferOptions = (field: PDFField): string[] => {
@@ -149,7 +118,7 @@ export const buildDefaultFieldDefinitionsFromPdfFields = (
 		fieldName: field.name,
 		isEnabled: true,
 		label: field.name,
-		markdocType: inferMarkdocType(field.type),
+		markdocType: isSwitchPdfType(field.type) ? "Switch" : "Info",
 		options: inferOptions(field),
 		pdfType: field.type,
 		valueType: "string",
