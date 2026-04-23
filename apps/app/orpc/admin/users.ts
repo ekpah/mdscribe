@@ -1,7 +1,9 @@
-import { desc, sql, user } from "@repo/database";
+import { and, desc, eq, gte, lte, sql, usageEvent, user } from "@repo/database";
 
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+
+const SUBSCRIPTION_USAGE_EVENT_NAME = "ai_scribe_generation";
 
 const activeSubscriptionPredicate = sql`
 	(
@@ -17,6 +19,28 @@ const activeSubscriptionPredicate = sql`
 const adminUsersHandler = authed
 	.use(requiredAdminMiddleware)
 	.handler(async ({ context }) => {
+		const now = new Date();
+		const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+		const usageRows = await context.db
+			.select({
+				count: sql<number>`count(*)::int`.as("usageEventsCount"),
+				userId: usageEvent.userId,
+			})
+			.from(usageEvent)
+			.where(
+				and(
+					eq(usageEvent.name, SUBSCRIPTION_USAGE_EVENT_NAME),
+					gte(usageEvent.timestamp, firstDayOfMonth),
+					lte(usageEvent.timestamp, now),
+				),
+			)
+			.groupBy(usageEvent.userId);
+
+		const usageByUserId = new Map(
+			usageRows.map((row) => [row.userId, Number(row.count ?? 0)]),
+		);
+
 		const users = await context.db
 			.select({
 				_count: {
@@ -29,13 +53,7 @@ const adminUsersHandler = authed
 						WHERE "Template"."authorId" = ${user.id}
 					)::int`.as("templatesCount"),
 					usageEvents: sql<number>`(
-						SELECT COUNT(*)
-						FROM "UsageEvent"
-						WHERE "UsageEvent"."userId" = ${user.id}
-						AND (
-							"UsageEvent".name LIKE 'ai\_%' ESCAPE '\\'
-							OR "UsageEvent".name = 'admin_scribe_playground'
-						)
+						0
 					)::int`.as("usageEventsCount"),
 				},
 				createdAt: user.createdAt,
@@ -75,7 +93,13 @@ const adminUsersHandler = authed
 			.from(user)
 			.orderBy(desc(user.createdAt));
 
-		return users;
+		return users.map((currentUser) => ({
+			...currentUser,
+			_count: {
+				...currentUser._count,
+				usageEvents: usageByUserId.get(currentUser.id) ?? 0,
+			},
+		}));
 	});
 
 export const usersHandler = {

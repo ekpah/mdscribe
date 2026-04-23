@@ -9,6 +9,12 @@ import {
 	normalizeProviderBaseUrl,
 	PROVIDER_BASE_URL_ERROR_MESSAGE,
 } from "@/lib/openai-compatible";
+import {
+	inferInputModesFromModelId,
+	normalizeInputModes,
+	resolveInputModes,
+	type InputMode,
+} from "@/lib/ai-model-input-modes";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
@@ -22,7 +28,6 @@ const PROVIDER_PROTOCOLS = [
 ] as const;
 
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
-type InputMode = "text" | "audio" | "file" | "image";
 
 interface FetchedProviderModel {
 	modelId: string;
@@ -77,39 +82,6 @@ const ensureV1BaseUrl = (url: string): string => {
 	return `${trimmed}/v1`;
 };
 
-const inferInputModesFromModelId = (modelId: string): InputMode[] => {
-	const id = modelId.toLowerCase();
-	const modes = new Set<InputMode>(["text"]);
-
-	const hasImageInput =
-		id.includes("vision") ||
-		id.includes("vlm") ||
-		id.includes("visual") ||
-		id.includes("llava") ||
-		id.includes("moondream") ||
-		id.includes("-vl") ||
-		id.includes(":vl") ||
-		id.includes("image") ||
-		id.includes("ocr") ||
-		id.includes("pdf");
-	if (hasImageInput) {
-		modes.add("image");
-		modes.add("file");
-	}
-
-	const hasAudioInput =
-		id.includes("audio") ||
-		id.includes("whisper") ||
-		id.includes("transcribe") ||
-		id.includes("asr") ||
-		id.includes("speech");
-	if (hasAudioInput) {
-		modes.add("audio");
-	}
-
-	return [...modes];
-};
-
 const parseOpenRouterInputModes = (
 	modality: string | undefined,
 ): InputMode[] => {
@@ -130,20 +102,6 @@ const parseOpenRouterInputModes = (
 	}
 
 	return [...modes];
-};
-
-const normalizeInputModes = (modes: string[]): InputMode[] => {
-	const allowed = new Set<InputMode>(["text", "audio", "file", "image"]);
-	const unique = new Set<InputMode>();
-	for (const mode of modes) {
-		if (allowed.has(mode as InputMode)) {
-			unique.add(mode as InputMode);
-		}
-	}
-	if (!unique.has("text")) {
-		unique.add("text");
-	}
-	return [...unique];
 };
 
 const normalizeConfiguredBaseUrl = (
@@ -413,6 +371,10 @@ const listProvidersHandler = admin.handler(async ({ context }) => {
 		...provider,
 		apiKey: undefined,
 		hasApiKey: !!provider.apiKey,
+		models: provider.models.map((model) => ({
+			...model,
+			inputModes: resolveInputModes(model.inputModes, model.modelId),
+		})),
 	}));
 });
 

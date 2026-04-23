@@ -211,7 +211,7 @@ export default function UsersPageClient() {
 							</div>
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Generierungen
+									KI-Nutzung (Monat)
 								</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
 									{totalGenerations}
@@ -332,7 +332,7 @@ export default function UsersPageClient() {
 												</p>
 											</div>
 											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-												<p className="text-solarized-base01">Generierungen</p>
+												<p className="text-solarized-base01">KI-Nutzung (Monat)</p>
 												<p className="font-medium text-solarized-base00">
 													{user._count.usageEvents}
 												</p>

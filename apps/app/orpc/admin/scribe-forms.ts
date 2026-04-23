@@ -1,19 +1,31 @@
 import { ORPCError, type } from "@orpc/server";
-import { aiModel, aiScribeFormConfig, eq, template } from '@repo/database';
-import type { Database } from '@repo/database';
+import {
+	aiModel,
+	aiScribeFormConfig,
+	eq,
+	inArray,
+	notInArray,
+	template,
+} from "@repo/database";
+import type { Database } from "@repo/database";
 import { z } from "zod";
 
 import { AI_SCRIBE_FORM_SLUG_REGEX, isReservedAiScribeFormSlug } from "@/lib/ai-scribe-forms";
+import {
+	BUILT_IN_AISCRIBE_OVERRIDE_KEYS,
+	BUILT_IN_AISCRIBE_OVERRIDE_SLUGS,
+	getBuiltInAiscribeOverride,
+} from "@/lib/aiscribe-built-ins";
 import { authed } from "@/orpc";
 
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { PROMPT_HARNESS_IDS } from '@/orpc/scribe/prompts';
-import type { PromptHarnessId } from '@/orpc/scribe/prompts';
+import { PROMPT_HARNESS_IDS } from "@/orpc/scribe/prompts";
+import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 
 const promptHarnessSchema = z
-	.string({
-		required_error: "Basis-Prompt ist erforderlich",
-	})
+	.string()
+	.trim()
+	.min(1, "Basis-Prompt ist erforderlich")
 	.refine(
 		(value): value is PromptHarnessId => PROMPT_HARNESS_IDS.includes(value as PromptHarnessId),
 		{
@@ -22,9 +34,7 @@ const promptHarnessSchema = z
 	);
 
 const slugSchema = z
-	.string({
-		required_error: "Pfad ist erforderlich",
-	})
+	.string()
 	.trim()
 	.min(1, "Aus dem Namen konnte kein gültiger Pfad erzeugt werden")
 	.regex(AI_SCRIBE_FORM_SLUG_REGEX, "Aus dem Namen konnte kein gültiger Pfad erzeugt werden")
@@ -36,12 +46,7 @@ const baseFormSchema = z.object({
 	description: z.string().trim().nullable().optional(),
 	enabled: z.boolean(),
 	modelId: z.string().nullable().optional(),
-	name: z
-		.string({
-			required_error: "Name ist erforderlich",
-		})
-		.trim()
-		.min(1, "Name ist erforderlich"),
+	name: z.string().trim().min(1, "Name ist erforderlich"),
 	promptHarness: promptHarnessSchema,
 	slug: slugSchema,
 	templateId: z.string().nullable().optional(),
@@ -55,6 +60,14 @@ const updateFormInput = baseFormSchema.extend({
 
 const deleteFormInput = z.object({
 	id: z.string(),
+});
+
+const builtInFormInput = z.object({
+	enabled: z.boolean(),
+	key: z.enum(BUILT_IN_AISCRIBE_OVERRIDE_KEYS),
+	modelId: z.string().nullable().optional(),
+	promptHarness: promptHarnessSchema,
+	templateId: z.string().nullable().optional(),
 });
 
 const parseWithBadRequest = <T>(schema: z.ZodType<T>, input: unknown): T => {
@@ -171,7 +184,65 @@ const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context 
 				},
 			},
 		},
+		where: notInArray(aiScribeFormConfig.slug, BUILT_IN_AISCRIBE_OVERRIDE_SLUGS),
 	}));
+
+const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
+	const overrides = await context.db.query.aiScribeFormConfig.findMany({
+		columns: {
+			description: true,
+			enabled: true,
+			id: true,
+			modelId: true,
+			promptHarness: true,
+			slug: true,
+			templateId: true,
+		},
+		where: inArray(aiScribeFormConfig.slug, BUILT_IN_AISCRIBE_OVERRIDE_SLUGS),
+		with: {
+			model: {
+				columns: {
+					displayName: true,
+					id: true,
+				},
+			},
+			template: {
+				columns: {
+					id: true,
+					title: true,
+				},
+			},
+		},
+	});
+
+	const overrideBySlug = new Map(overrides.map((override) => [override.slug, override]));
+
+	return BUILT_IN_AISCRIBE_OVERRIDE_KEYS.map((key) => {
+		const definition = getBuiltInAiscribeOverride(key);
+		const override = overrideBySlug.get(definition.slug);
+
+		return {
+			defaultPromptHarness: definition.defaultPromptHarness,
+			description: definition.description,
+			key,
+			path: definition.path,
+			slug: definition.slug,
+			title: definition.title,
+			override: override
+				? {
+						description: override.description,
+						enabled: override.enabled,
+						id: override.id,
+						model: override.model,
+						modelId: override.modelId,
+						promptHarness: override.promptHarness,
+						template: override.template,
+						templateId: override.templateId,
+					}
+				: null,
+		};
+	});
+});
 
 const createFormHandler = authed
 	.use(requiredAdminMiddleware)
@@ -222,9 +293,57 @@ const deleteFormHandler = authed
 		return { success: true };
 	});
 
+const upsertBuiltInFormHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(type<z.infer<typeof builtInFormInput>>())
+	.handler(async ({ context, input }) => {
+		const parsed = parseWithBadRequest(builtInFormInput, input);
+		await ensureModelAndTemplateExist(context, parsed);
+
+		const definition = getBuiltInAiscribeOverride(parsed.key);
+		const values = toScribeFormValues({
+			description: definition.description,
+			enabled: parsed.enabled,
+			modelId: parsed.modelId,
+			name: definition.title,
+			promptHarness: parsed.promptHarness,
+			slug: definition.slug,
+			templateId: parsed.templateId,
+		});
+
+		const existing = await context.db.query.aiScribeFormConfig.findFirst({
+			where: eq(aiScribeFormConfig.slug, definition.slug),
+		});
+
+		if (existing) {
+			const [updated] = await context.db
+				.update(aiScribeFormConfig)
+				.set(values)
+				.where(eq(aiScribeFormConfig.id, existing.id))
+				.returning();
+
+			if (!updated) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "AI Form wurde nicht gefunden",
+				});
+			}
+
+			return updated;
+		}
+
+		const [created] = await context.db
+			.insert(aiScribeFormConfig)
+			.values(values)
+			.returning();
+
+		return created;
+	});
+
 export const scribeFormsHandler = {
 	create: createFormHandler,
 	delete: deleteFormHandler,
 	list: listFormsHandler,
+	listBuiltIn: listBuiltInFormsHandler,
 	update: updateFormHandler,
+	upsertBuiltIn: upsertBuiltInFormHandler,
 };

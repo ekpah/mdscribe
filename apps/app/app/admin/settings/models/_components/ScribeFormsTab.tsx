@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
 import { orpc } from "@/lib/orpc";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
+import { BuiltInScribeModesSection } from "./BuiltInScribeModesSection";
 
 const NONE_VALUE = "__none__";
 const FIELD_EXPLANATIONS = {
@@ -271,23 +272,8 @@ export const ScribeFormsTab = () => {
 					templateId: form.templateId,
 				}),
 			}),
-		onError: (error, _variables, context) => {
-			if (context) {
-				queryClient.setQueryData<ScribeFormList>(listKey, context.previousForms);
-			}
+		onError: (error) => {
 			toast.error(error instanceof Error ? error.message : "Fehler");
-		},
-		onMutate: async ({ enabled, form }) => {
-			await queryClient.cancelQueries({ queryKey: listKey });
-
-			const previousForms = queryClient.getQueryData<ScribeFormList>(listKey);
-			queryClient.setQueryData<ScribeFormList>(
-				listKey,
-				(current) =>
-					current?.map((entry) => (entry.id === form.id ? { ...entry, enabled } : entry)) ?? [],
-			);
-
-			return { previousForms };
 		},
 		onSettled: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
@@ -416,6 +402,8 @@ export const ScribeFormsTab = () => {
 
 	return (
 		<div className="space-y-4">
+			<BuiltInScribeModesSection />
+
 			<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/40">
 				<CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div className="space-y-1">

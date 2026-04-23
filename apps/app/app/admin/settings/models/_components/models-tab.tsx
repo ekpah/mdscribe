@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SlidersHorizontal } from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
+
 import { orpc } from "@/lib/orpc";
 
 interface AiModelData {
@@ -48,10 +49,24 @@ const NONE_VALUE = "__none__";
 const getSafeSelectValue = (
 	value: string | null | undefined,
 	options: ModelOption[],
-) : string => {
-	if (!value) {return NONE_VALUE;}
-	return options.some((option) => option.value === value) ? value : NONE_VALUE;
+): string => {
+	if (!value) {
+		return NONE_VALUE;
+	}
+	return options.some((option) => option.value === value)
+		? value
+		: NONE_VALUE;
 };
+
+const makeSelectorOptions = (options: ModelOption[]): ModelOption[] => [
+	{
+		group: "",
+		keywords: ["none", "kein", "standard"],
+		label: "Kein Standard",
+		value: NONE_VALUE,
+	},
+	...options,
+];
 
 export const ModelsTab = ({ connections }: ModelsTabProps) => {
 	const queryClient = useQueryClient();
@@ -82,16 +97,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 			value: model.id,
 		})),
 	);
-
-	const selectorOptions: ModelOption[] = [
-		{
-			group: "",
-			keywords: ["none", "kein", "standard"],
-			label: "Kein Standard",
-			value: NONE_VALUE,
-		},
-		...enabledModelOptions,
-	];
+	const selectorOptions = makeSelectorOptions(enabledModelOptions);
 
 	const isUpdatingDefaults = isDefaultsLoading || setDefaultMutation.isPending;
 
@@ -137,23 +143,24 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 						</CardTitle>
 					</div>
 					<CardDescription className="text-solarized-base01 text-sm">
-						Auswahl aus synchronisierten Modellen aller Provider.
+						Wir prüfen keine Modalitäten automatisch. Bitte weisen Sie passende Modelle je
+						Standardtyp zu.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="grid gap-4 p-4 pt-0 sm:p-6 sm:pt-0 md:grid-cols-3">
 					<div className="space-y-2">
 						<Label htmlFor="default-text-model">Standard-Textmodell</Label>
 						<ModelSelector
+							className="border-solarized-base2 bg-solarized-base3"
+							disabled={isUpdatingDefaults}
 							id="default-text-model"
+							onValueChange={handleTextModelChange}
 							options={selectorOptions}
-								value={getSafeSelectValue(
-									defaults?.defaultTextModelId,
-									enabledModelOptions,
-								)}
-								onValueChange={handleTextModelChange}
-								disabled={isUpdatingDefaults}
-								placeholder="Textmodell auswählen"
-								className="border-solarized-base2 bg-solarized-base3"
+							placeholder="Textmodell auswählen"
+							value={getSafeSelectValue(
+								defaults?.defaultTextModelId,
+								enabledModelOptions,
+							)}
 						/>
 					</div>
 
@@ -162,16 +169,16 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 							Standard-File/Image-Modell
 						</Label>
 						<ModelSelector
+							className="border-solarized-base2 bg-solarized-base3"
+							disabled={isUpdatingDefaults}
 							id="default-file-image-model"
+							onValueChange={handleFileImageModelChange}
 							options={selectorOptions}
-								value={getSafeSelectValue(
-									defaults?.defaultFileImageModelId,
-									enabledModelOptions,
-								)}
-								onValueChange={handleFileImageModelChange}
-								disabled={isUpdatingDefaults}
-								placeholder="File/Image-Modell auswählen"
-								className="border-solarized-base2 bg-solarized-base3"
+							placeholder="File/Image-Modell auswählen"
+							value={getSafeSelectValue(
+								defaults?.defaultFileImageModelId,
+								enabledModelOptions,
+							)}
 						/>
 					</div>
 
@@ -180,27 +187,34 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 							Standard-Spracherkennung
 						</Label>
 						<ModelSelector
+							className="border-solarized-base2 bg-solarized-base3"
+							disabled={isUpdatingDefaults}
 							id="default-speech-model"
+							onValueChange={handleSpeechModelChange}
 							options={selectorOptions}
-								value={getSafeSelectValue(
-									defaults?.defaultSpeechToTextModelId,
-									enabledModelOptions,
-								)}
-								onValueChange={handleSpeechModelChange}
-								disabled={isUpdatingDefaults}
-								placeholder="Speech-Modell auswählen"
-								className="border-solarized-base2 bg-solarized-base3"
+							placeholder="Speech-Modell auswählen"
+							value={getSafeSelectValue(
+								defaults?.defaultSpeechToTextModelId,
+								enabledModelOptions,
+							)}
 						/>
+					</div>
+				</CardContent>
+				<CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
+					<div className="rounded-md border border-solarized-base2/80 bg-solarized-base2/20 p-3 text-solarized-base01 text-xs">
+						<div>Text: Modell muss Text-Generierung unterstützen.</div>
+						<div>File/Image: Modell muss Datei- oder Bild-Eingaben (z.B. PDF/OCR) verstehen.</div>
+						<div>Spracherkennung: Modell muss Audio-Eingaben unterstützen; bei llama.cpp ggf. mit `mmproj` starten.</div>
 					</div>
 				</CardContent>
 			</Card>
 
-				{enabledModelOptions.length === 0 && (
-					<p className="text-solarized-base01 text-sm">
-						Keine Modelle synchronisiert. Unter &quot;Verbindungen&quot; zuerst Provider
-						prüfen und Modelle aktualisieren.
-					</p>
-				)}
-			</div>
-		);
+			{enabledModelOptions.length === 0 && (
+				<p className="text-solarized-base01 text-sm">
+					Keine Modelle synchronisiert. Unter &quot;Verbindungen&quot; zuerst Provider
+					prüfen und Modelle aktualisieren.
+				</p>
+			)}
+		</div>
+	);
 };

@@ -1,14 +1,16 @@
-import { type } from "@orpc/server";
+import { ORPCError, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
 import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { z } from "zod";
 
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 
 import { resolveModel } from "@/orpc/scribe/providers";
 import type { InputField, VoiceFillInputPayload } from "@/orpc/scribe/types";
+import { getAudioMediaType } from "./audio-media-type";
 import { voiceFillConfig } from "./voice-fill-config";
 import type { VoiceFillFieldDefinition } from "./voice-fill-config";
 
@@ -35,6 +37,45 @@ const normalizeVoiceFillObject = (object: unknown): z.infer<typeof voiceFillSche
 
 	throw new Error("Invalid voice fill response format");
 };
+
+const parseVoiceFillTextResponse = (responseText: string): z.infer<typeof voiceFillSchema> => {
+	const trimmed = responseText.trim();
+	const withoutFence = trimmed
+		.replace(/^```(?:json)?\s*/i, "")
+		.replace(/```$/i, "")
+		.trim();
+
+	const candidates = [withoutFence];
+	const objectStart = withoutFence.indexOf("{");
+	const objectEnd = withoutFence.lastIndexOf("}");
+	if (objectStart >= 0 && objectEnd > objectStart) {
+		candidates.push(withoutFence.slice(objectStart, objectEnd + 1));
+	}
+
+	for (const candidate of candidates) {
+		if (!candidate) {
+			continue;
+		}
+		try {
+			const parsed = JSON.parse(candidate) as unknown;
+			return normalizeVoiceFillObject(parsed);
+		} catch {
+			// Try the next candidate variant.
+		}
+	}
+
+	throw new Error("Invalid voice fill response format");
+};
+
+const toUserFacingVoiceFillError = (details: string): string => {
+	if (details.toLowerCase().includes("audio input is not supported")) {
+		return "Das gewählte Modell unterstützt keine Audio-Eingabe. Bei llama.cpp bitte ein audiofähiges Modell mit `mmproj` konfigurieren.";
+	}
+	return `Sprachausfüllung fehlgeschlagen. (${details})`;
+};
+
+const isAudioUnsupportedError = (details: string): boolean =>
+	details.toLowerCase().includes("audio input is not supported");
 
 const deriveFieldsFromTags = (inputTags: InputTagType[]): VoiceFillFieldDefinition[] => {
 	const fields: VoiceFillFieldDefinition[] = [];
@@ -84,10 +125,18 @@ const deriveFieldsFromTags = (inputTags: InputTagType[]): VoiceFillFieldDefiniti
 					const c = child as Record<string, unknown>;
 					return (c.attributes as Record<string, unknown>).primary as string;
 				});
+			const switchType = attributes.type as string | undefined;
+			const normalizedOptions = options.map((option) => option.trim().toLowerCase());
+			const isBooleanSwitch =
+				switchType === "boolean" ||
+				switchType === "checkbox" ||
+				(options.length === 2 &&
+					normalizedOptions.includes("true") &&
+					normalizedOptions.includes("false"));
 			pushField({
 				label: attributes.primary as string,
 				options,
-				type: "switch",
+				type: isBooleanSwitch ? "boolean" : "switch",
 			});
 			for (const child of children ?? []) {
 				visit(child);
@@ -135,7 +184,9 @@ export const voiceFillHandler = authed
 		const config = voiceFillConfig;
 
 		if (!inputTags?.length && !inputFields?.length) {
-			throw new Error("No input tags or fields provided");
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Keine Eingabefelder für Spracheingabe verfügbar.",
+			});
 		}
 
 		const fields = inputTags?.length
@@ -144,9 +195,17 @@ export const voiceFillHandler = authed
 		const inputTagsJson = inputTags?.length ? JSON.stringify(inputTags, null, 2) : undefined;
 
 		// Resolve the admin-configured speech-to-text model
-		const resolved = await resolveModel(context.db, {
-			requireAudio: true,
-		});
+		let resolved: Awaited<ReturnType<typeof resolveModel>>;
+		try {
+			resolved = await resolveModel(context.db, {
+				requireAudio: true,
+			});
+		} catch (error) {
+			const message = error instanceof Error
+				? error.message
+				: USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", { message });
+		}
 
 		// Build prompt from config
 		const promptMessages = config.prompt({ fields, inputTagsJson });
@@ -165,7 +224,7 @@ export const voiceFillHandler = authed
 					// Append audio files
 					...audioFiles.map((af) => ({
 						data: Buffer.from(af.data, "base64"),
-						mediaType: af.mimeType,
+						mediaType: getAudioMediaType(af.mimeType, resolved.isOpenRouter),
 						type: "file" as const,
 					})),
 				],
@@ -173,21 +232,71 @@ export const voiceFillHandler = authed
 			},
 		];
 
-		const result = await generateObject({
-			experimental_telemetry: { isEnabled: true },
-			messages,
-			model: resolved.model,
-			schema: voiceFillSchema,
-			temperature: config.modelConfig.temperature ?? 0.3,
-		});
+		let normalized: z.infer<typeof voiceFillSchema> | undefined;
+		let usage:
+			| {
+					completionTokens?: number;
+					promptTokens?: number;
+					totalTokens?: number;
+			  }
+			| undefined;
+		let providerMetadata: Record<string, unknown> | undefined;
 
-		const { object, usage } = result;
-		const normalized = normalizeVoiceFillObject(object);
+		try {
+			const result = await generateObject({
+				experimental_telemetry: { isEnabled: true },
+				messages,
+				model: resolved.model,
+				schema: voiceFillSchema,
+				temperature: config.modelConfig.temperature ?? 0.3,
+			});
+			usage = result.usage as typeof usage;
+			providerMetadata = (result as { providerMetadata?: Record<string, unknown> }).providerMetadata;
+			normalized = normalizeVoiceFillObject(result.object);
+		} catch (error) {
+			const details = error instanceof Error
+				? error.message
+				: USER_MESSAGES.unknownError;
+			if (isAudioUnsupportedError(details)) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: toUserFacingVoiceFillError(details),
+				});
+			}
+
+			// Fallback for providers that reject JSON-schema structured output.
+			try {
+				const fallbackResult = await generateText({
+					experimental_telemetry: { isEnabled: true },
+					maxOutputTokens: config.modelConfig.maxTokens ?? 4_000,
+					messages,
+					model: resolved.model,
+					temperature: config.modelConfig.temperature ?? 0.3,
+				});
+				usage = fallbackResult.usage as typeof usage;
+				providerMetadata = (
+					fallbackResult as { providerMetadata?: Record<string, unknown> }
+				).providerMetadata;
+				normalized = parseVoiceFillTextResponse(fallbackResult.text);
+			} catch (fallbackError) {
+				const fallbackDetails = fallbackError instanceof Error
+					? fallbackError.message
+					: USER_MESSAGES.unknownError;
+				throw new ORPCError("BAD_REQUEST", {
+					message: toUserFacingVoiceFillError(fallbackDetails),
+				});
+			}
+		}
+
+		if (!normalized) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Ungültige Modellantwort bei Sprachausfüllung.",
+			});
+		}
 
 		// Extract usage data (graceful fallback for non-OpenRouter providers)
 		const openrouterUsage = resolved.isOpenRouter
 			? extractOpenRouterUsage(
-					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
+					providerMetadata,
 				)
 			: undefined;
 

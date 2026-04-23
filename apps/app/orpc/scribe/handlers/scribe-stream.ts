@@ -1,15 +1,14 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { aiScribeFormConfig, eq } from "@repo/database";
-import type { Database } from '@repo/database';
+import type { Database } from "@repo/database";
 import { streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
+
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
-import {
-	composeScribeContext,
-	findRelevantTemplateForProcedure,
-} from '@/orpc/scribe/context';
-import type { ContextBuildInput, TemplateContextInput } from '@/orpc/scribe/context';
+import { composeScribeContext, findRelevantTemplateForProcedure } from "@/orpc/scribe/context";
+import type { ContextBuildInput, TemplateContextInput } from "@/orpc/scribe/context";
+import { getAudioMediaType } from "@/orpc/scribe/handlers/audio-media-type";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
 import {
@@ -21,10 +20,8 @@ import { resolveModel, resolveModelByRecordId } from "@/orpc/scribe/providers";
 import type { AudioFile, DocumentType, ModelConfig, PromptMessage } from "@/orpc/scribe/types";
 
 export const DEFAULT_SCRIBE_MODEL_CONFIG: ModelConfig = {
-	maxTokens: 20_000,
+	maxTokens: 8_000,
 	temperature: 0.3,
-	thinking: false,
-	thinkingBudget: 8000,
 };
 
 const parsePromptPayload = (prompt: string): Record<string, unknown> => {
@@ -103,27 +100,6 @@ const hasFileLikeInput = (value: unknown): boolean => {
 	}
 
 	return false;
-};
-
-const assertResolvedModelSupportsInputs = (
-	resolved: Awaited<ReturnType<typeof resolveModelByRecordId>>,
-	options: { requireAudio?: boolean; requireFiles?: boolean },
-) => {
-	if (options.requireAudio && !resolved.inputModes.includes("audio")) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: USER_MESSAGES.audioNotSupported,
-		});
-	}
-
-	if (
-		options.requireFiles &&
-		!resolved.inputModes.includes("file") &&
-		!resolved.inputModes.includes("image")
-	) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: USER_MESSAGES.filesNotSupported,
-		});
-	}
 };
 
 /**
@@ -222,9 +198,10 @@ const resolveBuiltInRequest = async ({
 		});
 	}
 
-	const selectedTemplateReference = documentType === "procedures"
-		? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
-		: undefined;
+	const selectedTemplateReference =
+		documentType === "procedures"
+			? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
+			: undefined;
 	const { contextPrompt, contextXml } = await composeScribeContext({
 		formData,
 		promptContextKey: documentType,
@@ -274,9 +251,10 @@ const resolveCustomFormRequest = async ({
 	}
 
 	const template = customForm.template ? toTemplateContextInput(customForm.template) : null;
-	const selectedTemplateReference = customForm.promptHarness === "procedure" && !template
-		? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
-		: undefined;
+	const selectedTemplateReference =
+		customForm.promptHarness === "procedure" && !template
+			? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
+			: undefined;
 	const { contextPrompt, contextXml } = await composeScribeContext({
 		formData,
 		promptContextKey: customForm.promptHarness,
@@ -313,40 +291,41 @@ export const scribeStreamHandler = authed
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
 		const inputMessages = input.messages;
-		const {audioFiles} = input;
+		const { audioFiles } = input;
 
 		// Extract prompt from the last user message
 		const prompt = extractPromptFromMessages(inputMessages);
 
 		// Check usage limits
-			const { activeSubscription } = await enforceScribeUsageLimit({
-				db: context.db,
-				session: context.session,
-				userId: context.session.user.id,
-			});
+		const { activeSubscription } = await enforceScribeUsageLimit({
+			db: context.db,
+			session: context.session,
+			userId: context.session.user.id,
+		});
 
 		// Validate input
 		const hasAudio = audioFiles && audioFiles.length > 0;
 		const rawPrompt = parsePromptPayload(prompt);
-	if (!hasAudio && !hasNonEmptyInput(rawPrompt)) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: USER_MESSAGES.missingInput,
-		});
-	}
+		if (!hasAudio && !hasNonEmptyInput(rawPrompt)) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: USER_MESSAGES.missingInput,
+			});
+		}
 
 		const hasFileInput = hasFileLikeInput(rawPrompt);
-		const resolvedRequest = input.source === "customForm"
-			? await resolveCustomFormRequest({
-					db: context.db,
-					formData: rawPrompt,
-					formId: input.formId,
-					sessionUser: context.session.user,
-				})
-			: await resolveBuiltInRequest({
-					documentType: input.documentType,
-					formData: rawPrompt,
-					sessionUser: context.session.user,
-				});
+		const resolvedRequest =
+			input.source === "customForm"
+				? await resolveCustomFormRequest({
+						db: context.db,
+						formData: rawPrompt,
+						formId: input.formId,
+						sessionUser: context.session.user,
+					})
+				: await resolveBuiltInRequest({
+						documentType: input.documentType,
+						formData: rawPrompt,
+						sessionUser: context.session.user,
+					});
 
 		const resolved = resolvedRequest.modelId
 			? await resolveModelByRecordId(resolvedRequest.modelId, context.db)
@@ -355,22 +334,15 @@ export const scribeStreamHandler = authed
 					requireFiles: hasFileInput,
 				});
 
-		if (resolvedRequest.modelId) {
-			assertResolvedModelSupportsInputs(resolved, {
-				requireAudio: hasAudio,
-				requireFiles: hasFileInput,
-			});
-		}
-
 		let messages: ModelMessage[] = resolvedRequest.promptMessages;
 
-		// Handle audio files — capability validated by resolveModel
-		if (hasAudio && audioFiles && resolved.inputModes.includes("audio")) {
+		// Handle audio files
+		if (hasAudio && audioFiles) {
 			const lastMessage = messages.at(-1);
 			if (lastMessage?.role === "user") {
 				const audioContent = audioFiles.map((audioFile) => ({
 					data: audioFile.data,
-					mediaType: audioFile.mimeType,
+					mediaType: getAudioMediaType(audioFile.mimeType, resolved.isOpenRouter),
 					type: "file" as const,
 				}));
 
@@ -412,29 +384,29 @@ export const scribeStreamHandler = authed
 				}
 			: undefined;
 
-			// Stream the response
-			const result = streamText({
-				maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
-				messages,
-				model: resolved.model,
-				onFinish: (event) => {
-					scheduleScribeUsageLogging({
-						activeSubscription,
-						db: context.db,
-						endpoint: resolvedRequest.endpoint,
-						event,
-						inputData: rawPrompt,
-						isOpenRouter: resolved.isOpenRouter,
-						modelConfig: resolvedRequest.config.modelConfig,
-						modelName: resolved.modelName,
-						promptName: resolvedRequest.config.promptName,
-						thinkingEnabled,
-						userId: context.session.user.id,
-					});
-				},
-				providerOptions,
-				temperature: resolvedRequest.config.modelConfig.temperature ?? 1,
-			});
+		// Stream the response
+		const result = streamText({
+			maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
+			messages,
+			model: resolved.model,
+			onFinish: (event) => {
+				scheduleScribeUsageLogging({
+					activeSubscription,
+					db: context.db,
+					endpoint: resolvedRequest.endpoint,
+					event,
+					inputData: rawPrompt,
+					isOpenRouter: resolved.isOpenRouter,
+					modelConfig: resolvedRequest.config.modelConfig,
+					modelName: resolved.modelName,
+					promptName: resolvedRequest.config.promptName,
+					thinkingEnabled,
+					userId: context.session.user.id,
+				});
+			},
+			providerOptions,
+			temperature: resolvedRequest.config.modelConfig.temperature ?? 1,
+		});
 
 		return streamToEventIterator(result.toUIMessageStream());
 	});
