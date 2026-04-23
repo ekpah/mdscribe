@@ -1,4 +1,4 @@
-export const NARRATIVE_OUTPUT_STRUCTURE = `# Epikrise
+const NARRATIVE_OUTPUT_STRUCTURE = `# Epikrise
 
 (( Die Patientin ..., initialer Absatz als Beginn mit Aufnahmegrund und Leitsymptomatik))
 

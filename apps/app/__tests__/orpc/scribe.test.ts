@@ -46,10 +46,8 @@ describe("Document Type Configurations", () => {
 
 	test("uses one default model config for all scribe generations", () => {
 		expect(DEFAULT_SCRIBE_MODEL_CONFIG).toEqual({
-			maxTokens: 20_000,
+			maxTokens: 8_000,
 			temperature: 0.3,
-			thinking: false,
-			thinkingBudget: 8000,
 		});
 	});
 });
