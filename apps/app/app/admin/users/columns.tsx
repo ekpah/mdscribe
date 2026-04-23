@@ -171,7 +171,7 @@ export const columns = [
 			<span className="text-solarized-base00">{getValue()}</span>
 		),
 		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Generierungen" />
+			<DataTableColumnHeader column={column} title="KI-Nutzung (Monat)" />
 		),
 		id: "generations",
 	}),

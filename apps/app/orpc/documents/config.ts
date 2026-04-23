@@ -7,6 +7,7 @@ export interface FieldMapping {
 	fieldName: string;
 	label: string;
 	description: string;
+	pdfType?: "text" | "multiline" | "dropdown" | "checkbox" | "radio";
 }
 
 /**
@@ -49,6 +50,11 @@ Für jede Feldzuordnung:
 1. Schlage ein besseres, aussagekräftigeres Label vor
 2. Gib eine klare und prägnante Beschreibung an, wofür dieses Feld verwendet wird
 
+Spezialregel für Checkbox-Felder (pdfType="checkbox"):
+- Das Label soll als boolesches Feld funktionieren (ein Zustand, true/false), nicht als freie Auswahl.
+- Beschreibungen sollen klar machen, dass das Feld angehakt (true) oder nicht angehakt (false) ist.
+- Verwende keine Ergebnistexte wie "Ja"/"Nein" als Label, sondern den eigentlichen medizinischen Sachverhalt.
+
 Gib deine Antwort als JSON-Objekt mit genau dieser Struktur zurück:
 {
   "fieldMapping": [{
@@ -60,6 +66,7 @@ Gib deine Antwort als JSON-Objekt mit genau dieser Struktur zurück:
 
 Achte darauf:
 - Alle originalen fieldName-Werte beizubehalten
+- Falls pdfType mitgeliefert wird, die Semantik im Label/Beschreibung zu berücksichtigen
 - Die Beschreibungen kurz und aussagekräftig zu halten
 - fieldName exakt wie im Input zu übernehmen`,
 					role: "user",

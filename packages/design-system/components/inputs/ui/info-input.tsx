@@ -105,6 +105,30 @@ export const InfoInput = ({
 		/>
 	) : null;
 
+	const descriptionPopover = input.attributes.description ? (
+		<DsPopover>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-muted-foreground leading-none hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/50"
+					aria-label="Mehr Informationen"
+				>
+					<span className="font-bold text-sm" aria-hidden="true">
+						?
+					</span>
+					<span className="sr-only">Info</span>
+				</button>
+			</PopoverTrigger>
+			<PopoverContent className="max-w-[280px] py-3 shadow-none" side="top">
+				<div className="space-y-1">
+					<p className="text-muted-foreground text-xs">
+						{input.attributes.description}
+					</p>
+				</div>
+			</PopoverContent>
+		</DsPopover>
+	) : null;
+
 	// Date input
 	if (isDateType) {
 		return (
@@ -118,9 +142,12 @@ export const InfoInput = ({
 					onChange={handleDateChange}
 					value={dateValue}
 				>
-					<Label className="font-medium text-foreground text-sm">
-						{input.attributes.primary}
-					</Label>
+					<div className="flex items-center gap-1.5">
+						<Label className="font-medium text-foreground text-sm">
+							{input.attributes.primary}
+						</Label>
+						{descriptionPopover}
+					</div>
 					<div className="flex">
 						<Group className="w-full">
 							<DateInput className={cn("pe-9", inputClassName)} />
@@ -155,9 +182,12 @@ export const InfoInput = ({
 				className="w-full max-w-full *:not-first:mt-2"
 				key={`info-${input.attributes.primary}`}
 			>
-				<Label htmlFor={input.attributes.primary}>
-					{input.attributes.primary}
-				</Label>
+				<div className="flex items-center gap-1.5">
+					<Label htmlFor={input.attributes.primary}>
+						{input.attributes.primary}
+					</Label>
+					{descriptionPopover}
+				</div>
 				<div className="flex w-full max-w-full rounded-md shadow-xs">
 					<Input
 						className={cn(
@@ -195,9 +225,12 @@ export const InfoInput = ({
 			className="w-full max-w-full *:not-first:mt-2"
 			key={`info-${input.attributes.primary}`}
 		>
-			<Label htmlFor={input.attributes.primary}>
-				{input.attributes.primary}
-			</Label>
+			<div className="flex items-center gap-1.5">
+				<Label htmlFor={input.attributes.primary}>
+					{input.attributes.primary}
+				</Label>
+				{descriptionPopover}
+			</div>
 			<div className="flex w-full max-w-full rounded-md shadow-xs">
 				<Input
 					className={cn(
@@ -219,32 +252,6 @@ export const InfoInput = ({
 				)}
 			</div>
 			{suggestionBadge}
-			{input.attributes.description && (
-				<DsPopover>
-					<PopoverTrigger asChild>
-						<button
-							type="button"
-							className="ms-2 flex h-7 w-7 items-center justify-center rounded-md border border-input bg-background px-0 py-0 align-middle text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/60"
-							aria-label="Mehr Informationen"
-						>
-							<span
-								className="font-bold text-base leading-none"
-								aria-hidden="true"
-							>
-								?
-							</span>
-							<span className="sr-only">Info</span>
-						</button>
-					</PopoverTrigger>
-					<PopoverContent className="max-w-[280px] py-3 shadow-none" side="top">
-						<div className="space-y-1">
-							<p className="text-muted-foreground text-xs">
-								{input.attributes.description}
-							</p>
-						</div>
-					</PopoverContent>
-				</DsPopover>
-			)}
 		</div>
 	);
 };

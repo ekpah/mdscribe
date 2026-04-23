@@ -1,0 +1,6 @@
+{
+  "title": "Dokumente",
+  "description": "Fillbare PDF-Dokumente erstellen, bearbeiten und direkt ausfuellen.",
+  "root": false,
+  "pages": ["index"]
+}

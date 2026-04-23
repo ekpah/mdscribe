@@ -24,27 +24,71 @@ const inlineRenderers: Partial<Record<string, (innerContent: string) => string>>
 	ul: (innerContent) => `${innerContent}\n`,
 };
 
+const quoteMarkdocValue = (value: string): string => JSON.stringify(value);
+
+const readAttribute = (element: Element, name: string): string | null =>
+	element.getAttribute(name) ?? element.getAttribute(name.toLowerCase());
+
+const serializeStringAttribute = (name: string, value: string | null): string =>
+	value ? ` ${name}=${quoteMarkdocValue(value)}` : "";
+
+const serializeBooleanAttribute = (name: string, value: string | null): string =>
+	value === "true" || value === "" ? ` ${name}=true` : "";
+
+const decodeAttributeValue = (value: string | null): string | null => {
+	if (!value) {
+		return null;
+	}
+
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return value;
+	}
+};
+
 const customMarkdocRenderers: Partial<
 	Record<string, (element: Element, innerContent: string) => string>
 > = {
 	case: (element, innerContent) => {
-		const casePrimary = element.getAttribute("primary") || "";
-		return `{% case "${casePrimary}" %}${innerContent.trim()}{% /case %}`;
+		const casePrimary = readAttribute(element, "primary") || "";
+		const encodedCaseContent = readAttribute(element, "data-content");
+		const decodedCaseContent = decodeAttributeValue(encodedCaseContent);
+		const caseContent = decodedCaseContent
+			? convertHtmlFragmentToMarkdoc(decodedCaseContent).trim()
+			: innerContent.trim();
+		return `{% case ${quoteMarkdocValue(casePrimary)} %}${caseContent}{% /case %}`;
 	},
 	info: (element) => {
-		const infoPrimary = element.getAttribute("primary") || "";
-		return `{% info "${infoPrimary}" /%}`;
+		const infoPrimary = readAttribute(element, "primary") || "";
+		const descriptionAttribute = serializeStringAttribute(
+			"description",
+			readAttribute(element, "description"),
+		);
+		const typeAttribute = serializeStringAttribute("type", readAttribute(element, "type"));
+		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
+		const renderUnitAttribute = serializeBooleanAttribute(
+			"renderUnit",
+			readAttribute(element, "renderUnit") ?? readAttribute(element, "renderunit"),
+		);
+		return `{% info ${quoteMarkdocValue(infoPrimary)}${descriptionAttribute}${typeAttribute}${unitAttribute}${renderUnitAttribute} /%}`;
 	},
 	score: (element) => {
-		const formula = element.getAttribute("formula") || "";
-		const unit = element.getAttribute("unit") || "";
-		const unitAttribute = unit ? ` unit="${unit}"` : "";
-		return `{% score formula="${formula}"${unitAttribute} /%}`;
+		const formula = readAttribute(element, "formula") || "";
+		const primaryAttribute = serializeStringAttribute("primary", readAttribute(element, "primary"));
+		const formulaAttribute = ` formula=${quoteMarkdocValue(formula)}`;
+		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
+		const renderUnitAttribute = serializeBooleanAttribute(
+			"renderUnit",
+			readAttribute(element, "renderUnit") ?? readAttribute(element, "renderunit"),
+		);
+		return `{% score${primaryAttribute}${formulaAttribute}${unitAttribute}${renderUnitAttribute} /%}`;
 	},
 	switch: (element, innerContent) => {
-		const switchPrimary = element.getAttribute("primary") || "";
-		const primary = switchPrimary ? `"${switchPrimary}"` : '""';
-		return `{% switch ${primary} %}${innerContent}{% /switch %}`;
+		const switchPrimary = readAttribute(element, "primary") || "";
+		const primary = quoteMarkdocValue(switchPrimary);
+		const typeAttribute = serializeStringAttribute("type", readAttribute(element, "type"));
+		return `{% switch ${primary}${typeAttribute} %}${innerContent}{% /switch %}`;
 	},
 };
 
@@ -93,11 +137,7 @@ const htmlElementRenderers: Partial<
 	span: (_element, innerContent) => innerContent,
 };
 
-const renderHtmlElement = (
-	element: Element,
-	tagName: string,
-	innerContent: string,
-): string => {
+const renderHtmlElement = (element: Element, tagName: string, innerContent: string): string => {
 	if (tagName in headingPrefixes) {
 		return renderHeading(tagName, innerContent);
 	}
@@ -146,6 +186,24 @@ const processNodeForMarkdoc = (node: Node): string => {
 		: renderHtmlElement(element, tagName, innerContent);
 };
 
+const convertHtmlFragmentToMarkdoc = (htmlFragment: string): string => {
+	if (htmlFragment.length === 0) {
+		return "";
+	}
+	if (typeof window === "undefined" || !window.DOMParser) {
+		return htmlFragment;
+	}
+
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(`<div>${htmlFragment}</div>`, "text/html");
+	const wrapper = doc.body.firstElementChild;
+	if (!wrapper) {
+		return htmlFragment;
+	}
+
+	return processChildrenForMarkdoc(wrapper, processNodeForMarkdoc);
+};
+
 /**
  * Convert HTML containing custom Markdoc elements (<markdoc-*>) back to Markdoc syntax.
  * Uses the browser's DOMParser for robust HTML parsing. This function is
@@ -157,9 +215,7 @@ const processNodeForMarkdoc = (node: Node): string => {
  */
 export const htmlToMarkdoc = (html: string): string => {
 	if (typeof window === "undefined" || !window.DOMParser) {
-		console.error(
-			"DOMParser is not available. Cannot convert HTML to Markdoc.",
-		);
+		console.error("DOMParser is not available. Cannot convert HTML to Markdoc.");
 		// Fallback or throw error depending on desired behavior in non-browser env.
 		return html;
 	}

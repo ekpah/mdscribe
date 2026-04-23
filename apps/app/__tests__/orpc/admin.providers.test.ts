@@ -108,6 +108,48 @@ describe("Admin Providers Handler", () => {
 		expect(gpt?.inputModes).toEqual(["text"]);
 	});
 
+	test("connections.create infers multimodal input for gemma 3n openai-compatible models", async () => {
+		globalThis.fetch = (() =>
+			Response.json(
+				{
+					data: [
+						{
+							id: "gemma-3n-e4b-it-q8_0",
+							name: "Gemma 3n E4B",
+						},
+					],
+				},
+				{ status: 200 },
+			)) as unknown as typeof fetch;
+
+		const created = await call(
+			providersHandler.connections.create,
+			{
+				baseUrl: "http://localhost:8080/v1",
+				name: "Local llama.cpp",
+				protocol: "openai-compatible",
+			},
+			{ context },
+		);
+
+		const [model] = await server.db.query.aiModel.findMany({
+			where: eq(aiModel.providerId, created.id),
+		});
+
+		expect(model).toBeDefined();
+		expect(model?.inputModes).toEqual(["text", "image", "file", "audio"]);
+
+		const listedProviders = await call(
+			providersHandler.connections.list,
+			undefined,
+			{ context },
+		);
+		const listedModel = listedProviders
+			.find((provider) => provider.id === created.id)
+			?.models[0];
+		expect(listedModel?.inputModes).toEqual(["text", "image", "file", "audio"]);
+	});
+
 	test("connections.refreshModels upserts and removes stale models", async () => {
 		let callCount = 0;
 		globalThis.fetch = (() => {

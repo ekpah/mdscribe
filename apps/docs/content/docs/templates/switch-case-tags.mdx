@@ -17,6 +17,15 @@ Switch/Case-Tags ermöglichen bedingte Inhalte basierend auf verschiedenen Optio
 {% /switch %}
 ```
 
+### Boolean-Switch (Checkbox)
+
+```markdown
+{% switch "Raucher" type="boolean" %}
+{% case "true" %}Raucher{% /case %}
+{% case "false" %}Nichtraucher{% /case %}
+{% /switch %}
+```
+
 ### Parameter
 
 **Switch-Tag:**
@@ -69,10 +78,11 @@ Der Patient hat nie geraucht.
 
 ### Funktionsweise
 
-1. Das Switch-Tag erstellt ein **Dropdown-Menü** in der KI-Dokumentation
-2. Der Benutzer wählt eine der definierten Optionen aus
-3. Nur der Inhalt des passenden Case-Tags wird angezeigt
-4. Der ausgewählte Wert erscheint als **grüner Badge** im Dokument
+1. Das Switch-Tag erstellt ein **Auswahlfeld** in der KI-Dokumentation
+2. Bei `type="boolean"` wird ein **Checkbox-Feld** gerendert
+3. Der Benutzer wählt eine der definierten Optionen aus
+4. Nur der Inhalt des passenden Case-Tags wird angezeigt
+5. Der ausgewählte Wert erscheint als **grüner Badge** im Dokument
 
 ### Wichtige Hinweise
 
@@ -97,7 +107,6 @@ Der Patient hat nie geraucht.
 <!-- ✅ GUT für längere Texte: Umbrüche nur zwischen Cases -->
 {% switch "Komplikationen" %}{% case "Keine" %}Der Verlauf war komplikationslos.{% /case %}{% case "Leicht" %}Es traten leichte Komplikationen auf, die konservativ behandelt werden konnten.{% /case %}{% case "Schwer" %}Es kam zu schweren Komplikationen, die eine intensivmedizinische Behandlung erforderten.{% /case %}{% /switch %}
 ```
-
 
 
 

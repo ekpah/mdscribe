@@ -82,6 +82,7 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - **Auth**: BetterAuth in `auth.ts`. Server: `auth.api.getSession(...)`. Client: `useSession()`.
 - **Auth API calls**: Prefer direct `auth.api.*` calls where used; avoid one-off wrapper helpers unless they provide shared behavior beyond simple forwarding.
 - **Templates**: Custom Markdoc tags + TipTap editor. 1024-dim Voyage AI embeddings for vector search.
+- **Documents**: `/documents` mirrors the templates UX (library/detail/create/edit) and persists `pdfBytes` + `fieldDefinitions` only. `parsedMarkdoc` is derived on demand from `fieldDefinitions` and is never stored. Canonical APIs live under `orpc.documents.templates.*`, including PDF transport via `orpc.documents.templates.getPdf` (base64 payload); do not add `/api/documents/[id]/pdf`.
 - **DB access boundary**: App routes/components use oRPC/TanStack Query only — no direct DB helpers under `app/`.
 
 ## Code Style & Conventions
@@ -117,6 +118,7 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - Keep built-in fallback template content in `apps/app/orpc/scribe/context/template/fallback-templates/` (including anamnese/discharge/icu-transfer/procedures) and resolve these via context template fallback helpers (rather than embedding fallback template strings directly in family prompt modules).
 - Canonical input keys: `notes`, `diagnoseblock`, `anamnese`, `befunde` only. Legacy keys accepted only in playground hydration layer.
 - Built-in `/aiscribe/*` routes keep their hardcoded UI as fallback, but can now prefer DB-backed overrides by fixed slugs (`builtin-discharge`, `builtin-er`, `builtin-icu`, `builtin-outpatient`, `builtin-procedures`, `builtin-diagnoseblock`) that route through custom-form execution when present and enabled.
+- Built-in override entries are managed separately in admin (`/admin/settings/models` → `AI Textbausteine` → `Schnelle Dokument-Generierung`) and are not treated as public custom AI Textbausteine (`/aiscribe/custom/*` and `orpc.scribeForms.listAvailable` exclude them).
 - When refactoring input UIs, treat the production `/aiscribe` inputs as the canonical component. Playground/admin input tabs should reuse that component (or a direct extraction of it) instead of introducing a parallel simplified variant.
 - User-facing wording for these custom pages is `AI Textbausteine` / `AI Text`, not `AI Forms`.
 - Custom AI Textbausteine live in `AiScribeFormConfig`, are managed from `/admin/settings/models` in the `AI Textbausteine` tab, render on `/aiscribe/custom/[slug]`, use a path auto-derived from the name, and currently always use the full clinical context inputs (`notes`, `diagnoseblock`, `anamnese`, `befunde`). The admin/public APIs for these forms should stay minimal: no configurable input preset and no per-form temperature / max-tokens / thinking-budget fields unless explicitly reintroduced. In that admin UI, use the searchable `ModelSelector`, label the model field `KI-Modell`, keep the prompt field label `Basis-Prompt`, require an explicit confirmation step before deletion, and keep the cards compact: there is no separate `/aiscribe/custom/...` path box, the title itself is the public link with an external-link icon only when the entry is enabled, prompt/template/model metadata should use a two-column layout with labels on the left and values on the right, and the enabled state in the overview card must be a real inline `Aktiviert` switch that can be changed without opening the edit dialog. Delete confirmation in the card must reserve stable space so the UI does not jump when switching between trash icon and confirm buttons. If an AI Textbaustein is disabled, its public `/aiscribe/custom/[slug]` link must render inactive because the route returns 404.
@@ -136,6 +138,13 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - Categories: Fetch via `orpc.templates.editorContext`, pass as `categorySuggestions`.
 - Template examples: Up to 10 final-output examples per template are stored in `TemplateExample` and edited in the template editor.
 - Collections: User-managed template collections via `orpc.user.collections.*` with `TemplateCollection` / `TemplateCollectionTemplate` tables.
+
+### Documents
+- Route family: `app/documents/layout.tsx`, `app/documents/page.tsx`, `app/documents/[id]/page.tsx`, `app/documents/(editor)/create/page.tsx`, `app/documents/(editor)/[id]/edit/page.tsx`.
+- Persisted entity: `DocumentTemplate` table with `fieldDefinitions` (jsonb), `pdfBytes` (bytea), author, timestamps.
+- Server namespace stays nested at `orpc.documents.templates.*` (`list`, `get`, `getPdf`, `create`, `update`, `editorContext`), while `orpc.documents.parseForm` and `orpc.documents.ocrToMarkdown` remain for PDF AI helpers.
+- Keep `fieldDefinitions` as source of truth and build `parsedMarkdoc` only via `buildParsedMarkdocFromFieldDefinitions`; never persist `parsedMarkdoc` or raw `markdocContent` for documents.
+- `list` and `get` must exclude raw `pdfBytes`; binary delivery stays in `getPdf` response payload.
 
 ### Misc
 - Nuqs + menubar: Keep menubar auth loading client-side — async server wrapper under `NuqsAdapter` causes crashes

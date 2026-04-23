@@ -9,7 +9,11 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
-import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import type {
+	InfoInputTagType,
+	InputTagType,
+	SwitchInputTagType,
+} from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { Bot, Pencil } from "lucide-react";
 import { useCallback } from "react";
 import type { ReactNode } from "react";
@@ -85,17 +89,28 @@ interface RenderInputTagProps {
 }
 
 const getMatchingCaseChildren = (
-	input: InputTagType,
-	currentValue: string,
+	input: SwitchInputTagType,
+	currentValue: unknown,
 ): InputTagType[] => {
 	if (!input.children) {
+		return [];
+	}
+
+	const caseKey =
+		typeof currentValue === "string"
+			? currentValue
+			: typeof currentValue === "boolean"
+				? String(currentValue)
+				: undefined;
+
+	if (!caseKey) {
 		return [];
 	}
 
 	return input.children
 		.filter(
 			(child) =>
-				child.name === "Case" && child.attributes.primary === currentValue,
+				child.name === "Case" && child.attributes.primary === caseKey,
 		)
 			.flatMap((caseChild) => caseChild.children);
 };
@@ -109,7 +124,7 @@ const renderInfoTagInput = ({
 }: {
 	fieldKey: string;
 	handleFieldValueChange: (value: unknown) => void;
-	input: InputTagType;
+	input: InfoInputTagType;
 	source: InputSource | undefined;
 	values: Record<string, unknown>;
 }): ReactNode => (
@@ -133,22 +148,20 @@ const renderSwitchTagInput = ({
 }: {
 	fieldKey: string;
 	handleFieldValueChange: (value: unknown) => void;
-	input: InputTagType;
+	input: SwitchInputTagType;
 	renderNestedInputTag: (child: InputTagType, key: string) => ReactNode;
 	source: InputSource | undefined;
 	values: Record<string, unknown>;
 }): ReactNode => {
-	const currentValue = values[fieldKey] as string | undefined;
-	const matchingCaseChildren = currentValue
-		? getMatchingCaseChildren(input, currentValue)
-		: [];
+	const currentValue = values[fieldKey] as string | boolean | undefined;
+	const matchingCaseChildren = getMatchingCaseChildren(input, currentValue);
 
 	return (
 		<div className="relative" key={`switch-wrapper-${fieldKey}`}>
 			<SourceOverlay source={source} />
 			<SwitchInput
 				input={input}
-				onChange={handleFieldValueChange as (newValue: string) => void}
+				onChange={handleFieldValueChange as (newValue: string | boolean) => void}
 				value={currentValue}
 			/>
 			{matchingCaseChildren.length > 0 ? (

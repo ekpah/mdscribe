@@ -23,11 +23,11 @@ export default function Loading() {
               <Clock />
               Zuletzt bearbeitet am ??.??.????
             </div>
-            <Bookmark />
+            <Bookmark className="h-4 w-4" strokeWidth={1.5} />
             <span className="flex w-12 flex-row font-medium text-muted-foreground">
               X Likes
             </span>
-            <Pencil />
+            <Pencil className="h-4 w-4" strokeWidth={1.5} />
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import type {
 	aiScribeFormConfig,
 	aiModel,
 	aiProvider,
+	documentTemplate,
 	favourites,
 	session,
 	subscription,
@@ -25,6 +26,7 @@ export type Account = InferSelectModel<typeof account>;
 export type Session = InferSelectModel<typeof session>;
 export type Verification = InferSelectModel<typeof verification>;
 export type Template = InferSelectModel<typeof template>;
+export type DocumentTemplate = InferSelectModel<typeof documentTemplate>;
 export type TemplateExample = InferSelectModel<typeof templateExample>;
 export type TemplateCollection = InferSelectModel<typeof templateCollection>;
 export type TemplateCollectionTemplate = InferSelectModel<
@@ -41,6 +43,7 @@ export type NewAccount = InferInsertModel<typeof account>;
 export type NewSession = InferInsertModel<typeof session>;
 export type NewVerification = InferInsertModel<typeof verification>;
 export type NewTemplate = InferInsertModel<typeof template>;
+export type NewDocumentTemplate = InferInsertModel<typeof documentTemplate>;
 export type NewTemplateExample = InferInsertModel<typeof templateExample>;
 export type NewTemplateCollection = InferInsertModel<typeof templateCollection>;
 export type NewTemplateCollectionTemplate = InferInsertModel<

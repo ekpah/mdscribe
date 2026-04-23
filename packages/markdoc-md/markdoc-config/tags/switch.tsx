@@ -2,24 +2,41 @@
 import type { ReactNode } from 'react';
 import React from 'react';
 import { useVariables } from '@repo/markdoc-md/render/context/variable-context';
+import { normalizeBooleanToString } from '@repo/markdoc-md/parse/boolean-coercion';
 
 export const SwitchContext = React.createContext<string | null>(null);
 
 // this component mainly needs to handle reactivity around the Condition
 
+type SwitchType = "string" | "boolean" | "checkbox" | null | undefined;
+
+const isBooleanSwitchType = (type: SwitchType): boolean =>
+	type === "boolean" || type === "checkbox";
+
+const normalizeSwitchValue = (value: unknown, type: SwitchType): string | null => {
+	if (isBooleanSwitchType(type)) {
+		return normalizeBooleanToString(value);
+	}
+
+	if (typeof value === "string" || value === null) {
+		return value;
+	}
+
+	return null;
+};
+
 export const Switch = ({
   primary,
+  type,
   children,
-}: { primary: string | null; children: ReactNode[] }) => {
+}: { primary: string | null; type?: SwitchType; children: ReactNode[] }) => {
   const variables = useVariables();
   let resolvedSwitchValue: string | null = null;
   if (primary !== null) {
     const valueFromContext = variables[primary];
-    // valueFromContext can be undefined or a non-string/non-null type; map those to null.
-    resolvedSwitchValue =
-      typeof valueFromContext === 'string' || valueFromContext === null
-        ? valueFromContext
-        : null;
+    // valueFromContext can be undefined or a non-string/non-null type.
+    // Boolean switches normalize truthy/falsey representations to "true"/"false".
+    resolvedSwitchValue = normalizeSwitchValue(valueFromContext, type);
   }
   // If primary was initially null, resolvedSwitchValue remains null.
 

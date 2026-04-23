@@ -3,7 +3,7 @@ import type { ModelConfig, PromptMessage } from "@/orpc/scribe/types";
 export interface VoiceFillFieldDefinition {
 	label: string;
 	description?: string;
-	type?: "string" | "number" | "date" | "switch";
+	type?: "string" | "number" | "date" | "switch" | "boolean";
 	unit?: string;
 	options?: string[];
 }
@@ -37,6 +37,7 @@ Antworte NUR mit einem JSON-Objekt der Feldwerte.
 Verwende exakt die vom Benutzer angegebenen Labels als Keys in deiner Antwort.
 
 Regeln nach Typ:
+- boolean: Antworte ausschließlich mit "true" oder "false" (keine Übersetzung).
 - switch: Wert muss exakt einer der Optionen sein, sonst "".
 - number: Nur Ziffern und optional ein Dezimalpunkt (.), keine Einheiten.
 - date: Format TT.MM.JJJJ (z.B. 17.01.2026).

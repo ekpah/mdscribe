@@ -6,9 +6,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { toPdfBlobUrl } from "@/app/admin/documents-playground/_lib/pdf-data";
+
+import { toPdfBlobUrl } from "@/app/documents/_lib/pdf-data";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
 const options = {
 	cMapUrl: "/cmaps/",
 	standardFontDataUrl: "/standard_fonts/",
@@ -18,8 +20,8 @@ const options = {
 const maxWidth = 800;
 
 interface PDFViewSectionProps {
-	pdfFile: Uint8Array | null;
 	hasUploadedFile?: boolean;
+	pdfFile: Uint8Array | null;
 }
 
 const getPageWidth = (
@@ -29,7 +31,10 @@ const getPageWidth = (
 	if (!containerWidth) {
 		return maxWidth - reservedPixels;
 	}
-	return Math.max(240, Math.min(containerWidth - reservedPixels, maxWidth - reservedPixels));
+	return Math.max(
+		240,
+		Math.min(containerWidth - reservedPixels, maxWidth - reservedPixels),
+	);
 };
 
 const useContainerWidth = () => {
@@ -121,10 +126,10 @@ const usePdfDocumentState = (pdfFile: Uint8Array | null) => {
 	};
 };
 
-export default function PDFViewSection({
-	pdfFile,
+export const PDFViewSection = ({
 	hasUploadedFile = false,
-}: PDFViewSectionProps) {
+	pdfFile,
+}: PDFViewSectionProps) => {
 	const { containerWidth, setContainerRef } = useContainerWidth();
 	const {
 		handleDocumentLoadError,
@@ -141,7 +146,7 @@ export default function PDFViewSection({
 			<div className="h-full min-h-0">
 				<div className="flex h-full min-h-40 w-full items-center justify-center rounded-xl border border-input border-dashed p-4">
 					<div className="text-center">
-						<p className="block text-sm font-medium">
+						<p className="block font-medium text-sm">
 							Laden Sie ein PDF hoch, um die Vorschau zu sehen
 						</p>
 					</div>
@@ -158,59 +163,61 @@ export default function PDFViewSection({
 	return (
 		<div className="h-full min-h-0">
 			<div
-				ref={setContainerRef}
 				className="relative flex h-full min-h-0 items-start justify-center overflow-hidden"
+				ref={setContainerRef}
 			>
-				<div className="relative flex h-full min-h-0 w-full items-start justify-center overflow-auto">
-					{showPageControls ? (
-						<Button
-							variant="outline"
-							size="icon"
-							onClick={handlePreviousPage}
-							disabled={pageNumber <= 1}
-							className="absolute top-1/2 left-2 z-10 -translate-y-1/2"
-						>
-							<ChevronLeftIcon className="h-4 w-4" />
-						</Button>
-					) : null}
-
-					<div className="flex min-h-full flex-col items-center justify-start py-2">
+				<div className="h-full min-h-0 w-full overflow-auto">
+					<div className="flex min-h-full w-full flex-col items-center justify-start py-2">
 						<Document
+							className="max-w-full [&_.react-pdf__Page]:max-w-full [&_.react-pdf__Page__canvas]:h-auto [&_.react-pdf__Page__canvas]:max-w-full"
 							file={pdfUrl}
-							onLoadSuccess={handleDocumentLoadSuccess}
 							onLoadError={handleDocumentLoadError}
+							onLoadSuccess={handleDocumentLoadSuccess}
 							options={options}
-							className="max-w-full"
 						>
 							<Page
 								key={`page_${pageNumber}`}
 								pageNumber={pageNumber}
+								renderAnnotationLayer={false}
+								renderTextLayer={false}
 								width={pageWidth}
 							/>
 						</Document>
-
-						{numPages && numPages > 1 ? (
-							<div className="mt-2">
-								<span className="text-sm font-medium">
-									Seite {pageNumber} von {numPages}
-								</span>
-							</div>
-						) : null}
 					</div>
-
-					{showPageControls ? (
-						<Button
-							variant="outline"
-							size="icon"
-							onClick={handleNextPage}
-							disabled={pageNumber >= numPages}
-							className="absolute top-1/2 right-2 z-10 -translate-y-1/2"
-						>
-							<ChevronRightIcon className="h-4 w-4" />
-						</Button>
-					) : null}
 				</div>
+
+				{showPageControls ? (
+					<Button
+						className="absolute top-1/2 left-2 z-20 -translate-y-1/2"
+						disabled={pageNumber <= 1}
+						onClick={handlePreviousPage}
+						size="icon"
+						variant="outline"
+					>
+						<ChevronLeftIcon className="h-4 w-4" />
+					</Button>
+				) : null}
+
+				{showPageControls ? (
+					<Button
+						className="absolute top-1/2 right-2 z-20 -translate-y-1/2"
+						disabled={!numPages || pageNumber >= numPages}
+						onClick={handleNextPage}
+						size="icon"
+						variant="outline"
+					>
+						<ChevronRightIcon className="h-4 w-4" />
+					</Button>
+				) : null}
+
+				{numPages && numPages > 1 ? (
+					<div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-md border bg-background/95 px-2 py-1 shadow-xs backdrop-blur-xs">
+						<span className="font-medium text-sm">
+							Seite {pageNumber} von {numPages}
+						</span>
+					</div>
+				) : null}
 			</div>
 		</div>
 	);
-}
+};

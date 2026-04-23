@@ -1,26 +1,28 @@
 import type { RenderableTreeNode } from "@markdoc/markdoc";
 import * as Markdoc from "@markdoc/markdoc";
-import Formula from "fparser";
 import config from "@repo/markdoc-md/markdoc-config";
+import Formula from "fparser";
 
 /**
  * Union type representing all possible input tag types in the Markdoc template.
- * Extends RenderableTreeNode to include Markdoc's base node properties.
  */
-export type InputTagType = RenderableTreeNode &
-	(
-		| InfoInputTagType
-		| SwitchInputTagType
-		| CaseInputTagType
-		| ScoreInputTagType
-	);
+export type InputTagType =
+	| InfoInputTagType
+	| SwitchInputTagType
+	| CaseInputTagType
+	| ScoreInputTagType;
+
+interface BaseInputTag {
+	$$mdtype?: "Tag";
+	children: InputTagType[];
+}
 
 /**
  * Represents an info tag that captures single values.
  * @example
  * {% info "patient_name" /%}
  */
-export type InfoInputTagType = RenderableTreeNode & {
+export type InfoInputTagType = BaseInputTag & {
 	name: "Info";
 	attributes: {
 		primary: string;
@@ -29,7 +31,6 @@ export type InfoInputTagType = RenderableTreeNode & {
 		description?: string;
 		renderUnit?: boolean;
 	};
-	children: InputTagType[];
 };
 
 /**
@@ -40,12 +41,12 @@ export type InfoInputTagType = RenderableTreeNode & {
  *   {% case "male" %}Male{% /case %}
  * {% /switch %}
  */
-export type SwitchInputTagType = RenderableTreeNode & {
+export type SwitchInputTagType = BaseInputTag & {
 	name: "Switch";
 	attributes: {
 		primary: string;
+		type?: "string" | "boolean" | "checkbox";
 	};
-	children: InputTagType[];
 };
 
 /**
@@ -54,12 +55,11 @@ export type SwitchInputTagType = RenderableTreeNode & {
  * @example
  * {% case "male" %}Male{% /case %}
  */
-type CaseInputTagType = RenderableTreeNode & {
+type CaseInputTagType = BaseInputTag & {
 	name: "Case";
 	attributes: {
 		primary: string;
 	};
-	children: InputTagType[];
 };
 
 /**
@@ -67,14 +67,14 @@ type CaseInputTagType = RenderableTreeNode & {
  * @example
  * {% score formula="[age]*2+[gender_score]*3" unit="points" /%}
  */
-type ScoreInputTagType = RenderableTreeNode & {
+type ScoreInputTagType = BaseInputTag & {
 	name: "Score";
 	attributes: {
 		primary: string;
 		formula?: string;
 		unit?: string;
+		renderUnit?: boolean;
 	};
-	children: InputTagType[];
 };
 
 // Constants for better performance
@@ -84,21 +84,22 @@ interface NodeContext {
 	path: string;
 	type: ValidTagName;
 }
-interface MarkdocTagNode extends RenderableTreeNode {
+type MarkdocTagNode = RenderableTreeNode & {
 	$$mdtype: "Tag";
 	name: ValidTagName;
 	attributes: {
 		primary?: string;
 		formula?: string;
+		type?: string;
 		[key: string]: unknown;
 	};
 	children?: RenderableTreeNode | RenderableTreeNode[];
-}
+};
 
 const isValidTagName = (name: unknown): name is ValidTagName =>
 	typeof name === "string" && VALID_TAG_NAMES.has(name);
 
-const isMarkdocTagNode = (node: RenderableTreeNode): node is MarkdocTagNode =>
+const isMarkdocTagNode = (node: unknown): node is MarkdocTagNode =>
 	typeof node === "object" &&
 	node !== null &&
 	"$$mdtype" in node &&
@@ -111,33 +112,171 @@ const toNodeContext = (path: string, type: ValidTagName): NodeContext => ({
 	type,
 });
 
-const toTagKey = (node: MarkdocTagNode): string =>
-	`${node.name}_${node.attributes.primary}`;
+const toKeyPart = (value: unknown): string => (typeof value === "string" ? value : "");
 
-const toInfoTag = (
-	node: MarkdocTagNode,
-	children: InputTagType[],
-): InfoInputTagType =>
+const toSwitchType = (value: unknown): "string" | "boolean" | undefined => {
+	if (value === "string" || value === "boolean") {
+		return value;
+	}
+	if (value === "checkbox") {
+		return "boolean";
+	}
+	return undefined;
+};
+
+const toTagKey = (node: MarkdocTagNode, parentContext?: NodeContext): string => {
+	const primary = toKeyPart(node.attributes.primary);
+	const formula = toKeyPart(node.attributes.formula);
+
+	switch (node.name) {
+		case "Info": {
+			return primary ? `Info:${primary}` : `Info:${parentContext?.path ?? "root"}`;
+		}
+		case "Switch": {
+			return primary ? `Switch:${primary}` : `Switch:${parentContext?.path ?? "root"}`;
+		}
+		case "Case": {
+			return `Case:${parentContext?.path ?? "root"}:${primary}`;
+		}
+		case "Score": {
+			if (primary) {
+				return `Score:${primary}`;
+			}
+			if (formula) {
+				return `ScoreFormula:${formula}`;
+			}
+			return `Score:${parentContext?.path ?? "root"}`;
+		}
+	}
+};
+
+const toInputTagMergeKey = (tag: InputTagType): string => {
+	const primary = toKeyPart(tag.attributes.primary);
+
+	if (tag.name === "Score") {
+		const formula = toKeyPart(tag.attributes.formula);
+		if (primary) {
+			return `Score:${primary}`;
+		}
+		if (formula) {
+			return `ScoreFormula:${formula}`;
+		}
+	}
+
+	return `${tag.name}:${primary}`;
+};
+
+const mergeInfoAttributes = (target: InfoInputTagType, source: InfoInputTagType): void => {
+	if (!target.attributes.description && source.attributes.description) {
+		target.attributes.description = source.attributes.description;
+	}
+	if (!target.attributes.type && source.attributes.type) {
+		target.attributes.type = source.attributes.type;
+	}
+	if (!target.attributes.unit && source.attributes.unit) {
+		target.attributes.unit = source.attributes.unit;
+	}
+	if (!target.attributes.renderUnit && source.attributes.renderUnit) {
+		target.attributes.renderUnit = source.attributes.renderUnit;
+	}
+};
+
+const mergeScoreAttributes = (target: ScoreInputTagType, source: ScoreInputTagType): void => {
+	if (!target.attributes.formula && source.attributes.formula) {
+		target.attributes.formula = source.attributes.formula;
+	}
+	if (!target.attributes.primary && source.attributes.primary) {
+		target.attributes.primary = source.attributes.primary;
+	}
+	if (!target.attributes.unit && source.attributes.unit) {
+		target.attributes.unit = source.attributes.unit;
+	}
+	if (!target.attributes.renderUnit && source.attributes.renderUnit) {
+		target.attributes.renderUnit = source.attributes.renderUnit;
+	}
+};
+
+const mergeSwitchAttributes = (target: SwitchInputTagType, source: SwitchInputTagType): void => {
+	if (!target.attributes.type && source.attributes.type) {
+		target.attributes.type = source.attributes.type;
+	}
+};
+
+const mergeInputTagArrays = (
+	targetChildren: InputTagType[],
+	sourceChildren: InputTagType[],
+): InputTagType[] => {
+	const mergedChildren = [...targetChildren];
+	const childIndices = new Map<string, number>();
+
+	for (const [index, child] of mergedChildren.entries()) {
+		childIndices.set(toInputTagMergeKey(child), index);
+	}
+
+	for (const sourceChild of sourceChildren) {
+		const childKey = toInputTagMergeKey(sourceChild);
+		const existingChildIndex = childIndices.get(childKey);
+
+		if (existingChildIndex === undefined) {
+			childIndices.set(childKey, mergedChildren.length);
+			mergedChildren.push(sourceChild);
+			continue;
+		}
+
+		const existingChild = mergedChildren[existingChildIndex];
+		if (existingChild) {
+			mergeInputTags(existingChild, sourceChild);
+		}
+	}
+
+	return mergedChildren;
+};
+
+const mergeInputTags = (target: InputTagType, source: InputTagType): void => {
+	if (target.name !== source.name) {
+		return;
+	}
+
+	if (target.name === "Info" && source.name === "Info") {
+		mergeInfoAttributes(target, source);
+		return;
+	}
+
+	if (target.name === "Score" && source.name === "Score") {
+		mergeScoreAttributes(target, source);
+		target.children = mergeInputTagArrays(target.children, source.children);
+		return;
+	}
+
+	if (
+		(target.name === "Switch" && source.name === "Switch") ||
+		(target.name === "Case" && source.name === "Case")
+	) {
+		if (target.name === "Switch" && source.name === "Switch") {
+			mergeSwitchAttributes(target, source);
+		}
+		target.children = mergeInputTagArrays(target.children, source.children);
+	}
+};
+
+const toInfoTag = (node: MarkdocTagNode, children: InputTagType[]): InfoInputTagType =>
 	({
 		attributes: node.attributes,
 		children,
 		name: "Info" as const,
 	}) as InfoInputTagType;
 
-const toSwitchTag = (
-	node: MarkdocTagNode,
-	children: InputTagType[],
-): SwitchInputTagType =>
+const toSwitchTag = (node: MarkdocTagNode, children: InputTagType[]): SwitchInputTagType =>
 	({
-		attributes: { primary: node.attributes.primary ?? "" },
+		attributes: {
+			primary: node.attributes.primary ?? "",
+			type: toSwitchType(node.attributes.type),
+		},
 		children,
 		name: "Switch" as const,
 	}) as SwitchInputTagType;
 
-const toCaseTag = (
-	node: MarkdocTagNode,
-	children: InputTagType[],
-): CaseInputTagType =>
+const toCaseTag = (node: MarkdocTagNode, children: InputTagType[]): CaseInputTagType =>
 	({
 		attributes: { primary: node.attributes.primary ?? "" },
 		children,
@@ -161,16 +300,19 @@ const appendFormulaVariables = (scoreTag: ScoreInputTagType, formulaValue: strin
 	}
 };
 
-const toScoreTag = (
-	node: MarkdocTagNode,
-	children: InputTagType[],
-): ScoreInputTagType => {
+const toScoreTag = (node: MarkdocTagNode, children: InputTagType[]): ScoreInputTagType => {
 	const scoreTag = {
-		attributes: node.attributes,
+		attributes: {
+			formula: toKeyPart(node.attributes.formula) || undefined,
+			primary: toKeyPart(node.attributes.primary),
+			renderUnit:
+				typeof node.attributes.renderUnit === "boolean" ? node.attributes.renderUnit : undefined,
+			unit: toKeyPart(node.attributes.unit) || undefined,
+		},
 		children,
 		name: "Score" as const,
 	} as ScoreInputTagType;
-	appendFormulaVariables(scoreTag, node.attributes.formula ?? "");
+	appendFormulaVariables(scoreTag, scoreTag.attributes.formula ?? "");
 	return scoreTag;
 };
 
@@ -186,10 +328,10 @@ const tagBuilders: Record<
 
 const collectChildTags = (
 	children: RenderableTreeNode | RenderableTreeNode[] | undefined,
-	uniqueTags: Set<string>,
+	tagMap: Map<string, InputTagType>,
 	processNode: (
 		node: RenderableTreeNode,
-		uniqueTags: Set<string>,
+		tagMap: Map<string, InputTagType>,
 		parentContext?: NodeContext,
 	) => InputTagType[],
 	parentContext?: NodeContext,
@@ -201,7 +343,7 @@ const collectChildTags = (
 	const childrenArray = Array.isArray(children) ? children : [children];
 	const result: InputTagType[] = [];
 	for (const child of childrenArray) {
-		result.push(...processNode(child, uniqueTags, parentContext));
+		result.push(...processNode(child, tagMap, parentContext));
 	}
 	return result;
 };
@@ -209,10 +351,10 @@ const collectChildTags = (
 const buildTagFromNode = (
 	node: MarkdocTagNode,
 	tagKey: string,
-	uniqueTags: Set<string>,
+	tagMap: Map<string, InputTagType>,
 	processNode: (
 		node: RenderableTreeNode,
-		uniqueTags: Set<string>,
+		tagMap: Map<string, InputTagType>,
 		parentContext?: NodeContext,
 	) => InputTagType[],
 ): InputTagType | null => {
@@ -221,70 +363,67 @@ const buildTagFromNode = (
 	}
 
 	const childContext = toNodeContext(tagKey, node.name);
-	const children = collectChildTags(
-		node.children,
-		uniqueTags,
-		processNode,
-		childContext,
-	);
+	const children = collectChildTags(node.children, tagMap, processNode, childContext);
 	const builder = tagBuilders[node.name];
 	return builder ? builder(node, children) : null;
 };
 
 const processMarkdocTagNode = (
 	node: MarkdocTagNode,
-	uniqueTags: Set<string>,
+	tagMap: Map<string, InputTagType>,
 	processNode: (
 		node: RenderableTreeNode,
-		uniqueTags: Set<string>,
+		tagMap: Map<string, InputTagType>,
 		parentContext?: NodeContext,
 	) => InputTagType[],
+	parentContext?: NodeContext,
 ): InputTagType[] => {
-	const tagKey = toTagKey(node);
-	if (uniqueTags.has(tagKey)) {
-		return [];
-	}
-
-	const tag = buildTagFromNode(node, tagKey, uniqueTags, processNode);
+	const tagKey = toTagKey(node, parentContext);
+	const tag = buildTagFromNode(node, tagKey, tagMap, processNode);
 	if (!tag) {
 		return [];
 	}
 
-	uniqueTags.add(tagKey);
+	const existingTag = tagMap.get(tagKey);
+	if (existingTag) {
+		mergeInputTags(existingTag, tag);
+		return [];
+	}
+
+	tagMap.set(tagKey, tag);
 	return [tag];
 };
 
 const hasNonTagChildren = (
-	node: RenderableTreeNode,
-): node is RenderableTreeNode & {
+	node: unknown,
+): node is {
 	children: RenderableTreeNode | RenderableTreeNode[];
-} => "children" in node && !("name" in node && isValidTagName(node.name));
+} =>
+	typeof node === "object" &&
+	node !== null &&
+	"children" in node &&
+	(!("name" in node) || !isValidTagName((node as { name?: unknown }).name));
 
 const processNodeToInputTags = (
 	node: RenderableTreeNode,
-	uniqueTags: Set<string>,
+	tagMap: Map<string, InputTagType>,
 	parentContext?: NodeContext,
 ): InputTagType[] => {
 	if (typeof node !== "object" || node === null) {
 		return [];
 	}
 	if (isMarkdocTagNode(node)) {
-		return processMarkdocTagNode(node, uniqueTags, processNodeToInputTags);
+		return processMarkdocTagNode(node, tagMap, processNodeToInputTags, parentContext);
 	}
 	if (hasNonTagChildren(node)) {
-		return collectChildTags(
-			node.children,
-			uniqueTags,
-			processNodeToInputTags,
-			parentContext,
-		);
+		return collectChildTags(node.children, tagMap, processNodeToInputTags, parentContext);
 	}
 	return [];
 };
 
 const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
-	const uniqueTags = new Set<string>();
-	return processNodeToInputTags(nodes, uniqueTags);
+	const tagMap = new Map<string, InputTagType>();
+	return processNodeToInputTags(nodes, tagMap);
 };
 
 // function to take markdoc content and return parsed tags

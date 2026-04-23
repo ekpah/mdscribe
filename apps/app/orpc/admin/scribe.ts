@@ -1,11 +1,8 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { usageEvent } from "@repo/database";
 import { streamText } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from "zod";
 
-import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
-import type { StandardUsage, UsageInputData, UsageMetadata } from '@/lib/usage-logging';
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { composeScribeContext } from "@/orpc/scribe/context";
@@ -141,7 +138,6 @@ const runHandler = authed
 			});
 		}
 
-		const resolvedPromptName = parsed.promptName ?? config.promptName;
 		const variablesUsed =
 			parsed.variables ?? parsePromptJson(parsed.promptJson);
 
@@ -175,7 +171,6 @@ const runHandler = authed
 			);
 		}
 
-		const startTime = Date.now();
 		const thinkingEnabled =
 			parsed.parameters.thinking && resolved.supportsReasoning;
 		const reasoningConfig = thinkingEnabled
@@ -185,7 +180,6 @@ const runHandler = authed
 		const providerOptions = resolved.isOpenRouter
 			? {
 					openrouter: {
-						usage: { include: true },
 						user: context.session.user.email,
 						...(reasoningConfig && {
 							reasoning: reasoningConfig,
@@ -199,44 +193,6 @@ const runHandler = authed
 			maxOutputTokens: parsed.parameters.maxTokens,
 			messages,
 			model: resolved.model,
-			onFinish: async (event) => {
-				const latencyMs = Date.now() - startTime;
-				const openRouterUsage = resolved.isOpenRouter
-					? extractOpenRouterUsage(event.providerMetadata)
-					: undefined;
-
-				await context.db.insert(usageEvent).values(
-					buildUsageEventData({
-						inputData: variablesUsed as UsageInputData,
-						metadata: {
-							endpoint: parsed.documentType,
-							latencyMs,
-							modelConfig: {
-								frequencyPenalty: parsed.parameters.frequencyPenalty,
-								maxTokens: parsed.parameters.maxTokens,
-								presencePenalty: parsed.parameters.presencePenalty,
-								temperature: parsed.parameters.temperature,
-								topK: parsed.parameters.topK,
-								topP: parsed.parameters.topP,
-							},
-							promptName: resolvedPromptName,
-							promptSource: "local",
-							requestId: parsed.requestId,
-							thinkingBudget: thinkingEnabled
-								? parsed.parameters.thinkingBudget
-								: undefined,
-							thinkingEnabled,
-						} as UsageMetadata,
-						model: resolved.modelName,
-						name: "admin_scribe_playground",
-						openRouterUsage,
-						reasoning: event.reasoningText,
-						result: event.text,
-						standardUsage: event.usage as StandardUsage,
-						userId: context.session.user.id,
-					}),
-				);
-			},
 			presencePenalty: parsed.parameters.presencePenalty,
 			providerOptions,
 			temperature: parsed.parameters.temperature,
