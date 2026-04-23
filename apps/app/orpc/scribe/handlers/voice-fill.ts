@@ -48,7 +48,7 @@ const parseVoiceFillTextResponse = (responseText: string): z.infer<typeof voiceF
 	const candidates = [withoutFence];
 	const objectStart = withoutFence.indexOf("{");
 	const objectEnd = withoutFence.lastIndexOf("}");
-	if (objectStart >= 0 && objectEnd > objectStart) {
+	if (objectStart !== -1 && objectEnd > objectStart) {
 		candidates.push(withoutFence.slice(objectStart, objectEnd + 1));
 	}
 
@@ -126,13 +126,15 @@ const deriveFieldsFromTags = (inputTags: InputTagType[]): VoiceFillFieldDefiniti
 					return (c.attributes as Record<string, unknown>).primary as string;
 				});
 			const switchType = attributes.type as string | undefined;
-			const normalizedOptions = options.map((option) => option.trim().toLowerCase());
+			const normalizedOptions = new Set(
+				options.map((option) => option.trim().toLowerCase()),
+			);
 			const isBooleanSwitch =
 				switchType === "boolean" ||
 				switchType === "checkbox" ||
 				(options.length === 2 &&
-					normalizedOptions.includes("true") &&
-					normalizedOptions.includes("false"));
+					normalizedOptions.has("true") &&
+					normalizedOptions.has("false"));
 			pushField({
 				label: attributes.primary as string,
 				options,

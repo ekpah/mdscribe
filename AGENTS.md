@@ -45,6 +45,7 @@ MDScribe is a medical documentation webapp (monorepo) for organizing medical tem
 - **Never commit without explicit user confirmation.** Leave changes unstaged for review.
 - **No AI attribution** in commits — no `Co-Authored-By`, no model/tool names.
 - **PR review**: For multiple PRs, create `review/prs-<numbers>` from `staging`, cherry-pick each, present review, wait for approval.
+- Before creating a PR or recording PR metadata, always run `bun run knip` and fix any reported unused exports or other actionable findings that affect the touched code.
 - After pushing/merging, check Linear and close resolved issues.
 - CI workflows: keep a single GitHub Action workflow for PR checks; add checks (for example `knip`) to that PR workflow instead of creating extra push-only workflows.
 
