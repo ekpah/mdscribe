@@ -1,3 +1,5 @@
+import { BUILT_IN_AISCRIBE_OVERRIDE_SLUGS } from "./aiscribe-built-ins";
+
 export const RESERVED_AI_SCRIBE_FORM_SLUGS = [
 	"custom",
 	"diagnoseblock",
@@ -7,6 +9,7 @@ export const RESERVED_AI_SCRIBE_FORM_SLUGS = [
 	"icu",
 	"outpatient",
 	"procedures",
+	...BUILT_IN_AISCRIBE_OVERRIDE_SLUGS,
 ] as const;
 
 export const AI_SCRIBE_FORM_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;

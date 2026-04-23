@@ -42,12 +42,12 @@ Alter: {% info "age" /%}
 
 {% info "age" label="Alter" type="number" /%}
 {% info "gender" label="Geschlecht" type="select" options="male,female" /%}
-{% info "diabetes" label="Diabetes mellitus" type="boolean" /%}
-{% info "hypertension" label="Arterielle Hypertonie" type="boolean" /%}
-{% info "heart_failure" label="Herzinsuffizienz" type="boolean" /%}
-{% info "vascular_disease" label="Gefäßerkrankung" type="boolean" /%}
-{% info "stroke" label="Schlaganfall/TIA" type="boolean" /%}
-{% info "smoking" label="Rauchen" type="boolean" /%}
+{% switch "diabetes" type="boolean" %}{% case "true" %}Diabetes mellitus{% /case %}{% case "false" %}Kein Diabetes mellitus{% /case %}{% /switch %}
+{% switch "hypertension" type="boolean" %}{% case "true" %}Arterielle Hypertonie{% /case %}{% case "false" %}Keine arterielle Hypertonie{% /case %}{% /switch %}
+{% switch "heart_failure" type="boolean" %}{% case "true" %}Herzinsuffizienz{% /case %}{% case "false" %}Keine Herzinsuffizienz{% /case %}{% /switch %}
+{% switch "vascular_disease" type="boolean" %}{% case "true" %}Gefäßerkrankung{% /case %}{% case "false" %}Keine Gefäßerkrankung{% /case %}{% /switch %}
+{% switch "stroke" type="boolean" %}{% case "true" %}Schlaganfall/TIA{% /case %}{% case "false" %}Kein Schlaganfall/TIA{% /case %}{% /switch %}
+{% switch "smoking" type="boolean" %}{% case "true" %}Raucher{% /case %}{% case "false" %}Nichtraucher{% /case %}{% /switch %}
 
 ## Geschlecht
 {% switch "gender" %}

@@ -49,6 +49,7 @@ import {
   Search,
   StarIcon,
 } from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryState } from 'nuqs';
@@ -88,6 +89,14 @@ interface SidebarSegment {
   category: string;
   documents: { title: string; url: string; favouritesCount: number }[];
 }
+
+const FavouriteCollectionIcon = (props: LucideProps) => (
+  <Bookmark {...props} strokeWidth={1.5} />
+);
+
+const AuthoredCollectionIcon = (props: LucideProps) => (
+  <Pencil {...props} strokeWidth={1.5} />
+);
 
 const generateSegments = ({ templates }: { templates: Template[] }) => {
   const segments: SidebarSegment[] = [];
@@ -237,12 +246,12 @@ export default function AppSidebar({
     ? [
         {
           key: 'favourites',
-          logo: Bookmark,
+          logo: FavouriteCollectionIcon,
           name: 'Favoriten',
         },
         {
           key: 'authored',
-          logo: Pencil,
+          logo: AuthoredCollectionIcon,
           name: 'Von Dir erstellt',
         },
       ]

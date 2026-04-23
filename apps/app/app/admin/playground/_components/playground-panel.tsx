@@ -23,7 +23,7 @@ import {
 import { Separator } from "@repo/design-system/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@repo/design-system/lib/utils";
-import { Copy, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Copy, Play, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, MutableRefObject, UIEvent } from 'react';
 import { toast } from "sonner";
@@ -155,6 +155,16 @@ interface RunState {
 	requestId?: string;
 }
 
+interface PromptVersion {
+	id: string;
+	label: string;
+	messages: {
+		role: "system" | "user" | "assistant";
+		content: string;
+	}[];
+	promptName: string;
+}
+
 interface AudioRecording {
 	blob: Blob;
 	duration: number;
@@ -193,7 +203,7 @@ const getProviderGroup = (model: PlaygroundModel): string =>
 const PLAYGROUND_EDITOR_TEXTAREA_CLASS = "font-mono text-xs leading-[1.35]";
 
 const DirtySelectorLabel = ({ isDirty, label }: DirtySelectorLabelProps) => (
-	<div className="flex min-h-[30px] flex-col justify-start sm:w-24 sm:shrink-0">
+	<div className="flex min-h-7 flex-col justify-start sm:w-24 sm:shrink-0">
 		<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
 		<span
 			className={cn(
@@ -572,45 +582,20 @@ const PromptHarnessPreview = ({
 
 	if (messages.length === 0) {
 		return (
-			<div className="flex h-full min-h-0 items-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-6 text-sm text-solarized-base01">
+			<div className="flex h-full min-h-0 items-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-4 text-sm text-solarized-base01">
 				Kompiliere den Prompt, um Harness, dynamische Inserts und gerenderte Nachrichten zu sehen.
 			</div>
 		);
 	}
 
 	return (
-		<div className="flex h-full min-h-0 flex-col rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
-			<div className="flex flex-wrap items-center justify-between gap-2">
-				<div>
-					<h3 className="font-medium text-sm text-solarized-base00">
-						Prompt-Harness Vorschau
-					</h3>
-					<p className="text-xs text-solarized-base01">
-						Direkt editierbar. Erkannte Inputs und dynamische Inserts sind oberhalb markiert.
-					</p>
-				</div>
-				<div className="flex flex-wrap gap-2">
-					<Badge
-						variant="outline"
-						className="border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange"
-					>
-						Dynamisch
-					</Badge>
-					<Badge
-						variant="outline"
-						className="border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue"
-					>
-						Input
-					</Badge>
-				</div>
-			</div>
-
+		<div className="flex h-full min-h-0 flex-col rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
 			<div
 				className={cn(
-					"mt-3 min-h-0 flex-1 pr-1",
+					"min-h-0 flex-1 pr-1",
 					shouldStretchMessageRows
-						? "grid gap-3 overflow-hidden"
-						: "flex flex-col gap-3 overflow-y-auto",
+						? "grid gap-2 overflow-hidden"
+						: "flex flex-col gap-2 overflow-y-auto",
 				)}
 				style={
 					shouldStretchMessageRows
@@ -629,16 +614,17 @@ const PromptHarnessPreview = ({
 						message.content,
 						allPreviewItems,
 					);
+					const isUserPromptCard = message.role === "user";
 
 					return (
 						<div
 							className={cn(
-								"flex flex-col rounded-lg border border-solarized-base2 bg-solarized-base3 p-3",
-								shouldStretchMessageRows ? "h-full min-h-0" : "min-h-[240px]",
+								"flex flex-col rounded-lg border border-solarized-base2 bg-solarized-base3 p-2",
+								shouldStretchMessageRows ? "h-full min-h-0" : "min-h-[210px]",
 							)}
 							key={`${message.role}-${index}`}
 						>
-							<div className="flex flex-wrap items-center justify-between gap-2">
+							<div className="flex flex-wrap items-center justify-between gap-1.5">
 								<div className="flex items-center gap-2">
 									<Badge
 										variant="outline"
@@ -649,24 +635,39 @@ const PromptHarnessPreview = ({
 									>
 										{message.role}
 									</Badge>
-									<span className="text-xs text-solarized-base01">
-										Editierbare Fassung
-									</span>
 								</div>
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									className="h-7 gap-2 text-solarized-base01 hover:text-solarized-base00"
-									onClick={copyMessageHandler}
-								>
-									<Copy className="h-3.5 w-3.5" />
-									Copy
-								</Button>
+								<div className="flex items-center gap-1.5">
+									{isUserPromptCard ? (
+										<>
+											<Badge
+												variant="outline"
+												className="h-5 border-solarized-orange/40 bg-solarized-orange/10 px-1.5 text-[10px] text-solarized-orange"
+											>
+												Dynamisch
+											</Badge>
+											<Badge
+												variant="outline"
+												className="h-5 border-solarized-blue/40 bg-solarized-blue/10 px-1.5 text-[10px] text-solarized-blue"
+											>
+												Input
+											</Badge>
+										</>
+									) : null}
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 gap-1.5 text-solarized-base01 hover:text-solarized-base00"
+										onClick={copyMessageHandler}
+									>
+										<Copy className="h-3.5 w-3.5" />
+										Copy
+									</Button>
+								</div>
 							</div>
 
-							{matchingItems.length > 0 ? (
-								<div className="mt-2 flex flex-wrap gap-2">
+							{!isUserPromptCard && matchingItems.length > 0 ? (
+								<div className="mt-1 flex flex-wrap gap-1.5">
 									{matchingItems.map((item) => (
 										<Badge
 											key={`${message.role}-${index}-${item.source}-${item.key}`}
@@ -683,7 +684,7 @@ const PromptHarnessPreview = ({
 								</div>
 							) : null}
 
-							<div className="mt-3 min-h-0 flex-1">
+							<div className="mt-2 min-h-0 flex-1">
 								<HighlightedPromptEditor
 									value={message.content}
 									onChange={messageChangeHandler}
@@ -776,6 +777,10 @@ export const PlaygroundPanel = ({
 		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
 	const [compiledOverride, setCompiledOverride] = useState<Array<{
+		role: "system" | "user" | "assistant";
+		content: string;
+	}> | null>(null);
+	const [promptComparisonMessages, setPromptComparisonMessages] = useState<Array<{
 		role: "system" | "user" | "assistant";
 		content: string;
 	}> | null>(null);
@@ -1176,6 +1181,7 @@ export const PlaygroundPanel = ({
 		setPromptName(scribeDocTypeUi[documentType].defaultPromptName);
 		setCompiledMessages([]);
 		setCompiledOverride(null);
+		setPromptComparisonMessages(null);
 		setPromptRuntimeVariables({});
 	}, [documentType]);
 
@@ -1205,16 +1211,6 @@ export const PlaygroundPanel = ({
 
 	// Ref to store run trigger functions for each model
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
-
-	const runAllModels = useCallback(async () => {
-		const triggers = [...runTriggersRef.current.values()];
-		if (triggers.length === 0) {
-			toast.error("Keine Modelle konfiguriert");
-			return;
-		}
-		// Run all models in parallel
-		await Promise.all(triggers.map((trigger) => trigger()));
-	}, []);
 
 	const modelById = useMemo(
 		() => new Map(models.map((model) => [model.id, model] as const)),
@@ -1372,6 +1368,41 @@ export const PlaygroundPanel = ({
 		[compiledMessages, compiledOverride, promptHarnessExperimentMessages],
 	);
 
+	const promptVersions = useMemo<PromptVersion[]>(
+		() => {
+			const versions: PromptVersion[] = [
+				{
+					id: "prompt-a",
+					label: "Prompt A",
+					messages: effectiveCompiledMessages,
+					promptName,
+				},
+			];
+			if (promptComparisonMessages) {
+				versions.push({
+					id: "prompt-b",
+					label: "Prompt B",
+					messages: promptComparisonMessages,
+					promptName: `${promptName} (B)`,
+				});
+			}
+			return versions;
+		},
+		[effectiveCompiledMessages, promptComparisonMessages, promptName],
+	);
+
+	const comparisonRuns = useMemo(
+		() =>
+			modelRuns.flatMap((modelRun) =>
+				promptVersions.map((promptVersion) => ({
+					id: `${modelRun.id}::${promptVersion.id}`,
+					modelRun,
+					promptVersion,
+				})),
+			),
+		[modelRuns, promptVersions],
+	);
+
 	const resultsWithContentCount = useMemo(
 		() =>
 			Object.values(runStates).filter(
@@ -1399,21 +1430,23 @@ export const PlaygroundPanel = ({
 					view: "inputs",
 				},
 				{
-					summary: `${modelRuns.length} Vergleichs-Run${modelRuns.length === 1 ? "" : "s"}`,
+					summary: `${modelRuns.length} Modelle · ${promptVersions.length} Prompt-Versionen`,
 					view: "models",
 				},
 				{
 					summary:
 						resultsWithContentCount > 0
-							? `${resultsWithContentCount}/${modelRuns.length} mit Output`
+							? `${resultsWithContentCount}/${comparisonRuns.length} mit Output`
 							: "Noch keine Ergebnisse",
 					view: "results",
 				},
 			]) as { summary: string; view: PlaygroundView }[],
 			[
+				comparisonRuns.length,
 				inputPreviewItems.length,
 				modelRuns.length,
 				promptName,
+				promptVersions.length,
 			resultsWithContentCount,
 			selectedTemplateId,
 		],
@@ -1450,7 +1483,12 @@ export const PlaygroundPanel = ({
 			handlers.set(run.id, () => {
 				setModelRuns((prev) => prev.filter((entry) => entry.id !== run.id));
 				setRunStates((prev) => {
-					const { [run.id]: _removedRunState, ...next } = prev;
+					const next: Record<string, RunState> = {};
+					for (const [stateId, state] of Object.entries(prev)) {
+						if (!stateId.startsWith(`${run.id}::`)) {
+							next[stateId] = state;
+						}
+					}
 					return next;
 				});
 			});
@@ -1491,11 +1529,6 @@ export const PlaygroundPanel = ({
 				parameters: { ...DEFAULT_PARAMETERS },
 			},
 		]);
-	}, []);
-
-	const handleResetResults = useCallback(() => {
-		setRunStates({});
-		toast.success("Ergebnisse zurückgesetzt");
 	}, []);
 
 	const handlePromptHarnessChange = useCallback((value: string) => {
@@ -1544,6 +1577,52 @@ export const PlaygroundPanel = ({
 		setCompiledOverride(next);
 	}, [effectiveCompiledMessages]);
 
+	const handleComparisonMessageChange = useCallback((index: number, content: string) => {
+		setPromptComparisonMessages((prev) => {
+			if (!prev || !prev[index]) {
+				return prev;
+			}
+
+			const next = prev.map((entry) => ({ ...entry }));
+			next[index] = {
+				...next[index],
+				content,
+			};
+			return next;
+		});
+	}, []);
+
+	const handleAddPromptComparison = useCallback(() => {
+		if (promptComparisonMessages) {
+			return;
+		}
+
+		if (effectiveCompiledMessages.length === 0) {
+			toast.error("Bitte zuerst Prompt kompilieren");
+			return;
+		}
+
+		setPromptComparisonMessages(
+			effectiveCompiledMessages.map((message) => ({
+				...message,
+			})),
+		);
+		setRunStates({});
+	}, [effectiveCompiledMessages, promptComparisonMessages]);
+
+	const handleRemovePromptComparison = useCallback(() => {
+		setPromptComparisonMessages(null);
+		setRunStates((prev) => {
+			const next: Record<string, RunState> = {};
+			for (const [stateId, state] of Object.entries(prev)) {
+				if (!stateId.endsWith("::prompt-b")) {
+					next[stateId] = state;
+				}
+			}
+			return next;
+		});
+	}, []);
+
 	const renderInputsView = () => (
 		<ScrollArea className="h-full">
 			<div className="p-4">
@@ -1583,9 +1662,9 @@ export const PlaygroundPanel = ({
 		const hasPromptHarnessOption = promptHarnessOptions.includes(promptName);
 
 		return (
-			<div className="flex h-full min-h-0 flex-col gap-3 p-3">
-				<div className="grid gap-3 lg:grid-cols-2">
-					<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+			<div className="flex h-full min-h-0 flex-col gap-2 p-2">
+				<div className="grid gap-2 lg:grid-cols-2">
+					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
 						<DirtySelectorLabel
 							isDirty={isPromptHarnessDirty}
 							label="Basis-Prompt"
@@ -1619,7 +1698,7 @@ export const PlaygroundPanel = ({
 						</Select>
 					</div>
 
-					<div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
 						<DirtySelectorLabel
 							isDirty={isTemplateDirty}
 							label="Template"
@@ -1650,12 +1729,63 @@ export const PlaygroundPanel = ({
 					</div>
 				</div>
 
-				<PromptHarnessPreview
-					inputItems={inputPreviewItems}
-					messages={effectiveCompiledMessages}
-					onMessageChange={handleCompiledMessageChange}
-					runtimeItems={runtimePromptItems}
-				/>
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<p className="text-xs text-solarized-base01">
+						Prompt-Versionen für Vergleichs-Runs
+					</p>
+					{promptComparisonMessages ? (
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
+							onClick={handleRemovePromptComparison}
+						>
+							<Trash2 className="h-3.5 w-3.5" />
+							Prompt B entfernen
+						</Button>
+					) : (
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="h-7 gap-1.5 border-solarized-base2 px-2 text-xs"
+							onClick={handleAddPromptComparison}
+						>
+							<Plus className="h-3.5 w-3.5" />
+							Prompt B hinzufügen
+						</Button>
+					)}
+				</div>
+
+				<div
+					className={cn(
+						"grid min-h-0 flex-1 gap-2",
+						promptComparisonMessages ? "xl:grid-cols-2" : "",
+					)}
+				>
+					<div className="flex min-h-0 flex-col gap-1">
+						<p className="font-medium text-xs text-solarized-base01">Prompt A</p>
+						<PromptHarnessPreview
+							inputItems={inputPreviewItems}
+							messages={effectiveCompiledMessages}
+							onMessageChange={handleCompiledMessageChange}
+							runtimeItems={runtimePromptItems}
+						/>
+					</div>
+
+					{promptComparisonMessages ? (
+						<div className="flex min-h-0 flex-col gap-1">
+							<p className="font-medium text-xs text-solarized-base01">Prompt B</p>
+							<PromptHarnessPreview
+								inputItems={inputPreviewItems}
+								messages={promptComparisonMessages}
+								onMessageChange={handleComparisonMessageChange}
+								runtimeItems={runtimePromptItems}
+							/>
+						</div>
+					) : null}
+				</div>
 			</div>
 		);
 	};
@@ -1666,10 +1796,10 @@ export const PlaygroundPanel = ({
 				<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
 					<div className="space-y-1">
 						<h3 className="font-medium text-sm text-solarized-base00">Model Runs</h3>
-						<p className="text-xs text-solarized-base01">
-							Definiere mehrere Modelle und Parameter für denselben Input- und Prompt-Stand.
-						</p>
-					</div>
+					<p className="text-xs text-solarized-base01">
+						Definiere mehrere Modelle und Parameter für denselben Input- und Prompt-Stand.
+					</p>
+				</div>
 					<Button type="button" size="sm" className="gap-2" onClick={handleAddModelRun}>
 						<Plus className="h-4 w-4" />
 						Run hinzufügen
@@ -1747,55 +1877,26 @@ export const PlaygroundPanel = ({
 		);
 
 	const renderResultsView = () => (
-		<div className="flex h-full min-h-0 flex-col p-4">
-			<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
-				<div className="space-y-1">
-					<h3 className="font-medium text-sm text-solarized-base00">Ergebnisse</h3>
-					<p className="text-xs text-solarized-base01">
-						{scribeDocTypeUi[documentType].label} · {promptName}
-					</p>
-				</div>
-				<div className="flex flex-wrap gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						className="gap-1.5 border-solarized-base2 px-3 text-xs"
-						onClick={handleResetResults}
+		<div className="flex h-full min-h-0 flex-col p-2">
+			<ScrollArea className="min-h-0 flex-1">
+					<div
+						className={cn(
+							"grid min-h-full auto-rows-fr gap-4",
+							comparisonRuns.length > 1 ? "2xl:grid-cols-2" : "",
+						)}
 					>
-						<RotateCcw className="h-3.5 w-3.5" />
-						Reset
-					</Button>
-					<Button
-						type="button"
-						size="sm"
-						className="gap-1.5 bg-solarized-blue px-3 text-xs hover:bg-solarized-blue/90"
-						onClick={runAllModels}
-					>
-						<Play className="h-3.5 w-3.5" />
-						Run All
-					</Button>
-				</div>
-			</div>
-
-			<ScrollArea className="mt-4 min-h-0 flex-1">
-				<div
-					className={cn(
-						"grid min-h-full auto-rows-fr gap-4",
-						modelRuns.length > 1 ? "2xl:grid-cols-2" : "",
-					)}
-				>
-					{modelRuns.map((run) => (
+					{comparisonRuns.map((comparisonRun) => (
 						// eslint-disable-next-line no-use-before-define
 						<RunCard
-							key={run.id}
-							runId={run.id}
-							modelRun={run}
+							key={comparisonRun.id}
+							runId={comparisonRun.id}
+							modelRun={comparisonRun.modelRun}
 							documentType={documentType}
 							promptJson={promptJson}
-							promptName={promptName}
-							messagesForRun={effectiveCompiledMessages}
-							runState={runStates[run.id]}
+							promptName={comparisonRun.promptVersion.promptName}
+							promptVersionLabel={comparisonRun.promptVersion.label}
+							messagesForRun={comparisonRun.promptVersion.messages}
+							runState={runStates[comparisonRun.id]}
 							setRunState={setRunState}
 							runTriggersRef={runTriggersRef}
 						/>
@@ -1881,6 +1982,7 @@ const RunCard = ({
 	documentType,
 	promptJson,
 	promptName,
+	promptVersionLabel,
 	messagesForRun,
 	runState,
 	setRunState,
@@ -1891,6 +1993,7 @@ const RunCard = ({
 	documentType: DocumentType;
 	promptJson: string;
 	promptName: string;
+	promptVersionLabel: string;
 	messagesForRun: {
 		role: "system" | "user" | "assistant";
 		content: string;
@@ -1902,7 +2005,7 @@ const RunCard = ({
 	const payloadRef = useRef<null | Parameters<typeof orpc.admin.scribe.run.call>[0]>(null);
 
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
-		id: `admin-scribe-playground-${modelRun.id}`,
+		id: `admin-scribe-playground-${runId}`,
 		onError: (error) => {
 			setRunState(runId, {
 				error: error.message,
@@ -2058,6 +2161,9 @@ const RunCard = ({
 			{/* Header row */}
 			<div className="flex shrink-0 items-center justify-between gap-2">
 				<div className="min-w-0 flex-1">
+					<p className="font-medium text-[10px] uppercase tracking-wide text-solarized-base01">
+						{promptVersionLabel}
+					</p>
 					<p className="truncate font-mono text-xs text-solarized-base00">
 						{modelRun.model?.modelId ?? "Kein Modell gewählt"}
 					</p>

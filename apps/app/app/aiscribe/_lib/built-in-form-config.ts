@@ -1,6 +1,10 @@
 import { ClipboardCheck, FileCheck, FileText, Heart, Stethoscope } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { DocumentType } from "@/orpc/scribe/types";
+import {
+	getBuiltInAiscribeOverrideSlug,
+	type BuiltInAiscribeOverrideKey,
+} from "@/lib/aiscribe-built-ins";
 import type {
 	AdditionalInputField,
 	AiscribeTemplateConfig,
@@ -19,7 +23,6 @@ interface BuiltInAiscribeTemplateDefinition {
 	inputPlaceholder: string;
 	inputTabTitle: string;
 	outputTabTitle: string;
-	overrideSlug: string;
 	regenerateButtonText: string;
 	title: string;
 }
@@ -75,6 +78,19 @@ const ER_ADDITIONAL_INPUTS: AdditionalInputField[] = [
 	},
 ];
 
+const PROMPT_HARNESS_ADDITIONAL_INPUTS: Record<
+	string,
+	AdditionalInputField[] | undefined
+> = {
+	diagnostic_results: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	Diagnoses: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	ER_Anamnese_chat: ER_ADDITIONAL_INPUTS,
+	icu_transfer: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	Inpatient_discharge: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	outpatient_visit: undefined,
+	procedure: undefined,
+};
+
 const BUILT_IN_AISCRIBE_TEMPLATES = {
 	diagnoseblock: {
 		additionalInputs: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
@@ -91,7 +107,6 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		inputPlaceholder: "Geben Sie hier Ihre Notizen zum aktuellen Besuch ein...",
 		inputTabTitle: "Patientennotizen",
 		outputTabTitle: "Diagnoseblock",
-		overrideSlug: "builtin-diagnoseblock",
 		regenerateButtonText: "Neu generieren",
 		title: "Diagnoseblock Update",
 	},
@@ -110,7 +125,6 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		inputPlaceholder: "Geben Sie hier Ihre Entlassungsnotizen ein...",
 		inputTabTitle: "Entlassungsnotizen",
 		outputTabTitle: "Entlassungsbrief",
-		overrideSlug: "builtin-discharge",
 		regenerateButtonText: "Neu generieren",
 		title: "Entlassungsbrief",
 	},
@@ -129,7 +143,6 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		inputPlaceholder: "Geben Sie hier die Anamnese des Patienten ein...",
 		inputTabTitle: "Anamnese",
 		outputTabTitle: "Analyse",
-		overrideSlug: "builtin-er",
 		regenerateButtonText: "Neu analysieren",
 		title: "Notfall Anamnese",
 	},
@@ -148,7 +161,6 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		inputPlaceholder: "Geben Sie hier Ihre Notizen zum Patienten ein...",
 		inputTabTitle: "Patientennotizen",
 		outputTabTitle: "Verlegungsbrief",
-		overrideSlug: "builtin-icu",
 		regenerateButtonText: "Neu generieren",
 		title: "ICU Verlegungsbrief",
 	},
@@ -167,7 +179,6 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		inputPlaceholder: "Geben Sie hier Ihre Notizen zur Konsultation ein...",
 		inputTabTitle: "Konsultationsnotizen",
 		outputTabTitle: "Arztbrief",
-		overrideSlug: "builtin-outpatient",
 		regenerateButtonText: "Neu generieren",
 		title: "Ambulanter Arztbrief",
 	},
@@ -186,28 +197,32 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		inputPlaceholder: "Geben Sie hier Ihre Notizen zum Eingriff ein...",
 		inputTabTitle: "Eingriffsnotizen",
 		outputTabTitle: "Eingriffsdokumentation",
-		overrideSlug: "builtin-procedures",
 		regenerateButtonText: "Neu generieren",
 		title: "Eingriffsdokumentation",
 	},
-} as const satisfies Record<string, BuiltInAiscribeTemplateDefinition>;
+} as const satisfies Record<
+	BuiltInAiscribeOverrideKey,
+	BuiltInAiscribeTemplateDefinition
+>;
 
-export type BuiltInAiscribeTemplateKey = keyof typeof BUILT_IN_AISCRIBE_TEMPLATES;
-
-export const getBuiltInAiscribeOverrideSlug = (
-	template: BuiltInAiscribeTemplateKey,
-): string => BUILT_IN_AISCRIBE_TEMPLATES[template].overrideSlug;
+export type BuiltInAiscribeTemplateKey = BuiltInAiscribeOverrideKey;
+export { getBuiltInAiscribeOverrideSlug };
 
 export const buildBuiltInAiscribeTemplateConfig = ({
 	overrideForm,
 	template,
 }: {
-	overrideForm?: Pick<PublicAiTextForm, "id"> | null;
+	overrideForm?: Pick<PublicAiTextForm, "id" | "promptHarness"> | null;
 	template: BuiltInAiscribeTemplateKey;
 }): AiscribeTemplateConfig => {
 	const definition = BUILT_IN_AISCRIBE_TEMPLATES[template];
+	const resolvedAdditionalInputs =
+		overrideForm?.id && overrideForm.promptHarness
+			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[overrideForm.promptHarness] ??
+				definition.additionalInputs)
+			: definition.additionalInputs;
 	const baseConfig = {
-		additionalInputs: definition.additionalInputs,
+		additionalInputs: resolvedAdditionalInputs,
 		description: definition.description,
 		emptyStateDescription: definition.emptyStateDescription,
 		emptyStateTitle: definition.emptyStateTitle,
