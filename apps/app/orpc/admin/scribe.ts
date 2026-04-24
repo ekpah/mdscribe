@@ -1,5 +1,5 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { streamText } from 'ai';
+import { generateObject, streamText } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from "zod";
 
@@ -203,6 +203,68 @@ const runHandler = authed
 		return streamToEventIterator(result.toUIMessageStream());
 	});
 
+const evaluateInput = z.object({
+	documentType: z.string(),
+	inputs: z.record(z.unknown()),
+	modelRecordId: z.string(),
+	response: z.string().min(1),
+});
+
+const evaluateSchema = z.object({
+	categories: z.array(
+		z.object({
+			name: z.string(),
+			score: z.number().min(0).max(10),
+		}),
+	),
+	summary: z.string(),
+	totalScore: z.number().min(0).max(10),
+});
+
+const evaluateHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(type<z.infer<typeof evaluateInput>>())
+	.handler(async ({ context, input }) => {
+		const parsed = evaluateInput.parse(input);
+		const resolved = await resolveModelByRecordId(parsed.modelRecordId, context.db);
+
+		const evaluation = await generateObject({
+			model: resolved.model,
+			schema: evaluateSchema,
+			system: `Du bewertest medizinische KI-Antworten auf einer Skala von 0.0 bis 10.0.
+Antworte streng objektiv. Verwende genau 4 Kategorien.
+Jede Kategorie bekommt eine Punktzahl zwischen 0.0 und 10.0.
+Der totalScore ist der Mittelwert aller Kategorien.
+Nutze maximal 1 Nachkommastelle für alle Scores.`,
+			prompt: `Bewerte folgende Ausgabe.
+
+Dokumenttyp: ${parsed.documentType}
+
+Eingaben:
+${JSON.stringify(parsed.inputs, null, 2)}
+
+Ausgabe:
+${parsed.response}`,
+			temperature: 0,
+		});
+
+		const categories = evaluation.object.categories.map((category) => ({
+			name: category.name,
+			score: Number(category.score.toFixed(1)),
+		}));
+
+		const totalScore = Number(
+			(categories.reduce((sum, category) => sum + category.score, 0) /
+				Math.max(1, categories.length)).toFixed(1),
+		);
+
+		return {
+			categories,
+			summary: evaluation.object.summary,
+			totalScore,
+		};
+	});
+
 export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
 	prompts: {
@@ -273,5 +335,6 @@ export const scribeHandler = {
 				};
 			}),
 	},
+	evaluate: evaluateHandler,
 	run: runHandler,
 };

@@ -154,6 +154,14 @@ interface RunState {
 	text: string;
 	isStreaming: boolean;
 	error?: string;
+	evaluation?: {
+		totalScore?: number;
+		categories: {
+			name: string;
+			score: number;
+		}[];
+		isLoading: boolean;
+	};
 	metrics: {
 		latencyMs: number;
 		inputTokens?: number;
@@ -2048,8 +2056,56 @@ const RunCard = ({
 					totalTokens: event.totalTokens ?? undefined,
 				},
 			});
+
+			const currentPayload = payloadRef.current;
+			if (!currentPayload) {return;}
+			setRunState(runId, {
+				evaluation: {
+					categories: [],
+					isLoading: true,
+					totalScore: undefined,
+				},
+			});
+			const responseText =
+				messages
+					.findLast((message) => message.role === "assistant")
+					?.parts?.filter((part) => part.type === "text")
+					.map((part) => (part as { text: string }).text)
+					.join("") ?? "";
+
+			if (!responseText.trim()) {
+				setRunState(runId, {
+					evaluation: {
+						categories: [],
+						isLoading: false,
+						totalScore: undefined,
+					},
+				});
+				return;
+			}
+
+			const evaluation = await orpc.admin.scribe.evaluate.call({
+				documentType: currentPayload.documentType,
+				inputs: JSON.parse(currentPayload.promptJson || "{}") as Record<string, unknown>,
+				modelRecordId: currentPayload.model,
+				response: responseText,
+			});
+			setRunState(runId, {
+				evaluation: {
+					categories: evaluation.categories,
+					isLoading: false,
+					totalScore: evaluation.totalScore,
+				},
+			});
 		} catch {
 			// Best effort; output is still useful even without metrics.
+			setRunState(runId, {
+				evaluation: {
+					categories: [],
+					isLoading: false,
+					totalScore: undefined,
+				},
+			});
 		}
 		},
 		transport: {
@@ -2137,6 +2193,11 @@ const RunCard = ({
 		};
 
 		setRunState(runId, {
+			evaluation: {
+				categories: [],
+				isLoading: false,
+				totalScore: undefined,
+			},
 			error: undefined,
 			isStreaming: true,
 			metrics: { latencyMs: 0 },
@@ -2218,6 +2279,7 @@ const RunCard = ({
 						runState
 							? {
 									error: runState.error,
+									evaluation: runState.evaluation,
 									isStreaming: runState.isStreaming,
 									metrics: runState.metrics,
 									reasoning: runState.reasoning,

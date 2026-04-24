@@ -4,6 +4,11 @@ import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@repo/design-system/components/ui/tooltip";
+import {
 	Tabs,
 	TabsContent,
 	TabsList,
@@ -19,6 +24,7 @@ import {
 	FileText,
 	Hash,
 	Loader2,
+	Medal,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -46,6 +52,13 @@ const formatLatency = (ms: number | undefined): string => {
 		return `${ms}ms`;
 	}
 	return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const formatScore = (score: number | undefined): string => {
+	if (score === undefined || score === null) {
+		return "-";
+	}
+	return score.toFixed(1);
 };
 
 interface ResultDisplayProps {
@@ -103,6 +116,34 @@ export const ResultDisplay = ({ result, compact: _compact }: ResultDisplayProps)
 						<Hash className="h-3 w-3 text-solarized-cyan" />
 						{formatTokens(result.metrics.totalTokens)}
 					</span>
+					{result.evaluation?.isLoading ? (
+						<span className="flex items-center gap-1 text-solarized-base01">
+							<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
+							Eval
+						</span>
+					) : result.evaluation?.totalScore !== undefined ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span className="flex cursor-default items-center gap-1 text-solarized-base01">
+									<Medal className="h-3 w-3 text-solarized-yellow" />
+									{formatScore(result.evaluation.totalScore)}
+								</span>
+							</TooltipTrigger>
+							<TooltipContent side="top" className="max-w-64">
+								<div className="space-y-1 text-xs">
+									{result.evaluation.categories.map((category) => (
+										<div
+											key={category.name}
+											className="flex items-center justify-between gap-3"
+										>
+											<span>{category.name}</span>
+											<span className="font-mono">{formatScore(category.score)}</span>
+										</div>
+									))}
+								</div>
+							</TooltipContent>
+						</Tooltip>
+					) : null}
 					{result.metrics.reasoningTokens ? (
 						<span className="flex items-center gap-1 text-solarized-base01">
 							<Brain className="h-3 w-3 text-solarized-violet" />
