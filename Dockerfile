@@ -54,8 +54,10 @@ COPY --from=builder --chown=bun:bun /app/apps/app/.next/static ./apps/app/.next/
 # Copy public files
 COPY --from=builder --chown=bun:bun /app/apps/app/public ./apps/app/public
 
-# Copy the checked-in Drizzle config + SQL files so Coolify can run a post-deploy migration hook.
+# Keep the database package plus installed dependencies in the runtime image so
+# Coolify can run the post-deploy Drizzle migration hook.
 COPY --from=builder --chown=bun:bun /app/packages/database ./packages/database
+COPY --from=deps --chown=bun:bun /app/node_modules ./node_modules
 EXPOSE 3000
 
 USER bun

@@ -46,8 +46,10 @@ Das Docker-Image startet nur die App und fuehrt keine Migrationen beim Container
 Wenn Sie MDScribe per Dockerfile ueber Coolify deployen, setzen Sie dafuer einen `Post-deployment`-Hook:
 
 ```sh
-cd /app/packages/database && bunx drizzle-kit migrate --config=drizzle.config.ts
+cd /app/packages/database && bun run migrate
 ```
+
+Dafuer muss das Runtime-Image neben `packages/database` auch die installierten `node_modules` enthalten, damit `drizzle-kit` aus `drizzle.config.ts` korrekt aufgeloest werden kann.
 
 ## 2. Umgebungsvariablen (Self-Hosted)
 
