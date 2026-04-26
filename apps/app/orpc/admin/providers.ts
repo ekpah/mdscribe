@@ -1,31 +1,26 @@
 import { ORPCError, type } from "@orpc/server";
-import { aiDefaults, aiModel, aiProvider, eq, inArray } from '@repo/database';
-import type { Database } from '@repo/database';
+import { aiDefaults, aiModel, aiProvider, eq, inArray } from "@repo/database";
+import type { Database } from "@repo/database";
 import { z } from "zod";
 
-import { decrypt, encrypt } from "@/lib/encryption";
-import {
-	normalizeOpenAICompatibleBaseUrl,
-	normalizeProviderBaseUrl,
-	PROVIDER_BASE_URL_ERROR_MESSAGE,
-} from "@/lib/openai-compatible";
 import {
 	inferInputModesFromModelId,
 	normalizeInputModes,
 	resolveInputModes,
 	type InputMode,
 } from "@/lib/ai-model-input-modes";
+import { decrypt, encrypt } from "@/lib/encryption";
+import {
+	normalizeOpenAICompatibleBaseUrl,
+	normalizeProviderBaseUrl,
+	PROVIDER_BASE_URL_ERROR_MESSAGE,
+} from "@/lib/openai-compatible";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 
 const admin = authed.use(requiredAdminMiddleware);
 
-const PROVIDER_PROTOCOLS = [
-	"openai-compatible",
-	"openrouter",
-	"openai",
-	"anthropic",
-] as const;
+const PROVIDER_PROTOCOLS = ["openai-compatible", "openrouter", "openai", "anthropic"] as const;
 
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
@@ -46,9 +41,13 @@ const normalizeOptionalBaseUrl = (
 	value: string | undefined,
 	ctx: z.RefinementCtx,
 ): string | undefined => {
-	if (value === undefined) {return undefined;}
+	if (value === undefined) {
+		return undefined;
+	}
 	const trimmed = value.trim();
-	if (!trimmed) {return undefined;}
+	if (!trimmed) {
+		return undefined;
+	}
 
 	try {
 		return normalizeProviderBaseUrl(trimmed);
@@ -63,14 +62,16 @@ const normalizeOptionalBaseUrl = (
 
 const createBaseUrlSchema = z
 	.string()
-	.optional()
-	.transform((value, ctx) => normalizeOptionalBaseUrl(value, ctx));
+	.transform((value, ctx) => normalizeOptionalBaseUrl(value, ctx))
+	.optional();
 
 const updateBaseUrlSchema = z
 	.string()
 	.nullish()
 	.transform((value, ctx) => {
-		if (value === null || value === undefined) {return value;}
+		if (value === null || value === undefined) {
+			return value;
+		}
 		return normalizeOptionalBaseUrl(value, ctx);
 	});
 
@@ -82,9 +83,7 @@ const ensureV1BaseUrl = (url: string): string => {
 	return `${trimmed}/v1`;
 };
 
-const parseOpenRouterInputModes = (
-	modality: string | undefined,
-): InputMode[] => {
+const parseOpenRouterInputModes = (modality: string | undefined): InputMode[] => {
 	const value = modality?.toLowerCase() ?? "";
 	const modes = new Set<InputMode>(["text"]);
 
@@ -123,10 +122,7 @@ const normalizeConfiguredBaseUrl = (
 	return normalizeProviderBaseUrl(baseUrl);
 };
 
-const requireConfiguredBaseUrl = (
-	protocol: ProviderProtocol,
-	baseUrl: string | null,
-): string => {
+const requireConfiguredBaseUrl = (protocol: ProviderProtocol, baseUrl: string | null): string => {
 	if (!baseUrl) {
 		throw new ORPCError("BAD_REQUEST", {
 			message:
@@ -174,9 +170,7 @@ const fetchProviderModels = async (
 			displayName: model.display_name ?? model.name ?? model.id,
 			inputModes: parseOpenRouterInputModes(model.architecture?.modality),
 			modelId: model.id,
-			supportsReasoning: (model.supported_parameters ?? []).includes(
-				"reasoning",
-			),
+			supportsReasoning: (model.supported_parameters ?? []).includes("reasoning"),
 		}));
 	}
 
@@ -212,9 +206,7 @@ const fetchProviderModels = async (
 	if (config.protocol === "openai") {
 		const baseUrl = config.baseUrl ?? "https://api.openai.com/v1";
 		const response = await fetch(`${baseUrl}/models`, {
-			headers: config.apiKey
-				? { Authorization: `Bearer ${config.apiKey}` }
-				: {},
+			headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {},
 			signal,
 		});
 		if (!response.ok) {
@@ -232,9 +224,7 @@ const fetchProviderModels = async (
 		};
 
 		return (body.data ?? [])
-			.filter(
-				(model) => !model.id.includes("embed") && !model.id.includes("tts"),
-			)
+			.filter((model) => !model.id.includes("embed") && !model.id.includes("tts"))
 			.map((model) => ({
 				displayName: model.display_name ?? model.name ?? model.id,
 				inputModes: inferInputModesFromModelId(model.id),
@@ -287,9 +277,7 @@ const syncFetchedModelsForProvider = async (
 		where: eq(aiModel.providerId, providerId),
 	});
 
-	const existingByModelId = new Map(
-		existingModels.map((model) => [model.modelId, model] as const),
-	);
+	const existingByModelId = new Map(existingModels.map((model) => [model.modelId, model] as const));
 
 	let inserted = 0;
 	let updated = 0;
@@ -310,8 +298,7 @@ const syncFetchedModelsForProvider = async (
 		}
 
 		const sameDisplayName = existing.displayName === model.displayName;
-		const sameSupportsReasoning =
-			existing.supportsReasoning === model.supportsReasoning;
+		const sameSupportsReasoning = existing.supportsReasoning === model.supportsReasoning;
 		const sameInputModes =
 			JSON.stringify([...existing.inputModes].toSorted()) ===
 			JSON.stringify([...model.inputModes].toSorted());
@@ -444,11 +431,7 @@ const createProviderHandler = admin
 			});
 		}
 
-		const syncResult = await syncFetchedModelsForProvider(
-			context.db,
-			provider.id,
-			models,
-		);
+		const syncResult = await syncFetchedModelsForProvider(context.db, provider.id, models);
 
 		return {
 			...provider,
@@ -473,8 +456,7 @@ const updateProviderHandler = admin
 		const parsed = updateProviderInput.parse(input);
 		const existing = await getProviderById(context.db, parsed.id);
 
-		const nextProtocol =
-			parsed.protocol ?? (existing.protocol as ProviderProtocol);
+		const nextProtocol = parsed.protocol ?? (existing.protocol as ProviderProtocol);
 		const nextBaseUrl =
 			parsed.baseUrl === undefined
 				? existing.baseUrl
@@ -492,30 +474,20 @@ const updateProviderHandler = admin
 			nextApiKeyEncrypted = await encrypt(parsed.apiKey);
 			nextApiKeyPlain = parsed.apiKey;
 		} else {
-			nextApiKeyPlain = existing.apiKey
-				? await decrypt(existing.apiKey)
-				: undefined;
+			nextApiKeyPlain = existing.apiKey ? await decrypt(existing.apiKey) : undefined;
 		}
 
 		const needsValidation =
-			parsed.protocol !== undefined ||
-			parsed.baseUrl !== undefined ||
-			parsed.apiKey !== undefined;
+			parsed.protocol !== undefined || parsed.baseUrl !== undefined || parsed.apiKey !== undefined;
 
-		let syncResult:
-			| { inserted: number; updated: number; removed: number }
-			| undefined;
+		let syncResult: { inserted: number; updated: number; removed: number } | undefined;
 		if (needsValidation) {
 			const fetchedModels = await fetchProviderModels({
 				apiKey: nextApiKeyPlain,
 				baseUrl: nextBaseUrl,
 				protocol: nextProtocol,
 			});
-			syncResult = await syncFetchedModelsForProvider(
-				context.db,
-				existing.id,
-				fetchedModels,
-			);
+			syncResult = await syncFetchedModelsForProvider(context.db, existing.id, fetchedModels);
 		}
 
 		const [provider] = await context.db
@@ -567,11 +539,7 @@ const refreshProviderModelsHandler = admin
 			baseUrl: provider.baseUrl,
 			protocol: provider.protocol as ProviderProtocol,
 		});
-		const syncResult = await syncFetchedModelsForProvider(
-			context.db,
-			provider.id,
-			models,
-		);
+		const syncResult = await syncFetchedModelsForProvider(context.db, provider.id, models);
 
 		return {
 			models,
@@ -583,9 +551,7 @@ const refreshProviderModelsHandler = admin
 
 const createModelInput = z.object({
 	displayName: z.string().min(1),
-	inputModes: z
-		.array(z.enum(["text", "audio", "file", "image"]))
-		.default(["text"]),
+	inputModes: z.array(z.enum(["text", "audio", "file", "image"])).default(["text"]),
 	modelId: z.string().min(1),
 	providerId: z.string(),
 	supportsReasoning: z.boolean().default(false),
@@ -626,9 +592,7 @@ const updateModelHandler = admin
 			.update(aiModel)
 			.set({
 				displayName: parsed.displayName,
-				inputModes: parsed.inputModes
-					? normalizeInputModes(parsed.inputModes)
-					: undefined,
+				inputModes: parsed.inputModes ? normalizeInputModes(parsed.inputModes) : undefined,
 				modelId: parsed.modelId,
 				supportsReasoning: parsed.supportsReasoning,
 			})
@@ -645,10 +609,7 @@ const updateModelHandler = admin
 const deleteModelHandler = admin
 	.input(type<{ id: string }>())
 	.handler(async ({ input, context }) => {
-		const [model] = await context.db
-			.delete(aiModel)
-			.where(eq(aiModel.id, input.id))
-			.returning();
+		const [model] = await context.db.delete(aiModel).where(eq(aiModel.id, input.id)).returning();
 
 		if (!model) {
 			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
@@ -665,6 +626,7 @@ const getDefaultsHandler = admin.handler(async ({ context }) => {
 	});
 
 	return {
+		defaultEvaluationModel: defaults?.defaultEvaluationModel ?? null,
 		defaultFileImageModelId: defaults?.defaultFileImageModelId ?? null,
 		defaultSpeechToTextModelId: defaults?.defaultSpeechToTextModelId ?? null,
 		defaultTextModelId: defaults?.defaultTextModelId ?? null,
@@ -672,7 +634,7 @@ const getDefaultsHandler = admin.handler(async ({ context }) => {
 });
 
 const setDefaultInput = z.object({
-	defaultType: z.enum(["text", "file-image", "speech-to-text"]),
+	defaultType: z.enum(["text", "file-image", "speech-to-text", "evaluation"]),
 	modelId: z.string().nullable(),
 });
 
@@ -694,6 +656,7 @@ const setDefaultHandler = admin
 		});
 
 		const next = {
+			defaultEvaluationModel: current?.defaultEvaluationModel ?? null,
 			defaultFileImageModelId: current?.defaultFileImageModelId ?? null,
 			defaultSpeechToTextModelId: current?.defaultSpeechToTextModelId ?? null,
 			defaultTextModelId: current?.defaultTextModelId ?? null,
@@ -701,39 +664,45 @@ const setDefaultHandler = admin
 			updatedAt: new Date(),
 		};
 
-			switch (parsed.defaultType) {
-				case "text": {
-					next.defaultTextModelId = parsed.modelId;
-					break;
-				}
+		switch (parsed.defaultType) {
+			case "text": {
+				next.defaultTextModelId = parsed.modelId;
+				break;
+			}
+			case "evaluation": {
+				next.defaultEvaluationModel = parsed.modelId;
+				break;
+			}
 			case "file-image": {
 				next.defaultFileImageModelId = parsed.modelId;
 				break;
 			}
-				case "speech-to-text": {
-					next.defaultSpeechToTextModelId = parsed.modelId;
-					break;
-				}
-				default: {
-					throw new ORPCError("BAD_REQUEST", {
-						message: "Ungültiger Standardtyp",
-					});
-				}
+			case "speech-to-text": {
+				next.defaultSpeechToTextModelId = parsed.modelId;
+				break;
 			}
+			default: {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Ungültiger Standardtyp",
+				});
+			}
+		}
 
-			await (current
-				? context.db
-						.update(aiDefaults)
-						.set({
-							defaultFileImageModelId: next.defaultFileImageModelId,
-							defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
-							defaultTextModelId: next.defaultTextModelId,
-							updatedAt: next.updatedAt,
-						})
-						.where(eq(aiDefaults.id, "global"))
-				: context.db.insert(aiDefaults).values(next));
+		await (current
+			? context.db
+					.update(aiDefaults)
+					.set({
+						defaultEvaluationModel: next.defaultEvaluationModel,
+						defaultFileImageModelId: next.defaultFileImageModelId,
+						defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
+						defaultTextModelId: next.defaultTextModelId,
+						updatedAt: next.updatedAt,
+					})
+					.where(eq(aiDefaults.id, "global"))
+			: context.db.insert(aiDefaults).values(next));
 
 		return {
+			defaultEvaluationModel: next.defaultEvaluationModel,
 			defaultFileImageModelId: next.defaultFileImageModelId,
 			defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
 			defaultTextModelId: next.defaultTextModelId,

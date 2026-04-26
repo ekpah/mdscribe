@@ -64,6 +64,13 @@
 			"when": 1776902400000,
 			"tag": "0008_document_template_legacy_cleanup",
 			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1777061061000,
+			"tag": "0009_default_evaluation_model",
+			"breakpoints": true
 		}
 	]
 }

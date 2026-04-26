@@ -44,6 +44,8 @@ Pruefen Sie das Ergebnis immer fachlich:
 
 Admins koennen unter `/admin/settings/models` im Tab `AI Textbausteine` zusaetzliche AIScribe-Texte anlegen.
 
+Im Tab `Modelle` kann zusaetzlich ein `Standard-Evaluationsmodell` gesetzt werden. Dieses Modell wird fuer die Playground-Bewertung (Score) verwendet.
+
 Die Standardmodi unter `Schnelle Dokument-Generierung` (`/aiscribe/er`, `/aiscribe/icu`, `/aiscribe/outpatient`, `/aiscribe/procedures`, `/aiscribe/discharge`, `/aiscribe/diagnoseblock`) koennen im selben Admin-Tab separat konfiguriert werden. Ohne aktive Override-Konfiguration bleibt das bisherige hardcoded Verhalten unveraendert.
 
 Jeder AI Text kann derzeit festlegen:
@@ -58,6 +60,10 @@ Alle AI Textbausteine verwenden aktuell denselben klinischen Vollkontext mit Not
 Aktivierte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `AI Textbausteine`.
 
 Die konfigurierbaren Standardmodi bleiben weiterhin nur unter ihren festen `/aiscribe/*`-Routen sichtbar und werden nicht im `AI Textbausteine`-Bereich gelistet.
+
+## Kontext & Vorlage
+
+Auf den AIScribe-Seiten zeigt die linke Box `Kontext & Vorlage`, welches Template und welcher Prompt fuer die aktuelle Generierung verwendet werden. Wenn ein echtes Template hinterlegt ist, fuehrt der Template-Link zur normalen Template-Ansicht.
 
 <Callout type="warn" title="Datenschutz">
   Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden. Fuer sensible Daten ist Self-Hosting der empfohlene Weg.

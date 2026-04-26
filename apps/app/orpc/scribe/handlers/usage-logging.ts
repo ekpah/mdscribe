@@ -6,10 +6,8 @@ import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging
 import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-logging";
 import type { ModelConfig } from "@/orpc/scribe/types";
 
-export const redactIfZdrEnabled = (
-	zdrEnabled: boolean,
-	value: string | undefined,
-): string => (zdrEnabled ? "[zdr - content redacted]" : (value ?? ""));
+export const redactIfZdrEnabled = (zdrEnabled: boolean, value: string | undefined): string =>
+	zdrEnabled ? "[zdr - content redacted]" : (value ?? "");
 
 interface ScribeStreamFinishEvent {
 	providerMetadata?: unknown;
@@ -47,42 +45,39 @@ export const scheduleScribeUsageLogging = (input: {
 	thinkingEnabled: boolean;
 	userId: string;
 }): void => {
-	scheduleDeferredTask((async () => {
-		const openRouterUsage = input.isOpenRouter
-			? extractOpenRouterUsage(input.event.providerMetadata)
-			: undefined;
+	scheduleDeferredTask(
+		(async () => {
+			const openRouterUsage = input.isOpenRouter
+				? extractOpenRouterUsage(
+						input.event.providerMetadata as Record<string, unknown> | undefined,
+					)
+				: undefined;
 
-		await input.db.insert(usageEvent).values(
-			buildUsageEventData({
-				inputData: input.activeSubscription
-					? undefined
-					: (input.inputData as UsageInputData),
-				metadata: {
-					endpoint: input.endpoint,
-					modelConfig: {
-						maxTokens: input.modelConfig.maxTokens,
-						temperature: input.modelConfig.temperature,
-					},
-					promptName: input.promptName,
-					promptSource: "local",
-					streamingMode: true,
-					thinkingBudget: input.thinkingEnabled
-						? input.modelConfig.thinkingBudget
-						: undefined,
-					thinkingEnabled: input.thinkingEnabled,
-					zdrEnabled: input.activeSubscription,
-				} as UsageMetadata,
-				model: input.modelName,
-				name: "ai_scribe_generation",
-				openRouterUsage,
-				reasoning: redactIfZdrEnabled(
-					input.activeSubscription,
-					input.event.reasoningText,
-				),
-				result: redactIfZdrEnabled(input.activeSubscription, input.event.text),
-				standardUsage: input.event.usage as StandardUsage,
-				userId: input.userId,
-			}),
-		);
-	})());
+			await input.db.insert(usageEvent).values(
+				buildUsageEventData({
+					inputData: input.activeSubscription ? undefined : (input.inputData as UsageInputData),
+					metadata: {
+						endpoint: input.endpoint,
+						modelConfig: {
+							maxTokens: input.modelConfig.maxTokens,
+							temperature: input.modelConfig.temperature,
+						},
+						promptName: input.promptName,
+						promptSource: "local",
+						streamingMode: true,
+						thinkingBudget: input.thinkingEnabled ? input.modelConfig.thinkingBudget : undefined,
+						thinkingEnabled: input.thinkingEnabled,
+						zdrEnabled: input.activeSubscription,
+					} as UsageMetadata,
+					model: input.modelName,
+					name: "ai_scribe_generation",
+					openRouterUsage,
+					reasoning: redactIfZdrEnabled(input.activeSubscription, input.event.reasoningText),
+					result: redactIfZdrEnabled(input.activeSubscription, input.event.text),
+					standardUsage: input.event.usage as StandardUsage,
+					userId: input.userId,
+				}),
+			);
+		})(),
+	);
 };

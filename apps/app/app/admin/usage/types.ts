@@ -24,3 +24,14 @@ export interface UsageDetailEvent extends UsageListEvent {
 	reasoningTokens: number | null;
 	result: string | null;
 }
+
+export interface UsageEvaluation {
+	categories: {
+		comment?: string;
+		name: string;
+		score: number;
+	}[];
+	evaluatedAt: string;
+	summary: string;
+	totalScore: number;
+}

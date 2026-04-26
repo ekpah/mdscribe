@@ -2,7 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import Inputs from "@repo/design-system/components/inputs/inputs";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
@@ -20,10 +19,10 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@repo/design-system/components/ui/tabs";
-import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import { FileText, Loader2 } from 'lucide-react';
+import { ExternalLink, FileText, Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
@@ -44,11 +43,21 @@ export interface AdditionalInputField {
 	description?: string;
 }
 
+export interface AiscribeContextMetadata {
+	author: "MDScribe-Standard";
+	harnessTitle: string;
+	template: {
+		href?: string;
+		title: string;
+	};
+}
+
 interface AiscribeTemplateBaseConfig {
 	// Page identity
 	title: string;
 	description: string;
 	icon: LucideIcon;
+	contextMetadata: AiscribeContextMetadata;
 
 	// Tab configuration
 	inputTabTitle: string;
@@ -120,13 +129,26 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
 	return encodeUint8ArrayToBase64(bytes);
 };
 
+const ContextMetadataRow = ({
+	children,
+	label,
+}: {
+	children: ReactNode;
+	label: string;
+}) => (
+	<div className="grid gap-1">
+		<div className="font-medium text-muted-foreground text-xs">{label}</div>
+		<div className="text-sm text-foreground">{children}</div>
+	</div>
+);
+
 export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	const [activeTab, setActiveTab] = useState("input");
 	const [inputData, setInputData] = useState("");
 	const [additionalInputData, setAdditionalInputData] = useState<
 		Record<string, string>
 	>({});
-	const [values, setValues] = useState<Record<string, unknown>>({});
+	const values = useMemo<Record<string, unknown>>(() => ({}), []);
 	const [isRecording, setIsRecording] = useState(false);
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
 	// Use ref for audio files to avoid race condition between setState and sendMessage
@@ -207,11 +229,6 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 
 	// Loading state from useChat status
 	const isLoading = status === "streaming" || status === "submitted";
-
-	// PERF: Use useCallback for stable callback reference
-	const handleValuesChange = useCallback((data: Record<string, unknown>) => {
-		setValues(data);
-	}, []);
 
 	const maxRecordings = 3;
 	const canRecord = audioRecordings.length < maxRecordings;
@@ -489,7 +506,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 				</div>
 
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-5 xl:grid-cols-6">
-					{/* Patient Info Card */}
+					{/* Context Metadata Card */}
 					<div className="lg:col-span-2 xl:col-span-2">
 						<Card className="h-fit border-solarized-blue/20 shadow-lg">
 							<CardHeader className="bg-gradient-to-r from-solarized-blue/5 to-solarized-green/5">
@@ -497,40 +514,46 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 									<div className="flex items-center gap-2">
 										<div className="h-2 w-2 rounded-full bg-solarized-blue" />
 										<CardTitle className="text-base text-foreground">
-											Patienteninformationen
+											Kontext & Vorlage
 										</CardTitle>
 									</div>
 								</div>
 							</CardHeader>
 							<CardContent className="space-y-6 p-6">
-								{/* Auto-extracted information and Input Fields */}
-								<div className="pt-6">
-									{/* Input Fields from Markdoc */}
-									{completion && (
-										<div className="space-y-3">
-											<Inputs
-												inputTags={parseMarkdocToInputs(completion || "")}
-												onChange={handleValuesChange}
-											/>
-										</div>
-									)}
-
-									{(!completion ||
-										parseMarkdocToInputs(completion).length === 0) && (
-										<div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4 text-center">
-											<p className="text-muted-foreground text-xs leading-relaxed">
-												Notwendige Informationen werden automatisch aus den
-												Eingaben extrahiert
-											</p>
-										</div>
-									)}
+								<div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4">
+									<div className="space-y-5">
+										<ContextMetadataRow label="Template">
+											{config.contextMetadata.template.href ? (
+												<Link
+													className="inline-flex items-center gap-1 font-medium text-solarized-blue transition hover:text-solarized-blue/80"
+													href={config.contextMetadata.template.href}
+													rel="noreferrer"
+													target="_blank"
+												>
+													<span className="break-words">
+														{config.contextMetadata.template.title}
+													</span>
+													<ExternalLink className="h-3.5 w-3.5 shrink-0" />
+												</Link>
+											) : (
+												<span className="break-words">
+													{config.contextMetadata.template.title}
+												</span>
+											)}
+										</ContextMetadataRow>
+										<ContextMetadataRow label="Prompt">
+											{config.contextMetadata.harnessTitle}
+										</ContextMetadataRow>
+										<ContextMetadataRow label="Autor">
+											{config.contextMetadata.author}
+										</ContextMetadataRow>
+									</div>
 								</div>
 
-								{/* Privacy notice */}
 								<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
 									<p className="text-solarized-green leading-relaxed">
-										🔒 Alle Daten in dieser Box werden nur lokal gespeichert und
-										niemals an Server übertragen
+										Diese Angaben zeigen, welche Vorlage und welcher
+										Prompt für die aktuelle Generierung verwendet werden.
 									</p>
 								</div>
 							</CardContent>

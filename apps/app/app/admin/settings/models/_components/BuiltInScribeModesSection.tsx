@@ -32,6 +32,7 @@ import { ExternalLinkIcon, Info, Loader2, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+
 import type { BuiltInAiscribeOverrideKey } from "@/lib/aiscribe-built-ins";
 import { orpc } from "@/lib/orpc";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
@@ -170,7 +171,8 @@ export const BuiltInScribeModesSection = () => {
 				enabled,
 				key: form.key,
 				modelId: form.override?.modelId ?? null,
-				promptHarness: (form.override?.promptHarness ?? form.defaultPromptHarness) as PromptHarnessId,
+				promptHarness: (form.override?.promptHarness ??
+					form.defaultPromptHarness) as PromptHarnessId,
 				templateId: form.override?.templateId ?? null,
 			}),
 		onError: (error) => {
@@ -257,7 +259,7 @@ export const BuiltInScribeModesSection = () => {
 
 	const draftPromptHarness = draft?.promptHarness;
 	const hasUnavailableDraftPrompt =
-		Boolean(draftPromptHarness) && !availablePromptNames.has(draftPromptHarness);
+		draftPromptHarness !== undefined && !availablePromptNames.has(draftPromptHarness);
 
 	if (isBuiltInFormsLoading) {
 		return (
@@ -494,9 +496,7 @@ export const BuiltInScribeModesSection = () => {
 							onClick={handleSaveDraft}
 							disabled={saveMutation.isPending || !draft?.promptHarness}
 						>
-							{saveMutation.isPending ? (
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							) : null}
+							{saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
 							Speichern
 						</Button>
 					</DialogFooter>

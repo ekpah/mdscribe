@@ -2,14 +2,14 @@
 
 /**
  * CreateDocumentSection - Document Creation with Field Mapping Editor
- * 
+ *
  * This component provides an interface for creating documents by:
  * 1. Uploading PDF forms with fillable fields
  * 2. Editing field mappings (fieldName, label, description, types)
  * 3. Reordering fields via drag-and-drop
  * 4. AI-enhanced field mapping suggestions
  * 5. Real-time PDF preview
- * 
+ *
  * The InputEditor (left panel) shows editable field mappings where users can:
  * - Change field names (keys)
  * - Edit labels (display names)
@@ -17,25 +17,23 @@
  * - Select Markdoc type (Info or Switch)
  * - Select PDF field type (text, multiline, dropdown, checkbox, radio)
  * - Reorder fields by dragging
- * 
+ *
  * The right panel displays the uploaded PDF and filled PDF preview.
  */
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
-import { useCallback, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
+
 import PDFDebugPanel from "@/app/admin/documents-playground/_components/pdf-debug-panel";
-import {
-	encodeUint8ArrayToBase64,
-	fillPDFForm,
-	parsePDFFormFields,
-} from "@/app/documents/_lib";
-import type { DocumentFieldDefinition, DocumentPdfType } from "@/app/documents/_lib";
 import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
-import { PDFViewSection } from "@/app/documents/_components/pdf-view-section";
+import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
+import { encodeUint8ArrayToBase64, fillPDFForm, parsePDFFormFields } from "@/app/documents/_lib";
+import type { DocumentFieldDefinition, DocumentPdfType } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
+
 import InputEditor from "./input-editor";
 
 export interface EnhancedFieldMapping {
@@ -45,6 +43,16 @@ export interface EnhancedFieldMapping {
 	markdocType: "Info" | "Switch";
 	pdfType: DocumentPdfType;
 }
+
+type AiFieldMapping = {
+	description: string;
+	fieldName: string;
+	label: string;
+};
+
+type ParseFormResult = {
+	fieldMapping: AiFieldMapping[];
+};
 
 const determineMarkdocType = (pdfType: DocumentPdfType): "Info" | "Switch" => {
 	// Checkbox, dropdown, and radio become Switch
@@ -56,7 +64,7 @@ const determineMarkdocType = (pdfType: DocumentPdfType): "Info" | "Switch" => {
 };
 
 const buildEnhancedMapping = (
-	aiMapping: { description: string; fieldName: string; label: string },
+	aiMapping: AiFieldMapping,
 	existingMappings: EnhancedFieldMapping[],
 ): EnhancedFieldMapping => {
 	const existing = existingMappings.find(
@@ -94,16 +102,15 @@ export default function CreateDocumentSection() {
 		orpc.documents.parseForm.mutationOptions({
 			onError: (error) => {
 				const errorMessage =
-					error instanceof Error
-						? error.message
-						: "Unbekannter Fehler aufgetreten";
+					error instanceof Error ? error.message : "Unbekannter Fehler aufgetreten";
 				toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
 					id: "enhance-ai",
 				});
 			},
 			onSuccess: (data) => {
+				const parsedData = data as ParseFormResult;
 				setFieldMappings(
-					data.fieldMapping.map((aiMapping) =>
+					parsedData.fieldMapping.map((aiMapping) =>
 						buildEnhancedMapping(aiMapping, fieldMappings),
 					),
 				);
@@ -170,33 +177,26 @@ export default function CreateDocumentSection() {
 			id: "enhance-ai",
 		});
 
-			enhanceMutation.mutate({
-				fieldMapping: fieldMappings.map((fieldMapping) => ({
-					description: fieldMapping.description,
-					fieldName: fieldMapping.fieldName,
-					label: fieldMapping.label,
-					pdfType: fieldMapping.pdfType,
-				})),
-				fileBase64: encodeUint8ArrayToBase64(pdfFile),
-			});
+		enhanceMutation.mutate({
+			fieldMapping: fieldMappings.map((fieldMapping) => ({
+				description: fieldMapping.description,
+				fieldName: fieldMapping.fieldName,
+				label: fieldMapping.label,
+				pdfType: fieldMapping.pdfType,
+			})),
+			fileBase64: encodeUint8ArrayToBase64(pdfFile),
+		});
 	}, [enhanceMutation, fieldMappings, pdfFile]);
 
 	return (
 		<>
 			<Card className="grid h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] grid-cols-3 gap-4 overflow-hidden">
-				<div
-					className="hidden overflow-y-auto overscroll-none p-4 md:block"
-					key="InputEditor"
-				>
+				<div className="hidden overflow-y-auto overscroll-none p-4 md:block" key="InputEditor">
 					<div className="mb-4 flex flex-col gap-2">
 						<Button onClick={handleFillPdf} disabled={!pdfFile}>
 							PDF ausfüllen
 						</Button>
-						<Button
-							onClick={handleEnhanceWithAI}
-							disabled={!pdfFile}
-							variant="outline"
-						>
+						<Button onClick={handleEnhanceWithAI} disabled={!pdfFile} variant="outline">
 							Eingaben mit KI verbessern
 						</Button>
 					</div>
@@ -216,10 +216,7 @@ export default function CreateDocumentSection() {
 						pdfFileName={pdfFileName}
 					/>
 					<div className="mt-4 flex-1">
-						<PDFViewSection
-							pdfFile={filledPdf ?? pdfFile}
-							hasUploadedFile={Boolean(pdfFile)}
-						/>
+						<PDFViewSection pdfFile={filledPdf ?? pdfFile} hasUploadedFile={Boolean(pdfFile)} />
 					</div>
 				</div>
 			</Card>

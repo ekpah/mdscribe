@@ -1,14 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq } from "@repo/database";
-import { providersHandler } from "@/orpc/admin/providers";
-import {
-	ADMIN_EMAIL,
-	createTestContext,
-	createTestUser,
-	startTestServer,
-} from "@/__tests__/setup";
+
+import { ADMIN_EMAIL, createTestContext, createTestUser, startTestServer } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
+import { providersHandler } from "@/orpc/admin/providers";
 
 describe("Admin Providers Handler", () => {
 	let server: TestServer;
@@ -97,9 +94,7 @@ describe("Admin Providers Handler", () => {
 		});
 		expect(models).toHaveLength(2);
 
-		const claude = models.find(
-			(model) => model.modelId === "anthropic/claude-3.7-sonnet",
-		);
+		const claude = models.find((model) => model.modelId === "anthropic/claude-3.7-sonnet");
 		expect(claude?.supportsReasoning).toBe(true);
 		expect(claude?.inputModes).toEqual(["text", "image", "file"]);
 
@@ -139,14 +134,8 @@ describe("Admin Providers Handler", () => {
 		expect(model).toBeDefined();
 		expect(model?.inputModes).toEqual(["text", "image", "file", "audio"]);
 
-		const listedProviders = await call(
-			providersHandler.connections.list,
-			undefined,
-			{ context },
-		);
-		const listedModel = listedProviders
-			.find((provider) => provider.id === created.id)
-			?.models[0];
+		const listedProviders = await call(providersHandler.connections.list, undefined, { context });
+		const listedModel = listedProviders.find((provider) => provider.id === created.id)?.models[0];
 		expect(listedModel?.inputModes).toEqual(["text", "image", "file", "audio"]);
 	});
 
@@ -223,20 +212,14 @@ describe("Admin Providers Handler", () => {
 			where: eq(aiModel.providerId, created.id),
 		});
 		expect(models).toHaveLength(2);
-		expect(
-			models.some((model) => model.modelId === "openai/gpt-4.1-mini"),
-		).toBe(false);
+		expect(models.some((model) => model.modelId === "openai/gpt-4.1-mini")).toBe(false);
 
-		const updated = models.find(
-			(model) => model.modelId === "openai/gpt-4o-mini",
-		);
+		const updated = models.find((model) => model.modelId === "openai/gpt-4o-mini");
 		expect(updated?.displayName).toBe("GPT-4o mini (updated)");
 		expect(updated?.supportsReasoning).toBe(true);
 		expect(updated?.inputModes).toEqual(["text", "image", "file"]);
 
-		const inserted = models.find(
-			(model) => model.modelId === "anthropic/claude-3.7-sonnet",
-		);
+		const inserted = models.find((model) => model.modelId === "anthropic/claude-3.7-sonnet");
 		expect(inserted).toBeDefined();
 	});
 
@@ -300,6 +283,15 @@ describe("Admin Providers Handler", () => {
 		await call(
 			providersHandler.defaults.set,
 			{
+				defaultType: "evaluation",
+				modelId: model.id,
+			},
+			{ context },
+		);
+
+		await call(
+			providersHandler.defaults.set,
+			{
 				defaultType: "text",
 				modelId: model.id,
 			},
@@ -328,6 +320,7 @@ describe("Admin Providers Handler", () => {
 		const defaults = await server.db.query.aiDefaults.findFirst({
 			where: eq(aiDefaults.id, "global"),
 		});
+		expect(defaults?.defaultEvaluationModel).toBeNull();
 		expect(defaults?.defaultTextModelId).toBeNull();
 	});
 });

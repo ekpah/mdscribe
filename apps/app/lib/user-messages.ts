@@ -16,6 +16,8 @@ export const USER_MESSAGES = {
 	unauthorized: "Bitte melden Sie sich an, um diese Funktion zu nutzen.",
 	unknownError:
 		"Es ist ein unbekannter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
+	evaluationFailed:
+		"Die Bewertung konnte nicht erzeugt werden. Bitte versuchen Sie es später erneut.",
 	usageLimitReached:
 		"Monatliche Nutzungsgrenze erreicht. Bitte passen Sie Ihr Abonnement an.",
 };

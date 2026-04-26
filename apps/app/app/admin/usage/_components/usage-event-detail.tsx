@@ -8,15 +8,18 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, Loader2, Medal } from "lucide-react";
 import Link from "next/link";
-import type { DocumentType } from "@/orpc/scribe/types";
+
+import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import {
 	allScribeDocTypes,
 	isScribeDocType,
 	scribeDocTypeUi,
 } from "@/app/admin/playground/_lib/scribe-doc-types";
+import { formatScore, getUsageEvaluation } from "@/app/admin/usage/columns";
 import type { UsageDetailEvent } from "@/app/admin/usage/types";
+import type { DocumentType } from "@/orpc/scribe/types";
 
 const promptNameToDocumentType = new Map(
 	allScribeDocTypes.map((documentType) => [
@@ -25,17 +28,17 @@ const promptNameToDocumentType = new Map(
 	]),
 );
 
-const inferDocumentType = (
-	metadata: Record<string, unknown> | null,
-): DocumentType | undefined => {
-	if (!metadata) {return undefined;}
+const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
+	if (!metadata) {
+		return undefined;
+	}
 
-	const {endpoint} = metadata;
+	const { endpoint } = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
 		return isScribeDocType(endpoint) ? endpoint : undefined;
 	}
 
-	const {promptName} = metadata;
+	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
 		return promptNameToDocumentType.get(promptName);
 	}
@@ -62,9 +65,7 @@ const buildPlaygroundUrl = (event: UsageDetailEvent): string => {
 
 	// Extract parameters from metadata
 	if (metadata) {
-		const modelConfig = metadata.modelConfig as
-			| Record<string, unknown>
-			| undefined;
+		const modelConfig = metadata.modelConfig as Record<string, unknown> | undefined;
 		if (modelConfig?.temperature !== undefined) {
 			params.set("temperature", String(modelConfig.temperature));
 		}
@@ -84,18 +85,20 @@ const buildPlaygroundUrl = (event: UsageDetailEvent): string => {
 
 interface UsageEventDetailProps {
 	event: UsageDetailEvent | null | undefined;
+	isEvaluating?: boolean;
+	onEvaluate?: (id: string) => void;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }
 
 const StatBox = ({ label, value }: { label: string; value: number | null }) => (
-		<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-2">
-			<p className="text-xs text-solarized-base01">{label}</p>
-			<p className="font-mono text-sm text-solarized-base00">
-				{value?.toLocaleString("de-DE") ?? "-"}
-			</p>
-		</div>
-	);
+	<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-2">
+		<p className="text-xs text-solarized-base01">{label}</p>
+		<p className="font-mono text-sm text-solarized-base00">
+			{value?.toLocaleString("de-DE") ?? "-"}
+		</p>
+	</div>
+);
 
 const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
@@ -111,12 +114,18 @@ const formatDate = (date: Date | string) => {
 
 export const UsageEventDetail = ({
 	event,
+	isEvaluating = false,
+	onEvaluate,
 	open,
 	onOpenChange,
 }: UsageEventDetailProps) => {
-	if (!event) {return null;}
+	if (!event) {
+		return null;
+	}
 
 	const cost = event.cost ? Number(event.cost) : null;
+	const evaluation = getUsageEvaluation(event.metadata);
+	const canEvaluate = Boolean(onEvaluate && event.result && !isEvaluating);
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
@@ -150,9 +159,7 @@ export const UsageEventDetail = ({
 									<p className="font-medium text-solarized-base00">
 										{event.user.name || "Kein Name"}
 									</p>
-									<p className="text-sm text-solarized-base01">
-										{event.user.email}
-									</p>
+									<p className="text-sm text-solarized-base01">{event.user.email}</p>
 								</>
 							) : (
 								<p className="text-solarized-base01">Unbekannter Benutzer</p>
@@ -162,15 +169,11 @@ export const UsageEventDetail = ({
 
 					{/* Action & Model Section */}
 					<section>
-						<h3 className="mb-2 font-medium text-solarized-base00">
-							Aktion & Modell
-						</h3>
+						<h3 className="mb-2 font-medium text-solarized-base00">Aktion & Modell</h3>
 						<div className="space-y-2 rounded-lg border border-solarized-base2 p-3">
 							<div className="flex justify-between">
 								<span className="text-solarized-base01">Aktion</span>
-								<span className="font-mono text-sm text-solarized-base00">
-									{event.name}
-								</span>
+								<span className="font-mono text-sm text-solarized-base00">{event.name}</span>
 							</div>
 							<div className="flex justify-between">
 								<span className="text-solarized-base01">Modell</span>
@@ -184,14 +187,50 @@ export const UsageEventDetail = ({
 									{cost === null ? "-" : `$${cost.toFixed(6)}`}
 								</span>
 							</div>
+							<div className="flex items-center justify-between">
+								<span className="text-solarized-base01">Score</span>
+								{evaluation ? (
+									<EvaluationDetailsDialog
+										canRegenerate={canEvaluate}
+										evaluation={evaluation}
+										isRegenerating={isEvaluating}
+										onRegenerate={() => onEvaluate?.(event.id)}
+										trigger={
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="h-7 gap-1 px-2 font-mono text-sm text-solarized-base00"
+											>
+												<Medal className="h-3.5 w-3.5 text-solarized-yellow" />
+												{formatScore(evaluation.totalScore)}
+											</Button>
+										}
+									/>
+								) : (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										disabled={!canEvaluate}
+										onClick={() => onEvaluate?.(event.id)}
+										className="h-7 gap-1 px-2 font-mono text-sm text-solarized-base00"
+									>
+										{isEvaluating ? (
+											<Loader2 className="h-3.5 w-3.5 animate-spin text-solarized-orange" />
+										) : (
+											<Medal className="h-3.5 w-3.5 text-solarized-yellow" />
+										)}
+										{isEvaluating ? "..." : formatScore(undefined)}
+									</Button>
+								)}
+							</div>
 						</div>
 					</section>
 
 					{/* Token Usage Section */}
 					<section>
-						<h3 className="mb-2 font-medium text-solarized-base00">
-							Token-Nutzung
-						</h3>
+						<h3 className="mb-2 font-medium text-solarized-base00">Token-Nutzung</h3>
 						<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
 							<StatBox label="Input" value={event.inputTokens} />
 							<StatBox label="Output" value={event.outputTokens} />
@@ -204,9 +243,7 @@ export const UsageEventDetail = ({
 					{/* Input Data Section (JSON) */}
 					{event.inputData !== null && event.inputData !== undefined && (
 						<section>
-							<h3 className="mb-2 font-medium text-solarized-base00">
-								Eingabedaten
-							</h3>
+							<h3 className="mb-2 font-medium text-solarized-base00">Eingabedaten</h3>
 							<div className="max-h-48 overflow-auto rounded-lg border border-solarized-base2 bg-solarized-base3">
 								<pre className="whitespace-pre-wrap p-3 font-mono text-xs">
 									{JSON.stringify(event.inputData, null, 2)}
@@ -218,9 +255,7 @@ export const UsageEventDetail = ({
 					{/* Metadata Section (JSON) */}
 					{event.metadata !== null && event.metadata !== undefined && (
 						<section>
-							<h3 className="mb-2 font-medium text-solarized-base00">
-								Metadaten
-							</h3>
+							<h3 className="mb-2 font-medium text-solarized-base00">Metadaten</h3>
 							<div className="max-h-32 overflow-auto rounded-lg border border-solarized-base2 bg-solarized-base3">
 								<pre className="whitespace-pre-wrap p-3 font-mono text-xs">
 									{JSON.stringify(event.metadata, null, 2)}
@@ -232,13 +267,9 @@ export const UsageEventDetail = ({
 					{/* Result Section (Text) */}
 					{event.result && (
 						<section>
-							<h3 className="mb-2 font-medium text-solarized-base00">
-								Ergebnis
-							</h3>
+							<h3 className="mb-2 font-medium text-solarized-base00">Ergebnis</h3>
 							<div className="max-h-48 overflow-auto rounded-lg border border-solarized-base2 bg-solarized-base3">
-								<div className="whitespace-pre-wrap p-3 text-sm">
-									{event.result}
-								</div>
+								<div className="whitespace-pre-wrap p-3 text-sm">{event.result}</div>
 							</div>
 						</section>
 					)}
@@ -246,9 +277,7 @@ export const UsageEventDetail = ({
 					{/* Reasoning Section (Text) */}
 					{event.reasoning && (
 						<section>
-							<h3 className="mb-2 font-medium text-solarized-base00">
-								Reasoning
-							</h3>
+							<h3 className="mb-2 font-medium text-solarized-base00">Reasoning</h3>
 							<div className="max-h-48 overflow-auto rounded-lg border border-solarized-base2 bg-solarized-base3">
 								<div className="whitespace-pre-wrap p-3 text-sm italic text-solarized-base01">
 									{event.reasoning}

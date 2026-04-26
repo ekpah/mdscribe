@@ -42,7 +42,7 @@ interface ModelOption {
 	keywords: string[];
 }
 
-type DefaultType = "text" | "file-image" | "speech-to-text";
+type DefaultType = "text" | "file-image" | "speech-to-text" | "evaluation";
 
 const NONE_VALUE = "__none__";
 
@@ -132,6 +132,13 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 		[handleDefaultModelChange],
 	);
 
+	const handleEvaluationModelChange = useCallback(
+		(value: string) => {
+			handleDefaultModelChange("evaluation", value);
+		},
+		[handleDefaultModelChange],
+	);
+
 	return (
 		<div className="space-y-4">
 			<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
@@ -147,7 +154,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 						Standardtyp zu.
 					</CardDescription>
 				</CardHeader>
-				<CardContent className="grid gap-4 p-4 pt-0 sm:p-6 sm:pt-0 md:grid-cols-3">
+				<CardContent className="grid gap-4 p-4 pt-0 sm:p-6 sm:pt-0 md:grid-cols-2 xl:grid-cols-4">
 					<div className="space-y-2">
 						<Label htmlFor="default-text-model">Standard-Textmodell</Label>
 						<ModelSelector
@@ -199,12 +206,31 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 							)}
 						/>
 					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="default-evaluation-model">
+							Standard-Evaluationsmodell
+						</Label>
+						<ModelSelector
+							className="border-solarized-base2 bg-solarized-base3"
+							disabled={isUpdatingDefaults}
+							id="default-evaluation-model"
+							onValueChange={handleEvaluationModelChange}
+							options={selectorOptions}
+							placeholder="Evaluationsmodell auswählen"
+							value={getSafeSelectValue(
+								defaults?.defaultEvaluationModel,
+								enabledModelOptions,
+							)}
+						/>
+					</div>
 				</CardContent>
 				<CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
 					<div className="rounded-md border border-solarized-base2/80 bg-solarized-base2/20 p-3 text-solarized-base01 text-xs">
 						<div>Text: Modell muss Text-Generierung unterstützen.</div>
 						<div>File/Image: Modell muss Datei- oder Bild-Eingaben (z.B. PDF/OCR) verstehen.</div>
 						<div>Spracherkennung: Modell muss Audio-Eingaben unterstützen; bei llama.cpp ggf. mit `mmproj` starten.</div>
+						<div>Evaluation: Modell wird fuer Playground-Bewertung (Score) genutzt.</div>
 					</div>
 				</CardContent>
 			</Card>

@@ -34,6 +34,8 @@ import type { ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
+import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
+import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	buildDefaultFieldDefinitionsFromPdfFields,
 	decodeBase64ToUint8Array,
@@ -41,16 +43,9 @@ import {
 	parsePDFFormFields,
 } from "@/app/documents/_lib";
 import type { DocumentFieldDefinition } from "@/app/documents/_lib";
-import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
-import { PDFViewSection } from "@/app/documents/_components/pdf-view-section";
 import { orpc } from "@/lib/orpc";
 
-const FALLBACK_CATEGORIES = [
-	"Kardiologie",
-	"Gastroenterologie",
-	"Diverses",
-	"Onkologie",
-] as const;
+const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
 
 const optionsToInputValue = (options: string[]): string => options.join(", ");
 
@@ -166,14 +161,17 @@ const FieldDefinitionCard = memo(
 		onUpdate,
 	}: FieldDefinitionCardProps) => {
 		const canAcceptDrop =
-			activeDragFieldPdfType === null ||
-			activeDragFieldPdfType === fieldDefinition.pdfType;
+			activeDragFieldPdfType === null || activeDragFieldPdfType === fieldDefinition.pdfType;
 
-		const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } =
-			useDraggable({
-				data: { index, pdfType: fieldDefinition.pdfType },
-				id: fieldSlotId,
-			});
+		const {
+			attributes,
+			listeners,
+			setNodeRef: setDraggableRef,
+			isDragging,
+		} = useDraggable({
+			data: { index, pdfType: fieldDefinition.pdfType },
+			id: fieldSlotId,
+		});
 		const { isOver, setNodeRef: setDroppableRef } = useDroppable({
 			data: { index, pdfType: fieldDefinition.pdfType },
 			disabled: !canAcceptDrop,
@@ -217,9 +215,7 @@ const FieldDefinitionCard = memo(
 		);
 
 		const isDropzoneActive =
-			Boolean(activeDragFieldSlotId) &&
-			activeDragFieldSlotId !== fieldSlotId &&
-			canAcceptDrop;
+			Boolean(activeDragFieldSlotId) && activeDragFieldSlotId !== fieldSlotId && canAcceptDrop;
 
 		return (
 			<Card className="group p-1.5 transition-[box-shadow,opacity] duration-150">
@@ -243,8 +239,7 @@ const FieldDefinitionCard = memo(
 								</div>
 							</div>
 						</div>
-						{fieldDefinition.pdfType !== "checkbox" &&
-						fieldDefinition.options.length > 0 ? (
+						{fieldDefinition.pdfType !== "checkbox" && fieldDefinition.options.length > 0 ? (
 							<div className="max-h-0 overflow-hidden opacity-0 transition-all duration-150 group-hover:max-h-20 group-hover:opacity-100">
 								<div className="space-y-0.5">
 									<Label className="text-[11px]">Optionen</Label>
@@ -262,9 +257,7 @@ const FieldDefinitionCard = memo(
 						className={cn(
 							"rounded-md bg-muted/40 p-2 transition-[box-shadow,opacity] duration-150",
 							isDragging ? "opacity-35" : "",
-							Boolean(activeDragFieldSlotId) && !canAcceptDrop
-								? "opacity-60"
-								: "",
+							Boolean(activeDragFieldSlotId) && !canAcceptDrop ? "opacity-60" : "",
 							isDropzoneActive ? "ring-1 ring-dashed ring-muted-foreground/30" : "",
 							isOver ? "ring-2 ring-solarized-orange/60" : "",
 						)}
@@ -283,22 +276,25 @@ const FieldDefinitionCard = memo(
 								</button>
 								<div className="flex items-center gap-1.5">
 									<span className="text-muted-foreground text-xs">Aktiv</span>
-									<Switch checked={fieldDefinition.isEnabled} onCheckedChange={handleEnabledChange} />
+									<Switch
+										checked={fieldDefinition.isEnabled}
+										onCheckedChange={handleEnabledChange}
+									/>
 								</div>
 							</div>
 
 							<div className="grid grid-cols-[minmax(0,1fr)_minmax(96px,132px)] items-end gap-1.5">
 								<div className="space-y-0.5">
 									<Label className="text-[11px]">Label</Label>
-									<Input className="h-7" onChange={handleLabelChange} value={fieldDefinition.label} />
+									<Input
+										className="h-7"
+										onChange={handleLabelChange}
+										value={fieldDefinition.label}
+									/>
 								</div>
 								<div className="space-y-0.5">
 									<Label className="text-[11px]">Eingabe-Typ</Label>
-									<Input
-										className="h-7 text-xs"
-										disabled
-										value={fieldDefinition.markdocType}
-									/>
+									<Input className="h-7 text-xs" disabled value={fieldDefinition.markdocType} />
 								</div>
 							</div>
 
@@ -404,10 +400,7 @@ const DocumentPreviewPane = memo(
 				/>
 			</div>
 			<div className="mt-4 min-h-0 flex-1 overflow-hidden">
-				<PDFViewSection
-					hasUploadedFile={Boolean(pdfFileBytes)}
-					pdfFile={pdfFileBytes}
-				/>
+				<PDFViewSection hasUploadedFile={Boolean(pdfFileBytes)} pdfFile={pdfFileBytes} />
 			</div>
 		</div>
 	),
@@ -434,15 +427,11 @@ export default function DocumentEditor({
 	const [pdfFileBytes, setPdfFileBytes] = useState<Uint8Array | null>(null);
 	const [pdfFileName, setPdfFileName] = useState("document.pdf");
 	const [isPdfReplaced, setIsPdfReplaced] = useState(false);
-	const [fieldDefinitions, setFieldDefinitions] = useState<DocumentFieldDefinition[]>(
-		[],
-	);
+	const [fieldDefinitions, setFieldDefinitions] = useState<DocumentFieldDefinition[]>([]);
 	const [activeDragFieldSlotId, setActiveDragFieldSlotId] = useState<string | null>(null);
 	const [isDragOverlayReady, setIsDragOverlayReady] = useState(false);
 
-	const { data: editorContext } = useQuery(
-		orpc.documents.templates.editorContext.queryOptions(),
-	);
+	const { data: editorContext } = useQuery(orpc.documents.templates.editorContext.queryOptions());
 	const { data: sourceDocument } = useQuery({
 		...orpc.documents.templates.get.queryOptions(
 			sourceDocumentId ? { input: { id: sourceDocumentId } } : { input: { id: "" } },
@@ -464,9 +453,7 @@ export default function DocumentEditor({
 		setTitle(sourceDocument.title);
 		setCategory(sourceDocument.category);
 		if (Array.isArray(sourceDocument.fieldDefinitions)) {
-			setFieldDefinitions(
-				sourceDocument.fieldDefinitions as DocumentFieldDefinition[],
-			);
+			setFieldDefinitions(sourceDocument.fieldDefinitions as DocumentFieldDefinition[]);
 		}
 		initializedRef.current = true;
 	}, [sourceDocument]);
@@ -589,15 +576,15 @@ export default function DocumentEditor({
 
 		toast.loading("Eingaben werden mit KI verbessert...", { id: "enhance-ai" });
 		try {
-				const result = (await enhanceMutation.mutateAsync({
-					fieldMapping: fieldDefinitions.map((fieldDefinition) => ({
-						description: fieldDefinition.description,
-						fieldName: fieldDefinition.fieldName,
-						label: fieldDefinition.label,
-						pdfType: fieldDefinition.pdfType,
-					})),
-					fileBase64: encodeUint8ArrayToBase64(pdfFileBytes),
-				})) as ParsedFieldMappingResult;
+			const result = (await enhanceMutation.mutateAsync({
+				fieldMapping: fieldDefinitions.map((fieldDefinition) => ({
+					description: fieldDefinition.description,
+					fieldName: fieldDefinition.fieldName,
+					label: fieldDefinition.label,
+					pdfType: fieldDefinition.pdfType,
+				})),
+				fileBase64: encodeUint8ArrayToBase64(pdfFileBytes),
+			})) as ParsedFieldMappingResult;
 
 			const aiByFieldName = new Map(
 				result.fieldMapping.map((fieldMapping) => [fieldMapping.fieldName, fieldMapping]),
@@ -645,8 +632,8 @@ export default function DocumentEditor({
 					title: title.trim(),
 					...(isPdfReplaced
 						? {
-							pdfBase64: encodeUint8ArrayToBase64(pdfFileBytes),
-						}
+								pdfBase64: encodeUint8ArrayToBase64(pdfFileBytes),
+							}
 						: {}),
 				};
 				const updatedDocument = await updateMutation.mutateAsync(payload);
@@ -817,9 +804,7 @@ export default function DocumentEditor({
 									value={newCategory}
 								/>
 								{!newCategory.trim() ? (
-									<p className="mt-1 text-solarized-red text-xs">
-										Neue Kategorie ist erforderlich
-									</p>
+									<p className="mt-1 text-solarized-red text-xs">Neue Kategorie ist erforderlich</p>
 								) : null}
 							</div>
 						) : null}

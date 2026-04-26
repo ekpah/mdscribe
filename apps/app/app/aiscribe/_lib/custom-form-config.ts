@@ -2,8 +2,8 @@ import { FileText } from "lucide-react";
 
 import { DEFAULT_AI_TEXT_DESCRIPTION } from "@/lib/ai-scribe-forms";
 import type {
-	AiscribeTemplateConfig,
 	AdditionalInputField,
+	AiscribeTemplateConfig,
 } from "@/app/aiscribe/_components/aiscribe-template";
 
 export interface PublicAiTextForm {
@@ -12,7 +12,51 @@ export interface PublicAiTextForm {
 	name: string;
 	promptHarness: string;
 	slug: string;
+	template?: {
+		id: string;
+		title: string;
+	} | null;
 }
+
+export const PROMPT_HARNESS_TITLES: Record<string, string> = {
+	Diagnoses: "Diagnoseblock",
+	ER_Anamnese_chat: "Notfall Anamnese",
+	Inpatient_discharge: "Entlassungsbrief",
+	diagnostic_results: "Befunde",
+	icu_transfer: "ICU Verlegungsbrief",
+	outpatient_visit: "Ambulanter Arztbrief",
+	procedure: "Eingriffsdokumentation",
+};
+
+export const FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS: Record<string, string> = {
+	Diagnoses: "Standardstruktur Diagnoseblock",
+	ER_Anamnese_chat: "Standardstruktur Anamnese",
+	Inpatient_discharge: "Standardstruktur Entlassbrief",
+	diagnostic_results: "Standardstruktur Befunde",
+	icu_transfer: "Standardstruktur ICU-Verlegung",
+	outpatient_visit: "Standardstruktur Ambulanzbrief",
+	procedure: "Standardstruktur Prozedurdokumentation",
+};
+
+export const resolvePromptHarnessTitle = (promptHarness: string): string =>
+	PROMPT_HARNESS_TITLES[promptHarness] ?? promptHarness;
+
+export const resolveTemplateMetadata = (
+	form: PublicAiTextForm,
+): AiscribeTemplateConfig["contextMetadata"]["template"] => {
+	if (form.template) {
+		return {
+			href: `/templates/${form.template.id}`,
+			title: form.template.title,
+		};
+	}
+
+	return {
+		title:
+			FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS[form.promptHarness] ??
+			"Eingebaute Standardvorlage",
+	};
+};
 
 const ADDITIONAL_INPUTS: AdditionalInputField[] = [
 	{
@@ -47,6 +91,11 @@ export const buildCustomAiscribeTemplateConfig = (
 
 	return {
 		additionalInputs: ADDITIONAL_INPUTS,
+		contextMetadata: {
+			author: "MDScribe-Standard",
+			harnessTitle: resolvePromptHarnessTitle(form.promptHarness),
+			template: resolveTemplateMetadata(form),
+		},
 		description,
 		emptyStateDescription:
 			"Bitte geben Sie klinische Informationen ein und starten Sie die Generierung.",

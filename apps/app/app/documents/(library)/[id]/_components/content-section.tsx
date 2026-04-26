@@ -10,6 +10,7 @@ import { Download, Printer, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	buildParsedMarkdocFromFieldDefinitions,
 	decodeBase64ToUint8Array,
@@ -20,7 +21,6 @@ import {
 } from "@/app/documents/_lib";
 import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 import { useSession } from "@/lib/auth-client";
-import { PDFViewSection } from "@/app/documents/_components/pdf-view-section";
 import { orpc } from "@/lib/orpc";
 
 export default function ContentSection({
@@ -105,11 +105,7 @@ export default function ContentSection({
 				return;
 			}
 
-			const filledPdfBytes = await fillPDFForm(
-				sourcePdfBytes,
-				values,
-				fieldDefinitions,
-			);
+			const filledPdfBytes = await fillPDFForm(sourcePdfBytes, values, fieldDefinitions);
 			setPreviewPdfBytes(filledPdfBytes);
 		} catch (error) {
 			console.error("Failed to refresh PDF preview:", error);
@@ -148,9 +144,7 @@ export default function ContentSection({
 						size="sm"
 						variant="outline"
 					>
-						<RefreshCw
-							className={`mr-2 h-4 w-4 ${isRefreshingPreview ? "animate-spin" : ""}`}
-						/>
+						<RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingPreview ? "animate-spin" : ""}`} />
 						Aktualisieren
 					</Button>
 					<Button onClick={handleDownload} size="sm" variant="outline">
@@ -168,10 +162,7 @@ export default function ContentSection({
 					</div>
 				) : (
 					<div className="min-h-0 flex-1">
-						<PDFViewSection
-							hasUploadedFile={Boolean(previewPdfBytes)}
-							pdfFile={previewPdfBytes}
-						/>
+						<PDFViewSection hasUploadedFile={Boolean(previewPdfBytes)} pdfFile={previewPdfBytes} />
 					</div>
 				)}
 			</div>

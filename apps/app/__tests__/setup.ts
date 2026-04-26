@@ -16,13 +16,9 @@ export interface TestServer {
 	close: () => Promise<void>;
 }
 
-const DEFAULT_TEST_DATABASE_URL =
-	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test";
+const DEFAULT_TEST_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test";
 
-const migrationsFolder = new URL(
-	"../../../packages/database/drizzle",
-	import.meta.url,
-).pathname;
+const migrationsFolder = new URL("../../../packages/database/drizzle", import.meta.url).pathname;
 
 const allowedTestHosts = new Set([
 	"127.0.0.1",
@@ -33,9 +29,7 @@ const allowedTestHosts = new Set([
 ]);
 const preparedDatabases = new Set<string>();
 
-const quoteIdentifier = (value: string): string => (
-		`"${value.replaceAll('"', '""')}"`
-	);
+const quoteIdentifier = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
 const parseConnectionString = (connectionString: string): URL => {
 	try {
@@ -71,9 +65,7 @@ const assertSafeTestConnectionString = (connectionString: string): void => {
 	const databaseName = getDatabaseName(testUrl);
 
 	if (!["postgres:", "postgresql:"].includes(testUrl.protocol)) {
-		throw new Error(
-			`Refusing to run tests against non-Postgres URL (${testUrl.protocol}).`,
-		);
+		throw new Error(`Refusing to run tests against non-Postgres URL (${testUrl.protocol}).`);
 	}
 
 	if (!databaseName) {
@@ -105,9 +97,8 @@ const assertSafeTestConnectionString = (connectionString: string): void => {
 	}
 };
 
-const getTestConnectionString = (): string => (
-		process.env.POSTGRES_DATABASE_URL_TEST ?? DEFAULT_TEST_DATABASE_URL
-	);
+const getTestConnectionString = (): string =>
+	process.env.POSTGRES_DATABASE_URL_TEST ?? DEFAULT_TEST_DATABASE_URL;
 
 const getAdminConnectionString = (connectionString: string): string => {
 	const url = parseConnectionString(connectionString);
@@ -115,9 +106,7 @@ const getAdminConnectionString = (connectionString: string): string => {
 	return url.toString();
 };
 
-const ensureTestDatabaseExists = async (
-	connectionString: string,
-): Promise<void> => {
+const ensureTestDatabaseExists = async (connectionString: string): Promise<void> => {
 	const adminConnectionString = getAdminConnectionString(connectionString);
 	const testUrl = parseConnectionString(connectionString);
 	const databaseName = getDatabaseName(testUrl);
@@ -137,9 +126,7 @@ const ensureTestDatabaseExists = async (
 			await adminClient.unsafe(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
 		} catch (error) {
 			const code =
-				typeof error === "object" && error !== null && "code" in error
-					? String(error.code)
-					: null;
+				typeof error === "object" && error !== null && "code" in error ? String(error.code) : null;
 			if (code !== "42P04") {
 				throw error;
 			}
@@ -149,9 +136,7 @@ const ensureTestDatabaseExists = async (
 	}
 };
 
-const ensureTestDatabaseReady = async (
-	connectionString: string,
-): Promise<void> => {
+const ensureTestDatabaseReady = async (connectionString: string): Promise<void> => {
 	if (preparedDatabases.has(connectionString)) {
 		return;
 	}
@@ -227,16 +212,12 @@ export const createTestUser = async (
 	},
 ): Promise<{
 	user: typeof user.$inferSelect;
-	session: {
-		user: typeof user.$inferSelect;
-	};
+	session: Session;
 }> => {
 	const email = options?.email ?? `test-${Date.now()}@example.com`;
 	const name = options?.name ?? "Test User";
 	const stripeCustomerId =
-		options && "stripeCustomerId" in options
-			? options.stripeCustomerId
-			: `cus_test_${Date.now()}`;
+		options && "stripeCustomerId" in options ? options.stripeCustomerId : `cus_test_${Date.now()}`;
 	const userId = crypto.randomUUID();
 
 	const [fetchedUser] = await db
@@ -256,7 +237,20 @@ export const createTestUser = async (
 
 	return {
 		session: {
-			user: fetchedUser,
+			session: {
+				createdAt: new Date(),
+				expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+				id: crypto.randomUUID(),
+				ipAddress: "127.0.0.1",
+				token: crypto.randomUUID(),
+				updatedAt: new Date(),
+				userAgent: "test-agent",
+				userId: fetchedUser.id,
+			},
+			user: {
+				...fetchedUser,
+				name: fetchedUser.name ?? "",
+			},
 		},
 		user: fetchedUser,
 	};
@@ -273,10 +267,7 @@ export const ADMIN_EMAIL = "admin@test.com";
  * Creates a test context for oRPC handlers
  * This allows calling handlers directly without HTTP overhead
  */
-export const createTestContext = (options: {
-	db: TestDatabase;
-	session?: TestSession;
-}) => ({
+export const createTestContext = (options: { db: TestDatabase; session?: TestSession }) => ({
 	db: options.db,
 	session: options.session,
 });
@@ -314,7 +305,7 @@ export const createMockSession = (mockUser: {
 	},
 });
 
-const getRequiredRow = <T,>(rows: T[], message: string): T => {
+const getRequiredRow = <T>(rows: T[], message: string): T => {
 	const [row] = rows;
 	if (!row) {
 		throw new Error(message);
@@ -343,8 +334,7 @@ export const createTestTemplate = async (
 			authorId,
 			category: options?.category ?? "Test Category",
 			content: options?.content ?? "Test content",
-			embedding:
-				options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
+			embedding: options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
 			id: crypto.randomUUID(),
 			title: options?.title ?? "Test Template",
 			updatedAt: new Date(),
@@ -433,8 +423,7 @@ export const createTestUsageEvent = async (
 			name: options?.name ?? "ai_scribe_generation",
 			outputTokens: options?.outputTokens ?? 200,
 			timestamp: new Date(),
-			totalTokens:
-				(options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
+			totalTokens: (options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
 			userId,
 		})
 		.returning();
@@ -445,7 +434,9 @@ export const createTestUsageEvent = async (
 /**
  * Seed a minimal provider/model/default setup so resolver-based handlers can run.
  */
-export const createTestAiDefaults = async (db: TestDatabase): Promise<{
+export const createTestAiDefaults = async (
+	db: TestDatabase,
+): Promise<{
 	providerId: string;
 	modelRecordId: string;
 	modelId: string;
@@ -476,6 +467,7 @@ export const createTestAiDefaults = async (db: TestDatabase): Promise<{
 	await db
 		.insert(aiDefaults)
 		.values({
+			defaultEvaluationModel: modelRecordId,
 			defaultFileImageModelId: modelRecordId,
 			defaultSpeechToTextModelId: modelRecordId,
 			defaultTextModelId: modelRecordId,
@@ -484,6 +476,7 @@ export const createTestAiDefaults = async (db: TestDatabase): Promise<{
 		})
 		.onConflictDoUpdate({
 			set: {
+				defaultEvaluationModel: modelRecordId,
 				defaultFileImageModelId: modelRecordId,
 				defaultSpeechToTextModelId: modelRecordId,
 				defaultTextModelId: modelRecordId,

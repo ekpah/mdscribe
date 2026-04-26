@@ -3,17 +3,7 @@
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import {
 	AlertCircle,
 	Brain,
@@ -28,6 +18,8 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+
+import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import type { PlaygroundResult } from "@/app/admin/playground/_lib/types";
 
 const formatCost = (cost: number | undefined): string => {
@@ -64,13 +56,16 @@ const formatScore = (score: number | undefined): string => {
 interface ResultDisplayProps {
 	result: PlaygroundResult | null;
 	compact?: boolean;
+	onEvaluate?: () => void;
 }
 
-export const ResultDisplay = ({ result, compact: _compact }: ResultDisplayProps) => {
+export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultDisplayProps) => {
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = useCallback(async () => {
-		if (!result?.text) {return;}
+		if (!result?.text) {
+			return;
+		}
 		await navigator.clipboard.writeText(result.text);
 		setCopied(true);
 		toast.success("Kopiert!");
@@ -82,9 +77,7 @@ export const ResultDisplay = ({ result, compact: _compact }: ResultDisplayProps)
 			<div className="flex h-full items-center justify-center rounded-lg border border-solarized-base2 bg-solarized-base3/50 p-4">
 				<div className="text-center">
 					<FileText className="mx-auto h-8 w-8 text-solarized-base01/50" />
-					<p className="mt-2 text-sm text-solarized-base01">
-						Antwort erscheint hier
-					</p>
+					<p className="mt-2 text-sm text-solarized-base01">Antwort erscheint hier</p>
 				</div>
 			</div>
 		);
@@ -116,40 +109,56 @@ export const ResultDisplay = ({ result, compact: _compact }: ResultDisplayProps)
 						<Hash className="h-3 w-3 text-solarized-cyan" />
 						{formatTokens(result.metrics.totalTokens)}
 					</span>
-					{result.evaluation?.isLoading ? (
-						<span className="flex items-center gap-1 text-solarized-base01">
-							<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-							Eval
-						</span>
-					) : result.evaluation?.totalScore !== undefined ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<span className="flex cursor-default items-center gap-1 text-solarized-base01">
-									<Medal className="h-3 w-3 text-solarized-yellow" />
-									{formatScore(result.evaluation.totalScore)}
-								</span>
-							</TooltipTrigger>
-							<TooltipContent side="top" className="max-w-64">
-								<div className="space-y-1 text-xs">
-									{result.evaluation.categories.map((category) => (
-										<div
-											key={category.name}
-											className="flex items-center justify-between gap-3"
-										>
-											<span>{category.name}</span>
-											<span className="font-mono">{formatScore(category.score)}</span>
-										</div>
-									))}
-								</div>
-							</TooltipContent>
-						</Tooltip>
-					) : null}
 					{result.metrics.reasoningTokens ? (
 						<span className="flex items-center gap-1 text-solarized-base01">
 							<Brain className="h-3 w-3 text-solarized-violet" />
 							{formatTokens(result.metrics.reasoningTokens)}
 						</span>
 					) : null}
+					{result.evaluation?.isLoading ? (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							disabled
+							className="h-5 gap-1 px-1 text-xs text-solarized-base01"
+						>
+							<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
+							Eval
+						</Button>
+					) : result.evaluation?.totalScore !== undefined &&
+					  result.evaluation.categories.length > 0 ? (
+						<EvaluationDetailsDialog
+							canRegenerate={Boolean(onEvaluate && !result.isStreaming && result.text)}
+							evaluation={result.evaluation}
+							onRegenerate={onEvaluate}
+							trigger={
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									disabled={result.isStreaming || !result.text}
+									aria-label="Evaluationsdetails anzeigen"
+									className="h-5 gap-1 px-1 text-xs text-solarized-base01 hover:text-solarized-base00"
+								>
+									<Medal className="h-3 w-3 text-solarized-yellow" />
+									{formatScore(result.evaluation.totalScore)}
+								</Button>
+							}
+						/>
+					) : (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={onEvaluate}
+							disabled={!onEvaluate || result.isStreaming || !result.text}
+							aria-label="Antwort bewerten"
+							className="h-5 gap-1 px-1 text-xs text-solarized-base01 hover:text-solarized-base00"
+						>
+							<Medal className="h-3 w-3 text-solarized-yellow" />-
+						</Button>
+					)}
 				</div>
 				<Button
 					type="button"
@@ -189,16 +198,11 @@ export const ResultDisplay = ({ result, compact: _compact }: ResultDisplayProps)
 						</TabsTrigger>
 					</TabsList>
 
-					<TabsContent
-						value="output"
-						className="mt-1 min-h-0 flex-1 data-[state=inactive]:hidden"
-					>
+					<TabsContent value="output" className="mt-1 min-h-0 flex-1 data-[state=inactive]:hidden">
 						<ScrollArea className="h-full rounded-md border border-solarized-base2 bg-solarized-base3">
 							<div className="whitespace-pre-wrap p-3 font-mono text-sm text-solarized-base00">
 								{result.text || (
-									<span className="text-solarized-base01 italic">
-										Warte auf Antwort...
-									</span>
+									<span className="text-solarized-base01 italic">Warte auf Antwort...</span>
 								)}
 							</div>
 						</ScrollArea>
@@ -219,9 +223,7 @@ export const ResultDisplay = ({ result, compact: _compact }: ResultDisplayProps)
 				<ScrollArea className="min-h-0 flex-1 rounded-md border border-solarized-base2 bg-solarized-base3">
 					<div className="whitespace-pre-wrap p-3 font-mono text-sm text-solarized-base00">
 						{result.text || (
-							<span className="text-solarized-base01 italic">
-								Warte auf Antwort...
-							</span>
+							<span className="text-solarized-base01 italic">Warte auf Antwort...</span>
 						)}
 					</div>
 				</ScrollArea>

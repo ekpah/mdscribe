@@ -1,5 +1,7 @@
+import { ORPCError } from "@orpc/server";
 import {
 	and,
+	aiDefaults,
 	count,
 	desc,
 	eq,
@@ -11,10 +13,51 @@ import {
 	usageEvent,
 	user,
 } from "@repo/database";
+import { generateObject } from "ai";
 import { z } from "zod";
 
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { PLAYGROUND_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
+import { resolveModelByRecordId } from "@/orpc/scribe/providers";
+
+const usageEvaluationSchema = z.object({
+	categories: z
+		.array(
+			z.object({
+				comment: z.string(),
+				name: z.string(),
+				score: z.number().min(0).max(10),
+			}),
+		)
+		.length(4),
+	summary: z.string(),
+});
+
+const toMetadataRecord = (metadata: unknown): Record<string, unknown> => {
+	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+		return {};
+	}
+	return metadata as Record<string, unknown>;
+};
+
+const getDocumentTypeForEvaluation = (
+	eventName: string,
+	metadata: Record<string, unknown>,
+): string => {
+	const endpoint = metadata.endpoint;
+	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
+		return endpoint;
+	}
+
+	const promptName = metadata.promptName;
+	if (typeof promptName === "string" && promptName.trim().length > 0) {
+		return promptName;
+	}
+
+	return eventName;
+};
 
 const listUsageEventsInput = z.object({
 	cursor: z.string().optional(),
@@ -54,8 +97,7 @@ const listUsageEventsHandler = authed
 			conditions.push(lt(usageEvent.timestamp, cursorTimestamp));
 		}
 
-		const whereClause =
-			conditions.length > 0 ? and(...conditions) : undefined;
+		const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
 		const events = await context.db
 			.select({
@@ -160,13 +202,102 @@ const findByRequestIdHandler = authed
 		return event ?? null;
 	});
 
+const evaluateUsageEventHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(z.object({ id: z.string() }))
+	.handler(async ({ context, input }) => {
+		const event = await context.db.query.usageEvent.findFirst({
+			where: eq(usageEvent.id, input.id),
+		});
+
+		if (!event) {
+			throw new ORPCError("NOT_FOUND", { message: "Event not found" });
+		}
+
+		if (!event.result?.trim()) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Dieses Event enthält kein bewertbares Ergebnis.",
+			});
+		}
+
+		const defaults = await context.db.query.aiDefaults.findFirst({
+			where: eq(aiDefaults.id, "global"),
+		});
+		const evaluationModelRecordId = defaults?.defaultEvaluationModel;
+		if (!evaluationModelRecordId) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Kein Standard-Evaluationsmodell konfiguriert",
+			});
+		}
+
+		const evaluationModel = await resolveModelByRecordId(evaluationModelRecordId, context.db);
+		const metadata = toMetadataRecord(event.metadata);
+		const documentType = getDocumentTypeForEvaluation(event.name, metadata);
+
+		let evaluation;
+		try {
+			evaluation = await generateObject({
+				model: evaluationModel.model,
+				schema: usageEvaluationSchema,
+				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
+				prompt: `Bewerte folgende Ausgabe.
+
+Dokumenttyp: ${documentType}
+
+Eingaben:
+${JSON.stringify(event.inputData ?? {}, null, 2)}
+
+Ausgabe:
+${event.result}`,
+				temperature: 0.1,
+			});
+		} catch (error) {
+			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Bewertung konnte nicht erzeugt werden: Das Modell hat keine gültige Struktur zurückgegeben. ${error.message}`,
+				});
+			}
+			const details = error instanceof Error ? error.message : USER_MESSAGES.evaluationFailed;
+			throw new ORPCError("INTERNAL", {
+				message: `Bewertung fehlgeschlagen: ${details}`,
+			});
+		}
+
+		const categories = evaluation.object.categories.map((category) => ({
+			comment: category.comment,
+			name: category.name,
+			score: Number(category.score.toFixed(1)),
+		}));
+		const totalScore = Number(
+			(
+				categories.reduce((total, category) => total + category.score, 0) /
+				Math.max(1, categories.length)
+			).toFixed(1),
+		);
+		const usageEvaluation = {
+			categories,
+			evaluatedAt: new Date().toISOString(),
+			summary: evaluation.object.summary,
+			totalScore,
+		};
+		const nextMetadata = {
+			...metadata,
+			usageEvaluation,
+		};
+
+		await context.db
+			.update(usageEvent)
+			.set({ metadata: nextMetadata })
+			.where(eq(usageEvent.id, event.id));
+
+		return usageEvaluation;
+	});
+
 const statsFilterInput = z.object({
 	filter: z.enum(["today", "week", "month", "all"]).optional(),
 });
 
-const getDateRangeStart = (
-	filter: "today" | "week" | "month" | "all" | undefined,
-): Date | null => {
+const getDateRangeStart = (filter: "today" | "week" | "month" | "all" | undefined): Date | null => {
 	const now = new Date();
 
 	switch (filter) {
@@ -187,9 +318,9 @@ const getDateRangeStart = (
 			start.setHours(0, 0, 0, 0);
 			return start;
 		}
-			default: {
-				return null;
-			}
+		default: {
+			return null;
+		}
 	}
 };
 
@@ -199,9 +330,7 @@ const getUsageStatsHandler = authed
 	.handler(async ({ context, input }) => {
 		const dateStart = getDateRangeStart(input.filter);
 
-		const whereClause = dateStart
-			? gte(usageEvent.timestamp, dateStart)
-			: undefined;
+		const whereClause = dateStart ? gte(usageEvent.timestamp, dateStart) : undefined;
 
 		const [stats] = await context.db
 			.select({
@@ -222,6 +351,7 @@ const getUsageStatsHandler = authed
 	});
 
 export const usageHandler = {
+	evaluate: evaluateUsageEventHandler,
 	findByRequestId: findByRequestIdHandler,
 	get: getUsageEventHandler,
 	list: listUsageEventsHandler,

@@ -10,6 +10,10 @@ interface PublicScribeForm {
 	name: string;
 	promptHarness: string;
 	slug: string;
+	template?: {
+		id: string;
+		title: string;
+	} | null;
 }
 
 const listAvailableHandler = pub
@@ -35,18 +39,25 @@ const getBySlugHandler = pub
 	.input(type<{ slug: string }>())
 	.output(type<PublicScribeForm | null>())
 	.handler(async ({ context, input }) => {
-		const [form] = await context.db
-			.select({
-				description: aiScribeFormConfig.description,
-				enabled: aiScribeFormConfig.enabled,
-				id: aiScribeFormConfig.id,
-				name: aiScribeFormConfig.name,
-				promptHarness: aiScribeFormConfig.promptHarness,
-				slug: aiScribeFormConfig.slug,
-			})
-			.from(aiScribeFormConfig)
-			.where(eq(aiScribeFormConfig.slug, input.slug))
-			.limit(1);
+		const form = await context.db.query.aiScribeFormConfig.findFirst({
+			columns: {
+				description: true,
+				enabled: true,
+				id: true,
+				name: true,
+				promptHarness: true,
+				slug: true,
+			},
+			where: eq(aiScribeFormConfig.slug, input.slug),
+			with: {
+				template: {
+					columns: {
+						id: true,
+						title: true,
+					},
+				},
+			},
+		});
 
 		if (!form || !form.enabled) {
 			return null;
@@ -58,6 +69,7 @@ const getBySlugHandler = pub
 			name: form.name,
 			promptHarness: form.promptHarness,
 			slug: form.slug,
+			template: form.template,
 		};
 	});
 

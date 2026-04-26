@@ -1,12 +1,7 @@
 "use client";
 
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/design-system/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
 	Select,
@@ -15,27 +10,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-	Copy,
-	Download,
-	Loader2,
-	Mic,
-	Printer,
-	ScanText,
-	Square,
-	X,
-} from "lucide-react";
+import { Copy, Download, Loader2, Mic, Printer, ScanText, Square, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pdfjs } from "react-pdf";
 import { toast } from "sonner";
+
+import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
 import {
 	buildDefaultFieldDefinitionsFromPdfFields,
 	buildParsedMarkdocFromFieldDefinitions,
@@ -44,12 +27,12 @@ import {
 	parsePDFFormFields,
 } from "@/app/documents/_lib";
 import type { DocumentFieldDefinition, PDFField } from "@/app/documents/_lib";
-import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
 import { orpc } from "@/lib/orpc";
 import type { AudioFile, InputField } from "@/orpc/scribe/types";
+
 import PDFDebugPanel from "./pdf-debug-panel";
-import PDFInputs from './pdf-inputs';
-import type { InputSource } from './pdf-inputs';
+import PDFInputs from "./pdf-inputs";
+import type { InputSource } from "./pdf-inputs";
 
 const PDFViewSection = dynamic(
 	async () => (await import("@/app/documents/_components/pdf-view-section")).PDFViewSection,
@@ -81,10 +64,7 @@ interface PdfDocumentRenderable {
  * Renders PDF pages to JPEG canvas images using the shared pdfjs instance from react-pdf.
  * Used for openai-compatible (Ollama) connections that accept images but not raw PDFs.
  */
-const renderPdfPageToBase64Jpeg = async (
-	pdf: PdfDocumentRenderable,
-	pageNum: number,
-) => {
+const renderPdfPageToBase64Jpeg = async (pdf: PdfDocumentRenderable, pageNum: number) => {
 	const page = await pdf.getPage(pageNum);
 	const viewport = page.getViewport({ scale: 1.5 });
 	const canvas = document.createElement("canvas");
@@ -102,18 +82,13 @@ const renderPdfPageToBase64Jpeg = async (
 	return canvas.toDataURL("image/jpeg", 0.85).split(",")[1] ?? "";
 };
 
-const convertPdfToImages = async (
-	pdfBytes: Uint8Array,
-	maxPages = 10,
-): Promise<string[]> => {
+const convertPdfToImages = async (pdfBytes: Uint8Array, maxPages = 10): Promise<string[]> => {
 	const pdf = (await pdfjs.getDocument({
 		data: [...pdfBytes],
 	}).promise) as unknown as PdfDocumentRenderable;
 	const pageCount = Math.min(pdf.numPages, maxPages);
 	const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1);
-	return Promise.all(
-		pageNumbers.map((pageNum) => renderPdfPageToBase64Jpeg(pdf, pageNum)),
-	);
+	return Promise.all(pageNumbers.map((pageNum) => renderPdfPageToBase64Jpeg(pdf, pageNum)));
 };
 
 const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
@@ -159,9 +134,8 @@ const printPdfBlob = (blob: Blob) => {
 	printWindow.addEventListener("load", () => printWindow.print());
 };
 
-const toDefaultFieldMapping = (
-	fields: PDFField[],
-): DocumentFieldDefinition[] => buildDefaultFieldDefinitionsFromPdfFields(fields);
+const toDefaultFieldMapping = (fields: PDFField[]): DocumentFieldDefinition[] =>
+	buildDefaultFieldDefinitionsFromPdfFields(fields);
 
 const mergeAiFieldMapping = (
 	aiFieldMapping: { description: string; fieldName: string; label: string }[],
@@ -183,6 +157,10 @@ const mergeAiFieldMapping = (
 			valueType: existing?.valueType ?? "string",
 		};
 	});
+};
+
+type ParseFormResult = {
+	fieldMapping: { description: string; fieldName: string; label: string }[];
 };
 
 const formatDuration = (seconds: number): string => {
@@ -224,8 +202,7 @@ const isLikelyOcrCapableModel = (model: OcrModelCandidate): boolean => {
 
 const getOcrModelId = (model: OcrModelCandidate) => model.modelId ?? model.id;
 
-const getOcrProviderId = (model: OcrModelCandidate) =>
-	model.providerId ?? model.connectionId ?? "";
+const getOcrProviderId = (model: OcrModelCandidate) => model.providerId ?? model.connectionId ?? "";
 
 const usesOpenAiCompatibleProtocol = (model: OcrModelCandidate): boolean =>
 	(model.providerProtocol ?? model.connectionProtocol) === "openai-compatible";
@@ -269,10 +246,7 @@ const stopMediaStreamTracks = (stream: MediaStream) => {
 	}
 };
 
-const createAudioRecording = (
-	audioChunks: Blob[],
-	recordingStartTime: number,
-): AudioRecording => ({
+const createAudioRecording = (audioChunks: Blob[], recordingStartTime: number): AudioRecording => ({
 	blob: new Blob(audioChunks, {
 		type: "audio/wav",
 	}),
@@ -286,13 +260,9 @@ const PDFFormSection = () => {
 	const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 	const [filledPdf, setFilledPdf] = useState<Uint8Array | null>(null);
 	const [pdfVersion, setPdfVersion] = useState(0);
-	const [fieldSources, setFieldSources] = useState<Record<string, InputSource>>(
-		{},
-	);
+	const [fieldSources, setFieldSources] = useState<Record<string, InputSource>>({});
 	const [inputsKey, setInputsKey] = useState(0);
-	const [activePreviewTab, setActivePreviewTab] = useState<"pdf" | "markdown">(
-		"pdf",
-	);
+	const [activePreviewTab, setActivePreviewTab] = useState<"pdf" | "markdown">("pdf");
 	const [ocrMarkdown, setOcrMarkdown] = useState("");
 	const [selectedOcrModelId, setSelectedOcrModelId] = useState("");
 
@@ -315,15 +285,16 @@ const PDFFormSection = () => {
 		[connectorModels],
 	);
 
-	const preferredOcrModel = useMemo(() => (
+	const preferredOcrModel = useMemo(
+		() =>
 			ocrCapableModels.find((model) => model.capabilities.supportsImage) ??
 			ocrCapableModels.find(
 				(model) =>
-					model.id.toLowerCase().includes("gemini") ||
-					model.id.toLowerCase().includes("claude"),
+					model.id.toLowerCase().includes("gemini") || model.id.toLowerCase().includes("claude"),
 			) ??
-			ocrCapableModels[0]
-		), [ocrCapableModels]);
+			ocrCapableModels[0],
+		[ocrCapableModels],
+	);
 
 	useEffect(() => {
 		if (ocrCapableModels.length === 0) {
@@ -348,17 +319,15 @@ const PDFFormSection = () => {
 		orpc.documents.parseForm.mutationOptions({
 			onError: (error) => {
 				const errorMessage =
-					error instanceof Error
-						? error.message
-						: "Unbekannter Fehler aufgetreten";
-				toast.error(
-					`Eingaben konnten nicht verbessert werden: ${errorMessage}`,
-					{ id: "enhance-ai" },
-				);
+					error instanceof Error ? error.message : "Unbekannter Fehler aufgetreten";
+				toast.error(`Eingaben konnten nicht verbessert werden: ${errorMessage}`, {
+					id: "enhance-ai",
+				});
 			},
 			onSuccess: (data) => {
+				const parsedData = data as ParseFormResult;
 				setFieldMapping((currentMappings) =>
-					mergeAiFieldMapping(data.fieldMapping, currentMappings),
+					mergeAiFieldMapping(parsedData.fieldMapping, currentMappings),
 				);
 				toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
 			},
@@ -370,9 +339,7 @@ const PDFFormSection = () => {
 		orpc.scribe.voiceFill.mutationOptions({
 			onError: (error) => {
 				const errorMessage =
-					error instanceof Error
-						? error.message
-						: "Unbekannter Fehler aufgetreten";
+					error instanceof Error ? error.message : "Unbekannter Fehler aufgetreten";
 				toast.error(`Sprachausfüllung fehlgeschlagen: ${errorMessage}`, {
 					id: "voice-fill",
 				});
@@ -403,9 +370,7 @@ const PDFFormSection = () => {
 		orpc.documents.ocrToMarkdown.mutationOptions({
 			onError: (error) => {
 				const errorMessage =
-					error instanceof Error
-						? error.message
-						: "Unbekannter Fehler aufgetreten";
+					error instanceof Error ? error.message : "Unbekannter Fehler aufgetreten";
 				toast.error(`OCR-Extraktion fehlgeschlagen: ${errorMessage}`, {
 					id: "ocr-markdown",
 				});
@@ -477,11 +442,7 @@ const PDFFormSection = () => {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;
 		}
-		const filledPdfResult = await fillPDFForm(
-			pdfFile,
-			fieldValues,
-			fieldMapping,
-		);
+		const filledPdfResult = await fillPDFForm(pdfFile, fieldValues, fieldMapping);
 		setFilledPdf(filledPdfResult);
 		setPdfVersion((prev) => prev + 1);
 		toast.success("PDF-Formular ausgefüllt");
@@ -533,11 +494,7 @@ const PDFFormSection = () => {
 	}, [enhanceMutation, fieldMapping, pdfFile]);
 
 	const handleExtractMarkdown = useCallback(async () => {
-		const validationError = getOcrValidationError(
-			pdfFile,
-			ocrCapableModels,
-			selectedOcrModel,
-		);
+		const validationError = getOcrValidationError(pdfFile, ocrCapableModels, selectedOcrModel);
 		if (validationError) {
 			toast.error(validationError);
 			return;
@@ -580,7 +537,9 @@ const PDFFormSection = () => {
 	}, [ocrCapableModels, ocrToMarkdownMutation, pdfFile, selectedOcrModel]);
 
 	const handleCopyMarkdown = useCallback(async () => {
-		if (!ocrMarkdown) {return;}
+		if (!ocrMarkdown) {
+			return;
+		}
 		await navigator.clipboard.writeText(ocrMarkdown);
 		toast.success("Markdown kopiert");
 	}, [ocrMarkdown]);
@@ -640,9 +599,7 @@ const PDFFormSection = () => {
 	}, [handleStartRecording, handleStopRecording, isRecording]);
 
 	const handleRemoveRecording = useCallback((id: string) => {
-		setAudioRecordings((prev) =>
-			prev.filter((recording) => recording.id !== id),
-		);
+		setAudioRecordings((prev) => prev.filter((recording) => recording.id !== id));
 	}, []);
 
 	const handleRemoveRecordingById = useMemo<Record<string, () => void>>(() => {
@@ -702,33 +659,18 @@ const PDFFormSection = () => {
 	return (
 		<>
 			<Card className="grid h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] grid-cols-3 gap-4 overflow-hidden">
-				<div
-					className="hidden overflow-y-auto overscroll-none p-4 md:block"
-					key="Inputs"
-				>
+				<div className="hidden overflow-y-auto overscroll-none p-4 md:block" key="Inputs">
 					<div className="mb-4 flex flex-col gap-2">
 						<Button onClick={handleFillPdf}>PDF ausfüllen</Button>
-						<Button
-							onClick={handleDownloadPdf}
-							disabled={!filledPdf}
-							variant="outline"
-						>
+						<Button onClick={handleDownloadPdf} disabled={!filledPdf} variant="outline">
 							<Download className="mr-2 h-4 w-4" />
 							Herunterladen
 						</Button>
-						<Button
-							onClick={handlePrintPdf}
-							disabled={!filledPdf}
-							variant="outline"
-						>
+						<Button onClick={handlePrintPdf} disabled={!filledPdf} variant="outline">
 							<Printer className="mr-2 h-4 w-4" />
 							Drucken
 						</Button>
-						<Button
-							onClick={handleEnhanceWithAI}
-							disabled={!pdfFile}
-							variant="outline"
-						>
+						<Button onClick={handleEnhanceWithAI} disabled={!pdfFile} variant="outline">
 							Eingaben mit KI verbessern
 						</Button>
 						<Button onClick={copyInputTagsToClipboard} variant="outline">
@@ -741,14 +683,14 @@ const PDFFormSection = () => {
 						<div className="mb-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
 							<div className="mb-3 flex items-center justify-between">
 								<h3 className="font-medium text-sm">Sprachausfüllung</h3>
-									<Button
-										className={isRecording ? "bg-solarized-red" : ""}
-										disabled={!(canRecord || isRecording)}
-										onClick={handleToggleRecording}
-										size="sm"
-										title={recordingButtonTitle}
-										variant={isRecording ? "default" : "outline"}
-									>
+								<Button
+									className={isRecording ? "bg-solarized-red" : ""}
+									disabled={!(canRecord || isRecording)}
+									onClick={handleToggleRecording}
+									size="sm"
+									title={recordingButtonTitle}
+									variant={isRecording ? "default" : "outline"}
+								>
 									{isRecording ? (
 										<>
 											<Square className="mr-2 h-4 w-4" />
@@ -763,39 +705,36 @@ const PDFFormSection = () => {
 								</Button>
 							</div>
 
-								{/* Audio Recordings List */}
-								{audioRecordings.length > 0 && (
-									<div className="mb-3 space-y-2">
-										{audioRecordings.map((recording, index) => (
-											<div
-												className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2"
-												key={recording.id}
-											>
-												<div className="flex items-center gap-2 text-sm text-solarized-green">
-													<Mic className="h-4 w-4" />
-													<span>
-														Aufnahme {index + 1} (
-														{formatDuration(recording.duration)})
-													</span>
-												</div>
-												<Button
-													onClick={handleRemoveRecordingById[recording.id]}
-													size="sm"
-													variant="ghost"
-												>
-													<X className="h-4 w-4" />
-												</Button>
+							{/* Audio Recordings List */}
+							{audioRecordings.length > 0 && (
+								<div className="mb-3 space-y-2">
+									{audioRecordings.map((recording, index) => (
+										<div
+											className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2"
+											key={recording.id}
+										>
+											<div className="flex items-center gap-2 text-sm text-solarized-green">
+												<Mic className="h-4 w-4" />
+												<span>
+													Aufnahme {index + 1} ({formatDuration(recording.duration)})
+												</span>
 											</div>
-										))}
-									</div>
-								)}
+											<Button
+												onClick={handleRemoveRecordingById[recording.id]}
+												size="sm"
+												variant="ghost"
+											>
+												<X className="h-4 w-4" />
+											</Button>
+										</div>
+									))}
+								</div>
+							)}
 
 							{/* Voice Fill Button */}
 							<Button
 								className="w-full"
-								disabled={
-									audioRecordings.length === 0 || voiceFillMutation.isPending
-								}
+								disabled={audioRecordings.length === 0 || voiceFillMutation.isPending}
 								onClick={handleVoiceFill}
 								variant="default"
 							>
@@ -830,11 +769,11 @@ const PDFFormSection = () => {
 						pdfFile={pdfFile}
 					/>
 					<div className="mt-4 min-h-0 flex-1">
-							<Tabs
-								className="flex h-full min-h-0 flex-col"
-								value={activePreviewTab}
-								onValueChange={handlePreviewTabValueChange}
-							>
+						<Tabs
+							className="flex h-full min-h-0 flex-col"
+							value={activePreviewTab}
+							onValueChange={handlePreviewTabValueChange}
+						>
 							<TabsList className="w-fit">
 								<TabsTrigger value="pdf">PDF Vorschau</TabsTrigger>
 								<TabsTrigger value="markdown">Markdown (OCR)</TabsTrigger>
@@ -856,26 +795,19 @@ const PDFFormSection = () => {
 								<Card className="flex h-full min-h-0 flex-col border-solarized-base2">
 									<CardHeader className="space-y-3 border-b border-solarized-base2 px-4 py-3">
 										<div className="space-y-1">
-											<CardTitle className="text-sm text-solarized-base00">
-												OCR Markdown
-											</CardTitle>
+											<CardTitle className="text-sm text-solarized-base00">OCR Markdown</CardTitle>
 											<p className="text-xs text-solarized-base01">
-												Wähle ein Modell aus den konfigurierten Verbindungen und
-												extrahiere den Dokumenttext als Markdown.
+												Wähle ein Modell aus den konfigurierten Verbindungen und extrahiere den
+												Dokumenttext als Markdown.
 											</p>
 										</div>
 										<div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
 											<div className="space-y-2">
-												<Label className="text-sm text-solarized-base01">
-													OCR-Modell
-												</Label>
+												<Label className="text-sm text-solarized-base01">OCR-Modell</Label>
 												<Select
 													value={selectedOcrModelId}
 													onValueChange={setSelectedOcrModelId}
-													disabled={
-														isLoadingConnectorModels ||
-														ocrCapableModels.length === 0
-													}
+													disabled={isLoadingConnectorModels || ocrCapableModels.length === 0}
 												>
 													<SelectTrigger className="border-solarized-base2 bg-solarized-base3">
 														<SelectValue
@@ -889,10 +821,7 @@ const PDFFormSection = () => {
 													<SelectContent>
 														{ocrCapableModels.map((model) => (
 															<SelectItem key={model.id} value={model.id}>
-																{model.name} (
-																{model.providerProtocol ??
-																	model.connectionProtocol}
-																)
+																{model.name} ({model.providerProtocol ?? model.connectionProtocol})
 															</SelectItem>
 														))}
 													</SelectContent>
@@ -901,8 +830,8 @@ const PDFFormSection = () => {
 												!connectorModelsError &&
 												ocrCapableModels.length === 0 ? (
 													<p className="text-xs text-solarized-red">
-														Keine OCR-fähigen Modelle gefunden. Aktiviere ein
-														multimodales Modell in den Connector-Einstellungen.
+														Keine OCR-fähigen Modelle gefunden. Aktiviere ein multimodales Modell in
+														den Connector-Einstellungen.
 													</p>
 												) : null}
 												{connectorModelsError ? (
@@ -918,9 +847,7 @@ const PDFFormSection = () => {
 												<Button
 													onClick={handleExtractMarkdown}
 													disabled={
-														!pdfFile ||
-														!selectedOcrModel ||
-														ocrToMarkdownMutation.isPending
+														!pdfFile || !selectedOcrModel || ocrToMarkdownMutation.isPending
 													}
 												>
 													{ocrToMarkdownMutation.isPending ? (

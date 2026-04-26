@@ -11,6 +11,8 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@repo/design-system/*": ["./*"],
+      "@repo/markdoc-md": ["../markdoc-md/index.ts"],
+      "@repo/markdoc-md/*": ["../markdoc-md/*"],
       "@/lib/*": ["lib/*"]
     }
   },

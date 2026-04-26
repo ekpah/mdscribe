@@ -3,24 +3,18 @@
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@repo/design-system/components/ui/dropdown-menu";
 import { createColumnHelper } from "@tanstack/react-table";
-import { FlaskConical, MoreHorizontal } from "lucide-react";
-import Link from "next/link";
-import { useCallback } from "react";
-import type { MouseEvent } from "react";
-import type { DocumentType } from "@/orpc/scribe/types";
+import { Loader2, Medal } from "lucide-react";
+
+import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import {
 	allScribeDocTypes,
 	isScribeDocType,
 	scribeDocTypeUi,
 } from "@/app/admin/playground/_lib/scribe-doc-types";
-import type { UsageListEvent } from "./types";
+import type { DocumentType } from "@/orpc/scribe/types";
+
+import type { UsageEvaluation, UsageListEvent } from "./types";
 
 const promptNameToDocumentType = new Map(
 	allScribeDocTypes.map((documentType) => [
@@ -29,17 +23,17 @@ const promptNameToDocumentType = new Map(
 	]),
 );
 
-const inferDocumentType = (
-	metadata: Record<string, unknown> | null,
-): DocumentType | undefined => {
-	if (!metadata) {return undefined;}
+const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
+	if (!metadata) {
+		return undefined;
+	}
 
-	const {endpoint} = metadata;
+	const { endpoint } = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
 		return isScribeDocType(endpoint) ? endpoint : undefined;
 	}
 
-	const {promptName} = metadata;
+	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
 		return promptNameToDocumentType.get(promptName);
 	}
@@ -58,16 +52,38 @@ export const formatDate = (date: Date | string) => {
 };
 
 export const formatCost = (cost: unknown): string => {
-	if (cost === null || cost === undefined) {return "-";}
+	if (cost === null || cost === undefined) {
+		return "-";
+	}
 	const num = typeof cost === "number" ? cost : Number(cost);
-	if (Number.isNaN(num)) {return "-";}
+	if (Number.isNaN(num)) {
+		return "-";
+	}
 	return `$${num.toFixed(4)}`;
 };
 
-export const getPromptLabel = (
-	metadata: Record<string, unknown> | null,
-): string => {
-	if (!metadata) {return "-";}
+export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null => {
+	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+		return null;
+	}
+	const evaluation = (metadata as Record<string, unknown>).usageEvaluation;
+	if (!evaluation || typeof evaluation !== "object" || Array.isArray(evaluation)) {
+		return null;
+	}
+	const totalScore = (evaluation as Record<string, unknown>).totalScore;
+	if (typeof totalScore !== "number" || !Number.isFinite(totalScore)) {
+		return null;
+	}
+	return evaluation as UsageEvaluation;
+};
+
+export const formatScore = (score: number | undefined): string =>
+	score === undefined ? "-" : score.toFixed(1);
+
+export const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
+	if (!metadata) {
+		return "-";
+	}
 	const endpoint = metadata.endpoint as string | undefined;
 	const promptName = metadata.promptName as string | undefined;
 	return endpoint ?? promptName ?? "-";
@@ -88,9 +104,7 @@ export const buildPlaygroundUrl = (event: UsageListEvent): string => {
 	}
 
 	if (metadata) {
-		const modelConfig = metadata.modelConfig as
-			| Record<string, unknown>
-			| undefined;
+		const modelConfig = metadata.modelConfig as Record<string, unknown> | undefined;
 		if (modelConfig?.temperature !== undefined) {
 			params.set("temperature", String(modelConfig.temperature));
 		}
@@ -110,68 +124,17 @@ export const buildPlaygroundUrl = (event: UsageListEvent): string => {
 
 const columnHelper = createColumnHelper<UsageListEvent>();
 
-interface UsageActionsCellProps {
-	event: UsageListEvent;
-	onViewDetails: (id: string) => void;
+interface CreateColumnsOptions {
+	evaluatingEventId?: string;
+	onEvaluate?: (id: string) => void;
 }
 
-const UsageActionsCell = ({ event, onViewDetails }: UsageActionsCellProps) => {
-	const handleStopPropagation = useCallback(
-		(clickEvent: MouseEvent<HTMLElement>) => {
-			clickEvent.stopPropagation();
-		},
-		[],
-	);
-
-	const handleViewDetails = useCallback(
-		(clickEvent: MouseEvent<HTMLElement>) => {
-			clickEvent.stopPropagation();
-			onViewDetails(event.id);
-		},
-		[event.id, onViewDetails],
-	);
-
-	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Button
-					variant="ghost"
-					size="icon"
-					onClick={handleStopPropagation}
-					className="h-8 w-8"
-				>
-					<MoreHorizontal className="h-4 w-4" />
-				</Button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end">
-				<DropdownMenuItem onClick={handleViewDetails}>
-					Details anzeigen
-				</DropdownMenuItem>
-				<DropdownMenuItem asChild>
-					<Link
-						href={buildPlaygroundUrl(event)}
-						onClick={handleStopPropagation}
-						className="flex items-center gap-2"
-					>
-						<FlaskConical className="h-4 w-4" />
-						Im Playground öffnen
-					</Link>
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
-	);
-};
-
-export const createColumns = (onViewDetails: (id: string) => void) => [
+export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOptions = {}) => [
 	columnHelper.accessor("timestamp", {
 		cell: (info) => (
-			<span className="whitespace-nowrap text-xs sm:text-sm">
-				{formatDate(info.getValue())}
-			</span>
+			<span className="whitespace-nowrap text-xs sm:text-sm">{formatDate(info.getValue())}</span>
 		),
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Zeitpunkt" />
-		),
+		header: ({ column }) => <DataTableColumnHeader column={column} title="Zeitpunkt" />,
 		id: "timestamp",
 	}),
 	columnHelper.accessor("user", {
@@ -185,9 +148,7 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 					<span className="max-w-[120px] truncate font-medium text-solarized-base00 sm:max-w-none">
 						{user.name || "Kein Name"}
 					</span>
-					<span className="hidden text-xs text-solarized-base01 sm:block">
-						{user.email}
-					</span>
+					<span className="hidden text-xs text-solarized-base01 sm:block">{user.email}</span>
 				</div>
 			);
 		},
@@ -197,7 +158,9 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 				name: string | null;
 				email: string;
 			} | null;
-			if (!user) {return false;}
+			if (!user) {
+				return false;
+			}
 			const search = filterValue.toLowerCase();
 			return (
 				(user.name?.toLowerCase().includes(search) ?? false) ||
@@ -209,10 +172,7 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 	}),
 	columnHelper.accessor("name", {
 		cell: (info) => (
-			<Badge
-				variant="outline"
-				className="hidden whitespace-nowrap sm:inline-flex"
-			>
+			<Badge variant="outline" className="hidden whitespace-nowrap sm:inline-flex">
 				{info.getValue()}
 			</Badge>
 		),
@@ -223,16 +183,6 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 		},
 		header: () => <span className="hidden sm:inline">Aktion</span>,
 		id: "action",
-	}),
-	columnHelper.accessor("model", {
-		cell: (info) => (
-			<span className="hidden font-mono text-xs md:inline">
-				{info.getValue()?.split("/").pop() || "-"}
-			</span>
-		),
-		enableSorting: false,
-		header: () => <span className="hidden md:inline">Modell</span>,
-		id: "model",
 	}),
 	columnHelper.accessor("metadata", {
 		cell: (info) => {
@@ -250,16 +200,15 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 		header: () => <span className="hidden lg:inline">Prompt</span>,
 		id: "prompt",
 	}),
-	columnHelper.accessor("cost", {
+	columnHelper.accessor("model", {
 		cell: (info) => (
-			<span className="whitespace-nowrap font-mono text-xs">
-				{formatCost(info.getValue())}
+			<span className="hidden font-mono text-xs md:inline">
+				{info.getValue()?.split("/").pop() || "-"}
 			</span>
 		),
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Kosten" />
-		),
-		id: "cost",
+		enableSorting: false,
+		header: () => <span className="hidden md:inline">Modell</span>,
+		id: "model",
 	}),
 	columnHelper.accessor("totalTokens", {
 		cell: (info) => (
@@ -267,6 +216,7 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 				{info.getValue()?.toLocaleString("de-DE") ?? "-"}
 			</span>
 		),
+		enableSorting: false,
 		header: ({ column }) => (
 			<span className="hidden sm:inline">
 				<DataTableColumnHeader column={column} title="Tokens" />
@@ -274,11 +224,67 @@ export const createColumns = (onViewDetails: (id: string) => void) => [
 		),
 		id: "tokens",
 	}),
-	columnHelper.display({
-		cell: ({ row }) => (
-			<UsageActionsCell event={row.original} onViewDetails={onViewDetails} />
+	columnHelper.accessor("cost", {
+		cell: (info) => (
+			<span className="whitespace-nowrap font-mono text-xs">{formatCost(info.getValue())}</span>
 		),
-		header: "",
-		id: "actions",
+		enableSorting: false,
+		header: ({ column }) => <DataTableColumnHeader column={column} title="Kosten" />,
+		id: "cost",
+	}),
+	columnHelper.accessor("metadata", {
+		cell: (info) => {
+			const evaluation = getUsageEvaluation(info.getValue());
+			const event = info.row.original;
+			const isEvaluating = evaluatingEventId === event.id;
+			const canEvaluate = Boolean(onEvaluate && !isEvaluating);
+
+			if (!evaluation || evaluation.categories.length === 0) {
+				return (
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						disabled={!canEvaluate}
+						onClick={(event_) => {
+							event_.stopPropagation();
+							onEvaluate?.(event.id);
+						}}
+						className="h-6 gap-1 px-1 font-mono text-xs text-solarized-base00"
+					>
+						{isEvaluating ? (
+							<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
+						) : (
+							<Medal className="h-3 w-3 text-solarized-yellow" />
+						)}
+						{isEvaluating ? "..." : "-"}
+					</Button>
+				);
+			}
+
+			return (
+				<EvaluationDetailsDialog
+					canRegenerate={canEvaluate}
+					evaluation={evaluation}
+					isRegenerating={isEvaluating}
+					onRegenerate={() => onEvaluate?.(event.id)}
+					trigger={
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={(event_) => event_.stopPropagation()}
+							className="h-6 gap-1 px-1 font-mono text-xs text-solarized-base00"
+						>
+							<Medal className="h-3 w-3 text-solarized-yellow" />
+							{formatScore(evaluation.totalScore)}
+						</Button>
+					}
+				/>
+			);
+		},
+		enableSorting: false,
+		header: "Score",
+		id: "score",
 	}),
 ];

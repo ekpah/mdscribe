@@ -58,12 +58,14 @@ export interface PlaygroundResult {
 	text: string;
 	reasoning?: string;
 	evaluation?: {
-		totalScore: number;
+		totalScore?: number;
 		categories: {
+			comment?: string;
 			name: string;
 			score: number;
 		}[];
 		isLoading: boolean;
+		summary?: string;
 	};
 	metrics: {
 		latencyMs: number;

@@ -368,6 +368,10 @@ export const aiModel = pgTable(
 );
 
 export const aiDefaults = pgTable("AiDefaults", {
+	defaultEvaluationModel: text("defaultEvaluationModel").references(
+		() => aiModel.id,
+		{ onDelete: "set null" },
+	),
 	defaultFileImageModelId: text("defaultFileImageModelId").references(
 		() => aiModel.id,
 		{ onDelete: "set null" },

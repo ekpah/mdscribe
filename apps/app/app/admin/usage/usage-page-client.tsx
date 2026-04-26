@@ -9,19 +9,19 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { DataTable, DataTableViewOptions } from '@repo/design-system/components/ui/data-table';
-import type { DataTableRenderToolbarProps } from '@repo/design-system/components/ui/data-table';
+import { DataTable, DataTableViewOptions } from "@repo/design-system/components/ui/data-table";
+import type { DataTableRenderToolbarProps } from "@repo/design-system/components/ui/data-table";
 import { Input } from "@repo/design-system/components/ui/input";
-import {
-	ToggleGroup,
-	ToggleGroupItem,
-} from "@repo/design-system/components/ui/toggle-group";
-import { useQuery } from "@tanstack/react-query";
-import { Activity, Loader2, XCircle } from "lucide-react";
+import { cn } from "@repo/design-system/lib/utils";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Activity, Loader2, Medal, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
+
+import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import { orpc } from "@/lib/orpc";
+
 import { UsageEventDetail } from "./_components/usage-event-detail";
 import {
 	buildPlaygroundUrl,
@@ -29,8 +29,10 @@ import {
 	formatCost,
 	formatDate,
 	getPromptLabel,
+	getUsageEvaluation,
+	formatScore,
 } from "./columns";
-import type { UsageDetailEvent, UsageListEvent } from "./types";
+import type { UsageDetailEvent, UsageEvaluation, UsageListEvent } from "./types";
 
 type StatsFilter = "today" | "week" | "month" | "all";
 
@@ -50,23 +52,26 @@ const UsageToolbar = ({
 	searchFilter: string;
 	onSearchFilterChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }) => (
-		<div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-			<Input
-				placeholder="Benutzer oder Aktion suchen..."
-				value={searchFilter}
-				onChange={onSearchFilterChange}
-				className="w-full md:max-w-sm"
-			/>
-			<div className="hidden md:block">
-				<DataTableViewOptions table={table} />
-			</div>
+	<div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+		<Input
+			placeholder="Benutzer oder Aktion suchen..."
+			value={searchFilter}
+			onChange={onSearchFilterChange}
+			className="w-full md:max-w-sm"
+		/>
+		<div className="hidden md:block">
+			<DataTableViewOptions table={table} />
 		</div>
-	);
+	</div>
+);
 
 export default function UsagePage() {
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 	const [cursor, setCursor] = useState<string | undefined>();
 	const [allItems, setAllItems] = useState<UsageListEvent[]>([]);
+	const [evaluationByEventId, setEvaluationByEventId] = useState<Record<string, UsageEvaluation>>(
+		{},
+	);
 	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
 	const [searchFilter, setSearchFilter] = useState("");
 	const statsQueryOptions = orpc.admin.usage.stats.queryOptions({
@@ -74,10 +79,7 @@ export default function UsagePage() {
 	});
 
 	// Stats query
-	const {
-		data: stats,
-		isLoading: statsLoading,
-	} = useQuery(statsQueryOptions);
+	const { data: stats, isLoading: statsLoading } = useQuery(statsQueryOptions);
 
 	// List query with pagination
 	const {
@@ -105,9 +107,7 @@ export default function UsagePage() {
 				// Subsequent pages - append new items
 				setAllItems((prev) => {
 					const existingIds = new Set(prev.map((item) => item.id));
-					const newItems = data.items.filter(
-						(item) => !existingIds.has(item.id),
-					);
+					const newItems = data.items.filter((item) => !existingIds.has(item.id));
 					return [...prev, ...newItems];
 				});
 			}
@@ -122,31 +122,71 @@ export default function UsagePage() {
 		enabled: !!selectedEventId,
 	});
 
+	const evaluateMutation = useMutation(
+		orpc.admin.usage.evaluate.mutationOptions({
+			onSuccess: (evaluation, variables) => {
+				const eventId = variables.id;
+				setEvaluationByEventId((current) => ({
+					...current,
+					[eventId]: evaluation,
+				}));
+				setAllItems((current) =>
+					current.map((item) => {
+						if (item.id !== eventId) {
+							return item;
+						}
+						const metadata =
+							item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
+								? (item.metadata as Record<string, unknown>)
+								: {};
+						return {
+							...item,
+							metadata: {
+								...metadata,
+								usageEvaluation: evaluation,
+							},
+						};
+					}),
+				);
+			},
+		}),
+	);
+
 	const handleLoadMore = useCallback(() => {
 		if (data?.nextCursor) {
 			setCursor(data.nextCursor);
 		}
 	}, [data?.nextCursor]);
 
+	const handleEvaluateEvent = useCallback(
+		(id: string) => {
+			evaluateMutation.mutate({ id });
+		},
+		[evaluateMutation],
+	);
+
 	const handleRowClick = useCallback((row: UsageListEvent) => {
 		setSelectedEventId(row.id);
 	}, []);
 
 	const columns = useMemo(
-		() => createColumns((id) => setSelectedEventId(id)),
-		[],
+		() =>
+			createColumns({
+				evaluatingEventId: evaluateMutation.isPending ? evaluateMutation.variables?.id : undefined,
+				onEvaluate: handleEvaluateEvent,
+			}),
+		[evaluateMutation.isPending, evaluateMutation.variables?.id, handleEvaluateEvent],
 	);
 
 	const handleStatsFilterChange = useCallback((value: string) => {
-		if (value) {setStatsFilter(value as StatsFilter);}
+		if (value) {
+			setStatsFilter(value as StatsFilter);
+		}
 	}, []);
 
-	const handleSearchFilterChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			setSearchFilter(event.target.value);
-		},
-		[],
-	);
+	const handleSearchFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		setSearchFilter(event.target.value);
+	}, []);
 
 	const renderUsageToolbar = useCallback(
 		(table: DataTableRenderToolbarProps<UsageListEvent>["table"]) => (
@@ -160,24 +200,47 @@ export default function UsagePage() {
 	);
 
 	const handleDetailOpenChange = useCallback((open: boolean) => {
-		if (!open) {setSelectedEventId(null);}
+		if (!open) {
+			setSelectedEventId(null);
+		}
 	}, []);
+
+	const selectedEventWithEvaluation = useMemo(() => {
+		if (!selectedEvent) {
+			return selectedEvent as UsageDetailEvent | null | undefined;
+		}
+		const evaluation = evaluationByEventId[selectedEvent.id];
+		if (!evaluation) {
+			return selectedEvent as UsageDetailEvent;
+		}
+		const metadata =
+			selectedEvent.metadata &&
+			typeof selectedEvent.metadata === "object" &&
+			!Array.isArray(selectedEvent.metadata)
+				? (selectedEvent.metadata as Record<string, unknown>)
+				: {};
+		return {
+			...selectedEvent,
+			metadata: {
+				...metadata,
+				usageEvaluation: evaluation,
+			},
+		} as UsageDetailEvent;
+	}, [evaluationByEventId, selectedEvent]);
 
 	// Filter items based on search - matches user name/email OR action name
 	const filteredItems = useMemo(() => {
-		if (!searchFilter.trim()) {return allItems;}
+		if (!searchFilter.trim()) {
+			return allItems;
+		}
 		const search = searchFilter.toLowerCase();
 		return allItems.filter((item) => {
 			const userName = item.user?.name?.toLowerCase() ?? "";
 			const userEmail = item.user?.email?.toLowerCase() ?? "";
 			const actionName = item.name?.toLowerCase() ?? "";
-			return (
-				userName.includes(search) ||
-				userEmail.includes(search) ||
-				actionName.includes(search)
-			);
+			return userName.includes(search) || userEmail.includes(search) || actionName.includes(search);
 		});
-		}, [allItems, searchFilter]);
+	}, [allItems, searchFilter]);
 
 	const handleEventSelectionById = useMemo<Record<string, () => void>>(() => {
 		const handlers: Record<string, () => void> = {};
@@ -216,9 +279,7 @@ export default function UsagePage() {
 					<div className="flex min-h-[300px] items-center justify-center sm:min-h-[400px]">
 						<div className="flex items-center gap-2 text-solarized-base01">
 							<Loader2 className="h-5 w-5 animate-spin" />
-							<span className="text-sm sm:text-base">
-								Events werden geladen...
-							</span>
+							<span className="text-sm sm:text-base">Events werden geladen...</span>
 						</div>
 					</div>
 				</div>
@@ -236,9 +297,7 @@ export default function UsagePage() {
 							<h2 className="text-base font-semibold text-solarized-base00 sm:text-lg">
 								Seite konnte nicht geladen werden
 							</h2>
-							<p className="text-sm text-solarized-base01 sm:text-base">
-								{errorMessage}
-							</p>
+							<p className="text-sm text-solarized-base01 sm:text-base">{errorMessage}</p>
 						</div>
 					</div>
 				</div>
@@ -270,30 +329,31 @@ export default function UsagePage() {
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
 						{/* Filter Tabs */}
-						<ToggleGroup
-							type="single"
-							value={statsFilter}
-							variant="outline"
-							onValueChange={handleStatsFilterChange}
-							className="mb-4 grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
-						>
-							{(Object.keys(filterLabels) as StatsFilter[]).map((filter) => (
-								<ToggleGroupItem
-									key={filter}
-									value={filter}
-									className="w-full justify-center"
-								>
-									{filterLabels[filter]}
-								</ToggleGroupItem>
-							))}
-						</ToggleGroup>
+						<div className="mb-4 grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
+							{(Object.keys(filterLabels) as StatsFilter[]).map((filter) => {
+								const isActive = statsFilter === filter;
+								return (
+									<Button
+										key={filter}
+										type="button"
+										variant="outline"
+										onClick={() => handleStatsFilterChange(filter)}
+										className={cn(
+											"h-9 w-full border-solarized-base2 bg-solarized-base3 text-solarized-base01 shadow-none hover:border-solarized-blue/40 hover:bg-solarized-blue/10 hover:text-solarized-blue",
+											isActive &&
+												"border-solarized-blue bg-solarized-blue/10 text-solarized-blue hover:border-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue",
+										)}
+									>
+										{filterLabels[filter]}
+									</Button>
+								);
+							})}
+						</div>
 
 						{/* Stats Grid */}
 						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-6">
 							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-									Events
-								</p>
+								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Events</p>
 								<p className="text-base font-semibold text-solarized-base00 sm:text-lg">
 									{statsLoading ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
@@ -303,9 +363,7 @@ export default function UsagePage() {
 								</p>
 							</div>
 							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-									Tokens
-								</p>
+								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Tokens</p>
 								<p className="text-base font-semibold text-solarized-cyan sm:text-lg">
 									{statsLoading ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
@@ -314,14 +372,12 @@ export default function UsagePage() {
 									)}
 								</p>
 							</div>
-								<div className="space-y-1">
-									<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-										Kosten
-									</p>
-									<p className="text-base font-semibold text-solarized-green sm:text-lg">
-										{totalCostLabel}
-									</p>
-								</div>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Kosten</p>
+								<p className="text-base font-semibold text-solarized-green sm:text-lg">
+									{totalCostLabel}
+								</p>
+							</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -329,9 +385,7 @@ export default function UsagePage() {
 				{/* Events Table */}
 				<Card className="border-solarized-base2">
 					<CardHeader>
-						<CardTitle className="text-solarized-base00">
-							Nutzungs-Events
-						</CardTitle>
+						<CardTitle className="text-solarized-base00">Nutzungs-Events</CardTitle>
 						<CardDescription>
 							Alle AI-Generierungen mit Details zu Kosten und Token-Nutzung
 						</CardDescription>
@@ -352,6 +406,9 @@ export default function UsagePage() {
 									const promptLabel = getPromptLabel(
 										item.metadata as Record<string, unknown> | null,
 									);
+									const evaluation = getUsageEvaluation(item.metadata);
+									const isEvaluatingItem =
+										evaluateMutation.isPending && evaluateMutation.variables?.id === item.id;
 									const modelLabel = item.model?.split("/").pop() || "-";
 
 									return (
@@ -390,9 +447,7 @@ export default function UsagePage() {
 											<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
 												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 													<p className="text-solarized-base01">Modell</p>
-													<p className="truncate font-mono text-solarized-base00">
-														{modelLabel}
-													</p>
+													<p className="truncate font-mono text-solarized-base00">{modelLabel}</p>
 												</div>
 												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 													<p className="text-solarized-base01">Tokens</p>
@@ -400,20 +455,56 @@ export default function UsagePage() {
 														{item.totalTokens?.toLocaleString("de-DE") ?? "-"}
 													</p>
 												</div>
+												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+													<p className="text-solarized-base01">Score</p>
+													{evaluation ? (
+														<EvaluationDetailsDialog
+															canRegenerate={!isEvaluatingItem}
+															evaluation={evaluation}
+															isRegenerating={isEvaluatingItem}
+															onRegenerate={() => handleEvaluateEvent(item.id)}
+															trigger={
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-6 gap-1 px-0 font-mono text-xs text-solarized-base00"
+																>
+																	<Medal className="h-3 w-3 text-solarized-yellow" />
+																	{formatScore(evaluation.totalScore)}
+																</Button>
+															}
+														/>
+													) : (
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															disabled={isEvaluatingItem}
+															onClick={() => handleEvaluateEvent(item.id)}
+															className="h-6 gap-1 px-0 font-mono text-xs text-solarized-base00"
+														>
+															{isEvaluatingItem ? (
+																<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
+															) : (
+																<Medal className="h-3 w-3 text-solarized-yellow" />
+															)}
+															{isEvaluatingItem ? "..." : "-"}
+														</Button>
+													)}
+												</div>
 											</div>
 
-												<div className="mt-3 flex flex-col gap-2">
-													<Button
-														variant="outline"
-														onClick={handleEventSelectionById[item.id]}
-														className="w-full"
-													>
+											<div className="mt-3 flex flex-col gap-2">
+												<Button
+													variant="outline"
+													onClick={handleEventSelectionById[item.id]}
+													className="w-full"
+												>
 													Details anzeigen
 												</Button>
 												<Button asChild className="w-full" variant="secondary">
-													<Link href={buildPlaygroundUrl(item)}>
-														Im Playground öffnen
-													</Link>
+													<Link href={buildPlaygroundUrl(item)}>Im Playground öffnen</Link>
 												</Button>
 											</div>
 										</div>
@@ -459,11 +550,15 @@ export default function UsagePage() {
 			</div>
 
 			{/* Detail Sheet */}
-				<UsageEventDetail
-					event={selectedEvent as UsageDetailEvent | null | undefined}
-					open={!!selectedEventId}
-					onOpenChange={handleDetailOpenChange}
-				/>
-			</div>
-		);
-	}
+			<UsageEventDetail
+				event={selectedEventWithEvaluation}
+				isEvaluating={
+					evaluateMutation.isPending && evaluateMutation.variables?.id === selectedEventId
+				}
+				onEvaluate={handleEvaluateEvent}
+				open={!!selectedEventId}
+				onOpenChange={handleDetailOpenChange}
+			/>
+		</div>
+	);
+}

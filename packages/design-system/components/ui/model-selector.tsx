@@ -132,7 +132,8 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 			}
 
 			return Array.from(groups.entries())
-				.map(([group, entries]) => [
+				.map(
+					([group, entries]): [string, NormalizedOption<TOption>[]] => [
 					group,
 					[...entries].sort((a, b) => {
 						const labelCompare = compareSelectorText(
@@ -145,7 +146,7 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 
 						return compareSelectorText(a.key, b.key)
 					}),
-				] as const)
+				])
 				.sort(([groupA], [groupB]) => {
 					if (!groupA && groupB) {
 						return 1

@@ -2,16 +2,13 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import type { VoiceFillAudioFile } from '@repo/design-system/components/inputs/voice-input-controls';
+import type { VoiceFillAudioFile } from "@repo/design-system/components/inputs/voice-input-controls";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	Card,
-	CardContent,
-} from "@repo/design-system/components/ui/card";
+import { Card, CardContent } from "@repo/design-system/components/ui/card";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ModelSelector } from '@repo/design-system/components/ui/model-selector';
-import type { ModelSelectorOption } from '@repo/design-system/components/ui/model-selector';
+import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
+import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,
@@ -21,20 +18,20 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import { useQuery } from "@tanstack/react-query";
 import { cn } from "@repo/design-system/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { Copy, Play, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, MutableRefObject, UIEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, MutableRefObject, UIEvent } from "react";
 import { toast } from "sonner";
 
+import { allScribeDocTypes, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
+import type { PlaygroundDocumentType } from "@/app/admin/playground/_lib/scribe-doc-types";
+import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
+import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 
-import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
-import { allScribeDocTypes, scribeDocTypeUi } from '@/app/admin/playground/_lib/scribe-doc-types';
-import type { PlaygroundDocumentType } from '@/app/admin/playground/_lib/scribe-doc-types';
-import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
 import { ParameterControls } from "./parameter-controls";
 import { ResultDisplay } from "./result-display";
 
@@ -157,10 +154,12 @@ interface RunState {
 	evaluation?: {
 		totalScore?: number;
 		categories: {
+			comment?: string;
 			name: string;
 			score: number;
 		}[];
 		isLoading: boolean;
+		summary?: string;
 	};
 	metrics: {
 		latencyMs: number;
@@ -227,9 +226,7 @@ const DirtySelectorLabel = ({ isDirty, label }: DirtySelectorLabelProps) => (
 		<span
 			className={cn(
 				"h-3 text-[9px] leading-3 transition-opacity",
-				isDirty
-					? "text-solarized-orange opacity-100"
-					: "text-solarized-base01/60 opacity-0",
+				isDirty ? "text-solarized-orange opacity-100" : "text-solarized-base01/60 opacity-0",
 			)}
 		>
 			Geändert
@@ -237,11 +234,7 @@ const DirtySelectorLabel = ({ isDirty, label }: DirtySelectorLabelProps) => (
 	</div>
 );
 
-type PlaygroundView =
-	| "config"
-	| "inputs"
-	| "models"
-	| "results";
+type PlaygroundView = "config" | "inputs" | "models" | "results";
 type PromptVariableSource = "input" | "runtime";
 
 interface PromptPreviewVariable {
@@ -251,10 +244,7 @@ interface PromptPreviewVariable {
 	value: string;
 }
 
-const PLAYGROUND_VIEW_META: Record<
-	PlaygroundView,
-	{ description: string; label: string }
-> = {
+const PLAYGROUND_VIEW_META: Record<PlaygroundView, { description: string; label: string }> = {
 	config: {
 		description: "Prompt, Template und kompilierte Nachrichten",
 		label: "Prompt",
@@ -324,6 +314,110 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
 	return encodeUint8ArrayToBase64(bytes);
 };
 
+const asFiniteMetricNumber = (value: unknown): number | undefined => {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return undefined;
+	}
+	return value;
+};
+
+const parseRunMetricsFromMetadata = (metadata: unknown): Partial<RunState["metrics"]> => {
+	if (!metadata || typeof metadata !== "object") {
+		return {};
+	}
+
+	const value = metadata as Record<string, unknown>;
+	const parsed: Partial<RunState["metrics"]> = {};
+
+	const cost = asFiniteMetricNumber(value.cost);
+	if (cost !== undefined) {
+		parsed.cost = cost;
+	}
+
+	const inputTokens = asFiniteMetricNumber(value.inputTokens);
+	if (inputTokens !== undefined) {
+		parsed.inputTokens = inputTokens;
+	}
+
+	const outputTokens = asFiniteMetricNumber(value.outputTokens);
+	if (outputTokens !== undefined) {
+		parsed.outputTokens = outputTokens;
+	}
+
+	const reasoningTokens = asFiniteMetricNumber(value.reasoningTokens);
+	if (reasoningTokens !== undefined) {
+		parsed.reasoningTokens = reasoningTokens;
+	}
+
+	const totalTokens = asFiniteMetricNumber(value.totalTokens);
+	if (totalTokens !== undefined) {
+		parsed.totalTokens = totalTokens;
+	}
+
+	return parsed;
+};
+
+const getAssistantTextFromMessages = (
+	messages: Array<{ role: string; parts?: Array<{ type: string; text?: string }> }>,
+): string =>
+	messages
+		.findLast((message) => message.role === "assistant")
+		?.parts?.filter((part) => part.type === "text" && typeof part.text === "string")
+		.map((part) => part.text ?? "")
+		.join("") ?? "";
+
+const getTextFromUnknownParts = (value: unknown): string => {
+	if (!Array.isArray(value)) {
+		return "";
+	}
+
+	const chunks: string[] = [];
+	for (const entry of value) {
+		if (typeof entry === "string") {
+			chunks.push(entry);
+			continue;
+		}
+
+		if (!entry || typeof entry !== "object") {
+			continue;
+		}
+
+		const part = entry as { type?: unknown; text?: unknown };
+		if (part.type === "text" && typeof part.text === "string") {
+			chunks.push(part.text);
+		}
+	}
+
+	return chunks.join("");
+};
+
+const getTextFromUiMessage = (message: unknown): string => {
+	if (!message || typeof message !== "object") {
+		return "";
+	}
+
+	const candidate = message as {
+		content?: unknown;
+		parts?: Array<{ type?: string; text?: unknown }>;
+	};
+
+	const partsText = getTextFromUnknownParts(candidate.parts);
+	if (partsText.trim().length > 0) {
+		return partsText;
+	}
+
+	if (typeof candidate.content === "string") {
+		return candidate.content;
+	}
+
+	const contentPartsText = getTextFromUnknownParts(candidate.content);
+	if (contentPartsText.trim().length > 0) {
+		return contentPartsText;
+	}
+
+	return "";
+};
+
 const serializePromptVariable = (value: unknown): string => {
 	if (typeof value === "string") {
 		return value;
@@ -349,10 +443,7 @@ const getPromptMessageMatches = (
 	variables: PromptPreviewVariable[],
 ): PromptPreviewVariable[] =>
 	variables
-		.filter(
-			(variable) =>
-				variable.value.trim().length > 0 && content.includes(variable.value),
-		)
+		.filter((variable) => variable.value.trim().length > 0 && content.includes(variable.value))
 		.sort((a, b) => {
 			if (a.source !== b.source) {
 				return a.source === "input" ? -1 : 1;
@@ -365,9 +456,7 @@ interface PromptHighlightSegment {
 	text: string;
 }
 
-const getSegmentHighlightClassName = (
-	source: PromptHighlightSegment["source"],
-): string => {
+const getSegmentHighlightClassName = (source: PromptHighlightSegment["source"]): string => {
 	if (source === "runtime") {
 		return "rounded-[3px] border border-solarized-orange/40 bg-solarized-orange/12 px-0.5 text-solarized-orange";
 	}
@@ -377,9 +466,7 @@ const getSegmentHighlightClassName = (
 	return "";
 };
 
-const getPromptMessageRoleBadgeClassName = (
-	role: "system" | "user" | "assistant",
-): string => {
+const getPromptMessageRoleBadgeClassName = (role: "system" | "user" | "assistant"): string => {
 	if (role === "system") {
 		return "border-solarized-blue/40 bg-solarized-blue/12 text-solarized-blue";
 	}
@@ -530,10 +617,7 @@ const HighlightedPromptEditor = ({
 
 	return (
 		<div className="relative h-full min-h-0">
-			<div
-				aria-hidden
-				className="pointer-events-none absolute inset-0 overflow-hidden rounded-md"
-			>
+			<div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-md">
 				<div
 					ref={overlayContentRef}
 					className={cn(
@@ -541,30 +625,28 @@ const HighlightedPromptEditor = ({
 						PLAYGROUND_EDITOR_TEXTAREA_CLASS,
 					)}
 				>
-						{segments.map((segment) => (
-									<span
-										className={cn(
-											getSegmentHighlightClassName(segment.source),
-										)}
-										key={`${segment.source}-${segment.text}`}
-									>
-									{segment.text}
-								</span>
-						))}
+					{segments.map((segment) => (
+						<span
+							className={cn(getSegmentHighlightClassName(segment.source))}
+							key={`${segment.source}-${segment.text}`}
+						>
+							{segment.text}
+						</span>
+					))}
 				</div>
 			</div>
-				<textarea
-					value={value}
-					onChange={handleValueChange}
-					onScroll={handleScroll}
-					spellCheck={false}
-					className={cn(
-						"border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-full min-h-0 w-full resize-none rounded-md border border-solarized-base2 bg-transparent px-3 py-2 text-transparent shadow-xs transition-[color,box-shadow] outline-none caret-solarized-base00 selection:bg-solarized-base2/70 selection:text-solarized-base00 focus-visible:ring-[3px]",
-						PLAYGROUND_EDITOR_TEXTAREA_CLASS,
-					)}
-				/>
-			</div>
-		);
+			<textarea
+				value={value}
+				onChange={handleValueChange}
+				onScroll={handleScroll}
+				spellCheck={false}
+				className={cn(
+					"border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-full min-h-0 w-full resize-none rounded-md border border-solarized-base2 bg-transparent px-3 py-2 text-transparent shadow-xs transition-[color,box-shadow] outline-none caret-solarized-base00 selection:bg-solarized-base2/70 selection:text-solarized-base00 focus-visible:ring-[3px]",
+					PLAYGROUND_EDITOR_TEXTAREA_CLASS,
+				)}
+			/>
+		</div>
+	);
 };
 
 const PromptHarnessPreview = ({
@@ -582,20 +664,15 @@ const PromptHarnessPreview = ({
 	const shouldStretchMessageRows = messages.length > 0 && messages.length <= 3;
 	const copyMessageHandlers = useMemo(
 		() =>
-			messages.map(
-				(message) => async () => {
-					await navigator.clipboard.writeText(message.content);
-					toast.success("Kopiert!");
-				},
-			),
+			messages.map((message) => async () => {
+				await navigator.clipboard.writeText(message.content);
+				toast.success("Kopiert!");
+			}),
 		[messages],
 	);
 
 	const messageChangeHandlers = useMemo(
-		() =>
-			messages.map(
-				(_, index) => (content: string) => onMessageChange(index, content),
-			),
+		() => messages.map((_, index) => (content: string) => onMessageChange(index, content)),
 		[messages, onMessageChange],
 	);
 
@@ -629,10 +706,7 @@ const PromptHarnessPreview = ({
 						return null;
 					}
 
-					const matchingItems = getPromptMessageMatches(
-						message.content,
-						allPreviewItems,
-					);
+					const matchingItems = getPromptMessageMatches(message.content, allPreviewItems);
 					const isUserPromptCard = message.role === "user";
 
 					return (
@@ -735,8 +809,7 @@ export const PlaygroundPanel = ({
 	)
 		? resolvedPresetDocumentType
 		: "discharge";
-	const [documentType, setDocumentType] =
-		useState<PlaygroundDocumentType>(initialDocType);
+	const [documentType, setDocumentType] = useState<PlaygroundDocumentType>(initialDocType);
 
 	// Parse preset variables from usage event into form fields
 	const parsedPreset = useMemo(() => {
@@ -757,9 +830,15 @@ export const PlaygroundPanel = ({
 
 	// Apply async preset document type once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetDocTypeRef.current) {return;}
-		if (!presetDocumentType) {return;}
-		if (!isPlaygroundDocumentType(presetDocumentType)) {return;}
+		if (hasAppliedPresetDocTypeRef.current) {
+			return;
+		}
+		if (!presetDocumentType) {
+			return;
+		}
+		if (!isPlaygroundDocumentType(presetDocumentType)) {
+			return;
+		}
 
 		setDocumentType(presetDocumentType);
 		hasAppliedPresetDocTypeRef.current = true;
@@ -767,8 +846,12 @@ export const PlaygroundPanel = ({
 
 	// Apply async preset variables once (usage -> playground jump-off).
 	useEffect(() => {
-		if (hasAppliedPresetFieldsRef.current) {return;}
-		if (!parsedPreset) {return;}
+		if (hasAppliedPresetFieldsRef.current) {
+			return;
+		}
+		if (!parsedPreset) {
+			return;
+		}
 
 		setFormMain(parsedPreset.main);
 		setFormAdditional(parsedPreset.additional);
@@ -784,9 +867,7 @@ export const PlaygroundPanel = ({
 
 	// Prompt selection / compilation
 	const [promptName, setPromptName] = useState<string>(docUi.defaultPromptName);
-	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
-		NONE_TEMPLATE_VALUE,
-	);
+	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(NONE_TEMPLATE_VALUE);
 	const [promptHarnessDraftMessages, setPromptHarnessDraftMessages] = useState<
 		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
@@ -813,9 +894,7 @@ export const PlaygroundPanel = ({
 		if (fetchedOptions.length > 0) {
 			return fetchedOptions;
 		}
-		return allScribeDocTypes.map(
-			(docType) => scribeDocTypeUi[docType].defaultPromptName,
-		);
+		return allScribeDocTypes.map((docType) => scribeDocTypeUi[docType].defaultPromptName);
 	}, [promptHarnessesData?.items]);
 
 	const promptHarnessDetailsQueryOptions = orpc.admin.scribe.prompts.get.queryOptions({
@@ -828,10 +907,7 @@ export const PlaygroundPanel = ({
 
 	const templateDetailsQueryOptions = orpc.templates.get.queryOptions({
 		input: {
-			id:
-				selectedTemplateId === NONE_TEMPLATE_VALUE
-					? ""
-					: selectedTemplateId,
+			id: selectedTemplateId === NONE_TEMPLATE_VALUE ? "" : selectedTemplateId,
 		},
 	});
 	const { data: selectedTemplateDetails, isFetching: isFetchingSelectedTemplate } = useQuery({
@@ -874,8 +950,7 @@ export const PlaygroundPanel = ({
 	);
 
 	useEffect(() => {
-		const currentTemplateId = selectedTemplateDetails?.id ?? null;
-		if (currentTemplateId === null) {
+		if (!selectedTemplateDetails) {
 			if (loadedTemplateIdRef.current !== null) {
 				setTemplateDraftContent("");
 				setTemplateDraftExamples([]);
@@ -884,6 +959,7 @@ export const PlaygroundPanel = ({
 			return;
 		}
 
+		const currentTemplateId = selectedTemplateDetails.id;
 		if (loadedTemplateIdRef.current === currentTemplateId) {
 			return;
 		}
@@ -902,9 +978,7 @@ export const PlaygroundPanel = ({
 		if (templateDraftContent !== selectedTemplateDetails.content) {
 			return true;
 		}
-		const baseExamples = (selectedTemplateDetails.examples ?? []).map(
-			(example) => example.content,
-		);
+		const baseExamples = (selectedTemplateDetails.examples ?? []).map((example) => example.content);
 		if (templateDraftExamples.length !== baseExamples.length) {
 			return true;
 		}
@@ -1012,9 +1086,7 @@ export const PlaygroundPanel = ({
 	}, [handleStartRecordingAudio, handleStopRecordingAudio, isRecordingAudio]);
 
 	const handleRemoveAudioRecording = useCallback((id: string) => {
-		setAudioRecordings((prev) =>
-			prev.filter((recording) => recording.id !== id),
-		);
+		setAudioRecordings((prev) => prev.filter((recording) => recording.id !== id));
 	}, []);
 
 	const recordingAudioButtonTitle = (() => {
@@ -1027,52 +1099,52 @@ export const PlaygroundPanel = ({
 		return "Audioaufnahme starten";
 	})();
 
-	const handleParseAudioToText = useCallback(async (audioFiles: VoiceFillAudioFile[]) => {
-		toast.loading("Audio wird zu Text geparst...", {
-			id: "playground-audio-parse",
-		});
-
-		try {
-			const result = await orpc.scribe.voiceFill.call({
-				audioFiles,
-				inputFields: [
-					{
-						description: [
-							docUi.mainField.label,
-							docUi.mainField.description,
-							"Transkribiere die Sprachaufnahme als Fließtext für dieses Hauptfeld.",
-						]
-							.filter(Boolean)
-							.join(" · "),
-						label: docUi.mainField.name,
-					},
-				],
+	const handleParseAudioToText = useCallback(
+		async (audioFiles: VoiceFillAudioFile[]) => {
+			toast.loading("Audio wird zu Text geparst...", {
+				id: "playground-audio-parse",
 			});
 
-			const parsedText = result.fieldValues[docUi.mainField.name]?.trim();
-			if (!parsedText) {
-				throw new Error("Keine verwertbare Sprache erkannt");
+			try {
+				const result = await orpc.scribe.voiceFill.call({
+					audioFiles,
+					inputFields: [
+						{
+							description: [
+								docUi.mainField.label,
+								docUi.mainField.description,
+								"Transkribiere die Sprachaufnahme als Fließtext für dieses Hauptfeld.",
+							]
+								.filter(Boolean)
+								.join(" · "),
+							label: docUi.mainField.name,
+						},
+					],
+				});
+
+				const parsedText = result.fieldValues[docUi.mainField.name]?.trim();
+				if (!parsedText) {
+					throw new Error("Keine verwertbare Sprache erkannt");
+				}
+
+				setFormMain((prev) => {
+					const trimmedPrevious = prev.trim();
+					return trimmedPrevious.length > 0 ? `${trimmedPrevious}\n\n${parsedText}` : parsedText;
+				});
+
+				toast.success("Audio als Text ins Hauptfeld übernommen", {
+					id: "playground-audio-parse",
+				});
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
+				toast.error(`Audio-Parsing fehlgeschlagen: ${errorMessage}`, {
+					id: "playground-audio-parse",
+				});
+				throw error;
 			}
-
-			setFormMain((prev) => {
-				const trimmedPrevious = prev.trim();
-				return trimmedPrevious.length > 0
-					? `${trimmedPrevious}\n\n${parsedText}`
-					: parsedText;
-			});
-
-			toast.success("Audio als Text ins Hauptfeld übernommen", {
-				id: "playground-audio-parse",
-			});
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "Unbekannter Fehler";
-			toast.error(`Audio-Parsing fehlgeschlagen: ${errorMessage}`, {
-				id: "playground-audio-parse",
-			});
-			throw error;
-		}
-	}, [docUi.mainField.description, docUi.mainField.label, docUi.mainField.name]);
+		},
+		[docUi.mainField.description, docUi.mainField.label, docUi.mainField.name],
+	);
 
 	const handleParseRecordedAudioToText = useCallback(async () => {
 		if (audioRecordings.length === 0) {
@@ -1117,9 +1189,7 @@ export const PlaygroundPanel = ({
 			);
 			setCompiledOverride(null);
 			setPromptRuntimeVariables(
-				res.promptVariables
-					? ({ ...res.promptVariables } as Record<string, unknown>)
-					: {},
+				res.promptVariables ? ({ ...res.promptVariables } as Record<string, unknown>) : {},
 			);
 		} catch (error) {
 			if (compileRequestRef.current !== requestId) {
@@ -1151,12 +1221,7 @@ export const PlaygroundPanel = ({
 		return () => {
 			window.clearTimeout(timeoutId);
 		};
-	}, [
-		compilePrompt,
-		isFetchingSelectedTemplate,
-		selectedTemplateDetails,
-		selectedTemplateId,
-	]);
+	}, [compilePrompt, isFetchingSelectedTemplate, selectedTemplateDetails, selectedTemplateId]);
 
 	const [modelRuns, setModelRuns] = useState<ModelRunConfig[]>(() => [
 		{
@@ -1178,12 +1243,18 @@ export const PlaygroundPanel = ({
 
 	// Apply preset model when models load (first run config only)
 	useEffect(() => {
-		if (!presetModel || models.length === 0) {return;}
+		if (!presetModel || models.length === 0) {
+			return;
+		}
 		setModelRuns((prev) => {
 			const first = prev.at(0);
-			if (!first || first.model) {return prev;}
+			if (!first || first.model) {
+				return prev;
+			}
 			const match = models.find((m) => m.id === presetModel || m.modelId === presetModel);
-			if (!match) {return prev;}
+			if (!match) {
+				return prev;
+			}
 			return [
 				{
 					...first,
@@ -1255,39 +1326,33 @@ export const PlaygroundPanel = ({
 		});
 	}, [models, topModelIds]);
 
-		const formatModelGroupLabel = useCallback(
-			(group: string) =>
-				PROVIDER_LABELS[group] ?? group.charAt(0).toUpperCase() + group.slice(1),
-			[],
-		);
+	const formatModelGroupLabel = useCallback(
+		(group: string) => PROVIDER_LABELS[group] ?? group.charAt(0).toUpperCase() + group.slice(1),
+		[],
+	);
 
-	const renderSelectedModelOption = useCallback((selected: PlaygroundModelSelectorOption | null) => {
-		if (!selected) {
-			return <span className="text-solarized-base01">Modell auswählen...</span>;
-		}
+	const renderSelectedModelOption = useCallback(
+		(selected: PlaygroundModelSelectorOption | null) => {
+			if (!selected) {
+				return <span className="text-solarized-base01">Modell auswählen...</span>;
+			}
 
-		return (
-			<div className="min-w-0">
-				<p className="truncate font-medium text-solarized-base00">
-					{selected.model.name}
-				</p>
-				<p className="truncate text-solarized-base01 text-xs">
-					{selected.providerLabel}
-				</p>
-			</div>
-		);
-	}, []);
+			return (
+				<div className="min-w-0">
+					<p className="truncate font-medium text-solarized-base00">{selected.model.name}</p>
+					<p className="truncate text-solarized-base01 text-xs">{selected.providerLabel}</p>
+				</div>
+			);
+		},
+		[],
+	);
 
-		const renderModelSelectorOption = useCallback(
-			(option: PlaygroundModelSelectorOption) => (
-				<div className="flex min-w-0 items-start justify-between gap-3">
-					<div className="min-w-0 space-y-1">
-						<p className="truncate font-medium text-solarized-base00">
-						{option.model.name}
-					</p>
-					<p className="truncate text-solarized-base01 text-xs">
-						{option.model.modelId}
-					</p>
+	const renderModelSelectorOption = useCallback(
+		(option: PlaygroundModelSelectorOption) => (
+			<div className="flex min-w-0 items-start justify-between gap-3">
+				<div className="min-w-0 space-y-1">
+					<p className="truncate font-medium text-solarized-base00">{option.model.name}</p>
+					<p className="truncate text-solarized-base01 text-xs">{option.model.modelId}</p>
 				</div>
 				<div className="flex shrink-0 items-center gap-1">
 					{option.isTop ? (
@@ -1306,11 +1371,11 @@ export const PlaygroundPanel = ({
 							Reasoning
 						</Badge>
 					) : null}
-					</div>
 				</div>
-			),
-			[],
-		);
+			</div>
+		),
+		[],
+	);
 
 	const inputPreviewItems = useMemo<PromptPreviewVariable[]>(
 		() => [
@@ -1332,20 +1397,24 @@ export const PlaygroundPanel = ({
 
 	const runtimePromptItems = useMemo<PromptPreviewVariable[]>(() => {
 		const preferredOrder = ["todaysDate", "contextXml", "relevantTemplate"];
-			return Object.entries(promptRuntimeVariables)
-				.map(([key, value]) => ({
+		return Object.entries(promptRuntimeVariables)
+			.map(([key, value]) => ({
 				key,
 				label: PROMPT_RUNTIME_LABELS[key] ?? key,
 				source: "runtime" as const,
 				value: serializePromptVariable(value),
-				}))
-				.filter((item) => item.value.trim().length > 0)
-				.toSorted((a, b) => {
-					const aIndex = preferredOrder.indexOf(a.key);
-					const bIndex = preferredOrder.indexOf(b.key);
+			}))
+			.filter((item) => item.value.trim().length > 0)
+			.toSorted((a, b) => {
+				const aIndex = preferredOrder.indexOf(a.key);
+				const bIndex = preferredOrder.indexOf(b.key);
 				if (aIndex !== -1 || bIndex !== -1) {
-					if (aIndex === -1) {return 1;}
-					if (bIndex === -1) {return -1;}
+					if (aIndex === -1) {
+						return 1;
+					}
+					if (bIndex === -1) {
+						return -1;
+					}
 					return aIndex - bIndex;
 				}
 				return a.key.localeCompare(b.key);
@@ -1354,8 +1423,9 @@ export const PlaygroundPanel = ({
 
 	const harnessPlaceholderValues = useMemo(
 		() => ({
-			"<patient_context></patient_context>":
-				serializePromptVariable(promptRuntimeVariables.contextXml),
+			"<patient_context></patient_context>": serializePromptVariable(
+				promptRuntimeVariables.contextXml,
+			),
 			"[Anamnese]": formAdditional.anamnese ?? "",
 			"[Befunde]": formAdditional.befunde ?? "",
 			"[Diagnoseblock]": formAdditional.diagnoseblock ?? "",
@@ -1387,28 +1457,25 @@ export const PlaygroundPanel = ({
 		[compiledMessages, compiledOverride, promptHarnessExperimentMessages],
 	);
 
-	const promptVersions = useMemo<PromptVersion[]>(
-		() => {
-			const versions: PromptVersion[] = [
-				{
-					id: "prompt-a",
-					label: "Prompt A",
-					messages: effectiveCompiledMessages,
-					promptName,
-				},
-			];
-			if (promptComparisonMessages) {
-				versions.push({
-					id: "prompt-b",
-					label: "Prompt B",
-					messages: promptComparisonMessages,
-					promptName: `${promptName} (B)`,
-				});
-			}
-			return versions;
-		},
-		[effectiveCompiledMessages, promptComparisonMessages, promptName],
-	);
+	const promptVersions = useMemo<PromptVersion[]>(() => {
+		const versions: PromptVersion[] = [
+			{
+				id: "prompt-a",
+				label: "Prompt A",
+				messages: effectiveCompiledMessages,
+				promptName,
+			},
+		];
+		if (promptComparisonMessages) {
+			versions.push({
+				id: "prompt-b",
+				label: "Prompt B",
+				messages: promptComparisonMessages,
+				promptName: `${promptName} (B)`,
+			});
+		}
+		return versions;
+	}, [effectiveCompiledMessages, promptComparisonMessages, promptName]);
 
 	const comparisonRuns = useMemo(
 		() =>
@@ -1436,12 +1503,10 @@ export const PlaygroundPanel = ({
 
 	const navigationItems = useMemo(
 		() =>
-				([
-					{
-						summary:
-							selectedTemplateId === NONE_TEMPLATE_VALUE
-								? promptName
-							: `${promptName} · Template`,
+			[
+				{
+					summary:
+						selectedTemplateId === NONE_TEMPLATE_VALUE ? promptName : `${promptName} · Template`,
 					view: "config",
 				},
 				{
@@ -1459,13 +1524,13 @@ export const PlaygroundPanel = ({
 							: "Noch keine Ergebnisse",
 					view: "results",
 				},
-			]) as { summary: string; view: PlaygroundView }[],
-			[
-				comparisonRuns.length,
-				inputPreviewItems.length,
-				modelRuns.length,
-				promptName,
-				promptVersions.length,
+			] as { summary: string; view: PlaygroundView }[],
+		[
+			comparisonRuns.length,
+			inputPreviewItems.length,
+			modelRuns.length,
+			promptName,
+			promptVersions.length,
 			resultsWithContentCount,
 			selectedTemplateId,
 		],
@@ -1520,9 +1585,7 @@ export const PlaygroundPanel = ({
 		for (const run of modelRuns) {
 			handlers.set(run.id, (parameters: PlaygroundParameters) => {
 				setModelRuns((prev) =>
-					prev.map((entry) =>
-						entry.id === run.id ? { ...entry, parameters } : entry,
-					),
+					prev.map((entry) => (entry.id === run.id ? { ...entry, parameters } : entry)),
 				);
 			});
 		}
@@ -1585,16 +1648,19 @@ export const PlaygroundPanel = ({
 		[docUi.additionalFields],
 	);
 
-	const handleCompiledMessageChange = useCallback((index: number, content: string) => {
-		const next = effectiveCompiledMessages.map((entry) => ({
-			...entry,
-		}));
-		next[index] = {
-			...next[index],
-			content,
-		};
-		setCompiledOverride(next);
-	}, [effectiveCompiledMessages]);
+	const handleCompiledMessageChange = useCallback(
+		(index: number, content: string) => {
+			const next = effectiveCompiledMessages.map((entry) => ({
+				...entry,
+			}));
+			next[index] = {
+				...next[index],
+				content,
+			};
+			setCompiledOverride(next);
+		},
+		[effectiveCompiledMessages],
+	);
 
 	const handleComparisonMessageChange = useCallback((index: number, content: string) => {
 		setPromptComparisonMessages((prev) => {
@@ -1684,29 +1750,19 @@ export const PlaygroundPanel = ({
 			<div className="flex h-full min-h-0 flex-col gap-2 p-2">
 				<div className="grid gap-2 lg:grid-cols-2">
 					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-						<DirtySelectorLabel
-							isDirty={isPromptHarnessDirty}
-							label="Basis-Prompt"
-						/>
-						<Select
-							onValueChange={handlePromptHarnessChange}
-							value={promptName}
-						>
+						<DirtySelectorLabel isDirty={isPromptHarnessDirty} label="Basis-Prompt" />
+						<Select onValueChange={handlePromptHarnessChange} value={promptName}>
 							<SelectTrigger
 								className={cn(
 									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
-									isPromptHarnessDirty
-										? "border-solarized-orange/50 bg-solarized-orange/10"
-										: "",
+									isPromptHarnessDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
 								)}
 							>
 								<SelectValue placeholder="Basis-Prompt waehlen" />
 							</SelectTrigger>
 							<SelectContent>
 								{hasPromptHarnessOption ? null : (
-									<SelectItem value={promptName}>
-										{promptName} (nicht verfuegbar)
-									</SelectItem>
+									<SelectItem value={promptName}>{promptName} (nicht verfuegbar)</SelectItem>
 								)}
 								{promptHarnessOptions.map((promptHarness) => (
 									<SelectItem key={promptHarness} value={promptHarness}>
@@ -1718,20 +1774,12 @@ export const PlaygroundPanel = ({
 					</div>
 
 					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-						<DirtySelectorLabel
-							isDirty={isTemplateDirty}
-							label="Template"
-						/>
-						<Select
-							value={selectedTemplateId}
-							onValueChange={setSelectedTemplateId}
-						>
+						<DirtySelectorLabel isDirty={isTemplateDirty} label="Template" />
+						<Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
 							<SelectTrigger
 								className={cn(
 									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
-									isTemplateDirty
-										? "border-solarized-orange/50 bg-solarized-orange/10"
-										: "",
+									isTemplateDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
 								)}
 							>
 								<SelectValue placeholder="Template waehlen" />
@@ -1749,9 +1797,7 @@ export const PlaygroundPanel = ({
 				</div>
 
 				<div className="flex flex-wrap items-center justify-between gap-2">
-					<p className="text-xs text-solarized-base01">
-						Prompt-Versionen für Vergleichs-Runs
-					</p>
+					<p className="text-xs text-solarized-base01">Prompt-Versionen für Vergleichs-Runs</p>
 					{promptComparisonMessages ? (
 						<Button
 							type="button"
@@ -1815,37 +1861,37 @@ export const PlaygroundPanel = ({
 				<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4">
 					<div className="space-y-1">
 						<h3 className="font-medium text-sm text-solarized-base00">Model Runs</h3>
-					<p className="text-xs text-solarized-base01">
-						Definiere mehrere Modelle und Parameter für denselben Input- und Prompt-Stand.
-					</p>
-				</div>
+						<p className="text-xs text-solarized-base01">
+							Definiere mehrere Modelle und Parameter für denselben Input- und Prompt-Stand.
+						</p>
+					</div>
 					<Button type="button" size="sm" className="gap-2" onClick={handleAddModelRun}>
 						<Plus className="h-4 w-4" />
 						Run hinzufügen
 					</Button>
 				</div>
 
-					<div className={cn("grid gap-4", modelRuns.length > 1 ? "2xl:grid-cols-2" : "")}>
-						{modelRuns.map((run) => {
-							const handleModelSelection = modelSelectionHandlers.get(run.id);
-							const handleRemoveModelRun = removeModelRunHandlers.get(run.id);
-							const handleParameterChange = modelParameterChangeHandlers.get(run.id);
-							if (!handleModelSelection || !handleRemoveModelRun || !handleParameterChange) {
-								return null;
-							}
+				<div className={cn("grid gap-4", modelRuns.length > 1 ? "2xl:grid-cols-2" : "")}>
+					{modelRuns.map((run) => {
+						const handleModelSelection = modelSelectionHandlers.get(run.id);
+						const handleRemoveModelRun = removeModelRunHandlers.get(run.id);
+						const handleParameterChange = modelParameterChangeHandlers.get(run.id);
+						if (!handleModelSelection || !handleRemoveModelRun || !handleParameterChange) {
+							return null;
+						}
 
-							return (
-								<div
-									key={run.id}
-									className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
-								>
+						return (
+							<div
+								key={run.id}
+								className="space-y-4 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-4"
+							>
 								<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 									<div className="min-w-0 flex-1 space-y-2">
 										<Label className="text-sm text-solarized-base01">Modell</Label>
 										<ModelSelector
-										options={modelSelectorOptions}
-										value={run.model?.id ?? null}
-										isLoading={isLoadingModels}
+											options={modelSelectorOptions}
+											value={run.model?.id ?? null}
+											isLoading={isLoadingModels}
 											searchPlaceholder="Modell oder Anbieter suchen..."
 											placeholder="Modell auswählen..."
 											loadingMessage="Lade Modelle..."
@@ -1871,13 +1917,13 @@ export const PlaygroundPanel = ({
 												? "Mindestens ein Run muss existieren"
 												: "Run entfernen"
 										}
-										>
+									>
 										<Trash2 className="h-4 w-4" />
 										Remove
-								</Button>
-							</div>
+									</Button>
+								</div>
 
-							<Separator className="bg-solarized-base2" />
+								<Separator className="bg-solarized-base2" />
 
 								<div className="space-y-2">
 									<Label className="text-sm text-solarized-base01">Parameter</Label>
@@ -1885,25 +1931,25 @@ export const PlaygroundPanel = ({
 										parameters={run.parameters}
 										onChange={handleParameterChange}
 										model={run.model}
-										/>
+									/>
 								</div>
 							</div>
-							);
-						})}
-					</div>
+						);
+					})}
 				</div>
-			</ScrollArea>
-		);
+			</div>
+		</ScrollArea>
+	);
 
 	const renderResultsView = () => (
 		<div className="flex h-full min-h-0 flex-col p-2">
 			<ScrollArea className="min-h-0 flex-1">
-					<div
-						className={cn(
-							"grid min-h-full auto-rows-fr gap-4",
-							comparisonRuns.length > 1 ? "2xl:grid-cols-2" : "",
-						)}
-					>
+				<div
+					className={cn(
+						"grid min-h-full auto-rows-fr gap-4",
+						comparisonRuns.length > 1 ? "2xl:grid-cols-2" : "",
+					)}
+				>
 					{comparisonRuns.map((comparisonRun) => (
 						// eslint-disable-next-line no-use-before-define
 						<RunCard
@@ -1949,27 +1995,27 @@ export const PlaygroundPanel = ({
 		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
 			<Card className="w-full shrink-0 border-solarized-base2 lg:min-h-0 lg:w-60">
 				<CardContent className="p-2">
-						<div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
-							{navigationItems.map((item) => {
-								const handleNavigationClick = navigationClickHandlers.get(item.view);
-								if (!handleNavigationClick) {
-									return null;
-								}
+					<div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+						{navigationItems.map((item) => {
+							const handleNavigationClick = navigationClickHandlers.get(item.view);
+							if (!handleNavigationClick) {
+								return null;
+							}
 
-								const isActive = item.view === activeView;
-								return (
-									<Button
+							const isActive = item.view === activeView;
+							return (
+								<Button
 									type="button"
 									key={item.view}
 									variant="ghost"
 									className={cn(
 										"h-auto w-full flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left",
-											isActive
-												? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue"
-												: "border-transparent text-solarized-base01 hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00",
-										)}
-										onClick={handleNavigationClick}
-									>
+										isActive
+											? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue"
+											: "border-transparent text-solarized-base01 hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00",
+									)}
+									onClick={handleNavigationClick}
+								>
 									<span className="font-medium text-sm">
 										{PLAYGROUND_VIEW_META[item.view].label}
 									</span>
@@ -1993,7 +2039,7 @@ export const PlaygroundPanel = ({
 			</Card>
 		</div>
 	);
-}
+};
 
 const RunCard = ({
 	runId,
@@ -2022,91 +2068,49 @@ const RunCard = ({
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 }) => {
 	const payloadRef = useRef<null | Parameters<typeof orpc.admin.scribe.run.call>[0]>(null);
+	const runStartedAtRef = useRef<number | null>(null);
+	const latestCompletionRef = useRef("");
 
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
 		id: `admin-scribe-playground-${runId}`,
 		onError: (error) => {
+			runStartedAtRef.current = null;
 			setRunState(runId, {
 				error: error.message,
 				isStreaming: false,
 			});
 		},
-		onFinish: async () => {
-			const requestId = payloadRef.current?.requestId;
-			if (!requestId) {return;}
-			try {
-				const event = await orpc.admin.usage.findByRequestId.call({
-					requestId,
-				});
-				if (!event) {return;}
+		onFinish: async ({ message, messages: finishedMessages }) => {
+			const startedAt = runStartedAtRef.current;
+			const latencyMs = startedAt !== null ? Math.max(0, Date.now() - startedAt) : 0;
+			runStartedAtRef.current = null;
 
-				const latencyMs =
-					typeof (event.metadata as Record<string, unknown> | null)?.latencyMs === "number"
-						? ((event.metadata as Record<string, unknown>).latencyMs as number)
-						: 0;
+			const metadata = (message as { metadata?: unknown }).metadata;
+			const inMemoryMetrics = parseRunMetricsFromMetadata(metadata);
 
 			setRunState(runId, {
 				isStreaming: false,
 				metrics: {
-					cost: event.cost ? Number(event.cost) : undefined,
-					inputTokens: event.inputTokens ?? undefined,
 					latencyMs,
-					outputTokens: event.outputTokens ?? undefined,
-					reasoningTokens: event.reasoningTokens ?? undefined,
-					totalTokens: event.totalTokens ?? undefined,
+					...inMemoryMetrics,
 				},
 			});
 
-			const currentPayload = payloadRef.current;
-			if (!currentPayload) {return;}
-			setRunState(runId, {
-				evaluation: {
-					categories: [],
-					isLoading: true,
-					totalScore: undefined,
-				},
-			});
 			const responseText =
-				messages
-					.findLast((message) => message.role === "assistant")
-					?.parts?.filter((part) => part.type === "text")
-					.map((part) => (part as { text: string }).text)
-					.join("") ?? "";
+				getTextFromUiMessage(message) ||
+				getAssistantTextFromMessages(
+					finishedMessages as Array<{
+						role: string;
+						parts?: Array<{ type: string; text?: string }>;
+					}>,
+				) ||
+				latestCompletionRef.current;
 
-			if (!responseText.trim()) {
+			if (responseText.trim()) {
 				setRunState(runId, {
-					evaluation: {
-						categories: [],
-						isLoading: false,
-						totalScore: undefined,
-					},
+					text: responseText,
 				});
-				return;
 			}
-
-			const evaluation = await orpc.admin.scribe.evaluate.call({
-				documentType: currentPayload.documentType,
-				inputs: JSON.parse(currentPayload.promptJson || "{}") as Record<string, unknown>,
-				modelRecordId: currentPayload.model,
-				response: responseText,
-			});
-			setRunState(runId, {
-				evaluation: {
-					categories: evaluation.categories,
-					isLoading: false,
-					totalScore: evaluation.totalScore,
-				},
-			});
-		} catch {
-			// Best effort; output is still useful even without metrics.
-			setRunState(runId, {
-				evaluation: {
-					categories: [],
-					isLoading: false,
-					totalScore: undefined,
-				},
-			});
-		}
 		},
 		transport: {
 			reconnectToStream() {
@@ -2119,15 +2123,17 @@ const RunCard = ({
 				return eventIteratorToUnproxiedDataStream(
 					await orpc.admin.scribe.run.call(payloadRef.current, {
 						signal: options.abortSignal,
-						}),
-					);
+					}),
+				);
 			},
 		},
 	});
 
 	const { completion, reasoning } = useMemo(() => {
 		const lastAssistant = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistant) {return { completion: "", reasoning: "" };}
+		if (!lastAssistant) {
+			return { completion: "", reasoning: "" };
+		}
 		// Extract text and reasoning from parts (AI SDK v4 format)
 		if (lastAssistant.parts && lastAssistant.parts.length > 0) {
 			const textParts = lastAssistant.parts
@@ -2142,6 +2148,62 @@ const RunCard = ({
 		}
 		return { completion: "", reasoning: "" };
 	}, [messages]);
+
+	useEffect(() => {
+		latestCompletionRef.current = completion;
+	}, [completion]);
+
+	const handleEvaluateRun = useCallback(async () => {
+		const currentPayload = payloadRef.current;
+		if (!currentPayload) {
+			return;
+		}
+
+		const responseText = (runState?.text || latestCompletionRef.current).trim();
+		if (!responseText) {
+			toast.error("Bewertung übersprungen: Kein Antworttext gefunden");
+			return;
+		}
+
+		setRunState(runId, {
+			evaluation: {
+				categories: [],
+				isLoading: true,
+				summary: undefined,
+				totalScore: undefined,
+			},
+		});
+
+		try {
+			const evaluation = await orpc.admin.scribe.evaluate.call({
+				documentType: currentPayload.documentType,
+				inputs: JSON.parse(currentPayload.promptJson || "{}") as Record<string, unknown>,
+				response: responseText,
+			});
+			setRunState(runId, {
+				evaluation: {
+					categories: evaluation.categories,
+					isLoading: false,
+					summary: evaluation.summary,
+					totalScore: evaluation.totalScore,
+				},
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? `Bewertung fehlgeschlagen: ${error.message}`
+					: "Bewertung fehlgeschlagen",
+			);
+			setRunState(runId, {
+				evaluation: {
+					categories: [],
+					isLoading: false,
+					summary: undefined,
+					totalScore: undefined,
+				},
+			});
+		}
+	}, [runId, runState?.text, setRunState]);
 
 	useEffect(() => {
 		if (status === "streaming" || status === "submitted") {
@@ -2163,6 +2225,7 @@ const RunCard = ({
 
 	const handleStopRun = useCallback(() => {
 		stop();
+		runStartedAtRef.current = null;
 		setRunState(runId, { isStreaming: false });
 	}, [runId, setRunState, stop]);
 
@@ -2174,16 +2237,16 @@ const RunCard = ({
 
 		const requestId = crypto.randomUUID();
 
-		const compiledMessagesOverride =
-			messagesForRun.length > 0 ? messagesForRun : undefined;
+		const compiledMessagesOverride = messagesForRun.length > 0 ? messagesForRun : undefined;
+		runStartedAtRef.current = Date.now();
 
-			payloadRef.current = {
-				compiledMessagesOverride: compiledMessagesOverride
-					? compiledMessagesOverride.map((m) => ({
-							content: m.content,
-							role: m.role,
-						}))
-					: undefined,
+		payloadRef.current = {
+			compiledMessagesOverride: compiledMessagesOverride
+				? compiledMessagesOverride.map((m) => ({
+						content: m.content,
+						role: m.role,
+					}))
+				: undefined,
 			documentType,
 			model: modelRun.model.id,
 			parameters: modelRun.parameters,
@@ -2196,6 +2259,7 @@ const RunCard = ({
 			evaluation: {
 				categories: [],
 				isLoading: false,
+				summary: undefined,
 				totalScore: undefined,
 			},
 			error: undefined,
@@ -2247,16 +2311,16 @@ const RunCard = ({
 				</div>
 
 				<div className="flex shrink-0 gap-1.5">
-						{isRunning ? (
-							<Button
-								type="button"
-								variant="destructive"
-								size="sm"
-								className="h-7 px-2 text-xs"
-								onClick={handleStopRun}
-							>
-								Stop
-							</Button>
+					{isRunning ? (
+						<Button
+							type="button"
+							variant="destructive"
+							size="sm"
+							className="h-7 px-2 text-xs"
+							onClick={handleStopRun}
+						>
+							Stop
+						</Button>
 					) : (
 						<Button
 							type="button"
@@ -2275,6 +2339,7 @@ const RunCard = ({
 			{/* Result display - takes remaining space */}
 			<div className="min-h-0 flex-1">
 				<ResultDisplay
+					onEvaluate={handleEvaluateRun}
 					result={
 						runState
 							? {
@@ -2291,4 +2356,4 @@ const RunCard = ({
 			</div>
 		</div>
 	);
-}
+};

@@ -4,12 +4,17 @@ import type { DocumentType } from "@/orpc/scribe/types";
 import {
 	getBuiltInAiscribeOverrideSlug,
 	type BuiltInAiscribeOverrideKey,
+	getBuiltInAiscribeOverride,
 } from "@/lib/aiscribe-built-ins";
 import type {
 	AdditionalInputField,
 	AiscribeTemplateConfig,
 } from "@/app/aiscribe/_components/aiscribe-template";
-import type { PublicAiTextForm } from "./custom-form-config";
+import {
+	resolvePromptHarnessTitle,
+	resolveTemplateMetadata,
+	type PublicAiTextForm,
+} from "./custom-form-config";
 
 interface BuiltInAiscribeTemplateDefinition {
 	additionalInputs?: AdditionalInputField[];
@@ -212,10 +217,20 @@ export const buildBuiltInAiscribeTemplateConfig = ({
 	overrideForm,
 	template,
 }: {
-	overrideForm?: Pick<PublicAiTextForm, "id" | "promptHarness"> | null;
+	overrideForm?: Pick<PublicAiTextForm, "id" | "promptHarness" | "template"> | null;
 	template: BuiltInAiscribeTemplateKey;
 }): AiscribeTemplateConfig => {
 	const definition = BUILT_IN_AISCRIBE_TEMPLATES[template];
+	const defaultPromptHarness = getBuiltInAiscribeOverride(template).defaultPromptHarness;
+	const resolvedPromptHarness = overrideForm?.promptHarness ?? defaultPromptHarness;
+	const contextForm: PublicAiTextForm = {
+		description: null,
+		id: overrideForm?.id ?? template,
+		name: definition.title,
+		promptHarness: resolvedPromptHarness,
+		slug: getBuiltInAiscribeOverrideSlug(template),
+		template: overrideForm?.template ?? null,
+	};
 	const resolvedAdditionalInputs =
 		overrideForm?.id && overrideForm.promptHarness
 			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[overrideForm.promptHarness] ??
@@ -223,6 +238,11 @@ export const buildBuiltInAiscribeTemplateConfig = ({
 			: definition.additionalInputs;
 	const baseConfig = {
 		additionalInputs: resolvedAdditionalInputs,
+		contextMetadata: {
+			author: "MDScribe-Standard" as const,
+			harnessTitle: resolvePromptHarnessTitle(resolvedPromptHarness),
+			template: resolveTemplateMetadata(contextForm),
+		},
 		description: definition.description,
 		emptyStateDescription: definition.emptyStateDescription,
 		emptyStateTitle: definition.emptyStateTitle,
