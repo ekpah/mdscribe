@@ -1,11 +1,11 @@
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "extends": [
-    "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",
-    "./node_modules/ultracite/config/oxlint/react/.oxlintrc.json",
-    "./node_modules/ultracite/config/oxlint/next/.oxlintrc.json"
-  ],
-  "ignorePatterns": [
+import { defineConfig } from "oxlint";
+import core from "ultracite/oxlint/core";
+import next from "ultracite/oxlint/next";
+import react from "ultracite/oxlint/react";
+
+export default defineConfig({
+  extends: [core, react, next],
+  ignorePatterns: [
     "**/node_modules/**",
     "**/.next/**",
     "**/.turbo/**",
@@ -18,6 +18,6 @@
     "**/packages/design-system/hooks/**",
     "**/apps/docs/**/*.json",
     "**/apps/email/.react-email/**",
-    "**/.react-email/**"
-  ]
-}
+    "**/.react-email/**",
+  ],
+});

@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@repo/email": "workspace:*",
-    "react-email": "5.1.1"
+    "react-email": "6.0.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

@@ -1,9 +1,9 @@
 {
-	"$schema": "https://turbo.build/schema.json",
+	"$schema": "https://v2-9-6.turborepo.dev/schema.json",
 	"globalDependencies": [
 		".env",
 		".env.local",
-		".oxlintrc.json",
+		"oxlint.config.ts",
 		".oxfmtrc.jsonc"
 	],
 	"globalPassThroughEnv": ["SKIP_ENV_VALIDATION"],

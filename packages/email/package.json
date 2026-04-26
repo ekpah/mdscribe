@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@react-email/components": "1.0.1",
-    "postmark": "^4.0.5",
+    "postmark": "^4.0.7",
     "react": "catalog:"
   },
   "devDependencies": {

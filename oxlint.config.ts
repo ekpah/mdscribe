@@ -1,11 +1,11 @@
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "extends": [
-    "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",
-    "./node_modules/ultracite/config/oxlint/react/.oxlintrc.json",
-    "./node_modules/ultracite/config/oxlint/next/.oxlintrc.json"
-  ],
-  "ignorePatterns": [
+import { defineConfig } from "oxlint";
+import core from "ultracite/oxlint/core";
+import next from "ultracite/oxlint/next";
+import react from "ultracite/oxlint/react";
+
+export default defineConfig({
+  extends: [core, react, next],
+  ignorePatterns: [
     "**/node_modules/**",
     "**/.next/**",
     "**/.turbo/**",
@@ -19,13 +19,13 @@
     "**/apps/docs/**/*.json",
     "**/apps/email/.react-email/**",
     "**/.react-email/**",
-    "**/__tests__/**"
+    "**/__tests__/**",
   ],
-  "rules": {
+  rules: {
     "arrow-body-style": "off",
     "class-methods-use-this": "off",
-    "complexity": "off",
-    "curly": "off",
+    complexity: "off",
+    curly: "off",
     "default-case": "off",
     "func-style": "off",
     "import/consistent-type-specifier-style": "off",
@@ -93,19 +93,19 @@
     "unicorn/prefer-structured-clone": "off",
     "unicorn/prefer-ternary": "off",
     "unicorn/switch-case-braces": "off",
-    "vitest/consistent-test-filename": "off"
+    "vitest/consistent-test-filename": "off",
   },
-  "overrides": [
+  overrides: [
     {
-      "files": [
+      files: [
         "**/*.{test,spec}.{ts,tsx,js,jsx}",
-        "**/__tests__/**/*.{ts,tsx,js,jsx}"
+        "**/__tests__/**/*.{ts,tsx,js,jsx}",
       ],
-      "rules": {
+      rules: {
         "jest/no-conditional-in-test": "off",
         "jest/require-hook": "off",
-        "vitest/consistent-test-filename": "off"
-      }
-    }
-  ]
-}
+        "vitest/consistent-test-filename": "off",
+      },
+    },
+  ],
+});
