@@ -34,7 +34,7 @@ export default function TipTap({
 		editorProps: {
 			attributes: {
 				class: cn(
-					"prose h-full min-h-full w-full max-w-none cursor-text whitespace-pre-wrap focus:outline-none",
+					"h-full min-h-full w-full max-w-none cursor-text whitespace-pre-wrap leading-normal focus:outline-none",
 					"[&_.is-empty]:relative",
 					"[&_.is-empty]:before:content-[attr(data-placeholder)]",
 					"[&_.is-empty]:before:text-slate-400",
