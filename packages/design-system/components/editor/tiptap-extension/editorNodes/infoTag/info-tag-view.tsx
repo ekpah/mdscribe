@@ -47,11 +47,11 @@ export const InfoTagView = ({
     // Changed align-middle to align-baseline for better text alignment
     <NodeViewWrapper
       as="span"
-      className="inline-block align-baseline mx-1"
+      className="mx-0.5 inline-block align-[-0.125em] leading-none"
       contentEditable={false}
     >
       <span
-        className={`group inline-flex items-center gap-1 rounded-md border px-1 py-0.5 text-xs shadow-xs transition-all ${
+        className={`group inline-flex items-center gap-0.5 rounded-sm border px-1 py-0 text-[11px] leading-none shadow-xs transition-all ${
           selected
             ? 'border-solarized-blue ring-2 ring-solarized-blue/40'
             : 'border-solarized-blue/60 hover:border-solarized-blue'
@@ -59,7 +59,7 @@ export const InfoTagView = ({
       >
         <Popover>
           <PopoverTrigger
-            className="inline-flex cursor-pointer items-center gap-1.5 px-1 py-0.5"
+            className="inline-flex h-[18px] cursor-pointer items-center gap-1 px-0.5 py-0 leading-none"
             data-primary={node.attrs.primary}
             data-type="markdoc-info"
             contentEditable={false}
@@ -68,9 +68,9 @@ export const InfoTagView = ({
             {/* Info Label */}
             <span
               data-drag-handle
-              className="inline-flex items-center gap-1 rounded bg-solarized-blue/15 px-1.5 py-0.5 font-semibold text-solarized-blue"
+              className="inline-flex h-[16px] items-center gap-0.5 rounded-xs bg-solarized-blue/15 px-1 py-0 font-semibold text-solarized-blue leading-none"
             >
-              <Info className="h-3 w-3" />
+              <Info className="h-2.5 w-2.5" />
               Info
             </span>
 
@@ -120,13 +120,13 @@ export const InfoTagView = ({
 
         <Button
           aria-label="Remove info tag"
-          className="h-6 w-6 rounded-sm text-solarized-blue/70 hover:bg-solarized-blue/10 hover:text-solarized-blue"
+          className="h-4 w-4 rounded-xs text-solarized-blue/70 hover:bg-solarized-blue/10 hover:text-solarized-blue"
           contentEditable={false}
           onClick={handleRemoveInfo}
           size="icon"
           variant="ghost"
         >
-          <X className="h-3 w-3" />
+          <X className="h-2.5 w-2.5" />
         </Button>
       </span>
 	    </NodeViewWrapper>
