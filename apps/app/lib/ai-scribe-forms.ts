@@ -1,6 +1,6 @@
 import { BUILT_IN_AISCRIBE_OVERRIDE_SLUGS } from "./aiscribe-built-ins";
 
-export const RESERVED_AI_SCRIBE_FORM_SLUGS = [
+const RESERVED_AI_SCRIBE_FORM_SLUGS = [
 	"custom",
 	"diagnoseblock",
 	"discharge",
