@@ -145,9 +145,11 @@ const updateFieldDefinitionAt = (
 interface FieldDefinitionCardProps {
 	activeDragFieldPdfType: DocumentFieldDefinition["pdfType"] | null;
 	activeDragFieldSlotId: string | null;
+	activePdfFieldName: string | null;
 	fieldDefinition: DocumentFieldDefinition;
 	fieldSlotId: string;
 	index: number;
+	onPreview: (fieldName: string) => void;
 	onUpdate: (index: number, update: Partial<DocumentFieldDefinition>) => void;
 }
 
@@ -155,13 +157,16 @@ const FieldDefinitionCard = memo(
 	({
 		activeDragFieldPdfType,
 		activeDragFieldSlotId,
+		activePdfFieldName,
 		fieldDefinition,
 		fieldSlotId,
 		index,
+		onPreview,
 		onUpdate,
 	}: FieldDefinitionCardProps) => {
 		const canAcceptDrop =
 			activeDragFieldPdfType === null || activeDragFieldPdfType === fieldDefinition.pdfType;
+		const isPdfFieldActive = activePdfFieldName === fieldDefinition.fieldName;
 
 		const {
 			attributes,
@@ -185,6 +190,10 @@ const FieldDefinitionCard = memo(
 			},
 			[setDraggableRef, setDroppableRef],
 		);
+
+		const handlePreview = useCallback(() => {
+			onPreview(fieldDefinition.fieldName);
+		}, [fieldDefinition.fieldName, onPreview]);
 
 		const handleLabelChange = useCallback(
 			(event: ChangeEvent<HTMLInputElement>) => {
@@ -218,7 +227,14 @@ const FieldDefinitionCard = memo(
 			Boolean(activeDragFieldSlotId) && activeDragFieldSlotId !== fieldSlotId && canAcceptDrop;
 
 		return (
-			<Card className="group p-1.5 transition-[box-shadow,opacity] duration-150">
+			<Card
+				className={cn(
+					"group p-1.5 transition-[box-shadow,opacity] duration-150",
+					isPdfFieldActive ? "ring-2 ring-solarized-orange/70" : "",
+				)}
+				onFocusCapture={handlePreview}
+				onPointerDownCapture={handlePreview}
+			>
 				<div className="grid grid-cols-[minmax(160px,40%)_minmax(0,1fr)] gap-2">
 					<div className="space-y-1">
 						<div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-1.5">
@@ -334,12 +350,14 @@ const FieldDefinitionCard = memo(
 	(previousProps, nextProps) =>
 		previousProps.activeDragFieldPdfType === nextProps.activeDragFieldPdfType &&
 		previousProps.activeDragFieldSlotId === nextProps.activeDragFieldSlotId &&
+		previousProps.activePdfFieldName === nextProps.activePdfFieldName &&
 		previousProps.fieldDefinition === nextProps.fieldDefinition &&
 		previousProps.fieldSlotId === nextProps.fieldSlotId &&
 		previousProps.index === nextProps.index,
 );
 
 interface DocumentPreviewPaneProps {
+	activePdfFieldName: string | null;
 	onClear: () => void;
 	onFileUpload: (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => Promise<void>;
 	pdfFileBytes: Uint8Array | null;
@@ -389,7 +407,13 @@ const DragPreviewFieldCard = ({
 );
 
 const DocumentPreviewPane = memo(
-	({ onClear, onFileUpload, pdfFileBytes, pdfFileName }: DocumentPreviewPaneProps) => (
+	({
+		activePdfFieldName,
+		onClear,
+		onFileUpload,
+		pdfFileBytes,
+		pdfFileName,
+	}: DocumentPreviewPaneProps) => (
 		<div className="col-span-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-t p-4 md:border-t-0 md:border-l">
 			<div className="shrink-0">
 				<PDFUploadSection
@@ -400,7 +424,11 @@ const DocumentPreviewPane = memo(
 				/>
 			</div>
 			<div className="mt-4 min-h-0 flex-1 overflow-hidden">
-				<PDFViewSection hasUploadedFile={Boolean(pdfFileBytes)} pdfFile={pdfFileBytes} />
+				<PDFViewSection
+					activeFieldName={activePdfFieldName}
+					hasUploadedFile={Boolean(pdfFileBytes)}
+					pdfFile={pdfFileBytes}
+				/>
 			</div>
 		</div>
 	),
@@ -429,6 +457,7 @@ export default function DocumentEditor({
 	const [isPdfReplaced, setIsPdfReplaced] = useState(false);
 	const [fieldDefinitions, setFieldDefinitions] = useState<DocumentFieldDefinition[]>([]);
 	const [activeDragFieldSlotId, setActiveDragFieldSlotId] = useState<string | null>(null);
+	const [activePdfFieldName, setActivePdfFieldName] = useState<string | null>(null);
 	const [isDragOverlayReady, setIsDragOverlayReady] = useState(false);
 
 	const { data: editorContext } = useQuery(orpc.documents.templates.editorContext.queryOptions());
@@ -492,6 +521,7 @@ export default function DocumentEditor({
 
 			const { fields } = await parsePDFFormFields(file);
 			setFieldDefinitions(buildDefaultFieldDefinitionsFromPdfFields(fields));
+			setActivePdfFieldName(fields[0]?.name ?? null);
 		},
 		[],
 	);
@@ -499,6 +529,7 @@ export default function DocumentEditor({
 	const handleClearPdf = useCallback(() => {
 		setPdfFileBytes(null);
 		setFieldDefinitions([]);
+		setActivePdfFieldName(null);
 		setPdfFileName("document.pdf");
 		setIsPdfReplaced(true);
 	}, []);
@@ -509,6 +540,10 @@ export default function DocumentEditor({
 		},
 		[],
 	);
+
+	const handleFieldPreview = useCallback((fieldName: string) => {
+		setActivePdfFieldName(fieldName);
+	}, []);
 
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
@@ -840,9 +875,11 @@ export default function DocumentEditor({
 										<FieldDefinitionCard
 											activeDragFieldPdfType={activeDragFieldPdfType}
 											activeDragFieldSlotId={activeDragFieldSlotId}
+											activePdfFieldName={activePdfFieldName}
 											fieldDefinition={fieldDefinition}
 											fieldSlotId={fieldSlotId}
 											index={index}
+											onPreview={handleFieldPreview}
 											key={fieldSlotId}
 											onUpdate={handleFieldUpdate}
 										/>
@@ -864,6 +901,7 @@ export default function DocumentEditor({
 				</div>
 
 				<DocumentPreviewPane
+					activePdfFieldName={activePdfFieldName}
 					onClear={handleClearPdf}
 					onFileUpload={handlePdfUpload}
 					pdfFileBytes={pdfFileBytes}

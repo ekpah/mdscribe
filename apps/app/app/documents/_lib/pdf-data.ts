@@ -1,25 +1,10 @@
 export const MAX_PDF_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
-	return bytes.buffer.slice(
-		bytes.byteOffset,
-		bytes.byteOffset + bytes.byteLength,
-	) as ArrayBuffer;
+	return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 };
 
-export const toPdfBlobUrl = (pdfFile: Uint8Array | null): string | null => {
-	if (!pdfFile) {
-		return null;
-	}
-
-	try {
-		const blob = new Blob([toArrayBuffer(pdfFile)], { type: "application/pdf" });
-		return URL.createObjectURL(blob);
-	} catch (error) {
-		console.error("Failed to convert PDF bytes to Blob URL:", error);
-		return null;
-	}
-};
+export const cloneUint8Array = (bytes: Uint8Array): Uint8Array => new Uint8Array(bytes);
 
 export const decodeBase64ToUint8Array = (value: string): Uint8Array => {
 	if (typeof atob === "function") {

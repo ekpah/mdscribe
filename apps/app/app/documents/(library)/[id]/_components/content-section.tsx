@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	buildParsedMarkdocFromFieldDefinitions,
+	cloneUint8Array,
 	decodeBase64ToUint8Array,
 	downloadPdfBlob,
 	fillPDFForm,
@@ -64,7 +65,7 @@ export default function ContentSection({
 
 		const decodedBytes = decodeBase64ToUint8Array(pdfData.pdfBase64);
 		setSourcePdfBytes(decodedBytes);
-		setPreviewPdfBytes(decodedBytes);
+		setPreviewPdfBytes(cloneUint8Array(decodedBytes));
 	}, [documentId, pdfData?.id, pdfData?.pdfBase64]);
 
 	const handleFormChange = useCallback((data: Record<string, unknown>) => {
@@ -101,7 +102,7 @@ export default function ContentSection({
 		setIsRefreshingPreview(true);
 		try {
 			if (Object.keys(values).length === 0) {
-				setPreviewPdfBytes(sourcePdfBytes);
+				setPreviewPdfBytes(cloneUint8Array(sourcePdfBytes));
 				return;
 			}
 
