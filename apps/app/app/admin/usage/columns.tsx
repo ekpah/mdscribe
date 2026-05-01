@@ -30,7 +30,9 @@ const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentTy
 
 	const { endpoint } = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		return isScribeDocType(endpoint) ? endpoint : undefined;
+		if (isScribeDocType(endpoint)) {
+			return endpoint;
+		}
 	}
 
 	const { promptName } = metadata;

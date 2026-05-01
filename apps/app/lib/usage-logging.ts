@@ -22,6 +22,8 @@ export interface UsageInputData {
 export interface UsageMetadata {
 	promptName: string;
 	promptLabel?: string;
+	customFormId?: string;
+	customFormSlug?: string;
 	thinkingEnabled?: boolean;
 	thinkingBudget?: number;
 	streamingMode?: boolean;
@@ -30,6 +32,7 @@ export interface UsageMetadata {
 		maxTokens?: number;
 		temperature?: number;
 	};
+	templateId?: string | null;
 	// Allow additional fields for future extensibility
 	[key: string]: unknown;
 }

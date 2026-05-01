@@ -77,4 +77,6 @@ export interface PlaygroundResult {
 	};
 	isStreaming: boolean;
 	error?: string;
+	sourceLabel?: string;
+	modelLabel?: string;
 }

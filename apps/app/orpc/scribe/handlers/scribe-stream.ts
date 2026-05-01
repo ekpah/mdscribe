@@ -129,6 +129,11 @@ interface ResolvedScribeRequest {
 	endpoint: string;
 	modelId?: string | null;
 	promptMessages: PromptMessage[];
+	usageMetadata?: {
+		customFormId?: string;
+		customFormSlug?: string;
+		templateId?: string | null;
+	};
 }
 
 /**
@@ -281,6 +286,11 @@ const resolveCustomFormRequest = async ({
 		endpoint: `custom:${customForm.slug}`,
 		modelId: customForm.modelId,
 		promptMessages,
+		usageMetadata: {
+			customFormId: customForm.id,
+			customFormSlug: customForm.slug,
+			templateId: customForm.templateId,
+		},
 	};
 };
 
@@ -400,6 +410,7 @@ export const scribeStreamHandler = authed
 					modelConfig: resolvedRequest.config.modelConfig,
 					modelName: resolved.modelName,
 					promptName: resolvedRequest.config.promptName,
+					usageMetadata: resolvedRequest.usageMetadata,
 					thinkingEnabled,
 					userId: context.session.user.id,
 				});

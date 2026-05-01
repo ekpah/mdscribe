@@ -42,6 +42,7 @@ export const scheduleScribeUsageLogging = (input: {
 	modelConfig: ModelConfig;
 	modelName: string;
 	promptName: string;
+	usageMetadata?: Partial<UsageMetadata>;
 	thinkingEnabled: boolean;
 	userId: string;
 }): void => {
@@ -65,6 +66,7 @@ export const scheduleScribeUsageLogging = (input: {
 						promptName: input.promptName,
 						promptSource: "local",
 						streamingMode: true,
+						...input.usageMetadata,
 						thinkingBudget: input.thinkingEnabled ? input.modelConfig.thinkingBudget : undefined,
 						thinkingEnabled: input.thinkingEnabled,
 						zdrEnabled: input.activeSubscription,

@@ -18,7 +18,7 @@ import {
 	isScribeDocType,
 	scribeDocTypeUi,
 } from "./_lib/scribe-doc-types";
-import type { PlaygroundParameters } from "./_lib/types";
+import type { PlaygroundParameters, PlaygroundResult } from "./_lib/types";
 
 const playgroundSearchParams = {
 	documentType: parseAsString,
@@ -44,7 +44,9 @@ const inferDocumentType = (
 
 	const {endpoint} = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		return isScribeDocType(endpoint) ? endpoint : undefined;
+		if (isScribeDocType(endpoint)) {
+			return endpoint;
+		}
 	}
 
 	const {promptName} = metadata;
@@ -53,6 +55,65 @@ const inferDocumentType = (
 	}
 
 	return undefined;
+};
+
+const getStringMetadataValue = (
+	metadata: Record<string, unknown> | null,
+	key: string,
+): string | undefined => {
+	const value = metadata?.[key];
+	return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+};
+
+const getUsageEvaluation = (
+	metadata: Record<string, unknown> | null,
+): PlaygroundResult["evaluation"] | undefined => {
+	const evaluation = metadata?.usageEvaluation;
+	if (!evaluation || typeof evaluation !== "object" || Array.isArray(evaluation)) {
+		return undefined;
+	}
+
+	const record = evaluation as Record<string, unknown>;
+	const categories = Array.isArray(record.categories)
+		? record.categories
+				.map((category) => {
+					if (!category || typeof category !== "object" || Array.isArray(category)) {
+						return null;
+					}
+					const categoryRecord = category as Record<string, unknown>;
+					const name = categoryRecord.name;
+					const score = categoryRecord.score;
+					if (typeof name !== "string" || typeof score !== "number") {
+						return null;
+					}
+					return {
+						comment:
+							typeof categoryRecord.comment === "string"
+								? categoryRecord.comment
+								: undefined,
+						name,
+						score,
+					};
+				})
+				.filter((category) => category !== null)
+		: [];
+
+	const totalScore = record.totalScore;
+	const summary = record.summary;
+	return {
+		categories,
+		isLoading: false,
+		summary: typeof summary === "string" ? summary : undefined,
+		totalScore: typeof totalScore === "number" ? totalScore : undefined,
+	};
+};
+
+const toNumber = (value: unknown): number | undefined => {
+	if (value === null || value === undefined) {
+		return undefined;
+	}
+	const numberValue = typeof value === "number" ? value : Number(value);
+	return Number.isFinite(numberValue) ? numberValue : undefined;
 };
 
 const PlaygroundContent = () => {
@@ -108,7 +169,32 @@ const PlaygroundContent = () => {
 			model: usageEvent.model ?? undefined,
 			parameters:
 				(metadata?.modelConfig as Partial<PlaygroundParameters>) ?? undefined,
+			promptName: getStringMetadataValue(metadata, "promptName"),
+			templateId: getStringMetadataValue(metadata, "templateId"),
 			variables: inputData ?? undefined,
+		};
+	}, [usageEvent]);
+
+	const referenceResult = useMemo<PlaygroundResult | null>(() => {
+		if (!usageEvent?.result) {
+			return null;
+		}
+		const metadata = usageEvent.metadata as Record<string, unknown> | null;
+		return {
+			evaluation: getUsageEvaluation(metadata),
+			isStreaming: false,
+			metrics: {
+				cost: toNumber(usageEvent.cost),
+				inputTokens: toNumber(usageEvent.inputTokens),
+				latencyMs: 0,
+				outputTokens: toNumber(usageEvent.outputTokens),
+				reasoningTokens: toNumber(usageEvent.reasoningTokens),
+				totalTokens: toNumber(usageEvent.totalTokens),
+			},
+			modelLabel: usageEvent.model ?? undefined,
+			reasoning: usageEvent.reasoning ?? undefined,
+			sourceLabel: "Usage Event",
+			text: usageEvent.result,
 		};
 	}, [usageEvent]);
 
@@ -146,7 +232,10 @@ const PlaygroundContent = () => {
 						presetDocumentType={
 							presetFromUsage?.documentType ?? preset.documentType
 						}
+						presetPromptName={presetFromUsage?.promptName}
+						presetTemplateId={presetFromUsage?.templateId}
 						presetVariables={presetFromUsage?.variables}
+						referenceResult={referenceResult}
 					/>
 				</div>
 			</div>

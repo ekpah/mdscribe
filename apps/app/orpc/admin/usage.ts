@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import {
 	and,
 	aiDefaults,
+	aiScribeFormConfig,
 	count,
 	desc,
 	eq,
@@ -13,6 +14,7 @@ import {
 	usageEvent,
 	user,
 } from "@repo/database";
+import type { Database } from "@repo/database";
 import { generateObject } from "ai";
 import { z } from "zod";
 
@@ -40,6 +42,49 @@ const toMetadataRecord = (metadata: unknown): Record<string, unknown> => {
 		return {};
 	}
 	return metadata as Record<string, unknown>;
+};
+
+const getCustomFormSlugFromMetadata = (metadata: Record<string, unknown>): string | null => {
+	const endpoint = metadata.endpoint;
+	if (typeof endpoint !== "string" || !endpoint.startsWith("custom:")) {
+		return null;
+	}
+
+	const slug = endpoint.slice("custom:".length).trim();
+	return slug.length > 0 ? slug : null;
+};
+
+const enrichCustomFormUsageMetadata = async (
+	db: { query: Database["query"] },
+	metadata: unknown,
+): Promise<Record<string, unknown> | null> => {
+	const metadataRecord = toMetadataRecord(metadata);
+	const slug = getCustomFormSlugFromMetadata(metadataRecord);
+	if (!slug) {
+		return Object.keys(metadataRecord).length > 0 ? metadataRecord : null;
+	}
+
+	const form = await db.query.aiScribeFormConfig.findFirst({
+		columns: {
+			id: true,
+			promptHarness: true,
+			slug: true,
+			templateId: true,
+		},
+		where: eq(aiScribeFormConfig.slug, slug),
+	});
+
+	if (!form) {
+		return metadataRecord;
+	}
+
+	return {
+		...metadataRecord,
+		customFormId: metadataRecord.customFormId ?? form.id,
+		customFormSlug: metadataRecord.customFormSlug ?? form.slug,
+		promptName: metadataRecord.promptName ?? form.promptHarness,
+		templateId: metadataRecord.templateId ?? form.templateId,
+	};
 };
 
 const getDocumentTypeForEvaluation = (
@@ -163,7 +208,14 @@ const getUsageEventHandler = authed
 			.where(eq(usageEvent.id, input.id))
 			.limit(1);
 
-		return event ?? null;
+		if (!event) {
+			return null;
+		}
+
+		return {
+			...event,
+			metadata: await enrichCustomFormUsageMetadata(context.db, event.metadata),
+		};
 	});
 
 const findByRequestIdHandler = authed
@@ -199,7 +251,14 @@ const findByRequestIdHandler = authed
 			.orderBy(desc(usageEvent.timestamp))
 			.limit(1);
 
-		return event ?? null;
+		if (!event) {
+			return null;
+		}
+
+		return {
+			...event,
+			metadata: await enrichCustomFormUsageMetadata(context.db, event.metadata),
+		};
 	});
 
 const evaluateUsageEventHandler = authed
@@ -240,14 +299,14 @@ const evaluateUsageEventHandler = authed
 				model: evaluationModel.model,
 				schema: usageEvaluationSchema,
 				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
-				prompt: `Bewerte folgende Ausgabe.
+				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.
 
 Dokumenttyp: ${documentType}
 
-Eingaben:
+Nutzergegebene Eingaben, Prompt-Spezifika und ggf. Vorlage:
 ${JSON.stringify(event.inputData ?? {}, null, 2)}
 
-Ausgabe:
+Modell-Ausgabe:
 ${event.result}`,
 				temperature: 0.1,
 			});

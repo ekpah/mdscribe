@@ -336,14 +336,14 @@ const evaluateHandler = authed
 				model: evaluationModel.model,
 				schema: evaluateOutputSchema,
 				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
-				prompt: `Bewerte folgende Ausgabe.
+				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.
 
 Dokumenttyp: ${parsed.data.documentType}
 
-Eingaben:
+Nutzergegebene Eingaben, Prompt-Spezifika und ggf. Vorlage:
 ${JSON.stringify(parsed.data.inputs, null, 2)}
 
-Ausgabe:
+Modell-Ausgabe:
 ${parsed.data.response}`,
 				temperature: 0.3,
 			});

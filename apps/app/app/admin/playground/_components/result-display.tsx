@@ -87,7 +87,17 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 		<div className="flex h-full flex-col gap-2">
 			{/* Header with metrics */}
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<div className="flex flex-wrap items-center gap-2 text-xs">
+				<div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
+					{result.sourceLabel ? (
+						<Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+							{result.sourceLabel}
+						</Badge>
+					) : null}
+					{result.modelLabel ? (
+						<span className="max-w-[220px] truncate font-mono text-solarized-base01">
+							{result.modelLabel}
+						</span>
+					) : null}
 					{result.isStreaming && (
 						<Badge
 							variant="outline"
