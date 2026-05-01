@@ -119,7 +119,7 @@ export const InfoInput = ({
 					<span className="sr-only">Info</span>
 				</button>
 			</PopoverTrigger>
-			<PopoverContent className="max-w-[280px] py-3 shadow-none" side="top">
+			<PopoverContent className="max-w-70 py-3 shadow-none" side="top">
 				<div className="space-y-1">
 					<p className="text-muted-foreground text-xs">
 						{input.attributes.description}

@@ -4,7 +4,7 @@ import { cn } from "@repo/design-system/lib/utils";
 import { diffLines, diffWords } from "diff";
 import { Check, RotateCcw } from "lucide-react";
 import type { ChangeEvent, CSSProperties } from "react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
@@ -57,6 +57,8 @@ export const MarkdownDiffEditor = ({
 	diffMode = "word",
 	minHeight = 120,
 }: DiffEditorProps) => {
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
+
 	// Determine if we're in diff mode
 	const isInDiffMode = suggestedValue !== undefined && suggestedValue !== null;
 
@@ -142,10 +144,27 @@ export const MarkdownDiffEditor = ({
 
 	const handleEditorChange = useCallback(
 		(event: ChangeEvent<HTMLTextAreaElement>) => {
+			const textarea = event.currentTarget;
+			textarea.style.height = "auto";
+			textarea.style.height = `${Math.max(textarea.scrollHeight, minHeight)}px`;
 			onChange(event.currentTarget.value);
 		},
-		[onChange],
+		[onChange, minHeight],
 	);
+
+	useLayoutEffect(() => {
+		if (isInDiffMode) {
+			return;
+		}
+
+		const textarea = textareaRef.current;
+		if (!textarea) {
+			return;
+		}
+
+		textarea.style.height = "auto";
+		textarea.style.height = `${Math.max(textarea.scrollHeight, minHeight)}px`;
+	}, [isInDiffMode, minHeight, value]);
 
 	const editorStyle = useMemo(
 		() =>
@@ -334,6 +353,7 @@ export const MarkdownDiffEditor = ({
 				id={id}
 				onChange={handleEditorChange}
 				placeholder={placeholder}
+				ref={textareaRef}
 				value={value}
 			/>
 			{/* Action slot (e.g., enhance button) - positioned top-right */}
