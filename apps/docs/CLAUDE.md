@@ -2,23 +2,14 @@
 
 ## Package Overview
 
-Documentation site for MDScribe built with Fumadocs (Next.js documentation framework).
+Content-only documentation source for MDScribe. The previous Fumadocs/Next.js
+runtime has been removed; docs content remains in MDX for reuse or future
+publishing.
 
 ## Commands
 
-```bash
-bun dev    # Start dev server on port 3004
-bun build  # Production build
-bun start  # Start production server
-```
+No package-local build, dev, lint, or typecheck scripts are currently defined.
 
 ## Key Files
 
 - `content/docs/` - MDX documentation files
-- `source.config.ts` - Fumadocs source configuration
-- `app/` - Next.js App Router pages
-
-## Dependencies
-
-- `fumadocs-core` / `fumadocs-ui` / `fumadocs-mdx` - Documentation framework
-- `@repo/design-system` - Shared UI components

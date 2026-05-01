@@ -36,16 +36,10 @@ test.describe("Landing Page", () => {
 		await expect(
 			page.getByRole("heading", { name: /Von Stichpunkten zu/i }),
 		).toBeVisible();
-	});
 
-	test("should display the AI Features section", async ({ page }) => {
-		// Check for the AI Features section headings
-		await expect(page.getByRole("heading", { name: /Anamnese/i })).toBeVisible();
+		// Check for the upcoming documents section heading
 		await expect(
-			page.getByRole("heading", { name: /Prozedur-Dokumentation/i }),
-		).toBeVisible();
-		await expect(
-			page.getByRole("heading", { name: /Entlassungsberichte/i }),
+			page.getByRole("heading", { name: /Bald verfügbar/i }),
 		).toBeVisible();
 	});
 
@@ -158,19 +152,11 @@ test.describe("Landing Page - Markdoc Template Examples", () => {
 		}
 	});
 
-	test("should link to template page from Features section", async ({
+	test("should display template label in Features section", async ({
 		page,
 	}) => {
-		// Find the link to the template
-		const templateLink = page.getByRole("link", {
-			name: /Vorlage: Kardiale Dekompensation/i,
-		});
-		await expect(templateLink).toBeVisible();
-
-		// Check that it has the correct href
-		await expect(templateLink).toHaveAttribute(
-			"href",
-			"/templates/cmaw87vov0002rqdn0aca1ejs",
-		);
+		await expect(
+			page.getByText(/Vorlage: Kardiale Dekompensation/i),
+		).toBeVisible();
 	});
 });
