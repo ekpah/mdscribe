@@ -37,6 +37,9 @@
 			"dependsOn": ["@repo/database#build"],
 			"outputs": [".next/**", "!.next/cache/**"]
 		},
+		"email#build": {
+			"outputs": ["out/**"]
+		},
 		"test": {
 			"dependsOn": ["^build"]
 		},
