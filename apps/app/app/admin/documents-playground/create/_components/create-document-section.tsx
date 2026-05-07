@@ -31,7 +31,11 @@ import PDFDebugPanel from "@/app/admin/documents-playground/_components/pdf-debu
 import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import { encodeUint8ArrayToBase64, fillPDFForm, parsePDFFormFields } from "@/app/documents/_lib";
-import type { DocumentFieldDefinition, DocumentPdfType } from "@/app/documents/_lib";
+import type {
+	DocumentFieldDefinition,
+	DocumentInputKind,
+	DocumentPdfType,
+} from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 
 import InputEditor from "./input-editor";
@@ -39,8 +43,10 @@ import InputEditor from "./input-editor";
 export interface EnhancedFieldMapping {
 	description: string;
 	fieldName: string;
+	inputKind: DocumentInputKind;
 	label: string;
 	markdocType: "Info" | "Switch";
+	options: string[];
 	pdfType: DocumentPdfType;
 }
 
@@ -54,15 +60,6 @@ type ParseFormResult = {
 	fieldMapping: AiFieldMapping[];
 };
 
-const determineMarkdocType = (pdfType: DocumentPdfType): "Info" | "Switch" => {
-	// Checkbox, dropdown, and radio become Switch
-	if (pdfType === "checkbox" || pdfType === "dropdown" || pdfType === "radio") {
-		return "Switch";
-	}
-	// Text and multiline become Info
-	return "Info";
-};
-
 const buildEnhancedMapping = (
 	aiMapping: AiFieldMapping,
 	existingMappings: EnhancedFieldMapping[],
@@ -72,7 +69,9 @@ const buildEnhancedMapping = (
 	);
 	return {
 		...aiMapping,
+		inputKind: existing?.inputKind || "text",
 		markdocType: existing?.markdocType || "Info",
+		options: existing?.options || [],
 		pdfType: existing?.pdfType || "text",
 	};
 };
@@ -83,10 +82,11 @@ const toDocumentFieldDefinitions = (
 	fieldMappings.map((fieldMapping) => ({
 		description: fieldMapping.description,
 		fieldName: fieldMapping.fieldName,
+		inputKind: fieldMapping.inputKind,
 		isEnabled: true,
 		label: fieldMapping.label,
 		markdocType: fieldMapping.markdocType,
-		options: fieldMapping.pdfType === "checkbox" ? ["true", "false"] : [],
+		options: fieldMapping.options,
 		pdfType: fieldMapping.pdfType,
 		valueType: "string",
 	}));
@@ -140,8 +140,10 @@ export default function CreateDocumentSection() {
 				parsedFields.map((field) => ({
 					description: "",
 					fieldName: field.name,
+					inputKind: field.inputKind,
 					label: field.name,
-					markdocType: determineMarkdocType(field.type),
+					markdocType: field.inputKind === "text" ? "Info" : "Switch",
+					options: field.options ?? [],
 					pdfType: field.type,
 				})),
 			);
@@ -181,7 +183,9 @@ export default function CreateDocumentSection() {
 			fieldMapping: fieldMappings.map((fieldMapping) => ({
 				description: fieldMapping.description,
 				fieldName: fieldMapping.fieldName,
+				inputKind: fieldMapping.inputKind,
 				label: fieldMapping.label,
+				options: fieldMapping.options,
 				pdfType: fieldMapping.pdfType,
 			})),
 			fileBase64: encodeUint8ArrayToBase64(pdfFile),

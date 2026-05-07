@@ -264,6 +264,8 @@ export const usageEvent = pgTable(
 		timestamp: timestamp("timestamp", { mode: "date", precision: 3 })
 			.notNull()
 			.defaultNow(),
+		timeToFirstTokenMs: integer("timeToFirstTokenMs"),
+		timeToCompletionMs: integer("timeToCompletionMs"),
 		totalTokens: integer("totalTokens"),
 		userId: text("userId")
 			.notNull()

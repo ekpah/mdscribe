@@ -10,7 +10,10 @@ export interface UsageListEvent {
 	metadata: unknown;
 	model: string | null;
 	name: string;
+	outputTokens: number | null;
 	timestamp: Date | string;
+	timeToCompletionMs: number | null;
+	timeToFirstTokenMs: number | null;
 	totalTokens: number | null;
 	user: UsageEventUser | null;
 }
@@ -19,7 +22,6 @@ export interface UsageDetailEvent extends UsageListEvent {
 	cachedTokens: number | null;
 	inputData: unknown;
 	inputTokens: number | null;
-	outputTokens: number | null;
 	reasoning: string | null;
 	reasoningTokens: number | null;
 	result: string | null;

@@ -22,7 +22,10 @@ Mit **Dokumente** verwalten Sie fillbare PDF-Formulare aehnlich wie Templates:
 
 - Es werden nur AcroForm-PDFs unterstuetzt
 - `fieldName` bleibt nach dem Parsen read-only
-- Sie koennen `label`, `description`, Typen, Reihenfolge und Aktivierung anpassen
+- Die Eingabeart wird aus dem PDF abgeleitet: Textfelder werden zu Texteingaben, einfache Checkboxen zu Ja/Nein-Schaltern, Auswahlfelder zu Switch-Eingaben
+- Checkbox-Felder mit mehreren PDF-Widgets und unterschiedlichen `onValue`-Werten werden als eine Auswahl mit diesen Optionen behandelt
+- Bei solchen Checkbox-Auswahlen koennen die sichtbaren Optionslabels bearbeitet werden; die Zuordnung zum PDF bleibt ueber die Reihenfolge der erkannten Widgets erhalten
+- Sie koennen `label`, `description`, Reihenfolge und Aktivierung anpassen
 - Deaktivierte Felder bleiben gespeichert, erscheinen aber nicht in den Eingaben
 - Ausgefuellte PDF-Ergebnisse werden nicht dauerhaft gespeichert
 

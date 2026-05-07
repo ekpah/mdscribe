@@ -3,7 +3,12 @@ import type { Database } from "@repo/database";
 import { after } from "next/server";
 
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
-import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-logging";
+import type {
+	StandardUsage,
+	UsageInputData,
+	UsageMetadata,
+	UsageTiming,
+} from "@/lib/usage-logging";
 import type { ModelConfig } from "@/orpc/scribe/types";
 
 export const redactIfZdrEnabled = (zdrEnabled: boolean, value: string | undefined): string =>
@@ -42,6 +47,7 @@ export const scheduleScribeUsageLogging = (input: {
 	modelConfig: ModelConfig;
 	modelName: string;
 	promptName: string;
+	timing?: UsageTiming;
 	usageMetadata?: Partial<UsageMetadata>;
 	thinkingEnabled: boolean;
 	userId: string;
@@ -77,6 +83,7 @@ export const scheduleScribeUsageLogging = (input: {
 					reasoning: redactIfZdrEnabled(input.activeSubscription, input.event.reasoningText),
 					result: redactIfZdrEnabled(input.activeSubscription, input.event.text),
 					standardUsage: input.event.usage as StandardUsage,
+					timing: input.timing,
 					userId: input.userId,
 				}),
 			);

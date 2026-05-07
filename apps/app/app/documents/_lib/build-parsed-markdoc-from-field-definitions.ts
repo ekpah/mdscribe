@@ -1,19 +1,13 @@
 import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 
 import type { DocumentFieldDefinition } from "./types";
-import { isSwitchPdfType } from "./types";
 
-const normalizeFieldDefinition = (
-	field: DocumentFieldDefinition,
-): DocumentFieldDefinition => {
-	const isSwitch = isSwitchPdfType(field.pdfType);
+const normalizeFieldDefinition = (field: DocumentFieldDefinition): DocumentFieldDefinition => {
 	const trimmedOptions = field.options.map((o) => o.trim()).filter((o) => o.length > 0);
+	const isSwitch = field.inputKind !== "text";
 
-	const options = isSwitch
-		? field.pdfType === "checkbox" && trimmedOptions.length === 0
-			? ["true", "false"]
-			: trimmedOptions
-		: [];
+	const options =
+		field.inputKind === "boolean" ? ["true", "false"] : isSwitch ? trimmedOptions : [];
 
 	return {
 		...field,
@@ -27,9 +21,7 @@ const normalizeFieldDefinition = (
 
 // --- Validation ---
 
-const validateFieldDefinitions = (
-	fields: DocumentFieldDefinition[],
-): string[] => {
+const validateFieldDefinitions = (fields: DocumentFieldDefinition[]): string[] => {
 	const errors: string[] = [];
 
 	for (const [index, field] of fields.entries()) {
@@ -39,10 +31,8 @@ const validateFieldDefinitions = (
 		if (!field.label) {
 			errors.push(`Feld ${index + 1}: Label darf nicht leer sein.`);
 		}
-		if (field.markdocType === "Switch" && field.options.length === 0) {
-			errors.push(
-				`Feld ${index + 1}: Switch-Felder benötigen mindestens eine Option.`,
-			);
+		if (field.inputKind === "choice" && field.options.length === 0) {
+			errors.push(`Feld ${index + 1}: Auswahlfelder benötigen mindestens eine Option.`);
 		}
 	}
 
@@ -55,6 +45,7 @@ const validateFieldDefinitions = (
 		const key = field.label.toLowerCase();
 		const signature = JSON.stringify([
 			field.description,
+			field.inputKind,
 			field.markdocType,
 			field.valueType,
 			field.pdfType,
@@ -79,12 +70,12 @@ const validateFieldDefinitions = (
 // --- Tag construction (direct, no Markdoc string round-trip) ---
 
 const toInputTag = (field: DocumentFieldDefinition): InputTagType => {
-	if (field.markdocType === "Switch") {
+	if (field.inputKind !== "text") {
 		return {
 			name: "Switch",
 			attributes: {
 				primary: field.label,
-				...(field.pdfType === "checkbox" ? { type: "boolean" as const } : {}),
+				...(field.inputKind === "boolean" ? { type: "boolean" as const } : {}),
 			},
 			children: field.options.map((option) => ({
 				name: "Case" as const,

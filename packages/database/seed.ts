@@ -190,6 +190,8 @@ const seedUsageEvents = async (
 			name: event.name,
 			outputTokens: event.outputTokens,
 			timestamp,
+			timeToCompletionMs: Math.round(event.outputTokens * 35),
+			timeToFirstTokenMs: 1200 + event.daysAgo * 75,
 			totalTokens: event.inputTokens + event.outputTokens,
 			userId,
 		});

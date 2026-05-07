@@ -64,6 +64,48 @@ export const formatCost = (cost: unknown): string => {
 	return `$${num.toFixed(4)}`;
 };
 
+export const formatDuration = (durationMs: number | null | undefined): string => {
+	if (durationMs === null || durationMs === undefined) {
+		return "-";
+	}
+	if (durationMs < 1000) {
+		return `${durationMs.toLocaleString("de-DE")} ms`;
+	}
+	return `${(durationMs / 1000).toLocaleString("de-DE", {
+		maximumFractionDigits: 2,
+		minimumFractionDigits: 2,
+	})} s`;
+};
+
+const formatTokensPerSecondValue = (tokensPerSecond: number | null): string => {
+	if (tokensPerSecond === null) {
+		return "-";
+	}
+	return `${tokensPerSecond.toLocaleString("de-DE", {
+		maximumFractionDigits: 1,
+		minimumFractionDigits: 1,
+	})} Tok/s`;
+};
+
+export const calculateTokensPerSecond = (
+	outputTokens: number | null | undefined,
+	durationMs: number | null | undefined,
+): number | null => {
+	if (!outputTokens || !durationMs || durationMs <= 0) {
+		return null;
+	}
+	return outputTokens / (durationMs / 1000);
+};
+
+export const formatTokensPerSecond = (
+	outputTokens: number | null | undefined,
+	durationMs: number | null | undefined,
+): string => formatTokensPerSecondValue(calculateTokensPerSecond(outputTokens, durationMs));
+
+export const formatStatTokensPerSecond = (
+	tokensPerSecond: number | null | undefined,
+): string => formatTokensPerSecondValue(tokensPerSecond ?? null);
+
 export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null => {
 	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
 		return null;
@@ -225,6 +267,33 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 			</span>
 		),
 		id: "tokens",
+	}),
+	columnHelper.accessor("timeToCompletionMs", {
+		cell: (info) => (
+			<span className="hidden whitespace-nowrap font-mono text-xs xl:inline">
+				{formatDuration(info.getValue())}
+			</span>
+		),
+		enableSorting: false,
+		header: ({ column }) => (
+			<span className="hidden xl:inline">
+				<DataTableColumnHeader column={column} title="Dauer" />
+			</span>
+		),
+		id: "duration",
+	}),
+	columnHelper.display({
+		cell: (info) => (
+			<span className="hidden whitespace-nowrap font-mono text-xs xl:inline">
+				{formatTokensPerSecond(
+					info.row.original.outputTokens,
+					info.row.original.timeToCompletionMs,
+				)}
+			</span>
+		),
+		enableSorting: false,
+		header: () => <span className="hidden xl:inline">Tok/s</span>,
+		id: "tokensPerSecond",
 	}),
 	columnHelper.accessor("cost", {
 		cell: (info) => (

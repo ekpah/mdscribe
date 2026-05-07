@@ -28,9 +28,12 @@ import {
 	createColumns,
 	formatCost,
 	formatDate,
+	formatDuration,
 	getPromptLabel,
 	getUsageEvaluation,
 	formatScore,
+	formatStatTokensPerSecond,
+	formatTokensPerSecond,
 } from "./columns";
 import type { UsageDetailEvent, UsageEvaluation, UsageListEvent } from "./types";
 
@@ -272,6 +275,22 @@ export default function UsagePage() {
 		return `$${stats.totalCost.toFixed(2)}`;
 	})();
 
+	const averageFirstTokenLabel = statsLoading ? (
+		<Loader2 className="h-4 w-4 animate-spin" />
+	) : (
+		formatDuration(stats?.averageTimeToFirstTokenMs)
+	);
+	const averageCompletionLabel = statsLoading ? (
+		<Loader2 className="h-4 w-4 animate-spin" />
+	) : (
+		formatDuration(stats?.averageTimeToCompletionMs)
+	);
+	const tokensPerSecondLabel = statsLoading ? (
+		<Loader2 className="h-4 w-4 animate-spin" />
+	) : (
+		formatStatTokensPerSecond(stats?.tokensPerSecond)
+	);
+
 	if (isLoading && allItems.length === 0) {
 		return (
 			<div className="p-4 sm:p-6">
@@ -351,7 +370,7 @@ export default function UsagePage() {
 						</div>
 
 						{/* Stats Grid */}
-						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-6">
+						<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-6">
 							<div className="space-y-1">
 								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Events</p>
 								<p className="text-base font-semibold text-solarized-base00 sm:text-lg">
@@ -370,6 +389,26 @@ export default function UsagePage() {
 									) : (
 										(stats?.totalTokens?.toLocaleString("de-DE") ?? "-")
 									)}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
+									Erster Token
+								</p>
+								<p className="text-base font-semibold text-solarized-blue sm:text-lg">
+									{averageFirstTokenLabel}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Dauer</p>
+								<p className="text-base font-semibold text-solarized-violet sm:text-lg">
+									{averageCompletionLabel}
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Tokens/s</p>
+								<p className="text-base font-semibold text-solarized-orange sm:text-lg">
+									{tokensPerSecondLabel}
 								</p>
 							</div>
 							<div className="space-y-1">
@@ -453,6 +492,18 @@ export default function UsagePage() {
 													<p className="text-solarized-base01">Tokens</p>
 													<p className="font-mono text-solarized-base00">
 														{item.totalTokens?.toLocaleString("de-DE") ?? "-"}
+													</p>
+												</div>
+												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+													<p className="text-solarized-base01">Dauer</p>
+													<p className="font-mono text-solarized-base00">
+														{formatDuration(item.timeToCompletionMs)}
+													</p>
+												</div>
+												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+													<p className="text-solarized-base01">Tokens/s</p>
+													<p className="font-mono text-solarized-base00">
+														{formatTokensPerSecond(item.outputTokens, item.timeToCompletionMs)}
 													</p>
 												</div>
 												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">

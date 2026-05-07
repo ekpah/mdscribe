@@ -395,11 +395,24 @@ export const scribeStreamHandler = authed
 			: undefined;
 
 		// Stream the response
+		const requestStartedAt = Date.now();
+		let firstTokenAt: number | undefined;
+
 		const result = streamText({
 			maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
 			messages,
 			model: resolved.model,
+			onChunk: ({ chunk }) => {
+				if (
+					firstTokenAt === undefined &&
+					(chunk.type === "text-delta" || chunk.type === "reasoning-delta") &&
+					chunk.text.length > 0
+				) {
+					firstTokenAt = Date.now();
+				}
+			},
 			onFinish: (event) => {
+				const completedAt = Date.now();
 				scheduleScribeUsageLogging({
 					activeSubscription,
 					db: context.db,
@@ -410,6 +423,11 @@ export const scribeStreamHandler = authed
 					modelConfig: resolvedRequest.config.modelConfig,
 					modelName: resolved.modelName,
 					promptName: resolvedRequest.config.promptName,
+					timing: {
+						timeToCompletionMs: completedAt - requestStartedAt,
+						timeToFirstTokenMs:
+							firstTokenAt === undefined ? undefined : firstTokenAt - requestStartedAt,
+					},
 					usageMetadata: resolvedRequest.usageMetadata,
 					thinkingEnabled,
 					userId: context.session.user.id,

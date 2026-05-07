@@ -14,4 +14,4 @@ export {
 	parsePDFFormFields,
 } from "./parse-pdf-form-fields";
 export type { PDFField } from "./parse-pdf-form-fields";
-export type { DocumentFieldDefinition, DocumentPdfType } from "./types";
+export type { DocumentFieldDefinition, DocumentInputKind, DocumentPdfType } from "./types";

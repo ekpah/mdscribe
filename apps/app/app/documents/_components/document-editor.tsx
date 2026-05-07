@@ -46,8 +46,9 @@ import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 
 const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
-
-const optionsToInputValue = (options: string[]): string => options.join(", ");
+const COMPACT_FIELD_LABEL_CLASS_NAME = "block truncate text-[11px]";
+const COMPACT_INPUT_CLASS_NAME = "h-7 min-w-0 text-xs";
+const COMPACT_SELECT_TRIGGER_CLASS_NAME = "h-7 min-w-0 overflow-hidden text-xs [&>span]:truncate";
 
 const toPdfTypeLabel = (pdfType: DocumentFieldDefinition["pdfType"]): string => {
 	switch (pdfType) {
@@ -143,6 +144,7 @@ const updateFieldDefinitionAt = (
 };
 
 interface FieldDefinitionCardProps {
+	activeDragFieldInputKind: DocumentFieldDefinition["inputKind"] | null;
 	activeDragFieldPdfType: DocumentFieldDefinition["pdfType"] | null;
 	activeDragFieldSlotId: string | null;
 	activePdfFieldName: string | null;
@@ -155,6 +157,7 @@ interface FieldDefinitionCardProps {
 
 const FieldDefinitionCard = memo(
 	({
+		activeDragFieldInputKind,
 		activeDragFieldPdfType,
 		activeDragFieldSlotId,
 		activePdfFieldName,
@@ -165,7 +168,9 @@ const FieldDefinitionCard = memo(
 		onUpdate,
 	}: FieldDefinitionCardProps) => {
 		const canAcceptDrop =
-			activeDragFieldPdfType === null || activeDragFieldPdfType === fieldDefinition.pdfType;
+			activeDragFieldPdfType === null ||
+			(activeDragFieldPdfType === fieldDefinition.pdfType &&
+				activeDragFieldInputKind === fieldDefinition.inputKind);
 		const isPdfFieldActive = activePdfFieldName === fieldDefinition.fieldName;
 
 		const {
@@ -174,11 +179,19 @@ const FieldDefinitionCard = memo(
 			setNodeRef: setDraggableRef,
 			isDragging,
 		} = useDraggable({
-			data: { index, pdfType: fieldDefinition.pdfType },
+			data: {
+				index,
+				inputKind: fieldDefinition.inputKind,
+				pdfType: fieldDefinition.pdfType,
+			},
 			id: fieldSlotId,
 		});
 		const { isOver, setNodeRef: setDroppableRef } = useDroppable({
-			data: { index, pdfType: fieldDefinition.pdfType },
+			data: {
+				index,
+				inputKind: fieldDefinition.inputKind,
+				pdfType: fieldDefinition.pdfType,
+			},
 			disabled: !canAcceptDrop,
 			id: fieldSlotId,
 		});
@@ -223,8 +236,23 @@ const FieldDefinitionCard = memo(
 			[index, onUpdate],
 		);
 
+		const handleOptionChange = useCallback(
+			(optionIndex: number, value: string) => {
+				onUpdate(index, {
+					options: fieldDefinition.options.map((option, currentIndex) =>
+						currentIndex === optionIndex ? value : option,
+					),
+				});
+			},
+			[fieldDefinition.options, index, onUpdate],
+		);
+
 		const isDropzoneActive =
 			Boolean(activeDragFieldSlotId) && activeDragFieldSlotId !== fieldSlotId && canAcceptDrop;
+		const showsEditableOptions =
+			fieldDefinition.inputKind === "choice" &&
+			fieldDefinition.pdfType === "checkbox" &&
+			fieldDefinition.options.length > 0;
 
 		return (
 			<Card
@@ -235,19 +263,19 @@ const FieldDefinitionCard = memo(
 				onFocusCapture={handlePreview}
 				onPointerDownCapture={handlePreview}
 			>
-				<div className="grid grid-cols-[minmax(160px,40%)_minmax(0,1fr)] gap-2">
-					<div className="space-y-1">
-						<div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-1.5">
-							<div className="space-y-0.5">
-								<Label className="text-[11px]">Name</Label>
+				<div className="flex flex-wrap gap-2">
+					<div className="min-w-0 flex-[1_1_18rem] space-y-1">
+						<div className="grid grid-cols-[minmax(0,1fr)_max-content] items-end gap-1.5">
+							<div className="min-w-0 space-y-0.5">
+								<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Name</Label>
 								<Input
-									className="h-7 font-mono text-xs"
+									className="h-7 min-w-0 font-mono text-xs"
 									disabled
 									value={fieldDefinition.fieldName}
 								/>
 							</div>
 							<div className="space-y-0.5">
-								<Label className="text-[11px]">Typ</Label>
+								<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Typ</Label>
 								<div className="flex h-7 items-center">
 									<Badge className="h-5 px-1.5 font-medium text-[10px]" variant="secondary">
 										{toPdfTypeLabel(fieldDefinition.pdfType)}
@@ -255,23 +283,11 @@ const FieldDefinitionCard = memo(
 								</div>
 							</div>
 						</div>
-						{fieldDefinition.pdfType !== "checkbox" && fieldDefinition.options.length > 0 ? (
-							<div className="max-h-0 overflow-hidden opacity-0 transition-all duration-150 group-hover:max-h-20 group-hover:opacity-100">
-								<div className="space-y-0.5">
-									<Label className="text-[11px]">Optionen</Label>
-									<Input
-										className="h-7"
-										disabled
-										value={optionsToInputValue(fieldDefinition.options)}
-									/>
-								</div>
-							</div>
-						) : null}
 					</div>
 
 					<div
 						className={cn(
-							"rounded-md bg-muted/40 p-2 transition-[box-shadow,opacity] duration-150",
+							"min-w-0 flex-[2_1_22rem] rounded-md bg-muted/40 p-2 transition-[box-shadow,opacity] duration-150",
 							isDragging ? "opacity-35" : "",
 							Boolean(activeDragFieldSlotId) && !canAcceptDrop ? "opacity-60" : "",
 							isDropzoneActive ? "ring-1 ring-dashed ring-muted-foreground/30" : "",
@@ -282,7 +298,7 @@ const FieldDefinitionCard = memo(
 						<div className="space-y-1">
 							<div className="flex items-center justify-between gap-2">
 								<button
-									className="inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:cursor-grabbing"
+									className="inline-flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:cursor-grabbing"
 									type="button"
 									{...listeners}
 									{...attributes}
@@ -290,7 +306,7 @@ const FieldDefinitionCard = memo(
 									<GripVertical className="h-3.5 w-3.5" />
 									<span className="sr-only">Label-Zuordnung verschieben</span>
 								</button>
-								<div className="flex items-center gap-1.5">
+								<div className="flex shrink-0 items-center gap-1.5">
 									<span className="text-muted-foreground text-xs">Aktiv</span>
 									<Switch
 										checked={fieldDefinition.isEnabled}
@@ -299,26 +315,30 @@ const FieldDefinitionCard = memo(
 								</div>
 							</div>
 
-							<div className="grid grid-cols-[minmax(0,1fr)_minmax(96px,132px)] items-end gap-1.5">
-								<div className="space-y-0.5">
-									<Label className="text-[11px]">Label</Label>
+							<div className="flex flex-wrap items-end gap-1.5">
+								<div className="min-w-0 flex-[1_1_10rem] space-y-0.5">
+									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Label</Label>
 									<Input
-										className="h-7"
+										className="h-7 min-w-0"
 										onChange={handleLabelChange}
 										value={fieldDefinition.label}
 									/>
 								</div>
-								<div className="space-y-0.5">
-									<Label className="text-[11px]">Eingabe-Typ</Label>
-									<Input className="h-7 text-xs" disabled value={fieldDefinition.markdocType} />
+								<div className="min-w-28 flex-[0_1_9rem] space-y-0.5">
+									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Eingabe-Typ</Label>
+									<Input
+										className={COMPACT_INPUT_CLASS_NAME}
+										disabled
+										value={fieldDefinition.markdocType}
+									/>
 								</div>
 							</div>
 
 							{fieldDefinition.markdocType === "Info" ? (
-								<div className="space-y-0.5">
-									<Label className="text-[11px]">Wertetyp</Label>
+								<div className="min-w-0 space-y-0.5">
+									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Wertetyp</Label>
 									<Select onValueChange={handleValueTypeChange} value={fieldDefinition.valueType}>
-										<SelectTrigger className="h-7">
+										<SelectTrigger className={COMPACT_SELECT_TRIGGER_CLASS_NAME}>
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
@@ -331,14 +351,37 @@ const FieldDefinitionCard = memo(
 							) : null}
 
 							{fieldDefinition.markdocType === "Info" ? (
-								<div className="space-y-0.5">
-									<Label className="text-[11px]">Beschreibung (optional)</Label>
+								<div className="min-w-0 space-y-0.5">
+									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Beschreibung (optional)</Label>
 									<Input
-										className="h-7"
+										className="h-7 min-w-0"
 										onChange={handleDescriptionChange}
 										placeholder="Hilfetext für das Eingabefeld"
 										value={fieldDefinition.description}
 									/>
+								</div>
+							) : null}
+
+							{showsEditableOptions ? (
+								<div className="min-w-0 space-y-1">
+									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Optionen</Label>
+									<div className="space-y-1">
+										{fieldDefinition.options.map((option, optionIndex) => (
+											<div
+												className="grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-1.5"
+												key={`${fieldDefinition.fieldName}-option-${optionIndex}`}
+											>
+												<span className="text-muted-foreground text-[11px] tabular-nums">
+													{optionIndex + 1}
+												</span>
+												<Input
+													className="h-7 min-w-0 text-xs"
+													onChange={(event) => handleOptionChange(optionIndex, event.target.value)}
+													value={option}
+												/>
+											</div>
+										))}
+									</div>
 								</div>
 							) : null}
 						</div>
@@ -348,6 +391,7 @@ const FieldDefinitionCard = memo(
 		);
 	},
 	(previousProps, nextProps) =>
+		previousProps.activeDragFieldInputKind === nextProps.activeDragFieldInputKind &&
 		previousProps.activeDragFieldPdfType === nextProps.activeDragFieldPdfType &&
 		previousProps.activeDragFieldSlotId === nextProps.activeDragFieldSlotId &&
 		previousProps.activePdfFieldName === nextProps.activePdfFieldName &&
@@ -369,37 +413,41 @@ const DragPreviewFieldCard = ({
 }: {
 	fieldDefinition: DocumentFieldDefinition;
 }) => (
-	<div className="w-[280px] rounded-md border border-solarized-orange/30 bg-muted/40 p-2 shadow-lg">
+	<div className="w-[min(20rem,96vw)] rounded-md border border-solarized-orange/30 bg-muted/40 p-2 shadow-lg">
 		<div className="space-y-1">
 			<div className="flex items-center justify-between gap-2">
-				<div className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
+				<div className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground">
 					<GripVertical className="h-3.5 w-3.5" />
 				</div>
-				<div className="flex items-center gap-1.5">
+				<div className="flex shrink-0 items-center gap-1.5">
 					<span className="text-muted-foreground text-xs">Aktiv</span>
 					<Switch checked={fieldDefinition.isEnabled} disabled />
 				</div>
 			</div>
-			<div className="grid grid-cols-[minmax(0,1fr)_minmax(96px,132px)] items-end gap-1.5">
-				<div className="space-y-0.5">
-					<Label className="text-[11px]">Label</Label>
-					<Input className="h-7" disabled value={fieldDefinition.label} />
+			<div className="flex flex-wrap items-end gap-1.5">
+				<div className="min-w-0 flex-[1_1_10rem] space-y-0.5">
+					<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Label</Label>
+					<Input className="h-7 min-w-0" disabled value={fieldDefinition.label} />
 				</div>
-				<div className="space-y-0.5">
-					<Label className="text-[11px]">Eingabe-Typ</Label>
-					<Input className="h-7 text-xs" disabled value={fieldDefinition.markdocType} />
+				<div className="min-w-28 flex-[0_1_9rem] space-y-0.5">
+					<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Eingabe-Typ</Label>
+					<Input
+						className={COMPACT_INPUT_CLASS_NAME}
+						disabled
+						value={fieldDefinition.markdocType}
+					/>
 				</div>
 			</div>
 			{fieldDefinition.markdocType === "Info" ? (
-				<div className="space-y-0.5">
-					<Label className="text-[11px]">Wertetyp</Label>
-					<Input className="h-7 text-xs" disabled value={fieldDefinition.valueType} />
+				<div className="min-w-0 space-y-0.5">
+					<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Wertetyp</Label>
+					<Input className={COMPACT_INPUT_CLASS_NAME} disabled value={fieldDefinition.valueType} />
 				</div>
 			) : null}
 			{fieldDefinition.markdocType === "Info" && fieldDefinition.description ? (
-				<div className="space-y-0.5">
-					<Label className="text-[11px]">Beschreibung</Label>
-					<Input className="h-7" disabled value={fieldDefinition.description} />
+				<div className="min-w-0 space-y-0.5">
+					<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Beschreibung</Label>
+					<Input className="h-7 min-w-0" disabled value={fieldDefinition.description} />
 				</div>
 			) : null}
 		</div>
@@ -565,6 +613,7 @@ export default function DocumentEditor({
 
 	const activeDragFieldDefinition =
 		activeDragFieldIndex >= 0 ? fieldDefinitions[activeDragFieldIndex] : null;
+	const activeDragFieldInputKind = activeDragFieldDefinition?.inputKind ?? null;
 	const activeDragFieldPdfType = activeDragFieldDefinition?.pdfType ?? null;
 
 	const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -580,13 +629,18 @@ export default function DocumentEditor({
 
 		const activeIndex = event.active.data.current?.index;
 		const overIndex = event.over?.data.current?.index;
+		const activeInputKind = event.active.data.current?.inputKind;
+		const overInputKind = event.over?.data.current?.inputKind;
 		const activePdfType = event.active.data.current?.pdfType;
 		const overPdfType = event.over?.data.current?.pdfType;
 		if (
 			typeof activeIndex !== "number" ||
 			typeof overIndex !== "number" ||
+			typeof activeInputKind !== "string" ||
+			typeof overInputKind !== "string" ||
 			typeof activePdfType !== "string" ||
 			typeof overPdfType !== "string" ||
+			activeInputKind !== overInputKind ||
 			activePdfType !== overPdfType ||
 			activeIndex === overIndex
 		) {
@@ -615,7 +669,9 @@ export default function DocumentEditor({
 				fieldMapping: fieldDefinitions.map((fieldDefinition) => ({
 					description: fieldDefinition.description,
 					fieldName: fieldDefinition.fieldName,
+					inputKind: fieldDefinition.inputKind,
 					label: fieldDefinition.label,
+					options: fieldDefinition.options,
 					pdfType: fieldDefinition.pdfType,
 				})),
 				fileBase64: encodeUint8ArrayToBase64(pdfFileBytes),
@@ -766,14 +822,20 @@ export default function DocumentEditor({
 			<Card className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden md:grid-cols-[minmax(360px,9fr)_minmax(0,11fr)]">
 				<div className="hidden h-full min-h-0 min-w-0 overflow-hidden md:flex md:flex-col">
 					<div className="shrink-0 space-y-4 p-4 pb-0">
-						<div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
-							<div className="space-y-2">
+						<div className="flex flex-wrap items-start gap-2">
+							<div className="min-w-0 flex-[1_1_14rem] space-y-2">
 								<Label htmlFor="document-category">
 									Kategorie <span className="text-solarized-red">*</span>
 								</Label>
 								<input name="category" type="hidden" value={resolvedCategory} />
 								<Select onValueChange={setCategory} value={category}>
-									<SelectTrigger className={!isCategoryValid ? "border-solarized-red" : ""}>
+									<SelectTrigger
+										className={cn(
+											"min-w-0 overflow-hidden [&>span]:truncate",
+											!isCategoryValid ? "border-solarized-red" : "",
+										)}
+										id="document-category"
+									>
 										<SelectValue placeholder="Kategorie auswählen" />
 									</SelectTrigger>
 									<SelectContent>
@@ -790,12 +852,12 @@ export default function DocumentEditor({
 								) : null}
 							</div>
 
-							<div className="space-y-2">
+							<div className="min-w-0 flex-[1_1_14rem] space-y-2">
 								<Label htmlFor="document-title">
 									Name <span className="text-solarized-red">*</span>
 								</Label>
 								<Input
-									className={!isNameValid ? "border-solarized-red" : ""}
+									className={cn("min-w-0", !isNameValid ? "border-solarized-red" : "")}
 									id="document-title"
 									onChange={(event) => setTitle(event.target.value)}
 									placeholder="Dokumentname eingeben"
@@ -806,7 +868,7 @@ export default function DocumentEditor({
 								) : null}
 							</div>
 
-							<div>
+							<div className="shrink-0 pt-7">
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
@@ -873,6 +935,7 @@ export default function DocumentEditor({
 
 									return (
 										<FieldDefinitionCard
+											activeDragFieldInputKind={activeDragFieldInputKind}
 											activeDragFieldPdfType={activeDragFieldPdfType}
 											activeDragFieldSlotId={activeDragFieldSlotId}
 											activePdfFieldName={activePdfFieldName}

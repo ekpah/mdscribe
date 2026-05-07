@@ -46,6 +46,19 @@ const formatLatency = (ms: number | undefined): string => {
 	return `${(ms / 1000).toFixed(2)}s`;
 };
 
+const formatTokensPerSecond = (
+	outputTokens: number | undefined,
+	latencyMs: number | undefined,
+): string | null => {
+	if (!outputTokens || !latencyMs || latencyMs <= 0) {
+		return null;
+	}
+	return `${(outputTokens / (latencyMs / 1000)).toLocaleString("de-DE", {
+		maximumFractionDigits: 1,
+		minimumFractionDigits: 1,
+	})} Tok/s`;
+};
+
 const formatScore = (score: number | undefined): string => {
 	if (score === undefined || score === null) {
 		return "-";
@@ -83,6 +96,11 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 		);
 	}
 
+	const tokensPerSecond = formatTokensPerSecond(
+		result.metrics.outputTokens,
+		result.metrics.latencyMs,
+	);
+
 	return (
 		<div className="flex h-full flex-col gap-2">
 			{/* Header with metrics */}
@@ -110,6 +128,7 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 					<span className="flex items-center gap-1 text-solarized-base01">
 						<Clock className="h-3 w-3 text-solarized-blue" />
 						{formatLatency(result.metrics.latencyMs)}
+						{tokensPerSecond ? <span>· {tokensPerSecond}</span> : null}
 					</span>
 					<span className="flex items-center gap-1 text-solarized-base01">
 						<Coins className="h-3 w-3 text-solarized-green" />

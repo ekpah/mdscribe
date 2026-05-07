@@ -165,6 +165,7 @@ const parseFormHandler = authed
 		}
 
 		let result: Awaited<ReturnType<typeof generateObject>>;
+		const requestStartedAt = Date.now();
 		try {
 			result = await generateObject({
 				experimental_telemetry: { isEnabled: true },
@@ -203,6 +204,7 @@ const parseFormHandler = authed
 				message: `Eingaben konnten nicht mit KI optimiert werden. (${details})`,
 			});
 		}
+		const timeToCompletionMs = Date.now() - requestStartedAt;
 
 		const { object, usage } = result;
 		const openRouterUsage = resolvedModel.isOpenRouter
@@ -223,6 +225,7 @@ const parseFormHandler = authed
 				name: "ai_pdf_form_parsing",
 				openRouterUsage,
 				standardUsage: usage as StandardUsage,
+				timing: { timeToCompletionMs },
 				userId: context.session.user.id,
 			}),
 		);
@@ -287,6 +290,7 @@ const ocrToMarkdownHandler = authed
 		}
 
 		let result: Awaited<ReturnType<typeof generateText>>;
+		const requestStartedAt = Date.now();
 		try {
 			result = await generateText({
 				experimental_telemetry: { isEnabled: true },
@@ -310,6 +314,7 @@ const ocrToMarkdownHandler = authed
 				message: `OCR fehlgeschlagen. Bitte ein OCR-fähiges Modell wählen. (${details})`,
 			});
 		}
+		const timeToCompletionMs = Date.now() - requestStartedAt;
 
 		const openRouterUsage = resolvedModel.isOpenRouter
 			? extractOpenRouterUsage(
@@ -336,6 +341,7 @@ const ocrToMarkdownHandler = authed
 				openRouterUsage,
 				result: markdown,
 				standardUsage: result.usage as StandardUsage,
+				timing: { timeToCompletionMs },
 				userId: context.session.user.id,
 			}),
 		);

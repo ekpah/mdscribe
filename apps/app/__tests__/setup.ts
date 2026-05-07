@@ -410,6 +410,8 @@ export const createTestUsageEvent = async (
 		name?: string;
 		inputTokens?: number;
 		outputTokens?: number;
+		timeToCompletionMs?: number;
+		timeToFirstTokenMs?: number;
 	},
 ) => {
 	const { usageEvent } = await import("@repo/database");
@@ -423,6 +425,8 @@ export const createTestUsageEvent = async (
 			name: options?.name ?? "ai_scribe_generation",
 			outputTokens: options?.outputTokens ?? 200,
 			timestamp: new Date(),
+			timeToCompletionMs: options?.timeToCompletionMs,
+			timeToFirstTokenMs: options?.timeToFirstTokenMs,
 			totalTokens: (options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
 			userId,
 		})

@@ -186,7 +186,7 @@ const PlaygroundContent = () => {
 			metrics: {
 				cost: toNumber(usageEvent.cost),
 				inputTokens: toNumber(usageEvent.inputTokens),
-				latencyMs: 0,
+				latencyMs: toNumber(usageEvent.timeToCompletionMs) ?? 0,
 				outputTokens: toNumber(usageEvent.outputTokens),
 				reasoningTokens: toNumber(usageEvent.reasoningTokens),
 				totalTokens: toNumber(usageEvent.totalTokens),

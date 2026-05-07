@@ -75,6 +75,14 @@ export interface StandardUsage {
 }
 
 /**
+ * Duration metrics captured around the model request.
+ */
+export interface UsageTiming {
+	timeToCompletionMs?: number;
+	timeToFirstTokenMs?: number;
+}
+
+/**
  * Parameters for creating a usage event
  */
 interface CreateUsageEventParams {
@@ -89,6 +97,7 @@ interface CreateUsageEventParams {
 	result?: string;
 	// Can be string, array, or other.
 	reasoning?: string | string[] | unknown;
+	timing?: UsageTiming;
 }
 
 /**
@@ -119,6 +128,13 @@ const normalizeReasoning = (
 	return String(reasoning) || undefined;
 };
 
+const normalizeDurationMs = (durationMs: number | undefined): number | undefined => {
+	if (durationMs === undefined || !Number.isFinite(durationMs)) {
+		return undefined;
+	}
+	return Math.max(0, Math.round(durationMs));
+};
+
 /**
  * Build a consistent usage event data object for database insertion
  */
@@ -135,6 +151,7 @@ export const buildUsageEventData = (
 		metadata,
 		result,
 		reasoning,
+		timing,
 	} = params;
 
 	// Use OpenRouter usage if available, otherwise fall back to standard usage
@@ -157,6 +174,8 @@ export const buildUsageEventData = (
 		reasoning: normalizeReasoning(reasoning),
 		reasoningTokens: openRouterUsage?.completionTokensDetails?.reasoningTokens,
 		result,
+		timeToCompletionMs: normalizeDurationMs(timing?.timeToCompletionMs),
+		timeToFirstTokenMs: normalizeDurationMs(timing?.timeToFirstTokenMs),
 		totalTokens,
 		userId,
 	};

@@ -3,6 +3,7 @@ import {
 	and,
 	aiDefaults,
 	aiScribeFormConfig,
+	avg,
 	count,
 	desc,
 	eq,
@@ -151,7 +152,10 @@ const listUsageEventsHandler = authed
 				metadata: usageEvent.metadata,
 				model: usageEvent.model,
 				name: usageEvent.name,
+				outputTokens: usageEvent.outputTokens,
 				timestamp: usageEvent.timestamp,
+				timeToCompletionMs: usageEvent.timeToCompletionMs,
+				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -195,6 +199,8 @@ const getUsageEventHandler = authed
 				reasoningTokens: usageEvent.reasoningTokens,
 				result: usageEvent.result,
 				timestamp: usageEvent.timestamp,
+				timeToCompletionMs: usageEvent.timeToCompletionMs,
+				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -237,6 +243,8 @@ const findByRequestIdHandler = authed
 				reasoningTokens: usageEvent.reasoningTokens,
 				result: usageEvent.result,
 				timestamp: usageEvent.timestamp,
+				timeToCompletionMs: usageEvent.timeToCompletionMs,
+				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -383,6 +391,14 @@ const getDateRangeStart = (filter: "today" | "week" | "month" | "all" | undefine
 	}
 };
 
+const toFiniteMetric = (value: unknown): number | null => {
+	if (value === null || value === undefined) {
+		return null;
+	}
+	const numericValue = Number(value);
+	return Number.isFinite(numericValue) ? numericValue : null;
+};
+
 const getUsageStatsHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(statsFilterInput)
@@ -394,6 +410,34 @@ const getUsageStatsHandler = authed
 		const [stats] = await context.db
 			.select({
 				activeUsers: sql<number>`count(distinct ${usageEvent.userId})`,
+				averageTimeToCompletionMs: avg(usageEvent.timeToCompletionMs),
+				averageTimeToFirstTokenMs: avg(usageEvent.timeToFirstTokenMs),
+				timedTotalCompletionMs: sql<number>`
+					coalesce(
+						sum(
+							case
+								when ${usageEvent.timeToCompletionMs} is not null
+									and ${usageEvent.timeToCompletionMs} > 0
+								then ${usageEvent.timeToCompletionMs}
+								else 0
+							end
+						),
+						0
+					)
+				`,
+				timedTotalTokens: sql<number>`
+					coalesce(
+						sum(
+							case
+								when ${usageEvent.timeToCompletionMs} is not null
+									and ${usageEvent.timeToCompletionMs} > 0
+								then coalesce(${usageEvent.outputTokens}, 0)
+								else 0
+							end
+						),
+						0
+					)
+				`,
 				totalCost: sum(usageEvent.cost),
 				totalEvents: count(),
 				totalTokens: sum(usageEvent.totalTokens),
@@ -401,8 +445,23 @@ const getUsageStatsHandler = authed
 			.from(usageEvent)
 			.where(whereClause);
 
+		const averageTimeToCompletionMs = toFiniteMetric(stats?.averageTimeToCompletionMs);
+		const averageTimeToFirstTokenMs = toFiniteMetric(stats?.averageTimeToFirstTokenMs);
+		const timedTotalCompletionMs = Number(stats?.timedTotalCompletionMs) || 0;
+		const timedTotalTokens = Number(stats?.timedTotalTokens) || 0;
+
 		return {
 			activeUsers: Number(stats?.activeUsers) || 0,
+			averageTimeToCompletionMs: averageTimeToCompletionMs !== null
+				? Math.round(averageTimeToCompletionMs)
+				: null,
+			averageTimeToFirstTokenMs: averageTimeToFirstTokenMs !== null
+				? Math.round(averageTimeToFirstTokenMs)
+				: null,
+			tokensPerSecond:
+				timedTotalCompletionMs > 0
+					? Number((timedTotalTokens / (timedTotalCompletionMs / 1000)).toFixed(1))
+					: null,
 			totalCost: Number(stats?.totalCost) || 0,
 			totalEvents: stats?.totalEvents ?? 0,
 			totalTokens: Number(stats?.totalTokens) || 0,

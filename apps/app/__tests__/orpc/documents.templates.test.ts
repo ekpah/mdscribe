@@ -1,12 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { call } from "@orpc/server";
 import { documentTemplate, eq } from "@repo/database";
 
-import { documentsHandler } from "@/orpc/documents";
-import {
-	buildParsedMarkdocFromFieldDefinitions,
-	type DocumentFieldDefinition,
-} from "@/app/documents/_lib";
 import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
@@ -14,6 +10,11 @@ import {
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
+import {
+	buildParsedMarkdocFromFieldDefinitions,
+	type DocumentFieldDefinition,
+} from "@/app/documents/_lib";
+import { documentsHandler } from "@/orpc/documents";
 
 const pdfBytes = new Uint8Array([1, 2, 3, 4, 5, 250, 255]);
 const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
@@ -22,6 +23,7 @@ const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{
 		description: "Patientenname",
 		fieldName: "patient_name",
+		inputKind: "text",
 		isEnabled: true,
 		label: "Patient",
 		markdocType: "Info",
@@ -32,6 +34,7 @@ const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{
 		description: "Entlassung",
 		fieldName: "discharge_mode",
+		inputKind: "choice",
 		isEnabled: true,
 		label: "Entlassung",
 		markdocType: "Switch",
@@ -298,6 +301,7 @@ describe("documents.templates handlers", () => {
 			{
 				description: "gleich",
 				fieldName: "field_a",
+				inputKind: "text",
 				isEnabled: true,
 				label: "Duplikat",
 				markdocType: "Info",
@@ -308,6 +312,7 @@ describe("documents.templates handlers", () => {
 			{
 				description: "gleich",
 				fieldName: "field_b",
+				inputKind: "text",
 				isEnabled: true,
 				label: "Duplikat",
 				markdocType: "Info",
@@ -336,9 +341,7 @@ describe("documents.templates handlers", () => {
 		const normalizedFieldDefinitions = Array.isArray(saved?.fieldDefinitions)
 			? (saved.fieldDefinitions as DocumentFieldDefinition[])
 			: [];
-		const { inputTags } = buildParsedMarkdocFromFieldDefinitions(
-			normalizedFieldDefinitions,
-		);
+		const { inputTags } = buildParsedMarkdocFromFieldDefinitions(normalizedFieldDefinitions);
 		expect(inputTags).toHaveLength(1);
 		expect(inputTags[0]?.attributes.primary).toBe("Duplikat");
 	});
@@ -354,6 +357,7 @@ describe("documents.templates handlers", () => {
 			{
 				description: "eins",
 				fieldName: "field_a",
+				inputKind: "text",
 				isEnabled: true,
 				label: "Duplikat",
 				markdocType: "Info",
@@ -364,6 +368,7 @@ describe("documents.templates handlers", () => {
 			{
 				description: "zwei",
 				fieldName: "field_b",
+				inputKind: "choice",
 				isEnabled: true,
 				label: "Duplikat",
 				markdocType: "Switch",
@@ -398,6 +403,7 @@ describe("documents.templates handlers", () => {
 			{
 				description: "Aktiv",
 				fieldName: "active",
+				inputKind: "text",
 				isEnabled: true,
 				label: "Aktiv",
 				markdocType: "Info",
@@ -408,6 +414,7 @@ describe("documents.templates handlers", () => {
 			{
 				description: "Inaktiv",
 				fieldName: "inactive",
+				inputKind: "text",
 				isEnabled: false,
 				label: "Inaktiv",
 				markdocType: "Info",
@@ -436,9 +443,7 @@ describe("documents.templates handlers", () => {
 		const normalizedFieldDefinitions = Array.isArray(saved?.fieldDefinitions)
 			? (saved.fieldDefinitions as DocumentFieldDefinition[])
 			: [];
-		const { inputTags } = buildParsedMarkdocFromFieldDefinitions(
-			normalizedFieldDefinitions,
-		);
+		const { inputTags } = buildParsedMarkdocFromFieldDefinitions(normalizedFieldDefinitions);
 		expect(inputTags).toHaveLength(1);
 		expect(inputTags[0]?.attributes.primary).toBe("Aktiv");
 	});
