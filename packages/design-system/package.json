@@ -37,6 +37,7 @@
 		"react-dom": "catalog:",
 		"react-hook-form": "^7.73.1",
 		"react-hotkeys-hook": "^5.2.4",
+		"recharts": "^3.8.1",
 		"sonner": "^2.0.3",
 		"tailwind-merge": "^3.3.1",
 		"use-mask-input": "^3.4.2"

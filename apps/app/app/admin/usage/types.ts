@@ -37,3 +37,13 @@ export interface UsageEvaluation {
 	summary: string;
 	totalScore: number;
 }
+
+export type StatsFilter = "today" | "week" | "month" | "all";
+
+export type UsageTrendMetric =
+	| "cost"
+	| "events"
+	| "timeToCompletionMs"
+	| "timeToFirstTokenMs"
+	| "tokens"
+	| "tokensPerSecond";

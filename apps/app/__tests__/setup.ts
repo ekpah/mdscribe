@@ -410,6 +410,8 @@ export const createTestUsageEvent = async (
 		name?: string;
 		inputTokens?: number;
 		outputTokens?: number;
+		cost?: number | string;
+		timestamp?: Date;
 		timeToCompletionMs?: number;
 		timeToFirstTokenMs?: number;
 	},
@@ -419,12 +421,13 @@ export const createTestUsageEvent = async (
 	const result = await db
 		.insert(usageEvent)
 		.values({
+			cost: options?.cost?.toString(),
 			id: crypto.randomUUID(),
 			inputTokens: options?.inputTokens ?? 100,
 			model: "test-model",
 			name: options?.name ?? "ai_scribe_generation",
 			outputTokens: options?.outputTokens ?? 200,
-			timestamp: new Date(),
+			timestamp: options?.timestamp ?? new Date(),
 			timeToCompletionMs: options?.timeToCompletionMs,
 			timeToFirstTokenMs: options?.timeToFirstTokenMs,
 			totalTokens: (options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),

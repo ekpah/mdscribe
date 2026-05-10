@@ -87,7 +87,7 @@ const formatTokensPerSecondValue = (tokensPerSecond: number | null): string => {
 	})} Tok/s`;
 };
 
-export const calculateTokensPerSecond = (
+const calculateTokensPerSecond = (
 	outputTokens: number | null | undefined,
 	durationMs: number | null | undefined,
 ): number | null => {

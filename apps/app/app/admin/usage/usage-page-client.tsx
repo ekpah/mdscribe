@@ -17,12 +17,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Activity, Loader2, Medal, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 
 import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import { orpc } from "@/lib/orpc";
 
 import { UsageEventDetail } from "./_components/usage-event-detail";
+import { UsageTrendChart } from "./_components/usage-trend-chart";
 import {
 	buildPlaygroundUrl,
 	createColumns,
@@ -35,15 +36,112 @@ import {
 	formatStatTokensPerSecond,
 	formatTokensPerSecond,
 } from "./columns";
-import type { UsageDetailEvent, UsageEvaluation, UsageListEvent } from "./types";
-
-type StatsFilter = "today" | "week" | "month" | "all";
+import type {
+	StatsFilter,
+	UsageDetailEvent,
+	UsageEvaluation,
+	UsageListEvent,
+	UsageTrendMetric,
+} from "./types";
 
 const filterLabels: Record<StatsFilter, string> = {
 	all: "Gesamt",
 	month: "Monat",
 	today: "Heute",
 	week: "Woche",
+};
+
+const trendMetricStyles: Record<
+	UsageTrendMetric,
+	{
+		active: string;
+		dot: string;
+		text: string;
+		value: string;
+	}
+> = {
+	cost: {
+		active: "border-solarized-green/50 bg-solarized-green/10",
+		dot: "bg-solarized-green",
+		text: "text-solarized-green",
+		value: "text-solarized-green",
+	},
+	events: {
+		active: "border-solarized-blue/50 bg-solarized-blue/10",
+		dot: "bg-solarized-blue",
+		text: "text-solarized-blue",
+		value: "text-solarized-base00",
+	},
+	timeToCompletionMs: {
+		active: "border-solarized-violet/50 bg-solarized-violet/10",
+		dot: "bg-solarized-violet",
+		text: "text-solarized-violet",
+		value: "text-solarized-violet",
+	},
+	timeToFirstTokenMs: {
+		active: "border-solarized-blue/50 bg-solarized-blue/10",
+		dot: "bg-solarized-blue",
+		text: "text-solarized-blue",
+		value: "text-solarized-blue",
+	},
+	tokens: {
+		active: "border-solarized-cyan/50 bg-solarized-cyan/10",
+		dot: "bg-solarized-cyan",
+		text: "text-solarized-cyan",
+		value: "text-solarized-cyan",
+	},
+	tokensPerSecond: {
+		active: "border-solarized-orange/50 bg-solarized-orange/10",
+		dot: "bg-solarized-orange",
+		text: "text-solarized-orange",
+		value: "text-solarized-orange",
+	},
+};
+
+const StatsMetricButton = ({
+	isActive,
+	label,
+	metric,
+	onSelect,
+	value,
+}: {
+	isActive: boolean;
+	label: string;
+	metric: UsageTrendMetric;
+	onSelect: (metric: UsageTrendMetric) => void;
+	value: ReactNode;
+}) => {
+	const styles = trendMetricStyles[metric];
+
+	return (
+		<button
+			type="button"
+			onClick={() => onSelect(metric)}
+			className={cn(
+				"min-h-[58px] rounded-md border border-transparent p-2 text-left transition-colors hover:border-solarized-base2 hover:bg-solarized-base3/70",
+				isActive && styles.active,
+			)}
+		>
+			<p
+				className={cn(
+					"text-xs font-medium text-solarized-base01 sm:text-sm",
+					isActive && styles.text,
+				)}
+			>
+				{label}
+			</p>
+			<p
+				className={cn(
+					"mt-1 inline-flex items-center gap-1.5 text-base font-semibold sm:text-lg",
+					styles.value,
+					isActive && styles.text,
+				)}
+			>
+				<span className={cn("hidden h-2 w-2 rounded-full", isActive && "inline-block", styles.dot)} />
+				{value}
+			</p>
+		</button>
+	);
 };
 
 const UsageToolbar = ({
@@ -76,13 +174,19 @@ export default function UsagePage() {
 		{},
 	);
 	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
+	const [trendMetric, setTrendMetric] = useState<UsageTrendMetric>("events");
+	const [timeZone, setTimeZone] = useState("UTC");
 	const [searchFilter, setSearchFilter] = useState("");
 	const statsQueryOptions = orpc.admin.usage.stats.queryOptions({
-		input: { filter: statsFilter },
+		input: { filter: statsFilter, timeZone },
 	});
 
 	// Stats query
 	const { data: stats, isLoading: statsLoading } = useQuery(statsQueryOptions);
+
+	useEffect(() => {
+		setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+	}, []);
 
 	// List query with pagination
 	const {
@@ -370,56 +474,75 @@ export default function UsagePage() {
 						</div>
 
 						{/* Stats Grid */}
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-6">
-							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Events</p>
-								<p className="text-base font-semibold text-solarized-base00 sm:text-lg">
-									{statsLoading ? (
+						<div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+							<StatsMetricButton
+								isActive={trendMetric === "events"}
+								label="Events"
+								metric="events"
+								onSelect={setTrendMetric}
+								value={
+									statsLoading ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
 									) : (
 										(stats?.totalEvents?.toLocaleString("de-DE") ?? "-")
-									)}
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Tokens</p>
-								<p className="text-base font-semibold text-solarized-cyan sm:text-lg">
-									{statsLoading ? (
+									)
+								}
+							/>
+							<StatsMetricButton
+								isActive={trendMetric === "tokens"}
+								label="Tokens"
+								metric="tokens"
+								onSelect={setTrendMetric}
+								value={
+									statsLoading ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
 									) : (
 										(stats?.totalTokens?.toLocaleString("de-DE") ?? "-")
-									)}
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">
-									Erster Token
-								</p>
-								<p className="text-base font-semibold text-solarized-blue sm:text-lg">
-									{averageFirstTokenLabel}
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Dauer</p>
-								<p className="text-base font-semibold text-solarized-violet sm:text-lg">
-									{averageCompletionLabel}
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Tokens/s</p>
-								<p className="text-base font-semibold text-solarized-orange sm:text-lg">
-									{tokensPerSecondLabel}
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-xs font-medium text-solarized-base01 sm:text-sm">Kosten</p>
-								<p className="text-base font-semibold text-solarized-green sm:text-lg">
-									{totalCostLabel}
-								</p>
-							</div>
+									)
+								}
+							/>
+							<StatsMetricButton
+								isActive={trendMetric === "timeToFirstTokenMs"}
+								label="Erster Token"
+								metric="timeToFirstTokenMs"
+								onSelect={setTrendMetric}
+								value={averageFirstTokenLabel}
+							/>
+							<StatsMetricButton
+								isActive={trendMetric === "timeToCompletionMs"}
+								label="Dauer"
+								metric="timeToCompletionMs"
+								onSelect={setTrendMetric}
+								value={averageCompletionLabel}
+							/>
+							<StatsMetricButton
+								isActive={trendMetric === "tokensPerSecond"}
+								label="Tokens/s"
+								metric="tokensPerSecond"
+								onSelect={setTrendMetric}
+								value={tokensPerSecondLabel}
+							/>
+							<StatsMetricButton
+								isActive={trendMetric === "cost"}
+								label="Kosten"
+								metric="cost"
+								onSelect={setTrendMetric}
+								value={totalCostLabel}
+							/>
 						</div>
 					</CardContent>
 				</Card>
+
+				<UsageTrendChart
+					activeMetric={trendMetric}
+					filter={statsFilter}
+					isLoading={statsLoading}
+					timeZone={stats?.timeZone ?? timeZone}
+					trend={stats?.trend ?? []}
+					trendGranularity={
+						stats?.trendGranularity ?? (statsFilter === "today" ? "hour" : "day")
+					}
+				/>
 
 				{/* Events Table */}
 				<Card className="border-solarized-base2">

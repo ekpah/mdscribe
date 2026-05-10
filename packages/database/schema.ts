@@ -261,7 +261,7 @@ export const usageEvent = pgTable(
 		reasoning: text("reasoning"),
 		reasoningTokens: integer("reasoningTokens"),
 		result: text("result"),
-		timestamp: timestamp("timestamp", { mode: "date", precision: 3 })
+		timestamp: timestamp("timestamp", { mode: "date", precision: 3, withTimezone: true })
 			.notNull()
 			.defaultNow(),
 		timeToFirstTokenMs: integer("timeToFirstTokenMs"),
