@@ -36,6 +36,17 @@ const formatTokens = (tokens: number | undefined): string => {
 	return tokens.toLocaleString("de-DE");
 };
 
+const formatTokenBreakdown = (metrics: PlaygroundResult["metrics"]): string => {
+	const parts = [
+		`In ${formatTokens(metrics.inputTokens)}`,
+		`Out ${formatTokens(metrics.outputTokens)}`,
+	];
+	if (metrics.reasoningTokens) {
+		parts.push(`Reason ${formatTokens(metrics.reasoningTokens)}`);
+	}
+	return parts.join(" · ");
+};
+
 const formatLatency = (ms: number | undefined): string => {
 	if (ms === undefined || ms === null) {
 		return "-";
@@ -136,14 +147,8 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 					</span>
 					<span className="flex items-center gap-1 text-solarized-base01">
 						<Hash className="h-3 w-3 text-solarized-cyan" />
-						{formatTokens(result.metrics.totalTokens)}
+						{formatTokenBreakdown(result.metrics)}
 					</span>
-					{result.metrics.reasoningTokens ? (
-						<span className="flex items-center gap-1 text-solarized-base01">
-							<Brain className="h-3 w-3 text-solarized-violet" />
-							{formatTokens(result.metrics.reasoningTokens)}
-						</span>
-					) : null}
 					{result.evaluation?.isLoading ? (
 						<Button
 							type="button"
