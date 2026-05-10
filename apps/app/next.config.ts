@@ -1,5 +1,4 @@
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import markdocConfig from "@markdoc/next.js";
 import { createJiti } from "jiti";
 import type { NextConfig } from "next";
@@ -47,11 +46,8 @@ export const config: NextConfig = {
 
 	// Tell Next.js where the monorepo root is so standalone output preserves
 	// the correct directory structure (apps/app/server.js).
-	output: "standalone",
-	outputFileTracingRoot: resolve(
-		dirname(fileURLToPath(import.meta.url)),
-		"../../",
-	),
+output: "standalone",
+outputFileTracingRoot: resolve(import.meta.dirname, "../../"),
 
 	// Skip type-checking during Docker builds — this runs in CI instead.
 	// Prevents OOM kills on memory-constrained build servers.

@@ -59,6 +59,7 @@ bun run test:affected    # Test changed packages (preferred)
 bun run db:migrate       # Run Drizzle migrations
 ```
 
+- `bun dev` uses the repo-pinned Turbo version through the root package script. Direct `turbo dev` depends on the shell's `turbo` binary; if it reports missing `dev` tasks, check `turbo --version` and update the global binary to match the repo's Turbo major version.
 - Use `turbo run lint --filter=app` for package-scoped checks
 - Avoid direct `ultracite check` / `oxlint` / `bun test` at repo level — use Turbo for caching
 - When using Bun with a package-specific cwd, use `bun run --cwd <dir> <script>` or `cd <dir> && bun run <script>`; avoid `bun --cwd <dir> run <script>`

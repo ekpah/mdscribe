@@ -149,6 +149,7 @@ const mergeAiFieldMapping = (
 		return {
 			description: mapping.description,
 			fieldName: mapping.fieldName,
+			inputKind: existing?.inputKind ?? "text",
 			isEnabled: existing?.isEnabled ?? true,
 			label: mapping.label,
 			markdocType: existing?.markdocType ?? "Info",

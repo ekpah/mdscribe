@@ -15,6 +15,7 @@ import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { GripVertical, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
+
 import type { EnhancedFieldMapping } from "./create-document-section";
 
 interface InputEditorProps {
@@ -32,11 +33,7 @@ interface FieldMappingCardProps {
 	onDrop: (event: DragEvent<HTMLDivElement>, index: number) => void;
 	onDragEnd: () => void;
 	onDeleteField: (index: number) => void;
-	onFieldChange: (
-		index: number,
-		field: keyof EnhancedFieldMapping,
-		value: string,
-	) => void;
+	onFieldChange: (index: number, field: keyof EnhancedFieldMapping, value: string) => void;
 }
 
 const getCardDragClass = (
@@ -71,8 +68,10 @@ const reorderFieldMappings = (
 const createNewFieldMapping = (currentCount: number): EnhancedFieldMapping => ({
 	description: "",
 	fieldName: `field_${currentCount + 1}`,
+	inputKind: "text",
 	label: `Field ${currentCount + 1}`,
 	markdocType: "Info",
+	options: [],
 	pdfType: "text",
 });
 
@@ -89,16 +88,16 @@ const FieldMappingCard = ({
 	onFieldChange,
 }: FieldMappingCardProps) => {
 	const handlers = useMemo(
-			() => ({
-				handleCardDragOver: (event: DragEvent<HTMLDivElement>) => {
-					onDragOver(event, index);
-				},
-				handleCardDragStart: () => {
-					onDragStart(index);
-				},
-				handleCardDrop: (event: DragEvent<HTMLDivElement>) => {
-					onDrop(event, index);
-				},
+		() => ({
+			handleCardDragOver: (event: DragEvent<HTMLDivElement>) => {
+				onDragOver(event, index);
+			},
+			handleCardDragStart: () => {
+				onDragStart(index);
+			},
+			handleCardDrop: (event: DragEvent<HTMLDivElement>) => {
+				onDrop(event, index);
+			},
 			handleDeleteClick: () => {
 				onDeleteField(index);
 			},
@@ -123,15 +122,15 @@ const FieldMappingCard = ({
 	const cardDragClass = getCardDragClass(index, draggedIndex, draggedOverIndex);
 
 	return (
-			<Card
-				key={`${mapping.fieldName}-${index}`}
-				draggable
-				onDragStart={handlers.handleCardDragStart}
-				onDragOver={handlers.handleCardDragOver}
-				onDrop={handlers.handleCardDrop}
-				onDragEnd={onDragEnd}
-				className={`cursor-move transition-all ${cardDragClass}`}
-			>
+		<Card
+			key={`${mapping.fieldName}-${index}`}
+			draggable
+			onDragStart={handlers.handleCardDragStart}
+			onDragOver={handlers.handleCardDragOver}
+			onDrop={handlers.handleCardDrop}
+			onDragEnd={onDragEnd}
+			className={`cursor-move transition-all ${cardDragClass}`}
+		>
 			<CardContent className="p-4">
 				<div className="space-y-3">
 					{/* Drag Handle and Delete Button */}
@@ -141,12 +140,12 @@ const FieldMappingCard = ({
 							<span className="font-semibold text-sm">Feld {index + 1}</span>
 						</div>
 						<Button
-								variant="ghost"
-								size="sm"
-								onClick={handlers.handleDeleteClick}
-								className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-								type="button"
-							>
+							variant="ghost"
+							size="sm"
+							onClick={handlers.handleDeleteClick}
+							className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+							type="button"
+						>
 							<Trash2 className="h-4 w-4" />
 						</Button>
 					</div>
@@ -156,13 +155,13 @@ const FieldMappingCard = ({
 						<Label htmlFor={`fieldName-${index}`} className="text-xs">
 							Feldname (Key)
 						</Label>
-							<Input
-								id={`fieldName-${index}`}
-								value={mapping.fieldName}
-								onChange={handlers.handleFieldNameChange}
-								className="font-mono text-sm"
-								placeholder="field_name"
-							/>
+						<Input
+							id={`fieldName-${index}`}
+							value={mapping.fieldName}
+							onChange={handlers.handleFieldNameChange}
+							className="font-mono text-sm"
+							placeholder="field_name"
+						/>
 					</div>
 
 					{/* Label */}
@@ -170,13 +169,13 @@ const FieldMappingCard = ({
 						<Label htmlFor={`label-${index}`} className="text-xs">
 							Label (Anzeigename)
 						</Label>
-							<Input
-								id={`label-${index}`}
-								value={mapping.label}
-								onChange={handlers.handleLabelChange}
-								className="text-sm"
-								placeholder="Anzeigename"
-							/>
+						<Input
+							id={`label-${index}`}
+							value={mapping.label}
+							onChange={handlers.handleLabelChange}
+							className="text-sm"
+							placeholder="Anzeigename"
+						/>
 					</div>
 
 					{/* Description */}
@@ -184,13 +183,13 @@ const FieldMappingCard = ({
 						<Label htmlFor={`description-${index}`} className="text-xs">
 							Beschreibung
 						</Label>
-							<Textarea
-								id={`description-${index}`}
-								value={mapping.description}
-								onChange={handlers.handleDescriptionChange}
-								className="min-h-[60px] resize-none text-sm"
-								placeholder="Optionale Beschreibung"
-							/>
+						<Textarea
+							id={`description-${index}`}
+							value={mapping.description}
+							onChange={handlers.handleDescriptionChange}
+							className="min-h-[60px] resize-none text-sm"
+							placeholder="Optionale Beschreibung"
+						/>
 					</div>
 
 					{/* Type Selectors */}
@@ -200,10 +199,7 @@ const FieldMappingCard = ({
 							<Label htmlFor={`markdocType-${index}`} className="text-xs">
 								Markdoc-Typ
 							</Label>
-								<Select
-									value={mapping.markdocType}
-									onValueChange={handlers.handleMarkdocTypeChange}
-								>
+							<Select value={mapping.markdocType} onValueChange={handlers.handleMarkdocTypeChange}>
 								<SelectTrigger id={`markdocType-${index}`} className="text-sm">
 									<SelectValue />
 								</SelectTrigger>
@@ -219,10 +215,7 @@ const FieldMappingCard = ({
 							<Label htmlFor={`pdfType-${index}`} className="text-xs">
 								PDF-Feldtyp
 							</Label>
-							<Select
-								value={mapping.pdfType}
-								onValueChange={handlers.handlePdfTypeChange}
-							>
+							<Select value={mapping.pdfType} onValueChange={handlers.handlePdfTypeChange}>
 								<SelectTrigger id={`pdfType-${index}`} className="text-sm">
 									<SelectValue />
 								</SelectTrigger>
@@ -242,10 +235,7 @@ const FieldMappingCard = ({
 	);
 };
 
-const InputEditor = ({
-	fieldMappings,
-	onFieldMappingsChange,
-}: InputEditorProps) => {
+const InputEditor = ({ fieldMappings, onFieldMappingsChange }: InputEditorProps) => {
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 	const [draggedOverIndex, setDraggedOverIndex] = useState<number | null>(null);
 
@@ -253,31 +243,27 @@ const InputEditor = ({
 		setDraggedIndex(index);
 	}, []);
 
-	const handleDragOver = useCallback((
-		e: DragEvent<HTMLDivElement>,
-		index: number,
-	) => {
+	const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>, index: number) => {
 		e.preventDefault();
 		setDraggedOverIndex(index);
 	}, []);
 
-	const handleDrop = useCallback((e: DragEvent<HTMLDivElement>, dropIndex: number) => {
-		e.preventDefault();
-		const reorderedMappings = reorderFieldMappings(
-			fieldMappings,
-			draggedIndex,
-			dropIndex,
-		);
-		if (!reorderedMappings) {
+	const handleDrop = useCallback(
+		(e: DragEvent<HTMLDivElement>, dropIndex: number) => {
+			e.preventDefault();
+			const reorderedMappings = reorderFieldMappings(fieldMappings, draggedIndex, dropIndex);
+			if (!reorderedMappings) {
+				setDraggedIndex(null);
+				setDraggedOverIndex(null);
+				return;
+			}
+
+			onFieldMappingsChange(reorderedMappings);
 			setDraggedIndex(null);
 			setDraggedOverIndex(null);
-			return;
-		}
-
-		onFieldMappingsChange(reorderedMappings);
-		setDraggedIndex(null);
-		setDraggedOverIndex(null);
-	}, [draggedIndex, fieldMappings, onFieldMappingsChange]);
+		},
+		[draggedIndex, fieldMappings, onFieldMappingsChange],
+	);
 
 	const handleDragEnd = useCallback(() => {
 		setDraggedIndex(null);
@@ -294,11 +280,7 @@ const InputEditor = ({
 				const newMappings = fieldMappings.filter((_, i) => i !== index);
 				onFieldMappingsChange(newMappings);
 			},
-			handleFieldChange: (
-				index: number,
-				field: keyof EnhancedFieldMapping,
-				value: string,
-			) => {
+			handleFieldChange: (index: number, field: keyof EnhancedFieldMapping, value: string) => {
 				const newMappings = [...fieldMappings];
 				newMappings[index] = {
 					...newMappings[index],
@@ -328,10 +310,10 @@ const InputEditor = ({
 		<div className="space-y-4">
 			<div className="space-y-2">
 				<p className="text-muted-foreground text-sm">
-					Ziehen Sie die Felder, um sie neu anzuordnen. Bearbeiten Sie die
-					Eigenschaften jedes Feldes.
+					Ziehen Sie die Felder, um sie neu anzuordnen. Bearbeiten Sie die Eigenschaften jedes
+					Feldes.
 				</p>
-					<Button
+				<Button
 					onClick={mappingHandlers.handleAddField}
 					variant="outline"
 					size="sm"
@@ -341,23 +323,23 @@ const InputEditor = ({
 				</Button>
 			</div>
 
-				{fieldMappings.map((mapping, index) => (
-					<FieldMappingCard
-						key={mapping.fieldName}
-						mapping={mapping}
-						index={index}
+			{fieldMappings.map((mapping, index) => (
+				<FieldMappingCard
+					key={mapping.fieldName}
+					mapping={mapping}
+					index={index}
 					draggedIndex={draggedIndex}
 					draggedOverIndex={draggedOverIndex}
-						onDragStart={handleDragStart}
-						onDragOver={handleDragOver}
-						onDrop={handleDrop}
-						onDragEnd={handleDragEnd}
-						onDeleteField={mappingHandlers.handleDeleteField}
-						onFieldChange={mappingHandlers.handleFieldChange}
-					/>
-				))}
+					onDragStart={handleDragStart}
+					onDragOver={handleDragOver}
+					onDrop={handleDrop}
+					onDragEnd={handleDragEnd}
+					onDeleteField={mappingHandlers.handleDeleteField}
+					onFieldChange={mappingHandlers.handleFieldChange}
+				/>
+			))}
 		</div>
-		);
+	);
 };
 
 export default InputEditor;

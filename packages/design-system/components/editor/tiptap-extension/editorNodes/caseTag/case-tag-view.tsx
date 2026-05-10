@@ -48,10 +48,10 @@ export const CaseTagView = ({
 	return (
 		<NodeViewWrapper
 			as="span"
-			className="inline-block align-baseline mx-1"
+			className="mx-0.5 inline-block align-[-0.125em] leading-none"
 		>
 			<div
-				className={`group inline-flex items-center gap-1 rounded-md border px-1 py-0.5 text-xs shadow-xs transition-all ${
+				className={`group inline-flex items-center gap-0.5 rounded-sm border px-1 py-0 text-[11px] leading-none shadow-xs transition-all ${
 					selected
 						? "border-solarized-blue ring-2 ring-solarized-blue/40"
 						: "border-solarized-blue/50 hover:border-solarized-blue"
@@ -59,12 +59,12 @@ export const CaseTagView = ({
 			>
 				<Popover>
 					<PopoverTrigger
-						className="inline-flex cursor-pointer items-center gap-1.5 px-1 py-0.5"
+						className="inline-flex h-[18px] cursor-pointer items-center gap-1 px-0.5 py-0 leading-none"
 						contentEditable={false}
 					>
 						<span
 							data-drag-handle
-							className="inline-flex items-center gap-1 rounded bg-solarized-blue/15 px-1.5 py-0.5 font-semibold text-solarized-blue"
+							className="inline-flex h-[16px] items-center gap-0.5 rounded-xs bg-solarized-blue/15 px-1 py-0 font-semibold text-solarized-blue leading-none"
 						>
 							Case
 						</span>
@@ -104,7 +104,7 @@ export const CaseTagView = ({
 				</Popover>
 
 				<NodeViewContent
-					className="whitespace-nowrap px-1 text-foreground/80"
+					className="whitespace-nowrap px-1 text-foreground/80 leading-none"
 					onDoubleClick={handleContentDoubleClick}
 				/>
 
@@ -112,11 +112,11 @@ export const CaseTagView = ({
 					variant="ghost"
 					size="icon"
 					onClick={handleRemoveCase}
-					className="remove-case-btn-inline h-6 w-6 rounded-sm text-solarized-blue/70 hover:bg-solarized-blue/10 hover:text-solarized-blue"
+					className="remove-case-btn-inline h-4 w-4 rounded-xs text-solarized-blue/70 hover:bg-solarized-blue/10 hover:text-solarized-blue"
 					contentEditable={false}
 					aria-label="Remove case"
 				>
-					<X className="h-3 w-3" />
+					<X className="h-2.5 w-2.5" />
 				</Button>
 			</div>
 		</NodeViewWrapper>

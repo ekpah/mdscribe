@@ -5,7 +5,9 @@ import type { ModelConfig, PromptMessage } from "@/orpc/scribe/types";
  */
 export interface FieldMapping {
 	fieldName: string;
+	inputKind: "text" | "boolean" | "choice";
 	label: string;
+	options?: string[];
 	description: string;
 	pdfType?: "text" | "multiline" | "dropdown" | "checkbox" | "radio";
 }
@@ -50,7 +52,12 @@ Für jede Feldzuordnung:
 1. Schlage ein besseres, aussagekräftigeres Label vor
 2. Gib eine klare und prägnante Beschreibung an, wofür dieses Feld verwendet wird
 
-Spezialregel für Checkbox-Felder (pdfType="checkbox"):
+Strukturregeln:
+- inputKind="boolean" ist ein Ja/Nein-Feld.
+- inputKind="choice" ist eine Auswahl mit den mitgelieferten options; diese Optionen sind technische PDF-Werte und dürfen nicht umbenannt oder ersetzt werden.
+- inputKind="text" ist ein Freitext-, Zahlen- oder Datumsfeld.
+
+Spezialregel für Checkbox-Felder mit inputKind="boolean":
 - Das Label soll als boolesches Feld funktionieren (ein Zustand, true/false), nicht als freie Auswahl.
 - Beschreibungen sollen klar machen, dass das Feld angehakt (true) oder nicht angehakt (false) ist.
 - Verwende keine Ergebnistexte wie "Ja"/"Nein" als Label, sondern den eigentlichen medizinischen Sachverhalt.
@@ -67,6 +74,7 @@ Gib deine Antwort als JSON-Objekt mit genau dieser Struktur zurück:
 Achte darauf:
 - Alle originalen fieldName-Werte beizubehalten
 - Falls pdfType mitgeliefert wird, die Semantik im Label/Beschreibung zu berücksichtigen
+- Optionen nicht umzuschreiben; nutze sie nur als Kontext für Label und Beschreibung
 - Die Beschreibungen kurz und aussagekräftig zu halten
 - fieldName exakt wie im Input zu übernehmen`,
 					role: "user",
@@ -75,5 +83,4 @@ Achte darauf:
 		},
 		promptName: "pdf_form_enhancement",
 	},
-
 };

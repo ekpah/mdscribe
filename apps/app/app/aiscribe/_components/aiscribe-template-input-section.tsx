@@ -129,14 +129,6 @@ export const AiscribeTemplateInputSection = ({
 
 	return (
 		<div className="space-y-4">
-			<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-sm">
-				<p className="text-solarized-red leading-relaxed">
-					⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie hier keine privaten
-					Patientendaten ein! Diese Informationen werden an eine KI gesendet.
-					Verwenden Sie nur anonymisierte Daten.
-				</p>
-			</div>
-
 			{additionalInputs && additionalInputs.length > 0 ? (
 				<div className="space-y-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
 					<div className="flex items-center gap-2">

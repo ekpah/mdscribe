@@ -352,7 +352,7 @@ const createTemplateHandler = authed
 					authorId: context.session.user.id,
 					category: input.category,
 					content: input.content,
-					embedding: embedding,
+					embedding,
 					title: input.name,
 					updatedAt: new Date(),
 				})
@@ -392,7 +392,7 @@ const updateTemplateHandler = authed
 				.set({
 					category: input.category,
 					content: input.content,
-					embedding: embedding,
+					embedding,
 					title: input.name,
 					updatedAt: new Date(),
 				})

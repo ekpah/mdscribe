@@ -2,10 +2,11 @@ import { ORPCError } from "@orpc/server";
 import {
 	and,
 	aiDefaults,
+	aiScribeFormConfig,
+	avg,
 	count,
 	desc,
 	eq,
-	gte,
 	like,
 	lt,
 	sql,
@@ -13,6 +14,7 @@ import {
 	usageEvent,
 	user,
 } from "@repo/database";
+import type { Database } from "@repo/database";
 import { generateObject } from "ai";
 import { z } from "zod";
 
@@ -40,6 +42,49 @@ const toMetadataRecord = (metadata: unknown): Record<string, unknown> => {
 		return {};
 	}
 	return metadata as Record<string, unknown>;
+};
+
+const getCustomFormSlugFromMetadata = (metadata: Record<string, unknown>): string | null => {
+	const endpoint = metadata.endpoint;
+	if (typeof endpoint !== "string" || !endpoint.startsWith("custom:")) {
+		return null;
+	}
+
+	const slug = endpoint.slice("custom:".length).trim();
+	return slug.length > 0 ? slug : null;
+};
+
+const enrichCustomFormUsageMetadata = async (
+	db: { query: Database["query"] },
+	metadata: unknown,
+): Promise<Record<string, unknown> | null> => {
+	const metadataRecord = toMetadataRecord(metadata);
+	const slug = getCustomFormSlugFromMetadata(metadataRecord);
+	if (!slug) {
+		return Object.keys(metadataRecord).length > 0 ? metadataRecord : null;
+	}
+
+	const form = await db.query.aiScribeFormConfig.findFirst({
+		columns: {
+			id: true,
+			promptHarness: true,
+			slug: true,
+			templateId: true,
+		},
+		where: eq(aiScribeFormConfig.slug, slug),
+	});
+
+	if (!form) {
+		return metadataRecord;
+	}
+
+	return {
+		...metadataRecord,
+		customFormId: metadataRecord.customFormId ?? form.id,
+		customFormSlug: metadataRecord.customFormSlug ?? form.slug,
+		promptName: metadataRecord.promptName ?? form.promptHarness,
+		templateId: metadataRecord.templateId ?? form.templateId,
+	};
 };
 
 const getDocumentTypeForEvaluation = (
@@ -106,7 +151,10 @@ const listUsageEventsHandler = authed
 				metadata: usageEvent.metadata,
 				model: usageEvent.model,
 				name: usageEvent.name,
+				outputTokens: usageEvent.outputTokens,
 				timestamp: usageEvent.timestamp,
+				timeToCompletionMs: usageEvent.timeToCompletionMs,
+				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -150,6 +198,8 @@ const getUsageEventHandler = authed
 				reasoningTokens: usageEvent.reasoningTokens,
 				result: usageEvent.result,
 				timestamp: usageEvent.timestamp,
+				timeToCompletionMs: usageEvent.timeToCompletionMs,
+				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -163,7 +213,14 @@ const getUsageEventHandler = authed
 			.where(eq(usageEvent.id, input.id))
 			.limit(1);
 
-		return event ?? null;
+		if (!event) {
+			return null;
+		}
+
+		return {
+			...event,
+			metadata: await enrichCustomFormUsageMetadata(context.db, event.metadata),
+		};
 	});
 
 const findByRequestIdHandler = authed
@@ -185,6 +242,8 @@ const findByRequestIdHandler = authed
 				reasoningTokens: usageEvent.reasoningTokens,
 				result: usageEvent.result,
 				timestamp: usageEvent.timestamp,
+				timeToCompletionMs: usageEvent.timeToCompletionMs,
+				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -199,7 +258,14 @@ const findByRequestIdHandler = authed
 			.orderBy(desc(usageEvent.timestamp))
 			.limit(1);
 
-		return event ?? null;
+		if (!event) {
+			return null;
+		}
+
+		return {
+			...event,
+			metadata: await enrichCustomFormUsageMetadata(context.db, event.metadata),
+		};
 	});
 
 const evaluateUsageEventHandler = authed
@@ -240,14 +306,14 @@ const evaluateUsageEventHandler = authed
 				model: evaluationModel.model,
 				schema: usageEvaluationSchema,
 				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
-				prompt: `Bewerte folgende Ausgabe.
+				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.
 
 Dokumenttyp: ${documentType}
 
-Eingaben:
+Nutzergegebene Eingaben, Prompt-Spezifika und ggf. Vorlage:
 ${JSON.stringify(event.inputData ?? {}, null, 2)}
 
-Ausgabe:
+Modell-Ausgabe:
 ${event.result}`,
 				temperature: 0.1,
 			});
@@ -295,58 +361,307 @@ ${event.result}`,
 
 const statsFilterInput = z.object({
 	filter: z.enum(["today", "week", "month", "all"]).optional(),
+	timeZone: z.string().trim().min(1).max(100).optional(),
 });
 
-const getDateRangeStart = (filter: "today" | "week" | "month" | "all" | undefined): Date | null => {
-	const now = new Date();
+type StatsFilter = NonNullable<z.infer<typeof statsFilterInput>["filter"]>;
+type TrendGranularity = "day" | "hour";
+
+const DEFAULT_USAGE_STATS_TIME_ZONE = "UTC";
+
+const getTrendGranularity = (filter: StatsFilter): TrendGranularity =>
+	filter === "today" ? "hour" : "day";
+
+const resolveStatsTimeZone = (timeZone: string | undefined): string => {
+	if (!timeZone) {
+		return DEFAULT_USAGE_STATS_TIME_ZONE;
+	}
+
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+		return timeZone;
+	} catch {
+		return DEFAULT_USAGE_STATS_TIME_ZONE;
+	}
+};
+
+// Postgres treats repeated bind parameters as different expressions in GROUP BY,
+// so the validated IANA timezone is embedded as a quoted literal.
+const toSqlStringLiteral = (value: string): ReturnType<typeof sql.raw> =>
+	sql.raw(`'${value.replaceAll("'", "''")}'`);
+
+const getLocalRangeStartExpression = (
+	filter: StatsFilter,
+	timeZoneLiteral: ReturnType<typeof sql.raw>,
+): ReturnType<typeof sql> | null => {
+	const localToday = sql`date_trunc('day', timezone(${timeZoneLiteral}, now()))`;
 
 	switch (filter) {
-		case "today": {
-			const start = new Date(now);
-			start.setHours(0, 0, 0, 0);
-			return start;
-		}
-		case "week": {
-			const start = new Date(now);
-			start.setDate(start.getDate() - 7);
-			start.setHours(0, 0, 0, 0);
-			return start;
-		}
-		case "month": {
-			const start = new Date(now);
-			start.setDate(start.getDate() - 30);
-			start.setHours(0, 0, 0, 0);
-			return start;
-		}
-		default: {
+		case "today":
+			return localToday;
+		case "week":
+			return sql`(${localToday} - interval '7 days')`;
+		case "month":
+			return sql`(${localToday} - interval '30 days')`;
+		case "all":
 			return null;
-		}
 	}
+};
+
+const toFiniteMetric = (value: unknown): number | null => {
+	if (value === null || value === undefined) {
+		return null;
+	}
+	const numericValue = Number(value);
+	return Number.isFinite(numericValue) ? numericValue : null;
+};
+
+const toRoundedMetric = (value: unknown, fractionDigits = 0): number | null => {
+	const numericValue = toFiniteMetric(value);
+	if (numericValue === null) {
+		return null;
+	}
+	return Number(numericValue.toFixed(fractionDigits));
+};
+
+const buildPercentileStats = (
+	p50: unknown,
+	p90: unknown,
+	p95: unknown,
+	fractionDigits = 0,
+) => ({
+	p50: toRoundedMetric(p50, fractionDigits),
+	p90: toRoundedMetric(p90, fractionDigits),
+	p95: toRoundedMetric(p95, fractionDigits),
+});
+
+const emptyPercentileStats = {
+	p50: null,
+	p90: null,
+	p95: null,
 };
 
 const getUsageStatsHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(statsFilterInput)
 	.handler(async ({ context, input }) => {
-		const dateStart = getDateRangeStart(input.filter);
+		const filter = input.filter ?? "all";
+		const timeZone = resolveStatsTimeZone(input.timeZone);
+		const timeZoneLiteral = toSqlStringLiteral(timeZone);
+		const trendGranularity = getTrendGranularity(filter);
+		const localRangeStartExpression = getLocalRangeStartExpression(filter, timeZoneLiteral);
+		const localTimestampExpression = sql`timezone(${timeZoneLiteral}, ${usageEvent.timestamp})`;
+		const bucketExpression =
+			trendGranularity === "hour"
+				? sql<Date>`date_trunc('hour', ${localTimestampExpression})`
+				: sql<Date>`date_trunc('day', ${localTimestampExpression})`;
+		const localNowBucketExpression =
+			trendGranularity === "hour"
+				? sql`date_trunc('hour', timezone(${timeZoneLiteral}, now()))`
+				: sql`date_trunc('day', timezone(${timeZoneLiteral}, now()))`;
+		const seriesStartExpression = localRangeStartExpression
+			? localRangeStartExpression
+			: sql`coalesce(
+					(select min(${bucketExpression}) from ${usageEvent}),
+					${localNowBucketExpression}
+				)`;
+		const seriesStepExpression =
+			trendGranularity === "hour" ? sql`interval '1 hour'` : sql`interval '1 day'`;
 
-		const whereClause = dateStart ? gte(usageEvent.timestamp, dateStart) : undefined;
+		const whereClause = localRangeStartExpression
+			? sql`${usageEvent.timestamp} >= (${localRangeStartExpression} at time zone ${timeZoneLiteral})`
+			: undefined;
 
-		const [stats] = await context.db
-			.select({
-				activeUsers: sql<number>`count(distinct ${usageEvent.userId})`,
-				totalCost: sum(usageEvent.cost),
-				totalEvents: count(),
-				totalTokens: sum(usageEvent.totalTokens),
-			})
-			.from(usageEvent)
-			.where(whereClause);
+		const [statsRows, trendRows, seriesRows] = await Promise.all([
+			context.db
+				.select({
+					activeUsers: sql<number>`count(distinct ${usageEvent.userId})`,
+					averageTimeToCompletionMs: avg(usageEvent.timeToCompletionMs),
+					averageTimeToFirstTokenMs: avg(usageEvent.timeToFirstTokenMs),
+					timedTotalCompletionMs: sql<number>`
+						coalesce(
+							sum(
+								case
+									when ${usageEvent.timeToCompletionMs} is not null
+										and ${usageEvent.timeToCompletionMs} > 0
+									then ${usageEvent.timeToCompletionMs}
+									else 0
+								end
+							),
+							0
+						)
+					`,
+					timedTotalTokens: sql<number>`
+						coalesce(
+							sum(
+								case
+									when ${usageEvent.timeToCompletionMs} is not null
+										and ${usageEvent.timeToCompletionMs} > 0
+									then coalesce(${usageEvent.outputTokens}, 0)
+									else 0
+								end
+							),
+							0
+						)
+					`,
+					totalCost: sum(usageEvent.cost),
+					totalEvents: count(),
+					totalTokens: sum(usageEvent.totalTokens),
+				})
+				.from(usageEvent)
+				.where(whereClause),
+			context.db
+				.select({
+					bucket: sql<string>`to_char(${bucketExpression}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
+					cost: sql<number>`coalesce(sum(${usageEvent.cost}), 0)`,
+					events: count(),
+					timeToCompletionP50: sql<number | null>`
+						percentile_cont(0.5)
+						within group (order by ${usageEvent.timeToCompletionMs})
+						filter (where ${usageEvent.timeToCompletionMs} is not null)
+					`,
+					timeToCompletionP90: sql<number | null>`
+						percentile_cont(0.9)
+						within group (order by ${usageEvent.timeToCompletionMs})
+						filter (where ${usageEvent.timeToCompletionMs} is not null)
+					`,
+					timeToCompletionP95: sql<number | null>`
+						percentile_cont(0.95)
+						within group (order by ${usageEvent.timeToCompletionMs})
+						filter (where ${usageEvent.timeToCompletionMs} is not null)
+					`,
+					timeToFirstTokenP50: sql<number | null>`
+						percentile_cont(0.5)
+						within group (order by ${usageEvent.timeToFirstTokenMs})
+						filter (where ${usageEvent.timeToFirstTokenMs} is not null)
+					`,
+					timeToFirstTokenP90: sql<number | null>`
+						percentile_cont(0.9)
+						within group (order by ${usageEvent.timeToFirstTokenMs})
+						filter (where ${usageEvent.timeToFirstTokenMs} is not null)
+					`,
+					timeToFirstTokenP95: sql<number | null>`
+						percentile_cont(0.95)
+						within group (order by ${usageEvent.timeToFirstTokenMs})
+						filter (where ${usageEvent.timeToFirstTokenMs} is not null)
+					`,
+					tokens: sql<number>`coalesce(sum(${usageEvent.totalTokens}), 0)`,
+					tokensPerSecondP50: sql<number | null>`
+						percentile_cont(0.5)
+						within group (
+							order by (
+								${usageEvent.outputTokens}::double precision /
+								(${usageEvent.timeToCompletionMs}::double precision / 1000)
+							)
+						)
+						filter (
+							where ${usageEvent.outputTokens} is not null
+								and ${usageEvent.timeToCompletionMs} is not null
+								and ${usageEvent.timeToCompletionMs} > 0
+						)
+					`,
+					tokensPerSecondP90: sql<number | null>`
+						percentile_cont(0.9)
+						within group (
+							order by (
+								${usageEvent.outputTokens}::double precision /
+								(${usageEvent.timeToCompletionMs}::double precision / 1000)
+							)
+						)
+						filter (
+							where ${usageEvent.outputTokens} is not null
+								and ${usageEvent.timeToCompletionMs} is not null
+								and ${usageEvent.timeToCompletionMs} > 0
+						)
+					`,
+					tokensPerSecondP95: sql<number | null>`
+						percentile_cont(0.95)
+						within group (
+							order by (
+								${usageEvent.outputTokens}::double precision /
+								(${usageEvent.timeToCompletionMs}::double precision / 1000)
+							)
+						)
+						filter (
+							where ${usageEvent.outputTokens} is not null
+								and ${usageEvent.timeToCompletionMs} is not null
+								and ${usageEvent.timeToCompletionMs} > 0
+						)
+					`,
+				})
+				.from(usageEvent)
+				.where(whereClause)
+				.groupBy(bucketExpression)
+				.orderBy(bucketExpression),
+			context.db.execute(
+				sql<{ bucket: string }>`
+					select to_char(series.bucket, 'YYYY-MM-DD"T"HH24:MI:SS') as bucket
+					from generate_series(
+						${seriesStartExpression},
+						${localNowBucketExpression},
+						${seriesStepExpression}
+					) as series(bucket)
+				`,
+			),
+		]);
+
+		const [stats] = statsRows;
+		const averageTimeToCompletionMs = toFiniteMetric(stats?.averageTimeToCompletionMs);
+		const averageTimeToFirstTokenMs = toFiniteMetric(stats?.averageTimeToFirstTokenMs);
+		const timedTotalCompletionMs = Number(stats?.timedTotalCompletionMs) || 0;
+		const timedTotalTokens = Number(stats?.timedTotalTokens) || 0;
+		const rowByBucket = new Map(trendRows.map((row) => [String(row.bucket), row]));
+		const trend = seriesRows.map((seriesRow) => {
+			const bucket = String(seriesRow.bucket);
+			const row = rowByBucket.get(bucket);
+			return {
+				bucket,
+				cost: Number(row?.cost) || 0,
+				events: Number(row?.events) || 0,
+				timeToCompletionMs: row
+					? buildPercentileStats(
+							row.timeToCompletionP50,
+							row.timeToCompletionP90,
+							row.timeToCompletionP95,
+						)
+					: emptyPercentileStats,
+				timeToFirstTokenMs: row
+					? buildPercentileStats(
+							row.timeToFirstTokenP50,
+							row.timeToFirstTokenP90,
+							row.timeToFirstTokenP95,
+						)
+					: emptyPercentileStats,
+				tokens: Number(row?.tokens) || 0,
+				tokensPerSecond: row
+					? buildPercentileStats(
+							row.tokensPerSecondP50,
+							row.tokensPerSecondP90,
+							row.tokensPerSecondP95,
+							1,
+						)
+					: emptyPercentileStats,
+			};
+		});
 
 		return {
 			activeUsers: Number(stats?.activeUsers) || 0,
+			averageTimeToCompletionMs: averageTimeToCompletionMs !== null
+				? Math.round(averageTimeToCompletionMs)
+				: null,
+			averageTimeToFirstTokenMs: averageTimeToFirstTokenMs !== null
+				? Math.round(averageTimeToFirstTokenMs)
+				: null,
+			tokensPerSecond:
+				timedTotalCompletionMs > 0
+					? Number((timedTotalTokens / (timedTotalCompletionMs / 1000)).toFixed(1))
+					: null,
 			totalCost: Number(stats?.totalCost) || 0,
 			totalEvents: stats?.totalEvents ?? 0,
 			totalTokens: Number(stats?.totalTokens) || 0,
+			timeZone,
+			trend,
+			trendGranularity,
 		};
 	});
 

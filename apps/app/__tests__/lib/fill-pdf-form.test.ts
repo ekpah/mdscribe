@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { PDFDocument } from "pdf-lib";
+
+import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
+import type { PDFCheckBox } from "pdf-lib";
 
 import { fillPDFForm } from "@/app/documents/_lib";
 import type { DocumentFieldDefinition } from "@/app/documents/_lib";
@@ -32,10 +34,50 @@ const createFormPdf = async (): Promise<Uint8Array> => {
 	return pdfDoc.save();
 };
 
+const setCheckBoxWidgetOnValue = (checkbox: PDFCheckBox, widgetIndex: number, value: string) => {
+	const widget = checkbox.acroField.getWidgets()[widgetIndex];
+	const normalAppearance = widget?.getAppearances()?.normal;
+	if (!(normalAppearance instanceof PDFDict)) {
+		throw new Error("Expected checkbox widget normal appearance dictionary");
+	}
+
+	const yesName = PDFName.of("Yes");
+	const nextName = PDFName.of(value);
+	const yesAppearance = normalAppearance.get(yesName);
+	if (!yesAppearance) {
+		throw new Error("Expected checkbox widget Yes appearance");
+	}
+
+	normalAppearance.set(nextName, yesAppearance);
+	normalAppearance.delete(yesName);
+	widget.setAppearanceState(PDFName.of("Off"));
+};
+
+const createChoiceCheckboxPdf = async (): Promise<Uint8Array> => {
+	const pdfDoc = await PDFDocument.create();
+	const page = pdfDoc.addPage([600, 800]);
+	const form = pdfDoc.getForm();
+	const checkbox = form.createCheckBox("request_type");
+	const options = ["Reha", "Teilhabe am Arbeitsleben (LTA) ", "Sonstiges"];
+
+	for (const [index, option] of options.entries()) {
+		checkbox.addToPage(page, {
+			height: 16,
+			width: 16,
+			x: 40,
+			y: 720 - index * 30,
+		});
+		setCheckBoxWidgetOnValue(checkbox, index, option);
+	}
+
+	return pdfDoc.save();
+};
+
 const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{
 		description: "",
 		fieldName: "name",
+		inputKind: "text",
 		isEnabled: true,
 		label: "Name",
 		markdocType: "Info",
@@ -46,6 +88,7 @@ const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{
 		description: "",
 		fieldName: "name_copy",
+		inputKind: "text",
 		isEnabled: true,
 		label: "Name",
 		markdocType: "Info",
@@ -56,6 +99,7 @@ const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{
 		description: "",
 		fieldName: "notes",
+		inputKind: "text",
 		isEnabled: true,
 		label: "Notizen",
 		markdocType: "Info",
@@ -66,6 +110,7 @@ const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{
 		description: "",
 		fieldName: "status",
+		inputKind: "choice",
 		isEnabled: true,
 		label: "Status",
 		markdocType: "Switch",
@@ -76,6 +121,7 @@ const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{
 		description: "",
 		fieldName: "consent",
+		inputKind: "boolean",
 		isEnabled: true,
 		label: "Einwilligung",
 		markdocType: "Switch",
@@ -86,11 +132,26 @@ const createFieldDefinitions = (): DocumentFieldDefinition[] => [
 	{
 		description: "",
 		fieldName: "priority",
+		inputKind: "choice",
 		isEnabled: true,
 		label: "Prioritaet",
 		markdocType: "Switch",
 		options: ["low", "high"],
 		pdfType: "radio",
+		valueType: "string",
+	},
+];
+
+const createChoiceCheckboxFieldDefinition = (): DocumentFieldDefinition[] => [
+	{
+		description: "",
+		fieldName: "request_type",
+		inputKind: "choice",
+		isEnabled: true,
+		label: "Antrag",
+		markdocType: "Switch",
+		options: ["Reha", "Teilhabe am Arbeitsleben (LTA)", "Sonstiges"],
+		pdfType: "checkbox",
 		valueType: "string",
 	},
 ];
@@ -159,5 +220,76 @@ describe("fillPDFForm", () => {
 		const uncheckedDoc = await PDFDocument.load(uncheckedPdf);
 		expect(checkedDoc.getForm().getCheckBox("consent").isChecked()).toBe(true);
 		expect(uncheckedDoc.getForm().getCheckBox("consent").isChecked()).toBe(false);
+	});
+
+	test("fills checkbox choice fields by selected widget option", async () => {
+		const sourcePdf = await createChoiceCheckboxPdf();
+		const filledPdf = await fillPDFForm(
+			sourcePdf,
+			{
+				Antrag: "Teilhabe am Arbeitsleben (LTA)",
+			},
+			createChoiceCheckboxFieldDefinition(),
+		);
+
+		const pdfDoc = await PDFDocument.load(filledPdf);
+		const checkbox = pdfDoc.getForm().getCheckBox("request_type");
+		expect(checkbox.acroField.getValue().decodeText()).toBe("Teilhabe am Arbeitsleben (LTA) ");
+		expect(
+			checkbox.acroField.getWidgets().map((widget) => widget.getAppearanceState()?.decodeText()),
+		).toEqual(["Off", "Teilhabe am Arbeitsleben (LTA) ", "Off"]);
+	});
+
+	test("fills checkbox choice fields when visible option labels were edited", async () => {
+		const sourcePdf = await createChoiceCheckboxPdf();
+		const [definition] = createChoiceCheckboxFieldDefinition();
+		if (!definition) {
+			throw new Error("Expected choice checkbox definition");
+		}
+
+		const filledPdf = await fillPDFForm(
+			sourcePdf,
+			{
+				Antrag: "LTA sichtbar umbenannt",
+			},
+			[
+				{
+					...definition,
+					options: ["Medizinische Reha", "LTA sichtbar umbenannt", "Andere Leistung"],
+				},
+			],
+		);
+
+		const pdfDoc = await PDFDocument.load(filledPdf);
+		const checkbox = pdfDoc.getForm().getCheckBox("request_type");
+		expect(checkbox.acroField.getValue().decodeText()).toBe("Teilhabe am Arbeitsleben (LTA) ");
+		expect(
+			checkbox.acroField.getWidgets().map((widget) => widget.getAppearanceState()?.decodeText()),
+		).toEqual(["Off", "Teilhabe am Arbeitsleben (LTA) ", "Off"]);
+	});
+
+	test("changing checkbox choice selection clears the previous widget state", async () => {
+		const sourcePdf = await createChoiceCheckboxPdf();
+		const firstFilledPdf = await fillPDFForm(
+			sourcePdf,
+			{
+				Antrag: "Reha",
+			},
+			createChoiceCheckboxFieldDefinition(),
+		);
+		const secondFilledPdf = await fillPDFForm(
+			firstFilledPdf,
+			{
+				Antrag: "Sonstiges",
+			},
+			createChoiceCheckboxFieldDefinition(),
+		);
+
+		const pdfDoc = await PDFDocument.load(secondFilledPdf);
+		const checkbox = pdfDoc.getForm().getCheckBox("request_type");
+		expect(checkbox.acroField.getValue().decodeText()).toBe("Sonstiges");
+		expect(
+			checkbox.acroField.getWidgets().map((widget) => widget.getAppearanceState()?.decodeText()),
+		).toEqual(["Off", "Off", "Sonstiges"]);
 	});
 });

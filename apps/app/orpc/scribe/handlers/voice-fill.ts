@@ -243,6 +243,7 @@ export const voiceFillHandler = authed
 			  }
 			| undefined;
 		let providerMetadata: Record<string, unknown> | undefined;
+		const requestStartedAt = Date.now();
 
 		try {
 			const result = await generateObject({
@@ -288,6 +289,7 @@ export const voiceFillHandler = authed
 				});
 			}
 		}
+		const timeToCompletionMs = Date.now() - requestStartedAt;
 
 		if (!normalized) {
 			throw new ORPCError("BAD_REQUEST", {
@@ -323,6 +325,7 @@ export const voiceFillHandler = authed
 							totalTokens: (usage as { totalTokens?: number }).totalTokens,
 						}
 					: undefined,
+				timing: { timeToCompletionMs },
 				userId: context.session.user.id,
 			}),
 		);

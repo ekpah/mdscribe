@@ -227,9 +227,9 @@ export const SwitchTagView = ({
 
 	return (
 		// Use span for inline behavior, align-baseline for text alignment
-		<NodeViewWrapper as="span" className="inline-block align-baseline mx-1" contentEditable={false}>
+		<NodeViewWrapper as="span" className="mx-0.5 inline-block align-[-0.125em] leading-none" contentEditable={false}>
 			<span
-				className={`group inline-flex items-center gap-1 rounded-md border px-1 py-0.5 text-xs shadow-xs transition-all ${
+				className={`group inline-flex items-center gap-0.5 rounded-sm border px-1 py-0 text-[11px] leading-none shadow-xs transition-all ${
 					selected
 						? "border-solarized-green ring-2 ring-solarized-green/40"
 						: "border-solarized-green/60 hover:border-solarized-green"
@@ -238,7 +238,7 @@ export const SwitchTagView = ({
 				<Popover>
 					{/* Reverted trigger to match InfoTagView style */}
 					<PopoverTrigger
-						className="inline-flex cursor-pointer items-center gap-1.5 px-1 py-0.5"
+						className="inline-flex h-[18px] cursor-pointer items-center gap-1 px-0.5 py-0 leading-none"
 						data-type="markdoc-switch"
 						data-primary={node.attrs.primary}
 						contentEditable={false}
@@ -247,9 +247,9 @@ export const SwitchTagView = ({
 						{/* Switch Label */}
 						<span
 							data-drag-handle
-							className="inline-flex items-center gap-1 rounded bg-solarized-green/15 px-1.5 py-0.5 font-semibold text-solarized-green"
+							className="inline-flex h-[16px] items-center gap-0.5 rounded-xs bg-solarized-green/15 px-1 py-0 font-semibold text-solarized-green leading-none"
 						>
-							<Code2 className="h-3 w-3" />
+							<Code2 className="h-2.5 w-2.5" />
 							Switch
 						</span>
 
@@ -423,11 +423,11 @@ export const SwitchTagView = ({
 					variant="ghost"
 					size="icon"
 					onClick={handleRemoveSwitch}
-					className="h-6 w-6 rounded-sm text-solarized-green/70 hover:bg-solarized-green/10 hover:text-solarized-green"
+					className="h-4 w-4 rounded-xs text-solarized-green/70 hover:bg-solarized-green/10 hover:text-solarized-green"
 					contentEditable={false}
 					aria-label="Remove switch tag"
 				>
-					<X className="h-3 w-3" />
+					<X className="h-2.5 w-2.5" />
 				</Button>
 			</span>
 		</NodeViewWrapper>

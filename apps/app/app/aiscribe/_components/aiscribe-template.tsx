@@ -6,7 +6,6 @@ import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
 	CardContent,
-	CardDescription,
 	CardFooter,
 	CardHeader,
 	CardTitle,
@@ -43,7 +42,7 @@ export interface AdditionalInputField {
 	description?: string;
 }
 
-export interface AiscribeContextMetadata {
+interface AiscribeContextMetadata {
 	author: "MDScribe-Standard";
 	harnessTitle: string;
 	template: {
@@ -556,6 +555,14 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 										Prompt für die aktuelle Generierung verwendet werden.
 									</p>
 								</div>
+
+								<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-xs">
+									<p className="text-solarized-red leading-relaxed">
+										⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie keine privaten
+										Patientendaten ein! Diese Informationen werden an eine KI gesendet.
+										Verwenden Sie nur anonymisierte Daten.
+									</p>
+								</div>
 							</CardContent>
 						</Card>
 					</div>
@@ -587,13 +594,6 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 
 								{/* Input Tab */}
 								<TabsContent className="space-y-0" value="input">
-									<CardHeader>
-										<CardTitle className="flex items-center gap-2 text-foreground">
-											<FileText className="h-5 w-5 text-solarized-blue" />
-											{config.inputTabTitle}
-										</CardTitle>
-										<CardDescription>{config.inputDescription}</CardDescription>
-									</CardHeader>
 									<CardContent>
 										<AiscribeTemplateInputSection
 											additionalInputData={additionalInputData}

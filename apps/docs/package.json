@@ -2,34 +2,5 @@
   "name": "docs",
   "version": "0.0.0",
   "license": "AGPL-3.0-or-later",
-  "private": true,
-  "scripts": {
-    "build": "bun run --bun next build",
-    "dev": "bun run --bun next dev --port 3004",
-    "start": "bun run --bun next start",
-    "postinstall": "fumadocs-mdx",
-    "lint": "oxlint .",
-    "format": "oxfmt --write .",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@repo/design-system": "workspace:*",
-    "fumadocs-core": "16.2.5",
-    "fumadocs-mdx": "14.1.1",
-    "fumadocs-ui": "16.2.5",
-    "lucide-react": "catalog:",
-    "next": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.16",
-    "@types/mdx": "^2.0.13",
-    "@types/node": "catalog:",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "postcss": "catalog:",
-    "tailwindcss": "^4.1.16",
-    "typescript": "catalog:"
-  }
+  "private": true
 }

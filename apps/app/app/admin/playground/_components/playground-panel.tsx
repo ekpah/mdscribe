@@ -18,6 +18,12 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/design-system/components/ui/tabs";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Play, Plus, Trash2 } from "lucide-react";
@@ -27,7 +33,11 @@ import { toast } from "sonner";
 
 import { allScribeDocTypes, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { PlaygroundDocumentType } from "@/app/admin/playground/_lib/scribe-doc-types";
-import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
+import type {
+	PlaygroundModel,
+	PlaygroundParameters,
+	PlaygroundResult,
+} from "@/app/admin/playground/_lib/types";
 import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -43,7 +53,10 @@ interface PlaygroundPanelProps {
 	presetModel?: string;
 	presetParameters?: Partial<PlaygroundParameters>;
 	presetDocumentType?: DocumentType;
+	presetPromptName?: string;
+	presetTemplateId?: string | null;
 	presetVariables?: Record<string, unknown>;
+	referenceResult?: PlaygroundResult | null;
 }
 
 const DEFAULT_PARAMETERS: PlaygroundParameters = {
@@ -799,7 +812,10 @@ export const PlaygroundPanel = ({
 	presetModel,
 	presetParameters,
 	presetDocumentType,
+	presetPromptName,
+	presetTemplateId,
 	presetVariables,
+	referenceResult,
 }: PlaygroundPanelProps) => {
 	const [activeView, setActiveView] = useState<PlaygroundView>("config");
 
@@ -827,6 +843,8 @@ export const PlaygroundPanel = ({
 	);
 	const hasAppliedPresetDocTypeRef = useRef(false);
 	const hasAppliedPresetFieldsRef = useRef(false);
+	const hasAppliedPresetPromptNameRef = useRef(false);
+	const hasAppliedPresetTemplateRef = useRef(false);
 
 	// Apply async preset document type once (usage -> playground jump-off).
 	useEffect(() => {
@@ -866,8 +884,10 @@ export const PlaygroundPanel = ({
 	const { data: templateOptions = [] } = useQuery(templatesQueryOptions);
 
 	// Prompt selection / compilation
-	const [promptName, setPromptName] = useState<string>(docUi.defaultPromptName);
-	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(NONE_TEMPLATE_VALUE);
+	const [promptName, setPromptName] = useState<string>(presetPromptName ?? docUi.defaultPromptName);
+	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
+		presetTemplateId ?? NONE_TEMPLATE_VALUE,
+	);
 	const [promptHarnessDraftMessages, setPromptHarnessDraftMessages] = useState<
 		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
@@ -888,6 +908,24 @@ export const PlaygroundPanel = ({
 	const compileRequestRef = useRef(0);
 	const loadedPromptHarnessNameRef = useRef<string | null>(null);
 	const loadedTemplateIdRef = useRef<string | null>(null);
+
+	useEffect(() => {
+		if (hasAppliedPresetPromptNameRef.current || !presetPromptName) {
+			return;
+		}
+
+		setPromptName(presetPromptName);
+		hasAppliedPresetPromptNameRef.current = true;
+	}, [presetPromptName]);
+
+	useEffect(() => {
+		if (hasAppliedPresetTemplateRef.current || !presetTemplateId) {
+			return;
+		}
+
+		setSelectedTemplateId(presetTemplateId);
+		hasAppliedPresetTemplateRef.current = true;
+	}, [presetTemplateId]);
 
 	const promptHarnessOptions = useMemo(() => {
 		const fetchedOptions = promptHarnessesData?.items ?? [];
@@ -1229,9 +1267,9 @@ export const PlaygroundPanel = ({
 			model: null,
 			parameters: {
 				frequencyPenalty: presetParameters?.frequencyPenalty ?? DEFAULT_PARAMETERS.frequencyPenalty,
-				maxTokens: DEFAULT_PARAMETERS.maxTokens,
+				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
 				presencePenalty: presetParameters?.presencePenalty ?? DEFAULT_PARAMETERS.presencePenalty,
-				temperature: DEFAULT_PARAMETERS.temperature,
+				temperature: presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
 				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
 				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
 				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
@@ -1268,12 +1306,16 @@ export const PlaygroundPanel = ({
 
 	// Keep promptName in sync with document type unless user changed it
 	useEffect(() => {
-		setPromptName(scribeDocTypeUi[documentType].defaultPromptName);
+		const nextPromptName =
+			presetPromptName && promptHarnessToDocumentType.get(presetPromptName) === documentType
+				? presetPromptName
+				: scribeDocTypeUi[documentType].defaultPromptName;
+		setPromptName(nextPromptName);
 		setCompiledMessages([]);
 		setCompiledOverride(null);
 		setPromptComparisonMessages(null);
 		setPromptRuntimeVariables({});
-	}, [documentType]);
+	}, [documentType, presetPromptName]);
 
 	const [runStates, setRunStates] = useState<Record<string, RunState>>({});
 
@@ -1500,6 +1542,7 @@ export const PlaygroundPanel = ({
 			).length,
 		[runStates],
 	);
+	const totalResultsCount = resultsWithContentCount + (referenceResult ? 1 : 0);
 
 	const navigationItems = useMemo(
 		() =>
@@ -1519,8 +1562,8 @@ export const PlaygroundPanel = ({
 				},
 				{
 					summary:
-						resultsWithContentCount > 0
-							? `${resultsWithContentCount}/${comparisonRuns.length} mit Output`
+						totalResultsCount > 0
+							? `${totalResultsCount}/${comparisonRuns.length + (referenceResult ? 1 : 0)} mit Output`
 							: "Noch keine Ergebnisse",
 					view: "results",
 				},
@@ -1531,8 +1574,9 @@ export const PlaygroundPanel = ({
 			modelRuns.length,
 			promptName,
 			promptVersions.length,
-			resultsWithContentCount,
+			referenceResult,
 			selectedTemplateId,
+			totalResultsCount,
 		],
 	);
 
@@ -1591,16 +1635,6 @@ export const PlaygroundPanel = ({
 		}
 		return handlers;
 	}, [modelRuns]);
-
-	const navigationClickHandlers = useMemo(() => {
-		const handlers = new Map<PlaygroundView, () => void>();
-		for (const item of navigationItems) {
-			handlers.set(item.view, () => {
-				setActiveView(item.view);
-			});
-		}
-		return handlers;
-	}, [navigationItems]);
 
 	const handleAddModelRun = useCallback(() => {
 		setModelRuns((prev) => [
@@ -1947,9 +1981,24 @@ export const PlaygroundPanel = ({
 				<div
 					className={cn(
 						"grid min-h-full auto-rows-fr gap-4",
-						comparisonRuns.length > 1 ? "2xl:grid-cols-2" : "",
+						comparisonRuns.length + (referenceResult ? 1 : 0) > 1 ? "2xl:grid-cols-2" : "",
 					)}
 				>
+					{referenceResult ? (
+						<div className="flex h-full min-h-[320px] min-w-0 flex-col gap-2 rounded-lg border border-solarized-violet/30 bg-solarized-violet/5 p-2">
+							<div className="shrink-0">
+								<p className="font-medium text-[10px] uppercase tracking-wide text-solarized-violet">
+									Usage Event
+								</p>
+								<p className="truncate font-mono text-xs text-solarized-base00">
+									{referenceResult.modelLabel ?? "Gespeicherter Lauf"}
+								</p>
+							</div>
+							<div className="min-h-0 flex-1">
+								<ResultDisplay result={referenceResult} />
+							</div>
+						</div>
+					) : null}
 					{comparisonRuns.map((comparisonRun) => (
 						// eslint-disable-next-line no-use-before-define
 						<RunCard
@@ -1971,73 +2020,70 @@ export const PlaygroundPanel = ({
 		</div>
 	);
 
-	const renderActiveView = () => {
-		switch (activeView) {
-			case "config": {
-				return renderConfigView();
-			}
-			case "inputs": {
-				return renderInputsView();
-			}
-			case "models": {
-				return renderModelsView();
-			}
-			case "results": {
-				return renderResultsView();
-			}
-			default: {
-				return null;
-			}
-		}
-	};
-
 	return (
-		<div className="flex h-full min-w-0 flex-col gap-3 lg:flex-row">
+		<Tabs
+			value={activeView}
+			onValueChange={(value) => setActiveView(value as PlaygroundView)}
+			className="flex h-full min-w-0 flex-col gap-3 lg:flex-row"
+		>
 			<Card className="w-full shrink-0 border-solarized-base2 lg:min-h-0 lg:w-60">
 				<CardContent className="p-2">
-					<div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+					<TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 lg:grid-cols-1">
 						{navigationItems.map((item) => {
-							const handleNavigationClick = navigationClickHandlers.get(item.view);
-							if (!handleNavigationClick) {
-								return null;
-							}
-
-							const isActive = item.view === activeView;
 							return (
-								<Button
-									type="button"
+								<TabsTrigger
 									key={item.view}
-									variant="ghost"
-									className={cn(
-										"h-auto w-full flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left",
-										isActive
-											? "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue"
-											: "border-transparent text-solarized-base01 hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00",
-									)}
-									onClick={handleNavigationClick}
+									value={item.view}
+									className="group h-auto w-full flex-col items-start justify-start gap-1 rounded-lg border border-transparent bg-transparent px-3 py-3 text-left text-solarized-base01 shadow-none hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00 data-[state=active]:border-solarized-blue/40 data-[state=active]:bg-solarized-blue/10 data-[state=active]:text-solarized-blue data-[state=active]:shadow-none data-[state=active]:hover:bg-solarized-blue/10 data-[state=active]:hover:text-solarized-blue"
 								>
-									<span className="font-medium text-sm">
+									<span className="font-medium text-sm text-solarized-base01 group-data-[state=active]:text-solarized-blue">
 										{PLAYGROUND_VIEW_META[item.view].label}
 									</span>
 									<span
-										className={cn(
-											"line-clamp-2 text-xs",
-											isActive ? "text-solarized-blue/80" : "text-solarized-base01",
-										)}
+										className="line-clamp-2 text-xs text-solarized-base01 group-data-[state=active]:text-solarized-blue/80"
 									>
 										{item.summary}
 									</span>
-								</Button>
+								</TabsTrigger>
 							);
 						})}
-					</div>
+					</TabsList>
 				</CardContent>
 			</Card>
 
 			<Card className="flex min-h-[560px] min-w-0 flex-1 flex-col border-solarized-base2 lg:min-h-0">
-				<CardContent className="min-h-0 flex-1 p-0">{renderActiveView()}</CardContent>
+				<CardContent className="min-h-0 flex-1 p-0">
+					<TabsContent
+						forceMount
+						value="config"
+						className="m-0 h-full min-h-0 data-[state=inactive]:hidden"
+					>
+						{renderConfigView()}
+					</TabsContent>
+					<TabsContent
+						forceMount
+						value="inputs"
+						className="m-0 h-full min-h-0 data-[state=inactive]:hidden"
+					>
+						{renderInputsView()}
+					</TabsContent>
+					<TabsContent
+						forceMount
+						value="models"
+						className="m-0 h-full min-h-0 data-[state=inactive]:hidden"
+					>
+						{renderModelsView()}
+					</TabsContent>
+					<TabsContent
+						forceMount
+						value="results"
+						className="m-0 h-full min-h-0 data-[state=inactive]:hidden"
+					>
+						{renderResultsView()}
+					</TabsContent>
+				</CardContent>
 			</Card>
-		</div>
+		</Tabs>
 	);
 };
 

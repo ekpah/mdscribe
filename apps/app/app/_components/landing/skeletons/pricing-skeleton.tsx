@@ -1,6 +1,6 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
-import { Check, Code, Server } from "lucide-react";
+import { Check, Code, Github, Server } from "lucide-react";
 import Link from "next/link";
 
 export default function PricingSkeleton() {
@@ -137,9 +137,6 @@ export default function PricingSkeleton() {
 							<div>
 								<span className="font-bold text-3xl">Kostenlos</span>
 							</div>
-							<p className="mt-1 text-muted-foreground text-sm">
-								Open Source (AGPL-3.0)
-							</p>
 						</div>
 						<ul className="mb-6 space-y-3">
 							<li className="flex items-center">
@@ -151,6 +148,10 @@ export default function PricingSkeleton() {
 								<span>Eigene API-Keys</span>
 							</li>
 							<li className="flex items-center">
+								<Check className="mr-3 h-5 w-5 text-primary" />
+								<span>Lokale KI-Modelle</span>
+							</li>
+							<li className="flex items-center">
 								<Server className="mr-3 h-5 w-5 text-primary" />
 								<span>Volle Datenkontrolle</span>
 							</li>
@@ -160,7 +161,15 @@ export default function PricingSkeleton() {
 							</li>
 						</ul>
 						<Button asChild className="mt-auto" variant="outline">
-							<Link href="/docs/self-hosting">Zur Dokumentation</Link>
+							<Link
+								className="flex items-center justify-center gap-2"
+								href="https://github.com/ekpah/mdscribe"
+								rel="noopener noreferrer"
+								target="_blank"
+							>
+								<Github className="h-5 w-5" />
+								<span>GitHub</span>
+							</Link>
 						</Button>
 					</div>
 				</div>

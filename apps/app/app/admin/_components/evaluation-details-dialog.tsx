@@ -13,7 +13,7 @@ import {
 import { Loader2, Medal, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
 
-export interface EvaluationDetails {
+interface EvaluationDetails {
 	categories: {
 		comment?: string;
 		name: string;

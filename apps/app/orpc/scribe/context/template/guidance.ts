@@ -7,7 +7,8 @@ const hasContent = (value: string | undefined): value is string =>
 
 const TEMPLATE_CONTEXT_USAGE = `Nutze diese Vorlage als primäre Zielstruktur und stilistische Orientierung.
 - Übernimm NIEMALS Inhalte aus Beispielen oder Vorlagen, nur Struktur, Form und Stil.
-- Inhalte dürfen AUSSCHLIEßLICH aus den bereitgestellten Eingaben und dem Patientenkontext stammen.`;
+- Inhalte dürfen AUSSCHLIEßLICH aus den bereitgestellten Eingaben und dem Patientenkontext stammen.
+- Übernimm nicht den Titel aus <title>; nutze ihn nur als Kontext und gib keine XML-Tags zurück.`;
 
 const MARKDOC_TAG_GUIDANCE = `Markdoc-Tags in der Vorlage sind nur Platzhalterlogik.
 - Gib in der finalen Ausgabe niemals Markdoc-Syntax aus (kein {% ... %}).

@@ -61,6 +61,12 @@ Aktivierte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `AI Textb
 
 Die konfigurierbaren Standardmodi bleiben weiterhin nur unter ihren festen `/aiscribe/*`-Routen sichtbar und werden nicht im `AI Textbausteine`-Bereich gelistet.
 
+## Nutzungsstatistik
+
+Admins koennen unter `/admin/usage` die AI-Nutzung nach Heute, Woche, Monat oder Gesamt auswerten. Die Summary-Werte sind direkt anklickbar und steuern den Trendchart darunter. Die Zeitraeume und Buckets werden in der Zeitzone des aktuellen Browsers angezeigt.
+
+Events, Tokens und Kosten zeigen aggregierte Stunden- oder Tageswerte. Erster Token, Dauer und Tokens/s zeigen p50, p90 und p95, damit typische und langsame Generierungen getrennt sichtbar bleiben.
+
 ## Kontext & Vorlage
 
 Auf den AIScribe-Seiten zeigt die linke Box `Kontext & Vorlage`, welches Template und welcher Prompt fuer die aktuelle Generierung verwendet werden. Wenn ein echtes Template hinterlegt ist, fuehrt der Template-Link zur normalen Template-Ansicht.

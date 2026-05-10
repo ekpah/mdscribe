@@ -18,7 +18,7 @@ export interface PublicAiTextForm {
 	} | null;
 }
 
-export const PROMPT_HARNESS_TITLES: Record<string, string> = {
+const PROMPT_HARNESS_TITLES: Record<string, string> = {
 	Diagnoses: "Diagnoseblock",
 	ER_Anamnese_chat: "Notfall Anamnese",
 	Inpatient_discharge: "Entlassungsbrief",
@@ -28,7 +28,7 @@ export const PROMPT_HARNESS_TITLES: Record<string, string> = {
 	procedure: "Eingriffsdokumentation",
 };
 
-export const FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS: Record<string, string> = {
+const FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS: Record<string, string> = {
 	Diagnoses: "Standardstruktur Diagnoseblock",
 	ER_Anamnese_chat: "Standardstruktur Anamnese",
 	Inpatient_discharge: "Standardstruktur Entlassbrief",

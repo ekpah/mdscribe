@@ -2,12 +2,13 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-
-import { toPdfBlobUrl } from "@/app/documents/_lib/pdf-data";
+import { toPdfBlob } from "@/app/documents/_lib/pdf-data";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -20,20 +21,137 @@ const options = {
 const maxWidth = 800;
 
 interface PDFViewSectionProps {
+	activeFieldName?: string | null;
 	hasUploadedFile?: boolean;
 	pdfFile: Uint8Array | null;
 }
 
-const getPageWidth = (
-	containerWidth: number | undefined,
-	reservedPixels: number,
-): number => {
+interface PdfFieldTarget {
+	pageNumber: number;
+	rect: [number, number, number, number];
+}
+
+interface PdfWidgetAnnotation {
+	fieldName?: unknown;
+	rect?: unknown;
+}
+
+interface PdfPageForAnnotations {
+	getAnnotations: () => Promise<PdfWidgetAnnotation[]>;
+}
+
+interface PdfDocumentForAnnotations {
+	getPage: (pageNumber: number) => Promise<PdfPageForAnnotations>;
+	numPages: number;
+}
+
+interface PdfViewport {
+	convertToViewportRectangle: (rect: number[]) => number[];
+}
+
+interface PdfPageForHighlight {
+	getViewport: (params: { rotate?: number; scale: number }) => PdfViewport;
+}
+
+interface HighlightOverlayProps {
+	activeFieldName?: string | null;
+	fieldTargets: Map<string, PdfFieldTarget[]>;
+	page: PdfPageForHighlight;
+	pageNumber: number;
+	rotate: number;
+	scale: number;
+}
+
+const getPageWidth = (containerWidth: number | undefined, reservedPixels: number): number => {
 	if (!containerWidth) {
 		return maxWidth - reservedPixels;
 	}
-	return Math.max(
-		240,
-		Math.min(containerWidth - reservedPixels, maxWidth - reservedPixels),
+	return Math.max(240, Math.min(containerWidth - reservedPixels, maxWidth - reservedPixels));
+};
+
+const isNumberRect = (rect: unknown): rect is [number, number, number, number] =>
+	Array.isArray(rect) &&
+	rect.length === 4 &&
+	rect.every((coordinate) => typeof coordinate === "number");
+
+const collectFieldTargets = async (
+	pdfDocument: PdfDocumentForAnnotations,
+): Promise<Map<string, PdfFieldTarget[]>> => {
+	const fieldTargets = new Map<string, PdfFieldTarget[]>();
+	const pageNumbers = Array.from({ length: pdfDocument.numPages }, (_value, index) => index + 1);
+
+	await Promise.all(
+		pageNumbers.map(async (pageNumber) => {
+			const page = await pdfDocument.getPage(pageNumber);
+			const annotations = (await page.getAnnotations()) as PdfWidgetAnnotation[];
+
+			for (const annotation of annotations) {
+				if (typeof annotation.fieldName !== "string" || !isNumberRect(annotation.rect)) {
+					continue;
+				}
+
+				const existingTargets = fieldTargets.get(annotation.fieldName) ?? [];
+				existingTargets.push({
+					pageNumber,
+					rect: annotation.rect,
+				});
+				fieldTargets.set(annotation.fieldName, existingTargets);
+			}
+		}),
+	);
+
+	return fieldTargets;
+};
+
+const getViewportStyle = (
+	rect: [number, number, number, number],
+	viewport: PdfViewport,
+): CSSProperties => {
+	const [x1, y1, x2, y2] = viewport.convertToViewportRectangle(rect);
+	const left = Math.min(x1, x2);
+	const top = Math.min(y1, y2);
+	const width = Math.abs(x2 - x1);
+	const height = Math.abs(y2 - y1);
+
+	return {
+		height,
+		left,
+		top,
+		width,
+	};
+};
+
+const HighlightOverlay = ({
+	activeFieldName,
+	fieldTargets,
+	page,
+	pageNumber,
+	rotate,
+	scale,
+}: HighlightOverlayProps) => {
+	if (!activeFieldName) {
+		return null;
+	}
+
+	const targets = fieldTargets
+		.get(activeFieldName)
+		?.filter((target) => target.pageNumber === pageNumber);
+	if (!targets?.length) {
+		return null;
+	}
+
+	const viewport = page.getViewport({ rotate, scale });
+
+	return (
+		<div className="pointer-events-none absolute inset-0 z-10">
+			{targets.map((target, index) => (
+				<div
+					className="absolute rounded-[2px] border-2 border-solarized-orange bg-solarized-orange/20 shadow-[0_0_0_3px_rgba(203,75,22,0.18)]"
+					key={`${activeFieldName}-${target.pageNumber}-${index}`}
+					style={getViewportStyle(target.rect, viewport)}
+				/>
+			))}
+		</div>
 	);
 };
 
@@ -70,33 +188,54 @@ const useContainerWidth = () => {
 };
 
 const usePdfDocumentState = (pdfFile: Uint8Array | null) => {
+	const annotationLoadIdRef = useRef(0);
+	const [fieldTargets, setFieldTargets] = useState<Map<string, PdfFieldTarget[]>>(new Map());
 	const [numPages, setNumPages] = useState<number>();
 	const [pageNumber, setPageNumber] = useState<number>(1);
-	const pdfUrl = useMemo(() => toPdfBlobUrl(pdfFile), [pdfFile]);
+	const pdfBlob = useMemo(() => {
+		if (!pdfFile) {
+			return null;
+		}
 
-	useEffect(
-		() => () => {
-			if (pdfUrl) {
-				URL.revokeObjectURL(pdfUrl);
-			}
-		},
-		[pdfUrl],
-	);
+		try {
+			return toPdfBlob(pdfFile);
+		} catch (error) {
+			console.error("Failed to convert PDF bytes to Blob:", error);
+			return null;
+		}
+	}, [pdfFile]);
 
 	useEffect(() => {
-		if (!pdfUrl) {
+		if (!pdfBlob) {
 			return;
 		}
+		annotationLoadIdRef.current += 1;
 		setPageNumber(1);
 		setNumPages(undefined);
-	}, [pdfUrl]);
+		setFieldTargets(new Map());
+	}, [pdfBlob]);
 
-	const handleDocumentLoadSuccess = useCallback(
-		({ numPages: nextNumPages }: { numPages: number }): void => {
-			setNumPages(nextNumPages);
-		},
-		[],
-	);
+	const handleDocumentLoadSuccess = useCallback((pdfDocument: PdfDocumentForAnnotations): void => {
+		const annotationLoadId = annotationLoadIdRef.current + 1;
+		annotationLoadIdRef.current = annotationLoadId;
+		setNumPages(pdfDocument.numPages);
+
+		const loadFieldTargets = async () => {
+			try {
+				const nextFieldTargets = await collectFieldTargets(pdfDocument);
+				if (annotationLoadIdRef.current === annotationLoadId) {
+					setFieldTargets(nextFieldTargets);
+				}
+			} catch (error) {
+				console.error("PDF annotation load error:", error);
+				if (annotationLoadIdRef.current === annotationLoadId) {
+					setFieldTargets(new Map());
+				}
+			}
+		};
+
+		void loadFieldTargets();
+	}, []);
 
 	const handleDocumentLoadError = useCallback((error: Error): void => {
 		console.error("PDF load error:", error);
@@ -120,13 +259,16 @@ const usePdfDocumentState = (pdfFile: Uint8Array | null) => {
 		handleDocumentLoadSuccess,
 		handleNextPage,
 		handlePreviousPage,
+		fieldTargets,
 		numPages,
 		pageNumber,
-		pdfUrl,
+		pdfBlob,
+		setPageNumber,
 	};
 };
 
 export const PDFViewSection = ({
+	activeFieldName,
 	hasUploadedFile = false,
 	pdfFile,
 }: PDFViewSectionProps) => {
@@ -136,12 +278,27 @@ export const PDFViewSection = ({
 		handleDocumentLoadSuccess,
 		handleNextPage,
 		handlePreviousPage,
+		fieldTargets,
 		numPages,
 		pageNumber,
-		pdfUrl,
+		pdfBlob,
+		setPageNumber,
 	} = usePdfDocumentState(pdfFile);
 
-	if (!pdfUrl) {
+	useEffect(() => {
+		if (!activeFieldName) {
+			return;
+		}
+
+		const target = fieldTargets.get(activeFieldName)?.[0];
+		if (!target) {
+			return;
+		}
+
+		setPageNumber(target.pageNumber);
+	}, [activeFieldName, fieldTargets, setPageNumber]);
+
+	if (!pdfBlob) {
 		return (
 			<div className="h-full min-h-0">
 				<div className="flex h-full min-h-40 w-full items-center justify-center rounded-xl border border-input border-dashed p-4">
@@ -170,7 +327,7 @@ export const PDFViewSection = ({
 					<div className="flex min-h-full w-full flex-col items-center justify-start py-2">
 						<Document
 							className="max-w-full [&_.react-pdf__Page]:max-w-full [&_.react-pdf__Page__canvas]:h-auto [&_.react-pdf__Page__canvas]:max-w-full"
-							file={pdfUrl}
+							file={pdfBlob}
 							onLoadError={handleDocumentLoadError}
 							onLoadSuccess={handleDocumentLoadSuccess}
 							options={options}
@@ -181,7 +338,18 @@ export const PDFViewSection = ({
 								renderAnnotationLayer={false}
 								renderTextLayer={false}
 								width={pageWidth}
-							/>
+							>
+								{({ page, pageNumber: renderedPageNumber, rotate, scale }) => (
+									<HighlightOverlay
+										activeFieldName={activeFieldName}
+										fieldTargets={fieldTargets}
+										page={page}
+										pageNumber={renderedPageNumber}
+										rotate={rotate}
+										scale={scale}
+									/>
+								)}
+							</Page>
 						</Document>
 					</div>
 				</div>

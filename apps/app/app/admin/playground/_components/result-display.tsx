@@ -36,6 +36,17 @@ const formatTokens = (tokens: number | undefined): string => {
 	return tokens.toLocaleString("de-DE");
 };
 
+const formatTokenBreakdown = (metrics: PlaygroundResult["metrics"]): string => {
+	const parts = [
+		`In ${formatTokens(metrics.inputTokens)}`,
+		`Out ${formatTokens(metrics.outputTokens)}`,
+	];
+	if (metrics.reasoningTokens) {
+		parts.push(`Reason ${formatTokens(metrics.reasoningTokens)}`);
+	}
+	return parts.join(" · ");
+};
+
 const formatLatency = (ms: number | undefined): string => {
 	if (ms === undefined || ms === null) {
 		return "-";
@@ -44,6 +55,19 @@ const formatLatency = (ms: number | undefined): string => {
 		return `${ms}ms`;
 	}
 	return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const formatTokensPerSecond = (
+	outputTokens: number | undefined,
+	latencyMs: number | undefined,
+): string | null => {
+	if (!outputTokens || !latencyMs || latencyMs <= 0) {
+		return null;
+	}
+	return `${(outputTokens / (latencyMs / 1000)).toLocaleString("de-DE", {
+		maximumFractionDigits: 1,
+		minimumFractionDigits: 1,
+	})} Tok/s`;
 };
 
 const formatScore = (score: number | undefined): string => {
@@ -83,11 +107,26 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 		);
 	}
 
+	const tokensPerSecond = formatTokensPerSecond(
+		result.metrics.outputTokens,
+		result.metrics.latencyMs,
+	);
+
 	return (
 		<div className="flex h-full flex-col gap-2">
 			{/* Header with metrics */}
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<div className="flex flex-wrap items-center gap-2 text-xs">
+				<div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
+					{result.sourceLabel ? (
+						<Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+							{result.sourceLabel}
+						</Badge>
+					) : null}
+					{result.modelLabel ? (
+						<span className="max-w-[220px] truncate font-mono text-solarized-base01">
+							{result.modelLabel}
+						</span>
+					) : null}
 					{result.isStreaming && (
 						<Badge
 							variant="outline"
@@ -100,6 +139,7 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 					<span className="flex items-center gap-1 text-solarized-base01">
 						<Clock className="h-3 w-3 text-solarized-blue" />
 						{formatLatency(result.metrics.latencyMs)}
+						{tokensPerSecond ? <span>· {tokensPerSecond}</span> : null}
 					</span>
 					<span className="flex items-center gap-1 text-solarized-base01">
 						<Coins className="h-3 w-3 text-solarized-green" />
@@ -107,14 +147,8 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 					</span>
 					<span className="flex items-center gap-1 text-solarized-base01">
 						<Hash className="h-3 w-3 text-solarized-cyan" />
-						{formatTokens(result.metrics.totalTokens)}
+						{formatTokenBreakdown(result.metrics)}
 					</span>
-					{result.metrics.reasoningTokens ? (
-						<span className="flex items-center gap-1 text-solarized-base01">
-							<Brain className="h-3 w-3 text-solarized-violet" />
-							{formatTokens(result.metrics.reasoningTokens)}
-						</span>
-					) : null}
 					{result.evaluation?.isLoading ? (
 						<Button
 							type="button"

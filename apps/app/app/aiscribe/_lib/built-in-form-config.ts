@@ -109,7 +109,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		icon: FileText,
 		inputDescription:
 			"Dokumentieren Sie den aktuellen Zustand und neue Befunde des Patienten",
-		inputPlaceholder: "Geben Sie hier Ihre Notizen zum aktuellen Besuch ein...",
+		inputPlaceholder: "Geben Sie Ihre Notizen zum aktuellen Besuch ein...",
 		inputTabTitle: "Patientennotizen",
 		outputTabTitle: "Diagnoseblock",
 		regenerateButtonText: "Neu generieren",
@@ -127,7 +127,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		icon: FileCheck,
 		inputDescription:
 			"Dokumentieren Sie den Krankheitsverlauf, die Behandlung und Empfehlungen für die Weiterbehandlung. Fügen Sie hier auch den aktuellen Stand des Entlassungsbriefes ein.",
-		inputPlaceholder: "Geben Sie hier Ihre Entlassungsnotizen ein...",
+		inputPlaceholder: "Geben Sie Ihre Entlassungsnotizen ein...",
 		inputTabTitle: "Entlassungsnotizen",
 		outputTabTitle: "Entlassungsbrief",
 		regenerateButtonText: "Neu generieren",
@@ -145,7 +145,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		icon: Heart,
 		inputDescription:
 			"Dokumentieren Sie die Symptome, Beschwerden und relevante Vorgeschichte des Patienten",
-		inputPlaceholder: "Geben Sie hier die Anamnese des Patienten ein...",
+		inputPlaceholder: "Geben Sie die Anamnese des Patienten ein...",
 		inputTabTitle: "Anamnese",
 		outputTabTitle: "Analyse",
 		regenerateButtonText: "Neu analysieren",
@@ -163,7 +163,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		icon: Stethoscope,
 		inputDescription:
 			"Dokumentieren Sie den Zustand und die Behandlung des Patienten während des ICU-Aufenthalts",
-		inputPlaceholder: "Geben Sie hier Ihre Notizen zum Patienten ein...",
+		inputPlaceholder: "Geben Sie Ihre Notizen zum Patienten ein...",
 		inputTabTitle: "Patientennotizen",
 		outputTabTitle: "Verlegungsbrief",
 		regenerateButtonText: "Neu generieren",
@@ -181,7 +181,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		icon: Stethoscope,
 		inputDescription:
 			"Dokumentieren Sie den Verlauf und die Ergebnisse der ambulanten Konsultation",
-		inputPlaceholder: "Geben Sie hier Ihre Notizen zur Konsultation ein...",
+		inputPlaceholder: "Geben Sie Ihre Notizen zur Konsultation ein...",
 		inputTabTitle: "Konsultationsnotizen",
 		outputTabTitle: "Arztbrief",
 		regenerateButtonText: "Neu generieren",
@@ -199,7 +199,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		icon: ClipboardCheck,
 		inputDescription:
 			"Dokumentieren Sie den Ablauf, die verwendeten Materialien und Ergebnisse des Eingriffs",
-		inputPlaceholder: "Geben Sie hier Ihre Notizen zum Eingriff ein...",
+		inputPlaceholder: "Geben Sie Ihre Notizen zum Eingriff ein...",
 		inputTabTitle: "Eingriffsnotizen",
 		outputTabTitle: "Eingriffsdokumentation",
 		regenerateButtonText: "Neu generieren",

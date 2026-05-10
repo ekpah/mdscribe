@@ -17,7 +17,12 @@ import {
 	isScribeDocType,
 	scribeDocTypeUi,
 } from "@/app/admin/playground/_lib/scribe-doc-types";
-import { formatScore, getUsageEvaluation } from "@/app/admin/usage/columns";
+import {
+	formatDuration,
+	formatScore,
+	formatTokensPerSecond,
+	getUsageEvaluation,
+} from "@/app/admin/usage/columns";
 import type { UsageDetailEvent } from "@/app/admin/usage/types";
 import type { DocumentType } from "@/orpc/scribe/types";
 
@@ -35,7 +40,9 @@ const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentTy
 
 	const { endpoint } = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		return isScribeDocType(endpoint) ? endpoint : undefined;
+		if (isScribeDocType(endpoint)) {
+			return endpoint;
+		}
 	}
 
 	const { promptName } = metadata;
@@ -91,11 +98,11 @@ interface UsageEventDetailProps {
 	onOpenChange: (open: boolean) => void;
 }
 
-const StatBox = ({ label, value }: { label: string; value: number | null }) => (
+const StatBox = ({ label, value }: { label: string; value: string | number | null }) => (
 	<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-2">
 		<p className="text-xs text-solarized-base01">{label}</p>
 		<p className="font-mono text-sm text-solarized-base00">
-			{value?.toLocaleString("de-DE") ?? "-"}
+			{typeof value === "number" ? value.toLocaleString("de-DE") : (value ?? "-")}
 		</p>
 	</div>
 );
@@ -237,6 +244,18 @@ export const UsageEventDetail = ({
 							<StatBox label="Gesamt" value={event.totalTokens} />
 							<StatBox label="Reasoning" value={event.reasoningTokens} />
 							<StatBox label="Cached" value={event.cachedTokens} />
+						</div>
+					</section>
+
+					<section>
+						<h3 className="mb-2 font-medium text-solarized-base00">Latenz & Durchsatz</h3>
+						<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+							<StatBox label="Erster Token" value={formatDuration(event.timeToFirstTokenMs)} />
+							<StatBox label="Fertig" value={formatDuration(event.timeToCompletionMs)} />
+							<StatBox
+								label="Tokens/s"
+								value={formatTokensPerSecond(event.outputTokens, event.timeToCompletionMs)}
+							/>
 						</div>
 					</section>
 

@@ -34,7 +34,12 @@ export default function TipTap({
 		editorProps: {
 			attributes: {
 				class: cn(
-					"prose h-full min-h-full w-full max-w-none cursor-text whitespace-pre-wrap focus:outline-none",
+					"prose prose-sm h-full min-h-full w-full max-w-none cursor-text whitespace-pre-wrap text-sm leading-[1.45] focus:outline-none",
+					"[&_p]:my-0 [&_p]:leading-[1.45]",
+					"[&_h1]:mb-2 [&_h1]:mt-3 [&_h1]:leading-tight",
+					"[&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:leading-tight",
+					"[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:leading-tight",
+					"[&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_li]:leading-[1.45]",
 					"[&_.is-empty]:relative",
 					"[&_.is-empty]:before:content-[attr(data-placeholder)]",
 					"[&_.is-empty]:before:text-slate-400",

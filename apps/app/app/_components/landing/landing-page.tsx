@@ -1,16 +1,11 @@
 import dynamic from "next/dynamic";
 import Features from "./features";
 import Footer from "./footer";
-import AIFeaturesSkeleton from "./skeletons/ai-features-skeleton";
 import HeroSkeleton from "./skeletons/hero-skeleton";
 import PricingSkeleton from "./skeletons/pricing-skeleton";
 
 const Hero = dynamic(() => import("./hero"), {
 	loading: () => <HeroSkeleton />,
-});
-
-const AIFeatures = dynamic(() => import("./ai-features"), {
-	loading: () => <AIFeaturesSkeleton />,
 });
 
 const Pricing = dynamic(() => import("./pricing"), {
@@ -31,7 +26,6 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
 			>
 				<Hero isLoggedIn={isLoggedIn} />
 				<Features />
-				<AIFeatures isLoggedIn={isLoggedIn} />
 				<Pricing isLoggedIn={isLoggedIn} />
 			</main>
 

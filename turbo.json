@@ -1,9 +1,9 @@
 {
-	"$schema": "https://turbo.build/schema.json",
+	"$schema": "https://v2-9-6.turborepo.dev/schema.json",
 	"globalDependencies": [
 		".env",
 		".env.local",
-		".oxlintrc.json",
+		"oxlint.config.ts",
 		".oxfmtrc.jsonc"
 	],
 	"globalPassThroughEnv": ["SKIP_ENV_VALIDATION"],
@@ -36,6 +36,9 @@
 		"app#build": {
 			"dependsOn": ["@repo/database#build"],
 			"outputs": [".next/**", "!.next/cache/**"]
+		},
+		"email#build": {
+			"outputs": ["out/**"]
 		},
 		"test": {
 			"dependsOn": ["^build"]

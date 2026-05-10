@@ -100,9 +100,10 @@ export default function LegalPage() {
 									</p>
 									<ul className="list-disc space-y-1 pl-5">
 										<li>
-											Die cloud-gehostete Nutzung sollte derzeit nicht als sicher
-											für sensible Patienten-PII/PHI betrachtet werden, bis
-											weitere Compliance-Kontrollen abgeschlossen sind.
+											Die cloud-gehostete Nutzung sollte derzeit nicht für
+											sensible Patienten-PII/PHI genutzt werden. Wir arbeiten
+											daran, dies zu ermöglichen, haben aber aktuell noch keine
+											umfangreichen Datenschutzzertifizierungen.
 										</li>
 										<li>
 											Self-Hosting ist der empfohlene Weg, wenn Sie volle Kontrolle
