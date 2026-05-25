@@ -1,14 +1,11 @@
 "use client";
 
-import Inputs from '@repo/design-system/components/inputs/inputs';
-import type { VoiceFillAudioFile } from '@repo/design-system/components/inputs/inputs';
 import { Card } from "@repo/design-system/components/ui/card";
 import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
-import parseMarkdocToInputs from '@repo/markdoc-md/parse/parse-markdoc-to-inputs';
-import type { InputTagType } from '@repo/markdoc-md/parse/parse-markdoc-to-inputs';
-import { useCallback, useState } from "react";
-import { useSession } from "@/lib/auth-client";
-import { orpc } from "@/lib/orpc";
+import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import { useMemo } from "react";
+
+import { InputPreviewSection } from "@/app/_components/input-preview-section";
 
 export default function ContentSection({
 	note,
@@ -19,24 +16,7 @@ export default function ContentSection({
 	examples: string[];
 	showExamples?: boolean;
 }) {
-	const [values, setValues] = useState<Record<string, unknown>>({});
-	const { data: session } = useSession();
-	const isLoggedIn = Boolean(session?.user?.id);
-
-	const handleFormChange = useCallback((data: Record<string, unknown>) => {
-		setValues(data);
-	}, []);
-
-	const handleVoiceFill = useCallback(
-		async (inputTags: InputTagType[], audioFiles: VoiceFillAudioFile[]) => {
-			const result = await orpc.scribe.voiceFill.call({
-				audioFiles,
-				inputTags,
-			});
-			return result.fieldValues;
-		},
-		[],
-	);
+	const inputTags = useMemo(() => parseMarkdocToInputs(note), [note]);
 
 	if (showExamples) {
 		return (
@@ -47,8 +27,8 @@ export default function ContentSection({
 					</p>
 				) : (
 					<div className="space-y-4">
-							{examples.map((example, index) => (
-								<div className="space-y-2" key={`template-example-preview-${example}`}>
+						{examples.map((example, index) => (
+							<div className="space-y-2" key={`template-example-preview-${example}`}>
 								<p className="font-medium text-sm">Beispiel {index + 1}</p>
 								<pre className="whitespace-pre-wrap rounded-md border bg-muted/30 p-3 text-sm">
 									{example}
@@ -62,25 +42,16 @@ export default function ContentSection({
 	}
 
 	return (
-		<Card className="grid h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] grid-cols-3 overflow-hidden">
-			<div className="hidden md:flex flex-col overflow-hidden" key="Inputs">
-				<Inputs
-					inputTags={parseMarkdocToInputs(note)}
-					onChange={handleFormChange}
-					onVoiceFill={isLoggedIn ? handleVoiceFill : undefined}
-					showVoiceInput={isLoggedIn}
-				/>
-			</div>
-			<div
-				className="col-span-3 overflow-y-auto overscroll-none border-l p-4 md:col-span-2"
-				key="Note"
-			>
+		<InputPreviewSection
+			inputTags={inputTags}
+			preview={(values) => (
 				<DynamicMarkdocRenderer
 					className="prose prose-slate grow"
 					markdocContent={note as string}
 					variables={values}
 				/>
-			</div>
-		</Card>
+			)}
+			resetKey={note}
+		/>
 	);
 }
