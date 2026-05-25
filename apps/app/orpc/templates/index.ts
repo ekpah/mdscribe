@@ -309,7 +309,7 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 	}
 
 	return {
-		canEditSource: context.session.user.email === env.ADMIN_EMAIL,
+		canEditSource: context.auth.isAdmin,
 		categorySuggestions,
 	};
 });

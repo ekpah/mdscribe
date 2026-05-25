@@ -26,6 +26,7 @@ import {
 	Heart,
 	PlusIcon,
 	SearchIcon,
+	ShieldIcon,
 	Star,
 	Stethoscope,
 	Zap,
@@ -38,6 +39,8 @@ import { PRODUCT_PLANS } from "@/lib/product-plans";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
+import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
+import { env } from "@repo/env";
 import type { DocumentType } from "@/orpc/scribe/types";
 import { LiveTime } from "./_components/live-time";
 
@@ -111,11 +114,15 @@ export default async function DashboardPage() {
 			headers: requestHeaders,
 		}),
 	]).catch((_e) => {
-		throw redirect("/sign-in");
+		throw redirect(
+			createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")),
+		);
 	});
 
 	if (!session?.user) {
-		redirect("/sign-in");
+		redirect(
+			createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")),
+		);
 	}
 
 	const activeSubscription = subscriptions.find(
@@ -156,6 +163,7 @@ export default async function DashboardPage() {
 		activeSubscription?.plan,
 	);
 	const subscriptionStatus = getSubscriptionStatus(activeSubscription);
+	const isAdmin = session.user.email === env.ADMIN_EMAIL;
 
 	const aiFunctions = [
 		{
@@ -307,6 +315,18 @@ export default async function DashboardPage() {
 							</div>
 						</div>
 						<div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+							{isAdmin ? (
+								<Link href="/admin">
+									<Button
+										className="w-full gap-2 border-solarized-base1 text-solarized-base01 hover:bg-solarized-base2 sm:w-auto"
+										size="sm"
+										variant="outline"
+									>
+										<ShieldIcon className="h-4 w-4" />
+										Admin
+									</Button>
+								</Link>
+							) : null}
 							<Link href="/aiscribe">
 								<Button
 									className="w-full gap-2 bg-solarized-blue text-white hover:bg-solarized-blue/90 sm:w-auto"

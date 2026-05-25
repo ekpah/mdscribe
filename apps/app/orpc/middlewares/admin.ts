@@ -1,13 +1,10 @@
 import { ORPCError, os } from "@orpc/server";
 import type { Session } from "@/lib/auth-types";
-import { env } from "@repo/env";
 
 export const requiredAdminMiddleware = os
-	.$context<{ session: Session }>()
+	.$context<{ auth: { isAdmin: boolean }; session: Session }>()
 	.middleware(({ context, next }) => {
-		const {email} = context.session.user;
-
-		if (email !== env.ADMIN_EMAIL) {
+		if (!context.auth?.isAdmin) {
 			throw new ORPCError("FORBIDDEN");
 		}
 

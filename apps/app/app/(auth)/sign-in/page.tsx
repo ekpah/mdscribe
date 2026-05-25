@@ -18,6 +18,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { signIn } from "@/lib/auth-client";
+import { getSafeRedirectPath } from "@/lib/sign-in-redirect";
 
 export default function SignIn() {
 	const [email, setEmail] = useState("");
@@ -27,8 +28,7 @@ export default function SignIn() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const redirectParam = searchParams.get("redirect");
-	const redirect =
-		!redirectParam || redirectParam === "/" ? "/dashboard" : redirectParam;
+	const redirect = getSafeRedirectPath(redirectParam);
 
 	const handleEmailChange = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {

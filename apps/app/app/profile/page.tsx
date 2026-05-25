@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getServerSession } from "@/lib/server-session";
+import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
 import UserSettings from "./_components/user-settings";
 
 export default async function DashboardPage() {
@@ -16,10 +17,14 @@ export default async function DashboardPage() {
 			headers: requestHeaders,
 		}),
 	]).catch((_e) => {
-		throw redirect("/sign-in");
+		throw redirect(
+			createSignInRedirect(getRequestedPath(requestHeaders, "/profile")),
+		);
 	});
 	if (!session?.user) {
-		redirect("/sign-in");
+		redirect(
+			createSignInRedirect(getRequestedPath(requestHeaders, "/profile")),
+		);
 	}
 	const activeSubscription = subscriptions.find(
 		(sub) => sub.status === "active" || sub.status === "trialing",

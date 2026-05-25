@@ -1,4 +1,5 @@
 import { ORPCError, os } from '@orpc/server';
+import { env } from '@repo/env';
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import type { Session } from '@/lib/auth-types';
@@ -21,6 +22,11 @@ export const requiredAuthMiddleware = os
         }
 
         return next({
-            context: { session },
+            context: {
+                auth: {
+                    isAdmin: session.user.email === env.ADMIN_EMAIL,
+                },
+                session,
+            },
         });
     });

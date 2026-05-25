@@ -1,4 +1,5 @@
 const REQUEST_PATH_HEADERS = [
+	"x-mdscribe-path",
 	"next-url",
 	"x-url",
 	"x-invoke-path",
@@ -19,7 +20,7 @@ const normalizePath = (input: string | null | undefined): string | null => {
 	if (value.startsWith("http://") || value.startsWith("https://")) {
 		try {
 			const parsed = new URL(value);
-			value = `${parsed.pathname}${parsed.search}`;
+			value = `${parsed.pathname}${parsed.search}${parsed.hash}`;
 		} catch {
 			return null;
 		}
@@ -40,8 +41,16 @@ const normalizePath = (input: string | null | undefined): string | null => {
 	return value;
 };
 
+export const getSafeRedirectPath = (
+	redirectPath: string | null | undefined,
+	fallbackPath = "/dashboard",
+): string => {
+	const safePath = normalizePath(redirectPath);
+	return safePath && safePath !== "/" ? safePath : fallbackPath;
+};
+
 export const createSignInRedirect = (redirectPath: string): string => {
-	const safePath = normalizePath(redirectPath) ?? "/dashboard";
+	const safePath = getSafeRedirectPath(redirectPath);
 	return `/sign-in?redirect=${encodeURIComponent(safePath)}`;
 };
 
@@ -54,11 +63,6 @@ export const getRequestedPath = (
 		if (headerPath) {
 			return headerPath;
 		}
-	}
-
-	const refererPath = normalizePath(requestHeaders.get("referer"));
-	if (refererPath) {
-		return refererPath;
 	}
 
 	return fallbackPath;
