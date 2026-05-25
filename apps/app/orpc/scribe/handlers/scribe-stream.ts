@@ -6,6 +6,7 @@ import type { ModelMessage, UIMessage } from "ai";
 
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
+import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { composeScribeContext, findRelevantTemplateForProcedure } from "@/orpc/scribe/context";
 import type { ContextBuildInput, TemplateContextInput } from "@/orpc/scribe/context";
 import { getAudioMediaType } from "@/orpc/scribe/handlers/audio-media-type";
@@ -294,6 +295,7 @@ const resolveCustomFormRequest = async ({
  * Main streaming handler for all scribe document types
  */
 export const scribeStreamHandler = authed
+	.use(scribeEntitlementsMiddleware)
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
 		const inputMessages = input.messages;
@@ -303,10 +305,10 @@ export const scribeStreamHandler = authed
 		const prompt = extractPromptFromMessages(inputMessages);
 
 		// Check usage limits
-		const { activeSubscription } = await enforceScribeUsageLimit({
+		const { entitlements } = await enforceScribeUsageLimit({
 			db: context.db,
+			entitlements: context.entitlements.scribe,
 			session: context.session,
-			userId: context.session.user.id,
 		});
 
 		// Validate input
@@ -385,7 +387,7 @@ export const scribeStreamHandler = authed
 						usage: { include: true },
 						user: context.session.user.email,
 						...(reasoningConfig && { reasoning: reasoningConfig }),
-						...(activeSubscription && { zdr: true }),
+						...(entitlements.hasActiveSubscription && { zdr: true }),
 					},
 				}
 			: undefined;
@@ -410,7 +412,7 @@ export const scribeStreamHandler = authed
 			onFinish: (event) => {
 				const completedAt = Date.now();
 				scheduleScribeUsageLogging({
-					activeSubscription,
+					activeSubscription: entitlements.hasActiveSubscription,
 					db: context.db,
 					endpoint: resolvedRequest.endpoint,
 					event,

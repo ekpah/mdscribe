@@ -34,6 +34,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { PRODUCT_PLANS } from "@/lib/product-plans";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
@@ -149,9 +150,8 @@ export default async function DashboardPage() {
 	);
 
 	const currentUsage = data?.usage?.count || 0;
-
-	// Calculate monthly usage limit (same logic as subscription card)
-	const monthlyUsageLimit = activeSubscription ? 500 : 50;
+	const monthlyUsageLimit =
+		PRODUCT_PLANS[activeSubscription ? "plus" : "free"].scribeUsageLimit;
 	const subscriptionPlanLabel = getSubscriptionPlanLabel(
 		activeSubscription?.plan,
 	);

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@repo/design-system/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
+import { PRODUCT_PLANS } from '@/lib/product-plans';
 
 interface SubscriptionCardProps {
   subscription?: Subscription;
@@ -25,9 +26,8 @@ export const SubscriptionCard = ({
   onCancel,
 }: SubscriptionCardProps) => {
   const hasActiveSubscription = !!subscription;
-
-  // Keep static limits until plan metadata is exposed on the subscription payload.
-  const monthlyUsageLimit = hasActiveSubscription ? 500 : 50;
+  const monthlyUsageLimit =
+    PRODUCT_PLANS[hasActiveSubscription ? 'plus' : 'free'].scribeUsageLimit;
 
   const { data } = useQuery({
     queryFn: async () => {

@@ -2,20 +2,21 @@ import { ORPCError } from "@orpc/server";
 import { and, eq, inArray, subscription } from "@repo/database";
 import type { Database } from "@repo/database";
 
+import { PRODUCT_PLANS } from "@/lib/product-plans";
+import type { ProductPlan } from "@/lib/product-plans";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { getUsage } from "@/orpc/scribe/_lib/get-usage";
 
-const FREE_TIER_USAGE_LIMIT = 50;
-const PLUS_TIER_USAGE_LIMIT = 500;
+export interface ScribeEntitlements {
+	hasActiveSubscription: boolean;
+	plan: ProductPlan;
+	scribeUsageLimit: number;
+}
 
-export const resolveScribeUsageLimit = (hasActiveSubscription: boolean): number =>
-	hasActiveSubscription ? PLUS_TIER_USAGE_LIMIT : FREE_TIER_USAGE_LIMIT;
-
-export const enforceScribeUsageLimit = async (input: {
+export const resolveScribeEntitlements = async (input: {
 	db: Database;
-	session: { user: { id: string } };
 	userId: string;
-}) => {
+}): Promise<ScribeEntitlements> => {
 	const subscriptions = await input.db
 		.select()
 		.from(subscription)
@@ -24,17 +25,30 @@ export const enforceScribeUsageLimit = async (input: {
 				eq(subscription.referenceId, input.userId),
 				inArray(subscription.status, ["active", "trialing"]),
 			),
-		);
+	);
 
 	const activeSubscription = subscriptions.length > 0;
-	const usageLimit = resolveScribeUsageLimit(activeSubscription);
+	const plan: ProductPlan = activeSubscription ? "plus" : "free";
+
+	return {
+		hasActiveSubscription: activeSubscription,
+		plan,
+		scribeUsageLimit: PRODUCT_PLANS[plan].scribeUsageLimit,
+	};
+};
+
+export const enforceScribeUsageLimit = async (input: {
+	db: Database;
+	entitlements: ScribeEntitlements;
+	session: { user: { id: string } };
+}) => {
 	const { usage } = await getUsage(input.session, input.db);
 
-	if (usage.count >= usageLimit) {
+	if (usage.count >= input.entitlements.scribeUsageLimit) {
 		throw new ORPCError("FORBIDDEN", {
 			message: USER_MESSAGES.usageLimitReached,
 		});
 	}
 
-	return { activeSubscription, usage };
+	return { entitlements: input.entitlements, usage };
 };
