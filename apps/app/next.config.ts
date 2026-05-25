@@ -23,7 +23,10 @@ export const config: NextConfig = {
 			"date-fns",
 			"@repo/design-system",
 		],
-	},
+  },
+  logging: {
+    browserToTerminal: true,
+  },
 
 	headers() {
 		return [

@@ -1,12 +1,11 @@
-// for pre-rendering
-import "@/lib/orpc.server";
+import '@/lib/orpc.server' // for pre-rendering
+
 import { DesignSystemProvider } from "@repo/design-system/providers";
 import { env } from "@repo/env";
-import { getQueryClient } from "@/lib/get-query-client";
 import { getServerSession } from "@/lib/server-session";
 import { sessionQueryKey } from "@/lib/session-query";
 import "@repo/design-system/styles/globals.css";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -31,7 +30,7 @@ interface RootLayoutProperties {
 export default async function RootLayout({ children }: RootLayoutProperties) {
 	const session = await getServerSession();
 	const isAdmin = session?.user?.email === env.ADMIN_EMAIL;
-	const queryClient = getQueryClient();
+	const queryClient = new QueryClient();
 	queryClient.setQueryData(sessionQueryKey, session);
 
 	return (

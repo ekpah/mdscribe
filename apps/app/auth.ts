@@ -1,10 +1,6 @@
 import { stripe } from "@better-auth/stripe";
 import { eq, user as userTable } from "@repo/database";
 import { database } from "@repo/database/client";
-import { sendEmail } from "@repo/email";
-import { EmailChangeTemplate } from "@repo/email/templates/change-email";
-import { ResetPasswordTemplate } from "@repo/email/templates/reset-password";
-import { EmailVerificationTemplate } from "@repo/email/templates/verify";
 import { env } from "@repo/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -42,6 +38,10 @@ export const auth = betterAuth({
 				});
 				return;
 			}
+			const [{ sendEmail }, { ResetPasswordTemplate }] = await Promise.all([
+				import("@repo/email"),
+				import("@repo/email/templates/reset-password"),
+			]);
 			await sendEmail({
 				from: "noreply@mdscribe.de",
 				subject: "Setze dein Passwort zurück",
@@ -65,6 +65,10 @@ export const auth = betterAuth({
 				});
 				return;
 			}
+			const [{ sendEmail }, { EmailVerificationTemplate }] = await Promise.all([
+				import("@repo/email"),
+				import("@repo/email/templates/verify"),
+			]);
 			await sendEmail({
 				from: "noreply@mdscribe.de",
 				subject: "Verify your email address",
@@ -120,6 +124,10 @@ export const auth = betterAuth({
 				url: string;
 			}) => {
 				const { user: authUser, newEmail, url } = args;
+				const [{ sendEmail }, { EmailChangeTemplate }] = await Promise.all([
+					import("@repo/email"),
+					import("@repo/email/templates/change-email"),
+				]);
 				await sendEmail({
 					from: "noreply@mdscribe.de",
 					subject: "Genehmige E-Mail-Änderung",
