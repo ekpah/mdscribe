@@ -1,14 +1,8 @@
 "use client";
 
-import * as Markdoc from '@markdoc/markdoc';
-import type { ValidateError } from '@markdoc/markdoc';
 import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
 import TipTap from "@repo/design-system/components/editor/tip-tap";
-import type {
-	MarkdocTagName,
-	MarkdocValidationHighlight,
-} from "@repo/design-system/components/editor/tiptap-extension";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -27,11 +21,10 @@ import {
 	TabsTrigger,
 } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import markdocConfig from "@repo/markdoc-md/markdoc-config";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
@@ -43,165 +36,6 @@ const FALLBACK_CATEGORIES = [
 ] as const;
 const MAX_TEMPLATE_EXAMPLES = 10;
 const SAVE_TOAST_ID = "template-save";
-const MARKDOC_TAG_REGEX = /{%\s*(\/?)([A-Za-z][\w-]*)[^%]*?%}/g;
-const MARKDOC_TAG_NAMES: MarkdocTagName[] = ["info", "score", "switch", "case"];
-const MARKDOC_TAG_NAME_SET = new Set<MarkdocTagName>(MARKDOC_TAG_NAMES);
-
-interface TagOccurrence {
-	tagName: MarkdocTagName;
-	index: number;
-	startOffset: number;
-	endOffset: number;
-}
-
-interface MarkdocErrorLocation {
-	start?: {
-		line?: number;
-	};
-}
-
-const isMarkdocTagName = (value: string): value is MarkdocTagName =>
-	MARKDOC_TAG_NAME_SET.has(value as MarkdocTagName);
-
-const buildLineStartOffsets = (source: string) => {
-	const offsets = [0];
-
-	for (let index = 0; index < source.length; index += 1) {
-		if (source[index] === "\n") {
-			offsets.push(index + 1);
-		}
-	}
-
-	return offsets;
-};
-
-const getOffsetFromLocation = (
-	lineStarts: number[],
-	location: MarkdocErrorLocation | undefined,
-	contentLength: number,
-) => {
-	const line = location?.start?.line;
-
-	if (!line) {
-		return null;
-	}
-
-	const lineIndex = line - 1;
-	const lineStart = lineStarts[lineIndex];
-
-	if (lineStart === undefined) {
-		return null;
-	}
-
-	return Math.min(lineStart, contentLength);
-};
-
-const findTagOccurrences = (source: string): TagOccurrence[] => {
-	const occurrences: TagOccurrence[] = [];
-	const counts: Record<MarkdocTagName, number> = {
-		case: 0,
-		info: 0,
-		score: 0,
-		switch: 0,
-	};
-
-	MARKDOC_TAG_REGEX.lastIndex = 0;
-	let match = MARKDOC_TAG_REGEX.exec(source);
-
-	while (match) {
-		const [, closingTagToken, rawTagName] = match;
-		const isClosingTag = closingTagToken === "/";
-
-		if (!isClosingTag && rawTagName) {
-			const normalizedTagName = rawTagName.toLowerCase();
-
-			if (isMarkdocTagName(normalizedTagName)) {
-				const index = counts[normalizedTagName];
-
-				occurrences.push({
-					endOffset: match.index + match[0].length,
-					index,
-					startOffset: match.index,
-					tagName: normalizedTagName,
-				});
-
-				counts[normalizedTagName] = index + 1;
-			}
-		}
-
-		match = MARKDOC_TAG_REGEX.exec(source);
-	}
-
-	return occurrences;
-};
-
-const formatValidationMessage = (error: ValidateError) => {
-	const message = error.error?.message ?? "Unbekannter Validierungsfehler";
-	const line = error.error?.location?.start?.line;
-
-	if (!line) {
-		return message;
-	}
-
-	return `${message} (Zeile ${line})`;
-};
-
-const buildValidationHighlights = (
-	source: string,
-	errors: ValidateError[],
-): MarkdocValidationHighlight[] => {
-	if (errors.length === 0 || source.trim() === "") {
-		return [];
-	}
-
-	const occurrences = findTagOccurrences(source);
-	if (occurrences.length === 0) {
-		return [];
-	}
-
-	const lineStarts = buildLineStartOffsets(source);
-	const highlightsByKey = new Map<string, MarkdocValidationHighlight>();
-
-	for (const error of errors) {
-		const offset = getOffsetFromLocation(
-			lineStarts,
-			error.error?.location,
-			source.length,
-		);
-
-		if (offset === null) {
-			continue;
-		}
-
-		const matchedOccurrence = occurrences.find(
-			(occurrence) =>
-				offset >= occurrence.startOffset && offset <= occurrence.endOffset,
-		);
-
-		if (!matchedOccurrence) {
-			continue;
-		}
-
-		const message = formatValidationMessage(error);
-		const key = `${matchedOccurrence.tagName}:${matchedOccurrence.index}`;
-		const existingHighlight = highlightsByKey.get(key);
-
-		if (existingHighlight) {
-			highlightsByKey.set(key, {
-				...existingHighlight,
-				message: `${existingHighlight.message}\n${message}`,
-			});
-		} else {
-			highlightsByKey.set(key, {
-				index: matchedOccurrence.index,
-				message,
-				tagName: matchedOccurrence.tagName,
-			});
-		}
-	}
-
-	return [...highlightsByKey.values()];
-};
 
 const isActionableError = (error: unknown): error is Error => error instanceof Error;
 
@@ -232,9 +66,7 @@ export default function Editor({
 	);
 	const [newCategory, setNewCategory] = useState("");
 	const [showSource, setShowSource] = useState(false);
-	const [validationErrors, setValidationErrors] = useState<ValidateError[]>([]);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const validationTimerRef = useRef<number | null>(null);
 	// Counter to force TipTap remount when switching from source view
 	const editorKeyRef = useRef(0);
 
@@ -346,65 +178,6 @@ export default function Editor({
 		[examples, handleExampleChange],
 	);
 
-	const validateContent = useCallback((source: string): ValidateError[] => {
-		try {
-			const ast = Markdoc.parse(source);
-			const validation = Markdoc.validate(ast, markdocConfig);
-			return validation.filter((result) => result.type === "error");
-			} catch (parseError) {
-				const syntheticError: ValidateError = {
-					error: {
-						id: "parse-error",
-						level: "error",
-						location: {
-							end: { line: 1 },
-							start: { line: 1 },
-						},
-						message:
-							parseError instanceof Error
-								? parseError.message
-								: "Unbekannter Parse-Fehler",
-					},
-					lines: [],
-					type: "error" as const,
-				};
-
-			return [syntheticError];
-		}
-	}, []);
-
-	const validationHighlights = useMemo(
-		() => buildValidationHighlights(content, validationErrors),
-		[content, validationErrors],
-	);
-
-	useEffect(() => {
-		if (validationTimerRef.current !== null) {
-			window.clearTimeout(validationTimerRef.current);
-		}
-
-		validationTimerRef.current = window.setTimeout(() => {
-			setValidationErrors(validateContent(content));
-		}, 300);
-
-		return () => {
-			if (validationTimerRef.current !== null) {
-				window.clearTimeout(validationTimerRef.current);
-			}
-		};
-	}, [content, validateContent]);
-
-	const checkContent = useCallback(() => {
-		const checkErrors = validateContent(content);
-		setValidationErrors(checkErrors);
-
-		if (checkErrors.length > 0) {
-			toast.error(`${checkErrors.length} Fehler in der Markdoc-Syntax gefunden`);
-		} else {
-			toast.success("Markdoc-Syntax ist korrekt");
-		}
-	}, [content, validateContent]);
-
 	const handleCreateError = useCallback((error: unknown) => {
 		toast.error(
 			isActionableError(error)
@@ -446,13 +219,6 @@ export default function Editor({
 		async (e: React.FormEvent) => {
 			e.preventDefault();
 			if (!isFormValid) {
-				return;
-			}
-
-			const checkErrors = validateContent(content);
-			if (checkErrors.length > 0) {
-				setValidationErrors(checkErrors);
-				toast.error("Bitte behebe die Markdoc-Fehler vor dem Speichern");
 				return;
 			}
 
@@ -538,7 +304,6 @@ export default function Editor({
 			queryClient,
 			router,
 			updateMutation,
-			validateContent,
 		],
 	);
 
@@ -671,54 +436,17 @@ export default function Editor({
 										onToggleSource={canEditSource ? handleSwitchToSource : undefined}
 										setContent={setContent}
 										showSource={showSource}
-										validationHighlights={validationHighlights}
 									/>
 								)}
 							</div>
-
-							{validationErrors.length > 0 && (
-								<div className="mt-2 max-h-32 shrink-0 space-y-2 overflow-y-auto">
-									<div className="rounded-md border border-solarized-red bg-solarized-red/10 p-3">
-										<div className="flex items-center space-x-2 font-medium text-sm text-solarized-red">
-											<AlertCircle className="h-4 w-4" />
-											<span>Fehler ({validationErrors.length})</span>
-										</div>
-										<ul className="mt-2 space-y-1 text-sm text-solarized-red/80">
-												{validationErrors.map((error) => (
-													<li
-														className="flex items-start space-x-2"
-														key={`error-${error.error?.id || "unknown"}-${error.error?.location?.start?.line || "unknown"}-${error.error?.message || "unknown"}`}
-													>
-													<span className="text-solarized-red">•</span>
-													<div className="flex-1">
-														<div className="flex items-center space-x-2">
-															{error.error?.location && (
-																<span className="rounded bg-solarized-red/20 px-2 py-1 font-mono text-solarized-red text-xs">
-																	Zeile {error.error.location.start?.line || "unknown"}
-																</span>
-															)}
-															<span className="font-medium text-solarized-red">
-																{error.type === "error" ? "Fehler" : "Warnung"}
-															</span>
-														</div>
-														<p className="mt-1 text-solarized-red/90">
-															{error.error?.message || "Unbekannter Validierungsfehler"}
-														</p>
-													</div>
-												</li>
-											))}
-										</ul>
-									</div>
-								</div>
-							)}
 						</TabsContent>
 
 						<TabsContent className="mt-0 min-h-0 grow overflow-y-auto rounded-md border p-3" value="examples">
 							<div className="mb-3 flex items-center justify-between gap-2">
 								<div>
-									<p className="font-medium text-sm">Beispiel-Ausgaben</p>
+									<p className="font-medium text-sm">Beispiele</p>
 									<p className="text-muted-foreground text-xs">
-										Finale Ausgaben fuer Few-Shot Guidance ({examples.length}/
+										Beispiele von guten Epikrisen, an denen man sich orientieren sollte ({examples.length}/
 										{MAX_TEMPLATE_EXAMPLES})
 									</p>
 								</div>
@@ -729,13 +457,13 @@ export default function Editor({
 									variant="secondary"
 								>
 									<Plus className="mr-2 h-4 w-4" />
-									Beispiel hinzufuegen
+									Beispiel hinzufügen
 								</Button>
 							</div>
 
 							{examples.length === 0 ? (
 								<p className="text-muted-foreground text-sm">
-									Noch keine Beispiele hinzugefuegt.
+									Noch keine Beispiele hinzugefügt.
 								</p>
 							) : (
 									<div className="space-y-3">
@@ -757,7 +485,7 @@ export default function Editor({
 												<Textarea
 													id={`template-example-${index}`}
 													onChange={handleChangeExampleByIndex[index]}
-													placeholder="Finale Beispiel-Ausgabe eingeben"
+													placeholder="Beispiel eingeben"
 													rows={4}
 													value={example}
 												/>
@@ -769,16 +497,8 @@ export default function Editor({
 					</Tabs>
 					<div className="flex shrink-0 flex-row gap-2">
 						<Button
-							className="mt-2 w-1/10"
-							onClick={checkContent}
-							type="button"
-							variant="secondary"
-						>
-							Prüfen
-						</Button>
-						<Button
 							className="mt-2 w-full"
-							disabled={isSubmitting || validationErrors.length > 0 || !isFormValid}
+							disabled={isSubmitting || !isFormValid}
 							type="submit"
 						>
 							{(() => {
@@ -787,9 +507,6 @@ export default function Editor({
 								}
 								if (!isFormValid) {
 									return "Kategorie und Name erforderlich";
-								}
-								if (validationErrors.length > 0) {
-									return "Behebe Fehler um zu speichern";
 								}
 								return "Textbaustein speichern";
 							})()}

@@ -4,13 +4,6 @@ import { Button } from "@repo/design-system/components/ui/button";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@repo/design-system/components/ui/popover";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
@@ -141,8 +134,8 @@ export const SwitchTagView = ({
 	);
 
 	const handleTypeChange = useCallback(
-		(value: string) => {
-			if (value === "boolean") {
+		(nextType: "default" | "boolean") => {
+			if (nextType === "boolean") {
 				updateAttributes({
 					cases: normalizeBooleanCases(cases),
 					type: "boolean",
@@ -156,6 +149,14 @@ export const SwitchTagView = ({
 		},
 		[cases, updateAttributes],
 	);
+
+	const handleSelectType = useCallback(() => {
+		handleTypeChange("default");
+	}, [handleTypeChange]);
+
+	const handleCheckboxType = useCallback(() => {
+		handleTypeChange("boolean");
+	}, [handleTypeChange]);
 
 	const handlePrimaryChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
@@ -257,7 +258,7 @@ export const SwitchTagView = ({
 						<span className="max-w-[20ch] truncate font-mono text-foreground/80">
 							{node.attrs.primary || <span className="text-muted-foreground italic">leer</span>}
 						</span>
-						<span className="text-muted-foreground">· {cases.length} Fälle</span>
+						<span className="text-muted-foreground">· {cases.length} Optionen</span>
 					</PopoverTrigger>
 
 					{/* More compact popover content */}
@@ -267,11 +268,37 @@ export const SwitchTagView = ({
 					>
 						<div className="flex max-h-[min(80vh,var(--radix-popover-content-available-height))] flex-col">
 							{/* Compact header */}
-							<div className="shrink-0 border-b bg-solarized-green/5 px-3 py-2">
-								<h3 className="flex items-center font-medium text-sm text-solarized-green">
-									<Code2 className="mr-1.5 h-3 w-3" />
-									Switch-Konfiguration
+							<div className="flex shrink-0 items-center justify-between gap-3 border-b bg-solarized-green/5 px-3 py-2">
+								<h3 className="flex min-w-0 items-center font-medium text-sm text-solarized-green">
+									<Code2 className="mr-1.5 h-3 w-3 shrink-0" />
+									<span className="truncate">Switch-Konfiguration</span>
 								</h3>
+								<div className="grid h-7 shrink-0 grid-cols-2 overflow-hidden rounded-xs border border-solarized-green/30 bg-background p-0.5">
+									<button
+										aria-pressed={!isBooleanSwitch}
+										className={`rounded-[2px] px-2 text-xs transition-colors ${
+											isBooleanSwitch
+												? "text-muted-foreground hover:bg-solarized-green/10 hover:text-foreground"
+												: "bg-solarized-green text-white shadow-xs"
+										}`}
+										onClick={handleSelectType}
+										type="button"
+									>
+										Select
+									</button>
+									<button
+										aria-pressed={isBooleanSwitch}
+										className={`rounded-[2px] px-2 text-xs transition-colors ${
+											isBooleanSwitch
+												? "bg-solarized-green text-white shadow-xs"
+												: "text-muted-foreground hover:bg-solarized-green/10 hover:text-foreground"
+										}`}
+										onClick={handleCheckboxType}
+										type="button"
+									>
+										Checkbox
+									</button>
+								</div>
 							</div>
 
 							<div className="min-h-0 flex-1 overflow-y-auto">
@@ -291,28 +318,12 @@ export const SwitchTagView = ({
 											/>
 										</div>
 
-										<div className="space-y-1.5">
-											<Label className="font-medium text-xs">Switch-Typ</Label>
-											<Select
-												onValueChange={handleTypeChange}
-												value={isBooleanSwitch ? "boolean" : "default"}
-											>
-												<SelectTrigger className="h-8 text-xs">
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="default">Standard</SelectItem>
-													<SelectItem value="boolean">Boolean (Checkbox)</SelectItem>
-												</SelectContent>
-											</Select>
-										</div>
-
 										<Separator />
 
 									{/* Cases Section */}
 									<div className="space-y-2">
 										<div className="flex items-center justify-between">
-											<Label className="font-medium text-xs">Fälle ({cases.length})</Label>
+											<Label className="font-medium text-xs">Optionen ({cases.length})</Label>
 										</div>
 
 										{/* Existing Cases */}
@@ -324,17 +335,17 @@ export const SwitchTagView = ({
 
 												return (
 													<div
-														key={`${caseItem.primary}:${caseItem.text}`}
+														key={`case-${index}`}
 														className="group rounded-md border border-solarized-green/20 bg-background p-2.5 shadow-sm transition-all hover:border-solarized-green/40 hover:shadow"
 													>
 														<div className="flex items-start gap-2">
 															<div className="flex-1 space-y-2">
 																<div className="space-y-1">
-																	<Label className="text-muted-foreground text-xs">Wert</Label>
+																	<Label className="text-muted-foreground text-xs">Label</Label>
 																		<Input
 																			value={caseItem.primary}
 																			onChange={handleCasePrimaryChange}
-																			placeholder="Fall-Wert"
+																			placeholder="Label"
 																			disabled={isBooleanSwitch}
 																			className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
 																		/>
@@ -355,8 +366,8 @@ export const SwitchTagView = ({
 																		size="sm"
 																		onClick={handleRemoveCase}
 																		className="mt-5 h-8 w-8 p-0 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-																		aria-label={`Fall ${index + 1} entfernen`}
-																		title="Fall entfernen"
+																		aria-label={`Option ${index + 1} entfernen`}
+																		title="Option entfernen"
 																	>
 																		<Trash2 className="h-3.5 w-3.5" />
 																	</Button>
@@ -372,19 +383,19 @@ export const SwitchTagView = ({
 													<div className="space-y-2">
 														<Label className="flex items-center gap-1.5 font-medium text-solarized-green text-xs">
 															<Plus className="h-3 w-3" />
-															Neuen Fall hinzufügen
+															Neue Option hinzufügen
 														</Label>
 														<div className="space-y-1.5">
 															<Input
 																value={newCase.primary}
 																onChange={handleNewCasePrimaryChange}
-																placeholder="Fall-Wert (z.B. 'männlich', 'Kind', '1')"
+																placeholder="Label (z.B. 'männlich', 'Kind', '1')"
 																className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
 															/>
 															<Input
 																value={newCase.text}
 																onChange={handleNewCaseTextChange}
-																placeholder="Inhalt für diesen Fall"
+																placeholder="Inhalt für diese Option"
 																className="h-8 text-xs focus:border-solarized-green focus:ring-solarized-green/50"
 																onKeyDown={handleNewCaseTextKeyDown}
 															/>
@@ -393,10 +404,10 @@ export const SwitchTagView = ({
 																onClick={addCase}
 																disabled={!newCase.primary && !newCase.text}
 																className="h-8 w-full bg-solarized-green text-sm hover:bg-solarized-green/90"
-																aria-label="Fall hinzufügen"
+																aria-label="Option hinzufügen"
 															>
 																<Plus className="mr-1.5 h-3.5 w-3.5" />
-																Fall hinzufügen
+																Option hinzufügen
 															</Button>
 														</div>
 													</div>
@@ -406,9 +417,9 @@ export const SwitchTagView = ({
 										{cases.length === 0 && (
 											<div className="py-6 text-center text-muted-foreground">
 												<Code2 className="mx-auto mb-2 h-8 w-8 opacity-30" />
-												<p className="font-medium text-xs">Noch keine Fälle definiert</p>
+												<p className="font-medium text-xs">Noch keine Optionen definiert</p>
 												<p className="mt-1 text-xs opacity-75">
-													Fügen Sie unten einen neuen Fall hinzu
+													Fügen Sie unten eine neue Option hinzu
 												</p>
 											</div>
 										)}

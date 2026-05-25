@@ -1,4 +1,3 @@
-"use client";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import {
 	Tooltip,
@@ -7,12 +6,10 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { Pencil } from "lucide-react";
-import type { ChangeEvent } from "react";
-import { useCallback } from "react";
 
 export default function PlainEditor({
 	note,
-	setContent,
+	setContent: _setContent,
 	showSource: _showSource,
 	onToggleSource,
 }: {
@@ -21,25 +18,19 @@ export default function PlainEditor({
 	showSource?: boolean;
 	onToggleSource?: () => void;
 }) {
-	const handlePlainEditorChange = useCallback(
-		(event: ChangeEvent<HTMLTextAreaElement>) => {
-			setContent(event.target.value);
-		},
-		[setContent],
-	);
-
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden">
-			{/* Menu bar matching TipTapMenu height */}
-			<div className="mb-2 flex items-center gap-1 overflow-x-auto rounded-md border border-border bg-muted/90 p-2">
-				<div className="flex flex-wrap gap-1">
+			<div className="flex items-center gap-2 overflow-x-auto border-b border-b-solarized-blue/30 bg-solarized-blue/5 px-2 py-1.5">
+				<div className="flex flex-wrap items-center gap-0.5">
 					<TooltipProvider>
 						<Tooltip delayDuration={200}>
-							<TooltipTrigger className="h-8 bg-transparent px-2 text-muted-foreground">
-								<span className="font-mono text-sm">Markdoc Quelltext</span>
+							<TooltipTrigger
+								className="inline-flex h-7 items-center rounded-xs px-2 text-muted-foreground text-xs hover:bg-solarized-blue/10 hover:text-foreground"
+							>
+								<span className="font-mono">Markdoc Quelltext</span>
 							</TooltipTrigger>
 							<TooltipContent side="bottom">
-								<p>Bearbeite den Markdoc-Quelltext direkt</p>
+								<p>Markdoc-Quelltext ansehen</p>
 								<p className="mt-1">
 									<a
 										className="text-primary hover:underline"
@@ -55,28 +46,26 @@ export default function PlainEditor({
 					</TooltipProvider>
 				</div>
 
-				{/* Source Toggle - Right aligned */}
 				{onToggleSource !== undefined && (
 					<div className="ml-auto flex items-center">
 						<button
-							className="inline-flex h-8 items-center gap-2 rounded-md px-3 text-sm font-medium"
+							className="inline-flex h-7 items-center gap-1.5 rounded-xs border border-solarized-blue/20 bg-background/80 px-2 text-xs font-medium text-foreground transition-colors hover:bg-solarized-blue/10"
 							onClick={onToggleSource}
 							type="button"
 						>
-							<Pencil className="h-4 w-4" />
+							<Pencil className="h-3.5 w-3.5" />
 							<span className="hidden sm:inline">Editor anzeigen</span>
 						</button>
 					</div>
 				)}
 			</div>
 
-			{/* Editor Content */}
 			<div className="min-h-0 flex-1">
-					<Textarea
-						className="h-full w-full resize-none border-0 p-3 font-mono text-sm focus-visible:ring-0"
-						onChange={handlePlainEditorChange}
-						value={note}
-					/>
+				<Textarea
+					className="h-full w-full resize-none border-0 bg-muted/20 p-3 font-mono text-muted-foreground text-sm focus-visible:ring-0"
+					readOnly
+					value={note}
+				/>
 			</div>
 		</div>
 	);
