@@ -166,11 +166,11 @@ const extractPromptFromMessages = (messages: UIMessage[]): string => {
 
 const toTemplateContextInput = (template: {
 	content: string;
-	examples: { content: string }[];
+	examples: string[];
 	title: string;
 }): TemplateContextInput => ({
 	content: template.content,
-	examples: template.examples.map((example) => example.content),
+	examples: template.examples,
 	title: template.title,
 });
 
@@ -241,11 +241,7 @@ const resolveCustomFormRequest = async ({
 	const customForm = await db.query.aiScribeFormConfig.findFirst({
 		where: eq(aiScribeFormConfig.id, formId),
 		with: {
-			template: {
-				with: {
-					examples: true,
-				},
-			},
+			template: true,
 		},
 	});
 

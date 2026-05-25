@@ -140,6 +140,7 @@ export const template = pgTable("Template", {
 	category: text("category").notNull(),
 	content: text("content").notNull(),
 	embedding: vector("embedding"),
+	examples: text("examples").array().notNull().default([]),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -174,27 +175,6 @@ export const documentTemplate = pgTable(
 		index("DocumentTemplate_authorId_idx").on(table.authorId),
 		index("DocumentTemplate_category_idx").on(table.category),
 	],
-);
-
-export const templateExample = pgTable(
-	"TemplateExample",
-	{
-		content: text("content").notNull(),
-		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow(),
-		id: text("id")
-			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
-		templateId: text("templateId")
-			.notNull()
-			.references(() => template.id, { onDelete: "cascade" }),
-		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow()
-			.$onUpdate(() => new Date()),
-	},
-	(table) => [index("TemplateExample_templateId_idx").on(table.templateId)],
 );
 
 export const templateCollection = pgTable("TemplateCollection", {
@@ -453,7 +433,6 @@ export const sessionRelations = relations(session, ({ one }) => ({
 export const templateRelations = relations(template, ({ one, many }) => ({
 	author: one(user, { fields: [template.authorId], references: [user.id] }),
 	collectionTemplates: many(templateCollectionTemplate),
-	examples: many(templateExample),
 	favouriteOf: many(favourites),
 }));
 
@@ -463,16 +442,6 @@ export const documentTemplateRelations = relations(
 		author: one(user, {
 			fields: [documentTemplate.authorId],
 			references: [user.id],
-		}),
-	}),
-);
-
-export const templateExampleRelations = relations(
-	templateExample,
-	({ one }) => ({
-		template: one(template, {
-			fields: [templateExample.templateId],
-			references: [template.id],
 		}),
 	}),
 );

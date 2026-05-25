@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { call } from "@orpc/server";
-import { and, eq, templateExample } from "@repo/database";
+import { and, eq, template } from "@repo/database";
 import { templatesHandler } from "@/orpc/templates";
 import type { TestServer } from "@/__tests__/setup";
 import {
@@ -105,18 +105,9 @@ describe("Templates oRPC Handlers", () => {
 
 			test("returns template examples", async () => {
 				const { user } = await createTestUser(server.db);
-				const createdTemplate = await createTestTemplate(server.db, user.id);
-
-					await server.db.insert(templateExample).values([
-						{
-							content: "Second example",
-							templateId: createdTemplate.id,
-						},
-						{
-							content: "First example",
-							templateId: createdTemplate.id,
-						},
-					]);
+				const createdTemplate = await createTestTemplate(server.db, user.id, {
+					examples: ["First example", "Second example"],
+				});
 
 				const context = createTestContext({ db: server.db });
 
@@ -127,9 +118,7 @@ describe("Templates oRPC Handlers", () => {
 				);
 
 				expect(result?.examples).toHaveLength(2);
-				expect(result?.examples.map((example) => example.content)).toEqual(
-					expect.arrayContaining(["First example", "Second example"]),
-				);
+				expect(result?.examples).toEqual(["First example", "Second example"]);
 			});
 		});
 	});
@@ -243,26 +232,23 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.embedding).toBeDefined();
 				expect(result.embedding).toHaveLength(1024);
 
-				const savedExamples = await server.db
-					.select()
-					.from(templateExample)
-					.where(eq(templateExample.templateId, result.id));
-				expect(savedExamples).toHaveLength(2);
-				expect(savedExamples.map((example) => example.content)).toEqual(
-					expect.arrayContaining(["Example output one", "Example output two"]),
-				);
+				const [savedTemplate] = await server.db
+					.select({ examples: template.examples })
+					.from(template)
+					.where(eq(template.id, result.id));
+				expect(savedTemplate?.examples).toEqual([
+					"Example output one",
+					"Example output two",
+				]);
 			});
 		});
 
 		describe("templates.update", () => {
 			test("updates template owned by user", async () => {
 				const { user } = await createTestUser(server.db);
-					const template = await createTestTemplate(server.db, user.id, {
+					const createdTemplate = await createTestTemplate(server.db, user.id, {
+						examples: ["Old example"],
 						title: "Original Title",
-					});
-					await server.db.insert(templateExample).values({
-						content: "Old example",
-						templateId: template.id,
 					});
 
 				const session = createMockSession(user);
@@ -274,7 +260,7 @@ describe("Templates oRPC Handlers", () => {
 							category: "Updated Category",
 							content: "Updated content",
 							examples: ["Updated example one", "Updated example two"],
-							id: template.id,
+							id: createdTemplate.id,
 							name: "Updated Title",
 						},
 						{ context },
@@ -284,14 +270,14 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.category).toBe("Updated Category");
 				expect(result.content).toBe("Updated content");
 
-				const savedExamples = await server.db
-					.select()
-					.from(templateExample)
-					.where(eq(templateExample.templateId, template.id));
-				expect(savedExamples).toHaveLength(2);
-				expect(savedExamples.map((example) => example.content)).toEqual(
-					expect.arrayContaining(["Updated example one", "Updated example two"]),
-				);
+				const [savedTemplate] = await server.db
+					.select({ examples: template.examples })
+					.from(template)
+					.where(eq(template.id, createdTemplate.id));
+				expect(savedTemplate?.examples).toEqual([
+					"Updated example one",
+					"Updated example two",
+				]);
 			});
 
 			test("throws error when updating template not owned by user", async () => {

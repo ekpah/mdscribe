@@ -88,7 +88,7 @@ export const resolveSelectedTemplateContext = (
 
 	return {
 		content: parsedTemplate.content,
-		examples: [],
+		examples: parsedTemplate.examples,
 		title: parsedTemplate.title,
 	};
 };

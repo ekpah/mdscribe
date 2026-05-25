@@ -1,6 +1,6 @@
 import { type } from "@orpc/server";
-import { and, asc, count, desc, eq, favourites, sql, template, templateExample, user } from '@repo/database';
-import type { Template, TemplateExample, User } from '@repo/database';
+import { and, count, desc, eq, favourites, sql, template, user } from '@repo/database';
+import type { Template, User } from '@repo/database';
 import { env } from "@repo/env";
 import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
@@ -23,12 +23,9 @@ const favouriteCount = (templateId: typeof template.id) =>
 
 type TemplateWithRelations = Template & {
 	favouriteOf: { id: string }[];
-	examples: TemplateExampleSummary[];
 	author: User;
 	_count: { favouriteOf: number };
 };
-
-type TemplateExampleSummary = Pick<TemplateExample, "id" | "content">;
 
 // ============================================================================
 // Embedding Generation
@@ -54,12 +51,6 @@ ${content}`;
 
 	return { embedding };
 };
-
-const buildTemplateExampleRows = (templateId: string, examples: string[]) =>
-	examples.map((example) => ({
-		content: example,
-		templateId,
-	}));
 
 // ============================================================================
 // Input Schemas
@@ -138,6 +129,7 @@ const listTemplatesHandler = pub.handler(async ({ context }) => {
 			category: template.category,
 			content: template.content,
 			embedding: template.embedding,
+			examples: template.examples,
 			id: template.id,
 			title: template.title,
 			updatedAt: template.updatedAt,
@@ -171,6 +163,7 @@ const getTemplateHandler = pub
 				category: template.category,
 				content: template.content,
 				embedding: template.embedding,
+				examples: template.examples,
 				id: template.id,
 				title: template.title,
 				updatedAt: template.updatedAt,
@@ -184,7 +177,7 @@ const getTemplateHandler = pub
 			return null;
 		}
 
-		const [favouriteUsers, countResult, examples] = await Promise.all([
+		const [favouriteUsers, countResult] = await Promise.all([
 			context.db
 				.select({ id: favourites.userId })
 				.from(favourites)
@@ -194,21 +187,12 @@ const getTemplateHandler = pub
 				.from(favourites)
 				.where(eq(favourites.templateId, input.id))
 				.then((result) => result[0]),
-			context.db
-				.select({
-					content: templateExample.content,
-					id: templateExample.id,
-				})
-				.from(templateExample)
-				.where(eq(templateExample.templateId, input.id))
-				.orderBy(asc(templateExample.createdAt)),
 		]);
 
 		return {
 			...templateData,
 			_count: { favouriteOf: Number(countResult?.count ?? 0) },
 			author: templateData.author as User,
-			examples,
 			favouriteOf: favouriteUsers,
 		};
 	});
@@ -230,6 +214,7 @@ const getFavouritesHandler = authed.handler(async ({ context }) => {
 			category: template.category,
 			content: template.content,
 			embedding: template.embedding,
+			examples: template.examples,
 			id: template.id,
 			title: template.title,
 			updatedAt: template.updatedAt,
@@ -255,6 +240,7 @@ const getAuthoredHandler = authed.handler(async ({ context }) => {
 			category: template.category,
 			content: template.content,
 			embedding: template.embedding,
+			examples: template.examples,
 			id: template.id,
 			title: template.title,
 			updatedAt: template.updatedAt,
@@ -353,6 +339,7 @@ const createTemplateHandler = authed
 					category: input.category,
 					content: input.content,
 					embedding,
+					examples,
 					title: input.name,
 					updatedAt: new Date(),
 				})
@@ -361,12 +348,6 @@ const createTemplateHandler = authed
 			const [newTemplate] = result;
 			if (!newTemplate) {
 				throw new Error("Failed to create template");
-			}
-
-			if (examples.length > 0) {
-				await tx
-					.insert(templateExample)
-					.values(buildTemplateExampleRows(newTemplate.id, examples));
 			}
 
 			return newTemplate;
@@ -393,6 +374,7 @@ const updateTemplateHandler = authed
 					category: input.category,
 					content: input.content,
 					embedding,
+					examples,
 					title: input.name,
 					updatedAt: new Date(),
 				})
@@ -407,16 +389,6 @@ const updateTemplateHandler = authed
 			const [updatedTemplate] = result;
 			if (!updatedTemplate) {
 				throw new Error("Failed to update template or template not found");
-			}
-
-			await tx
-				.delete(templateExample)
-				.where(eq(templateExample.templateId, updatedTemplate.id));
-
-			if (examples.length > 0) {
-				await tx
-					.insert(templateExample)
-					.values(buildTemplateExampleRows(updatedTemplate.id, examples));
 			}
 
 			return updatedTemplate;

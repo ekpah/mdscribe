@@ -293,7 +293,7 @@ const promptHarnessToDocumentType = new Map(
 
 const buildSelectedTemplateReference = (templateData: {
 	content: string;
-	examples: { content: string }[];
+	examples: string[];
 	title: string;
 }): string => {
 	const sections = [
@@ -305,7 +305,7 @@ const buildSelectedTemplateReference = (templateData: {
 	if (templateData.examples.length > 0) {
 		sections.push("## Beispiele");
 		for (const example of templateData.examples) {
-			sections.push(example.content);
+			sections.push(example);
 		}
 	}
 
@@ -1004,7 +1004,7 @@ export const PlaygroundPanel = ({
 
 		setTemplateDraftContent(selectedTemplateDetails.content);
 		setTemplateDraftExamples(
-			(selectedTemplateDetails.examples ?? []).map((example) => example.content),
+			selectedTemplateDetails.examples ?? [],
 		);
 		loadedTemplateIdRef.current = currentTemplateId;
 	}, [selectedTemplateDetails?.id, selectedTemplateDetails]);
@@ -1016,7 +1016,7 @@ export const PlaygroundPanel = ({
 		if (templateDraftContent !== selectedTemplateDetails.content) {
 			return true;
 		}
-		const baseExamples = (selectedTemplateDetails.examples ?? []).map((example) => example.content);
+		const baseExamples = selectedTemplateDetails.examples ?? [];
 		if (templateDraftExamples.length !== baseExamples.length) {
 			return true;
 		}
@@ -1035,7 +1035,7 @@ export const PlaygroundPanel = ({
 
 		return buildSelectedTemplateReference({
 			content: templateDraftContent,
-			examples: templateDraftExamples.map((content) => ({ content })),
+			examples: templateDraftExamples,
 			title: selectedTemplateDetails.title,
 		});
 	}, [selectedTemplateDetails, templateDraftContent, templateDraftExamples]);

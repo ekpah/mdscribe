@@ -139,7 +139,7 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - Source editing: Admin only (`session.user.email === env.ADMIN_EMAIL`)
 - Page data centralized in `app/templates/_lib/editor-page-data.ts`. Routes under `(editor)/` with auth redirect.
 - Categories: Fetch via `orpc.templates.editorContext`, pass as `categorySuggestions`.
-- Template examples: Up to 10 final-output examples per template are stored in `TemplateExample` and edited in the template editor.
+- Template examples: Up to 10 final-output examples per template are stored as the `Template.examples` string array and edited in the template editor.
 - Collections: User-managed template collections via `orpc.user.collections.*` with `TemplateCollection` / `TemplateCollectionTemplate` tables.
 
 ### Documents

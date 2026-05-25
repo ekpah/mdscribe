@@ -38,7 +38,7 @@ export const getCreateTemplateEditorData = async ({
 	return {
 		...sharedData,
 		cat: forkedTemplate?.category || "",
-		examples: (forkedTemplate?.examples ?? []).map((example) => example.content),
+		examples: forkedTemplate?.examples ?? [],
 		note: JSON.stringify(forkedTemplate?.content || ""),
 		tit: forkedTemplate?.title || "",
 	};
@@ -62,7 +62,7 @@ export const getEditTemplateEditorData = async ({
 	return {
 		...sharedData,
 		cat: doc.category || "",
-		examples: (doc.examples ?? []).map((example) => example.content),
+		examples: doc.examples ?? [],
 		id,
 		note: JSON.stringify(doc.content || ""),
 		tit: doc.title || "",

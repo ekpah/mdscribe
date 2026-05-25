@@ -85,6 +85,13 @@
 			"when": 1778403200000,
 			"tag": "0011_usage_event_timestamp_timestamptz",
 			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "7",
+			"when": 1778716800000,
+			"tag": "0012_template_examples_array",
+			"breakpoints": true
 		}
 	]
 }

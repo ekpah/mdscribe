@@ -324,6 +324,7 @@ export const createTestTemplate = async (
 		category?: string;
 		content?: string;
 		embedding?: number[];
+		examples?: string[];
 	},
 ) => {
 	const { template } = await import("@repo/database");
@@ -335,6 +336,7 @@ export const createTestTemplate = async (
 			category: options?.category ?? "Test Category",
 			content: options?.content ?? "Test content",
 			embedding: options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
+			examples: options?.examples ?? [],
 			id: crypto.randomUUID(),
 			title: options?.title ?? "Test Template",
 			updatedAt: new Date(),

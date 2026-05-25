@@ -83,7 +83,7 @@ const NotePage = async ({
 				/>
 			</div>
 			<ContentSection
-				examples={doc.examples.map((example) => example.content)}
+				examples={doc.examples}
 				note={doc.content}
 				showExamples={contentView === "examples"}
 			/>
