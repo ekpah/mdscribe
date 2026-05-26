@@ -183,23 +183,44 @@ mock.module("ai", () => ({
 	generateObject: () =>
 		resolveAsync({
 			finishReason: "stop" as const,
-			object: { test: "value" },
+			object: {
+				fieldMapping: [
+					{
+						description: "Patientenname aus dem PDF-Formular",
+						fieldName: "patient_name",
+						label: "Patient",
+					},
+				],
+				test: "value",
+			},
 			usage: {
 				completionTokens: 25,
 				promptTokens: 50,
 				totalTokens: 75,
 			},
 		}),
-	generateText: () =>
-		resolveAsync({
+	generateText: (options?: { messages?: Array<{ content?: unknown }> }) => {
+		const promptText = options?.messages
+			?.map((message) =>
+				typeof message.content === "string" ? message.content : "",
+			)
+			.join("\n") ?? "";
+		const output = promptText.includes("fieldValues") ? { test: "value" } : undefined;
+		const text = output ? JSON.stringify(output) : "Generated text response";
+		return resolveAsync({
 			finishReason: "stop" as const,
-			text: "Generated text response",
+			output,
+			text,
 			usage: {
 				completionTokens: 25,
 				promptTokens: 50,
 				totalTokens: 75,
 			},
-		}),
+		});
+	},
+	Output: {
+		object: (options: unknown) => options,
+	},
 	streamText: (options: { onFinish?: (event: unknown) => void }) =>
 		createMockStreamResult(options),
 }));

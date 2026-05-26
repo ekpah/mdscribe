@@ -27,7 +27,7 @@ const playgroundSearchParams = {
 	referenceUsageEvent: parseAsString,
 	temperature: parseAsFloat,
 	thinking: parseAsBoolean,
-	thinkingBudget: parseAsInteger,
+	reasoningEffort: parseAsString,
 };
 
 const promptNameToDocumentType = new Map(
@@ -145,7 +145,9 @@ const PlaygroundContent = () => {
 				maxTokens: searchParams.maxTokens ?? undefined,
 				temperature: searchParams.temperature ?? undefined,
 				thinking: searchParams.thinking ?? false,
-				thinkingBudget: searchParams.thinkingBudget ?? undefined,
+				reasoningEffort:
+					(searchParams.reasoningEffort as PlaygroundParameters["reasoningEffort"] | null) ??
+					undefined,
 			} as Partial<PlaygroundParameters>,
 			referenceUsageEvent: searchParams.referenceUsageEvent,
 		}), [searchParams]);
@@ -168,7 +170,13 @@ const PlaygroundContent = () => {
 			documentType: inferredDocumentType,
 			model: usageEvent.model ?? undefined,
 			parameters:
-				(metadata?.modelConfig as Partial<PlaygroundParameters>) ?? undefined,
+				{
+					...((metadata?.modelConfig as Partial<PlaygroundParameters> | undefined) ?? {}),
+					reasoningEffort:
+						typeof metadata?.reasoningEffort === "string"
+							? (metadata.reasoningEffort as PlaygroundParameters["reasoningEffort"])
+							: undefined,
+				},
 			promptName: getStringMetadataValue(metadata, "promptName"),
 			templateId: getStringMetadataValue(metadata, "templateId"),
 			variables: inputData ?? undefined,

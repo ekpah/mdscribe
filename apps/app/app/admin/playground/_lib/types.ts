@@ -38,16 +38,19 @@ export interface PlaygroundModel {
 	};
 	capabilities: ModelCapabilities;
 	supported_parameters: string[];
+	supportedParameters?: string[];
 	inputModes?: string[];
 	supportsReasoning?: boolean;
 }
+
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 export interface PlaygroundParameters {
 	temperature: number;
 	maxTokens: number;
 	thinking: boolean;
 	thinkingExplicit: boolean;
-	thinkingBudget: number;
+	reasoningEffort: ReasoningEffort;
 	topP?: number;
 	topK?: number;
 	frequencyPenalty?: number;

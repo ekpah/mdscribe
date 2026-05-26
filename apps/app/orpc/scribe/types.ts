@@ -1,5 +1,3 @@
-import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-
 /**
  * Model configuration for streaming responses
  */
@@ -7,7 +5,7 @@ export interface ModelConfig {
 	maxTokens?: number;
 	temperature?: number;
 	thinking?: boolean;
-	thinkingBudget?: number;
+	reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 }
 
 /**
@@ -19,26 +17,45 @@ export interface AudioFile {
 }
 
 /**
- * Generic input field for voice fill
+ * Generic file data for input autofill context.
+ */
+export interface FillInputsContextFile {
+	data: string;
+	mimeType: string;
+	name: string;
+	size: number;
+}
+
+/**
+ * Reusable clinical text context for input autofill
+ */
+export interface FillInputsTextContext {
+	anamnese?: string;
+	befunde?: string;
+	diagnoseblock?: string;
+	notes?: string;
+}
+
+/**
+ * Generic field definition for input filling.
  * Uses labels as stable keys for downstream inputs
  */
 export interface InputField {
 	label: string;
 	description?: string;
+	options?: string[];
+	unit?: string;
+	type?: "string" | "number" | "date" | "switch" | "boolean";
 }
 
 /**
- * Input tags for voice fill
+ * Payload for the general input-fill handler.
  */
-type VoiceFillInputTag = InputTagType;
-
-/**
- * Voice fill input payload
- */
-export interface VoiceFillInputPayload {
-	inputTags?: VoiceFillInputTag[];
-	inputFields?: InputField[];
-	audioFiles: AudioFile[];
+export interface FillInputsInputPayload {
+	inputFields: InputField[];
+	audioFiles?: AudioFile[];
+	contextFiles?: FillInputsContextFile[];
+	textContext?: FillInputsTextContext;
 }
 
 /**

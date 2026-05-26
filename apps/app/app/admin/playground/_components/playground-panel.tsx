@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import type { VoiceFillAudioFile } from "@repo/design-system/components/inputs/voice-input-controls";
+import type { FillInputsAudioFile } from "@repo/design-system/components/inputs/input-fill-controls";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
@@ -63,9 +63,9 @@ const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	frequencyPenalty: undefined,
 	maxTokens: 8000,
 	presencePenalty: undefined,
+	reasoningEffort: "none",
 	temperature: 0.3,
 	thinking: false,
-	thinkingBudget: 8000,
 	thinkingExplicit: false,
 	topK: undefined,
 	topP: undefined,
@@ -1138,13 +1138,13 @@ export const PlaygroundPanel = ({
 	})();
 
 	const handleParseAudioToText = useCallback(
-		async (audioFiles: VoiceFillAudioFile[]) => {
+		async (audioFiles: FillInputsAudioFile[]) => {
 			toast.loading("Audio wird zu Text geparst...", {
 				id: "playground-audio-parse",
 			});
 
 			try {
-				const result = await orpc.scribe.voiceFill.call({
+				const result = await orpc.scribe.fillInputs.call({
 					audioFiles,
 					inputFields: [
 						{
@@ -1160,7 +1160,9 @@ export const PlaygroundPanel = ({
 					],
 				});
 
-				const parsedText = result.fieldValues[docUi.mainField.name]?.trim();
+				const parsedValue = result.fieldValues[docUi.mainField.name];
+				const parsedText =
+					typeof parsedValue === "string" ? parsedValue.trim() : undefined;
 				if (!parsedText) {
 					throw new Error("Keine verwertbare Sprache erkannt");
 				}
@@ -1269,9 +1271,10 @@ export const PlaygroundPanel = ({
 				frequencyPenalty: presetParameters?.frequencyPenalty ?? DEFAULT_PARAMETERS.frequencyPenalty,
 				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
 				presencePenalty: presetParameters?.presencePenalty ?? DEFAULT_PARAMETERS.presencePenalty,
+				reasoningEffort:
+					presetParameters?.reasoningEffort ?? DEFAULT_PARAMETERS.reasoningEffort,
 				temperature: presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
 				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
-				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
 				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
 				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
 				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,

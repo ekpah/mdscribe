@@ -50,6 +50,8 @@ interface PlaygroundRunMetrics {
 	reasoningTokens?: number;
 }
 
+const reasoningEffortSchema = z.enum(["none", "minimal", "low", "medium", "high", "xhigh"]);
+
 const asFiniteNumber = (value: unknown): number | undefined => {
 	if (typeof value !== "number" || !Number.isFinite(value)) {
 		return undefined;
@@ -125,8 +127,8 @@ const runInput = z.object({
 		presencePenalty: z.number().min(-2).max(2).optional(),
 		temperature: z.number().min(0).max(2).optional().default(1),
 		thinking: z.boolean().optional().default(false),
-		thinkingBudget: z.number().min(1000).max(50_000).optional().default(8000),
 		thinkingExplicit: z.boolean().optional().default(false),
+		reasoningEffort: reasoningEffortSchema.optional(),
 		topK: z.number().min(0).optional(),
 		topP: z.number().min(0).max(1).optional(),
 	}),
@@ -181,10 +183,13 @@ const runHandler = authed
 			);
 		}
 
-		const thinkingEnabled = parsed.parameters.thinking && resolved.supportsReasoning;
-		const reasoningConfig = thinkingEnabled
-			? { max_tokens: parsed.parameters.thinkingBudget }
-			: undefined;
+		const reasoningEffort =
+			parsed.parameters.reasoningEffort ??
+			(parsed.parameters.thinking ? "medium" : "none");
+		const reasoningConfig =
+			resolved.isOpenRouter && resolved.supportsReasoning
+				? { effort: reasoningEffort }
+				: undefined;
 
 		const providerOptions = resolved.isOpenRouter
 			? {

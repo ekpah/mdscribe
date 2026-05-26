@@ -339,6 +339,7 @@ export const aiModel = pgTable(
 		providerId: text("providerId")
 			.notNull()
 			.references(() => aiProvider.id, { onDelete: "cascade" }),
+		supportedParameters: text("supportedParameters").array().notNull().default([]),
 		supportsReasoning: boolean("supportsReasoning").notNull().default(false),
 	},
 	(table) => [

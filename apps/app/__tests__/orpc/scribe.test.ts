@@ -6,6 +6,8 @@ import { documentTypeConfigs } from "@/orpc/scribe/config";
 import { composeScribeContext } from "@/orpc/scribe/context";
 import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
+import { fillInputsConfig } from "@/orpc/scribe/handlers/fill-inputs-config";
 import { resolveModel } from "@/orpc/scribe/providers";
 import type { DocumentType } from "@/orpc/scribe/types";
 import type { TestServer } from "@/__tests__/setup";
@@ -278,6 +280,91 @@ describe("Model Selection Logic", () => {
 			await expect(
 				resolveModel(server.db, { requireAudio: true }),
 			).rejects.toThrow(USER_MESSAGES.modelUnavailable);
+		} finally {
+			await server.close();
+		}
+	});
+});
+
+describe("Fill Inputs Handler", () => {
+	test("formats the autofill prompt input as JSON", () => {
+		const messages = fillInputsConfig.prompt({
+			textContext: {
+				diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+			},
+		});
+
+		expect(messages[1].content).toContain('"textContext": {');
+		expect(messages[1].content).toContain(
+			'"diagnoseblock": "I50.1 Akute Linksherzinsuffizienz"',
+		);
+		expect(messages[1].content).not.toContain('"inputFields"');
+		expect(messages[1].content).not.toContain("Verfügbare Felder");
+		expect(messages[1].content).not.toContain("Klinischer Textkontext");
+	});
+
+	test("allows text-only autofill through the default text model", async () => {
+		const server = await startTestServer("fill-inputs-text-only");
+		try {
+			const providerId = crypto.randomUUID();
+			const textModelRecordId = crypto.randomUUID();
+
+			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
+				id: providerId,
+				name: "Test Provider",
+				protocol: "openrouter",
+			});
+			await server.db.insert(aiModel).values({
+				displayName: "Text Model",
+				id: textModelRecordId,
+				inputModes: ["text"],
+				modelId: "openrouter/test-text",
+				providerId,
+				supportsReasoning: false,
+			});
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultFileImageModelId: textModelRecordId,
+					defaultSpeechToTextModelId: null,
+					defaultTextModelId: textModelRecordId,
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultFileImageModelId: textModelRecordId,
+						defaultSpeechToTextModelId: null,
+						defaultTextModelId: textModelRecordId,
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({
+				db: server.db,
+				session: createMockSession(user),
+			});
+			const result = await call(
+				fillInputsHandler,
+				{
+					inputFields: [
+						{
+							label: "Aufnahmediagnose",
+							type: "string",
+						},
+					],
+					textContext: {
+						diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+					},
+				},
+				{ context },
+			);
+
+			expect(result.fieldValues).toEqual({ test: "value" });
 		} finally {
 			await server.close();
 		}

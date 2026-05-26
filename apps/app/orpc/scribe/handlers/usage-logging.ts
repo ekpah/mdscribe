@@ -47,6 +47,7 @@ export const scheduleScribeUsageLogging = (input: {
 	modelConfig: ModelConfig;
 	modelName: string;
 	promptName: string;
+	reasoningEffort?: string;
 	timing?: UsageTiming;
 	usageMetadata?: Partial<UsageMetadata>;
 	thinkingEnabled: boolean;
@@ -67,14 +68,15 @@ export const scheduleScribeUsageLogging = (input: {
 						endpoint: input.endpoint,
 						modelConfig: {
 							maxTokens: input.modelConfig.maxTokens,
+							reasoningEffort: input.reasoningEffort,
 							temperature: input.modelConfig.temperature,
 						},
 						promptName: input.promptName,
 						promptSource: "local",
 						streamingMode: true,
 						...input.usageMetadata,
-						thinkingBudget: input.thinkingEnabled ? input.modelConfig.thinkingBudget : undefined,
 						thinkingEnabled: input.thinkingEnabled,
+						reasoningEffort: input.reasoningEffort,
 						zdrEnabled: input.activeSubscription,
 					} as UsageMetadata,
 					model: input.modelName,

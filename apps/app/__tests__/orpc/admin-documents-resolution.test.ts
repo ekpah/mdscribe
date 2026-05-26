@@ -48,9 +48,9 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 				model: seeded.modelId,
 				parameters: {
 					maxTokens: 512,
+					reasoningEffort: "medium",
 					temperature: 0.7,
 					thinking: true,
-					thinkingBudget: 8000,
 					thinkingExplicit: true,
 				},
 				providerId: seeded.providerId,

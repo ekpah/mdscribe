@@ -157,8 +157,8 @@ export const buildPlaygroundUrl = (event: UsageListEvent): string => {
 		}
 		if (metadata.thinkingEnabled) {
 			params.set("thinking", "true");
-			if (metadata.thinkingBudget !== undefined) {
-				params.set("thinkingBudget", String(metadata.thinkingBudget));
+			if (typeof metadata.reasoningEffort === "string") {
+				params.set("reasoningEffort", metadata.reasoningEffort);
 			}
 		}
 	}

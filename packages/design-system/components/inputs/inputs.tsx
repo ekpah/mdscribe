@@ -7,7 +7,7 @@ import type {
 import {
 	toBooleanValue,
 	toFormulaValue,
-	toVoiceBooleanValue,
+	toVoiceBooleanValue as toFillInputsBooleanValue,
 } from "@repo/markdoc-md/parse/boolean-coercion";
 import Formula from "fparser";
 import { Bot, Pencil, Sigma } from "lucide-react";
@@ -17,8 +17,12 @@ import { cn } from "@repo/design-system/lib/utils";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import { VoiceInputControls } from './voice-input-controls';
-import type { VoiceFillAudioFile } from './voice-input-controls';
+import { FillInputControls } from "./input-fill-controls";
+import type {
+	FillInputsAudioFile,
+	FillInputsContextFile,
+	FillInputsTextContext,
+} from "./input-fill-controls";
 import {
 	Tooltip,
 	TooltipContent,
@@ -29,26 +33,34 @@ import { normalizeDateValue } from "./ui/date-utils";
 import { InfoInput } from "./ui/info-input";
 import { SwitchInput } from "./ui/switch-input";
 
-export type { VoiceFillAudioFile } from "./voice-input-controls";
+export type { FillInputsAudioFile } from "./input-fill-controls";
+export type { FillInputsContextFile } from "./input-fill-controls";
+export type { FillInputsTextContext } from "./input-fill-controls";
 
 interface InputsProps {
 	inputTags: InputTagType[];
 	onChange: (data: Record<string, unknown>) => void;
-	showVoiceInput?: boolean;
-	onVoiceFill?: (
-		inputTags: InputTagType[],
-		audioFiles: VoiceFillAudioFile[],
-	) => Promise<VoiceFillResult>;
+	showFillInputs?: boolean;
+	textPanelPortalTarget?: HTMLElement | null;
+	onFillInputs?: (
+		inputFields: FillInputsInputField[],
+		audioFiles: FillInputsAudioFile[],
+		textContext: FillInputsTextContext,
+		contextFiles: FillInputsContextFile[],
+	) => Promise<FillInputsResult>;
 	suggestedValues?: Record<string, SuggestedValue>;
 	onSuggestedValuesChange?: (values: Record<string, SuggestedValue>) => void;
 }
 
-interface VoiceFillInputField {
+export interface FillInputsInputField {
 	label: string;
 	description?: string;
+	options?: string[];
+	unit?: string;
+	type?: InputMeta["type"];
 }
 
-type VoiceFillResult = Record<string, string>;
+type FillInputsResult = Record<string, boolean | number | string>;
 
 type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
 
@@ -59,13 +71,14 @@ interface SuggestedValue {
 }
 
 interface InputMeta {
+	options?: string[];
 	type: "string" | "number" | "date" | "switch" | "boolean";
 }
 
 type InputSource = "ai" | "manual";
 
-const collectVoiceInputFields = (inputTags: InputTagType[]) => {
-	const fields: VoiceFillInputField[] = [];
+const collectFillInputFields = (inputTags: InputTagType[]) => {
+	const fields: FillInputsInputField[] = [];
 	const meta = new Map<string, InputMeta>();
 	const seen = new Set<string>();
 
@@ -73,10 +86,12 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 		label: string | undefined,
 		description: string | undefined,
 		type: InputMeta["type"],
+		options?: string[],
+		unit?: string,
 	) => {
 		if (!label || seen.has(label)) {return;}
-		fields.push({ description, label });
-		meta.set(label, { type });
+		fields.push({ description, label, options, type, unit });
+		meta.set(label, { options, type });
 		seen.add(label);
 	};
 
@@ -86,6 +101,8 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 				input.attributes.primary,
 				input.attributes.description,
 				input.attributes.type ?? "string",
+				undefined,
+				input.attributes.unit,
 			);
 			for (const child of input.children ?? []) {
 				visit(child);
@@ -94,11 +111,14 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 		}
 
 		if (input.name === "Switch") {
+			const options = input.children
+				?.filter((child) => child.name === "Case" && child.attributes.primary)
+				.map((child) => child.attributes.primary);
 			const switchType =
 				input.attributes.type === "boolean" || input.attributes.type === "checkbox"
 					? "boolean"
 					: "switch";
-			pushField(input.attributes.primary, undefined, switchType);
+			pushField(input.attributes.primary, undefined, switchType, options);
 			for (const child of input.children ?? []) {
 				visit(child);
 			}
@@ -126,26 +146,35 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 	return { fields, meta };
 };
 
-const normalizeVoiceValue = (
-	value: string,
+const normalizeFillInputsValue = (
+	value: boolean | number | string,
 	meta?: InputMeta,
 ): string | number | boolean | undefined => {
 	if (!meta) {return value;}
 
 	if (meta.type === "number") {
-		const normalized = Number(value.replace(",", "."));
+		const normalized =
+			typeof value === "number" ? value : Number(String(value).replace(",", "."));
 		return Number.isNaN(normalized) ? undefined : normalized;
 	}
 
 	if (meta.type === "date") {
-		return normalizeDateValue(value);
+		return normalizeDateValue(String(value));
 	}
 
 	if (meta.type === "boolean") {
-		return toVoiceBooleanValue(value);
+		if (typeof value === "boolean") {
+			return value;
+		}
+		return toFillInputsBooleanValue(String(value));
 	}
 
-	return value;
+	if (meta.type === "switch") {
+		const stringValue = String(value);
+		return meta.options?.includes(stringValue) ? stringValue : undefined;
+	}
+
+	return String(value);
 };
 
 const toSwitchCaseKey = (value: unknown): string | undefined => {
@@ -462,8 +491,9 @@ const renderInputTag = (
 export default function Inputs({
 	inputTags = [],
 	onChange,
-	showVoiceInput = false,
-	onVoiceFill,
+	showFillInputs = false,
+	onFillInputs,
+	textPanelPortalTarget,
 	suggestedValues: suggestedValuesProp,
 	onSuggestedValuesChange,
 }: InputsProps) {
@@ -497,7 +527,7 @@ export default function Inputs({
 				const suggestedValue = suggestion.value;
 				const existingValue = nextValues[field];
 
-				if (isEmptyValue(existingValue)) {
+				if (isEmptyValue(existingValue) || nextSources[field] === "ai") {
 					nextValues[field] = suggestedValue;
 					nextSources[field] = "ai";
 					continue;
@@ -593,34 +623,43 @@ export default function Inputs({
 		return handlers;
 	}, [fieldKeys, handleApplySuggestion]);
 
-	const { fields: voiceInputFields, meta: voiceInputMeta } = useMemo(
-		() => collectVoiceInputFields(inputTags),
+	const { fields: fillInputFields, meta: fillInputMeta } = useMemo(
+		() => collectFillInputFields(inputTags),
 		[inputTags],
 	);
 
-	const handleVoiceFill = useCallback(async (audioFiles: VoiceFillAudioFile[]) => {
-		if (!onVoiceFill) {
+	const handleFillInputs = useCallback(async (
+		audioFiles: FillInputsAudioFile[],
+		textContext: FillInputsTextContext,
+		contextFiles: FillInputsContextFile[],
+	) => {
+		if (!onFillInputs) {
 			return;
 		}
 
-		if (voiceInputFields.length === 0) {
+		if (fillInputFields.length === 0) {
 			toast.error("Keine Eingabefelder verfügbar");
 			return;
 		}
 
-		toast.loading("Felder werden mit Spracheingabe ausgefüllt...", {
-			id: "voice-fill",
+		toast.loading("Felder werden ausgefüllt...", {
+			id: "fill-inputs",
 		});
 
 		try {
-			const fieldValues = await onVoiceFill(inputTags, audioFiles);
+			const fieldValues = await onFillInputs(
+				fillInputFields,
+				audioFiles,
+				textContext,
+				contextFiles,
+			);
 
 			let nextSuggestions = { ...stateRef.current.suggestedValues };
 
 			for (const [field, value] of Object.entries(fieldValues)) {
-				const normalizedValue = normalizeVoiceValue(
+				const normalizedValue = normalizeFillInputsValue(
 					value,
-					voiceInputMeta.get(field),
+					fillInputMeta.get(field),
 				);
 				if (
 					normalizedValue === undefined ||
@@ -639,30 +678,30 @@ export default function Inputs({
 			applySuggestions(nextSuggestions);
 			onSuggestedValuesChange?.(nextSuggestions);
 
-			toast.success("Felder mit Spracheingabe ausgefüllt", {
-				id: "voice-fill",
+			toast.success("Felder ausgefüllt", {
+				id: "fill-inputs",
 			});
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unbekannter Fehler";
-			toast.error(`Sprachausfüllung fehlgeschlagen: ${errorMessage}`, {
-				id: "voice-fill",
+			toast.error(`Ausfüllen fehlgeschlagen: ${errorMessage}`, {
+				id: "fill-inputs",
 			});
 		}
 	}, [
 		applySuggestions,
 		inputTags,
 		onSuggestedValuesChange,
-		onVoiceFill,
-		voiceInputFields.length,
-		voiceInputMeta,
+		onFillInputs,
+		fillInputFields.length,
+		fillInputMeta,
 	]);
 
 	if (inputTags.length === 0 || !inputTags) {
 		return null;
 	}
 
-	const shouldShowVoiceInput = Boolean(showVoiceInput && onVoiceFill);
+	const shouldShowFillInputs = Boolean(showFillInputs && onFillInputs);
 	const renderContext: RenderContext = {
 		applySuggestionHandlers,
 		changeHandlers,
@@ -680,11 +719,12 @@ export default function Inputs({
 			>
 				{inputTags.map((inputTag) => renderInputTag(inputTag, renderContext))}
 			</div>
-			{/* Fixed voice input footer */}
-			{shouldShowVoiceInput && (
-				<VoiceInputControls
+			{/* Fixed autofill footer */}
+			{shouldShowFillInputs && (
+				<FillInputControls
 					className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
-					onSubmit={handleVoiceFill}
+					onSubmit={handleFillInputs}
+					textPanelPortalTarget={textPanelPortalTarget}
 				/>
 			)}
 		</form>

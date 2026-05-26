@@ -6,23 +6,42 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@repo/design-system/components/ui/accordion";
+import { Button } from "@repo/design-system/components/ui/button";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { Slider } from "@repo/design-system/components/ui/slider";
-import { Switch } from "@repo/design-system/components/ui/switch";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
+import { cn } from "@repo/design-system/lib/utils";
 import { Brain, HelpCircle, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
-import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
+import type {
+	PlaygroundModel,
+	PlaygroundParameters,
+	ReasoningEffort,
+} from "@/app/admin/playground/_lib/types";
 
 const supportsThinking = (model: PlaygroundModel): boolean =>
 	model.supportsReasoning === true ||
-	model.supported_parameters.includes("reasoning");
+	(model.supported_parameters ?? []).includes("reasoning") ||
+	Boolean(model.supportedParameters?.includes("reasoning"));
+
+const REASONING_EFFORT_OPTIONS: Array<{
+	label: string;
+	value: ReasoningEffort;
+	description: string;
+}> = [
+	{ description: "Reasoning aus", label: "Aus", value: "none" },
+	{ description: "ca. 10%", label: "Minimal", value: "minimal" },
+	{ description: "ca. 20%", label: "Low", value: "low" },
+	{ description: "ca. 50%", label: "Medium", value: "medium" },
+	{ description: "ca. 80%", label: "High", value: "high" },
+	{ description: "ca. 95%", label: "XHigh", value: "xhigh" },
+];
 
 interface ParameterControlsProps {
 	parameters: PlaygroundParameters;
@@ -31,7 +50,7 @@ interface ParameterControlsProps {
 	disabled?: boolean;
 }
 
-type DirectEditParameter = "maxTokens" | "temperature" | "thinkingBudget";
+type DirectEditParameter = "maxTokens" | "temperature";
 
 export const ParameterControls = ({
 	parameters,
@@ -45,7 +64,6 @@ export const ParameterControls = ({
 	const [directValueDrafts, setDirectValueDrafts] = useState<Record<DirectEditParameter, string>>({
 		maxTokens: String(parameters.maxTokens),
 		temperature: String(parameters.temperature),
-		thinkingBudget: String(parameters.thinkingBudget),
 	});
 	const clampNumber = useCallback(
 		(value: number, min: number, max: number) =>
@@ -64,15 +82,10 @@ export const ParameterControls = ({
 					activeDirectEdit === "temperature"
 						? previous.temperature
 						: String(parameters.temperature),
-				thinkingBudget:
-					activeDirectEdit === "thinkingBudget"
-						? previous.thinkingBudget
-						: String(parameters.thinkingBudget),
 			};
 			if (
 				next.maxTokens === previous.maxTokens &&
-				next.temperature === previous.temperature &&
-				next.thinkingBudget === previous.thinkingBudget
+				next.temperature === previous.temperature
 			) {
 				return previous;
 			}
@@ -82,7 +95,6 @@ export const ParameterControls = ({
 		activeDirectEdit,
 		parameters.maxTokens,
 		parameters.temperature,
-		parameters.thinkingBudget,
 	]);
 
 	const updateParam = useCallback(<K extends keyof PlaygroundParameters>(
@@ -92,18 +104,15 @@ export const ParameterControls = ({
 		onChange({ ...parameters, [key]: value });
 	}, [onChange, parameters]);
 
-	const handleThinkingChange = useCallback((checked: boolean) => {
+	const handleReasoningEffortChange = useCallback((reasoningEffort: ReasoningEffort) => {
 		onChange({
 			...parameters,
-			thinking: checked,
+			reasoningEffort,
+			thinking: reasoningEffort !== "none",
 			thinkingExplicit: true,
 		});
 	}, [onChange, parameters]);
 
-	const handleThinkingBudgetChange = useCallback((values: number[]) => {
-		const [value] = values;
-		updateParam("thinkingBudget", value);
-	}, [updateParam]);
 	const handleTemperatureChange = useCallback((values: number[]) => {
 		const [value] = values;
 		updateParam("temperature", value);
@@ -125,18 +134,6 @@ export const ParameterControls = ({
 	}, []);
 
 	const commitDirectEdit = useCallback((key: DirectEditParameter) => {
-		if (key === "thinkingBudget") {
-			const parsed = Number.parseInt(directValueDrafts.thinkingBudget, 10);
-			if (Number.isNaN(parsed)) {
-				setDirectDraft("thinkingBudget", String(parameters.thinkingBudget));
-				return;
-			}
-			const clamped = clampNumber(parsed, 1000, 50_000);
-			updateParam("thinkingBudget", clamped);
-			setDirectDraft("thinkingBudget", String(clamped));
-			return;
-		}
-
 		if (key === "temperature") {
 			const parsed = Number.parseFloat(directValueDrafts.temperature);
 			if (Number.isNaN(parsed)) {
@@ -161,25 +158,19 @@ export const ParameterControls = ({
 		clampNumber,
 		directValueDrafts.maxTokens,
 		directValueDrafts.temperature,
-		directValueDrafts.thinkingBudget,
 		parameters.maxTokens,
 		parameters.temperature,
-		parameters.thinkingBudget,
 		setDirectDraft,
 		updateParam,
 	]);
 
 	const cancelDirectEdit = useCallback((key: DirectEditParameter) => {
-		if (key === "thinkingBudget") {
-			setDirectDraft("thinkingBudget", String(parameters.thinkingBudget));
-			return;
-		}
 		if (key === "temperature") {
 			setDirectDraft("temperature", String(parameters.temperature));
 			return;
 		}
 		setDirectDraft("maxTokens", String(parameters.maxTokens));
-	}, [parameters.maxTokens, parameters.temperature, parameters.thinkingBudget, setDirectDraft]);
+	}, [parameters.maxTokens, parameters.temperature, setDirectDraft]);
 
 	const handleDirectEditBlur = useCallback((key: DirectEditParameter) => {
 		commitDirectEdit(key);
@@ -253,14 +244,14 @@ export const ParameterControls = ({
 
 	return (
 		<div className="space-y-4">
-			{/* Thinking Mode (prominent if supported) */}
+			{/* Reasoning Effort (prominent if supported) */}
 			{thinkingSupported && (
-				<div className="rounded-lg border border-solarized-violet/30 bg-solarized-violet/10 p-3">
-					<div className="flex items-center justify-between">
+				<div className="rounded-lg border border-primary/40 bg-accent p-3">
+					<div className="space-y-3">
 						<div className="flex items-center gap-2">
-							<Brain className="h-4 w-4 text-solarized-violet" />
+							<Brain className="h-4 w-4 text-primary" />
 							<Label className="font-medium text-solarized-base00">
-								Thinking Mode
+								Reasoning Effort Level
 							</Label>
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -268,61 +259,50 @@ export const ParameterControls = ({
 								</TooltipTrigger>
 								<TooltipContent className="max-w-[250px]">
 									<p>
-										Aktiviert den Reasoning-Modus des Modells fuer komplexere
-										Aufgaben. Das Modell zeigt seinen Denkprozess.
+										OpenRouter ordnet den Effort-Level auf passende Reasoning-Tokens
+										oder native Thinking-Level des Modells ab.
 									</p>
 								</TooltipContent>
 							</Tooltip>
 						</div>
-							<Switch
-								checked={parameters.thinking}
-								onCheckedChange={handleThinkingChange}
-								disabled={disabled}
-							/>
-					</div>
-
-					{parameters.thinking && (
-						<div className="mt-3 space-y-2">
-							<div className="flex items-center justify-between">
-								<Label className="text-sm text-solarized-base01">
-									Thinking Budget
-								</Label>
-								<div className="flex items-center gap-2">
-									<Input
-										type="number"
-										value={directValueDrafts.thinkingBudget}
-										onChange={(event) => {
-											setDirectDraft("thinkingBudget", event.target.value);
-										}}
-										onFocus={() => {
-											handleDirectEditFocus("thinkingBudget");
-										}}
-										onBlur={() => {
-											handleDirectEditBlur("thinkingBudget");
-										}}
-										onKeyDown={(event) => {
-											handleDirectEditKeyDown("thinkingBudget", event);
-										}}
-										min={1000}
-										max={50_000}
-										step={1000}
+						<div className="grid grid-cols-3 overflow-hidden rounded-md border border-solarized-base2 sm:grid-cols-6">
+							{REASONING_EFFORT_OPTIONS.map((option) => {
+								const isSelected = parameters.reasoningEffort === option.value;
+								return (
+									<Button
+										key={option.value}
+										type="button"
+										variant="ghost"
+										size="sm"
+										aria-pressed={isSelected}
 										disabled={disabled}
-										className="h-7 w-28 text-right font-mono text-sm"
-									/>
-									<span className="text-xs text-solarized-base01">tokens</span>
-								</div>
-							</div>
-								<Slider
-									value={[parameters.thinkingBudget]}
-									onValueChange={handleThinkingBudgetChange}
-								min={1000}
-								max={50_000}
-								step={1000}
-								disabled={disabled}
-								className="w-full"
-							/>
+										onClick={() => {
+											handleReasoningEffortChange(option.value);
+										}}
+										className={cn(
+											"h-auto min-w-0 flex-col gap-0.5 rounded-none border-solarized-base2 border-l px-2 py-2 text-xs first:border-l-0 hover:bg-primary/10 hover:text-primary",
+											isSelected &&
+												"border-primary/40 bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary",
+										)}
+									>
+										<span>{option.label}</span>
+										<span
+											className={cn(
+												"font-normal text-[10px] text-solarized-base01",
+												isSelected && "text-primary/80",
+											)}
+										>
+											{option.description}
+										</span>
+									</Button>
+								);
+							})}
 						</div>
-					)}
+						<p className="text-solarized-base01 text-xs">
+							Aus deaktiviert Reasoning. OpenRouter mappt Effort-Level bei Bedarf auf
+							ein Token-Budget.
+						</p>
+					</div>
 				</div>
 			)}
 

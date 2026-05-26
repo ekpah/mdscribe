@@ -24,9 +24,20 @@ const PROVIDER_PROTOCOLS = ["openai-compatible", "openrouter", "openai", "anthro
 
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
+const normalizeSupportedParameters = (parameters: unknown[] | undefined): string[] =>
+	Array.from(
+		new Set(
+			(parameters ?? [])
+				.filter((parameter): parameter is string => typeof parameter === "string")
+				.map((parameter) => parameter.trim())
+				.filter(Boolean),
+		),
+	).toSorted();
+
 interface FetchedProviderModel {
 	modelId: string;
 	displayName: string;
+	supportedParameters: string[];
 	supportsReasoning: boolean;
 	inputModes: InputMode[];
 }
@@ -166,12 +177,16 @@ const fetchProviderModels = async (
 			}[];
 		};
 
-		return (body.data ?? []).map((model) => ({
-			displayName: model.display_name ?? model.name ?? model.id,
-			inputModes: parseOpenRouterInputModes(model.architecture?.modality),
-			modelId: model.id,
-			supportsReasoning: (model.supported_parameters ?? []).includes("reasoning"),
-		}));
+		return (body.data ?? []).map((model) => {
+			const supportedParameters = normalizeSupportedParameters(model.supported_parameters);
+			return {
+				displayName: model.display_name ?? model.name ?? model.id,
+				inputModes: parseOpenRouterInputModes(model.architecture?.modality),
+				modelId: model.id,
+				supportedParameters,
+				supportsReasoning: supportedParameters.includes("reasoning"),
+			};
+		});
 	}
 
 	if (config.protocol === "anthropic") {
@@ -199,6 +214,7 @@ const fetchProviderModels = async (
 			displayName: model.display_name ?? model.id,
 			inputModes: inferInputModesFromModelId(model.id),
 			modelId: model.id,
+			supportedParameters: [],
 			supportsReasoning: false,
 		}));
 	}
@@ -229,6 +245,7 @@ const fetchProviderModels = async (
 				displayName: model.display_name ?? model.name ?? model.id,
 				inputModes: inferInputModesFromModelId(model.id),
 				modelId: model.id,
+				supportedParameters: [],
 				supportsReasoning: false,
 			}));
 	}
@@ -256,6 +273,7 @@ const fetchProviderModels = async (
 		displayName: model.display_name ?? model.name ?? model.id,
 		inputModes: inferInputModesFromModelId(model.id),
 		modelId: model.id,
+		supportedParameters: [],
 		supportsReasoning: false,
 	}));
 };
@@ -267,9 +285,12 @@ const syncFetchedModelsForProvider = async (
 ): Promise<{ inserted: number; updated: number; removed: number }> => {
 	const deduped = new Map<string, FetchedProviderModel>();
 	for (const model of fetchedModels) {
+		const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
 		deduped.set(model.modelId, {
 			...model,
 			inputModes: normalizeInputModes(model.inputModes),
+			supportedParameters,
+			supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
 		});
 	}
 
@@ -291,19 +312,28 @@ const syncFetchedModelsForProvider = async (
 				inputModes: model.inputModes,
 				modelId: model.modelId,
 				providerId,
+				supportedParameters: model.supportedParameters,
 				supportsReasoning: model.supportsReasoning,
 			});
 			inserted += 1;
 			continue;
 		}
 
+		const existingSupportedParameters = normalizeSupportedParameters(
+			existing.supportedParameters,
+		);
+		const existingSupportsReasoning =
+			existing.supportsReasoning || existingSupportedParameters.includes("reasoning");
 		const sameDisplayName = existing.displayName === model.displayName;
-		const sameSupportsReasoning = existing.supportsReasoning === model.supportsReasoning;
+		const sameSupportedParameters =
+			JSON.stringify(existingSupportedParameters) ===
+			JSON.stringify([...model.supportedParameters].toSorted());
+		const sameSupportsReasoning = existingSupportsReasoning === model.supportsReasoning;
 		const sameInputModes =
 			JSON.stringify([...existing.inputModes].toSorted()) ===
 			JSON.stringify([...model.inputModes].toSorted());
 
-		if (sameDisplayName && sameSupportsReasoning && sameInputModes) {
+		if (sameDisplayName && sameSupportedParameters && sameSupportsReasoning && sameInputModes) {
 			continue;
 		}
 
@@ -312,6 +342,7 @@ const syncFetchedModelsForProvider = async (
 			.set({
 				displayName: model.displayName,
 				inputModes: model.inputModes,
+				supportedParameters: model.supportedParameters,
 				supportsReasoning: model.supportsReasoning,
 			})
 			.where(eq(aiModel.id, existing.id));
@@ -358,10 +389,16 @@ const listProvidersHandler = admin.handler(async ({ context }) => {
 		...provider,
 		apiKey: undefined,
 		hasApiKey: !!provider.apiKey,
-		models: provider.models.map((model) => ({
-			...model,
-			inputModes: resolveInputModes(model.inputModes, model.modelId),
-		})),
+		models: provider.models.map((model) => {
+			const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
+			return {
+				...model,
+				inputModes: resolveInputModes(model.inputModes, model.modelId),
+				supportedParameters,
+				supportsReasoning:
+					model.supportsReasoning || supportedParameters.includes("reasoning"),
+			};
+		}),
 	}));
 });
 
@@ -554,6 +591,7 @@ const createModelInput = z.object({
 	inputModes: z.array(z.enum(["text", "audio", "file", "image"])).default(["text"]),
 	modelId: z.string().min(1),
 	providerId: z.string(),
+	supportedParameters: z.array(z.string()).default([]),
 	supportsReasoning: z.boolean().default(false),
 });
 
@@ -561,6 +599,7 @@ const createModelHandler = admin
 	.input(type<z.infer<typeof createModelInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = createModelInput.parse(input);
+		const supportedParameters = normalizeSupportedParameters(parsed.supportedParameters);
 		const [model] = await context.db
 			.insert(aiModel)
 			.values({
@@ -569,7 +608,9 @@ const createModelHandler = admin
 				inputModes: normalizeInputModes(parsed.inputModes),
 				modelId: parsed.modelId,
 				providerId: parsed.providerId,
-				supportsReasoning: parsed.supportsReasoning,
+				supportedParameters,
+				supportsReasoning:
+					parsed.supportsReasoning || supportedParameters.includes("reasoning"),
 			})
 			.returning();
 
@@ -581,6 +622,7 @@ const updateModelInput = z.object({
 	id: z.string(),
 	inputModes: z.array(z.enum(["text", "audio", "file", "image"])).optional(),
 	modelId: z.string().min(1).optional(),
+	supportedParameters: z.array(z.string()).optional(),
 	supportsReasoning: z.boolean().optional(),
 });
 
@@ -588,13 +630,19 @@ const updateModelHandler = admin
 	.input(type<z.infer<typeof updateModelInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = updateModelInput.parse(input);
+		const supportedParameters = parsed.supportedParameters
+			? normalizeSupportedParameters(parsed.supportedParameters)
+			: undefined;
 		const [model] = await context.db
 			.update(aiModel)
 			.set({
 				displayName: parsed.displayName,
 				inputModes: parsed.inputModes ? normalizeInputModes(parsed.inputModes) : undefined,
 				modelId: parsed.modelId,
-				supportsReasoning: parsed.supportsReasoning,
+				supportedParameters,
+				supportsReasoning:
+					parsed.supportsReasoning ??
+					(supportedParameters ? supportedParameters.includes("reasoning") : undefined),
 			})
 			.where(eq(aiModel.id, parsed.id))
 			.returning();

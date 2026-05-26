@@ -58,7 +58,8 @@ const documentTypeLabels: Record<DocumentType, string> = {
 /** Readable German labels for usage event names */
 const eventNameLabels: Record<string, string> = {
 	admin_scribe_playground: "Playground-Generierung",
-	ai_input_voice_fill: "Spracheingabe verarbeitet",
+	ai_input_fill: "Eingaben ausgefüllt",
+	ai_input_fill_inputs: "Eingaben ausgefüllt",
 	ai_pdf_form_parsing: "PDF-Formular analysiert",
 	ai_scribe_generation: "KI-Dokumentation generiert",
 };
@@ -257,7 +258,7 @@ export default async function DashboardPage() {
 			if (endpoint && documentTypeLabels[endpoint]) {
 				title = documentTypeLabels[endpoint];
 			}
-		} else if (event.name === "ai_input_voice_fill") {
+		} else if (event.name === "ai_input_fill" || event.name === "ai_input_fill_inputs") {
 			icon = FileCheck;
 		} else if (event.name === "ai_pdf_form_parsing") {
 			icon = FileText;

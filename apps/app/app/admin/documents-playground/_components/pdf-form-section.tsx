@@ -335,14 +335,14 @@ const PDFFormSection = () => {
 		}),
 	);
 
-	// Voice fill mutation
-	const voiceFillMutation = useMutation(
-		orpc.scribe.voiceFill.mutationOptions({
+	// Fill inputs mutation
+	const fillInputsMutation = useMutation(
+		orpc.scribe.fillInputs.mutationOptions({
 			onError: (error) => {
 				const errorMessage =
 					error instanceof Error ? error.message : "Unbekannter Fehler aufgetreten";
 				toast.error(`Sprachausfüllung fehlgeschlagen: ${errorMessage}`, {
-					id: "voice-fill",
+					id: "fill-inputs",
 				});
 			},
 			onSuccess: (data) => {
@@ -361,7 +361,7 @@ const PDFFormSection = () => {
 				// Clear audio recordings after successful fill
 				setAudioRecordings([]);
 				toast.success("Felder mit Spracheingabe ausgefüllt", {
-					id: "voice-fill",
+					id: "fill-inputs",
 				});
 			},
 		}),
@@ -623,7 +623,7 @@ const PDFFormSection = () => {
 		return "Audioaufnahme starten";
 	})();
 
-	const handleVoiceFill = useCallback(async () => {
+	const handleFillInputs = useCallback(async () => {
 		if (audioRecordings.length === 0) {
 			toast.error("Bitte zuerst Audio aufnehmen");
 			return;
@@ -635,7 +635,7 @@ const PDFFormSection = () => {
 		}
 
 		toast.loading("Felder werden mit Spracheingabe ausgefüllt...", {
-			id: "voice-fill",
+			id: "fill-inputs",
 		});
 
 		// Convert audio blobs to base64
@@ -649,9 +649,15 @@ const PDFFormSection = () => {
 		const inputFields: InputField[] = fieldMapping.map((field) => ({
 			description: field.description,
 			label: field.label,
+			options: field.inputKind === "boolean" ? ["true", "false"] : field.options,
+			type: field.inputKind === "boolean"
+				? "boolean"
+				: field.inputKind === "choice"
+					? "switch"
+					: field.valueType,
 		}));
-		voiceFillMutation.mutate({ audioFiles, inputFields });
-	}, [audioRecordings, fieldMapping, voiceFillMutation]);
+		fillInputsMutation.mutate({ audioFiles, inputFields });
+	}, [audioRecordings, fieldMapping, fillInputsMutation]);
 
 	const handlePreviewTabValueChange = useCallback((value: string) => {
 		setActivePreviewTab(value as "pdf" | "markdown");
@@ -732,14 +738,14 @@ const PDFFormSection = () => {
 								</div>
 							)}
 
-							{/* Voice Fill Button */}
+							{/* Audio Fill Button */}
 							<Button
 								className="w-full"
-								disabled={audioRecordings.length === 0 || voiceFillMutation.isPending}
-								onClick={handleVoiceFill}
+								disabled={audioRecordings.length === 0 || fillInputsMutation.isPending}
+								onClick={handleFillInputs}
 								variant="default"
 							>
-								{voiceFillMutation.isPending ? (
+								{fillInputsMutation.isPending ? (
 									"Wird ausgefüllt..."
 								) : (
 									<>

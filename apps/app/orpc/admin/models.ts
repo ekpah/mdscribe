@@ -52,6 +52,7 @@ interface PlaygroundModel {
 	};
 	capabilities: ModelCapabilities;
 	supported_parameters: string[];
+	supportedParameters: string[];
 	inputModes: string[];
 	supportsReasoning: boolean;
 }
@@ -76,6 +77,9 @@ const toModality = (inputModes: string[]): string => {
 	return `${inputs.join("+")}->text`;
 };
 
+const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
+	parameters ?? [];
+
 const listModelsHandler = authed
 	.use(requiredAdminMiddleware)
 	.handler(async ({ context }) => {
@@ -88,6 +92,11 @@ const listModelsHandler = authed
 		for (const provider of providers) {
 			for (const model of provider.models) {
 				const capabilities = toCapabilities(model.inputModes);
+				const supportedParameters = normalizeSupportedParameters(
+					model.supportedParameters,
+				);
+				const supportsReasoning =
+					model.supportsReasoning || supportedParameters.includes("reasoning");
 				models.push({
 					architecture: {
 						modality: toModality(model.inputModes),
@@ -105,8 +114,9 @@ const listModelsHandler = authed
 					providerId: provider.id,
 					providerName: provider.name,
 					providerProtocol: provider.protocol,
-					supported_parameters: model.supportsReasoning ? ["reasoning"] : [],
-					supportsReasoning: model.supportsReasoning,
+					supported_parameters: supportedParameters,
+					supportedParameters,
+					supportsReasoning,
 				});
 			}
 		}

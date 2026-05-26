@@ -17,6 +17,7 @@ interface ResolvedModel {
 	model: LanguageModel;
 	modelName: string;
 	providerId: string;
+	supportedParameters: string[];
 	supportsReasoning: boolean;
 	inputModes: InputMode[];
 	isOpenRouter: boolean;
@@ -29,6 +30,9 @@ interface ResolveModelOptions {
 
 type AiModelRow = typeof aiModel.$inferSelect;
 type AiProviderRow = typeof aiProvider.$inferSelect;
+
+const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
+	parameters ?? [];
 
 const createProviderModel = (
 	protocol: string,
@@ -78,6 +82,7 @@ const buildResolvedModel = async (
 		apiKey,
 		provider.baseUrl,
 	);
+	const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
 
 	return {
 		inputModes: resolveInputModes(model.inputModes, model.modelId),
@@ -85,7 +90,8 @@ const buildResolvedModel = async (
 		model: languageModel,
 		modelName: model.modelId,
 		providerId: provider.id,
-		supportsReasoning: model.supportsReasoning,
+		supportedParameters,
+		supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
 	};
 };
 

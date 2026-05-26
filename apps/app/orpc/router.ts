@@ -55,8 +55,8 @@ export const router = {
 
 	// AI document generation
 	scribe: {
-		voiceFill: lazy(async () => ({
-			default: (await import("./scribe")).voiceFillHandler,
+		fillInputs: lazy(async () => ({
+			default: (await import("./scribe/handlers/fill-inputs")).fillInputsHandler,
 		})),
 	},
 	scribeForms: lazy(async () => ({

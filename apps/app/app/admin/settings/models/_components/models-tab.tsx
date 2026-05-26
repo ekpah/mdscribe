@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@repo/design-system/components/ui/badge";
 import {
 	Card,
 	CardContent,
@@ -21,6 +22,7 @@ interface AiModelData {
 	providerId: string;
 	modelId: string;
 	displayName: string;
+	supportedParameters?: string[];
 	supportsReasoning: boolean;
 	inputModes: string[];
 }
@@ -97,6 +99,17 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 			value: model.id,
 		})),
 	);
+	const syncedModelPreview = connections
+		.flatMap((provider) =>
+			provider.models.map((model) => ({
+				model: {
+					...model,
+					supportedParameters: model.supportedParameters ?? [],
+				},
+				provider,
+			})),
+		)
+		.slice(0, 50);
 	const selectorOptions = makeSelectorOptions(enabledModelOptions);
 
 	const isUpdatingDefaults = isDefaultsLoading || setDefaultMutation.isPending;
@@ -241,6 +254,64 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 					prüfen und Modelle aktualisieren.
 				</p>
 			)}
+
+			{enabledModelOptions.length > 0 ? (
+				<Card className="border-solarized-base2">
+					<CardHeader className="p-4 sm:p-6">
+						<CardTitle className="text-base text-solarized-base00">
+							Modellparameter
+						</CardTitle>
+						<CardDescription className="text-solarized-base01 text-sm">
+							Synchronisierte OpenRouter-Parameter pro Modell.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
+						{syncedModelPreview.map(({ model, provider }) => {
+							const supportedParameters = model.supportedParameters ?? [];
+							return (
+								<div
+									key={model.id}
+									className="flex flex-col gap-2 rounded-md border border-solarized-base2 bg-solarized-base3/40 p-3 sm:flex-row sm:items-center sm:justify-between"
+								>
+									<div className="min-w-0">
+										<p className="truncate font-medium text-sm text-solarized-base00">
+											{model.displayName}
+										</p>
+										<p className="truncate font-mono text-solarized-base01 text-xs">
+											{provider.name} · {model.modelId}
+										</p>
+									</div>
+									<div className="flex flex-wrap gap-1">
+										{supportedParameters.length > 0 ? (
+											supportedParameters.slice(0, 8).map((parameter) => (
+												<Badge
+													key={parameter}
+													variant="outline"
+													className="border-solarized-base2 text-solarized-base01"
+												>
+													{parameter}
+												</Badge>
+											))
+										) : (
+											<Badge
+												variant="outline"
+												className="border-solarized-base2 text-solarized-base01"
+											>
+												Keine Angaben
+											</Badge>
+										)}
+									</div>
+								</div>
+							);
+						})}
+						{enabledModelOptions.length > syncedModelPreview.length ? (
+							<p className="text-solarized-base01 text-xs">
+								... und {enabledModelOptions.length - syncedModelPreview.length} weitere Modelle
+							</p>
+						) : null}
+					</CardContent>
+				</Card>
+			) : null}
 		</div>
 	);
 };
