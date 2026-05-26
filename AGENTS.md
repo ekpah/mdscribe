@@ -131,6 +131,8 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - Schema: `AiProvider` with `AiModel.providerId` FK. Encrypted credentials in `apiKey` column.
 - Resolver: `resolveProviderModel(...)`. OpenAI-compatible requires explicit base URL — no fallbacks.
 - Sync provider models into `AiModel` on creation and manual refresh. `(providerId, modelId)` as sync key. DB is authoritative.
+- Store OpenRouter `supported_parameters` on `AiModel.supportedParameters`; UI parameter controls should use this capability list instead of reconstructing fake support from booleans.
+- Treat `supportedParameters` as optional at API/UI boundaries and normalize it to `[]`; older query-cache payloads or pre-sync rows may not include the field yet.
 - Playground reads models from DB, not live API fetches. Model selector uses shadcn `Select`.
 - Admin settings: `/admin/settings/models` — vertical tabs `Verbindungen` + `Modelle`. Validate connectivity before creating provider.
 
