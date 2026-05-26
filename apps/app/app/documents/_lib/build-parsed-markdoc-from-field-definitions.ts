@@ -15,6 +15,10 @@ const normalizeFieldDefinition = (field: DocumentFieldDefinition): DocumentField
 		label: field.label.trim(),
 		markdocType: isSwitch ? "Switch" : "Info",
 		options,
+		textCheckboxValue:
+			field.pdfType === "text" && field.inputKind === "boolean"
+				? field.textCheckboxValue?.trim() || "x"
+				: field.textCheckboxValue,
 		valueType: isSwitch ? "string" : field.valueType,
 	};
 };
@@ -47,6 +51,7 @@ const validateFieldDefinitions = (fields: DocumentFieldDefinition[]): string[] =
 			field.description,
 			field.inputKind,
 			field.markdocType,
+			field.textCheckboxValue,
 			field.valueType,
 			field.pdfType,
 			field.options,

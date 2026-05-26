@@ -5,6 +5,7 @@ import { documentTemplate, eq } from "@repo/database";
 
 import type { TestServer } from "@/__tests__/setup";
 import {
+	ADMIN_EMAIL,
 	createMockSession,
 	createTestContext,
 	createTestUser,
@@ -56,7 +57,7 @@ describe("documents.templates handlers", () => {
 	});
 
 	test("create persists pdfBytes and fieldDefinitions", async () => {
-		const { user } = await createTestUser(server.db, { email: "author@test.com" });
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
@@ -85,7 +86,7 @@ describe("documents.templates handlers", () => {
 	});
 
 	test("list and get exclude raw pdf bytes", async () => {
-		const { user } = await createTestUser(server.db, { email: "author@test.com" });
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const authedContext = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
@@ -102,9 +103,8 @@ describe("documents.templates handlers", () => {
 			{ context: authedContext },
 		);
 
-		const pubContext = createTestContext({ db: server.db });
 		const list = await call(documentsHandler.templates.list, undefined, {
-			context: pubContext,
+			context: authedContext,
 		});
 		const foundInList = list.find((item) => item.id === created.id);
 		expect(foundInList).toBeDefined();
@@ -113,14 +113,14 @@ describe("documents.templates handlers", () => {
 		const detail = await call(
 			documentsHandler.templates.get,
 			{ id: created.id },
-			{ context: pubContext },
+			{ context: authedContext },
 		);
 		expect(detail).not.toBeNull();
 		expect("pdfBytes" in (detail as Record<string, unknown>)).toBe(false);
 	});
 
 	test("getPdf returns decodable base64", async () => {
-		const { user } = await createTestUser(server.db, { email: "author@test.com" });
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
@@ -137,18 +137,14 @@ describe("documents.templates handlers", () => {
 			{ context },
 		);
 
-		const pdf = await call(
-			documentsHandler.templates.getPdf,
-			{ id: created.id },
-			{ context: createTestContext({ db: server.db }) },
-		);
+		const pdf = await call(documentsHandler.templates.getPdf, { id: created.id }, { context });
 		expect(pdf).not.toBeNull();
 		const decoded = new Uint8Array(Buffer.from(pdf?.pdfBase64 ?? "", "base64"));
 		expect(Array.from(decoded)).toEqual(Array.from(pdfBytes));
 	});
 
 	test("getPdf returns distinct bytes per document", async () => {
-		const { user } = await createTestUser(server.db, { email: "author@test.com" });
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
@@ -179,17 +175,8 @@ describe("documents.templates handlers", () => {
 			{ context },
 		);
 
-		const pubContext = createTestContext({ db: server.db });
-		const firstPdf = await call(
-			documentsHandler.templates.getPdf,
-			{ id: first.id },
-			{ context: pubContext },
-		);
-		const secondPdf = await call(
-			documentsHandler.templates.getPdf,
-			{ id: second.id },
-			{ context: pubContext },
-		);
+		const firstPdf = await call(documentsHandler.templates.getPdf, { id: first.id }, { context });
+		const secondPdf = await call(documentsHandler.templates.getPdf, { id: second.id }, { context });
 
 		expect(firstPdf).not.toBeNull();
 		expect(secondPdf).not.toBeNull();
@@ -204,7 +191,7 @@ describe("documents.templates handlers", () => {
 	});
 
 	test("update preserves pdf when no replacement is sent", async () => {
-		const { user } = await createTestUser(server.db, { email: "author@test.com" });
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
@@ -247,9 +234,9 @@ describe("documents.templates handlers", () => {
 		);
 	});
 
-	test("update rejects non-authors", async () => {
+	test("update rejects non-admin users", async () => {
 		const { user: owner } = await createTestUser(server.db, {
-			email: "owner@test.com",
+			email: ADMIN_EMAIL,
 		});
 		const { user: other } = await createTestUser(server.db, {
 			email: "other@test.com",
@@ -291,7 +278,7 @@ describe("documents.templates handlers", () => {
 	});
 
 	test("duplicate labels are allowed when configuration matches", async () => {
-		const { user } = await createTestUser(server.db, { email: "author@test.com" });
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
@@ -347,7 +334,7 @@ describe("documents.templates handlers", () => {
 	});
 
 	test("duplicate labels with conflicting configuration are rejected", async () => {
-		const { user } = await createTestUser(server.db, { email: "author@test.com" });
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
@@ -393,7 +380,7 @@ describe("documents.templates handlers", () => {
 	});
 
 	test("disabled fields are omitted from derived parsedMarkdoc", async () => {
-		const { user } = await createTestUser(server.db, { email: "author@test.com" });
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),

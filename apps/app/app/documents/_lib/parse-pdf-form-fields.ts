@@ -5,6 +5,7 @@ import type { DocumentFieldDefinition, DocumentInputKind, DocumentPdfType } from
 export interface PDFField {
 	inputKind: DocumentInputKind;
 	label: string;
+	maxLength?: number;
 	name: string;
 	options?: string[];
 	type: DocumentPdfType;
@@ -12,6 +13,7 @@ export interface PDFField {
 }
 
 interface PDFFormField {
+	getMaxLength?: () => number | undefined;
 	getOptions?: () => string[];
 	getSelected?: () => string | string[];
 	getText?: () => string;
@@ -45,6 +47,7 @@ interface PdfLibWidget {
 const parseTextField = (pdfFormField: PDFFormField, fieldName: string): PDFField => ({
 	inputKind: "text",
 	label: fieldName,
+	maxLength: pdfFormField.getMaxLength?.(),
 	name: fieldName,
 	type: pdfFormField.isMultiline?.() ? "multiline" : "text",
 	value: pdfFormField.getText?.() || "",
@@ -166,6 +169,7 @@ export const buildDefaultFieldDefinitionsFromPdfFields = (
 		isEnabled: true,
 		label: field.name,
 		markdocType: field.inputKind === "text" ? "Info" : "Switch",
+		maxLength: field.maxLength,
 		options: inferOptions(field),
 		pdfType: field.type,
 		valueType: "string",

@@ -1,30 +1,18 @@
 import { ORPCError, type } from "@orpc/server";
-import {
-	and,
-	count,
-	desc,
-	documentTemplate,
-	eq,
-	usageEvent,
-	user,
-} from "@repo/database";
+import { and, count, desc, documentTemplate, eq, usageEvent, user } from "@repo/database";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 
-import { buildUsageEventData, extractOpenRouterUsage } from '@/lib/usage-logging';
-import {
-	buildParsedMarkdocFromFieldDefinitions,
-} from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
-import {
-	documentFieldDefinitionsSchema,
-	type DocumentFieldDefinition,
-} from "@/app/documents/_lib/types";
-import type { StandardUsage } from '@/lib/usage-logging';
-import { authed, pub } from "@/orpc";
+import { buildParsedMarkdocFromFieldDefinitions } from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
+import type { DocumentFieldDefinition } from "@/app/documents/_lib/types";
+import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
+import type { StandardUsage } from "@/lib/usage-logging";
+import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { resolveModel, resolveProviderModel } from "@/orpc/scribe/providers";
-import { pdfDocumentConfigs } from './config';
-import type { FieldMapping } from './config';
+
+import { pdfDocumentConfigs } from "./config";
+import type { DocumentInputField } from "./config";
 
 /**
  * Enhanced field mapping response schema
@@ -38,6 +26,33 @@ const enhancedFieldMappingSchema = z.object({
 		}),
 	),
 });
+
+const documentInputFieldSchema = z.object({
+	description: z.string().optional(),
+	label: z.string().min(1),
+	options: z.array(z.string()).optional(),
+	type: z.enum(["string", "number", "date", "switch", "boolean"]).optional(),
+	unit: z.string().optional(),
+});
+
+const documentFieldMappingSchema = z.object({
+	description: z.string().optional(),
+	fieldName: z.string().min(1),
+	inputKind: z.enum(["boolean", "choice", "text"]),
+	label: z.string().min(1),
+	options: z.array(z.string()).optional(),
+	pdfType: z.enum(["text", "multiline", "dropdown", "checkbox", "radio"]).optional(),
+});
+
+const parseFormInput = z.object({
+	fieldMapping: z.array(documentFieldMappingSchema).optional(),
+	fieldMappings: z.array(documentFieldMappingSchema).optional(),
+	fileBase64: z.string().min(1),
+	inputFields: z.array(documentInputFieldSchema).optional(),
+});
+
+// Document templates are still in development and gated to admin users right now.
+const adminDocumentProcedure = authed.use(requiredAdminMiddleware);
 
 const ocrToMarkdownPrompt = [
 	"Du extrahierst den Inhalt eines PDF-Dokuments per OCR.",
@@ -58,7 +73,9 @@ const ocrToMarkdownInput = z.object({
 const stripCodeFence = (markdown: string): string => {
 	const trimmed = markdown.trim();
 	const fencedMatch = trimmed.match(/^```(?:md|markdown)?\n([\s\S]*?)\n```$/i);
-	if (!fencedMatch) {return trimmed;}
+	if (!fencedMatch) {
+		return trimmed;
+	}
 	return fencedMatch[1]?.trim() ?? "";
 };
 
@@ -89,16 +106,49 @@ const addCategories = (
 	}
 };
 
+const looseDocumentFieldDefinitionSchema = z
+	.object({
+		description: z.string().optional(),
+		fieldName: z.string().min(1),
+		inputKind: z.enum(["boolean", "choice", "text"]),
+		isEnabled: z.boolean().optional(),
+		label: z.string().min(1),
+		markdocType: z.enum(["Info", "Switch"]).optional(),
+		maxLength: z.number().int().positive().optional(),
+		options: z.array(z.string()).optional(),
+		pdfType: z.enum(["text", "multiline", "dropdown", "checkbox", "radio"]),
+		textCheckboxValue: z.string().optional(),
+		valueType: z.enum(["string", "number", "date"]).optional(),
+	})
+	.transform((field): DocumentFieldDefinition => {
+		const isSwitch = field.inputKind !== "text";
+		return {
+			description: field.description ?? "",
+			fieldName: field.fieldName,
+			inputKind: field.inputKind,
+			isEnabled: field.isEnabled ?? true,
+			label: field.label,
+			markdocType: field.markdocType ?? (isSwitch ? "Switch" : "Info"),
+			maxLength: field.maxLength,
+			options: field.options ?? (field.inputKind === "boolean" ? ["true", "false"] : []),
+			pdfType: field.pdfType,
+			textCheckboxValue: field.textCheckboxValue,
+			valueType: field.valueType ?? "string",
+		};
+	});
+
+const looseDocumentFieldDefinitionsSchema = z.array(looseDocumentFieldDefinitionSchema);
+
 const createDocumentTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
-	fieldDefinitions: documentFieldDefinitionsSchema,
+	fieldDefinitions: looseDocumentFieldDefinitionsSchema,
 	pdfBase64: z.string().min(1, "PDF content is required"),
 	title: z.string().min(1, "Title is required"),
 });
 
 const updateDocumentTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
-	fieldDefinitions: documentFieldDefinitionsSchema,
+	fieldDefinitions: looseDocumentFieldDefinitionsSchema,
 	id: z.string().min(1),
 	pdfBase64: z.string().min(1).optional(),
 	title: z.string().min(1, "Title is required"),
@@ -108,12 +158,9 @@ const getDocumentTemplateInput = z.object({
 	id: z.string(),
 });
 
-const decodePdfBase64 = (value: string): Uint8Array => (
-	new Uint8Array(Buffer.from(value, "base64"))
-);
+const decodePdfBase64 = (value: string): Uint8Array => new Uint8Array(Buffer.from(value, "base64"));
 
-const encodePdfBase64 = (value: Uint8Array): string =>
-	Buffer.from(value).toString("base64");
+const encodePdfBase64 = (value: Uint8Array): string => Buffer.from(value).toString("base64");
 
 const ensureValidFieldDefinitions = (
 	fieldDefinitions: DocumentFieldDefinition[],
@@ -121,8 +168,7 @@ const ensureValidFieldDefinitions = (
 	normalizedFieldDefinitions: DocumentFieldDefinition[];
 } => {
 	try {
-		const { normalizedFieldDefinitions } =
-			buildParsedMarkdocFromFieldDefinitions(fieldDefinitions);
+		const { normalizedFieldDefinitions } = buildParsedMarkdocFromFieldDefinitions(fieldDefinitions);
 		return { normalizedFieldDefinitions };
 	} catch (error) {
 		throw new ORPCError("BAD_REQUEST", {
@@ -137,19 +183,32 @@ const ensureValidFieldDefinitions = (
 /**
  * Parse and enhance PDF form fields using AI.
  */
-const parseFormHandler = authed
-	.input(
-		type<{
-			fileBase64: string;
-			fieldMapping: FieldMapping[];
-		}>(),
-	)
+const parseFormHandler = adminDocumentProcedure
+	.input(type<z.infer<typeof parseFormInput>>())
 	.handler(async ({ input, context }) => {
-		const { fileBase64, fieldMapping } = input;
+		const parsed = parseFormInput.parse(input);
+		const { fileBase64 } = parsed;
+		const fieldMappings = parsed.fieldMappings ?? parsed.fieldMapping ?? [];
+		const inputFields =
+			parsed.inputFields ??
+			fieldMappings.map(
+				(mapping) =>
+					({
+						description: mapping.description,
+						label: mapping.label,
+						options: mapping.options,
+						type:
+							mapping.inputKind === "text"
+								? "string"
+								: mapping.inputKind === "boolean"
+									? "boolean"
+									: "switch",
+					}) satisfies DocumentInputField,
+			);
 		const config = pdfDocumentConfigs.parseForm;
 
 		const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
-		const promptMessages = config.prompt({ fieldMapping });
+		const promptMessages = config.prompt({ fieldMappings, inputFields });
 		const promptText = promptMessages[0].content;
 		let resolvedModel: Awaited<ReturnType<typeof resolveModel>>;
 		try {
@@ -157,8 +216,7 @@ const parseFormHandler = authed
 				requireFiles: true,
 			});
 		} catch (error) {
-			const details =
-				error instanceof Error ? error.message : "Unbekannter Fehler";
+			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Kein kompatibles KI-Modell für PDF-Analyse verfügbar. (${details})`,
 			});
@@ -198,8 +256,7 @@ const parseFormHandler = authed
 				temperature: config.modelConfig.temperature ?? 0.3,
 			});
 		} catch (error) {
-			const details =
-				error instanceof Error ? error.message : "Unbekannter Fehler";
+			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Eingaben konnten nicht mit KI optimiert werden. (${details})`,
 			});
@@ -209,14 +266,13 @@ const parseFormHandler = authed
 		const { object, usage } = result;
 		const openRouterUsage = resolvedModel.isOpenRouter
 			? extractOpenRouterUsage(
-					(result as { providerMetadata?: Record<string, unknown> })
-						.providerMetadata,
+					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
 				)
 			: undefined;
 
 		await context.db.insert(usageEvent).values(
 			buildUsageEventData({
-				inputData: { fieldCount: fieldMapping.length },
+				inputData: { fieldCount: fieldMappings.length },
 				metadata: {
 					promptName: config.promptName,
 					promptSource: "local",
@@ -233,8 +289,7 @@ const parseFormHandler = authed
 		return object;
 	});
 
-const ocrToMarkdownHandler = authed
-	.use(requiredAdminMiddleware)
+const ocrToMarkdownHandler = adminDocumentProcedure
 	.input(type<z.infer<typeof ocrToMarkdownInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = ocrToMarkdownInput.parse(input);
@@ -252,15 +307,13 @@ const ocrToMarkdownHandler = authed
 			});
 		}
 
-		const resolvedModel = await resolveProviderModel(
-			providerId,
-			parsed.model,
-			context.db,
-		);
+		const resolvedModel = await resolveProviderModel(providerId, parsed.model, context.db);
 
-		const userContent: (| { type: "text"; text: string }
+		const userContent: (
+			| { type: "text"; text: string }
 			| { type: "image"; image: Uint8Array; mediaType: string }
-			| { type: "file"; data: Uint8Array; mediaType: string })[] = [{ text: ocrToMarkdownPrompt, type: "text" }];
+			| { type: "file"; data: Uint8Array; mediaType: string }
+		)[] = [{ text: ocrToMarkdownPrompt, type: "text" }];
 
 		let fileSizeBytes = 0;
 		if (parsed.imagesBase64?.length) {
@@ -274,7 +327,7 @@ const ocrToMarkdownHandler = authed
 				});
 			}
 		} else {
-			const {fileBase64} = parsed;
+			const { fileBase64 } = parsed;
 			if (!fileBase64) {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "fileBase64 fehlt",
@@ -308,8 +361,7 @@ const ocrToMarkdownHandler = authed
 				temperature: 0,
 			});
 		} catch (error) {
-			const details =
-				error instanceof Error ? error.message : "Unbekannter Fehler";
+			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
 			throw new ORPCError("BAD_REQUEST", {
 				message: `OCR fehlgeschlagen. Bitte ein OCR-fähiges Modell wählen. (${details})`,
 			});
@@ -318,8 +370,7 @@ const ocrToMarkdownHandler = authed
 
 		const openRouterUsage = resolvedModel.isOpenRouter
 			? extractOpenRouterUsage(
-					(result as { providerMetadata?: Record<string, unknown> })
-						.providerMetadata,
+					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
 				)
 			: null;
 		const markdown = stripCodeFence(result.text);
@@ -349,7 +400,7 @@ const ocrToMarkdownHandler = authed
 		return { markdown };
 	});
 
-const listDocumentTemplatesHandler = pub.handler(async ({ context }) => {
+const listDocumentTemplatesHandler = adminDocumentProcedure.handler(async ({ context }) => {
 	return context.db
 		.select({
 			author: {
@@ -369,7 +420,7 @@ const listDocumentTemplatesHandler = pub.handler(async ({ context }) => {
 		.orderBy(desc(documentTemplate.updatedAt));
 });
 
-const getDocumentTemplateHandler = pub
+const getDocumentTemplateHandler = adminDocumentProcedure
 	.input(getDocumentTemplateInput)
 	.handler(async ({ context, input }) => {
 		const [templateData] = await context.db
@@ -395,7 +446,7 @@ const getDocumentTemplateHandler = pub
 		return templateData ?? null;
 	});
 
-const getDocumentTemplatePdfHandler = pub
+const getDocumentTemplatePdfHandler = adminDocumentProcedure
 	.input(getDocumentTemplateInput)
 	.handler(async ({ context, input }) => {
 		const [templateData] = await context.db
@@ -417,12 +468,10 @@ const getDocumentTemplatePdfHandler = pub
 		};
 	});
 
-const createDocumentTemplateHandler = authed
+const createDocumentTemplateHandler = adminDocumentProcedure
 	.input(createDocumentTemplateInput)
 	.handler(async ({ context, input }) => {
-		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(
-			input.fieldDefinitions,
-		);
+		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(input.fieldDefinitions);
 		const pdfBytes = decodePdfBase64(input.pdfBase64);
 
 		const [createdTemplate] = await context.db
@@ -453,12 +502,10 @@ const createDocumentTemplateHandler = authed
 		return createdTemplate;
 	});
 
-const updateDocumentTemplateHandler = authed
+const updateDocumentTemplateHandler = adminDocumentProcedure
 	.input(updateDocumentTemplateInput)
 	.handler(async ({ context, input }) => {
-		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(
-			input.fieldDefinitions,
-		);
+		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(input.fieldDefinitions);
 
 		const [existingTemplate] = await context.db
 			.select({
@@ -519,31 +566,17 @@ const updateDocumentTemplateHandler = authed
 		return updatedTemplate;
 	});
 
-const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context }) => {
-	const userId = context.session.user.id;
-	const limit = MAX_CATEGORY_SUGGESTIONS;
-	const categorySuggestions: string[] = [];
-	const seen = new Set<string>();
+const getDocumentTemplateEditorContextHandler = adminDocumentProcedure.handler(
+	async ({ context }) => {
+		const userId = context.session.user.id;
+		const limit = MAX_CATEGORY_SUGGESTIONS;
+		const categorySuggestions: string[] = [];
+		const seen = new Set<string>();
 
-	const authoredCategories = await context.db
-		.select({ category: documentTemplate.category })
-		.from(documentTemplate)
-		.where(eq(documentTemplate.authorId, userId))
-		.groupBy(documentTemplate.category)
-		.orderBy(desc(count()))
-		.limit(limit);
-
-	addCategories(
-		categorySuggestions,
-		seen,
-		authoredCategories.map((item) => item.category),
-		limit,
-	);
-
-	if (categorySuggestions.length < limit) {
-		const allCategories = await context.db
+		const authoredCategories = await context.db
 			.select({ category: documentTemplate.category })
 			.from(documentTemplate)
+			.where(eq(documentTemplate.authorId, userId))
 			.groupBy(documentTemplate.category)
 			.orderBy(desc(count()))
 			.limit(limit);
@@ -551,15 +584,31 @@ const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context 
 		addCategories(
 			categorySuggestions,
 			seen,
-			allCategories.map((item) => item.category),
+			authoredCategories.map((item) => item.category),
 			limit,
 		);
-	}
 
-	return {
-		categorySuggestions,
-	};
-});
+		if (categorySuggestions.length < limit) {
+			const allCategories = await context.db
+				.select({ category: documentTemplate.category })
+				.from(documentTemplate)
+				.groupBy(documentTemplate.category)
+				.orderBy(desc(count()))
+				.limit(limit);
+
+			addCategories(
+				categorySuggestions,
+				seen,
+				allCategories.map((item) => item.category),
+				limit,
+			);
+		}
+
+		return {
+			categorySuggestions,
+		};
+	},
+);
 
 export const documentsHandler = {
 	ocrToMarkdown: ocrToMarkdownHandler,

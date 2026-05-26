@@ -15,8 +15,10 @@ const documentFieldDefinitionSchema = z.object({
 	isEnabled: z.boolean(),
 	label: z.string(),
 	markdocType: documentMarkdocTypeSchema,
+	maxLength: z.number().int().positive().optional(),
 	options: z.array(z.string()),
 	pdfType: documentPdfTypeSchema,
+	textCheckboxValue: z.string().optional(),
 	valueType: documentValueTypeSchema,
 });
 

@@ -222,6 +222,42 @@ describe("fillPDFForm", () => {
 		expect(uncheckedDoc.getForm().getCheckBox("consent").isChecked()).toBe(false);
 	});
 
+	test("fills text-backed checkbox fields with the configured display value", async () => {
+		const sourcePdf = await createFormPdf();
+		const definition: DocumentFieldDefinition = {
+			description: "",
+			fieldName: "name",
+			inputKind: "boolean",
+			isEnabled: true,
+			label: "Visuelle Checkbox",
+			markdocType: "Switch",
+			options: ["true", "false"],
+			pdfType: "text",
+			textCheckboxValue: "X",
+			valueType: "string",
+		};
+
+		const checkedPdf = await fillPDFForm(
+			sourcePdf,
+			{
+				"Visuelle Checkbox": true,
+			},
+			[definition],
+		);
+		const uncheckedPdf = await fillPDFForm(
+			checkedPdf,
+			{
+				"Visuelle Checkbox": false,
+			},
+			[definition],
+		);
+
+		const checkedDoc = await PDFDocument.load(checkedPdf);
+		const uncheckedDoc = await PDFDocument.load(uncheckedPdf);
+		expect(checkedDoc.getForm().getTextField("name").getText()).toBe("X");
+		expect(uncheckedDoc.getForm().getTextField("name").getText() ?? "").toBe("");
+	});
+
 	test("fills checkbox choice fields by selected widget option", async () => {
 		const sourcePdf = await createChoiceCheckboxPdf();
 		const filledPdf = await fillPDFForm(

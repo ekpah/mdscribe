@@ -17,7 +17,6 @@
 		"@ai-sdk/openai-compatible": "^2.0.41",
 		"@ai-sdk/react": "^3.0.170",
 		"@better-auth/stripe": "^1.6.5",
-		"@dnd-kit/core": "^6.3.1",
 		"@hookform/resolvers": "^5.2.2",
 		"@markdoc/markdoc": "^0.5.7",
 		"@markdoc/next.js": "^0.5.0",

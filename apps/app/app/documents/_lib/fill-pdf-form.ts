@@ -102,7 +102,11 @@ const fieldValueHandlers: Partial<
 			field.select?.(value);
 		}
 	},
-	PDFTextField: (field, value) => {
+	PDFTextField: (field, value, definition) => {
+		if (definition.inputKind === "boolean" && definition.pdfType === "text") {
+			field.setText?.(toCheckboxState(value) ? definition.textCheckboxValue?.trim() || "x" : "");
+			return;
+		}
 		field.setText?.(value);
 	},
 };
@@ -124,6 +128,7 @@ export const fillPDFForm = async (
 		for (const fieldDefinition of mappedFieldDefinitions) {
 			try {
 				const field = form.getField(fieldDefinition.fieldName) as unknown as PdfLibFormField;
+				const stringValue = toStringValue(fieldValue);
 				const handler = fieldValueHandlers[field.constructor.name];
 				if (!handler) {
 					console.warn(
@@ -131,7 +136,7 @@ export const fillPDFForm = async (
 					);
 					continue;
 				}
-				handler(field, toStringValue(fieldValue), fieldDefinition);
+				handler(field, stringValue, fieldDefinition);
 			} catch (error) {
 				console.error(`Error filling field ${fieldDefinition.fieldName} (label: ${label}):`, error);
 			}

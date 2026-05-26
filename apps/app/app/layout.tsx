@@ -1,16 +1,18 @@
-import '@/lib/orpc.server' // for pre-rendering
-
+import "@/lib/orpc.server"; // for pre-rendering
 import { DesignSystemProvider } from "@repo/design-system/providers";
 import { env } from "@repo/env";
-import { getServerSession } from "@/lib/server-session";
-import { sessionQueryKey } from "@/lib/session-query";
-import "@repo/design-system/styles/globals.css";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
+
+import "@repo/design-system/styles/globals.css";
 import dynamic from "next/dynamic";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { Suspense } from 'react';
-import type { ReactNode } from 'react';
+import { Suspense } from "react";
+import type { ReactNode } from "react";
+
+import { getServerSession } from "@/lib/server-session";
+import { sessionQueryKey } from "@/lib/session-query";
+
 import MenubarSkeleton from "./_components/landing/skeletons/menubar-skeleton";
 import QueryProvider from "./providers/query-provider";
 
@@ -42,9 +44,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 				<link href="/favicon.ico" rel="shortcut icon" />
 				<link href="/favicon.ico" rel="icon" />
 			</head>
-			<body
-				className="items-center bg-background font-sans text-foreground"
-			>
+			<body className="items-center bg-background font-sans text-foreground">
 				<NuqsAdapter>
 					<QueryProvider>
 						<HydrationBoundary state={dehydrate(queryClient)}>
@@ -53,7 +53,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 									<nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
 										{/*ModeWatcher track="true" />*/}
 										<Suspense fallback={<MenubarSkeleton />}>
-											<Menubar initialSession={session} isAdmin={isAdmin} />
+											<Menubar initialIsAdmin={isAdmin} initialSession={session} />
 										</Suspense>
 									</nav>
 									<div

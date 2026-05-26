@@ -81,6 +81,9 @@ export const router = {
 
 	// User-specific operations
 	user: {
+		auth: lazy(async () => ({
+			default: (await import("./user/auth")).authHandler.auth,
+		})),
 		collections: lazy(async () => ({
 			default: (await import("./user/collections")).collectionsHandler,
 		})),

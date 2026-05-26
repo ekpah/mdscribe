@@ -1,16 +1,8 @@
 "use client";
 
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	formatBytes,
-	useFileUpload,
-} from "@repo/design-system/hooks/use-file-upload";
-import {
-	AlertCircleIcon,
-	PaperclipIcon,
-	UploadIcon,
-	XIcon,
-} from "lucide-react";
+import { formatBytes, FileDropzone } from "@repo/design-system/components/ui/file-dropzone";
+import { PaperclipIcon, XIcon } from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
 
@@ -38,9 +30,7 @@ const handleAddedPdfFiles = async (
 	}
 
 	if (firstFile.size > MAX_PDF_UPLOAD_BYTES) {
-		toast.error(
-			`Datei zu groß. Maximal erlaubt: ${formatBytes(MAX_PDF_UPLOAD_BYTES)}`,
-		);
+		toast.error(`Datei zu groß. Maximal erlaubt: ${formatBytes(MAX_PDF_UPLOAD_BYTES)}`);
 		return;
 	}
 
@@ -58,97 +48,40 @@ export const PDFUploadSection = ({
 	pdfFile,
 	pdfFileName,
 }: PDFUploadSectionProps) => {
-	const [
-		{ files, isDragging, errors },
-		{
-			handleDragEnter,
-			handleDragLeave,
-			handleDragOver,
-			handleDrop,
-			openFileDialog,
-			removeFile,
-			getInputProps,
-		},
-	] = useFileUpload({
-		accept: "application/pdf",
-		maxSize: MAX_PDF_UPLOAD_BYTES,
-		multiple: false,
-		onFilesAdded: (addedFiles) =>
-			handleAddedPdfFiles(addedFiles as { file: unknown }[], onFileUpload),
-	});
-
-	const [file] = files;
 	const handleClearFile = useCallback(() => {
-		if (file) {
-			removeFile(file.id);
-		}
 		onClear();
-	}, [file, onClear, removeFile]);
+	}, [onClear]);
 
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-col gap-2">
 				{!pdfFile && (
-					<>
-						<button
-							className="flex h-full min-h-40 flex-col items-center justify-center rounded-xl border border-input border-dashed p-4 transition-colors hover:bg-accent/50 has-disabled:pointer-events-none has-[input:focus]:border-ring has-disabled:opacity-50 has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50"
-							data-dragging={isDragging || undefined}
-							disabled={Boolean(file)}
-							onClick={openFileDialog}
-							onDragEnter={handleDragEnter}
-							onDragLeave={handleDragLeave}
-							onDragOver={handleDragOver}
-							onDrop={handleDrop}
-							type="button"
-						>
-							<input
-								{...getInputProps()}
-								aria-label="Datei hochladen"
-								className="sr-only"
-								disabled={Boolean(file)}
-							/>
-
-							<div className="flex flex-col items-center justify-center text-center">
-								<div
-									aria-hidden="true"
-									className="mb-2 flex size-11 shrink-0 items-center justify-center rounded-full border bg-background"
-								>
-									<UploadIcon className="size-4 opacity-60" />
-								</div>
-								<p className="mb-1.5 font-medium text-sm">Datei hochladen</p>
-								<p className="text-muted-foreground text-xs">
-									Ziehen & ablegen oder klicken zum Durchsuchen (max. {" "}
-									{formatBytes(MAX_PDF_UPLOAD_BYTES)})
-								</p>
-							</div>
-						</button>
-
-						{errors.length > 0 && (
-							<div
-								className="flex items-center gap-1 text-destructive text-xs"
-								role="alert"
-							>
-								<AlertCircleIcon className="size-3 shrink-0" />
-								<span>{errors[0]}</span>
-							</div>
-						)}
-					</>
+					<FileDropzone
+						accept="application/pdf"
+						description={
+							<>
+								Ziehen & ablegen oder klicken zum Durchsuchen (max.{" "}
+								{formatBytes(MAX_PDF_UPLOAD_BYTES)})
+							</>
+						}
+						disableAfterSelection
+						maxSize={MAX_PDF_UPLOAD_BYTES}
+						onFilesAdded={(addedFiles) => handleAddedPdfFiles(addedFiles, onFileUpload)}
+						title="Datei hochladen"
+					/>
 				)}
 
-				{(pdfFile || file) && (
+				{pdfFile && (
 					<div className="space-y-2">
 						<div
 							className="flex items-center justify-between gap-2 rounded-xl border px-4 py-2"
-							key={file?.id || "pdf-file"}
+							key="pdf-file"
 						>
 							<div className="flex items-center gap-3 overflow-hidden">
-								<PaperclipIcon
-									aria-hidden="true"
-									className="size-4 shrink-0 opacity-60"
-								/>
+								<PaperclipIcon aria-hidden="true" className="size-4 shrink-0 opacity-60" />
 								<div className="min-w-0">
 									<p className="truncate font-medium text-[13px]">
-										{file?.file.name || pdfFileName || "document.pdf"}
+										{pdfFileName || "document.pdf"}
 									</p>
 								</div>
 							</div>
