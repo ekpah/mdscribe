@@ -11,6 +11,7 @@ import {
 	Database,
 	FileText,
 	FlaskConical,
+	Mail,
 	Settings,
 	Users,
 } from "lucide-react";
@@ -120,6 +121,14 @@ const adminFeatures: AdminCardProps[] = [
 		icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
 		status: "active",
 		title: "Dokumenten-Playground",
+	},
+	{
+		description:
+			"React-Email-Entwürfe prüfen und einzelne Test-E-Mails sicher an manuelle Empfänger senden.",
+		href: "/admin/emails",
+		icon: <Mail className="h-5 w-5 text-solarized-blue" />,
+		status: "active",
+		title: "E-Mail Entwürfe",
 	},
 	{
 		description:

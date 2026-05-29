@@ -14,6 +14,9 @@ export const router = {
 		embeddings: lazy(async () => ({
 			default: (await import("./admin/embeddings")).embeddingsHandler,
 		})),
+		emails: lazy(async () => ({
+			default: (await import("./admin/emails")).emailsHandler,
+		})),
 		models: lazy(async () => ({
 			default: (await import("./admin/models")).modelsHandler,
 		})),

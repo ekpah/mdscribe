@@ -47,6 +47,11 @@ const ADMIN_PAGE_OPTIONS = [
 		label: "Dokumenten-Playground",
 	},
 	{
+		href: "/admin/emails",
+		isMatch: (pathname: string) => pathname.startsWith("/admin/emails"),
+		label: "E-Mail Entwürfe",
+	},
+	{
 		href: "/admin/settings/models",
 		isMatch: (pathname: string) => pathname.startsWith("/admin/settings"),
 		label: "Systemeinstellungen",

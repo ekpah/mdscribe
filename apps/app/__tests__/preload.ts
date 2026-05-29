@@ -136,6 +136,8 @@ const MockStripe = function MockStripe() {
 	};
 };
 
+const sendEmailMock = mock(() => resolveAsync({ success: true }));
+
 mock.module("server-only", () => ({}));
 
 mock.module("@repo/env", () => ({
@@ -171,7 +173,7 @@ mock.module("voyageai", () => ({
 }));
 
 mock.module("@repo/email", () => ({
-	sendEmail: () => resolveAsync({ success: true }),
+	sendEmail: sendEmailMock,
 }));
 
 mock.module("stripe", () => ({
