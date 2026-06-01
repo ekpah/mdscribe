@@ -4,12 +4,25 @@ import type { Database } from "@repo/database";
 import { streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
 
+import {
+	FILL_INPUT_PAYLOAD_LIMITS,
+	formatPayloadBytes,
+	getBase64DecodedByteLength,
+} from "@/lib/input-fill-limits";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { composeScribeContext, findRelevantTemplateForProcedure } from "@/orpc/scribe/context";
 import type { ContextBuildInput, TemplateContextInput } from "@/orpc/scribe/context";
-import { getAudioMediaType } from "@/orpc/scribe/handlers/audio-media-type";
+import {
+	formatAudioTranscriptsForPrompt,
+	prepareAudioInputForModel,
+} from "@/orpc/scribe/handlers/audio-input";
+import {
+	createContextFileParts,
+	extractContextFileText,
+	formatContextFileMetadataForPrompt,
+} from "@/orpc/scribe/handlers/context-file-input";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
 import {
@@ -17,8 +30,17 @@ import {
 	composePromptHarnessPrompt,
 	documentTypeConfigs,
 } from "@/orpc/scribe/prompts";
-import { resolveModel, resolveModelByRecordId } from "@/orpc/scribe/providers";
-import type { AudioFile, DocumentType, ModelConfig, PromptMessage } from "@/orpc/scribe/types";
+import {
+	buildProviderOptions,
+	resolveGenerationStrategy,
+} from "@/orpc/scribe/providers";
+import type {
+	AudioFile,
+	DocumentType,
+	FillInputsContextFile,
+	ModelConfig,
+	PromptMessage,
+} from "@/orpc/scribe/types";
 
 export const DEFAULT_SCRIBE_MODEL_CONFIG: ModelConfig = {
 	maxTokens: 8_000,
@@ -103,6 +125,74 @@ const hasFileLikeInput = (value: unknown): boolean => {
 	return false;
 };
 
+const validateContextFiles = (contextFiles: FillInputsContextFile[]) => {
+	if (contextFiles.length > FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles} Dateien können berücksichtigt werden.`,
+		});
+	}
+
+	let totalBytes = 0;
+	for (const file of contextFiles) {
+		const payloadBytes = getBase64DecodedByteLength(file.data);
+		totalBytes += payloadBytes;
+
+		if (payloadBytes > FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Die Datei "${file.name}" ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes)} pro Datei.`,
+			});
+		}
+	}
+
+	if (totalBytes > FILL_INPUT_PAYLOAD_LIMITS.maxContextFilesTotalBytes) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Die Dateien sind zusammen zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxContextFilesTotalBytes)}.`,
+		});
+	}
+};
+
+const validateAudioFiles = (audioFiles: AudioFile[]) => {
+	if (audioFiles.length > FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Audioaufnahmen können berücksichtigt werden.`,
+		});
+	}
+
+	let totalBytes = 0;
+	for (const [index, audioFile] of audioFiles.entries()) {
+		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
+		const wavFallbackBytes = getBase64DecodedByteLength(
+			audioFile.wavFallback?.data,
+		);
+		const recordingBytes = payloadBytes + wavFallbackBytes;
+		totalBytes += recordingBytes;
+
+		if (
+			recordingBytes >
+			FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording
+		) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Audioaufnahme ${index + 1} ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
+			});
+		}
+	}
+
+	if (totalBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Die Audioaufnahmen sind zusammen zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)}.`,
+		});
+	}
+};
+
+const summarizeContextFilesForUsage = (contextFiles: FillInputsContextFile[]) =>
+	contextFiles.map((file, index) => ({
+		index: index + 1,
+		mediaType: file.mimeType,
+		name: file.name,
+		payloadBytes: getBase64DecodedByteLength(file.data),
+		size: file.size,
+	}));
+
 /**
  * Scribe input type - uses UIMessage[] for AI SDK useChat compatibility
  */
@@ -110,6 +200,7 @@ interface BuiltInScribeStreamInput {
 	documentType: DocumentType;
 	messages: UIMessage[];
 	audioFiles?: AudioFile[];
+	contextFiles?: FillInputsContextFile[];
 	source?: "documentType";
 }
 
@@ -117,8 +208,85 @@ interface CustomFormScribeStreamInput {
 	formId: string;
 	messages: UIMessage[];
 	audioFiles?: AudioFile[];
+	contextFiles?: FillInputsContextFile[];
 	source: "customForm";
 }
+
+const appendTextToLastUserMessage = (
+	messages: ModelMessage[],
+	text: string,
+): ModelMessage[] => {
+	if (!text) {
+		return messages;
+	}
+
+	const lastUserIndex = messages.findLastIndex(
+		(message) => message.role === "user",
+	);
+	if (lastUserIndex === -1) {
+		return [...messages, { content: text, role: "user" }];
+	}
+
+	return messages.map((message, index) => {
+		if (index !== lastUserIndex || message.role !== "user") {
+			return message;
+		}
+
+		if (typeof message.content === "string") {
+			return {
+				...message,
+				content: `${message.content}\n\n${text}`,
+			};
+		}
+
+		return {
+			...message,
+			content: [
+				...message.content,
+				{
+					text,
+					type: "text" as const,
+				},
+			],
+		};
+	});
+};
+
+const appendFilePartsToLastUserMessage = (
+	messages: ModelMessage[],
+	fileParts: ReturnType<typeof createContextFileParts>,
+): ModelMessage[] => {
+	if (fileParts.length === 0) {
+		return messages;
+	}
+
+	const lastUserIndex = messages.findLastIndex(
+		(message) => message.role === "user",
+	);
+	if (lastUserIndex === -1) {
+		return [...messages, { content: fileParts, role: "user" }];
+	}
+
+	return messages.map((message, index) => {
+		if (index !== lastUserIndex || message.role !== "user") {
+			return message;
+		}
+
+		return {
+			...message,
+			content:
+				typeof message.content === "string"
+					? [
+							{
+								text: message.content,
+								type: "text" as const,
+							},
+							...fileParts,
+						]
+					: [...message.content, ...fileParts],
+		};
+	});
+};
 
 type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
 
@@ -128,7 +296,6 @@ interface ResolvedScribeRequest {
 		promptName: string;
 	};
 	endpoint: string;
-	modelId?: string | null;
 	promptMessages: PromptMessage[];
 	usageMetadata?: {
 		customFormId?: string;
@@ -281,7 +448,6 @@ const resolveCustomFormRequest = async ({
 			promptName: customForm.promptHarness,
 		},
 		endpoint: `custom:${customForm.slug}`,
-		modelId: customForm.modelId,
 		promptMessages,
 		usageMetadata: {
 			customFormId: customForm.id,
@@ -299,7 +465,10 @@ export const scribeStreamHandler = authed
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
 		const inputMessages = input.messages;
-		const { audioFiles } = input;
+		const audioFiles = input.audioFiles ?? [];
+		const contextFiles = input.contextFiles ?? [];
+		validateAudioFiles(audioFiles);
+		validateContextFiles(contextFiles);
 
 		// Extract prompt from the last user message
 		const prompt = extractPromptFromMessages(inputMessages);
@@ -312,9 +481,10 @@ export const scribeStreamHandler = authed
 		});
 
 		// Validate input
-		const hasAudio = audioFiles && audioFiles.length > 0;
+		const hasAudio = audioFiles.length > 0;
+		const hasContextFiles = contextFiles.length > 0;
 		const rawPrompt = parsePromptPayload(prompt);
-		if (!hasAudio && !hasNonEmptyInput(rawPrompt)) {
+		if (!(hasAudio || hasContextFiles || hasNonEmptyInput(rawPrompt))) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: USER_MESSAGES.missingInput,
 			});
@@ -335,65 +505,125 @@ export const scribeStreamHandler = authed
 						sessionUser: context.session.user,
 					});
 
-		const resolved = resolvedRequest.modelId
-			? await resolveModelByRecordId(resolvedRequest.modelId, context.db)
-			: await resolveModel(context.db, {
-					requireAudio: hasAudio,
-					requireFiles: hasFileInput,
-				});
+		const generationStrategy = await resolveGenerationStrategy(context.db, {
+			hasAudio,
+			hasFiles: hasFileInput || hasContextFiles,
+		});
+		const generationSelection = generationStrategy.generation;
 
 		let messages: ModelMessage[] = resolvedRequest.promptMessages;
 
 		// Handle audio files
-		if (hasAudio && audioFiles) {
-			const lastMessage = messages.at(-1);
-			if (lastMessage?.role === "user") {
-				const audioContent = audioFiles.map((audioFile) => ({
-					data: audioFile.data,
-					mediaType: getAudioMediaType(audioFile.mimeType, resolved.isOpenRouter),
-					type: "file" as const,
-				}));
+		if (hasAudio) {
+			const audioSelection =
+				generationStrategy.mode === "direct"
+					? generationStrategy.generation
+					: generationStrategy.speechToText;
+			if (!audioSelection) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: USER_MESSAGES.modelUnavailable,
+				});
+			}
+			const preparedAudio = await prepareAudioInputForModel({
+				audioFiles,
+				mode:
+					generationStrategy.mode === "direct" ? "native" : "transcription",
+				resolvedModel: audioSelection.model,
+			}).catch((error: unknown) => {
+				const message =
+					error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+				throw new ORPCError("BAD_REQUEST", { message });
+			});
 
-				messages = [
-					...messages.slice(0, -1),
-					{
-						...lastMessage,
-						content: [
-							{
-								text: typeof lastMessage.content === "string" ? lastMessage.content : "",
-								type: "text" as const,
-							},
-							...audioContent,
-						],
-					},
-				];
+			if (preparedAudio.strategy === "transcription") {
+				messages = appendTextToLastUserMessage(
+					messages,
+					formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
+				);
+			} else {
+				const lastMessage = messages.at(-1);
+				if (lastMessage?.role === "user") {
+					messages = [
+						...messages.slice(0, -1),
+						{
+							...lastMessage,
+							content:
+								typeof lastMessage.content === "string"
+									? [
+											{
+												text: lastMessage.content,
+												type: "text" as const,
+											},
+											...preparedAudio.contentParts,
+										]
+									: [
+											...lastMessage.content,
+											...preparedAudio.contentParts,
+										],
+						},
+					];
+				} else {
+					messages = [
+						...messages,
+						{
+							content: preparedAudio.contentParts,
+							role: "user",
+						},
+					];
+				}
 			}
 		}
+
+		if (hasContextFiles) {
+			const fileMetadataPrompt = formatContextFileMetadataForPrompt(contextFiles);
+			if (generationStrategy.mode === "direct") {
+				messages = appendTextToLastUserMessage(messages, fileMetadataPrompt);
+				messages = appendFilePartsToLastUserMessage(
+					messages,
+					createContextFileParts(contextFiles),
+				);
+			} else {
+				const fileSelection =
+					generationStrategy.fileImage ?? generationStrategy.generation;
+				const fileTextContext = await extractContextFileText({
+					contextFiles,
+					modelSelection: fileSelection,
+					userId: context.session.user.id,
+					zdr: entitlements.hasActiveSubscription,
+				});
+				messages = appendTextToLastUserMessage(
+					messages,
+					[fileMetadataPrompt, fileTextContext].filter(Boolean).join("\n\n"),
+				);
+			}
+		}
+
+		const usageInputData =
+			hasContextFiles && !("_contextFiles" in rawPrompt)
+				? {
+						...rawPrompt,
+						_contextFiles: summarizeContextFilesForUsage(contextFiles),
+					}
+				: rawPrompt;
 
 		// Build provider options — only include OpenRouter-specific options when using OpenRouter
 		const reasoningEffort =
 			resolvedRequest.config.modelConfig.reasoningEffort ??
-			(resolvedRequest.config.modelConfig.thinking ? "medium" : "none");
+			(resolvedRequest.config.modelConfig.thinking
+				? "medium"
+				: generationSelection.reasoningEffort);
 		const thinkingEnabled = Boolean(
-			resolved.isOpenRouter &&
-				resolved.supportsReasoning &&
+			generationSelection.model.isOpenRouter &&
+				generationSelection.model.supportsReasoning &&
 				reasoningEffort !== "none",
 		);
-		const reasoningConfig =
-			resolved.isOpenRouter && resolved.supportsReasoning
-				? { effort: reasoningEffort }
-				: undefined;
-
-		const providerOptions = resolved.isOpenRouter
-			? {
-					openrouter: {
-						usage: { include: true },
-						user: context.session.user.email,
-						...(reasoningConfig && { reasoning: reasoningConfig }),
-						...(entitlements.hasActiveSubscription && { zdr: true }),
-					},
-				}
-			: undefined;
+		const providerOptions = buildProviderOptions({
+			includeUsage: true,
+			model: generationSelection.model,
+			reasoningEffort,
+			userId: context.session.user.id,
+			zdr: entitlements.hasActiveSubscription,
+		});
 
 		// Stream the response
 		const requestStartedAt = Date.now();
@@ -402,7 +632,7 @@ export const scribeStreamHandler = authed
 		const result = streamText({
 			maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
 			messages,
-			model: resolved.model,
+			model: generationSelection.model.model,
 			onChunk: ({ chunk }) => {
 				if (
 					firstTokenAt === undefined &&
@@ -419,10 +649,10 @@ export const scribeStreamHandler = authed
 					db: context.db,
 					endpoint: resolvedRequest.endpoint,
 					event,
-					inputData: rawPrompt,
-					isOpenRouter: resolved.isOpenRouter,
+					inputData: usageInputData,
+					isOpenRouter: generationSelection.model.isOpenRouter,
 					modelConfig: resolvedRequest.config.modelConfig,
-					modelName: resolved.modelName,
+					modelName: generationSelection.model.modelName,
 					promptName: resolvedRequest.config.promptName,
 					timing: {
 						timeToCompletionMs: completedAt - requestStartedAt,
@@ -431,7 +661,8 @@ export const scribeStreamHandler = authed
 					},
 					usageMetadata: resolvedRequest.usageMetadata,
 					reasoningEffort:
-						resolved.isOpenRouter && resolved.supportsReasoning
+						generationSelection.model.isOpenRouter &&
+						generationSelection.model.supportsReasoning
 							? reasoningEffort
 							: undefined,
 					thinkingEnabled,

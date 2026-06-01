@@ -13,6 +13,18 @@ const getSession = async () => {
     return session;
 };
 
+export const getOptionalAuthSession = async (contextSession?: Session) => {
+    if (contextSession) {
+        return contextSession;
+    }
+
+    try {
+        return await getSession();
+    } catch {
+        return null;
+    }
+};
+
 export const requiredAuthMiddleware = os
     .$context<{ session?: Session }>()
     .middleware(async ({ context, next }) => {

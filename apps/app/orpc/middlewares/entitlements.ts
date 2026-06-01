@@ -2,7 +2,6 @@ import { os } from "@orpc/server";
 import type { Database } from "@repo/database";
 import type { Session } from "@/lib/auth-types";
 import { resolveScribeEntitlements } from "@/orpc/scribe/handlers/usage-limit";
-import type { ScribeEntitlements } from "@/orpc/scribe/handlers/usage-limit";
 
 export const scribeEntitlementsMiddleware = os
 	.$context<{ db: Database; session: Session }>()
@@ -20,9 +19,3 @@ export const scribeEntitlementsMiddleware = os
 			},
 		});
 	});
-
-export interface ScribeEntitlementsContext {
-	entitlements: {
-		scribe: ScribeEntitlements;
-	};
-}

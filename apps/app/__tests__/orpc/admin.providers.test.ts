@@ -63,6 +63,15 @@ describe("Admin Providers Handler", () => {
 							name: "GPT-4.1 mini",
 							supported_parameters: [],
 						},
+						{
+							architecture: {
+								input_modalities: ["audio"],
+								output_modalities: ["transcription"],
+							},
+							id: "openai/whisper-large-v3",
+							name: "Whisper Large v3",
+							supported_parameters: [],
+						},
 					],
 				},
 				{ status: 200 },
@@ -78,8 +87,8 @@ describe("Admin Providers Handler", () => {
 			{ context },
 		);
 
-		expect(created.modelCount).toBe(2);
-		expect(created.syncResult).toEqual({ inserted: 2, removed: 0, updated: 0 });
+		expect(created.modelCount).toBe(3);
+		expect(created.syncResult).toEqual({ inserted: 3, removed: 0, updated: 0 });
 		expect(created.hasApiKey).toBe(true);
 
 		const providers = await server.db.select().from(aiProvider);
@@ -92,18 +101,19 @@ describe("Admin Providers Handler", () => {
 		const models = await server.db.query.aiModel.findMany({
 			where: eq(aiModel.providerId, providerId ?? ""),
 		});
-		expect(models).toHaveLength(2);
+		expect(models).toHaveLength(3);
 
 		const claude = models.find((model) => model.modelId === "anthropic/claude-3.7-sonnet");
 		expect(claude?.supportsReasoning).toBe(true);
-		expect(claude?.inputModes).toEqual(["text", "image", "file"]);
 
 		const gpt = models.find((model) => model.modelId === "openai/gpt-4.1-mini");
 		expect(gpt?.supportsReasoning).toBe(false);
-		expect(gpt?.inputModes).toEqual(["text"]);
+
+		const whisper = models.find((model) => model.modelId === "openai/whisper-large-v3");
+		expect(whisper).toBeDefined();
 	});
 
-	test("connections.create infers multimodal input for gemma 3n openai-compatible models", async () => {
+	test("connections.create stores openai-compatible models without modality inference", async () => {
 		globalThis.fetch = (() =>
 			Response.json(
 				{
@@ -132,11 +142,11 @@ describe("Admin Providers Handler", () => {
 		});
 
 		expect(model).toBeDefined();
-		expect(model?.inputModes).toEqual(["text", "image", "file", "audio"]);
+		expect(model?.modelId).toBe("gemma-3n-e4b-it-q8_0");
 
 		const listedProviders = await call(providersHandler.connections.list, undefined, { context });
 		const listedModel = listedProviders.find((provider) => provider.id === created.id)?.models[0];
-		expect(listedModel?.inputModes).toEqual(["text", "image", "file", "audio"]);
+		expect(listedModel?.modelId).toBe("gemma-3n-e4b-it-q8_0");
 	});
 
 	test("connections.refreshModels upserts and removes stale models", async () => {
@@ -217,7 +227,6 @@ describe("Admin Providers Handler", () => {
 		const updated = models.find((model) => model.modelId === "openai/gpt-4o-mini");
 		expect(updated?.displayName).toBe("GPT-4o mini (updated)");
 		expect(updated?.supportsReasoning).toBe(true);
-		expect(updated?.inputModes).toEqual(["text", "image", "file"]);
 
 		const inserted = models.find((model) => model.modelId === "anthropic/claude-3.7-sonnet");
 		expect(inserted).toBeDefined();
@@ -244,6 +253,53 @@ describe("Admin Providers Handler", () => {
 		expect(fetchCalled).toBe(false);
 		expect(await server.db.select().from(aiProvider)).toHaveLength(0);
 		expect(await server.db.select().from(aiModel)).toHaveLength(0);
+	});
+
+	test("defaults.set clears a selected model", async () => {
+		const providerId = crypto.randomUUID();
+		const modelRecordId = crypto.randomUUID();
+		await server.db.insert(aiProvider).values({
+			id: providerId,
+			name: "OpenRouter",
+			protocol: "openrouter",
+		});
+		await server.db.insert(aiModel).values({
+			displayName: "GPT 4.1",
+			id: modelRecordId,
+			modelId: "openai/gpt-4.1",
+			providerId,
+			supportedParameters: ["reasoning"],
+			supportsReasoning: true,
+		});
+
+		await call(
+			providersHandler.defaults.set,
+			{
+				defaultType: "text",
+				modelId: modelRecordId,
+				reasoningEffort: "high",
+			},
+			{ context },
+		);
+
+		const cleared = await call(
+			providersHandler.defaults.set,
+			{
+				defaultType: "text",
+				modelId: null,
+				reasoningEffort: "none",
+			},
+			{ context },
+		);
+
+		expect(cleared.defaultTextModelId).toBeNull();
+		expect(cleared.defaultTextReasoningEffort).toBe("none");
+
+		const defaults = await server.db.query.aiDefaults.findFirst({
+			where: eq(aiDefaults.id, "global"),
+		});
+		expect(defaults?.defaultTextModelId).toBeNull();
+		expect(defaults?.defaultTextReasoningEffort).toBe("none");
 	});
 
 	test("connections.delete cascades provider models and nulls defaults", async () => {
@@ -285,6 +341,7 @@ describe("Admin Providers Handler", () => {
 			{
 				defaultType: "evaluation",
 				modelId: model.id,
+				reasoningEffort: "none",
 			},
 			{ context },
 		);
@@ -294,6 +351,7 @@ describe("Admin Providers Handler", () => {
 			{
 				defaultType: "text",
 				modelId: model.id,
+				reasoningEffort: "none",
 			},
 			{ context },
 		);

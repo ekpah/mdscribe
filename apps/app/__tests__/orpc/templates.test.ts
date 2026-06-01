@@ -6,6 +6,7 @@ import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
 	createTestContext,
+	createTestSubscription,
 	createTestTemplate,
 	createTestUser,
 	startTestServer,
@@ -66,6 +67,7 @@ describe("Templates oRPC Handlers", () => {
 				expect(result?.content).toBe("ZVK Anlage Vorlage...");
 				expect(result?.author).toBeDefined();
 				expect(result?.author?.id).toBe(user.id);
+				expect("stripeCustomerId" in ((result?.author ?? {}) as Record<string, unknown>)).toBe(false);
 				expect(result?._count?.favouriteOf).toBe(0);
 				expect(result?.favouriteOf).toEqual([]);
 				expect(result?.examples).toEqual([]);
@@ -100,7 +102,19 @@ describe("Templates oRPC Handlers", () => {
 				);
 
 				expect(result?._count?.favouriteOf).toBe(2);
-				expect(result?.favouriteOf).toHaveLength(2);
+				expect(result?.favouriteOf).toEqual([]);
+
+				const fanContext = createTestContext({
+					db: server.db,
+					session: createMockSession(fan1),
+				});
+				const fanResult = await call(
+					templatesHandler.get,
+					{ id: template.id },
+					{ context: fanContext },
+				);
+				expect(fanResult?._count?.favouriteOf).toBe(2);
+				expect(fanResult?.favouriteOf).toEqual([{ id: fan1.id }]);
 			});
 
 			test("returns template examples", async () => {
@@ -119,6 +133,59 @@ describe("Templates oRPC Handlers", () => {
 
 				expect(result?.examples).toHaveLength(2);
 				expect(result?.examples).toEqual(["First example", "Second example"]);
+			});
+
+			test("hides private templates from anonymous and other users", async () => {
+				const { user: author } = await createTestUser(server.db, {
+					email: "author-private@test.com",
+				});
+				const { user: other } = await createTestUser(server.db, {
+					email: "other-private@test.com",
+				});
+				const privateTemplate = await createTestTemplate(server.db, author.id, {
+					title: "Private Template",
+					visibility: "private",
+				});
+				const publicTemplate = await createTestTemplate(server.db, author.id, {
+					title: "Public Template",
+				});
+
+				const anonymousContext = createTestContext({ db: server.db });
+				const otherContext = createTestContext({
+					db: server.db,
+					session: createMockSession(other),
+				});
+				const authorContext = createTestContext({
+					db: server.db,
+					session: createMockSession(author),
+				});
+
+				expect(
+					await call(
+						templatesHandler.get,
+						{ id: privateTemplate.id },
+						{ context: anonymousContext },
+					),
+				).toBeNull();
+				expect(
+					await call(
+						templatesHandler.get,
+						{ id: privateTemplate.id },
+						{ context: otherContext },
+					),
+				).toBeNull();
+				expect(
+					await call(
+						templatesHandler.get,
+						{ id: privateTemplate.id },
+						{ context: authorContext },
+					),
+				).not.toBeNull();
+
+				const anonymousList = await call(templatesHandler.list, undefined, {
+					context: anonymousContext,
+				});
+				expect(anonymousList.map((item) => item.id)).toEqual([publicTemplate.id]);
 			});
 		});
 	});
@@ -231,6 +298,7 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.authorId).toBe(user.id);
 				expect(result.embedding).toBeDefined();
 				expect(result.embedding).toHaveLength(1024);
+				expect(result.visibility).toBe("public");
 
 				const [savedTemplate] = await server.db
 					.select({ examples: template.examples })
@@ -240,6 +308,51 @@ describe("Templates oRPC Handlers", () => {
 					"Example output one",
 					"Example output two",
 				]);
+			});
+
+			test("requires plus to create private templates", async () => {
+				const { user } = await createTestUser(server.db);
+				const context = createTestContext({
+					db: server.db,
+					session: createMockSession(user),
+				});
+
+				await expect(
+					call(
+						templatesHandler.create,
+						{
+							category: "Test Category",
+							content: "Private content",
+							examples: [],
+							name: "Private Template",
+							visibility: "private",
+						},
+						{ context },
+					),
+				).rejects.toThrow();
+			});
+
+			test("allows plus users to create private templates", async () => {
+				const { user } = await createTestUser(server.db);
+				await createTestSubscription(server.db, user.id);
+				const context = createTestContext({
+					db: server.db,
+					session: createMockSession(user),
+				});
+
+				const result = await call(
+					templatesHandler.create,
+					{
+						category: "Test Category",
+						content: "Private content",
+						examples: [],
+						name: "Private Template",
+						visibility: "private",
+					},
+					{ context },
+				);
+
+				expect(result.visibility).toBe("private");
 			});
 		});
 
@@ -278,6 +391,47 @@ describe("Templates oRPC Handlers", () => {
 					"Updated example one",
 					"Updated example two",
 				]);
+			});
+
+			test("requires plus to keep templates private on update", async () => {
+				const { user } = await createTestUser(server.db);
+				const createdTemplate = await createTestTemplate(server.db, user.id, {
+					visibility: "private",
+				});
+				const context = createTestContext({
+					db: server.db,
+					session: createMockSession(user),
+				});
+
+				await expect(
+					call(
+						templatesHandler.update,
+						{
+							category: "Updated Category",
+							content: "Updated content",
+							examples: [],
+							id: createdTemplate.id,
+							name: "Updated Title",
+							visibility: "private",
+						},
+						{ context },
+					),
+				).rejects.toThrow();
+
+				const publicResult = await call(
+					templatesHandler.update,
+					{
+						category: "Updated Category",
+						content: "Updated content",
+						examples: [],
+						id: createdTemplate.id,
+						name: "Updated Title",
+						visibility: "public",
+					},
+					{ context },
+				);
+
+				expect(publicResult.visibility).toBe("public");
 			});
 
 			test("throws error when updating template not owned by user", async () => {

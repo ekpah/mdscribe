@@ -21,7 +21,13 @@ import {
 	SidebarRail,
 	useSidebar,
 } from "@repo/design-system/components/ui/sidebar";
-import { ChevronRight, FileText, Folder, PlusCircle, Search } from "lucide-react";
+import {
+	ChevronRight,
+	FileText,
+	Folder,
+	PlusCircle,
+	Search,
+} from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type React from "react";
@@ -166,6 +172,7 @@ export default function DocumentsSidebar({
 													<SidebarMenuSubItem key={document.url}>
 														<SidebarMenuSubButton asChild>
 															<Link
+																className="flex items-center"
 																href={document.url}
 																onClick={() => setOpenMobile(false)}
 															>

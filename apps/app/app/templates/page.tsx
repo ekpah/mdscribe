@@ -1,20 +1,19 @@
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@repo/design-system/components/ui/breadcrumb';
-import { SidebarTrigger } from '@repo/design-system/components/ui/sidebar';
-import Link from 'next/link';
-import ContentSection from './[id]/_components/content-section';
-import { NavActions } from './[id]/_components/nav-actions';
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@repo/design-system/components/ui/breadcrumb";
+import { SidebarTrigger } from "@repo/design-system/components/ui/sidebar";
+import Link from "next/link";
+
+import ContentSection from "./[id]/_components/content-section";
+import { NavActions } from "./[id]/_components/nav-actions";
 export default function TemplatesPage() {
-  const templateGuide = `# Template-Möglichkeiten
+	const templateGuide = `# Template-Möglichkeiten
 
 Willkommen in der Template-Bibliothek! Hier kannst du dynamische Textbausteine erstellen, die sich automatisch an verschiedene Patientendaten anpassen. Templates verwenden spezielle Tags, um interaktive Eingabefelder zu definieren und berechnete Werte zu erstellen.
-
-Möchtest du die Tag-Möglichkeiten direkt ausprobieren? Besuche den [Playground](/playground) für interaktive Experimente!
 
 ## Gestaltungsmöglichkeiten
 
@@ -48,33 +47,33 @@ Größe: {% info "Patientengroesse" type="number" unit="cm" renderUnit=true /%},
 
 **Erstelle jetzt dein eigenes Template und spar dir viel Zeit bei deinen künftigen Arztbriefen!**`;
 
-  return (
-    <div className="flex h-full w-full flex-col">
-      <div className="flex h-10 items-center justify-between gap-2">
-        <SidebarTrigger className="ml-4 block md:hidden" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem className="hidden md:block">
-              <Link href="/templates">Textbausteine</Link>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="hidden md:block" />
-            <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbPage>...</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <NavActions
-          contentView="template"
-          favouriteOfCount={0}
-          hasExamples={false}
-          isAuthor={false}
-          isFavourite={false}
-          isLoggedIn={false}
-          lastEdited={new Date()}
-          templateId={''}
-        />
-      </div>
-      <ContentSection examples={[]} note={templateGuide} />
-    </div>
-  );
+	return (
+		<div className="flex h-full w-full flex-col">
+			<div className="flex h-10 items-center justify-between gap-2">
+				<SidebarTrigger className="ml-4 block md:hidden" />
+				<Breadcrumb>
+					<BreadcrumbList>
+						<BreadcrumbItem className="hidden md:block">
+							<Link href="/templates">Textbausteine</Link>
+						</BreadcrumbItem>
+						<BreadcrumbSeparator className="hidden md:block" />
+						<BreadcrumbItem className="hidden md:block">
+							<BreadcrumbPage>...</BreadcrumbPage>
+						</BreadcrumbItem>
+					</BreadcrumbList>
+				</Breadcrumb>
+				<NavActions
+					contentView="template"
+					favouriteOfCount={0}
+					hasExamples={false}
+					isAuthor={false}
+					isFavourite={false}
+					isLoggedIn={false}
+					lastEdited={new Date()}
+					templateId={""}
+				/>
+			</div>
+			<ContentSection examples={[]} note={templateGuide} />
+		</div>
+	);
 }

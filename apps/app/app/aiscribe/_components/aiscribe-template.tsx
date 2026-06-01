@@ -29,7 +29,8 @@ import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
-import type { AudioFile, DocumentType } from "@/orpc/scribe/types";
+import type { AudioFile, DocumentType, FillInputsContextFile } from "@/orpc/scribe/types";
+import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
 import { AiscribeTemplateInputSection } from "./aiscribe-template-input-section";
 import { MemoizedCopySection } from "./memoized-copy-section";
 
@@ -107,27 +108,6 @@ interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
 }
 
-interface AudioRecording {
-	blob: Blob;
-	duration: number;
-	id: string;
-}
-
-const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
-	const chunkSize = 8192;
-	const chunks: string[] = [];
-	for (let i = 0; i < data.length; i += chunkSize) {
-		const chunk = data.subarray(i, i + chunkSize);
-		chunks.push(String.fromCodePoint(...chunk));
-	}
-	return btoa(chunks.join(""));
-};
-
-const blobToBase64 = async (blob: Blob): Promise<string> => {
-	const bytes = new Uint8Array(await blob.arrayBuffer());
-	return encodeUint8ArrayToBase64(bytes);
-};
-
 const ContextMetadataRow = ({
 	children,
 	label,
@@ -148,13 +128,10 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 		Record<string, string>
 	>({});
 	const values = useMemo<Record<string, unknown>>(() => ({}), []);
-	const [isRecording, setIsRecording] = useState(false);
-	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
+	const inputContextController = useInputContextState();
 	// Use ref for audio files to avoid race condition between setState and sendMessage
 	const preparedAudioFilesRef = useRef<AudioFile[]>([]);
-	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-	const audioChunksRef = useRef<Blob[]>([]);
-	const recordingStartTimeRef = useRef<number>(0);
+	const preparedContextFilesRef = useRef<FillInputsContextFile[]>([]);
 	const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
 	const { customApiCall, customPromptProcessor, inputFieldName } = config;
 
@@ -178,25 +155,31 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 		},
 		onFinish: () => {
 			toast.success("Erfolgreich generiert");
-			// Clear prepared audio files ref after generation
+			// Clear prepared media refs after generation
 			preparedAudioFilesRef.current = [];
+			preparedContextFilesRef.current = [];
 		},
 		transport: {
 			reconnectToStream() {
 				throw new Error("Unsupported");
 			},
 			async sendMessages(options) {
-				// Read from ref to get the latest audio files synchronously
+				// Read from refs to get the latest media files synchronously
 				const audioFiles = preparedAudioFilesRef.current;
+				const contextFiles = preparedContextFilesRef.current;
 				const requestInput = isCustomFormConfig
 					? {
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+							contextFiles:
+								contextFiles.length > 0 ? contextFiles : undefined,
 							formId: config.formId,
 							messages: options.messages,
 							source: "customForm" as const,
 						}
 					: {
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
+							contextFiles:
+								contextFiles.length > 0 ? contextFiles : undefined,
 							documentType: config.documentType,
 							messages: options.messages,
 							source: "documentType" as const,
@@ -228,85 +211,6 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 
 	// Loading state from useChat status
 	const isLoading = status === "streaming" || status === "submitted";
-
-	const maxRecordings = 3;
-	const canRecord = audioRecordings.length < maxRecordings;
-
-	// Handle audio recording
-	const handleStartRecording = useCallback(async () => {
-		if (!canRecord) {
-			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
-			return;
-		}
-
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			const mediaRecorder = new MediaRecorder(stream);
-			mediaRecorderRef.current = mediaRecorder;
-			audioChunksRef.current = [];
-			recordingStartTimeRef.current = Date.now();
-
-			mediaRecorder.addEventListener("dataavailable", (event) => {
-				audioChunksRef.current.push(event.data);
-			});
-
-			mediaRecorder.addEventListener("stop", () => {
-				const audioBlob = new Blob(audioChunksRef.current, {
-					type: "audio/wav",
-				});
-				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
-				const newRecording: AudioRecording = {
-					blob: audioBlob,
-					duration,
-					id: `audio-${Date.now()}`,
-				};
-				// PERF: Use functional setState to avoid stale closures
-				setAudioRecordings((prev) => [...prev, newRecording]);
-				for (const track of stream.getTracks()) {
-					track.stop();
-				}
-			});
-
-			mediaRecorder.start();
-			setIsRecording(true);
-			toast.success("Aufnahme gestartet");
-		} catch (error) {
-			console.error("Error starting recording:", error);
-			toast.error("Fehler beim Starten der Aufnahme");
-		}
-	}, [canRecord, maxRecordings]);
-
-	const handleStopRecording = useCallback(() => {
-		if (mediaRecorderRef.current && isRecording) {
-			mediaRecorderRef.current.stop();
-			setIsRecording(false);
-			toast.success("Aufnahme beendet");
-		}
-	}, [isRecording]);
-
-	const handleToggleRecording = useCallback(() => {
-		if (isRecording) {
-			handleStopRecording();
-		} else {
-			void handleStartRecording();
-		}
-	}, [handleStartRecording, handleStopRecording, isRecording]);
-	const recordingButtonTitle = (() => {
-		if (!canRecord && !isRecording) {
-			return `Maximal ${maxRecordings} Aufnahmen möglich`;
-		}
-		if (isRecording) {
-			return "Aufnahme stoppen";
-		}
-		return "Audioaufnahme starten";
-	})();
-
-	// PERF: Use useCallback with functional setState for stable callback reference
-	const handleRemoveRecording = useCallback((id: string) => {
-		setAudioRecordings((prev) =>
-			prev.filter((recording) => recording.id !== id),
-		);
-	}, []);
 
 	// PERF: Use useCallback with functional setState for stable callback reference
 	const handleAdditionalInputChange = useCallback(
@@ -359,7 +263,8 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	// Check if at least one input field is filled
 	const areRequiredFieldsFilled = useCallback(() => {
 		// Check if there are any audio recordings
-		const hasAudio = audioRecordings.length > 0;
+		const hasAudio = inputContextController.hasAudioRecordings;
+		const hasFiles = inputContextController.hasContextFiles;
 
 		// Check if main input field has content
 		const hasMainInput = inputData.trim().length > 0;
@@ -371,10 +276,11 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 				additionalInputData[field.name].trim().length > 0,
 		);
 
-		// At least one field must be filled (audio, main input, or any additional input)
-		return hasAudio || hasMainInput || hasAnyAdditionalInput;
+		// At least one field must be filled (text, audio, files, or additional input)
+		return hasAudio || hasFiles || hasMainInput || hasAnyAdditionalInput;
 	}, [
-		audioRecordings,
+		inputContextController.hasAudioRecordings,
+		inputContextController.hasContextFiles,
 		inputData,
 		additionalInputData,
 		config.additionalInputs,
@@ -409,23 +315,10 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 						...additionalInputData,
 					});
 
-			// Prepare audio files if available - update ref synchronously before sendMessage
-			if (audioRecordings.length > 0) {
-				const audioFiles = await Promise.all(
-					audioRecordings.map(async (recording) => {
-						const audioBase64 = await blobToBase64(recording.blob);
-						return {
-							data: audioBase64,
-							mimeType: recording.blob.type,
-						};
-					}),
-				);
-				// Use ref to avoid race condition - ref update is synchronous
-				preparedAudioFilesRef.current = audioFiles;
-			} else {
-				// Clear ref if no audio recordings
-				preparedAudioFilesRef.current = [];
-			}
+			const inputContextPayload = await inputContextController.prepareSubmission();
+			// Use refs to avoid race condition - ref updates are synchronous.
+			preparedAudioFilesRef.current = inputContextPayload.audioFiles;
+			preparedContextFilesRef.current = inputContextPayload.contextFiles;
 
 			// Send message using AI SDK useChat
 			const promptText =
@@ -449,7 +342,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 		customApiCall,
 		customPromptProcessor,
 		inputFieldName,
-		audioRecordings,
+		inputContextController,
 	]);
 
 	useHotkeys(
@@ -598,17 +491,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 										<AiscribeTemplateInputSection
 											additionalInputData={additionalInputData}
 											additionalInputs={config.additionalInputs}
-											audio={{
-												canRecord,
-												isRecording,
-												onRemoveRecording: handleRemoveRecording,
-												onToggleRecording: handleToggleRecording,
-												recordingButtonTitle,
-												recordings: audioRecordings.map((recording) => ({
-													duration: recording.duration,
-													id: recording.id,
-												})),
-											}}
+											inputContextController={inputContextController}
 											inputPlaceholder={config.inputPlaceholder}
 											inputValue={inputData}
 											isLoading={isLoading}

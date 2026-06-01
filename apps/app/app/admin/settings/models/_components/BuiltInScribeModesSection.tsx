@@ -17,7 +17,6 @@ import {
 	DialogTitle,
 } from "@repo/design-system/components/ui/dialog";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
 import {
 	Select,
 	SelectContent,
@@ -39,8 +38,6 @@ import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 
 const NONE_VALUE = "__none__";
 const FIELD_EXPLANATIONS = {
-	model:
-		"Legt fest, welches KI-Modell den Text generiert. Ohne Auswahl wird das Standardmodell verwendet.",
 	prompt:
 		"Der Basis-Prompt ist das Prompt-Harness, das Inhalt, Ton und Struktur der Generierung vorgibt.",
 	template: "Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor.",
@@ -52,7 +49,6 @@ type BuiltInFormRecord = BuiltInFormList[number];
 interface BuiltInFormDraft {
 	enabled: boolean;
 	key: BuiltInAiscribeOverrideKey;
-	modelId: string;
 	path: string;
 	promptHarness: PromptHarnessId | "";
 	templateId: string;
@@ -65,7 +61,6 @@ const toNullableSelectValue = (value: string): string | null =>
 const toDraft = (form: BuiltInFormRecord): BuiltInFormDraft => ({
 	enabled: form.override?.enabled ?? false,
 	key: form.key,
-	modelId: form.override?.modelId ?? NONE_VALUE,
 	path: form.path,
 	promptHarness: (form.override?.promptHarness ?? form.defaultPromptHarness) as PromptHarnessId,
 	templateId: form.override?.templateId ?? NONE_VALUE,
@@ -104,7 +99,6 @@ const SectionLabelWithInfo = ({ children, info }: { children: string; info: stri
 export const BuiltInScribeModesSection = () => {
 	const queryClient = useQueryClient();
 	const builtInFormsQueryOptions = orpc.admin.scribeForms.listBuiltIn.queryOptions();
-	const modelsQueryOptions = orpc.admin.models.list.queryOptions();
 	const promptsQueryOptions = orpc.admin.scribe.prompts.list.queryOptions({
 		input: { limit: 200 },
 	});
@@ -115,7 +109,6 @@ export const BuiltInScribeModesSection = () => {
 		error: builtInFormsError,
 		isLoading: isBuiltInFormsLoading,
 	} = useQuery(builtInFormsQueryOptions);
-	const { data: models = [] } = useQuery(modelsQueryOptions);
 	const { data: prompts } = useQuery(promptsQueryOptions);
 	const { data: templates = [] } = useQuery(templatesQueryOptions);
 
@@ -125,21 +118,6 @@ export const BuiltInScribeModesSection = () => {
 	const builtInListKey = builtInFormsQueryOptions.queryKey;
 	const promptNames = prompts?.items ?? [];
 	const availablePromptNames = new Set(promptNames);
-	const modelOptions = [
-		{
-			group: "",
-			keywords: ["standard", "default"],
-			label: "Standardmodell",
-			value: NONE_VALUE,
-		},
-		...models.map((model) => ({
-			group: model.providerName,
-			keywords: [model.name, model.modelId, model.providerName],
-			label: model.name,
-			value: model.id,
-		})),
-	];
-
 	const saveMutation = useMutation({
 		mutationFn: (currentDraft: BuiltInFormDraft) => {
 			if (!currentDraft.promptHarness) {
@@ -149,7 +127,6 @@ export const BuiltInScribeModesSection = () => {
 			return orpc.admin.scribeForms.upsertBuiltIn.call({
 				enabled: currentDraft.enabled,
 				key: currentDraft.key,
-				modelId: toNullableSelectValue(currentDraft.modelId),
 				promptHarness: currentDraft.promptHarness,
 				templateId: toNullableSelectValue(currentDraft.templateId),
 			});
@@ -170,7 +147,6 @@ export const BuiltInScribeModesSection = () => {
 			orpc.admin.scribeForms.upsertBuiltIn.call({
 				enabled,
 				key: form.key,
-				modelId: form.override?.modelId ?? null,
 				promptHarness: (form.override?.promptHarness ??
 					form.defaultPromptHarness) as PromptHarnessId,
 				templateId: form.override?.templateId ?? null,
@@ -229,15 +205,6 @@ export const BuiltInScribeModesSection = () => {
 				return current;
 			}
 			return { ...current, templateId: value };
-		});
-	}, []);
-
-	const handleDraftModelChange = useCallback((value: string | null) => {
-		setDraft((current) => {
-			if (!current) {
-				return current;
-			}
-			return { ...current, modelId: value ?? NONE_VALUE };
 		});
 	}, []);
 
@@ -380,12 +347,6 @@ export const BuiltInScribeModesSection = () => {
 										)}
 									</span>
 
-									<SectionLabelWithInfo info={FIELD_EXPLANATIONS.model}>
-										KI-Modell
-									</SectionLabelWithInfo>
-									<span className="min-w-0 break-words">
-										{form.override?.model?.displayName ?? "Standard"}
-									</span>
 								</div>
 								<div className="flex justify-end">
 									<Button onClick={handleOpenEditClick} size="sm" variant="outline">
@@ -456,18 +417,6 @@ export const BuiltInScribeModesSection = () => {
 											))}
 										</SelectContent>
 									</Select>
-								</div>
-
-								<div className="space-y-2">
-									<LabelWithInfo info={FIELD_EXPLANATIONS.model}>KI-Modell</LabelWithInfo>
-									<ModelSelector
-										options={modelOptions}
-										value={draft.modelId}
-										onValueChange={handleDraftModelChange}
-										placeholder="Modell wählen"
-										searchPlaceholder="Modell suchen..."
-										className="border-solarized-base2 bg-solarized-base3"
-									/>
 								</div>
 
 								<div className="flex items-center justify-between pt-2 md:col-span-2">

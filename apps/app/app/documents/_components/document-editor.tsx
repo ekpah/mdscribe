@@ -1,6 +1,10 @@
 "use client";
 
 import { Badge } from "@repo/design-system/components/ui/badge";
+import {
+	Alert,
+	AlertDescription,
+} from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -32,6 +36,7 @@ import {
 } from "@/app/documents/_lib";
 import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
 const COMPACT_FIELD_LABEL_CLASS_NAME = "block truncate text-[11px]";
@@ -40,6 +45,8 @@ const COMPACT_SELECT_TRIGGER_CLASS_NAME = "h-7 min-w-0 overflow-hidden text-xs [
 const META_LABEL_CLASS_NAME =
 	"text-muted-foreground text-[10px] uppercase leading-none tracking-normal";
 const META_VALUE_CLASS_NAME = "mt-1 min-w-0 truncate font-medium text-xs";
+const DOCUMENT_VISIBILITIES = ["public", "private"] as const;
+type DocumentVisibility = (typeof DOCUMENT_VISIBILITIES)[number];
 
 const toPdfTypeLabel = (pdfType: DocumentFieldDefinition["pdfType"]): string => {
 	switch (pdfType) {
@@ -544,6 +551,7 @@ export default function DocumentEditor({
 	const [isPdfReplaced, setIsPdfReplaced] = useState(false);
 	const [fieldDefinitions, setFieldDefinitions] = useState<DocumentFieldDefinition[]>([]);
 	const [activePdfFieldName, setActivePdfFieldName] = useState<string | null>(null);
+	const [visibility, setVisibility] = useState<DocumentVisibility>("public");
 
 	const { data: editorContext } = useQuery(orpc.documents.templates.editorContext.queryOptions());
 	const { data: sourceDocument } = useQuery({
@@ -566,6 +574,7 @@ export default function DocumentEditor({
 
 		setTitle(sourceDocument.title);
 		setCategory(sourceDocument.category);
+		setVisibility(sourceDocument.visibility === "private" ? "private" : "public");
 		const savedFieldDefinitions = normalizeSavedFieldDefinitions(sourceDocument.fieldDefinitions);
 		if (savedFieldDefinitions.length > 0) {
 			setFieldDefinitions(savedFieldDefinitions);
@@ -628,6 +637,23 @@ export default function DocumentEditor({
 		setActivePdfFieldName(fieldName);
 	}, []);
 
+	const canCreatePrivateDocuments = Boolean(editorContext?.canCreatePrivateDocuments);
+
+	const handleVisibilityChange = useCallback(
+		(value: string) => {
+			if (value === "private" && !canCreatePrivateDocuments) {
+				toast.error(USER_MESSAGES.privateDocumentRequiresPlus);
+				setVisibility("public");
+				return;
+			}
+
+			if (DOCUMENT_VISIBILITIES.includes(value as DocumentVisibility)) {
+				setVisibility(value as DocumentVisibility);
+			}
+		},
+		[canCreatePrivateDocuments],
+	);
+
 	const handleEnhanceWithAi = useCallback(async () => {
 		if (!pdfFileBytes) {
 			toast.error("Bitte zuerst ein PDF hochladen.");
@@ -686,6 +712,7 @@ export default function DocumentEditor({
 					fieldDefinitions,
 					id: documentId,
 					title: title.trim(),
+					visibility,
 					...(isPdfReplaced
 						? {
 								pdfBase64: encodeUint8ArrayToBase64(pdfFileBytes),
@@ -703,6 +730,7 @@ export default function DocumentEditor({
 				fieldDefinitions,
 				pdfBase64: encodeUint8ArrayToBase64(pdfFileBytes),
 				title: title.trim(),
+				visibility,
 			});
 			toast.success("Dokument erstellt", { id: "document-save" });
 			router.push(`/documents/${createdDocument.id}`);
@@ -721,6 +749,7 @@ export default function DocumentEditor({
 		router,
 		title,
 		updateMutation,
+		visibility,
 	]);
 
 	const rawCategorySuggestions = editorContext?.categorySuggestions;
@@ -851,7 +880,40 @@ export default function DocumentEditor({
 									</TooltipContent>
 								</Tooltip>
 							</div>
+							<div className="min-w-0 flex-[1_1_12rem] space-y-2">
+								<Label htmlFor="document-visibility">Sichtbarkeit</Label>
+								<Select onValueChange={handleVisibilityChange} value={visibility}>
+									<SelectTrigger
+										className="min-w-0 overflow-hidden [&>span]:truncate"
+										id="document-visibility"
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="public">Öffentlich</SelectItem>
+										<SelectItem
+											disabled={!canCreatePrivateDocuments}
+											value="private"
+										>
+											Privat
+										</SelectItem>
+									</SelectContent>
+								</Select>
+								{!canCreatePrivateDocuments ? (
+									<p className="mt-1 text-muted-foreground text-xs">
+										Private Dokumente sind in Plus enthalten.
+									</p>
+								) : null}
+							</div>
 						</div>
+
+						{visibility === "public" ? (
+							<Alert className="border-solarized-orange/50 bg-solarized-orange/10">
+								<AlertDescription>
+									{USER_MESSAGES.publicDocumentVisibilityWarning}
+								</AlertDescription>
+							</Alert>
+						) : null}
 
 						{category === "new" ? (
 							<div className="space-y-2">

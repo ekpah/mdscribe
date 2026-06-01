@@ -1,9 +1,8 @@
-import { and, desc, eq, gte, lte, sql, usageEvent, user } from "@repo/database";
+import { and, desc, gte, inArray, lte, sql, usageEvent, user } from "@repo/database";
 
+import { BILLABLE_SCRIBE_USAGE_EVENT_NAMES } from "@/lib/usage-event-names";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-
-const SUBSCRIPTION_USAGE_EVENT_NAME = "ai_scribe_generation";
 
 const activeSubscriptionPredicate = sql`
 	(
@@ -30,7 +29,7 @@ const adminUsersHandler = authed
 			.from(usageEvent)
 			.where(
 				and(
-					eq(usageEvent.name, SUBSCRIPTION_USAGE_EVENT_NAME),
+					inArray(usageEvent.name, [...BILLABLE_SCRIBE_USAGE_EVENT_NAMES]),
 					gte(usageEvent.timestamp, firstDayOfMonth),
 					lte(usageEvent.timestamp, now),
 				),

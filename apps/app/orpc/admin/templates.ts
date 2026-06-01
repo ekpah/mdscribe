@@ -29,6 +29,7 @@ const listAdminTemplatesHandler = authed
 				id: template.id,
 				title: template.title,
 				updatedAt: template.updatedAt,
+				visibility: template.visibility,
 			})
 			.from(template)
 			.leftJoin(user, eq(template.authorId, user.id))

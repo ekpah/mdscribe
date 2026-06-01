@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bookmark,
   Clock,
+  File as FileIcon,
   FileText,
+  FileUser,
   FolderPlus,
   ListChecks,
   Pencil,
@@ -48,6 +50,7 @@ export const NavActions = ({
   favouriteOfCount,
   contentView,
   hasExamples,
+  visibility,
 }: {
   author?: string;
   isAuthor: boolean;
@@ -58,6 +61,7 @@ export const NavActions = ({
   favouriteOfCount: number;
   contentView: 'template' | 'examples';
   hasExamples: boolean;
+  visibility?: 'public' | 'private';
 }) => {
   const templateActionIconProps = {
     className: 'h-4 w-4',
@@ -276,6 +280,23 @@ export const NavActions = ({
 
   return (
     <div className="flex items-center gap-2 text-sm">
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
+              {visibility === 'private' ? (
+                <FileUser className="h-4 w-4" strokeWidth={1.5} />
+              ) : (
+                <FileIcon className="h-4 w-4" strokeWidth={1.5} />
+              )}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{visibility === 'private' ? 'Privat sichtbar' : 'Öffentlich sichtbar'}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
       <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
         <User />
         Autor: {author || 'Anonym'}

@@ -67,11 +67,12 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 					</BreadcrumbList>
 				</Breadcrumb>
 				<NavActions
-					author={document.author?.email || undefined}
+					author={document.author?.name || undefined}
 					documentId={document.id}
 					isAuthor={isAuthor}
 					isLoggedIn={Boolean(session?.user?.id)}
 					lastEdited={document.updatedAt}
+					visibility={document.visibility === "private" ? "private" : "public"}
 				/>
 			</div>
 			<ContentSection

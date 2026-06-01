@@ -18,7 +18,6 @@ import {
 } from "@repo/design-system/components/ui/dialog";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
 import {
 	Select,
 	SelectContent,
@@ -43,8 +42,6 @@ import { BuiltInScribeModesSection } from "./BuiltInScribeModesSection";
 
 const NONE_VALUE = "__none__";
 const FIELD_EXPLANATIONS = {
-	model:
-		"Legt fest, welches KI-Modell den Text generiert. Ohne Auswahl wird das Standardmodell verwendet.",
 	prompt:
 		"Der Basis-Prompt ist das Prompt-Harness, das Inhalt, Ton und Struktur der Generierung vorgibt.",
 	template: "Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor.",
@@ -57,7 +54,6 @@ interface FormDraft {
 	description: string;
 	enabled: boolean;
 	id?: string;
-	modelId: string;
 	name: string;
 	promptHarness: PromptHarnessId | "";
 	slug?: string;
@@ -67,7 +63,6 @@ interface FormDraft {
 const createEmptyDraft = (): FormDraft => ({
 	description: "",
 	enabled: true,
-	modelId: NONE_VALUE,
 	name: "",
 	promptHarness: "",
 	templateId: NONE_VALUE,
@@ -77,7 +72,6 @@ const toDraft = (form: ScribeFormRecord): FormDraft => ({
 	description: form.description ?? "",
 	enabled: form.enabled,
 	id: form.id,
-	modelId: form.modelId ?? NONE_VALUE,
 	name: form.name,
 	promptHarness: form.promptHarness as PromptHarnessId,
 	slug: form.slug,
@@ -93,7 +87,6 @@ const resolveDraftSlug = (draft: Pick<FormDraft, "id" | "name" | "slug">): strin
 const buildFormMutationInput = ({
 	description,
 	enabled,
-	modelId,
 	name,
 	promptHarness,
 	slug,
@@ -101,7 +94,6 @@ const buildFormMutationInput = ({
 }: {
 	description: string | null;
 	enabled: boolean;
-	modelId: string | null;
 	name: string;
 	promptHarness: PromptHarnessId;
 	slug: string;
@@ -109,7 +101,6 @@ const buildFormMutationInput = ({
 }) => ({
 	description: description?.trim() || null,
 	enabled,
-	modelId,
 	name: name.trim(),
 	promptHarness,
 	slug,
@@ -156,7 +147,6 @@ const SectionLabelWithInfo = ({ children, info }: { children: string; info: stri
 export const ScribeFormsTab = () => {
 	const queryClient = useQueryClient();
 	const formsQueryOptions = orpc.admin.scribeForms.list.queryOptions();
-	const modelsQueryOptions = orpc.admin.models.list.queryOptions();
 	const promptsQueryOptions = orpc.admin.scribe.prompts.list.queryOptions({
 		input: { limit: 200 },
 	});
@@ -167,7 +157,6 @@ export const ScribeFormsTab = () => {
 		isLoading: isFormsLoading,
 		error: formsError,
 	} = useQuery(formsQueryOptions);
-	const { data: models = [] } = useQuery(modelsQueryOptions);
 	const { data: prompts } = useQuery(promptsQueryOptions);
 	const { data: templates = [] } = useQuery(templatesQueryOptions);
 
@@ -182,21 +171,6 @@ export const ScribeFormsTab = () => {
 	const availablePromptNames = new Set(promptNames);
 	const hasUnavailableDraftPrompt =
 		Boolean(draft.promptHarness) && !availablePromptNames.has(draft.promptHarness);
-	const modelOptions = [
-		{
-			group: "",
-			keywords: ["standard", "default"],
-			label: "Standardmodell",
-			value: NONE_VALUE,
-		},
-		...models.map((model) => ({
-			group: model.providerName,
-			keywords: [model.name, model.modelId, model.providerName],
-			label: model.name,
-			value: model.id,
-		})),
-	];
-
 	const saveMutation = useMutation({
 		mutationFn: (currentDraft: FormDraft) => {
 			const trimmedName = currentDraft.name.trim();
@@ -217,7 +191,6 @@ export const ScribeFormsTab = () => {
 			const payload = buildFormMutationInput({
 				description: currentDraft.description,
 				enabled: currentDraft.enabled,
-				modelId: toNullableSelectValue(currentDraft.modelId),
 				name: trimmedName,
 				promptHarness: currentDraft.promptHarness,
 				slug,
@@ -265,7 +238,6 @@ export const ScribeFormsTab = () => {
 				...buildFormMutationInput({
 					description: form.description,
 					enabled,
-					modelId: form.modelId,
 					name: form.name,
 					promptHarness: form.promptHarness as PromptHarnessId,
 					slug: form.slug,
@@ -323,10 +295,6 @@ export const ScribeFormsTab = () => {
 
 	const handleDraftTemplateChange = useCallback((value: string) => {
 		setDraft((current) => ({ ...current, templateId: value }));
-	}, []);
-
-	const handleDraftModelChange = useCallback((value: string | null) => {
-		setDraft((current) => ({ ...current, modelId: value ?? NONE_VALUE }));
 	}, []);
 
 	const handleDraftEnabledChange = useCallback((checked: boolean) => {
@@ -524,12 +492,6 @@ export const ScribeFormsTab = () => {
 											)}
 										</div>
 
-										<SectionLabelWithInfo info={FIELD_EXPLANATIONS.model}>
-											KI-Modell
-										</SectionLabelWithInfo>
-										<div className="min-w-0 break-words">
-											{form.model?.displayName ?? "Standard"}
-										</div>
 									</div>
 									<div className="flex justify-end gap-2">
 											<Button
@@ -662,18 +624,6 @@ export const ScribeFormsTab = () => {
 										))}
 									</SelectContent>
 								</Select>
-							</div>
-
-							<div className="space-y-2">
-								<LabelWithInfo info={FIELD_EXPLANATIONS.model}>KI-Modell</LabelWithInfo>
-									<ModelSelector
-										options={modelOptions}
-										value={draft.modelId}
-										onValueChange={handleDraftModelChange}
-										placeholder="Modell wählen"
-										searchPlaceholder="Modell suchen..."
-										className="border-solarized-base2 bg-solarized-base3"
-								/>
 							</div>
 
 							<div className="flex items-center justify-between pt-2 md:col-span-2">

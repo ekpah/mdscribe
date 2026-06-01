@@ -1,6 +1,5 @@
 import { ORPCError, type } from "@orpc/server";
 import {
-	aiModel,
 	aiScribeFormConfig,
 	eq,
 	inArray,
@@ -45,7 +44,6 @@ const slugSchema = z
 const baseFormSchema = z.object({
 	description: z.string().trim().nullable().optional(),
 	enabled: z.boolean(),
-	modelId: z.string().nullable().optional(),
 	name: z.string().trim().min(1, "Name ist erforderlich"),
 	promptHarness: promptHarnessSchema,
 	slug: slugSchema,
@@ -65,7 +63,6 @@ const deleteFormInput = z.object({
 const builtInFormInput = z.object({
 	enabled: z.boolean(),
 	key: z.enum(BUILT_IN_AISCRIBE_OVERRIDE_KEYS),
-	modelId: z.string().nullable().optional(),
 	promptHarness: promptHarnessSchema,
 	templateId: z.string().nullable().optional(),
 });
@@ -92,21 +89,10 @@ const toNullableText = (value?: string | null): string | null => {
 	return trimmed.length > 0 ? trimmed : null;
 };
 
-const ensureModelAndTemplateExist = async (
+const ensureTemplateExists = async (
 	context: { db: Database },
-	input: { modelId?: string | null; templateId?: string | null },
+	input: { templateId?: string | null },
 ): Promise<void> => {
-	if (input.modelId) {
-		const existingModel = await context.db.query.aiModel.findFirst({
-			where: eq(aiModel.id, input.modelId),
-		});
-		if (!existingModel) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Ausgewähltes KI-Modell wurde nicht gefunden",
-			});
-		}
-	}
-
 	if (input.templateId) {
 		const existingTemplate = await context.db.query.template.findFirst({
 			where: eq(template.id, input.templateId),
@@ -122,7 +108,6 @@ const ensureModelAndTemplateExist = async (
 const toScribeFormValues = (input: {
 	description?: string | null;
 	enabled: boolean;
-	modelId?: string | null;
 	name: string;
 	promptHarness: string;
 	slug: string;
@@ -132,7 +117,6 @@ const toScribeFormValues = (input: {
 	enabled: input.enabled,
 	inputPreset: "fullClinicalContext" as const,
 	maxTokens: null,
-	modelId: toNullableString(input.modelId),
 	name: input.name,
 	promptHarness: input.promptHarness,
 	slug: input.slug,
@@ -163,7 +147,6 @@ const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context 
 			description: true,
 			enabled: true,
 			id: true,
-			modelId: true,
 			name: true,
 			promptHarness: true,
 			slug: true,
@@ -171,12 +154,6 @@ const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context 
 		},
 		orderBy: (form, { asc }) => [asc(form.createdAt)],
 		with: {
-			model: {
-				columns: {
-					displayName: true,
-					id: true,
-				},
-			},
 			template: {
 				columns: {
 					id: true,
@@ -193,19 +170,12 @@ const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(asyn
 			description: true,
 			enabled: true,
 			id: true,
-			modelId: true,
 			promptHarness: true,
 			slug: true,
 			templateId: true,
 		},
 		where: inArray(aiScribeFormConfig.slug, BUILT_IN_AISCRIBE_OVERRIDE_SLUGS),
 		with: {
-			model: {
-				columns: {
-					displayName: true,
-					id: true,
-				},
-			},
 			template: {
 				columns: {
 					id: true,
@@ -233,8 +203,6 @@ const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(asyn
 						description: override.description,
 						enabled: override.enabled,
 						id: override.id,
-						model: override.model,
-						modelId: override.modelId,
 						promptHarness: override.promptHarness,
 						template: override.template,
 						templateId: override.templateId,
@@ -249,7 +217,7 @@ const createFormHandler = authed
 	.input(type<z.infer<typeof createFormInput>>())
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(createFormInput, input);
-		await ensureModelAndTemplateExist(context, parsed);
+		await ensureTemplateExists(context, parsed);
 		await ensureSlugUnique(context, parsed.slug);
 
 		const [created] = await context.db
@@ -265,7 +233,7 @@ const updateFormHandler = authed
 	.input(type<z.infer<typeof updateFormInput>>())
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(updateFormInput, input);
-		await ensureModelAndTemplateExist(context, parsed);
+		await ensureTemplateExists(context, parsed);
 		await ensureSlugUnique(context, parsed.slug, parsed.id);
 
 		const [updated] = await context.db
@@ -298,13 +266,12 @@ const upsertBuiltInFormHandler = authed
 	.input(type<z.infer<typeof builtInFormInput>>())
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(builtInFormInput, input);
-		await ensureModelAndTemplateExist(context, parsed);
+		await ensureTemplateExists(context, parsed);
 
 		const definition = getBuiltInAiscribeOverride(parsed.key);
 		const values = toScribeFormValues({
 			description: definition.description,
 			enabled: parsed.enabled,
-			modelId: parsed.modelId,
 			name: definition.title,
 			promptHarness: parsed.promptHarness,
 			slug: definition.slug,

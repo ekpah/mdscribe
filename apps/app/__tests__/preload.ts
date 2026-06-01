@@ -182,6 +182,10 @@ mock.module("stripe", () => ({
 }));
 
 mock.module("ai", () => ({
+	experimental_transcribe: () =>
+		resolveAsync({
+			text: "Transkribierter Testtext",
+		}),
 	generateObject: () =>
 		resolveAsync({
 			finishReason: "stop" as const,

@@ -325,6 +325,7 @@ export const createTestTemplate = async (
 		content?: string;
 		embedding?: number[];
 		examples?: string[];
+		visibility?: "public" | "private";
 	},
 ) => {
 	const { template } = await import("@repo/database");
@@ -340,6 +341,7 @@ export const createTestTemplate = async (
 			id: crypto.randomUUID(),
 			title: options?.title ?? "Test Template",
 			updatedAt: new Date(),
+			visibility: options?.visibility ?? "public",
 		})
 		.returning();
 
@@ -467,9 +469,9 @@ export const createTestAiDefaults = async (
 	await db.insert(aiModel).values({
 		displayName: "Test Model",
 		id: modelRecordId,
-		inputModes: ["text", "audio", "file", "image"],
 		modelId,
 		providerId,
+		supportedParameters: ["reasoning"],
 		supportsReasoning: true,
 	});
 
@@ -477,18 +479,30 @@ export const createTestAiDefaults = async (
 		.insert(aiDefaults)
 		.values({
 			defaultEvaluationModel: modelRecordId,
+			defaultEvaluationReasoningEffort: "medium",
 			defaultFileImageModelId: modelRecordId,
+			defaultFileImageReasoningEffort: "none",
+			defaultMultimodalModelId: null,
+			defaultMultimodalReasoningEffort: "none",
 			defaultSpeechToTextModelId: modelRecordId,
+			defaultSpeechToTextReasoningEffort: "none",
 			defaultTextModelId: modelRecordId,
+			defaultTextReasoningEffort: "medium",
 			id: "global",
 			updatedAt: new Date(),
 		})
 		.onConflictDoUpdate({
 			set: {
 				defaultEvaluationModel: modelRecordId,
+				defaultEvaluationReasoningEffort: "medium",
 				defaultFileImageModelId: modelRecordId,
+				defaultFileImageReasoningEffort: "none",
+				defaultMultimodalModelId: null,
+				defaultMultimodalReasoningEffort: "none",
 				defaultSpeechToTextModelId: modelRecordId,
+				defaultSpeechToTextReasoningEffort: "none",
 				defaultTextModelId: modelRecordId,
+				defaultTextReasoningEffort: "medium",
 				updatedAt: new Date(),
 			},
 			target: aiDefaults.id,

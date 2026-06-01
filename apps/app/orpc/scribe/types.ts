@@ -1,19 +1,29 @@
 /**
  * Model configuration for streaming responses
  */
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+
 export interface ModelConfig {
 	maxTokens?: number;
 	temperature?: number;
 	thinking?: boolean;
-	reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+	reasoningEffort?: ReasoningEffort;
 }
 
 /**
- * Audio file data for Gemini models
+ * Audio file data for native multimodal and transcription-capable models.
+ *
+ * `data`/`mimeType` always describe the original browser recording. Optional
+ * fallbacks are truthful transcodes that providers can choose when their chat
+ * adapter does not accept the original format.
  */
 export interface AudioFile {
 	data: string;
 	mimeType: string;
+	wavFallback?: {
+		data: string;
+		mimeType: "audio/wav";
+	};
 }
 
 /**

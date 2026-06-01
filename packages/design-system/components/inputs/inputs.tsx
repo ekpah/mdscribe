@@ -17,12 +17,6 @@ import { cn } from "@repo/design-system/lib/utils";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import { FillInputControls } from "./input-fill-controls";
-import type {
-	FillInputsAudioFile,
-	FillInputsContextFile,
-	FillInputsTextContext,
-} from "./input-fill-controls";
 import {
 	Tooltip,
 	TooltipContent,
@@ -33,21 +27,46 @@ import { normalizeDateValue } from "./ui/date-utils";
 import { InfoInput } from "./ui/info-input";
 import { SwitchInput } from "./ui/switch-input";
 
-export type { FillInputsAudioFile } from "./input-fill-controls";
-export type { FillInputsContextFile } from "./input-fill-controls";
-export type { FillInputsTextContext } from "./input-fill-controls";
+export interface FillInputsAudioFile {
+	data: string;
+	mimeType: string;
+	wavFallback?: {
+		data: string;
+		mimeType: "audio/wav";
+	};
+}
+
+export interface FillInputsContextFile {
+	data: string;
+	mimeType: string;
+	name: string;
+	size: number;
+}
+
+export interface FillInputsTextContext {
+	anamnese?: string;
+	befunde?: string;
+	diagnoseblock?: string;
+	notes?: string;
+}
 
 interface InputsProps {
 	inputTags: InputTagType[];
 	onChange: (data: Record<string, unknown>) => void;
 	showFillInputs?: boolean;
-	textPanelPortalTarget?: HTMLElement | null;
 	onFillInputs?: (
 		inputFields: FillInputsInputField[],
 		audioFiles: FillInputsAudioFile[],
 		textContext: FillInputsTextContext,
 		contextFiles: FillInputsContextFile[],
 	) => Promise<FillInputsResult>;
+	renderFillControls?: (props: {
+		onSubmit: (
+			audioFiles: FillInputsAudioFile[],
+			textContext: FillInputsTextContext,
+			contextFiles: FillInputsContextFile[],
+		) => Promise<void>;
+	}) => React.ReactNode;
 	suggestedValues?: Record<string, SuggestedValue>;
 	onSuggestedValuesChange?: (values: Record<string, SuggestedValue>) => void;
 }
@@ -493,7 +512,7 @@ export default function Inputs({
 	onChange,
 	showFillInputs = false,
 	onFillInputs,
-	textPanelPortalTarget,
+	renderFillControls,
 	suggestedValues: suggestedValuesProp,
 	onSuggestedValuesChange,
 }: InputsProps) {
@@ -701,7 +720,9 @@ export default function Inputs({
 		return null;
 	}
 
-	const shouldShowFillInputs = Boolean(showFillInputs && onFillInputs);
+	const shouldShowFillInputs = Boolean(
+		showFillInputs && onFillInputs && renderFillControls,
+	);
 	const renderContext: RenderContext = {
 		applySuggestionHandlers,
 		changeHandlers,
@@ -720,13 +741,9 @@ export default function Inputs({
 				{inputTags.map((inputTag) => renderInputTag(inputTag, renderContext))}
 			</div>
 			{/* Fixed autofill footer */}
-			{shouldShowFillInputs && (
-				<FillInputControls
-					className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
-					onSubmit={handleFillInputs}
-					textPanelPortalTarget={textPanelPortalTarget}
-				/>
-			)}
+			{shouldShowFillInputs && renderFillControls ? (
+				renderFillControls({ onSubmit: handleFillInputs })
+			) : null}
 		</form>
 	);
 }

@@ -3,6 +3,7 @@ import type { Database } from "@repo/database";
 import { after } from "next/server";
 
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
+import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
 import type {
 	StandardUsage,
 	UsageInputData,
@@ -80,7 +81,7 @@ export const scheduleScribeUsageLogging = (input: {
 						zdrEnabled: input.activeSubscription,
 					} as UsageMetadata,
 					model: input.modelName,
-					name: "ai_scribe_generation",
+					name: AI_SCRIBE_GENERATION_EVENT_NAME,
 					openRouterUsage,
 					reasoning: redactIfZdrEnabled(input.activeSubscription, input.event.reasoningText),
 					result: redactIfZdrEnabled(input.activeSubscription, input.event.text),

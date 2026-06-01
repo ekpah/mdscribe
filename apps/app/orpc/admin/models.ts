@@ -53,28 +53,17 @@ interface PlaygroundModel {
 	capabilities: ModelCapabilities;
 	supported_parameters: string[];
 	supportedParameters: string[];
-	inputModes: string[];
 	supportsReasoning: boolean;
 }
 
-const toCapabilities = (inputModes: string[]): ModelCapabilities => {
-	const modes = new Set(inputModes);
-	return {
-		outputsAudio: false,
-		outputsImage: false,
-		outputsText: true,
-		supportsAudio: modes.has("audio"),
-		supportsImage: modes.has("image"),
-		supportsText: true,
-		supportsVideo: false,
-	};
-};
-
-const toModality = (inputModes: string[]): string => {
-	const inputs = ["text"];
-	if (inputModes.includes("image")) {inputs.push("image");}
-	if (inputModes.includes("audio")) {inputs.push("audio");}
-	return `${inputs.join("+")}->text`;
+const UNKNOWN_CAPABILITIES: ModelCapabilities = {
+	outputsAudio: false,
+	outputsImage: false,
+	outputsText: true,
+	supportsAudio: false,
+	supportsImage: false,
+	supportsText: true,
+	supportsVideo: false,
 };
 
 const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
@@ -91,7 +80,6 @@ const listModelsHandler = authed
 		const models: PlaygroundModel[] = [];
 		for (const provider of providers) {
 			for (const model of provider.models) {
-				const capabilities = toCapabilities(model.inputModes);
 				const supportedParameters = normalizeSupportedParameters(
 					model.supportedParameters,
 				);
@@ -99,15 +87,14 @@ const listModelsHandler = authed
 					model.supportsReasoning || supportedParameters.includes("reasoning");
 				models.push({
 					architecture: {
-						modality: toModality(model.inputModes),
+						modality: "unknown",
 						tokenizer: "unknown",
 					},
-					capabilities,
+					capabilities: UNKNOWN_CAPABILITIES,
 					connectionId: provider.id,
 					connectionProtocol: provider.protocol,
 					context_length: 0,
 					id: model.id,
-					inputModes: model.inputModes,
 					modelId: model.modelId,
 					name: model.displayName,
 					pricing: { completion: "0", prompt: "0" },

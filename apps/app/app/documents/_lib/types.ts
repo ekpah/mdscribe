@@ -22,8 +22,6 @@ const documentFieldDefinitionSchema = z.object({
 	valueType: documentValueTypeSchema,
 });
 
-export const documentFieldDefinitionsSchema = z.array(documentFieldDefinitionSchema);
-
 export type DocumentPdfType = z.infer<typeof documentPdfTypeSchema>;
 export type DocumentInputKind = z.infer<typeof documentInputKindSchema>;
 export type DocumentFieldDefinition = z.infer<typeof documentFieldDefinitionSchema>;

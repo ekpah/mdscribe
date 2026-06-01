@@ -38,7 +38,6 @@ describe("Admin Models Handler", () => {
 		expect(seededModel?.providerId).toBe(seeded.providerId);
 		expect(seededModel?.modelId).toBe(seeded.modelId);
 		expect(seededModel?.connectionId).toBe(seeded.providerId);
-		expect(seededModel?.inputModes).toEqual(["text", "audio", "file", "image"]);
 		expect(seededModel?.supportsReasoning).toBe(true);
 	});
 
@@ -47,7 +46,7 @@ describe("Admin Models Handler", () => {
 			.update(aiModel)
 			.set({
 				displayName: "Renamed test model",
-				inputModes: ["text", "image", "file"],
+				supportedParameters: [],
 				supportsReasoning: false,
 			})
 			.where(eq(aiModel.id, seeded.modelRecordId));
@@ -59,6 +58,5 @@ describe("Admin Models Handler", () => {
 
 		expect(updatedModel?.name).toBe("Renamed test model");
 		expect(updatedModel?.supportsReasoning).toBe(false);
-		expect(updatedModel?.inputModes).toEqual(["text", "image", "file"]);
 	});
 });

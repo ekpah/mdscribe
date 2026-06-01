@@ -30,7 +30,7 @@ describe("documents.parseForm", () => {
 		await createTestAiDefaults(server.db);
 
 		const pdfBytes = await Bun.file(samplePdfPath).arrayBuffer();
-		const result = await call(
+		const result = (await call(
 			documentsHandler.parseForm,
 			{
 				fileBase64: Buffer.from(pdfBytes).toString("base64"),
@@ -39,7 +39,13 @@ describe("documents.parseForm", () => {
 			{
 				context: createTestContext({ db: server.db, session }),
 			},
-		);
+		)) as {
+			fieldMapping: Array<{
+				description: string;
+				fieldName: string;
+				label: string;
+			}>;
+		};
 
 		expect(result.fieldMapping).toBeArray();
 		expect(result.fieldMapping.length).toBeGreaterThan(0);

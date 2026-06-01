@@ -2,7 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import type { FillInputsAudioFile } from "@repo/design-system/components/inputs/input-fill-controls";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
@@ -196,12 +195,6 @@ interface PromptVersion {
 	promptName: string;
 }
 
-interface AudioRecording {
-	blob: Blob;
-	duration: number;
-	id: string;
-}
-
 interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 	model: PlaygroundModel;
 	isTop: boolean;
@@ -310,21 +303,6 @@ const buildSelectedTemplateReference = (templateData: {
 	}
 
 	return sections.join("\n\n");
-};
-
-const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
-	const chunkSize = 8192;
-	const chunks: string[] = [];
-	for (let i = 0; i < data.length; i += chunkSize) {
-		const chunk = data.subarray(i, i + chunkSize);
-		chunks.push(String.fromCodePoint(...chunk));
-	}
-	return btoa(chunks.join(""));
-};
-
-const blobToBase64 = async (blob: Blob): Promise<string> => {
-	const bytes = new Uint8Array(await blob.arrayBuffer());
-	return encodeUint8ArrayToBase64(bytes);
 };
 
 const asFiniteMetricNumber = (value: unknown): number | undefined => {
@@ -1056,157 +1034,6 @@ export const PlaygroundPanel = ({
 		return JSON.stringify(data);
 	}, [docUi, formMain, formAdditional, selectedTemplateReference]);
 
-	const [isRecordingAudio, setIsRecordingAudio] = useState(false);
-	const [isParsingAudioRecordings, setIsParsingAudioRecordings] = useState(false);
-	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
-	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-	const audioChunksRef = useRef<Blob[]>([]);
-	const recordingStartTimeRef = useRef<number>(0);
-	const maxRecordings = 3;
-	const canRecordAudio = audioRecordings.length < maxRecordings;
-
-	const handleStartRecordingAudio = useCallback(async () => {
-		if (!canRecordAudio) {
-			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
-			return;
-		}
-
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			const mediaRecorder = new MediaRecorder(stream);
-			mediaRecorderRef.current = mediaRecorder;
-			audioChunksRef.current = [];
-			recordingStartTimeRef.current = Date.now();
-
-			mediaRecorder.addEventListener("dataavailable", (event) => {
-				audioChunksRef.current.push(event.data);
-			});
-
-			mediaRecorder.addEventListener("stop", () => {
-				const audioBlob = new Blob(audioChunksRef.current, {
-					type: "audio/wav",
-				});
-				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
-				const newRecording: AudioRecording = {
-					blob: audioBlob,
-					duration,
-					id: `audio-${Date.now()}`,
-				};
-				setAudioRecordings((prev) => [...prev, newRecording]);
-				for (const track of stream.getTracks()) {
-					track.stop();
-				}
-			});
-
-			mediaRecorder.start();
-			setIsRecordingAudio(true);
-			toast.success("Aufnahme gestartet");
-		} catch (error) {
-			console.error("Error starting recording:", error);
-			toast.error("Fehler beim Starten der Aufnahme");
-		}
-	}, [canRecordAudio]);
-
-	const handleStopRecordingAudio = useCallback(() => {
-		if (mediaRecorderRef.current && isRecordingAudio) {
-			mediaRecorderRef.current.stop();
-			setIsRecordingAudio(false);
-			toast.success("Aufnahme beendet");
-		}
-	}, [isRecordingAudio]);
-
-	const handleToggleRecordingAudio = useCallback(() => {
-		if (isRecordingAudio) {
-			handleStopRecordingAudio();
-		} else {
-			void handleStartRecordingAudio();
-		}
-	}, [handleStartRecordingAudio, handleStopRecordingAudio, isRecordingAudio]);
-
-	const handleRemoveAudioRecording = useCallback((id: string) => {
-		setAudioRecordings((prev) => prev.filter((recording) => recording.id !== id));
-	}, []);
-
-	const recordingAudioButtonTitle = (() => {
-		if (!canRecordAudio && !isRecordingAudio) {
-			return `Maximal ${maxRecordings} Aufnahmen möglich`;
-		}
-		if (isRecordingAudio) {
-			return "Aufnahme stoppen";
-		}
-		return "Audioaufnahme starten";
-	})();
-
-	const handleParseAudioToText = useCallback(
-		async (audioFiles: FillInputsAudioFile[]) => {
-			toast.loading("Audio wird zu Text geparst...", {
-				id: "playground-audio-parse",
-			});
-
-			try {
-				const result = await orpc.scribe.fillInputs.call({
-					audioFiles,
-					inputFields: [
-						{
-							description: [
-								docUi.mainField.label,
-								docUi.mainField.description,
-								"Transkribiere die Sprachaufnahme als Fließtext für dieses Hauptfeld.",
-							]
-								.filter(Boolean)
-								.join(" · "),
-							label: docUi.mainField.name,
-						},
-					],
-				});
-
-				const parsedValue = result.fieldValues[docUi.mainField.name];
-				const parsedText =
-					typeof parsedValue === "string" ? parsedValue.trim() : undefined;
-				if (!parsedText) {
-					throw new Error("Keine verwertbare Sprache erkannt");
-				}
-
-				setFormMain((prev) => {
-					const trimmedPrevious = prev.trim();
-					return trimmedPrevious.length > 0 ? `${trimmedPrevious}\n\n${parsedText}` : parsedText;
-				});
-
-				toast.success("Audio als Text ins Hauptfeld übernommen", {
-					id: "playground-audio-parse",
-				});
-			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
-				toast.error(`Audio-Parsing fehlgeschlagen: ${errorMessage}`, {
-					id: "playground-audio-parse",
-				});
-				throw error;
-			}
-		},
-		[docUi.mainField.description, docUi.mainField.label, docUi.mainField.name],
-	);
-
-	const handleParseRecordedAudioToText = useCallback(async () => {
-		if (audioRecordings.length === 0) {
-			toast.error("Bitte zuerst Audio aufnehmen");
-			return;
-		}
-
-		setIsParsingAudioRecordings(true);
-		try {
-			const audioFiles = await Promise.all(
-				audioRecordings.map(async (recording) => ({
-					data: await blobToBase64(recording.blob),
-					mimeType: recording.blob.type,
-				})),
-			);
-			await handleParseAudioToText(audioFiles);
-			setAudioRecordings([]);
-		} finally {
-			setIsParsingAudioRecordings(false);
-		}
-	}, [audioRecordings, handleParseAudioToText]);
-
 	const compilePrompt = useCallback(async () => {
 		const requestId = compileRequestRef.current + 1;
 		compileRequestRef.current = requestId;
@@ -1752,24 +1579,8 @@ export const PlaygroundPanel = ({
 					additionalInputData={formAdditional}
 					additionalInputs={playgroundAdditionalInputs}
 					additionalTextareaClassName={PLAYGROUND_EDITOR_TEXTAREA_CLASS}
-					audio={{
-						canRecord: canRecordAudio,
-						isRecording: isRecordingAudio,
-						isSubmittingRecordings: isParsingAudioRecordings,
-						onRemoveRecording: handleRemoveAudioRecording,
-						onSubmitRecordings: handleParseRecordedAudioToText,
-						onToggleRecording: handleToggleRecordingAudio,
-						recordingButtonTitle: recordingAudioButtonTitle,
-						recordings: audioRecordings.map((recording) => ({
-							duration: recording.duration,
-							id: recording.id,
-						})),
-						submitRecordingsLabel: "Zu Text parsen",
-						submitRecordingsPendingLabel: "Wird geparst...",
-					}}
 					inputPlaceholder={docUi.mainField.placeholder}
 					inputValue={formMain}
-					isLoading={isParsingAudioRecordings}
 					onAdditionalInputChange={handleAdditionalInputValueChange}
 					onInputValueChange={handleMainInputValueChange}
 					showSubmit={false}

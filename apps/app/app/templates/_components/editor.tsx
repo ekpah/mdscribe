@@ -3,6 +3,10 @@
 import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
 import TipTap from "@repo/design-system/components/editor/tip-tap";
+import {
+	Alert,
+	AlertDescription,
+} from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -27,6 +31,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 const FALLBACK_CATEGORIES = [
 	"Kardiologie",
@@ -36,6 +41,8 @@ const FALLBACK_CATEGORIES = [
 ] as const;
 const MAX_TEMPLATE_EXAMPLES = 10;
 const SAVE_TOAST_ID = "template-save";
+const TEMPLATE_VISIBILITIES = ["public", "private"] as const;
+type TemplateVisibility = (typeof TEMPLATE_VISIBILITIES)[number];
 
 const isActionableError = (error: unknown): error is Error => error instanceof Error;
 
@@ -47,6 +54,8 @@ export default function Editor({
 	examples: initialExamples = [],
 	id,
 	canEditSource = false,
+	canCreatePrivateTemplates = false,
+	visibility: initialVisibility = "public",
 }: {
 	cat: string;
 	categorySuggestions?: string[];
@@ -55,6 +64,8 @@ export default function Editor({
 	examples?: string[];
 	id?: string;
 	canEditSource?: boolean;
+	canCreatePrivateTemplates?: boolean;
+	visibility?: TemplateVisibility;
 }) {
 	const router = useRouter();
 	const queryClient = useQueryClient();
@@ -65,6 +76,8 @@ export default function Editor({
 		initialExamples.slice(0, MAX_TEMPLATE_EXAMPLES),
 	);
 	const [newCategory, setNewCategory] = useState("");
+	const [visibility, setVisibility] =
+		useState<TemplateVisibility>(initialVisibility);
 	const [showSource, setShowSource] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	// Counter to force TipTap remount when switching from source view
@@ -240,6 +253,7 @@ export default function Editor({
 					examples: sanitizedExamples,
 					id,
 					name,
+					visibility,
 				});
 
 				router.push(`/templates/${id}`);
@@ -273,6 +287,7 @@ export default function Editor({
 					content,
 					examples: sanitizedExamples,
 					name,
+					visibility,
 				});
 
 				await invalidateTemplateQueries();
@@ -304,6 +319,7 @@ export default function Editor({
 			queryClient,
 			router,
 			updateMutation,
+			visibility,
 		],
 	);
 
@@ -319,6 +335,21 @@ export default function Editor({
 			setName(event.target.value);
 		},
 		[],
+	);
+
+	const handleVisibilityChange = useCallback(
+		(value: string) => {
+			if (value === "private" && !canCreatePrivateTemplates) {
+				toast.error(USER_MESSAGES.privateTemplateRequiresPlus);
+				setVisibility("public");
+				return;
+			}
+
+			if (TEMPLATE_VISIBILITIES.includes(value as TemplateVisibility)) {
+				setVisibility(value as TemplateVisibility);
+			}
+		},
+		[canCreatePrivateTemplates],
 	);
 
 	const handleSwitchToVisualEditor = useCallback(() => {
@@ -412,7 +443,36 @@ export default function Editor({
 								</p>
 							)}
 						</div>
+						<div className="flex-1">
+							<Label htmlFor="template-visibility">Sichtbarkeit</Label>
+							<Select onValueChange={handleVisibilityChange} value={visibility}>
+								<SelectTrigger id="template-visibility">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="public">Öffentlich</SelectItem>
+									<SelectItem
+										disabled={!canCreatePrivateTemplates}
+										value="private"
+									>
+										Privat
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							{!canCreatePrivateTemplates ? (
+								<p className="mt-1 text-muted-foreground text-xs">
+									Private Textbausteine sind in Plus enthalten.
+								</p>
+							) : null}
+						</div>
 					</div>
+					{visibility === "public" ? (
+						<Alert className="shrink-0 border-solarized-orange/50 bg-solarized-orange/10">
+							<AlertDescription>
+								{USER_MESSAGES.publicTemplateVisibilityWarning}
+							</AlertDescription>
+						</Alert>
+					) : null}
 
 					<Tabs className="min-h-0 grow" defaultValue="template">
 						<TabsList className="mb-2 grid w-fit grid-cols-2">

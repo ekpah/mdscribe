@@ -49,11 +49,10 @@ const NotePage = async ({
 		throw new Error("Document not found");
 	}
 
-	const author = doc.author || { email: "Anonym" };
 	const isFavourite = doc?.favouriteOf.some(
 		(user: { id: string | undefined }) => user.id === session?.user?.id,
 	);
-	const isAuthor = author?.email === session?.user?.email;
+	const isAuthor = doc.authorId === session?.user?.id;
 
 	return (
 		<div className="flex h-full w-full flex-col">
@@ -71,8 +70,8 @@ const NotePage = async ({
 					</BreadcrumbList>
 				</Breadcrumb>
 				<NavActions
-					author={author?.email}
-					favouriteOfCount={doc.favouriteOf?.length}
+					author={doc.author?.name ?? undefined}
+					favouriteOfCount={doc._count.favouriteOf}
 					isAuthor={isAuthor}
 					isFavourite={isFavourite}
 					isLoggedIn={!!session?.user?.id}
@@ -80,6 +79,7 @@ const NotePage = async ({
 					templateId={doc.id}
 					contentView={contentView}
 					hasExamples={doc.examples.length > 0}
+					visibility={doc.visibility === "private" ? "private" : "public"}
 				/>
 			</div>
 			<ContentSection

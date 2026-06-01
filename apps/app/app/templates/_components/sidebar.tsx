@@ -185,11 +185,12 @@ export default function AppSidebar({
     [customCollections]
   );
 
-  const { data: customCollectionsData = initialCustomCollections } = useQuery({
+  const { data: customCollectionsQueryData } = useQuery({
     ...orpc.user.collections.list.queryOptions(),
     enabled: isLoggedIn,
-    initialData: initialCustomCollections,
   });
+  const customCollectionsData =
+    customCollectionsQueryData ?? initialCustomCollections;
 
   const customCollectionsWithUrls = useMemo(
     () =>

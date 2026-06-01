@@ -1,12 +1,7 @@
 "use client";
 
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@repo/design-system/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@repo/design-system/components/ui/dropdown-menu";
 import {
 	InputGroup,
 	InputGroupAddon,
@@ -28,7 +23,6 @@ import {
 	Loader2Icon,
 	MicIcon,
 	PaperclipIcon,
-	PlusIcon,
 	SendIcon,
 	SquareIcon,
 	XIcon,
@@ -844,22 +838,6 @@ export const PromptInputTextarea = ({
 	);
 };
 
-type PromptInputToolbarProps = Omit<ComponentProps<typeof InputGroupAddon>, "align">;
-
-export const PromptInputToolbar = ({ className, ...props }: PromptInputToolbarProps) => (
-	<InputGroupAddon
-		align="block-end"
-		className={cn("justify-between gap-1", className)}
-		{...props}
-	/>
-);
-
-type PromptInputToolsProps = HTMLAttributes<HTMLDivElement>;
-
-export const PromptInputTools = ({ className, ...props }: PromptInputToolsProps) => (
-	<div className={cn("flex items-center gap-1", className)} {...props} />
-);
-
 type PromptInputButtonProps = ComponentProps<typeof InputGroupButton>;
 
 const PromptInputButton = ({
@@ -880,41 +858,6 @@ const PromptInputButton = ({
 		/>
 	);
 };
-
-type PromptInputActionMenuProps = ComponentProps<typeof DropdownMenu>;
-export const PromptInputActionMenu = (props: PromptInputActionMenuProps) => (
-	<DropdownMenu {...props} />
-);
-
-type PromptInputActionMenuTriggerProps = PromptInputButtonProps;
-
-const PromptInputActionMenuTrigger = ({
-	className,
-	children,
-	...props
-}: PromptInputActionMenuTriggerProps) => (
-	<DropdownMenuTrigger asChild>
-		<PromptInputButton className={className} {...props}>
-			{children ?? <PlusIcon className="size-4" />}
-		</PromptInputButton>
-	</DropdownMenuTrigger>
-);
-
-type PromptInputActionMenuContentProps = ComponentProps<typeof DropdownMenuContent>;
-const PromptInputActionMenuContent = ({
-	className,
-	...props
-}: PromptInputActionMenuContentProps) => (
-	<DropdownMenuContent align="start" className={cn(className)} {...props} />
-);
-
-type PromptInputActionMenuItemProps = ComponentProps<typeof DropdownMenuItem>;
-const PromptInputActionMenuItem = ({ className, ...props }: PromptInputActionMenuItemProps) => (
-	<DropdownMenuItem className={cn(className)} {...props} />
-);
-
-// Note: Actions that perform side-effects (like opening a file dialog)
-// are provided in opt-in modules (e.g., prompt-input-attachments).
 
 type PromptInputSubmitProps = ComponentProps<typeof InputGroupButton> & {
 	status?: ChatStatus;

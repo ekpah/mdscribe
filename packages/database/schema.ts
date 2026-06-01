@@ -148,7 +148,11 @@ export const template = pgTable("Template", {
 	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.defaultNow(),
-});
+	visibility: text("visibility").notNull().default("public"),
+}, (table) => [
+	index("Template_authorId_visibility_idx").on(table.authorId, table.visibility),
+	index("Template_visibility_idx").on(table.visibility),
+]);
 
 export const documentTemplate = pgTable(
 	"DocumentTemplate",
@@ -170,10 +174,16 @@ export const documentTemplate = pgTable(
 			.notNull()
 			.defaultNow()
 			.$onUpdate(() => new Date()),
+		visibility: text("visibility").notNull().default("public"),
 	},
 	(table) => [
 		index("DocumentTemplate_authorId_idx").on(table.authorId),
+		index("DocumentTemplate_authorId_visibility_idx").on(
+			table.authorId,
+			table.visibility,
+		),
 		index("DocumentTemplate_category_idx").on(table.category),
+		index("DocumentTemplate_visibility_idx").on(table.visibility),
 	],
 );
 
@@ -334,7 +344,6 @@ export const aiModel = pgTable(
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
-		inputModes: text("inputModes").array().notNull().default(["text"]),
 		modelId: text("modelId").notNull(),
 		providerId: text("providerId")
 			.notNull()
@@ -355,17 +364,44 @@ export const aiDefaults = pgTable("AiDefaults", {
 		() => aiModel.id,
 		{ onDelete: "set null" },
 	),
+	defaultEvaluationReasoningEffort: text(
+		"defaultEvaluationReasoningEffort",
+	)
+		.notNull()
+		.default("none"),
 	defaultFileImageModelId: text("defaultFileImageModelId").references(
 		() => aiModel.id,
 		{ onDelete: "set null" },
 	),
+	defaultFileImageReasoningEffort: text(
+		"defaultFileImageReasoningEffort",
+	)
+		.notNull()
+		.default("none"),
+	defaultMultimodalModelId: text("defaultMultimodalModelId").references(
+		() => aiModel.id,
+		{ onDelete: "set null" },
+	),
+	defaultMultimodalReasoningEffort: text(
+		"defaultMultimodalReasoningEffort",
+	)
+		.notNull()
+		.default("none"),
 	defaultSpeechToTextModelId: text("defaultSpeechToTextModelId").references(
 		() => aiModel.id,
 		{ onDelete: "set null" },
 	),
+	defaultSpeechToTextReasoningEffort: text(
+		"defaultSpeechToTextReasoningEffort",
+	)
+		.notNull()
+		.default("none"),
 	defaultTextModelId: text("defaultTextModelId").references(() => aiModel.id, {
 		onDelete: "set null",
 	}),
+	defaultTextReasoningEffort: text("defaultTextReasoningEffort")
+		.notNull()
+		.default("none"),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => "global"),
@@ -387,9 +423,6 @@ export const aiScribeFormConfig = pgTable(
 			.$defaultFn(() => crypto.randomUUID()),
 		inputPreset: text("inputPreset").notNull(),
 		maxTokens: integer("maxTokens"),
-		modelId: text("modelId").references(() => aiModel.id, {
-			onDelete: "set null",
-		}),
 		name: text("name").notNull(),
 		promptHarness: text("promptHarness").notNull(),
 		slug: text("slug").notNull(),
@@ -509,10 +542,6 @@ export const aiModelRelations = relations(aiModel, ({ one }) => ({
 export const aiScribeFormConfigRelations = relations(
 	aiScribeFormConfig,
 	({ one }) => ({
-		model: one(aiModel, {
-			fields: [aiScribeFormConfig.modelId],
-			references: [aiModel.id],
-		}),
 		template: one(template, {
 			fields: [aiScribeFormConfig.templateId],
 			references: [template.id],

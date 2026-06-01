@@ -1,7 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import {
 	and,
-	aiDefaults,
 	aiScribeFormConfig,
 	avg,
 	count,
@@ -22,7 +21,10 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { PLAYGROUND_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
-import { resolveModelByRecordId } from "@/orpc/scribe/providers";
+import {
+	buildProviderOptions,
+	resolveDefaultModel,
+} from "@/orpc/scribe/providers";
 
 const usageEvaluationSchema = z.object({
 	categories: z
@@ -286,24 +288,28 @@ const evaluateUsageEventHandler = authed
 			});
 		}
 
-		const defaults = await context.db.query.aiDefaults.findFirst({
-			where: eq(aiDefaults.id, "global"),
-		});
-		const evaluationModelRecordId = defaults?.defaultEvaluationModel;
-		if (!evaluationModelRecordId) {
+		const evaluationSelection = await resolveDefaultModel(
+			context.db,
+			"evaluation",
+		).catch((error: unknown) => {
+			const details =
+				error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
 			throw new ORPCError("BAD_REQUEST", {
-				message: "Kein Standard-Evaluationsmodell konfiguriert",
+				message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
 			});
-		}
-
-		const evaluationModel = await resolveModelByRecordId(evaluationModelRecordId, context.db);
+		});
 		const metadata = toMetadataRecord(event.metadata);
 		const documentType = getDocumentTypeForEvaluation(event.name, metadata);
 
 		let evaluation;
 		try {
 			evaluation = await generateObject({
-				model: evaluationModel.model,
+				model: evaluationSelection.model.model,
+				providerOptions: buildProviderOptions({
+					model: evaluationSelection.model,
+					reasoningEffort: evaluationSelection.reasoningEffort,
+					userId: context.session.user.id,
+				}),
 				schema: usageEvaluationSchema,
 				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
 				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.

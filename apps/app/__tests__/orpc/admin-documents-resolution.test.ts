@@ -108,7 +108,6 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			{
 				displayName: "Text Model",
 				id: textModelRecordId,
-				inputModes: ["text"],
 				modelId: "openrouter/text-model",
 				providerId,
 				supportsReasoning: false,
@@ -116,7 +115,6 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			{
 				displayName: "File Model",
 				id: fileModelRecordId,
-				inputModes: ["text", "file", "image"],
 				modelId: "openrouter/file-model",
 				providerId,
 				supportsReasoning: false,
@@ -126,6 +124,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			.insert(aiDefaults)
 			.values({
 				defaultFileImageModelId: fileModelRecordId,
+				defaultMultimodalModelId: null,
 				defaultSpeechToTextModelId: textModelRecordId,
 				defaultTextModelId: textModelRecordId,
 				id: "global",
@@ -134,6 +133,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			.onConflictDoUpdate({
 				set: {
 					defaultFileImageModelId: fileModelRecordId,
+					defaultMultimodalModelId: null,
 					defaultSpeechToTextModelId: textModelRecordId,
 					defaultTextModelId: textModelRecordId,
 					updatedAt: new Date(),

@@ -21,7 +21,6 @@ interface AiModelData {
 	displayName: string;
 	supportedParameters?: string[];
 	supportsReasoning: boolean;
-	inputModes: string[];
 }
 
 interface ProviderData {

@@ -40,6 +40,7 @@ export const findRelevantTemplateForProcedure = async (notes: string): Promise<s
 				(1 - (embedding <=> ${embeddingSql}::vector)) as similarity
 			FROM "Template"
 			WHERE embedding IS NOT NULL
+			AND visibility = 'public'
 			AND (1 - (embedding <=> ${embeddingSql}::vector)) > 0.6
 			ORDER BY embedding <-> ${embeddingSql}::vector
 			LIMIT 1

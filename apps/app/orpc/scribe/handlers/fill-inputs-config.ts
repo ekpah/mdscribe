@@ -6,7 +6,9 @@ import type {
 } from "@/orpc/scribe/types";
 
 interface FillInputsPromptInput {
+	audioTranscripts?: string;
 	contextFiles?: FillInputsContextFile[];
+	fileTextContext?: string;
 	textContext?: FillInputsTextContext;
 }
 
@@ -18,6 +20,8 @@ const toPromptJson = (input: FillInputsPromptInput) =>
 				name: file.name,
 				size: file.size,
 			})),
+			audioTranscripts: input.audioTranscripts || null,
+			fileTextContext: input.fileTextContext || null,
 			textContext: input.textContext ?? null,
 		},
 		null,
@@ -40,6 +44,8 @@ export const fillInputsConfig: {
 Du bekommst:
 - textContext: klinischer Text als Quelle
 - contextFiles: Namen/Metadaten angehängter Dateien
+- audioTranscripts: Transkribierte Aufnahmen, falls ein Speech-to-Text-Modell genutzt wurde
+- fileTextContext: Extrahierter Dateiinhalt, falls ein OCR/File-Modell vorgeschaltet wurde
 - optional Audio/Dateien als zusätzliche Nachrichtenteile
 - Das Output-Schema enthält die exakt auszufüllenden Feldlabels mit Beschreibung.
 

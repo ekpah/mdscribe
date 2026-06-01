@@ -20,7 +20,6 @@ describe("AI Scribe Forms Handlers", () => {
 	let adminContext: ReturnType<typeof createTestContext>;
 	let publicContext: ReturnType<typeof createTestContext>;
 	let templateId: string;
-	let modelId: string;
 
 	beforeEach(async () => {
 		server = await startTestServer("scribe-forms");
@@ -31,13 +30,12 @@ describe("AI Scribe Forms Handlers", () => {
 			email: "doctor@test.com",
 		});
 		const session = createMockSession(adminUser);
-		const seeded = await createTestAiDefaults(server.db);
+		await createTestAiDefaults(server.db);
 		const template = await createTestTemplate(server.db, authorUser.id, {
 			title: "Briefvorlage",
 		});
 
 		templateId = template.id;
-		modelId = seeded.modelRecordId;
 		adminContext = createTestContext({ db: server.db, session });
 		publicContext = createTestContext({ db: server.db });
 	});
@@ -52,7 +50,6 @@ describe("AI Scribe Forms Handlers", () => {
 				{
 					description: "Erstellt einen strukturierten Echo-Brief.",
 					enabled: true,
-					modelId,
 					name: "Echo Brief",
 					promptHarness: "Inpatient_discharge",
 					slug: "echo-brief",
@@ -73,7 +70,6 @@ describe("AI Scribe Forms Handlers", () => {
 		expect(created.slug).toBe("echo-brief");
 		expect(listed).toHaveLength(1);
 		expect(listed[0]?.template?.id).toBe(templateId);
-		expect(listed[0]?.model?.id).toBe(modelId);
 		expect(publicForm?.name).toBe("Echo Brief");
 	});
 
@@ -83,7 +79,6 @@ describe("AI Scribe Forms Handlers", () => {
 				{
 					description: null,
 					enabled: true,
-					modelId: null,
 					name: "Echo Brief",
 					promptHarness: "Diagnoses",
 					slug: "echo-brief",
@@ -98,7 +93,6 @@ describe("AI Scribe Forms Handlers", () => {
 					description: null,
 					enabled: false,
 					id: created.id,
-					modelId: null,
 					name: "Echo Brief",
 					promptHarness: "Diagnoses",
 					slug: "echo-brief",
@@ -126,7 +120,6 @@ describe("AI Scribe Forms Handlers", () => {
 			{
 				enabled: true,
 				key: "er",
-				modelId,
 				promptHarness: "ER_Anamnese_chat",
 				templateId,
 			},
@@ -155,9 +148,6 @@ describe("AI Scribe Forms Handlers", () => {
 		expect(
 			builtInAdminList.find((entry) => entry.key === "er")?.override?.template?.id,
 		).toBe(templateId);
-		expect(
-			builtInAdminList.find((entry) => entry.key === "er")?.override?.model?.id,
-		).toBe(modelId);
 	});
 
 	test("custom form create rejects reserved built-in slugs", async () => {
@@ -167,7 +157,6 @@ describe("AI Scribe Forms Handlers", () => {
 				{
 					description: null,
 					enabled: true,
-					modelId: null,
 					name: "Built In ER",
 					promptHarness: "ER_Anamnese_chat",
 					slug: getBuiltInAiscribeOverrideSlug("er"),

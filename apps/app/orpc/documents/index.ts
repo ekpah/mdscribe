@@ -1,15 +1,24 @@
 import { ORPCError, type } from "@orpc/server";
-import { and, count, desc, documentTemplate, eq, usageEvent, user } from "@repo/database";
+import { and, count, desc, documentTemplate, eq, or, usageEvent, user } from "@repo/database";
+import type { Database } from "@repo/database";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 
 import { buildParsedMarkdocFromFieldDefinitions } from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
 import type { DocumentFieldDefinition } from "@/app/documents/_lib/types";
+import type { Session } from "@/lib/auth-types";
+import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type { StandardUsage } from "@/lib/usage-logging";
-import { authed } from "@/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
+import { authed, pub } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { resolveModel, resolveProviderModel } from "@/orpc/scribe/providers";
+import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
+import {
+	buildProviderOptions,
+	resolveGenerationStrategy,
+	resolveProviderModel,
+} from "@/orpc/scribe/providers";
 
 import { pdfDocumentConfigs } from "./config";
 import type { DocumentInputField } from "./config";
@@ -51,8 +60,10 @@ const parseFormInput = z.object({
 	inputFields: z.array(documentInputFieldSchema).optional(),
 });
 
-// Document templates are still in development and gated to admin users right now.
 const adminDocumentProcedure = authed.use(requiredAdminMiddleware);
+
+const documentTemplateVisibilitySchema = z.enum(["public", "private"]);
+type DocumentTemplateVisibility = z.infer<typeof documentTemplateVisibilitySchema>;
 
 const ocrToMarkdownPrompt = [
 	"Du extrahierst den Inhalt eines PDF-Dokuments per OCR.",
@@ -144,6 +155,7 @@ const createDocumentTemplateInput = z.object({
 	fieldDefinitions: looseDocumentFieldDefinitionsSchema,
 	pdfBase64: z.string().min(1, "PDF content is required"),
 	title: z.string().min(1, "Title is required"),
+	visibility: documentTemplateVisibilitySchema.default("public"),
 });
 
 const updateDocumentTemplateInput = z.object({
@@ -152,6 +164,7 @@ const updateDocumentTemplateInput = z.object({
 	id: z.string().min(1),
 	pdfBase64: z.string().min(1).optional(),
 	title: z.string().min(1, "Title is required"),
+	visibility: documentTemplateVisibilitySchema.default("public"),
 });
 
 const getDocumentTemplateInput = z.object({
@@ -176,6 +189,39 @@ const ensureValidFieldDefinitions = (
 				error instanceof Error && error.message
 					? error.message
 					: "Die Felddefinitionen ergeben kein gültiges Inputs-Format.",
+		});
+	}
+};
+
+const visibleDocumentTemplateWhere = (userId?: string | null) =>
+	userId
+		? or(eq(documentTemplate.visibility, "public"), eq(documentTemplate.authorId, userId))
+		: eq(documentTemplate.visibility, "public");
+
+const getOptionalUserId = async (context: unknown) => {
+	const session = await getOptionalAuthSession(
+		(context as { session?: Session }).session,
+	);
+	return session?.user.id ?? null;
+};
+
+const ensureCanSaveDocumentVisibility = async ({
+	db,
+	userId,
+	visibility,
+}: {
+	db: Database;
+	userId: string;
+	visibility: DocumentTemplateVisibility;
+}) => {
+	if (visibility === "public") {
+		return;
+	}
+
+	const entitlements = await resolveProductEntitlements({ db, userId });
+	if (!entitlements.canCreatePrivateDocuments) {
+		throw new ORPCError("FORBIDDEN", {
+			message: USER_MESSAGES.privateDocumentRequiresPlus,
 		});
 	}
 };
@@ -210,11 +256,15 @@ const parseFormHandler = adminDocumentProcedure
 		const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
 		const promptMessages = config.prompt({ fieldMappings, inputFields });
 		const promptText = promptMessages[0].content;
-		let resolvedModel: Awaited<ReturnType<typeof resolveModel>>;
+		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
 		try {
-			resolvedModel = await resolveModel(context.db, {
-				requireFiles: true,
+			const strategy = await resolveGenerationStrategy(context.db, {
+				hasFiles: true,
 			});
+			modelSelection =
+				strategy.mode === "direct"
+					? strategy.generation
+					: strategy.fileImage ?? strategy.generation;
 		} catch (error) {
 			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
 			throw new ORPCError("BAD_REQUEST", {
@@ -243,15 +293,13 @@ const parseFormHandler = adminDocumentProcedure
 						role: "user",
 					},
 				],
-				model: resolvedModel.model,
-				providerOptions: resolvedModel.isOpenRouter
-					? {
-							openrouter: {
-								usage: { include: true },
-								user: context.session.user.email,
-							},
-						}
-					: undefined,
+				model: modelSelection.model.model,
+				providerOptions: buildProviderOptions({
+					includeUsage: true,
+					model: modelSelection.model,
+					reasoningEffort: modelSelection.reasoningEffort,
+					userId: context.session.user.id,
+				}),
 				schema: enhancedFieldMappingSchema,
 				temperature: config.modelConfig.temperature ?? 0.3,
 			});
@@ -264,7 +312,7 @@ const parseFormHandler = adminDocumentProcedure
 		const timeToCompletionMs = Date.now() - requestStartedAt;
 
 		const { object, usage } = result;
-		const openRouterUsage = resolvedModel.isOpenRouter
+		const openRouterUsage = modelSelection.model.isOpenRouter
 			? extractOpenRouterUsage(
 					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
 				)
@@ -277,7 +325,7 @@ const parseFormHandler = adminDocumentProcedure
 					promptName: config.promptName,
 					promptSource: "local",
 				},
-				model: resolvedModel.modelName,
+				model: modelSelection.model.modelName,
 				name: "ai_pdf_form_parsing",
 				openRouterUsage,
 				standardUsage: usage as StandardUsage,
@@ -350,14 +398,11 @@ const ocrToMarkdownHandler = adminDocumentProcedure
 				maxOutputTokens: 24_000,
 				messages: [{ content: userContent, role: "user" }],
 				model: resolvedModel.model,
-				providerOptions: resolvedModel.isOpenRouter
-					? {
-							openrouter: {
-								usage: { include: true },
-								user: context.session.user.email,
-							},
-						}
-					: undefined,
+				providerOptions: buildProviderOptions({
+					includeUsage: true,
+					model: resolvedModel,
+					userId: context.session.user.id,
+				}),
 				temperature: 0,
 			});
 		} catch (error) {
@@ -400,11 +445,11 @@ const ocrToMarkdownHandler = adminDocumentProcedure
 		return { markdown };
 	});
 
-const listDocumentTemplatesHandler = adminDocumentProcedure.handler(async ({ context }) => {
+const listDocumentTemplatesHandler = pub.handler(async ({ context }) => {
+	const userId = await getOptionalUserId(context);
 	return context.db
 		.select({
 			author: {
-				email: user.email,
 				id: user.id,
 				name: user.name,
 			},
@@ -414,19 +459,21 @@ const listDocumentTemplatesHandler = adminDocumentProcedure.handler(async ({ con
 			id: documentTemplate.id,
 			title: documentTemplate.title,
 			updatedAt: documentTemplate.updatedAt,
+			visibility: documentTemplate.visibility,
 		})
 		.from(documentTemplate)
 		.leftJoin(user, eq(documentTemplate.authorId, user.id))
+		.where(visibleDocumentTemplateWhere(userId))
 		.orderBy(desc(documentTemplate.updatedAt));
 });
 
-const getDocumentTemplateHandler = adminDocumentProcedure
+const getDocumentTemplateHandler = pub
 	.input(getDocumentTemplateInput)
 	.handler(async ({ context, input }) => {
+		const userId = await getOptionalUserId(context);
 		const [templateData] = await context.db
 			.select({
 				author: {
-					email: user.email,
 					id: user.id,
 					name: user.name,
 				},
@@ -437,25 +484,27 @@ const getDocumentTemplateHandler = adminDocumentProcedure
 				id: documentTemplate.id,
 				title: documentTemplate.title,
 				updatedAt: documentTemplate.updatedAt,
+				visibility: documentTemplate.visibility,
 			})
 			.from(documentTemplate)
 			.leftJoin(user, eq(documentTemplate.authorId, user.id))
-			.where(eq(documentTemplate.id, input.id))
+			.where(and(eq(documentTemplate.id, input.id), visibleDocumentTemplateWhere(userId)))
 			.limit(1);
 
 		return templateData ?? null;
 	});
 
-const getDocumentTemplatePdfHandler = adminDocumentProcedure
+const getDocumentTemplatePdfHandler = pub
 	.input(getDocumentTemplateInput)
 	.handler(async ({ context, input }) => {
+		const userId = await getOptionalUserId(context);
 		const [templateData] = await context.db
 			.select({
 				id: documentTemplate.id,
 				pdfBytes: documentTemplate.pdfBytes,
 			})
 			.from(documentTemplate)
-			.where(eq(documentTemplate.id, input.id))
+			.where(and(eq(documentTemplate.id, input.id), visibleDocumentTemplateWhere(userId)))
 			.limit(1);
 
 		if (!templateData) {
@@ -468,9 +517,14 @@ const getDocumentTemplatePdfHandler = adminDocumentProcedure
 		};
 	});
 
-const createDocumentTemplateHandler = adminDocumentProcedure
+const createDocumentTemplateHandler = authed
 	.input(createDocumentTemplateInput)
 	.handler(async ({ context, input }) => {
+		await ensureCanSaveDocumentVisibility({
+			db: context.db,
+			userId: context.session.user.id,
+			visibility: input.visibility,
+		});
 		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(input.fieldDefinitions);
 		const pdfBytes = decodePdfBase64(input.pdfBase64);
 
@@ -483,6 +537,7 @@ const createDocumentTemplateHandler = adminDocumentProcedure
 				pdfBytes,
 				title: input.title.trim(),
 				updatedAt: new Date(),
+				visibility: input.visibility,
 			})
 			.returning({
 				authorId: documentTemplate.authorId,
@@ -491,6 +546,7 @@ const createDocumentTemplateHandler = adminDocumentProcedure
 				id: documentTemplate.id,
 				title: documentTemplate.title,
 				updatedAt: documentTemplate.updatedAt,
+				visibility: documentTemplate.visibility,
 			});
 
 		if (!createdTemplate) {
@@ -502,9 +558,14 @@ const createDocumentTemplateHandler = adminDocumentProcedure
 		return createdTemplate;
 	});
 
-const updateDocumentTemplateHandler = adminDocumentProcedure
+const updateDocumentTemplateHandler = authed
 	.input(updateDocumentTemplateInput)
 	.handler(async ({ context, input }) => {
+		await ensureCanSaveDocumentVisibility({
+			db: context.db,
+			userId: context.session.user.id,
+			visibility: input.visibility,
+		});
 		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(input.fieldDefinitions);
 
 		const [existingTemplate] = await context.db
@@ -541,6 +602,7 @@ const updateDocumentTemplateHandler = adminDocumentProcedure
 				pdfBytes,
 				title: input.title.trim(),
 				updatedAt: new Date(),
+				visibility: input.visibility,
 			})
 			.where(
 				and(
@@ -555,6 +617,7 @@ const updateDocumentTemplateHandler = adminDocumentProcedure
 				id: documentTemplate.id,
 				title: documentTemplate.title,
 				updatedAt: documentTemplate.updatedAt,
+				visibility: documentTemplate.visibility,
 			});
 
 		if (!updatedTemplate) {
@@ -566,7 +629,7 @@ const updateDocumentTemplateHandler = adminDocumentProcedure
 		return updatedTemplate;
 	});
 
-const getDocumentTemplateEditorContextHandler = adminDocumentProcedure.handler(
+const getDocumentTemplateEditorContextHandler = authed.handler(
 	async ({ context }) => {
 		const userId = context.session.user.id;
 		const limit = MAX_CATEGORY_SUGGESTIONS;
@@ -592,6 +655,7 @@ const getDocumentTemplateEditorContextHandler = adminDocumentProcedure.handler(
 			const allCategories = await context.db
 				.select({ category: documentTemplate.category })
 				.from(documentTemplate)
+				.where(eq(documentTemplate.visibility, "public"))
 				.groupBy(documentTemplate.category)
 				.orderBy(desc(count()))
 				.limit(limit);
@@ -605,6 +669,12 @@ const getDocumentTemplateEditorContextHandler = adminDocumentProcedure.handler(
 		}
 
 		return {
+			canCreatePrivateDocuments: (
+				await resolveProductEntitlements({
+					db: context.db,
+					userId: context.session.user.id,
+				})
+			).canCreatePrivateDocuments,
 			categorySuggestions,
 		};
 	},

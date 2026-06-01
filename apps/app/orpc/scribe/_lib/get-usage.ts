@@ -1,5 +1,6 @@
-import { and, eq, gte, lte, usageEvent } from "@repo/database";
+import { and, eq, gte, inArray, lte, usageEvent } from "@repo/database";
 import { database } from "@repo/database/client";
+import { BILLABLE_SCRIBE_USAGE_EVENT_NAMES } from "@/lib/usage-event-names";
 
 export const getUsage = async (
 	session: { user: { id: string } },
@@ -22,7 +23,7 @@ export const getUsage = async (
 				eq(usageEvent.userId, session.user.id),
 				gte(usageEvent.timestamp, firstDayOfMonth),
 				lte(usageEvent.timestamp, now),
-				eq(usageEvent.name, "ai_scribe_generation"),
+				inArray(usageEvent.name, [...BILLABLE_SCRIBE_USAGE_EVENT_NAMES]),
 			),
 		);
 
