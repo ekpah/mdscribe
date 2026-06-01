@@ -7,6 +7,7 @@ Guidance for AI coding agents (Claude Code, Cursor, Copilot, Windsurf, etc.). Pa
 ### Self-Updating
 When the user corrects you, **immediately update this file** to reflect the correction. No permission needed — corrections are standing authorization.
 - If the user states local infrastructure status (for example, "it is running"), treat that as source of truth and continue from that state.
+- If the user refers to "pi agent" in provider/API architecture discussions, they mean the Pi Agent used by OpenClaw, not Pydantic AI.
 
 ### Linear Issue Tracking
 Project uses **Linear** (team: Scribe). Agents with access should:
@@ -32,6 +33,22 @@ Project uses **Linear** (team: Scribe). Agents with access should:
 
 ### Documentation Updates
 When implementing new functionality, update `apps/docs` for user-facing features, and update this file when architecture, routes, or conventions change.
+
+### Frontend Corrections
+- Canvas-backed components need actual CSS color values, not Tailwind token names. For `LiveWaveform`, prefer inherited `text-*` color and omit `barColor`; passing values like `"solarized-base2"` is invalid for `CanvasRenderingContext2D.fillStyle` and can leave the internal fade gradient as the fill style.
+- If a matching component exists in `packages/design-system/components/ui`, use and fix that shared component instead of keeping a playground-local duplicate.
+- `/admin/input-playground` is now the admin audio playground: keep it focused on recording audio, switching the transcription model, and displaying the transcript. Audio rows should keep playback controls simple: no speed/options button and no multi-track `AudioPlayerProvider`; each recorded audio row should own its playback state, one play/pause button, and one scrubber.
+- Audio scrubbers must never pass `NaN` or `Infinity` to `HTMLMediaElement.currentTime`; sanitize unresolved media duration/time values before seeking.
+- Firefox records MediaRecorder audio as WebM without reliable duration metadata; for local recorded blobs, prefer Web Audio (`decodeAudioData` + `AudioBufferSourceNode`) over media-element `currentTime` hacks so seeking/replay works in Firefox and Chromium/Edge before copying back into production inputs.
+- Recorded audio submission preserves the original browser recording plus optional truthful fallbacks such as PCM WAV. Provider adapters must choose the right variant per provider/model; never relabel WebM/MP4 bytes as `audio/wav`.
+- OpenRouter model sync must query `output_modalities=all` so STT/transcription models are listed, but do not infer, parse, or store model modalities. Admins choose compatible models for each global default slot.
+- OpenRouter speech-to-text uses `/api/v1/audio/transcriptions` with JSON `input_audio: { data, format }`; do not send multipart `FormData`. Use normal chat/audio input only for multimodal generation models.
+- `orpc.scribe.fillInputs` is billable usage: enforce the same scribe usage limit and log one `ai_input_fill` event. Do not store raw audio or document bytes in `UsageEvent`; store text input only when existing ZDR rules allow it plus audio/file metadata and payload summaries.
+- Shared input UX for template filling and AIScribe lives in `apps/app/app/_components/input-context/`. Keep recorder/playback/file/text-context behavior there and pass it into design-system primitives via render props; do not reintroduce high-level input recorder/fill controls inside `packages/design-system`.
+- Reusable input tab content lives in `audio-input.tsx`, `document-input.tsx`, and `text-input.tsx`; keep `InputContextControls` focused on panel orchestration and submission wiring.
+- AIScribe input tabs should avoid nested independently scrollable areas: do not make the tab panel itself scrollable; give it a stable minimum height, let inner textareas/content grow (`field-sizing-content`, no max height, `overflow-hidden`), and let the parent/page grow so the full panel is shown.
+- AIScribe main text entry should have its own visible border and focus ring; do not put the active/focus highlight around the whole tab panel or prompt wrapper.
+- On mobile, text-context overlays must stay height-constrained and scrollable so footer actions remain reachable.
 
 ## Project Overview
 
@@ -76,9 +93,6 @@ bun run db:migrate       # Run Drizzle migrations
 - **Apps**: `apps/app` (Next.js), `apps/docs` (Fumadocs), `apps/email` (React Email), `apps/storybook`, `apps/studio`
 - **Packages**: `packages/database` (Drizzle ORM), `packages/design-system` (UI), `packages/email`, `packages/env`, `packages/markdoc-md`, `packages/typescript-config`
 
-### Core Technologies
-Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgvector, OpenRouter + Langfuse + Voyage AI, Tailwind CSS v4, oRPC, Jotai + React Hook Form
-
 ### Key Architecture (details in `apps/app/CLAUDE.md`)
 - **oRPC**: Base handlers (`pub`, `authed`) in `apps/app/orpc.ts`. Router in `orpc/router.ts`.
 - **AI Streaming**: Unified handler modules live in `orpc/scribe/handlers/`. Prompt composition lives in `orpc/scribe/prompts`, context composition lives in `orpc/scribe/context`. Client uses `useScribeStream` hook.
@@ -86,6 +100,7 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - **Auth API calls**: Prefer direct `auth.api.*` calls where used; avoid one-off wrapper helpers unless they provide shared behavior beyond simple forwarding.
 - **Templates**: Custom Markdoc tags + TipTap editor. 1024-dim Voyage AI embeddings for vector search.
 - **Documents**: `/documents` mirrors the templates UX (library/detail/create/edit) and persists `pdfBytes` + `fieldDefinitions` only. `parsedMarkdoc` is derived on demand from `fieldDefinitions` and is never stored. Canonical APIs live under `orpc.documents.templates.*`, including PDF transport via `orpc.documents.templates.getPdf` (base64 payload); do not add `/api/documents/[id]/pdf`.
+- **Visibility**: Templates and documents store `visibility` (`public` or `private`). Public items are visible, usable, and forkable by everyone; private items are visible only to their author, including binary document PDF access. Creating or saving private templates/documents requires the Plus entitlement from `PRODUCT_PLANS`; non-Plus users can only save them as public.
 - **DB access boundary**: App routes/components use oRPC/TanStack Query only — no direct DB helpers under `app/`.
 
 ## Code Style & Conventions
@@ -96,9 +111,11 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - **TypeScript**: Type imports (`import type`), `as const`, no `any`, `for...of` over `forEach`, arrow functions
 - **Toasts**: `import { toast } from 'sonner'`
 - **Runtime**: Prefer Bun-native APIs over Node compatibility APIs; in Bun runtime code avoid `node:*` imports unless absolutely necessary
-- **Tailwind v4**: `@import "tailwindcss"`, `@theme` in CSS, colors via design system tokens (e.g. `bg-solarized-green`), renamed utilities (`shadow-xs`, `rounded-xs`, `blur-xs`)
+- **Tailwind v4**: `@import "tailwindcss"`, `@theme` in CSS, colors via design system tokens (e.g. `bg-solarized-green`), renamed utilities (`shadow-xs`, `rounded-xs`, `blur-xs`). Do not expand the global `@theme` color set for one-off UI states; prefer existing semantic colors like `primary` or already-registered Solarized utilities to avoid breaking light/dark behavior.
 - **Keyboard shortcuts**: `react-hotkeys-hook` with `['meta+k', 'ctrl+k']` pattern
 - **User messages**: All German user-facing text in `apps/app/lib/user-messages.ts` (`USER_MESSAGES`)
+- Admin playground and reusable audio input controls must not leave copied component labels in English; translate visible labels, aria labels, placeholders, and permission errors to German before handing off.
+- **Form actions**: Icon-only action buttons beside labeled text fields should align with the input controls, not the label row.
 
 ## Implementation Rules
 
@@ -122,9 +139,10 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - Canonical input keys: `notes`, `diagnoseblock`, `anamnese`, `befunde` only. Legacy keys accepted only in playground hydration layer.
 - Built-in `/aiscribe/*` routes keep their hardcoded UI as fallback, but can now prefer DB-backed overrides by fixed slugs (`builtin-discharge`, `builtin-er`, `builtin-icu`, `builtin-outpatient`, `builtin-procedures`, `builtin-diagnoseblock`) that route through custom-form execution when present and enabled.
 - Built-in override entries are managed separately in admin (`/admin/settings/models` → `AI Textbausteine` → `Schnelle Dokument-Generierung`) and are not treated as public custom AI Textbausteine (`/aiscribe/custom/*` and `orpc.scribeForms.listAvailable` exclude them).
+- Admin model comparison lives at `/admin/model-comparison` and reuses `orpc.admin.usage.list/get` plus `orpc.admin.scribe.run`; do not add a dedicated comparison endpoint unless the workflow needs server-only behavior. It samples replayable built-in AIScribe `UsageEvent` inputs only; custom form and redacted/ZDR events should not be replayed unless explicit support is added.
 - When refactoring input UIs, treat the production `/aiscribe` inputs as the canonical component. Playground/admin input tabs should reuse that component (or a direct extraction of it) instead of introducing a parallel simplified variant.
 - User-facing wording for these custom pages is `AI Textbausteine` / `AI Text`, not `AI Forms`.
-- Custom AI Textbausteine live in `AiScribeFormConfig`, are managed from `/admin/settings/models` in the `AI Textbausteine` tab, render on `/aiscribe/custom/[slug]`, use a path auto-derived from the name, and currently always use the full clinical context inputs (`notes`, `diagnoseblock`, `anamnese`, `befunde`). The admin/public APIs for these forms should stay minimal: no configurable input preset and no per-form temperature / max-tokens / thinking-budget fields unless explicitly reintroduced. In that admin UI, use the searchable `ModelSelector`, label the model field `KI-Modell`, keep the prompt field label `Basis-Prompt`, require an explicit confirmation step before deletion, and keep the cards compact: there is no separate `/aiscribe/custom/...` path box, the title itself is the public link with an external-link icon only when the entry is enabled, prompt/template/model metadata should use a two-column layout with labels on the left and values on the right, and the enabled state in the overview card must be a real inline `Aktiviert` switch that can be changed without opening the edit dialog. Delete confirmation in the card must reserve stable space so the UI does not jump when switching between trash icon and confirm buttons. If an AI Textbaustein is disabled, its public `/aiscribe/custom/[slug]` link must render inactive because the route returns 404.
+- Custom AI Textbausteine live in `AiScribeFormConfig`, are managed from `/admin/settings/models` in the `AI Textbausteine` tab, render on `/aiscribe/custom/[slug]`, use a path auto-derived from the name, and currently always use the full clinical context inputs (`notes`, `diagnoseblock`, `anamnese`, `befunde`). The admin/public APIs for these forms should stay minimal: no configurable input preset, no explicit per-textbaustein model selection, and no per-form temperature / max-tokens / thinking-budget fields unless explicitly reintroduced. In that admin UI, keep the prompt field label `Basis-Prompt`, require an explicit confirmation step before deletion, and keep the cards compact: there is no separate `/aiscribe/custom/...` path box, the title itself is the public link with an external-link icon only when the entry is enabled, prompt/template metadata should use a two-column layout with labels on the left and values on the right, and the enabled state in the overview card must be a real inline `Aktiviert` switch that can be changed without opening the edit dialog. Delete confirmation in the card must reserve stable space so the UI does not jump when switching between trash icon and confirm buttons. If an AI Textbaustein is disabled, its public `/aiscribe/custom/[slug]` link must render inactive because the route returns 404.
 - Only send reasoning options when model explicitly advertises support; otherwise omit entirely.
 
 ### Provider / Model System
@@ -150,15 +168,3 @@ Bun, Next.js 16 + React 19, BetterAuth + Stripe, PostgreSQL + Drizzle ORM + pgve
 - Server namespace stays nested at `orpc.documents.templates.*` (`list`, `get`, `getPdf`, `create`, `update`, `editorContext`), while `orpc.documents.parseForm` and `orpc.documents.ocrToMarkdown` remain for PDF AI helpers.
 - Keep `fieldDefinitions` as source of truth and build `parsedMarkdoc` only via `buildParsedMarkdocFromFieldDefinitions`; never persist `parsedMarkdoc` or raw `markdocContent` for documents.
 - `list` and `get` must exclude raw `pdfBytes`; binary delivery stays in `getPdf` response payload.
-
-### Misc
-- Nuqs + menubar: Keep menubar auth loading client-side — async server wrapper under `NuqsAdapter` causes crashes
-- License file: `LICENSE` at repo root (not `license.md`)
-
-## Environment Variables
-
-Database: `POSTGRES_DATABASE_URL` | Auth: `BETTER_AUTH_SECRET`, `AUTH_POSTMARK_KEY` | AI: `OPENROUTER_API_KEY`, `VOYAGE_API_KEY` | Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PLUS_PRICE_ID`, `STRIPE_PLUS_PRICE_ID_ANNUAL` | Analytics: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, `LANGFUSE_*`
-
-## Documentation Lookup
-
-Use Context7 MCP proactively for library/API docs — don't wait for the user to ask.

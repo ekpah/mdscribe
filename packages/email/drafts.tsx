@@ -8,9 +8,9 @@ import { ResetPasswordTemplate } from "./templates/reset-password";
 import { EmailVerificationTemplate } from "./templates/verify";
 import { WelcomeTemplate } from "./templates/welcome";
 
-export type EmailDraftCategory = "authentication" | "marketing" | "transactional";
+type EmailDraftCategory = "authentication" | "marketing" | "transactional";
 
-export interface EmailDraftDefinition {
+interface EmailDraftDefinition {
 	readonly id: string;
 	readonly title: string;
 	readonly description: string;
@@ -20,9 +20,9 @@ export interface EmailDraftDefinition {
 	readonly render: () => ReactElement;
 }
 
-export type EmailDraftMetadata = Omit<EmailDraftDefinition, "render">;
+type EmailDraftMetadata = Omit<EmailDraftDefinition, "render">;
 
-export const emailDrafts: readonly EmailDraftDefinition[] = [
+const emailDrafts: readonly EmailDraftDefinition[] = [
 	{
 		category: "marketing",
 		description: "Marketingmail zur Dokumente-Funktion mit Rehaantrag-Fokus.",
