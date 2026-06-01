@@ -55,6 +55,9 @@ export default function TopMenuBar({
 	const isSessionLoading = sessionQuery.isPending && session === null;
 	const showAiLink = !!session?.user;
 	const isAdmin = initialIsAdmin || (authQuery.data?.isAdmin ?? false);
+	const userDisplayName = session?.user
+		? session.user.name?.trim() || session.user.email.split("@")[0] || session.user.email
+		: "";
 
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
@@ -151,10 +154,7 @@ export default function TopMenuBar({
 									<DropdownMenuTrigger asChild>
 										<Button variant="ghost" className="relative h-9 w-9 rounded-full">
 											<Avatar className="h-9 w-9">
-												<AvatarImage
-													src={session.user.image ?? undefined}
-													alt={session.user.name ?? session.user.email}
-												/>
+												<AvatarImage src={session.user.image ?? undefined} alt={userDisplayName} />
 												<AvatarFallback>
 													<User className="h-5 w-5" />
 												</AvatarFallback>
@@ -164,9 +164,7 @@ export default function TopMenuBar({
 									<DropdownMenuContent align="end" className="w-56">
 										<DropdownMenuLabel className="font-normal">
 											<div className="flex flex-col space-y-1">
-												{session.user.name && (
-													<p className="font-medium text-sm leading-none">{session.user.name}</p>
-												)}
+												<p className="font-medium text-sm leading-none">{userDisplayName}</p>
 												<p className="text-muted-foreground text-xs leading-none">
 													{session.user.email}
 												</p>
@@ -276,18 +274,13 @@ export default function TopMenuBar({
 									<>
 										<div className="mb-3 flex items-center gap-3 px-2">
 											<Avatar className="h-10 w-10">
-												<AvatarImage
-													src={session.user.image ?? undefined}
-													alt={session.user.name ?? session.user.email}
-												/>
+												<AvatarImage src={session.user.image ?? undefined} alt={userDisplayName} />
 												<AvatarFallback>
 													<User className="h-5 w-5" />
 												</AvatarFallback>
 											</Avatar>
 											<div className="flex flex-col">
-												{session.user.name && (
-													<span className="font-medium text-sm">{session.user.name}</span>
-												)}
+												<span className="font-medium text-sm">{userDisplayName}</span>
 												<span className="text-muted-foreground text-xs">{session.user.email}</span>
 											</div>
 										</div>

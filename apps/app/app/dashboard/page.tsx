@@ -1,8 +1,4 @@
-import {
-	Avatar,
-	AvatarFallback,
-	AvatarImage,
-} from "@repo/design-system/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/design-system/components/ui/avatar";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -12,6 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
+import { env } from "@repo/env";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
 	Activity,
@@ -26,6 +23,7 @@ import {
 	Heart,
 	PlusIcon,
 	SearchIcon,
+	Settings,
 	ShieldIcon,
 	Star,
 	Stethoscope,
@@ -34,14 +32,15 @@ import {
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import { auth } from "@/auth";
-import { PRODUCT_PLANS } from "@/lib/product-plans";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
+import { PRODUCT_PLANS } from "@/lib/product-plans";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
-import { env } from "@repo/env";
 import type { DocumentType } from "@/orpc/scribe/types";
+
 import { LiveTime } from "./_components/live-time";
 
 /** Readable German labels for AI scribe document types */
@@ -75,10 +74,7 @@ const getSubscriptionPlanLabel = (plan?: string | null) => {
 		: normalizedPlan.charAt(0).toUpperCase() + normalizedPlan.slice(1);
 };
 
-const getSubscriptionStatus = (subscription?: {
-	status?: string;
-	cancelAtPeriodEnd?: boolean;
-}) => {
+const getSubscriptionStatus = (subscription?: { status?: string; cancelAtPeriodEnd?: boolean }) => {
 	if (!subscription) {
 		return {
 			badgeClassName: "border-solarized-base1 text-solarized-base01",
@@ -115,15 +111,11 @@ export default async function DashboardPage() {
 			headers: requestHeaders,
 		}),
 	]).catch((_e) => {
-		throw redirect(
-			createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")),
-		);
+		throw redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")));
 	});
 
 	if (!session?.user) {
-		redirect(
-			createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")),
-		);
+		redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")));
 	}
 
 	const activeSubscription = subscriptions.find(
@@ -149,20 +141,13 @@ export default async function DashboardPage() {
 
 	// Get the cached data for server rendering
 	const data = queryClient.getQueryData(usageQueryOptions.queryKey);
-	const favoriteTemplates = queryClient.getQueryData(
-		favouritesQueryOptions.queryKey,
-	);
+	const favoriteTemplates = queryClient.getQueryData(favouritesQueryOptions.queryKey);
 	const userTemplates = queryClient.getQueryData(authoredQueryOptions.queryKey);
-	const recentEvents = queryClient.getQueryData(
-		recentActivityQueryOptions.queryKey,
-	);
+	const recentEvents = queryClient.getQueryData(recentActivityQueryOptions.queryKey);
 
 	const currentUsage = data?.usage?.count || 0;
-	const monthlyUsageLimit =
-		PRODUCT_PLANS[activeSubscription ? "plus" : "free"].scribeUsageLimit;
-	const subscriptionPlanLabel = getSubscriptionPlanLabel(
-		activeSubscription?.plan,
-	);
+	const monthlyUsageLimit = PRODUCT_PLANS[activeSubscription ? "plus" : "free"].scribeUsageLimit;
+	const subscriptionPlanLabel = getSubscriptionPlanLabel(activeSubscription?.plan);
 	const subscriptionStatus = getSubscriptionStatus(activeSubscription);
 	const isAdmin = session.user.email === env.ADMIN_EMAIL;
 
@@ -171,8 +156,7 @@ export default async function DashboardPage() {
 			bgColor: "bg-solarized-red/10",
 			borderColor: "border-solarized-red/20",
 			color: "text-solarized-red",
-			description:
-				"Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten",
+			description: "Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten",
 			href: "/aiscribe/er",
 			icon: Heart,
 			title: "Notfall Anamnese",
@@ -181,8 +165,7 @@ export default async function DashboardPage() {
 			bgColor: "bg-solarized-blue/10",
 			borderColor: "border-solarized-blue/20",
 			color: "text-solarized-blue",
-			description:
-				"Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
+			description: "Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
 			href: "/aiscribe/discharge",
 			icon: FileCheck,
 			title: "Entlassungsbrief",
@@ -191,8 +174,7 @@ export default async function DashboardPage() {
 			bgColor: "bg-solarized-orange/10",
 			borderColor: "border-solarized-orange/20",
 			color: "text-solarized-orange",
-			description:
-				"Erstellen Sie professionelle Dokumentationen für medizinische Eingriffe",
+			description: "Erstellen Sie professionelle Dokumentationen für medizinische Eingriffe",
 			href: "/aiscribe/procedures",
 			icon: ClipboardCheck,
 			title: "Prozedur-Dokumentation",
@@ -201,8 +183,7 @@ export default async function DashboardPage() {
 			bgColor: "bg-solarized-green/10",
 			borderColor: "border-solarized-green/20",
 			color: "text-solarized-green",
-			description:
-				"Erstellen Sie professionelle Verlegungsbriefe für Ihre ICU-Patienten",
+			description: "Erstellen Sie professionelle Verlegungsbriefe für Ihre ICU-Patienten",
 			href: "/aiscribe/icu",
 			icon: Stethoscope,
 			title: "ICU Verlegungsbrief",
@@ -211,8 +192,7 @@ export default async function DashboardPage() {
 			bgColor: "bg-solarized-violet/10",
 			borderColor: "border-solarized-violet/20",
 			color: "text-solarized-violet",
-			description:
-				"Erstellen Sie Dokumentationen für ambulante Patientenbesuche",
+			description: "Erstellen Sie Dokumentationen für ambulante Patientenbesuche",
 			href: "/aiscribe/outpatient",
 			icon: FileText,
 			title: "Ambulante Konsultation",
@@ -221,8 +201,7 @@ export default async function DashboardPage() {
 			bgColor: "bg-solarized-cyan/10",
 			borderColor: "border-solarized-cyan/20",
 			color: "text-solarized-cyan",
-			description:
-				"Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
+			description: "Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
 			href: "/aiscribe/diagnoseblock",
 			icon: FileText,
 			title: "Diagnoseblock Update",
@@ -275,6 +254,8 @@ export default async function DashboardPage() {
 			type: event.name,
 		};
 	});
+	const userDisplayName =
+		session.user.name?.trim() || session.user.email.split("@")[0] || session.user.email;
 
 	return (
 		// HydrationBoundary passes prefetched data to any client components
@@ -287,28 +268,19 @@ export default async function DashboardPage() {
 						<div className="flex flex-col items-start space-y-4 sm:flex-row sm:items-center sm:space-x-6 sm:space-y-0">
 							<div className="relative">
 								<Avatar className="h-16 w-16 shadow-lg ring-4 ring-white sm:h-20 sm:w-20">
-									<AvatarImage
-										alt={session.user.name || "User"}
-										src={session.user.image || undefined}
-									/>
+									<AvatarImage alt={userDisplayName} src={session.user.image || undefined} />
 									<AvatarFallback className="bg-gradient-to-br from-solarized-blue to-solarized-violet font-bold text-lg text-solarized-base3 sm:text-xl">
-										{session.user.name?.charAt(0) ||
-											session.user.email.charAt(0).toUpperCase()}
+										{userDisplayName.charAt(0).toUpperCase()}
 									</AvatarFallback>
 								</Avatar>
 								<div className="-bottom-1 -right-1 absolute h-4 w-4 rounded-full border-2 border-white bg-green-500 sm:h-6 sm:w-6" />
 							</div>
 							<div>
 								<h1 className="mb-2 font-bold text-2xl text-solarized-base03 sm:text-3xl lg:text-4xl">
-									Willkommen zurück,{" "}
-									{session.user.name === ""
-										? session.user.email
-										: session.user.name}
-									!
+									Willkommen zurück, {userDisplayName}!
 								</h1>
 								<p className="mb-1 text-base text-solarized-base01 sm:text-lg">
-									Bereit für einen produktiven Tag in der medizinischen
-									Dokumentation?
+									Bereit für einen produktiven Tag in der medizinischen Dokumentation?
 								</p>
 								<div className="flex flex-col gap-2 text-solarized-base1 text-xs sm:flex-row sm:items-center sm:gap-4 sm:text-sm">
 									<LiveTime />
@@ -328,6 +300,16 @@ export default async function DashboardPage() {
 									</Button>
 								</Link>
 							) : null}
+							<Link href="/profile">
+								<Button
+									className="w-full gap-2 border-solarized-base1 text-solarized-base01 hover:bg-solarized-base2 sm:w-auto"
+									size="sm"
+									variant="outline"
+								>
+									<Settings className="h-4 w-4" />
+									Einstellungen
+								</Button>
+							</Link>
 							<Link href="/aiscribe">
 								<Button
 									className="w-full gap-2 bg-solarized-blue text-white hover:bg-solarized-blue/90 sm:w-auto"
@@ -399,19 +381,14 @@ export default async function DashboardPage() {
 										/ {monthlyUsageLimit}
 									</span>
 								</div>
-								<p className="text-solarized-base01 text-xs">
-									Im aktuellen Monat verwendet
-								</p>
+								<p className="text-solarized-base01 text-xs">Im aktuellen Monat verwendet</p>
 								<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
 									<div className="flex flex-wrap items-center justify-between gap-2">
 										<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
 											<CreditCard className="h-3 w-3" />
 											{subscriptionPlanLabel}
 										</span>
-										<Badge
-											className={subscriptionStatus.badgeClassName}
-											variant="outline"
-										>
+										<Badge className={subscriptionStatus.badgeClassName} variant="outline">
 											{subscriptionStatus.label}
 										</Badge>
 									</div>
@@ -436,8 +413,7 @@ export default async function DashboardPage() {
 									KI-Funktionen
 								</CardTitle>
 								<CardDescription className="text-solarized-base01">
-									Nutzen Sie KI-gestützte Dokumentation für verschiedene
-									medizinische Bereiche
+									Nutzen Sie KI-gestützte Dokumentation für verschiedene medizinische Bereiche
 								</CardDescription>
 							</div>
 							<Link href="/aiscribe">
@@ -496,11 +472,7 @@ export default async function DashboardPage() {
 										</CardDescription>
 									</div>
 									<Link href="/templates">
-										<Button
-											className="gap-2 bg-transparent"
-											size="sm"
-											variant="outline"
-										>
+										<Button className="gap-2 bg-transparent" size="sm" variant="outline">
 											<ExternalLinkIcon className="h-4 w-4" />
 											Alle anzeigen
 										</Button>
@@ -518,10 +490,7 @@ export default async function DashboardPage() {
 														<div className="flex items-start justify-between">
 															<div className="flex-1">
 																<div className="mb-2 flex items-center gap-2">
-																	<Badge
-																		className="text-xs"
-																		variant="secondary"
-																	>
+																	<Badge className="text-xs" variant="secondary">
 																		{template.category}
 																	</Badge>
 																	<Badge className="text-xs" variant="outline">
@@ -537,11 +506,7 @@ export default async function DashboardPage() {
 																</p>
 															</div>
 															<Link href={`/templates/${template.id}`}>
-																<Button
-																	className="gap-1"
-																	size="sm"
-																	variant="ghost"
-																>
+																<Button className="gap-1" size="sm" variant="ghost">
 																	<ExternalLinkIcon className="h-3 w-3" />
 																	Öffnen
 																</Button>
@@ -558,8 +523,7 @@ export default async function DashboardPage() {
 														Noch keine Favoriten
 													</h3>
 													<p className="mb-4 text-sm text-solarized-base01">
-														Markieren Sie Templates als Favoriten, um sie hier
-														schnell zu finden.
+														Markieren Sie Templates als Favoriten, um sie hier schnell zu finden.
 													</p>
 													<Link href="/templates">
 														<Button className="gap-2">
@@ -589,11 +553,7 @@ export default async function DashboardPage() {
 											</CardDescription>
 										</div>
 										<Link href="/templates/create">
-											<Button
-												className="gap-1 bg-transparent"
-												size="sm"
-												variant="outline"
-											>
+											<Button className="gap-1 bg-transparent" size="sm" variant="outline">
 												<PlusIcon className="h-3 w-3" />
 												Neu
 											</Button>
@@ -622,11 +582,7 @@ export default async function DashboardPage() {
 														</div>
 													</div>
 													<Link href={`/templates/${template.id}`}>
-														<Button
-															className="h-8 w-8 p-0"
-															size="sm"
-															variant="ghost"
-														>
+														<Button className="h-8 w-8 p-0" size="sm" variant="ghost">
 															<ExternalLinkIcon className="h-3 w-3" />
 														</Button>
 													</Link>
@@ -676,18 +632,14 @@ export default async function DashboardPage() {
 														<p className="truncate font-medium text-sm text-solarized-base03">
 															{activity.title}
 														</p>
-														<p className="text-solarized-base1 text-xs">
-															vor {activity.time}
-														</p>
+														<p className="text-solarized-base1 text-xs">vor {activity.time}</p>
 													</div>
 												</div>
 											))
 										) : (
 											<div className="py-8 text-center">
 												<Activity className="mx-auto mb-2 h-8 w-8 text-solarized-base2" />
-												<p className="text-sm text-solarized-base01">
-													Noch keine Aktivitäten
-												</p>
+												<p className="text-sm text-solarized-base01">Noch keine Aktivitäten</p>
 											</div>
 										)}
 									</div>

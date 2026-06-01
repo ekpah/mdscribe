@@ -1,24 +1,21 @@
 "use client";
 
 import type { Subscription } from "@better-auth/stripe";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+
 import { authClient } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
+
 import { ProfileCard } from "./profile-card";
 import { SnippetsCard } from "./snippets-card";
 import { SubscriptionCard } from "./subscription-card";
 import UserCard from "./user-card";
 
 interface User {
-	name: string;
 	email: string;
+	name: string | null;
 }
 
 export default function UserSettings({
@@ -89,11 +86,7 @@ export default function UserSettings({
 					</TabsList>
 					<div className="h-[500px] w-[800px] max-w-full">
 						<TabsContent className="h-full" value="profile">
-							<ProfileCard
-								isLoading={isLoading}
-								setIsLoading={setIsLoading}
-								user={user}
-							/>
+							<ProfileCard isLoading={isLoading} setIsLoading={setIsLoading} user={user} />
 						</TabsContent>
 						<TabsContent className="h-full" value="login">
 							<UserCard

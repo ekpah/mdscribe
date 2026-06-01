@@ -1,18 +1,9 @@
 "use client";
 
 import type { Subscription } from "@better-auth/stripe";
-import {
-	Avatar,
-	AvatarFallback,
-	AvatarImage,
-} from "@repo/design-system/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/design-system/components/ui/avatar";
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/design-system/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { LaptopIcon, Loader2, SmartphoneIcon } from "lucide-react";
@@ -20,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { UAParser } from "ua-parser-js";
+
 import { authClient, useSession } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
 import { sessionQueryKey } from "@/lib/session-query";
@@ -33,6 +25,9 @@ export default function UserCard(props: {
 	const queryClient = useQueryClient();
 	const { data: sessionData } = useSession();
 	const session = sessionData ?? props.session;
+	const userDisplayName = session?.user
+		? session.user.name?.trim() || session.user.email.split("@")[0] || session.user.email
+		: "";
 	const [isLoading, setIsLoading] = useState<string>();
 
 	const [activeSessions, setActiveSessions] = useState(props.activeSessions);
@@ -80,22 +75,19 @@ export default function UserCard(props: {
 		[queryClient, removeActiveSession, router, session?.session?.id],
 	);
 
-	const handleRevokeSessionById = useMemo<Record<string, () => Promise<void>>>(
-		() => {
-			const handlers: Record<string, () => Promise<void>> = {};
-			for (const activeSession of activeSessions) {
-				handlers[activeSession.id] = async () => {
-					try {
-						await handleRevokeSession(activeSession);
-					} catch (error) {
-						console.error("Error revoking session:", error);
-					}
-				};
-			}
-			return handlers;
-		},
-		[activeSessions, handleRevokeSession],
-	);
+	const handleRevokeSessionById = useMemo<Record<string, () => Promise<void>>>(() => {
+		const handlers: Record<string, () => Promise<void>> = {};
+		for (const activeSession of activeSessions) {
+			handlers[activeSession.id] = async () => {
+				try {
+					await handleRevokeSession(activeSession);
+				} catch (error) {
+					console.error("Error revoking session:", error);
+				}
+			};
+		}
+		return handlers;
+	}, [activeSessions, handleRevokeSession]);
 
 	return (
 		<Card>
@@ -112,13 +104,11 @@ export default function UserCard(props: {
 									className="object-cover"
 									src={session?.user.image || undefined}
 								/>
-								<AvatarFallback>{session?.user.name.charAt(0)}</AvatarFallback>
+								<AvatarFallback>{userDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
 							</Avatar>
 							<div className="grid">
 								<div className="flex items-center gap-1">
-									<p className="font-medium text-sm leading-none">
-										{session?.user.name}
-									</p>
+									<p className="font-medium text-sm leading-none">{userDisplayName}</p>
 								</div>
 								<p className="text-sm">{session?.user.email}</p>
 							</div>
@@ -128,25 +118,22 @@ export default function UserCard(props: {
 
 				<div className="flex flex-col gap-3">
 					<p className="font-medium text-xs">Aktive Sitzungen</p>
-						{activeSessions.map((activeSession) => {
-							const isCurrentSession = activeSession.id === session?.session?.id;
-							const parser = UAParser(activeSession.userAgent as string);
-							const isMobile = parser.device.type === "mobile";
-							const sessionClientLabel = (() => {
-								if (activeSession.userAgent?.includes("tauri-plugin-http")) {
-									return "App";
-								}
-								if (parser.os.name && parser.browser.name) {
-									return `${parser.os.name}, ${parser.browser.name}`;
-								}
-								return (
-									parser.os.name ||
-									parser.browser.name ||
-									activeSession.userAgent ||
-									"Unbekannt"
-								);
-							})();
+					{activeSessions.map((activeSession) => {
+						const isCurrentSession = activeSession.id === session?.session?.id;
+						const parser = UAParser(activeSession.userAgent as string);
+						const isMobile = parser.device.type === "mobile";
+						const sessionClientLabel = (() => {
+							if (activeSession.userAgent?.includes("tauri-plugin-http")) {
+								return "App";
+							}
+							if (parser.os.name && parser.browser.name) {
+								return `${parser.os.name}, ${parser.browser.name}`;
+							}
 							return (
+								parser.os.name || parser.browser.name || activeSession.userAgent || "Unbekannt"
+							);
+						})();
+						return (
 							<Card
 								key={activeSession.id}
 								className={cn("flex flex-row items-center gap-3 px-4 py-3")}
@@ -159,26 +146,20 @@ export default function UserCard(props: {
 
 								<div className="flex flex-col">
 									<span className="font-semibold text-sm">
-										{isCurrentSession
-											? "Aktuelle Sitzung"
-											: activeSession.ipAddress || "Unbekannt"}
+										{isCurrentSession ? "Aktuelle Sitzung" : activeSession.ipAddress || "Unbekannt"}
 									</span>
 
-									<span className="text-muted-foreground text-xs">
-										{sessionClientLabel}
-									</span>
+									<span className="text-muted-foreground text-xs">{sessionClientLabel}</span>
 								</div>
 
-									<Button
+								<Button
 									className="relative ms-auto"
 									disabled={isLoading === activeSession.id}
 									size="sm"
 									variant="outline"
 									onClick={handleRevokeSessionById[activeSession.id]}
-									>
-									{isLoading === activeSession.id && (
-										<Loader2 className="animate-spin" />
-									)}
+								>
+									{isLoading === activeSession.id && <Loader2 className="animate-spin" />}
 									{isCurrentSession ? "Abmelden" : "Beenden"}
 								</Button>
 							</Card>

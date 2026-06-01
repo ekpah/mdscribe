@@ -4,7 +4,10 @@ import { database } from "@repo/database/client";
 import { env } from "@repo/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError } from "better-auth/api";
 import { Stripe as StripeClient } from "stripe";
+
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 // Initialize stripe client (use placeholder during Docker builds where env vars aren't available)
 const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
@@ -15,11 +18,29 @@ const stripeClient = new StripeClient(
 	(env.STRIPE_SECRET_KEY as string) || "sk_placeholder",
 );
 
+const userNameLengthHook = {
+	before: async (authUser: Record<string, unknown>) => {
+		if (typeof authUser.name === "string" && authUser.name.length > 30) {
+			throw new APIError("BAD_REQUEST", {
+				message: USER_MESSAGES.userNameMaxLength,
+			});
+		}
+
+		return { data: authUser };
+	},
+};
+
 export const auth = betterAuth({
 	baseURL: env.NEXT_PUBLIC_BASE_URL as string,
 	database: drizzleAdapter(database, {
 		provider: "pg",
 	}),
+	databaseHooks: {
+		user: {
+			create: userNameLengthHook,
+			update: userNameLengthHook,
+		},
+	},
 	emailAndPassword: {
 		enabled: true,
 		onPasswordReset: async ({ user: resetUser }) => {
