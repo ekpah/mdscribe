@@ -31,8 +31,12 @@ Project uses **Linear** (team: Scribe). Agents with access should:
 ### Next action for Nils: <single step>
 ```
 
-### Documentation Updates
-When implementing new functionality, update `apps/docs` for user-facing features, and update this file when architecture, routes, or conventions change.
+### Feature Implementation Checklist
+When implementing new functionality, deliver the complete feature rather than only one layer of it:
+- Implement the feature end to end across the relevant frontend, oRPC/API handlers, data access boundaries, auth/authorization checks, usage-event logging, and billing/entitlement guards.
+- Add or update focused unit tests for changed behavior, and add E2E coverage for major user-facing workflows.
+- Update `apps/docs` for user-facing features, and update this file when architecture, routes, or conventions change.
+- For major features, include a draft user-notification email in the PR or handoff; for small fixes, explicitly note that no announcement is needed.
 
 ### Frontend Corrections
 - Canvas-backed components need actual CSS color values, not Tailwind token names. For `LiveWaveform`, prefer inherited `text-*` color and omit `barColor`; passing values like `"solarized-base2"` is invalid for `CanvasRenderingContext2D.fillStyle` and can leave the internal fade gradient as the fill style.
