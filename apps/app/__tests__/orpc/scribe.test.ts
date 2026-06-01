@@ -1,21 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
-import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
-import { USER_MESSAGES } from "@/lib/user-messages";
-import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
-import { documentTypeConfigs } from "@/orpc/scribe/config";
-import { composeScribeContext } from "@/orpc/scribe/context";
-import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
-import { scribeStreamHandler } from "@/orpc/scribe/handlers";
-import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
-import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
-import { fillInputsConfig } from "@/orpc/scribe/handlers/fill-inputs-config";
-import {
-	resolveDefaultModel,
-	resolveGenerationStrategy,
-} from "@/orpc/scribe/providers";
-import type { DocumentType } from "@/orpc/scribe/types";
+
 import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
@@ -25,6 +12,18 @@ import {
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
+import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
+import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
+import { USER_MESSAGES } from "@/lib/user-messages";
+import { documentTypeConfigs } from "@/orpc/scribe/config";
+import { composeScribeContext } from "@/orpc/scribe/context";
+import { scribeStreamHandler } from "@/orpc/scribe/handlers";
+import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
+import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
+import { fillInputsConfig } from "@/orpc/scribe/handlers/fill-inputs-config";
+import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import { resolveDefaultModel, resolveGenerationStrategy } from "@/orpc/scribe/providers";
+import type { DocumentType } from "@/orpc/scribe/types";
 
 /**
  * Comprehensive tests for scribe oRPC handlers
@@ -54,7 +53,7 @@ describe("Document Type Configurations", () => {
 
 	test("uses one default model config for all scribe generations", () => {
 		expect(DEFAULT_SCRIBE_MODEL_CONFIG).toEqual({
-			maxTokens: 8_000,
+			maxTokens: 8000,
 			temperature: 0.3,
 		});
 	});
@@ -95,9 +94,7 @@ describe("Context Builder", () => {
 		expect(contextXml).toContain(
 			"<purpose>Informationen über den Arzt/Nutzer, der den Prompt ausfüllt</purpose>",
 		);
-		expect(contextXml).toContain(
-			"Diese Daten gehören NICHT zum Patientenfall",
-		);
+		expect(contextXml).toContain("Diese Daten gehören NICHT zum Patientenfall");
 		expect(contextXml).toContain("<name>Dr. Test</name>");
 	});
 
@@ -196,9 +193,7 @@ describe("Model Selection Logic", () => {
 				hasFiles: true,
 			});
 			expect(strategy.mode).toBe("direct");
-			expect(strategy.generation.model.modelName).toBe(
-				"openrouter/test-multimodal",
-			);
+			expect(strategy.generation.model.modelName).toBe("openrouter/test-multimodal");
 			expect(strategy.generation.reasoningEffort).toBe("high");
 		} finally {
 			await server.close();
@@ -262,9 +257,7 @@ describe("Model Selection Logic", () => {
 			expect(strategy.mode).toBe("preprocess");
 			expect(strategy.generation.model.modelName).toBe("openrouter/test-text");
 			expect(
-				strategy.mode === "preprocess"
-					? strategy.speechToText?.model.modelName
-					: undefined,
+				strategy.mode === "preprocess" ? strategy.speechToText?.model.modelName : undefined,
 			).toBe("openrouter/test-speech");
 		} finally {
 			await server.close();
@@ -284,8 +277,7 @@ describe("Model Selection Logic", () => {
 			globalThis.fetch = ((input, init) => {
 				requestUrl = String(input);
 				requestContentType = new Headers(init?.headers).get("Content-Type") ?? "";
-				requestBody =
-					typeof init?.body === "string" ? JSON.parse(init.body) : null;
+				requestBody = typeof init?.body === "string" ? JSON.parse(init.body) : null;
 				return Promise.resolve(Response.json({ text: "Hallo Welt" }));
 			}) as typeof fetch;
 
@@ -333,9 +325,7 @@ describe("Model Selection Logic", () => {
 			});
 
 			expect(result.transcripts).toEqual(["Hallo Welt"]);
-			expect(requestUrl).toBe(
-				"https://openrouter.ai/api/v1/audio/transcriptions",
-			);
+			expect(requestUrl).toBe("https://openrouter.ai/api/v1/audio/transcriptions");
 			expect(requestContentType).toBe("application/json");
 			expect(requestBody).toEqual({
 				input_audio: {
@@ -391,9 +381,9 @@ describe("Model Selection Logic", () => {
 					target: aiDefaults.id,
 				});
 
-			await expect(
-				resolveDefaultModel(server.db, "speech-to-text"),
-			).rejects.toThrow(USER_MESSAGES.modelUnavailable);
+			await expect(resolveDefaultModel(server.db, "speech-to-text")).rejects.toThrow(
+				USER_MESSAGES.modelUnavailable,
+			);
 		} finally {
 			await server.close();
 		}
@@ -409,9 +399,7 @@ describe("Fill Inputs Handler", () => {
 		});
 
 		expect(messages[1].content).toContain('"textContext": {');
-		expect(messages[1].content).toContain(
-			'"diagnoseblock": "I50.1 Akute Linksherzinsuffizienz"',
-		);
+		expect(messages[1].content).toContain('"diagnoseblock": "I50.1 Akute Linksherzinsuffizienz"');
 		expect(messages[1].content).not.toContain('"inputFields"');
 		expect(messages[1].content).not.toContain("Verfügbare Felder");
 		expect(messages[1].content).not.toContain("Klinischer Textkontext");
@@ -536,9 +524,9 @@ describe("Fill Inputs Handler", () => {
 		const server = await startTestServer("fill-inputs-payload-limit");
 		try {
 			const { user } = await createTestUser(server.db);
-			const data = Buffer.alloc(
-				FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes + 1,
-			).toString("base64");
+			const data = Buffer.alloc(FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes + 1).toString(
+				"base64",
+			);
 
 			await expect(
 				call(
@@ -671,13 +659,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "unknown-type" as DocumentType,
-							messages: [
-								{
-									id: "1",
-									parts: [{ text: "{}", type: "text" as const }],
-									role: "user" as const,
-								},
-							],
+						messages: [
+							{
+								id: "1",
+								parts: [{ text: "{}", type: "text" as const }],
+								role: "user" as const,
+							},
+						],
 					},
 					{ context },
 				),
@@ -694,22 +682,22 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "anamnese",
-							messages: [
-								{
-									id: "1",
-									parts: [
-										{
-											text: JSON.stringify({
-												befunde: "",
-												diagnoseblock: "",
-												notes: "",
-											}),
-											type: "text" as const,
-										},
-									],
-									role: "user" as const,
-								},
-							],
+						messages: [
+							{
+								id: "1",
+								parts: [
+									{
+										text: JSON.stringify({
+											befunde: "",
+											diagnoseblock: "",
+											notes: "",
+										}),
+										type: "text" as const,
+									},
+								],
+								role: "user" as const,
+							},
+						],
 					},
 					{ context },
 				),
@@ -756,9 +744,9 @@ describe("Scribe Stream Handler", () => {
 			const { user } = await createTestUser(server.db);
 
 			// Create 50 usage events to hit the limit
-			const { usageEvent } = await import("@repo/database");
+			const { usageEvent: usageEventTable } = await import("@repo/database");
 			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEvent).values({
+				await server.db.insert(usageEventTable).values({
 					id: crypto.randomUUID(),
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
@@ -774,13 +762,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-							messages: [
-								{
-									id: "1",
-									parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
-									role: "user" as const,
-								},
-							],
+						messages: [
+							{
+								id: "1",
+								parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+								role: "user" as const,
+							},
+						],
 					},
 					{ context },
 				),
@@ -797,9 +785,9 @@ describe("Scribe Stream Handler", () => {
 			});
 
 			// Create 50 usage events (under plus limit)
-			const { usageEvent } = await import("@repo/database");
+			const { usageEvent: usageEventTable } = await import("@repo/database");
 			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEvent).values({
+				await server.db.insert(usageEventTable).values({
 					id: crypto.randomUUID(),
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
@@ -814,26 +802,26 @@ describe("Scribe Stream Handler", () => {
 			// Note: Will still return a stream (mocked)
 			const result = await call(
 				scribeStreamHandler,
-					{
-						documentType: "discharge",
-						messages: [
-							{
-								id: "1",
-								parts: [
-									{
-										text: JSON.stringify({
-											anamnese: "test",
-											befunde: "test",
-											diagnoseblock: "test",
-											notes: "test",
-										}),
-										type: "text" as const,
-									},
-								],
-								role: "user" as const,
-							},
-						],
-					},
+				{
+					documentType: "discharge",
+					messages: [
+						{
+							id: "1",
+							parts: [
+								{
+									text: JSON.stringify({
+										anamnese: "test",
+										befunde: "test",
+										diagnoseblock: "test",
+										notes: "test",
+									}),
+									type: "text" as const,
+								},
+							],
+							role: "user" as const,
+						},
+					],
+				},
 				{ context },
 			);
 
@@ -852,9 +840,9 @@ describe("Scribe Stream Handler", () => {
 			});
 
 			// Create 500 usage events to hit the plus limit
-			const { usageEvent } = await import("@repo/database");
+			const { usageEvent: usageEventTable } = await import("@repo/database");
 			for (let i = 0; i < 500; i += 1) {
-				await server.db.insert(usageEvent).values({
+				await server.db.insert(usageEventTable).values({
 					id: crypto.randomUUID(),
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
@@ -870,13 +858,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-							messages: [
-								{
-									id: "1",
-									parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
-									role: "user" as const,
-								},
-							],
+						messages: [
+							{
+								id: "1",
+								parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+								role: "user" as const,
+							},
+						],
 					},
 					{ context },
 				),
@@ -892,25 +880,25 @@ describe("Scribe Stream Handler", () => {
 
 			const result = await call(
 				scribeStreamHandler,
-					{
-						documentType: "anamnese",
-						messages: [
-							{
-								id: "1",
-								parts: [
-									{
-										text: JSON.stringify({
-											befunde: "ECG normal",
-											diagnoseblock: "Hypertension",
-											notes: "Patient with chest pain",
-										}),
-										type: "text" as const,
-									},
-								],
-								role: "user" as const,
-							},
-						],
-					},
+				{
+					documentType: "anamnese",
+					messages: [
+						{
+							id: "1",
+							parts: [
+								{
+									text: JSON.stringify({
+										befunde: "ECG normal",
+										diagnoseblock: "Hypertension",
+										notes: "Patient with chest pain",
+									}),
+									type: "text" as const,
+								},
+							],
+							role: "user" as const,
+						},
+					],
+				},
 				{ context },
 			);
 
@@ -926,25 +914,25 @@ describe("Scribe Stream Handler", () => {
 
 			const result = await call(
 				scribeStreamHandler,
-					{
-						documentType: "anamnese" as const,
-						messages: [
-							{
-								id: "1",
-								parts: [
-									{
-										text: JSON.stringify({
-											befunde: "",
-											diagnoseblock: "",
-											notes: "test",
-										}),
-										type: "text" as const,
-									},
-								],
-								role: "user" as const,
-							},
-						],
-					},
+				{
+					documentType: "anamnese" as const,
+					messages: [
+						{
+							id: "1",
+							parts: [
+								{
+									text: JSON.stringify({
+										befunde: "",
+										diagnoseblock: "",
+										notes: "test",
+									}),
+									type: "text" as const,
+								},
+							],
+							role: "user" as const,
+						},
+					],
+				},
 				{ context },
 			);
 			expect(result).toBeDefined();

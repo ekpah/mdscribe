@@ -11,11 +11,8 @@ import {
 } from "@/lib/openai-compatible";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import {
-	normalizeReasoningEffort,
-	type DefaultModelSlot,
-	type ReasoningEffort,
-} from "@/orpc/scribe/providers";
+import { normalizeReasoningEffort } from "@/orpc/scribe/providers";
+import type { DefaultModelSlot, ReasoningEffort } from "@/orpc/scribe/providers";
 
 const admin = authed.use(requiredAdminMiddleware);
 
@@ -24,14 +21,14 @@ const PROVIDER_PROTOCOLS = ["openai-compatible", "openrouter", "openai", "anthro
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
 const normalizeSupportedParameters = (parameters: unknown[] | undefined): string[] =>
-	Array.from(
-		new Set(
+	[
+		...new Set(
 			(parameters ?? [])
 				.filter((parameter): parameter is string => typeof parameter === "string")
 				.map((parameter) => parameter.trim())
 				.filter(Boolean),
 		),
-	).toSorted();
+	].toSorted();
 
 interface FetchedProviderModel {
 	modelId: string;
@@ -92,15 +89,10 @@ const ensureV1BaseUrl = (url: string): string => {
 	return `${trimmed}/v1`;
 };
 
-const parseOpenRouterSupportedParameters = (
-	parameters: unknown[] | undefined,
-): string[] => {
-	return normalizeSupportedParameters(parameters);
-};
+const parseOpenRouterSupportedParameters = (parameters: unknown[] | undefined): string[] =>
+	normalizeSupportedParameters(parameters);
 
-const parseOpenRouterReasoningSupport = (
-	supportedParameters: string[],
-): boolean => {
+const parseOpenRouterReasoningSupport = (supportedParameters: string[]): boolean => {
 	const parameters = new Set(supportedParameters);
 	return parameters.has("reasoning") || parameters.has("include_reasoning");
 };
@@ -148,13 +140,10 @@ const fetchProviderModels = async (
 			headers.Authorization = `Bearer ${config.apiKey}`;
 		}
 
-		const response = await fetch(
-			"https://openrouter.ai/api/v1/models?output_modalities=all",
-			{
-				headers,
-				signal,
-			},
-		);
+		const response = await fetch("https://openrouter.ai/api/v1/models?output_modalities=all", {
+			headers,
+			signal,
+		});
 		if (!response.ok) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Provider check failed: HTTP ${response.status}`,
@@ -171,15 +160,12 @@ const fetchProviderModels = async (
 		};
 
 		return (body.data ?? []).map((model) => {
-			const supportedParameters = parseOpenRouterSupportedParameters(
-				model.supported_parameters,
-			);
+			const supportedParameters = parseOpenRouterSupportedParameters(model.supported_parameters);
 			return {
 				displayName: model.display_name ?? model.name ?? model.id,
 				modelId: model.id,
 				supportedParameters,
-				supportsReasoning:
-					parseOpenRouterReasoningSupport(supportedParameters),
+				supportsReasoning: parseOpenRouterReasoningSupport(supportedParameters),
 			};
 		});
 	}
@@ -309,9 +295,7 @@ const syncFetchedModelsForProvider = async (
 			continue;
 		}
 
-		const existingSupportedParameters = normalizeSupportedParameters(
-			existing.supportedParameters,
-		);
+		const existingSupportedParameters = normalizeSupportedParameters(existing.supportedParameters);
 		const existingSupportsReasoning =
 			existing.supportsReasoning || existingSupportedParameters.includes("reasoning");
 		const sameDisplayName = existing.displayName === model.displayName;
@@ -380,8 +364,7 @@ const listProvidersHandler = admin.handler(async ({ context }) => {
 			return {
 				...model,
 				supportedParameters,
-				supportsReasoning:
-					model.supportsReasoning || supportedParameters.includes("reasoning"),
+				supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
 			};
 		}),
 	}));
@@ -592,8 +575,7 @@ const createModelHandler = admin
 				modelId: parsed.modelId,
 				providerId: parsed.providerId,
 				supportedParameters,
-				supportsReasoning:
-					parsed.supportsReasoning || supportedParameters.includes("reasoning"),
+				supportsReasoning: parsed.supportsReasoning || supportedParameters.includes("reasoning"),
 			})
 			.returning();
 
@@ -672,9 +654,7 @@ const getDefaultsHandler = admin.handler(async ({ context }) => {
 			defaults?.defaultSpeechToTextReasoningEffort,
 		),
 		defaultTextModelId: defaults?.defaultTextModelId ?? null,
-		defaultTextReasoningEffort: normalizeReasoningEffort(
-			defaults?.defaultTextReasoningEffort,
-		),
+		defaultTextReasoningEffort: normalizeReasoningEffort(defaults?.defaultTextReasoningEffort),
 	};
 });
 
@@ -703,6 +683,79 @@ const setDefaultInput = z.object({
 	reasoningEffort: reasoningEffortSchema.optional(),
 });
 
+type AiDefaultsDraft = typeof aiDefaults.$inferInsert;
+
+const buildAiDefaultsDraft = (
+	current: typeof aiDefaults.$inferSelect | undefined,
+): AiDefaultsDraft => ({
+	defaultEvaluationModel: current?.defaultEvaluationModel ?? null,
+	defaultEvaluationReasoningEffort: normalizeReasoningEffort(
+		current?.defaultEvaluationReasoningEffort,
+	),
+	defaultFileImageModelId: current?.defaultFileImageModelId ?? null,
+	defaultFileImageReasoningEffort: normalizeReasoningEffort(
+		current?.defaultFileImageReasoningEffort,
+	),
+	defaultMultimodalModelId: current?.defaultMultimodalModelId ?? null,
+	defaultMultimodalReasoningEffort: normalizeReasoningEffort(
+		current?.defaultMultimodalReasoningEffort,
+	),
+	defaultSpeechToTextModelId: current?.defaultSpeechToTextModelId ?? null,
+	defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
+		current?.defaultSpeechToTextReasoningEffort,
+	),
+	defaultTextModelId: current?.defaultTextModelId ?? null,
+	defaultTextReasoningEffort: normalizeReasoningEffort(current?.defaultTextReasoningEffort),
+	id: "global",
+	updatedAt: new Date(),
+});
+
+const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof setDefaultInput>) => {
+	const nextReasoningEffort = parsed.reasoningEffort;
+	switch (parsed.defaultType) {
+		case "multimodal": {
+			next.defaultMultimodalModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultMultimodalReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		case "text": {
+			next.defaultTextModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultTextReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		case "evaluation": {
+			next.defaultEvaluationModel = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultEvaluationReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		case "file-image": {
+			next.defaultFileImageModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultFileImageReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		case "speech-to-text": {
+			next.defaultSpeechToTextModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultSpeechToTextReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		default: {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Ungültiger Standardtyp",
+			});
+		}
+	}
+};
+
 const setDefaultHandler = admin
 	.input(type<z.infer<typeof setDefaultInput>>())
 	.handler(async ({ input, context }) => {
@@ -720,91 +773,21 @@ const setDefaultHandler = admin
 			where: eq(aiDefaults.id, "global"),
 		});
 
-		const next = {
-			defaultEvaluationModel: current?.defaultEvaluationModel ?? null,
-			defaultEvaluationReasoningEffort: normalizeReasoningEffort(
-				current?.defaultEvaluationReasoningEffort,
-			),
-			defaultFileImageModelId: current?.defaultFileImageModelId ?? null,
-			defaultFileImageReasoningEffort: normalizeReasoningEffort(
-				current?.defaultFileImageReasoningEffort,
-			),
-			defaultMultimodalModelId: current?.defaultMultimodalModelId ?? null,
-			defaultMultimodalReasoningEffort: normalizeReasoningEffort(
-				current?.defaultMultimodalReasoningEffort,
-			),
-			defaultSpeechToTextModelId: current?.defaultSpeechToTextModelId ?? null,
-			defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
-				current?.defaultSpeechToTextReasoningEffort,
-			),
-			defaultTextModelId: current?.defaultTextModelId ?? null,
-			defaultTextReasoningEffort: normalizeReasoningEffort(
-				current?.defaultTextReasoningEffort,
-			),
-			id: "global",
-			updatedAt: new Date(),
-		};
-		const nextReasoningEffort = parsed.reasoningEffort;
-
-		switch (parsed.defaultType) {
-			case "multimodal": {
-				next.defaultMultimodalModelId = parsed.modelId;
-				if (nextReasoningEffort !== undefined) {
-					next.defaultMultimodalReasoningEffort = nextReasoningEffort;
-				}
-				break;
-			}
-			case "text": {
-				next.defaultTextModelId = parsed.modelId;
-				if (nextReasoningEffort !== undefined) {
-					next.defaultTextReasoningEffort = nextReasoningEffort;
-				}
-				break;
-			}
-			case "evaluation": {
-				next.defaultEvaluationModel = parsed.modelId;
-				if (nextReasoningEffort !== undefined) {
-					next.defaultEvaluationReasoningEffort = nextReasoningEffort;
-				}
-				break;
-			}
-			case "file-image": {
-				next.defaultFileImageModelId = parsed.modelId;
-				if (nextReasoningEffort !== undefined) {
-					next.defaultFileImageReasoningEffort = nextReasoningEffort;
-				}
-				break;
-			}
-			case "speech-to-text": {
-				next.defaultSpeechToTextModelId = parsed.modelId;
-				if (nextReasoningEffort !== undefined) {
-					next.defaultSpeechToTextReasoningEffort = nextReasoningEffort;
-				}
-				break;
-			}
-			default: {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "Ungültiger Standardtyp",
-				});
-			}
-		}
+		const next = buildAiDefaultsDraft(current);
+		applyDefaultSelection(next, parsed);
 
 		await (current
 			? context.db
 					.update(aiDefaults)
 					.set({
 						defaultEvaluationModel: next.defaultEvaluationModel,
-						defaultEvaluationReasoningEffort:
-							next.defaultEvaluationReasoningEffort,
+						defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
 						defaultFileImageModelId: next.defaultFileImageModelId,
-						defaultFileImageReasoningEffort:
-							next.defaultFileImageReasoningEffort,
+						defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
 						defaultMultimodalModelId: next.defaultMultimodalModelId,
-						defaultMultimodalReasoningEffort:
-							next.defaultMultimodalReasoningEffort,
+						defaultMultimodalReasoningEffort: next.defaultMultimodalReasoningEffort,
 						defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
-						defaultSpeechToTextReasoningEffort:
-							next.defaultSpeechToTextReasoningEffort,
+						defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
 						defaultTextModelId: next.defaultTextModelId,
 						defaultTextReasoningEffort: next.defaultTextReasoningEffort,
 						updatedAt: next.updatedAt,
@@ -814,17 +797,13 @@ const setDefaultHandler = admin
 
 		return {
 			defaultEvaluationModel: next.defaultEvaluationModel,
-			defaultEvaluationReasoningEffort:
-				next.defaultEvaluationReasoningEffort,
+			defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
 			defaultFileImageModelId: next.defaultFileImageModelId,
-			defaultFileImageReasoningEffort:
-				next.defaultFileImageReasoningEffort,
+			defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
 			defaultMultimodalModelId: next.defaultMultimodalModelId,
-			defaultMultimodalReasoningEffort:
-				next.defaultMultimodalReasoningEffort,
+			defaultMultimodalReasoningEffort: next.defaultMultimodalReasoningEffort,
 			defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
-			defaultSpeechToTextReasoningEffort:
-				next.defaultSpeechToTextReasoningEffort,
+			defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
 			defaultTextModelId: next.defaultTextModelId,
 			defaultTextReasoningEffort: next.defaultTextReasoningEffort,
 		};

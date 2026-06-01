@@ -1,10 +1,7 @@
 "use client";
 
+import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
 import { Badge } from "@repo/design-system/components/ui/badge";
-import {
-	Alert,
-	AlertDescription,
-} from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -50,31 +47,41 @@ type DocumentVisibility = (typeof DOCUMENT_VISIBILITIES)[number];
 
 const toPdfTypeLabel = (pdfType: DocumentFieldDefinition["pdfType"]): string => {
 	switch (pdfType) {
-		case "text":
+		case "text": {
 			return "Text";
-		case "multiline":
+		}
+		case "multiline": {
 			return "Mehrzeilig";
-		case "dropdown":
+		}
+		case "dropdown": {
 			return "Dropdown";
-		case "checkbox":
+		}
+		case "checkbox": {
 			return "Checkbox";
-		case "radio":
+		}
+		case "radio": {
 			return "Radio";
-		default:
+		}
+		default: {
 			return pdfType;
+		}
 	}
 };
 
 const toInputKindLabel = (inputKind: DocumentFieldDefinition["inputKind"]): string => {
 	switch (inputKind) {
-		case "boolean":
+		case "boolean": {
 			return "Checkbox";
-		case "choice":
+		}
+		case "choice": {
 			return "Auswahl";
-		case "text":
+		}
+		case "text": {
 			return "Text";
-		default:
+		}
+		default: {
 			return inputKind;
+		}
 	}
 };
 
@@ -94,6 +101,43 @@ const isDocumentPdfType = (value: unknown): value is DocumentFieldDefinition["pd
 const isDocumentValueType = (value: unknown): value is DocumentFieldDefinition["valueType"] =>
 	value === "date" || value === "number" || value === "string";
 
+const normalizeDocumentOptions = (
+	inputKind: DocumentFieldDefinition["inputKind"],
+	rawOptions: unknown,
+): string[] => {
+	if (inputKind === "boolean") {
+		return ["true", "false"];
+	}
+	if (inputKind === "choice" && Array.isArray(rawOptions)) {
+		return rawOptions.filter((option): option is string => typeof option === "string");
+	}
+	return [];
+};
+
+const normalizeDocumentMarkdocType = (
+	value: unknown,
+	isSwitch: boolean,
+): DocumentFieldDefinition["markdocType"] => {
+	const expectedMarkdocType = isSwitch ? "Switch" : "Info";
+	if (isDocumentMarkdocType(value) && value === expectedMarkdocType) {
+		return value;
+	}
+	return expectedMarkdocType;
+};
+
+const normalizeDocumentValueType = (
+	value: unknown,
+	isSwitch: boolean,
+): DocumentFieldDefinition["valueType"] => {
+	if (isSwitch) {
+		return "string";
+	}
+	if (isDocumentValueType(value)) {
+		return value;
+	}
+	return "string";
+};
+
 const normalizeSavedFieldDefinition = (value: unknown): DocumentFieldDefinition | null => {
 	if (!value || typeof value !== "object") {
 		return null;
@@ -108,13 +152,7 @@ const normalizeSavedFieldDefinition = (value: unknown): DocumentFieldDefinition 
 	const inputKind = isDocumentInputKind(field.inputKind) ? field.inputKind : "text";
 	const pdfType = isDocumentPdfType(field.pdfType) ? field.pdfType : "text";
 	const isSwitch = inputKind !== "text";
-	const rawOptions = Array.isArray(field.options) ? field.options : [];
-	const options =
-		inputKind === "boolean"
-			? ["true", "false"]
-			: isSwitch
-				? rawOptions.filter((option): option is string => typeof option === "string")
-				: [];
+	const options = normalizeDocumentOptions(inputKind, field.options);
 	const textCheckboxValue =
 		pdfType === "text" && inputKind === "boolean"
 			? field.textCheckboxValue?.trim() || "x"
@@ -126,23 +164,13 @@ const normalizeSavedFieldDefinition = (value: unknown): DocumentFieldDefinition 
 		inputKind,
 		isEnabled: field.isEnabled ?? true,
 		label: typeof field.label === "string" && field.label.trim() ? field.label : fieldName,
-		markdocType:
-			isDocumentMarkdocType(field.markdocType) &&
-			field.markdocType === (isSwitch ? "Switch" : "Info")
-				? field.markdocType
-				: isSwitch
-					? "Switch"
-					: "Info",
+		markdocType: normalizeDocumentMarkdocType(field.markdocType, isSwitch),
 		maxLength:
 			typeof field.maxLength === "number" && field.maxLength > 0 ? field.maxLength : undefined,
 		options,
 		pdfType,
 		textCheckboxValue,
-		valueType: isSwitch
-			? "string"
-			: isDocumentValueType(field.valueType)
-				? field.valueType
-				: "string",
+		valueType: normalizeDocumentValueType(field.valueType, isSwitch),
 	};
 };
 
@@ -157,12 +185,20 @@ const normalizeSavedFieldDefinitions = (value: unknown): DocumentFieldDefinition
 	});
 };
 
+const getDocumentEditorTitle = (documentId: string | undefined): string => {
+	if (documentId) {
+		return "Dokument bearbeiten";
+	}
+
+	return "Dokument erstellen";
+};
+
 interface ParsedFieldMappingResult {
-	fieldMapping: Array<{
+	fieldMapping: {
 		description: string;
 		fieldName: string;
 		label: string;
-	}>;
+	}[];
 }
 
 const toInputFieldType = (
@@ -178,12 +214,12 @@ const toInputFieldType = (
 };
 
 const toEnhancementInputFields = (fieldDefinitions: DocumentFieldDefinition[]) => {
-	const inputFields: Array<{
+	const inputFields: {
 		description?: string;
 		label: string;
 		options?: string[];
 		type: "boolean" | "date" | "number" | "string" | "switch";
-	}> = [];
+	}[] = [];
 	const seen = new Set<string>();
 
 	for (const fieldDefinition of fieldDefinitions) {
@@ -797,7 +833,20 @@ export default function DocumentEditor({
 	const resolvedCategory = category === "new" ? newCategory : category;
 	const isCategoryValid = resolvedCategory.trim() !== "";
 	const isNameValid = title.trim() !== "";
+	const isNewCategoryValid = newCategory.trim() !== "";
 	const isSavePending = createMutation.isPending || updateMutation.isPending;
+	const categoryValidationMessage = isCategoryValid ? null : (
+		<p className="mt-1 text-solarized-red text-xs">Kategorie ist erforderlich</p>
+	);
+	const nameValidationMessage = isNameValid ? null : (
+		<p className="mt-1 text-solarized-red text-xs">Name ist erforderlich</p>
+	);
+	const privateDocumentsHint = canCreatePrivateDocuments ? null : (
+		<p className="mt-1 text-muted-foreground text-xs">Private Dokumente sind in Plus enthalten.</p>
+	);
+	const newCategoryValidationMessage = isNewCategoryValid ? null : (
+		<p className="mt-1 text-solarized-red text-xs">Neue Kategorie ist erforderlich</p>
+	);
 
 	return (
 		<div
@@ -805,9 +854,7 @@ export default function DocumentEditor({
 			data-documents-editor-root
 		>
 			<div className="mb-3 shrink-0 flex items-center justify-between gap-2">
-				<h1 className="font-semibold text-lg">
-					{documentId ? "Dokument bearbeiten" : "Dokument erstellen"}
-				</h1>
+				<h1 className="font-semibold text-lg">{getDocumentEditorTitle(documentId)}</h1>
 				<Button disabled={isSavePending} onClick={handleSave}>
 					{isSavePending ? "Speichert..." : "Speichern"}
 				</Button>
@@ -826,7 +873,7 @@ export default function DocumentEditor({
 									<SelectTrigger
 										className={cn(
 											"min-w-0 overflow-hidden [&>span]:truncate",
-											!isCategoryValid ? "border-solarized-red" : "",
+											isCategoryValid ? "" : "border-solarized-red",
 										)}
 										id="document-category"
 									>
@@ -841,9 +888,7 @@ export default function DocumentEditor({
 										<SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
 									</SelectContent>
 								</Select>
-								{!isCategoryValid ? (
-									<p className="mt-1 text-solarized-red text-xs">Kategorie ist erforderlich</p>
-								) : null}
+								{categoryValidationMessage}
 							</div>
 
 							<div className="min-w-0 flex-[1_1_14rem] space-y-2">
@@ -851,15 +896,13 @@ export default function DocumentEditor({
 									Name <span className="text-solarized-red">*</span>
 								</Label>
 								<Input
-									className={cn("min-w-0", !isNameValid ? "border-solarized-red" : "")}
+									className={cn("min-w-0", isNameValid ? "" : "border-solarized-red")}
 									id="document-title"
 									onChange={(event) => setTitle(event.target.value)}
 									placeholder="Dokumentname eingeben"
 									value={title}
 								/>
-								{!isNameValid ? (
-									<p className="mt-1 text-solarized-red text-xs">Name ist erforderlich</p>
-								) : null}
+								{nameValidationMessage}
 							</div>
 
 							<div className="shrink-0 self-end">
@@ -867,7 +910,7 @@ export default function DocumentEditor({
 									<TooltipTrigger asChild>
 										<Button
 											aria-label="Eingaben mit KI verbessern"
-											disabled={!pdfFileBytes || enhanceMutation.isPending}
+											disabled={pdfFileBytes ? enhanceMutation.isPending : true}
 											onClick={handleEnhanceWithAi}
 											size="icon"
 											variant="outline"
@@ -891,27 +934,18 @@ export default function DocumentEditor({
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="public">Öffentlich</SelectItem>
-										<SelectItem
-											disabled={!canCreatePrivateDocuments}
-											value="private"
-										>
+										<SelectItem disabled={canCreatePrivateDocuments === false} value="private">
 											Privat
 										</SelectItem>
 									</SelectContent>
 								</Select>
-								{!canCreatePrivateDocuments ? (
-									<p className="mt-1 text-muted-foreground text-xs">
-										Private Dokumente sind in Plus enthalten.
-									</p>
-								) : null}
+								{privateDocumentsHint}
 							</div>
 						</div>
 
 						{visibility === "public" ? (
 							<Alert className="border-solarized-orange/50 bg-solarized-orange/10">
-								<AlertDescription>
-									{USER_MESSAGES.publicDocumentVisibilityWarning}
-								</AlertDescription>
+								<AlertDescription>{USER_MESSAGES.publicDocumentVisibilityWarning}</AlertDescription>
 							</Alert>
 						) : null}
 
@@ -921,15 +955,13 @@ export default function DocumentEditor({
 									Neue Kategorie <span className="text-solarized-red">*</span>
 								</Label>
 								<Input
-									className={!newCategory.trim() ? "border-solarized-red" : ""}
+									className={isNewCategoryValid ? "" : "border-solarized-red"}
 									id="document-new-category"
 									onChange={(event) => setNewCategory(event.target.value)}
 									placeholder="Füge eine Kategorie hinzu"
 									value={newCategory}
 								/>
-								{!newCategory.trim() ? (
-									<p className="mt-1 text-solarized-red text-xs">Neue Kategorie ist erforderlich</p>
-								) : null}
+								{newCategoryValidationMessage}
 							</div>
 						) : null}
 					</div>

@@ -1,6 +1,6 @@
 import { ORPCError, type } from "@orpc/server";
-import { and, count, desc, eq, favourites, or, sql, template, user } from '@repo/database';
-import type { Database, Template } from '@repo/database';
+import { and, count, desc, eq, favourites, or, sql, template, user } from "@repo/database";
+import type { Database, Template } from "@repo/database";
 import { env } from "@repo/env";
 import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
@@ -28,11 +28,11 @@ const favouriteCount = (templateId: typeof template.id) =>
 // Types
 // ============================================================================
 
-type TemplateAuthorSummary = {
+interface TemplateAuthorSummary {
 	id: string;
 	image: string | null;
 	name: string | null;
-};
+}
 
 type TemplateWithRelations = Template & {
 	favouriteOf: { id: string }[];
@@ -133,9 +133,7 @@ const visibleTemplateWhere = (userId?: string | null) =>
 		: eq(template.visibility, "public");
 
 const getOptionalUserId = async (context: unknown) => {
-	const session = await getOptionalAuthSession(
-		(context as { session?: Session }).session,
-	);
+	const session = await getOptionalAuthSession((context as { session?: Session }).session);
 	return session?.user.id ?? null;
 };
 
@@ -200,12 +198,12 @@ const getTemplateHandler = pub
 		const userId = await getOptionalUserId(context);
 		// Get template with author
 		const [templateData] = await context.db
-				.select({
-					author: {
-						id: user.id,
-						image: user.image,
-						name: user.name,
-					},
+			.select({
+				author: {
+					id: user.id,
+					image: user.image,
+					name: user.name,
+				},
 				authorId: template.authorId,
 				category: template.category,
 				content: template.content,
@@ -230,12 +228,7 @@ const getTemplateHandler = pub
 				? context.db
 						.select({ id: favourites.userId })
 						.from(favourites)
-						.where(
-							and(
-								eq(favourites.templateId, input.id),
-								eq(favourites.userId, userId),
-							),
-						)
+						.where(and(eq(favourites.templateId, input.id), eq(favourites.userId, userId)))
 				: Promise.resolve([]),
 			context.db
 				.select({ count: count() })
@@ -377,14 +370,14 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 		);
 	}
 
+	const entitlements = await resolveProductEntitlements({
+		db: context.db,
+		userId: context.session.user.id,
+	});
+
 	return {
+		canCreatePrivateTemplates: entitlements.canCreatePrivateTemplates,
 		canEditSource: context.auth.isAdmin,
-		canCreatePrivateTemplates: (
-			await resolveProductEntitlements({
-				db: context.db,
-				userId: context.session.user.id,
-			})
-		).canCreatePrivateTemplates,
 		categorySuggestions,
 	};
 });
@@ -404,11 +397,7 @@ const createTemplateHandler = authed
 			userId: context.session.user.id,
 			visibility: input.visibility,
 		});
-		const { embedding } = await generateEmbeddings(
-			input.content,
-			input.name,
-			input.category,
-		);
+		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -446,11 +435,7 @@ const updateTemplateHandler = authed
 			userId: context.session.user.id,
 			visibility: input.visibility,
 		});
-		const { embedding } = await generateEmbeddings(
-			input.content,
-			input.name,
-			input.category,
-		);
+		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -465,12 +450,7 @@ const updateTemplateHandler = authed
 					updatedAt: new Date(),
 					visibility: input.visibility,
 				})
-				.where(
-					and(
-						eq(template.id, input.id),
-						eq(template.authorId, context.session.user.id),
-					),
-				)
+				.where(and(eq(template.id, input.id), eq(template.authorId, context.session.user.id)))
 				.returning();
 
 			const [updatedTemplate] = result;
@@ -489,54 +469,45 @@ const updateTemplateHandler = authed
 /**
  * Add a template to favourites
  */
-const addFavouriteHandler = authed
-	.input(favouriteInput)
-	.handler(async ({ context, input }) => {
-		const [visibleTemplate] = await context.db
-			.select({ id: template.id })
-			.from(template)
-			.where(
-				and(
-					eq(template.id, input.templateId),
-					visibleTemplateWhere(context.session.user.id),
-				),
-			)
-			.limit(1);
+const addFavouriteHandler = authed.input(favouriteInput).handler(async ({ context, input }) => {
+	const [visibleTemplate] = await context.db
+		.select({ id: template.id })
+		.from(template)
+		.where(and(eq(template.id, input.templateId), visibleTemplateWhere(context.session.user.id)))
+		.limit(1);
 
-		if (!visibleTemplate) {
-			throw new ORPCError("NOT_FOUND", {
-				message: "Textbaustein nicht gefunden.",
-			});
-		}
+	if (!visibleTemplate) {
+		throw new ORPCError("NOT_FOUND", {
+			message: "Textbaustein nicht gefunden.",
+		});
+	}
 
-		await context.db
-			.insert(favourites)
-			.values({
-				templateId: input.templateId,
-				userId: context.session.user.id,
-			})
-			.onConflictDoNothing();
+	await context.db
+		.insert(favourites)
+		.values({
+			templateId: input.templateId,
+			userId: context.session.user.id,
+		})
+		.onConflictDoNothing();
 
-		return { success: true };
-	});
+	return { success: true };
+});
 
 /**
  * Remove a template from favourites
  */
-const removeFavouriteHandler = authed
-	.input(favouriteInput)
-	.handler(async ({ context, input }) => {
-		await context.db
-			.delete(favourites)
-			.where(
-				and(
-					eq(favourites.templateId, input.templateId),
-					eq(favourites.userId, context.session.user.id),
-				),
-			);
+const removeFavouriteHandler = authed.input(favouriteInput).handler(async ({ context, input }) => {
+	await context.db
+		.delete(favourites)
+		.where(
+			and(
+				eq(favourites.templateId, input.templateId),
+				eq(favourites.userId, context.session.user.id),
+			),
+		);
 
-		return { success: true };
-	});
+	return { success: true };
+});
 
 // ============================================================================
 // Exports

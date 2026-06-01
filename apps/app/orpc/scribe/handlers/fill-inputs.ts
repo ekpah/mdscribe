@@ -8,27 +8,24 @@ import {
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
 } from "@/lib/input-fill-limits";
+import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-logging";
-import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
-import {
-	buildProviderOptions,
-	resolveGenerationStrategy,
-} from "@/orpc/scribe/providers";
+import { buildProviderOptions, resolveGenerationStrategy } from "@/orpc/scribe/providers";
 import type { FillInputsInputPayload, InputField } from "@/orpc/scribe/types";
-import {
-	formatAudioTranscriptsForPrompt,
-	prepareAudioInputForModel,
-} from "./audio-input";
+
+import { formatAudioTranscriptsForPrompt, prepareAudioInputForModel } from "./audio-input";
 import { createContextFileParts, extractContextFileText } from "./context-file-input";
 import { fillInputsConfig } from "./fill-inputs-config";
 import { enforceScribeUsageLimit } from "./usage-limit";
 
 type FieldValue = boolean | number | string;
-type FillInputsResult = { fieldValues: Record<string, FieldValue> };
+interface FillInputsResult {
+	fieldValues: Record<string, FieldValue>;
+}
 
 interface FillInputAudioPayloadSummary {
 	index: number;
@@ -82,9 +79,11 @@ const createFillInputsSchema = (inputFields: InputField[]) => {
 		fieldValuesShape[field.label] = getFieldValueSchema(field);
 	}
 
-	return z.object({
-		fieldValues: z.object(fieldValuesShape).strict(),
-	}).strict();
+	return z
+		.object({
+			fieldValues: z.object(fieldValuesShape).strict(),
+		})
+		.strict();
 };
 
 const toFillInputsResult = (
@@ -101,10 +100,7 @@ const toFillInputsResult = (
 };
 
 const hasTextContext = (input: FillInputsInputPayload) =>
-	Boolean(
-		input.textContext &&
-			Object.values(input.textContext).some((value) => value?.trim()),
-	);
+	Boolean(input.textContext && Object.values(input.textContext).some((value) => value?.trim()));
 
 const throwPayloadLimitError = (message: string): never => {
 	throw new ORPCError("BAD_REQUEST", { message });
@@ -130,9 +126,7 @@ const getTextContextCharacterCount = (
 	return total;
 };
 
-const summarizeAndValidatePayload = (
-	input: FillInputsInputPayload,
-): FillInputPayloadSummary => {
+const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPayloadSummary => {
 	const audioFiles = input.audioFiles ?? [];
 	const contextFiles = input.contextFiles ?? [];
 	const textContextCharacters = getTextContextCharacterCount(input.textContext);
@@ -175,9 +169,7 @@ const summarizeAndValidatePayload = (
 	const audioSummaries: FillInputAudioPayloadSummary[] = [];
 	for (const [index, audioFile] of audioFiles.entries()) {
 		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
-		const wavFallbackBytes = getBase64DecodedByteLength(
-			audioFile.wavFallback?.data,
-		);
+		const wavFallbackBytes = getBase64DecodedByteLength(audioFile.wavFallback?.data);
 		const totalBytes = payloadBytes + wavFallbackBytes;
 		totalPayloadBytes += totalBytes;
 
@@ -252,6 +244,135 @@ const buildFillInputUsageInputData = (
 	textContext: input.textContext,
 });
 
+type FillInputsGenerationStrategy = Awaited<ReturnType<typeof resolveGenerationStrategy>>;
+type FillInputsGenerationSelection = FillInputsGenerationStrategy["generation"];
+type FillInputsPreparedAudio = Awaited<ReturnType<typeof prepareAudioInputForModel>>;
+
+const assertFillInputsRequest = ({
+	hasAudio,
+	hasFiles,
+	hasText,
+	inputFieldCount,
+}: {
+	hasAudio: boolean;
+	hasFiles: boolean;
+	hasText: boolean;
+	inputFieldCount: number;
+}) => {
+	if (inputFieldCount === 0) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Keine Eingabefelder zum Ausfüllen verfügbar.",
+		});
+	}
+
+	if (hasAudio || hasFiles || hasText) {
+		return;
+	}
+
+	throw new ORPCError("BAD_REQUEST", {
+		message: "Bitte Audio aufnehmen, Textkontext eingeben oder Dateien hinzufügen.",
+	});
+};
+
+const getFillInputsAudioSelection = (
+	generationStrategy: FillInputsGenerationStrategy,
+	generationSelection: FillInputsGenerationSelection,
+) =>
+	generationStrategy.mode === "direct"
+		? generationStrategy.generation
+		: (generationStrategy.speechToText ?? generationSelection);
+
+const extractFillInputFileText = ({
+	contextFiles,
+	generationSelection,
+	generationStrategy,
+	hasFiles,
+	userId,
+	zdr,
+}: {
+	contextFiles: FillInputsInputPayload["contextFiles"];
+	generationSelection: FillInputsGenerationSelection;
+	generationStrategy: FillInputsGenerationStrategy;
+	hasFiles: boolean;
+	userId: string;
+	zdr: boolean;
+}) => {
+	if (generationStrategy.mode === "preprocess" && hasFiles) {
+		return extractContextFileText({
+			contextFiles: contextFiles ?? [],
+			modelSelection: generationStrategy.fileImage ?? generationSelection,
+			userId,
+			zdr,
+		});
+	}
+
+	return Promise.resolve("");
+};
+
+const buildFillInputUserContent = ({
+	messages,
+	nativeContextFiles,
+	preparedAudio,
+}: {
+	messages: ReturnType<typeof fillInputsConfig.prompt>;
+	nativeContextFiles: FillInputsInputPayload["contextFiles"];
+	preparedAudio: FillInputsPreparedAudio;
+}) => {
+	const hasNativeAudioParts = preparedAudio.contentParts.length > 0;
+	if (hasNativeAudioParts || (nativeContextFiles?.length ?? 0) > 0) {
+		return [
+			{ text: messages[1]?.content ?? "", type: "text" as const },
+			...preparedAudio.contentParts,
+			...createContextFileParts(nativeContextFiles ?? []),
+		];
+	}
+
+	return messages[1]?.content ?? "";
+};
+
+const buildFillInputUsageMetadata = ({
+	fileTextContext,
+	generationSelection,
+	generationStrategy,
+	payloadSummary,
+	preparedAudio,
+	zdr,
+}: {
+	fileTextContext: string;
+	generationSelection: FillInputsGenerationSelection;
+	generationStrategy: FillInputsGenerationStrategy;
+	payloadSummary: FillInputPayloadSummary;
+	preparedAudio: FillInputsPreparedAudio;
+	zdr: boolean;
+}): UsageMetadata => ({
+	endpoint: "input_fill",
+	generationStrategy: {
+		mode: generationStrategy.mode,
+		usedFilePreprocessing: Boolean(fileTextContext),
+		usedNativeAudio: preparedAudio.contentParts.length > 0,
+		usedTranscription: preparedAudio.transcripts.length > 0,
+	},
+	modelConfig: {
+		maxTokens: fillInputsConfig.modelConfig.maxTokens,
+		reasoningEffort: generationSelection.reasoningEffort,
+		temperature: fillInputsConfig.modelConfig.temperature,
+	},
+	payloadSummary,
+	preprocessing: {
+		fileImageModel:
+			generationStrategy.mode === "preprocess"
+				? generationStrategy.fileImage?.model.modelName
+				: undefined,
+		speechToTextModel:
+			generationStrategy.mode === "preprocess"
+				? generationStrategy.speechToText?.model.modelName
+				: undefined,
+	},
+	promptName: fillInputsConfig.promptName,
+	promptSource: "local",
+	zdrEnabled: zdr,
+});
+
 /**
  * Simple MVP autofill handler.
  *
@@ -279,74 +400,54 @@ export const fillInputsHandler = authed
 			session: context.session,
 		});
 
-		if (input.inputFields.length === 0) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Keine Eingabefelder zum Ausfüllen verfügbar.",
-			});
-		}
-
-		if (!(hasAudio || hasFiles || hasText)) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Bitte Audio aufnehmen, Textkontext eingeben oder Dateien hinzufügen.",
-			});
-		}
+		assertFillInputsRequest({
+			hasAudio,
+			hasFiles,
+			hasText,
+			inputFieldCount: input.inputFields.length,
+		});
 
 		const generationStrategy = await resolveGenerationStrategy(context.db, {
 			hasAudio,
 			hasFiles,
 		}).catch((error: unknown) => {
-			const message =
-				error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", { message });
 		});
 
 		const generationSelection = generationStrategy.generation;
-		const audioSelection =
-			generationStrategy.mode === "direct"
-				? generationStrategy.generation
-				: generationStrategy.speechToText;
+		const audioSelection = getFillInputsAudioSelection(generationStrategy, generationSelection);
 		const preparedAudio = await prepareAudioInputForModel({
 			audioFiles,
 			mode: generationStrategy.mode === "direct" ? "native" : "transcription",
-			resolvedModel: audioSelection?.model ?? generationSelection.model,
+			resolvedModel: audioSelection.model,
 		}).catch((error: unknown) => {
-			const message =
-				error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", { message });
 		});
-		const fileTextContext =
-			generationStrategy.mode === "preprocess" && hasFiles
-				? await extractContextFileText({
-						contextFiles,
-						modelSelection:
-							generationStrategy.fileImage ?? generationSelection,
-						userId: context.session.user.id,
-						zdr: entitlements.hasActiveSubscription,
-					})
-				: "";
+		const fileTextContext = await extractFillInputFileText({
+			contextFiles,
+			generationSelection,
+			generationStrategy,
+			hasFiles,
+			userId: context.session.user.id,
+			zdr: entitlements.hasActiveSubscription,
+		});
 		const messages = fillInputsConfig.prompt({
-			audioTranscripts: formatAudioTranscriptsForPrompt(
-				preparedAudio.transcripts,
-			),
-			contextFiles:
-				generationStrategy.mode === "direct" ? contextFiles : undefined,
+			audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
+			contextFiles: generationStrategy.mode === "direct" ? contextFiles : undefined,
 			fileTextContext,
 			textContext: input.textContext,
 		});
 
 		const outputSchema = createFillInputsSchema(input.inputFields);
-		const hasNativeAudioParts = preparedAudio.contentParts.length > 0;
-		const nativeContextFiles =
-			generationStrategy.mode === "direct" ? contextFiles : [];
+		const nativeContextFiles = generationStrategy.mode === "direct" ? contextFiles : [];
 
-		const userContent =
-			hasNativeAudioParts || nativeContextFiles.length > 0
-				? [
-						{ text: messages[1]?.content ?? "", type: "text" as const },
-						...preparedAudio.contentParts,
-						...createContextFileParts(nativeContextFiles),
-					]
-				: messages[1]?.content ?? "";
+		const userContent = buildFillInputUserContent({
+			messages,
+			nativeContextFiles,
+			preparedAudio,
+		});
 
 		const result = await generateText({
 			maxOutputTokens: fillInputsConfig.modelConfig.maxTokens,
@@ -369,8 +470,7 @@ export const fillInputsHandler = authed
 			}),
 			temperature: fillInputsConfig.modelConfig.temperature,
 		}).catch((error: unknown) => {
-			const details =
-				error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Ausfüllen fehlgeschlagen. (${details})`,
 			});
@@ -382,34 +482,14 @@ export const fillInputsHandler = authed
 					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
 				)
 			: undefined;
-		const usageMetadata: UsageMetadata = {
-			endpoint: "input_fill",
-			generationStrategy: {
-				mode: generationStrategy.mode,
-				usedNativeAudio: preparedAudio.contentParts.length > 0,
-				usedTranscription: preparedAudio.transcripts.length > 0,
-				usedFilePreprocessing: Boolean(fileTextContext),
-			},
-			modelConfig: {
-				maxTokens: fillInputsConfig.modelConfig.maxTokens,
-				reasoningEffort: generationSelection.reasoningEffort,
-				temperature: fillInputsConfig.modelConfig.temperature,
-			},
+		const usageMetadata = buildFillInputUsageMetadata({
+			fileTextContext,
+			generationSelection,
+			generationStrategy,
 			payloadSummary,
-			preprocessing: {
-				fileImageModel:
-					generationStrategy.mode === "preprocess"
-						? generationStrategy.fileImage?.model.modelName
-						: undefined,
-				speechToTextModel:
-					generationStrategy.mode === "preprocess"
-						? generationStrategy.speechToText?.model.modelName
-						: undefined,
-			},
-			promptName: fillInputsConfig.promptName,
-			promptSource: "local",
-			zdrEnabled: entitlements.hasActiveSubscription,
-		};
+			preparedAudio,
+			zdr: entitlements.hasActiveSubscription,
+		});
 
 		await context.db.insert(usageEvent).values(
 			buildUsageEventData({

@@ -39,10 +39,8 @@ const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentTy
 	}
 
 	const { endpoint } = metadata;
-	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		if (isScribeDocType(endpoint)) {
-			return endpoint;
-		}
+	if (typeof endpoint === "string" && endpoint.trim().length > 0 && isScribeDocType(endpoint)) {
+		return endpoint;
 	}
 
 	const { promptName } = metadata;
@@ -228,7 +226,7 @@ export const UsageEventDetail = ({
 										) : (
 											<Medal className="h-3.5 w-3.5 text-solarized-yellow" />
 										)}
-										{isEvaluating ? "..." : formatScore(undefined)}
+											{isEvaluating ? "..." : formatScore()}
 									</Button>
 								)}
 							</div>

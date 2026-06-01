@@ -14,12 +14,12 @@ import { FileText, ListChecks } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useId, useState } from "react";
 
-import { useSession } from "@/lib/auth-client";
-import { orpc } from "@/lib/orpc";
 import {
 	InputContextControls,
 	useInputContextState,
 } from "@/app/_components/input-context/input-context-controls";
+import { useSession } from "@/lib/auth-client";
+import { orpc } from "@/lib/orpc";
 
 type MobilePanel = "inputs" | "preview";
 
@@ -30,6 +30,100 @@ interface InputPreviewSectionProps {
 	previewToolbar?: ReactNode;
 	resetKey?: string;
 }
+
+const getMobileTabClassName = (isActive: boolean) =>
+	cn(
+		"relative flex min-h-0 flex-1 flex-col items-center justify-center gap-2 border-b px-1 text-muted-foreground transition-colors last:border-b-0 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+		isActive && "bg-background text-foreground shadow-xs",
+	);
+
+const MobilePanelTab = ({
+	controls,
+	icon,
+	id,
+	isActive,
+	label,
+	onClick,
+}: {
+	controls: string;
+	icon: ReactNode;
+	id: string;
+	isActive: boolean;
+	label: string;
+	onClick: () => void;
+}) => (
+	<button
+		aria-controls={controls}
+		aria-label={`${label} anzeigen`}
+		aria-selected={isActive}
+		className={getMobileTabClassName(isActive)}
+		id={id}
+		onClick={onClick}
+		role="tab"
+		type="button"
+	>
+		<span
+			className={cn(
+				"absolute left-0 h-10 w-1 rounded-r-full",
+				isActive ? "bg-primary" : "bg-transparent",
+			)}
+		/>
+		{icon}
+		<span className="rotate-180 font-medium text-[11px] leading-none [writing-mode:vertical-rl]">
+			{label}
+		</span>
+	</button>
+);
+
+const MobilePanelTabs = ({
+	mobilePanel,
+	mobileTabId,
+	onPanelChange,
+}: {
+	mobilePanel: MobilePanel;
+	mobileTabId: string;
+	onPanelChange: (panel: MobilePanel) => void;
+}) => (
+	<div
+		aria-label="Mobile Ansicht"
+		className="flex w-11 shrink-0 flex-col border-r bg-muted/30 md:hidden"
+		role="tablist"
+	>
+		<MobilePanelTab
+			controls={`${mobileTabId}-preview-panel`}
+			icon={<FileText aria-hidden className="h-4 w-4" />}
+			id={`${mobileTabId}-preview-tab`}
+			isActive={mobilePanel === "preview"}
+			label="Template"
+			onClick={() => onPanelChange("preview")}
+		/>
+		<MobilePanelTab
+			controls={`${mobileTabId}-inputs-panel`}
+			icon={<ListChecks aria-hidden className="h-4 w-4" />}
+			id={`${mobileTabId}-inputs-tab`}
+			isActive={mobilePanel === "inputs"}
+			label="Eingaben"
+			onClick={() => onPanelChange("inputs")}
+		/>
+	</div>
+);
+
+const getInputPanelClassName = (hasInputTags: boolean, mobilePanel: MobilePanel) =>
+	cn(
+		"min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:col-span-1",
+		hasInputTags && mobilePanel === "inputs" && "flex",
+		hasInputTags && mobilePanel !== "inputs" && "hidden md:flex",
+		!hasInputTags && "hidden",
+	);
+
+const getPreviewPanelClassName = (hasInputTags: boolean, mobilePanel: MobilePanel) =>
+	cn(
+		"relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4",
+		hasInputTags && mobilePanel === "preview" && "flex",
+		hasInputTags && mobilePanel !== "preview" && "hidden md:flex",
+		!hasInputTags && "flex",
+		hasInputTags ? "md:col-span-2 md:border-l" : "md:col-span-3",
+	);
 
 export const InputPreviewSection = ({
 	inputTags,
@@ -103,78 +197,17 @@ export const InputPreviewSection = ({
 		[],
 	);
 
-	const getMobileTabClassName = (panel: MobilePanel) =>
-		cn(
-			"relative flex min-h-0 flex-1 flex-col items-center justify-center gap-2 border-b px-1 text-muted-foreground transition-colors last:border-b-0 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-			mobilePanel === panel && "bg-background text-foreground shadow-xs",
-		);
-
-	const inputPanelClassName = cn(
-		"min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:col-span-1",
-		hasInputTags && mobilePanel === "inputs" && "flex",
-		hasInputTags && mobilePanel !== "inputs" && "hidden md:flex",
-		!hasInputTags && "hidden",
-	);
-
-	const previewPanelClassName = cn(
-		"relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4",
-		hasInputTags && mobilePanel === "preview" && "flex",
-		hasInputTags && mobilePanel !== "preview" && "hidden md:flex",
-		!hasInputTags && "flex",
-		hasInputTags ? "md:col-span-2 md:border-l" : "md:col-span-3",
-	);
+	const inputPanelClassName = getInputPanelClassName(hasInputTags, mobilePanel);
+	const previewPanelClassName = getPreviewPanelClassName(hasInputTags, mobilePanel);
 
 	return (
 		<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] overflow-hidden md:grid md:grid-cols-3">
 			{hasInputTags ? (
-				<div
-					aria-label="Mobile Ansicht"
-					className="flex w-11 shrink-0 flex-col border-r bg-muted/30 md:hidden"
-					role="tablist"
-				>
-					<button
-						aria-controls={`${mobileTabId}-preview-panel`}
-						aria-label="Template anzeigen"
-						aria-selected={mobilePanel === "preview"}
-						className={getMobileTabClassName("preview")}
-						id={`${mobileTabId}-preview-tab`}
-						onClick={() => setMobilePanel("preview")}
-						role="tab"
-						type="button"
-					>
-						<span
-							className={cn(
-								"absolute left-0 h-10 w-1 rounded-r-full",
-								mobilePanel === "preview" ? "bg-primary" : "bg-transparent",
-							)}
-						/>
-						<FileText aria-hidden className="h-4 w-4" />
-						<span className="rotate-180 text-[11px] font-medium leading-none [writing-mode:vertical-rl]">
-							Template
-						</span>
-					</button>
-					<button
-						aria-controls={`${mobileTabId}-inputs-panel`}
-						aria-label="Eingaben anzeigen"
-						aria-selected={mobilePanel === "inputs"}
-						className={getMobileTabClassName("inputs")}
-						id={`${mobileTabId}-inputs-tab`}
-						onClick={() => setMobilePanel("inputs")}
-						role="tab"
-						type="button"
-					>
-						<span
-							className={cn(
-								"absolute left-0 h-10 w-1 rounded-r-full",
-								mobilePanel === "inputs" ? "bg-primary" : "bg-transparent",
-							)}
-						/>
-						<ListChecks aria-hidden className="h-4 w-4" />
-						<span className="rotate-180 text-[11px] font-medium leading-none [writing-mode:vertical-rl]">
-							Eingaben
-						</span>
-					</button>
-				</div>
+				<MobilePanelTabs
+					mobilePanel={mobilePanel}
+					mobileTabId={mobileTabId}
+					onPanelChange={setMobilePanel}
+				/>
 			) : null}
 			<div
 				aria-labelledby={hasInputTags ? `${mobileTabId}-inputs-tab` : undefined}
@@ -195,9 +228,7 @@ export const InputPreviewSection = ({
 							onSubmit={async ({ audioFiles, contextFiles, textContext }) => {
 								await onSubmit(audioFiles, textContext, contextFiles);
 							}}
-							panelPortalTarget={
-								usesPreviewPanelPortal ? previewPanelElement : null
-							}
+							panelPortalTarget={usesPreviewPanelPortal ? previewPanelElement : null}
 						/>
 					)}
 					showFillInputs={isLoggedIn}
@@ -214,9 +245,7 @@ export const InputPreviewSection = ({
 				{previewToolbar ? (
 					<div className="mb-3 flex items-center gap-2">{previewToolbar}</div>
 				) : null}
-				<div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
-					{preview(values)}
-				</div>
+				<div className="min-h-0 flex-1 overflow-y-auto overscroll-none">{preview(values)}</div>
 			</div>
 		</Card>
 	);

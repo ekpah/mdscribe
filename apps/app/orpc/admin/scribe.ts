@@ -75,10 +75,7 @@ const audioFileInputSchema = z.object({
 });
 
 const transcribeAudioInput = z.object({
-	audioFiles: z
-		.array(audioFileInputSchema)
-		.min(1)
-		.max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles),
+	audioFiles: z.array(audioFileInputSchema).min(1).max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles),
 	modelId: z.string().min(1).nullable().optional(),
 });
 
@@ -105,16 +102,11 @@ const validateAudioPayload = (audioFiles: AudioFile[]): void => {
 	let totalPayloadBytes = 0;
 	for (const [index, audioFile] of audioFiles.entries()) {
 		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
-		const wavFallbackBytes = getBase64DecodedByteLength(
-			audioFile.wavFallback?.data,
-		);
+		const wavFallbackBytes = getBase64DecodedByteLength(audioFile.wavFallback?.data);
 		const totalBytes = payloadBytes + wavFallbackBytes;
 		totalPayloadBytes += totalBytes;
 
-		if (
-			totalBytes >
-			FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording
-		) {
+		if (totalBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Aufnahme ${index + 1} ist zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
 			});
@@ -194,10 +186,10 @@ const runInput = z.object({
 		frequencyPenalty: z.number().min(-2).max(2).optional(),
 		maxTokens: z.number().min(1).max(100_000).optional().default(4096),
 		presencePenalty: z.number().min(-2).max(2).optional(),
+		reasoningEffort: reasoningEffortSchema.optional(),
 		temperature: z.number().min(0).max(2).optional().default(1),
 		thinking: z.boolean().optional().default(false),
 		thinkingExplicit: z.boolean().optional().default(false),
-		reasoningEffort: reasoningEffortSchema.optional(),
 		topK: z.number().min(0).optional(),
 		topP: z.number().min(0).max(1).optional(),
 	}),
@@ -253,8 +245,7 @@ const runHandler = authed
 		}
 
 		const reasoningEffort =
-			parsed.parameters.reasoningEffort ??
-			(parsed.parameters.thinking ? "medium" : "none");
+			parsed.parameters.reasoningEffort ?? (parsed.parameters.thinking ? "medium" : "none");
 		const providerOptions = buildProviderOptions({
 			model: resolved,
 			reasoningEffort,
@@ -304,12 +295,12 @@ const runHandler = authed
 			result.toUIMessageStream({
 				messageMetadata: ({ part }) => {
 					if (part.type !== "finish") {
-						return undefined;
+						return;
 					}
 
 					const metadata: PlaygroundRunMetrics = {};
 
-					const cost = latestMetrics.cost;
+					const { cost } = latestMetrics;
 					if (cost !== undefined) {
 						metadata.cost = cost;
 					}
@@ -360,25 +351,19 @@ const transcribeAudioHandler = authed
 					reasoningEffort: "none" as const,
 					slot: "speech-to-text" as const,
 				}
-			: await resolveDefaultModel(context.db, "speech-to-text").catch(
-					(error: unknown) => {
-						const details =
-							error instanceof Error
-								? error.message
-								: USER_MESSAGES.modelUnavailable;
-						throw new ORPCError("BAD_REQUEST", {
-							message: `Kein Audio-Transkriptionsmodell konfiguriert. (${details})`,
-						});
-					},
-				);
+			: await resolveDefaultModel(context.db, "speech-to-text").catch((error: unknown) => {
+					const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
+					throw new ORPCError("BAD_REQUEST", {
+						message: `Kein Audio-Transkriptionsmodell konfiguriert. (${details})`,
+					});
+				});
 
 		const preparedAudio = await prepareAudioInputForModel({
 			audioFiles,
 			mode: "transcription",
 			resolvedModel: modelSelection.model,
 		}).catch((error: unknown) => {
-			const details =
-				error instanceof Error ? error.message : USER_MESSAGES.audioNotSupported;
+			const details = error instanceof Error ? error.message : USER_MESSAGES.audioNotSupported;
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Transkription fehlgeschlagen. (${details})`,
 			});
@@ -434,28 +419,19 @@ const evaluateHandler = authed
 				message: `Ungültige Bewertungsanfrage: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
 			});
 		}
-		const evaluationSelection = await resolveDefaultModel(
-			context.db,
-			"evaluation",
-		).catch((error: unknown) => {
-			const details =
-				error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
-			});
-		});
+		const evaluationSelection = await resolveDefaultModel(context.db, "evaluation").catch(
+			(error: unknown) => {
+				const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
+				});
+			},
+		);
 
 		let evaluation;
 		try {
 			evaluation = await generateObject({
 				model: evaluationSelection.model.model,
-				providerOptions: buildProviderOptions({
-					model: evaluationSelection.model,
-					reasoningEffort: evaluationSelection.reasoningEffort,
-					userId: context.session.user.id,
-				}),
-				schema: evaluateOutputSchema,
-				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
 				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.
 
 Dokumenttyp: ${parsed.data.documentType}
@@ -465,6 +441,13 @@ ${JSON.stringify(parsed.data.inputs, null, 2)}
 
 Modell-Ausgabe:
 ${parsed.data.response}`,
+				providerOptions: buildProviderOptions({
+					model: evaluationSelection.model,
+					reasoningEffort: evaluationSelection.reasoningEffort,
+					userId: context.session.user.id,
+				}),
+				schema: evaluateOutputSchema,
+				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
 				temperature: 0.3,
 			});
 		} catch (error) {
@@ -501,7 +484,7 @@ ${parsed.data.response}`,
 
 export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
-	transcribeAudio: transcribeAudioHandler,
+	evaluate: evaluateHandler,
 	prompts: {
 		get: authed
 			.use(requiredAdminMiddleware)
@@ -568,6 +551,6 @@ export const scribeHandler = {
 				};
 			}),
 	},
-	evaluate: evaluateHandler,
 	run: runHandler,
+	transcribeAudio: transcribeAudioHandler,
 };

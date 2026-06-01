@@ -40,13 +40,13 @@ const getAudioContextConstructor = (): AudioContextConstructor | null => {
 
 const writeAscii = (view: DataView, offset: number, value: string) => {
 	for (let index = 0; index < value.length; index += 1) {
-		view.setUint8(offset + index, value.charCodeAt(index));
+		view.setUint8(offset + index, value.codePointAt(index) ?? 0);
 	}
 };
 
 const writePcmSample = (view: DataView, offset: number, sample: number) => {
 	const clamped = Math.max(-1, Math.min(1, sample));
-	const scaled = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
+		const scaled = clamped < 0 ? clamped * 0x80_00 : clamped * 0x7F_FF;
 	view.setInt16(offset, scaled, true);
 };
 
@@ -61,7 +61,7 @@ const writePcmSample = (view: DataView, offset: number, sample: number) => {
 const encodeAudioBufferToPcmWav = (audioBuffer: AudioBuffer): Blob => {
 	const channelCount = audioBuffer.numberOfChannels;
 	const frameCount = audioBuffer.length;
-	const sampleRate = audioBuffer.sampleRate;
+	const { sampleRate } = audioBuffer;
 	const bytesPerSample = 2;
 	const blockAlign = channelCount * bytesPerSample;
 	const byteRate = sampleRate * blockAlign;
@@ -118,7 +118,7 @@ const createWavFallback = async (blob: Blob): Promise<Blob | null> => {
 	} catch {
 		return null;
 	} finally {
-		await context.close().catch(() => undefined);
+		await context.close().catch(() => null);
 	}
 };
 
@@ -135,9 +135,7 @@ const isWavMimeType = (mimeType: string): boolean => {
  * added opportunistically for OpenAI/OpenAI-compatible/OpenRouter paths that
  * only accept selected audio formats through their chat adapters.
  */
-export const createAudioSubmissionFile = async (
-	blob: Blob,
-): Promise<AudioSubmissionFile> => {
+export const createAudioSubmissionFile = async (blob: Blob): Promise<AudioSubmissionFile> => {
 	const mimeType = blob.type || "audio/webm";
 	const payload: AudioSubmissionFile = {
 		data: await blobToBase64(blob),

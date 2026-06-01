@@ -255,11 +255,11 @@ const usePdfDocumentState = (pdfFile: Uint8Array | null) => {
 	}, [numPages]);
 
 	return {
+		fieldTargets,
 		handleDocumentLoadError,
 		handleDocumentLoadSuccess,
 		handleNextPage,
 		handlePreviousPage,
-		fieldTargets,
 		numPages,
 		pageNumber,
 		pdfBlob,

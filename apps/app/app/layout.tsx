@@ -1,4 +1,5 @@
-import "@/lib/orpc.server"; // for pre-rendering
+// Required for pre-rendering.
+import "@/lib/orpc.server";
 import { DesignSystemProvider } from "@repo/design-system/providers";
 import { env } from "@repo/env";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";

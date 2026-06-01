@@ -124,6 +124,10 @@ const toSwitchType = (value: unknown): "string" | "boolean" | undefined => {
 	return undefined;
 };
 
+const assertNeverTagNode = (node: never): never => {
+	throw new Error(`Unsupported Markdoc tag node: ${JSON.stringify(node)}`);
+};
+
 const toTagKey = (node: MarkdocTagNode, parentContext?: NodeContext): string => {
 	const primary = toKeyPart(node.attributes.primary);
 	const formula = toKeyPart(node.attributes.formula);
@@ -146,6 +150,9 @@ const toTagKey = (node: MarkdocTagNode, parentContext?: NodeContext): string => 
 				return `ScoreFormula:${formula}`;
 			}
 			return `Score:${parentContext?.path ?? "root"}`;
+		}
+		default: {
+			return assertNeverTagNode(node);
 		}
 	}
 };
@@ -205,6 +212,7 @@ const mergeSwitchAttributes = (target: SwitchInputTagType, source: SwitchInputTa
 const mergeInputTagArrays = (
 	targetChildren: InputTagType[],
 	sourceChildren: InputTagType[],
+	mergeTags: (target: InputTagType, source: InputTagType) => void,
 ): InputTagType[] => {
 	const mergedChildren = [...targetChildren];
 	const childIndices = new Map<string, number>();
@@ -225,7 +233,7 @@ const mergeInputTagArrays = (
 
 		const existingChild = mergedChildren[existingChildIndex];
 		if (existingChild) {
-			mergeInputTags(existingChild, sourceChild);
+			mergeTags(existingChild, sourceChild);
 		}
 	}
 
@@ -244,7 +252,7 @@ const mergeInputTags = (target: InputTagType, source: InputTagType): void => {
 
 	if (target.name === "Score" && source.name === "Score") {
 		mergeScoreAttributes(target, source);
-		target.children = mergeInputTagArrays(target.children, source.children);
+		target.children = mergeInputTagArrays(target.children, source.children, mergeInputTags);
 		return;
 	}
 
@@ -255,7 +263,7 @@ const mergeInputTags = (target: InputTagType, source: InputTagType): void => {
 		if (target.name === "Switch" && source.name === "Switch") {
 			mergeSwitchAttributes(target, source);
 		}
-		target.children = mergeInputTagArrays(target.children, source.children);
+		target.children = mergeInputTagArrays(target.children, source.children, mergeInputTags);
 	}
 };
 

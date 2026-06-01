@@ -1,6 +1,6 @@
+import { hashPassword } from "better-auth/crypto";
 import { count } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { hashPassword } from "better-auth/crypto";
 
 import * as schema from "./schema";
 
@@ -111,10 +111,7 @@ Respiratorische Insuffizienz mit Intubationspflicht
 /**
  * Seed templates into the database
  */
-const seedTemplates = async (
-	db: SeedDatabase,
-	authorId: string,
-): Promise<void> => {
+const seedTemplates = async (db: SeedDatabase, authorId: string): Promise<void> => {
 	console.log("Seeding templates...");
 
 	for (const tmpl of SEED_TEMPLATES) {
@@ -134,10 +131,7 @@ const seedTemplates = async (
 /**
  * Seed usage events into the database
  */
-const seedUsageEvents = async (
-	db: SeedDatabase,
-	userId: string,
-): Promise<void> => {
+const seedUsageEvents = async (db: SeedDatabase, userId: string): Promise<void> => {
 	console.log("Seeding usage events...");
 
 	const events = [
@@ -189,9 +183,9 @@ const seedUsageEvents = async (
 			model: event.model,
 			name: event.name,
 			outputTokens: event.outputTokens,
-			timestamp,
 			timeToCompletionMs: Math.round(event.outputTokens * 35),
 			timeToFirstTokenMs: 1200 + event.daysAgo * 75,
+			timestamp,
 			totalTokens: event.inputTokens + event.outputTokens,
 			userId,
 		});

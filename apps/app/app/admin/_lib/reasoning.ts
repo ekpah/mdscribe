@@ -1,16 +1,10 @@
-export type ReasoningEffort =
-	| "none"
-	| "minimal"
-	| "low"
-	| "medium"
-	| "high"
-	| "xhigh";
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
-export const REASONING_EFFORT_OPTIONS: Array<{
+export const REASONING_EFFORT_OPTIONS: {
 	description: string;
 	label: string;
 	value: ReasoningEffort;
-}> = [
+}[] = [
 	{ description: "Reasoning aus", label: "Aus", value: "none" },
 	{ description: "ca. 10%", label: "Minimal", value: "minimal" },
 	{ description: "ca. 20%", label: "Low", value: "low" },
@@ -19,13 +13,15 @@ export const REASONING_EFFORT_OPTIONS: Array<{
 	{ description: "ca. 95%", label: "XHigh", value: "xhigh" },
 ];
 
-export const supportsReasoningParameters = (model?: {
-	supported_parameters?: string[];
-	supportedParameters?: string[];
-	supportsReasoning?: boolean;
-} | null): boolean =>
+export const supportsReasoningParameters = (
+	model?: {
+		supported_parameters?: string[];
+		supportedParameters?: string[];
+		supportsReasoning?: boolean;
+	} | null,
+): boolean =>
 	Boolean(
 		model?.supportsReasoning === true ||
-			(model?.supported_parameters ?? []).includes("reasoning") ||
-			(model?.supportedParameters ?? []).includes("reasoning"),
+		(model?.supported_parameters ?? []).includes("reasoning") ||
+		(model?.supportedParameters ?? []).includes("reasoning"),
 	);

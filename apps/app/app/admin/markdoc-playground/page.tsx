@@ -23,7 +23,7 @@ import {
 	TreePine,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 
 import { MemoizedCopySection } from "@/app/aiscribe/_components/memoized-copy-section";
 
@@ -90,150 +90,264 @@ const getArrayItemKey = (item: unknown): string => {
 	return `${typeof item}:${String(item)}`;
 };
 
-const ObjectNode = ({ data, name, level }: { data: unknown; name: string; level: number }) => {
-	// Auto-expand first 2 levels.
-	const [isExpanded, setIsExpanded] = useState(level < 2);
+const ObjectNodeName = ({ name, className = "" }: { className?: string; name: string }) =>
+	name ? <span className={className || "text-solarized-blue"}>{name}: </span> : null;
 
-	const indent = level * 16;
+const PrimitiveObjectNode = ({
+	className,
+	indent,
+	name,
+	value,
+}: {
+	className: string;
+	indent: number;
+	name: string;
+	value: string;
+}) => (
+	<div style={{ marginLeft: indent }} className={className}>
+		<ObjectNodeName name={name} />
+		<span>{value}</span>
+	</div>
+);
 
-	const toggleExpanded = useCallback(() => {
-		setIsExpanded((prev) => !prev);
-	}, []);
+const EmptyObjectNode = ({
+	indent,
+	name,
+	value,
+}: {
+	indent: number;
+	name: string;
+	value: string;
+}) => (
+	<div style={{ marginLeft: indent }}>
+		<ObjectNodeName name={name} />
+		<span className="text-muted-foreground">{value}</span>
+	</div>
+);
 
+const ObjectNodeToggle = ({
+	children,
+	indent,
+	isExpanded,
+	name,
+	onToggle,
+}: {
+	children: ReactNode;
+	indent: number;
+	isExpanded: boolean;
+	name: string;
+	onToggle: () => void;
+}) => (
+	<button
+		style={{ marginLeft: indent }}
+		className="-mx-1 cursor-pointer select-none rounded px-1 text-left hover:bg-muted/50"
+		onClick={onToggle}
+		type="button"
+	>
+		{isExpanded ? (
+			<ChevronDown className="inline h-3 w-3 text-muted-foreground" />
+		) : (
+			<ChevronRight className="inline h-3 w-3 text-muted-foreground" />
+		)}
+		<ObjectNodeName className="ml-1 text-solarized-blue" name={name} />
+		<span className="text-muted-foreground">{children}</span>
+	</button>
+);
+
+const getKeyedArrayItems = (items: unknown[]) => {
+	const keyedItems: { item: unknown; key: string }[] = [];
+	const keyCounts = new Map<string, number>();
+	for (const item of items) {
+		const baseKey = getArrayItemKey(item);
+		const count = keyCounts.get(baseKey) ?? 0;
+		keyCounts.set(baseKey, count + 1);
+		keyedItems.push({
+			item,
+			key: `${baseKey}:${count}`,
+		});
+	}
+	return keyedItems;
+};
+
+const ArrayObjectNode = ({
+	data,
+	indent,
+	isExpanded,
+	level,
+	name,
+	onToggle,
+	renderChildNode,
+}: {
+	data: unknown[];
+	indent: number;
+	isExpanded: boolean;
+	level: number;
+	name: string;
+	onToggle: () => void;
+	renderChildNode: (data: unknown, name: string, level: number) => ReactNode;
+}) => {
+	if (data.length === 0) {
+		return <EmptyObjectNode indent={indent} name={name} value="[]" />;
+	}
+
+	const keyedItems = getKeyedArrayItems(data);
+	return (
+		<div>
+			<ObjectNodeToggle indent={indent} isExpanded={isExpanded} name={name} onToggle={onToggle}>
+				[{data.length} {data.length === 1 ? "item" : "items"}]
+			</ObjectNodeToggle>
+			{isExpanded && (
+				<div>
+					{keyedItems.map(({ item, key }, index) => (
+						<div key={key}>{renderChildNode(item, `[${index}]`, level + 1)}</div>
+					))}
+				</div>
+			)}
+		</div>
+	);
+};
+
+const RecordObjectNode = ({
+	data,
+	indent,
+	isExpanded,
+	level,
+	name,
+	onToggle,
+	renderChildNode,
+}: {
+	data: Record<string, unknown>;
+	indent: number;
+	isExpanded: boolean;
+	level: number;
+	name: string;
+	onToggle: () => void;
+	renderChildNode: (data: unknown, name: string, level: number) => ReactNode;
+}) => {
+	const entries = Object.entries(data);
+	if (entries.length === 0) {
+		return <EmptyObjectNode indent={indent} name={name} value="{}" />;
+	}
+
+	return (
+		<div>
+			<ObjectNodeToggle indent={indent} isExpanded={isExpanded} name={name} onToggle={onToggle}>
+				{`{${entries.length} ${entries.length === 1 ? "key" : "keys"}}`}
+			</ObjectNodeToggle>
+			{isExpanded && (
+				<div>
+					{entries.map(([key, value]) => (
+						<div key={key}>{renderChildNode(value, key, level + 1)}</div>
+					))}
+				</div>
+			)}
+		</div>
+	);
+};
+
+const renderPrimitiveObjectNode = (data: unknown, name: string, indent: number): ReactNode => {
 	if (data === null) {
 		return (
-			<div style={{ marginLeft: indent }} className="text-solarized-orange">
-				{name && <span className="text-solarized-blue">{name}: </span>}
-				<span>null</span>
-			</div>
+			<PrimitiveObjectNode
+				className="text-solarized-orange"
+				indent={indent}
+				name={name}
+				value="null"
+			/>
 		);
 	}
 
 	if (data === undefined) {
 		return (
-			<div style={{ marginLeft: indent }} className="text-solarized-orange">
-				{name && <span className="text-solarized-blue">{name}: </span>}
-				<span>undefined</span>
-			</div>
+			<PrimitiveObjectNode
+				className="text-solarized-orange"
+				indent={indent}
+				name={name}
+				value="undefined"
+			/>
 		);
 	}
 
 	if (typeof data === "string") {
 		return (
-			<div style={{ marginLeft: indent }} className="text-solarized-green">
-				{name && <span className="text-solarized-blue">{name}: </span>}
-				<span>&quot;{data}&quot;</span>
-			</div>
+			<PrimitiveObjectNode
+				className="text-solarized-green"
+				indent={indent}
+				name={name}
+				value={`"${data}"`}
+			/>
 		);
 	}
 
 	if (typeof data === "number" || typeof data === "boolean") {
 		return (
-			<div style={{ marginLeft: indent }} className="text-solarized-orange">
-				{name && <span className="text-solarized-blue">{name}: </span>}
-				<span>{String(data)}</span>
-			</div>
+			<PrimitiveObjectNode
+				className="text-solarized-orange"
+				indent={indent}
+				name={name}
+				value={String(data)}
+			/>
 		);
 	}
 
+	return null;
+};
+
+const ObjectNode = ({ data, name, level }: { data: unknown; name: string; level: number }) => {
+	// Auto-expand first 2 levels.
+	const [isExpanded, setIsExpanded] = useState(level < 2);
+	const indent = level * 16;
+
+	const toggleExpanded = useCallback(() => {
+		setIsExpanded((prev) => !prev);
+	}, []);
+	const renderChildNode = useCallback(
+		(childData: unknown, childName: string, childLevel: number) => (
+			<ObjectNode data={childData} name={childName} level={childLevel} />
+		),
+		[],
+	);
+
+	const primitiveNode = renderPrimitiveObjectNode(data, name, indent);
+	if (primitiveNode) {
+		return primitiveNode;
+	}
+
 	if (Array.isArray(data)) {
-		if (data.length === 0) {
-			return (
-				<div style={{ marginLeft: indent }}>
-					{name && <span className="text-solarized-blue">{name}: </span>}
-					<span className="text-muted-foreground">[]</span>
-				</div>
-			);
-		}
-
-		const keyedItems: { item: unknown; key: string }[] = [];
-		const keyCounts = new Map<string, number>();
-		for (const item of data) {
-			const baseKey = getArrayItemKey(item);
-			const count = keyCounts.get(baseKey) ?? 0;
-			keyCounts.set(baseKey, count + 1);
-			keyedItems.push({
-				item,
-				key: `${baseKey}:${count}`,
-			});
-		}
-
 		return (
-			<div>
-				<button
-					style={{ marginLeft: indent }}
-					className="-mx-1 cursor-pointer select-none rounded px-1 text-left hover:bg-muted/50"
-					onClick={toggleExpanded}
-					type="button"
-				>
-					{isExpanded ? (
-						<ChevronDown className="inline h-3 w-3 text-muted-foreground" />
-					) : (
-						<ChevronRight className="inline h-3 w-3 text-muted-foreground" />
-					)}
-					{name && <span className="ml-1 text-solarized-blue">{name}: </span>}
-					<span className="text-muted-foreground">
-						[{data.length} {data.length === 1 ? "item" : "items"}]
-					</span>
-				</button>
-				{isExpanded && (
-					<div>
-						{keyedItems.map(({ item, key }, index) => (
-							<ObjectNode key={key} data={item} name={`[${index}]`} level={level + 1} />
-						))}
-					</div>
-				)}
-			</div>
+			<ArrayObjectNode
+				data={data}
+				indent={indent}
+				isExpanded={isExpanded}
+				level={level}
+				name={name}
+				onToggle={toggleExpanded}
+				renderChildNode={renderChildNode}
+			/>
 		);
 	}
 
 	if (typeof data === "object" && data !== null) {
-		const entries = Object.entries(data as Record<string, unknown>);
-
-		if (entries.length === 0) {
-			return (
-				<div style={{ marginLeft: indent }}>
-					{name && <span className="text-solarized-blue">{name}: </span>}
-					<span className="text-muted-foreground">{"{}"}</span>
-				</div>
-			);
-		}
-
 		return (
-			<div>
-				<button
-					style={{ marginLeft: indent }}
-					className="-mx-1 cursor-pointer select-none rounded px-1 text-left hover:bg-muted/50"
-					onClick={toggleExpanded}
-					type="button"
-				>
-					{isExpanded ? (
-						<ChevronDown className="inline h-3 w-3 text-muted-foreground" />
-					) : (
-						<ChevronRight className="inline h-3 w-3 text-muted-foreground" />
-					)}
-					{name && <span className="ml-1 text-solarized-blue">{name}: </span>}
-					<span className="text-muted-foreground">
-						{`{${entries.length} ${entries.length === 1 ? "key" : "keys"}}`}
-					</span>
-				</button>
-				{isExpanded && (
-					<div>
-						{entries.map(([key, value]) => (
-							<ObjectNode key={key} data={value} name={key} level={level + 1} />
-						))}
-					</div>
-				)}
-			</div>
+			<RecordObjectNode
+				data={data as Record<string, unknown>}
+				indent={indent}
+				isExpanded={isExpanded}
+				level={level}
+				name={name}
+				onToggle={toggleExpanded}
+				renderChildNode={renderChildNode}
+			/>
 		);
 	}
 
-	// Fallback for other types
 	return (
-		<div style={{ marginLeft: indent }} className="text-muted-foreground">
-			{name && <span className="text-solarized-blue">{name}: </span>}
-			<span>{String(data)}</span>
-		</div>
+		<PrimitiveObjectNode
+			className="text-muted-foreground"
+			indent={indent}
+			name={name}
+			value={String(data)}
+		/>
 	);
 };
 
@@ -244,13 +358,13 @@ const ObjectDisplay = ({ data }: { data: unknown }) => (
 	</div>
 );
 
-type FillInputsInputField = {
+interface FillInputsInputField {
 	description?: string;
 	label: string;
 	options?: string[];
 	type?: "string" | "number" | "date" | "switch" | "boolean";
 	unit?: string;
-};
+}
 
 const collectFillInputFields = (inputTags: InputTagType[]) => {
 	const fields: FillInputsInputField[] = [];

@@ -28,6 +28,7 @@ import {
 	XIcon,
 } from "lucide-react";
 import { nanoid } from "nanoid";
+import Image from "next/image";
 import {
 	Children,
 	createContext,
@@ -82,7 +83,7 @@ interface PromptInputController {
 const PromptInputContext = createContext<PromptInputController | null>(null);
 const ProviderAttachmentsContext = createContext<AttachmentsContext | null>(null);
 
-const usePromptInputController = () => {
+export const usePromptInputController = () => {
 	const ctx = useContext(PromptInputContext);
 	if (!ctx) {
 		throw new Error(
@@ -95,7 +96,7 @@ const usePromptInputController = () => {
 // Optional variants (do NOT throw). Useful for dual-mode components.
 const useOptionalPromptInputController = () => useContext(PromptInputContext);
 
-const useProviderAttachments = () => {
+export const useProviderAttachments = () => {
 	const ctx = useContext(ProviderAttachmentsContext);
 	if (!ctx) {
 		throw new Error(
@@ -115,7 +116,7 @@ type PromptInputProviderProps = PropsWithChildren<{
  * Optional global provider that lifts PromptInput state outside of PromptInput.
  * If you don't use it, PromptInput stays fully self-managed.
  */
-const PromptInputProvider = ({
+export const PromptInputProvider = ({
 	initialInput: initialTextInput = "",
 	children,
 }: PromptInputProviderProps) => {
@@ -126,7 +127,7 @@ const PromptInputProvider = ({
 	// ----- attachments state (global when wrapped)
 	const [attachements, setAttachements] = useState<(FileUIPart & { id: string })[]>([]);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
-	const openRef = useRef<(() => void) | undefined>(undefined);
+	const openRef = useRef<(() => void) | null>(null);
 
 	const add = useCallback((files: File[] | FileList) => {
 		const incoming = [...files];
@@ -237,7 +238,11 @@ type PromptInputAttachmentProps = HTMLAttributes<HTMLDivElement> & {
 	className?: string;
 };
 
-const PromptInputAttachment = ({ data, className, ...props }: PromptInputAttachmentProps) => {
+export const PromptInputAttachment = ({
+	data,
+	className,
+	...props
+}: PromptInputAttachmentProps) => {
 	const attachments = usePromptInputAttachments();
 	const handleRemoveAttachment = useCallback(() => {
 		attachments.remove(data.id);
@@ -256,7 +261,7 @@ const PromptInputAttachment = ({ data, className, ...props }: PromptInputAttachm
 			{...props}
 		>
 			{mediaType === "image" ? (
-				<img
+				<Image
 					alt={data.filename || "attachment"}
 					className="size-full rounded-md object-cover"
 					height={56}
@@ -301,7 +306,11 @@ type PromptInputAttachmentsProps = Omit<HTMLAttributes<HTMLDivElement>, "childre
 	children: (attachment: FileUIPart & { id: string }) => ReactNode;
 };
 
-const PromptInputAttachments = ({ className, children, ...props }: PromptInputAttachmentsProps) => {
+export const PromptInputAttachments = ({
+	className,
+	children,
+	...props
+}: PromptInputAttachmentsProps) => {
 	const attachments = usePromptInputAttachments();
 	const [height, setHeight] = useState(0);
 	const contentRef = useRef<HTMLDivElement>(null);
@@ -364,7 +373,7 @@ type PromptInputActionAddAttachmentsProps = ComponentProps<typeof DropdownMenuIt
 	label?: string;
 };
 
-const PromptInputActionAddAttachments = ({
+export const PromptInputActionAddAttachments = ({
 	label = "Add photos or files",
 	...props
 }: PromptInputActionAddAttachmentsProps) => {
@@ -929,6 +938,18 @@ interface SpeechRecognitionAlternative {
 	confidence: number;
 }
 
+const toSpeechRecognitionResults = (
+	results: SpeechRecognitionResultList,
+): SpeechRecognitionResult[] => {
+	const collectedResults: SpeechRecognitionResult[] = [];
+	let index = 0;
+	while (index < results.length) {
+		collectedResults.push(results[index]);
+		index += 1;
+	}
+	return collectedResults;
+};
+
 interface SpeechRecognitionErrorEvent extends Event {
 	error: string;
 }
@@ -945,7 +966,7 @@ type PromptInputSpeechButtonProps = ComponentProps<typeof PromptInputButton> & {
 	onTranscriptionChange?: (text: string) => void;
 };
 
-const PromptInputSpeechButton = ({
+export const PromptInputSpeechButton = ({
 	className,
 	textareaRef,
 	onTranscriptionChange,
@@ -978,7 +999,7 @@ const PromptInputSpeechButton = ({
 			speechRecognition.onresult = (event) => {
 				let finalTranscript = "";
 
-				for (const result of Array.from(event.results)) {
+				for (const result of toSpeechRecognitionResults(event.results)) {
 					if (result.isFinal) {
 						finalTranscript += result[0].transcript;
 					}
@@ -1042,11 +1063,11 @@ const PromptInputSpeechButton = ({
 
 type PromptInputModelSelectProps = ComponentProps<typeof Select>;
 
-const PromptInputModelSelect = (props: PromptInputModelSelectProps) => <Select {...props} />;
+export const PromptInputModelSelect = (props: PromptInputModelSelectProps) => <Select {...props} />;
 
 type PromptInputModelSelectTriggerProps = ComponentProps<typeof SelectTrigger>;
 
-const PromptInputModelSelectTrigger = ({
+export const PromptInputModelSelectTrigger = ({
 	className,
 	...props
 }: PromptInputModelSelectTriggerProps) => (
@@ -1062,19 +1083,21 @@ const PromptInputModelSelectTrigger = ({
 
 type PromptInputModelSelectContentProps = ComponentProps<typeof SelectContent>;
 
-const PromptInputModelSelectContent = ({
+export const PromptInputModelSelectContent = ({
 	className,
 	...props
 }: PromptInputModelSelectContentProps) => <SelectContent className={cn(className)} {...props} />;
 
 type PromptInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
 
-const PromptInputModelSelectItem = ({ className, ...props }: PromptInputModelSelectItemProps) => (
-	<SelectItem className={cn(className)} {...props} />
-);
+export const PromptInputModelSelectItem = ({
+	className,
+	...props
+}: PromptInputModelSelectItemProps) => <SelectItem className={cn(className)} {...props} />;
 
 type PromptInputModelSelectValueProps = ComponentProps<typeof SelectValue>;
 
-const PromptInputModelSelectValue = ({ className, ...props }: PromptInputModelSelectValueProps) => (
-	<SelectValue className={cn(className)} {...props} />
-);
+export const PromptInputModelSelectValue = ({
+	className,
+	...props
+}: PromptInputModelSelectValueProps) => <SelectValue className={cn(className)} {...props} />;

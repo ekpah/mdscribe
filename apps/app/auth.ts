@@ -14,19 +14,17 @@ const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
 if (!isBuildTime && !(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET)) {
 	throw new Error("STRIPE_SECRET_KEY is not set");
 }
-const stripeClient = new StripeClient(
-	(env.STRIPE_SECRET_KEY as string) || "sk_placeholder",
-);
+const stripeClient = new StripeClient((env.STRIPE_SECRET_KEY as string) || "sk_placeholder");
 
 const userNameLengthHook = {
-	before: async (authUser: Record<string, unknown>) => {
+	before: (authUser: Record<string, unknown>) => {
 		if (typeof authUser.name === "string" && authUser.name.length > 30) {
 			throw new APIError("BAD_REQUEST", {
 				message: USER_MESSAGES.userNameMaxLength,
 			});
 		}
 
-		return { data: authUser };
+		return Promise.resolve({ data: authUser });
 	},
 };
 

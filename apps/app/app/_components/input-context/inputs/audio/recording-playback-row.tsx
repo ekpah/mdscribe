@@ -33,11 +33,11 @@ const createSeededWaveformData = (seedInput: string, bars = 64) => {
 	const modulus = 2 ** 32;
 	let seed = 0;
 	for (const char of seedInput) {
-		seed = (seed * 31 + char.charCodeAt(0)) % modulus;
+		seed = (seed * 31 + (char.codePointAt(0) ?? 0)) % modulus;
 	}
 
 	return Array.from({ length: bars }, () => {
-		seed = (seed * 1664525 + 1013904223) % modulus;
+		seed = (seed * 1_664_525 + 1_013_904_223) % modulus;
 		const random = seed / modulus;
 		return 0.18 + random * 0.72;
 	});
@@ -63,7 +63,12 @@ const getAudioContextConstructor = () => {
 	return window.AudioContext ?? (window as WebKitAudioWindow).webkitAudioContext ?? null;
 };
 
-export function RecordingPlaybackRow({
+const getPlaybackIcon = (isPlaying: boolean) => (isPlaying ? Pause : Play);
+
+const getPlaybackButtonTitle = (hasDecodeError: boolean) =>
+	hasDecodeError ? "Aufnahme konnte nicht vorbereitet werden" : undefined;
+
+export const RecordingPlaybackRow = ({
 	blob,
 	disabled = false,
 	duration: fallbackDuration,
@@ -72,7 +77,7 @@ export function RecordingPlaybackRow({
 	sourceDeviceLabel,
 	title,
 	waveformSeed,
-}: RecordingPlaybackRowProps) {
+}: RecordingPlaybackRowProps) => {
 	const audioContextRef = useRef<AudioContext | null>(null);
 	const audioBufferRef = useRef<AudioBuffer | null>(null);
 	const sourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -88,17 +93,12 @@ export function RecordingPlaybackRow({
 	const [hasDecodeError, setHasDecodeError] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-	const waveformData = useMemo(
-		() => createSeededWaveformData(waveformSeed),
-		[waveformSeed],
-	);
-	const safeDuration =
-		Number.isFinite(duration) && duration > 0 ? duration : fallbackDuration;
+	const waveformData = useMemo(() => createSeededWaveformData(waveformSeed), [waveformSeed]);
+	const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : fallbackDuration;
 	durationRef.current = safeDuration;
 	const hasEnded =
-		safeDuration > 0 &&
-		Number.isFinite(currentTime) &&
-		currentTime >= safeDuration - 0.05;
+		safeDuration > 0 && Number.isFinite(currentTime) && currentTime >= safeDuration - 0.05;
+	const PlaybackIcon = getPlaybackIcon(isPlaying);
 
 	const cancelProgressLoop = useCallback(() => {
 		if (progressFrameRef.current === null) {
@@ -152,10 +152,7 @@ export function RecordingPlaybackRow({
 			}
 
 			const elapsed = context.currentTime - playbackStartedAtRef.current;
-			const nextTime = clampTime(
-				playbackOffsetRef.current + elapsed,
-				buffer.duration,
-			);
+			const nextTime = clampTime(playbackOffsetRef.current + elapsed, buffer.duration);
 			setCurrentTime(nextTime);
 
 			if (nextTime >= buffer.duration - 0.02) {
@@ -376,13 +373,11 @@ export function RecordingPlaybackRow({
 				disabled={disabled || isRecording || isDecoding || hasDecodeError}
 				onClick={handleTogglePlayback}
 				size="icon"
-				title={
-					hasDecodeError ? "Aufnahme konnte nicht vorbereitet werden" : undefined
-				}
+				title={getPlaybackButtonTitle(hasDecodeError)}
 				type="button"
 				variant="outline"
 			>
-				{isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+				<PlaybackIcon className="h-4 w-4" />
 			</Button>
 			<div className="hidden h-8 w-28 items-center sm:flex">
 				<div className="relative h-6 w-full overflow-hidden rounded-md bg-solarized-blue/5 px-1 text-solarized-base01">
@@ -392,9 +387,7 @@ export function RecordingPlaybackRow({
 						barWidth={3}
 						className={cn(
 							"h-full transition-opacity duration-300",
-							isDecoding || hasDecodeError
-								? "cursor-not-allowed opacity-50"
-								: "cursor-pointer",
+							isDecoding || hasDecodeError ? "cursor-not-allowed opacity-50" : "cursor-pointer",
 						)}
 						currentTime={currentTime}
 						data={waveformData}
@@ -434,13 +427,9 @@ export function RecordingPlaybackRow({
 					type="button"
 					variant="ghost"
 				>
-					{isConfirmingDelete ? (
-						<Check className="h-4 w-4" />
-					) : (
-						<Trash2 className="h-4 w-4" />
-					)}
+					{isConfirmingDelete ? <Check className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
 				</Button>
 			</div>
 		</div>
 	);
-}
+};

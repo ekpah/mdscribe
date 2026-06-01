@@ -1,14 +1,14 @@
 "use client";
 
 import { Button } from "@repo/design-system/components/ui/button";
-import { Clock, File as FileIcon, FileUser, Pencil, Share2, User } from "lucide-react";
-import Link from "next/link";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
+import { Clock, File as FileIcon, FileUser, Pencil, Share2, User } from "lucide-react";
+import Link from "next/link";
 
 export const NavActions = ({
 	author,
@@ -29,6 +29,14 @@ export const NavActions = ({
 		className: "h-4 w-4",
 		strokeWidth: 1.5,
 	} as const;
+	let actionHref = "/sign-in?redirect=%2Fdocuments";
+	let ActionIcon = Pencil;
+	if (isLoggedIn && isAuthor) {
+		actionHref = `/documents/${documentId}/edit`;
+	} else if (isLoggedIn) {
+		actionHref = `/documents/create?fork=${documentId}`;
+		ActionIcon = Share2;
+	}
 
 	return (
 		<div className="flex items-center gap-2 text-sm">
@@ -59,27 +67,11 @@ export const NavActions = ({
 					dateStyle: "medium",
 				})}
 			</div>
-			{isLoggedIn ? (
-				isAuthor ? (
-					<Link href={`/documents/${documentId}/edit`}>
-						<Button className="h-7 w-7" size="icon" variant="ghost">
-							<Pencil {...actionIconProps} />
-						</Button>
-					</Link>
-				) : (
-					<Link href={`/documents/create?fork=${documentId}`}>
-						<Button className="h-7 w-7" size="icon" variant="ghost">
-							<Share2 {...actionIconProps} />
-						</Button>
-					</Link>
-				)
-			) : (
-				<Link href="/sign-in?redirect=%2Fdocuments">
-					<Button className="h-7 w-7" size="icon" variant="ghost">
-						<Pencil {...actionIconProps} />
-					</Button>
-				</Link>
-			)}
+			<Link href={actionHref}>
+				<Button className="h-7 w-7" size="icon" variant="ghost">
+					<ActionIcon {...actionIconProps} />
+				</Button>
+			</Link>
 		</div>
 	);
 };

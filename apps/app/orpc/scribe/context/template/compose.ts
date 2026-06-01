@@ -30,10 +30,10 @@ const trimEmptyEdgeLines = (lines: string[]): string[] => {
 	let start = 0;
 	let end = lines.length;
 	while (start < end && lines[start]?.trim().length === 0) {
-		start++;
+		start += 1;
 	}
 	while (end > start && lines[end - 1]?.trim().length === 0) {
-		end--;
+		end -= 1;
 	}
 	return lines.slice(start, end);
 };
@@ -74,9 +74,7 @@ export const parseSelectedTemplateReference = (
 		lines = trimEmptyEdgeLines(lines.slice(1));
 	}
 
-	const examplesIndex = lines.findIndex((line) =>
-		EXAMPLES_HEADINGS.has(line.trim()),
-	);
+	const examplesIndex = lines.findIndex((line) => EXAMPLES_HEADINGS.has(line.trim()));
 	if (examplesIndex !== -1) {
 		const exampleLines = trimEmptyEdgeLines(lines.slice(examplesIndex + 1));
 		examples = exampleLines

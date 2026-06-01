@@ -1,5 +1,4 @@
 import "server-only";
-
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -52,13 +51,13 @@ type GenerationStrategy =
 	| {
 			generation: ResolvedDefaultModelSelection;
 			mode: "direct";
-		}
+	  }
 	| {
 			fileImage?: ResolvedDefaultModelSelection;
 			generation: ResolvedDefaultModelSelection;
 			mode: "preprocess";
 			speechToText?: ResolvedDefaultModelSelection;
-		};
+	  };
 
 type AiModelRow = typeof aiModel.$inferSelect;
 type AiProviderRow = typeof aiProvider.$inferSelect;
@@ -76,12 +75,8 @@ const REASONING_EFFORTS = new Set<ReasoningEffort>([
 	"xhigh",
 ]);
 
-export const normalizeReasoningEffort = (
-	value: string | null | undefined,
-): ReasoningEffort =>
-	REASONING_EFFORTS.has(value as ReasoningEffort)
-		? (value as ReasoningEffort)
-		: "none";
+export const normalizeReasoningEffort = (value: string | null | undefined): ReasoningEffort =>
+	REASONING_EFFORTS.has(value as ReasoningEffort) ? (value as ReasoningEffort) : "none";
 
 const createProviderModel = (
 	protocol: string,
@@ -121,11 +116,7 @@ const createProviderModel = (
 
 const isOpenAITranscriptionModel = (modelId: string): boolean => {
 	const id = modelId.toLowerCase();
-	return (
-		id === "whisper-1" ||
-		id.includes("transcribe") ||
-		id.includes("transcription")
-	);
+	return id === "whisper-1" || id.includes("transcribe") || id.includes("transcription");
 };
 
 const getOpenRouterAudioFormat = (mediaType: string): string => {
@@ -133,28 +124,37 @@ const getOpenRouterAudioFormat = (mediaType: string): string => {
 
 	switch (baseType) {
 		case "audio/mpeg":
-		case "audio/mp3":
+		case "audio/mp3": {
 			return "mp3";
+		}
 		case "audio/mp4":
 		case "audio/m4a":
-		case "audio/x-m4a":
+		case "audio/x-m4a": {
 			return "m4a";
+		}
 		case "audio/wave":
 		case "audio/wav":
-		case "audio/x-wav":
+		case "audio/x-wav": {
 			return "wav";
-		case "audio/webm":
+		}
+		case "audio/webm": {
 			return "webm";
-		case "audio/ogg":
+		}
+		case "audio/ogg": {
 			return "ogg";
-		case "audio/flac":
+		}
+		case "audio/flac": {
 			return "flac";
-		case "audio/aac":
+		}
+		case "audio/aac": {
 			return "aac";
-		case "audio/aiff":
+		}
+		case "audio/aiff": {
 			return "aiff";
-		default:
+		}
+		default: {
 			return baseType?.replace(/^audio\//, "") || "webm";
+		}
 	}
 };
 
@@ -185,40 +185,36 @@ const createAudioTranscriber = (
 
 	if (protocol === "openrouter") {
 		return async ({ data, mediaType }) => {
-			const response = await fetch(
-				"https://openrouter.ai/api/v1/audio/transcriptions",
-				{
-					body: JSON.stringify({
-						input_audio: {
-							data: data.toString("base64"),
-							format: getOpenRouterAudioFormat(mediaType),
-						},
-						model: modelId,
-					}),
-					headers: {
-						...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-						"Content-Type": "application/json",
+			const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
+				body: JSON.stringify({
+					input_audio: {
+						data: data.toString("base64"),
+						format: getOpenRouterAudioFormat(mediaType),
 					},
-					method: "POST",
+					model: modelId,
+				}),
+				headers: {
+					...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+					"Content-Type": "application/json",
 				},
-			);
+				method: "POST",
+			});
 
 			if (!response.ok) {
-				throw new Error(
-					`OpenRouter-Transkription fehlgeschlagen: HTTP ${response.status}`,
-				);
+				throw new Error(`OpenRouter-Transkription fehlgeschlagen: HTTP ${response.status}`);
 			}
 
 			const body = (await response.json()) as {
 				text?: unknown;
 				transcription?: unknown;
 			};
-			const text =
-				typeof body.text === "string"
-					? body.text
-					: typeof body.transcription === "string"
-						? body.transcription
-						: "";
+			const { text: responseText, transcription } = body;
+			let text = "";
+			if (typeof responseText === "string") {
+				text = responseText;
+			} else if (typeof transcription === "string") {
+				text = transcription;
+			}
 			if (!text.trim()) {
 				throw new Error("OpenRouter-Transkription lieferte keinen Text.");
 			}
@@ -241,11 +237,7 @@ const buildResolvedModel = async (
 		apiKey,
 		provider.baseUrl,
 	);
-	const transcribeAudio = createAudioTranscriber(
-		provider.protocol,
-		model.modelId,
-		apiKey,
-	);
+	const transcribeAudio = createAudioTranscriber(provider.protocol, model.modelId, apiKey);
 	const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
 
 	return {
@@ -295,10 +287,7 @@ export const resolveProviderModel = async (
 	}
 
 	const model = await db.query.aiModel.findFirst({
-		where: and(
-			eq(aiModel.providerId, providerId),
-			eq(aiModel.modelId, modelId),
-		),
+		where: and(eq(aiModel.providerId, providerId), eq(aiModel.modelId, modelId)),
 	});
 
 	if (model) {
@@ -325,16 +314,24 @@ const getDefaultModelRecordId = (
 	slot: DefaultModelSlot,
 ): string | null => {
 	switch (slot) {
-		case "evaluation":
+		case "evaluation": {
 			return defaults.defaultEvaluationModel;
-		case "file-image":
+		}
+		case "file-image": {
 			return defaults.defaultFileImageModelId;
-		case "multimodal":
+		}
+		case "multimodal": {
 			return defaults.defaultMultimodalModelId;
-		case "speech-to-text":
+		}
+		case "speech-to-text": {
 			return defaults.defaultSpeechToTextModelId;
-		case "text":
+		}
+		case "text": {
 			return defaults.defaultTextModelId;
+		}
+		default: {
+			return null;
+		}
 	}
 };
 
@@ -343,16 +340,24 @@ const getDefaultReasoningEffort = (
 	slot: DefaultModelSlot,
 ): ReasoningEffort => {
 	switch (slot) {
-		case "evaluation":
+		case "evaluation": {
 			return normalizeReasoningEffort(defaults.defaultEvaluationReasoningEffort);
-		case "file-image":
+		}
+		case "file-image": {
 			return normalizeReasoningEffort(defaults.defaultFileImageReasoningEffort);
-		case "multimodal":
+		}
+		case "multimodal": {
 			return normalizeReasoningEffort(defaults.defaultMultimodalReasoningEffort);
-		case "speech-to-text":
+		}
+		case "speech-to-text": {
 			return normalizeReasoningEffort(defaults.defaultSpeechToTextReasoningEffort);
-		case "text":
+		}
+		case "text": {
 			return normalizeReasoningEffort(defaults.defaultTextReasoningEffort);
+		}
+		default: {
+			return "none";
+		}
 	}
 };
 
@@ -408,11 +413,7 @@ export const resolveGenerationStrategy = async (
 		mode: "preprocess",
 		...(options.hasAudio
 			? {
-					speechToText: await buildDefaultSelection(
-						db,
-						defaults,
-						"speech-to-text",
-					),
+					speechToText: await buildDefaultSelection(db, defaults, "speech-to-text"),
 				}
 			: {}),
 	};
@@ -432,7 +433,7 @@ export const buildProviderOptions = ({
 	zdr?: boolean;
 }) => {
 	if (!model.isOpenRouter) {
-		return undefined;
+		return;
 	}
 
 	const normalizedReasoningEffort = normalizeReasoningEffort(reasoningEffort);

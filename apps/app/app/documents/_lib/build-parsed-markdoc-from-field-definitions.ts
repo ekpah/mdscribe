@@ -5,9 +5,12 @@ import type { DocumentFieldDefinition } from "./types";
 const normalizeFieldDefinition = (field: DocumentFieldDefinition): DocumentFieldDefinition => {
 	const trimmedOptions = field.options.map((o) => o.trim()).filter((o) => o.length > 0);
 	const isSwitch = field.inputKind !== "text";
-
-	const options =
-		field.inputKind === "boolean" ? ["true", "false"] : isSwitch ? trimmedOptions : [];
+	let options: string[] = [];
+	if (field.inputKind === "boolean") {
+		options = ["true", "false"];
+	} else if (isSwitch) {
+		options = trimmedOptions;
+	}
 
 	return {
 		...field,
@@ -44,7 +47,9 @@ const validateFieldDefinitions = (fields: DocumentFieldDefinition[]): string[] =
 	// Disabled fields generate no tags, so they cannot conflict.
 	const enabledByLabel = new Map<string, { index: number; signature: string }>();
 	for (const [index, field] of fields.entries()) {
-		if (!field.isEnabled) continue;
+		if (!field.isEnabled) {
+			continue;
+		}
 
 		const key = field.label.toLowerCase();
 		const signature = JSON.stringify([
@@ -77,27 +82,27 @@ const validateFieldDefinitions = (fields: DocumentFieldDefinition[]): string[] =
 const toInputTag = (field: DocumentFieldDefinition): InputTagType => {
 	if (field.inputKind !== "text") {
 		return {
-			name: "Switch",
 			attributes: {
 				primary: field.label,
 				...(field.inputKind === "boolean" ? { type: "boolean" as const } : {}),
 			},
 			children: field.options.map((option) => ({
-				name: "Case" as const,
 				attributes: { primary: option },
 				children: [],
+				name: "Case" as const,
 			})),
+			name: "Switch",
 		};
 	}
 
 	return {
-		name: "Info",
 		attributes: {
 			primary: field.label,
 			type: field.valueType,
 			...(field.description ? { description: field.description } : {}),
 		},
 		children: [],
+		name: "Info",
 	};
 };
 
@@ -120,10 +125,14 @@ export const buildParsedMarkdocFromFieldDefinitions = (
 	const inputTags: InputTagType[] = [];
 
 	for (const field of normalizedFieldDefinitions) {
-		if (!field.isEnabled) continue;
+		if (!field.isEnabled) {
+			continue;
+		}
 
 		const labelKey = field.label.toLowerCase();
-		if (seenLabels.has(labelKey)) continue;
+		if (seenLabels.has(labelKey)) {
+			continue;
+		}
 
 		seenLabels.add(labelKey);
 		inputTags.push(toInputTag(field));

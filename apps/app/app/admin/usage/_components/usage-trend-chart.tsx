@@ -1,28 +1,15 @@
 "use client";
 
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
 import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/design-system/components/ui/card";
-import {
-	type ChartConfig,
 	ChartContainer,
 	ChartTooltip,
 	ChartTooltipContent,
 } from "@repo/design-system/components/ui/chart";
+import type { ChartConfig } from "@repo/design-system/components/ui/chart";
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import { cn } from "@repo/design-system/lib/utils";
-import {
-	Area,
-	AreaChart,
-	CartesianGrid,
-	Line,
-	LineChart,
-	XAxis,
-	YAxis,
-} from "recharts";
+import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import type { StatsFilter, UsageTrendMetric } from "../types";
 
@@ -163,7 +150,7 @@ const getPercentileValue = (
 
 const formatTrendValue = (
 	metric: UsageTrendMetric,
-	value: number | string | Array<number | string> | undefined,
+	value: number | string | (number | string)[] | undefined,
 ): string => {
 	const numericValue = Array.isArray(value) ? Number(value[0]) : Number(value);
 	if (!Number.isFinite(numericValue)) {
@@ -232,14 +219,14 @@ const formatAxisValue = (metric: UsageTrendMetric, value: number): string => {
 	return Math.round(value).toLocaleString("de-DE");
 };
 
-export function UsageTrendChart({
+export const UsageTrendChart = ({
 	activeMetric,
 	filter,
 	isLoading,
 	timeZone,
 	trend,
 	trendGranularity,
-}: UsageTrendChartProps) {
+}: UsageTrendChartProps) => {
 	const metric = metricConfig[activeMetric];
 	const isPercentile = Boolean(metric.isPercentile);
 	const chartTitle = `${metric.label} ${periodTitleSuffix[filter]}`;
@@ -296,19 +283,111 @@ export function UsageTrendChart({
 				</div>
 			</CardHeader>
 			<CardContent>
-				{trend.length === 0 ? (
-					<div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/60 text-sm text-solarized-base01">
-						Keine Trenddaten im gewählten Zeitraum.
-					</div>
-				) : isPercentile && !hasPercentileData ? (
-					<div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/60 px-4 text-center text-sm text-solarized-base01">
-						Keine Perzentilwerte im gewählten Zeitraum. Diese Ansicht benötigt Events mit
-						gespeicherten Laufzeitmessungen.
-					</div>
-				) : isPercentile ? (
-					<div className="space-y-2">
-						<ChartContainer config={percentileChartConfig} className="h-[260px] w-full">
-							<LineChart accessibilityLayer data={percentileData}>
+				{(() => {
+					if (trend.length === 0) {
+						return (
+							<div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/60 text-sm text-solarized-base01">
+								Keine Trenddaten im gewählten Zeitraum.
+							</div>
+						);
+					}
+					if (isPercentile && !hasPercentileData) {
+						return (
+							<div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/60 px-4 text-center text-sm text-solarized-base01">
+								Keine Perzentilwerte im gewählten Zeitraum. Diese Ansicht benötigt Events mit
+								gespeicherten Laufzeitmessungen.
+							</div>
+						);
+					}
+					if (isPercentile) {
+						return (
+							<div className="space-y-2">
+								<ChartContainer config={percentileChartConfig} className="h-[260px] w-full">
+									<LineChart accessibilityLayer data={percentileData}>
+										<CartesianGrid vertical={false} />
+										<XAxis
+											dataKey="bucket"
+											tickLine={false}
+											axisLine={false}
+											tickMargin={10}
+											minTickGap={28}
+											tickFormatter={(value: string) => formatTick(value, trendGranularity)}
+										/>
+										<YAxis
+											axisLine={false}
+											domain={[0, "auto"]}
+											tickFormatter={(value: number) => formatAxisValue(activeMetric, value)}
+											tickLine={false}
+											tickMargin={8}
+											width={56}
+										/>
+										<ChartTooltip
+											content={
+												<ChartTooltipContent
+													indicator="line"
+													labelFormatter={(value) =>
+														value ? formatTooltipLabel(String(value), trendGranularity) : ""
+													}
+													valueFormatter={(value) => formatTrendValue(activeMetric, value)}
+												/>
+											}
+										/>
+										<Line
+											type="monotone"
+											dataKey="p50"
+											stroke="var(--color-p50)"
+											strokeWidth={2.5}
+											dot={{ r: 2, strokeWidth: 1 }}
+											connectNulls
+										/>
+										<Line
+											type="monotone"
+											dataKey="p90"
+											stroke="var(--color-p90)"
+											strokeWidth={2.5}
+											dot={{ r: 2, strokeWidth: 1 }}
+											connectNulls
+										/>
+										<Line
+											type="monotone"
+											dataKey="p95"
+											stroke="var(--color-p95)"
+											strokeWidth={2.5}
+											dot={{ r: 2, strokeWidth: 1 }}
+											connectNulls
+										/>
+									</LineChart>
+								</ChartContainer>
+								<div className="flex justify-end gap-3 text-xs">
+									<span className="inline-flex items-center gap-1.5 font-medium text-solarized-blue">
+										<span className="h-0.5 w-4 rounded-full bg-solarized-blue" />
+										p50
+									</span>
+									<span className="inline-flex items-center gap-1.5 font-medium text-solarized-orange">
+										<span className="h-0.5 w-4 rounded-full bg-solarized-orange" />
+										p90
+									</span>
+									<span className="inline-flex items-center gap-1.5 font-medium text-solarized-magenta">
+										<span className="h-0.5 w-4 rounded-full bg-solarized-magenta" />
+										p95
+									</span>
+								</div>
+							</div>
+						);
+					}
+					return (
+						<ChartContainer
+							config={{
+								...aggregateChartConfig,
+								value: {
+									...aggregateChartConfig.value,
+									color: metric.color,
+									label: metric.label,
+								},
+							}}
+							className="h-[260px] w-full"
+						>
+							<AreaChart accessibilityLayer data={aggregateData}>
 								<CartesianGrid vertical={false} />
 								<XAxis
 									dataKey="bucket"
@@ -329,7 +408,7 @@ export function UsageTrendChart({
 								<ChartTooltip
 									content={
 										<ChartTooltipContent
-											indicator="line"
+											hideIndicator
 											labelFormatter={(value) =>
 												value ? formatTooltipLabel(String(value), trendGranularity) : ""
 											}
@@ -337,106 +416,25 @@ export function UsageTrendChart({
 										/>
 									}
 								/>
-								<Line
+								<defs>
+									<linearGradient id="usage-trend-fill" x1="0" y1="0" x2="0" y2="1">
+										<stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.3} />
+										<stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.03} />
+									</linearGradient>
+								</defs>
+								<Area
 									type="monotone"
-									dataKey="p50"
-									stroke="var(--color-p50)"
+									dataKey="value"
+									stroke="var(--color-value)"
+									fill="url(#usage-trend-fill)"
 									strokeWidth={2.5}
-									dot={{ r: 2, strokeWidth: 1 }}
-									connectNulls
+									dot={false}
 								/>
-								<Line
-									type="monotone"
-									dataKey="p90"
-									stroke="var(--color-p90)"
-									strokeWidth={2.5}
-									dot={{ r: 2, strokeWidth: 1 }}
-									connectNulls
-								/>
-								<Line
-									type="monotone"
-									dataKey="p95"
-									stroke="var(--color-p95)"
-									strokeWidth={2.5}
-									dot={{ r: 2, strokeWidth: 1 }}
-									connectNulls
-								/>
-							</LineChart>
+							</AreaChart>
 						</ChartContainer>
-						<div className="flex justify-end gap-3 text-xs">
-							<span className="inline-flex items-center gap-1.5 font-medium text-solarized-blue">
-								<span className="h-0.5 w-4 rounded-full bg-solarized-blue" />
-								p50
-							</span>
-							<span className="inline-flex items-center gap-1.5 font-medium text-solarized-orange">
-								<span className="h-0.5 w-4 rounded-full bg-solarized-orange" />
-								p90
-							</span>
-							<span className="inline-flex items-center gap-1.5 font-medium text-solarized-magenta">
-								<span className="h-0.5 w-4 rounded-full bg-solarized-magenta" />
-								p95
-							</span>
-						</div>
-					</div>
-				) : (
-					<ChartContainer
-						config={{
-							...aggregateChartConfig,
-							value: {
-								...aggregateChartConfig.value,
-								color: metric.color,
-								label: metric.label,
-							},
-						}}
-						className="h-[260px] w-full"
-					>
-						<AreaChart accessibilityLayer data={aggregateData}>
-							<CartesianGrid vertical={false} />
-							<XAxis
-								dataKey="bucket"
-								tickLine={false}
-								axisLine={false}
-								tickMargin={10}
-								minTickGap={28}
-								tickFormatter={(value: string) => formatTick(value, trendGranularity)}
-							/>
-							<YAxis
-								axisLine={false}
-								domain={[0, "auto"]}
-								tickFormatter={(value: number) => formatAxisValue(activeMetric, value)}
-								tickLine={false}
-								tickMargin={8}
-								width={56}
-							/>
-							<ChartTooltip
-								content={
-									<ChartTooltipContent
-										hideIndicator
-										labelFormatter={(value) =>
-											value ? formatTooltipLabel(String(value), trendGranularity) : ""
-										}
-										valueFormatter={(value) => formatTrendValue(activeMetric, value)}
-									/>
-								}
-							/>
-							<defs>
-								<linearGradient id="usage-trend-fill" x1="0" y1="0" x2="0" y2="1">
-									<stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.3} />
-									<stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.03} />
-								</linearGradient>
-							</defs>
-							<Area
-								type="monotone"
-								dataKey="value"
-								stroke="var(--color-value)"
-								fill="url(#usage-trend-fill)"
-								strokeWidth={2.5}
-								dot={false}
-							/>
-						</AreaChart>
-					</ChartContainer>
-				)}
+					);
+				})()}
 			</CardContent>
 		</Card>
 	);
-}
+};

@@ -83,6 +83,60 @@ interface ResultDisplayProps {
 	onEvaluate?: () => void;
 }
 
+const renderEvaluationAction = (result: PlaygroundResult, onEvaluate: (() => void) | undefined) => {
+	if (result.evaluation?.isLoading) {
+		return (
+			<Button
+				className="h-5 gap-1 px-1 text-solarized-base01 text-xs"
+				disabled
+				size="sm"
+				type="button"
+				variant="ghost"
+			>
+				<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
+				Eval
+			</Button>
+		);
+	}
+
+	if (result.evaluation?.totalScore !== undefined && result.evaluation.categories.length > 0) {
+		return (
+			<EvaluationDetailsDialog
+				canRegenerate={Boolean(onEvaluate && !result.isStreaming && result.text)}
+				evaluation={result.evaluation}
+				onRegenerate={onEvaluate}
+				trigger={
+					<Button
+						aria-label="Evaluationsdetails anzeigen"
+						className="h-5 gap-1 px-1 text-solarized-base01 text-xs hover:text-solarized-base00"
+						disabled={result.isStreaming || !result.text}
+						size="sm"
+						type="button"
+						variant="ghost"
+					>
+						<Medal className="h-3 w-3 text-solarized-yellow" />
+						{formatScore(result.evaluation.totalScore)}
+					</Button>
+				}
+			/>
+		);
+	}
+
+	return (
+		<Button
+			aria-label="Antwort bewerten"
+			className="h-5 gap-1 px-1 text-solarized-base01 text-xs hover:text-solarized-base00"
+			disabled={!onEvaluate || result.isStreaming || !result.text}
+			onClick={onEvaluate}
+			size="sm"
+			type="button"
+			variant="ghost"
+		>
+			<Medal className="h-3 w-3 text-solarized-yellow" />-
+		</Button>
+	);
+};
+
 export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultDisplayProps) => {
 	const [copied, setCopied] = useState(false);
 
@@ -149,50 +203,7 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 						<Hash className="h-3 w-3 text-solarized-cyan" />
 						{formatTokenBreakdown(result.metrics)}
 					</span>
-					{result.evaluation?.isLoading ? (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							disabled
-							className="h-5 gap-1 px-1 text-xs text-solarized-base01"
-						>
-							<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-							Eval
-						</Button>
-					) : result.evaluation?.totalScore !== undefined &&
-					  result.evaluation.categories.length > 0 ? (
-						<EvaluationDetailsDialog
-							canRegenerate={Boolean(onEvaluate && !result.isStreaming && result.text)}
-							evaluation={result.evaluation}
-							onRegenerate={onEvaluate}
-							trigger={
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									disabled={result.isStreaming || !result.text}
-									aria-label="Evaluationsdetails anzeigen"
-									className="h-5 gap-1 px-1 text-xs text-solarized-base01 hover:text-solarized-base00"
-								>
-									<Medal className="h-3 w-3 text-solarized-yellow" />
-									{formatScore(result.evaluation.totalScore)}
-								</Button>
-							}
-						/>
-					) : (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={onEvaluate}
-							disabled={!onEvaluate || result.isStreaming || !result.text}
-							aria-label="Antwort bewerten"
-							className="h-5 gap-1 px-1 text-xs text-solarized-base01 hover:text-solarized-base00"
-						>
-							<Medal className="h-3 w-3 text-solarized-yellow" />-
-						</Button>
-					)}
+					{renderEvaluationAction(result, onEvaluate)}
 				</div>
 				<Button
 					type="button"

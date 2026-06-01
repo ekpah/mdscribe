@@ -256,10 +256,7 @@ const MenuBar = ({
 				<TooltipProvider>
 					<Tooltip delayDuration={200}>
 						<TooltipTrigger
-							className={cn(
-								toolbarButtonClassName,
-								"inline-flex items-center justify-center",
-							)}
+							className={cn(toolbarButtonClassName, "inline-flex items-center justify-center")}
 						>
 							<HelpCircle className="h-3.5 w-3.5" />
 						</TooltipTrigger>
@@ -280,7 +277,7 @@ const MenuBar = ({
 				</TooltipProvider>
 			</div>
 
-			{onToggleSource !== undefined ? (
+			{onToggleSource ? (
 				<div className="ml-auto flex items-center">
 					<button
 						className="inline-flex h-7 items-center gap-1.5 rounded-xs border border-solarized-blue/20 bg-background/80 px-2 text-xs font-medium text-foreground transition-colors hover:bg-solarized-blue/10"

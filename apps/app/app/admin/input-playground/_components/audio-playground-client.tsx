@@ -1,12 +1,5 @@
 "use client";
 
-import { AudioInput } from "@/app/_components/input-context/inputs/audio/audio-input";
-import type { AudioRecording } from "@/app/_components/input-context/types";
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-} from "@/lib/input-fill-limits";
-import { orpc } from "@/lib/orpc";
 import { createAudioSubmissionFile } from "@repo/design-system/components/inputs/audio-submission";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
@@ -25,6 +18,11 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { AudioLines, Loader2, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
+import { AudioInput } from "@/app/_components/input-context/inputs/audio/audio-input";
+import type { AudioRecording } from "@/app/_components/input-context/types";
+import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
+import { orpc } from "@/lib/orpc";
 
 interface AudioModelOption extends ModelSelectorOption {
 	modelId: string;
@@ -62,7 +60,7 @@ const createModelOptions = (
 const getRecordingTotalBytes = (recordings: AudioRecording[]) =>
 	recordings.reduce((total, recording) => total + recording.blob.size, 0);
 
-export function AudioPlaygroundClient() {
+export const AudioPlaygroundClient = () => {
 	const [recordings, setRecordings] = useState<AudioRecording[]>([]);
 	const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 	const [result, setResult] = useState<TranscriptResult | null>(null);
@@ -111,10 +109,7 @@ export function AudioPlaygroundClient() {
 			}
 
 			for (const [index, recording] of recordings.entries()) {
-				if (
-					recording.blob.size >
-					FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording
-				) {
+				if (recording.blob.size > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
 					throw new Error(
 						`Aufnahme ${index + 1} ist zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
 					);
@@ -122,8 +117,7 @@ export function AudioPlaygroundClient() {
 			}
 
 			if (
-				getRecordingTotalBytes(recordings) >
-				FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal
+				getRecordingTotalBytes(recordings) > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal
 			) {
 				throw new Error(
 					`Audioaufnahmen sind zusammen zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)} möglich.`,
@@ -168,8 +162,8 @@ export function AudioPlaygroundClient() {
 								Transkriptionsmodell
 							</CardTitle>
 							<CardDescription className="text-solarized-base01">
-								Wähle ein Audio-zu-Text-fähiges Modell. MDScribe prüft die
-								Modalität nicht automatisch.
+								Wähle ein Audio-zu-Text-fähiges Modell. MDScribe prüft die Modalität nicht
+								automatisch.
 							</CardDescription>
 						</div>
 						{defaults?.defaultSpeechToTextModelId &&
@@ -214,9 +208,7 @@ export function AudioPlaygroundClient() {
 						/>
 					</div>
 					<div className="rounded-md border border-solarized-base2/80 bg-solarized-base2/20 p-3 text-solarized-base01 text-xs">
-						<div className="font-medium text-solarized-base00">
-							Aktuelle Auswahl
-						</div>
+						<div className="font-medium text-solarized-base00">Aktuelle Auswahl</div>
 						<div className="mt-1">
 							{selectedModel
 								? `${selectedModel.providerName} · ${selectedModel.modelId}`
@@ -234,8 +226,9 @@ export function AudioPlaygroundClient() {
 							Audio aufnehmen
 						</CardTitle>
 						<CardDescription className="text-solarized-base01">
-							Nimm eine Aufnahme auf und transkribiere sie mit dem ausgewählten Modell.
-							Maximal {formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.
+							Nimm eine Aufnahme auf und transkribiere sie mit dem ausgewählten Modell. Maximal{" "}
+							{formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro
+							Aufnahme.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
@@ -297,4 +290,4 @@ export function AudioPlaygroundClient() {
 			</div>
 		</div>
 	);
-}
+};

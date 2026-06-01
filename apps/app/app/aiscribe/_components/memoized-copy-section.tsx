@@ -25,23 +25,14 @@ const normalizeMarkdownLineBreaks = (markdown: string): string => {
 
 	// Ensure bold headers (like **Hauptdiagnose:**) are followed by a blank line
 	// Match: **Text:** followed by single newline and non-empty content
-	normalized = normalized.replaceAll(
-		/(\*\*[^*]+:\*\*)\n(?!\n)(?=[^\s])/g,
-		"$1\n\n",
-	);
+	normalized = normalized.replaceAll(/(\*\*[^*]+:\*\*)\n(?!\n)(?=[^\s])/g, "$1\n\n");
 
 	// Ensure lines ending with colons and single newlines get proper breaks
 	// This handles plain text headers like "Hauptdiagnose:"
-	normalized = normalized.replaceAll(
-		/^([A-ZÄÖÜ][^:\n]*:)\n(?!\n)(?=[^\s-])/gm,
-		"$1\n\n",
-	);
+	normalized = normalized.replaceAll(/^([A-ZÄÖÜ][^:\n]*:)\n(?!\n)(?=[^\s-])/gm, "$1\n\n");
 
 	// Ensure list items (starting with - or numbered) are separated from previous content
-	normalized = normalized.replaceAll(
-		/([^\n])\n(?!\n)([-\d]+[.)]?\s)/g,
-		"$1\n\n$2",
-	);
+	normalized = normalized.replaceAll(/([^\n])\n(?!\n)([-\d]+[.)]?\s)/g, "$1\n\n$2");
 
 	// Add trailing double spaces to lines that aren't blank, don't end with
 	// markdown formatting, and are followed by another content line.
@@ -54,12 +45,7 @@ const normalizeMarkdownLineBreaks = (markdown: string): string => {
 		const trimmedNextLine = nextLine?.trim();
 
 		// Skip if line is empty, already ends with spaces, or is last line
-		if (
-			!trimmedLine ||
-			line.endsWith("  ") ||
-			index === lines.length - 1 ||
-			!trimmedNextLine
-		) {
+		if (!trimmedLine || line.endsWith("  ") || index === lines.length - 1 || !trimmedNextLine) {
 			return line;
 		}
 
@@ -97,10 +83,7 @@ const parseMarkdocIntoBlocks = (markdown: string): string[] => {
 		// This validates the Markdoc syntax.
 		Markdoc.parse(markdown);
 	} catch (error) {
-		console.warn(
-			"Markdoc parsing error, falling back to basic parsing:",
-			error,
-		);
+		console.warn("Markdoc parsing error, falling back to basic parsing:", error);
 	}
 
 	const blocks: string[] = [];
@@ -165,165 +148,151 @@ const parseMarkdocIntoBlocks = (markdown: string): string[] => {
 };
 
 const MemoizedMarkdownBlock = memo(
-	({
-		content,
-		values,
-	}: {
-		content: string;
-		values?: Record<string, unknown>;
-	}) => (
-			<DynamicMarkdocRenderer variables={values} markdocContent={content} />
-		),
+	({ content, values }: { content: string; values?: Record<string, unknown> }) => (
+		<DynamicMarkdocRenderer variables={values} markdocContent={content} />
+	),
 	(prevProps, nextProps) => {
-		if (prevProps.content !== nextProps.content) {return false;}
-		if (JSON.stringify(prevProps.values) !== JSON.stringify(nextProps.values))
-			{return false;}
+		if (prevProps.content !== nextProps.content) {
+			return false;
+		}
+		if (JSON.stringify(prevProps.values) !== JSON.stringify(nextProps.values)) {
+			return false;
+		}
 		return true;
 	},
 );
 
 MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
 
-export const MemoizedCopySection = memo(
-	({ title, content, values }: MemoizedCopySectionProps) => {
-		const [isCopied, setIsCopied] = useState(false);
-		const blocks = useMemo(() => {
-			const normalizedContent = normalizeMarkdownLineBreaks(content);
-			return parseMarkdocIntoBlocks(normalizedContent);
-		}, [content]);
-		const contentRef = useRef<HTMLDivElement>(null);
+export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCopySectionProps) => {
+	const [isCopied, setIsCopied] = useState(false);
+	const blocks = useMemo(() => {
+		const normalizedContent = normalizeMarkdownLineBreaks(content);
+		return parseMarkdocIntoBlocks(normalizedContent);
+	}, [content]);
+	const contentRef = useRef<HTMLDivElement>(null);
 
-			const handleCopy = useCallback(async (renderedContent: string, textContent: string) => {
-				try {
-				// Check if we're in a secure context and have clipboard support
-				if (!navigator.clipboard) {
-					throw new Error("Clipboard API not supported");
-				}
-
-				// Try modern approach first (for newer browsers)
-					if (
-						typeof ClipboardItem !== "undefined" &&
-						ClipboardItem.supports &&
-						ClipboardItem.supports("text/html")
-					) {
-						// Use ClipboardItem.supports() to check HTML support (Chrome 133+)
-						const clipboardItem = new ClipboardItem({
-							"text/html": new Blob([renderedContent || ""], {
-								type: "text/html",
-							}),
-							"text/plain": new Blob([textContent || ""], {
-								type: "text/plain",
-							}),
-						});
-						await navigator.clipboard.write([clipboardItem]);
-						setIsCopied(true);
-						toast.success("Text kopiert (Rich-Text Format)");
-						return;
-					}
-
-				// Fallback approach for browsers with partial ClipboardItem support
-				// Try HTML-only ClipboardItem first
-				if (typeof ClipboardItem !== "undefined" && renderedContent) {
-					try {
-						const clipboardItem = new ClipboardItem({
-							"text/html": new Blob([renderedContent], {
-								type: "text/html",
-							}),
-						});
-						await navigator.clipboard.write([clipboardItem]);
-						setIsCopied(true);
-						toast.success("Text kopiert (Rich-Text Format)");
-						return;
-					} catch (htmlError) {
-						console.warn(
-							"HTML clipboard failed, trying plain text:",
-							htmlError,
-						);
-					}
-				}
-
-				// Final fallback to plain text (most compatible)
-				await navigator.clipboard.writeText(
-					textContent || renderedContent || "",
-				);
-				setIsCopied(true);
-				toast.success("Text kopiert (Einfacher Text)");
-			} catch (error) {
-				console.error("Clipboard operation failed:", error);
-
-				// Legacy fallback using document.execCommand (for very old browsers)
-				try {
-					const textArea = document.createElement("textarea");
-					textArea.value = textContent || renderedContent || "";
-						textArea.style.position = "fixed";
-						textArea.style.opacity = "0";
-						document.body.append(textArea);
-						textArea.select();
-						const success = document.execCommand("copy");
-						textArea.remove();
-
-					if (success) {
-						setIsCopied(true);
-						toast.success("Text kopiert (Fallback)");
-					} else {
-						throw new Error("Legacy copy failed", { cause: error });
-					}
-				} catch (legacyError) {
-					toast.error("Kopieren fehlgeschlagen. Bitte manuell kopieren.");
-					console.error("All clipboard methods failed:", legacyError);
-				}
-				} finally {
-					setTimeout(() => setIsCopied(false), 2000);
-				}
-			}, []);
-
-		const handleCopyClick = useCallback(async () => {
-			// Use the ref to get the rendered content directly
-			const contentElement = contentRef.current;
-			if (contentElement) {
-				const renderedContent = contentElement.innerHTML;
-				const textContent = contentElement.innerText
-					.replaceAll("\r\n", "\n")
-					.replaceAll("\r", "\n");
-				try {
-					await handleCopy(renderedContent, textContent);
-				} catch (error) {
-					console.error("Copy action failed:", error);
-				}
-			} else {
-				toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
+	const handleCopy = useCallback(async (renderedContent: string, textContent: string) => {
+		try {
+			// Check if we're in a secure context and have clipboard support
+			if (!navigator.clipboard) {
+				throw new Error("Clipboard API not supported");
 			}
-		}, [handleCopy]);
 
-		return (
-			<div className="space-y-2">
-				{title && <h3 className="font-medium text-lg capitalize">{title}</h3>}
-				<div className="group relative w-full whitespace-pre-line rounded-md bg-muted p-3 text-left">
-					<div ref={contentRef} data-section={title}>
-						{blocks.map((block) => (
-							<MemoizedMarkdownBlock
-								content={block}
-								values={values}
-								key={`block_${block}`}
-							/>
-						))}
-					</div>
-						<button
-							type="button"
-							tabIndex={0}
-							onClick={handleCopyClick}
-							className="absolute top-2 right-2 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100"
-						>
-						{isCopied ? (
-							<Check className="h-4 w-4 text-solarized-green" />
-						) : (
-							<Copy className="h-4 w-4" />
-						)}
-					</button>
+			// Try modern approach first (for newer browsers)
+			if (
+				typeof ClipboardItem !== "undefined" &&
+				ClipboardItem.supports &&
+				ClipboardItem.supports("text/html")
+			) {
+				// Use ClipboardItem.supports() to check HTML support (Chrome 133+)
+				const clipboardItem = new ClipboardItem({
+					"text/html": new Blob([renderedContent || ""], {
+						type: "text/html",
+					}),
+					"text/plain": new Blob([textContent || ""], {
+						type: "text/plain",
+					}),
+				});
+				await navigator.clipboard.write([clipboardItem]);
+				setIsCopied(true);
+				toast.success("Text kopiert (Rich-Text Format)");
+				return;
+			}
+
+			// Fallback approach for browsers with partial ClipboardItem support
+			// Try HTML-only ClipboardItem first
+			if (typeof ClipboardItem !== "undefined" && renderedContent) {
+				try {
+					const clipboardItem = new ClipboardItem({
+						"text/html": new Blob([renderedContent], {
+							type: "text/html",
+						}),
+					});
+					await navigator.clipboard.write([clipboardItem]);
+					setIsCopied(true);
+					toast.success("Text kopiert (Rich-Text Format)");
+					return;
+				} catch (htmlError) {
+					console.warn("HTML clipboard failed, trying plain text:", htmlError);
+				}
+			}
+
+			// Final fallback to plain text (most compatible)
+			await navigator.clipboard.writeText(textContent || renderedContent || "");
+			setIsCopied(true);
+			toast.success("Text kopiert (Einfacher Text)");
+		} catch (error) {
+			console.error("Clipboard operation failed:", error);
+
+			// Legacy fallback using document.execCommand (for very old browsers)
+			try {
+				const textArea = document.createElement("textarea");
+				textArea.value = textContent || renderedContent || "";
+				textArea.style.position = "fixed";
+				textArea.style.opacity = "0";
+				document.body.append(textArea);
+				textArea.select();
+				const success = document.execCommand("copy");
+				textArea.remove();
+
+				if (success) {
+					setIsCopied(true);
+					toast.success("Text kopiert (Fallback)");
+				} else {
+					throw new Error("Legacy copy failed", { cause: error });
+				}
+			} catch (legacyError) {
+				toast.error("Kopieren fehlgeschlagen. Bitte manuell kopieren.");
+				console.error("All clipboard methods failed:", legacyError);
+			}
+		} finally {
+			setTimeout(() => setIsCopied(false), 2000);
+		}
+	}, []);
+
+	const handleCopyClick = useCallback(async () => {
+		// Use the ref to get the rendered content directly
+		const contentElement = contentRef.current;
+		if (contentElement) {
+			const renderedContent = contentElement.innerHTML;
+			const textContent = contentElement.textContent
+				.replaceAll("\r\n", "\n")
+				.replaceAll("\r", "\n");
+			try {
+				await handleCopy(renderedContent, textContent);
+			} catch (error) {
+				console.error("Copy action failed:", error);
+			}
+		} else {
+			toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
+		}
+	}, [handleCopy]);
+
+	return (
+		<div className="space-y-2">
+			{title && <h3 className="font-medium text-lg capitalize">{title}</h3>}
+			<div className="group relative w-full whitespace-pre-line rounded-md bg-muted p-3 text-left">
+				<div ref={contentRef} data-section={title}>
+					{blocks.map((block) => (
+						<MemoizedMarkdownBlock content={block} values={values} key={`block_${block}`} />
+					))}
 				</div>
+				<button
+					type="button"
+					tabIndex={0}
+					onClick={handleCopyClick}
+					className="absolute top-2 right-2 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+				>
+					{isCopied ? (
+						<Check className="h-4 w-4 text-solarized-green" />
+					) : (
+						<Copy className="h-4 w-4" />
+					)}
+				</button>
 			</div>
-		);
-	},
-);
+		</div>
+	);
+});
 
 MemoizedCopySection.displayName = "MemoizedCopySection";

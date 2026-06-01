@@ -2,18 +2,12 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { Label } from "@repo/design-system/components/ui/label";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { Brain, HelpCircle } from "lucide-react";
 
-import {
-	REASONING_EFFORT_OPTIONS,
-	type ReasoningEffort,
-} from "@/app/admin/_lib/reasoning";
+import { REASONING_EFFORT_OPTIONS } from "@/app/admin/_lib/reasoning";
+import type { ReasoningEffort } from "@/app/admin/_lib/reasoning";
 
 interface ReasoningEffortSelectProps {
 	className?: string;
@@ -43,8 +37,8 @@ export const ReasoningEffortSelect = ({
 					</TooltipTrigger>
 					<TooltipContent className="max-w-[250px]">
 						<p>
-							OpenRouter ordnet den Effort-Level auf passende Reasoning-Tokens oder
-							native Thinking-Level des Modells ab.
+							OpenRouter ordnet den Effort-Level auf passende Reasoning-Tokens oder native
+							Thinking-Level des Modells ab.
 						</p>
 					</TooltipContent>
 				</Tooltip>
@@ -84,8 +78,7 @@ export const ReasoningEffortSelect = ({
 			</div>
 			{showDescription ? (
 				<p className="text-solarized-base01 text-xs">
-					Aus deaktiviert Reasoning. OpenRouter mappt Effort-Level bei Bedarf auf ein
-					Token-Budget.
+					Aus deaktiviert Reasoning. OpenRouter mappt Effort-Level bei Bedarf auf ein Token-Budget.
 				</p>
 			) : null}
 		</div>

@@ -3,7 +3,9 @@ import { Separator } from "@repo/design-system/components/ui/separator";
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+
 import Footer from "@/app/_components/landing/footer";
+
 import { blogPosts } from "./_lib/posts";
 
 export const metadata: Metadata = {
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default function BlogIndexPage() {
-	const featuredPost = blogPosts[0];
+	const [featuredPost] = blogPosts;
 
 	return (
 		<div className="h-full w-full overflow-x-hidden">
@@ -42,9 +44,7 @@ export default function BlogIndexPage() {
 									<h2 className="text-balance font-semibold text-2xl tracking-tight">
 										{post.title}
 									</h2>
-									<p className="text-muted-foreground leading-7">
-										{post.description}
-									</p>
+									<p className="text-muted-foreground leading-7">{post.description}</p>
 								</div>
 							</div>
 							<div className="mt-8 flex items-center gap-2 font-medium text-sm">
@@ -60,9 +60,7 @@ export default function BlogIndexPage() {
 						<div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
 							<div className="space-y-2">
 								<p className="font-medium text-sm">Zum Start</p>
-								<h2 className="font-semibold text-2xl tracking-tight">
-									{featuredPost.title}
-								</h2>
+								<h2 className="font-semibold text-2xl tracking-tight">{featuredPost.title}</h2>
 								<p className="max-w-2xl text-muted-foreground leading-7">
 									{featuredPost.description}
 								</p>

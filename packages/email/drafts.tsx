@@ -1,5 +1,6 @@
 import { render } from "@react-email/components";
 import type { ReactElement } from "react";
+
 import { EmailChangeTemplate } from "./templates/change-email";
 import { ColdOutreachTemplate } from "./templates/cold-outreach";
 import { DocumentsAnnouncementTemplate } from "./templates/documents-announcement";
@@ -104,9 +105,7 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 		previewProps: {
 			url: "https://mdscribe.de/reset-password?token=example",
 		},
-		render: () => (
-			<ResetPasswordTemplate url="https://mdscribe.de/reset-password?token=example" />
-		),
+		render: () => <ResetPasswordTemplate url="https://mdscribe.de/reset-password?token=example" />,
 		subject: "Setze dein Passwort zurück",
 		title: "Passwort zurücksetzen",
 	},
@@ -158,10 +157,10 @@ export const getEmailDraft = (id: string): EmailDraftDefinition | undefined =>
 export const listEmailDraftMetadata = (): EmailDraftMetadata[] =>
 	emailDrafts.map(({ render: _render, ...metadata }) => metadata);
 
-export const renderEmailDraftHtml = async (id: string): Promise<string | null> => {
+export const renderEmailDraftHtml = (id: string): Promise<string | null> => {
 	const draft = getEmailDraft(id);
 	if (!draft) {
-		return null;
+		return Promise.resolve(null);
 	}
 
 	return render(draft.render());

@@ -1,23 +1,13 @@
 "use client";
 
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
-import {
-	Database,
-	FileText,
-	Loader2,
-	Settings,
-	Sparkles,
-} from "lucide-react";
+import { Database, FileText, Loader2, Settings, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { orpc } from "@/lib/orpc";
+
 import { AddProviderDialog } from "./_components/add-connection-dialog";
 import { ConnectionCard } from "./_components/connection-card";
 
@@ -37,7 +27,7 @@ const ModelsTab = dynamic(
 
 const ScribeFormsTab = dynamic(
 	async () => {
-		const mod = await import("./_components/ScribeFormsTab");
+		const mod = await import("./_components/scribe-forms-tab");
 		return mod.ScribeFormsTab;
 	},
 	{
@@ -58,8 +48,7 @@ export default function ModelsSettingsPageClient() {
 	const safeConnections = connections ?? [];
 
 	const totalProviders = safeConnections.length;
-	const totalModels =
-		safeConnections.reduce((sum, provider) => sum + provider.models.length, 0);
+	const totalModels = safeConnections.reduce((sum, provider) => sum + provider.models.length, 0);
 	const loadingOrContent = (() => {
 		if (isLoading) {
 			return (
@@ -73,18 +62,14 @@ export default function ModelsSettingsPageClient() {
 			return (
 				<Card className="border-solarized-red/20 bg-solarized-red/10">
 					<CardContent className="p-4 text-center text-sm text-solarized-red">
-						Fehler beim Laden:{" "}
-						{error instanceof Error ? error.message : "Unbekannter Fehler"}
+						Fehler beim Laden: {error instanceof Error ? error.message : "Unbekannter Fehler"}
 					</CardContent>
 				</Card>
 			);
 		}
 
 		return (
-			<Tabs
-				defaultValue="connections"
-				className="gap-4 md:flex-row md:items-start"
-			>
+			<Tabs defaultValue="connections" className="gap-4 md:flex-row md:items-start">
 				<TabsList className="flex w-full gap-1 overflow-x-auto p-1 md:sticky md:top-6 md:w-56 md:flex-col md:overflow-visible">
 					<TabsTrigger
 						value="connections"
@@ -118,9 +103,7 @@ export default function ModelsSettingsPageClient() {
 							<Card className="border-solarized-base2 border-dashed bg-solarized-base3">
 								<CardContent className="p-8 text-center">
 									<Settings className="mx-auto mb-3 h-8 w-8 text-solarized-base01" />
-									<p className="font-medium text-solarized-base00">
-										Keine Provider konfiguriert
-									</p>
+									<p className="font-medium text-solarized-base00">Keine Provider konfiguriert</p>
 									<p className="mt-1 text-sm text-solarized-base01">
 										Erstellen Sie einen Provider, um KI-Modelle zu nutzen.
 									</p>
@@ -129,10 +112,7 @@ export default function ModelsSettingsPageClient() {
 						) : (
 							<div className="space-y-4">
 								{safeConnections.map((connection) => (
-									<ConnectionCard
-										key={connection.id}
-										connection={connection}
-									/>
+									<ConnectionCard key={connection.id} connection={connection} />
 								))}
 							</div>
 						)}
@@ -173,17 +153,13 @@ export default function ModelsSettingsPageClient() {
 					<CardContent className="p-4 sm:pt-6">
 						<div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-2">
 							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Provider
-								</p>
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Provider</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
 									{totalProviders}
 								</p>
 							</div>
 							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Modelle
-								</p>
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Modelle</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
 									{totalModels}
 								</p>

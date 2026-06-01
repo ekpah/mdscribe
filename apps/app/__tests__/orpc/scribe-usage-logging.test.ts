@@ -5,9 +5,7 @@ import { redactIfZdrEnabled } from "@/orpc/scribe/handlers/usage-logging";
 
 describe("Scribe usage logging", () => {
 	test("redacts content when ZDR is enabled", () => {
-		expect(redactIfZdrEnabled(true, "sensitive output")).toBe(
-			"[zdr - content redacted]",
-		);
+		expect(redactIfZdrEnabled(true, "sensitive output")).toBe("[zdr - content redacted]");
 	});
 
 	test("keeps content when ZDR is disabled", () => {
@@ -15,7 +13,7 @@ describe("Scribe usage logging", () => {
 	});
 
 	test("returns empty string for missing value when ZDR is disabled", () => {
-		expect(redactIfZdrEnabled(false, undefined)).toBe("");
+		expect(redactIfZdrEnabled(false)).toBe("");
 	});
 
 	test("stores rounded request duration timings", () => {

@@ -47,6 +47,8 @@ const decodeAttributeValue = (value: string | null): string | null => {
 	}
 };
 
+let convertHtmlFragmentToMarkdoc = (htmlFragment: string): string => htmlFragment;
+
 const customMarkdocRenderers: Partial<
 	Record<string, (element: Element, innerContent: string) => string>
 > = {
@@ -186,7 +188,7 @@ const processNodeForMarkdoc = (node: Node): string => {
 		: renderHtmlElement(element, tagName, innerContent);
 };
 
-const convertHtmlFragmentToMarkdoc = (htmlFragment: string): string => {
+convertHtmlFragmentToMarkdoc = (htmlFragment: string): string => {
 	if (htmlFragment.length === 0) {
 		return "";
 	}

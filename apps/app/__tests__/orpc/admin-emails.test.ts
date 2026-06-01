@@ -1,14 +1,11 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import type { mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { ORPCError, call } from "@orpc/server";
 import { sendEmail } from "@repo/email";
 import { emailDraftIds } from "@repo/email/drafts";
 
-import {
-	ADMIN_EMAIL,
-	createTestContext,
-	createTestUser,
-	startTestServer,
-} from "@/__tests__/setup";
+import { ADMIN_EMAIL, createTestContext, createTestUser, startTestServer } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
 import { emailsHandler } from "@/orpc/admin/emails";
 
@@ -43,9 +40,7 @@ describe("Admin emails handler", () => {
 
 	test("lists draft metadata without render functions", async () => {
 		const drafts = await call(emailsHandler.list, undefined, { context });
-		const documentsDraft = drafts.find(
-			(draft) => draft.id === "documents-announcement",
-		);
+		const documentsDraft = drafts.find((draft) => draft.id === "documents-announcement");
 
 		expect(drafts).toHaveLength(emailDraftIds.length);
 		expect(documentsDraft?.title).toBe("Dokumente: Rehaantrag");
@@ -66,9 +61,9 @@ describe("Admin emails handler", () => {
 	});
 
 	test("preview rejects invalid draft ids", async () => {
-		await expect(
-			call(emailsHandler.preview, { id: "missing-draft" }, { context }),
-		).rejects.toThrow(ORPCError);
+		await expect(call(emailsHandler.preview, { id: "missing-draft" }, { context })).rejects.toThrow(
+			ORPCError,
+		);
 	});
 
 	test("sendTest validates recipient email before sending", async () => {

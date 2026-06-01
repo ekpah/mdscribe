@@ -96,23 +96,20 @@ const getMatchingCaseChildren = (
 		return [];
 	}
 
-	const caseKey =
-		typeof currentValue === "string"
-			? currentValue
-			: typeof currentValue === "boolean"
-				? String(currentValue)
-				: undefined;
+	let caseKey: string | undefined;
+	if (typeof currentValue === "string") {
+		caseKey = currentValue;
+	} else if (typeof currentValue === "boolean") {
+		caseKey = String(currentValue);
+	}
 
 	if (!caseKey) {
 		return [];
 	}
 
 	return input.children
-		.filter(
-			(child) =>
-				child.name === "Case" && child.attributes.primary === caseKey,
-		)
-			.flatMap((caseChild) => caseChild.children);
+		.filter((child) => child.name === "Case" && child.attributes.primary === caseKey)
+		.flatMap((caseChild) => caseChild.children);
 };
 
 const renderInfoTagInput = ({

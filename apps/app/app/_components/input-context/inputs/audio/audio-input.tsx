@@ -11,8 +11,9 @@ import { cn } from "@repo/design-system/lib/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
-import { RecordingPlaybackRow } from "./recording-playback-row";
+
 import type { AudioRecording } from "../../types";
+import { RecordingPlaybackRow } from "./recording-playback-row";
 
 interface AudioInputProps {
 	className?: string;
@@ -22,16 +23,11 @@ interface AudioInputProps {
 	value: AudioRecording[];
 }
 
-const preferredAudioTypes = [
-	"audio/mp4",
-	"audio/webm;codecs=opus",
-	"audio/webm",
-	"audio/wav",
-];
+const preferredAudioTypes = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/wav"];
 
 const getSupportedMimeType = () => {
 	if (typeof MediaRecorder === "undefined") {
-		return undefined;
+		return;
 	}
 
 	return preferredAudioTypes.find((type) => MediaRecorder.isTypeSupported(type));
@@ -74,10 +70,7 @@ export const AudioInput = ({
 	const handleStreamReady = useCallback(
 		(stream: MediaStream) => {
 			const mimeType = getSupportedMimeType();
-			const mediaRecorder = new MediaRecorder(
-				stream,
-				mimeType ? { mimeType } : undefined,
-			);
+			const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
 			mediaRecorderRef.current = mediaRecorder;
 			audioChunksRef.current = [];
@@ -181,16 +174,15 @@ export const AudioInput = ({
 	);
 
 	const canAttemptRecordingToggle = isRecording || (!disabled && canRecord);
-	const recordingButtonTitle = isRecording
-		? "Aufnahme stoppen"
-		: canRecord
-			? "Audioaufnahme starten"
-			: `Maximal ${maxRecordings} Aufnahmen möglich`;
-	const recordingToggleLabel = isRecording
-		? "Aufnahme stoppen"
-		: canRecord
-			? "Aufnahme starten"
-			: "Maximale Aufnahmen erreicht";
+	let recordingButtonTitle = `Maximal ${maxRecordings} Aufnahmen möglich`;
+	let recordingToggleLabel = "Maximale Aufnahmen erreicht";
+	if (isRecording) {
+		recordingButtonTitle = "Aufnahme stoppen";
+		recordingToggleLabel = "Aufnahme stoppen";
+	} else if (canRecord) {
+		recordingButtonTitle = "Audioaufnahme starten";
+		recordingToggleLabel = "Aufnahme starten";
+	}
 	const showRecorderWaveform = isRecording && !isMicMuted;
 
 	useHotkeys(

@@ -12,10 +12,8 @@ import {
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
-import {
-	buildParsedMarkdocFromFieldDefinitions,
-	type DocumentFieldDefinition,
-} from "@/app/documents/_lib";
+import { buildParsedMarkdocFromFieldDefinitions } from "@/app/documents/_lib";
+import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 import { documentsHandler } from "@/orpc/documents";
 
 const pdfBytes = new Uint8Array([1, 2, 3, 4, 5, 250, 255]);
@@ -83,7 +81,7 @@ describe("documents.templates handlers", () => {
 
 		expect(saved).toBeDefined();
 		expect(saved?.fieldDefinitions).toBeArray();
-		expect(Array.from(saved?.pdfBytes ?? [])).toEqual(Array.from(pdfBytes));
+		expect([...(saved?.pdfBytes ?? [])]).toEqual([...pdfBytes]);
 		expect(saved?.visibility).toBe("public");
 	});
 
@@ -264,7 +262,7 @@ describe("documents.templates handlers", () => {
 		const pdf = await call(documentsHandler.templates.getPdf, { id: created.id }, { context });
 		expect(pdf).not.toBeNull();
 		const decoded = new Uint8Array(Buffer.from(pdf?.pdfBase64 ?? "", "base64"));
-		expect(Array.from(decoded)).toEqual(Array.from(pdfBytes));
+		expect([...decoded]).toEqual([...pdfBytes]);
 	});
 
 	test("getPdf returns distinct bytes per document", async () => {
@@ -306,12 +304,8 @@ describe("documents.templates handlers", () => {
 		expect(secondPdf).not.toBeNull();
 		expect(firstPdf?.id).toBe(first.id);
 		expect(secondPdf?.id).toBe(second.id);
-		expect(Array.from(Buffer.from(firstPdf?.pdfBase64 ?? "", "base64"))).toEqual(
-			Array.from(firstPdfBytes),
-		);
-		expect(Array.from(Buffer.from(secondPdf?.pdfBase64 ?? "", "base64"))).toEqual(
-			Array.from(secondPdfBytes),
-		);
+		expect([...Buffer.from(firstPdf?.pdfBase64 ?? "", "base64")]).toEqual([...firstPdfBytes]);
+		expect([...Buffer.from(secondPdf?.pdfBase64 ?? "", "base64")]).toEqual([...secondPdfBytes]);
 	});
 
 	test("update preserves pdf when no replacement is sent", async () => {
@@ -353,9 +347,7 @@ describe("documents.templates handlers", () => {
 			.from(documentTemplate)
 			.where(eq(documentTemplate.id, created.id));
 
-		expect(Array.from(afterUpdate?.pdfBytes ?? [])).toEqual(
-			Array.from(beforeUpdate?.pdfBytes ?? []),
-		);
+		expect([...(afterUpdate?.pdfBytes ?? [])]).toEqual([...(beforeUpdate?.pdfBytes ?? [])]);
 	});
 
 	test("update rejects non-authors", async () => {

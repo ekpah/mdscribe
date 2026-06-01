@@ -1,11 +1,5 @@
 import { ORPCError, type } from "@orpc/server";
-import {
-	aiScribeFormConfig,
-	eq,
-	inArray,
-	notInArray,
-	template,
-} from "@repo/database";
+import { aiScribeFormConfig, eq, inArray, notInArray, template } from "@repo/database";
 import type { Database } from "@repo/database";
 import { z } from "zod";
 
@@ -16,7 +10,6 @@ import {
 	getBuiltInAiscribeOverride,
 } from "@/lib/aiscribe-built-ins";
 import { authed } from "@/orpc";
-
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { PROMPT_HARNESS_IDS } from "@/orpc/scribe/prompts";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
@@ -142,7 +135,8 @@ const ensureSlugUnique = async (
 	}
 };
 
-const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context }) => context.db.query.aiScribeFormConfig.findMany({
+const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context }) =>
+	context.db.query.aiScribeFormConfig.findMany({
 		columns: {
 			description: true,
 			enabled: true,
@@ -153,6 +147,7 @@ const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context 
 			templateId: true,
 		},
 		orderBy: (form, { asc }) => [asc(form.createdAt)],
+		where: notInArray(aiScribeFormConfig.slug, BUILT_IN_AISCRIBE_OVERRIDE_SLUGS),
 		with: {
 			template: {
 				columns: {
@@ -161,8 +156,8 @@ const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context 
 				},
 			},
 		},
-		where: notInArray(aiScribeFormConfig.slug, BUILT_IN_AISCRIBE_OVERRIDE_SLUGS),
-	}));
+	}),
+);
 
 const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
 	const overrides = await context.db.query.aiScribeFormConfig.findMany({
@@ -195,9 +190,6 @@ const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(asyn
 			defaultPromptHarness: definition.defaultPromptHarness,
 			description: definition.description,
 			key,
-			path: definition.path,
-			slug: definition.slug,
-			title: definition.title,
 			override: override
 				? {
 						description: override.description,
@@ -208,6 +200,9 @@ const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(asyn
 						templateId: override.templateId,
 					}
 				: null,
+			path: definition.path,
+			slug: definition.slug,
+			title: definition.title,
 		};
 	});
 });
@@ -298,10 +293,7 @@ const upsertBuiltInFormHandler = authed
 			return updated;
 		}
 
-		const [created] = await context.db
-			.insert(aiScribeFormConfig)
-			.values(values)
-			.returning();
+		const [created] = await context.db.insert(aiScribeFormConfig).values(values).returning();
 
 		return created;
 	});

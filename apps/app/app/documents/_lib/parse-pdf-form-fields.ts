@@ -161,8 +161,8 @@ const inferOptions = (field: PDFField): string[] => {
 
 export const buildDefaultFieldDefinitionsFromPdfFields = (
 	fields: PDFField[],
-): DocumentFieldDefinition[] => {
-	return fields.map((field) => ({
+): DocumentFieldDefinition[] =>
+	fields.map((field) => ({
 		description: "",
 		fieldName: field.name,
 		inputKind: field.inputKind,
@@ -174,4 +174,3 @@ export const buildDefaultFieldDefinitionsFromPdfFields = (
 		pdfType: field.type,
 		valueType: "string",
 	}));
-};

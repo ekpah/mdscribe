@@ -37,6 +37,15 @@ interface TopMenuBarProperties {
 	initialSession: Session | null;
 }
 
+const getUserDisplayName = (session: Session | null): string => {
+	const user = session?.user;
+	if (user) {
+		return user.name?.trim() || user.email.split("@")[0] || user.email;
+	}
+
+	return "";
+};
+
 export default function TopMenuBar({
 	initialIsAdmin = false,
 	initialSession,
@@ -55,9 +64,7 @@ export default function TopMenuBar({
 	const isSessionLoading = sessionQuery.isPending && session === null;
 	const showAiLink = !!session?.user;
 	const isAdmin = initialIsAdmin || (authQuery.data?.isAdmin ?? false);
-	const userDisplayName = session?.user
-		? session.user.name?.trim() || session.user.email.split("@")[0] || session.user.email
-		: "";
+	const userDisplayName = getUserDisplayName(session);
 
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 

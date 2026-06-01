@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+
 import markdocConfig from "@markdoc/next.js";
 import { createJiti } from "jiti";
 import type { NextConfig } from "next";
@@ -18,15 +19,8 @@ jiti.import("@repo/env");
 export const config: NextConfig = {
 	// PERF: Optimize barrel file imports (15-70% faster dev boot, 28% faster builds)
 	experimental: {
-		optimizePackageImports: [
-			"lucide-react",
-			"date-fns",
-			"@repo/design-system",
-		],
-  },
-  logging: {
-    browserToTerminal: true,
-  },
+		optimizePackageImports: ["lucide-react", "date-fns", "@repo/design-system"],
+	},
 
 	headers() {
 		return [
@@ -47,10 +41,14 @@ export const config: NextConfig = {
 		formats: ["image/avif", "image/webp"],
 	},
 
+	logging: {
+		browserToTerminal: true,
+	},
+
 	// Tell Next.js where the monorepo root is so standalone output preserves
 	// the correct directory structure (apps/app/server.js).
-output: "standalone",
-outputFileTracingRoot: resolve(import.meta.dirname, "../../"),
+	output: "standalone",
+	outputFileTracingRoot: resolve(import.meta.dirname, "../../"),
 
 	// Skip type-checking during Docker builds — this runs in CI instead.
 	// Prevents OOM kills on memory-constrained build servers.

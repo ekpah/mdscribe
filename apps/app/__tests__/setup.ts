@@ -1,10 +1,5 @@
-import {
-	createDatabaseClient,
-	createSqlClient,
-	migrateDatabase,
-	type DatabaseWithSchema,
-	type SqlClient,
-} from "@repo/database/connect";
+import { createDatabaseClient, createSqlClient, migrateDatabase } from "@repo/database/connect";
+import type { DatabaseWithSchema, SqlClient } from "@repo/database/connect";
 import { user } from "@repo/database/schema";
 
 import type { Session } from "@/lib/auth-types";
@@ -293,17 +288,17 @@ export const createMockSession = (mockUser: {
 		userAgent: "test-agent",
 		userId: mockUser.id,
 	},
-	user: {
-		createdAt: new Date(),
-		email: mockUser.email,
-		emailVerified: mockUser.emailVerified ?? true,
-		id: mockUser.id,
-		image: mockUser.image ?? null,
-		name: mockUser.name ?? "Test User",
-		stripeCustomerId: mockUser.stripeCustomerId ?? `cus_test_${Date.now()}`,
-		updatedAt: new Date(),
-	},
-});
+		user: {
+			createdAt: new Date(),
+			email: mockUser.email,
+			emailVerified: mockUser.emailVerified ?? true,
+			id: mockUser.id,
+			image: mockUser.image ?? null,
+			name: mockUser.name ?? "Test User",
+			stripeCustomerId: mockUser.stripeCustomerId ?? `cus_test_${Date.now()}`,
+			updatedAt: new Date(),
+		} as Session["user"] & { stripeCustomerId: string | null },
+	});
 
 const getRequiredRow = <T>(rows: T[], message: string): T => {
 	const [row] = rows;
@@ -431,9 +426,9 @@ export const createTestUsageEvent = async (
 			model: "test-model",
 			name: options?.name ?? "ai_scribe_generation",
 			outputTokens: options?.outputTokens ?? 200,
-			timestamp: options?.timestamp ?? new Date(),
 			timeToCompletionMs: options?.timeToCompletionMs,
 			timeToFirstTokenMs: options?.timeToFirstTokenMs,
+			timestamp: options?.timestamp ?? new Date(),
 			totalTokens: (options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
 			userId,
 		})

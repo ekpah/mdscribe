@@ -1,8 +1,7 @@
 export const MAX_PDF_UPLOAD_BYTES = 10 * 1024 * 1024;
 
-const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
-	return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-};
+const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer =>
+	bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 
 export const cloneUint8Array = (bytes: Uint8Array): Uint8Array => new Uint8Array(bytes);
 
@@ -21,7 +20,7 @@ export const decodeBase64ToUint8Array = (value: string): Uint8Array => {
 
 export const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
 	if (typeof btoa === "function") {
-		const chunkSize = 0x8000;
+		const chunkSize = 0x80_00;
 		let binary = "";
 		for (let index = 0; index < data.length; index += chunkSize) {
 			const chunk = data.subarray(index, index + chunkSize);
@@ -33,9 +32,8 @@ export const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
 	return Buffer.from(data).toString("base64");
 };
 
-export const toPdfBlob = (pdfBytes: Uint8Array): Blob => {
-	return new Blob([toArrayBuffer(pdfBytes)], { type: "application/pdf" });
-};
+export const toPdfBlob = (pdfBytes: Uint8Array): Blob =>
+	new Blob([toArrayBuffer(pdfBytes)], { type: "application/pdf" });
 
 export const downloadPdfBlob = (blob: Blob, fileName: string) => {
 	const url = URL.createObjectURL(blob);

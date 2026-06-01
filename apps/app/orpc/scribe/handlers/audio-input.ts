@@ -18,11 +18,7 @@ interface PreparedAudioInput {
 	transcripts: string[];
 }
 
-const OPENAI_CHAT_AUDIO_MEDIA_TYPES = new Set([
-	"audio/mp3",
-	"audio/mpeg",
-	"audio/wav",
-]);
+const OPENAI_CHAT_AUDIO_MEDIA_TYPES = new Set(["audio/mp3", "audio/mpeg", "audio/wav"]);
 
 const OPENROUTER_AUDIO_MEDIA_TYPES = new Set([
 	"audio/aac",
@@ -46,22 +42,24 @@ const OPENROUTER_AUDIO_MEDIA_TYPES = new Set([
  * so stripping parameters prevents false incompatibilities while preserving the
  * actual container format.
  */
-const normalizeAudioMediaType = (
-	mimeType: string | undefined,
-): string => {
+const normalizeAudioMediaType = (mimeType: string | undefined): string => {
 	const baseType = mimeType?.split(";")[0]?.trim().toLowerCase();
 
 	switch (baseType) {
 		case "audio/x-wav":
-		case "audio/wave":
+		case "audio/wave": {
 			return "audio/wav";
-		case "audio/x-m4a":
+		}
+		case "audio/x-m4a": {
 			return "audio/m4a";
+		}
 		case "":
-		case undefined:
+		case undefined: {
 			return "audio/webm";
-		default:
+		}
+		default: {
 			return baseType;
+		}
 	}
 };
 
@@ -92,10 +90,7 @@ const getWavFallbackPart = (
 	return createAudioPart(audioFile.wavFallback.data, "audio/wav", index);
 };
 
-const getUnsupportedAudioMessage = (
-	mediaType: string,
-	providerProtocol: string,
-): string =>
+const getUnsupportedAudioMessage = (mediaType: string, providerProtocol: string): string =>
 	`Das Audioformat ${mediaType} wird vom Provider ${providerProtocol} in diesem Pfad nicht direkt unterstuetzt. Bitte erneut aufnehmen oder einen Audio-faehigen Provider waehlen.`;
 
 /**
@@ -140,9 +135,7 @@ const selectNativeAudioPart = (
 			return fallback;
 		}
 
-		throw new Error(
-			getUnsupportedAudioMessage(mediaType, resolvedModel.providerProtocol),
-		);
+		throw new Error(getUnsupportedAudioMessage(mediaType, resolvedModel.providerProtocol));
 	}
 
 	return createAudioPart(audioFile.data, mediaType, index);
@@ -225,18 +218,13 @@ export const prepareAudioInputForModel = async ({
  * Formats transcripts as a prompt block that downstream clinical prompts can
  * consume without needing to know whether the source was native audio or STT.
  */
-export const formatAudioTranscriptsForPrompt = (
-	transcripts: string[],
-): string => {
+export const formatAudioTranscriptsForPrompt = (transcripts: string[]): string => {
 	if (transcripts.length === 0) {
 		return "";
 	}
 
 	const transcriptEntries = transcripts
-		.map(
-			(transcript, index) =>
-				`<aufnahme index="${index + 1}">\n${transcript}\n</aufnahme>`,
-		)
+		.map((transcript, index) => `<aufnahme index="${index + 1}">\n${transcript}\n</aufnahme>`)
 		.join("\n");
 
 	return `<audio_transkripte>\n${transcriptEntries}\n</audio_transkripte>`;

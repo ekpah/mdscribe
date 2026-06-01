@@ -57,8 +57,8 @@ export default {
 		attributes: {
 			primary: { required: true, type: String },
 			type: {
-				required: false,
 				matches: ["string", "boolean", "checkbox"],
+				required: false,
 				type: String,
 			},
 		},

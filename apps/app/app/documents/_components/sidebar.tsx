@@ -21,13 +21,7 @@ import {
 	SidebarRail,
 	useSidebar,
 } from "@repo/design-system/components/ui/sidebar";
-import {
-	ChevronRight,
-	FileText,
-	Folder,
-	PlusCircle,
-	Search,
-} from "lucide-react";
+import { ChevronRight, FileText, Folder, PlusCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type React from "react";
@@ -53,12 +47,12 @@ const groupByCategory = (documents: SidebarDocument[]): SidebarSegment[] => {
 		groups.set(document.category, existing);
 	}
 
-	return Array.from(groups.entries())
+	return [...groups.entries()]
 		.map(([category, categoryDocuments]) => ({
 			category,
-			documents: categoryDocuments.sort((a, b) => a.title.localeCompare(b.title)),
+			documents: categoryDocuments.toSorted((a, b) => a.title.localeCompare(b.title)),
 		}))
-		.sort((a, b) => a.category.localeCompare(b.category));
+		.toSorted((a, b) => a.category.localeCompare(b.category));
 };
 
 export default function DocumentsSidebar({
@@ -72,10 +66,7 @@ export default function DocumentsSidebar({
 	const searchParams = useSearchParams();
 	const [searchTerm, setSearchTerm] = useState(searchParams.get("filter") || "");
 
-	const parsedDocuments = useMemo(
-		() => JSON.parse(documents) as SidebarDocument[],
-		[documents],
-	);
+	const parsedDocuments = useMemo(() => JSON.parse(documents) as SidebarDocument[], [documents]);
 
 	const filteredDocuments = useMemo(() => {
 		const normalizedTerm = searchTerm.trim().toLowerCase();
@@ -83,29 +74,20 @@ export default function DocumentsSidebar({
 			return parsedDocuments;
 		}
 
-		return parsedDocuments.filter((document) => {
-			return (
+		return parsedDocuments.filter(
+			(document) =>
 				document.title.toLowerCase().includes(normalizedTerm) ||
-				document.category.toLowerCase().includes(normalizedTerm)
-			);
-		});
+				document.category.toLowerCase().includes(normalizedTerm),
+		);
 	}, [parsedDocuments, searchTerm]);
 
-	const segments = useMemo(
-		() => groupByCategory(filteredDocuments),
-		[filteredDocuments],
-	);
+	const segments = useMemo(() => groupByCategory(filteredDocuments), [filteredDocuments]);
 
-	const handleSearchChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setSearchTerm(event.currentTarget.value);
-		},
-		[],
-	);
+	const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+		setSearchTerm(event.currentTarget.value);
+	}, []);
 
-	const createHref = isLoggedIn
-		? "/documents/create"
-		: "/sign-in?redirect=%2Fdocuments%2Fcreate";
+	const createHref = isLoggedIn ? "/documents/create" : "/sign-in?redirect=%2Fdocuments%2Fcreate";
 
 	return (
 		<Sidebar className="top-16 h-[calc(100vh-(--spacing(16)))]" collapsible="offcanvas">

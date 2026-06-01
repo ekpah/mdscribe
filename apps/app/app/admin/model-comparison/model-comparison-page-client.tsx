@@ -34,25 +34,13 @@ import {
 	RefreshCcw,
 	Trophy,
 } from "lucide-react";
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import { toast } from "sonner";
 
 import { ParameterControls } from "@/app/admin/playground/_components/parameter-controls";
-import {
-	isScribeDocType,
-	scribeDocTypeUi,
-} from "@/app/admin/playground/_lib/scribe-doc-types";
-import type {
-	PlaygroundModel,
-	PlaygroundParameters,
-} from "@/app/admin/playground/_lib/types";
+import { isScribeDocType, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
+import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
 import { orpc } from "@/lib/orpc";
 import type { DocumentType } from "@/orpc/scribe/types";
 
@@ -136,10 +124,7 @@ interface ComparisonRunResult {
 	text?: string;
 }
 
-type ComparisonResults = Record<
-	string,
-	Partial<Record<ComparisonSide, ComparisonRunResult>>
->;
+type ComparisonResults = Record<string, Partial<Record<ComparisonSide, ComparisonRunResult>>>;
 
 interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 	isTop: boolean;
@@ -190,12 +175,12 @@ const inferDocumentType = (
 	eventName: string,
 	metadata: Record<string, unknown>,
 ): DocumentType | null => {
-	const endpoint = metadata.endpoint;
+	const { endpoint } = metadata;
 	if (typeof endpoint === "string" && isScribeDocType(endpoint)) {
 		return endpoint;
 	}
 
-	const promptName = metadata.promptName;
+	const { promptName } = metadata;
 	if (typeof promptName === "string") {
 		return promptNameToDocumentType.get(promptName) ?? null;
 	}
@@ -244,7 +229,7 @@ const buildInputSections = (inputData: Record<string, unknown>): InputSection[] 
 		...preferredKeys,
 		...Object.keys(inputData)
 			.filter((key) => !preferredKeys.includes(key))
-			.sort((a, b) => a.localeCompare(b)),
+			.toSorted((a, b) => a.localeCompare(b)),
 	];
 
 	return orderedKeys.flatMap((key) => {
@@ -266,10 +251,7 @@ const buildInputSections = (inputData: Record<string, unknown>): InputSection[] 
 	});
 };
 
-const pickString = (
-	inputData: Record<string, unknown>,
-	...keys: string[]
-): string => {
+const pickString = (inputData: Record<string, unknown>, ...keys: string[]): string => {
 	for (const key of keys) {
 		const value = inputData[key];
 		if (typeof value === "string" && value.trim().length > 0) {
@@ -313,11 +295,7 @@ const normalizeReplayVariables = (
 			break;
 		}
 		case "procedures": {
-			assignCanonicalString(
-				replayInput,
-				"notes",
-				pickString(inputData, "notes", "procedureNotes"),
-			);
+			assignCanonicalString(replayInput, "notes", pickString(inputData, "notes", "procedureNotes"));
 			break;
 		}
 		case "anamnese": {
@@ -352,8 +330,9 @@ const normalizeReplayVariables = (
 			);
 			break;
 		}
-		default:
+		default: {
 			break;
+		}
 	}
 
 	return replayInput;
@@ -423,13 +402,10 @@ const toComparisonSample = (
 	};
 };
 
-const getProviderFromModelId = (modelId: string): string =>
-	modelId.split("/")[0] || "other";
+const getProviderFromModelId = (modelId: string): string => modelId.split("/")[0] || "other";
 
 const getProviderGroup = (model: PlaygroundModel): string =>
-	model.providerProtocol ??
-	model.connectionProtocol ??
-	getProviderFromModelId(model.modelId);
+	model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId);
 
 const formatModelGroupLabel = (group: string): string =>
 	PROVIDER_LABELS[group] ?? group.charAt(0).toUpperCase() + group.slice(1);
@@ -475,8 +451,7 @@ const formatTokensPerSecond = (tokensPerSecond: number | null | undefined): stri
 				minimumFractionDigits: 1,
 			})} Tok/s`;
 
-const getModelLabel = (model: PlaygroundModel | null): string =>
-	model?.name ?? "Kein Modell";
+const getModelLabel = (model: PlaygroundModel | null): string => model?.name ?? "Kein Modell";
 
 const shuffleArray = <T,>(items: T[]): T[] => {
 	const shuffled = [...items];
@@ -493,8 +468,7 @@ const buildDisplayOrder = (
 ): Record<string, ComparisonSide[]> => {
 	const nextOrder: Record<string, ComparisonSide[]> = {};
 	for (const sample of samples) {
-		nextOrder[sample.id] =
-			blindMode && Math.random() > 0.5 ? ["b", "a"] : ["a", "b"];
+		nextOrder[sample.id] = blindMode && Math.random() > 0.5 ? ["b", "a"] : ["a", "b"];
 	}
 	return nextOrder;
 };
@@ -515,9 +489,7 @@ const asFiniteMetricNumber = (value: unknown): number | undefined => {
 	return value;
 };
 
-const parseRunMetricsFromMetadata = (
-	metadata: unknown,
-): Partial<ComparisonRunMetrics> => {
+const parseRunMetricsFromMetadata = (metadata: unknown): Partial<ComparisonRunMetrics> => {
 	if (!metadata || typeof metadata !== "object") {
 		return {};
 	}
@@ -548,7 +520,7 @@ const parseRunMetricsFromMetadata = (
 };
 
 const getAssistantTextFromMessages = (
-	messages: Array<{ role: string; parts?: Array<{ type: string; text?: string }> }>,
+	messages: { role: string; parts?: { type: string; text?: string }[] }[],
 ): string =>
 	messages
 		.findLast((message) => message.role === "assistant")
@@ -585,7 +557,7 @@ const getTextFromUiMessage = (message: unknown): string => {
 
 	const candidate = message as {
 		content?: unknown;
-		parts?: Array<{ type?: string; text?: unknown }>;
+		parts?: { type?: string; text?: unknown }[];
 	};
 
 	const partsText = getTextFromUnknownParts(candidate.parts);
@@ -648,22 +620,18 @@ const calculateSummary = ({
 
 			return {
 				averageCost: hasCost && runCount > 0 ? totalCost / runCount : null,
-				averageInputTokens:
-					runCount > 0 ? Math.round(totalInputTokens / runCount) : null,
+				averageInputTokens: runCount > 0 ? Math.round(totalInputTokens / runCount) : null,
 				averageInputTokensPerSecond:
 					totalLatencyMs > 0
 						? Number((totalInputTokens / (totalLatencyMs / 1000)).toFixed(1))
 						: null,
-				averageLatencyMs:
-					runCount > 0 ? Math.round(totalLatencyMs / runCount) : null,
-				averageOutputTokens:
-					runCount > 0 ? Math.round(totalOutputTokens / runCount) : null,
-				averageTotalTokens:
-					runCount > 0 ? Math.round(totalTokens / runCount) : null,
+				averageLatencyMs: runCount > 0 ? Math.round(totalLatencyMs / runCount) : null,
+				averageOutputTokens: runCount > 0 ? Math.round(totalOutputTokens / runCount) : null,
 				averageTokensPerSecond:
 					totalLatencyMs > 0
 						? Number((totalOutputTokens / (totalLatencyMs / 1000)).toFixed(1))
 						: null,
+				averageTotalTokens: runCount > 0 ? Math.round(totalTokens / runCount) : null,
 				label: sideConfig.label,
 				modelId: sideConfig.modelId,
 				runCount,
@@ -680,9 +648,7 @@ const calculateSummary = ({
 	};
 };
 
-const renderSelectedModelOption = (
-	selected: PlaygroundModelSelectorOption | null,
-) => {
+const renderSelectedModelOption = (selected: PlaygroundModelSelectorOption | null) => {
 	if (!selected) {
 		return <span className="text-solarized-base01">Modell auswählen...</span>;
 	}
@@ -690,9 +656,7 @@ const renderSelectedModelOption = (
 	return (
 		<div className="min-w-0">
 			<p className="truncate font-medium text-solarized-base00">{selected.model.name}</p>
-			<p className="truncate text-solarized-base01 text-xs">
-				{selected.providerLabel}
-			</p>
+			<p className="truncate text-solarized-base01 text-xs">{selected.providerLabel}</p>
 		</div>
 	);
 };
@@ -731,16 +695,10 @@ const InputSectionsAccordion = ({ sections }: { sections: InputSection[] }) => (
 		className="rounded-md border border-solarized-base2 bg-solarized-base3"
 	>
 		{sections.map((section) => (
-			<AccordionItem
-				key={section.key}
-				value={section.key}
-				className="border-solarized-base2 px-3"
-			>
+			<AccordionItem key={section.key} value={section.key} className="border-solarized-base2 px-3">
 				<AccordionTrigger className="gap-3 py-3 text-left hover:no-underline">
 					<span className="min-w-0 flex-1">
-						<span className="block font-medium text-solarized-base00 text-xs">
-							{section.label}
-						</span>
+						<span className="block font-medium text-solarized-base00 text-xs">{section.label}</span>
 					</span>
 				</AccordionTrigger>
 				<AccordionContent className="pb-3">
@@ -759,11 +717,7 @@ interface ComparisonRunCellProps {
 	isSelected: boolean;
 	model: PlaygroundModel | null;
 	onPreferenceChange: (sampleId: string, side: ComparisonSide) => void;
-	onResultChange: (
-		sampleId: string,
-		side: ComparisonSide,
-		result: ComparisonRunResult,
-	) => void;
+	onResultChange: (sampleId: string, side: ComparisonSide, result: ComparisonRunResult) => void;
 	parameters: PlaygroundParameters;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 	sample: ComparisonSample;
@@ -813,19 +767,19 @@ const ComparisonRunCell = ({
 				status: "error",
 			});
 		},
-		onFinish: async ({ message, messages: finishedMessages }) => {
+		onFinish: ({ message, messages: finishedMessages }) => {
 			const startedAt = runStartedAtRef.current;
-			const latencyMs = startedAt !== null ? Math.max(0, Date.now() - startedAt) : 0;
+			const latencyMs = startedAt === null ? 0 : Math.max(0, Date.now() - startedAt);
 			runStartedAtRef.current = null;
-			const metadata = (message as { metadata?: unknown }).metadata;
+			const { metadata } = message as { metadata?: unknown };
 			const parsedMetrics = parseRunMetricsFromMetadata(metadata);
 			const responseText =
 				getTextFromUiMessage(message) ||
 				getAssistantTextFromMessages(
-					finishedMessages as Array<{
+					finishedMessages as {
 						role: string;
-						parts?: Array<{ type: string; text?: string }>;
-					}>,
+						parts?: { type: string; text?: string }[];
+					}[],
 				) ||
 				latestCompletionRef.current;
 
@@ -914,15 +868,11 @@ const ComparisonRunCell = ({
 				promptName: sample.promptName,
 				variables,
 			});
-			const compiledMessagesOverride = (compiledPrompt.compiledMessages ?? []).map(
-				(message) => ({
-					content:
-						typeof message.content === "string"
-							? message.content
-							: JSON.stringify(message.content),
-					role: message.role,
-				}),
-			);
+			const compiledMessagesOverride = (compiledPrompt.compiledMessages ?? []).map((message) => ({
+				content:
+					typeof message.content === "string" ? message.content : JSON.stringify(message.content),
+				role: message.role,
+			}));
 
 			payloadRef.current = {
 				compiledMessagesOverride,
@@ -939,22 +889,11 @@ const ComparisonRunCell = ({
 		} catch (error) {
 			runStartedAtRef.current = null;
 			publishResult({
-				error:
-					error instanceof Error
-						? error.message
-						: "Prompt konnte nicht kompiliert werden",
+				error: error instanceof Error ? error.message : "Prompt konnte nicht kompiliert werden",
 				status: "error",
 			});
 		}
-	}, [
-		model,
-		parameters,
-		publishResult,
-		sample,
-		sendMessage,
-		setMessages,
-		templateReference,
-	]);
+	}, [model, parameters, publishResult, sample, sendMessage, setMessages, templateReference]);
 
 	useEffect(() => {
 		const runTriggers = runTriggersRef.current;
@@ -964,11 +903,12 @@ const ComparisonRunCell = ({
 		};
 	}, [runId, runTriggersRef, startRun]);
 
-	const title = blindMode
-		? `Antwort ${displayIndex + 1}`
-		: side === "a"
-			? "Modell A"
-			: "Modell B";
+	let title = `Antwort ${displayIndex + 1}`;
+	if (blindMode) {
+		title = `Antwort ${displayIndex + 1}`;
+	} else {
+		title = side === "a" ? "Modell A" : "Modell B";
+	}
 	const modelLabel = getModelLabel(model);
 	const visibleStatus = shouldMaskUntilRowDone ? "running" : localResult.status;
 
@@ -994,9 +934,7 @@ const ComparisonRunCell = ({
 						{blindMode ? "Verblindet" : modelLabel}
 					</p>
 				</div>
-				{isSelected ? (
-					<CheckCircle2 className="h-4 w-4 shrink-0 text-solarized-green" />
-				) : null}
+				{isSelected ? <CheckCircle2 className="h-4 w-4 shrink-0 text-solarized-green" /> : null}
 			</div>
 
 			<div className="mt-3 min-h-0 flex-1 whitespace-pre-wrap text-sm text-solarized-base00 leading-relaxed">
@@ -1050,15 +988,439 @@ const ComparisonRunCell = ({
 	);
 };
 
+const ModelConfigCard = ({
+	disabled,
+	isLoading,
+	model,
+	modelId,
+	modelSelectorOptions,
+	onModelChange,
+	onParametersChange,
+	parameters,
+	side,
+}: {
+	disabled: boolean;
+	isLoading: boolean;
+	model: PlaygroundModel | null;
+	modelId: string | null;
+	modelSelectorOptions: PlaygroundModelSelectorOption[];
+	onModelChange: (value: string) => void;
+	onParametersChange: (parameters: PlaygroundParameters) => void;
+	parameters: PlaygroundParameters;
+	side: ComparisonSide;
+}) => (
+	<Card className="border-solarized-base2">
+		<CardHeader className="p-4">
+			<CardTitle className="text-base text-solarized-base00">
+				Modell {side === "a" ? "A" : "B"}
+			</CardTitle>
+			<CardDescription className="text-solarized-base01 text-sm">
+				{model?.modelId ?? "Noch kein Modell ausgewählt"}
+			</CardDescription>
+		</CardHeader>
+		<CardContent className="space-y-4 p-4 pt-0">
+			<div className="space-y-2">
+				<Label>KI-Modell</Label>
+				<ModelSelector
+					className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
+					emptyMessage="Keine Modelle gefunden."
+					formatGroupLabel={formatModelGroupLabel}
+					isLoading={isLoading}
+					loadingMessage="Lade Modelle..."
+					onValueChange={onModelChange}
+					options={modelSelectorOptions}
+					placeholder="Modell auswählen..."
+					popoverClassName="sm:w-[28rem]"
+					renderOption={renderModelSelectorOption}
+					renderSelected={renderSelectedModelOption}
+					searchPlaceholder="Modell oder Anbieter suchen..."
+					value={modelId}
+				/>
+			</div>
+			<Separator className="bg-solarized-base2" />
+			<ParameterControls
+				disabled={disabled}
+				model={model}
+				onChange={onParametersChange}
+				parameters={parameters}
+			/>
+		</CardContent>
+	</Card>
+);
+
+const ComparisonSampleRow = ({
+	blindMode,
+	displayOrder,
+	index,
+	modelA,
+	modelB,
+	onPreferenceChange,
+	onResultChange,
+	parametersA,
+	parametersB,
+	preferences,
+	results,
+	runTriggersRef,
+	sample,
+	showMetrics,
+	templateReferenceById,
+}: {
+	blindMode: boolean;
+	displayOrder: Record<string, ComparisonSide[]>;
+	index: number;
+	modelA: PlaygroundModel | null;
+	modelB: PlaygroundModel | null;
+	onPreferenceChange: (sampleId: string, side: ComparisonSide) => void;
+	onResultChange: (sampleId: string, side: ComparisonSide, result: ComparisonRunResult) => void;
+	parametersA: PlaygroundParameters;
+	parametersB: PlaygroundParameters;
+	preferences: Record<string, ComparisonSide>;
+	results: ComparisonResults;
+	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
+	sample: ComparisonSample;
+	showMetrics: boolean;
+	templateReferenceById: Map<string, string>;
+}) => {
+	const order = blindMode
+		? (displayOrder[sample.id] ?? ["a", "b"])
+		: (["a", "b"] as ComparisonSide[]);
+	const docUi = scribeDocTypeUi[sample.documentType];
+	const rowResults = results[sample.id];
+	const rowStatuses = [rowResults?.a?.status, rowResults?.b?.status];
+	const rowHasStarted = rowStatuses.some(
+		(status) => status === "running" || status === "success" || status === "error",
+	);
+	const rowIsDone = rowStatuses.every((status) => status === "success" || status === "error");
+	const runConfigBySide: Record<
+		ComparisonSide,
+		{
+			model: PlaygroundModel | null;
+			parameters: PlaygroundParameters;
+		}
+	> = {
+		a: { model: modelA, parameters: parametersA },
+		b: { model: modelB, parameters: parametersB },
+	};
+	const templateReference = sample.templateId
+		? templateReferenceById.get(sample.templateId)
+		: undefined;
+
+	return (
+		<div className="grid gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/20 p-3 xl:grid-cols-[minmax(15rem,0.7fr)_minmax(0,1fr)_minmax(0,1fr)]">
+			<div className="min-w-0 space-y-3">
+				<div className="flex items-center justify-between gap-2">
+					<Badge
+						variant="outline"
+						className="border-solarized-blue/30 bg-solarized-blue/10 text-solarized-blue"
+					>
+						#{index + 1}
+					</Badge>
+					<span className="text-solarized-base01 text-xs">{formatDate(sample.timestamp)}</span>
+				</div>
+				<div>
+					<p className="font-medium text-sm text-solarized-base00">
+						{docUi?.label ?? sample.documentType}
+					</p>
+					<p className="truncate font-mono text-solarized-base01 text-xs">{sample.promptName}</p>
+				</div>
+				<InputSectionsAccordion sections={sample.inputSections} />
+			</div>
+			{order.map((side, responseIndex) => (
+				<ComparisonRunCell
+					key={side}
+					blindMode={blindMode}
+					displayIndex={responseIndex}
+					isSelected={preferences[sample.id] === side}
+					model={runConfigBySide[side].model}
+					onPreferenceChange={onPreferenceChange}
+					onResultChange={onResultChange}
+					parameters={runConfigBySide[side].parameters}
+					runTriggersRef={runTriggersRef}
+					sample={sample}
+					shouldMaskUntilRowDone={rowHasStarted && !rowIsDone}
+					showMetrics={showMetrics}
+					side={side}
+					templateReference={templateReference}
+				/>
+			))}
+		</div>
+	);
+};
+
+const ComparisonRunsSection = ({
+	blindMode,
+	displayOrder,
+	isLoadingSamples,
+	modelA,
+	modelB,
+	onPreferenceChange,
+	onResultChange,
+	parametersA,
+	parametersB,
+	preferences,
+	results,
+	runTriggersRef,
+	samples,
+	selectedCount,
+	showMetrics,
+	templateReferenceById,
+}: {
+	blindMode: boolean;
+	displayOrder: Record<string, ComparisonSide[]>;
+	isLoadingSamples: boolean;
+	modelA: PlaygroundModel | null;
+	modelB: PlaygroundModel | null;
+	onPreferenceChange: (sampleId: string, side: ComparisonSide) => void;
+	onResultChange: (sampleId: string, side: ComparisonSide, result: ComparisonRunResult) => void;
+	parametersA: PlaygroundParameters;
+	parametersB: PlaygroundParameters;
+	preferences: Record<string, ComparisonSide>;
+	results: ComparisonResults;
+	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
+	samples: ComparisonSample[];
+	selectedCount: number;
+	showMetrics: boolean;
+	templateReferenceById: Map<string, string>;
+}) => (
+	<div className="space-y-3">
+		<div className="flex flex-wrap items-center justify-between gap-2">
+			<div className="flex items-center gap-2">
+				<BarChart3 className="h-4 w-4 text-solarized-base01" />
+				<h2 className="font-semibold text-lg text-solarized-base00">Vergleichsruns</h2>
+			</div>
+			<Badge variant="outline" className="border-solarized-base2 text-solarized-base01">
+				{selectedCount}/{samples.length} gewählt
+			</Badge>
+		</div>
+
+		{isLoadingSamples ? (
+			<div className="flex min-h-48 items-center justify-center rounded-lg border border-solarized-base2 bg-solarized-base3/40">
+				<Loader2 className="h-5 w-5 animate-spin text-solarized-base01" />
+			</div>
+		) : null}
+
+		{!isLoadingSamples && samples.length === 0 ? (
+			<div className="rounded-lg border border-solarized-base2 bg-solarized-base3/40 p-6 text-center text-sm text-solarized-base01">
+				Keine wiederverwendbaren scribe-kompatiblen Usage Events gefunden.
+			</div>
+		) : null}
+
+		{samples.map((sample, index) => (
+			<ComparisonSampleRow
+				key={sample.id}
+				blindMode={blindMode}
+				displayOrder={displayOrder}
+				index={index}
+				modelA={modelA}
+				modelB={modelB}
+				onPreferenceChange={onPreferenceChange}
+				onResultChange={onResultChange}
+				parametersA={parametersA}
+				parametersB={parametersB}
+				preferences={preferences}
+				results={results}
+				runTriggersRef={runTriggersRef}
+				sample={sample}
+				showMetrics={showMetrics}
+				templateReferenceById={templateReferenceById}
+			/>
+		))}
+	</div>
+);
+
+const ComparisonFooter = ({
+	canCompare,
+	onCompare,
+	sampleCount,
+	selectedCount,
+}: {
+	canCompare: boolean;
+	onCompare: () => void;
+	sampleCount: number;
+	selectedCount: number;
+}) => (
+	<div className="sticky bottom-0 z-10 -mx-4 border-solarized-base2 border-t bg-solarized-base3/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
+		<div className="mx-auto flex max-w-[96rem] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+			<div className="text-sm text-solarized-base01">
+				{canCompare
+					? "Alle Präferenzen erfasst"
+					: `${selectedCount}/${sampleCount} Präferenzen erfasst`}
+			</div>
+			<Button type="button" className="gap-2" onClick={onCompare} disabled={!canCompare}>
+				<Trophy className="h-4 w-4" />
+				Vergleichen
+			</Button>
+		</div>
+	</div>
+);
+
+const ComparisonSummaryCard = ({ summary }: { summary: ComparisonSummary | null }) => {
+	if (!summary) {
+		return null;
+	}
+
+	const summaryMaxWins = Math.max(...summary.sides.map((side) => side.wins));
+
+	return (
+		<Card className="border-solarized-green/30 bg-solarized-green/5">
+			<CardHeader className="p-4">
+				<CardTitle className="text-base text-solarized-base00">Ergebnis</CardTitle>
+				<CardDescription className="text-solarized-base01 text-sm">
+					{formatDate(summary.generatedAt)}
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="grid gap-4 p-4 pt-0 lg:grid-cols-2">
+				{summary.sides.map((sideSummary) => (
+					<div
+						key={sideSummary.side}
+						className="rounded-lg border border-solarized-base2 bg-solarized-base3/50 p-4"
+					>
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<p className="font-semibold text-solarized-base00">
+									Modell {sideSummary.side === "a" ? "A" : "B"} · {sideSummary.label}
+								</p>
+								<p className="truncate font-mono text-solarized-base01 text-xs">
+									{sideSummary.modelId}
+								</p>
+							</div>
+							<Badge
+								variant="outline"
+								className={cn(
+									"shrink-0 border px-2 py-1",
+									sideSummary.wins === summaryMaxWins
+										? "border-solarized-green/40 bg-solarized-green/15 text-solarized-green"
+										: "border-solarized-base2 bg-solarized-base2/40 text-solarized-base00",
+								)}
+							>
+								{sideSummary.wins === summaryMaxWins ? "Gewinner · " : ""}
+								{sideSummary.wins}/{summary.totalRows}
+							</Badge>
+						</div>
+						<div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+							<div>
+								<p className="text-solarized-base01">Ø Zeit</p>
+								<p className="font-medium text-solarized-base00">
+									{formatDuration(sideSummary.averageLatencyMs)}
+								</p>
+							</div>
+							<div>
+								<p className="text-solarized-base01">Ø Kosten</p>
+								<p className="font-medium text-solarized-base00">
+									{formatCost(sideSummary.averageCost)}
+								</p>
+							</div>
+							<div>
+								<p className="text-solarized-base01">Ø Tokens</p>
+								<p className="font-medium text-solarized-base00">
+									{formatTokens(sideSummary.averageTotalTokens)}
+								</p>
+							</div>
+							<div>
+								<p className="text-solarized-base01">Ø Output-Tempo</p>
+								<p className="font-medium text-solarized-base00">
+									{formatTokensPerSecond(sideSummary.averageTokensPerSecond)}
+								</p>
+							</div>
+							<div>
+								<p className="text-solarized-base01">Ø Input</p>
+								<p className="font-medium text-solarized-base00">
+									{formatTokens(sideSummary.averageInputTokens)}
+								</p>
+							</div>
+							<div>
+								<p className="text-solarized-base01">Ø Output</p>
+								<p className="font-medium text-solarized-base00">
+									{formatTokens(sideSummary.averageOutputTokens)}
+								</p>
+							</div>
+							<div>
+								<p className="text-solarized-base01">Ø Input-Tempo</p>
+								<p className="font-medium text-solarized-base00">
+									{formatTokensPerSecond(sideSummary.averageInputTokensPerSecond)}
+								</p>
+							</div>
+						</div>
+					</div>
+				))}
+			</CardContent>
+		</Card>
+	);
+};
+
+const ModelComparisonHeader = ({
+	blindMode,
+	canGenerate,
+	isGenerating,
+	isLoadingReplayContext,
+	isRefreshingSamples,
+	onBlindModeChange,
+	onGenerateAll,
+	onRefreshSamples,
+	sampleCount,
+}: {
+	blindMode: boolean;
+	canGenerate: boolean;
+	isGenerating: boolean;
+	isLoadingReplayContext: boolean;
+	isRefreshingSamples: boolean;
+	onBlindModeChange: (checked: boolean) => void;
+	onGenerateAll: () => void;
+	onRefreshSamples: () => void;
+	sampleCount: number;
+}) => (
+	<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+		<div>
+			<h1 className="font-semibold text-2xl text-solarized-base00">AI-Modell-Vergleich</h1>
+			<p className="text-sm text-solarized-base01">{sampleCount} zufällige Usage Events</p>
+		</div>
+		<div className="flex flex-wrap items-center gap-2">
+			<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-3 py-2">
+				<EyeOff className="h-4 w-4 text-solarized-base01" />
+				<Label htmlFor="blind-mode" className="text-sm">
+					Blind
+				</Label>
+				<Switch
+					id="blind-mode"
+					checked={blindMode}
+					onCheckedChange={onBlindModeChange}
+					disabled={isGenerating}
+				/>
+			</div>
+			<Button
+				type="button"
+				variant="outline"
+				className="gap-2"
+				onClick={onRefreshSamples}
+				disabled={isRefreshingSamples || isGenerating}
+			>
+				<RefreshCcw className={cn("h-4 w-4", isRefreshingSamples && "animate-spin")} />
+				Neue Stichprobe
+			</Button>
+			<Button
+				type="button"
+				className="gap-2"
+				onClick={onGenerateAll}
+				disabled={!canGenerate || isGenerating || isLoadingReplayContext}
+			>
+				{isGenerating || isLoadingReplayContext ? (
+					<Loader2 className="h-4 w-4 animate-spin" />
+				) : (
+					<Play className="h-4 w-4" />
+				)}
+				{isLoadingReplayContext ? "Lade Kontext..." : "Generieren"}
+			</Button>
+		</div>
+	</div>
+);
+
 export const ModelComparisonPageClient = () => {
 	const queryClient = useQueryClient();
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
 	const [modelAId, setModelAId] = useState<string | null>(null);
 	const [modelBId, setModelBId] = useState<string | null>(null);
-	const [parametersA, setParametersA] =
-		useState<PlaygroundParameters>(DEFAULT_PARAMETERS);
-	const [parametersB, setParametersB] =
-		useState<PlaygroundParameters>(DEFAULT_PARAMETERS);
+	const [parametersA, setParametersA] = useState<PlaygroundParameters>(DEFAULT_PARAMETERS);
+	const [parametersB, setParametersB] = useState<PlaygroundParameters>(DEFAULT_PARAMETERS);
 	const [blindMode, setBlindMode] = useState(true);
 	const [displayOrder, setDisplayOrder] = useState<Record<string, ComparisonSide[]>>({});
 	const [isGenerating, setIsGenerating] = useState(false);
@@ -1105,14 +1467,13 @@ export const ModelComparisonPageClient = () => {
 		[usageDetailQueries.data],
 	);
 	const templateIds = useMemo(
-		() =>
-			Array.from(
-				new Set(
-					samples
-						.map((sample) => sample.templateId)
-						.filter((templateId): templateId is string => Boolean(templateId)),
-				),
+		() => [
+			...new Set(
+				samples
+					.map((sample) => sample.templateId)
+					.filter((templateId): templateId is string => typeof templateId === "string"),
 			),
+		],
 		[samples],
 	);
 	const templateDetailQueries = useQueries({
@@ -1148,8 +1509,8 @@ export const ModelComparisonPageClient = () => {
 		() => new Map(models.map((model) => [model.id, model] as const)),
 		[models],
 	);
-	const modelA = modelAId ? modelById.get(modelAId) ?? null : null;
-	const modelB = modelBId ? modelById.get(modelBId) ?? null : null;
+	const modelA = modelAId ? (modelById.get(modelAId) ?? null) : null;
+	const modelB = modelBId ? (modelById.get(modelBId) ?? null) : null;
 
 	useEffect(() => {
 		if (models.length === 0) {
@@ -1218,12 +1579,7 @@ export const ModelComparisonPageClient = () => {
 		const refreshed = await usageListQuery.refetch();
 		const ids = refreshed.data?.items.map((item) => item.id) ?? [];
 		setSampledIds(shuffleArray(ids).slice(0, SAMPLE_FETCH_LIMIT));
-	}, [
-		clearComparisonState,
-		queryClient,
-		usageListQuery,
-		usageListQueryOptions.queryKey,
-	]);
+	}, [clearComparisonState, queryClient, usageListQuery, usageListQueryOptions.queryKey]);
 
 	const handleBlindModeChange = useCallback((checked: boolean) => {
 		setBlindMode(checked);
@@ -1253,34 +1609,25 @@ export const ModelComparisonPageClient = () => {
 			runTriggersRef.current.get(`${sample.id}-b`),
 		]);
 
-		await Promise.allSettled(
-			triggers.map((trigger) => (trigger ? trigger() : Promise.resolve())),
-		);
+		await Promise.allSettled(triggers.map((trigger) => (trigger ? trigger() : Promise.resolve())));
 		setIsGenerating(false);
 	}, [blindMode, isLoadingReplayContext, modelA, modelB, samples]);
 
-	const handlePreferenceChange = useCallback(
-		(sampleId: string, side: ComparisonSide) => {
-			setPreferences((current) => ({
-				...current,
-				[sampleId]: side,
-			}));
-			setSummary(null);
-		},
-		[],
-	);
+	const handlePreferenceChange = useCallback((sampleId: string, side: ComparisonSide) => {
+		setPreferences((current) => ({
+			...current,
+			[sampleId]: side,
+		}));
+		setSummary(null);
+	}, []);
 
 	const allSamplesHaveRuns = samples.every(
 		(sample) =>
-			results[sample.id]?.a?.status === "success" &&
-			results[sample.id]?.b?.status === "success",
+			results[sample.id]?.a?.status === "success" && results[sample.id]?.b?.status === "success",
 	);
 	const selectedCount = samples.filter((sample) => preferences[sample.id]).length;
 	const canCompare =
-		samples.length > 0 &&
-		allSamplesHaveRuns &&
-		selectedCount === samples.length &&
-		!isGenerating;
+		samples.length > 0 && allSamplesHaveRuns && selectedCount === samples.length && !isGenerating;
 
 	const handleCompare = useCallback(() => {
 		if (!canCompare) {
@@ -1297,345 +1644,77 @@ export const ModelComparisonPageClient = () => {
 		);
 	}, [canCompare, modelA, modelB, preferences, results, samples]);
 
-	const renderModelConfig = (
-		side: ComparisonSide,
-		model: PlaygroundModel | null,
-		modelId: string | null,
-		onModelChange: (value: string) => void,
-		parameters: PlaygroundParameters,
-		onParametersChange: (parameters: PlaygroundParameters) => void,
-	) => (
-		<Card className="border-solarized-base2">
-			<CardHeader className="p-4">
-				<CardTitle className="text-base text-solarized-base00">
-					Modell {side === "a" ? "A" : "B"}
-				</CardTitle>
-				<CardDescription className="text-solarized-base01 text-sm">
-					{model?.modelId ?? "Noch kein Modell ausgewählt"}
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="space-y-4 p-4 pt-0">
-				<div className="space-y-2">
-					<Label>KI-Modell</Label>
-					<ModelSelector
-						options={modelSelectorOptions}
-						value={modelId}
-						isLoading={modelsQuery.isLoading}
-						searchPlaceholder="Modell oder Anbieter suchen..."
-						placeholder="Modell auswählen..."
-						loadingMessage="Lade Modelle..."
-						emptyMessage="Keine Modelle gefunden."
-						formatGroupLabel={formatModelGroupLabel}
-						className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
-						popoverClassName="sm:w-[28rem]"
-						renderSelected={renderSelectedModelOption}
-						renderOption={renderModelSelectorOption}
-						onValueChange={onModelChange}
-					/>
-				</div>
-				<Separator className="bg-solarized-base2" />
-				<ParameterControls
-					parameters={parameters}
-					onChange={onParametersChange}
-					model={model}
-					disabled={isGenerating}
-				/>
-			</CardContent>
-		</Card>
-	);
-
 	const isLoadingSamples =
 		usageListQuery.isLoading || usageDetailQueries.isLoading || usageDetailQueries.isFetching;
-	const summaryMaxWins = summary
-		? Math.max(...summary.sides.map((side) => side.wins))
-		: 0;
+	const canGenerateAll = Boolean(modelA && modelB && samples.length > 0);
 
 	return (
 		<div className="p-4 sm:p-6">
 			<div className="mx-auto max-w-[96rem] space-y-6">
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-					<div>
-						<h1 className="font-semibold text-2xl text-solarized-base00">
-							AI-Modell-Vergleich
-						</h1>
-						<p className="text-sm text-solarized-base01">
-							{samples.length} zufällige Usage Events
-						</p>
-					</div>
-					<div className="flex flex-wrap items-center gap-2">
-						<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-3 py-2">
-							<EyeOff className="h-4 w-4 text-solarized-base01" />
-							<Label htmlFor="blind-mode" className="text-sm">
-								Blind
-							</Label>
-							<Switch
-								id="blind-mode"
-								checked={blindMode}
-								onCheckedChange={handleBlindModeChange}
-								disabled={isGenerating}
-							/>
-						</div>
-						<Button
-							type="button"
-							variant="outline"
-							className="gap-2"
-							onClick={handleRefreshSamples}
-							disabled={usageListQuery.isFetching || isGenerating}
-						>
-							<RefreshCcw
-								className={cn(
-									"h-4 w-4",
-									usageListQuery.isFetching && "animate-spin",
-								)}
-							/>
-							Neue Stichprobe
-						</Button>
-						<Button
-							type="button"
-							className="gap-2"
-							onClick={handleGenerateAll}
-							disabled={
-								!modelA ||
-								!modelB ||
-								samples.length === 0 ||
-								isGenerating ||
-								isLoadingReplayContext
-							}
-						>
-							{isGenerating || isLoadingReplayContext ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : (
-								<Play className="h-4 w-4" />
-							)}
-							{isLoadingReplayContext ? "Lade Kontext..." : "Generieren"}
-						</Button>
-					</div>
-				</div>
+				<ModelComparisonHeader
+					blindMode={blindMode}
+					canGenerate={canGenerateAll}
+					isGenerating={isGenerating}
+					isLoadingReplayContext={isLoadingReplayContext}
+					isRefreshingSamples={usageListQuery.isFetching}
+					onBlindModeChange={handleBlindModeChange}
+					onGenerateAll={handleGenerateAll}
+					onRefreshSamples={handleRefreshSamples}
+					sampleCount={samples.length}
+				/>
 
 				<div className="grid gap-4 lg:grid-cols-2">
-					{renderModelConfig(
-						"a",
-						modelA,
-						modelAId,
-						setModelAId,
-						parametersA,
-						setParametersA,
-					)}
-					{renderModelConfig(
-						"b",
-						modelB,
-						modelBId,
-						setModelBId,
-						parametersB,
-						setParametersB,
-					)}
+					<ModelConfigCard
+						disabled={isGenerating}
+						isLoading={modelsQuery.isLoading}
+						model={modelA}
+						modelId={modelAId}
+						modelSelectorOptions={modelSelectorOptions}
+						onModelChange={setModelAId}
+						onParametersChange={setParametersA}
+						parameters={parametersA}
+						side="a"
+					/>
+					<ModelConfigCard
+						disabled={isGenerating}
+						isLoading={modelsQuery.isLoading}
+						model={modelB}
+						modelId={modelBId}
+						modelSelectorOptions={modelSelectorOptions}
+						onModelChange={setModelBId}
+						onParametersChange={setParametersB}
+						parameters={parametersB}
+						side="b"
+					/>
 				</div>
 
-				<div className="space-y-3">
-					<div className="flex flex-wrap items-center justify-between gap-2">
-						<div className="flex items-center gap-2">
-							<BarChart3 className="h-4 w-4 text-solarized-base01" />
-							<h2 className="font-semibold text-lg text-solarized-base00">
-								Vergleichsruns
-							</h2>
-						</div>
-						<Badge
-							variant="outline"
-							className="border-solarized-base2 text-solarized-base01"
-						>
-							{selectedCount}/{samples.length} gewählt
-						</Badge>
-					</div>
+				<ComparisonRunsSection
+					blindMode={blindMode}
+					displayOrder={displayOrder}
+					isLoadingSamples={isLoadingSamples}
+					modelA={modelA}
+					modelB={modelB}
+					onPreferenceChange={handlePreferenceChange}
+					onResultChange={setRunResult}
+					parametersA={parametersA}
+					parametersB={parametersB}
+					preferences={preferences}
+					results={results}
+					runTriggersRef={runTriggersRef}
+					samples={samples}
+					selectedCount={selectedCount}
+					showMetrics={Boolean(summary)}
+					templateReferenceById={templateReferenceById}
+				/>
 
-					{isLoadingSamples ? (
-						<div className="flex min-h-48 items-center justify-center rounded-lg border border-solarized-base2 bg-solarized-base3/40">
-							<Loader2 className="h-5 w-5 animate-spin text-solarized-base01" />
-						</div>
-					) : null}
+				<ComparisonFooter
+					canCompare={canCompare}
+					onCompare={handleCompare}
+					sampleCount={samples.length}
+					selectedCount={selectedCount}
+				/>
 
-					{!isLoadingSamples && samples.length === 0 ? (
-						<div className="rounded-lg border border-solarized-base2 bg-solarized-base3/40 p-6 text-center text-sm text-solarized-base01">
-							Keine wiederverwendbaren scribe-kompatiblen Usage Events gefunden.
-						</div>
-					) : null}
-
-					{samples.map((sample, index) => {
-						const order = blindMode
-							? displayOrder[sample.id] ?? ["a", "b"]
-							: (["a", "b"] as ComparisonSide[]);
-						const docUi = scribeDocTypeUi[sample.documentType];
-						const rowResults = results[sample.id];
-						const rowStatuses = [rowResults?.a?.status, rowResults?.b?.status];
-						const rowHasStarted = rowStatuses.some(
-							(status) => status === "running" || status === "success" || status === "error",
-						);
-						const rowIsDone = rowStatuses.every(
-							(status) => status === "success" || status === "error",
-						);
-						const shouldMaskRow = rowHasStarted && !rowIsDone;
-						const templateReference = sample.templateId
-							? templateReferenceById.get(sample.templateId)
-							: undefined;
-
-						return (
-							<div
-								key={sample.id}
-								className="grid gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/20 p-3 xl:grid-cols-[minmax(15rem,0.7fr)_minmax(0,1fr)_minmax(0,1fr)]"
-							>
-								<div className="min-w-0 space-y-3">
-									<div className="flex items-center justify-between gap-2">
-										<Badge
-											variant="outline"
-											className="border-solarized-blue/30 bg-solarized-blue/10 text-solarized-blue"
-										>
-											#{index + 1}
-										</Badge>
-										<span className="text-solarized-base01 text-xs">
-											{formatDate(sample.timestamp)}
-										</span>
-									</div>
-									<div>
-										<p className="font-medium text-sm text-solarized-base00">
-											{docUi?.label ?? sample.documentType}
-										</p>
-										<p className="truncate font-mono text-solarized-base01 text-xs">
-											{sample.promptName}
-										</p>
-									</div>
-									<InputSectionsAccordion sections={sample.inputSections} />
-								</div>
-								{order.map((side, responseIndex) => (
-									<ComparisonRunCell
-										key={side}
-										blindMode={blindMode}
-										displayIndex={responseIndex}
-										isSelected={preferences[sample.id] === side}
-										model={side === "a" ? modelA : modelB}
-										onPreferenceChange={handlePreferenceChange}
-										onResultChange={setRunResult}
-										parameters={side === "a" ? parametersA : parametersB}
-										runTriggersRef={runTriggersRef}
-										sample={sample}
-										shouldMaskUntilRowDone={shouldMaskRow}
-										showMetrics={Boolean(summary)}
-										side={side}
-										templateReference={templateReference}
-									/>
-								))}
-							</div>
-						);
-					})}
-				</div>
-
-				<div className="sticky bottom-0 z-10 -mx-4 border-solarized-base2 border-t bg-solarized-base3/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
-					<div className="mx-auto flex max-w-[96rem] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-						<div className="text-sm text-solarized-base01">
-							{canCompare
-								? "Alle Präferenzen erfasst"
-								: `${selectedCount}/${samples.length} Präferenzen erfasst`}
-						</div>
-						<Button
-							type="button"
-							className="gap-2"
-							onClick={handleCompare}
-							disabled={!canCompare}
-						>
-							<Trophy className="h-4 w-4" />
-							Vergleichen
-						</Button>
-					</div>
-				</div>
-
-				{summary ? (
-					<Card className="border-solarized-green/30 bg-solarized-green/5">
-						<CardHeader className="p-4">
-							<CardTitle className="text-base text-solarized-base00">
-								Ergebnis
-							</CardTitle>
-							<CardDescription className="text-solarized-base01 text-sm">
-								{formatDate(summary.generatedAt)}
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="grid gap-4 p-4 pt-0 lg:grid-cols-2">
-							{summary.sides.map((sideSummary) => (
-								<div
-									key={sideSummary.side}
-									className="rounded-lg border border-solarized-base2 bg-solarized-base3/50 p-4"
-								>
-									<div className="flex items-start justify-between gap-3">
-										<div className="min-w-0">
-											<p className="font-semibold text-solarized-base00">
-												Modell {sideSummary.side === "a" ? "A" : "B"} ·{" "}
-												{sideSummary.label}
-											</p>
-											<p className="truncate font-mono text-solarized-base01 text-xs">
-												{sideSummary.modelId}
-											</p>
-										</div>
-										<Badge
-											variant="outline"
-											className={cn(
-												"shrink-0 border px-2 py-1",
-												sideSummary.wins === summaryMaxWins
-													? "border-solarized-green/40 bg-solarized-green/15 text-solarized-green"
-													: "border-solarized-base2 bg-solarized-base2/40 text-solarized-base00",
-											)}
-										>
-											{sideSummary.wins === summaryMaxWins ? "Gewinner · " : ""}
-											{sideSummary.wins}/{summary.totalRows}
-										</Badge>
-									</div>
-									<div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-										<div>
-											<p className="text-solarized-base01">Ø Zeit</p>
-											<p className="font-medium text-solarized-base00">
-												{formatDuration(sideSummary.averageLatencyMs)}
-											</p>
-										</div>
-										<div>
-											<p className="text-solarized-base01">Ø Kosten</p>
-											<p className="font-medium text-solarized-base00">
-												{formatCost(sideSummary.averageCost)}
-											</p>
-										</div>
-										<div>
-											<p className="text-solarized-base01">Ø Tokens</p>
-											<p className="font-medium text-solarized-base00">
-												{formatTokens(sideSummary.averageTotalTokens)}
-											</p>
-										</div>
-										<div>
-											<p className="text-solarized-base01">Ø Output-Tempo</p>
-											<p className="font-medium text-solarized-base00">
-												{formatTokensPerSecond(sideSummary.averageTokensPerSecond)}
-											</p>
-										</div>
-										<div>
-											<p className="text-solarized-base01">Ø Input</p>
-											<p className="font-medium text-solarized-base00">
-												{formatTokens(sideSummary.averageInputTokens)}
-											</p>
-										</div>
-										<div>
-											<p className="text-solarized-base01">Ø Output</p>
-											<p className="font-medium text-solarized-base00">
-												{formatTokens(sideSummary.averageOutputTokens)}
-											</p>
-										</div>
-										<div>
-											<p className="text-solarized-base01">Ø Input-Tempo</p>
-											<p className="font-medium text-solarized-base00">
-												{formatTokensPerSecond(
-													sideSummary.averageInputTokensPerSecond,
-												)}
-											</p>
-										</div>
-									</div>
-								</div>
-							))}
-						</CardContent>
-					</Card>
-				) : null}
+				<ComparisonSummaryCard summary={summary} />
 			</div>
 		</div>
 	);

@@ -17,12 +17,7 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Play, Plus, Trash2 } from "lucide-react";
@@ -349,7 +344,7 @@ const parseRunMetricsFromMetadata = (metadata: unknown): Partial<RunState["metri
 };
 
 const getAssistantTextFromMessages = (
-	messages: Array<{ role: string; parts?: Array<{ type: string; text?: string }> }>,
+	messages: { role: string; parts?: { type: string; text?: string }[] }[],
 ): string =>
 	messages
 		.findLast((message) => message.role === "assistant")
@@ -389,7 +384,7 @@ const getTextFromUiMessage = (message: unknown): string => {
 
 	const candidate = message as {
 		content?: unknown;
-		parts?: Array<{ type?: string; text?: unknown }>;
+		parts?: { type?: string; text?: unknown }[];
 	};
 
 	const partsText = getTextFromUnknownParts(candidate.parts);
@@ -874,14 +869,20 @@ export const PlaygroundPanel = ({
 	const [compiledMessages, setCompiledMessages] = useState<
 		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
-	const [compiledOverride, setCompiledOverride] = useState<Array<{
-		role: "system" | "user" | "assistant";
-		content: string;
-	}> | null>(null);
-	const [promptComparisonMessages, setPromptComparisonMessages] = useState<Array<{
-		role: "system" | "user" | "assistant";
-		content: string;
-	}> | null>(null);
+	const [compiledOverride, setCompiledOverride] = useState<
+		| {
+				role: "system" | "user" | "assistant";
+				content: string;
+		  }[]
+		| null
+	>(null);
+	const [promptComparisonMessages, setPromptComparisonMessages] = useState<
+		| {
+				role: "system" | "user" | "assistant";
+				content: string;
+		  }[]
+		| null
+	>(null);
 	const [promptRuntimeVariables, setPromptRuntimeVariables] = useState<Record<string, unknown>>({});
 	const compileRequestRef = useRef(0);
 	const loadedPromptHarnessNameRef = useRef<string | null>(null);
@@ -981,9 +982,7 @@ export const PlaygroundPanel = ({
 		}
 
 		setTemplateDraftContent(selectedTemplateDetails.content);
-		setTemplateDraftExamples(
-			selectedTemplateDetails.examples ?? [],
-		);
+		setTemplateDraftExamples(selectedTemplateDetails.examples ?? []);
 		loadedTemplateIdRef.current = currentTemplateId;
 	}, [selectedTemplateDetails?.id, selectedTemplateDetails]);
 
@@ -1098,8 +1097,7 @@ export const PlaygroundPanel = ({
 				frequencyPenalty: presetParameters?.frequencyPenalty ?? DEFAULT_PARAMETERS.frequencyPenalty,
 				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
 				presencePenalty: presetParameters?.presencePenalty ?? DEFAULT_PARAMETERS.presencePenalty,
-				reasoningEffort:
-					presetParameters?.reasoningEffort ?? DEFAULT_PARAMETERS.reasoningEffort,
+				reasoningEffort: presetParameters?.reasoningEffort ?? DEFAULT_PARAMETERS.reasoningEffort,
 				temperature: presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
 				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
 				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
@@ -1843,24 +1841,20 @@ export const PlaygroundPanel = ({
 			<Card className="w-full shrink-0 border-solarized-base2 lg:min-h-0 lg:w-60">
 				<CardContent className="p-2">
 					<TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 lg:grid-cols-1">
-						{navigationItems.map((item) => {
-							return (
-								<TabsTrigger
-									key={item.view}
-									value={item.view}
-									className="group h-auto w-full flex-col items-start justify-start gap-1 rounded-lg border border-transparent bg-transparent px-3 py-3 text-left text-solarized-base01 shadow-none hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00 data-[state=active]:border-solarized-blue/40 data-[state=active]:bg-solarized-blue/10 data-[state=active]:text-solarized-blue data-[state=active]:shadow-none data-[state=active]:hover:bg-solarized-blue/10 data-[state=active]:hover:text-solarized-blue"
-								>
-									<span className="font-medium text-sm text-solarized-base01 group-data-[state=active]:text-solarized-blue">
-										{PLAYGROUND_VIEW_META[item.view].label}
-									</span>
-									<span
-										className="line-clamp-2 text-xs text-solarized-base01 group-data-[state=active]:text-solarized-blue/80"
-									>
-										{item.summary}
-									</span>
-								</TabsTrigger>
-							);
-						})}
+						{navigationItems.map((item) => (
+							<TabsTrigger
+								key={item.view}
+								value={item.view}
+								className="group h-auto w-full flex-col items-start justify-start gap-1 rounded-lg border border-transparent bg-transparent px-3 py-3 text-left text-solarized-base01 shadow-none hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00 data-[state=active]:border-solarized-blue/40 data-[state=active]:bg-solarized-blue/10 data-[state=active]:text-solarized-blue data-[state=active]:shadow-none data-[state=active]:hover:bg-solarized-blue/10 data-[state=active]:hover:text-solarized-blue"
+							>
+								<span className="font-medium text-sm text-solarized-base01 group-data-[state=active]:text-solarized-blue">
+									{PLAYGROUND_VIEW_META[item.view].label}
+								</span>
+								<span className="line-clamp-2 text-xs text-solarized-base01 group-data-[state=active]:text-solarized-blue/80">
+									{item.summary}
+								</span>
+							</TabsTrigger>
+						))}
 					</TabsList>
 				</CardContent>
 			</Card>
@@ -1940,12 +1934,12 @@ const RunCard = ({
 				isStreaming: false,
 			});
 		},
-		onFinish: async ({ message, messages: finishedMessages }) => {
+		onFinish: ({ message, messages: finishedMessages }) => {
 			const startedAt = runStartedAtRef.current;
-			const latencyMs = startedAt !== null ? Math.max(0, Date.now() - startedAt) : 0;
+			const latencyMs = startedAt === null ? 0 : Math.max(0, Date.now() - startedAt);
 			runStartedAtRef.current = null;
 
-			const metadata = (message as { metadata?: unknown }).metadata;
+			const { metadata } = message as { metadata?: unknown };
 			const inMemoryMetrics = parseRunMetricsFromMetadata(metadata);
 
 			setRunState(runId, {
@@ -1959,10 +1953,10 @@ const RunCard = ({
 			const responseText =
 				getTextFromUiMessage(message) ||
 				getAssistantTextFromMessages(
-					finishedMessages as Array<{
+					finishedMessages as {
 						role: string;
-						parts?: Array<{ type: string; text?: string }>;
-					}>,
+						parts?: { type: string; text?: string }[];
+					}[],
 				) ||
 				latestCompletionRef.current;
 
@@ -2116,13 +2110,13 @@ const RunCard = ({
 		};
 
 		setRunState(runId, {
+			error: undefined,
 			evaluation: {
 				categories: [],
 				isLoading: false,
 				summary: undefined,
 				totalScore: undefined,
 			},
-			error: undefined,
 			isStreaming: true,
 			metrics: { latencyMs: 0 },
 			requestId,

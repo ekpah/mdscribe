@@ -15,12 +15,12 @@ interface FillInputsPromptInput {
 const toPromptJson = (input: FillInputsPromptInput) =>
 	JSON.stringify(
 		{
+			audioTranscripts: input.audioTranscripts || null,
 			contextFiles: (input.contextFiles ?? []).map((file) => ({
 				mimeType: file.mimeType,
 				name: file.name,
 				size: file.size,
 			})),
-			audioTranscripts: input.audioTranscripts || null,
 			fileTextContext: input.fileTextContext || null,
 			textContext: input.textContext ?? null,
 		},

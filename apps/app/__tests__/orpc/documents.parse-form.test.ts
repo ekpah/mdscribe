@@ -33,26 +33,26 @@ describe("documents.parseForm", () => {
 		const result = (await call(
 			documentsHandler.parseForm,
 			{
-				fileBase64: Buffer.from(pdfBytes).toString("base64"),
 				fieldMapping: [],
+				fileBase64: Buffer.from(pdfBytes).toString("base64"),
 			},
 			{
 				context: createTestContext({ db: server.db, session }),
 			},
 		)) as {
-			fieldMapping: Array<{
+			fieldMapping: {
 				description: string;
 				fieldName: string;
 				label: string;
-			}>;
+			}[];
 		};
 
 		expect(result.fieldMapping).toBeArray();
 		expect(result.fieldMapping.length).toBeGreaterThan(0);
 		expect(result.fieldMapping[0]).toMatchObject({
+			description: expect.any(String),
 			fieldName: expect.any(String),
 			label: expect.any(String),
-			description: expect.any(String),
 		});
 	});
 });

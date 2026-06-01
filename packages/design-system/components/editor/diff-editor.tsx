@@ -1,14 +1,14 @@
 "use client";
 
+import { Button } from "@repo/design-system/components/ui/button";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { diffLines, diffWords } from "diff";
 import { Check, RotateCcw } from "lucide-react";
 import type { ChangeEvent, CSSProperties } from "react";
 import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { Button } from "@repo/design-system/components/ui/button";
-import { Textarea } from "@repo/design-system/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 
 interface DiffEditorProps {
 	value: string;
@@ -40,6 +40,16 @@ interface DiffPart {
 	added?: boolean;
 	removed?: boolean;
 }
+
+const getDiffPartKind = (part: DiffPart): "added" | "removed" | "unchanged" => {
+	if (part.added) {
+		return "added";
+	}
+	if (part.removed) {
+		return "removed";
+	}
+	return "unchanged";
+};
 
 export const MarkdownDiffEditor = ({
 	value,
@@ -83,18 +93,12 @@ export const MarkdownDiffEditor = ({
 
 	// Compute diff based on diffMode
 	const diffParts = useMemo((): DiffPart[] => {
-		if (
-			!isInDiffMode ||
-			suggestedValue === null ||
-			suggestedValue === undefined
-		) {
+		if (!isInDiffMode || suggestedValue === null || suggestedValue === undefined) {
 			return [];
 		}
 
 		const parts =
-			diffMode === "line"
-				? diffLines(value, suggestedValue)
-				: diffWords(value, suggestedValue);
+			diffMode === "line" ? diffLines(value, suggestedValue) : diffWords(value, suggestedValue);
 		const textsAreDifferent = value !== suggestedValue;
 
 		// If texts differ but jsdiff returns no changes (edge case),
@@ -117,19 +121,13 @@ export const MarkdownDiffEditor = ({
 
 	// Check if there are any changes
 	const hasChanges = useMemo(
-		() =>
-			value !== suggestedValue ||
-			diffParts.some((part) => part.added || part.removed),
+		() => value !== suggestedValue || diffParts.some((part) => part.added || part.removed),
 		[diffParts, value, suggestedValue],
 	);
 
 	// Accept the suggestion
 	const handleAccept = useCallback(() => {
-		if (
-			isStreaming ||
-			suggestedValue === null ||
-			suggestedValue === undefined
-		) {
+		if (isStreaming || suggestedValue === null || suggestedValue === undefined) {
 			return;
 		}
 		onChange(suggestedValue);
@@ -138,7 +136,9 @@ export const MarkdownDiffEditor = ({
 
 	// Reject the suggestion
 	const handleReject = useCallback(() => {
-		if (isStreaming) {return;}
+		if (isStreaming) {
+			return;
+		}
 		onSuggestionRejected?.();
 	}, [isStreaming, onSuggestionRejected]);
 
@@ -240,21 +240,21 @@ export const MarkdownDiffEditor = ({
 							diffMode === "line" ? "whitespace-pre" : "whitespace-pre-wrap",
 						)}
 					>
-							{diffParts.map((part) => {
-								const partKey = `${part.added ? "added" : part.removed ? "removed" : "unchanged"}:${part.value}`;
-								// Added - green background
-								if (part.added) {
-									return (
+						{diffParts.map((part) => {
+							const partKey = `${getDiffPartKind(part)}:${part.value}`;
+							// Added - green background
+							if (part.added) {
+								return (
 									<span
 										className={cn(
 											"bg-solarized-green/20 text-solarized-green",
 											diffMode === "word" && "rounded-sm",
 											diffMode === "line" && "block",
 										)}
-											key={partKey}
-										>
-											{part.value}
-										</span>
+										key={partKey}
+									>
+										{part.value}
+									</span>
 								);
 							}
 
@@ -267,16 +267,16 @@ export const MarkdownDiffEditor = ({
 											diffMode === "word" && "rounded-sm",
 											diffMode === "line" && "block",
 										)}
-											key={partKey}
-										>
-											{part.value}
-										</span>
-									);
-								}
+										key={partKey}
+									>
+										{part.value}
+									</span>
+								);
+							}
 
-								// Unchanged - no styling (neutral)
-								return <span key={partKey}>{part.value}</span>;
-							})}
+							// Unchanged - no styling (neutral)
+							return <span key={partKey}>{part.value}</span>;
+						})}
 					</div>
 
 					{/* Bottom row with legend and action buttons */}
@@ -336,11 +336,7 @@ export const MarkdownDiffEditor = ({
 	return (
 		<div
 			ref={hotkeyRef}
-			className={cn(
-				"relative w-full",
-				disabled && "cursor-not-allowed opacity-50",
-				className,
-			)}
+			className={cn("relative w-full", disabled && "cursor-not-allowed opacity-50", className)}
 			style={editorStyle}
 		>
 			<Textarea
@@ -357,12 +353,10 @@ export const MarkdownDiffEditor = ({
 				value={value}
 			/>
 			{/* Action slot (e.g., enhance button) - positioned top-right */}
-			{actionSlot && (
-				<div className="absolute top-2 right-2 z-10">{actionSlot}</div>
-			)}
+			{actionSlot && <div className="absolute top-2 right-2 z-10">{actionSlot}</div>}
 		</div>
 	);
 };
 
 /** @deprecated Use MarkdownDiffEditor - renamed for backwards compatibility */
-const DiffEditor = MarkdownDiffEditor;
+export const DiffEditor = MarkdownDiffEditor;

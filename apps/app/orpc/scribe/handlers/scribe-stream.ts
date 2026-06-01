@@ -30,10 +30,7 @@ import {
 	composePromptHarnessPrompt,
 	documentTypeConfigs,
 } from "@/orpc/scribe/prompts";
-import {
-	buildProviderOptions,
-	resolveGenerationStrategy,
-} from "@/orpc/scribe/providers";
+import { buildProviderOptions, resolveGenerationStrategy } from "@/orpc/scribe/providers";
 import type {
 	AudioFile,
 	DocumentType,
@@ -43,7 +40,7 @@ import type {
 } from "@/orpc/scribe/types";
 
 export const DEFAULT_SCRIBE_MODEL_CONFIG: ModelConfig = {
-	maxTokens: 8_000,
+	maxTokens: 8000,
 	temperature: 0.3,
 };
 
@@ -161,16 +158,11 @@ const validateAudioFiles = (audioFiles: AudioFile[]) => {
 	let totalBytes = 0;
 	for (const [index, audioFile] of audioFiles.entries()) {
 		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
-		const wavFallbackBytes = getBase64DecodedByteLength(
-			audioFile.wavFallback?.data,
-		);
+		const wavFallbackBytes = getBase64DecodedByteLength(audioFile.wavFallback?.data);
 		const recordingBytes = payloadBytes + wavFallbackBytes;
 		totalBytes += recordingBytes;
 
-		if (
-			recordingBytes >
-			FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording
-		) {
+		if (recordingBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Audioaufnahme ${index + 1} ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
 			});
@@ -212,17 +204,12 @@ interface CustomFormScribeStreamInput {
 	source: "customForm";
 }
 
-const appendTextToLastUserMessage = (
-	messages: ModelMessage[],
-	text: string,
-): ModelMessage[] => {
+const appendTextToLastUserMessage = (messages: ModelMessage[], text: string): ModelMessage[] => {
 	if (!text) {
 		return messages;
 	}
 
-	const lastUserIndex = messages.findLastIndex(
-		(message) => message.role === "user",
-	);
+	const lastUserIndex = messages.findLastIndex((message) => message.role === "user");
 	if (lastUserIndex === -1) {
 		return [...messages, { content: text, role: "user" }];
 	}
@@ -260,9 +247,7 @@ const appendFilePartsToLastUserMessage = (
 		return messages;
 	}
 
-	const lastUserIndex = messages.findLastIndex(
-		(message) => message.role === "user",
-	);
+	const lastUserIndex = messages.findLastIndex((message) => message.role === "user");
 	if (lastUserIndex === -1) {
 		return [...messages, { content: fileParts, role: "user" }];
 	}
@@ -457,6 +442,95 @@ const resolveCustomFormRequest = async ({
 	};
 };
 
+type PreparedAudio = Awaited<ReturnType<typeof prepareAudioInputForModel>>;
+type ResolvedGenerationStrategy = Awaited<ReturnType<typeof resolveGenerationStrategy>>;
+
+const appendNativeAudioToMessages = (
+	messages: ModelMessage[],
+	preparedAudio: PreparedAudio,
+): ModelMessage[] => {
+	const lastMessage = messages.at(-1);
+	if (lastMessage?.role === "user") {
+		const content =
+			typeof lastMessage.content === "string"
+				? [
+						{
+							text: lastMessage.content,
+							type: "text" as const,
+						},
+						...preparedAudio.contentParts,
+					]
+				: [...lastMessage.content, ...preparedAudio.contentParts];
+
+		return [
+			...messages.slice(0, -1),
+			{
+				...lastMessage,
+				content,
+			},
+		];
+	}
+
+	return [
+		...messages,
+		{
+			content: preparedAudio.contentParts,
+			role: "user",
+		},
+	];
+};
+
+const appendPreparedAudioToMessages = (
+	messages: ModelMessage[],
+	preparedAudio: PreparedAudio,
+): ModelMessage[] => {
+	if (preparedAudio.strategy === "transcription") {
+		return appendTextToLastUserMessage(
+			messages,
+			formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
+		);
+	}
+
+	return appendNativeAudioToMessages(messages, preparedAudio);
+};
+
+const appendContextFilesToMessages = async ({
+	contextFiles,
+	generationStrategy,
+	messages,
+	userId,
+	zdr,
+}: {
+	contextFiles: FillInputsContextFile[];
+	generationStrategy: ResolvedGenerationStrategy;
+	messages: ModelMessage[];
+	userId: string;
+	zdr: boolean;
+}): Promise<ModelMessage[]> => {
+	const fileMetadataPrompt = formatContextFileMetadataForPrompt(contextFiles);
+	if (generationStrategy.mode === "direct") {
+		const withMetadata = appendTextToLastUserMessage(messages, fileMetadataPrompt);
+		return appendFilePartsToLastUserMessage(withMetadata, createContextFileParts(contextFiles));
+	}
+
+	const fileSelection = generationStrategy.fileImage ?? generationStrategy.generation;
+	const fileTextContext = await extractContextFileText({
+		contextFiles,
+		modelSelection: fileSelection,
+		userId,
+		zdr,
+	});
+	return appendTextToLastUserMessage(
+		messages,
+		[fileMetadataPrompt, fileTextContext].filter(Boolean).join("\n\n"),
+	);
+};
+
+const resolveReasoningEffort = (
+	config: ModelConfig,
+	generationSelection: ResolvedGenerationStrategy["generation"],
+) => config.reasoningEffort ?? (config.thinking ? "medium" : generationSelection.reasoningEffort);
+
 /**
  * Main streaming handler for all scribe document types
  */
@@ -526,76 +600,24 @@ export const scribeStreamHandler = authed
 			}
 			const preparedAudio = await prepareAudioInputForModel({
 				audioFiles,
-				mode:
-					generationStrategy.mode === "direct" ? "native" : "transcription",
+				mode: generationStrategy.mode === "direct" ? "native" : "transcription",
 				resolvedModel: audioSelection.model,
 			}).catch((error: unknown) => {
-				const message =
-					error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+				const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 				throw new ORPCError("BAD_REQUEST", { message });
 			});
 
-			if (preparedAudio.strategy === "transcription") {
-				messages = appendTextToLastUserMessage(
-					messages,
-					formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
-				);
-			} else {
-				const lastMessage = messages.at(-1);
-				if (lastMessage?.role === "user") {
-					messages = [
-						...messages.slice(0, -1),
-						{
-							...lastMessage,
-							content:
-								typeof lastMessage.content === "string"
-									? [
-											{
-												text: lastMessage.content,
-												type: "text" as const,
-											},
-											...preparedAudio.contentParts,
-										]
-									: [
-											...lastMessage.content,
-											...preparedAudio.contentParts,
-										],
-						},
-					];
-				} else {
-					messages = [
-						...messages,
-						{
-							content: preparedAudio.contentParts,
-							role: "user",
-						},
-					];
-				}
-			}
+			messages = appendPreparedAudioToMessages(messages, preparedAudio);
 		}
 
 		if (hasContextFiles) {
-			const fileMetadataPrompt = formatContextFileMetadataForPrompt(contextFiles);
-			if (generationStrategy.mode === "direct") {
-				messages = appendTextToLastUserMessage(messages, fileMetadataPrompt);
-				messages = appendFilePartsToLastUserMessage(
-					messages,
-					createContextFileParts(contextFiles),
-				);
-			} else {
-				const fileSelection =
-					generationStrategy.fileImage ?? generationStrategy.generation;
-				const fileTextContext = await extractContextFileText({
-					contextFiles,
-					modelSelection: fileSelection,
-					userId: context.session.user.id,
-					zdr: entitlements.hasActiveSubscription,
-				});
-				messages = appendTextToLastUserMessage(
-					messages,
-					[fileMetadataPrompt, fileTextContext].filter(Boolean).join("\n\n"),
-				);
-			}
+			messages = await appendContextFilesToMessages({
+				contextFiles,
+				generationStrategy,
+				messages,
+				userId: context.session.user.id,
+				zdr: entitlements.hasActiveSubscription,
+			});
 		}
 
 		const usageInputData =
@@ -607,15 +629,14 @@ export const scribeStreamHandler = authed
 				: rawPrompt;
 
 		// Build provider options — only include OpenRouter-specific options when using OpenRouter
-		const reasoningEffort =
-			resolvedRequest.config.modelConfig.reasoningEffort ??
-			(resolvedRequest.config.modelConfig.thinking
-				? "medium"
-				: generationSelection.reasoningEffort);
+		const reasoningEffort = resolveReasoningEffort(
+			resolvedRequest.config.modelConfig,
+			generationSelection,
+		);
 		const thinkingEnabled = Boolean(
 			generationSelection.model.isOpenRouter &&
-				generationSelection.model.supportsReasoning &&
-				reasoningEffort !== "none",
+			generationSelection.model.supportsReasoning &&
+			reasoningEffort !== "none",
 		);
 		const providerOptions = buildProviderOptions({
 			includeUsage: true,
@@ -654,18 +675,17 @@ export const scribeStreamHandler = authed
 					modelConfig: resolvedRequest.config.modelConfig,
 					modelName: generationSelection.model.modelName,
 					promptName: resolvedRequest.config.promptName,
+					reasoningEffort:
+						generationSelection.model.isOpenRouter && generationSelection.model.supportsReasoning
+							? reasoningEffort
+							: undefined,
+					thinkingEnabled,
 					timing: {
 						timeToCompletionMs: completedAt - requestStartedAt,
 						timeToFirstTokenMs:
 							firstTokenAt === undefined ? undefined : firstTokenAt - requestStartedAt,
 					},
 					usageMetadata: resolvedRequest.usageMetadata,
-					reasoningEffort:
-						generationSelection.model.isOpenRouter &&
-						generationSelection.model.supportsReasoning
-							? reasoningEffort
-							: undefined,
-					thinkingEnabled,
 					userId: context.session.user.id,
 				});
 			},

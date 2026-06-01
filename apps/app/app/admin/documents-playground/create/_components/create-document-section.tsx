@@ -50,15 +50,15 @@ export interface EnhancedFieldMapping {
 	pdfType: DocumentPdfType;
 }
 
-type AiFieldMapping = {
+interface AiFieldMapping {
 	description: string;
 	fieldName: string;
 	label: string;
-};
+}
 
-type ParseFormResult = {
+interface ParseFormResult {
 	fieldMapping: AiFieldMapping[];
-};
+}
 
 const buildEnhancedMapping = (
 	aiMapping: AiFieldMapping,
@@ -169,7 +169,7 @@ export default function CreateDocumentSection() {
 		setFieldMappings(newMappings);
 	}, []);
 
-	const handleEnhanceWithAI = useCallback(async () => {
+	const handleEnhanceWithAI = useCallback(() => {
 		if (!pdfFile) {
 			toast.error("Keine PDF-Datei ausgewählt");
 			return;

@@ -2,8 +2,8 @@ import { usageEvent } from "@repo/database";
 import type { Database } from "@repo/database";
 import { after } from "next/server";
 
-import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
+import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type {
 	StandardUsage,
 	UsageInputData,
@@ -12,7 +12,7 @@ import type {
 } from "@/lib/usage-logging";
 import type { ModelConfig } from "@/orpc/scribe/types";
 
-export const redactIfZdrEnabled = (zdrEnabled: boolean, value: string | undefined): string =>
+export const redactIfZdrEnabled = (zdrEnabled: boolean, value?: string): string =>
 	zdrEnabled ? "[zdr - content redacted]" : (value ?? "");
 
 interface ScribeStreamFinishEvent {
@@ -74,10 +74,10 @@ export const scheduleScribeUsageLogging = (input: {
 						},
 						promptName: input.promptName,
 						promptSource: "local",
+						reasoningEffort: input.reasoningEffort,
 						streamingMode: true,
 						...input.usageMetadata,
 						thinkingEnabled: input.thinkingEnabled,
-						reasoningEffort: input.reasoningEffort,
 						zdrEnabled: input.activeSubscription,
 					} as UsageMetadata,
 					model: input.modelName,

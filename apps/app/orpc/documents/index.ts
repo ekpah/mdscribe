@@ -60,6 +60,18 @@ const parseFormInput = z.object({
 	inputFields: z.array(documentInputFieldSchema).optional(),
 });
 
+const toDocumentInputFieldType = (
+	inputKind: z.infer<typeof documentFieldMappingSchema>["inputKind"],
+): DocumentInputField["type"] => {
+	if (inputKind === "text") {
+		return "string";
+	}
+	if (inputKind === "boolean") {
+		return "boolean";
+	}
+	return "switch";
+};
+
 const adminDocumentProcedure = authed.use(requiredAdminMiddleware);
 
 const documentTemplateVisibilitySchema = z.enum(["public", "private"]);
@@ -199,9 +211,7 @@ const visibleDocumentTemplateWhere = (userId?: string | null) =>
 		: eq(documentTemplate.visibility, "public");
 
 const getOptionalUserId = async (context: unknown) => {
-	const session = await getOptionalAuthSession(
-		(context as { session?: Session }).session,
-	);
+	const session = await getOptionalAuthSession((context as { session?: Session }).session);
 	return session?.user.id ?? null;
 };
 
@@ -243,12 +253,7 @@ const parseFormHandler = adminDocumentProcedure
 						description: mapping.description,
 						label: mapping.label,
 						options: mapping.options,
-						type:
-							mapping.inputKind === "text"
-								? "string"
-								: mapping.inputKind === "boolean"
-									? "boolean"
-									: "switch",
+						type: toDocumentInputFieldType(mapping.inputKind),
 					}) satisfies DocumentInputField,
 			);
 		const config = pdfDocumentConfigs.parseForm;
@@ -264,7 +269,7 @@ const parseFormHandler = adminDocumentProcedure
 			modelSelection =
 				strategy.mode === "direct"
 					? strategy.generation
-					: strategy.fileImage ?? strategy.generation;
+					: (strategy.fileImage ?? strategy.generation);
 		} catch (error) {
 			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
 			throw new ORPCError("BAD_REQUEST", {
@@ -629,17 +634,32 @@ const updateDocumentTemplateHandler = authed
 		return updatedTemplate;
 	});
 
-const getDocumentTemplateEditorContextHandler = authed.handler(
-	async ({ context }) => {
-		const userId = context.session.user.id;
-		const limit = MAX_CATEGORY_SUGGESTIONS;
-		const categorySuggestions: string[] = [];
-		const seen = new Set<string>();
+const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context }) => {
+	const userId = context.session.user.id;
+	const limit = MAX_CATEGORY_SUGGESTIONS;
+	const categorySuggestions: string[] = [];
+	const seen = new Set<string>();
 
-		const authoredCategories = await context.db
+	const authoredCategories = await context.db
+		.select({ category: documentTemplate.category })
+		.from(documentTemplate)
+		.where(eq(documentTemplate.authorId, userId))
+		.groupBy(documentTemplate.category)
+		.orderBy(desc(count()))
+		.limit(limit);
+
+	addCategories(
+		categorySuggestions,
+		seen,
+		authoredCategories.map((item) => item.category),
+		limit,
+	);
+
+	if (categorySuggestions.length < limit) {
+		const allCategories = await context.db
 			.select({ category: documentTemplate.category })
 			.from(documentTemplate)
-			.where(eq(documentTemplate.authorId, userId))
+			.where(eq(documentTemplate.visibility, "public"))
 			.groupBy(documentTemplate.category)
 			.orderBy(desc(count()))
 			.limit(limit);
@@ -647,38 +667,21 @@ const getDocumentTemplateEditorContextHandler = authed.handler(
 		addCategories(
 			categorySuggestions,
 			seen,
-			authoredCategories.map((item) => item.category),
+			allCategories.map((item) => item.category),
 			limit,
 		);
+	}
 
-		if (categorySuggestions.length < limit) {
-			const allCategories = await context.db
-				.select({ category: documentTemplate.category })
-				.from(documentTemplate)
-				.where(eq(documentTemplate.visibility, "public"))
-				.groupBy(documentTemplate.category)
-				.orderBy(desc(count()))
-				.limit(limit);
+	const entitlements = await resolveProductEntitlements({
+		db: context.db,
+		userId: context.session.user.id,
+	});
 
-			addCategories(
-				categorySuggestions,
-				seen,
-				allCategories.map((item) => item.category),
-				limit,
-			);
-		}
-
-		return {
-			canCreatePrivateDocuments: (
-				await resolveProductEntitlements({
-					db: context.db,
-					userId: context.session.user.id,
-				})
-			).canCreatePrivateDocuments,
-			categorySuggestions,
-		};
-	},
-);
+	return {
+		canCreatePrivateDocuments: entitlements.canCreatePrivateDocuments,
+		categorySuggestions,
+	};
+});
 
 export const documentsHandler = {
 	ocrToMarkdown: ocrToMarkdownHandler,

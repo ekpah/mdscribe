@@ -1,12 +1,4 @@
-import {
-	and,
-	count,
-	desc,
-	gte,
-	isNotNull,
-	ne,
-	usageEvent,
-} from "@repo/database";
+import { and, count, desc, gte, isNotNull, ne, usageEvent } from "@repo/database";
 import { z } from "zod";
 
 import { authed } from "@/orpc";
@@ -69,47 +61,43 @@ const UNKNOWN_CAPABILITIES: ModelCapabilities = {
 const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
 	parameters ?? [];
 
-const listModelsHandler = authed
-	.use(requiredAdminMiddleware)
-	.handler(async ({ context }) => {
-		const providers = await context.db.query.aiProvider.findMany({
-			orderBy: (provider, { asc }) => asc(provider.name),
-			with: { models: true },
-		});
-
-		const models: PlaygroundModel[] = [];
-		for (const provider of providers) {
-			for (const model of provider.models) {
-				const supportedParameters = normalizeSupportedParameters(
-					model.supportedParameters,
-				);
-				const supportsReasoning =
-					model.supportsReasoning || supportedParameters.includes("reasoning");
-				models.push({
-					architecture: {
-						modality: "unknown",
-						tokenizer: "unknown",
-					},
-					capabilities: UNKNOWN_CAPABILITIES,
-					connectionId: provider.id,
-					connectionProtocol: provider.protocol,
-					context_length: 0,
-					id: model.id,
-					modelId: model.modelId,
-					name: model.displayName,
-					pricing: { completion: "0", prompt: "0" },
-					providerId: provider.id,
-					providerName: provider.name,
-					providerProtocol: provider.protocol,
-					supported_parameters: supportedParameters,
-					supportedParameters,
-					supportsReasoning,
-				});
-			}
-		}
-
-		return models;
+const listModelsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
+	const providers = await context.db.query.aiProvider.findMany({
+		orderBy: (provider, { asc }) => asc(provider.name),
+		with: { models: true },
 	});
+
+	const models: PlaygroundModel[] = [];
+	for (const provider of providers) {
+		for (const model of provider.models) {
+			const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
+			const supportsReasoning =
+				model.supportsReasoning || supportedParameters.includes("reasoning");
+			models.push({
+				architecture: {
+					modality: "unknown",
+					tokenizer: "unknown",
+				},
+				capabilities: UNKNOWN_CAPABILITIES,
+				connectionId: provider.id,
+				connectionProtocol: provider.protocol,
+				context_length: 0,
+				id: model.id,
+				modelId: model.modelId,
+				name: model.displayName,
+				pricing: { completion: "0", prompt: "0" },
+				providerId: provider.id,
+				providerName: provider.name,
+				providerProtocol: provider.protocol,
+				supportedParameters,
+				supported_parameters: supportedParameters,
+				supportsReasoning,
+			});
+		}
+	}
+
+	return models;
+});
 
 /**
  * Get the top N most used models from the past 30 days.

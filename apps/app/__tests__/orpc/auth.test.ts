@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { account, eq, session, user, verification } from "@repo/database";
+
 import { createTestContext, createTestUser, startTestServer } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
 
@@ -30,14 +32,11 @@ describe("Authentication Flow", () => {
 
 	describe("User Management", () => {
 		test("createTestUser creates user with required fields", async () => {
-			const { user: testUser, session: testSession } = await createTestUser(
-				server.db,
-				{
-					email: "test@example.com",
-					name: "Test User",
-					stripeCustomerId: "cus_test_123",
-				},
-			);
+			const { user: testUser, session: testSession } = await createTestUser(server.db, {
+				email: "test@example.com",
+				name: "Test User",
+				stripeCustomerId: "cus_test_123",
+			});
 
 			expect(testUser).toBeDefined();
 			expect(testUser.id).toBeDefined();
@@ -67,14 +66,13 @@ describe("Authentication Flow", () => {
 			});
 
 			// Verify user exists in database
-			const [dbUser] = await server.db
-				.select()
-				.from(user)
-				.where(eq(user.id, testUser.id))
-				.limit(1);
+			const [dbUser] = await server.db.select().from(user).where(eq(user.id, testUser.id)).limit(1);
 
 			expect(dbUser).toBeDefined();
-			expect(dbUser!.email).toBe("persistent@example.com");
+			if (!dbUser) {
+				throw new Error("Expected persisted user");
+			}
+			expect(dbUser.email).toBe("persistent@example.com");
 		});
 	});
 
@@ -87,8 +85,7 @@ describe("Authentication Flow", () => {
 		});
 
 		test("createTestContext includes session when provided", async () => {
-			const { session: testSession, user: testUser } =
-				await createTestUser(server.db);
+			const { session: testSession, user: testUser } = await createTestUser(server.db);
 			const context = createTestContext({
 				db: server.db,
 				session: testSession,
@@ -125,8 +122,11 @@ describe("Authentication Flow", () => {
 				.limit(1);
 
 			expect(dbSession).toBeDefined();
-			expect(dbSession!.userId).toBe(testUser.id);
-			expect(dbSession!.token).toBe(sessionToken);
+			if (!dbSession) {
+				throw new Error("Expected database session");
+			}
+			expect(dbSession.userId).toBe(testUser.id);
+			expect(dbSession.token).toBe(sessionToken);
 		});
 
 		test("expired sessions can be identified", async () => {
@@ -152,7 +152,10 @@ describe("Authentication Flow", () => {
 				.limit(1);
 
 			expect(dbSession).toBeDefined();
-			expect(dbSession!.expiresAt.getTime()).toBeLessThan(Date.now());
+			if (!dbSession) {
+				throw new Error("Expected expired database session");
+			}
+			expect(dbSession.expiresAt.getTime()).toBeLessThan(Date.now());
 		});
 	});
 
@@ -178,8 +181,11 @@ describe("Authentication Flow", () => {
 				.limit(1);
 
 			expect(dbAccount).toBeDefined();
-			expect(dbAccount!.providerId).toBe("credential");
-			expect(dbAccount!.userId).toBe(testUser.id);
+			if (!dbAccount) {
+				throw new Error("Expected linked account");
+			}
+			expect(dbAccount.providerId).toBe("credential");
+			expect(dbAccount.userId).toBe(testUser.id);
 		});
 	});
 
@@ -205,7 +211,10 @@ describe("Authentication Flow", () => {
 				.limit(1);
 
 			expect(dbVerification).toBeDefined();
-			expect(dbVerification!.identifier).toBe(testUser.email);
+			if (!dbVerification) {
+				throw new Error("Expected verification token");
+			}
+			expect(dbVerification.identifier).toBe(testUser.email);
 		});
 	});
 });

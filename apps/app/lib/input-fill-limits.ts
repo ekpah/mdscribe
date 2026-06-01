@@ -5,7 +5,7 @@ export const FILL_INPUT_PAYLOAD_LIMITS = {
 	maxContextFileBytes: 10 * 1024 * 1024,
 	maxContextFiles: 5,
 	maxContextFilesTotalBytes: 25 * 1024 * 1024,
-	maxInputFieldDescriptionCharacters: 2_000,
+	maxInputFieldDescriptionCharacters: 2000,
 	maxInputFieldLabelCharacters: 200,
 	maxInputFields: 100,
 	maxTextContextCharacters: 30_000,
@@ -17,8 +17,13 @@ export const getBase64DecodedByteLength = (value: string | undefined): number =>
 		return 0;
 	}
 
-	const padding =
-		normalized.endsWith("==") ? 2 : normalized.endsWith("=") ? 1 : 0;
+	let padding = 0;
+	if (normalized.endsWith("==")) {
+		padding = 2;
+	} else if (normalized.endsWith("=")) {
+		padding = 1;
+	}
+
 	return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
 };
 
@@ -32,4 +37,3 @@ export const formatPayloadBytes = (bytes: number): string => {
 
 	return `${Math.ceil(bytes / 1024).toLocaleString("de-DE")} KB`;
 };
-

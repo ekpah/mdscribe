@@ -3,10 +3,7 @@
 import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
 import TipTap from "@repo/design-system/components/editor/tip-tap";
-import {
-	Alert,
-	AlertDescription,
-} from "@repo/design-system/components/ui/alert";
+import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -18,33 +15,88 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
-const FALLBACK_CATEGORIES = [
-	"Kardiologie",
-	"Gastroenterologie",
-	"Diverses",
-	"Onkologie",
-] as const;
+const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
 const MAX_TEMPLATE_EXAMPLES = 10;
 const SAVE_TOAST_ID = "template-save";
 const TEMPLATE_VISIBILITIES = ["public", "private"] as const;
 type TemplateVisibility = (typeof TEMPLATE_VISIBILITIES)[number];
 
 const isActionableError = (error: unknown): error is Error => error instanceof Error;
+
+const TemplateExamplesTab = ({
+	examples,
+	hasExampleCapacity,
+	onAddExample,
+	onChangeExampleByIndex,
+	onRemoveExampleByIndex,
+}: {
+	examples: string[];
+	hasExampleCapacity: boolean;
+	onAddExample: () => void;
+	onChangeExampleByIndex: ((event: React.ChangeEvent<HTMLTextAreaElement>) => void)[];
+	onRemoveExampleByIndex: (() => void)[];
+}) => (
+	<TabsContent className="mt-0 min-h-0 grow overflow-y-auto rounded-md border p-3" value="examples">
+		<div className="mb-3 flex items-center justify-between gap-2">
+			<div>
+				<p className="font-medium text-sm">Beispiele</p>
+				<p className="text-muted-foreground text-xs">
+					Beispiele von guten Epikrisen, an denen man sich orientieren sollte ({examples.length}/
+					{MAX_TEMPLATE_EXAMPLES})
+				</p>
+			</div>
+			<Button
+				disabled={!hasExampleCapacity}
+				onClick={onAddExample}
+				type="button"
+				variant="secondary"
+			>
+				<Plus className="mr-2 h-4 w-4" />
+				Beispiel hinzufügen
+			</Button>
+		</div>
+
+		{examples.length === 0 ? (
+			<p className="text-muted-foreground text-sm">Noch keine Beispiele hinzugefügt.</p>
+		) : (
+			<div className="space-y-3">
+				{examples.map((example, index) => (
+					<div className="space-y-2" key={`template-example-${index}`}>
+						<div className="flex items-center justify-between">
+							<Label htmlFor={`template-example-${index}`}>Beispiel {index + 1}</Label>
+							<Button
+								onClick={onRemoveExampleByIndex[index]}
+								size="icon"
+								type="button"
+								variant="ghost"
+							>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+						</div>
+						<Textarea
+							id={`template-example-${index}`}
+							onChange={onChangeExampleByIndex[index]}
+							placeholder="Beispiel eingeben"
+							rows={4}
+							value={example}
+						/>
+					</div>
+				))}
+			</div>
+		)}
+	</TabsContent>
+);
 
 export default function Editor({
 	cat,
@@ -76,8 +128,7 @@ export default function Editor({
 		initialExamples.slice(0, MAX_TEMPLATE_EXAMPLES),
 	);
 	const [newCategory, setNewCategory] = useState("");
-	const [visibility, setVisibility] =
-		useState<TemplateVisibility>(initialVisibility);
+	const [visibility, setVisibility] = useState<TemplateVisibility>(initialVisibility);
 	const [showSource, setShowSource] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	// Counter to force TipTap remount when switching from source view
@@ -163,16 +214,12 @@ export default function Editor({
 	}, []);
 
 	const handleRemoveExample = useCallback((indexToRemove: number) => {
-		setExamples((currentExamples) =>
-			currentExamples.filter((_, index) => index !== indexToRemove),
-		);
+		setExamples((currentExamples) => currentExamples.filter((_, index) => index !== indexToRemove));
 	}, []);
 
 	const handleExampleChange = useCallback((indexToUpdate: number, value: string) => {
 		setExamples((currentExamples) =>
-			currentExamples.map((example, index) =>
-				index === indexToUpdate ? value : example,
-			),
+			currentExamples.map((example, index) => (index === indexToUpdate ? value : example)),
 		);
 	}, []);
 
@@ -184,49 +231,41 @@ export default function Editor({
 	const handleChangeExampleByIndex = useMemo(
 		() =>
 			examples.map(
-				(_, index) =>
-					(event: React.ChangeEvent<HTMLTextAreaElement>) =>
-						handleExampleChange(index, event.target.value),
+				(_, index) => (event: React.ChangeEvent<HTMLTextAreaElement>) =>
+					handleExampleChange(index, event.target.value),
 			),
 		[examples, handleExampleChange],
 	);
 
 	const handleCreateError = useCallback((error: unknown) => {
 		toast.error(
-			isActionableError(error)
-				? error.message
-				: "Fehler beim Speichern des Textbausteins",
+			isActionableError(error) ? error.message : "Fehler beim Speichern des Textbausteins",
 			{
-					action: {
-						label: "Im Editor bleiben",
-						onClick: () => {
-							toast.dismiss(SAVE_TOAST_ID);
-						},
+				action: {
+					label: "Im Editor bleiben",
+					onClick: () => {
+						toast.dismiss(SAVE_TOAST_ID);
 					},
+				},
 				id: SAVE_TOAST_ID,
 			},
 		);
 	}, []);
 
-	const handleEditError = useCallback(
-		(error: unknown, templateId: string) => {
-			toast.error(
-				isActionableError(error)
-					? error.message
-					: "Fehler beim Speichern des Textbausteins",
-				{
-					action: {
-						label: "Zurück zum Editor",
-						onClick: () => {
-							window.location.assign(`/templates/${templateId}/edit`);
-						},
+	const handleEditError = useCallback((error: unknown, templateId: string) => {
+		toast.error(
+			isActionableError(error) ? error.message : "Fehler beim Speichern des Textbausteins",
+			{
+				action: {
+					label: "Zurück zum Editor",
+					onClick: () => {
+						window.location.assign(`/templates/${templateId}/edit`);
 					},
-					id: SAVE_TOAST_ID,
 				},
-			);
-		},
-		[],
-	);
+				id: SAVE_TOAST_ID,
+			},
+		);
+	}, []);
 
 	const handleSubmit = useCallback(
 		async (e: React.FormEvent) => {
@@ -323,23 +362,17 @@ export default function Editor({
 		],
 	);
 
-	const handleNewCategoryChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setNewCategory(event.target.value);
-		},
-		[],
-	);
+	const handleNewCategoryChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+		setNewCategory(event.target.value);
+	}, []);
 
-	const handleNameChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setName(event.target.value);
-		},
-		[],
-	);
+	const handleNameChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+		setName(event.target.value);
+	}, []);
 
 	const handleVisibilityChange = useCallback(
 		(value: string) => {
-			if (value === "private" && !canCreatePrivateTemplates) {
+			if (value === "private" && canCreatePrivateTemplates === false) {
 				toast.error(USER_MESSAGES.privateTemplateRequiresPlus);
 				setVisibility("public");
 				return;
@@ -360,33 +393,38 @@ export default function Editor({
 	const handleSwitchToSource = useCallback(() => {
 		setShowSource(true);
 	}, []);
+	const privateTemplatesHint = canCreatePrivateTemplates ? null : (
+		<p className="mt-1 text-muted-foreground text-xs">
+			Private Textbausteine sind in Plus enthalten.
+		</p>
+	);
+	const resolvedCategory = category === "new" ? newCategory : category;
+	const isCategoryValid = resolvedCategory.trim() !== "";
+	const isNewCategoryValid = newCategory.trim() !== "";
+	const isNameValid = name.trim() !== "";
+	const categoryValidationMessage = isCategoryValid ? null : (
+		<p className="mt-1 text-solarized-red text-xs">Kategorie ist erforderlich</p>
+	);
+	const newCategoryValidationMessage = isNewCategoryValid ? null : (
+		<p className="mt-1 text-solarized-red text-xs">Neue Kategorie ist erforderlich</p>
+	);
+	const nameValidationMessage = isNameValid ? null : (
+		<p className="mt-1 text-solarized-red text-xs">Name ist erforderlich</p>
+	);
 
 	return (
 		<div className="flex h-[calc(100vh-(--spacing(16))-(--spacing(6)))] gap-4">
 			{/* Main Editor Card */}
 			<Card className="flex flex-1 flex-col gap-4 overflow-hidden p-4">
-				<form
-					onSubmit={handleSubmit}
-					className="flex min-h-0 grow flex-col gap-2"
-				>
+				<form onSubmit={handleSubmit} className="flex min-h-0 grow flex-col gap-2">
 					<div className="mb-4 flex shrink-0 flex-col gap-4 md:flex-row md:gap-2">
 						<div className="w-full flex-1">
 							<Label htmlFor="category">
 								Kategorie <span className="text-solarized-red">*</span>
 							</Label>
-							<input
-								name="category"
-								type="hidden"
-								value={category === "new" ? newCategory : category}
-							/>
+							<input name="category" type="hidden" value={resolvedCategory} />
 							<Select onValueChange={setCategory} value={category}>
-								<SelectTrigger
-									className={
-										(category === "new" ? newCategory : category).trim() === ""
-											? "border-solarized-red"
-											: ""
-									}
-								>
+								<SelectTrigger className={isCategoryValid ? "" : "border-solarized-red"}>
 									<SelectValue placeholder="Kategorie auswählen" />
 								</SelectTrigger>
 								<SelectContent>
@@ -398,11 +436,7 @@ export default function Editor({
 									<SelectItem value="new">Neue Kategorie hinzufügen</SelectItem>
 								</SelectContent>
 							</Select>
-							{(category === "new" ? newCategory : category).trim() === "" && (
-								<p className="mt-1 text-solarized-red text-xs">
-									Kategorie ist erforderlich
-								</p>
-							)}
+							{categoryValidationMessage}
 						</div>
 						{category === "new" && (
 							<div className="flex-1">
@@ -414,15 +448,9 @@ export default function Editor({
 									onChange={handleNewCategoryChange}
 									placeholder="Füge eine Kategorie hinzu"
 									value={newCategory}
-									className={
-										newCategory.trim() === "" ? "border-solarized-red" : ""
-									}
+									className={isNewCategoryValid ? "" : "border-solarized-red"}
 								/>
-								{newCategory.trim() === "" && (
-									<p className="mt-1 text-solarized-red text-xs">
-										Neue Kategorie ist erforderlich
-									</p>
-								)}
+								{newCategoryValidationMessage}
 							</div>
 						)}
 						<div className="flex-1">
@@ -435,13 +463,9 @@ export default function Editor({
 								onChange={handleNameChange}
 								placeholder="Vorlagenname eingeben"
 								value={name}
-								className={name.trim() === "" ? "border-solarized-red" : ""}
+								className={isNameValid ? "" : "border-solarized-red"}
 							/>
-							{name.trim() === "" && (
-								<p className="mt-1 text-solarized-red text-xs">
-									Name ist erforderlich
-								</p>
-							)}
+							{nameValidationMessage}
 						</div>
 						<div className="flex-1">
 							<Label htmlFor="template-visibility">Sichtbarkeit</Label>
@@ -451,26 +475,17 @@ export default function Editor({
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="public">Öffentlich</SelectItem>
-									<SelectItem
-										disabled={!canCreatePrivateTemplates}
-										value="private"
-									>
+									<SelectItem disabled={canCreatePrivateTemplates === false} value="private">
 										Privat
 									</SelectItem>
 								</SelectContent>
 							</Select>
-							{!canCreatePrivateTemplates ? (
-								<p className="mt-1 text-muted-foreground text-xs">
-									Private Textbausteine sind in Plus enthalten.
-								</p>
-							) : null}
+							{privateTemplatesHint}
 						</div>
 					</div>
 					{visibility === "public" ? (
 						<Alert className="shrink-0 border-solarized-orange/50 bg-solarized-orange/10">
-							<AlertDescription>
-								{USER_MESSAGES.publicTemplateVisibilityWarning}
-							</AlertDescription>
+							<AlertDescription>{USER_MESSAGES.publicTemplateVisibilityWarning}</AlertDescription>
 						</Alert>
 					) : null}
 
@@ -501,66 +516,16 @@ export default function Editor({
 							</div>
 						</TabsContent>
 
-						<TabsContent className="mt-0 min-h-0 grow overflow-y-auto rounded-md border p-3" value="examples">
-							<div className="mb-3 flex items-center justify-between gap-2">
-								<div>
-									<p className="font-medium text-sm">Beispiele</p>
-									<p className="text-muted-foreground text-xs">
-										Beispiele von guten Epikrisen, an denen man sich orientieren sollte ({examples.length}/
-										{MAX_TEMPLATE_EXAMPLES})
-									</p>
-								</div>
-								<Button
-									disabled={!hasExampleCapacity}
-									onClick={handleAddExample}
-									type="button"
-									variant="secondary"
-								>
-									<Plus className="mr-2 h-4 w-4" />
-									Beispiel hinzufügen
-								</Button>
-							</div>
-
-							{examples.length === 0 ? (
-								<p className="text-muted-foreground text-sm">
-									Noch keine Beispiele hinzugefügt.
-								</p>
-							) : (
-									<div className="space-y-3">
-										{examples.map((example, index) => (
-											<div className="space-y-2" key={`template-example-${example}`}>
-											<div className="flex items-center justify-between">
-												<Label htmlFor={`template-example-${index}`}>
-													Beispiel {index + 1}
-												</Label>
-													<Button
-														onClick={handleRemoveExampleByIndex[index]}
-														size="icon"
-														type="button"
-														variant="ghost"
-													>
-													<Trash2 className="h-4 w-4" />
-												</Button>
-											</div>
-												<Textarea
-													id={`template-example-${index}`}
-													onChange={handleChangeExampleByIndex[index]}
-													placeholder="Beispiel eingeben"
-													rows={4}
-													value={example}
-												/>
-										</div>
-									))}
-								</div>
-							)}
-						</TabsContent>
+						<TemplateExamplesTab
+							examples={examples}
+							hasExampleCapacity={hasExampleCapacity}
+							onAddExample={handleAddExample}
+							onChangeExampleByIndex={handleChangeExampleByIndex}
+							onRemoveExampleByIndex={handleRemoveExampleByIndex}
+						/>
 					</Tabs>
 					<div className="flex shrink-0 flex-row gap-2">
-						<Button
-							className="mt-2 w-full"
-							disabled={isSubmitting || !isFormValid}
-							type="submit"
-						>
+						<Button className="mt-2 w-full" disabled={isSubmitting || !isFormValid} type="submit">
 							{(() => {
 								if (isSubmitting) {
 									return "Textbaustein speichern...";

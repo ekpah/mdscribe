@@ -38,7 +38,7 @@ import { toast } from "sonner";
 import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
 import { orpc } from "@/lib/orpc";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
-import { BuiltInScribeModesSection } from "./BuiltInScribeModesSection";
+import { BuiltInScribeModesSection } from "./built-in-scribe-modes-section";
 
 const NONE_VALUE = "__none__";
 const FIELD_EXPLANATIONS = {

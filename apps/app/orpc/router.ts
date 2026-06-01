@@ -11,39 +11,49 @@ import { lazy } from "@orpc/server";
 export const router = {
 	// Admin operations
 	admin: {
-		embeddings: lazy(async () => ({
-			default: (await import("./admin/embeddings")).embeddingsHandler,
-		})),
-		emails: lazy(async () => ({
-			default: (await import("./admin/emails")).emailsHandler,
-		})),
-		models: lazy(async () => ({
-			default: (await import("./admin/models")).modelsHandler,
-		})),
-		providers: lazy(async () => ({
-			default: (await import("./admin/providers")).providersHandler,
-		})),
-		scribe: lazy(async () => ({
-			default: (await import("./admin/scribe")).scribeHandler,
-		})),
-		scribeForms: lazy(async () => ({
-			default: (await import("./admin/scribe-forms")).scribeFormsHandler,
-		})),
-		templates: lazy(async () => ({
-			default: (await import("./admin/templates")).templatesHandler,
-		})),
-		usage: lazy(async () => ({
-			default: (await import("./admin/usage")).usageHandler,
-		})),
-		users: lazy(async () => ({
-			default: (await import("./admin/users")).usersHandler,
-		})),
+		emails: lazy(async () => {
+			const handlerModule = await import("./admin/emails");
+			return { default: handlerModule.emailsHandler };
+		}),
+		embeddings: lazy(async () => {
+			const handlerModule = await import("./admin/embeddings");
+			return { default: handlerModule.embeddingsHandler };
+		}),
+		models: lazy(async () => {
+			const handlerModule = await import("./admin/models");
+			return { default: handlerModule.modelsHandler };
+		}),
+		providers: lazy(async () => {
+			const handlerModule = await import("./admin/providers");
+			return { default: handlerModule.providersHandler };
+		}),
+		scribe: lazy(async () => {
+			const handlerModule = await import("./admin/scribe");
+			return { default: handlerModule.scribeHandler };
+		}),
+		scribeForms: lazy(async () => {
+			const handlerModule = await import("./admin/scribe-forms");
+			return { default: handlerModule.scribeFormsHandler };
+		}),
+		templates: lazy(async () => {
+			const handlerModule = await import("./admin/templates");
+			return { default: handlerModule.templatesHandler };
+		}),
+		usage: lazy(async () => {
+			const handlerModule = await import("./admin/usage");
+			return { default: handlerModule.usageHandler };
+		}),
+		users: lazy(async () => {
+			const handlerModule = await import("./admin/users");
+			return { default: handlerModule.usersHandler };
+		}),
 	},
 
 	// Document operations
-	documents: lazy(async () => ({
-		default: (await import("./documents")).documentsHandler,
-	})),
+	documents: lazy(async () => {
+		const handlerModule = await import("./documents");
+		return { default: handlerModule.documentsHandler };
+	}),
 
 	getUsage: lazy(async () => {
 		const [{ authed }, { getUsage }] = await Promise.all([
@@ -58,21 +68,26 @@ export const router = {
 
 	// AI document generation
 	scribe: {
-		fillInputs: lazy(async () => ({
-			default: (await import("./scribe/handlers/fill-inputs")).fillInputsHandler,
-		})),
+		fillInputs: lazy(async () => {
+			const handlerModule = await import("./scribe/handlers/fill-inputs");
+			return { default: handlerModule.fillInputsHandler };
+		}),
 	},
-	scribeForms: lazy(async () => ({
-		default: (await import("./scribe-forms")).scribeFormsHandler,
-	})),
-	scribeStream: lazy(async () => ({
-		default: (await import("./scribe/handlers/scribe-stream")).scribeStreamHandler,
-	})),
+	scribeForms: lazy(async () => {
+		const handlerModule = await import("./scribe-forms");
+		return { default: handlerModule.scribeFormsHandler };
+	}),
+	scribeStream: lazy(async () => {
+		const handlerModule = await import("./scribe/handlers/scribe-stream");
+		return { default: handlerModule.scribeStreamHandler };
+	}),
 
 	// Template operations (all CRUD under templates)
 	templates: lazy(async () => {
-		const [{ templatesHandler }, { findRelevantTemplateHandler }] =
-			await Promise.all([import("./templates"), import("./templates/search")]);
+		const [{ templatesHandler }, { findRelevantTemplateHandler }] = await Promise.all([
+			import("./templates"),
+			import("./templates/search"),
+		]);
 
 		return {
 			default: {
@@ -84,17 +99,21 @@ export const router = {
 
 	// User-specific operations
 	user: {
-		auth: lazy(async () => ({
-			default: (await import("./user/auth")).authHandler.auth,
-		})),
-		collections: lazy(async () => ({
-			default: (await import("./user/collections")).collectionsHandler,
-		})),
-		recentActivity: lazy(async () => ({
-			default: (await import("./user/activity")).activityHandler.recentActivity,
-		})),
-		snippets: lazy(async () => ({
-			default: (await import("./user/snippets")).snippetsHandler,
-		})),
+		auth: lazy(async () => {
+			const handlerModule = await import("./user/auth");
+			return { default: handlerModule.authHandler.auth };
+		}),
+		collections: lazy(async () => {
+			const handlerModule = await import("./user/collections");
+			return { default: handlerModule.collectionsHandler };
+		}),
+		recentActivity: lazy(async () => {
+			const handlerModule = await import("./user/activity");
+			return { default: handlerModule.activityHandler.recentActivity };
+		}),
+		snippets: lazy(async () => {
+			const handlerModule = await import("./user/snippets");
+			return { default: handlerModule.snippetsHandler };
+		}),
 	},
 };

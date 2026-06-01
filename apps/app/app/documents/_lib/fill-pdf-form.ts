@@ -7,10 +7,10 @@ interface PdfLibFormField {
 		dict?: {
 			set: (key: PDFName, value: PDFName) => void;
 		};
-		getWidgets?: () => Array<{
+		getWidgets?: () => {
 			getOnValue?: () => PDFName | undefined;
 			setAppearanceState?: (value: PDFName) => void;
-		}>;
+		}[];
 	};
 	check?: () => void;
 	constructor: { name: string };
@@ -123,7 +123,9 @@ export const fillPDFForm = async (
 
 	for (const [label, fieldValue] of Object.entries(fieldValues)) {
 		const mappedFieldDefinitions = fieldDefinitionsByLabel.get(toLabelKey(label));
-		if (!mappedFieldDefinitions) continue;
+		if (!mappedFieldDefinitions) {
+			continue;
+		}
 
 		for (const fieldDefinition of mappedFieldDefinitions) {
 			try {

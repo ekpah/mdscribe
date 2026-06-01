@@ -7,18 +7,13 @@ import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-} from "@/lib/input-fill-limits";
+
+import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
+
 import { AudioInput } from "./inputs/audio/audio-input";
 import { DocumentInput } from "./inputs/document/document-input";
 import { TextInput } from "./inputs/text/text-input";
-import type {
-	InputContextController,
-	InputContextPanel,
-	InputContextSubmission,
-} from "./types";
+import type { InputContextController, InputContextPanel, InputContextSubmission } from "./types";
 
 export { useInputContextState } from "./use-input-context-state";
 
@@ -43,6 +38,164 @@ interface InputContextControlsProps {
 	variant?: InputContextControlsVariant;
 }
 
+const getPanelShellClassName = ({
+	hasPortalTarget,
+	isTabVariant,
+}: {
+	hasPortalTarget: boolean;
+	isTabVariant: boolean;
+}) => {
+	let placementClassName =
+		"static mb-3 max-h-[min(60svh,32rem)] overflow-y-auto overscroll-contain rounded-lg lg:absolute lg:right-4 lg:bottom-full lg:left-4 lg:mb-2 lg:max-h-96";
+	if (isTabVariant) {
+		placementClassName = "static min-h-[min(68svh,36rem)] rounded-t-lg shadow-none";
+	} else if (hasPortalTarget) {
+		placementClassName = "absolute inset-0 flex min-h-0 flex-col overflow-hidden rounded-none";
+	}
+
+	return cn("z-20 bg-solarized-blue/10 p-4 shadow-lg backdrop-blur", placementClassName);
+};
+
+const PanelShell = ({
+	children,
+	description,
+	isTabVariant,
+	onClose,
+	panelPortalTarget,
+	title,
+}: {
+	children: ReactNode;
+	description: string;
+	isTabVariant: boolean;
+	onClose: () => void;
+	panelPortalTarget?: HTMLElement | null;
+	title: string;
+}) => (
+	<div
+		className={getPanelShellClassName({
+			hasPortalTarget: Boolean(panelPortalTarget),
+			isTabVariant,
+		})}
+	>
+		<div className="mb-4 flex items-center justify-between gap-2">
+			<div className="min-w-0">
+				<div className="font-medium text-foreground text-sm">{title}</div>
+				<div className="text-muted-foreground text-xs">{description}</div>
+			</div>
+			{isTabVariant ? null : (
+				<Button
+					aria-label={`${title} minimieren`}
+					onClick={onClose}
+					size="icon"
+					type="button"
+					variant="ghost"
+				>
+					<ChevronDown className="h-4 w-4" />
+				</Button>
+			)}
+		</div>
+		{children}
+	</div>
+);
+
+const ContextToggleButton = ({
+	ariaLabel,
+	hasValue,
+	icon,
+	isActive,
+	onClick,
+	title,
+}: {
+	ariaLabel: string;
+	hasValue: boolean;
+	icon: ReactNode;
+	isActive: boolean;
+	onClick: () => void;
+	title?: string;
+}) => (
+	<Button
+		aria-expanded={isActive}
+		aria-label={ariaLabel}
+		className="relative shrink-0"
+		onClick={onClick}
+		size="icon"
+		title={title}
+		type="button"
+		variant={isActive || hasValue ? "secondary" : "outline"}
+	>
+		{icon}
+		{hasValue ? (
+			<span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-solarized-green" />
+		) : null}
+	</Button>
+);
+
+const renderActivePanel = ({
+	activePanel,
+	isTabVariant,
+	panelPortalTarget,
+}: {
+	activePanel: ReactNode;
+	isTabVariant: boolean;
+	panelPortalTarget?: HTMLElement | null;
+}) => {
+	if (!activePanel) {
+		return null;
+	}
+
+	if (panelPortalTarget && !isTabVariant) {
+		return createPortal(activePanel, panelPortalTarget);
+	}
+
+	return activePanel;
+};
+
+const ToolbarTitle = ({ title }: { title?: string }) => {
+	if (title) {
+		return (
+			<div className="min-w-0 flex-1">
+				<span className="truncate font-medium text-foreground text-xs">{title}</span>
+			</div>
+		);
+	}
+
+	return null;
+};
+
+const SubmitButton = ({
+	canShow,
+	disabled,
+	hasTrailingAction,
+	isSubmitting,
+	onClick,
+	pendingLabel,
+	submitLabel,
+}: {
+	canShow: boolean;
+	disabled: boolean;
+	hasTrailingAction: boolean;
+	isSubmitting: boolean;
+	onClick: () => void;
+	pendingLabel: string;
+	submitLabel: string;
+}) => {
+	if (!canShow) {
+		return null;
+	}
+
+	return (
+		<Button
+			className={cn("h-9 shrink-0 px-3 text-xs", hasTrailingAction ? undefined : "ml-auto")}
+			disabled={disabled}
+			onClick={onClick}
+			type="button"
+			variant="default"
+		>
+			{isSubmitting ? pendingLabel : submitLabel}
+		</Button>
+	);
+};
+
 export const InputContextControls = ({
 	className,
 	controller,
@@ -61,9 +214,7 @@ export const InputContextControls = ({
 	trailingAction,
 	variant = "overlay",
 }: InputContextControlsProps) => {
-	const [openPanel, setOpenPanel] = useState<InputContextPanel | null>(
-		defaultPanel,
-	);
+	const [openPanel, setOpenPanel] = useState<InputContextPanel | null>(defaultPanel);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const isTabVariant = variant === "tabs";
 	const isPanelDisabled = disabled || isSubmitting;
@@ -108,14 +259,11 @@ export const InputContextControls = ({
 		}
 	}, [controller, onSubmit]);
 
-	const handleTextSubmitShortcut = useCallback(
-		() => {
-			if (controller.hasAnyContext && !isSubmitting) {
-				void handleSubmit();
-			}
-		},
-		[controller.hasAnyContext, handleSubmit, isSubmitting],
-	);
+	const handleTextSubmitShortcut = useCallback(() => {
+		if (controller.hasAnyContext && !isSubmitting) {
+			void handleSubmit();
+		}
+	}, [controller.hasAnyContext, handleSubmit, isSubmitting]);
 
 	const handleTextContextLimitExceeded = useCallback((maxCharacters: number) => {
 		toast.error(
@@ -123,87 +271,69 @@ export const InputContextControls = ({
 		);
 	}, []);
 
-	const renderPanelShell = (
-		panelTitle: string,
-		panelDescription: string,
-		children: ReactNode,
-	) => (
-		<div
-			className={cn(
-				"z-20 bg-solarized-blue/10 p-4 shadow-lg backdrop-blur",
-				isTabVariant
-					? "static min-h-[min(68svh,36rem)] rounded-t-lg shadow-none"
-					: panelPortalTarget
-						? "absolute inset-0 flex min-h-0 flex-col overflow-hidden rounded-none"
-						: "static mb-3 max-h-[min(60svh,32rem)] overflow-y-auto overscroll-contain rounded-lg lg:absolute lg:right-4 lg:bottom-full lg:left-4 lg:mb-2 lg:max-h-96",
-			)}
+	const textPanel = (
+		<PanelShell
+			description={textPanelDescription}
+			isTabVariant={isTabVariant}
+			onClose={handlePanelClose}
+			panelPortalTarget={panelPortalTarget}
+			title={textPanelTitle}
 		>
-			<div className="mb-4 flex items-center justify-between gap-2">
-				<div className="min-w-0">
-					<div className="font-medium text-foreground text-sm">{panelTitle}</div>
-					<div className="text-muted-foreground text-xs">{panelDescription}</div>
-				</div>
-				{isTabVariant ? null : (
-					<Button
-						aria-label={`${panelTitle} minimieren`}
-						onClick={handlePanelClose}
-						size="icon"
-						type="button"
-						variant="ghost"
-					>
-						<ChevronDown className="h-4 w-4" />
-					</Button>
-				)}
-			</div>
-			{children}
-		</div>
+			{textPanelContent ?? (
+				<TextInput
+					disabled={isPanelDisabled}
+					maxCharacters={FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters}
+					onMaxCharactersExceeded={handleTextContextLimitExceeded}
+					onSubmitShortcut={handleTextSubmitShortcut}
+					onValueChange={controller.setTextContext}
+					stretchFields={Boolean(panelPortalTarget)}
+					value={controller.textContext}
+				/>
+			)}
+		</PanelShell>
 	);
 
-	const textPanel = renderPanelShell(
-		textPanelTitle,
-		textPanelDescription,
-		textPanelContent ?? (
-			<TextInput
+	const audioPanel = (
+		<PanelShell
+			description={`Nimm bis zu ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Aufnahmen auf. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`}
+			isTabVariant={isTabVariant}
+			onClose={handlePanelClose}
+			panelPortalTarget={panelPortalTarget}
+			title="Audio"
+		>
+			<AudioInput
 				disabled={isPanelDisabled}
-				maxCharacters={FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters}
-				onMaxCharactersExceeded={handleTextContextLimitExceeded}
-				onSubmitShortcut={handleTextSubmitShortcut}
-				onValueChange={controller.setTextContext}
-				stretchFields={Boolean(panelPortalTarget)}
-				value={controller.textContext}
+				maxRecordings={controller.effectiveMaxRecordings}
+				onValueChange={controller.setAudioRecordings}
+				value={controller.audioRecordings}
 			/>
-		),
+		</PanelShell>
 	);
 
-	const audioPanel = renderPanelShell(
-		"Audio",
-		`Nimm bis zu ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Aufnahmen auf. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
-		<AudioInput
-			disabled={isPanelDisabled}
-			maxRecordings={controller.effectiveMaxRecordings}
-			onValueChange={controller.setAudioRecordings}
-			value={controller.audioRecordings}
-		/>,
+	const filePanel = (
+		<PanelShell
+			description="Füge Dateien als Kontext hinzu und entferne sie wieder, bevor du die Anfrage sendest."
+			isTabVariant={isTabVariant}
+			onClose={handlePanelClose}
+			panelPortalTarget={panelPortalTarget}
+			title="Dateien"
+		>
+			<DocumentInput
+				disabled={isPanelDisabled}
+				onValueChange={controller.setContextFiles}
+				value={controller.contextFiles}
+			/>
+		</PanelShell>
 	);
 
-	const filePanel = renderPanelShell(
-		"Dateien",
-		"Füge Dateien als Kontext hinzu und entferne sie wieder, bevor du die Anfrage sendest.",
-		<DocumentInput
-			disabled={isPanelDisabled}
-			onValueChange={controller.setContextFiles}
-			value={controller.contextFiles}
-		/>,
-	);
-
-	const activePanel =
-		openPanel === "text"
-			? textPanel
-			: openPanel === "audio"
-				? audioPanel
-				: openPanel === "files"
-					? filePanel
-					: null;
+	const activePanel = openPanel
+		? { audio: audioPanel, files: filePanel, text: textPanel }[openPanel]
+		: null;
+	const renderedActivePanel = renderActivePanel({
+		activePanel,
+		isTabVariant,
+		panelPortalTarget,
+	});
 	const hasVisibleText = textPanelHasValue ?? controller.hasTextContext;
 
 	return (
@@ -211,11 +341,7 @@ export const InputContextControls = ({
 			className={cn("relative w-full space-y-2", className)}
 			data-align={isTabVariant ? "block-start" : undefined}
 		>
-			{activePanel
-				? panelPortalTarget && !isTabVariant
-					? createPortal(activePanel, panelPortalTarget)
-					: activePanel
-				: null}
+			{renderedActivePanel}
 
 			<div
 				className={cn(
@@ -224,87 +350,48 @@ export const InputContextControls = ({
 						"rounded-b-lg border border-solarized-blue/20 bg-solarized-blue/5 px-3 py-2",
 				)}
 			>
-				{title ? (
-					<div className="min-w-0 flex-1">
-						<span className="truncate font-medium text-foreground text-xs">
-							{title}
-						</span>
-					</div>
-				) : null}
-				<Button
-					aria-expanded={openPanel === "files"}
-					aria-label="Dateien hinzufügen"
-					className="relative shrink-0"
+					<ToolbarTitle title={title} />
+					<ContextToggleButton
+						ariaLabel="Dateien hinzufügen"
+						hasValue={controller.hasContextFiles}
+						icon={<Paperclip className="h-4 w-4" />}
+					isActive={openPanel === "files"}
 					onClick={() => {
 						handlePanelToggle("files");
 					}}
-					size="icon"
 					title="Dateien hinzufügen"
-					type="button"
-					variant={
-						openPanel === "files" || controller.hasContextFiles
-							? "secondary"
-							: "outline"
-					}
-				>
-					<Paperclip className="h-4 w-4" />
-					{controller.hasContextFiles ? (
-						<span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-solarized-green" />
-					) : null}
-				</Button>
-				<Button
-					aria-expanded={openPanel === "audio"}
-					aria-label="Audio-Kontext öffnen"
-					className="relative shrink-0"
+					/>
+					<ContextToggleButton
+						ariaLabel="Audio-Kontext öffnen"
+						hasValue={controller.hasAudioRecordings}
+					icon={<Mic className="h-4 w-4" />}
+					isActive={openPanel === "audio"}
 					onClick={() => {
 						handlePanelToggle("audio");
 					}}
-					size="icon"
 					title="Audio-Kontext öffnen"
-					type="button"
-					variant={
-						openPanel === "audio" || controller.hasAudioRecordings
-							? "secondary"
-							: "outline"
-					}
-				>
-					<Mic className="h-4 w-4" />
-					{controller.hasAudioRecordings ? (
-						<span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-solarized-green" />
-					) : null}
-				</Button>
-				<Button
-					aria-expanded={openPanel === "text"}
-					aria-label="Textkontext öffnen"
-					className="relative shrink-0"
+					/>
+					<ContextToggleButton
+						ariaLabel="Textkontext öffnen"
+						hasValue={hasVisibleText}
+					icon={<FileText className="h-4 w-4" />}
+					isActive={openPanel === "text"}
 					onClick={() => {
 						handlePanelToggle("text");
 					}}
-					size="icon"
-					type="button"
-					variant={
-						openPanel === "text" || hasVisibleText ? "secondary" : "outline"
-					}
-				>
-					<FileText className="h-4 w-4" />
-					{hasVisibleText ? (
-						<span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-solarized-green" />
-					) : null}
-				</Button>
+				/>
 				{trailingAction ? (
 					<div className="ml-auto flex shrink-0 items-center">{trailingAction}</div>
 				) : null}
-				{showSubmit && onSubmit ? (
-					<Button
-						className={cn("h-9 shrink-0 px-3 text-xs", !trailingAction && "ml-auto")}
-						disabled={!controller.hasAnyContext || isSubmitting}
-						onClick={handleSubmit}
-						type="button"
-						variant="default"
-					>
-						{isSubmitting ? pendingLabel : submitLabel}
-					</Button>
-				) : null}
+				<SubmitButton
+					canShow={Boolean(showSubmit && onSubmit)}
+					disabled={!controller.hasAnyContext || isSubmitting}
+					hasTrailingAction={Boolean(trailingAction)}
+					isSubmitting={isSubmitting}
+					onClick={handleSubmit}
+					pendingLabel={pendingLabel}
+					submitLabel={submitLabel}
+				/>
 			</div>
 		</div>
 	);

@@ -29,10 +29,8 @@ const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentTy
 	}
 
 	const { endpoint } = metadata;
-	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		if (isScribeDocType(endpoint)) {
-			return endpoint;
-		}
+	if (typeof endpoint === "string" && endpoint.trim().length > 0 && isScribeDocType(endpoint)) {
+		return endpoint;
 	}
 
 	const { promptName } = metadata;
@@ -102,9 +100,8 @@ export const formatTokensPerSecond = (
 	durationMs: number | null | undefined,
 ): string => formatTokensPerSecondValue(calculateTokensPerSecond(outputTokens, durationMs));
 
-export const formatStatTokensPerSecond = (
-	tokensPerSecond: number | null | undefined,
-): string => formatTokensPerSecondValue(tokensPerSecond ?? null);
+export const formatStatTokensPerSecond = (tokensPerSecond: number | null | undefined): string =>
+	formatTokensPerSecondValue(tokensPerSecond ?? null);
 
 export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null => {
 	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
@@ -114,14 +111,14 @@ export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null =>
 	if (!evaluation || typeof evaluation !== "object" || Array.isArray(evaluation)) {
 		return null;
 	}
-	const totalScore = (evaluation as Record<string, unknown>).totalScore;
+	const { totalScore } = evaluation as Record<string, unknown>;
 	if (typeof totalScore !== "number" || !Number.isFinite(totalScore)) {
 		return null;
 	}
 	return evaluation as UsageEvaluation;
 };
 
-export const formatScore = (score: number | undefined): string =>
+export const formatScore = (score?: number): string =>
 	score === undefined ? "-" : score.toFixed(1);
 
 export const getPromptLabel = (metadata: Record<string, unknown> | null): string => {

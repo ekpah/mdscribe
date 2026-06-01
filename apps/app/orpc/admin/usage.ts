@@ -21,10 +21,7 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { PLAYGROUND_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
-import {
-	buildProviderOptions,
-	resolveDefaultModel,
-} from "@/orpc/scribe/providers";
+import { buildProviderOptions, resolveDefaultModel } from "@/orpc/scribe/providers";
 
 const usageEvaluationSchema = z.object({
 	categories: z
@@ -47,7 +44,7 @@ const toMetadataRecord = (metadata: unknown): Record<string, unknown> => {
 };
 
 const getCustomFormSlugFromMetadata = (metadata: Record<string, unknown>): string | null => {
-	const endpoint = metadata.endpoint;
+	const { endpoint } = metadata;
 	if (typeof endpoint !== "string" || !endpoint.startsWith("custom:")) {
 		return null;
 	}
@@ -93,12 +90,12 @@ const getDocumentTypeForEvaluation = (
 	eventName: string,
 	metadata: Record<string, unknown>,
 ): string => {
-	const endpoint = metadata.endpoint;
+	const { endpoint } = metadata;
 	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
 		return endpoint;
 	}
 
-	const promptName = metadata.promptName;
+	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
 		return promptName;
 	}
@@ -154,9 +151,9 @@ const listUsageEventsHandler = authed
 				model: usageEvent.model,
 				name: usageEvent.name,
 				outputTokens: usageEvent.outputTokens,
-				timestamp: usageEvent.timestamp,
 				timeToCompletionMs: usageEvent.timeToCompletionMs,
 				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
+				timestamp: usageEvent.timestamp,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -199,9 +196,9 @@ const getUsageEventHandler = authed
 				reasoning: usageEvent.reasoning,
 				reasoningTokens: usageEvent.reasoningTokens,
 				result: usageEvent.result,
-				timestamp: usageEvent.timestamp,
 				timeToCompletionMs: usageEvent.timeToCompletionMs,
 				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
+				timestamp: usageEvent.timestamp,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -243,9 +240,9 @@ const findByRequestIdHandler = authed
 				reasoning: usageEvent.reasoning,
 				reasoningTokens: usageEvent.reasoningTokens,
 				result: usageEvent.result,
-				timestamp: usageEvent.timestamp,
 				timeToCompletionMs: usageEvent.timeToCompletionMs,
 				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
+				timestamp: usageEvent.timestamp,
 				totalTokens: usageEvent.totalTokens,
 				user: {
 					email: user.email,
@@ -288,16 +285,14 @@ const evaluateUsageEventHandler = authed
 			});
 		}
 
-		const evaluationSelection = await resolveDefaultModel(
-			context.db,
-			"evaluation",
-		).catch((error: unknown) => {
-			const details =
-				error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
-			});
-		});
+		const evaluationSelection = await resolveDefaultModel(context.db, "evaluation").catch(
+			(error: unknown) => {
+				const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
+				});
+			},
+		);
 		const metadata = toMetadataRecord(event.metadata);
 		const documentType = getDocumentTypeForEvaluation(event.name, metadata);
 
@@ -305,13 +300,6 @@ const evaluateUsageEventHandler = authed
 		try {
 			evaluation = await generateObject({
 				model: evaluationSelection.model.model,
-				providerOptions: buildProviderOptions({
-					model: evaluationSelection.model,
-					reasoningEffort: evaluationSelection.reasoningEffort,
-					userId: context.session.user.id,
-				}),
-				schema: usageEvaluationSchema,
-				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
 				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.
 
 Dokumenttyp: ${documentType}
@@ -321,6 +309,13 @@ ${JSON.stringify(event.inputData ?? {}, null, 2)}
 
 Modell-Ausgabe:
 ${event.result}`,
+				providerOptions: buildProviderOptions({
+					model: evaluationSelection.model,
+					reasoningEffort: evaluationSelection.reasoningEffort,
+					userId: context.session.user.id,
+				}),
+				schema: usageEvaluationSchema,
+				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
 				temperature: 0.1,
 			});
 		} catch (error) {
@@ -403,14 +398,21 @@ const getLocalRangeStartExpression = (
 	const localToday = sql`date_trunc('day', timezone(${timeZoneLiteral}, now()))`;
 
 	switch (filter) {
-		case "today":
+		case "today": {
 			return localToday;
-		case "week":
+		}
+		case "week": {
 			return sql`(${localToday} - interval '7 days')`;
-		case "month":
+		}
+		case "month": {
 			return sql`(${localToday} - interval '30 days')`;
-		case "all":
+		}
+		case "all": {
 			return null;
+		}
+		default: {
+			return null;
+		}
 	}
 };
 
@@ -430,12 +432,7 @@ const toRoundedMetric = (value: unknown, fractionDigits = 0): number | null => {
 	return Number(numericValue.toFixed(fractionDigits));
 };
 
-const buildPercentileStats = (
-	p50: unknown,
-	p90: unknown,
-	p95: unknown,
-	fractionDigits = 0,
-) => ({
+const buildPercentileStats = (p50: unknown, p90: unknown, p95: unknown, fractionDigits = 0) => ({
 	p50: toRoundedMetric(p50, fractionDigits),
 	p90: toRoundedMetric(p90, fractionDigits),
 	p95: toRoundedMetric(p95, fractionDigits),
@@ -447,36 +444,120 @@ const emptyPercentileStats = {
 	p95: null,
 };
 
+interface UsageTrendRow {
+	bucket: unknown;
+	cost: unknown;
+	events: unknown;
+	timeToCompletionP50: unknown;
+	timeToCompletionP90: unknown;
+	timeToCompletionP95: unknown;
+	timeToFirstTokenP50: unknown;
+	timeToFirstTokenP90: unknown;
+	timeToFirstTokenP95: unknown;
+	tokens: unknown;
+	tokensPerSecondP50: unknown;
+	tokensPerSecondP90: unknown;
+	tokensPerSecondP95: unknown;
+}
+
+const buildTrendBucket = (bucket: string, row: UsageTrendRow | undefined) => ({
+	bucket,
+	cost: Number(row?.cost) || 0,
+	events: Number(row?.events) || 0,
+	timeToCompletionMs: row
+		? buildPercentileStats(
+				row.timeToCompletionP50,
+				row.timeToCompletionP90,
+				row.timeToCompletionP95,
+			)
+		: emptyPercentileStats,
+	timeToFirstTokenMs: row
+		? buildPercentileStats(
+				row.timeToFirstTokenP50,
+				row.timeToFirstTokenP90,
+				row.timeToFirstTokenP95,
+			)
+		: emptyPercentileStats,
+	tokens: Number(row?.tokens) || 0,
+	tokensPerSecond: row
+		? buildPercentileStats(
+				row.tokensPerSecondP50,
+				row.tokensPerSecondP90,
+				row.tokensPerSecondP95,
+				1,
+			)
+		: emptyPercentileStats,
+});
+
+const buildUsageTrend = (seriesRows: { bucket: string }[], trendRows: UsageTrendRow[]) => {
+	const rowByBucket = new Map(trendRows.map((row) => [String(row.bucket), row]));
+	return seriesRows.map((seriesRow) => {
+		const bucket = String(seriesRow.bucket);
+		return buildTrendBucket(bucket, rowByBucket.get(bucket));
+	});
+};
+
+const calculateTokensPerSecond = (
+	timedTotalTokens: number,
+	timedTotalCompletionMs: number,
+): number | null => {
+	if (timedTotalCompletionMs > 0) {
+		return Number((timedTotalTokens / (timedTotalCompletionMs / 1000)).toFixed(1));
+	}
+	return null;
+};
+
+const buildUsageStatsExpressions = (filter: StatsFilter, timeZone: string) => {
+	const timeZoneLiteral = toSqlStringLiteral(timeZone);
+	const trendGranularity = getTrendGranularity(filter);
+	const localRangeStartExpression = getLocalRangeStartExpression(filter, timeZoneLiteral);
+	const localTimestampExpression = sql`timezone(${timeZoneLiteral}, ${usageEvent.timestamp})`;
+	const bucketExpression =
+		trendGranularity === "hour"
+			? sql<Date>`date_trunc('hour', ${localTimestampExpression})`
+			: sql<Date>`date_trunc('day', ${localTimestampExpression})`;
+	const localNowBucketExpression =
+		trendGranularity === "hour"
+			? sql`date_trunc('hour', timezone(${timeZoneLiteral}, now()))`
+			: sql`date_trunc('day', timezone(${timeZoneLiteral}, now()))`;
+	const seriesStartExpression =
+		localRangeStartExpression ||
+		sql`coalesce(
+				(select min(${bucketExpression}) from ${usageEvent}),
+				${localNowBucketExpression}
+			)`;
+	const seriesStepExpression =
+		trendGranularity === "hour" ? sql`interval '1 hour'` : sql`interval '1 day'`;
+
+	const whereClause = localRangeStartExpression
+		? sql`${usageEvent.timestamp} >= (${localRangeStartExpression} at time zone ${timeZoneLiteral})`
+		: undefined;
+
+	return {
+		bucketExpression,
+		localNowBucketExpression,
+		seriesStartExpression,
+		seriesStepExpression,
+		timeZoneLiteral,
+		trendGranularity,
+		whereClause,
+	};
+};
+
 const getUsageStatsHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(statsFilterInput)
 	.handler(async ({ context, input }) => {
 		const filter = input.filter ?? "all";
 		const timeZone = resolveStatsTimeZone(input.timeZone);
-		const timeZoneLiteral = toSqlStringLiteral(timeZone);
-		const trendGranularity = getTrendGranularity(filter);
-		const localRangeStartExpression = getLocalRangeStartExpression(filter, timeZoneLiteral);
-		const localTimestampExpression = sql`timezone(${timeZoneLiteral}, ${usageEvent.timestamp})`;
-		const bucketExpression =
-			trendGranularity === "hour"
-				? sql<Date>`date_trunc('hour', ${localTimestampExpression})`
-				: sql<Date>`date_trunc('day', ${localTimestampExpression})`;
-		const localNowBucketExpression =
-			trendGranularity === "hour"
-				? sql`date_trunc('hour', timezone(${timeZoneLiteral}, now()))`
-				: sql`date_trunc('day', timezone(${timeZoneLiteral}, now()))`;
-		const seriesStartExpression = localRangeStartExpression
-			? localRangeStartExpression
-			: sql`coalesce(
-					(select min(${bucketExpression}) from ${usageEvent}),
-					${localNowBucketExpression}
-				)`;
-		const seriesStepExpression =
-			trendGranularity === "hour" ? sql`interval '1 hour'` : sql`interval '1 day'`;
-
-		const whereClause = localRangeStartExpression
-			? sql`${usageEvent.timestamp} >= (${localRangeStartExpression} at time zone ${timeZoneLiteral})`
-			: undefined;
+		const {
+			bucketExpression,
+			localNowBucketExpression,
+			seriesStartExpression,
+			seriesStepExpression,
+			trendGranularity,
+			whereClause,
+		} = buildUsageStatsExpressions(filter, timeZone);
 
 		const [statsRows, trendRows, seriesRows] = await Promise.all([
 			context.db
@@ -616,56 +697,22 @@ const getUsageStatsHandler = authed
 		const averageTimeToFirstTokenMs = toFiniteMetric(stats?.averageTimeToFirstTokenMs);
 		const timedTotalCompletionMs = Number(stats?.timedTotalCompletionMs) || 0;
 		const timedTotalTokens = Number(stats?.timedTotalTokens) || 0;
-		const rowByBucket = new Map(trendRows.map((row) => [String(row.bucket), row]));
-		const trend = seriesRows.map((seriesRow) => {
-			const bucket = String(seriesRow.bucket);
-			const row = rowByBucket.get(bucket);
-			return {
-				bucket,
-				cost: Number(row?.cost) || 0,
-				events: Number(row?.events) || 0,
-				timeToCompletionMs: row
-					? buildPercentileStats(
-							row.timeToCompletionP50,
-							row.timeToCompletionP90,
-							row.timeToCompletionP95,
-						)
-					: emptyPercentileStats,
-				timeToFirstTokenMs: row
-					? buildPercentileStats(
-							row.timeToFirstTokenP50,
-							row.timeToFirstTokenP90,
-							row.timeToFirstTokenP95,
-						)
-					: emptyPercentileStats,
-				tokens: Number(row?.tokens) || 0,
-				tokensPerSecond: row
-					? buildPercentileStats(
-							row.tokensPerSecondP50,
-							row.tokensPerSecondP90,
-							row.tokensPerSecondP95,
-							1,
-						)
-					: emptyPercentileStats,
-			};
-		});
+		const trend = buildUsageTrend(
+			seriesRows.map((row) => ({ bucket: String(row.bucket) })),
+			trendRows,
+		);
 
 		return {
 			activeUsers: Number(stats?.activeUsers) || 0,
-			averageTimeToCompletionMs: averageTimeToCompletionMs !== null
-				? Math.round(averageTimeToCompletionMs)
-				: null,
-			averageTimeToFirstTokenMs: averageTimeToFirstTokenMs !== null
-				? Math.round(averageTimeToFirstTokenMs)
-				: null,
-			tokensPerSecond:
-				timedTotalCompletionMs > 0
-					? Number((timedTotalTokens / (timedTotalCompletionMs / 1000)).toFixed(1))
-					: null,
+			averageTimeToCompletionMs:
+				averageTimeToCompletionMs === null ? null : Math.round(averageTimeToCompletionMs),
+			averageTimeToFirstTokenMs:
+				averageTimeToFirstTokenMs === null ? null : Math.round(averageTimeToFirstTokenMs),
+			timeZone,
+			tokensPerSecond: calculateTokensPerSecond(timedTotalTokens, timedTotalCompletionMs),
 			totalCost: Number(stats?.totalCost) || 0,
 			totalEvents: stats?.totalEvents ?? 0,
 			totalTokens: Number(stats?.totalTokens) || 0,
-			timeZone,
 			trend,
 			trendGranularity,
 		};

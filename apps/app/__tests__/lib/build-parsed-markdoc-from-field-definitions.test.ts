@@ -51,7 +51,7 @@ describe("buildParsedMarkdocFromFieldDefinitions", () => {
 
 	test("maps checkbox switch options to true/false by default", () => {
 		const { inputTags } = buildParsedMarkdocFromFieldDefinitions(createFieldDefinitions());
-		const switchTag = inputTags[1];
+		const [, switchTag] = inputTags;
 		expect(switchTag?.name).toBe("Switch");
 		if (!switchTag || switchTag.name !== "Switch") {
 			throw new Error("Expected switch tag");
@@ -75,7 +75,7 @@ describe("buildParsedMarkdocFromFieldDefinitions", () => {
 			},
 		]);
 
-		const switchTag = inputTags[0];
+		const [switchTag] = inputTags;
 		expect(switchTag?.name).toBe("Switch");
 		if (!switchTag || switchTag.name !== "Switch") {
 			throw new Error("Expected switch tag");

@@ -8,6 +8,6 @@ export const GET = async (): Promise<Response> => {
 		await database.execute(sql`select 1`);
 		return Response.json({ status: "ok" }, { status: 200 });
 	} catch {
-		return Response.json({ status: "error", message: "database unavailable" }, { status: 503 });
+		return Response.json({ message: "database unavailable", status: "error" }, { status: 503 });
 	}
 };

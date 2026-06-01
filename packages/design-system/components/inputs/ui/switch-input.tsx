@@ -1,9 +1,5 @@
 "use client";
 
-import type { SwitchInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import { toBooleanValue } from "@repo/markdoc-md/parse/boolean-coercion";
-import { cn } from "@repo/design-system/lib/utils";
-import { useCallback } from "react";
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
@@ -14,11 +10,16 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@repo/design-system/components/ui/toggle-group";
+import { cn } from "@repo/design-system/lib/utils";
+import { toBooleanValue } from "@repo/markdoc-md/parse/boolean-coercion";
+import type { SwitchInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import { useCallback } from "react";
+
 import { SuggestionBadge } from "./suggestion-badge";
 
 const isBooleanSwitchInput = (
 	input: SwitchInputTagType,
-	options: Array<{ attributes: { primary: string } }> | undefined,
+	options: { attributes: { primary: string } }[] | undefined,
 ): boolean => {
 	if (input.attributes.type === "boolean" || input.attributes.type === "checkbox") {
 		return true;
@@ -28,10 +29,65 @@ const isBooleanSwitchInput = (
 		return false;
 	}
 
-	const normalizedOptions = options.map((option) =>
-		option.attributes.primary.trim().toLowerCase(),
+	const normalizedOptions = new Set(
+		options.map((option) => option.attributes.primary.trim().toLowerCase()),
 	);
-	return normalizedOptions.includes("true") && normalizedOptions.includes("false");
+	return normalizedOptions.has("true") && normalizedOptions.has("false");
+};
+
+const toCurrentStringValue = (
+	value: string | boolean | undefined,
+	currentBooleanValue: boolean | undefined,
+): string => {
+	if (typeof value === "string") {
+		return value;
+	}
+
+	if (currentBooleanValue === undefined) {
+		return "";
+	}
+
+	return String(currentBooleanValue);
+};
+
+const toSuggestionString = (
+	suggestedValue: string | number | boolean | undefined,
+): string | undefined => {
+	if (typeof suggestedValue === "number" || typeof suggestedValue === "boolean") {
+		return String(suggestedValue);
+	}
+
+	return suggestedValue;
+};
+
+const getSwitchSuggestionState = ({
+	currentBooleanValue,
+	currentStringValue,
+	isBooleanSwitch,
+	normalizedSuggestionBoolean,
+	normalizedSuggestionString,
+}: {
+	currentBooleanValue: boolean | undefined;
+	currentStringValue: string;
+	isBooleanSwitch: boolean;
+	normalizedSuggestionBoolean: boolean | undefined;
+	normalizedSuggestionString: string | undefined;
+}) => {
+	if (isBooleanSwitch) {
+		const hasValue = currentBooleanValue !== undefined;
+		const hasSuggestion = normalizedSuggestionBoolean !== undefined;
+		return {
+			hasValue,
+			shouldShowSuggestion: hasSuggestion && currentBooleanValue !== normalizedSuggestionBoolean,
+		};
+	}
+
+	const hasValue = currentStringValue !== "";
+	const hasSuggestion = Boolean(normalizedSuggestionString && normalizedSuggestionString !== "");
+	return {
+		hasValue,
+		shouldShowSuggestion: hasSuggestion && currentStringValue !== normalizedSuggestionString,
+	};
 };
 
 export const SwitchInput = ({
@@ -58,8 +114,7 @@ export const SwitchInput = ({
 	const isBooleanSwitch = isBooleanSwitchInput(input, options);
 
 	const currentBooleanValue = toBooleanValue(value);
-	const currentStringValue =
-		typeof value === "string" ? value : currentBooleanValue === undefined ? "" : String(currentBooleanValue);
+	const currentStringValue = toCurrentStringValue(value, currentBooleanValue);
 
 	const handleBooleanChange = useCallback(
 		(checked: boolean | "indeterminate") => {
@@ -76,17 +131,15 @@ export const SwitchInput = ({
 	);
 
 	const normalizedSuggestionBoolean = toBooleanValue(suggestedValue);
-	const normalizedSuggestionString =
-		typeof suggestedValue === "number" ? String(suggestedValue) : typeof suggestedValue === "boolean" ? String(suggestedValue) : suggestedValue;
+	const normalizedSuggestionString = toSuggestionString(suggestedValue);
 
-	const hasValue = isBooleanSwitch ? currentBooleanValue !== undefined : currentStringValue !== "";
-	const hasSuggestion = isBooleanSwitch
-		? normalizedSuggestionBoolean !== undefined
-		: Boolean(normalizedSuggestionString && normalizedSuggestionString !== "");
-	const isSuggestionApplied = isBooleanSwitch
-		? hasSuggestion && currentBooleanValue === normalizedSuggestionBoolean
-		: hasSuggestion && currentStringValue === normalizedSuggestionString;
-	const shouldShowSuggestion = hasSuggestion && !isSuggestionApplied;
+	const { hasValue, shouldShowSuggestion } = getSwitchSuggestionState({
+		currentBooleanValue,
+		currentStringValue,
+		isBooleanSwitch,
+		normalizedSuggestionBoolean,
+		normalizedSuggestionString,
+	});
 
 	if (isBooleanSwitch) {
 		const checked = currentBooleanValue ?? false;
@@ -122,14 +175,8 @@ export const SwitchInput = ({
 	}
 
 	return (
-		<div
-			className="w-full max-w-full space-y-2"
-			key={`switch-${input.attributes.primary}`}
-		>
-			<Label
-				className="font-medium text-foreground"
-				htmlFor={input.attributes.primary}
-			>
+		<div className="w-full max-w-full space-y-2" key={`switch-${input.attributes.primary}`}>
+			<Label className="font-medium text-foreground" htmlFor={input.attributes.primary}>
 				{input.attributes.primary}
 			</Label>
 			{useSelect ? (
