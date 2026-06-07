@@ -1,6 +1,7 @@
 import { render } from "@react-email/components";
 import type { ReactElement } from "react";
 
+import { AiTextsAnnouncementTemplate } from "./templates/ai-texts-announcement";
 import { EmailChangeTemplate } from "./templates/change-email";
 import { ColdOutreachTemplate } from "./templates/cold-outreach";
 import { DocumentsAnnouncementTemplate } from "./templates/documents-announcement";
@@ -24,6 +25,29 @@ interface EmailDraftDefinition {
 type EmailDraftMetadata = Omit<EmailDraftDefinition, "render">;
 
 const emailDrafts: readonly EmailDraftDefinition[] = [
+	{
+		category: "marketing",
+		description: "Marketingmail zu AI Textbausteinen als anpassbare AIScribe-Vorlagen.",
+		id: "ai-texts-announcement",
+		previewProps: {
+			actionUrl: "https://mdscribe.de/profile/ai-scribe",
+			buttonText: "AI Textbaustein erstellen",
+			templateButtonText: "Template erstellen",
+			templateUrl: "https://mdscribe.de/templates/create",
+			userName: "Dr. Max Mustermann",
+		},
+		render: () => (
+			<AiTextsAnnouncementTemplate
+				actionUrl="https://mdscribe.de/profile/ai-scribe"
+				buttonText="AI Textbaustein erstellen"
+				templateButtonText="Template erstellen"
+				templateUrl="https://mdscribe.de/templates/create"
+				userName="Dr. Max Mustermann"
+			/>
+		),
+		subject: "Neu: AI Textbausteine für spezialisierte Vorlagen",
+		title: "AI-Scribe: AI Textbausteine",
+	},
 	{
 		category: "marketing",
 		description: "Marketingmail zur Dokumente-Funktion mit Rehaantrag-Fokus.",

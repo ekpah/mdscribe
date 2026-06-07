@@ -29,7 +29,17 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Eye, Inbox, Loader2, Mail, Search, Send, ShieldCheck } from "lucide-react";
+import {
+	AlertTriangle,
+	Eye,
+	Inbox,
+	Loader2,
+	Mail,
+	Search,
+	Send,
+	ShieldCheck,
+	Users,
+} from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -38,6 +48,8 @@ import { orpc } from "@/lib/orpc";
 
 type EmailDraft = Awaited<ReturnType<typeof orpc.admin.emails.list.call>>[number];
 type CategoryFilter = "all" | EmailDraft["category"];
+
+const MARKETING_BROADCAST_CONFIRMATION = "MARKETING E-MAIL SENDEN";
 
 const categoryLabels: Record<EmailDraft["category"], string> = {
 	authentication: "Auth",
@@ -207,8 +219,8 @@ const SendTestDialog = ({
 				<div className="flex gap-2 rounded-md border border-solarized-yellow/30 bg-solarized-yellow/10 p-3 text-solarized-base01 text-xs">
 					<ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-solarized-yellow" />
 					<p>
-						Diese Aktion ist nur für Testversand gedacht. Broadcasts an Benutzer sind hier bewusst
-						noch nicht verfügbar.
+						Diese Aktion sendet nur an die eingegebene Adresse. Marketing-Broadcasts laufen über
+						die separate Aktion mit Bestätigung.
 					</p>
 				</div>
 			</div>
@@ -224,6 +236,88 @@ const SendTestDialog = ({
 		</DialogContent>
 	</Dialog>
 );
+
+const SendMarketingBroadcastDialog = ({
+	activeDraft,
+	confirmation,
+	isPending,
+	onConfirmationChange,
+	onOpenChange,
+	onSendBroadcast,
+	open,
+}: {
+	activeDraft: EmailDraft | null;
+	confirmation: string;
+	isPending: boolean;
+	onConfirmationChange: (event: ChangeEvent<HTMLInputElement>) => void;
+	onOpenChange: (open: boolean) => void;
+	onSendBroadcast: () => void;
+	open: boolean;
+}) => {
+	const isMarketingDraft = activeDraft?.category === "marketing";
+	const canSend = isMarketingDraft && confirmation.trim() === MARKETING_BROADCAST_CONFIRMATION;
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogTrigger asChild>
+				<Button variant="destructive" disabled={!isMarketingDraft}>
+					<Users className="h-4 w-4" />
+					An alle senden
+				</Button>
+			</DialogTrigger>
+			<DialogContent className="sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle>Marketing-E-Mail versenden</DialogTitle>
+					<DialogDescription>
+						Sendet den ausgewählten Marketing-Entwurf per Postmark Batch an alle
+						verifizierten Nutzerkonten.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-4 py-2">
+					<div className="rounded-md border border-solarized-base2 bg-solarized-base3/70 p-3">
+						<p className="font-medium text-sm text-solarized-base00">
+							{activeDraft?.title ?? "Kein Entwurf ausgewählt"}
+						</p>
+						<p className="mt-1 text-solarized-base01 text-xs">
+							Betreff: {activeDraft?.subject}
+						</p>
+					</div>
+					<div className="flex gap-2 rounded-md border border-solarized-red/30 bg-solarized-red/10 p-3 text-solarized-base01 text-xs">
+						<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-solarized-red" />
+						<p>
+							Diese Aktion versendet echte E-Mails. Prüfen Sie vorher die Vorschau und senden
+							Sie eine Test-E-Mail.
+						</p>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="broadcast-confirmation">
+							Bestätigung: {MARKETING_BROADCAST_CONFIRMATION}
+						</Label>
+						<Input
+							id="broadcast-confirmation"
+							placeholder={MARKETING_BROADCAST_CONFIRMATION}
+							value={confirmation}
+							onChange={onConfirmationChange}
+						/>
+					</div>
+				</div>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+						Abbrechen
+					</Button>
+					<Button variant="destructive" onClick={onSendBroadcast} disabled={isPending || !canSend}>
+						{isPending ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<Users className="h-4 w-4" />
+						)}
+						An alle verifizierten Nutzer senden
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+};
 
 const EmailDraftList = ({
 	activeDraftId,
@@ -370,6 +464,8 @@ export default function AdminEmailsPageClient() {
 	const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 	const [selectedDraftId, setSelectedDraftId] = useState("");
 	const [testRecipient, setTestRecipient] = useState("");
+	const [broadcastConfirmation, setBroadcastConfirmation] = useState("");
+	const [broadcastDialogOpen, setBroadcastDialogOpen] = useState(false);
 	const [sendDialogOpen, setSendDialogOpen] = useState(false);
 
 	const {
@@ -409,6 +505,24 @@ export default function AdminEmailsPageClient() {
 		},
 	});
 
+	const sendMarketingBroadcastMutation = useMutation({
+		mutationFn: () =>
+			orpc.admin.emails.sendMarketingEmail.call({
+				confirmation: broadcastConfirmation.trim(),
+				id: activeDraftId,
+			}),
+		onError: (error) => {
+			toast.error(getErrorMessage(error, "E-Mail-Broadcast konnte nicht gesendet werden"));
+		},
+		onSuccess: (result) => {
+			toast.success("E-Mail-Broadcast angestoßen", {
+				description: `${result.submittedCount} von ${result.recipientCount} Empfängern in ${result.batchCount} Postmark-Batches übergeben.`,
+			});
+			setBroadcastDialogOpen(false);
+			setBroadcastConfirmation("");
+		},
+	});
+
 	const filteredDrafts = useMemo(
 		() => filterEmailDrafts(drafts, categoryFilter, search),
 		[categoryFilter, drafts, search],
@@ -426,6 +540,13 @@ export default function AdminEmailsPageClient() {
 		setTestRecipient(event.target.value);
 	}, []);
 
+	const handleBroadcastConfirmationChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			setBroadcastConfirmation(event.target.value);
+		},
+		[],
+	);
+
 	const handleSendTest = useCallback(() => {
 		if (!activeDraftId) {
 			toast.error("Bitte einen E-Mail-Entwurf auswählen");
@@ -438,6 +559,19 @@ export default function AdminEmailsPageClient() {
 
 		sendTestMutation.mutate();
 	}, [activeDraftId, sendTestMutation, testRecipient]);
+
+	const handleSendMarketingBroadcast = useCallback(() => {
+		if (activeDraft?.category !== "marketing") {
+			toast.error("Bitte einen Marketing-E-Mail-Entwurf auswählen");
+			return;
+		}
+		if (broadcastConfirmation.trim() !== MARKETING_BROADCAST_CONFIRMATION) {
+			toast.error("Bestätigung stimmt nicht mit dem erwarteten Text überein");
+			return;
+		}
+
+		sendMarketingBroadcastMutation.mutate();
+	}, [activeDraft?.category, broadcastConfirmation, sendMarketingBroadcastMutation]);
 
 	if (draftsLoading && drafts.length === 0) {
 		return <AdminEmailsLoadingState />;
@@ -460,20 +594,32 @@ export default function AdminEmailsPageClient() {
 								E-Mail Entwürfe
 							</h1>
 							<p className="text-sm text-solarized-base01 sm:text-base">
-								React-Email-Vorlagen prüfen und einzelne Test-E-Mails senden.
+								React-Email-Vorlagen prüfen, Test-E-Mails senden und Marketing-Broadcasts
+								auslösen.
 							</p>
 						</div>
 					</div>
 
-					<SendTestDialog
-						activeDraft={activeDraft}
-						isPending={sendTestMutation.isPending}
-						onOpenChange={setSendDialogOpen}
-						onRecipientChange={handleRecipientChange}
-						onSendTest={handleSendTest}
-						open={sendDialogOpen}
-						testRecipient={testRecipient}
-					/>
+					<div className="flex flex-wrap gap-2">
+						<SendTestDialog
+							activeDraft={activeDraft}
+							isPending={sendTestMutation.isPending}
+							onOpenChange={setSendDialogOpen}
+							onRecipientChange={handleRecipientChange}
+							onSendTest={handleSendTest}
+							open={sendDialogOpen}
+							testRecipient={testRecipient}
+						/>
+						<SendMarketingBroadcastDialog
+							activeDraft={activeDraft}
+							confirmation={broadcastConfirmation}
+							isPending={sendMarketingBroadcastMutation.isPending}
+							onConfirmationChange={handleBroadcastConfirmationChange}
+							onOpenChange={setBroadcastDialogOpen}
+							onSendBroadcast={handleSendMarketingBroadcast}
+							open={broadcastDialogOpen}
+						/>
+					</div>
 				</div>
 
 				<div className="grid gap-4 lg:grid-cols-[360px_1fr]">

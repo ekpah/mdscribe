@@ -133,6 +133,15 @@ const MockStripe = function MockStripe() {
 };
 
 const sendEmailMock = mock(() => resolveAsync({ success: true }));
+const sendEmailBatchMock = mock((options: { to?: readonly string[] }) =>
+	resolveAsync(
+		(options.to ?? []).map((recipient, index) => ({
+			MessageID: `batch-message-${index}`,
+			SubmittedAt: new Date().toISOString(),
+			To: recipient,
+		})),
+	),
+);
 
 mock.module("server-only", () => ({}));
 
@@ -169,6 +178,7 @@ mock.module("voyageai", () => ({
 }));
 
 mock.module("@repo/email", () => ({
+	sendEmailBatch: sendEmailBatchMock,
 	sendEmail: sendEmailMock,
 }));
 
