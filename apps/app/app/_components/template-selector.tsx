@@ -21,7 +21,7 @@ const compareTemplateText = new Intl.Collator(undefined, {
 	sensitivity: "base",
 }).compare;
 
-export interface TemplateSelectorTemplate {
+interface TemplateSelectorTemplate {
 	category?: string | null;
 	id: string;
 	title: string;

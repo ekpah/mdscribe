@@ -39,7 +39,7 @@ const promptHarnessAliasMap = new Map<string, PromptHarnessId>(
 export const documentTypeConfigs: Record<DocumentType, DocumentTypeConfig> =
 	documentPromptDefinitions;
 
-export interface PromptHarnessOption {
+interface PromptHarnessOption {
 	id: PromptHarnessId;
 	label: string;
 }
@@ -51,7 +51,7 @@ export const PROMPT_HARNESS_OPTIONS: PromptHarnessOption[] = PROMPT_HARNESS_IDS.
 	}),
 );
 
-export const isPromptHarnessId = (value: string): value is PromptHarnessId =>
+const isPromptHarnessId = (value: string): value is PromptHarnessId =>
 	promptHarnessIdSet.has(value);
 
 export const resolvePromptHarnessId = (
@@ -86,20 +86,6 @@ export const getDocumentTypeByPromptName = (
 export const getPromptHarnessLabel = (promptHarness: string): string => {
 	const documentType = getDocumentTypeByPromptName(promptHarness);
 	return documentType ? documentTypeConfigs[documentType].promptName : promptHarness;
-};
-
-export const getPromptHarnessOption = (
-	promptHarness: string,
-): PromptHarnessOption | undefined => {
-	const documentType = getDocumentTypeByPromptName(promptHarness);
-	if (!documentType) {
-		return undefined;
-	}
-
-	return {
-		id: documentType,
-		label: documentTypeConfigs[documentType].promptName,
-	};
 };
 
 export const getPromptHarnessReferences = (documentType: PromptHarnessId): readonly string[] => [

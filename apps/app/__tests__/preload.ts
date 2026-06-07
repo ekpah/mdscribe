@@ -178,8 +178,8 @@ mock.module("voyageai", () => ({
 }));
 
 mock.module("@repo/email", () => ({
+  sendEmail: sendEmailMock,
 	sendEmailBatch: sendEmailBatchMock,
-	sendEmail: sendEmailMock,
 }));
 
 mock.module("stripe", () => ({
