@@ -2,10 +2,12 @@
 
 import { Button } from '@repo/design-system/components/ui/button';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@repo/design-system/components/ui/collapsible';
+  NavigationSidebar,
+} from '@/app/_components/sidebar/navigation-sidebar';
+import type {
+  NavigationSidebarItem,
+  NavigationSidebarSection,
+} from '@/app/_components/sidebar/navigation-sidebar';
 import {
   Dialog,
   DialogContent,
@@ -19,20 +21,9 @@ import { Input } from '@repo/design-system/components/ui/input';
 import { Kbd } from '@repo/design-system/components/ui/kbd';
 import { Label } from '@repo/design-system/components/ui/label';
 import {
-  Sidebar,
-  SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarInput,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarRail,
-  useSidebar,
 } from '@repo/design-system/components/ui/sidebar';
 import { Textarea } from '@repo/design-system/components/ui/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -42,7 +33,6 @@ import {
   Folder,
   FolderPlus,
   Library,
-  Minus,
   Plus,
   Pencil,
   PlusCircle,
@@ -152,8 +142,6 @@ export default function AppSidebar({
   customCollections: string;
   isLoggedIn: boolean;
 }) {
-  const { setOpenMobile } = useSidebar();
-
   const isMac =
     typeof window !== 'undefined' &&
     /Mac|iPhone|iPod|iPad/.test(navigator.userAgent);
@@ -385,13 +373,47 @@ export default function AppSidebar({
     [orderedSegments, router]
   );
 
-  const handleCloseMobile = useCallback(() => {
-    setOpenMobile(false);
-  }, [setOpenMobile]);
+  const navigationSections = useMemo<NavigationSidebarSection[]>(
+    () =>
+      orderedSegments.map((segment) => ({
+        items: segment.documents.map((item) => ({
+          count: item.favouritesCount,
+          href: item.url,
+          title: item.title,
+        })),
+        key: segment.category || 'uncategorized',
+        title: segment.category,
+      })),
+    [orderedSegments]
+  );
+
+  const getTemplateItemHref = useCallback(
+    (item: NavigationSidebarItem) =>
+      `${item.href}?activeCollection=${encodeURIComponent(activeCollectionValue)}`,
+    [activeCollectionValue]
+  );
+
+  const renderTemplateItemMeta = useCallback((item: NavigationSidebarItem) => {
+    if (!item.count || item.count <= 0) {
+      return null;
+    }
+
+    return (
+      <span className="ml-2 flex items-center text-muted-foreground text-xs">
+        <StarIcon className="mr-0.5 h-3 w-3" />
+        {formatCount(item.count)}
+      </span>
+    );
+  }, []);
 
   return (
-    <Sidebar className="top-16 mb-16 p-1 pb-20">
-      <SidebarHeader className="z-30 gap-4">
+    <NavigationSidebar
+      className="top-16 mb-16 p-1 pb-20"
+      contentClassName="custom-scrollbar gap-6 text-xl"
+      expandIcon="plus-minus"
+      getItemHref={getTemplateItemHref}
+      header={
+        <>
         {isLoggedIn && (
           <CollectionSwitcher
             activeCollection={activeCollectionValue}
@@ -508,59 +530,11 @@ export default function AppSidebar({
             </SidebarGroupContent>
           )}
         </SidebarGroup>
-      </SidebarHeader>
-      <SidebarContent
-        className="custom-scrollbar gap-6 text-xl"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        <SidebarGroup>
-          <SidebarMenu>
-            {orderedSegments.map((segment) => (
-              <Collapsible
-                className="group/collapsible"
-                defaultOpen={true}
-                key={segment.category || 'uncategorized'}
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton className="font-semibold text-foreground text-lg">
-                      {segment.category || 'Diverses'}
-                      <Plus className="ml-auto group-data-[state=open]/collapsible:hidden" />
-                      <Minus className="ml-auto group-data-[state=closed]/collapsible:hidden" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  {segment.documents?.length ? (
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {segment.documents.map((item) => (
-                          <SidebarMenuSubItem key={item.url}>
-                            <SidebarMenuSubButton asChild isActive={false}>
-                              <Link
-                                className="flex items-center justify-between"
-                                href={`${item.url}?activeCollection=${encodeURIComponent(activeCollectionValue)}`}
-                                onClick={handleCloseMobile}
-                              >
-                                <span>{item.title}</span>
-                                {item.favouritesCount > 0 && (
-                                  <span className="ml-2 flex items-center text-muted-foreground text-xs">
-                                    <StarIcon className="mr-0.5 h-3 w-3" />
-                                    {formatCount(item.favouritesCount)}
-                                  </span>
-                                )}
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  ) : null}
-                </SidebarMenuItem>
-              </Collapsible>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-      </SidebarContent>
-      <SidebarRail />
-    </Sidebar>
+        </>
+      }
+      renderItemMeta={renderTemplateItemMeta}
+      sectionButtonClassName="font-semibold text-foreground text-lg"
+      sections={navigationSections}
+    />
   );
 }
