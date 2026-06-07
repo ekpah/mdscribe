@@ -25,13 +25,14 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLinkIcon, Info, Loader2, WandSparkles } from "lucide-react";
+import { ExternalLinkIcon, Loader2, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { LabelWithInfo, SectionLabelWithInfo } from "@/app/_components/ai-text-forms/info-labels";
+import { TemplateSelector } from "@/app/_components/template-selector";
 import type { BuiltInAiscribeOverrideKey } from "@/lib/aiscribe-built-ins";
 import { orpc } from "@/lib/orpc";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
@@ -40,7 +41,8 @@ const NONE_VALUE = "__none__";
 const FIELD_EXPLANATIONS = {
 	prompt:
 		"Der Basis-Prompt ist das Prompt-Harness, das Inhalt, Ton und Struktur der Generierung vorgibt.",
-	template: "Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor.",
+	template:
+		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.",
 } as const;
 
 type BuiltInFormList = Awaited<ReturnType<typeof orpc.admin.scribeForms.listBuiltIn.call>>;
@@ -67,35 +69,6 @@ const toDraft = (form: BuiltInFormRecord): BuiltInFormDraft => ({
 	title: form.title,
 });
 
-const InfoHint = ({ text }: { text: string }) => (
-	<Tooltip>
-		<TooltipTrigger asChild>
-			<button
-				type="button"
-				aria-label={text}
-				className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
-			>
-				<Info className="h-3.5 w-3.5" />
-			</button>
-		</TooltipTrigger>
-		<TooltipContent className="max-w-64 text-xs leading-relaxed">{text}</TooltipContent>
-	</Tooltip>
-);
-
-const LabelWithInfo = ({ children, info }: { children: string; info: string }) => (
-	<div className="flex items-center gap-1.5">
-		<Label>{children}</Label>
-		<InfoHint text={info} />
-	</div>
-);
-
-const SectionLabelWithInfo = ({ children, info }: { children: string; info: string }) => (
-	<div className="flex items-center gap-1.5">
-		<span className="font-medium">{children}</span>
-		<InfoHint text={info} />
-	</div>
-);
-
 export const BuiltInScribeModesSection = () => {
 	const queryClient = useQueryClient();
 	const builtInFormsQueryOptions = orpc.admin.scribeForms.listBuiltIn.queryOptions();
@@ -116,8 +89,14 @@ export const BuiltInScribeModesSection = () => {
 	const [draft, setDraft] = useState<BuiltInFormDraft | null>(null);
 
 	const builtInListKey = builtInFormsQueryOptions.queryKey;
-	const promptNames = prompts?.items ?? [];
-	const availablePromptNames = new Set(promptNames);
+	const promptHarnessOptions: { id: string; label: string }[] =
+		prompts?.options ??
+		prompts?.items.map((promptName) => ({ id: promptName, label: promptName })) ??
+		[];
+	const availablePromptNames = new Set<string>(promptHarnessOptions.map((option) => option.id));
+	const promptHarnessLabelById = new Map<string, string>(
+		promptHarnessOptions.map((option) => [option.id, option.label]),
+	);
 	const saveMutation = useMutation({
 		mutationFn: (currentDraft: BuiltInFormDraft) => {
 			if (!currentDraft.promptHarness) {
@@ -270,9 +249,9 @@ export const BuiltInScribeModesSection = () => {
 
 			<div className="grid gap-4 xl:grid-cols-2">
 				{builtInForms.map((form) => {
-					const isPromptAvailable = availablePromptNames.has(
-						form.override?.promptHarness ?? form.defaultPromptHarness,
-					);
+					const promptHarness = form.override?.promptHarness ?? form.defaultPromptHarness;
+					const isPromptAvailable = availablePromptNames.has(promptHarness);
+					const promptHarnessLabel = promptHarnessLabelById.get(promptHarness) ?? promptHarness;
 					const handleOpenEditClick = openEditHandlers.get(form.key);
 					const handleEnabledToggle = builtInEnabledToggleHandlers.get(form.key);
 					const isTogglingCurrentForm =
@@ -324,7 +303,7 @@ export const BuiltInScribeModesSection = () => {
 											isPromptAvailable ? "text-solarized-base00" : "text-solarized-base01"
 										}`}
 									>
-										{form.override?.promptHarness ?? form.defaultPromptHarness}
+										{promptHarnessLabel}
 										{isPromptAvailable ? "" : " (nicht verfügbar)"}
 									</span>
 
@@ -346,7 +325,6 @@ export const BuiltInScribeModesSection = () => {
 											"Keins"
 										)}
 									</span>
-
 								</div>
 								<div className="flex justify-end">
 									<Button onClick={handleOpenEditClick} size="sm" variant="outline">
@@ -393,9 +371,9 @@ export const BuiltInScribeModesSection = () => {
 													{draft.promptHarness} (nicht verfügbar)
 												</SelectItem>
 											) : null}
-											{promptNames.map((promptName) => (
-												<SelectItem key={promptName} value={promptName}>
-													{promptName}
+											{promptHarnessOptions.map((promptHarness) => (
+												<SelectItem key={promptHarness.id} value={promptHarness.id}>
+													{promptHarness.label}
 												</SelectItem>
 											))}
 										</SelectContent>
@@ -404,19 +382,12 @@ export const BuiltInScribeModesSection = () => {
 
 								<div className="space-y-2">
 									<LabelWithInfo info={FIELD_EXPLANATIONS.template}>Template</LabelWithInfo>
-									<Select value={draft.templateId} onValueChange={handleDraftTemplateChange}>
-										<SelectTrigger>
-											<SelectValue placeholder="Template wählen" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value={NONE_VALUE}>Keins</SelectItem>
-											{templates.map((templateOption) => (
-												<SelectItem key={templateOption.id} value={templateOption.id}>
-													{templateOption.title}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
+									<TemplateSelector
+										noneValue={NONE_VALUE}
+										onValueChange={handleDraftTemplateChange}
+										templates={templates}
+										value={draft.templateId}
+									/>
 								</div>
 
 								<div className="flex items-center justify-between pt-2 md:col-span-2">

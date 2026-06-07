@@ -12,11 +12,7 @@ import { FlaskConical, Loader2, Medal } from "lucide-react";
 import Link from "next/link";
 
 import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
-import {
-	allScribeDocTypes,
-	isScribeDocType,
-	scribeDocTypeUi,
-} from "@/app/admin/playground/_lib/scribe-doc-types";
+import { isScribeDocType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import {
 	formatDuration,
 	formatScore,
@@ -24,14 +20,8 @@ import {
 	getUsageEvaluation,
 } from "@/app/admin/usage/columns";
 import type { UsageDetailEvent } from "@/app/admin/usage/types";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
-
-const promptNameToDocumentType = new Map(
-	allScribeDocTypes.map((documentType) => [
-		scribeDocTypeUi[documentType].defaultPromptName,
-		documentType,
-	]),
-);
 
 const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
 	if (!metadata) {
@@ -45,7 +35,7 @@ const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentTy
 
 	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return promptNameToDocumentType.get(promptName);
+		return resolvePromptHarnessId(promptName);
 	}
 
 	return undefined;

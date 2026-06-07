@@ -35,7 +35,7 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 				placeholder: "Vordiagnosen eingeben...",
 			},
 		],
-		defaultPromptName: "ER_Anamnese_chat",
+		defaultPromptName: "anamnese",
 		label: "ER Anamnese",
 		mainField: {
 			label: "Notizen",
@@ -57,7 +57,7 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 				placeholder: "Vordiagnosen eingeben...",
 			},
 		],
-		defaultPromptName: "diagnostic_results",
+		defaultPromptName: "befunde",
 		label: "ER Befunde",
 		mainField: {
 			label: "Notizen",
@@ -84,7 +84,7 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 				placeholder: "Befunde eingeben...",
 			},
 		],
-		defaultPromptName: "Diagnoses",
+		defaultPromptName: "diagnosis",
 		label: "Diagnoseblock Update",
 		mainField: {
 			label: "Notizen",
@@ -111,7 +111,7 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 				placeholder: "Befunde aus dem stationären Aufenthalt eingeben...",
 			},
 		],
-		defaultPromptName: "Inpatient_discharge",
+		defaultPromptName: "discharge",
 		label: "Entlassungsbrief",
 		mainField: {
 			description:
@@ -140,7 +140,7 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 				placeholder: "Befunde eingeben...",
 			},
 		],
-		defaultPromptName: "icu_transfer",
+		defaultPromptName: "icu-transfer",
 		label: "ICU Transfer",
 		mainField: {
 			label: "Notizen",
@@ -167,7 +167,7 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 				placeholder: "Befunde eingeben...",
 			},
 		],
-		defaultPromptName: "outpatient_visit",
+		defaultPromptName: "outpatient",
 		label: "Ambulante Vorstellung",
 		mainField: {
 			label: "Notizen",
@@ -178,7 +178,7 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 
 	procedures: {
 		additionalFields: [],
-		defaultPromptName: "procedure",
+		defaultPromptName: "procedures",
 		label: "Prozeduren",
 		mainField: {
 			label: "Prozedur-Notizen",

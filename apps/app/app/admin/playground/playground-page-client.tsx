@@ -6,10 +6,11 @@ import { parseAsBoolean, parseAsFloat, parseAsInteger, parseAsString, useQuerySt
 import { useMemo } from "react";
 
 import { orpc } from "@/lib/orpc";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 import { PlaygroundPanel } from "./_components/playground-panel";
-import { allScribeDocTypes, isScribeDocType, scribeDocTypeUi } from "./_lib/scribe-doc-types";
+import { isScribeDocType } from "./_lib/scribe-doc-types";
 import type { PlaygroundParameters, PlaygroundResult } from "./_lib/types";
 
 const playgroundSearchParams = {
@@ -21,13 +22,6 @@ const playgroundSearchParams = {
 	temperature: parseAsFloat,
 	thinking: parseAsBoolean,
 };
-
-const promptNameToDocumentType = new Map(
-	allScribeDocTypes.map((documentType) => [
-		scribeDocTypeUi[documentType].defaultPromptName,
-		documentType,
-	]),
-);
 
 const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
 	if (!metadata) {
@@ -41,7 +35,7 @@ const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentTy
 
 	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return promptNameToDocumentType.get(promptName);
+		return resolvePromptHarnessId(promptName);
 	}
 
 	return undefined;

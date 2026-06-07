@@ -20,6 +20,7 @@ import { z } from "zod";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import { PLAYGROUND_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
 import { buildProviderOptions, resolveDefaultModel } from "@/orpc/scribe/providers";
 
@@ -97,7 +98,7 @@ const getDocumentTypeForEvaluation = (
 
 	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return promptName;
+		return resolvePromptHarnessId(promptName) ?? promptName;
 	}
 
 	return eventName;

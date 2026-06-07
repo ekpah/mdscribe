@@ -27,24 +27,27 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLinkIcon, FileText, Info, Loader2, Plus, Trash2 } from "lucide-react";
+import { ExternalLinkIcon, FileText, Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
+import { LabelWithInfo, SectionLabelWithInfo } from "@/app/_components/ai-text-forms/info-labels";
+import { TemplateSelector } from "@/app/_components/template-selector";
 import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
 import { orpc } from "@/lib/orpc";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
+
 import { BuiltInScribeModesSection } from "./built-in-scribe-modes-section";
 
 const NONE_VALUE = "__none__";
 const FIELD_EXPLANATIONS = {
 	prompt:
 		"Der Basis-Prompt ist das Prompt-Harness, das Inhalt, Ton und Struktur der Generierung vorgibt.",
-	template: "Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor.",
+	template:
+		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.",
 } as const;
 
 type ScribeFormList = Awaited<ReturnType<typeof orpc.admin.scribeForms.list.call>>;
@@ -107,43 +110,6 @@ const buildFormMutationInput = ({
 	templateId,
 });
 
-const InfoHint = ({ text }: { text: string }) => (
-	<Tooltip>
-		<TooltipTrigger asChild>
-			<button
-				type="button"
-				aria-label={text}
-				className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
-			>
-				<Info className="h-3.5 w-3.5" />
-			</button>
-		</TooltipTrigger>
-		<TooltipContent className="max-w-64 text-xs leading-relaxed">{text}</TooltipContent>
-	</Tooltip>
-);
-
-const LabelWithInfo = ({
-	children,
-	htmlFor,
-	info,
-}: {
-	children: string;
-	htmlFor?: string;
-	info: string;
-}) => (
-	<div className="flex items-center gap-1.5">
-		<Label htmlFor={htmlFor}>{children}</Label>
-		<InfoHint text={info} />
-	</div>
-);
-
-const SectionLabelWithInfo = ({ children, info }: { children: string; info: string }) => (
-	<div className="flex items-center gap-1.5">
-		<span className="font-medium">{children}</span>
-		<InfoHint text={info} />
-	</div>
-);
-
 export const ScribeFormsTab = () => {
 	const queryClient = useQueryClient();
 	const formsQueryOptions = orpc.admin.scribeForms.list.queryOptions();
@@ -167,8 +133,14 @@ export const ScribeFormsTab = () => {
 	const listKey = formsQueryOptions.queryKey;
 	const resolvedDraftSlug = resolveDraftSlug(draft);
 	const routePreview = `/aiscribe/custom/${resolvedDraftSlug || "ai-text"}`;
-	const promptNames = prompts?.items ?? [];
-	const availablePromptNames = new Set(promptNames);
+	const promptHarnessOptions: { id: string; label: string }[] =
+		prompts?.options ??
+		prompts?.items.map((promptName) => ({ id: promptName, label: promptName })) ??
+		[];
+	const availablePromptNames = new Set<string>(promptHarnessOptions.map((option) => option.id));
+	const promptHarnessLabelById = new Map<string, string>(
+		promptHarnessOptions.map((option) => [option.id, option.label]),
+	);
 	const hasUnavailableDraftPrompt =
 		Boolean(draft.promptHarness) && !availablePromptNames.has(draft.promptHarness);
 	const saveMutation = useMutation({
@@ -401,28 +373,30 @@ export const ScribeFormsTab = () => {
 				</Card>
 			) : (
 				<div className="grid gap-4 xl:grid-cols-2">
-						{forms.map((form) => {
-							const isPromptAvailable = availablePromptNames.has(form.promptHarness);
-							const isDeleteConfirming = pendingDeleteId === form.id;
-							const isDeletingCurrentForm = deleteMutation.isPending && isDeleteConfirming;
-							const isTogglingCurrentForm =
-								toggleEnabledMutation.isPending &&
-								toggleEnabledMutation.variables?.form.id === form.id;
-							const handleEnabledToggle = formEnabledToggleHandlers.get(form.id);
-							const handleOpenEditClick = openEditHandlers.get(form.id);
-							const handleConfirmDelete = confirmDeleteHandlers.get(form.id);
-							const handleRequestDelete = requestDeleteHandlers.get(form.id);
-							if (
-								!handleEnabledToggle ||
-								!handleOpenEditClick ||
-								!handleConfirmDelete ||
-								!handleRequestDelete
-							) {
-								return null;
-							}
+					{forms.map((form) => {
+						const isPromptAvailable = availablePromptNames.has(form.promptHarness);
+						const promptHarnessLabel =
+							promptHarnessLabelById.get(form.promptHarness) ?? form.promptHarness;
+						const isDeleteConfirming = pendingDeleteId === form.id;
+						const isDeletingCurrentForm = deleteMutation.isPending && isDeleteConfirming;
+						const isTogglingCurrentForm =
+							toggleEnabledMutation.isPending &&
+							toggleEnabledMutation.variables?.form.id === form.id;
+						const handleEnabledToggle = formEnabledToggleHandlers.get(form.id);
+						const handleOpenEditClick = openEditHandlers.get(form.id);
+						const handleConfirmDelete = confirmDeleteHandlers.get(form.id);
+						const handleRequestDelete = requestDeleteHandlers.get(form.id);
+						if (
+							!handleEnabledToggle ||
+							!handleOpenEditClick ||
+							!handleConfirmDelete ||
+							!handleRequestDelete
+						) {
+							return null;
+						}
 
-							return (
-								<Card key={form.id} className="border-solarized-base2 bg-solarized-base3/80">
+						return (
+							<Card key={form.id} className="border-solarized-base2 bg-solarized-base3/80">
 								<CardHeader className="space-y-2">
 									<div className="flex items-start justify-between gap-4">
 										<div className="space-y-1">
@@ -443,19 +417,19 @@ export const ScribeFormsTab = () => {
 												{form.description ?? DEFAULT_AI_TEXT_DESCRIPTION}
 											</CardDescription>
 										</div>
-											<div className="flex items-center gap-2 pt-0.5">
+										<div className="flex items-center gap-2 pt-0.5">
 											<Label
 												htmlFor={`scribe-form-enabled-card-${form.id}`}
 												className="text-solarized-base01 text-xs"
 											>
 												Aktiviert
 											</Label>
-												<Switch
-													id={`scribe-form-enabled-card-${form.id}`}
-													checked={form.enabled}
-													onCheckedChange={handleEnabledToggle}
-													disabled={isTogglingCurrentForm}
-												/>
+											<Switch
+												id={`scribe-form-enabled-card-${form.id}`}
+												checked={form.enabled}
+												onCheckedChange={handleEnabledToggle}
+												disabled={isTogglingCurrentForm}
+											/>
 										</div>
 									</div>
 								</CardHeader>
@@ -469,7 +443,7 @@ export const ScribeFormsTab = () => {
 												isPromptAvailable ? "text-solarized-base00" : "text-solarized-base01"
 											}`}
 										>
-											{form.promptHarness}
+											{promptHarnessLabel}
 											{isPromptAvailable ? "" : " (nicht verfügbar)"}
 										</div>
 
@@ -491,33 +465,28 @@ export const ScribeFormsTab = () => {
 												"Keins"
 											)}
 										</div>
-
 									</div>
 									<div className="flex justify-end gap-2">
-											<Button
-												onClick={handleOpenEditClick}
-												size="sm"
-												variant="outline"
-											>
-												Bearbeiten
-											</Button>
+										<Button onClick={handleOpenEditClick} size="sm" variant="outline">
+											Bearbeiten
+										</Button>
 										<div className="flex w-[176px] justify-end gap-2">
 											{isDeleteConfirming ? (
 												<>
-														<Button
-															onClick={handlePendingDeleteCancel}
-															size="sm"
-															variant="outline"
-															disabled={deleteMutation.isPending}
-														>
+													<Button
+														onClick={handlePendingDeleteCancel}
+														size="sm"
+														variant="outline"
+														disabled={deleteMutation.isPending}
+													>
 														Abbrechen
 													</Button>
-														<Button
-															onClick={handleConfirmDelete}
-															size="sm"
-															variant="destructive"
-															disabled={deleteMutation.isPending}
-														>
+													<Button
+														onClick={handleConfirmDelete}
+														size="sm"
+														variant="destructive"
+														disabled={deleteMutation.isPending}
+													>
 														{isDeletingCurrentForm ? (
 															<Loader2 className="h-4 w-4 animate-spin" />
 														) : null}
@@ -527,11 +496,11 @@ export const ScribeFormsTab = () => {
 											) : (
 												<>
 													<div className="w-[80px]" />
-														<Button
-															onClick={handleRequestDelete}
-															size="sm"
-															variant="ghost"
-															className="w-8 px-0"
+													<Button
+														onClick={handleRequestDelete}
+														size="sm"
+														variant="ghost"
+														className="w-8 px-0"
 														disabled={deleteMutation.isPending}
 													>
 														<Trash2 className="h-4 w-4" />
@@ -559,12 +528,12 @@ export const ScribeFormsTab = () => {
 					<div className="space-y-5 py-2">
 						<div className="space-y-2">
 							<Label htmlFor="scribe-form-name">Name</Label>
-								<Input
-									id="scribe-form-name"
-									value={draft.name}
-									onChange={handleDraftNameChange}
-									placeholder="z. B. Echo-Befund"
-								/>
+							<Input
+								id="scribe-form-name"
+								value={draft.name}
+								onChange={handleDraftNameChange}
+								placeholder="z. B. Echo-Befund"
+							/>
 							<p className="text-solarized-base01 text-xs">
 								Pfad: <span className="font-mono">{routePreview}</span>
 							</p>
@@ -572,22 +541,19 @@ export const ScribeFormsTab = () => {
 
 						<div className="space-y-2">
 							<Label htmlFor="scribe-form-description">Kurzbeschreibung für `/aiscribe`</Label>
-								<Textarea
-									id="scribe-form-description"
-									value={draft.description}
-									onChange={handleDraftDescriptionChange}
-									placeholder={DEFAULT_AI_TEXT_DESCRIPTION}
-									className="min-h-24"
-								/>
+							<Textarea
+								id="scribe-form-description"
+								value={draft.description}
+								onChange={handleDraftDescriptionChange}
+								placeholder={DEFAULT_AI_TEXT_DESCRIPTION}
+								className="min-h-24"
+							/>
 						</div>
 
 						<div className="grid gap-4 md:grid-cols-2">
 							<div className="space-y-2">
 								<LabelWithInfo info={FIELD_EXPLANATIONS.prompt}>Basis-Prompt</LabelWithInfo>
-									<Select
-										value={draft.promptHarness}
-										onValueChange={handleDraftPromptHarnessChange}
-									>
+								<Select value={draft.promptHarness} onValueChange={handleDraftPromptHarnessChange}>
 									<SelectTrigger>
 										<SelectValue placeholder="Basis-Prompt wählen" />
 									</SelectTrigger>
@@ -597,9 +563,9 @@ export const ScribeFormsTab = () => {
 												{draft.promptHarness} (nicht verfügbar)
 											</SelectItem>
 										) : null}
-										{promptNames.map((promptName) => (
-											<SelectItem key={promptName} value={promptName}>
-												{promptName}
+										{promptHarnessOptions.map((promptHarness) => (
+											<SelectItem key={promptHarness.id} value={promptHarness.id}>
+												{promptHarness.label}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -608,46 +574,32 @@ export const ScribeFormsTab = () => {
 
 							<div className="space-y-2">
 								<LabelWithInfo info={FIELD_EXPLANATIONS.template}>Template</LabelWithInfo>
-									<Select
-										value={draft.templateId}
-										onValueChange={handleDraftTemplateChange}
-									>
-									<SelectTrigger>
-										<SelectValue placeholder="Template wählen" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value={NONE_VALUE}>Keins</SelectItem>
-										{templates.map((templateOption) => (
-											<SelectItem key={templateOption.id} value={templateOption.id}>
-												{templateOption.title}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+								<TemplateSelector
+									noneValue={NONE_VALUE}
+									onValueChange={handleDraftTemplateChange}
+									templates={templates}
+									value={draft.templateId}
+								/>
 							</div>
 
 							<div className="flex items-center justify-between pt-2 md:col-span-2">
 								<Label htmlFor="scribe-form-enabled">Aktiviert</Label>
-									<Switch
-										id="scribe-form-enabled"
-										checked={draft.enabled}
-										onCheckedChange={handleDraftEnabledChange}
-									/>
+								<Switch
+									id="scribe-form-enabled"
+									checked={draft.enabled}
+									onCheckedChange={handleDraftEnabledChange}
+								/>
 							</div>
 						</div>
 					</div>
 
 					<DialogFooter>
-							<Button
-								variant="outline"
-								onClick={handleDialogClose}
-								disabled={saveMutation.isPending}
-							>
+						<Button variant="outline" onClick={handleDialogClose} disabled={saveMutation.isPending}>
 							Abbrechen
 						</Button>
-							<Button
-								onClick={handleSaveDraft}
-								disabled={
+						<Button
+							onClick={handleSaveDraft}
+							disabled={
 								saveMutation.isPending ||
 								!draft.name.trim() ||
 								!draft.promptHarness ||

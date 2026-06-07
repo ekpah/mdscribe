@@ -1,5 +1,5 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { aiScribeFormConfig, eq } from "@repo/database";
+import { aiScribeFormConfig, and, eq, or } from "@repo/database";
 import type { Database } from "@repo/database";
 import { streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
@@ -29,6 +29,8 @@ import {
 	composeDocumentTypePrompt,
 	composePromptHarnessPrompt,
 	documentTypeConfigs,
+	getPromptHarnessLabel,
+	resolvePromptHarnessId,
 } from "@/orpc/scribe/prompts";
 import { buildProviderOptions, resolveGenerationStrategy } from "@/orpc/scribe/providers";
 import type {
@@ -122,7 +124,7 @@ const hasFileLikeInput = (value: unknown): boolean => {
 	return false;
 };
 
-const validateContextFiles = (contextFiles: FillInputsContextFile[]) => {
+export const validateScribeContextFiles = (contextFiles: FillInputsContextFile[]) => {
 	if (contextFiles.length > FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles) {
 		throw new ORPCError("BAD_REQUEST", {
 			message: `Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles} Dateien können berücksichtigt werden.`,
@@ -148,7 +150,7 @@ const validateContextFiles = (contextFiles: FillInputsContextFile[]) => {
 	}
 };
 
-const validateAudioFiles = (audioFiles: AudioFile[]) => {
+export const validateScribeAudioFiles = (audioFiles: AudioFile[]) => {
 	if (audioFiles.length > FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles) {
 		throw new ORPCError("BAD_REQUEST", {
 			message: `Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Audioaufnahmen können berücksichtigt werden.`,
@@ -278,6 +280,7 @@ type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
 interface ResolvedScribeRequest {
 	config: {
 		modelConfig: ModelConfig;
+		promptLabel?: string;
 		promptName: string;
 	};
 	endpoint: string;
@@ -370,7 +373,8 @@ const resolveBuiltInRequest = async ({
 	return {
 		config: {
 			modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
-			promptName: config.promptName,
+			promptLabel: config.promptName,
+			promptName: documentType,
 		},
 		endpoint: documentType,
 		promptMessages: composeDocumentTypePrompt(documentType, {
@@ -389,10 +393,16 @@ const resolveCustomFormRequest = async ({
 	db: Database;
 	formData: Record<string, unknown>;
 	formId: string;
-	sessionUser: ContextBuildInput["sessionUser"];
+	sessionUser: NonNullable<ContextBuildInput["sessionUser"]>;
 }): Promise<ResolvedScribeRequest> => {
 	const customForm = await db.query.aiScribeFormConfig.findFirst({
-		where: eq(aiScribeFormConfig.id, formId),
+		where: and(
+			eq(aiScribeFormConfig.id, formId),
+			or(
+				eq(aiScribeFormConfig.visibility, "public"),
+				eq(aiScribeFormConfig.authorId, sessionUser.id),
+			),
+		),
 		with: {
 			template: true,
 		},
@@ -404,20 +414,27 @@ const resolveCustomFormRequest = async ({
 		});
 	}
 
+	const promptHarnessId = resolvePromptHarnessId(customForm.promptHarness);
+	if (!promptHarnessId) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Unknown prompt harness: ${customForm.promptHarness}`,
+		});
+	}
+
 	const template = customForm.template ? toTemplateContextInput(customForm.template) : null;
 	const selectedTemplateReference =
-		customForm.promptHarness === "procedure" && !template
+		promptHarnessId === "procedures" && !template
 			? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
 			: undefined;
 	const { contextPrompt, contextXml } = await composeScribeContext({
 		formData,
-		promptContextKey: customForm.promptHarness,
+		promptContextKey: promptHarnessId,
 		selectedTemplateReference,
 		sessionUser,
 		template,
 	});
 
-	const promptMessages = composePromptHarnessPrompt(customForm.promptHarness, {
+	const promptMessages = composePromptHarnessPrompt(promptHarnessId, {
 		contextPrompt,
 		contextXml,
 	});
@@ -430,7 +447,8 @@ const resolveCustomFormRequest = async ({
 	return {
 		config: {
 			modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
-			promptName: customForm.promptHarness,
+			promptLabel: getPromptHarnessLabel(promptHarnessId),
+			promptName: promptHarnessId,
 		},
 		endpoint: `custom:${customForm.slug}`,
 		promptMessages,
@@ -443,12 +461,23 @@ const resolveCustomFormRequest = async ({
 };
 
 type PreparedAudio = Awaited<ReturnType<typeof prepareAudioInputForModel>>;
-type ResolvedGenerationStrategy = Awaited<ReturnType<typeof resolveGenerationStrategy>>;
+export type ResolvedGenerationStrategy = Awaited<ReturnType<typeof resolveGenerationStrategy>>;
 
 const appendNativeAudioToMessages = (
 	messages: ModelMessage[],
 	preparedAudio: PreparedAudio,
 ): ModelMessage[] => {
+	const audioInstructionPart = {
+		text: [
+			"<audio_context>",
+			"Die angehängten Audioaufnahmen sind klinischer Input für diese Anfrage.",
+			"Berücksichtige die gesprochenen Inhalte vollständig und nutze sie wie zusätzliche Nutzerangaben.",
+			"Wenn Textfelder leer sind oder von der Audioaufnahme abweichen, verwende die Audioaufnahme als eigenständige Quelle.",
+			"</audio_context>",
+		].join("\n"),
+		type: "text" as const,
+	};
+
 	const lastMessage = messages.at(-1);
 	if (lastMessage?.role === "user") {
 		const content =
@@ -458,9 +487,10 @@ const appendNativeAudioToMessages = (
 							text: lastMessage.content,
 							type: "text" as const,
 						},
+						audioInstructionPart,
 						...preparedAudio.contentParts,
 					]
-				: [...lastMessage.content, ...preparedAudio.contentParts];
+				: [...lastMessage.content, audioInstructionPart, ...preparedAudio.contentParts];
 
 		return [
 			...messages.slice(0, -1),
@@ -474,7 +504,7 @@ const appendNativeAudioToMessages = (
 	return [
 		...messages,
 		{
-			content: preparedAudio.contentParts,
+			content: [audioInstructionPart, ...preparedAudio.contentParts],
 			role: "user",
 		},
 	];
@@ -531,6 +561,58 @@ const resolveReasoningEffort = (
 	generationSelection: ResolvedGenerationStrategy["generation"],
 ) => config.reasoningEffort ?? (config.thinking ? "medium" : generationSelection.reasoningEffort);
 
+export const appendScribeInputAttachmentsToMessages = async ({
+	audioFiles,
+	contextFiles,
+	generationStrategy,
+	messages,
+	userId,
+	zdr,
+}: {
+	audioFiles: AudioFile[];
+	contextFiles: FillInputsContextFile[];
+	generationStrategy: ResolvedGenerationStrategy;
+	messages: ModelMessage[];
+	userId: string;
+	zdr: boolean;
+}): Promise<ModelMessage[]> => {
+	let nextMessages = messages;
+
+	if (audioFiles.length > 0) {
+		const audioSelection =
+			generationStrategy.mode === "direct"
+				? generationStrategy.generation
+				: generationStrategy.speechToText;
+		if (!audioSelection) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: USER_MESSAGES.modelUnavailable,
+			});
+		}
+		const preparedAudio = await prepareAudioInputForModel({
+			audioFiles,
+			mode: generationStrategy.mode === "direct" ? "native" : "transcription",
+			resolvedModel: audioSelection.model,
+		}).catch((error: unknown) => {
+			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", { message });
+		});
+
+		nextMessages = appendPreparedAudioToMessages(nextMessages, preparedAudio);
+	}
+
+	if (contextFiles.length > 0) {
+		nextMessages = await appendContextFilesToMessages({
+			contextFiles,
+			generationStrategy,
+			messages: nextMessages,
+			userId,
+			zdr,
+		});
+	}
+
+	return nextMessages;
+};
+
 /**
  * Main streaming handler for all scribe document types
  */
@@ -541,8 +623,8 @@ export const scribeStreamHandler = authed
 		const inputMessages = input.messages;
 		const audioFiles = input.audioFiles ?? [];
 		const contextFiles = input.contextFiles ?? [];
-		validateAudioFiles(audioFiles);
-		validateContextFiles(contextFiles);
+		validateScribeAudioFiles(audioFiles);
+		validateScribeContextFiles(contextFiles);
 
 		// Extract prompt from the last user message
 		const prompt = extractPromptFromMessages(inputMessages);
@@ -587,38 +669,14 @@ export const scribeStreamHandler = authed
 
 		let messages: ModelMessage[] = resolvedRequest.promptMessages;
 
-		// Handle audio files
-		if (hasAudio) {
-			const audioSelection =
-				generationStrategy.mode === "direct"
-					? generationStrategy.generation
-					: generationStrategy.speechToText;
-			if (!audioSelection) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: USER_MESSAGES.modelUnavailable,
-				});
-			}
-			const preparedAudio = await prepareAudioInputForModel({
-				audioFiles,
-				mode: generationStrategy.mode === "direct" ? "native" : "transcription",
-				resolvedModel: audioSelection.model,
-			}).catch((error: unknown) => {
-				const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-				throw new ORPCError("BAD_REQUEST", { message });
-			});
-
-			messages = appendPreparedAudioToMessages(messages, preparedAudio);
-		}
-
-		if (hasContextFiles) {
-			messages = await appendContextFilesToMessages({
-				contextFiles,
-				generationStrategy,
-				messages,
-				userId: context.session.user.id,
-				zdr: entitlements.hasActiveSubscription,
-			});
-		}
+		messages = await appendScribeInputAttachmentsToMessages({
+			audioFiles,
+			contextFiles,
+			generationStrategy,
+			messages,
+			userId: context.session.user.id,
+			zdr: entitlements.hasActiveSubscription,
+		});
 
 		const usageInputData =
 			hasContextFiles && !("_contextFiles" in rawPrompt)
@@ -674,6 +732,7 @@ export const scribeStreamHandler = authed
 					isOpenRouter: generationSelection.model.isOpenRouter,
 					modelConfig: resolvedRequest.config.modelConfig,
 					modelName: generationSelection.model.modelName,
+					promptLabel: resolvedRequest.config.promptLabel,
 					promptName: resolvedRequest.config.promptName,
 					reasoningEffort:
 						generationSelection.model.isOpenRouter && generationSelection.model.supportsReasoning

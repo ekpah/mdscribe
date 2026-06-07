@@ -22,6 +22,11 @@ import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
 import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
 import { fillInputsConfig } from "@/orpc/scribe/handlers/fill-inputs-config";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import {
+	getDocumentTypeByPromptName,
+	PROMPT_HARNESS_IDS,
+	PROMPT_HARNESS_OPTIONS,
+} from "@/orpc/scribe/prompts";
 import { resolveDefaultModel, resolveGenerationStrategy } from "@/orpc/scribe/providers";
 import type { DocumentType } from "@/orpc/scribe/types";
 
@@ -56,6 +61,17 @@ describe("Document Type Configurations", () => {
 			maxTokens: 8000,
 			temperature: 0.3,
 		});
+	});
+
+	test("keeps prompt harness references stable while display names can change", () => {
+		expect(PROMPT_HARNESS_IDS).toContain("procedures");
+		expect(PROMPT_HARNESS_OPTIONS).toContainEqual({
+			id: "procedures",
+			label: "Befund",
+		});
+		expect(getDocumentTypeByPromptName("procedures")).toBe("procedures");
+		expect(getDocumentTypeByPromptName("procedure")).toBe("procedures");
+		expect(getDocumentTypeByPromptName("Befund")).toBe("procedures");
 	});
 });
 

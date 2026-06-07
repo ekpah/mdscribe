@@ -18,13 +18,17 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Copy, Play, Plus, Trash2 } from "lucide-react";
+import { Copy, Info, Play, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, MutableRefObject, UIEvent } from "react";
 import { toast } from "sonner";
 
+import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
+import type { InputContextSubmission } from "@/app/_components/input-context/types";
+import { TemplateSelector } from "@/app/_components/template-selector";
 import { allScribeDocTypes, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { PlaygroundDocumentType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type {
@@ -34,6 +38,7 @@ import type {
 } from "@/app/admin/playground/_lib/types";
 import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
 import { orpc } from "@/lib/orpc";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 import { ParameterControls } from "./parameter-controls";
@@ -197,6 +202,7 @@ interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 }
 
 interface DirtySelectorLabelProps {
+	info?: string;
 	isDirty: boolean;
 	label: string;
 }
@@ -220,10 +226,28 @@ const getProviderGroup = (model: PlaygroundModel): string =>
 	model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId);
 
 const PLAYGROUND_EDITOR_TEXTAREA_CLASS = "font-mono text-xs leading-[1.35]";
+const TEMPLATE_SELECTOR_INFO =
+	"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.";
 
-const DirtySelectorLabel = ({ isDirty, label }: DirtySelectorLabelProps) => (
+const DirtySelectorLabel = ({ info, isDirty, label }: DirtySelectorLabelProps) => (
 	<div className="flex min-h-7 flex-col justify-start sm:w-24 sm:shrink-0">
-		<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
+		<div className="flex items-center gap-1.5">
+			<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
+			{info ? (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<button
+							aria-label={info}
+							className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
+							type="button"
+						>
+							<Info className="h-3.5 w-3.5" />
+						</button>
+					</TooltipTrigger>
+					<TooltipContent className="max-w-64 text-xs leading-relaxed">{info}</TooltipContent>
+				</Tooltip>
+			) : null}
+		</div>
 		<span
 			className={cn(
 				"h-3 text-[9px] leading-3 transition-opacity",
@@ -272,12 +296,16 @@ const PROMPT_RUNTIME_LABELS: Record<string, string> = {
 	todaysDate: "Heutiges Datum",
 };
 
-const promptHarnessToDocumentType = new Map(
-	allScribeDocTypes.map((documentType) => [
-		scribeDocTypeUi[documentType].defaultPromptName,
-		documentType,
-	]),
-);
+const resolveDocumentTypeFromPromptHarness = (
+	promptHarness: string,
+): PlaygroundDocumentType | undefined => {
+	const resolvedPromptHarnessId = resolvePromptHarnessId(promptHarness);
+	if (!resolvedPromptHarnessId || !(resolvedPromptHarnessId in scribeDocTypeUi)) {
+		return undefined;
+	}
+
+	return resolvedPromptHarnessId;
+};
 
 const buildSelectedTemplateReference = (templateData: {
 	content: string;
@@ -791,6 +819,7 @@ export const PlaygroundPanel = ({
 	referenceResult,
 }: PlaygroundPanelProps) => {
 	const [activeView, setActiveView] = useState<PlaygroundView>("config");
+	const inputContextController = useInputContextState();
 
 	const resolvedPresetDocumentType = presetDocumentType ?? "discharge";
 	const initialDocType: PlaygroundDocumentType = isPlaygroundDocumentType(
@@ -857,7 +886,9 @@ export const PlaygroundPanel = ({
 	const { data: templateOptions = [] } = useQuery(templatesQueryOptions);
 
 	// Prompt selection / compilation
-	const [promptName, setPromptName] = useState<string>(presetPromptName ?? docUi.defaultPromptName);
+	const initialPromptName =
+		resolvePromptHarnessId(presetPromptName) ?? presetPromptName ?? docUi.defaultPromptName;
+	const [promptName, setPromptName] = useState<string>(initialPromptName);
 	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
 		presetTemplateId ?? NONE_TEMPLATE_VALUE,
 	);
@@ -893,7 +924,7 @@ export const PlaygroundPanel = ({
 			return;
 		}
 
-		setPromptName(presetPromptName);
+		setPromptName(resolvePromptHarnessId(presetPromptName) ?? presetPromptName);
 		hasAppliedPresetPromptNameRef.current = true;
 	}, [presetPromptName]);
 
@@ -907,12 +938,20 @@ export const PlaygroundPanel = ({
 	}, [presetTemplateId]);
 
 	const promptHarnessOptions = useMemo(() => {
-		const fetchedOptions = promptHarnessesData?.items ?? [];
+		const fetchedOptions = promptHarnessesData?.options ?? [];
 		if (fetchedOptions.length > 0) {
 			return fetchedOptions;
 		}
-		return allScribeDocTypes.map((docType) => scribeDocTypeUi[docType].defaultPromptName);
-	}, [promptHarnessesData?.items]);
+		return allScribeDocTypes.map((docType) => ({
+			id: scribeDocTypeUi[docType].defaultPromptName,
+			label: scribeDocTypeUi[docType].label,
+		}));
+	}, [promptHarnessesData?.options]);
+
+	const promptHarnessOptionIds = useMemo(
+		() => promptHarnessOptions.map((option) => option.id),
+		[promptHarnessOptions],
+	);
 
 	const promptHarnessDetailsQueryOptions = orpc.admin.scribe.prompts.get.queryOptions({
 		input: { name: promptName },
@@ -1134,9 +1173,11 @@ export const PlaygroundPanel = ({
 
 	// Keep promptName in sync with document type unless user changed it
 	useEffect(() => {
+		const resolvedPresetPromptName = resolvePromptHarnessId(presetPromptName) ?? presetPromptName;
 		const nextPromptName =
-			presetPromptName && promptHarnessToDocumentType.get(presetPromptName) === documentType
-				? presetPromptName
+			resolvedPresetPromptName &&
+			resolveDocumentTypeFromPromptHarness(resolvedPresetPromptName) === documentType
+				? resolvedPresetPromptName
 				: scribeDocTypeUi[documentType].defaultPromptName;
 		setPromptName(nextPromptName);
 		setCompiledMessages([]);
@@ -1481,7 +1522,7 @@ export const PlaygroundPanel = ({
 		setCompiledOverride(null);
 		setPromptRuntimeVariables({});
 
-		const nextDocumentType = promptHarnessToDocumentType.get(value);
+		const nextDocumentType = resolveDocumentTypeFromPromptHarness(value);
 		if (nextDocumentType) {
 			setDocumentType(nextDocumentType);
 		}
@@ -1577,6 +1618,7 @@ export const PlaygroundPanel = ({
 					additionalInputData={formAdditional}
 					additionalInputs={playgroundAdditionalInputs}
 					additionalTextareaClassName={PLAYGROUND_EDITOR_TEXTAREA_CLASS}
+					inputContextController={inputContextController}
 					inputPlaceholder={docUi.mainField.placeholder}
 					inputValue={formMain}
 					onAdditionalInputChange={handleAdditionalInputValueChange}
@@ -1590,7 +1632,7 @@ export const PlaygroundPanel = ({
 	);
 
 	const renderConfigView = () => {
-		const hasPromptHarnessOption = promptHarnessOptions.includes(promptName);
+		const hasPromptHarnessOption = promptHarnessOptionIds.includes(promptName);
 
 		return (
 			<div className="flex h-full min-h-0 flex-col gap-2 p-2">
@@ -1604,15 +1646,15 @@ export const PlaygroundPanel = ({
 									isPromptHarnessDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
 								)}
 							>
-								<SelectValue placeholder="Basis-Prompt waehlen" />
+								<SelectValue placeholder="Basis-Prompt wählen" />
 							</SelectTrigger>
 							<SelectContent>
 								{hasPromptHarnessOption ? null : (
-									<SelectItem value={promptName}>{promptName} (nicht verfuegbar)</SelectItem>
+									<SelectItem value={promptName}>{promptName} (nicht verfügbar)</SelectItem>
 								)}
 								{promptHarnessOptions.map((promptHarness) => (
-									<SelectItem key={promptHarness} value={promptHarness}>
-										{promptHarness}
+									<SelectItem key={promptHarness.id} value={promptHarness.id}>
+										{promptHarness.label}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -1620,25 +1662,22 @@ export const PlaygroundPanel = ({
 					</div>
 
 					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-						<DirtySelectorLabel isDirty={isTemplateDirty} label="Template" />
-						<Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-							<SelectTrigger
-								className={cn(
-									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
-									isTemplateDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
-								)}
-							>
-								<SelectValue placeholder="Template waehlen" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value={NONE_TEMPLATE_VALUE}>Keins</SelectItem>
-								{templateOptions.map((templateOption) => (
-									<SelectItem key={templateOption.id} value={templateOption.id}>
-										{templateOption.title}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<DirtySelectorLabel
+							info={TEMPLATE_SELECTOR_INFO}
+							isDirty={isTemplateDirty}
+							label="Template"
+						/>
+						<TemplateSelector
+							className={cn(
+								"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
+								isTemplateDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
+							)}
+							noneValue={NONE_TEMPLATE_VALUE}
+							onValueChange={setSelectedTemplateId}
+							placeholder="Template wählen"
+							templates={templateOptions}
+							value={selectedTemplateId}
+						/>
 					</div>
 				</div>
 
@@ -1821,6 +1860,7 @@ export const PlaygroundPanel = ({
 							promptJson={promptJson}
 							promptName={comparisonRun.promptVersion.promptName}
 							promptVersionLabel={comparisonRun.promptVersion.label}
+							prepareInputContextSubmission={inputContextController.prepareSubmission}
 							messagesForRun={comparisonRun.promptVersion.messages}
 							runState={runStates[comparisonRun.id]}
 							setRunState={setRunState}
@@ -1902,6 +1942,7 @@ const RunCard = ({
 	promptJson,
 	promptName,
 	promptVersionLabel,
+	prepareInputContextSubmission,
 	messagesForRun,
 	runState,
 	setRunState,
@@ -1913,6 +1954,7 @@ const RunCard = ({
 	promptJson: string;
 	promptName: string;
 	promptVersionLabel: string;
+	prepareInputContextSubmission: () => Promise<InputContextSubmission>;
 	messagesForRun: {
 		role: "system" | "user" | "assistant";
 		content: string;
@@ -2090,17 +2132,30 @@ const RunCard = ({
 		}
 
 		const requestId = crypto.randomUUID();
+		let inputContextPayload: InputContextSubmission;
+		try {
+			inputContextPayload = await prepareInputContextSubmission();
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Input-Kontext konnte nicht vorbereitet werden",
+			);
+			return;
+		}
 
 		const compiledMessagesOverride = messagesForRun.length > 0 ? messagesForRun : undefined;
 		runStartedAtRef.current = Date.now();
 
 		payloadRef.current = {
+			audioFiles:
+				inputContextPayload.audioFiles.length > 0 ? inputContextPayload.audioFiles : undefined,
 			compiledMessagesOverride: compiledMessagesOverride
 				? compiledMessagesOverride.map((m) => ({
 						content: m.content,
 						role: m.role,
 					}))
 				: undefined,
+			contextFiles:
+				inputContextPayload.contextFiles.length > 0 ? inputContextPayload.contextFiles : undefined,
 			documentType,
 			model: modelRun.model.id,
 			parameters: modelRun.parameters,
@@ -2128,6 +2183,7 @@ const RunCard = ({
 		modelRun.model,
 		modelRun.parameters,
 		messagesForRun,
+		prepareInputContextSubmission,
 		documentType,
 		promptName,
 		promptJson,

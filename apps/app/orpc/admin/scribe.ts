@@ -14,11 +14,19 @@ import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { composeScribeContext } from "@/orpc/scribe/context";
 import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
-import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import {
+	appendScribeInputAttachmentsToMessages,
+	DEFAULT_SCRIBE_MODEL_CONFIG,
+	validateScribeAudioFiles,
+	validateScribeContextFiles,
+} from "@/orpc/scribe/handlers/scribe-stream";
 import {
 	createPromptVariables,
 	composeDocumentTypePrompt,
 	documentTypeConfigs,
+	getDocumentTypeByPromptName,
+	getPromptHarnessReferences,
+	PROMPT_HARNESS_OPTIONS,
 } from "@/orpc/scribe/prompts";
 import { PLAYGROUND_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
 import {
@@ -27,7 +35,7 @@ import {
 	resolveModelByRecordId,
 	resolveProviderModel,
 } from "@/orpc/scribe/providers";
-import type { AudioFile } from "@/orpc/scribe/types";
+import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
 const compilePromptInput = z.object({
 	documentType: z.string(),
@@ -72,6 +80,13 @@ const audioFileInputSchema = z.object({
 			mimeType: z.literal("audio/wav"),
 		})
 		.optional(),
+});
+
+const contextFileInputSchema = z.object({
+	data: z.string().min(1),
+	mimeType: z.string().min(1),
+	name: z.string().min(1),
+	size: z.number().nonnegative(),
 });
 
 const transcribeAudioInput = z.object({
@@ -132,7 +147,8 @@ const compilePromptHandler = authed
 			});
 		}
 
-		const resolvedPromptName = parsed.promptName ?? config.promptName;
+		const resolvedPromptName =
+			getDocumentTypeByPromptName(parsed.promptName ?? parsed.documentType) ?? parsed.documentType;
 
 		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
 		const relevantTemplate =
@@ -170,6 +186,7 @@ const compilePromptHandler = authed
 	});
 
 const runInput = z.object({
+	audioFiles: z.array(audioFileInputSchema).max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles).optional(),
 	compiledMessagesOverride: z
 		.array(
 			z.object({
@@ -180,6 +197,10 @@ const runInput = z.object({
 		.optional(),
 	// Backward compatibility while frontend payload migrates fully.
 	connectionId: z.string().optional(),
+	contextFiles: z
+		.array(contextFileInputSchema)
+		.max(FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles)
+		.optional(),
 	documentType: z.string(),
 	model: z.string(),
 	parameters: z.object({
@@ -213,6 +234,10 @@ const runHandler = authed
 		}
 
 		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
+		const audioFiles = (parsed.audioFiles ?? []) as AudioFile[];
+		const contextFiles = (parsed.contextFiles ?? []) as FillInputsContextFile[];
+		validateScribeAudioFiles(audioFiles);
+		validateScribeContextFiles(contextFiles);
 
 		const providerId = parsed.providerId ?? parsed.connectionId;
 		const resolved = providerId
@@ -246,6 +271,23 @@ const runHandler = authed
 
 		const reasoningEffort =
 			parsed.parameters.reasoningEffort ?? (parsed.parameters.thinking ? "medium" : "none");
+		if (audioFiles.length > 0 || contextFiles.length > 0) {
+			messages = await appendScribeInputAttachmentsToMessages({
+				audioFiles,
+				contextFiles,
+				generationStrategy: {
+					generation: {
+						model: resolved,
+						reasoningEffort,
+						slot: "multimodal",
+					},
+					mode: "direct",
+				},
+				messages,
+				userId: context.session.user.id,
+				zdr: false,
+			});
+		}
 		const providerOptions = buildProviderOptions({
 			model: resolved,
 			reasoningEffort,
@@ -490,17 +532,14 @@ export const scribeHandler = {
 			.use(requiredAdminMiddleware)
 			.input(type<{ name: string }>())
 			.handler(({ input }) => {
-				const entry = Object.entries(documentTypeConfigs).find(
-					([_, config]) => config.promptName === input.name,
-				);
-
-				if (!entry) {
+				const documentType = getDocumentTypeByPromptName(input.name);
+				if (!documentType) {
 					throw new ORPCError("NOT_FOUND", {
 						message: `Prompt not found: ${input.name}`,
 					});
 				}
 
-				const [documentType, config] = entry;
+				const config = documentTypeConfigs[documentType];
 
 				const previewDate = new Date().toLocaleDateString("de-DE", {
 					day: "2-digit",
@@ -520,9 +559,10 @@ export const scribeHandler = {
 
 				return {
 					documentType,
+					label: config.promptName,
 					messages,
 					modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
-					name: config.promptName,
+					name: documentType,
 					source: "local",
 				};
 			}),
@@ -535,19 +575,21 @@ export const scribeHandler = {
 				}>(),
 			)
 			.handler(({ input }) => {
-				const allPromptNames = Object.values(documentTypeConfigs).map(
-					(config) => config.promptName,
-				);
-
-				let filteredNames = allPromptNames;
+				let filteredOptions = PROMPT_HARNESS_OPTIONS;
 				if (input.query?.trim()) {
 					const query = input.query.trim().toLowerCase();
-					filteredNames = allPromptNames.filter((name) => name.toLowerCase().includes(query));
+					filteredOptions = PROMPT_HARNESS_OPTIONS.filter((option) =>
+						getPromptHarnessReferences(option.id).some((reference) =>
+							reference.toLowerCase().includes(query),
+						),
+					);
 				}
 
 				const limit = input.limit ?? 200;
+				const options = filteredOptions.slice(0, limit);
 				return {
-					items: filteredNames.slice(0, limit),
+					items: options.map((option) => option.id),
+					options,
 				};
 			}),
 	},

@@ -17,6 +17,9 @@ import {
 	startTestServer,
 } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
+import { appendScribeInputAttachmentsToMessages } from "@/orpc/scribe/handlers/scribe-stream";
+import type { ResolvedGenerationStrategy } from "@/orpc/scribe/handlers/scribe-stream";
+import type { ResolvedModel } from "@/orpc/scribe/providers";
 
 describe("Shared Resolver Usage (admin/documents)", () => {
 	let server: TestServer;
@@ -74,6 +77,150 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			.from(usageEvent)
 			.where(eq(usageEvent.name, "admin_scribe_playground"));
 		expect(playgroundEvent).toBeUndefined();
+	});
+
+	test("shared attachment flow adds audio and context file parts", async () => {
+		const resolvedModel: ResolvedModel = {
+			isOpenRouter: true,
+			model: {} as ResolvedModel["model"],
+			modelName: seeded.modelId,
+			providerId: seeded.providerId,
+			providerProtocol: "openrouter",
+			supportedParameters: [],
+			supportsReasoning: false,
+		};
+		const generationStrategy: ResolvedGenerationStrategy = {
+			generation: {
+				model: resolvedModel,
+				reasoningEffort: "none",
+				slot: "multimodal",
+			},
+			mode: "direct",
+		};
+
+		const resultMessages = await appendScribeInputAttachmentsToMessages({
+			audioFiles: [
+				{
+					data: Buffer.from("webm-audio").toString("base64"),
+					mimeType: "audio/webm;codecs=opus",
+					wavFallback: {
+						data: Buffer.from("wav-audio").toString("base64"),
+						mimeType: "audio/wav",
+					},
+				},
+			],
+			contextFiles: [
+				{
+					data: Buffer.from("pdf-bytes").toString("base64"),
+					mimeType: "application/pdf",
+					name: "befund.pdf",
+					size: 9,
+				},
+			],
+			generationStrategy,
+			messages: [{ content: "Bitte auswerten", role: "user" }],
+			userId: context.session?.user.id ?? "test-user",
+			zdr: false,
+		});
+
+		const content = resultMessages.at(-1)?.content;
+		expect(Array.isArray(content)).toBe(true);
+		const parts = content as { mediaType?: string; text?: string; type: string }[];
+		expect(
+			parts.some((part) => part.type === "text" && part.text?.includes("<audio_context>")),
+		).toBe(true);
+		expect(parts.some((part) => part.type === "file" && part.mediaType === "audio/wav")).toBe(
+			true,
+		);
+		expect(
+			parts.some((part) => part.type === "file" && part.mediaType === "application/pdf"),
+		).toBe(true);
+		expect(parts.some((part) => part.type === "text" && part.text?.includes("befund.pdf"))).toBe(
+			true,
+		);
+	});
+
+	test("admin.scribe.run accepts context files in the playground payload", async () => {
+		const result = await call(
+			scribeHandler.run,
+			{
+				compiledMessagesOverride: [
+					{
+						content: "test",
+						role: "user",
+					},
+				],
+				contextFiles: [
+					{
+						data: Buffer.from("pdf-bytes").toString("base64"),
+						mimeType: "application/pdf",
+						name: "befund.pdf",
+						size: 9,
+					},
+				],
+				documentType: "anamnese",
+				model: seeded.modelRecordId,
+				parameters: {
+					maxTokens: 512,
+					reasoningEffort: "none",
+					temperature: 0.7,
+					thinking: false,
+					thinkingExplicit: false,
+				},
+				requestId: "req-files",
+			},
+			{ context },
+		);
+
+		expect(result).toBeDefined();
+		expect(typeof result[Symbol.asyncIterator]).toBe("function");
+	});
+
+	test("admin.scribe.run sends audio natively to the selected playground model", async () => {
+		const originalFetch = globalThis.fetch;
+		try {
+			globalThis.fetch = (() => {
+				throw new Error("Playground audio should not call transcription fetch");
+			}) as unknown as typeof fetch;
+
+			const result = await call(
+				scribeHandler.run,
+				{
+					audioFiles: [
+						{
+							data: Buffer.from("webm-audio").toString("base64"),
+							mimeType: "audio/webm;codecs=opus",
+							wavFallback: {
+								data: Buffer.from("wav-audio").toString("base64"),
+								mimeType: "audio/wav",
+							},
+						},
+					],
+					compiledMessagesOverride: [
+						{
+							content: "test",
+							role: "user",
+						},
+					],
+					documentType: "anamnese",
+					model: seeded.modelRecordId,
+					parameters: {
+						maxTokens: 512,
+						reasoningEffort: "none",
+						temperature: 0.7,
+						thinking: false,
+						thinkingExplicit: false,
+					},
+					requestId: "req-audio",
+				},
+				{ context },
+			);
+
+			expect(result).toBeDefined();
+			expect(typeof result[Symbol.asyncIterator]).toBe("function");
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
 	});
 
 	test("documents.ocrToMarkdown resolves model via legacy connectionId alias", async () => {

@@ -42,6 +42,7 @@ import { ParameterControls } from "@/app/admin/playground/_components/parameter-
 import { isScribeDocType, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
 import { orpc } from "@/lib/orpc";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 const DEFAULT_PARAMETERS: PlaygroundParameters = {
@@ -158,13 +159,6 @@ interface ComparisonSummary {
 	totalRows: number;
 }
 
-const promptNameToDocumentType = new Map(
-	Object.entries(scribeDocTypeUi).map(([documentType, config]) => [
-		config.defaultPromptName,
-		documentType as DocumentType,
-	]),
-);
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -182,7 +176,7 @@ const inferDocumentType = (
 
 	const { promptName } = metadata;
 	if (typeof promptName === "string") {
-		return promptNameToDocumentType.get(promptName) ?? null;
+		return resolvePromptHarnessId(promptName) ?? null;
 	}
 
 	return isScribeDocType(eventName) ? eventName : null;
@@ -395,7 +389,7 @@ const toComparisonSample = (
 		originalModel: event.model,
 		promptName:
 			typeof metadata.promptName === "string"
-				? metadata.promptName
+				? (resolvePromptHarnessId(metadata.promptName) ?? metadata.promptName)
 				: scribeDocTypeUi[documentType].defaultPromptName,
 		templateId: typeof metadata.templateId === "string" ? metadata.templateId : null,
 		timestamp: event.timestamp,

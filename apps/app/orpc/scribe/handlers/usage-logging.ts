@@ -47,6 +47,7 @@ export const scheduleScribeUsageLogging = (input: {
 	isOpenRouter: boolean;
 	modelConfig: ModelConfig;
 	modelName: string;
+	promptLabel?: string;
 	promptName: string;
 	reasoningEffort?: string;
 	timing?: UsageTiming;
@@ -72,6 +73,7 @@ export const scheduleScribeUsageLogging = (input: {
 							reasoningEffort: input.reasoningEffort,
 							temperature: input.modelConfig.temperature,
 						},
+						promptLabel: input.promptLabel,
 						promptName: input.promptName,
 						promptSource: "local",
 						reasoningEffort: input.reasoningEffort,
