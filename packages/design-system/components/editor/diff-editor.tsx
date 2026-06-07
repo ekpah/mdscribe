@@ -357,6 +357,3 @@ export const MarkdownDiffEditor = ({
 		</div>
 	);
 };
-
-/** @deprecated Use MarkdownDiffEditor - renamed for backwards compatibility */
-export const DiffEditor = MarkdownDiffEditor;
