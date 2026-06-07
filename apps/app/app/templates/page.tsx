@@ -10,7 +10,13 @@ import Link from "next/link";
 
 import ContentSection from "./[id]/_components/content-section";
 import { NavActions } from "./[id]/_components/nav-actions";
-export default function TemplatesPage() {
+
+type TemplateContentView = "template" | "examples";
+
+export default async function TemplatesPage({ searchParams }: PageProps<"/templates">) {
+	const { view } = await searchParams;
+	const contentView: TemplateContentView =
+		view === "examples" ? "examples" : "template";
 	const templateGuide = `# Template-Möglichkeiten
 
 Willkommen in der Template-Bibliothek! Hier kannst du dynamische Textbausteine erstellen, die sich automatisch an verschiedene Patientendaten anpassen. Templates verwenden spezielle Tags, um interaktive Eingabefelder zu definieren und berechnete Werte zu erstellen.
@@ -46,6 +52,10 @@ Score-Tags berechnen automatisch Werte basierend auf mathematischen Formeln. Ver
 Größe: {% info "Patientengroesse" type="number" unit="cm" renderUnit=true /%}, Gewicht: {% info "Patientengewicht" type="number" unit="kg" renderUnit=true /%}, BMI: {% score "BMI" formula="[Patientengewicht]/(([Patientengroesse]/100)^2)" unit="kg/m²" renderUnit=true /%}
 
 **Erstelle jetzt dein eigenes Template und spar dir viel Zeit bei deinen künftigen Arztbriefen!**`;
+	const templateGuideExamples = [
+		"Der Patient Max Mustermann konnte heute in gutem Allgemeinzustand in den ambulanten Bereich entlassen werden. Die weitere Betreuung erfolgt hausärztlich.",
+		"Es wurde eine erfolgreiche PTCA der LAD mit Stentimplantation durchgeführt. Empfohlene duale Plättchenhemmung mit ASS 100mg und Ticagrelor 90mg 2x täglich für 12 Monate.",
+	];
 
 	return (
 		<div className="flex h-full w-full flex-col">
@@ -63,9 +73,6 @@ Größe: {% info "Patientengroesse" type="number" unit="cm" renderUnit=true /%},
 					</BreadcrumbList>
 				</Breadcrumb>
 				<NavActions
-					contentView="template"
-					favouriteOfCount={0}
-					hasExamples={false}
 					isAuthor={false}
 					isFavourite={false}
 					isLoggedIn={false}
@@ -73,7 +80,11 @@ Größe: {% info "Patientengroesse" type="number" unit="cm" renderUnit=true /%},
 					templateId={""}
 				/>
 			</div>
-			<ContentSection examples={[]} note={templateGuide} />
+			<ContentSection
+				contentView={contentView}
+				examples={templateGuideExamples}
+				note={templateGuide}
+			/>
 		</div>
 	);
 }

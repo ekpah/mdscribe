@@ -24,6 +24,7 @@ import { orpc } from "@/lib/orpc";
 type MobilePanel = "inputs" | "preview";
 
 interface InputPreviewSectionProps {
+	edgeTabs?: ReactNode;
 	inputTags: InputTagType[];
 	onValuesChange?: (values: Record<string, unknown>) => void;
 	preview: (values: Record<string, unknown>) => ReactNode;
@@ -116,16 +117,22 @@ const getInputPanelClassName = (hasInputTags: boolean, mobilePanel: MobilePanel)
 		!hasInputTags && "hidden",
 	);
 
-const getPreviewPanelClassName = (hasInputTags: boolean, mobilePanel: MobilePanel) =>
+const getPreviewPanelClassName = (
+	hasInputTags: boolean,
+	mobilePanel: MobilePanel,
+	hasEdgeTabs: boolean,
+) =>
 	cn(
 		"relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4",
 		hasInputTags && mobilePanel === "preview" && "flex",
 		hasInputTags && mobilePanel !== "preview" && "hidden md:flex",
 		!hasInputTags && "flex",
 		hasInputTags ? "md:col-span-2 md:border-l" : "md:col-span-3",
+		hasEdgeTabs && "pr-14",
 	);
 
 export const InputPreviewSection = ({
+	edgeTabs,
 	inputTags,
 	onValuesChange,
 	preview,
@@ -198,7 +205,11 @@ export const InputPreviewSection = ({
 	);
 
 	const inputPanelClassName = getInputPanelClassName(hasInputTags, mobilePanel);
-	const previewPanelClassName = getPreviewPanelClassName(hasInputTags, mobilePanel);
+	const previewPanelClassName = getPreviewPanelClassName(
+		hasInputTags,
+		mobilePanel,
+		Boolean(edgeTabs),
+	);
 
 	return (
 		<Card className="relative flex h-[calc(100vh-(--spacing(16))-(--spacing(10))-2rem)] overflow-hidden md:grid md:grid-cols-3">
@@ -234,6 +245,7 @@ export const InputPreviewSection = ({
 					showFillInputs={isLoggedIn}
 				/>
 			</div>
+			{edgeTabs}
 			<div
 				aria-labelledby={hasInputTags ? `${mobileTabId}-preview-tab` : undefined}
 				className={previewPanelClassName}

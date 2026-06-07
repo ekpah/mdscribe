@@ -71,21 +71,18 @@ const NotePage = async ({
 				</Breadcrumb>
 				<NavActions
 					author={doc.author?.name ?? undefined}
-					favouriteOfCount={doc._count.favouriteOf}
 					isAuthor={isAuthor}
 					isFavourite={isFavourite}
 					isLoggedIn={!!session?.user?.id}
 					lastEdited={doc.updatedAt}
 					templateId={doc.id}
-					contentView={contentView}
-					hasExamples={doc.examples.length > 0}
 					visibility={doc.visibility === "private" ? "private" : "public"}
 				/>
 			</div>
 			<ContentSection
+				contentView={contentView}
 				examples={doc.examples}
 				note={doc.content}
-				showExamples={contentView === "examples"}
 			/>
 		</div>
 	);
