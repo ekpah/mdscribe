@@ -62,25 +62,25 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 				default: [],
 				renderHTML: () => ({}),
 			},
-				primary: {
-					default: null,
-					parseHTML: (element) => element.getAttribute("primary"),
-					renderHTML: (attributes) => ({
-						primary: attributes.primary,
-					}),
+			primary: {
+				default: null,
+				parseHTML: (element) => element.getAttribute("primary"),
+				renderHTML: (attributes) => ({
+					primary: attributes.primary,
+				}),
+			},
+			type: {
+				default: null,
+				parseHTML: (element) => {
+					const rawType = element.getAttribute("type");
+					return parseSwitchTagType(rawType);
 				},
-					type: {
-						default: null,
-						parseHTML: (element) => {
-							const rawType = element.getAttribute("type");
-							return parseSwitchTagType(rawType);
-						},
-						renderHTML: (attributes) => ({
-							type: attributes.type,
-						}),
-					},
-			};
-		},
+				renderHTML: (attributes) => ({
+					type: attributes.type,
+				}),
+			},
+		};
+	},
 
 	addNodeView() {
 		return ReactNodeViewRenderer(SwitchTagView);
@@ -100,25 +100,26 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 					if (!(element instanceof HTMLElement)) {
 						return false;
 					}
-						const primary = element.getAttribute("primary");
-						const rawType = element.getAttribute("type");
-						const type = parseSwitchTagType(rawType);
-						const caseElements = [...element.children].filter(
-							(child) => child.tagName.toLowerCase() === "case",
-						);
+					const primary = element.getAttribute("primary");
+					const rawType = element.getAttribute("type");
+					const type = parseSwitchTagType(rawType);
+				const caseElements = [...element.children].filter(
+					(child): child is HTMLElement =>
+						child instanceof HTMLElement && child.tagName.toLowerCase() === "case",
+				);
 					const cases = caseElements.map((child) => ({
-						content: decodeCaseContent(child.getAttribute("data-content")) || child.innerHTML || "",
+						content: decodeCaseContent(child.dataset.content ?? null) || child.innerHTML || "",
 						primary: child.getAttribute("primary") ?? "",
 						text: (child.textContent ?? "").trim(),
 					}));
 
-						return {
-							cases,
-							primary,
-							type,
-						};
-					},
-					getContent: () => Fragment.empty,
+					return {
+						cases,
+						primary,
+						type,
+					};
+				},
+				getContent: () => Fragment.empty,
 				tag: "Switch",
 			},
 		];
@@ -141,31 +142,31 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 			caseItem.text ?? "",
 		]);
 
-			return [
-				"Switch",
-				mergeAttributes(HTMLAttributes, {
-					primary: node.attrs.primary,
-					type: node.attrs.type,
-				}),
-				...caseNodes,
-			];
-		},
-		renderText({ node }: { node: ProseMirrorNode }) {
-			const switchPrimary = node.attrs.primary;
-			const switchPrimaryValue = switchPrimary ? JSON.stringify(switchPrimary) : '""';
-			const switchType = node.attrs.type as SwitchTagType | null | undefined;
-			const switchTypeAttribute = switchType ? ` type=${JSON.stringify(switchType)}` : "";
-			const cases: SwitchCase[] = Array.isArray(node.attrs.cases) ? node.attrs.cases : [];
-			const content = cases
-				.map((caseItem) => {
+		return [
+			"Switch",
+			mergeAttributes(HTMLAttributes, {
+				primary: node.attrs.primary,
+				type: node.attrs.type,
+			}),
+			...caseNodes,
+		];
+	},
+	renderText({ node }: { node: ProseMirrorNode }) {
+		const switchPrimary = node.attrs.primary;
+		const switchPrimaryValue = switchPrimary ? JSON.stringify(switchPrimary) : '""';
+		const switchType = node.attrs.type as SwitchTagType | null | undefined;
+		const switchTypeAttribute = switchType ? ` type=${JSON.stringify(switchType)}` : "";
+		const cases: SwitchCase[] = Array.isArray(node.attrs.cases) ? node.attrs.cases : [];
+		const content = cases
+			.map((caseItem) => {
 				const casePrimaryValue = caseItem.primary ? JSON.stringify(caseItem.primary) : '""';
 				const caseText = caseItem.text ?? "";
 				return `{% case ${casePrimaryValue} %}${caseText}{% /case %}`;
-				})
-				.join("");
+			})
+			.join("");
 
-			return `{% switch ${switchPrimaryValue}${switchTypeAttribute} %}${content}{% /switch %}`;
-		},
+		return `{% switch ${switchPrimaryValue}${switchTypeAttribute} %}${content}{% /switch %}`;
+	},
 
 	selectable: true,
 });

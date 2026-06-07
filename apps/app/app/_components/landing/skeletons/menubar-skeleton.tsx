@@ -36,6 +36,14 @@ export default function MenubarSkeleton() {
 									Textbausteine
 								</NavigationMenuLink>
 							</NavigationMenuItem>
+							<NavigationMenuItem>
+								<NavigationMenuLink
+									className={navigationMenuTriggerStyle()}
+									href="/blog"
+								>
+									Blog
+								</NavigationMenuLink>
+							</NavigationMenuItem>
 						</NavigationMenuList>
 					</NavigationMenu>
 				</div>

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { call } from "@orpc/server";
 
 import {
@@ -12,22 +13,20 @@ import type { TestServer } from "@/__tests__/setup";
 import { usageHandler } from "@/orpc/admin/usage";
 
 const formatBucket = (date: Date, timeZone: string, granularity: "day" | "hour") => {
-	const parts = new Intl.DateTimeFormat("en-CA", {
+	const dateParts: Record<string, string> = {};
+	for (const part of new Intl.DateTimeFormat("en-CA", {
 		day: "2-digit",
 		hour: "2-digit",
-		hourCycle: "h23",
 		hour12: false,
+		hourCycle: "h23",
 		month: "2-digit",
 		timeZone,
 		year: "numeric",
-	})
-		.formatToParts(date)
-		.reduce<Record<string, string>>((current, part) => {
-			current[part.type] = part.value;
-			return current;
-		}, {});
-	const hour = granularity === "hour" ? parts.hour : "00";
-	return `${parts.year}-${parts.month}-${parts.day}T${hour}:00:00`;
+	}).formatToParts(date)) {
+		dateParts[part.type] = part.value;
+	}
+	const hour = granularity === "hour" ? dateParts.hour : "00";
+	return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${hour}:00:00`;
 };
 
 describe("Admin usage stats", () => {
@@ -76,16 +75,12 @@ describe("Admin usage stats", () => {
 			cost: "0.25",
 			inputTokens: 100,
 			outputTokens: 100,
-			timestamp,
 			timeToCompletionMs: 2000,
 			timeToFirstTokenMs: 500,
+			timestamp,
 		});
 
-		const stats = await call(
-			usageHandler.stats,
-			{ filter: "today", timeZone: "UTC" },
-			{ context },
-		);
+		const stats = await call(usageHandler.stats, { filter: "today", timeZone: "UTC" }, { context });
 		const currentBucket = stats.trend.find((bucket) => bucket.bucket === currentBucketKey);
 
 		expect(stats.trendGranularity).toBe("hour");
@@ -117,11 +112,7 @@ describe("Admin usage stats", () => {
 			timestamp,
 		});
 
-		const stats = await call(
-			usageHandler.stats,
-			{ filter: "week", timeZone: "UTC" },
-			{ context },
-		);
+		const stats = await call(usageHandler.stats, { filter: "week", timeZone: "UTC" }, { context });
 		const currentBucket = stats.trend.find((bucket) => bucket.bucket === currentBucketKey);
 
 		expect(stats.trendGranularity).toBe("day");

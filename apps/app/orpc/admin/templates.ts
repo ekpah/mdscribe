@@ -1,12 +1,4 @@
-import {
-	desc,
-	eq,
-	favourites,
-	inArray,
-	sql,
-	template,
-	user,
-} from "@repo/database";
+import { desc, eq, favourites, inArray, sql, template, user } from "@repo/database";
 
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
@@ -23,12 +15,11 @@ const listAdminTemplatesHandler = authed
 				},
 				authorId: template.authorId,
 				category: template.category,
-				hasEmbedding: sql<boolean>`${template.embedding} IS NOT NULL`.as(
-					"hasEmbedding",
-				),
+				hasEmbedding: sql<boolean>`${template.embedding} IS NOT NULL`.as("hasEmbedding"),
 				id: template.id,
 				title: template.title,
 				updatedAt: template.updatedAt,
+				visibility: template.visibility,
 			})
 			.from(template)
 			.leftJoin(user, eq(template.authorId, user.id))
@@ -75,6 +66,8 @@ const listAdminTemplatesHandler = authed
 					favouriteOf: favouriteOf.length,
 				},
 				favouriteOf,
+				isAuthored: item.authorId === context.session.user.id,
+				isFavourite: favouriteOf.some((favUser) => favUser.id === context.session.user.id),
 			};
 		});
 	});

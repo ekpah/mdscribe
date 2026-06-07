@@ -26,10 +26,12 @@ export interface UsageMetadata {
 	customFormSlug?: string;
 	thinkingEnabled?: boolean;
 	thinkingBudget?: number;
+	reasoningEffort?: string;
 	streamingMode?: boolean;
 	endpoint?: string;
 	modelConfig?: {
 		maxTokens?: number;
+		reasoningEffort?: string;
 		temperature?: number;
 	};
 	templateId?: string | null;

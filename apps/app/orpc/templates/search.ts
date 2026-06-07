@@ -78,6 +78,7 @@ export const findRelevantTemplateHandler = authed
 				(1 - (embedding <=> ${embeddingSql}::vector)) as similarity
 			FROM "Template"
 			WHERE embedding IS NOT NULL
+			AND visibility = 'public'
 			AND (1 - (embedding <=> ${embeddingSql}::vector)) > 0.3
 			ORDER BY embedding <-> ${embeddingSql}::vector
 			LIMIT 5

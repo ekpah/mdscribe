@@ -3,7 +3,10 @@
 import dynamic from "next/dynamic";
 
 export const PDFViewSection = dynamic(
-	async () => (await import("@/app/documents/_components/pdf-view-section")).PDFViewSection,
+	async () => {
+		const viewModule = await import("@/app/documents/_components/pdf-view-section");
+		return viewModule.PDFViewSection;
+	},
 	{
 		ssr: false,
 	},

@@ -1,20 +1,20 @@
 import { ClipboardCheck, FileCheck, FileText, Heart, Stethoscope } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { DocumentType } from "@/orpc/scribe/types";
-import {
-	getBuiltInAiscribeOverrideSlug,
-	type BuiltInAiscribeOverrideKey,
-	getBuiltInAiscribeOverride,
-} from "@/lib/aiscribe-built-ins";
+
 import type {
 	AdditionalInputField,
 	AiscribeTemplateConfig,
 } from "@/app/aiscribe/_components/aiscribe-template";
 import {
-	resolvePromptHarnessTitle,
-	resolveTemplateMetadata,
-	type PublicAiTextForm,
-} from "./custom-form-config";
+	getBuiltInAiscribeOverrideSlug,
+	getBuiltInAiscribeOverride,
+} from "@/lib/aiscribe-built-ins";
+import type { BuiltInAiscribeOverrideKey } from "@/lib/aiscribe-built-ins";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
+import type { DocumentType } from "@/orpc/scribe/types";
+
+import { resolvePromptHarnessTitle, resolveTemplateMetadata } from "./custom-form-config";
+import type { PublicAiTextForm } from "./custom-form-config";
 
 interface BuiltInAiscribeTemplateDefinition {
 	additionalInputs?: AdditionalInputField[];
@@ -43,8 +43,7 @@ const STATIONARY_CONTEXT_ADDITIONAL_INPUTS: AdditionalInputField[] = [
 		type: "textarea",
 	},
 	{
-		description:
-			"Anamnese bei Aufnahme inkl. Aufnahmegrund und initiale Verdachtsdiagnose",
+		description: "Anamnese bei Aufnahme inkl. Aufnahmegrund und initiale Verdachtsdiagnose",
 		label: "Aufnahmeanamnese",
 		name: "anamnese",
 		placeholder: "Initiale Anamnese bei Aufnahme eingeben...",
@@ -64,8 +63,7 @@ const STATIONARY_CONTEXT_ADDITIONAL_INPUTS: AdditionalInputField[] = [
 
 const ER_ADDITIONAL_INPUTS: AdditionalInputField[] = [
 	{
-		description:
-			"Bekannte Vorerkrankungen, chronische Leiden, bisherige Diagnosen",
+		description: "Bekannte Vorerkrankungen, chronische Leiden, bisherige Diagnosen",
 		label: "Vordiagnosen",
 		name: "diagnoseblock",
 		placeholder: "Bekannte Vorerkrankungen und Diagnosen eingeben...",
@@ -83,32 +81,27 @@ const ER_ADDITIONAL_INPUTS: AdditionalInputField[] = [
 	},
 ];
 
-const PROMPT_HARNESS_ADDITIONAL_INPUTS: Record<
-	string,
-	AdditionalInputField[] | undefined
-> = {
-	diagnostic_results: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-	Diagnoses: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-	ER_Anamnese_chat: ER_ADDITIONAL_INPUTS,
-	icu_transfer: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-	Inpatient_discharge: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-	outpatient_visit: undefined,
-	procedure: undefined,
+const PROMPT_HARNESS_ADDITIONAL_INPUTS: Record<string, AdditionalInputField[] | undefined> = {
+	anamnese: ER_ADDITIONAL_INPUTS,
+	befunde: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	diagnosis: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	discharge: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	"icu-transfer": STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	outpatient: undefined,
+	procedures: undefined,
 };
 
 const BUILT_IN_AISCRIBE_TEMPLATES = {
 	diagnoseblock: {
 		additionalInputs: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-		description:
-			"Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
+		description: "Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
 		documentType: "diagnosis",
 		emptyStateDescription:
 			"Bitte geben Sie zuerst Patientennotizen ein und generieren Sie einen aktualisierten Diagnoseblock.",
 		emptyStateTitle: "Noch kein Diagnoseblock vorhanden",
 		generateButtonText: "Diagnoseblock generieren",
 		icon: FileText,
-		inputDescription:
-			"Dokumentieren Sie den aktuellen Zustand und neue Befunde des Patienten",
+		inputDescription: "Dokumentieren Sie den aktuellen Zustand und neue Befunde des Patienten",
 		inputPlaceholder: "Geben Sie Ihre Notizen zum aktuellen Besuch ein...",
 		inputTabTitle: "Patientennotizen",
 		outputTabTitle: "Diagnoseblock",
@@ -117,8 +110,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 	},
 	discharge: {
 		additionalInputs: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-		description:
-			"Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
+		description: "Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
 		documentType: "discharge",
 		emptyStateDescription:
 			"Bitte geben Sie zuerst Entlassungsnotizen ein und generieren Sie einen Entlassungsbrief.",
@@ -135,8 +127,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 	},
 	er: {
 		additionalInputs: ER_ADDITIONAL_INPUTS,
-		description:
-			"Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten",
+		description: "Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten",
 		documentType: "anamnese",
 		emptyStateDescription:
 			"Bitte geben Sie zuerst die Anamnese ein und generieren Sie eine Analyse.",
@@ -153,8 +144,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 	},
 	icu: {
 		additionalInputs: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-		description:
-			"Erstellen Sie professionelle Verlegungsbriefe für Ihre ICU-Patienten",
+		description: "Erstellen Sie professionelle Verlegungsbriefe für Ihre ICU-Patienten",
 		documentType: "icu-transfer",
 		emptyStateDescription:
 			"Bitte geben Sie zuerst Patientennotizen ein und generieren Sie einen Verlegungsbrief.",
@@ -171,8 +161,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 	},
 	outpatient: {
 		additionalInputs: undefined,
-		description:
-			"Erstellen Sie professionelle Arztbriefe für Ihre ambulanten Patienten",
+		description: "Erstellen Sie professionelle Arztbriefe für Ihre ambulanten Patienten",
 		documentType: "outpatient",
 		emptyStateDescription:
 			"Bitte geben Sie zuerst Ihre Konsultationsnotizen ein und generieren Sie einen Arztbrief.",
@@ -205,10 +194,7 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		regenerateButtonText: "Neu generieren",
 		title: "Eingriffsdokumentation",
 	},
-} as const satisfies Record<
-	BuiltInAiscribeOverrideKey,
-	BuiltInAiscribeTemplateDefinition
->;
+} as const satisfies Record<BuiltInAiscribeOverrideKey, BuiltInAiscribeTemplateDefinition>;
 
 export type BuiltInAiscribeTemplateKey = BuiltInAiscribeOverrideKey;
 export { getBuiltInAiscribeOverrideSlug };
@@ -221,19 +207,23 @@ export const buildBuiltInAiscribeTemplateConfig = ({
 	template: BuiltInAiscribeTemplateKey;
 }): AiscribeTemplateConfig => {
 	const definition = BUILT_IN_AISCRIBE_TEMPLATES[template];
-	const defaultPromptHarness = getBuiltInAiscribeOverride(template).defaultPromptHarness;
+	const { defaultPromptHarness } = getBuiltInAiscribeOverride(template);
 	const resolvedPromptHarness = overrideForm?.promptHarness ?? defaultPromptHarness;
 	const contextForm: PublicAiTextForm = {
+		authorId: null,
 		description: null,
 		id: overrideForm?.id ?? template,
 		name: definition.title,
 		promptHarness: resolvedPromptHarness,
 		slug: getBuiltInAiscribeOverrideSlug(template),
 		template: overrideForm?.template ?? null,
+		visibility: "public",
 	};
+	const resolvedPromptHarnessId =
+		resolvePromptHarnessId(resolvedPromptHarness) ?? resolvedPromptHarness;
 	const resolvedAdditionalInputs =
 		overrideForm?.id && overrideForm.promptHarness
-			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[overrideForm.promptHarness] ??
+			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[resolvedPromptHarnessId] ??
 				definition.additionalInputs)
 			: definition.additionalInputs;
 	const baseConfig = {

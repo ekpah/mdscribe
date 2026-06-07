@@ -5,6 +5,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getServerSession } from "@/lib/server-session";
+import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
 import { SubscriptionManagementCard } from "./_components/subscription-management-card";
 
 export default async function SubscriptionPage() {
@@ -15,11 +16,15 @@ export default async function SubscriptionPage() {
 			headers: requestHeaders,
 		}),
 	]).catch((_e) => {
-		throw redirect("/sign-in");
+		throw redirect(
+			createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")),
+		);
 	});
 
 	if (!session?.user) {
-		redirect("/sign-in");
+		redirect(
+			createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")),
+		);
 	}
 
 	const activeSubscription = subscriptions.find(

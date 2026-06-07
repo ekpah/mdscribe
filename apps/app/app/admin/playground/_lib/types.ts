@@ -1,3 +1,5 @@
+import type { ReasoningEffort } from "@/app/admin/_lib/reasoning";
+
 interface ModelCapabilities {
 	supportsText: boolean;
 	supportsImage: boolean;
@@ -38,16 +40,18 @@ export interface PlaygroundModel {
 	};
 	capabilities: ModelCapabilities;
 	supported_parameters: string[];
-	inputModes?: string[];
+	supportedParameters?: string[];
 	supportsReasoning?: boolean;
 }
+
+export type { ReasoningEffort };
 
 export interface PlaygroundParameters {
 	temperature: number;
 	maxTokens: number;
 	thinking: boolean;
 	thinkingExplicit: boolean;
-	thinkingBudget: number;
+	reasoningEffort: ReasoningEffort;
 	topP?: number;
 	topK?: number;
 	frequencyPenalty?: number;

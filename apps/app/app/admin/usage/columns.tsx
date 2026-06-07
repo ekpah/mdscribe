@@ -7,21 +7,11 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { Loader2, Medal } from "lucide-react";
 
 import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
-import {
-	allScribeDocTypes,
-	isScribeDocType,
-	scribeDocTypeUi,
-} from "@/app/admin/playground/_lib/scribe-doc-types";
+import { isScribeDocType } from "@/app/admin/playground/_lib/scribe-doc-types";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 import type { UsageEvaluation, UsageListEvent } from "./types";
-
-const promptNameToDocumentType = new Map(
-	allScribeDocTypes.map((documentType) => [
-		scribeDocTypeUi[documentType].defaultPromptName,
-		documentType,
-	]),
-);
 
 const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
 	if (!metadata) {
@@ -29,15 +19,13 @@ const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentTy
 	}
 
 	const { endpoint } = metadata;
-	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		if (isScribeDocType(endpoint)) {
-			return endpoint;
-		}
+	if (typeof endpoint === "string" && endpoint.trim().length > 0 && isScribeDocType(endpoint)) {
+		return endpoint;
 	}
 
 	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return promptNameToDocumentType.get(promptName);
+		return resolvePromptHarnessId(promptName);
 	}
 
 	return undefined;
@@ -102,9 +90,8 @@ export const formatTokensPerSecond = (
 	durationMs: number | null | undefined,
 ): string => formatTokensPerSecondValue(calculateTokensPerSecond(outputTokens, durationMs));
 
-export const formatStatTokensPerSecond = (
-	tokensPerSecond: number | null | undefined,
-): string => formatTokensPerSecondValue(tokensPerSecond ?? null);
+export const formatStatTokensPerSecond = (tokensPerSecond: number | null | undefined): string =>
+	formatTokensPerSecondValue(tokensPerSecond ?? null);
 
 export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null => {
 	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
@@ -114,14 +101,14 @@ export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null =>
 	if (!evaluation || typeof evaluation !== "object" || Array.isArray(evaluation)) {
 		return null;
 	}
-	const totalScore = (evaluation as Record<string, unknown>).totalScore;
+	const { totalScore } = evaluation as Record<string, unknown>;
 	if (typeof totalScore !== "number" || !Number.isFinite(totalScore)) {
 		return null;
 	}
 	return evaluation as UsageEvaluation;
 };
 
-export const formatScore = (score: number | undefined): string =>
+export const formatScore = (score?: number): string =>
 	score === undefined ? "-" : score.toFixed(1);
 
 export const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
@@ -129,8 +116,9 @@ export const getPromptLabel = (metadata: Record<string, unknown> | null): string
 		return "-";
 	}
 	const endpoint = metadata.endpoint as string | undefined;
+	const promptLabel = metadata.promptLabel as string | undefined;
 	const promptName = metadata.promptName as string | undefined;
-	return endpoint ?? promptName ?? "-";
+	return endpoint ?? promptLabel ?? promptName ?? "-";
 };
 
 export const buildPlaygroundUrl = (event: UsageListEvent): string => {
@@ -157,8 +145,8 @@ export const buildPlaygroundUrl = (event: UsageListEvent): string => {
 		}
 		if (metadata.thinkingEnabled) {
 			params.set("thinking", "true");
-			if (metadata.thinkingBudget !== undefined) {
-				params.set("thinkingBudget", String(metadata.thinkingBudget));
+			if (typeof metadata.reasoningEffort === "string") {
+				params.set("reasoningEffort", metadata.reasoningEffort);
 			}
 		}
 	}

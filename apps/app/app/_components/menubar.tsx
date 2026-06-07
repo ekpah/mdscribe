@@ -1,11 +1,7 @@
 "use client";
 
 import { ModeToggleSwitch } from "@repo/design-system/components/mode-toggle";
-import {
-	Avatar,
-	AvatarFallback,
-	AvatarImage,
-} from "@repo/design-system/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/design-system/components/ui/avatar";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	DropdownMenu,
@@ -23,34 +19,36 @@ import {
 	navigationMenuTriggerStyle,
 } from "@repo/design-system/components/ui/navigation-menu";
 import { cn } from "@repo/design-system/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-	LayoutDashboard,
-	Loader2,
-	LogOut,
-	Menu,
-	Settings,
-	Shield,
-	User,
-	X,
-} from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LayoutDashboard, Loader2, LogOut, Menu, Settings, Shield, User, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+
 import { authClient, useSession } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
+import { orpc } from "@/lib/orpc";
 import { sessionQueryKey } from "@/lib/session-query";
 import DarkLogo from "@/public/logo/dark";
 import LightLogo from "@/public/logo/light";
 
 interface TopMenuBarProperties {
+	initialIsAdmin?: boolean;
 	initialSession: Session | null;
-	isAdmin?: boolean;
 }
 
+const getUserDisplayName = (session: Session | null): string => {
+	const user = session?.user;
+	if (user) {
+		return user.name?.trim() || user.email.split("@")[0] || user.email;
+	}
+
+	return "";
+};
+
 export default function TopMenuBar({
+	initialIsAdmin = false,
 	initialSession,
-	isAdmin,
 }: TopMenuBarProperties) {
 	const router = useRouter();
 	const queryClient = useQueryClient();
@@ -59,8 +57,14 @@ export default function TopMenuBar({
 
 	const sessionQuery = useSession();
 	const session = sessionQuery.data ?? initialSession;
+	const authQuery = useQuery({
+		...orpc.user.auth.queryOptions(),
+		enabled: Boolean(session?.user) && !initialIsAdmin,
+	});
 	const isSessionLoading = sessionQuery.isPending && session === null;
 	const showAiLink = !!session?.user;
+	const isAdmin = initialIsAdmin || (authQuery.data?.isAdmin ?? false);
+	const userDisplayName = getUserDisplayName(session);
 
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;
 
@@ -106,30 +110,21 @@ export default function TopMenuBar({
 					<NavigationMenu className="hidden md:block">
 						<NavigationMenuList>
 							<NavigationMenuItem>
-								<NavigationMenuLink
-									className={navigationMenuTriggerStyle()}
-									href="/templates"
-								>
+								<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/templates">
 									Textbausteine
 								</NavigationMenuLink>
 							</NavigationMenuItem>
-							{isAdmin && (
+							{showAiLink && (
 								<NavigationMenuItem>
-									<NavigationMenuLink
-										className={navigationMenuTriggerStyle()}
-										href="/documents"
-									>
-										Dokumente
+									<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/aiscribe">
+										AI Scribe
 									</NavigationMenuLink>
 								</NavigationMenuItem>
 							)}
-							{showAiLink && (
+							{isAdmin && (
 								<NavigationMenuItem>
-									<NavigationMenuLink
-										className={navigationMenuTriggerStyle()}
-										href="/aiscribe"
-									>
-										AI Scribe
+									<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/documents">
+										Dokumente
 									</NavigationMenuLink>
 								</NavigationMenuItem>
 							)}
@@ -140,11 +135,7 @@ export default function TopMenuBar({
 				{/* Mobile Menu Toggle */}
 				<div className="flex md:hidden">
 					<Button onClick={toggleMobileMenu} size="icon" variant="ghost">
-						{mobileMenuOpen ? (
-							<X className="h-5 w-5" />
-						) : (
-							<Menu className="h-5 w-5" />
-						)}
+						{mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
 					</Button>
 				</div>
 
@@ -153,11 +144,7 @@ export default function TopMenuBar({
 					{(() => {
 						if (isSessionLoading) {
 							return (
-								<Button
-									variant="ghost"
-									className="relative h-9 w-9 rounded-full"
-									disabled
-								>
+								<Button variant="ghost" className="relative h-9 w-9 rounded-full" disabled>
 									<Avatar className="h-9 w-9 opacity-70">
 										<AvatarFallback>
 											<User className="h-5 w-5" />
@@ -172,15 +159,9 @@ export default function TopMenuBar({
 							return (
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
-										<Button
-											variant="ghost"
-											className="relative h-9 w-9 rounded-full"
-										>
+										<Button variant="ghost" className="relative h-9 w-9 rounded-full">
 											<Avatar className="h-9 w-9">
-												<AvatarImage
-													src={session.user.image ?? undefined}
-													alt={session.user.name ?? session.user.email}
-												/>
+												<AvatarImage src={session.user.image ?? undefined} alt={userDisplayName} />
 												<AvatarFallback>
 													<User className="h-5 w-5" />
 												</AvatarFallback>
@@ -190,11 +171,7 @@ export default function TopMenuBar({
 									<DropdownMenuContent align="end" className="w-56">
 										<DropdownMenuLabel className="font-normal">
 											<div className="flex flex-col space-y-1">
-												{session.user.name && (
-													<p className="font-medium text-sm leading-none">
-														{session.user.name}
-													</p>
-												)}
+												<p className="font-medium text-sm leading-none">{userDisplayName}</p>
 												<p className="text-muted-foreground text-xs leading-none">
 													{session.user.email}
 												</p>
@@ -208,7 +185,7 @@ export default function TopMenuBar({
 											</Link>
 										</DropdownMenuItem>
 										<DropdownMenuItem asChild>
-											<Link href="/profile" className="cursor-pointer">
+											<Link href="/profile/account" className="cursor-pointer">
 												<Settings className="mr-2 h-4 w-4" />
 												Einstellungen
 											</Link>
@@ -224,10 +201,7 @@ export default function TopMenuBar({
 										<DropdownMenuSeparator />
 										<ModeToggleSwitch />
 										<DropdownMenuSeparator />
-										<DropdownMenuItem
-											onClick={handleSignOut}
-											className="cursor-pointer"
-										>
+										<DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
 											<LogOut className="mr-2 h-4 w-4" />
 											Ausloggen
 										</DropdownMenuItem>
@@ -256,30 +230,25 @@ export default function TopMenuBar({
 					<NavigationMenu>
 						<NavigationMenuList className="flex flex-col space-y-2">
 							<NavigationMenuItem>
-								<NavigationMenuLink
-									className={navigationMenuTriggerStyle()}
-									href="/templates"
-								>
+								<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/templates">
 									Textbausteine
 								</NavigationMenuLink>
 							</NavigationMenuItem>
+							{showAiLink && (
+								<NavigationMenuItem>
+									<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/aiscribe">
+										AI Scribe
+									</NavigationMenuLink>
+								</NavigationMenuItem>
+							)}
 							{isAdmin && (
 								<NavigationMenuItem>
 									<NavigationMenuLink
 										className={navigationMenuTriggerStyle()}
 										href="/documents"
+										onClick={closeMobileMenu}
 									>
 										Dokumente
-									</NavigationMenuLink>
-								</NavigationMenuItem>
-							)}
-							{showAiLink && (
-								<NavigationMenuItem>
-									<NavigationMenuLink
-										className={navigationMenuTriggerStyle()}
-										href="/aiscribe"
-									>
-										AI Scribe
 									</NavigationMenuLink>
 								</NavigationMenuItem>
 							)}
@@ -312,23 +281,14 @@ export default function TopMenuBar({
 									<>
 										<div className="mb-3 flex items-center gap-3 px-2">
 											<Avatar className="h-10 w-10">
-												<AvatarImage
-													src={session.user.image ?? undefined}
-													alt={session.user.name ?? session.user.email}
-												/>
+												<AvatarImage src={session.user.image ?? undefined} alt={userDisplayName} />
 												<AvatarFallback>
 													<User className="h-5 w-5" />
 												</AvatarFallback>
 											</Avatar>
 											<div className="flex flex-col">
-												{session.user.name && (
-													<span className="font-medium text-sm">
-														{session.user.name}
-													</span>
-												)}
-												<span className="text-muted-foreground text-xs">
-													{session.user.email}
-												</span>
+												<span className="font-medium text-sm">{userDisplayName}</span>
+												<span className="text-muted-foreground text-xs">{session.user.email}</span>
 											</div>
 										</div>
 										<div className="flex flex-col gap-1">
@@ -341,7 +301,7 @@ export default function TopMenuBar({
 												Dashboard
 											</Link>
 											<Link
-												href="/profile"
+												href="/profile/account"
 												onClick={closeMobileMenu}
 												className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
 											>
@@ -363,11 +323,7 @@ export default function TopMenuBar({
 											<div className="flex items-center justify-between px-2">
 												<ModeToggleSwitch />
 											</div>
-											<Button
-												className="w-full"
-												onClick={handleSignOut}
-												variant="secondary"
-											>
+											<Button className="w-full" onClick={handleSignOut} variant="secondary">
 												<LogOut className="mr-2 h-4 w-4" />
 												Ausloggen
 											</Button>
@@ -381,11 +337,7 @@ export default function TopMenuBar({
 									<div className="flex items-center justify-between px-2">
 										<ModeToggleSwitch />
 									</div>
-									<Link
-										className="w-full"
-										href={signInUrl}
-										onClick={closeMobileMenu}
-									>
+									<Link className="w-full" href={signInUrl} onClick={closeMobileMenu}>
 										<Button className="w-full">Jetzt anmelden</Button>
 									</Link>
 								</div>

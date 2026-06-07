@@ -1,12 +1,4 @@
-import {
-	and,
-	count,
-	desc,
-	gte,
-	isNotNull,
-	ne,
-	usageEvent,
-} from "@repo/database";
+import { and, count, desc, gte, isNotNull, ne, usageEvent } from "@repo/database";
 import { z } from "zod";
 
 import { authed } from "@/orpc";
@@ -52,67 +44,60 @@ interface PlaygroundModel {
 	};
 	capabilities: ModelCapabilities;
 	supported_parameters: string[];
-	inputModes: string[];
+	supportedParameters: string[];
 	supportsReasoning: boolean;
 }
 
-const toCapabilities = (inputModes: string[]): ModelCapabilities => {
-	const modes = new Set(inputModes);
-	return {
-		outputsAudio: false,
-		outputsImage: false,
-		outputsText: true,
-		supportsAudio: modes.has("audio"),
-		supportsImage: modes.has("image"),
-		supportsText: true,
-		supportsVideo: false,
-	};
+const UNKNOWN_CAPABILITIES: ModelCapabilities = {
+	outputsAudio: false,
+	outputsImage: false,
+	outputsText: true,
+	supportsAudio: false,
+	supportsImage: false,
+	supportsText: true,
+	supportsVideo: false,
 };
 
-const toModality = (inputModes: string[]): string => {
-	const inputs = ["text"];
-	if (inputModes.includes("image")) {inputs.push("image");}
-	if (inputModes.includes("audio")) {inputs.push("audio");}
-	return `${inputs.join("+")}->text`;
-};
+const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
+	parameters ?? [];
 
-const listModelsHandler = authed
-	.use(requiredAdminMiddleware)
-	.handler(async ({ context }) => {
-		const providers = await context.db.query.aiProvider.findMany({
-			orderBy: (provider, { asc }) => asc(provider.name),
-			with: { models: true },
-		});
-
-		const models: PlaygroundModel[] = [];
-		for (const provider of providers) {
-			for (const model of provider.models) {
-				const capabilities = toCapabilities(model.inputModes);
-				models.push({
-					architecture: {
-						modality: toModality(model.inputModes),
-						tokenizer: "unknown",
-					},
-					capabilities,
-					connectionId: provider.id,
-					connectionProtocol: provider.protocol,
-					context_length: 0,
-					id: model.id,
-					inputModes: model.inputModes,
-					modelId: model.modelId,
-					name: model.displayName,
-					pricing: { completion: "0", prompt: "0" },
-					providerId: provider.id,
-					providerName: provider.name,
-					providerProtocol: provider.protocol,
-					supported_parameters: model.supportsReasoning ? ["reasoning"] : [],
-					supportsReasoning: model.supportsReasoning,
-				});
-			}
-		}
-
-		return models;
+const listModelsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
+	const providers = await context.db.query.aiProvider.findMany({
+		orderBy: (provider, { asc }) => asc(provider.name),
+		with: { models: true },
 	});
+
+	const models: PlaygroundModel[] = [];
+	for (const provider of providers) {
+		for (const model of provider.models) {
+			const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
+			const supportsReasoning =
+				model.supportsReasoning || supportedParameters.includes("reasoning");
+			models.push({
+				architecture: {
+					modality: "unknown",
+					tokenizer: "unknown",
+				},
+				capabilities: UNKNOWN_CAPABILITIES,
+				connectionId: provider.id,
+				connectionProtocol: provider.protocol,
+				context_length: 0,
+				id: model.id,
+				modelId: model.modelId,
+				name: model.displayName,
+				pricing: { completion: "0", prompt: "0" },
+				providerId: provider.id,
+				providerName: provider.name,
+				providerProtocol: provider.protocol,
+				supportedParameters,
+				supported_parameters: supportedParameters,
+				supportsReasoning,
+			});
+		}
+	}
+
+	return models;
+});
 
 /**
  * Get the top N most used models from the past 30 days.

@@ -1,4 +1,5 @@
 import { ORPCError, os } from '@orpc/server';
+import { env } from '@repo/env';
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import type { Session } from '@/lib/auth-types';
@@ -12,6 +13,18 @@ const getSession = async () => {
     return session;
 };
 
+export const getOptionalAuthSession = async (contextSession?: Session) => {
+    if (contextSession) {
+        return contextSession;
+    }
+
+    try {
+        return await getSession();
+    } catch {
+        return null;
+    }
+};
+
 export const requiredAuthMiddleware = os
     .$context<{ session?: Session }>()
     .middleware(async ({ context, next }) => {
@@ -21,6 +34,11 @@ export const requiredAuthMiddleware = os
         }
 
         return next({
-            context: { session },
+            context: {
+                auth: {
+                    isAdmin: session.user.email === env.ADMIN_EMAIL,
+                },
+                session,
+            },
         });
     });

@@ -21,6 +21,23 @@ interface SendEmailOptions {
 	template: ReactElement;
 }
 
+interface SendEmailBatchOptions {
+	from: string;
+	to: readonly string[];
+	subject: string;
+	template: ReactElement;
+}
+
+const POSTMARK_BATCH_SIZE = 500;
+
+const chunkArray = <T>(items: readonly T[], size: number): T[][] => {
+	const chunks: T[][] = [];
+	for (let index = 0; index < items.length; index += size) {
+		chunks.push(items.slice(index, index + size));
+	}
+	return chunks;
+};
+
 export const sendEmail = async ({
 	from,
 	to,
@@ -35,4 +52,31 @@ export const sendEmail = async ({
 		Subject: subject,
 		To: to,
 	});
+};
+
+export const sendEmailBatch = async ({
+	from,
+	to,
+	subject,
+	template,
+}: SendEmailBatchOptions) => {
+	if (to.length === 0) {
+		return [];
+	}
+
+	const htmlBody = await render(template);
+	const messages: postmark.Message[] = to.map((recipient) => ({
+		From: from,
+		HtmlBody: htmlBody,
+		Subject: subject,
+		To: recipient,
+	}));
+	const responses: postmark.Models.MessageSendingResponse[] = [];
+
+	for (const batch of chunkArray(messages, POSTMARK_BATCH_SIZE)) {
+		const batchResponses = await getClient().sendEmailBatch(batch);
+		responses.push(...batchResponses);
+	}
+
+	return responses;
 };

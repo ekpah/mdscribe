@@ -1,0 +1,80 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "MDScribe",
+  "description": "Dokumentation fuer MDScribe.",
+  "colors": {
+    "primary": "#2563eb"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Start",
+        "pages": [
+          "content/docs/index",
+          "content/docs/quickstart/index",
+          "content/docs/quickstart/schnellstart",
+          "content/docs/faq"
+        ]
+      },
+      {
+        "group": "Tutorials",
+        "pages": [
+          "content/docs/tutorials/index"
+        ]
+      },
+      {
+        "group": "How-to",
+        "pages": [
+          "content/docs/how-to/index",
+          "content/docs/how-to/ki-instruktionen",
+          "content/docs/how-to/self-hosting"
+        ]
+      },
+      {
+        "group": "Produktbereiche",
+        "pages": [
+          "content/docs/templates/index",
+          "content/docs/templates/tags",
+          "content/docs/templates/info-tag",
+          "content/docs/templates/score-tag",
+          "content/docs/templates/switch-case-tags",
+          "content/docs/documents/index",
+          "content/docs/ai/index",
+          "content/docs/ai/ki-instruktionen",
+          "content/docs/text-snippets",
+          "content/docs/knowledge"
+        ]
+      },
+      {
+        "group": "Datenschutz",
+        "pages": [
+          "content/docs/privacy/index",
+          "content/docs/privacy/private-vs-anonyme-daten",
+          "content/docs/privacy/ki-datenfluss"
+        ]
+      },
+      {
+        "group": "Self-Hosting",
+        "pages": [
+          "content/docs/self-hosting/index"
+        ]
+      },
+      {
+        "group": "Referenz",
+        "pages": [
+          "content/docs/reference/index",
+          "content/docs/reference/tags"
+        ]
+      },
+      {
+        "group": "Erklaerungen",
+        "pages": [
+          "content/docs/explanation/index",
+          "content/docs/explanation/diataxis",
+          "content/docs/explanation/privacy"
+        ]
+      }
+    ]
+  }
+}

@@ -49,9 +49,7 @@ const bytea = customType<{ data: Uint8Array; driverData: Uint8Array | string }>(
 // ============ AUTH TABLES (BetterAuth compatible) ============
 
 export const user = pgTable("User", {
-	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-		.notNull()
-		.defaultNow(),
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("emailVerified").notNull().default(false),
 	id: text("id")
@@ -72,9 +70,7 @@ export const account = pgTable("Account", {
 		precision: 3,
 	}),
 	accountId: text("accountId").notNull(),
-	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-		.notNull()
-		.defaultNow(),
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -97,9 +93,7 @@ export const account = pgTable("Account", {
 });
 
 export const session = pgTable("Session", {
-	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-		.notNull()
-		.defaultNow(),
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 	expiresAt: timestamp("expiresAt", { mode: "date", precision: 3 }).notNull(),
 	id: text("id")
 		.primaryKey()
@@ -117,9 +111,7 @@ export const session = pgTable("Session", {
 });
 
 export const verification = pgTable("Verification", {
-	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-		.notNull()
-		.defaultNow(),
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 	expiresAt: timestamp("expiresAt", { mode: "date", precision: 3 }).notNull(),
 	id: text("id")
 		.primaryKey()
@@ -133,21 +125,28 @@ export const verification = pgTable("Verification", {
 
 // ============ APPLICATION TABLES ============
 
-export const template = pgTable("Template", {
-	authorId: text("authorId")
-		.notNull()
-		.references(() => user.id),
-	category: text("category").notNull(),
-	content: text("content").notNull(),
-	embedding: vector("embedding"),
-	id: text("id")
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	title: text("title").notNull(),
-	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
-		.notNull()
-		.defaultNow(),
-});
+export const template = pgTable(
+	"Template",
+	{
+		authorId: text("authorId")
+			.notNull()
+			.references(() => user.id),
+		category: text("category").notNull(),
+		content: text("content").notNull(),
+		embedding: vector("embedding"),
+		examples: text("examples").array().notNull().default([]),
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		title: text("title").notNull(),
+		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
+		visibility: text("visibility").notNull().default("public"),
+	},
+	(table) => [
+		index("Template_authorId_visibility_idx").on(table.authorId, table.visibility),
+		index("Template_visibility_idx").on(table.visibility),
+	],
+);
 
 export const documentTemplate = pgTable(
 	"DocumentTemplate",
@@ -156,9 +155,7 @@ export const documentTemplate = pgTable(
 			.notNull()
 			.references(() => user.id),
 		category: text("category").notNull(),
-		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 		fieldDefinitions: jsonb("fieldDefinitions").notNull(),
 		id: text("id")
 			.primaryKey()
@@ -169,38 +166,18 @@ export const documentTemplate = pgTable(
 			.notNull()
 			.defaultNow()
 			.$onUpdate(() => new Date()),
+		visibility: text("visibility").notNull().default("public"),
 	},
 	(table) => [
 		index("DocumentTemplate_authorId_idx").on(table.authorId),
+		index("DocumentTemplate_authorId_visibility_idx").on(table.authorId, table.visibility),
 		index("DocumentTemplate_category_idx").on(table.category),
+		index("DocumentTemplate_visibility_idx").on(table.visibility),
 	],
 );
 
-export const templateExample = pgTable(
-	"TemplateExample",
-	{
-		content: text("content").notNull(),
-		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow(),
-		id: text("id")
-			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
-		templateId: text("templateId")
-			.notNull()
-			.references(() => template.id, { onDelete: "cascade" }),
-		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow()
-			.$onUpdate(() => new Date()),
-	},
-	(table) => [index("TemplateExample_templateId_idx").on(table.templateId)],
-);
-
 export const templateCollection = pgTable("TemplateCollection", {
-	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-		.notNull()
-		.defaultNow(),
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 	description: text("description"),
 	id: text("id")
 		.primaryKey()
@@ -217,9 +194,7 @@ export const templateCollection = pgTable("TemplateCollection", {
 
 export const subscription = pgTable("Subscription", {
 	cancelAtPeriodEnd: boolean("cancelAtPeriodEnd"),
-	createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-		.notNull()
-		.defaultNow(),
+	createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -261,11 +236,11 @@ export const usageEvent = pgTable(
 		reasoning: text("reasoning"),
 		reasoningTokens: integer("reasoningTokens"),
 		result: text("result"),
+		timeToCompletionMs: integer("timeToCompletionMs"),
+		timeToFirstTokenMs: integer("timeToFirstTokenMs"),
 		timestamp: timestamp("timestamp", { mode: "date", precision: 3, withTimezone: true })
 			.notNull()
 			.defaultNow(),
-		timeToFirstTokenMs: integer("timeToFirstTokenMs"),
-		timeToCompletionMs: integer("timeToCompletionMs"),
 		totalTokens: integer("totalTokens"),
 		userId: text("userId")
 			.notNull()
@@ -280,9 +255,7 @@ export const usageEvent = pgTable(
 export const textSnippet = pgTable(
 	"TextSnippet",
 	{
-		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
@@ -295,9 +268,7 @@ export const textSnippet = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 	},
-	(table) => [
-		uniqueIndex("TextSnippet_userId_key_key").on(table.userId, table.key),
-	],
+	(table) => [uniqueIndex("TextSnippet_userId_key_key").on(table.userId, table.key)],
 );
 
 // Many-to-many junction table for favourites
@@ -354,37 +325,45 @@ export const aiModel = pgTable(
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
-		inputModes: text("inputModes").array().notNull().default(["text"]),
 		modelId: text("modelId").notNull(),
 		providerId: text("providerId")
 			.notNull()
 			.references(() => aiProvider.id, { onDelete: "cascade" }),
+		supportedParameters: text("supportedParameters").array().notNull().default([]),
 		supportsReasoning: boolean("supportsReasoning").notNull().default(false),
 	},
-	(table) => [
-		uniqueIndex("AiModel_providerId_modelId_key").on(
-			table.providerId,
-			table.modelId,
-		),
-	],
+	(table) => [uniqueIndex("AiModel_providerId_modelId_key").on(table.providerId, table.modelId)],
 );
 
 export const aiDefaults = pgTable("AiDefaults", {
-	defaultEvaluationModel: text("defaultEvaluationModel").references(
-		() => aiModel.id,
-		{ onDelete: "set null" },
-	),
-	defaultFileImageModelId: text("defaultFileImageModelId").references(
-		() => aiModel.id,
-		{ onDelete: "set null" },
-	),
-	defaultSpeechToTextModelId: text("defaultSpeechToTextModelId").references(
-		() => aiModel.id,
-		{ onDelete: "set null" },
-	),
+	defaultEvaluationModel: text("defaultEvaluationModel").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
+	defaultEvaluationReasoningEffort: text("defaultEvaluationReasoningEffort")
+		.notNull()
+		.default("none"),
+	defaultFileImageModelId: text("defaultFileImageModelId").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
+	defaultFileImageReasoningEffort: text("defaultFileImageReasoningEffort")
+		.notNull()
+		.default("none"),
+	defaultMultimodalModelId: text("defaultMultimodalModelId").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
+	defaultMultimodalReasoningEffort: text("defaultMultimodalReasoningEffort")
+		.notNull()
+		.default("none"),
+	defaultSpeechToTextModelId: text("defaultSpeechToTextModelId").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
+	defaultSpeechToTextReasoningEffort: text("defaultSpeechToTextReasoningEffort")
+		.notNull()
+		.default("none"),
 	defaultTextModelId: text("defaultTextModelId").references(() => aiModel.id, {
 		onDelete: "set null",
 	}),
+	defaultTextReasoningEffort: text("defaultTextReasoningEffort").notNull().default("none"),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => "global"),
@@ -396,9 +375,7 @@ export const aiDefaults = pgTable("AiDefaults", {
 export const aiScribeFormConfig = pgTable(
 	"AiScribeFormConfig",
 	{
-		createdAt: timestamp("createdAt", { mode: "date", precision: 3 })
-			.notNull()
-			.defaultNow(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 		description: text("description"),
 		enabled: boolean("enabled").notNull().default(true),
 		id: text("id")
@@ -406,12 +383,13 @@ export const aiScribeFormConfig = pgTable(
 			.$defaultFn(() => crypto.randomUUID()),
 		inputPreset: text("inputPreset").notNull(),
 		maxTokens: integer("maxTokens"),
-		modelId: text("modelId").references(() => aiModel.id, {
-			onDelete: "set null",
-		}),
 		name: text("name").notNull(),
 		promptHarness: text("promptHarness").notNull(),
 		slug: text("slug").notNull(),
+		authorId: text("authorId").references(() => user.id, {
+			onDelete: "cascade",
+		}),
+		visibility: text("visibility").notNull().default("public"),
 		temperature: numeric("temperature", { precision: 3, scale: 2 }),
 		templateId: text("templateId").references(() => template.id, {
 			onDelete: "set null",
@@ -424,7 +402,10 @@ export const aiScribeFormConfig = pgTable(
 	},
 	(table) => [
 		uniqueIndex("AiScribeFormConfig_slug_key").on(table.slug),
+		index("AiScribeFormConfig_authorId_idx").on(table.authorId),
+		index("AiScribeFormConfig_authorId_visibility_idx").on(table.authorId, table.visibility),
 		index("AiScribeFormConfig_enabled_idx").on(table.enabled),
+		index("AiScribeFormConfig_visibility_idx").on(table.visibility),
 	],
 );
 
@@ -436,6 +417,7 @@ export const userRelations = relations(user, ({ many }) => ({
 	favourites: many(favourites),
 	sessions: many(session),
 	subscriptions: many(subscription),
+	aiScribeFormConfigs: many(aiScribeFormConfig),
 	templateCollections: many(templateCollection),
 	templates: many(template),
 	textSnippets: many(textSnippet),
@@ -453,29 +435,15 @@ export const sessionRelations = relations(session, ({ one }) => ({
 export const templateRelations = relations(template, ({ one, many }) => ({
 	author: one(user, { fields: [template.authorId], references: [user.id] }),
 	collectionTemplates: many(templateCollectionTemplate),
-	examples: many(templateExample),
 	favouriteOf: many(favourites),
 }));
 
-export const documentTemplateRelations = relations(
-	documentTemplate,
-	({ one }) => ({
-		author: one(user, {
-			fields: [documentTemplate.authorId],
-			references: [user.id],
-		}),
+export const documentTemplateRelations = relations(documentTemplate, ({ one }) => ({
+	author: one(user, {
+		fields: [documentTemplate.authorId],
+		references: [user.id],
 	}),
-);
-
-export const templateExampleRelations = relations(
-	templateExample,
-	({ one }) => ({
-		template: one(template, {
-			fields: [templateExample.templateId],
-			references: [template.id],
-		}),
-	}),
-);
+}));
 
 export const subscriptionRelations = relations(subscription, ({ one }) => ({
 	user: one(user, {
@@ -500,16 +468,13 @@ export const favouritesRelations = relations(favourites, ({ one }) => ({
 	user: one(user, { fields: [favourites.userId], references: [user.id] }),
 }));
 
-export const templateCollectionRelations = relations(
-	templateCollection,
-	({ one, many }) => ({
-		templates: many(templateCollectionTemplate),
-		user: one(user, {
-			fields: [templateCollection.userId],
-			references: [user.id],
-		}),
+export const templateCollectionRelations = relations(templateCollection, ({ one, many }) => ({
+	templates: many(templateCollectionTemplate),
+	user: one(user, {
+		fields: [templateCollection.userId],
+		references: [user.id],
 	}),
-);
+}));
 
 export const templateCollectionTemplateRelations = relations(
 	templateCollectionTemplate,
@@ -536,16 +501,13 @@ export const aiModelRelations = relations(aiModel, ({ one }) => ({
 	}),
 }));
 
-export const aiScribeFormConfigRelations = relations(
-	aiScribeFormConfig,
-	({ one }) => ({
-		model: one(aiModel, {
-			fields: [aiScribeFormConfig.modelId],
-			references: [aiModel.id],
-		}),
-		template: one(template, {
-			fields: [aiScribeFormConfig.templateId],
-			references: [template.id],
-		}),
+export const aiScribeFormConfigRelations = relations(aiScribeFormConfig, ({ one }) => ({
+	author: one(user, {
+		fields: [aiScribeFormConfig.authorId],
+		references: [user.id],
 	}),
-);
+	template: one(template, {
+		fields: [aiScribeFormConfig.templateId],
+		references: [template.id],
+	}),
+}));

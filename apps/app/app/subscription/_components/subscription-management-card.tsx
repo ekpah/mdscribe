@@ -15,6 +15,7 @@ import { CreditCard, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { PRODUCT_PLANS } from "@/lib/product-plans";
 
 const getPlanLabel = (plan?: string | null) => {
 	if (!plan) {
@@ -62,7 +63,8 @@ export const SubscriptionManagementCard = ({
 }) => {
 	const [isManagingSubscription, setIsManagingSubscription] = useState(false);
 	const hasActiveSubscription = Boolean(subscription);
-	const usageLimit = hasActiveSubscription ? 500 : 50;
+	const usageLimit =
+		PRODUCT_PLANS[hasActiveSubscription ? "plus" : "free"].scribeUsageLimit;
 	const statusBadge = getStatusBadge(subscription);
 	const planLabel = getPlanLabel(subscription?.plan);
 

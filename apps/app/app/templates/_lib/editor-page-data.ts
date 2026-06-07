@@ -11,11 +11,14 @@ interface TemplateEditorData {
 	examples: string[];
 	id?: string;
 	canEditSource: boolean;
+	canCreatePrivateTemplates: boolean;
+	visibility: "public" | "private";
 }
 
 interface EditorContextData {
 	categorySuggestions: string[];
 	canEditSource: boolean;
+	canCreatePrivateTemplates: boolean;
 }
 
 const getCommonEditorData = (
@@ -38,9 +41,14 @@ export const getCreateTemplateEditorData = async ({
 	return {
 		...sharedData,
 		cat: forkedTemplate?.category || "",
-		examples: (forkedTemplate?.examples ?? []).map((example) => example.content),
+		examples: forkedTemplate?.examples ?? [],
 		note: JSON.stringify(forkedTemplate?.content || ""),
 		tit: forkedTemplate?.title || "",
+		visibility:
+			forkedTemplate?.visibility === "private" &&
+			sharedData.canCreatePrivateTemplates
+				? "private"
+				: "public",
 	};
 };
 
@@ -62,9 +70,10 @@ export const getEditTemplateEditorData = async ({
 	return {
 		...sharedData,
 		cat: doc.category || "",
-		examples: (doc.examples ?? []).map((example) => example.content),
+		examples: doc.examples ?? [],
 		id,
 		note: JSON.stringify(doc.content || ""),
 		tit: doc.title || "",
+		visibility: doc.visibility === "private" ? "private" : "public",
 	};
 };

@@ -3,12 +3,6 @@ import { aiDefaults, aiModel, aiProvider, eq, inArray } from "@repo/database";
 import type { Database } from "@repo/database";
 import { z } from "zod";
 
-import {
-	inferInputModesFromModelId,
-	normalizeInputModes,
-	resolveInputModes,
-	type InputMode,
-} from "@/lib/ai-model-input-modes";
 import { decrypt, encrypt } from "@/lib/encryption";
 import {
 	normalizeOpenAICompatibleBaseUrl,
@@ -17,6 +11,8 @@ import {
 } from "@/lib/openai-compatible";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { normalizeReasoningEffort } from "@/orpc/scribe/providers";
+import type { DefaultModelSlot, ReasoningEffort } from "@/orpc/scribe/providers";
 
 const admin = authed.use(requiredAdminMiddleware);
 
@@ -24,11 +20,21 @@ const PROVIDER_PROTOCOLS = ["openai-compatible", "openrouter", "openai", "anthro
 
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
+const normalizeSupportedParameters = (parameters: unknown[] | undefined): string[] =>
+	[
+		...new Set(
+			(parameters ?? [])
+				.filter((parameter): parameter is string => typeof parameter === "string")
+				.map((parameter) => parameter.trim())
+				.filter(Boolean),
+		),
+	].toSorted();
+
 interface FetchedProviderModel {
 	modelId: string;
 	displayName: string;
+	supportedParameters: string[];
 	supportsReasoning: boolean;
-	inputModes: InputMode[];
 }
 
 interface ProviderFetchConfig {
@@ -83,24 +89,12 @@ const ensureV1BaseUrl = (url: string): string => {
 	return `${trimmed}/v1`;
 };
 
-const parseOpenRouterInputModes = (modality: string | undefined): InputMode[] => {
-	const value = modality?.toLowerCase() ?? "";
-	const modes = new Set<InputMode>(["text"]);
+const parseOpenRouterSupportedParameters = (parameters: unknown[] | undefined): string[] =>
+	normalizeSupportedParameters(parameters);
 
-	if (value.includes("audio")) {
-		modes.add("audio");
-	}
-
-	if (value.includes("image")) {
-		modes.add("image");
-		modes.add("file");
-	}
-
-	if (value.includes("pdf")) {
-		modes.add("file");
-	}
-
-	return [...modes];
+const parseOpenRouterReasoningSupport = (supportedParameters: string[]): boolean => {
+	const parameters = new Set(supportedParameters);
+	return parameters.has("reasoning") || parameters.has("include_reasoning");
 };
 
 const normalizeConfiguredBaseUrl = (
@@ -146,7 +140,7 @@ const fetchProviderModels = async (
 			headers.Authorization = `Bearer ${config.apiKey}`;
 		}
 
-		const response = await fetch("https://openrouter.ai/api/v1/models", {
+		const response = await fetch("https://openrouter.ai/api/v1/models?output_modalities=all", {
 			headers,
 			signal,
 		});
@@ -162,16 +156,18 @@ const fetchProviderModels = async (
 				name?: string;
 				display_name?: string;
 				supported_parameters?: string[];
-				architecture?: { modality?: string };
 			}[];
 		};
 
-		return (body.data ?? []).map((model) => ({
-			displayName: model.display_name ?? model.name ?? model.id,
-			inputModes: parseOpenRouterInputModes(model.architecture?.modality),
-			modelId: model.id,
-			supportsReasoning: (model.supported_parameters ?? []).includes("reasoning"),
-		}));
+		return (body.data ?? []).map((model) => {
+			const supportedParameters = parseOpenRouterSupportedParameters(model.supported_parameters);
+			return {
+				displayName: model.display_name ?? model.name ?? model.id,
+				modelId: model.id,
+				supportedParameters,
+				supportsReasoning: parseOpenRouterReasoningSupport(supportedParameters),
+			};
+		});
 	}
 
 	if (config.protocol === "anthropic") {
@@ -197,8 +193,8 @@ const fetchProviderModels = async (
 
 		return (body.data ?? []).map((model) => ({
 			displayName: model.display_name ?? model.id,
-			inputModes: inferInputModesFromModelId(model.id),
 			modelId: model.id,
+			supportedParameters: [],
 			supportsReasoning: false,
 		}));
 	}
@@ -227,8 +223,8 @@ const fetchProviderModels = async (
 			.filter((model) => !model.id.includes("embed") && !model.id.includes("tts"))
 			.map((model) => ({
 				displayName: model.display_name ?? model.name ?? model.id,
-				inputModes: inferInputModesFromModelId(model.id),
 				modelId: model.id,
+				supportedParameters: [],
 				supportsReasoning: false,
 			}));
 	}
@@ -254,8 +250,8 @@ const fetchProviderModels = async (
 
 	return (body.data ?? []).map((model) => ({
 		displayName: model.display_name ?? model.name ?? model.id,
-		inputModes: inferInputModesFromModelId(model.id),
 		modelId: model.id,
+		supportedParameters: [],
 		supportsReasoning: false,
 	}));
 };
@@ -267,9 +263,11 @@ const syncFetchedModelsForProvider = async (
 ): Promise<{ inserted: number; updated: number; removed: number }> => {
 	const deduped = new Map<string, FetchedProviderModel>();
 	for (const model of fetchedModels) {
+		const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
 		deduped.set(model.modelId, {
 			...model,
-			inputModes: normalizeInputModes(model.inputModes),
+			supportedParameters,
+			supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
 		});
 	}
 
@@ -288,22 +286,25 @@ const syncFetchedModelsForProvider = async (
 			await db.insert(aiModel).values({
 				displayName: model.displayName,
 				id: crypto.randomUUID(),
-				inputModes: model.inputModes,
 				modelId: model.modelId,
 				providerId,
+				supportedParameters: model.supportedParameters,
 				supportsReasoning: model.supportsReasoning,
 			});
 			inserted += 1;
 			continue;
 		}
 
+		const existingSupportedParameters = normalizeSupportedParameters(existing.supportedParameters);
+		const existingSupportsReasoning =
+			existing.supportsReasoning || existingSupportedParameters.includes("reasoning");
 		const sameDisplayName = existing.displayName === model.displayName;
-		const sameSupportsReasoning = existing.supportsReasoning === model.supportsReasoning;
-		const sameInputModes =
-			JSON.stringify([...existing.inputModes].toSorted()) ===
-			JSON.stringify([...model.inputModes].toSorted());
+		const sameSupportedParameters =
+			JSON.stringify(existingSupportedParameters) ===
+			JSON.stringify([...model.supportedParameters].toSorted());
+		const sameSupportsReasoning = existingSupportsReasoning === model.supportsReasoning;
 
-		if (sameDisplayName && sameSupportsReasoning && sameInputModes) {
+		if (sameDisplayName && sameSupportedParameters && sameSupportsReasoning) {
 			continue;
 		}
 
@@ -311,7 +312,7 @@ const syncFetchedModelsForProvider = async (
 			.update(aiModel)
 			.set({
 				displayName: model.displayName,
-				inputModes: model.inputModes,
+				supportedParameters: model.supportedParameters,
 				supportsReasoning: model.supportsReasoning,
 			})
 			.where(eq(aiModel.id, existing.id));
@@ -358,10 +359,14 @@ const listProvidersHandler = admin.handler(async ({ context }) => {
 		...provider,
 		apiKey: undefined,
 		hasApiKey: !!provider.apiKey,
-		models: provider.models.map((model) => ({
-			...model,
-			inputModes: resolveInputModes(model.inputModes, model.modelId),
-		})),
+		models: provider.models.map((model) => {
+			const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
+			return {
+				...model,
+				supportedParameters,
+				supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
+			};
+		}),
 	}));
 });
 
@@ -551,9 +556,9 @@ const refreshProviderModelsHandler = admin
 
 const createModelInput = z.object({
 	displayName: z.string().min(1),
-	inputModes: z.array(z.enum(["text", "audio", "file", "image"])).default(["text"]),
 	modelId: z.string().min(1),
 	providerId: z.string(),
+	supportedParameters: z.array(z.string()).default([]),
 	supportsReasoning: z.boolean().default(false),
 });
 
@@ -561,15 +566,16 @@ const createModelHandler = admin
 	.input(type<z.infer<typeof createModelInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = createModelInput.parse(input);
+		const supportedParameters = normalizeSupportedParameters(parsed.supportedParameters);
 		const [model] = await context.db
 			.insert(aiModel)
 			.values({
 				displayName: parsed.displayName,
 				id: crypto.randomUUID(),
-				inputModes: normalizeInputModes(parsed.inputModes),
 				modelId: parsed.modelId,
 				providerId: parsed.providerId,
-				supportsReasoning: parsed.supportsReasoning,
+				supportedParameters,
+				supportsReasoning: parsed.supportsReasoning || supportedParameters.includes("reasoning"),
 			})
 			.returning();
 
@@ -579,8 +585,8 @@ const createModelHandler = admin
 const updateModelInput = z.object({
 	displayName: z.string().min(1).optional(),
 	id: z.string(),
-	inputModes: z.array(z.enum(["text", "audio", "file", "image"])).optional(),
 	modelId: z.string().min(1).optional(),
+	supportedParameters: z.array(z.string()).optional(),
 	supportsReasoning: z.boolean().optional(),
 });
 
@@ -588,13 +594,18 @@ const updateModelHandler = admin
 	.input(type<z.infer<typeof updateModelInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = updateModelInput.parse(input);
+		const supportedParameters = parsed.supportedParameters
+			? normalizeSupportedParameters(parsed.supportedParameters)
+			: undefined;
 		const [model] = await context.db
 			.update(aiModel)
 			.set({
 				displayName: parsed.displayName,
-				inputModes: parsed.inputModes ? normalizeInputModes(parsed.inputModes) : undefined,
 				modelId: parsed.modelId,
-				supportsReasoning: parsed.supportsReasoning,
+				supportedParameters,
+				supportsReasoning:
+					parsed.supportsReasoning ??
+					(supportedParameters ? supportedParameters.includes("reasoning") : undefined),
 			})
 			.where(eq(aiModel.id, parsed.id))
 			.returning();
@@ -627,16 +638,123 @@ const getDefaultsHandler = admin.handler(async ({ context }) => {
 
 	return {
 		defaultEvaluationModel: defaults?.defaultEvaluationModel ?? null,
+		defaultEvaluationReasoningEffort: normalizeReasoningEffort(
+			defaults?.defaultEvaluationReasoningEffort,
+		),
 		defaultFileImageModelId: defaults?.defaultFileImageModelId ?? null,
+		defaultFileImageReasoningEffort: normalizeReasoningEffort(
+			defaults?.defaultFileImageReasoningEffort,
+		),
+		defaultMultimodalModelId: defaults?.defaultMultimodalModelId ?? null,
+		defaultMultimodalReasoningEffort: normalizeReasoningEffort(
+			defaults?.defaultMultimodalReasoningEffort,
+		),
 		defaultSpeechToTextModelId: defaults?.defaultSpeechToTextModelId ?? null,
+		defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
+			defaults?.defaultSpeechToTextReasoningEffort,
+		),
 		defaultTextModelId: defaults?.defaultTextModelId ?? null,
+		defaultTextReasoningEffort: normalizeReasoningEffort(defaults?.defaultTextReasoningEffort),
 	};
 });
 
+const DEFAULT_MODEL_SLOTS = [
+	"multimodal",
+	"text",
+	"file-image",
+	"speech-to-text",
+	"evaluation",
+] as const satisfies readonly DefaultModelSlot[];
+
+const REASONING_EFFORT_VALUES = [
+	"none",
+	"minimal",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+] as const satisfies readonly ReasoningEffort[];
+
+const reasoningEffortSchema = z.enum(REASONING_EFFORT_VALUES);
+
 const setDefaultInput = z.object({
-	defaultType: z.enum(["text", "file-image", "speech-to-text", "evaluation"]),
+	defaultType: z.enum(DEFAULT_MODEL_SLOTS),
 	modelId: z.string().nullable(),
+	reasoningEffort: reasoningEffortSchema.optional(),
 });
+
+type AiDefaultsDraft = typeof aiDefaults.$inferInsert;
+
+const buildAiDefaultsDraft = (
+	current: typeof aiDefaults.$inferSelect | undefined,
+): AiDefaultsDraft => ({
+	defaultEvaluationModel: current?.defaultEvaluationModel ?? null,
+	defaultEvaluationReasoningEffort: normalizeReasoningEffort(
+		current?.defaultEvaluationReasoningEffort,
+	),
+	defaultFileImageModelId: current?.defaultFileImageModelId ?? null,
+	defaultFileImageReasoningEffort: normalizeReasoningEffort(
+		current?.defaultFileImageReasoningEffort,
+	),
+	defaultMultimodalModelId: current?.defaultMultimodalModelId ?? null,
+	defaultMultimodalReasoningEffort: normalizeReasoningEffort(
+		current?.defaultMultimodalReasoningEffort,
+	),
+	defaultSpeechToTextModelId: current?.defaultSpeechToTextModelId ?? null,
+	defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
+		current?.defaultSpeechToTextReasoningEffort,
+	),
+	defaultTextModelId: current?.defaultTextModelId ?? null,
+	defaultTextReasoningEffort: normalizeReasoningEffort(current?.defaultTextReasoningEffort),
+	id: "global",
+	updatedAt: new Date(),
+});
+
+const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof setDefaultInput>) => {
+	const nextReasoningEffort = parsed.reasoningEffort;
+	switch (parsed.defaultType) {
+		case "multimodal": {
+			next.defaultMultimodalModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultMultimodalReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		case "text": {
+			next.defaultTextModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultTextReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		case "evaluation": {
+			next.defaultEvaluationModel = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultEvaluationReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		case "file-image": {
+			next.defaultFileImageModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultFileImageReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		case "speech-to-text": {
+			next.defaultSpeechToTextModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultSpeechToTextReasoningEffort = nextReasoningEffort;
+			}
+			break;
+		}
+		default: {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Ungültiger Standardtyp",
+			});
+		}
+	}
+};
 
 const setDefaultHandler = admin
 	.input(type<z.infer<typeof setDefaultInput>>())
@@ -655,47 +773,23 @@ const setDefaultHandler = admin
 			where: eq(aiDefaults.id, "global"),
 		});
 
-		const next = {
-			defaultEvaluationModel: current?.defaultEvaluationModel ?? null,
-			defaultFileImageModelId: current?.defaultFileImageModelId ?? null,
-			defaultSpeechToTextModelId: current?.defaultSpeechToTextModelId ?? null,
-			defaultTextModelId: current?.defaultTextModelId ?? null,
-			id: "global",
-			updatedAt: new Date(),
-		};
-
-		switch (parsed.defaultType) {
-			case "text": {
-				next.defaultTextModelId = parsed.modelId;
-				break;
-			}
-			case "evaluation": {
-				next.defaultEvaluationModel = parsed.modelId;
-				break;
-			}
-			case "file-image": {
-				next.defaultFileImageModelId = parsed.modelId;
-				break;
-			}
-			case "speech-to-text": {
-				next.defaultSpeechToTextModelId = parsed.modelId;
-				break;
-			}
-			default: {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "Ungültiger Standardtyp",
-				});
-			}
-		}
+		const next = buildAiDefaultsDraft(current);
+		applyDefaultSelection(next, parsed);
 
 		await (current
 			? context.db
 					.update(aiDefaults)
 					.set({
 						defaultEvaluationModel: next.defaultEvaluationModel,
+						defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
 						defaultFileImageModelId: next.defaultFileImageModelId,
+						defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
+						defaultMultimodalModelId: next.defaultMultimodalModelId,
+						defaultMultimodalReasoningEffort: next.defaultMultimodalReasoningEffort,
 						defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
+						defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
 						defaultTextModelId: next.defaultTextModelId,
+						defaultTextReasoningEffort: next.defaultTextReasoningEffort,
 						updatedAt: next.updatedAt,
 					})
 					.where(eq(aiDefaults.id, "global"))
@@ -703,9 +797,15 @@ const setDefaultHandler = admin
 
 		return {
 			defaultEvaluationModel: next.defaultEvaluationModel,
+			defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
 			defaultFileImageModelId: next.defaultFileImageModelId,
+			defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
+			defaultMultimodalModelId: next.defaultMultimodalModelId,
+			defaultMultimodalReasoningEffort: next.defaultMultimodalReasoningEffort,
 			defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
+			defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
 			defaultTextModelId: next.defaultTextModelId,
+			defaultTextReasoningEffort: next.defaultTextReasoningEffort,
 		};
 	});
 

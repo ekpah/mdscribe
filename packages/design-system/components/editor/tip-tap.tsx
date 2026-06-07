@@ -3,28 +3,25 @@
 import {
 	enableKeyboardNavigation,
 } from "@harshtalks/slash-tiptap";
-import { MarkdocMD, MarkdocValidation } from '@repo/design-system/components/editor/tiptap-extension';
-import type { MarkdocValidationHighlight } from '@repo/design-system/components/editor/tiptap-extension';
+import { MarkdocMD } from '@repo/design-system/components/editor/tiptap-extension';
 import { cn } from "@repo/design-system/lib/utils";
 import { htmlToMarkdoc } from "@repo/markdoc-md/parse/html-to-markdoc";
 import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";
 import { EditorContent, useEditor } from "@tiptap/react";
 import TipTapStarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import type { MouseEvent } from "react";
 import TipTapMenu from "./_components/tip-tap-menu";
 
 export default function TipTap({
 	note,
 	setContent,
-	validationHighlights = [],
 	showSource,
 	onToggleSource,
 }: {
 	note: string;
 	setContent: (content: string) => void;
-	validationHighlights?: MarkdocValidationHighlight[];
 	showSource?: boolean;
 	onToggleSource?: () => void;
 }) {
@@ -56,7 +53,6 @@ export default function TipTap({
 			TipTapStarterKit,
 			Markdown,
 			MarkdocMD,
-			MarkdocValidation,
 			// Placeholder.configure({
 			//   placeholder: ({ node }) => {
 			//     return 'Ergänze hier deinen Textbaustein...';
@@ -71,14 +67,6 @@ export default function TipTap({
 			setContent(htmlToMarkdoc(html));
 		},
 	});
-
-	useEffect(() => {
-		if (!editor) {
-			return;
-		}
-
-		editor.commands.setMarkdocValidation(validationHighlights);
-	}, [editor, validationHighlights]);
 
 	// Wrap toggle to sync content before switching views
 	const handleToggleSource = useCallback(() => {

@@ -25,7 +25,7 @@ const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 	BuiltInAiscribeOverrideDefinition
 > = {
 	diagnoseblock: {
-		defaultPromptHarness: "Diagnoses",
+		defaultPromptHarness: "diagnosis",
 		description:
 			"Aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen erstellen.",
 		path: "/aiscribe/diagnoseblock",
@@ -33,7 +33,7 @@ const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 		title: "Diagnoseblock Update",
 	},
 	discharge: {
-		defaultPromptHarness: "Inpatient_discharge",
+		defaultPromptHarness: "discharge",
 		description:
 			"AI Scribe für Entlassungsbriefe. Strukturierte Entlassungsdokumentation erstellen.",
 		path: "/aiscribe/discharge",
@@ -41,7 +41,7 @@ const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 		title: "Entlassung Modus",
 	},
 	er: {
-		defaultPromptHarness: "ER_Anamnese_chat",
+		defaultPromptHarness: "anamnese",
 		description:
 			"AI Scribe für Notaufnahme-Szenarien. Generiere Anamnesen, Differenzialdiagnosen und Dispositionen.",
 		path: "/aiscribe/er",
@@ -49,7 +49,7 @@ const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 		title: "ER Modus",
 	},
 	icu: {
-		defaultPromptHarness: "icu_transfer",
+		defaultPromptHarness: "icu-transfer",
 		description:
 			"AI Scribe für Intensivstation-Szenarien. Generiere Anamnesen, Differenzialdiagnosen und Dispositionen.",
 		path: "/aiscribe/icu",
@@ -57,7 +57,7 @@ const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 		title: "ICU Modus",
 	},
 	outpatient: {
-		defaultPromptHarness: "outpatient_visit",
+		defaultPromptHarness: "outpatient",
 		description:
 			"AI Scribe für ambulante Konsultationen. Generiere professionelle Arztbriefe für ambulante Patienten.",
 		path: "/aiscribe/outpatient",
@@ -65,7 +65,7 @@ const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 		title: "Ambulanter Modus",
 	},
 	procedures: {
-		defaultPromptHarness: "procedure",
+		defaultPromptHarness: "procedures",
 		description:
 			"AI Scribe für Prozeduren. Dokumentation für medizinische Eingriffe generieren.",
 		path: "/aiscribe/procedures",

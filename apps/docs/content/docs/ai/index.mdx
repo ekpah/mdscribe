@@ -42,9 +42,9 @@ Pruefen Sie das Ergebnis immer fachlich:
 
 ## AI Textbausteine
 
-Admins koennen unter `/admin/settings/models` im Tab `AI Textbausteine` zusaetzliche AIScribe-Texte anlegen.
+Admins koennen unter `/admin/settings/models` im Tab `AI Textbausteine` globale zusaetzliche AIScribe-Texte anlegen. Nutzer koennen eigene AI Textbausteine unter `/profile/ai-scribe` verwalten.
 
-Im Tab `Modelle` kann zusaetzlich ein `Standard-Evaluationsmodell` gesetzt werden. Dieses Modell wird fuer die Playground-Bewertung (Score) verwendet.
+Im Tab `Modelle` werden globale Standardmodelle gesetzt: optional ein multi-modales Modell, sonst getrennte Standards fuer Text, OCR/File/Image, Audio-Transkription und Evaluation. Pro Standardmodell kann Reasoning Effort gesetzt werden, wenn das Modell Reasoning-Unterstuetzung meldet.
 
 Die Standardmodi unter `Schnelle Dokument-Generierung` (`/aiscribe/er`, `/aiscribe/icu`, `/aiscribe/outpatient`, `/aiscribe/procedures`, `/aiscribe/discharge`, `/aiscribe/diagnoseblock`) koennen im selben Admin-Tab separat konfiguriert werden. Ohne aktive Override-Konfiguration bleibt das bisherige hardcoded Verhalten unveraendert.
 
@@ -53,11 +53,16 @@ Jeder AI Text kann derzeit festlegen:
 - Name (der URL-Pfad wird automatisch daraus abgeleitet)
 - Prompt Harness
 - optionales Template
-- optionales Modell
+- Sichtbarkeit (`Oeffentlich` oder `Privat`)
 
 Alle AI Textbausteine verwenden aktuell denselben klinischen Vollkontext mit Notizen, Diagnoseblock, Anamnese und Befunden.
+AI Textbausteine verwenden kein eigenes Modell mehr, sondern immer die globalen Standardmodelle.
 
-Aktivierte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `AI Textbausteine`.
+Aktivierte globale und oeffentliche nutzererstellte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `AI Textbausteine`. Aktivierte eigene Eintraege erscheinen fuer den jeweiligen Nutzer direkt unter den Standardmodi im Bereich `Meine AI Textbausteine`. Private AI Textbausteine sind eine Plus-Funktion und bleiben nur fuer den Autor sichtbar und nutzbar.
+
+AIScribe-Eingaben nutzen dieselbe Eingabe-Leiste wie das automatische Fuellen von Vorlagen: Text, Audioaufnahmen und Kontextdateien koennen ueber die drei Eingabe-Schalter gewechselt werden. Audio- und Datei-Eingaben werden je nach globalem Modell-Setup direkt multimodal verarbeitet oder vorher transkribiert bzw. extrahiert.
+
+Audioaufnahmen werden ueber die linke Aufnahmeflaeche gestartet und gestoppt; alternativ kann `Ctrl+Shift+M` oder auf macOS `Cmd+Shift+M` genutzt werden.
 
 Die konfigurierbaren Standardmodi bleiben weiterhin nur unter ihren festen `/aiscribe/*`-Routen sichtbar und werden nicht im `AI Textbausteine`-Bereich gelistet.
 
@@ -67,12 +72,25 @@ Admins koennen unter `/admin/usage` die AI-Nutzung nach Heute, Woche, Monat oder
 
 Events, Tokens und Kosten zeigen aggregierte Stunden- oder Tageswerte. Erster Token, Dauer und Tokens/s zeigen p50, p90 und p95, damit typische und langsame Generierungen getrennt sichtbar bleiben.
 
+Automatisches Fuellen von Eingaben wird als `ai_input_fill` protokolliert und zaehlt gegen dieselbe monatliche Nutzungsgrenze wie AIScribe-Generierungen. Audio- und Dateianhaenge werden in Usage Events nur als Metadaten gespeichert; Rohdateien und Audiodaten werden nicht im Usage Event abgelegt.
+
+Fuer Eingabe-Fuellen gelten serverseitige Payload-Grenzen: bis zu 3 Audioaufnahmen (12 MB pro Aufnahme, 30 MB gesamt), 5 Kontextdateien, 10 MB pro Datei, 25 MB Dateigesamtgroesse und 30.000 Zeichen Textkontext.
+
+## AI-Modell-Vergleich
+
+Admins koennen unter `/admin/model-comparison` zwei konfigurierte KI-Modelle mit zufaellig ausgewaehlten historischen AIScribe-Inputs vergleichen. Die Seite erzeugt pro Stichprobe beide Antworten, kann die Antwortzuordnung verblinden und wertet anschliessend Praeferenzen, Laufzeit, Tokens und Kosten aus.
+
+## Reasoning Effort
+
+OpenRouter-Modelle speichern beim Modell-Sync ihre `supported_parameters`. Wenn ein Modell `reasoning` unterstuetzt, zeigen Playground und Modellvergleich einen Reasoning-Effort-Schalter mit `none`, `minimal`, `low`, `medium`, `high` und `xhigh`. OpenRouter mappt diese Werte auf passende Reasoning-Tokens oder native Thinking-Level des Zielmodells.
+
 ## Kontext & Vorlage
 
 Auf den AIScribe-Seiten zeigt die linke Box `Kontext & Vorlage`, welches Template und welcher Prompt fuer die aktuelle Generierung verwendet werden. Wenn ein echtes Template hinterlegt ist, fuehrt der Template-Link zur normalen Template-Ansicht.
 
 <Callout type="warn" title="Datenschutz">
-  Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden. Fuer sensible Daten ist Self-Hosting der empfohlene Weg.
+  Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden.
+  Fuer sensible Daten ist Self-Hosting der empfohlene Weg.
 </Callout>
 
 ## Weiterfuehrend

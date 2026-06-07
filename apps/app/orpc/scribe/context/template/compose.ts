@@ -1,6 +1,6 @@
 export const buildSelectedTemplateReference = (templateData: {
 	content: string;
-	examples: { content: string }[];
+	examples: string[];
 	title: string;
 }): string => {
 	const sections = [`Titel: ${templateData.title}`, templateData.content];
@@ -8,7 +8,7 @@ export const buildSelectedTemplateReference = (templateData: {
 	if (templateData.examples.length > 0) {
 		sections.push("Beispiele:");
 		for (const example of templateData.examples) {
-			sections.push(example.content);
+			sections.push(example);
 		}
 	}
 
@@ -30,27 +30,29 @@ const trimEmptyEdgeLines = (lines: string[]): string[] => {
 	let start = 0;
 	let end = lines.length;
 	while (start < end && lines[start]?.trim().length === 0) {
-		start++;
+		start += 1;
 	}
 	while (end > start && lines[end - 1]?.trim().length === 0) {
-		end--;
+		end -= 1;
 	}
 	return lines.slice(start, end);
 };
 
 export const parseSelectedTemplateReference = (
 	reference: string,
-): { content: string; title: string } => {
+): { content: string; examples: string[]; title: string } => {
 	const normalized = reference.trim();
 	if (!normalized) {
 		return {
 			content: "",
+			examples: [],
 			title: DEFAULT_TEMPLATE_TITLE,
 		};
 	}
 
 	let lines = trimEmptyEdgeLines(trimLines(normalized));
 	let title: string | undefined;
+	let examples: string[] = [];
 
 	const firstLine = lines[0]?.trim();
 	if (firstLine?.startsWith("## ")) {
@@ -72,10 +74,14 @@ export const parseSelectedTemplateReference = (
 		lines = trimEmptyEdgeLines(lines.slice(1));
 	}
 
-	const examplesIndex = lines.findIndex((line) =>
-		EXAMPLES_HEADINGS.has(line.trim()),
-	);
+	const examplesIndex = lines.findIndex((line) => EXAMPLES_HEADINGS.has(line.trim()));
 	if (examplesIndex !== -1) {
+		const exampleLines = trimEmptyEdgeLines(lines.slice(examplesIndex + 1));
+		examples = exampleLines
+			.join("\n")
+			.split(/\n{2,}/)
+			.map((example) => example.trim())
+			.filter((example) => example.length > 0);
 		lines = trimEmptyEdgeLines(lines.slice(0, examplesIndex));
 	}
 
@@ -83,6 +89,7 @@ export const parseSelectedTemplateReference = (
 
 	return {
 		content: content.length > 0 ? content : normalized,
+		examples,
 		title: title && title.length > 0 ? title : DEFAULT_TEMPLATE_TITLE,
 	};
 };

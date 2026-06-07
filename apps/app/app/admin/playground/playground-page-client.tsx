@@ -2,56 +2,40 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { XCircle } from "lucide-react";
-import {
-	parseAsBoolean,
-	parseAsFloat,
-	parseAsInteger,
-	parseAsString,
-	useQueryStates,
-} from "nuqs";
+import { parseAsBoolean, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useMemo } from "react";
+
 import { orpc } from "@/lib/orpc";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
+
 import { PlaygroundPanel } from "./_components/playground-panel";
-import {
-	allScribeDocTypes,
-	isScribeDocType,
-	scribeDocTypeUi,
-} from "./_lib/scribe-doc-types";
+import { isScribeDocType } from "./_lib/scribe-doc-types";
 import type { PlaygroundParameters, PlaygroundResult } from "./_lib/types";
 
 const playgroundSearchParams = {
 	documentType: parseAsString,
 	maxTokens: parseAsInteger,
 	model: parseAsString,
+	reasoningEffort: parseAsString,
 	referenceUsageEvent: parseAsString,
 	temperature: parseAsFloat,
 	thinking: parseAsBoolean,
-	thinkingBudget: parseAsInteger,
 };
 
-const promptNameToDocumentType = new Map(
-	allScribeDocTypes.map((documentType) => [
-		scribeDocTypeUi[documentType].defaultPromptName,
-		documentType,
-	]),
-);
-
-const inferDocumentType = (
-	metadata: Record<string, unknown> | null,
-): DocumentType | undefined => {
-	if (!metadata) {return undefined;}
-
-	const {endpoint} = metadata;
-	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		if (isScribeDocType(endpoint)) {
-			return endpoint;
-		}
+const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
+	if (!metadata) {
+		return undefined;
 	}
 
-	const {promptName} = metadata;
+	const { endpoint } = metadata;
+	if (typeof endpoint === "string" && endpoint.trim().length > 0 && isScribeDocType(endpoint)) {
+		return endpoint;
+	}
+
+	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return promptNameToDocumentType.get(promptName);
+		return resolvePromptHarnessId(promptName);
 	}
 
 	return undefined;
@@ -81,16 +65,14 @@ const getUsageEvaluation = (
 						return null;
 					}
 					const categoryRecord = category as Record<string, unknown>;
-					const name = categoryRecord.name;
-					const score = categoryRecord.score;
+					const { name } = categoryRecord;
+					const { score } = categoryRecord;
 					if (typeof name !== "string" || typeof score !== "number") {
 						return null;
 					}
 					return {
 						comment:
-							typeof categoryRecord.comment === "string"
-								? categoryRecord.comment
-								: undefined,
+							typeof categoryRecord.comment === "string" ? categoryRecord.comment : undefined,
 						name,
 						score,
 					};
@@ -98,8 +80,8 @@ const getUsageEvaluation = (
 				.filter((category) => category !== null)
 		: [];
 
-	const totalScore = record.totalScore;
-	const summary = record.summary;
+	const { totalScore } = record;
+	const { summary } = record;
 	return {
 		categories,
 		isLoading: false,
@@ -131,24 +113,25 @@ const PlaygroundContent = () => {
 	} = useQuery(modelsQueryOptions);
 
 	// Fetch top models based on usage in the past 30 days
-	const { data: topModelIds = [] } = useQuery(
-		topModelsQueryOptions,
-	);
+	const { data: topModelIds = [] } = useQuery(topModelsQueryOptions);
 
 	// Parse preset from URL params (from usage tracking jump-off)
-	const preset = useMemo(() => ({
-			documentType: (searchParams.documentType || undefined) as
-				| DocumentType
-				| undefined,
+	const preset = useMemo(
+		() => ({
+			documentType: (searchParams.documentType || undefined) as DocumentType | undefined,
 			model: searchParams.model,
 			parameters: {
 				maxTokens: searchParams.maxTokens ?? undefined,
+				reasoningEffort:
+					(searchParams.reasoningEffort as PlaygroundParameters["reasoningEffort"] | null) ??
+					undefined,
 				temperature: searchParams.temperature ?? undefined,
 				thinking: searchParams.thinking ?? false,
-				thinkingBudget: searchParams.thinkingBudget ?? undefined,
 			} as Partial<PlaygroundParameters>,
 			referenceUsageEvent: searchParams.referenceUsageEvent,
-		}), [searchParams]);
+		}),
+		[searchParams],
+	);
 
 	const { data: usageEvent } = useQuery({
 		...orpc.admin.usage.get.queryOptions({
@@ -158,7 +141,9 @@ const PlaygroundContent = () => {
 	});
 
 	const presetFromUsage = useMemo(() => {
-		if (!usageEvent) {return null;}
+		if (!usageEvent) {
+			return null;
+		}
 		const metadata = usageEvent.metadata as Record<string, unknown> | null;
 		const inferredDocumentType = inferDocumentType(metadata);
 
@@ -167,8 +152,13 @@ const PlaygroundContent = () => {
 		return {
 			documentType: inferredDocumentType,
 			model: usageEvent.model ?? undefined,
-			parameters:
-				(metadata?.modelConfig as Partial<PlaygroundParameters>) ?? undefined,
+			parameters: {
+				...(metadata?.modelConfig as Partial<PlaygroundParameters> | undefined),
+				reasoningEffort:
+					typeof metadata?.reasoningEffort === "string"
+						? (metadata.reasoningEffort as PlaygroundParameters["reasoningEffort"])
+						: undefined,
+			},
 			promptName: getStringMetadataValue(metadata, "promptName"),
 			templateId: getStringMetadataValue(metadata, "templateId"),
 			variables: inputData ?? undefined,
@@ -207,9 +197,7 @@ const PlaygroundContent = () => {
 						Fehler beim Laden der Modelle
 					</h2>
 					<p className="text-sm text-solarized-base01">
-						{modelsError instanceof Error
-							? modelsError.message
-							: "Unbekannter Fehler"}
+						{modelsError instanceof Error ? modelsError.message : "Unbekannter Fehler"}
 					</p>
 				</div>
 			</div>
@@ -226,12 +214,8 @@ const PlaygroundContent = () => {
 						topModelIds={topModelIds}
 						isLoadingModels={modelsLoading}
 						presetModel={presetFromUsage?.model ?? preset.model ?? undefined}
-						presetParameters={
-							presetFromUsage?.parameters ?? preset.parameters ?? undefined
-						}
-						presetDocumentType={
-							presetFromUsage?.documentType ?? preset.documentType
-						}
+						presetParameters={presetFromUsage?.parameters ?? preset.parameters ?? undefined}
+						presetDocumentType={presetFromUsage?.documentType ?? preset.documentType}
 						presetPromptName={presetFromUsage?.promptName}
 						presetTemplateId={presetFromUsage?.templateId}
 						presetVariables={presetFromUsage?.variables}

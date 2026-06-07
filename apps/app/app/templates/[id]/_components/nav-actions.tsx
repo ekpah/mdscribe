@@ -2,17 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Bookmark,
   Clock,
-  FileText,
+  File as FileIcon,
+  FileUser,
   FolderPlus,
-  ListChecks,
   Pencil,
   Share2,
   User,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -45,9 +43,7 @@ export const NavActions = ({
   isLoggedIn,
   lastEdited,
   templateId,
-  favouriteOfCount,
-  contentView,
-  hasExamples,
+  visibility,
 }: {
   author?: string;
   isAuthor: boolean;
@@ -55,19 +51,14 @@ export const NavActions = ({
   isLoggedIn: boolean;
   lastEdited: Date;
   templateId?: string;
-  favouriteOfCount: number;
-  contentView: 'template' | 'examples';
-  hasExamples: boolean;
+  visibility?: 'public' | 'private';
 }) => {
   const templateActionIconProps = {
-    className: 'h-4 w-4',
-    strokeWidth: 1.5,
+    className: 'h-4 w-4 shrink-0',
+    strokeWidth: 2,
   } as const;
   const [isBookmark, setBookmark] = useState(isFavourite);
   const queryClient = useQueryClient();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   const collectionsQueryKey = orpc.user.collections.list.queryOptions().queryKey;
   const favouritesQueryKey = orpc.templates.favourites.queryOptions().queryKey;
@@ -180,34 +171,6 @@ export const NavActions = ({
   const isCollectionMutationPending =
     addTemplateMutation.isPending || removeTemplateMutation.isPending;
 
-  const handleToggleContentView = useCallback(() => {
-    if (!hasExamples) {
-      return;
-    }
-
-    const nextSearchParams = new URLSearchParams(searchParams.toString());
-    const nextView = contentView === 'examples' ? 'template' : 'examples';
-
-    if (nextView === 'examples') {
-      nextSearchParams.set('view', 'examples');
-    } else {
-      nextSearchParams.delete('view');
-    }
-
-    const nextQuery = nextSearchParams.toString();
-    router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
-  }, [contentView, hasExamples, pathname, router, searchParams]);
-
-  const contentViewTooltip = (() => {
-    if (!hasExamples) {
-      return 'Keine Beispiele vorhanden';
-    }
-    if (contentView === 'examples') {
-      return 'Template anzeigen';
-    }
-    return 'Beispiele anzeigen';
-  })();
-
   const handleDropdownItemSelect = useCallback((event: Event) => {
     event.preventDefault();
   }, []);
@@ -252,7 +215,7 @@ export const NavActions = ({
       return (
         <Link href={`/templates/create?fork=${templateId}`}>
           <Button className="h-7 w-7" size="icon" variant="ghost">
-            <Share2 />
+            <Share2 {...templateActionIconProps} />
           </Button>
         </Link>
       );
@@ -275,26 +238,45 @@ export const NavActions = ({
   })();
 
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
-        <User />
-        Autor: {author || 'Anonym'}
+    <div className="flex min-w-0 items-center gap-2 text-sm">
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
+              {visibility === 'private' ? (
+                <FileUser {...templateActionIconProps} />
+              ) : (
+                <FileIcon {...templateActionIconProps} />
+              )}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{visibility === 'private' ? 'Privat sichtbar' : 'Öffentlich sichtbar'}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <div className="hidden min-w-0 max-w-[28ch] items-center gap-1.5 font-medium text-muted-foreground lg:inline-flex">
+        <User {...templateActionIconProps} />
+        <span className="truncate">Autor: {author || 'Anonym'}</span>
       </div>
 
-      <div className="hidden items-center font-medium text-muted-foreground lg:inline-flex lg:flex-row lg:gap-1">
-        <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
-        Zuletzt bearbeitet am{' '}
-        {lastEdited &&
-          new Date(lastEdited).toLocaleString('de-DE', {
-            dateStyle: 'medium',
-          })}
+      <div className="hidden items-center gap-1.5 font-medium text-muted-foreground lg:inline-flex">
+        <Clock {...templateActionIconProps} />
+        <span>
+          Zuletzt bearbeitet am{' '}
+          {lastEdited &&
+            new Date(lastEdited).toLocaleString('de-DE', {
+              dateStyle: 'medium',
+            })}
+        </span>
       </div>
 
       {isLoggedIn && templateId && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className="h-7 w-7" size="icon" variant="ghost">
-              <FolderPlus className="h-4 w-4" />
+              <FolderPlus {...templateActionIconProps} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
@@ -339,34 +321,6 @@ export const NavActions = ({
         </DropdownMenu>
       )}
 
-      <TooltipProvider delayDuration={300}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              className="h-7 w-7"
-              disabled={!hasExamples}
-              onClick={handleToggleContentView}
-              size="icon"
-              type="button"
-              variant={contentView === 'examples' ? 'secondary' : 'ghost'}
-            >
-              {contentView === 'examples' ? (
-                <FileText className="h-4 w-4" />
-              ) : (
-                <ListChecks className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{contentViewTooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      {!isLoggedIn && <Bookmark {...templateActionIconProps} />}
-      <span className="flex w-12 flex-row font-medium text-muted-foreground">
-        {favouriteOfCount - (isFavourite ? 1 : 0) + (isBookmark ? 1 : 0)} Likes
-      </span>
       {editorAction}
     </div>
   );

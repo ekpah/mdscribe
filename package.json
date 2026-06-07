@@ -1,69 +1,68 @@
 {
-	"name": "mdscribe",
-	"version": "0.1.0",
-	"license": "AGPL-3.0-or-later",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/ekpah/mdscribe.git"
-	},
-	"homepage": "https://mdscribe.de",
-	"files": [
-		"index.js"
-	],
-	"scripts": {
-		"build": "turbo run build",
-		"dev": "turbo run dev",
-		"lint": "turbo run lint",
-		"lint:affected": "turbo run lint --affected",
-		"lint:strict": "oxlint . --config oxlint.strict.config.ts || true",
-		"lint:strict:summary": "oxlint . --config oxlint.strict.config.ts --format json > /tmp/oxlint-strict.json || true && echo \"diagnostics:\" && jq '.diagnostics | length' /tmp/oxlint-strict.json && echo \"top rules:\" && jq -r '.diagnostics[].code' /tmp/oxlint-strict.json | sort | uniq -c | sort -nr | head -n 25",
-		"test": "turbo run test",
-		"test:affected": "turbo run test --affected",
-		"typecheck": "turbo run typecheck",
-		"analyze": "turbo run analyze",
-		"db:up": "docker compose -f docker-compose.dev-db.yml up -d && docker compose -f docker-compose.dev-db.yml wait postgres && bun run db:init",
-		"db:down": "docker compose -f docker-compose.dev-db.yml down",
-		"db:reset": "docker compose -f docker-compose.dev-db.yml down -v",
-		"db:logs": "docker compose -f docker-compose.dev-db.yml logs -f postgres",
-		"db:init": "bun run --cwd packages/database bootstrap",
-		"bump-deps": "npx npm-check-updates --deep -u -x react-day-picker && bun install",
-		"db:bootstrap": "bun run --cwd packages/database bootstrap",
-		"db:migrate": "bun run --cwd packages/database migrate",
-		"db:migrate:deploy": "bun run db:migrate",
-		"migrate": "bun run db:migrate",
-		"knip": "knip --config knip.jsonc --cache",
-		"knip:strict": "knip --config knip.jsonc --cache --strict",
-		"knip:production": "knip --config knip.jsonc --cache --production --strict",
-		"knip:ci": "bun run knip"
-	},
-	"catalog": {
-		"react": "^19.2.5",
-		"react-dom": "^19.2.5",
-		"typescript": "^5.9.3",
-		"@types/bun": "^1.3.13",
-		"@types/node": "^24.9.2",
-		"@types/react": "^19.2.14",
-		"postcss": "^8.5.6",
-		"lucide-react": "^0.576.0",
-		"zod": "^4.3.6",
-		"next": "^16.2.4"
-	},
-	"devDependencies": {
-		"@repo/typescript-config": "workspace:*",
-		"@types/node": "^24.12.2",
-		"knip": "^5.88.1",
-		"oxfmt": "^0.35.0",
-		"oxlint": "^1.61.0",
-		"turbo": "^2.9.6",
-		"typescript": "^5.9.3",
-		"ultracite": "^7.6.1"
-	},
-	"engines": {
-		"node": ">=18"
-	},
-	"workspaces": [
-		"packages/*",
-		"apps/*"
-	],
-	"packageManager": "bun@1.2.23"
+  "name": "mdscribe",
+  "version": "0.1.0",
+  "type": "module",
+  "homepage": "https://mdscribe.de",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ekpah/mdscribe.git"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "files": [
+    "index.js"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "lint:affected": "turbo run lint --affected",
+    "test": "turbo run test",
+    "test:affected": "turbo run test --affected",
+    "typecheck": "turbo run typecheck",
+    "analyze": "turbo run analyze",
+    "db:up": "docker compose -f docker-compose.dev-db.yml up -d && docker compose -f docker-compose.dev-db.yml wait postgres && bun run db:init",
+    "db:down": "docker compose -f docker-compose.dev-db.yml down",
+    "db:reset": "docker compose -f docker-compose.dev-db.yml down -v",
+    "db:logs": "docker compose -f docker-compose.dev-db.yml logs -f postgres",
+    "db:init": "bun run --cwd packages/database bootstrap",
+    "db:bootstrap": "bun run --cwd packages/database bootstrap",
+    "db:migrate": "bun run --cwd packages/database migrate",
+    "db:migrate:deploy": "bun run db:migrate",
+    "migrate": "bun run db:migrate",
+    "knip": "knip --config knip.jsonc --cache",
+    "knip:strict": "knip --config knip.jsonc --cache --strict",
+    "knip:production": "knip --config knip.jsonc --cache --production --strict",
+    "knip:ci": "bun run knip"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^24.12.2",
+    "knip": "^5.88.1",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.61.0",
+    "turbo": "^2.9.6",
+    "typescript": "^5.9.3",
+    "ultracite": "^7.6.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "bun@1.2.23",
+  "catalog": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "typescript": "^5.9.3",
+    "@types/bun": "^1.3.13",
+    "@types/node": "^24.9.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.6",
+    "lucide-react": "^0.576.0",
+    "zod": "^4.3.6",
+    "next": "^16.2.4"
+  }
 }

@@ -1,22 +1,41 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { aiDefaults, eq } from "@repo/database";
 import { generateObject, streamText } from "ai";
 import type { ModelMessage } from "ai";
 import { z } from "zod";
 
+import {
+	FILL_INPUT_PAYLOAD_LIMITS,
+	formatPayloadBytes,
+	getBase64DecodedByteLength,
+} from "@/lib/input-fill-limits";
 import { extractOpenRouterUsage } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { composeScribeContext } from "@/orpc/scribe/context";
-import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
+import {
+	appendScribeInputAttachmentsToMessages,
+	DEFAULT_SCRIBE_MODEL_CONFIG,
+	validateScribeAudioFiles,
+	validateScribeContextFiles,
+} from "@/orpc/scribe/handlers/scribe-stream";
 import {
 	createPromptVariables,
 	composeDocumentTypePrompt,
 	documentTypeConfigs,
+	getDocumentTypeByPromptName,
+	getPromptHarnessReferences,
+	PROMPT_HARNESS_OPTIONS,
 } from "@/orpc/scribe/prompts";
 import { PLAYGROUND_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
-import { resolveModelByRecordId, resolveProviderModel } from "@/orpc/scribe/providers";
+import {
+	buildProviderOptions,
+	resolveDefaultModel,
+	resolveModelByRecordId,
+	resolveProviderModel,
+} from "@/orpc/scribe/providers";
+import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
 const compilePromptInput = z.object({
 	documentType: z.string(),
@@ -50,11 +69,70 @@ interface PlaygroundRunMetrics {
 	reasoningTokens?: number;
 }
 
+const reasoningEffortSchema = z.enum(["none", "minimal", "low", "medium", "high", "xhigh"]);
+
+const audioFileInputSchema = z.object({
+	data: z.string().min(1),
+	mimeType: z.string().min(1),
+	wavFallback: z
+		.object({
+			data: z.string().min(1),
+			mimeType: z.literal("audio/wav"),
+		})
+		.optional(),
+});
+
+const contextFileInputSchema = z.object({
+	data: z.string().min(1),
+	mimeType: z.string().min(1),
+	name: z.string().min(1),
+	size: z.number().nonnegative(),
+});
+
+const transcribeAudioInput = z.object({
+	audioFiles: z.array(audioFileInputSchema).min(1).max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles),
+	modelId: z.string().min(1).nullable().optional(),
+});
+
 const asFiniteNumber = (value: unknown): number | undefined => {
 	if (typeof value !== "number" || !Number.isFinite(value)) {
 		return undefined;
 	}
 	return value;
+};
+
+const validateAudioPayload = (audioFiles: AudioFile[]): void => {
+	if (audioFiles.length === 0) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Bitte zuerst eine Audioaufnahme erstellen.",
+		});
+	}
+
+	if (audioFiles.length > FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles} Audioaufnahmen möglich.`,
+		});
+	}
+
+	let totalPayloadBytes = 0;
+	for (const [index, audioFile] of audioFiles.entries()) {
+		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
+		const wavFallbackBytes = getBase64DecodedByteLength(audioFile.wavFallback?.data);
+		const totalBytes = payloadBytes + wavFallbackBytes;
+		totalPayloadBytes += totalBytes;
+
+		if (totalBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Aufnahme ${index + 1} ist zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
+			});
+		}
+	}
+
+	if (totalPayloadBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Audioaufnahmen sind zusammen zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)} möglich.`,
+		});
+	}
 };
 
 const compilePromptHandler = authed
@@ -69,7 +147,8 @@ const compilePromptHandler = authed
 			});
 		}
 
-		const resolvedPromptName = parsed.promptName ?? config.promptName;
+		const resolvedPromptName =
+			getDocumentTypeByPromptName(parsed.promptName ?? parsed.documentType) ?? parsed.documentType;
 
 		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
 		const relevantTemplate =
@@ -107,6 +186,7 @@ const compilePromptHandler = authed
 	});
 
 const runInput = z.object({
+	audioFiles: z.array(audioFileInputSchema).max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles).optional(),
 	compiledMessagesOverride: z
 		.array(
 			z.object({
@@ -117,15 +197,19 @@ const runInput = z.object({
 		.optional(),
 	// Backward compatibility while frontend payload migrates fully.
 	connectionId: z.string().optional(),
+	contextFiles: z
+		.array(contextFileInputSchema)
+		.max(FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles)
+		.optional(),
 	documentType: z.string(),
 	model: z.string(),
 	parameters: z.object({
 		frequencyPenalty: z.number().min(-2).max(2).optional(),
 		maxTokens: z.number().min(1).max(100_000).optional().default(4096),
 		presencePenalty: z.number().min(-2).max(2).optional(),
+		reasoningEffort: reasoningEffortSchema.optional(),
 		temperature: z.number().min(0).max(2).optional().default(1),
 		thinking: z.boolean().optional().default(false),
-		thinkingBudget: z.number().min(1000).max(50_000).optional().default(8000),
 		thinkingExplicit: z.boolean().optional().default(false),
 		topK: z.number().min(0).optional(),
 		topP: z.number().min(0).max(1).optional(),
@@ -150,6 +234,10 @@ const runHandler = authed
 		}
 
 		const variablesUsed = parsed.variables ?? parsePromptJson(parsed.promptJson);
+		const audioFiles = (parsed.audioFiles ?? []) as AudioFile[];
+		const contextFiles = (parsed.contextFiles ?? []) as FillInputsContextFile[];
+		validateScribeAudioFiles(audioFiles);
+		validateScribeContextFiles(contextFiles);
 
 		const providerId = parsed.providerId ?? parsed.connectionId;
 		const resolved = providerId
@@ -181,21 +269,30 @@ const runHandler = authed
 			);
 		}
 
-		const thinkingEnabled = parsed.parameters.thinking && resolved.supportsReasoning;
-		const reasoningConfig = thinkingEnabled
-			? { max_tokens: parsed.parameters.thinkingBudget }
-			: undefined;
-
-		const providerOptions = resolved.isOpenRouter
-			? {
-					openrouter: {
-						user: context.session.user.email,
-						...(reasoningConfig && {
-							reasoning: reasoningConfig,
-						}),
+		const reasoningEffort =
+			parsed.parameters.reasoningEffort ?? (parsed.parameters.thinking ? "medium" : "none");
+		if (audioFiles.length > 0 || contextFiles.length > 0) {
+			messages = await appendScribeInputAttachmentsToMessages({
+				audioFiles,
+				contextFiles,
+				generationStrategy: {
+					generation: {
+						model: resolved,
+						reasoningEffort,
+						slot: "multimodal",
 					},
-				}
-			: undefined;
+					mode: "direct",
+				},
+				messages,
+				userId: context.session.user.id,
+				zdr: false,
+			});
+		}
+		const providerOptions = buildProviderOptions({
+			model: resolved,
+			reasoningEffort,
+			userId: context.session.user.id,
+		});
 
 		let latestMetrics: PlaygroundRunMetrics = {};
 		const result = streamText({
@@ -240,12 +337,12 @@ const runHandler = authed
 			result.toUIMessageStream({
 				messageMetadata: ({ part }) => {
 					if (part.type !== "finish") {
-						return undefined;
+						return;
 					}
 
 					const metadata: PlaygroundRunMetrics = {};
 
-					const cost = latestMetrics.cost;
+					const { cost } = latestMetrics;
 					if (cost !== undefined) {
 						metadata.cost = cost;
 					}
@@ -280,6 +377,52 @@ const runHandler = authed
 				},
 			}),
 		);
+	});
+
+const transcribeAudioHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(type<z.infer<typeof transcribeAudioInput>>())
+	.handler(async ({ input, context }) => {
+		const parsed = transcribeAudioInput.parse(input);
+		const audioFiles = parsed.audioFiles as AudioFile[];
+		validateAudioPayload(audioFiles);
+
+		const modelSelection = parsed.modelId
+			? {
+					model: await resolveModelByRecordId(parsed.modelId, context.db),
+					reasoningEffort: "none" as const,
+					slot: "speech-to-text" as const,
+				}
+			: await resolveDefaultModel(context.db, "speech-to-text").catch((error: unknown) => {
+					const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
+					throw new ORPCError("BAD_REQUEST", {
+						message: `Kein Audio-Transkriptionsmodell konfiguriert. (${details})`,
+					});
+				});
+
+		const preparedAudio = await prepareAudioInputForModel({
+			audioFiles,
+			mode: "transcription",
+			resolvedModel: modelSelection.model,
+		}).catch((error: unknown) => {
+			const details = error instanceof Error ? error.message : USER_MESSAGES.audioNotSupported;
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Transkription fehlgeschlagen. (${details})`,
+			});
+		});
+
+		const transcript = preparedAudio.transcripts.join("\n\n").trim();
+		if (!transcript) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Die Transkription hat keinen Text zurückgegeben.",
+			});
+		}
+
+		return {
+			modelName: modelSelection.model.modelName,
+			transcript,
+			transcripts: preparedAudio.transcripts,
+		};
 	});
 
 const evaluateInput = z.object({
@@ -318,24 +461,19 @@ const evaluateHandler = authed
 				message: `Ungültige Bewertungsanfrage: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
 			});
 		}
-		const defaults = await context.db.query.aiDefaults.findFirst({
-			where: eq(aiDefaults.id, "global"),
-		});
-		const evaluationModelRecordId = defaults?.defaultEvaluationModel;
-		if (!evaluationModelRecordId) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Kein Standard-Evaluationsmodell konfiguriert",
-			});
-		}
-
-		const evaluationModel = await resolveModelByRecordId(evaluationModelRecordId, context.db);
+		const evaluationSelection = await resolveDefaultModel(context.db, "evaluation").catch(
+			(error: unknown) => {
+				const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
+				});
+			},
+		);
 
 		let evaluation;
 		try {
 			evaluation = await generateObject({
-				model: evaluationModel.model,
-				schema: evaluateOutputSchema,
-				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
+				model: evaluationSelection.model.model,
 				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.
 
 Dokumenttyp: ${parsed.data.documentType}
@@ -345,6 +483,13 @@ ${JSON.stringify(parsed.data.inputs, null, 2)}
 
 Modell-Ausgabe:
 ${parsed.data.response}`,
+				providerOptions: buildProviderOptions({
+					model: evaluationSelection.model,
+					reasoningEffort: evaluationSelection.reasoningEffort,
+					userId: context.session.user.id,
+				}),
+				schema: evaluateOutputSchema,
+				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
 				temperature: 0.3,
 			});
 		} catch (error) {
@@ -381,22 +526,20 @@ ${parsed.data.response}`,
 
 export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
+	evaluate: evaluateHandler,
 	prompts: {
 		get: authed
 			.use(requiredAdminMiddleware)
 			.input(type<{ name: string }>())
 			.handler(({ input }) => {
-				const entry = Object.entries(documentTypeConfigs).find(
-					([_, config]) => config.promptName === input.name,
-				);
-
-				if (!entry) {
+				const documentType = getDocumentTypeByPromptName(input.name);
+				if (!documentType) {
 					throw new ORPCError("NOT_FOUND", {
 						message: `Prompt not found: ${input.name}`,
 					});
 				}
 
-				const [documentType, config] = entry;
+				const config = documentTypeConfigs[documentType];
 
 				const previewDate = new Date().toLocaleDateString("de-DE", {
 					day: "2-digit",
@@ -416,9 +559,10 @@ export const scribeHandler = {
 
 				return {
 					documentType,
+					label: config.promptName,
 					messages,
 					modelConfig: DEFAULT_SCRIBE_MODEL_CONFIG,
-					name: config.promptName,
+					name: documentType,
 					source: "local",
 				};
 			}),
@@ -431,22 +575,24 @@ export const scribeHandler = {
 				}>(),
 			)
 			.handler(({ input }) => {
-				const allPromptNames = Object.values(documentTypeConfigs).map(
-					(config) => config.promptName,
-				);
-
-				let filteredNames = allPromptNames;
+				let filteredOptions = PROMPT_HARNESS_OPTIONS;
 				if (input.query?.trim()) {
 					const query = input.query.trim().toLowerCase();
-					filteredNames = allPromptNames.filter((name) => name.toLowerCase().includes(query));
+					filteredOptions = PROMPT_HARNESS_OPTIONS.filter((option) =>
+						getPromptHarnessReferences(option.id).some((reference) =>
+							reference.toLowerCase().includes(query),
+						),
+					);
 				}
 
 				const limit = input.limit ?? 200;
+				const options = filteredOptions.slice(0, limit);
 				return {
-					items: filteredNames.slice(0, limit),
+					items: options.map((option) => option.id),
+					options,
 				};
 			}),
 	},
-	evaluate: evaluateHandler,
 	run: runHandler,
+	transcribeAudio: transcribeAudioHandler,
 };

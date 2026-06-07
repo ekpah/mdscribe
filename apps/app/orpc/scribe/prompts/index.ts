@@ -6,6 +6,11 @@ export {
 } from "./compose";
 export {
 	documentTypeConfigs,
+	getDocumentTypeByPromptName,
+	getPromptHarnessLabel,
+	getPromptHarnessReferences,
+	resolvePromptHarnessId,
 	PROMPT_HARNESS_IDS,
+	PROMPT_HARNESS_OPTIONS,
 	type PromptHarnessId,
 } from "./registry";

@@ -31,7 +31,7 @@ describe("markdoc tags phase 1 regressions", () => {
 		const switches = tags.filter(
 			(tag) => tag.name === "Switch" && tag.attributes.primary === "Status",
 		);
-		const mergedSwitch = switches[0];
+		const [mergedSwitch] = switches;
 
 		expect(switches).toHaveLength(1);
 		expect(mergedSwitch?.children.map((child) => child.attributes.primary)).toEqual(["A", "B"]);
@@ -65,8 +65,7 @@ describe("markdoc tags phase 1 regressions", () => {
 
 		const tags = parseMarkdocToInputs(source);
 		const anticoagulationSwitch = tags.find(
-			(tag) =>
-				tag.name === "Switch" && tag.attributes.primary === "Antikoagulation",
+			(tag) => tag.name === "Switch" && tag.attributes.primary === "Antikoagulation",
 		);
 
 		if (!anticoagulationSwitch || anticoagulationSwitch.name !== "Switch") {

@@ -12,6 +12,14 @@ export interface FieldMapping {
 	pdfType?: "text" | "multiline" | "dropdown" | "checkbox" | "radio";
 }
 
+export interface DocumentInputField {
+	label: string;
+	description?: string;
+	options?: string[];
+	type?: "string" | "number" | "date" | "switch" | "boolean";
+	unit?: string;
+}
+
 /**
  * Configuration for PDF document AI operations
  */
@@ -25,7 +33,9 @@ interface PDFDocumentConfig {
  * Variables for parseForm prompt
  */
 interface ParseFormVariables {
-	fieldMapping: FieldMapping[];
+	fieldMapping?: FieldMapping[];
+	fieldMappings?: FieldMapping[];
+	inputFields?: DocumentInputField[];
 }
 
 /**
@@ -41,14 +51,19 @@ export const pdfDocumentConfigs: Record<string, PDFDocumentConfig> = {
 			temperature: 0.3,
 		},
 		prompt: (vars: Record<string, unknown>): PromptMessage[] => {
-			const { fieldMapping } = vars as unknown as ParseFormVariables;
+			const { fieldMapping, fieldMappings, inputFields } = vars as unknown as ParseFormVariables;
+			const mappings = fieldMappings ?? fieldMapping ?? [];
 			return [
 				{
-					content: `Du analysierst ein PDF-Formular-Dokument. Ich habe die folgenden Formularfeld-Zuordnungen aus dem PDF extrahiert:
+					content: `Du analysierst ein PDF-Formular-Dokument. Ich habe die folgenden Eingabefelder und PDF-Formularfeld-Zuordnungen extrahiert:
 
-${JSON.stringify(fieldMapping, null, 2)}
+Eingabefelder:
+${JSON.stringify(inputFields ?? [], null, 2)}
 
-Für jede Feldzuordnung:
+PDF-Feldzuordnungen:
+${JSON.stringify(mappings, null, 2)}
+
+Für jedes Eingabefeld:
 1. Schlage ein besseres, aussagekräftigeres Label vor
 2. Gib eine klare und prägnante Beschreibung an, wofür dieses Feld verwendet wird
 
@@ -73,6 +88,8 @@ Gib deine Antwort als JSON-Objekt mit genau dieser Struktur zurück:
 
 Achte darauf:
 - Alle originalen fieldName-Werte beizubehalten
+- Gib genau eine Antwort pro PDF-Feldzuordnung zurück
+- Nutze die Eingabefelder als fachliche Quelle für Label und Beschreibung
 - Falls pdfType mitgeliefert wird, die Semantik im Label/Beschreibung zu berücksichtigen
 - Optionen nicht umzuschreiben; nutze sie nur als Kontext für Label und Beschreibung
 - Die Beschreibungen kurz und aussagekräftig zu halten

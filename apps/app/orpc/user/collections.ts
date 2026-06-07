@@ -5,6 +5,7 @@ import {
 	eq,
 	favourites,
 	inArray,
+	or,
 	sql,
 	template,
 	templateCollection,
@@ -68,7 +69,15 @@ const listCollectionsHandler = authed.handler(async ({ context }) => {
 		})
 		.from(templateCollectionTemplate)
 		.innerJoin(template, eq(templateCollectionTemplate.templateId, template.id))
-		.where(inArray(templateCollectionTemplate.collectionId, collectionIds))
+		.where(
+			and(
+				inArray(templateCollectionTemplate.collectionId, collectionIds),
+				or(
+					eq(template.visibility, "public"),
+					eq(template.authorId, context.session.user.id),
+				),
+			),
+		)
 		.orderBy(desc(template.updatedAt));
 
 	const templatesByCollection: Record<

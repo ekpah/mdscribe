@@ -1,34 +1,82 @@
 import "server-only";
-
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { aiDefaults, aiModel, aiProvider, and, eq } from '@repo/database';
-import type { Database } from '@repo/database';
+import { aiDefaults, aiModel, aiProvider, and, eq } from "@repo/database";
+import type { Database } from "@repo/database";
+import { experimental_transcribe as transcribe } from "ai";
 import type { LanguageModel } from "ai";
 
 import { decrypt } from "@/lib/encryption";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
 import { USER_MESSAGES } from "@/lib/user-messages";
-import { resolveInputModes, type InputMode } from "@/lib/ai-model-input-modes";
+import type { ReasoningEffort } from "@/orpc/scribe/types";
 
-interface ResolvedModel {
+export type { ReasoningEffort } from "@/orpc/scribe/types";
+
+type ProviderProtocol = typeof aiProvider.$inferSelect.protocol;
+
+export type DefaultModelSlot =
+	| "evaluation"
+	| "file-image"
+	| "multimodal"
+	| "speech-to-text"
+	| "text";
+
+export interface TranscribeAudioInput {
+	data: Buffer;
+	filename: string;
+	mediaType: string;
+}
+
+export interface ResolvedModel {
+	isOpenRouter: boolean;
 	model: LanguageModel;
 	modelName: string;
 	providerId: string;
+	providerProtocol: ProviderProtocol;
+	supportedParameters: string[];
 	supportsReasoning: boolean;
-	inputModes: InputMode[];
-	isOpenRouter: boolean;
+	transcribeAudio?: (input: TranscribeAudioInput) => Promise<string>;
 }
 
-interface ResolveModelOptions {
-	requireAudio?: boolean;
-	requireFiles?: boolean;
+export interface ResolvedDefaultModelSelection {
+	model: ResolvedModel;
+	reasoningEffort: ReasoningEffort;
+	slot: DefaultModelSlot;
 }
+
+type GenerationStrategy =
+	| {
+			generation: ResolvedDefaultModelSelection;
+			mode: "direct";
+	  }
+	| {
+			fileImage?: ResolvedDefaultModelSelection;
+			generation: ResolvedDefaultModelSelection;
+			mode: "preprocess";
+			speechToText?: ResolvedDefaultModelSelection;
+	  };
 
 type AiModelRow = typeof aiModel.$inferSelect;
 type AiProviderRow = typeof aiProvider.$inferSelect;
+type AiDefaultsRow = typeof aiDefaults.$inferSelect;
+
+const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
+	parameters ?? [];
+
+const REASONING_EFFORTS = new Set<ReasoningEffort>([
+	"none",
+	"minimal",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+]);
+
+export const normalizeReasoningEffort = (value: string | null | undefined): ReasoningEffort =>
+	REASONING_EFFORTS.has(value as ReasoningEffort) ? (value as ReasoningEffort) : "none";
 
 const createProviderModel = (
 	protocol: string,
@@ -66,6 +114,117 @@ const createProviderModel = (
 	}
 };
 
+const isOpenAITranscriptionModel = (modelId: string): boolean => {
+	const id = modelId.toLowerCase();
+	return id === "whisper-1" || id.includes("transcribe") || id.includes("transcription");
+};
+
+const getOpenRouterAudioFormat = (mediaType: string): string => {
+	const baseType = mediaType.split(";")[0]?.trim().toLowerCase();
+
+	switch (baseType) {
+		case "audio/mpeg":
+		case "audio/mp3": {
+			return "mp3";
+		}
+		case "audio/mp4":
+		case "audio/m4a":
+		case "audio/x-m4a": {
+			return "m4a";
+		}
+		case "audio/wave":
+		case "audio/wav":
+		case "audio/x-wav": {
+			return "wav";
+		}
+		case "audio/webm": {
+			return "webm";
+		}
+		case "audio/ogg": {
+			return "ogg";
+		}
+		case "audio/flac": {
+			return "flac";
+		}
+		case "audio/aac": {
+			return "aac";
+		}
+		case "audio/aiff": {
+			return "aiff";
+		}
+		default: {
+			return baseType?.replace(/^audio\//, "") || "webm";
+		}
+	}
+};
+
+/**
+ * Creates a speech-to-text adapter for providers that expose transcription
+ * through a separate API path. The adapter is only used when a model is selected
+ * in the global speech-to-text slot; multimodal defaults still receive native
+ * audio parts.
+ */
+const createAudioTranscriber = (
+	protocol: string,
+	modelId: string,
+	apiKey: string | undefined,
+): ResolvedModel["transcribeAudio"] | undefined => {
+	if (protocol === "openai" && isOpenAITranscriptionModel(modelId)) {
+		const provider = createOpenAI({ apiKey: apiKey ?? "" });
+		const transcriptionModel = provider.transcription(
+			modelId as Parameters<typeof provider.transcription>[0],
+		);
+		return async ({ data }) => {
+			const result = await transcribe({
+				audio: data,
+				model: transcriptionModel,
+			});
+			return result.text.trim();
+		};
+	}
+
+	if (protocol === "openrouter") {
+		return async ({ data, mediaType }) => {
+			const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
+				body: JSON.stringify({
+					input_audio: {
+						data: data.toString("base64"),
+						format: getOpenRouterAudioFormat(mediaType),
+					},
+					model: modelId,
+				}),
+				headers: {
+					...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+					"Content-Type": "application/json",
+				},
+				method: "POST",
+			});
+
+			if (!response.ok) {
+				throw new Error(`OpenRouter-Transkription fehlgeschlagen: HTTP ${response.status}`);
+			}
+
+			const body = (await response.json()) as {
+				text?: unknown;
+				transcription?: unknown;
+			};
+			const { text: responseText, transcription } = body;
+			let text = "";
+			if (typeof responseText === "string") {
+				text = responseText;
+			} else if (typeof transcription === "string") {
+				text = transcription;
+			}
+			if (!text.trim()) {
+				throw new Error("OpenRouter-Transkription lieferte keinen Text.");
+			}
+			return text.trim();
+		};
+	}
+
+	return undefined;
+};
+
 const buildResolvedModel = async (
 	model: AiModelRow,
 	provider: AiProviderRow,
@@ -78,14 +237,18 @@ const buildResolvedModel = async (
 		apiKey,
 		provider.baseUrl,
 	);
+	const transcribeAudio = createAudioTranscriber(provider.protocol, model.modelId, apiKey);
+	const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
 
 	return {
-		inputModes: resolveInputModes(model.inputModes, model.modelId),
 		isOpenRouter: provider.protocol === "openrouter",
 		model: languageModel,
 		modelName: model.modelId,
 		providerId: provider.id,
-		supportsReasoning: model.supportsReasoning,
+		providerProtocol: provider.protocol,
+		supportedParameters,
+		supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
+		...(transcribeAudio ? { transcribeAudio } : {}),
 	};
 };
 
@@ -124,10 +287,7 @@ export const resolveProviderModel = async (
 	}
 
 	const model = await db.query.aiModel.findFirst({
-		where: and(
-			eq(aiModel.providerId, providerId),
-			eq(aiModel.modelId, modelId),
-		),
+		where: and(eq(aiModel.providerId, providerId), eq(aiModel.modelId, modelId)),
 	});
 
 	if (model) {
@@ -137,10 +297,7 @@ export const resolveProviderModel = async (
 	throw new Error(USER_MESSAGES.modelUnavailable);
 };
 
-export const resolveModel = async (
-	db: Database,
-	options?: ResolveModelOptions,
-): Promise<ResolvedModel> => {
+const getDefaults = async (db: Database): Promise<AiDefaultsRow> => {
 	const defaults = await db.query.aiDefaults.findFirst({
 		where: eq(aiDefaults.id, "global"),
 	});
@@ -149,16 +306,148 @@ export const resolveModel = async (
 		throw new Error(USER_MESSAGES.modelUnavailable);
 	}
 
-	let defaultModelId = defaults.defaultTextModelId;
-	if (options?.requireAudio) {
-		defaultModelId = defaults.defaultSpeechToTextModelId;
-	} else if (options?.requireFiles) {
-		defaultModelId = defaults.defaultFileImageModelId;
-	}
+	return defaults;
+};
 
-	if (!defaultModelId) {
+const getDefaultModelRecordId = (
+	defaults: AiDefaultsRow,
+	slot: DefaultModelSlot,
+): string | null => {
+	switch (slot) {
+		case "evaluation": {
+			return defaults.defaultEvaluationModel;
+		}
+		case "file-image": {
+			return defaults.defaultFileImageModelId;
+		}
+		case "multimodal": {
+			return defaults.defaultMultimodalModelId;
+		}
+		case "speech-to-text": {
+			return defaults.defaultSpeechToTextModelId;
+		}
+		case "text": {
+			return defaults.defaultTextModelId;
+		}
+		default: {
+			return null;
+		}
+	}
+};
+
+const getDefaultReasoningEffort = (
+	defaults: AiDefaultsRow,
+	slot: DefaultModelSlot,
+): ReasoningEffort => {
+	switch (slot) {
+		case "evaluation": {
+			return normalizeReasoningEffort(defaults.defaultEvaluationReasoningEffort);
+		}
+		case "file-image": {
+			return normalizeReasoningEffort(defaults.defaultFileImageReasoningEffort);
+		}
+		case "multimodal": {
+			return normalizeReasoningEffort(defaults.defaultMultimodalReasoningEffort);
+		}
+		case "speech-to-text": {
+			return normalizeReasoningEffort(defaults.defaultSpeechToTextReasoningEffort);
+		}
+		case "text": {
+			return normalizeReasoningEffort(defaults.defaultTextReasoningEffort);
+		}
+		default: {
+			return "none";
+		}
+	}
+};
+
+const buildDefaultSelection = async (
+	db: Database,
+	defaults: AiDefaultsRow,
+	slot: DefaultModelSlot,
+): Promise<ResolvedDefaultModelSelection> => {
+	const modelRecordId = getDefaultModelRecordId(defaults, slot);
+	if (!modelRecordId) {
 		throw new Error(USER_MESSAGES.modelUnavailable);
 	}
 
-	return resolveModelByRecordId(defaultModelId, db);
+	return {
+		model: await resolveModelByRecordId(modelRecordId, db),
+		reasoningEffort: getDefaultReasoningEffort(defaults, slot),
+		slot,
+	};
+};
+
+export const resolveDefaultModel = async (
+	db: Database,
+	slot: DefaultModelSlot,
+): Promise<ResolvedDefaultModelSelection> => {
+	const defaults = await getDefaults(db);
+	return buildDefaultSelection(db, defaults, slot);
+};
+
+/**
+ * Resolves the global model strategy for a generation request.
+ *
+ * A configured multimodal default is treated as authoritative for text, audio,
+ * and file/image input. Without it, media is preprocessed through the dedicated
+ * speech-to-text and file/image defaults before the final text model runs.
+ */
+export const resolveGenerationStrategy = async (
+	db: Database,
+	options: { hasAudio?: boolean; hasFiles?: boolean },
+): Promise<GenerationStrategy> => {
+	const defaults = await getDefaults(db);
+	if (defaults.defaultMultimodalModelId) {
+		return {
+			generation: await buildDefaultSelection(db, defaults, "multimodal"),
+			mode: "direct",
+		};
+	}
+
+	return {
+		...(options.hasFiles
+			? { fileImage: await buildDefaultSelection(db, defaults, "file-image") }
+			: {}),
+		generation: await buildDefaultSelection(db, defaults, "text"),
+		mode: "preprocess",
+		...(options.hasAudio
+			? {
+					speechToText: await buildDefaultSelection(db, defaults, "speech-to-text"),
+				}
+			: {}),
+	};
+};
+
+export const buildProviderOptions = ({
+	includeUsage,
+	model,
+	reasoningEffort,
+	userId,
+	zdr,
+}: {
+	includeUsage?: boolean;
+	model: ResolvedModel;
+	reasoningEffort?: ReasoningEffort;
+	userId?: string;
+	zdr?: boolean;
+}) => {
+	if (!model.isOpenRouter) {
+		return;
+	}
+
+	const normalizedReasoningEffort = normalizeReasoningEffort(reasoningEffort);
+	const reasoningConfig =
+		model.supportsReasoning && normalizedReasoningEffort !== "none"
+			? { effort: normalizedReasoningEffort }
+			: undefined;
+
+	return {
+		openrouter: {
+			...(includeUsage ? { usage: { include: true } } : {}),
+			...(userId ? { user: userId } : {}),
+			...(reasoningConfig ? { reasoning: reasoningConfig } : {}),
+			...(zdr ? { zdr: true } : {}),
+		},
+	};
 };

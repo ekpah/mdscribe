@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { ORPCError, call } from "@orpc/server";
-import { aiDefaults, aiModel, aiProvider } from "@repo/database";
-import { USER_MESSAGES } from "@/lib/user-messages";
-import { documentTypeConfigs } from "@/orpc/scribe/config";
-import { composeScribeContext } from "@/orpc/scribe/context";
-import { scribeStreamHandler } from "@/orpc/scribe/handlers";
-import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
-import { resolveModel } from "@/orpc/scribe/providers";
-import type { DocumentType } from "@/orpc/scribe/types";
+import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
+
 import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
@@ -17,6 +12,23 @@ import {
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
+import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
+import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
+import { USER_MESSAGES } from "@/lib/user-messages";
+import { documentTypeConfigs } from "@/orpc/scribe/config";
+import { composeScribeContext } from "@/orpc/scribe/context";
+import { scribeStreamHandler } from "@/orpc/scribe/handlers";
+import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
+import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
+import { fillInputsConfig } from "@/orpc/scribe/handlers/fill-inputs-config";
+import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import {
+	getDocumentTypeByPromptName,
+	PROMPT_HARNESS_IDS,
+	PROMPT_HARNESS_OPTIONS,
+} from "@/orpc/scribe/prompts";
+import { resolveDefaultModel, resolveGenerationStrategy } from "@/orpc/scribe/providers";
+import type { DocumentType } from "@/orpc/scribe/types";
 
 /**
  * Comprehensive tests for scribe oRPC handlers
@@ -46,9 +58,20 @@ describe("Document Type Configurations", () => {
 
 	test("uses one default model config for all scribe generations", () => {
 		expect(DEFAULT_SCRIBE_MODEL_CONFIG).toEqual({
-			maxTokens: 8_000,
+			maxTokens: 8000,
 			temperature: 0.3,
 		});
+	});
+
+	test("keeps prompt harness references stable while display names can change", () => {
+		expect(PROMPT_HARNESS_IDS).toContain("procedures");
+		expect(PROMPT_HARNESS_OPTIONS).toContainEqual({
+			id: "procedures",
+			label: "Befund",
+		});
+		expect(getDocumentTypeByPromptName("procedures")).toBe("procedures");
+		expect(getDocumentTypeByPromptName("procedure")).toBe("procedures");
+		expect(getDocumentTypeByPromptName("Befund")).toBe("procedures");
 	});
 });
 
@@ -87,9 +110,7 @@ describe("Context Builder", () => {
 		expect(contextXml).toContain(
 			"<purpose>Informationen über den Arzt/Nutzer, der den Prompt ausfüllt</purpose>",
 		);
-		expect(contextXml).toContain(
-			"Diese Daten gehören NICHT zum Patientenfall",
-		);
+		expect(contextXml).toContain("Diese Daten gehören NICHT zum Patientenfall");
 		expect(contextXml).toContain("<name>Dr. Test</name>");
 	});
 
@@ -129,7 +150,73 @@ describe("Context Builder", () => {
 });
 
 describe("Model Selection Logic", () => {
-	test("resolveModel uses speech default for audio requests", async () => {
+	test("resolveGenerationStrategy uses multimodal default directly when configured", async () => {
+		const server = await startTestServer("resolve-model-multimodal-default");
+		try {
+			const providerId = crypto.randomUUID();
+			const textModelRecordId = crypto.randomUUID();
+			const multimodalModelRecordId = crypto.randomUUID();
+
+			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
+				id: providerId,
+				name: "Test Provider",
+				protocol: "openrouter",
+			});
+			await server.db.insert(aiModel).values([
+				{
+					displayName: "Text Model",
+					id: textModelRecordId,
+					modelId: "openrouter/test-text",
+					providerId,
+					supportsReasoning: false,
+				},
+				{
+					displayName: "Multimodal Model",
+					id: multimodalModelRecordId,
+					modelId: "openrouter/test-multimodal",
+					providerId,
+					supportedParameters: ["reasoning"],
+					supportsReasoning: true,
+				},
+			]);
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultFileImageModelId: textModelRecordId,
+					defaultMultimodalModelId: multimodalModelRecordId,
+					defaultMultimodalReasoningEffort: "high",
+					defaultSpeechToTextModelId: textModelRecordId,
+					defaultTextModelId: textModelRecordId,
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultFileImageModelId: textModelRecordId,
+						defaultMultimodalModelId: multimodalModelRecordId,
+						defaultMultimodalReasoningEffort: "high",
+						defaultSpeechToTextModelId: textModelRecordId,
+						defaultTextModelId: textModelRecordId,
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const strategy = await resolveGenerationStrategy(server.db, {
+				hasAudio: true,
+				hasFiles: true,
+			});
+			expect(strategy.mode).toBe("direct");
+			expect(strategy.generation.model.modelName).toBe("openrouter/test-multimodal");
+			expect(strategy.generation.reasoningEffort).toBe("high");
+		} finally {
+			await server.close();
+		}
+	});
+
+	test("resolveGenerationStrategy uses speech preprocessing without multimodal default", async () => {
 		const server = await startTestServer("resolve-model-audio-default");
 		try {
 			const providerId = crypto.randomUUID();
@@ -147,7 +234,6 @@ describe("Model Selection Logic", () => {
 				{
 					displayName: "Text Model",
 					id: textModelRecordId,
-					inputModes: ["text"],
 					modelId: "openrouter/test-text",
 					providerId,
 					supportsReasoning: false,
@@ -155,7 +241,6 @@ describe("Model Selection Logic", () => {
 				{
 					displayName: "Speech Model",
 					id: speechModelRecordId,
-					inputModes: ["text", "audio"],
 					modelId: "openrouter/test-speech",
 					providerId,
 					supportsReasoning: false,
@@ -165,6 +250,7 @@ describe("Model Selection Logic", () => {
 				.insert(aiDefaults)
 				.values({
 					defaultFileImageModelId: textModelRecordId,
+					defaultMultimodalModelId: null,
 					defaultSpeechToTextModelId: speechModelRecordId,
 					defaultTextModelId: textModelRecordId,
 					id: "global",
@@ -173,6 +259,7 @@ describe("Model Selection Logic", () => {
 				.onConflictDoUpdate({
 					set: {
 						defaultFileImageModelId: textModelRecordId,
+						defaultMultimodalModelId: null,
 						defaultSpeechToTextModelId: speechModelRecordId,
 						defaultTextModelId: textModelRecordId,
 						updatedAt: new Date(),
@@ -180,62 +267,96 @@ describe("Model Selection Logic", () => {
 					target: aiDefaults.id,
 				});
 
-			const resolved = await resolveModel(server.db, { requireAudio: true });
-			expect(resolved.modelName).toBe("openrouter/test-speech");
+			const strategy = await resolveGenerationStrategy(server.db, {
+				hasAudio: true,
+			});
+			expect(strategy.mode).toBe("preprocess");
+			expect(strategy.generation.model.modelName).toBe("openrouter/test-text");
+			expect(
+				strategy.mode === "preprocess" ? strategy.speechToText?.model.modelName : undefined,
+			).toBe("openrouter/test-speech");
 		} finally {
 			await server.close();
 		}
 	});
 
-	test("resolveModel infers gemma 3n audio support from model id for legacy rows", async () => {
-		const server = await startTestServer("resolve-model-gemma-3n-audio");
+	test("OpenRouter speech preprocessing uses the JSON transcription payload", async () => {
+		const server = await startTestServer("openrouter-transcription-payload");
+		const originalFetch = globalThis.fetch;
 		try {
 			const providerId = crypto.randomUUID();
-			const modelRecordId = crypto.randomUUID();
+			const speechModelRecordId = crypto.randomUUID();
+			let requestBody: unknown;
+			let requestContentType = "";
+			let requestUrl = "";
+
+			globalThis.fetch = ((input, init) => {
+				requestUrl = String(input);
+				requestContentType = new Headers(init?.headers).get("Content-Type") ?? "";
+				requestBody = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+				return Promise.resolve(Response.json({ text: "Hallo Welt" }));
+			}) as typeof fetch;
 
 			await server.db.insert(aiProvider).values({
 				apiKey: null,
 				baseUrl: null,
 				id: providerId,
-				name: "Test Provider",
+				name: "OpenRouter",
 				protocol: "openrouter",
 			});
 			await server.db.insert(aiModel).values({
-				displayName: "Gemma 3n E4B",
-				id: modelRecordId,
-				inputModes: ["text"],
-				modelId: "gemma-3n-e4b-it-q8_0",
+				displayName: "Whisper Large v3",
+				id: speechModelRecordId,
+				modelId: "openai/whisper-large-v3",
 				providerId,
 				supportsReasoning: false,
 			});
 			await server.db
 				.insert(aiDefaults)
 				.values({
-					defaultFileImageModelId: modelRecordId,
-					defaultSpeechToTextModelId: modelRecordId,
-					defaultTextModelId: modelRecordId,
+					defaultMultimodalModelId: null,
+					defaultSpeechToTextModelId: speechModelRecordId,
 					id: "global",
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
 					set: {
-						defaultFileImageModelId: modelRecordId,
-						defaultSpeechToTextModelId: modelRecordId,
-						defaultTextModelId: modelRecordId,
+						defaultMultimodalModelId: null,
+						defaultSpeechToTextModelId: speechModelRecordId,
 						updatedAt: new Date(),
 					},
 					target: aiDefaults.id,
 				});
 
-			const resolved = await resolveModel(server.db, { requireAudio: true });
-			expect(resolved.modelName).toBe("gemma-3n-e4b-it-q8_0");
-			expect(resolved.inputModes).toContain("audio");
+			const selection = await resolveDefaultModel(server.db, "speech-to-text");
+			const result = await prepareAudioInputForModel({
+				audioFiles: [
+					{
+						data: Buffer.from("audio").toString("base64"),
+						mimeType: "audio/webm;codecs=opus",
+					},
+				],
+				mode: "transcription",
+				resolvedModel: selection.model,
+			});
+
+			expect(result.transcripts).toEqual(["Hallo Welt"]);
+			expect(requestUrl).toBe("https://openrouter.ai/api/v1/audio/transcriptions");
+			expect(requestContentType).toBe("application/json");
+			expect(requestBody).toEqual({
+				input_audio: {
+					data: Buffer.from("audio").toString("base64"),
+					format: "webm",
+				},
+				model: "openai/whisper-large-v3",
+			});
 		} finally {
+			globalThis.fetch = originalFetch;
 			await server.close();
 		}
 	});
 
-	test("resolveModel throws when required default is missing", async () => {
+	test("resolveDefaultModel throws when required default is missing", async () => {
 		const server = await startTestServer("resolve-model-missing-default");
 		try {
 			const providerId = crypto.randomUUID();
@@ -251,7 +372,6 @@ describe("Model Selection Logic", () => {
 			await server.db.insert(aiModel).values({
 				displayName: "Text Model",
 				id: textModelRecordId,
-				inputModes: ["text"],
 				modelId: "openrouter/test-text",
 				providerId,
 				supportsReasoning: false,
@@ -260,6 +380,7 @@ describe("Model Selection Logic", () => {
 				.insert(aiDefaults)
 				.values({
 					defaultFileImageModelId: textModelRecordId,
+					defaultMultimodalModelId: null,
 					defaultSpeechToTextModelId: null,
 					defaultTextModelId: textModelRecordId,
 					id: "global",
@@ -268,6 +389,7 @@ describe("Model Selection Logic", () => {
 				.onConflictDoUpdate({
 					set: {
 						defaultFileImageModelId: textModelRecordId,
+						defaultMultimodalModelId: null,
 						defaultSpeechToTextModelId: null,
 						defaultTextModelId: textModelRecordId,
 						updatedAt: new Date(),
@@ -275,9 +397,216 @@ describe("Model Selection Logic", () => {
 					target: aiDefaults.id,
 				});
 
+			await expect(resolveDefaultModel(server.db, "speech-to-text")).rejects.toThrow(
+				USER_MESSAGES.modelUnavailable,
+			);
+		} finally {
+			await server.close();
+		}
+	});
+});
+
+describe("Fill Inputs Handler", () => {
+	test("formats the autofill prompt input as JSON", () => {
+		const messages = fillInputsConfig.prompt({
+			textContext: {
+				diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+			},
+		});
+
+		expect(messages[1].content).toContain('"textContext": {');
+		expect(messages[1].content).toContain('"diagnoseblock": "I50.1 Akute Linksherzinsuffizienz"');
+		expect(messages[1].content).not.toContain('"inputFields"');
+		expect(messages[1].content).not.toContain("Verfügbare Felder");
+		expect(messages[1].content).not.toContain("Klinischer Textkontext");
+	});
+
+	test("allows text-only autofill through the default text model", async () => {
+		const server = await startTestServer("fill-inputs-text-only");
+		try {
+			const providerId = crypto.randomUUID();
+			const textModelRecordId = crypto.randomUUID();
+
+			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
+				id: providerId,
+				name: "Test Provider",
+				protocol: "openrouter",
+			});
+			await server.db.insert(aiModel).values({
+				displayName: "Text Model",
+				id: textModelRecordId,
+				modelId: "openrouter/test-text",
+				providerId,
+				supportsReasoning: false,
+			});
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultFileImageModelId: textModelRecordId,
+					defaultMultimodalModelId: null,
+					defaultSpeechToTextModelId: null,
+					defaultTextModelId: textModelRecordId,
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultFileImageModelId: textModelRecordId,
+						defaultMultimodalModelId: null,
+						defaultSpeechToTextModelId: null,
+						defaultTextModelId: textModelRecordId,
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const { user } = await createTestUser(server.db);
+			const context = createTestContext({
+				db: server.db,
+				session: createMockSession(user),
+			});
+			const result = await call(
+				fillInputsHandler,
+				{
+					inputFields: [
+						{
+							label: "Aufnahmediagnose",
+							type: "string",
+						},
+					],
+					textContext: {
+						diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+					},
+				},
+				{ context },
+			);
+
+			expect(result.fieldValues).toEqual({ test: "value" });
+
+			const [event] = await server.db
+				.select()
+				.from(usageEvent)
+				.where(eq(usageEvent.name, AI_INPUT_FILL_EVENT_NAME));
+			expect(event?.userId).toBe(user.id);
+			expect(event?.model).toBe("openrouter/test-text");
+			expect(event?.inputData).toMatchObject({
+				textContext: {
+					diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+				},
+			});
+		} finally {
+			await server.close();
+		}
+	});
+
+	test("counts autofill requests against the monthly usage limit", async () => {
+		const server = await startTestServer("fill-inputs-usage-limit");
+		try {
+			await createTestAiDefaults(server.db);
+			const { user } = await createTestUser(server.db);
+
+			for (let i = 0; i < 50; i += 1) {
+				await server.db.insert(usageEvent).values({
+					id: crypto.randomUUID(),
+					name: i % 2 === 0 ? "ai_scribe_generation" : AI_INPUT_FILL_EVENT_NAME,
+					timestamp: new Date(),
+					userId: user.id,
+				});
+			}
+
 			await expect(
-				resolveModel(server.db, { requireAudio: true }),
-			).rejects.toThrow(USER_MESSAGES.modelUnavailable);
+				call(
+					fillInputsHandler,
+					{
+						inputFields: [{ label: "Aufnahmediagnose", type: "string" }],
+						textContext: { diagnoseblock: "I50.1" },
+					},
+					{
+						context: createTestContext({
+							db: server.db,
+							session: createMockSession(user),
+						}),
+					},
+				),
+			).rejects.toThrow("Monatliche Nutzungsgrenze erreicht");
+		} finally {
+			await server.close();
+		}
+	});
+
+	test("rejects oversized autofill payloads before provider calls", async () => {
+		const server = await startTestServer("fill-inputs-payload-limit");
+		try {
+			const { user } = await createTestUser(server.db);
+			const data = Buffer.alloc(FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes + 1).toString(
+				"base64",
+			);
+
+			await expect(
+				call(
+					fillInputsHandler,
+					{
+						contextFiles: [
+							{
+								data,
+								mimeType: "application/pdf",
+								name: "zu-gross.pdf",
+								size: FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes + 1,
+							},
+						],
+						inputFields: [{ label: "Patient", type: "string" }],
+					},
+					{
+						context: createTestContext({
+							db: server.db,
+							session: createMockSession(user),
+						}),
+					},
+				),
+			).rejects.toThrow("zu-gross.pdf");
+		} finally {
+			await server.close();
+		}
+	});
+
+	test("stores file metadata but not raw file bytes in autofill usage events", async () => {
+		const server = await startTestServer("fill-inputs-file-metadata");
+		try {
+			await createTestAiDefaults(server.db);
+			const { user } = await createTestUser(server.db);
+			const rawFile = "geheime-datei-bytes";
+			const fileData = Buffer.from(rawFile).toString("base64");
+			const context = createTestContext({
+				db: server.db,
+				session: createMockSession(user),
+			});
+
+			await call(
+				fillInputsHandler,
+				{
+					contextFiles: [
+						{
+							data: fileData,
+							mimeType: "application/pdf",
+							name: "befund.pdf",
+							size: rawFile.length,
+						},
+					],
+					inputFields: [{ label: "Befund", type: "string" }],
+				},
+				{ context },
+			);
+
+			const [event] = await server.db
+				.select()
+				.from(usageEvent)
+				.where(eq(usageEvent.name, AI_INPUT_FILL_EVENT_NAME));
+			const serializedInput = JSON.stringify(event?.inputData ?? {});
+			expect(serializedInput).toContain("befund.pdf");
+			expect(serializedInput).not.toContain(fileData);
+			expect(serializedInput).not.toContain(rawFile);
 		} finally {
 			await server.close();
 		}
@@ -346,13 +675,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "unknown-type" as DocumentType,
-							messages: [
-								{
-									id: "1",
-									parts: [{ text: "{}", type: "text" as const }],
-									role: "user" as const,
-								},
-							],
+						messages: [
+							{
+								id: "1",
+								parts: [{ text: "{}", type: "text" as const }],
+								role: "user" as const,
+							},
+						],
 					},
 					{ context },
 				),
@@ -369,22 +698,22 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "anamnese",
-							messages: [
-								{
-									id: "1",
-									parts: [
-										{
-											text: JSON.stringify({
-												befunde: "",
-												diagnoseblock: "",
-												notes: "",
-											}),
-											type: "text" as const,
-										},
-									],
-									role: "user" as const,
-								},
-							],
+						messages: [
+							{
+								id: "1",
+								parts: [
+									{
+										text: JSON.stringify({
+											befunde: "",
+											diagnoseblock: "",
+											notes: "",
+										}),
+										type: "text" as const,
+									},
+								],
+								role: "user" as const,
+							},
+						],
 					},
 					{ context },
 				),
@@ -431,9 +760,9 @@ describe("Scribe Stream Handler", () => {
 			const { user } = await createTestUser(server.db);
 
 			// Create 50 usage events to hit the limit
-			const { usageEvent } = await import("@repo/database");
+			const { usageEvent: usageEventTable } = await import("@repo/database");
 			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEvent).values({
+				await server.db.insert(usageEventTable).values({
 					id: crypto.randomUUID(),
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
@@ -449,13 +778,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-							messages: [
-								{
-									id: "1",
-									parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
-									role: "user" as const,
-								},
-							],
+						messages: [
+							{
+								id: "1",
+								parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+								role: "user" as const,
+							},
+						],
 					},
 					{ context },
 				),
@@ -472,9 +801,9 @@ describe("Scribe Stream Handler", () => {
 			});
 
 			// Create 50 usage events (under plus limit)
-			const { usageEvent } = await import("@repo/database");
+			const { usageEvent: usageEventTable } = await import("@repo/database");
 			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEvent).values({
+				await server.db.insert(usageEventTable).values({
 					id: crypto.randomUUID(),
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
@@ -489,26 +818,26 @@ describe("Scribe Stream Handler", () => {
 			// Note: Will still return a stream (mocked)
 			const result = await call(
 				scribeStreamHandler,
-					{
-						documentType: "discharge",
-						messages: [
-							{
-								id: "1",
-								parts: [
-									{
-										text: JSON.stringify({
-											anamnese: "test",
-											befunde: "test",
-											diagnoseblock: "test",
-											notes: "test",
-										}),
-										type: "text" as const,
-									},
-								],
-								role: "user" as const,
-							},
-						],
-					},
+				{
+					documentType: "discharge",
+					messages: [
+						{
+							id: "1",
+							parts: [
+								{
+									text: JSON.stringify({
+										anamnese: "test",
+										befunde: "test",
+										diagnoseblock: "test",
+										notes: "test",
+									}),
+									type: "text" as const,
+								},
+							],
+							role: "user" as const,
+						},
+					],
+				},
 				{ context },
 			);
 
@@ -527,9 +856,9 @@ describe("Scribe Stream Handler", () => {
 			});
 
 			// Create 500 usage events to hit the plus limit
-			const { usageEvent } = await import("@repo/database");
+			const { usageEvent: usageEventTable } = await import("@repo/database");
 			for (let i = 0; i < 500; i += 1) {
-				await server.db.insert(usageEvent).values({
+				await server.db.insert(usageEventTable).values({
 					id: crypto.randomUUID(),
 					name: "ai_scribe_generation",
 					timestamp: new Date(),
@@ -545,13 +874,13 @@ describe("Scribe Stream Handler", () => {
 					scribeStreamHandler,
 					{
 						documentType: "discharge",
-							messages: [
-								{
-									id: "1",
-									parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
-									role: "user" as const,
-								},
-							],
+						messages: [
+							{
+								id: "1",
+								parts: [{ text: '{"anamnese":"test"}', type: "text" as const }],
+								role: "user" as const,
+							},
+						],
 					},
 					{ context },
 				),
@@ -567,25 +896,25 @@ describe("Scribe Stream Handler", () => {
 
 			const result = await call(
 				scribeStreamHandler,
-					{
-						documentType: "anamnese",
-						messages: [
-							{
-								id: "1",
-								parts: [
-									{
-										text: JSON.stringify({
-											befunde: "ECG normal",
-											diagnoseblock: "Hypertension",
-											notes: "Patient with chest pain",
-										}),
-										type: "text" as const,
-									},
-								],
-								role: "user" as const,
-							},
-						],
-					},
+				{
+					documentType: "anamnese",
+					messages: [
+						{
+							id: "1",
+							parts: [
+								{
+									text: JSON.stringify({
+										befunde: "ECG normal",
+										diagnoseblock: "Hypertension",
+										notes: "Patient with chest pain",
+									}),
+									type: "text" as const,
+								},
+							],
+							role: "user" as const,
+						},
+					],
+				},
 				{ context },
 			);
 
@@ -601,25 +930,25 @@ describe("Scribe Stream Handler", () => {
 
 			const result = await call(
 				scribeStreamHandler,
-					{
-						documentType: "anamnese" as const,
-						messages: [
-							{
-								id: "1",
-								parts: [
-									{
-										text: JSON.stringify({
-											befunde: "",
-											diagnoseblock: "",
-											notes: "test",
-										}),
-										type: "text" as const,
-									},
-								],
-								role: "user" as const,
-							},
-						],
-					},
+				{
+					documentType: "anamnese" as const,
+					messages: [
+						{
+							id: "1",
+							parts: [
+								{
+									text: JSON.stringify({
+										befunde: "",
+										diagnoseblock: "",
+										notes: "test",
+									}),
+									type: "text" as const,
+								},
+							],
+							role: "user" as const,
+						},
+					],
+				},
 				{ context },
 			);
 			expect(result).toBeDefined();

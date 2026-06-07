@@ -1,10 +1,5 @@
-import {
-	createDatabaseClient,
-	createSqlClient,
-	migrateDatabase,
-	type DatabaseWithSchema,
-	type SqlClient,
-} from "@repo/database/connect";
+import { createDatabaseClient, createSqlClient, migrateDatabase } from "@repo/database/connect";
+import type { DatabaseWithSchema, SqlClient } from "@repo/database/connect";
 import { user } from "@repo/database/schema";
 
 import type { Session } from "@/lib/auth-types";
@@ -293,17 +288,17 @@ export const createMockSession = (mockUser: {
 		userAgent: "test-agent",
 		userId: mockUser.id,
 	},
-	user: {
-		createdAt: new Date(),
-		email: mockUser.email,
-		emailVerified: mockUser.emailVerified ?? true,
-		id: mockUser.id,
-		image: mockUser.image ?? null,
-		name: mockUser.name ?? "Test User",
-		stripeCustomerId: mockUser.stripeCustomerId ?? `cus_test_${Date.now()}`,
-		updatedAt: new Date(),
-	},
-});
+		user: {
+			createdAt: new Date(),
+			email: mockUser.email,
+			emailVerified: mockUser.emailVerified ?? true,
+			id: mockUser.id,
+			image: mockUser.image ?? null,
+			name: mockUser.name ?? "Test User",
+			stripeCustomerId: mockUser.stripeCustomerId ?? `cus_test_${Date.now()}`,
+			updatedAt: new Date(),
+		} as Session["user"] & { stripeCustomerId: string | null },
+	});
 
 const getRequiredRow = <T>(rows: T[], message: string): T => {
 	const [row] = rows;
@@ -324,6 +319,8 @@ export const createTestTemplate = async (
 		category?: string;
 		content?: string;
 		embedding?: number[];
+		examples?: string[];
+		visibility?: "public" | "private";
 	},
 ) => {
 	const { template } = await import("@repo/database");
@@ -335,9 +332,11 @@ export const createTestTemplate = async (
 			category: options?.category ?? "Test Category",
 			content: options?.content ?? "Test content",
 			embedding: options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
+			examples: options?.examples ?? [],
 			id: crypto.randomUUID(),
 			title: options?.title ?? "Test Template",
 			updatedAt: new Date(),
+			visibility: options?.visibility ?? "public",
 		})
 		.returning();
 
@@ -427,9 +426,9 @@ export const createTestUsageEvent = async (
 			model: "test-model",
 			name: options?.name ?? "ai_scribe_generation",
 			outputTokens: options?.outputTokens ?? 200,
-			timestamp: options?.timestamp ?? new Date(),
 			timeToCompletionMs: options?.timeToCompletionMs,
 			timeToFirstTokenMs: options?.timeToFirstTokenMs,
+			timestamp: options?.timestamp ?? new Date(),
 			totalTokens: (options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
 			userId,
 		})
@@ -465,9 +464,9 @@ export const createTestAiDefaults = async (
 	await db.insert(aiModel).values({
 		displayName: "Test Model",
 		id: modelRecordId,
-		inputModes: ["text", "audio", "file", "image"],
 		modelId,
 		providerId,
+		supportedParameters: ["reasoning"],
 		supportsReasoning: true,
 	});
 
@@ -475,18 +474,30 @@ export const createTestAiDefaults = async (
 		.insert(aiDefaults)
 		.values({
 			defaultEvaluationModel: modelRecordId,
+			defaultEvaluationReasoningEffort: "medium",
 			defaultFileImageModelId: modelRecordId,
+			defaultFileImageReasoningEffort: "none",
+			defaultMultimodalModelId: null,
+			defaultMultimodalReasoningEffort: "none",
 			defaultSpeechToTextModelId: modelRecordId,
+			defaultSpeechToTextReasoningEffort: "none",
 			defaultTextModelId: modelRecordId,
+			defaultTextReasoningEffort: "medium",
 			id: "global",
 			updatedAt: new Date(),
 		})
 		.onConflictDoUpdate({
 			set: {
 				defaultEvaluationModel: modelRecordId,
+				defaultEvaluationReasoningEffort: "medium",
 				defaultFileImageModelId: modelRecordId,
+				defaultFileImageReasoningEffort: "none",
+				defaultMultimodalModelId: null,
+				defaultMultimodalReasoningEffort: "none",
 				defaultSpeechToTextModelId: modelRecordId,
+				defaultSpeechToTextReasoningEffort: "none",
 				defaultTextModelId: modelRecordId,
+				defaultTextReasoningEffort: "medium",
 				updatedAt: new Date(),
 			},
 			target: aiDefaults.id,

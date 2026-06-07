@@ -6,10 +6,17 @@ Brief description of the changes.
 
 -
 
+## Feature Readiness
+
+- [ ] Feature is implemented end to end across the relevant frontend, oRPC/API handlers, data access boundaries, auth/authorization checks, usage-event logging, and billing/entitlement guards
+- [ ] Unit tests added/updated for changed behavior
+- [ ] E2E tests added/updated for major user-facing workflows, or noted as not applicable
+- [ ] Documentation added/updated for the feature, or noted as not applicable
+- [ ] User-notification email draft included for major features, or noted as not applicable for small fixes
+
 ## Checklist
 
 - [ ] `bun run lint` passes
 - [ ] `bun run build` passes
-- [ ] All unit and E2E tests pass
-- [ ] Tests added/updated (if applicable)
+- [ ] Relevant unit and E2E test commands pass
 - [ ] PR targets `staging` branch

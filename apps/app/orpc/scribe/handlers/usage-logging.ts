@@ -2,6 +2,7 @@ import { usageEvent } from "@repo/database";
 import type { Database } from "@repo/database";
 import { after } from "next/server";
 
+import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type {
 	StandardUsage,
@@ -11,7 +12,7 @@ import type {
 } from "@/lib/usage-logging";
 import type { ModelConfig } from "@/orpc/scribe/types";
 
-export const redactIfZdrEnabled = (zdrEnabled: boolean, value: string | undefined): string =>
+export const redactIfZdrEnabled = (zdrEnabled: boolean, value?: string): string =>
 	zdrEnabled ? "[zdr - content redacted]" : (value ?? "");
 
 interface ScribeStreamFinishEvent {
@@ -46,7 +47,9 @@ export const scheduleScribeUsageLogging = (input: {
 	isOpenRouter: boolean;
 	modelConfig: ModelConfig;
 	modelName: string;
+	promptLabel?: string;
 	promptName: string;
+	reasoningEffort?: string;
 	timing?: UsageTiming;
 	usageMetadata?: Partial<UsageMetadata>;
 	thinkingEnabled: boolean;
@@ -67,18 +70,20 @@ export const scheduleScribeUsageLogging = (input: {
 						endpoint: input.endpoint,
 						modelConfig: {
 							maxTokens: input.modelConfig.maxTokens,
+							reasoningEffort: input.reasoningEffort,
 							temperature: input.modelConfig.temperature,
 						},
+						promptLabel: input.promptLabel,
 						promptName: input.promptName,
 						promptSource: "local",
+						reasoningEffort: input.reasoningEffort,
 						streamingMode: true,
 						...input.usageMetadata,
-						thinkingBudget: input.thinkingEnabled ? input.modelConfig.thinkingBudget : undefined,
 						thinkingEnabled: input.thinkingEnabled,
 						zdrEnabled: input.activeSubscription,
 					} as UsageMetadata,
 					model: input.modelName,
-					name: "ai_scribe_generation",
+					name: AI_SCRIBE_GENERATION_EVENT_NAME,
 					openRouterUsage,
 					reasoning: redactIfZdrEnabled(input.activeSubscription, input.event.reasoningText),
 					result: redactIfZdrEnabled(input.activeSubscription, input.event.text),

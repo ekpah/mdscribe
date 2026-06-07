@@ -1,29 +1,44 @@
 import { stripe } from "@better-auth/stripe";
 import { eq, user as userTable } from "@repo/database";
 import { database } from "@repo/database/client";
-import { sendEmail } from "@repo/email";
-import { EmailChangeTemplate } from "@repo/email/templates/change-email";
-import { ResetPasswordTemplate } from "@repo/email/templates/reset-password";
-import { EmailVerificationTemplate } from "@repo/email/templates/verify";
 import { env } from "@repo/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError } from "better-auth/api";
 import { Stripe as StripeClient } from "stripe";
+
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 // Initialize stripe client (use placeholder during Docker builds where env vars aren't available)
 const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
 if (!isBuildTime && !(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET)) {
 	throw new Error("STRIPE_SECRET_KEY is not set");
 }
-const stripeClient = new StripeClient(
-	(env.STRIPE_SECRET_KEY as string) || "sk_placeholder",
-);
+const stripeClient = new StripeClient((env.STRIPE_SECRET_KEY as string) || "sk_placeholder");
+
+const userNameLengthHook = {
+	before: (authUser: Record<string, unknown>) => {
+		if (typeof authUser.name === "string" && authUser.name.length > 30) {
+			throw new APIError("BAD_REQUEST", {
+				message: USER_MESSAGES.userNameMaxLength,
+			});
+		}
+
+		return Promise.resolve({ data: authUser });
+	},
+};
 
 export const auth = betterAuth({
 	baseURL: env.NEXT_PUBLIC_BASE_URL as string,
 	database: drizzleAdapter(database, {
 		provider: "pg",
 	}),
+	databaseHooks: {
+		user: {
+			create: userNameLengthHook,
+			update: userNameLengthHook,
+		},
+	},
 	emailAndPassword: {
 		enabled: true,
 		onPasswordReset: async ({ user: resetUser }) => {
@@ -42,6 +57,10 @@ export const auth = betterAuth({
 				});
 				return;
 			}
+			const [{ sendEmail }, { ResetPasswordTemplate }] = await Promise.all([
+				import("@repo/email"),
+				import("@repo/email/templates/reset-password"),
+			]);
 			await sendEmail({
 				from: "noreply@mdscribe.de",
 				subject: "Setze dein Passwort zurück",
@@ -65,6 +84,10 @@ export const auth = betterAuth({
 				});
 				return;
 			}
+			const [{ sendEmail }, { EmailVerificationTemplate }] = await Promise.all([
+				import("@repo/email"),
+				import("@repo/email/templates/verify"),
+			]);
 			await sendEmail({
 				from: "noreply@mdscribe.de",
 				subject: "Verify your email address",
@@ -120,6 +143,10 @@ export const auth = betterAuth({
 				url: string;
 			}) => {
 				const { user: authUser, newEmail, url } = args;
+				const [{ sendEmail }, { EmailChangeTemplate }] = await Promise.all([
+					import("@repo/email"),
+					import("@repo/email/templates/change-email"),
+				]);
 				await sendEmail({
 					from: "noreply@mdscribe.de",
 					subject: "Genehmige E-Mail-Änderung",

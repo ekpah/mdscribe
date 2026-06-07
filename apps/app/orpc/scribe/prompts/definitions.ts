@@ -10,31 +10,31 @@ import { BEFUNDE_SYSTEM_PROMPT } from "./families/reports/befunde";
 
 export const documentPromptDefinitions = {
 	anamnese: {
-		promptName: "ER_Anamnese_chat",
+		promptName: "Anamnese",
 		systemPrompt: withSharedUncertaintyHandling(ANAMNESE_SYSTEM_PROMPT),
 	},
 	befunde: {
-		promptName: "diagnostic_results",
+		promptName: "Befunde",
 		systemPrompt: withSharedUncertaintyHandling(BEFUNDE_SYSTEM_PROMPT),
 	},
 	diagnosis: {
-		promptName: "Diagnoses",
+		promptName: "Diagnoseblock",
 		systemPrompt: withSharedUncertaintyHandling(DIAGNOSIS_SYSTEM_PROMPT),
 	},
 	discharge: {
-		promptName: "Inpatient_discharge",
+		promptName: "Entlassbrief",
 		systemPrompt: withSharedUncertaintyHandling(DISCHARGE_SYSTEM_PROMPT),
 	},
 	"icu-transfer": {
-		promptName: "icu_transfer",
+		promptName: "Verlegungsbrief Intensivstation",
 		systemPrompt: withSharedUncertaintyHandling(ICU_TRANSFER_SYSTEM_PROMPT),
 	},
 	outpatient: {
-		promptName: "outpatient_visit",
+		promptName: "Ambulanzkontakt",
 		systemPrompt: withSharedUncertaintyHandling(OUTPATIENT_SYSTEM_PROMPT),
 	},
 	procedures: {
-		promptName: "procedure",
+		promptName: "Befund",
 		systemPrompt: withSharedUncertaintyHandling(PROCEDURES_SYSTEM_PROMPT),
 	},
 } satisfies Record<DocumentType, DocumentTypeConfig>;

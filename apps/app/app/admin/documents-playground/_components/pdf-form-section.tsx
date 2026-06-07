@@ -35,7 +35,10 @@ import PDFInputs from "./pdf-inputs";
 import type { InputSource } from "./pdf-inputs";
 
 const PDFViewSection = dynamic(
-	async () => (await import("@/app/documents/_components/pdf-view-section")).PDFViewSection,
+	async () => {
+		const viewModule = await import("@/app/documents/_components/pdf-view-section");
+		return viewModule.PDFViewSection;
+	},
 	{
 		ssr: false,
 	},
@@ -140,8 +143,8 @@ const toDefaultFieldMapping = (fields: PDFField[]): DocumentFieldDefinition[] =>
 const mergeAiFieldMapping = (
 	aiFieldMapping: { description: string; fieldName: string; label: string }[],
 	currentMappings: DocumentFieldDefinition[],
-): DocumentFieldDefinition[] => {
-	return aiFieldMapping.map((mapping) => {
+): DocumentFieldDefinition[] =>
+	aiFieldMapping.map((mapping) => {
 		const existing = currentMappings.find(
 			(currentMapping) => currentMapping.fieldName === mapping.fieldName,
 		);
@@ -158,11 +161,10 @@ const mergeAiFieldMapping = (
 			valueType: existing?.valueType ?? "string",
 		};
 	});
-};
 
-type ParseFormResult = {
+interface ParseFormResult {
 	fieldMapping: { description: string; fieldName: string; label: string }[];
-};
+}
 
 const formatDuration = (seconds: number): string => {
 	const mins = Math.floor(seconds / 60);
@@ -255,6 +257,138 @@ const createAudioRecording = (audioChunks: Blob[], recordingStartTime: number): 
 	id: `audio-${Date.now()}`,
 });
 
+const toInputFieldType = (field: DocumentFieldDefinition): InputField["type"] => {
+	if (field.inputKind === "boolean") {
+		return "boolean";
+	}
+	if (field.inputKind === "choice") {
+		return "switch";
+	}
+	return field.valueType;
+};
+
+const toInputField = (field: DocumentFieldDefinition): InputField => ({
+	description: field.description,
+	label: field.label,
+	options: field.inputKind === "boolean" ? ["true", "false"] : field.options,
+	type: toInputFieldType(field),
+});
+
+const getPreferredOcrModel = (models: OcrModelCandidate[]) =>
+	models.find((model) => model.capabilities.supportsImage) ??
+	models.find(
+		(model) =>
+			model.id.toLowerCase().includes("gemini") || model.id.toLowerCase().includes("claude"),
+	) ??
+	models[0];
+
+const resolveSelectedOcrModelId = (
+	models: OcrModelCandidate[],
+	preferredModel: OcrModelCandidate | undefined,
+	previous: string,
+) => {
+	if (models.length === 0) {
+		return "";
+	}
+	if (models.some((model) => model.id === previous)) {
+		return previous;
+	}
+	return preferredModel?.id ?? "";
+};
+
+const VoiceInputSection = ({
+	audioRecordings,
+	canRecord,
+	fieldMappingLength,
+	isFillingInputs,
+	isRecording,
+	onFillInputs,
+	onRemoveRecordingById,
+	onToggleRecording,
+	pdfFile,
+	recordingButtonTitle,
+}: {
+	audioRecordings: AudioRecording[];
+	canRecord: boolean;
+	fieldMappingLength: number;
+	isFillingInputs: boolean;
+	isRecording: boolean;
+	onFillInputs: () => void;
+	onRemoveRecordingById: Record<string, () => void>;
+	onToggleRecording: () => void;
+	pdfFile: Uint8Array | null;
+	recordingButtonTitle: string;
+}) => {
+	if (pdfFile && fieldMappingLength > 0) {
+		return (
+			<div className="mb-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
+				<div className="mb-3 flex items-center justify-between">
+					<h3 className="font-medium text-sm">Sprachausfüllung</h3>
+					<Button
+						className={isRecording ? "bg-solarized-red" : ""}
+						disabled={(canRecord || isRecording) === false}
+						onClick={onToggleRecording}
+						size="sm"
+						title={recordingButtonTitle}
+						variant={isRecording ? "default" : "outline"}
+					>
+						{isRecording ? (
+							<>
+								<Square className="mr-2 h-4 w-4" />
+								Stoppen
+							</>
+						) : (
+							<>
+								<Mic className="mr-2 h-4 w-4" />
+								Aufnahme
+							</>
+						)}
+					</Button>
+				</div>
+
+				{audioRecordings.length > 0 ? (
+					<div className="mb-3 space-y-2">
+						{audioRecordings.map((recording, index) => (
+							<div
+								className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2"
+								key={recording.id}
+							>
+								<div className="flex items-center gap-2 text-solarized-green text-sm">
+									<Mic className="h-4 w-4" />
+									<span>
+										Aufnahme {index + 1} ({formatDuration(recording.duration)})
+									</span>
+								</div>
+								<Button onClick={onRemoveRecordingById[recording.id]} size="sm" variant="ghost">
+									<X className="h-4 w-4" />
+								</Button>
+							</div>
+						))}
+					</div>
+				) : null}
+
+				<Button
+					className="w-full"
+					disabled={audioRecordings.length === 0 || isFillingInputs}
+					onClick={onFillInputs}
+					variant="default"
+				>
+					{isFillingInputs ? (
+						"Wird ausgefüllt..."
+					) : (
+						<>
+							<Mic className="mr-2 h-4 w-4" />
+							Mit Sprache ausfüllen
+						</>
+					)}
+				</Button>
+			</div>
+		);
+	}
+
+	return null;
+};
+
 const PDFFormSection = () => {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
 	const [fieldMapping, setFieldMapping] = useState<DocumentFieldDefinition[]>([]);
@@ -287,27 +421,14 @@ const PDFFormSection = () => {
 	);
 
 	const preferredOcrModel = useMemo(
-		() =>
-			ocrCapableModels.find((model) => model.capabilities.supportsImage) ??
-			ocrCapableModels.find(
-				(model) =>
-					model.id.toLowerCase().includes("gemini") || model.id.toLowerCase().includes("claude"),
-			) ??
-			ocrCapableModels[0],
+		() => getPreferredOcrModel(ocrCapableModels),
 		[ocrCapableModels],
 	);
 
 	useEffect(() => {
-		if (ocrCapableModels.length === 0) {
-			setSelectedOcrModelId("");
-			return;
-		}
-		setSelectedOcrModelId((previous) => {
-			if (ocrCapableModels.some((model) => model.id === previous)) {
-				return previous;
-			}
-			return preferredOcrModel?.id ?? "";
-		});
+		setSelectedOcrModelId((previous) =>
+			resolveSelectedOcrModelId(ocrCapableModels, preferredOcrModel, previous),
+		);
 	}, [ocrCapableModels, preferredOcrModel]);
 
 	const selectedOcrModel = useMemo(
@@ -335,14 +456,14 @@ const PDFFormSection = () => {
 		}),
 	);
 
-	// Voice fill mutation
-	const voiceFillMutation = useMutation(
-		orpc.scribe.voiceFill.mutationOptions({
+	// Fill inputs mutation
+	const fillInputsMutation = useMutation(
+		orpc.scribe.fillInputs.mutationOptions({
 			onError: (error) => {
 				const errorMessage =
 					error instanceof Error ? error.message : "Unbekannter Fehler aufgetreten";
 				toast.error(`Sprachausfüllung fehlgeschlagen: ${errorMessage}`, {
-					id: "voice-fill",
+					id: "fill-inputs",
 				});
 			},
 			onSuccess: (data) => {
@@ -361,7 +482,7 @@ const PDFFormSection = () => {
 				// Clear audio recordings after successful fill
 				setAudioRecordings([]);
 				toast.success("Felder mit Spracheingabe ausgefüllt", {
-					id: "voice-fill",
+					id: "fill-inputs",
 				});
 			},
 		}),
@@ -623,7 +744,7 @@ const PDFFormSection = () => {
 		return "Audioaufnahme starten";
 	})();
 
-	const handleVoiceFill = useCallback(async () => {
+	const handleFillInputs = useCallback(async () => {
 		if (audioRecordings.length === 0) {
 			toast.error("Bitte zuerst Audio aufnehmen");
 			return;
@@ -635,7 +756,7 @@ const PDFFormSection = () => {
 		}
 
 		toast.loading("Felder werden mit Spracheingabe ausgefüllt...", {
-			id: "voice-fill",
+			id: "fill-inputs",
 		});
 
 		// Convert audio blobs to base64
@@ -646,12 +767,9 @@ const PDFFormSection = () => {
 			}),
 		);
 
-		const inputFields: InputField[] = fieldMapping.map((field) => ({
-			description: field.description,
-			label: field.label,
-		}));
-		voiceFillMutation.mutate({ audioFiles, inputFields });
-	}, [audioRecordings, fieldMapping, voiceFillMutation]);
+		const inputFields = fieldMapping.map(toInputField);
+		fillInputsMutation.mutate({ audioFiles, inputFields });
+	}, [audioRecordings, fieldMapping, fillInputsMutation]);
 
 	const handlePreviewTabValueChange = useCallback((value: string) => {
 		setActivePreviewTab(value as "pdf" | "markdown");
@@ -679,77 +797,18 @@ const PDFFormSection = () => {
 						</Button>
 					</div>
 
-					{/* Voice Input Section */}
-					{pdfFile && fieldMapping.length > 0 && (
-						<div className="mb-4 rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-4">
-							<div className="mb-3 flex items-center justify-between">
-								<h3 className="font-medium text-sm">Sprachausfüllung</h3>
-								<Button
-									className={isRecording ? "bg-solarized-red" : ""}
-									disabled={!(canRecord || isRecording)}
-									onClick={handleToggleRecording}
-									size="sm"
-									title={recordingButtonTitle}
-									variant={isRecording ? "default" : "outline"}
-								>
-									{isRecording ? (
-										<>
-											<Square className="mr-2 h-4 w-4" />
-											Stoppen
-										</>
-									) : (
-										<>
-											<Mic className="mr-2 h-4 w-4" />
-											Aufnahme
-										</>
-									)}
-								</Button>
-							</div>
-
-							{/* Audio Recordings List */}
-							{audioRecordings.length > 0 && (
-								<div className="mb-3 space-y-2">
-									{audioRecordings.map((recording, index) => (
-										<div
-											className="flex items-center justify-between rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2"
-											key={recording.id}
-										>
-											<div className="flex items-center gap-2 text-sm text-solarized-green">
-												<Mic className="h-4 w-4" />
-												<span>
-													Aufnahme {index + 1} ({formatDuration(recording.duration)})
-												</span>
-											</div>
-											<Button
-												onClick={handleRemoveRecordingById[recording.id]}
-												size="sm"
-												variant="ghost"
-											>
-												<X className="h-4 w-4" />
-											</Button>
-										</div>
-									))}
-								</div>
-							)}
-
-							{/* Voice Fill Button */}
-							<Button
-								className="w-full"
-								disabled={audioRecordings.length === 0 || voiceFillMutation.isPending}
-								onClick={handleVoiceFill}
-								variant="default"
-							>
-								{voiceFillMutation.isPending ? (
-									"Wird ausgefüllt..."
-								) : (
-									<>
-										<Mic className="mr-2 h-4 w-4" />
-										Mit Sprache ausfüllen
-									</>
-								)}
-							</Button>
-						</div>
-					)}
+					<VoiceInputSection
+						audioRecordings={audioRecordings}
+						canRecord={canRecord}
+						fieldMappingLength={fieldMapping.length}
+						isFillingInputs={fillInputsMutation.isPending}
+						isRecording={isRecording}
+						onFillInputs={handleFillInputs}
+						onRemoveRecordingById={handleRemoveRecordingById}
+						onToggleRecording={handleToggleRecording}
+						pdfFile={pdfFile}
+						recordingButtonTitle={recordingButtonTitle}
+					/>
 
 					<PDFInputs
 						key={`inputs-${inputsKey}`}

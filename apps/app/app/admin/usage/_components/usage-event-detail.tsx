@@ -12,11 +12,7 @@ import { FlaskConical, Loader2, Medal } from "lucide-react";
 import Link from "next/link";
 
 import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
-import {
-	allScribeDocTypes,
-	isScribeDocType,
-	scribeDocTypeUi,
-} from "@/app/admin/playground/_lib/scribe-doc-types";
+import { isScribeDocType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import {
 	formatDuration,
 	formatScore,
@@ -24,14 +20,8 @@ import {
 	getUsageEvaluation,
 } from "@/app/admin/usage/columns";
 import type { UsageDetailEvent } from "@/app/admin/usage/types";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
-
-const promptNameToDocumentType = new Map(
-	allScribeDocTypes.map((documentType) => [
-		scribeDocTypeUi[documentType].defaultPromptName,
-		documentType,
-	]),
-);
 
 const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
 	if (!metadata) {
@@ -39,15 +29,13 @@ const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentTy
 	}
 
 	const { endpoint } = metadata;
-	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		if (isScribeDocType(endpoint)) {
-			return endpoint;
-		}
+	if (typeof endpoint === "string" && endpoint.trim().length > 0 && isScribeDocType(endpoint)) {
+		return endpoint;
 	}
 
 	const { promptName } = metadata;
 	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return promptNameToDocumentType.get(promptName);
+		return resolvePromptHarnessId(promptName);
 	}
 
 	return undefined;
@@ -81,8 +69,8 @@ const buildPlaygroundUrl = (event: UsageDetailEvent): string => {
 		}
 		if (metadata.thinkingEnabled) {
 			params.set("thinking", "true");
-			if (metadata.thinkingBudget !== undefined) {
-				params.set("thinkingBudget", String(metadata.thinkingBudget));
+			if (typeof metadata.reasoningEffort === "string") {
+				params.set("reasoningEffort", metadata.reasoningEffort);
 			}
 		}
 	}
@@ -228,7 +216,7 @@ export const UsageEventDetail = ({
 										) : (
 											<Medal className="h-3.5 w-3.5 text-solarized-yellow" />
 										)}
-										{isEvaluating ? "..." : formatScore(undefined)}
+											{isEvaluating ? "..." : formatScore()}
 									</Button>
 								)}
 							</div>

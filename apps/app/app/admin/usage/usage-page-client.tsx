@@ -137,7 +137,9 @@ const StatsMetricButton = ({
 					isActive && styles.text,
 				)}
 			>
-				<span className={cn("hidden h-2 w-2 rounded-full", isActive && "inline-block", styles.dot)} />
+				<span
+					className={cn("hidden h-2 w-2 rounded-full", isActive && "inline-block", styles.dot)}
+				/>
 				{value}
 			</p>
 		</button>
@@ -166,34 +168,518 @@ const UsageToolbar = ({
 	</div>
 );
 
-export default function UsagePage() {
-	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-	const [cursor, setCursor] = useState<string | undefined>();
-	const [allItems, setAllItems] = useState<UsageListEvent[]>([]);
-	const [evaluationByEventId, setEvaluationByEventId] = useState<Record<string, UsageEvaluation>>(
-		{},
-	);
+const LoadingMetricValue = () => <Loader2 className="h-4 w-4 animate-spin" />;
+
+const formatLoadedNumber = (isLoading: boolean, value?: number | null) => {
+	if (isLoading) {
+		return <LoadingMetricValue />;
+	}
+	return value?.toLocaleString("de-DE") ?? "-";
+};
+
+const formatLoadedCost = (isLoading: boolean, value?: number | null) => {
+	if (isLoading) {
+		return <LoadingMetricValue />;
+	}
+	if (value === undefined || value === null) {
+		return "-";
+	}
+	return `$${value.toFixed(2)}`;
+};
+
+const formatLoadedDuration = (isLoading: boolean, value?: number | null) => {
+	if (isLoading) {
+		return <LoadingMetricValue />;
+	}
+	return formatDuration(value);
+};
+
+const formatLoadedTokensPerSecond = (isLoading: boolean, value?: number | null) => {
+	if (isLoading) {
+		return <LoadingMetricValue />;
+	}
+	return formatStatTokensPerSecond(value);
+};
+
+const UsageLoadingState = () => (
+	<div className="p-4 sm:p-6">
+		<div className="mx-auto max-w-6xl">
+			<div className="flex min-h-[300px] items-center justify-center sm:min-h-[400px]">
+				<div className="flex items-center gap-2 text-solarized-base01">
+					<Loader2 className="h-5 w-5 animate-spin" />
+					<span className="text-sm sm:text-base">Events werden geladen...</span>
+				</div>
+			</div>
+		</div>
+	</div>
+);
+
+const UsageErrorState = ({ message }: { message: string }) => (
+	<div className="p-4 sm:p-6">
+		<div className="mx-auto max-w-6xl">
+			<div className="flex min-h-[300px] items-center justify-center sm:min-h-[400px]">
+				<div className="space-y-2 text-center">
+					<XCircle className="mx-auto h-8 w-8 text-solarized-red" />
+					<h2 className="text-base font-semibold text-solarized-base00 sm:text-lg">
+						Seite konnte nicht geladen werden
+					</h2>
+					<p className="text-sm text-solarized-base01 sm:text-base">{message}</p>
+				</div>
+			</div>
+		</div>
+	</div>
+);
+
+const UsageStatsCard = ({
+	averageCompletionLabel,
+	averageFirstTokenLabel,
+	onStatsFilterChange,
+	onTrendMetricChange,
+	statsFilter,
+	tokensPerSecondLabel,
+	totalCostLabel,
+	totalEventsLabel,
+	totalTokensLabel,
+	trendMetric,
+}: {
+	averageCompletionLabel: ReactNode;
+	averageFirstTokenLabel: ReactNode;
+	onStatsFilterChange: (value: string) => void;
+	onTrendMetricChange: (metric: UsageTrendMetric) => void;
+	statsFilter: StatsFilter;
+	tokensPerSecondLabel: ReactNode;
+	totalCostLabel: ReactNode;
+	totalEventsLabel: ReactNode;
+	totalTokensLabel: ReactNode;
+	trendMetric: UsageTrendMetric;
+}) => (
+	<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
+		<CardContent className="p-4 sm:pt-6">
+			<div className="mb-4 grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
+				{(Object.keys(filterLabels) as StatsFilter[]).map((filter) => {
+					const isActive = statsFilter === filter;
+					return (
+						<Button
+							key={filter}
+							type="button"
+							variant="outline"
+							onClick={() => onStatsFilterChange(filter)}
+							className={cn(
+								"h-9 w-full border-solarized-base2 bg-solarized-base3 text-solarized-base01 shadow-none hover:border-solarized-blue/40 hover:bg-solarized-blue/10 hover:text-solarized-blue",
+								isActive &&
+									"border-solarized-blue bg-solarized-blue/10 text-solarized-blue hover:border-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue",
+							)}
+						>
+							{filterLabels[filter]}
+						</Button>
+					);
+				})}
+			</div>
+
+			<div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+				<StatsMetricButton
+					isActive={trendMetric === "events"}
+					label="Events"
+					metric="events"
+					onSelect={onTrendMetricChange}
+					value={totalEventsLabel}
+				/>
+				<StatsMetricButton
+					isActive={trendMetric === "tokens"}
+					label="Tokens"
+					metric="tokens"
+					onSelect={onTrendMetricChange}
+					value={totalTokensLabel}
+				/>
+				<StatsMetricButton
+					isActive={trendMetric === "timeToFirstTokenMs"}
+					label="Erster Token"
+					metric="timeToFirstTokenMs"
+					onSelect={onTrendMetricChange}
+					value={averageFirstTokenLabel}
+				/>
+				<StatsMetricButton
+					isActive={trendMetric === "timeToCompletionMs"}
+					label="Dauer"
+					metric="timeToCompletionMs"
+					onSelect={onTrendMetricChange}
+					value={averageCompletionLabel}
+				/>
+				<StatsMetricButton
+					isActive={trendMetric === "tokensPerSecond"}
+					label="Tokens/s"
+					metric="tokensPerSecond"
+					onSelect={onTrendMetricChange}
+					value={tokensPerSecondLabel}
+				/>
+				<StatsMetricButton
+					isActive={trendMetric === "cost"}
+					label="Kosten"
+					metric="cost"
+					onSelect={onTrendMetricChange}
+					value={totalCostLabel}
+				/>
+			</div>
+		</CardContent>
+	</Card>
+);
+
+const UsageMobileCards = ({
+	evaluatingEventId,
+	isEvaluating,
+	items,
+	onEvaluate,
+	onSelectById,
+}: {
+	evaluatingEventId?: string;
+	isEvaluating: boolean;
+	items: UsageListEvent[];
+	onEvaluate: (id: string) => void;
+	onSelectById: Record<string, () => void>;
+}) => (
+	<div className="space-y-3 md:hidden">
+		{items.length === 0 ? (
+			<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/60 p-4 text-sm text-solarized-base01">
+				Keine Events gefunden.
+			</div>
+		) : (
+			items.map((item) => {
+				const promptLabel = getPromptLabel(item.metadata as Record<string, unknown> | null);
+				const evaluation = getUsageEvaluation(item.metadata);
+				const isEvaluatingItem = isEvaluating && evaluatingEventId === item.id;
+				const modelLabel = item.model?.split("/").pop() || "-";
+
+				return (
+					<div
+						key={item.id}
+						className="rounded-lg border border-solarized-base2 bg-solarized-base3/50 p-4"
+					>
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<p className="truncate font-medium text-solarized-base00">
+									{item.user?.name || "Unbekannt"}
+								</p>
+								<p className="truncate text-xs text-solarized-base01">
+									{item.user?.email || "Kein Benutzer"}
+								</p>
+							</div>
+							<div className="text-right">
+								<p className="text-xs text-solarized-base01">{formatDate(item.timestamp)}</p>
+								<p className="font-mono text-sm text-solarized-base00">{formatCost(item.cost)}</p>
+							</div>
+						</div>
+
+						<div className="mt-3 flex flex-wrap gap-2">
+							<Badge variant="outline">{item.name}</Badge>
+							{promptLabel !== "-" && (
+								<Badge variant="secondary" className="max-w-full truncate">
+									{promptLabel}
+								</Badge>
+							)}
+						</div>
+
+						<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+								<p className="text-solarized-base01">Modell</p>
+								<p className="truncate font-mono text-solarized-base00">{modelLabel}</p>
+							</div>
+							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+								<p className="text-solarized-base01">Tokens</p>
+								<p className="font-mono text-solarized-base00">
+									{item.totalTokens?.toLocaleString("de-DE") ?? "-"}
+								</p>
+							</div>
+							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+								<p className="text-solarized-base01">Dauer</p>
+								<p className="font-mono text-solarized-base00">
+									{formatDuration(item.timeToCompletionMs)}
+								</p>
+							</div>
+							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+								<p className="text-solarized-base01">Tokens/s</p>
+								<p className="font-mono text-solarized-base00">
+									{formatTokensPerSecond(item.outputTokens, item.timeToCompletionMs)}
+								</p>
+							</div>
+							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+								<p className="text-solarized-base01">Score</p>
+								{evaluation ? (
+									<EvaluationDetailsDialog
+										canRegenerate={!isEvaluatingItem}
+										evaluation={evaluation}
+										isRegenerating={isEvaluatingItem}
+										onRegenerate={() => onEvaluate(item.id)}
+										trigger={
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="h-6 gap-1 px-0 font-mono text-xs text-solarized-base00"
+											>
+												<Medal className="h-3 w-3 text-solarized-yellow" />
+												{formatScore(evaluation.totalScore)}
+											</Button>
+										}
+									/>
+								) : (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										disabled={isEvaluatingItem}
+										onClick={() => onEvaluate(item.id)}
+										className="h-6 gap-1 px-0 font-mono text-xs text-solarized-base00"
+									>
+										{isEvaluatingItem ? (
+											<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
+										) : (
+											<Medal className="h-3 w-3 text-solarized-yellow" />
+										)}
+										{isEvaluatingItem ? "..." : "-"}
+									</Button>
+								)}
+							</div>
+						</div>
+
+						<div className="mt-3 flex flex-col gap-2">
+							<Button variant="outline" onClick={onSelectById[item.id]} className="w-full">
+								Details anzeigen
+							</Button>
+							<Button asChild className="w-full" variant="secondary">
+								<Link href={buildPlaygroundUrl(item)}>Im Playground öffnen</Link>
+							</Button>
+						</div>
+					</div>
+				);
+			})
+		)}
+	</div>
+);
+
+const UsageEventsCard = ({
+	columns,
+	evaluatingEventId,
+	filteredItems,
+	hasMore,
+	isEvaluating,
+	isFetchingList,
+	onEvaluate,
+	onLoadMore,
+	onRowClick,
+	onSearchFilterChange,
+	onSelectById,
+	renderToolbar,
+	searchFilter,
+}: {
+	columns: ReturnType<typeof createColumns>;
+	evaluatingEventId?: string;
+	filteredItems: UsageListEvent[];
+	hasMore?: boolean;
+	isEvaluating: boolean;
+	isFetchingList: boolean;
+	onEvaluate: (id: string) => void;
+	onLoadMore: () => void;
+	onRowClick: (row: UsageListEvent) => void;
+	onSearchFilterChange: (event: ChangeEvent<HTMLInputElement>) => void;
+	onSelectById: Record<string, () => void>;
+	renderToolbar: (table: DataTableRenderToolbarProps<UsageListEvent>["table"]) => ReactNode;
+	searchFilter: string;
+}) => (
+	<Card className="border-solarized-base2">
+		<CardHeader>
+			<CardTitle className="text-solarized-base00">Nutzungs-Events</CardTitle>
+			<CardDescription>
+				Alle AI-Generierungen mit Details zu Kosten und Token-Nutzung
+			</CardDescription>
+		</CardHeader>
+		<CardContent className="space-y-4">
+			<div className="space-y-3 md:hidden">
+				<Input
+					placeholder="Benutzer oder Aktion suchen..."
+					value={searchFilter}
+					onChange={onSearchFilterChange}
+				/>
+				<UsageMobileCards
+					evaluatingEventId={evaluatingEventId}
+					isEvaluating={isEvaluating}
+					items={filteredItems}
+					onEvaluate={onEvaluate}
+					onSelectById={onSelectById}
+				/>
+			</div>
+
+			<div className="hidden md:block">
+				<DataTable
+					columns={columns}
+					data={filteredItems}
+					onRowClick={onRowClick}
+					enablePagination={false}
+					enableFiltering={false}
+					emptyMessage="Keine Events gefunden"
+					renderToolbar={renderToolbar}
+				/>
+			</div>
+
+			{hasMore ? (
+				<div className="mt-4 flex justify-center">
+					<Button
+						variant="outline"
+						onClick={onLoadMore}
+						disabled={isFetchingList}
+						className="border-solarized-base2"
+					>
+						{isFetchingList ? (
+							<>
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								Lädt...
+							</>
+						) : (
+							"Mehr laden"
+						)}
+					</Button>
+				</div>
+			) : null}
+		</CardContent>
+	</Card>
+);
+
+const mergeUsageItems = (
+	currentItems: UsageListEvent[],
+	nextItems: UsageListEvent[],
+	cursor: string | undefined,
+) => {
+	if (cursor === undefined) {
+		return nextItems;
+	}
+
+	const existingIds = new Set(currentItems.map((item) => item.id));
+	const newItems = nextItems.filter((item) => !existingIds.has(item.id));
+	return [...currentItems, ...newItems];
+};
+
+const getMetadataRecord = (metadata: unknown): Record<string, unknown> => {
+	if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+		return metadata as Record<string, unknown>;
+	}
+	return {};
+};
+
+const applyUsageEvaluationToItems = (
+	items: UsageListEvent[],
+	eventId: string,
+	evaluation: UsageEvaluation,
+) =>
+	items.map((item) => {
+		if (item.id !== eventId) {
+			return item;
+		}
+		return {
+			...item,
+			metadata: {
+				...getMetadataRecord(item.metadata),
+				usageEvaluation: evaluation,
+			},
+		};
+	});
+
+const resolveSelectedEventWithEvaluation = (
+	selectedEvent: UsageDetailEvent | null | undefined,
+	evaluationByEventId: Record<string, UsageEvaluation>,
+): UsageDetailEvent | null | undefined => {
+	if (!selectedEvent) {
+		return selectedEvent;
+	}
+
+	const evaluation = evaluationByEventId[selectedEvent.id];
+	if (!evaluation) {
+		return selectedEvent;
+	}
+
+	return {
+		...selectedEvent,
+		metadata: {
+			...getMetadataRecord(selectedEvent.metadata),
+			usageEvaluation: evaluation,
+		},
+	};
+};
+
+const filterUsageItems = (items: UsageListEvent[], searchFilter: string) => {
+	const search = searchFilter.trim().toLowerCase();
+	if (!search) {
+		return items;
+	}
+
+	return items.filter((item) => {
+		const userName = item.user?.name?.toLowerCase() ?? "";
+		const userEmail = item.user?.email?.toLowerCase() ?? "";
+		const actionName = item.name?.toLowerCase() ?? "";
+		return userName.includes(search) || userEmail.includes(search) || actionName.includes(search);
+	});
+};
+
+const getUsageErrorMessage = (error: unknown) => {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (error) {
+		return String(error);
+	}
+	return "Fehler beim Laden der Events";
+};
+
+const getFallbackTrendGranularity = (statsFilter: StatsFilter) =>
+	statsFilter === "today" ? "hour" : "day";
+
+const useUsageStatsState = () => {
 	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
 	const [trendMetric, setTrendMetric] = useState<UsageTrendMetric>("events");
 	const [timeZone, setTimeZone] = useState("UTC");
-	const [searchFilter, setSearchFilter] = useState("");
 	const statsQueryOptions = orpc.admin.usage.stats.queryOptions({
 		input: { filter: statsFilter, timeZone },
 	});
-
-	// Stats query
 	const { data: stats, isLoading: statsLoading } = useQuery(statsQueryOptions);
 
 	useEffect(() => {
 		setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
 	}, []);
 
-	// List query with pagination
+	const handleStatsFilterChange = useCallback((value: string) => {
+		if (value) {
+			setStatsFilter(value as StatsFilter);
+		}
+	}, []);
+
+	return {
+		averageCompletionLabel: formatLoadedDuration(statsLoading, stats?.averageTimeToCompletionMs),
+		averageFirstTokenLabel: formatLoadedDuration(statsLoading, stats?.averageTimeToFirstTokenMs),
+		handleStatsFilterChange,
+		setTrendMetric,
+		stats,
+		statsFilter,
+		statsLoading,
+		timeZone,
+		tokensPerSecondLabel: formatLoadedTokensPerSecond(statsLoading, stats?.tokensPerSecond),
+		totalCostLabel: formatLoadedCost(statsLoading, stats?.totalCost),
+		totalEventsLabel: formatLoadedNumber(statsLoading, stats?.totalEvents),
+		totalTokensLabel: formatLoadedNumber(statsLoading, stats?.totalTokens),
+		trendMetric,
+	};
+};
+
+const useUsageEventsState = () => {
+	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+	const [cursor, setCursor] = useState<string | undefined>();
+	const [allItems, setAllItems] = useState<UsageListEvent[]>([]);
+	const [evaluationByEventId, setEvaluationByEventId] = useState<Record<string, UsageEvaluation>>(
+		{},
+	);
+	const [searchFilter, setSearchFilter] = useState("");
 	const {
 		data,
-		isLoading,
-		isFetching: isFetchingList,
 		error,
+		isFetching: isFetchingList,
+		isLoading,
 	} = useQuery({
 		...orpc.admin.usage.list.queryOptions({
 			input: {
@@ -204,24 +690,12 @@ export default function UsagePage() {
 		placeholderData: (prev) => prev,
 	});
 
-	// Accumulate items when new data arrives
 	useEffect(() => {
 		if (data?.items) {
-			if (cursor === undefined) {
-				// First page
-				setAllItems(data.items);
-			} else {
-				// Subsequent pages - append new items
-				setAllItems((prev) => {
-					const existingIds = new Set(prev.map((item) => item.id));
-					const newItems = data.items.filter((item) => !existingIds.has(item.id));
-					return [...prev, ...newItems];
-				});
-			}
+			setAllItems((current) => mergeUsageItems(current, data.items, cursor));
 		}
 	}, [data?.items, cursor]);
 
-	// Detail query (enabled when event selected)
 	const { data: selectedEvent } = useQuery({
 		...orpc.admin.usage.get.queryOptions({
 			input: { id: selectedEventId ?? "" },
@@ -237,24 +711,7 @@ export default function UsagePage() {
 					...current,
 					[eventId]: evaluation,
 				}));
-				setAllItems((current) =>
-					current.map((item) => {
-						if (item.id !== eventId) {
-							return item;
-						}
-						const metadata =
-							item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-								? (item.metadata as Record<string, unknown>)
-								: {};
-						return {
-							...item,
-							metadata: {
-								...metadata,
-								usageEvaluation: evaluation,
-							},
-						};
-					}),
-				);
+				setAllItems((current) => applyUsageEvaluationToItems(current, eventId, evaluation));
 			},
 		}),
 	);
@@ -264,18 +721,23 @@ export default function UsagePage() {
 			setCursor(data.nextCursor);
 		}
 	}, [data?.nextCursor]);
-
 	const handleEvaluateEvent = useCallback(
 		(id: string) => {
 			evaluateMutation.mutate({ id });
 		},
 		[evaluateMutation],
 	);
-
 	const handleRowClick = useCallback((row: UsageListEvent) => {
 		setSelectedEventId(row.id);
 	}, []);
-
+	const handleSearchFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		setSearchFilter(event.target.value);
+	}, []);
+	const handleDetailOpenChange = useCallback((open: boolean) => {
+		if (!open) {
+			setSelectedEventId(null);
+		}
+	}, []);
 	const columns = useMemo(
 		() =>
 			createColumns({
@@ -284,17 +746,6 @@ export default function UsagePage() {
 			}),
 		[evaluateMutation.isPending, evaluateMutation.variables?.id, handleEvaluateEvent],
 	);
-
-	const handleStatsFilterChange = useCallback((value: string) => {
-		if (value) {
-			setStatsFilter(value as StatsFilter);
-		}
-	}, []);
-
-	const handleSearchFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-		setSearchFilter(event.target.value);
-	}, []);
-
 	const renderUsageToolbar = useCallback(
 		(table: DataTableRenderToolbarProps<UsageListEvent>["table"]) => (
 			<UsageToolbar
@@ -305,50 +756,14 @@ export default function UsagePage() {
 		),
 		[handleSearchFilterChange, searchFilter],
 	);
-
-	const handleDetailOpenChange = useCallback((open: boolean) => {
-		if (!open) {
-			setSelectedEventId(null);
-		}
-	}, []);
-
-	const selectedEventWithEvaluation = useMemo(() => {
-		if (!selectedEvent) {
-			return selectedEvent as UsageDetailEvent | null | undefined;
-		}
-		const evaluation = evaluationByEventId[selectedEvent.id];
-		if (!evaluation) {
-			return selectedEvent as UsageDetailEvent;
-		}
-		const metadata =
-			selectedEvent.metadata &&
-			typeof selectedEvent.metadata === "object" &&
-			!Array.isArray(selectedEvent.metadata)
-				? (selectedEvent.metadata as Record<string, unknown>)
-				: {};
-		return {
-			...selectedEvent,
-			metadata: {
-				...metadata,
-				usageEvaluation: evaluation,
-			},
-		} as UsageDetailEvent;
-	}, [evaluationByEventId, selectedEvent]);
-
-	// Filter items based on search - matches user name/email OR action name
-	const filteredItems = useMemo(() => {
-		if (!searchFilter.trim()) {
-			return allItems;
-		}
-		const search = searchFilter.toLowerCase();
-		return allItems.filter((item) => {
-			const userName = item.user?.name?.toLowerCase() ?? "";
-			const userEmail = item.user?.email?.toLowerCase() ?? "";
-			const actionName = item.name?.toLowerCase() ?? "";
-			return userName.includes(search) || userEmail.includes(search) || actionName.includes(search);
-		});
-	}, [allItems, searchFilter]);
-
+	const selectedEventWithEvaluation = useMemo(
+		() => resolveSelectedEventWithEvaluation(selectedEvent, evaluationByEventId),
+		[evaluationByEventId, selectedEvent],
+	);
+	const filteredItems = useMemo(
+		() => filterUsageItems(allItems, searchFilter),
+		[allItems, searchFilter],
+	);
 	const handleEventSelectionById = useMemo<Record<string, () => void>>(() => {
 		const handlers: Record<string, () => void> = {};
 		for (const item of filteredItems) {
@@ -359,79 +774,44 @@ export default function UsagePage() {
 		return handlers;
 	}, [filteredItems]);
 
-	const errorMessage = (() => {
-		if (error instanceof Error) {
-			return error.message;
-		}
-		if (error) {
-			return String(error);
-		}
-		return "Fehler beim Laden der Events";
-	})();
+	return {
+		allItems,
+		columns,
+		data,
+		error,
+		errorMessage: getUsageErrorMessage(error),
+		evaluateMutation,
+		filteredItems,
+		handleDetailOpenChange,
+		handleEvaluateEvent,
+		handleEventSelectionById,
+		handleLoadMore,
+		handleRowClick,
+		handleSearchFilterChange,
+		isFetchingList,
+		isLoading,
+		renderUsageToolbar,
+		searchFilter,
+		selectedEventId,
+		selectedEventWithEvaluation,
+	};
+};
 
-	const totalCostLabel = (() => {
-		if (statsLoading) {
-			return <Loader2 className="h-4 w-4 animate-spin" />;
-		}
-		if (stats?.totalCost === undefined) {
-			return "-";
-		}
-		return `$${stats.totalCost.toFixed(2)}`;
-	})();
+export default function UsagePage() {
+	const statsState = useUsageStatsState();
+	const eventsState = useUsageEventsState();
 
-	const averageFirstTokenLabel = statsLoading ? (
-		<Loader2 className="h-4 w-4 animate-spin" />
-	) : (
-		formatDuration(stats?.averageTimeToFirstTokenMs)
-	);
-	const averageCompletionLabel = statsLoading ? (
-		<Loader2 className="h-4 w-4 animate-spin" />
-	) : (
-		formatDuration(stats?.averageTimeToCompletionMs)
-	);
-	const tokensPerSecondLabel = statsLoading ? (
-		<Loader2 className="h-4 w-4 animate-spin" />
-	) : (
-		formatStatTokensPerSecond(stats?.tokensPerSecond)
-	);
-
-	if (isLoading && allItems.length === 0) {
-		return (
-			<div className="p-4 sm:p-6">
-				<div className="mx-auto max-w-6xl">
-					<div className="flex min-h-[300px] items-center justify-center sm:min-h-[400px]">
-						<div className="flex items-center gap-2 text-solarized-base01">
-							<Loader2 className="h-5 w-5 animate-spin" />
-							<span className="text-sm sm:text-base">Events werden geladen...</span>
-						</div>
-					</div>
-				</div>
-			</div>
-		);
+	if (eventsState.isLoading && eventsState.allItems.length === 0) {
+		return <UsageLoadingState />;
 	}
 
-	if (error && allItems.length === 0) {
-		return (
-			<div className="p-4 sm:p-6">
-				<div className="mx-auto max-w-6xl">
-					<div className="flex min-h-[300px] items-center justify-center sm:min-h-[400px]">
-						<div className="space-y-2 text-center">
-							<XCircle className="mx-auto h-8 w-8 text-solarized-red" />
-							<h2 className="text-base font-semibold text-solarized-base00 sm:text-lg">
-								Seite konnte nicht geladen werden
-							</h2>
-							<p className="text-sm text-solarized-base01 sm:text-base">{errorMessage}</p>
-						</div>
-					</div>
-				</div>
-			</div>
-		);
+	if (eventsState.error && eventsState.allItems.length === 0) {
+		return <UsageErrorState message={eventsState.errorMessage} />;
 	}
 
 	return (
 		<div className="p-4 sm:p-6">
 			<div className="mx-auto max-w-6xl space-y-4 sm:space-y-6">
-				{/* Header */}
 				<div className="space-y-2">
 					<div className="flex items-center gap-3">
 						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-solarized-green/10 sm:h-12 sm:w-12">
@@ -448,290 +828,57 @@ export default function UsagePage() {
 					</div>
 				</div>
 
-				{/* Stats Card */}
-				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
-					<CardContent className="p-4 sm:pt-6">
-						{/* Filter Tabs */}
-						<div className="mb-4 grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
-							{(Object.keys(filterLabels) as StatsFilter[]).map((filter) => {
-								const isActive = statsFilter === filter;
-								return (
-									<Button
-										key={filter}
-										type="button"
-										variant="outline"
-										onClick={() => handleStatsFilterChange(filter)}
-										className={cn(
-											"h-9 w-full border-solarized-base2 bg-solarized-base3 text-solarized-base01 shadow-none hover:border-solarized-blue/40 hover:bg-solarized-blue/10 hover:text-solarized-blue",
-											isActive &&
-												"border-solarized-blue bg-solarized-blue/10 text-solarized-blue hover:border-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue",
-										)}
-									>
-										{filterLabels[filter]}
-									</Button>
-								);
-							})}
-						</div>
-
-						{/* Stats Grid */}
-						<div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-							<StatsMetricButton
-								isActive={trendMetric === "events"}
-								label="Events"
-								metric="events"
-								onSelect={setTrendMetric}
-								value={
-									statsLoading ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (
-										(stats?.totalEvents?.toLocaleString("de-DE") ?? "-")
-									)
-								}
-							/>
-							<StatsMetricButton
-								isActive={trendMetric === "tokens"}
-								label="Tokens"
-								metric="tokens"
-								onSelect={setTrendMetric}
-								value={
-									statsLoading ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (
-										(stats?.totalTokens?.toLocaleString("de-DE") ?? "-")
-									)
-								}
-							/>
-							<StatsMetricButton
-								isActive={trendMetric === "timeToFirstTokenMs"}
-								label="Erster Token"
-								metric="timeToFirstTokenMs"
-								onSelect={setTrendMetric}
-								value={averageFirstTokenLabel}
-							/>
-							<StatsMetricButton
-								isActive={trendMetric === "timeToCompletionMs"}
-								label="Dauer"
-								metric="timeToCompletionMs"
-								onSelect={setTrendMetric}
-								value={averageCompletionLabel}
-							/>
-							<StatsMetricButton
-								isActive={trendMetric === "tokensPerSecond"}
-								label="Tokens/s"
-								metric="tokensPerSecond"
-								onSelect={setTrendMetric}
-								value={tokensPerSecondLabel}
-							/>
-							<StatsMetricButton
-								isActive={trendMetric === "cost"}
-								label="Kosten"
-								metric="cost"
-								onSelect={setTrendMetric}
-								value={totalCostLabel}
-							/>
-						</div>
-					</CardContent>
-				</Card>
+				<UsageStatsCard
+					averageCompletionLabel={statsState.averageCompletionLabel}
+					averageFirstTokenLabel={statsState.averageFirstTokenLabel}
+					onStatsFilterChange={statsState.handleStatsFilterChange}
+					onTrendMetricChange={statsState.setTrendMetric}
+					statsFilter={statsState.statsFilter}
+					tokensPerSecondLabel={statsState.tokensPerSecondLabel}
+					totalCostLabel={statsState.totalCostLabel}
+					totalEventsLabel={statsState.totalEventsLabel}
+					totalTokensLabel={statsState.totalTokensLabel}
+					trendMetric={statsState.trendMetric}
+				/>
 
 				<UsageTrendChart
-					activeMetric={trendMetric}
-					filter={statsFilter}
-					isLoading={statsLoading}
-					timeZone={stats?.timeZone ?? timeZone}
-					trend={stats?.trend ?? []}
+					activeMetric={statsState.trendMetric}
+					filter={statsState.statsFilter}
+					isLoading={statsState.statsLoading}
+					timeZone={statsState.stats?.timeZone ?? statsState.timeZone}
+					trend={statsState.stats?.trend ?? []}
 					trendGranularity={
-						stats?.trendGranularity ?? (statsFilter === "today" ? "hour" : "day")
+						statsState.stats?.trendGranularity ??
+						getFallbackTrendGranularity(statsState.statsFilter)
 					}
 				/>
 
-				{/* Events Table */}
-				<Card className="border-solarized-base2">
-					<CardHeader>
-						<CardTitle className="text-solarized-base00">Nutzungs-Events</CardTitle>
-						<CardDescription>
-							Alle AI-Generierungen mit Details zu Kosten und Token-Nutzung
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="space-y-3 md:hidden">
-							<Input
-								placeholder="Benutzer oder Aktion suchen..."
-								value={searchFilter}
-								onChange={handleSearchFilterChange}
-							/>
-							{filteredItems.length === 0 ? (
-								<div className="rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/60 p-4 text-sm text-solarized-base01">
-									Keine Events gefunden.
-								</div>
-							) : (
-								filteredItems.map((item) => {
-									const promptLabel = getPromptLabel(
-										item.metadata as Record<string, unknown> | null,
-									);
-									const evaluation = getUsageEvaluation(item.metadata);
-									const isEvaluatingItem =
-										evaluateMutation.isPending && evaluateMutation.variables?.id === item.id;
-									const modelLabel = item.model?.split("/").pop() || "-";
-
-									return (
-										<div
-											key={item.id}
-											className="rounded-lg border border-solarized-base2 bg-solarized-base3/50 p-4"
-										>
-											<div className="flex items-start justify-between gap-3">
-												<div className="min-w-0">
-													<p className="truncate font-medium text-solarized-base00">
-														{item.user?.name || "Unbekannt"}
-													</p>
-													<p className="truncate text-xs text-solarized-base01">
-														{item.user?.email || "Kein Benutzer"}
-													</p>
-												</div>
-												<div className="text-right">
-													<p className="text-xs text-solarized-base01">
-														{formatDate(item.timestamp)}
-													</p>
-													<p className="font-mono text-sm text-solarized-base00">
-														{formatCost(item.cost)}
-													</p>
-												</div>
-											</div>
-
-											<div className="mt-3 flex flex-wrap gap-2">
-												<Badge variant="outline">{item.name}</Badge>
-												{promptLabel !== "-" && (
-													<Badge variant="secondary" className="max-w-full truncate">
-														{promptLabel}
-													</Badge>
-												)}
-											</div>
-
-											<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-													<p className="text-solarized-base01">Modell</p>
-													<p className="truncate font-mono text-solarized-base00">{modelLabel}</p>
-												</div>
-												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-													<p className="text-solarized-base01">Tokens</p>
-													<p className="font-mono text-solarized-base00">
-														{item.totalTokens?.toLocaleString("de-DE") ?? "-"}
-													</p>
-												</div>
-												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-													<p className="text-solarized-base01">Dauer</p>
-													<p className="font-mono text-solarized-base00">
-														{formatDuration(item.timeToCompletionMs)}
-													</p>
-												</div>
-												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-													<p className="text-solarized-base01">Tokens/s</p>
-													<p className="font-mono text-solarized-base00">
-														{formatTokensPerSecond(item.outputTokens, item.timeToCompletionMs)}
-													</p>
-												</div>
-												<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-													<p className="text-solarized-base01">Score</p>
-													{evaluation ? (
-														<EvaluationDetailsDialog
-															canRegenerate={!isEvaluatingItem}
-															evaluation={evaluation}
-															isRegenerating={isEvaluatingItem}
-															onRegenerate={() => handleEvaluateEvent(item.id)}
-															trigger={
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="sm"
-																	className="h-6 gap-1 px-0 font-mono text-xs text-solarized-base00"
-																>
-																	<Medal className="h-3 w-3 text-solarized-yellow" />
-																	{formatScore(evaluation.totalScore)}
-																</Button>
-															}
-														/>
-													) : (
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															disabled={isEvaluatingItem}
-															onClick={() => handleEvaluateEvent(item.id)}
-															className="h-6 gap-1 px-0 font-mono text-xs text-solarized-base00"
-														>
-															{isEvaluatingItem ? (
-																<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-															) : (
-																<Medal className="h-3 w-3 text-solarized-yellow" />
-															)}
-															{isEvaluatingItem ? "..." : "-"}
-														</Button>
-													)}
-												</div>
-											</div>
-
-											<div className="mt-3 flex flex-col gap-2">
-												<Button
-													variant="outline"
-													onClick={handleEventSelectionById[item.id]}
-													className="w-full"
-												>
-													Details anzeigen
-												</Button>
-												<Button asChild className="w-full" variant="secondary">
-													<Link href={buildPlaygroundUrl(item)}>Im Playground öffnen</Link>
-												</Button>
-											</div>
-										</div>
-									);
-								})
-							)}
-						</div>
-
-						<div className="hidden md:block">
-							<DataTable
-								columns={columns}
-								data={filteredItems}
-								onRowClick={handleRowClick}
-								enablePagination={false}
-								enableFiltering={false}
-								emptyMessage="Keine Events gefunden"
-								renderToolbar={renderUsageToolbar}
-							/>
-						</div>
-
-						{/* Load More Button */}
-						{data?.hasMore && (
-							<div className="mt-4 flex justify-center">
-								<Button
-									variant="outline"
-									onClick={handleLoadMore}
-									disabled={isFetchingList}
-									className="border-solarized-base2"
-								>
-									{isFetchingList ? (
-										<>
-											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-											Lädt...
-										</>
-									) : (
-										"Mehr laden"
-									)}
-								</Button>
-							</div>
-						)}
-					</CardContent>
-				</Card>
+				<UsageEventsCard
+					columns={eventsState.columns}
+					evaluatingEventId={eventsState.evaluateMutation.variables?.id}
+					filteredItems={eventsState.filteredItems}
+					hasMore={eventsState.data?.hasMore}
+					isEvaluating={eventsState.evaluateMutation.isPending}
+					isFetchingList={eventsState.isFetchingList}
+					onEvaluate={eventsState.handleEvaluateEvent}
+					onLoadMore={eventsState.handleLoadMore}
+					onRowClick={eventsState.handleRowClick}
+					onSearchFilterChange={eventsState.handleSearchFilterChange}
+					onSelectById={eventsState.handleEventSelectionById}
+					renderToolbar={eventsState.renderUsageToolbar}
+					searchFilter={eventsState.searchFilter}
+				/>
 			</div>
 
-			{/* Detail Sheet */}
 			<UsageEventDetail
-				event={selectedEventWithEvaluation}
+				event={eventsState.selectedEventWithEvaluation}
 				isEvaluating={
-					evaluateMutation.isPending && evaluateMutation.variables?.id === selectedEventId
+					eventsState.evaluateMutation.isPending &&
+					eventsState.evaluateMutation.variables?.id === eventsState.selectedEventId
 				}
-				onEvaluate={handleEvaluateEvent}
-				open={!!selectedEventId}
-				onOpenChange={handleDetailOpenChange}
+				onEvaluate={eventsState.handleEvaluateEvent}
+				open={!!eventsState.selectedEventId}
+				onOpenChange={eventsState.handleDetailOpenChange}
 			/>
 		</div>
 	);

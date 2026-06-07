@@ -1,11 +1,18 @@
-import { type } from "@orpc/server";
-import { and, asc, count, desc, eq, favourites, sql, template, templateExample, user } from '@repo/database';
-import type { Template, TemplateExample, User } from '@repo/database';
+import { ORPCError, type } from "@orpc/server";
+import { and, count, desc, eq, favourites, or, sql, template, user } from "@repo/database";
+import type { Database, Template } from "@repo/database";
 import { env } from "@repo/env";
 import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
 
+import type { Session } from "@/lib/auth-types";
+import { resolveProductEntitlements } from "@/lib/product-entitlements";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed, pub } from "@/orpc";
+import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
+
+const templateVisibilitySchema = z.enum(["public", "private"]);
+type TemplateVisibility = z.infer<typeof templateVisibilitySchema>;
 
 const voyageClient = new VoyageAIClient({
 	apiKey: env.VOYAGE_API_KEY as string,
@@ -21,14 +28,17 @@ const favouriteCount = (templateId: typeof template.id) =>
 // Types
 // ============================================================================
 
+interface TemplateAuthorSummary {
+	id: string;
+	image: string | null;
+	name: string | null;
+}
+
 type TemplateWithRelations = Template & {
 	favouriteOf: { id: string }[];
-	examples: TemplateExampleSummary[];
-	author: User;
+	author: TemplateAuthorSummary | null;
 	_count: { favouriteOf: number };
 };
-
-type TemplateExampleSummary = Pick<TemplateExample, "id" | "content">;
 
 // ============================================================================
 // Embedding Generation
@@ -55,12 +65,6 @@ ${content}`;
 	return { embedding };
 };
 
-const buildTemplateExampleRows = (templateId: string, examples: string[]) =>
-	examples.map((example) => ({
-		content: example,
-		templateId,
-	}));
-
 // ============================================================================
 // Input Schemas
 // ============================================================================
@@ -77,6 +81,7 @@ const createTemplateInput = z.object({
 		.max(10, "A maximum of 10 examples is allowed")
 		.default([]),
 	name: z.string().min(1, "Name is required"),
+	visibility: templateVisibilitySchema.default("public"),
 });
 
 const updateTemplateInput = z.object({
@@ -88,6 +93,7 @@ const updateTemplateInput = z.object({
 		.default([]),
 	id: z.string(),
 	name: z.string().min(1, "Name is required"),
+	visibility: templateVisibilitySchema.default("public"),
 });
 
 const favouriteInput = z.object({
@@ -121,6 +127,37 @@ const addCategories = (
 	}
 };
 
+const visibleTemplateWhere = (userId?: string | null) =>
+	userId
+		? or(eq(template.visibility, "public"), eq(template.authorId, userId))
+		: eq(template.visibility, "public");
+
+const getOptionalUserId = async (context: unknown) => {
+	const session = await getOptionalAuthSession((context as { session?: Session }).session);
+	return session?.user.id ?? null;
+};
+
+const ensureCanSaveTemplateVisibility = async ({
+	db,
+	userId,
+	visibility,
+}: {
+	db: Database;
+	userId: string;
+	visibility: TemplateVisibility;
+}) => {
+	if (visibility === "public") {
+		return;
+	}
+
+	const entitlements = await resolveProductEntitlements({ db, userId });
+	if (!entitlements.canCreatePrivateTemplates) {
+		throw new ORPCError("FORBIDDEN", {
+			message: USER_MESSAGES.privateTemplateRequiresPlus,
+		});
+	}
+};
+
 // ============================================================================
 // Public Handlers
 // ============================================================================
@@ -129,6 +166,7 @@ const addCategories = (
  * List all templates (public)
  */
 const listTemplatesHandler = pub.handler(async ({ context }) => {
+	const userId = await getOptionalUserId(context);
 	const templates = await context.db
 		.select({
 			_count: {
@@ -138,11 +176,14 @@ const listTemplatesHandler = pub.handler(async ({ context }) => {
 			category: template.category,
 			content: template.content,
 			embedding: template.embedding,
+			examples: template.examples,
 			id: template.id,
 			title: template.title,
 			updatedAt: template.updatedAt,
+			visibility: template.visibility,
 		})
-		.from(template);
+		.from(template)
+		.where(visibleTemplateWhere(userId));
 
 	return templates;
 });
@@ -154,61 +195,58 @@ const getTemplateHandler = pub
 	.input(getTemplateInput)
 	.output(type<TemplateWithRelations | null>())
 	.handler(async ({ context, input }) => {
+		const userId = await getOptionalUserId(context);
 		// Get template with author
 		const [templateData] = await context.db
-				.select({
-					author: {
-						createdAt: user.createdAt,
-						email: user.email,
-						emailVerified: user.emailVerified,
-						id: user.id,
-						image: user.image,
-						name: user.name,
-						stripeCustomerId: user.stripeCustomerId,
-						updatedAt: user.updatedAt,
-					},
+			.select({
+				author: {
+					id: user.id,
+					image: user.image,
+					name: user.name,
+				},
 				authorId: template.authorId,
 				category: template.category,
 				content: template.content,
 				embedding: template.embedding,
+				examples: template.examples,
 				id: template.id,
 				title: template.title,
 				updatedAt: template.updatedAt,
+				visibility: template.visibility,
 			})
 			.from(template)
 			.leftJoin(user, eq(template.authorId, user.id))
-			.where(eq(template.id, input.id))
+			.where(and(eq(template.id, input.id), visibleTemplateWhere(userId)))
 			.limit(1);
 
 		if (!templateData) {
 			return null;
 		}
 
-		const [favouriteUsers, countResult, examples] = await Promise.all([
-			context.db
-				.select({ id: favourites.userId })
-				.from(favourites)
-				.where(eq(favourites.templateId, input.id)),
+		const [favouriteUsers, countResult] = await Promise.all([
+			userId
+				? context.db
+						.select({ id: favourites.userId })
+						.from(favourites)
+						.where(and(eq(favourites.templateId, input.id), eq(favourites.userId, userId)))
+				: Promise.resolve([]),
 			context.db
 				.select({ count: count() })
 				.from(favourites)
 				.where(eq(favourites.templateId, input.id))
 				.then((result) => result[0]),
-			context.db
-				.select({
-					content: templateExample.content,
-					id: templateExample.id,
-				})
-				.from(templateExample)
-				.where(eq(templateExample.templateId, input.id))
-				.orderBy(asc(templateExample.createdAt)),
 		]);
 
 		return {
 			...templateData,
 			_count: { favouriteOf: Number(countResult?.count ?? 0) },
-			author: templateData.author as User,
-			examples,
+			author: templateData.author?.id
+				? {
+						id: templateData.author.id,
+						image: templateData.author.image,
+						name: templateData.author.name,
+					}
+				: null,
 			favouriteOf: favouriteUsers,
 		};
 	});
@@ -230,13 +268,20 @@ const getFavouritesHandler = authed.handler(async ({ context }) => {
 			category: template.category,
 			content: template.content,
 			embedding: template.embedding,
+			examples: template.examples,
 			id: template.id,
 			title: template.title,
 			updatedAt: template.updatedAt,
+			visibility: template.visibility,
 		})
 		.from(template)
 		.innerJoin(favourites, eq(favourites.templateId, template.id))
-		.where(eq(favourites.userId, context.session.user.id))
+		.where(
+			and(
+				eq(favourites.userId, context.session.user.id),
+				visibleTemplateWhere(context.session.user.id),
+			),
+		)
 		.orderBy(desc(template.updatedAt));
 
 	return favoriteTemplates;
@@ -255,9 +300,11 @@ const getAuthoredHandler = authed.handler(async ({ context }) => {
 			category: template.category,
 			content: template.content,
 			embedding: template.embedding,
+			examples: template.examples,
 			id: template.id,
 			title: template.title,
 			updatedAt: template.updatedAt,
+			visibility: template.visibility,
 		})
 		.from(template)
 		.where(eq(template.authorId, context.session.user.id))
@@ -293,7 +340,7 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 			.select({ category: template.category })
 			.from(favourites)
 			.innerJoin(template, eq(favourites.templateId, template.id))
-			.where(eq(favourites.userId, userId))
+			.where(and(eq(favourites.userId, userId), visibleTemplateWhere(userId)))
 			.groupBy(template.category)
 			.orderBy(desc(count()))
 			.limit(limit);
@@ -310,6 +357,7 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 		const allCategories = await context.db
 			.select({ category: template.category })
 			.from(template)
+			.where(eq(template.visibility, "public"))
 			.groupBy(template.category)
 			.orderBy(desc(count()))
 			.limit(limit);
@@ -322,8 +370,14 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 		);
 	}
 
+	const entitlements = await resolveProductEntitlements({
+		db: context.db,
+		userId: context.session.user.id,
+	});
+
 	return {
-		canEditSource: context.session.user.email === env.ADMIN_EMAIL,
+		canCreatePrivateTemplates: entitlements.canCreatePrivateTemplates,
+		canEditSource: context.auth.isAdmin,
 		categorySuggestions,
 	};
 });
@@ -338,11 +392,12 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 const createTemplateHandler = authed
 	.input(createTemplateInput)
 	.handler(async ({ context, input }) => {
-		const { embedding } = await generateEmbeddings(
-			input.content,
-			input.name,
-			input.category,
-		);
+		await ensureCanSaveTemplateVisibility({
+			db: context.db,
+			userId: context.session.user.id,
+			visibility: input.visibility,
+		});
+		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -353,20 +408,16 @@ const createTemplateHandler = authed
 					category: input.category,
 					content: input.content,
 					embedding,
+					examples,
 					title: input.name,
 					updatedAt: new Date(),
+					visibility: input.visibility,
 				})
 				.returning();
 
 			const [newTemplate] = result;
 			if (!newTemplate) {
 				throw new Error("Failed to create template");
-			}
-
-			if (examples.length > 0) {
-				await tx
-					.insert(templateExample)
-					.values(buildTemplateExampleRows(newTemplate.id, examples));
 			}
 
 			return newTemplate;
@@ -379,11 +430,12 @@ const createTemplateHandler = authed
 const updateTemplateHandler = authed
 	.input(updateTemplateInput)
 	.handler(async ({ context, input }) => {
-		const { embedding } = await generateEmbeddings(
-			input.content,
-			input.name,
-			input.category,
-		);
+		await ensureCanSaveTemplateVisibility({
+			db: context.db,
+			userId: context.session.user.id,
+			visibility: input.visibility,
+		});
+		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -393,30 +445,17 @@ const updateTemplateHandler = authed
 					category: input.category,
 					content: input.content,
 					embedding,
+					examples,
 					title: input.name,
 					updatedAt: new Date(),
+					visibility: input.visibility,
 				})
-				.where(
-					and(
-						eq(template.id, input.id),
-						eq(template.authorId, context.session.user.id),
-					),
-				)
+				.where(and(eq(template.id, input.id), eq(template.authorId, context.session.user.id)))
 				.returning();
 
 			const [updatedTemplate] = result;
 			if (!updatedTemplate) {
 				throw new Error("Failed to update template or template not found");
-			}
-
-			await tx
-				.delete(templateExample)
-				.where(eq(templateExample.templateId, updatedTemplate.id));
-
-			if (examples.length > 0) {
-				await tx
-					.insert(templateExample)
-					.values(buildTemplateExampleRows(updatedTemplate.id, examples));
 			}
 
 			return updatedTemplate;
@@ -430,37 +469,45 @@ const updateTemplateHandler = authed
 /**
  * Add a template to favourites
  */
-const addFavouriteHandler = authed
-	.input(favouriteInput)
-	.handler(async ({ context, input }) => {
-		await context.db
-			.insert(favourites)
-			.values({
-				templateId: input.templateId,
-				userId: context.session.user.id,
-			})
-			.onConflictDoNothing();
+const addFavouriteHandler = authed.input(favouriteInput).handler(async ({ context, input }) => {
+	const [visibleTemplate] = await context.db
+		.select({ id: template.id })
+		.from(template)
+		.where(and(eq(template.id, input.templateId), visibleTemplateWhere(context.session.user.id)))
+		.limit(1);
 
-		return { success: true };
-	});
+	if (!visibleTemplate) {
+		throw new ORPCError("NOT_FOUND", {
+			message: "Textbaustein nicht gefunden.",
+		});
+	}
+
+	await context.db
+		.insert(favourites)
+		.values({
+			templateId: input.templateId,
+			userId: context.session.user.id,
+		})
+		.onConflictDoNothing();
+
+	return { success: true };
+});
 
 /**
  * Remove a template from favourites
  */
-const removeFavouriteHandler = authed
-	.input(favouriteInput)
-	.handler(async ({ context, input }) => {
-		await context.db
-			.delete(favourites)
-			.where(
-				and(
-					eq(favourites.templateId, input.templateId),
-					eq(favourites.userId, context.session.user.id),
-				),
-			);
+const removeFavouriteHandler = authed.input(favouriteInput).handler(async ({ context, input }) => {
+	await context.db
+		.delete(favourites)
+		.where(
+			and(
+				eq(favourites.templateId, input.templateId),
+				eq(favourites.userId, context.session.user.id),
+			),
+		);
 
-		return { success: true };
-	});
+	return { success: true };
+});
 
 // ============================================================================
 // Exports

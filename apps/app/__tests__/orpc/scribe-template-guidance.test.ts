@@ -44,14 +44,17 @@ describe("Scribe template helpers", () => {
 
 	test("resolveSelectedTemplateContext parses selected template reference", () => {
 		const selectedTemplate = resolveSelectedTemplateContext(
-			"## Eigene Vorlage\n\nTitel: Eigene Vorlage\n\n## Abschnitt\nInhalt",
+			"## Eigene Vorlage\n\nTitel: Eigene Vorlage\n\n## Abschnitt\nInhalt\n\nBeispiele:\n\nBeispiel A\n\nBeispiel B",
 		);
 		const selectedTemplateContext = buildTemplateFallbackContext(selectedTemplate);
 
 		expect(selectedTemplate?.title).toBe("Eigene Vorlage");
 		expect(selectedTemplate?.content).toContain("## Abschnitt");
+		expect(selectedTemplate?.examples).toEqual(["Beispiel A", "Beispiel B"]);
 		expect(selectedTemplateContext).toContain("<template_context>");
 		expect(selectedTemplateContext).toContain("<title>\nEigene Vorlage\n</title>");
+		expect(selectedTemplateContext).toContain("<examples>");
+		expect(selectedTemplateContext).toContain("<example>\nBeispiel A\n</example>");
 	});
 
 	test("composeScribeContextPrompt keeps date line before context block", () => {
@@ -68,13 +71,14 @@ describe("Scribe template helpers", () => {
 	test("parseSelectedTemplateReference extracts title and content", () => {
 		const reference = buildSelectedTemplateReference({
 			content: "## Abschnitt\nInhalt",
-			examples: [{ content: "Beispiel A" }],
+			examples: ["Beispiel A"],
 			title: "Echo Vorlage",
 		});
 
 		const parsed = parseSelectedTemplateReference(reference);
 		expect(parsed.title).toBe("Echo Vorlage");
 		expect(parsed.content).toContain("## Abschnitt");
+		expect(parsed.examples).toEqual(["Beispiel A"]);
 		expect(parsed.content).not.toContain("## Ausgewaehlte Vorlage (Referenz)");
 		expect(parsed.content).not.toContain("## Beispiele");
 		expect(parsed.content).not.toContain("Beispiele:");

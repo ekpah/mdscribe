@@ -1,93 +1,119 @@
-import { authed } from "@/orpc";
-import { embeddingsHandler } from "./admin/embeddings";
-import { modelsHandler as adminModelsHandler } from "./admin/models";
-import { providersHandler as adminProvidersHandler } from "./admin/providers";
-import { scribeHandler as adminScribeHandler } from "./admin/scribe";
-import { scribeFormsHandler as adminScribeFormsHandler } from "./admin/scribe-forms";
-import { templatesHandler as adminTemplatesHandler } from "./admin/templates";
-import { usageHandler as adminUsageHandler } from "./admin/usage";
-import { usersHandler as adminUsersHandler } from "./admin/users";
-import { documentsHandler } from "./documents";
-import { scribeStreamHandler, voiceFillHandler } from "./scribe";
-import { scribeFormsHandler } from "./scribe-forms";
-import { getUsage } from "./scribe/_lib/get-usage";
-import { templatesHandler } from "./templates";
-import { findRelevantTemplateHandler } from "./templates/search";
-import { activityHandler } from "./user/activity";
-import { collectionsHandler } from "./user/collections";
-import { snippetsHandler } from "./user/snippets";
+import { lazy } from "@orpc/server";
 
 /**
  * oRPC Router
  *
- * Provides type-safe API endpoints for:
- * - AI document generation (streaming)
- * - Template management and search
- * - User preferences and snippets
- * - Admin tools
+ * Keep this root router lightweight. The root layout installs a direct
+ * server-side oRPC client for SSR, so eager imports here are paid by every
+ * route compile. Lazy namespaces defer backend handler graphs until the
+ * specific procedure path is called.
  */
-
-const getUsageHandler = authed.handler(({ context }) => getUsage(context.session));
-
 export const router = {
 	// Admin operations
 	admin: {
-		embeddings: {
-			...embeddingsHandler,
-		},
-		models: {
-			...adminModelsHandler,
-		},
-		providers: {
-			...adminProvidersHandler,
-		},
-		scribe: {
-			...adminScribeHandler,
-		},
-		scribeForms: {
-			...adminScribeFormsHandler,
-		},
-		templates: {
-			...adminTemplatesHandler,
-		},
-		usage: {
-			...adminUsageHandler,
-		},
-		users: {
-			...adminUsersHandler,
-		},
+		emails: lazy(async () => {
+			const handlerModule = await import("./admin/emails");
+			return { default: handlerModule.emailsHandler };
+		}),
+		embeddings: lazy(async () => {
+			const handlerModule = await import("./admin/embeddings");
+			return { default: handlerModule.embeddingsHandler };
+		}),
+		models: lazy(async () => {
+			const handlerModule = await import("./admin/models");
+			return { default: handlerModule.modelsHandler };
+		}),
+		providers: lazy(async () => {
+			const handlerModule = await import("./admin/providers");
+			return { default: handlerModule.providersHandler };
+		}),
+		scribe: lazy(async () => {
+			const handlerModule = await import("./admin/scribe");
+			return { default: handlerModule.scribeHandler };
+		}),
+		scribeForms: lazy(async () => {
+			const handlerModule = await import("./admin/scribe-forms");
+			return { default: handlerModule.scribeFormsHandler };
+		}),
+		templates: lazy(async () => {
+			const handlerModule = await import("./admin/templates");
+			return { default: handlerModule.templatesHandler };
+		}),
+		usage: lazy(async () => {
+			const handlerModule = await import("./admin/usage");
+			return { default: handlerModule.usageHandler };
+		}),
+		users: lazy(async () => {
+			const handlerModule = await import("./admin/users");
+			return { default: handlerModule.usersHandler };
+		}),
 	},
 
 	// Document operations
-	documents: {
-		...documentsHandler,
-	},
+	documents: lazy(async () => {
+		const handlerModule = await import("./documents");
+		return { default: handlerModule.documentsHandler };
+	}),
 
-	getUsage: getUsageHandler,
+	getUsage: lazy(async () => {
+		const [{ authed }, { getUsage }] = await Promise.all([
+			import("@/orpc"),
+			import("./scribe/_lib/get-usage"),
+		]);
+
+		return {
+			default: authed.handler(({ context }) => getUsage(context.session)),
+		};
+	}),
 
 	// AI document generation
 	scribe: {
-		voiceFill: voiceFillHandler,
+		fillInputs: lazy(async () => {
+			const handlerModule = await import("./scribe/handlers/fill-inputs");
+			return { default: handlerModule.fillInputsHandler };
+		}),
 	},
-	scribeForms: {
-		...scribeFormsHandler,
-	},
-	scribeStream: scribeStreamHandler,
+	scribeForms: lazy(async () => {
+		const handlerModule = await import("./scribe-forms");
+		return { default: handlerModule.scribeFormsHandler };
+	}),
+	scribeStream: lazy(async () => {
+		const handlerModule = await import("./scribe/handlers/scribe-stream");
+		return { default: handlerModule.scribeStreamHandler };
+	}),
 
 	// Template operations (all CRUD under templates)
-	templates: {
-		...templatesHandler,
-		findRelevant: findRelevantTemplateHandler,
-	},
+	templates: lazy(async () => {
+		const [{ templatesHandler }, { findRelevantTemplateHandler }] = await Promise.all([
+			import("./templates"),
+			import("./templates/search"),
+		]);
+
+		return {
+			default: {
+				...templatesHandler,
+				findRelevant: findRelevantTemplateHandler,
+			},
+		};
+	}),
 
 	// User-specific operations
 	user: {
-		...activityHandler,
-		collections: {
-			...collectionsHandler,
-		},
-		snippets: {
-			...snippetsHandler,
-		},
+		auth: lazy(async () => {
+			const handlerModule = await import("./user/auth");
+			return { default: handlerModule.authHandler.auth };
+		}),
+		collections: lazy(async () => {
+			const handlerModule = await import("./user/collections");
+			return { default: handlerModule.collectionsHandler };
+		}),
+		recentActivity: lazy(async () => {
+			const handlerModule = await import("./user/activity");
+			return { default: handlerModule.activityHandler.recentActivity };
+		}),
+		snippets: lazy(async () => {
+			const handlerModule = await import("./user/snippets");
+			return { default: handlerModule.snippetsHandler };
+		}),
 	},
 };

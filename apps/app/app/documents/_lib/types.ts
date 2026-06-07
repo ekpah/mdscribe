@@ -15,12 +15,12 @@ const documentFieldDefinitionSchema = z.object({
 	isEnabled: z.boolean(),
 	label: z.string(),
 	markdocType: documentMarkdocTypeSchema,
+	maxLength: z.number().int().positive().optional(),
 	options: z.array(z.string()),
 	pdfType: documentPdfTypeSchema,
+	textCheckboxValue: z.string().optional(),
 	valueType: documentValueTypeSchema,
 });
-
-export const documentFieldDefinitionsSchema = z.array(documentFieldDefinitionSchema);
 
 export type DocumentPdfType = z.infer<typeof documentPdfTypeSchema>;
 export type DocumentInputKind = z.infer<typeof documentInputKindSchema>;

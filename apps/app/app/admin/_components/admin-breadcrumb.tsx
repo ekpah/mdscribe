@@ -41,10 +41,29 @@ const ADMIN_PAGE_OPTIONS = [
 		label: "Nutzungsstatistik",
 	},
 	{
+		href: "/admin/model-comparison",
+		isMatch: (pathname: string) => pathname.startsWith("/admin/model-comparison"),
+		label: "AI-Modell-Vergleich",
+	},
+	{
 		href: "/admin/documents-playground",
-		isMatch: (pathname: string) =>
-			pathname.startsWith("/admin/documents-playground"),
+		isMatch: (pathname: string) => pathname.startsWith("/admin/documents-playground"),
 		label: "Dokumenten-Playground",
+	},
+	{
+		href: "/admin/input-playground",
+		isMatch: (pathname: string) => pathname.startsWith("/admin/input-playground"),
+		label: "Audio-Playground",
+	},
+	{
+		href: "/admin/emails",
+		isMatch: (pathname: string) => pathname.startsWith("/admin/emails"),
+		label: "E-Mail Entwürfe",
+	},
+	{
+		href: "/admin/markdoc-playground",
+		isMatch: (pathname: string) => pathname.startsWith("/admin/markdoc-playground"),
+		label: "Markdoc-Playground",
 	},
 	{
 		href: "/admin/settings/models",
@@ -99,10 +118,7 @@ export const AdminBreadcrumb = () => {
 
 								return (
 									<DropdownMenuItem key={page.href} asChild>
-										<Link
-											href={page.href}
-											className="flex w-full items-center justify-between"
-										>
+										<Link href={page.href} className="flex w-full items-center justify-between">
 											<span>{page.label}</span>
 											{isCurrent ? <Check className="h-4 w-4" /> : null}
 										</Link>

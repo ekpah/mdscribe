@@ -19,8 +19,8 @@ interface AiModelData {
 	providerId: string;
 	modelId: string;
 	displayName: string;
+	supportedParameters?: string[];
 	supportsReasoning: boolean;
-	inputModes: string[];
 }
 
 interface ProviderData {
@@ -185,6 +185,11 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 									<span className="text-solarized-base01">
 										{model.displayName}
 									</span>
+									{(model.supportedParameters ?? []).length > 0 ? (
+										<span className="text-solarized-base01">
+											{(model.supportedParameters ?? []).join(", ")}
+										</span>
+									) : null}
 								</div>
 							))}
 							{refreshModelsMutation.data.models.length > 3 && (

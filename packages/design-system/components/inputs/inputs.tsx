@@ -1,54 +1,85 @@
 "use client";
 
-import type {
-	InfoInputTagType,
-	InputTagType,
-} from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import {
-	toBooleanValue,
-	toFormulaValue,
-	toVoiceBooleanValue,
-} from "@repo/markdoc-md/parse/boolean-coercion";
-import Formula from "fparser";
-import { Bot, Pencil, Sigma } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { cn } from "@repo/design-system/lib/utils";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import { VoiceInputControls } from './voice-input-controls';
-import type { VoiceFillAudioFile } from './voice-input-controls';
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
+import { cn } from "@repo/design-system/lib/utils";
+import {
+	toFormulaValue,
+	toVoiceBooleanValue as toFillInputsBooleanValue,
+} from "@repo/markdoc-md/parse/boolean-coercion";
+import type {
+	InfoInputTagType,
+	InputTagType,
+} from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import Formula from "fparser";
+import { Bot, Pencil, Sigma } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+
 import { normalizeDateValue } from "./ui/date-utils";
 import { InfoInput } from "./ui/info-input";
 import { SwitchInput } from "./ui/switch-input";
 
-export type { VoiceFillAudioFile } from "./voice-input-controls";
+export interface FillInputsAudioFile {
+	data: string;
+	mimeType: string;
+	wavFallback?: {
+		data: string;
+		mimeType: "audio/wav";
+	};
+}
+
+export interface FillInputsContextFile {
+	data: string;
+	mimeType: string;
+	name: string;
+	size: number;
+}
+
+export interface FillInputsTextContext {
+	anamnese?: string;
+	befunde?: string;
+	diagnoseblock?: string;
+	notes?: string;
+}
 
 interface InputsProps {
 	inputTags: InputTagType[];
 	onChange: (data: Record<string, unknown>) => void;
-	showVoiceInput?: boolean;
-	onVoiceFill?: (
-		inputTags: InputTagType[],
-		audioFiles: VoiceFillAudioFile[],
-	) => Promise<VoiceFillResult>;
+	showFillInputs?: boolean;
+	onFillInputs?: (
+		inputFields: FillInputsInputField[],
+		audioFiles: FillInputsAudioFile[],
+		textContext: FillInputsTextContext,
+		contextFiles: FillInputsContextFile[],
+	) => Promise<FillInputsResult>;
+	renderFillControls?: (props: {
+		onSubmit: (
+			audioFiles: FillInputsAudioFile[],
+			textContext: FillInputsTextContext,
+			contextFiles: FillInputsContextFile[],
+		) => Promise<void>;
+	}) => React.ReactNode;
 	suggestedValues?: Record<string, SuggestedValue>;
 	onSuggestedValuesChange?: (values: Record<string, SuggestedValue>) => void;
 }
 
-interface VoiceFillInputField {
+export interface FillInputsInputField {
 	label: string;
 	description?: string;
+	options?: string[];
+	unit?: string;
+	type?: InputMeta["type"];
 }
 
-type VoiceFillResult = Record<string, string>;
+type FillInputsResult = Record<string, boolean | number | string>;
 
 type SuggestedValueSource = "ai" | "note" | "document" | "prefill";
 
@@ -59,13 +90,14 @@ interface SuggestedValue {
 }
 
 interface InputMeta {
+	options?: string[];
 	type: "string" | "number" | "date" | "switch" | "boolean";
 }
 
 type InputSource = "ai" | "manual";
 
-const collectVoiceInputFields = (inputTags: InputTagType[]) => {
-	const fields: VoiceFillInputField[] = [];
+const collectFillInputFields = (inputTags: InputTagType[]) => {
+	const fields: FillInputsInputField[] = [];
 	const meta = new Map<string, InputMeta>();
 	const seen = new Set<string>();
 
@@ -73,10 +105,14 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 		label: string | undefined,
 		description: string | undefined,
 		type: InputMeta["type"],
+		options?: string[],
+		unit?: string,
 	) => {
-		if (!label || seen.has(label)) {return;}
-		fields.push({ description, label });
-		meta.set(label, { type });
+		if (!label || seen.has(label)) {
+			return;
+		}
+		fields.push({ description, label, options, type, unit });
+		meta.set(label, { options, type });
 		seen.add(label);
 	};
 
@@ -86,6 +122,8 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 				input.attributes.primary,
 				input.attributes.description,
 				input.attributes.type ?? "string",
+				undefined,
+				input.attributes.unit,
 			);
 			for (const child of input.children ?? []) {
 				visit(child);
@@ -94,11 +132,14 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 		}
 
 		if (input.name === "Switch") {
+			const options = input.children
+				?.filter((child) => child.name === "Case" && child.attributes.primary)
+				.map((child) => child.attributes.primary);
 			const switchType =
 				input.attributes.type === "boolean" || input.attributes.type === "checkbox"
 					? "boolean"
 					: "switch";
-			pushField(input.attributes.primary, undefined, switchType);
+			pushField(input.attributes.primary, undefined, switchType, options);
 			for (const child of input.children ?? []) {
 				visit(child);
 			}
@@ -126,26 +167,36 @@ const collectVoiceInputFields = (inputTags: InputTagType[]) => {
 	return { fields, meta };
 };
 
-const normalizeVoiceValue = (
-	value: string,
+const normalizeFillInputsValue = (
+	value: boolean | number | string,
 	meta?: InputMeta,
 ): string | number | boolean | undefined => {
-	if (!meta) {return value;}
+	if (!meta) {
+		return value;
+	}
 
 	if (meta.type === "number") {
-		const normalized = Number(value.replace(",", "."));
+		const normalized = typeof value === "number" ? value : Number(String(value).replace(",", "."));
 		return Number.isNaN(normalized) ? undefined : normalized;
 	}
 
 	if (meta.type === "date") {
-		return normalizeDateValue(value);
+		return normalizeDateValue(String(value));
 	}
 
 	if (meta.type === "boolean") {
-		return toVoiceBooleanValue(value);
+		if (typeof value === "boolean") {
+			return value;
+		}
+		return toFillInputsBooleanValue(String(value));
 	}
 
-	return value;
+	if (meta.type === "switch") {
+		const stringValue = String(value);
+		return meta.options?.includes(stringValue) ? stringValue : undefined;
+	}
+
+	return String(value);
 };
 
 const toSwitchCaseKey = (value: unknown): string | undefined => {
@@ -164,13 +215,9 @@ const toSwitchCaseKey = (value: unknown): string | undefined => {
 	return undefined;
 };
 
-const isEmptyValue = (value: unknown) =>
-	value === "" || value === undefined || value === null;
+const isEmptyValue = (value: unknown) => value === "" || value === undefined || value === null;
 
-const withoutRecordKey = <T extends Record<string, unknown>>(
-	record: T,
-	key: string,
-): T => {
+const withoutRecordKey = <T extends Record<string, unknown>>(record: T, key: string): T => {
 	const { [key]: _removed, ...remaining } = record;
 	return remaining as T;
 };
@@ -183,9 +230,15 @@ const SUGGESTION_SOURCE_LABELS: Record<SuggestedValueSource, string> = {
 };
 
 const getSuggestionLabel = (suggestion?: SuggestedValue): string => {
-	if (!suggestion) {return "Vorschlag";}
-	if (suggestion.label) {return suggestion.label;}
-	if (suggestion.source) {return SUGGESTION_SOURCE_LABELS[suggestion.source];}
+	if (!suggestion) {
+		return "Vorschlag";
+	}
+	if (suggestion.label) {
+		return suggestion.label;
+	}
+	if (suggestion.source) {
+		return SUGGESTION_SOURCE_LABELS[suggestion.source];
+	}
 	return "Vorschlag";
 };
 
@@ -203,10 +256,10 @@ const getInputStateClassName = (source?: InputSource) => {
 	return "";
 };
 
-const SourceIndicator = ({
-	source,
-}: { source: InputSource | undefined }) => {
-	if (!source) {return null;}
+const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
+	if (!source) {
+		return null;
+	}
 
 	const config = {
 		ai: {
@@ -221,7 +274,9 @@ const SourceIndicator = ({
 		},
 	}[source];
 
-	if (!config) {return null;}
+	if (!config) {
+		return null;
+	}
 
 	const Icon = config.icon;
 
@@ -249,10 +304,7 @@ interface RenderContext {
 	applySuggestionHandlers: Record<string, () => void>;
 }
 
-const renderInputTag = (
-	input: InputTagType,
-	context: RenderContext,
-): React.ReactNode | null => {
+const renderInputTag = (input: InputTagType, context: RenderContext): React.ReactNode | null => {
 	if (!input.attributes.primary) {
 		return null;
 	}
@@ -275,9 +327,7 @@ const renderInputTag = (
 				<InfoInput
 					input={input}
 					inputClassName={inputStateClassName}
-					onAcceptSuggestedValue={
-						suggestedValue ? handleApplySuggestion : undefined
-					}
+					onAcceptSuggestedValue={suggestedValue ? handleApplySuggestion : undefined}
 					onChange={handleFieldChange}
 					suggestedValue={toTextOrNumberSuggestion(suggestedValue?.value)}
 					suggestionLabel={getSuggestionLabel(suggestedValue)}
@@ -301,9 +351,7 @@ const renderInputTag = (
 				<SwitchInput
 					input={input}
 					onChange={handleFieldChange}
-					onAcceptSuggestedValue={
-						suggestedValue ? handleApplySuggestion : undefined
-					}
+					onAcceptSuggestedValue={suggestedValue ? handleApplySuggestion : undefined}
 					inputClassName={inputStateClassName}
 					suggestedValue={suggestedValue?.value}
 					suggestionLabel={getSuggestionLabel(suggestedValue)}
@@ -314,14 +362,10 @@ const renderInputTag = (
 					<div className="mt-4 ml-4 space-y-4">
 						{input.children
 							.filter(
-								(child) =>
-									child.name === "Case" &&
-									child.attributes.primary === currentCaseKey,
+								(child) => child.name === "Case" && child.attributes.primary === currentCaseKey,
 							)
 							.flatMap((caseChild) =>
-								caseChild.children.map((grandChild) =>
-									renderInputTag(grandChild, context),
-								),
+								caseChild.children.map((grandChild) => renderInputTag(grandChild, context)),
 							)}
 					</div>
 				)}
@@ -334,14 +378,10 @@ const renderInputTag = (
 			try {
 				const f = new Formula(input.attributes.formula ?? "");
 				const formulaValues = Object.fromEntries(
-					Object.entries(context.values).map(([key, value]) => [
-						key,
-						toFormulaValue(value),
-					]),
+					Object.entries(context.values).map(([key, value]) => [key, toFormulaValue(value)]),
 				);
 				const result = f.evaluate(formulaValues as Record<string, number>);
-				const roundedResult =
-					typeof result === "number" ? Number(result.toFixed(2)) : result;
+				const roundedResult = typeof result === "number" ? Number(result.toFixed(2)) : result;
 				return roundedResult;
 			} catch {
 				return 0;
@@ -375,7 +415,7 @@ const renderInputTag = (
 											{input.attributes.formula
 												?.replaceAll(
 													/(\[[\w_]+\])|([^a-zA-Z[\]])/g,
-													(_match, p1, p2) => (p1 || ` ${p2} `),
+													(_match, p1, p2) => p1 || ` ${p2} `,
 												)
 												.replaceAll(/\s+/g, " ")
 												.trim()}
@@ -402,18 +442,13 @@ const renderInputTag = (
 				{input.children.length > 0 && (
 					<div className="ml-4 w-full max-w-full space-y-3 border-muted border-l-2 pr-4 pl-4">
 						{input.children.map((child) => (
-							<div
-								className="w-full max-w-full space-y-1"
-								key={child.attributes.primary}
-							>
+							<div className="w-full max-w-full space-y-1" key={child.attributes.primary}>
 								{(() => {
 									const childKey = child.attributes.primary;
 									const childSuggestion = context.suggestedValues[childKey];
 									const childInputState = context.fieldSources[childKey];
-									const childInputStateClassName =
-										getInputStateClassName(childInputState);
-									const childApplySuggestionHandler =
-										context.applySuggestionHandlers[childKey];
+									const childInputStateClassName = getInputStateClassName(childInputState);
+									const childApplySuggestionHandler = context.applySuggestionHandlers[childKey];
 									const childChangeHandler = context.changeHandlers[childKey];
 
 									return (
@@ -434,14 +469,10 @@ const renderInputTag = (
 												}
 												inputClassName={childInputStateClassName}
 												onAcceptSuggestedValue={
-													childSuggestion
-														? childApplySuggestionHandler
-														: undefined
+													childSuggestion ? childApplySuggestionHandler : undefined
 												}
 												onChange={childChangeHandler}
-												suggestedValue={toTextOrNumberSuggestion(
-													childSuggestion?.value,
-												)}
+												suggestedValue={toTextOrNumberSuggestion(childSuggestion?.value)}
 												suggestionLabel={getSuggestionLabel(childSuggestion)}
 												value={context.values[childKey] as number | undefined}
 											/>
@@ -462,18 +493,17 @@ const renderInputTag = (
 export default function Inputs({
 	inputTags = [],
 	onChange,
-	showVoiceInput = false,
-	onVoiceFill,
+	showFillInputs = false,
+	onFillInputs,
+	renderFillControls,
 	suggestedValues: suggestedValuesProp,
 	onSuggestedValuesChange,
 }: InputsProps) {
 	const [values, setValues] = useState<Record<string, unknown>>({});
-	const [fieldSources, setFieldSources] = useState<Record<string, InputSource>>(
-		{},
+	const [fieldSources, setFieldSources] = useState<Record<string, InputSource>>({});
+	const [suggestedValues, setSuggestedValues] = useState<Record<string, SuggestedValue>>(
+		suggestedValuesProp ?? {},
 	);
-	const [suggestedValues, setSuggestedValues] = useState<
-		Record<string, SuggestedValue>
-	>(suggestedValuesProp ?? {});
 	const stateRef = useRef({ fieldSources, suggestedValues, values });
 
 	useEffect(() => {
@@ -484,75 +514,82 @@ export default function Inputs({
 		stateRef.current = { fieldSources, suggestedValues, values };
 	}, [values, fieldSources, suggestedValues]);
 
-	const applySuggestions = useCallback(
-		(nextSuggestions: Record<string, SuggestedValue>) => {
-			const { values: currentValues, fieldSources: currentSources } = stateRef.current;
-			const nextValues = { ...currentValues };
-			const nextSources = { ...currentSources };
+	const applySuggestions = useCallback((nextSuggestions: Record<string, SuggestedValue>) => {
+		const { values: currentValues, fieldSources: currentSources } = stateRef.current;
+		const nextValues = { ...currentValues };
+		const nextSources = { ...currentSources };
 
-			for (const [field, suggestion] of Object.entries(nextSuggestions)) {
-				if (nextSources[field] === "manual") {
-					continue;
-				}
-				const suggestedValue = suggestion.value;
-				const existingValue = nextValues[field];
-
-				if (isEmptyValue(existingValue)) {
-					nextValues[field] = suggestedValue;
-					nextSources[field] = "ai";
-					continue;
-				}
-				if (existingValue === suggestedValue) {
-					nextSources[field] = "ai";
-					continue;
-				}
-				nextSources[field] = "manual";
+		for (const [field, suggestion] of Object.entries(nextSuggestions)) {
+			if (nextSources[field] === "manual") {
+				continue;
 			}
+			const suggestedValue = suggestion.value;
+			const existingValue = nextValues[field];
 
-			setValues(nextValues);
-			setFieldSources(nextSources);
-		},
-		[],
-	);
+			if (isEmptyValue(existingValue) || nextSources[field] === "ai") {
+				nextValues[field] = suggestedValue;
+				nextSources[field] = "ai";
+				continue;
+			}
+			if (existingValue === suggestedValue) {
+				nextSources[field] = "ai";
+				continue;
+			}
+			nextSources[field] = "manual";
+		}
+
+		setValues(nextValues);
+		setFieldSources(nextSources);
+	}, []);
 
 	useEffect(() => {
-		if (!suggestedValuesProp) {return;}
+		if (!suggestedValuesProp) {
+			return;
+		}
 		setSuggestedValues(suggestedValuesProp);
 		applySuggestions(suggestedValuesProp);
 	}, [suggestedValuesProp, applySuggestions]);
 
-	const handleInputChange = useCallback((key: string, value: unknown) => {
-		setValues((prevValues) => ({
-			...prevValues,
-			[key]: value,
-		}));
-		setFieldSources((prevSources) => {
-			if (isEmptyValue(value)) {
+	const handleInputChange = useCallback(
+		(key: string, value: unknown) => {
+			setValues((prevValues) => ({
+				...prevValues,
+				[key]: value,
+			}));
+			setFieldSources((prevSources) => {
+				if (isEmptyValue(value)) {
+					return withoutRecordKey(prevSources, key);
+				}
+				const hasSuggestion = Boolean(suggestedValues[key]);
+				if (hasSuggestion || prevSources[key] === "ai") {
+					return {
+						...prevSources,
+						[key]: "manual",
+					};
+				}
 				return withoutRecordKey(prevSources, key);
-			}
-			const hasSuggestion = Boolean(suggestedValues[key]);
-			if (hasSuggestion || prevSources[key] === "ai") {
-				return {
-					...prevSources,
-					[key]: "manual",
-				};
-			}
-			return withoutRecordKey(prevSources, key);
-		});
-	}, [suggestedValues]);
+			});
+		},
+		[suggestedValues],
+	);
 
-	const handleApplySuggestion = useCallback((key: string) => {
-		const suggestion = suggestedValues[key];
-		if (!suggestion) {return;}
-		setValues((prevValues) => ({
-			...prevValues,
-			[key]: suggestion.value,
-		}));
-		setFieldSources((prevSources) => ({
-			...prevSources,
-			[key]: "ai",
-		}));
-	}, [suggestedValues]);
+	const handleApplySuggestion = useCallback(
+		(key: string) => {
+			const suggestion = suggestedValues[key];
+			if (!suggestion) {
+				return;
+			}
+			setValues((prevValues) => ({
+				...prevValues,
+				[key]: suggestion.value,
+			}));
+			setFieldSources((prevSources) => ({
+				...prevSources,
+				[key]: "ai",
+			}));
+		},
+		[suggestedValues],
+	);
 
 	const fieldKeys = useMemo(() => {
 		const keys = new Set<string>();
@@ -593,76 +630,74 @@ export default function Inputs({
 		return handlers;
 	}, [fieldKeys, handleApplySuggestion]);
 
-	const { fields: voiceInputFields, meta: voiceInputMeta } = useMemo(
-		() => collectVoiceInputFields(inputTags),
+	const { fields: fillInputFields, meta: fillInputMeta } = useMemo(
+		() => collectFillInputFields(inputTags),
 		[inputTags],
 	);
 
-	const handleVoiceFill = useCallback(async (audioFiles: VoiceFillAudioFile[]) => {
-		if (!onVoiceFill) {
-			return;
-		}
-
-		if (voiceInputFields.length === 0) {
-			toast.error("Keine Eingabefelder verfügbar");
-			return;
-		}
-
-		toast.loading("Felder werden mit Spracheingabe ausgefüllt...", {
-			id: "voice-fill",
-		});
-
-		try {
-			const fieldValues = await onVoiceFill(inputTags, audioFiles);
-
-			let nextSuggestions = { ...stateRef.current.suggestedValues };
-
-			for (const [field, value] of Object.entries(fieldValues)) {
-				const normalizedValue = normalizeVoiceValue(
-					value,
-					voiceInputMeta.get(field),
-				);
-				if (
-					normalizedValue === undefined ||
-					isEmptyValue(normalizedValue)
-				) {
-					nextSuggestions = withoutRecordKey(nextSuggestions, field);
-					continue;
-				}
-				nextSuggestions[field] = {
-					source: "ai",
-					value: normalizedValue,
-				};
+	const handleFillInputs = useCallback(
+		async (
+			audioFiles: FillInputsAudioFile[],
+			textContext: FillInputsTextContext,
+			contextFiles: FillInputsContextFile[],
+		) => {
+			if (!onFillInputs) {
+				return;
 			}
 
-			setSuggestedValues(nextSuggestions);
-			applySuggestions(nextSuggestions);
-			onSuggestedValuesChange?.(nextSuggestions);
+			if (fillInputFields.length === 0) {
+				toast.error("Keine Eingabefelder verfügbar");
+				return;
+			}
 
-			toast.success("Felder mit Spracheingabe ausgefüllt", {
-				id: "voice-fill",
+			toast.loading("Felder werden ausgefüllt...", {
+				id: "fill-inputs",
 			});
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "Unbekannter Fehler";
-			toast.error(`Sprachausfüllung fehlgeschlagen: ${errorMessage}`, {
-				id: "voice-fill",
-			});
-		}
-	}, [
-		applySuggestions,
-		inputTags,
-		onSuggestedValuesChange,
-		onVoiceFill,
-		voiceInputFields.length,
-		voiceInputMeta,
-	]);
+
+			try {
+				const fieldValues = await onFillInputs(
+					fillInputFields,
+					audioFiles,
+					textContext,
+					contextFiles,
+				);
+
+				let nextSuggestions = { ...stateRef.current.suggestedValues };
+
+				for (const [field, value] of Object.entries(fieldValues)) {
+					const normalizedValue = normalizeFillInputsValue(value, fillInputMeta.get(field));
+					if (normalizedValue === undefined || isEmptyValue(normalizedValue)) {
+						nextSuggestions = withoutRecordKey(nextSuggestions, field);
+						continue;
+					}
+					nextSuggestions[field] = {
+						source: "ai",
+						value: normalizedValue,
+					};
+				}
+
+				setSuggestedValues(nextSuggestions);
+				applySuggestions(nextSuggestions);
+				onSuggestedValuesChange?.(nextSuggestions);
+
+				toast.success("Felder ausgefüllt", {
+					id: "fill-inputs",
+				});
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
+				toast.error(`Ausfüllen fehlgeschlagen: ${errorMessage}`, {
+					id: "fill-inputs",
+				});
+			}
+		},
+		[applySuggestions, fillInputFields, fillInputMeta, onFillInputs, onSuggestedValuesChange],
+	);
 
 	if (inputTags.length === 0 || !inputTags) {
 		return null;
 	}
 
-	const shouldShowVoiceInput = Boolean(showVoiceInput && onVoiceFill);
+	const shouldShowFillInputs = Boolean(showFillInputs && onFillInputs && renderFillControls);
 	const renderContext: RenderContext = {
 		applySuggestionHandlers,
 		changeHandlers,
@@ -674,19 +709,13 @@ export default function Inputs({
 	return (
 		<form className="flex h-full w-full flex-col overflow-hidden">
 			{/* Scrollable inputs area */}
-			<div
-				className="flex-1 space-y-6 overflow-y-auto overscroll-none p-4 pr-4"
-				key="inputs-list"
-			>
+			<div className="flex-1 space-y-6 overflow-y-auto overscroll-none p-4 pr-4" key="inputs-list">
 				{inputTags.map((inputTag) => renderInputTag(inputTag, renderContext))}
 			</div>
-			{/* Fixed voice input footer */}
-			{shouldShowVoiceInput && (
-				<VoiceInputControls
-					className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"
-					onSubmit={handleVoiceFill}
-				/>
-			)}
+			{/* Fixed autofill footer */}
+			{shouldShowFillInputs && renderFillControls
+				? renderFillControls({ onSubmit: handleFillInputs })
+				: null}
 		</form>
 	);
 }

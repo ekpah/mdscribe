@@ -1,19 +1,12 @@
 import { composePatientContext, derivePatientContext } from "./patient";
 import { composeTemplateContext } from "./template";
 import { findRelevantTemplateForProcedure } from "./template/relevant-template";
-import type {
-	ComposedScribeContext,
-	ComposeScribeContextInput,
-	ContextSource,
-} from "./types";
+import type { ComposedScribeContext, ComposeScribeContextInput, ContextSource } from "./types";
 import { composeUserContext } from "./user";
 
 export type { ContextBuildInput, TemplateContextInput } from "./types";
 
-export {
-	
-	findRelevantTemplateForProcedure,
-};
+export { findRelevantTemplateForProcedure };
 
 const hasContent = (value: string | undefined): value is string =>
 	typeof value === "string" && value.trim().length > 0;
@@ -41,7 +34,7 @@ const createContextSources = ({
 	return sources;
 };
 
-const composeUnifiedContext = (sections: Array<string | undefined>): string => {
+const composeUnifiedContext = (sections: (string | undefined)[]): string => {
 	const contextSections = sections.filter(hasContent);
 	if (contextSections.length === 0) {
 		return "";
@@ -55,14 +48,10 @@ export const composeScribeContextPrompt = (input: {
 	todaysDate?: string;
 }): string => {
 	const date = input.todaysDate ?? todaysDateDE();
-	return [`Das heutige Datum ist der ${date}.`, input.contextXml]
-		.filter(hasContent)
-		.join("\n\n");
+	return [`Das heutige Datum ist der ${date}.`, input.contextXml].filter(hasContent).join("\n\n");
 };
 
-export const composeScribeContext = (
-	input: ComposeScribeContextInput,
-): ComposedScribeContext => {
+export const composeScribeContext = (input: ComposeScribeContextInput): ComposedScribeContext => {
 	const sources = createContextSources(input);
 
 	const patientContext = derivePatientContext(sources);

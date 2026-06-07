@@ -1,7 +1,6 @@
 import { mock } from "bun:test";
 
-process.env.POSTGRES_DATABASE_URL ??=
-	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
+process.env.POSTGRES_DATABASE_URL ??= "postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
 process.env.POSTGRES_DATABASE_URL_TEST ??=
 	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test";
 
@@ -96,10 +95,7 @@ const createOpenRouterMockModel = (modelId: string) => ({
 const MockVoyageAIClient = function MockVoyageAIClient() {
 	return {
 		embed: () => {
-			const mockEmbedding = Array.from(
-				{ length: 1024 },
-				() => Math.random(),
-			);
+			const mockEmbedding = Array.from({ length: 1024 }, () => Math.random());
 			return resolveAsync({
 				data: [{ embedding: mockEmbedding }],
 			});
@@ -136,6 +132,17 @@ const MockStripe = function MockStripe() {
 	};
 };
 
+const sendEmailMock = mock(() => resolveAsync({ success: true }));
+const sendEmailBatchMock = mock((options: { to?: readonly string[] }) =>
+	resolveAsync(
+		(options.to ?? []).map((recipient, index) => ({
+			MessageID: `batch-message-${index}`,
+			SubmittedAt: new Date().toISOString(),
+			To: recipient,
+		})),
+	),
+);
+
 mock.module("server-only", () => ({}));
 
 mock.module("@repo/env", () => ({
@@ -171,37 +178,61 @@ mock.module("voyageai", () => ({
 }));
 
 mock.module("@repo/email", () => ({
-	sendEmail: () => resolveAsync({ success: true }),
+  sendEmail: sendEmailMock,
+	sendEmailBatch: sendEmailBatchMock,
 }));
 
 mock.module("stripe", () => ({
-	default: MockStripe,
 	Stripe: MockStripe,
+	default: MockStripe,
 }));
 
 mock.module("ai", () => ({
+	Output: {
+		object: (options: unknown) => options,
+	},
+	experimental_transcribe: () =>
+		resolveAsync({
+			text: "Transkribierter Testtext",
+		}),
 	generateObject: () =>
 		resolveAsync({
 			finishReason: "stop" as const,
-			object: { test: "value" },
+			object: {
+				fieldMapping: [
+					{
+						description: "Patientenname aus dem PDF-Formular",
+						fieldName: "patient_name",
+						label: "Patient",
+					},
+				],
+				test: "value",
+			},
 			usage: {
 				completionTokens: 25,
 				promptTokens: 50,
 				totalTokens: 75,
 			},
 		}),
-	generateText: () =>
-		resolveAsync({
+	generateText: (options?: { messages?: { content?: unknown }[] }) => {
+		const promptText =
+			options?.messages
+				?.map((message) => (typeof message.content === "string" ? message.content : ""))
+				.join("\n") ?? "";
+		const output = promptText.includes("fieldValues") ? { test: "value" } : undefined;
+		const text = output ? JSON.stringify(output) : "Generated text response";
+		return resolveAsync({
 			finishReason: "stop" as const,
-			text: "Generated text response",
+			output,
+			text,
 			usage: {
 				completionTokens: 25,
 				promptTokens: 50,
 				totalTokens: 75,
 			},
-		}),
-	streamText: (options: { onFinish?: (event: unknown) => void }) =>
-		createMockStreamResult(options),
+		});
+	},
+	streamText: (options: { onFinish?: (event: unknown) => void }) => createMockStreamResult(options),
 }));
 
 mock.module("@openrouter/ai-sdk-provider", () => ({

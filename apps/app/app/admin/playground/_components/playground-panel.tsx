@@ -2,7 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
-import type { VoiceFillAudioFile } from "@repo/design-system/components/inputs/voice-input-controls";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
@@ -18,19 +17,18 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Separator } from "@repo/design-system/components/ui/separator";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Copy, Play, Plus, Trash2 } from "lucide-react";
+import { Copy, Info, Play, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, MutableRefObject, UIEvent } from "react";
 import { toast } from "sonner";
 
+import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
+import type { InputContextSubmission } from "@/app/_components/input-context/types";
+import { TemplateSelector } from "@/app/_components/template-selector";
 import { allScribeDocTypes, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { PlaygroundDocumentType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type {
@@ -40,6 +38,7 @@ import type {
 } from "@/app/admin/playground/_lib/types";
 import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
 import { orpc } from "@/lib/orpc";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 import { ParameterControls } from "./parameter-controls";
@@ -63,9 +62,9 @@ const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	frequencyPenalty: undefined,
 	maxTokens: 8000,
 	presencePenalty: undefined,
+	reasoningEffort: "none",
 	temperature: 0.3,
 	thinking: false,
-	thinkingBudget: 8000,
 	thinkingExplicit: false,
 	topK: undefined,
 	topP: undefined,
@@ -196,12 +195,6 @@ interface PromptVersion {
 	promptName: string;
 }
 
-interface AudioRecording {
-	blob: Blob;
-	duration: number;
-	id: string;
-}
-
 interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 	model: PlaygroundModel;
 	isTop: boolean;
@@ -209,6 +202,7 @@ interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 }
 
 interface DirtySelectorLabelProps {
+	info?: string;
 	isDirty: boolean;
 	label: string;
 }
@@ -232,10 +226,28 @@ const getProviderGroup = (model: PlaygroundModel): string =>
 	model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId);
 
 const PLAYGROUND_EDITOR_TEXTAREA_CLASS = "font-mono text-xs leading-[1.35]";
+const TEMPLATE_SELECTOR_INFO =
+	"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.";
 
-const DirtySelectorLabel = ({ isDirty, label }: DirtySelectorLabelProps) => (
+const DirtySelectorLabel = ({ info, isDirty, label }: DirtySelectorLabelProps) => (
 	<div className="flex min-h-7 flex-col justify-start sm:w-24 sm:shrink-0">
-		<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
+		<div className="flex items-center gap-1.5">
+			<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
+			{info ? (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<button
+							aria-label={info}
+							className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
+							type="button"
+						>
+							<Info className="h-3.5 w-3.5" />
+						</button>
+					</TooltipTrigger>
+					<TooltipContent className="max-w-64 text-xs leading-relaxed">{info}</TooltipContent>
+				</Tooltip>
+			) : null}
+		</div>
 		<span
 			className={cn(
 				"h-3 text-[9px] leading-3 transition-opacity",
@@ -284,16 +296,20 @@ const PROMPT_RUNTIME_LABELS: Record<string, string> = {
 	todaysDate: "Heutiges Datum",
 };
 
-const promptHarnessToDocumentType = new Map(
-	allScribeDocTypes.map((documentType) => [
-		scribeDocTypeUi[documentType].defaultPromptName,
-		documentType,
-	]),
-);
+const resolveDocumentTypeFromPromptHarness = (
+	promptHarness: string,
+): PlaygroundDocumentType | undefined => {
+	const resolvedPromptHarnessId = resolvePromptHarnessId(promptHarness);
+	if (!resolvedPromptHarnessId || !(resolvedPromptHarnessId in scribeDocTypeUi)) {
+		return undefined;
+	}
+
+	return resolvedPromptHarnessId;
+};
 
 const buildSelectedTemplateReference = (templateData: {
 	content: string;
-	examples: { content: string }[];
+	examples: string[];
 	title: string;
 }): string => {
 	const sections = [
@@ -305,26 +321,11 @@ const buildSelectedTemplateReference = (templateData: {
 	if (templateData.examples.length > 0) {
 		sections.push("## Beispiele");
 		for (const example of templateData.examples) {
-			sections.push(example.content);
+			sections.push(example);
 		}
 	}
 
 	return sections.join("\n\n");
-};
-
-const encodeUint8ArrayToBase64 = (data: Uint8Array): string => {
-	const chunkSize = 8192;
-	const chunks: string[] = [];
-	for (let i = 0; i < data.length; i += chunkSize) {
-		const chunk = data.subarray(i, i + chunkSize);
-		chunks.push(String.fromCodePoint(...chunk));
-	}
-	return btoa(chunks.join(""));
-};
-
-const blobToBase64 = async (blob: Blob): Promise<string> => {
-	const bytes = new Uint8Array(await blob.arrayBuffer());
-	return encodeUint8ArrayToBase64(bytes);
 };
 
 const asFiniteMetricNumber = (value: unknown): number | undefined => {
@@ -371,7 +372,7 @@ const parseRunMetricsFromMetadata = (metadata: unknown): Partial<RunState["metri
 };
 
 const getAssistantTextFromMessages = (
-	messages: Array<{ role: string; parts?: Array<{ type: string; text?: string }> }>,
+	messages: { role: string; parts?: { type: string; text?: string }[] }[],
 ): string =>
 	messages
 		.findLast((message) => message.role === "assistant")
@@ -411,7 +412,7 @@ const getTextFromUiMessage = (message: unknown): string => {
 
 	const candidate = message as {
 		content?: unknown;
-		parts?: Array<{ type?: string; text?: unknown }>;
+		parts?: { type?: string; text?: unknown }[];
 	};
 
 	const partsText = getTextFromUnknownParts(candidate.parts);
@@ -818,6 +819,7 @@ export const PlaygroundPanel = ({
 	referenceResult,
 }: PlaygroundPanelProps) => {
 	const [activeView, setActiveView] = useState<PlaygroundView>("config");
+	const inputContextController = useInputContextState();
 
 	const resolvedPresetDocumentType = presetDocumentType ?? "discharge";
 	const initialDocType: PlaygroundDocumentType = isPlaygroundDocumentType(
@@ -884,7 +886,9 @@ export const PlaygroundPanel = ({
 	const { data: templateOptions = [] } = useQuery(templatesQueryOptions);
 
 	// Prompt selection / compilation
-	const [promptName, setPromptName] = useState<string>(presetPromptName ?? docUi.defaultPromptName);
+	const initialPromptName =
+		resolvePromptHarnessId(presetPromptName) ?? presetPromptName ?? docUi.defaultPromptName;
+	const [promptName, setPromptName] = useState<string>(initialPromptName);
 	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
 		presetTemplateId ?? NONE_TEMPLATE_VALUE,
 	);
@@ -896,14 +900,20 @@ export const PlaygroundPanel = ({
 	const [compiledMessages, setCompiledMessages] = useState<
 		{ role: "system" | "user" | "assistant"; content: string }[]
 	>([]);
-	const [compiledOverride, setCompiledOverride] = useState<Array<{
-		role: "system" | "user" | "assistant";
-		content: string;
-	}> | null>(null);
-	const [promptComparisonMessages, setPromptComparisonMessages] = useState<Array<{
-		role: "system" | "user" | "assistant";
-		content: string;
-	}> | null>(null);
+	const [compiledOverride, setCompiledOverride] = useState<
+		| {
+				role: "system" | "user" | "assistant";
+				content: string;
+		  }[]
+		| null
+	>(null);
+	const [promptComparisonMessages, setPromptComparisonMessages] = useState<
+		| {
+				role: "system" | "user" | "assistant";
+				content: string;
+		  }[]
+		| null
+	>(null);
 	const [promptRuntimeVariables, setPromptRuntimeVariables] = useState<Record<string, unknown>>({});
 	const compileRequestRef = useRef(0);
 	const loadedPromptHarnessNameRef = useRef<string | null>(null);
@@ -914,7 +924,7 @@ export const PlaygroundPanel = ({
 			return;
 		}
 
-		setPromptName(presetPromptName);
+		setPromptName(resolvePromptHarnessId(presetPromptName) ?? presetPromptName);
 		hasAppliedPresetPromptNameRef.current = true;
 	}, [presetPromptName]);
 
@@ -928,12 +938,20 @@ export const PlaygroundPanel = ({
 	}, [presetTemplateId]);
 
 	const promptHarnessOptions = useMemo(() => {
-		const fetchedOptions = promptHarnessesData?.items ?? [];
+		const fetchedOptions = promptHarnessesData?.options ?? [];
 		if (fetchedOptions.length > 0) {
 			return fetchedOptions;
 		}
-		return allScribeDocTypes.map((docType) => scribeDocTypeUi[docType].defaultPromptName);
-	}, [promptHarnessesData?.items]);
+		return allScribeDocTypes.map((docType) => ({
+			id: scribeDocTypeUi[docType].defaultPromptName,
+			label: scribeDocTypeUi[docType].label,
+		}));
+	}, [promptHarnessesData?.options]);
+
+	const promptHarnessOptionIds = useMemo(
+		() => promptHarnessOptions.map((option) => option.id),
+		[promptHarnessOptions],
+	);
 
 	const promptHarnessDetailsQueryOptions = orpc.admin.scribe.prompts.get.queryOptions({
 		input: { name: promptName },
@@ -1003,9 +1021,7 @@ export const PlaygroundPanel = ({
 		}
 
 		setTemplateDraftContent(selectedTemplateDetails.content);
-		setTemplateDraftExamples(
-			(selectedTemplateDetails.examples ?? []).map((example) => example.content),
-		);
+		setTemplateDraftExamples(selectedTemplateDetails.examples ?? []);
 		loadedTemplateIdRef.current = currentTemplateId;
 	}, [selectedTemplateDetails?.id, selectedTemplateDetails]);
 
@@ -1016,7 +1032,7 @@ export const PlaygroundPanel = ({
 		if (templateDraftContent !== selectedTemplateDetails.content) {
 			return true;
 		}
-		const baseExamples = (selectedTemplateDetails.examples ?? []).map((example) => example.content);
+		const baseExamples = selectedTemplateDetails.examples ?? [];
 		if (templateDraftExamples.length !== baseExamples.length) {
 			return true;
 		}
@@ -1035,7 +1051,7 @@ export const PlaygroundPanel = ({
 
 		return buildSelectedTemplateReference({
 			content: templateDraftContent,
-			examples: templateDraftExamples.map((content) => ({ content })),
+			examples: templateDraftExamples,
 			title: selectedTemplateDetails.title,
 		});
 	}, [selectedTemplateDetails, templateDraftContent, templateDraftExamples]);
@@ -1055,155 +1071,6 @@ export const PlaygroundPanel = ({
 		}
 		return JSON.stringify(data);
 	}, [docUi, formMain, formAdditional, selectedTemplateReference]);
-
-	const [isRecordingAudio, setIsRecordingAudio] = useState(false);
-	const [isParsingAudioRecordings, setIsParsingAudioRecordings] = useState(false);
-	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
-	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-	const audioChunksRef = useRef<Blob[]>([]);
-	const recordingStartTimeRef = useRef<number>(0);
-	const maxRecordings = 3;
-	const canRecordAudio = audioRecordings.length < maxRecordings;
-
-	const handleStartRecordingAudio = useCallback(async () => {
-		if (!canRecordAudio) {
-			toast.error(`Maximal ${maxRecordings} Aufnahmen möglich`);
-			return;
-		}
-
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			const mediaRecorder = new MediaRecorder(stream);
-			mediaRecorderRef.current = mediaRecorder;
-			audioChunksRef.current = [];
-			recordingStartTimeRef.current = Date.now();
-
-			mediaRecorder.addEventListener("dataavailable", (event) => {
-				audioChunksRef.current.push(event.data);
-			});
-
-			mediaRecorder.addEventListener("stop", () => {
-				const audioBlob = new Blob(audioChunksRef.current, {
-					type: "audio/wav",
-				});
-				const duration = (Date.now() - recordingStartTimeRef.current) / 1000;
-				const newRecording: AudioRecording = {
-					blob: audioBlob,
-					duration,
-					id: `audio-${Date.now()}`,
-				};
-				setAudioRecordings((prev) => [...prev, newRecording]);
-				for (const track of stream.getTracks()) {
-					track.stop();
-				}
-			});
-
-			mediaRecorder.start();
-			setIsRecordingAudio(true);
-			toast.success("Aufnahme gestartet");
-		} catch (error) {
-			console.error("Error starting recording:", error);
-			toast.error("Fehler beim Starten der Aufnahme");
-		}
-	}, [canRecordAudio]);
-
-	const handleStopRecordingAudio = useCallback(() => {
-		if (mediaRecorderRef.current && isRecordingAudio) {
-			mediaRecorderRef.current.stop();
-			setIsRecordingAudio(false);
-			toast.success("Aufnahme beendet");
-		}
-	}, [isRecordingAudio]);
-
-	const handleToggleRecordingAudio = useCallback(() => {
-		if (isRecordingAudio) {
-			handleStopRecordingAudio();
-		} else {
-			void handleStartRecordingAudio();
-		}
-	}, [handleStartRecordingAudio, handleStopRecordingAudio, isRecordingAudio]);
-
-	const handleRemoveAudioRecording = useCallback((id: string) => {
-		setAudioRecordings((prev) => prev.filter((recording) => recording.id !== id));
-	}, []);
-
-	const recordingAudioButtonTitle = (() => {
-		if (!canRecordAudio && !isRecordingAudio) {
-			return `Maximal ${maxRecordings} Aufnahmen möglich`;
-		}
-		if (isRecordingAudio) {
-			return "Aufnahme stoppen";
-		}
-		return "Audioaufnahme starten";
-	})();
-
-	const handleParseAudioToText = useCallback(
-		async (audioFiles: VoiceFillAudioFile[]) => {
-			toast.loading("Audio wird zu Text geparst...", {
-				id: "playground-audio-parse",
-			});
-
-			try {
-				const result = await orpc.scribe.voiceFill.call({
-					audioFiles,
-					inputFields: [
-						{
-							description: [
-								docUi.mainField.label,
-								docUi.mainField.description,
-								"Transkribiere die Sprachaufnahme als Fließtext für dieses Hauptfeld.",
-							]
-								.filter(Boolean)
-								.join(" · "),
-							label: docUi.mainField.name,
-						},
-					],
-				});
-
-				const parsedText = result.fieldValues[docUi.mainField.name]?.trim();
-				if (!parsedText) {
-					throw new Error("Keine verwertbare Sprache erkannt");
-				}
-
-				setFormMain((prev) => {
-					const trimmedPrevious = prev.trim();
-					return trimmedPrevious.length > 0 ? `${trimmedPrevious}\n\n${parsedText}` : parsedText;
-				});
-
-				toast.success("Audio als Text ins Hauptfeld übernommen", {
-					id: "playground-audio-parse",
-				});
-			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
-				toast.error(`Audio-Parsing fehlgeschlagen: ${errorMessage}`, {
-					id: "playground-audio-parse",
-				});
-				throw error;
-			}
-		},
-		[docUi.mainField.description, docUi.mainField.label, docUi.mainField.name],
-	);
-
-	const handleParseRecordedAudioToText = useCallback(async () => {
-		if (audioRecordings.length === 0) {
-			toast.error("Bitte zuerst Audio aufnehmen");
-			return;
-		}
-
-		setIsParsingAudioRecordings(true);
-		try {
-			const audioFiles = await Promise.all(
-				audioRecordings.map(async (recording) => ({
-					data: await blobToBase64(recording.blob),
-					mimeType: recording.blob.type,
-				})),
-			);
-			await handleParseAudioToText(audioFiles);
-			setAudioRecordings([]);
-		} finally {
-			setIsParsingAudioRecordings(false);
-		}
-	}, [audioRecordings, handleParseAudioToText]);
 
 	const compilePrompt = useCallback(async () => {
 		const requestId = compileRequestRef.current + 1;
@@ -1269,9 +1136,9 @@ export const PlaygroundPanel = ({
 				frequencyPenalty: presetParameters?.frequencyPenalty ?? DEFAULT_PARAMETERS.frequencyPenalty,
 				maxTokens: presetParameters?.maxTokens ?? DEFAULT_PARAMETERS.maxTokens,
 				presencePenalty: presetParameters?.presencePenalty ?? DEFAULT_PARAMETERS.presencePenalty,
+				reasoningEffort: presetParameters?.reasoningEffort ?? DEFAULT_PARAMETERS.reasoningEffort,
 				temperature: presetParameters?.temperature ?? DEFAULT_PARAMETERS.temperature,
 				thinking: presetParameters?.thinking ?? DEFAULT_PARAMETERS.thinking,
-				thinkingBudget: presetParameters?.thinkingBudget ?? DEFAULT_PARAMETERS.thinkingBudget,
 				thinkingExplicit: presetParameters?.thinkingExplicit ?? DEFAULT_PARAMETERS.thinkingExplicit,
 				topK: presetParameters?.topK ?? DEFAULT_PARAMETERS.topK,
 				topP: presetParameters?.topP ?? DEFAULT_PARAMETERS.topP,
@@ -1306,9 +1173,11 @@ export const PlaygroundPanel = ({
 
 	// Keep promptName in sync with document type unless user changed it
 	useEffect(() => {
+		const resolvedPresetPromptName = resolvePromptHarnessId(presetPromptName) ?? presetPromptName;
 		const nextPromptName =
-			presetPromptName && promptHarnessToDocumentType.get(presetPromptName) === documentType
-				? presetPromptName
+			resolvedPresetPromptName &&
+			resolveDocumentTypeFromPromptHarness(resolvedPresetPromptName) === documentType
+				? resolvedPresetPromptName
 				: scribeDocTypeUi[documentType].defaultPromptName;
 		setPromptName(nextPromptName);
 		setCompiledMessages([]);
@@ -1653,7 +1522,7 @@ export const PlaygroundPanel = ({
 		setCompiledOverride(null);
 		setPromptRuntimeVariables({});
 
-		const nextDocumentType = promptHarnessToDocumentType.get(value);
+		const nextDocumentType = resolveDocumentTypeFromPromptHarness(value);
 		if (nextDocumentType) {
 			setDocumentType(nextDocumentType);
 		}
@@ -1749,24 +1618,9 @@ export const PlaygroundPanel = ({
 					additionalInputData={formAdditional}
 					additionalInputs={playgroundAdditionalInputs}
 					additionalTextareaClassName={PLAYGROUND_EDITOR_TEXTAREA_CLASS}
-					audio={{
-						canRecord: canRecordAudio,
-						isRecording: isRecordingAudio,
-						isSubmittingRecordings: isParsingAudioRecordings,
-						onRemoveRecording: handleRemoveAudioRecording,
-						onSubmitRecordings: handleParseRecordedAudioToText,
-						onToggleRecording: handleToggleRecordingAudio,
-						recordingButtonTitle: recordingAudioButtonTitle,
-						recordings: audioRecordings.map((recording) => ({
-							duration: recording.duration,
-							id: recording.id,
-						})),
-						submitRecordingsLabel: "Zu Text parsen",
-						submitRecordingsPendingLabel: "Wird geparst...",
-					}}
+					inputContextController={inputContextController}
 					inputPlaceholder={docUi.mainField.placeholder}
 					inputValue={formMain}
-					isLoading={isParsingAudioRecordings}
 					onAdditionalInputChange={handleAdditionalInputValueChange}
 					onInputValueChange={handleMainInputValueChange}
 					showSubmit={false}
@@ -1778,7 +1632,7 @@ export const PlaygroundPanel = ({
 	);
 
 	const renderConfigView = () => {
-		const hasPromptHarnessOption = promptHarnessOptions.includes(promptName);
+		const hasPromptHarnessOption = promptHarnessOptionIds.includes(promptName);
 
 		return (
 			<div className="flex h-full min-h-0 flex-col gap-2 p-2">
@@ -1792,15 +1646,15 @@ export const PlaygroundPanel = ({
 									isPromptHarnessDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
 								)}
 							>
-								<SelectValue placeholder="Basis-Prompt waehlen" />
+								<SelectValue placeholder="Basis-Prompt wählen" />
 							</SelectTrigger>
 							<SelectContent>
 								{hasPromptHarnessOption ? null : (
-									<SelectItem value={promptName}>{promptName} (nicht verfuegbar)</SelectItem>
+									<SelectItem value={promptName}>{promptName} (nicht verfügbar)</SelectItem>
 								)}
 								{promptHarnessOptions.map((promptHarness) => (
-									<SelectItem key={promptHarness} value={promptHarness}>
-										{promptHarness}
+									<SelectItem key={promptHarness.id} value={promptHarness.id}>
+										{promptHarness.label}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -1808,25 +1662,22 @@ export const PlaygroundPanel = ({
 					</div>
 
 					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-						<DirtySelectorLabel isDirty={isTemplateDirty} label="Template" />
-						<Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-							<SelectTrigger
-								className={cn(
-									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
-									isTemplateDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
-								)}
-							>
-								<SelectValue placeholder="Template waehlen" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value={NONE_TEMPLATE_VALUE}>Keins</SelectItem>
-								{templateOptions.map((templateOption) => (
-									<SelectItem key={templateOption.id} value={templateOption.id}>
-										{templateOption.title}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<DirtySelectorLabel
+							info={TEMPLATE_SELECTOR_INFO}
+							isDirty={isTemplateDirty}
+							label="Template"
+						/>
+						<TemplateSelector
+							className={cn(
+								"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
+								isTemplateDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
+							)}
+							noneValue={NONE_TEMPLATE_VALUE}
+							onValueChange={setSelectedTemplateId}
+							placeholder="Template wählen"
+							templates={templateOptions}
+							value={selectedTemplateId}
+						/>
 					</div>
 				</div>
 
@@ -2009,6 +1860,7 @@ export const PlaygroundPanel = ({
 							promptJson={promptJson}
 							promptName={comparisonRun.promptVersion.promptName}
 							promptVersionLabel={comparisonRun.promptVersion.label}
+							prepareInputContextSubmission={inputContextController.prepareSubmission}
 							messagesForRun={comparisonRun.promptVersion.messages}
 							runState={runStates[comparisonRun.id]}
 							setRunState={setRunState}
@@ -2029,24 +1881,20 @@ export const PlaygroundPanel = ({
 			<Card className="w-full shrink-0 border-solarized-base2 lg:min-h-0 lg:w-60">
 				<CardContent className="p-2">
 					<TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 lg:grid-cols-1">
-						{navigationItems.map((item) => {
-							return (
-								<TabsTrigger
-									key={item.view}
-									value={item.view}
-									className="group h-auto w-full flex-col items-start justify-start gap-1 rounded-lg border border-transparent bg-transparent px-3 py-3 text-left text-solarized-base01 shadow-none hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00 data-[state=active]:border-solarized-blue/40 data-[state=active]:bg-solarized-blue/10 data-[state=active]:text-solarized-blue data-[state=active]:shadow-none data-[state=active]:hover:bg-solarized-blue/10 data-[state=active]:hover:text-solarized-blue"
-								>
-									<span className="font-medium text-sm text-solarized-base01 group-data-[state=active]:text-solarized-blue">
-										{PLAYGROUND_VIEW_META[item.view].label}
-									</span>
-									<span
-										className="line-clamp-2 text-xs text-solarized-base01 group-data-[state=active]:text-solarized-blue/80"
-									>
-										{item.summary}
-									</span>
-								</TabsTrigger>
-							);
-						})}
+						{navigationItems.map((item) => (
+							<TabsTrigger
+								key={item.view}
+								value={item.view}
+								className="group h-auto w-full flex-col items-start justify-start gap-1 rounded-lg border border-transparent bg-transparent px-3 py-3 text-left text-solarized-base01 shadow-none hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00 data-[state=active]:border-solarized-blue/40 data-[state=active]:bg-solarized-blue/10 data-[state=active]:text-solarized-blue data-[state=active]:shadow-none data-[state=active]:hover:bg-solarized-blue/10 data-[state=active]:hover:text-solarized-blue"
+							>
+								<span className="font-medium text-sm text-solarized-base01 group-data-[state=active]:text-solarized-blue">
+									{PLAYGROUND_VIEW_META[item.view].label}
+								</span>
+								<span className="line-clamp-2 text-xs text-solarized-base01 group-data-[state=active]:text-solarized-blue/80">
+									{item.summary}
+								</span>
+							</TabsTrigger>
+						))}
 					</TabsList>
 				</CardContent>
 			</Card>
@@ -2094,6 +1942,7 @@ const RunCard = ({
 	promptJson,
 	promptName,
 	promptVersionLabel,
+	prepareInputContextSubmission,
 	messagesForRun,
 	runState,
 	setRunState,
@@ -2105,6 +1954,7 @@ const RunCard = ({
 	promptJson: string;
 	promptName: string;
 	promptVersionLabel: string;
+	prepareInputContextSubmission: () => Promise<InputContextSubmission>;
 	messagesForRun: {
 		role: "system" | "user" | "assistant";
 		content: string;
@@ -2126,12 +1976,12 @@ const RunCard = ({
 				isStreaming: false,
 			});
 		},
-		onFinish: async ({ message, messages: finishedMessages }) => {
+		onFinish: ({ message, messages: finishedMessages }) => {
 			const startedAt = runStartedAtRef.current;
-			const latencyMs = startedAt !== null ? Math.max(0, Date.now() - startedAt) : 0;
+			const latencyMs = startedAt === null ? 0 : Math.max(0, Date.now() - startedAt);
 			runStartedAtRef.current = null;
 
-			const metadata = (message as { metadata?: unknown }).metadata;
+			const { metadata } = message as { metadata?: unknown };
 			const inMemoryMetrics = parseRunMetricsFromMetadata(metadata);
 
 			setRunState(runId, {
@@ -2145,10 +1995,10 @@ const RunCard = ({
 			const responseText =
 				getTextFromUiMessage(message) ||
 				getAssistantTextFromMessages(
-					finishedMessages as Array<{
+					finishedMessages as {
 						role: string;
-						parts?: Array<{ type: string; text?: string }>;
-					}>,
+						parts?: { type: string; text?: string }[];
+					}[],
 				) ||
 				latestCompletionRef.current;
 
@@ -2282,17 +2132,30 @@ const RunCard = ({
 		}
 
 		const requestId = crypto.randomUUID();
+		let inputContextPayload: InputContextSubmission;
+		try {
+			inputContextPayload = await prepareInputContextSubmission();
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Input-Kontext konnte nicht vorbereitet werden",
+			);
+			return;
+		}
 
 		const compiledMessagesOverride = messagesForRun.length > 0 ? messagesForRun : undefined;
 		runStartedAtRef.current = Date.now();
 
 		payloadRef.current = {
+			audioFiles:
+				inputContextPayload.audioFiles.length > 0 ? inputContextPayload.audioFiles : undefined,
 			compiledMessagesOverride: compiledMessagesOverride
 				? compiledMessagesOverride.map((m) => ({
 						content: m.content,
 						role: m.role,
 					}))
 				: undefined,
+			contextFiles:
+				inputContextPayload.contextFiles.length > 0 ? inputContextPayload.contextFiles : undefined,
 			documentType,
 			model: modelRun.model.id,
 			parameters: modelRun.parameters,
@@ -2302,13 +2165,13 @@ const RunCard = ({
 		};
 
 		setRunState(runId, {
+			error: undefined,
 			evaluation: {
 				categories: [],
 				isLoading: false,
 				summary: undefined,
 				totalScore: undefined,
 			},
-			error: undefined,
 			isStreaming: true,
 			metrics: { latencyMs: 0 },
 			requestId,
@@ -2320,6 +2183,7 @@ const RunCard = ({
 		modelRun.model,
 		modelRun.parameters,
 		messagesForRun,
+		prepareInputContextSubmission,
 		documentType,
 		promptName,
 		promptJson,
