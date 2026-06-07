@@ -12,25 +12,22 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
-import { ExternalLink, FileText, Loader2 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
+import { ExternalLink, FileText, Loader2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
+
+import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import type { AudioFile, DocumentType, FillInputsContextFile } from "@/orpc/scribe/types";
-import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
+
 import { AiscribeTemplateInputSection } from "./aiscribe-template-input-section";
 import { MemoizedCopySection } from "./memoized-copy-section";
 
@@ -44,7 +41,7 @@ export interface AdditionalInputField {
 }
 
 interface AiscribeContextMetadata {
-	author: "MDScribe-Standard";
+	author: string;
 	harnessTitle: string;
 	template: {
 		href?: string;
@@ -84,10 +81,7 @@ interface AiscribeTemplateBaseConfig {
 		inputData: string,
 		additionalInputs: Record<string, string>,
 	) => Record<string, unknown>;
-	customApiCall?: (
-		inputData: string,
-		additionalInputs: Record<string, string>,
-	) => Promise<unknown>;
+	customApiCall?: (inputData: string, additionalInputs: Record<string, string>) => Promise<unknown>;
 }
 
 interface DocumentTypeAiscribeTemplateConfig extends AiscribeTemplateBaseConfig {
@@ -108,13 +102,7 @@ interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
 }
 
-const ContextMetadataRow = ({
-	children,
-	label,
-}: {
-	children: ReactNode;
-	label: string;
-}) => (
+const ContextMetadataRow = ({ children, label }: { children: ReactNode; label: string }) => (
 	<div className="grid gap-1">
 		<div className="font-medium text-muted-foreground text-xs">{label}</div>
 		<div className="text-sm text-foreground">{children}</div>
@@ -124,9 +112,7 @@ const ContextMetadataRow = ({
 export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	const [activeTab, setActiveTab] = useState("input");
 	const [inputData, setInputData] = useState("");
-	const [additionalInputData, setAdditionalInputData] = useState<
-		Record<string, string>
-	>({});
+	const [additionalInputData, setAdditionalInputData] = useState<Record<string, string>>({});
 	const values = useMemo<Record<string, unknown>>(() => ({}), []);
 	const inputContextController = useInputContextState();
 	// Use ref for audio files to avoid race condition between setState and sendMessage
@@ -138,8 +124,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	// Initialize text snippets hook
 	useTextSnippets();
 
-	const isCustomFormConfig =
-		"formId" in config && typeof config.formId === "string";
+	const isCustomFormConfig = "formId" in config && typeof config.formId === "string";
 	const chatId = isCustomFormConfig
 		? `scribe-form-${config.formId}`
 		: `scribe-${config.documentType}`;
@@ -170,16 +155,14 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 				const requestInput = isCustomFormConfig
 					? {
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
-							contextFiles:
-								contextFiles.length > 0 ? contextFiles : undefined,
+							contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
 							formId: config.formId,
 							messages: options.messages,
 							source: "customForm" as const,
 						}
 					: {
 							audioFiles: audioFiles.length > 0 ? audioFiles : undefined,
-							contextFiles:
-								contextFiles.length > 0 ? contextFiles : undefined,
+							contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
 							documentType: config.documentType,
 							messages: options.messages,
 							source: "documentType" as const,
@@ -196,10 +179,10 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 
 	// Extract completion text from the last assistant message
 	const completion = useMemo(() => {
-		const lastAssistantMessage = messages.findLast(
-			(m) => m.role === "assistant",
-		);
-		if (!lastAssistantMessage) {return "";}
+		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
+		if (!lastAssistantMessage) {
+			return "";
+		}
 		if (lastAssistantMessage.parts) {
 			return lastAssistantMessage.parts
 				.filter((p) => p.type === "text")
@@ -213,15 +196,12 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	const isLoading = status === "streaming" || status === "submitted";
 
 	// PERF: Use useCallback with functional setState for stable callback reference
-	const handleAdditionalInputChange = useCallback(
-		(name: string, value: string) => {
-			setAdditionalInputData((prev) => ({
-				...prev,
-				[name]: value,
-			}));
-		},
-		[],
-	);
+	const handleAdditionalInputChange = useCallback((name: string, value: string) => {
+		setAdditionalInputData((prev) => ({
+			...prev,
+			[name]: value,
+		}));
+	}, []);
 
 	const handleMainInputValueChange = useCallback((value: string) => {
 		setInputData(value);
@@ -272,8 +252,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 		// Check if any additional input field has content
 		const hasAnyAdditionalInput = config.additionalInputs?.some(
 			(field) =>
-				additionalInputData[field.name] &&
-				additionalInputData[field.name].trim().length > 0,
+				additionalInputData[field.name] && additionalInputData[field.name].trim().length > 0,
 		);
 
 		// At least one field must be filled (text, audio, files, or additional input)
@@ -321,8 +300,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 			preparedContextFilesRef.current = inputContextPayload.contextFiles;
 
 			// Send message using AI SDK useChat
-			const promptText =
-				typeof prompt === "string" ? prompt : JSON.stringify(prompt);
+			const promptText = typeof prompt === "string" ? prompt : JSON.stringify(prompt);
 			await sendMessage({ text: promptText });
 		} catch (error) {
 			// Catch any unexpected errors not handled by onError callback
@@ -362,11 +340,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 		(event: KeyboardEvent) => {
 			event.preventDefault();
 			event.stopPropagation();
-			if (
-				!isLoading &&
-				!hasMissingRequiredFields &&
-				areRequiredFieldsFilled()
-			) {
+			if (!isLoading && !hasMissingRequiredFields && areRequiredFieldsFilled()) {
 				handleGenerate();
 			}
 		},
@@ -387,12 +361,8 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 							<IconComponent className="h-8 w-8 text-solarized-blue" />
 						</div>
 						<div>
-							<h1 className="font-bold text-3xl text-primary">
-								{config.title}
-							</h1>
-							<p className="text-lg text-muted-foreground">
-								{config.description}
-							</p>
+							<h1 className="font-bold text-3xl text-primary">{config.title}</h1>
+							<p className="text-lg text-muted-foreground">{config.description}</p>
 						</div>
 					</div>
 				</div>
@@ -405,9 +375,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 								<div className="space-y-2">
 									<div className="flex items-center gap-2">
 										<div className="h-2 w-2 rounded-full bg-solarized-blue" />
-										<CardTitle className="text-base text-foreground">
-											Kontext & Vorlage
-										</CardTitle>
+										<CardTitle className="text-base text-foreground">Kontext & Vorlage</CardTitle>
 									</div>
 								</div>
 							</CardHeader>
@@ -428,9 +396,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 													<ExternalLink className="h-3.5 w-3.5 shrink-0" />
 												</Link>
 											) : (
-												<span className="break-words">
-													{config.contextMetadata.template.title}
-												</span>
+												<span className="break-words">{config.contextMetadata.template.title}</span>
 											)}
 										</ContextMetadataRow>
 										<ContextMetadataRow label="Prompt">
@@ -444,16 +410,16 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 
 								<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
 									<p className="text-solarized-green leading-relaxed">
-										Diese Angaben zeigen, welche Vorlage und welcher
-										Prompt für die aktuelle Generierung verwendet werden.
+										Diese Angaben zeigen, welche Vorlage und welcher Prompt für die aktuelle
+										Generierung verwendet werden.
 									</p>
 								</div>
 
 								<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-xs">
 									<p className="text-solarized-red leading-relaxed">
-										⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie keine privaten
-										Patientendaten ein! Diese Informationen werden an eine KI gesendet.
-										Verwenden Sie nur anonymisierte Daten.
+										⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie keine privaten Patientendaten
+										ein! Diese Informationen werden an eine KI gesendet. Verwenden Sie nur
+										anonymisierte Daten.
 									</p>
 								</div>
 							</CardContent>
@@ -463,11 +429,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 					{/* Main Content with Tabs */}
 					<div className="lg:col-span-3 xl:col-span-4">
 						<Card className="border-solarized-green/20 shadow-lg">
-							<Tabs
-								className="w-full"
-								onValueChange={setActiveTab}
-								value={activeTab}
-							>
+							<Tabs className="w-full" onValueChange={setActiveTab} value={activeTab}>
 								<CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
 									<TabsList className="grid grid-cols-2 bg-background/50 backdrop-blur-sm">
 										<TabsTrigger
@@ -498,9 +460,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 											onAdditionalInputChange={handleAdditionalInputChange}
 											onInputValueChange={handleMainInputValueChange}
 											onSubmit={handleGenerate}
-											submitDisabled={
-												hasMissingRequiredFields || !areRequiredFieldsFilled()
-											}
+											submitDisabled={hasMissingRequiredFields || !areRequiredFieldsFilled()}
 											textareaId="input-field"
 											textareaRef={mainTextareaRef}
 										/>
@@ -515,15 +475,15 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 												<Kbd>⌘↵</Kbd>
 												<span>zum Generieren</span>
 											</div>
-											<Link
-												className="flex items-center gap-2 rounded px-2 py-1 transition "
-												href="/profile#snippets"
-												tabIndex={0}
-												title="Zur Text-Snippets-Verwaltung"
-											>
-												<Kbd>⇧F2</Kbd>
-												<span>für Text-Snippets</span>
-											</Link>
+												<Link
+													className="flex items-center gap-2 rounded px-2 py-1 transition "
+													href="/profile/texteditor"
+													tabIndex={0}
+													title="Zur Text-Snippets-Verwaltung"
+												>
+													<Kbd>⇧F2</Kbd>
+													<span>für Text-Snippets</span>
+												</Link>
 										</div>
 									</CardFooter>
 								</TabsContent>
@@ -544,8 +504,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 																Wird generiert...
 															</h3>
 															<p className="text-muted-foreground text-sm">
-																Bitte warten Sie, während der KI-Assistent Ihren
-																Inhalt erstellt
+																Bitte warten Sie, während der KI-Assistent Ihren Inhalt erstellt
 															</p>
 														</div>
 													</div>
@@ -562,9 +521,7 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 															</h4>
 															<ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
 																<MemoizedCopySection
-																	content={
-																		completion || "Keine Inhalte verfügbar"
-																	}
+																	content={completion || "Keine Inhalte verfügbar"}
 																	values={values}
 																/>
 															</ScrollArea>
@@ -586,17 +543,13 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 														<FileText className="h-16 w-16" />
 													</div>
 													<div className="space-y-2">
-														<h3 className="font-semibold text-lg">
-															{config.emptyStateTitle}
-														</h3>
-														<p className="max-w-md text-sm">
-															{config.emptyStateDescription}
-														</p>
-															<Button
-																className="mt-4"
-																onClick={handleSwitchToInputTab}
-																variant="outline"
-															>
+														<h3 className="font-semibold text-lg">{config.emptyStateTitle}</h3>
+														<p className="max-w-md text-sm">{config.emptyStateDescription}</p>
+														<Button
+															className="mt-4"
+															onClick={handleSwitchToInputTab}
+															variant="outline"
+														>
 															Zu Eingabe wechseln
 														</Button>
 													</div>

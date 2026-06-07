@@ -1,9 +1,7 @@
 import { ORPCError, type } from "@orpc/server";
-import { aiScribeFormConfig, eq, inArray, notInArray, template } from "@repo/database";
-import type { Database } from "@repo/database";
+import { aiScribeFormConfig, and, eq, inArray, isNull, notInArray } from "@repo/database";
 import { z } from "zod";
 
-import { AI_SCRIBE_FORM_SLUG_REGEX, isReservedAiScribeFormSlug } from "@/lib/ai-scribe-forms";
 import {
 	BUILT_IN_AISCRIBE_OVERRIDE_KEYS,
 	BUILT_IN_AISCRIBE_OVERRIDE_SLUGS,
@@ -11,47 +9,20 @@ import {
 } from "@/lib/aiscribe-built-ins";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { PROMPT_HARNESS_IDS } from "@/orpc/scribe/prompts";
-import type { PromptHarnessId } from "@/orpc/scribe/prompts";
+import {
+	createScribeFormInput,
+	deleteScribeFormInput,
+	ensureSlugUnique,
+	ensureTemplateExists,
+	parseWithBadRequest,
+	promptHarnessSchema,
+	toScribeFormValues,
+	updateScribeFormInput,
+} from "@/orpc/scribe-forms/shared";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 
-const promptHarnessSchema = z
-	.string()
-	.trim()
-	.min(1, "Basis-Prompt ist erforderlich")
-	.refine(
-		(value): value is PromptHarnessId => PROMPT_HARNESS_IDS.includes(value as PromptHarnessId),
-		{
-			message: "Basis-Prompt ist ungültig",
-		},
-	);
-
-const slugSchema = z
-	.string()
-	.trim()
-	.min(1, "Aus dem Namen konnte kein gültiger Pfad erzeugt werden")
-	.regex(AI_SCRIBE_FORM_SLUG_REGEX, "Aus dem Namen konnte kein gültiger Pfad erzeugt werden")
-	.refine((value) => !isReservedAiScribeFormSlug(value), {
-		message: "Dieser Name erzeugt einen reservierten Pfad",
-	});
-
-const baseFormSchema = z.object({
-	description: z.string().trim().nullable().optional(),
-	enabled: z.boolean(),
-	name: z.string().trim().min(1, "Name ist erforderlich"),
-	promptHarness: promptHarnessSchema,
-	slug: slugSchema,
-	templateId: z.string().nullable().optional(),
-});
-
-const createFormInput = baseFormSchema;
-
-const updateFormInput = baseFormSchema.extend({
-	id: z.string(),
-});
-
-const deleteFormInput = z.object({
-	id: z.string(),
-});
+const normalizePromptHarnessReference = (promptHarness: string): string =>
+	resolvePromptHarnessId(promptHarness) ?? promptHarness;
 
 const builtInFormInput = z.object({
 	enabled: z.boolean(),
@@ -60,83 +31,8 @@ const builtInFormInput = z.object({
 	templateId: z.string().nullable().optional(),
 });
 
-const parseWithBadRequest = <T>(schema: z.ZodType<T>, input: unknown): T => {
-	const parsed = schema.safeParse(input);
-	if (!parsed.success) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: parsed.error.issues[0]?.message ?? "Ungültige Eingabe",
-		});
-	}
-
-	return parsed.data;
-};
-
-const toNullableString = (value?: string | null): string | null =>
-	value && value.trim().length > 0 ? value : null;
-
-const toNullableText = (value?: string | null): string | null => {
-	if (typeof value !== "string") {
-		return null;
-	}
-	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : null;
-};
-
-const ensureTemplateExists = async (
-	context: { db: Database },
-	input: { templateId?: string | null },
-): Promise<void> => {
-	if (input.templateId) {
-		const existingTemplate = await context.db.query.template.findFirst({
-			where: eq(template.id, input.templateId),
-		});
-		if (!existingTemplate) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Ausgewähltes Template wurde nicht gefunden",
-			});
-		}
-	}
-};
-
-const toScribeFormValues = (input: {
-	description?: string | null;
-	enabled: boolean;
-	name: string;
-	promptHarness: string;
-	slug: string;
-	templateId?: string | null;
-}) => ({
-	description: toNullableText(input.description),
-	enabled: input.enabled,
-	inputPreset: "fullClinicalContext" as const,
-	maxTokens: null,
-	name: input.name,
-	promptHarness: input.promptHarness,
-	slug: input.slug,
-	temperature: null,
-	templateId: toNullableString(input.templateId),
-	thinkingBudget: null,
-	updatedAt: new Date(),
-});
-
-const ensureSlugUnique = async (
-	context: { db: Database },
-	slug: string,
-	excludeId?: string,
-): Promise<void> => {
-	const existing = await context.db.query.aiScribeFormConfig.findFirst({
-		where: eq(aiScribeFormConfig.slug, slug),
-	});
-
-	if (existing && existing.id !== excludeId) {
-		throw new ORPCError("BAD_REQUEST", {
-			message: "Eine Vorlage mit diesem Namen existiert bereits",
-		});
-	}
-};
-
-const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context }) =>
-	context.db.query.aiScribeFormConfig.findMany({
+const listFormsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
+	const forms = await context.db.query.aiScribeFormConfig.findMany({
 		columns: {
 			description: true,
 			enabled: true,
@@ -147,7 +43,10 @@ const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context 
 			templateId: true,
 		},
 		orderBy: (form, { asc }) => [asc(form.createdAt)],
-		where: notInArray(aiScribeFormConfig.slug, BUILT_IN_AISCRIBE_OVERRIDE_SLUGS),
+		where: and(
+			isNull(aiScribeFormConfig.authorId),
+			notInArray(aiScribeFormConfig.slug, BUILT_IN_AISCRIBE_OVERRIDE_SLUGS),
+		),
 		with: {
 			template: {
 				columns: {
@@ -156,8 +55,13 @@ const listFormsHandler = authed.use(requiredAdminMiddleware).handler(({ context 
 				},
 			},
 		},
-	}),
-);
+	});
+
+	return forms.map((form) => ({
+		...form,
+		promptHarness: normalizePromptHarnessReference(form.promptHarness),
+	}));
+});
 
 const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
 	const overrides = await context.db.query.aiScribeFormConfig.findMany({
@@ -195,7 +99,7 @@ const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(asyn
 						description: override.description,
 						enabled: override.enabled,
 						id: override.id,
-						promptHarness: override.promptHarness,
+						promptHarness: normalizePromptHarnessReference(override.promptHarness),
 						template: override.template,
 						templateId: override.templateId,
 					}
@@ -209,15 +113,15 @@ const listBuiltInFormsHandler = authed.use(requiredAdminMiddleware).handler(asyn
 
 const createFormHandler = authed
 	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof createFormInput>>())
+	.input(type<z.input<typeof createScribeFormInput>>())
 	.handler(async ({ context, input }) => {
-		const parsed = parseWithBadRequest(createFormInput, input);
+		const parsed = parseWithBadRequest(createScribeFormInput, input);
 		await ensureTemplateExists(context, parsed);
 		await ensureSlugUnique(context, parsed.slug);
 
 		const [created] = await context.db
 			.insert(aiScribeFormConfig)
-			.values(toScribeFormValues(parsed))
+			.values(toScribeFormValues({ ...parsed, visibility: "public" }))
 			.returning();
 
 		return created;
@@ -225,16 +129,16 @@ const createFormHandler = authed
 
 const updateFormHandler = authed
 	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof updateFormInput>>())
+	.input(type<z.input<typeof updateScribeFormInput>>())
 	.handler(async ({ context, input }) => {
-		const parsed = parseWithBadRequest(updateFormInput, input);
+		const parsed = parseWithBadRequest(updateScribeFormInput, input);
 		await ensureTemplateExists(context, parsed);
 		await ensureSlugUnique(context, parsed.slug, parsed.id);
 
 		const [updated] = await context.db
 			.update(aiScribeFormConfig)
-			.set(toScribeFormValues(parsed))
-			.where(eq(aiScribeFormConfig.id, parsed.id))
+			.set(toScribeFormValues({ ...parsed, visibility: "public" }))
+			.where(and(eq(aiScribeFormConfig.id, parsed.id), isNull(aiScribeFormConfig.authorId)))
 			.returning();
 
 		if (!updated) {
@@ -248,17 +152,19 @@ const updateFormHandler = authed
 
 const deleteFormHandler = authed
 	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof deleteFormInput>>())
+	.input(type<z.infer<typeof deleteScribeFormInput>>())
 	.handler(async ({ context, input }) => {
-		const parsed = parseWithBadRequest(deleteFormInput, input);
-		await context.db.delete(aiScribeFormConfig).where(eq(aiScribeFormConfig.id, parsed.id));
+		const parsed = parseWithBadRequest(deleteScribeFormInput, input);
+		await context.db
+			.delete(aiScribeFormConfig)
+			.where(and(eq(aiScribeFormConfig.id, parsed.id), isNull(aiScribeFormConfig.authorId)));
 
 		return { success: true };
 	});
 
 const upsertBuiltInFormHandler = authed
 	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof builtInFormInput>>())
+	.input(type<z.input<typeof builtInFormInput>>())
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(builtInFormInput, input);
 		await ensureTemplateExists(context, parsed);
@@ -274,7 +180,7 @@ const upsertBuiltInFormHandler = authed
 		});
 
 		const existing = await context.db.query.aiScribeFormConfig.findFirst({
-			where: eq(aiScribeFormConfig.slug, definition.slug),
+			where: and(eq(aiScribeFormConfig.slug, definition.slug), isNull(aiScribeFormConfig.authorId)),
 		});
 
 		if (existing) {

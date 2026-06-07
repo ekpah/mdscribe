@@ -300,7 +300,7 @@ const DashboardHeader = ({
 					</Button>
 				</Link>
 			) : null}
-			<Link href="/profile">
+			<Link href="/profile/account">
 				<Button
 					className="w-full gap-2 border-solarized-base1 text-solarized-base01 hover:bg-solarized-base2 sm:w-auto"
 					size="sm"

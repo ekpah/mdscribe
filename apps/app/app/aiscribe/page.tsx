@@ -1,8 +1,6 @@
-import {
-	Alert,
-	AlertDescription,
-} from "@repo/design-system/components/ui/alert";
+import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
 import { Badge } from "@repo/design-system/components/ui/badge";
+import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
 	CardDescription,
@@ -18,15 +16,18 @@ import {
 	FileText,
 	Heart,
 	PenTool,
+	Settings,
 	Stethoscope,
 	Syringe,
 	UserPlus,
 	Zap,
 } from "lucide-react";
 import Link from "next/link";
+
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
+
 import { buildCustomAiscribeTemplateConfig } from "./_lib/custom-form-config";
 
 type AccentColor =
@@ -184,15 +185,12 @@ const quickGenerationModes: {
 		description:
 			"AI Scribe für ambulante Konsultationen. Generiere professionelle Arztbriefe für ambulante Patienten.",
 		href: "/aiscribe/outpatient",
-		icon: (
-			<Stethoscope className="h-4 w-4 text-solarized-green sm:h-5 sm:w-5" />
-		),
+		icon: <Stethoscope className="h-4 w-4 text-solarized-green sm:h-5 sm:w-5" />,
 		title: "Ambulanter Modus",
 	},
 	{
 		accentColor: "solarized-violet",
-		description:
-			"AI Scribe für Prozeduren. Dokumentation für medizinische Eingriffe generieren.",
+		description: "AI Scribe für Prozeduren. Dokumentation für medizinische Eingriffe generieren.",
 		href: "/aiscribe/procedures",
 		icon: <Syringe className="h-4 w-4 text-solarized-violet sm:h-5 sm:w-5" />,
 		title: "Prozeduren Modus",
@@ -207,12 +205,9 @@ const quickGenerationModes: {
 	},
 	{
 		accentColor: "solarized-yellow",
-		description:
-			"Aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen erstellen.",
+		description: "Aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen erstellen.",
 		href: "/aiscribe/diagnoseblock",
-		icon: (
-			<ClipboardList className="h-4 w-4 text-solarized-yellow sm:h-5 sm:w-5" />
-		),
+		icon: <ClipboardList className="h-4 w-4 text-solarized-yellow sm:h-5 sm:w-5" />,
 		title: "Diagnoseblock Update",
 	},
 ];
@@ -237,9 +232,7 @@ const editorModes: {
 		description:
 			"Strukturierter Editor für ICU-Entlassungsbriefe mit KI-unterstützter Dokumentation.",
 		href: "/aiscribe/editor/icu",
-		icon: (
-			<Stethoscope className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />
-		),
+		icon: <Stethoscope className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />,
 		title: "ICU Editor",
 	},
 	{
@@ -255,10 +248,12 @@ const editorModes: {
 export default async function AIScribeLandingPage() {
 	const queryClient = getQueryClient();
 	const session = await getServerSession();
-	const customForms = await queryClient.fetchQuery(
-		orpc.scribeForms.listAvailable.queryOptions(),
-	);
+	const customForms = await queryClient.fetchQuery(orpc.scribeForms.listAvailable.queryOptions());
 	const isLoggedIn = !!session?.user;
+	const adminForms = customForms.filter((form) => form.authorId === null);
+	const personalForms = session?.user
+		? customForms.filter((form) => form.authorId === session.user.id)
+		: [];
 
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden bg-solarized-base3">
@@ -271,9 +266,7 @@ export default async function AIScribeLandingPage() {
 								<PenTool className="h-5 w-5 text-solarized-blue sm:h-6 sm:w-6" />
 							</div>
 							<div>
-								<h1 className="font-bold text-xl text-solarized-base00 sm:text-2xl">
-									AI Scribe
-								</h1>
+								<h1 className="font-bold text-xl text-solarized-base00 sm:text-2xl">AI Scribe</h1>
 								<p className="text-sm text-solarized-base01 sm:text-base">
 									Intelligente medizinische Dokumentation
 								</p>
@@ -302,15 +295,55 @@ export default async function AIScribeLandingPage() {
 								<AlertCircle className="h-4 w-4" />
 								<AlertDescription>
 									Du musst dich{" "}
-									<Link
-										className="font-medium underline"
-										href="/sign-in?redirect=%2Faiscribe"
-									>
+									<Link className="font-medium underline" href="/sign-in?redirect=%2Faiscribe">
 										einloggen
 									</Link>{" "}
 									um diese Funktion nutzen zu können
 								</AlertDescription>
 							</Alert>
+						</div>
+					)}
+
+					{isLoggedIn && (
+						<div className="space-y-3 sm:space-y-4">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div className="flex items-center gap-2">
+									<FileText className="h-5 w-5 text-solarized-cyan" />
+									<h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
+										Meine Vorlagen
+									</h2>
+								</div>
+								<Button asChild size="sm" variant="outline">
+									<Link href="/profile/ai-scribe">
+										<Settings className="h-4 w-4" />
+										Verwalten
+									</Link>
+								</Button>
+							</div>
+							<p className="text-xs text-solarized-base01 sm:text-sm">
+								Ihre selbst angelegten AI Textbausteine für persönliche wiederkehrende
+								Dokumentationsabläufe.
+							</p>
+							{personalForms.length > 0 && (
+								<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+									{personalForms.map((form) => {
+										const formConfig = buildCustomAiscribeTemplateConfig(form);
+										const Icon = formConfig.icon;
+
+										return (
+											<ScribeCard
+												key={form.id}
+												title={form.name}
+												description={form.description ?? formConfig.description}
+												href={`/aiscribe/custom/${form.slug}`}
+												icon={<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
+												isLoggedIn={isLoggedIn}
+												accentColor="solarized-cyan"
+											/>
+										);
+									})}
+								</div>
+							)}
 						</div>
 					)}
 
@@ -323,8 +356,8 @@ export default async function AIScribeLandingPage() {
 							</h2>
 						</div>
 						<p className="text-xs text-solarized-base01 sm:text-sm">
-							Wählen Sie einen Modus, geben Sie Ihre Notizen ein und erhalten
-							Sie sofort ein KI-generiertes Dokument.
+							Feste Standardseiten für die wichtigsten AIScribe-Workflows mit direkter
+							Dokumentgenerierung.
 						</p>
 						<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
 							{quickGenerationModes.map((mode) => (
@@ -341,20 +374,20 @@ export default async function AIScribeLandingPage() {
 						</div>
 					</div>
 
-					{customForms.length > 0 && (
+					{adminForms.length > 0 && (
 						<div className="space-y-3 sm:space-y-4">
 							<div className="flex items-center gap-2">
 								<FileText className="h-5 w-5 text-solarized-cyan" />
 								<h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
-									AI Textbausteine
+									Weitere Vorlagen
 								</h2>
 							</div>
 							<p className="text-xs text-solarized-base01 sm:text-sm">
-								Zusätzliche, konfigurierbare AIScribe-Texte für
-								wiederkehrende Dokumentationsaufgaben.
+								Von MDScribe bereitgestellte AI Textbausteine für zusätzliche
+								Dokumentationsaufgaben.
 							</p>
 							<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-								{customForms.map((form) => {
+								{adminForms.map((form) => {
 									const formConfig = buildCustomAiscribeTemplateConfig(form);
 									const Icon = formConfig.icon;
 
@@ -364,9 +397,7 @@ export default async function AIScribeLandingPage() {
 											title={form.name}
 											description={form.description ?? formConfig.description}
 											href={`/aiscribe/custom/${form.slug}`}
-											icon={
-												<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />
-											}
+											icon={<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
 											isLoggedIn={isLoggedIn}
 											accentColor="solarized-cyan"
 										/>
@@ -388,8 +419,8 @@ export default async function AIScribeLandingPage() {
 							</Badge>
 						</div>
 						<p className="text-xs text-solarized-base01 sm:text-sm">
-							Strukturierte Editoren mit Vorlagen und KI-gestützter
-							Textverbesserung für komplexere Dokumentation.
+							Beta-Editoren für strukturierte Arztbriefe, wenn du einen kompletten Brief erstellen
+							möchtest.
 						</p>
 						<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
 							{editorModes.map((mode) => (

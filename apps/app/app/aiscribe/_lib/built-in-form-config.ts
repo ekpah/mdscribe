@@ -10,6 +10,7 @@ import {
 	getBuiltInAiscribeOverride,
 } from "@/lib/aiscribe-built-ins";
 import type { BuiltInAiscribeOverrideKey } from "@/lib/aiscribe-built-ins";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 import { resolvePromptHarnessTitle, resolveTemplateMetadata } from "./custom-form-config";
@@ -81,13 +82,13 @@ const ER_ADDITIONAL_INPUTS: AdditionalInputField[] = [
 ];
 
 const PROMPT_HARNESS_ADDITIONAL_INPUTS: Record<string, AdditionalInputField[] | undefined> = {
-	Diagnoses: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-	ER_Anamnese_chat: ER_ADDITIONAL_INPUTS,
-	Inpatient_discharge: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-	diagnostic_results: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-	icu_transfer: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
-	outpatient_visit: undefined,
-	procedure: undefined,
+	anamnese: ER_ADDITIONAL_INPUTS,
+	befunde: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	diagnosis: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	discharge: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	"icu-transfer": STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	outpatient: undefined,
+	procedures: undefined,
 };
 
 const BUILT_IN_AISCRIBE_TEMPLATES = {
@@ -209,16 +210,20 @@ export const buildBuiltInAiscribeTemplateConfig = ({
 	const { defaultPromptHarness } = getBuiltInAiscribeOverride(template);
 	const resolvedPromptHarness = overrideForm?.promptHarness ?? defaultPromptHarness;
 	const contextForm: PublicAiTextForm = {
+		authorId: null,
 		description: null,
 		id: overrideForm?.id ?? template,
 		name: definition.title,
 		promptHarness: resolvedPromptHarness,
 		slug: getBuiltInAiscribeOverrideSlug(template),
 		template: overrideForm?.template ?? null,
+		visibility: "public",
 	};
+	const resolvedPromptHarnessId =
+		resolvePromptHarnessId(resolvedPromptHarness) ?? resolvedPromptHarness;
 	const resolvedAdditionalInputs =
 		overrideForm?.id && overrideForm.promptHarness
-			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[overrideForm.promptHarness] ??
+			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[resolvedPromptHarnessId] ??
 				definition.additionalInputs)
 			: definition.additionalInputs;
 	const baseConfig = {

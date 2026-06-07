@@ -1,12 +1,18 @@
 import { FileText } from "lucide-react";
 
-import { DEFAULT_AI_TEXT_DESCRIPTION } from "@/lib/ai-scribe-forms";
 import type {
 	AdditionalInputField,
 	AiscribeTemplateConfig,
 } from "@/app/aiscribe/_components/aiscribe-template";
+import { DEFAULT_AI_TEXT_DESCRIPTION } from "@/lib/ai-scribe-forms";
+import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 
 export interface PublicAiTextForm {
+	author?: {
+		id: string;
+		name: string | null;
+	} | null;
+	authorId: string | null;
 	description: string | null;
 	id: string;
 	name: string;
@@ -16,30 +22,31 @@ export interface PublicAiTextForm {
 		id: string;
 		title: string;
 	} | null;
+	visibility: "public" | "private";
 }
 
 const PROMPT_HARNESS_TITLES: Record<string, string> = {
-	Diagnoses: "Diagnoseblock",
-	ER_Anamnese_chat: "Notfall Anamnese",
-	Inpatient_discharge: "Entlassungsbrief",
-	diagnostic_results: "Befunde",
-	icu_transfer: "ICU Verlegungsbrief",
-	outpatient_visit: "Ambulanter Arztbrief",
-	procedure: "Eingriffsdokumentation",
+	anamnese: "Anamnese",
+	befunde: "Befunde",
+	diagnosis: "Diagnoseblock",
+	discharge: "Entlassungsbrief",
+	"icu-transfer": "ICU Verlegungsbrief",
+	outpatient: "Ambulanter Arztbrief",
+	procedures: "Eingriffsdokumentation",
 };
 
 const FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS: Record<string, string> = {
-	Diagnoses: "Standardstruktur Diagnoseblock",
-	ER_Anamnese_chat: "Standardstruktur Anamnese",
-	Inpatient_discharge: "Standardstruktur Entlassbrief",
-	diagnostic_results: "Standardstruktur Befunde",
-	icu_transfer: "Standardstruktur ICU-Verlegung",
-	outpatient_visit: "Standardstruktur Ambulanzbrief",
-	procedure: "Standardstruktur Prozedurdokumentation",
+	anamnese: "Standardstruktur Anamnese",
+	befunde: "Standardstruktur Befunde",
+	diagnosis: "Standardstruktur Diagnoseblock",
+	discharge: "Standardstruktur Entlassbrief",
+	"icu-transfer": "Standardstruktur ICU-Verlegung",
+	outpatient: "Standardstruktur Ambulanzbrief",
+	procedures: "Standardstruktur Prozedurdokumentation",
 };
 
 export const resolvePromptHarnessTitle = (promptHarness: string): string =>
-	PROMPT_HARNESS_TITLES[promptHarness] ?? promptHarness;
+	PROMPT_HARNESS_TITLES[resolvePromptHarnessId(promptHarness) ?? promptHarness] ?? promptHarness;
 
 export const resolveTemplateMetadata = (
 	form: PublicAiTextForm,
@@ -53,23 +60,23 @@ export const resolveTemplateMetadata = (
 
 	return {
 		title:
-			FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS[form.promptHarness] ??
+			FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS[
+				resolvePromptHarnessId(form.promptHarness) ?? form.promptHarness
+			] ??
 			"Eingebaute Standardvorlage",
 	};
 };
 
 const ADDITIONAL_INPUTS: AdditionalInputField[] = [
 	{
-		description:
-			"Bekannte Vorerkrankungen, chronische Erkrankungen und relevante Diagnosen",
+		description: "Bekannte Vorerkrankungen, chronische Erkrankungen und relevante Diagnosen",
 		label: "Diagnoseblock",
 		name: "diagnoseblock",
 		placeholder: "Diagnoseblock eingeben...",
 		type: "textarea",
 	},
 	{
-		description:
-			"Aufnahmeanamnese, Beschwerden und weitere relevante Vorgeschichte",
+		description: "Aufnahmeanamnese, Beschwerden und weitere relevante Vorgeschichte",
 		label: "Anamnese",
 		name: "anamnese",
 		placeholder: "Anamnese eingeben...",
@@ -88,11 +95,12 @@ export const buildCustomAiscribeTemplateConfig = (
 	form: PublicAiTextForm,
 ): AiscribeTemplateConfig => {
 	const description = form.description?.trim() || DEFAULT_AI_TEXT_DESCRIPTION;
+	const authorName = form.author?.name?.trim();
 
 	return {
 		additionalInputs: ADDITIONAL_INPUTS,
 		contextMetadata: {
-			author: "MDScribe-Standard",
+			author: form.authorId ? (authorName || "Nutzer-Textbaustein") : "MDScribe-Standard",
 			harnessTitle: resolvePromptHarnessTitle(form.promptHarness),
 			template: resolveTemplateMetadata(form),
 		},

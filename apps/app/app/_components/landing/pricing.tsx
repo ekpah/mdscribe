@@ -156,7 +156,7 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 							</li>
 						</ul>
 						<Button asChild className="mt-auto" variant="outline">
-							<Link href={isLoggedIn ? "/profile" : signInUrl}>
+							<Link href={isLoggedIn ? "/profile/account" : signInUrl}>
 								Upgrade zu Plus
 							</Link>
 						</Button>

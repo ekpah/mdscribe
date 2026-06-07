@@ -386,6 +386,10 @@ export const aiScribeFormConfig = pgTable(
 		name: text("name").notNull(),
 		promptHarness: text("promptHarness").notNull(),
 		slug: text("slug").notNull(),
+		authorId: text("authorId").references(() => user.id, {
+			onDelete: "cascade",
+		}),
+		visibility: text("visibility").notNull().default("public"),
 		temperature: numeric("temperature", { precision: 3, scale: 2 }),
 		templateId: text("templateId").references(() => template.id, {
 			onDelete: "set null",
@@ -398,7 +402,10 @@ export const aiScribeFormConfig = pgTable(
 	},
 	(table) => [
 		uniqueIndex("AiScribeFormConfig_slug_key").on(table.slug),
+		index("AiScribeFormConfig_authorId_idx").on(table.authorId),
+		index("AiScribeFormConfig_authorId_visibility_idx").on(table.authorId, table.visibility),
 		index("AiScribeFormConfig_enabled_idx").on(table.enabled),
+		index("AiScribeFormConfig_visibility_idx").on(table.visibility),
 	],
 );
 
@@ -410,6 +417,7 @@ export const userRelations = relations(user, ({ many }) => ({
 	favourites: many(favourites),
 	sessions: many(session),
 	subscriptions: many(subscription),
+	aiScribeFormConfigs: many(aiScribeFormConfig),
 	templateCollections: many(templateCollection),
 	templates: many(template),
 	textSnippets: many(textSnippet),
@@ -494,6 +502,10 @@ export const aiModelRelations = relations(aiModel, ({ one }) => ({
 }));
 
 export const aiScribeFormConfigRelations = relations(aiScribeFormConfig, ({ one }) => ({
+	author: one(user, {
+		fields: [aiScribeFormConfig.authorId],
+		references: [user.id],
+	}),
 	template: one(template, {
 		fields: [aiScribeFormConfig.templateId],
 		references: [template.id],

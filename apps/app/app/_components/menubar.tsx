@@ -185,7 +185,7 @@ export default function TopMenuBar({
 											</Link>
 										</DropdownMenuItem>
 										<DropdownMenuItem asChild>
-											<Link href="/profile" className="cursor-pointer">
+											<Link href="/profile/account" className="cursor-pointer">
 												<Settings className="mr-2 h-4 w-4" />
 												Einstellungen
 											</Link>
@@ -301,7 +301,7 @@ export default function TopMenuBar({
 												Dashboard
 											</Link>
 											<Link
-												href="/profile"
+												href="/profile/account"
 												onClick={closeMobileMenu}
 												className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
 											>
