@@ -199,6 +199,28 @@ mock.module("ai", () => ({
 		resolveAsync({
 			finishReason: "stop" as const,
 			object: {
+				categories: [
+					{
+						comment: "Testbewertung",
+						name: "Faktentreue: 0 weg, 0 erf., 0 falsch",
+						score: 8,
+					},
+					{
+						comment: "Testbewertung",
+						name: "Klinische Nutzbarkeit: 0 offene Punkte",
+						score: 8,
+					},
+					{
+						comment: "Testbewertung",
+						name: "Sprache: 0 Fehler, 0 unnat.",
+						score: 8,
+					},
+					{
+						comment: "Testbewertung",
+						name: "Struktur: 0 Strukturprobleme",
+						score: 8,
+					},
+				],
 				fieldMapping: [
 					{
 						description: "Patientenname aus dem PDF-Formular",
@@ -206,6 +228,9 @@ mock.module("ai", () => ({
 						label: "Patient",
 					},
 				],
+				note: "Antwort A bleibt naeher an den Eingaben.",
+				preferredResponse: "a" as const,
+				summary: "Testzusammenfassung",
 				test: "value",
 			},
 			usage: {
