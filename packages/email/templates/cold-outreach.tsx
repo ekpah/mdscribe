@@ -13,7 +13,7 @@ import {
 import config from '../tailwind.config';
 
 interface ColdOutreachTemplateProps {
-    readonly userName: string;
+    readonly userName?: string | undefined;
     readonly actionUrl: string;
     readonly headline?: string;
     readonly buttonText?: string;
@@ -24,7 +24,10 @@ export const ColdOutreachTemplate = ({
     actionUrl,
     headline = '🚀 70% weniger Dokumentationsarbeit – KI für Assistenzärzte',
     buttonText = 'Jetzt kostenlos starten',
-}: ColdOutreachTemplateProps) => (
+}: ColdOutreachTemplateProps) => {
+    const greeting = userName ? `Hallo ${userName},` : 'Hallo,';
+
+    return (
     <Tailwind config={config}>
         <Html>
             <Head />
@@ -37,7 +40,7 @@ export const ColdOutreachTemplate = ({
                                 {headline}
                             </Text>
                             <Text className="m-0 text-muted-foreground">
-                                Hey {userName} 👋
+                                {greeting}
                             </Text>
                             <Text className="text-muted-foreground">
                                 Du verbringst wahrscheinlich 3-4 Stunden täglich mit
@@ -77,4 +80,5 @@ export const ColdOutreachTemplate = ({
             </Body>
         </Html>
     </Tailwind>
-);
+    );
+};

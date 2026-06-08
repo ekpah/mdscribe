@@ -55,6 +55,22 @@ describe("Admin emails handler", () => {
 		expect(documentsDraft).not.toHaveProperty("render");
 	});
 
+	test("lists selectable test recipients with profile data", async () => {
+		const { user: recipient } = await createTestUser(server.db, {
+			email: "recipient@example.com",
+			name: "Dr. Recipient",
+		});
+
+		const recipients = await call(emailsHandler.listTestRecipients, undefined, { context });
+
+		expect(recipients).toContainEqual({
+			email: "recipient@example.com",
+			emailVerified: true,
+			id: recipient.id,
+			name: "Dr. Recipient",
+		});
+	});
+
 	test("preview renders non-empty HTML", async () => {
 		const preview = await call(
 			emailsHandler.preview,
@@ -76,6 +92,8 @@ describe("Admin emails handler", () => {
 
 		expect(preview.id).toBe("ai-texts-announcement");
 		expect(preview.html).toContain("<html");
+		expect(preview.html).toContain("Hallo,");
+		expect(preview.html).not.toContain("Dr. Max Mustermann");
 		expect(preview.html).toContain("Standardvorlage");
 		expect(preview.html).toContain("Eigenes Template erstellen");
 		expect(preview.html).toContain("AI Textbaustein daraus erstellen");
@@ -87,28 +105,57 @@ describe("Admin emails handler", () => {
 		expect(preview.html).toContain("AI-Scribe");
 	});
 
+	test("marketing previews use generic greetings without demo recipient names", async () => {
+		const drafts = await call(emailsHandler.list, undefined, { context });
+		const marketingDrafts = drafts.filter((draft) => draft.category === "marketing");
+
+		expect(marketingDrafts.map((draft) => draft.id).toSorted()).toEqual([
+			"ai-texts-announcement",
+			"cold-outreach",
+			"documents-announcement",
+		]);
+
+		for (const draft of marketingDrafts) {
+			expect(draft.previewProps).not.toHaveProperty("userName");
+
+			const preview = await call(
+				emailsHandler.preview,
+				{ id: draft.id },
+				{ context },
+			);
+
+			expect(preview.html).toContain("Hallo,");
+			expect(preview.html).not.toContain("Dr. Max Mustermann");
+		}
+	});
+
 	test("preview rejects invalid draft ids", async () => {
 		await expect(call(emailsHandler.preview, { id: "missing-draft" }, { context })).rejects.toThrow(
 			ORPCError,
 		);
 	});
 
-	test("sendTest validates recipient email before sending", async () => {
+	test("sendTest requires a selected user before sending", async () => {
 		await expect(
 			call(
 				emailsHandler.sendTest,
-				{ id: "documents-announcement", to: "not-an-email" },
+				{ id: "documents-announcement", userId: "" },
 				{ context },
 			),
-		).rejects.toThrow("gültige E-Mail-Adresse");
+		).rejects.toThrow("Nutzer ist erforderlich");
 
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
-	test("sendTest sends a single test email with prefixed subject", async () => {
+	test("sendTest sends a personalized test email to a selected user", async () => {
+		const { user: recipient } = await createTestUser(server.db, {
+			email: "nils@example.com",
+			name: "Dr. Nils Test",
+		});
+
 		const result = await call(
 			emailsHandler.sendTest,
-			{ id: "documents-announcement", to: "nils@example.com" },
+			{ id: "documents-announcement", userId: recipient.id },
 			{ context },
 		);
 
@@ -116,6 +163,8 @@ describe("Admin emails handler", () => {
 			id: "documents-announcement",
 			subject: "[TEST] Neu: Rehaanträge schneller mit MDScribe vorbereiten",
 			to: "nils@example.com",
+			userId: recipient.id,
+			userName: "Dr. Nils Test",
 		});
 		expect(sendEmailMock).toHaveBeenCalledTimes(1);
 		expect(sendEmailMock.mock.calls[0]?.[0]).toMatchObject({
@@ -123,6 +172,28 @@ describe("Admin emails handler", () => {
 			subject: "[TEST] Neu: Rehaanträge schneller mit MDScribe vorbereiten",
 			to: "nils@example.com",
 		});
+		const sendOptions = sendEmailMock.mock.calls[0]?.[0] as
+			| { template?: { props?: { userName?: string } } }
+			| undefined;
+		expect(sendOptions?.template?.props?.userName).toBe("Dr. Nils Test");
+	});
+
+	test("sendTest keeps the AI Textbausteine announcement greeting generic", async () => {
+		const { user: recipient } = await createTestUser(server.db, {
+			email: "ai-texts-recipient@example.com",
+			name: "Dr. Nils Test",
+		});
+
+		await call(
+			emailsHandler.sendTest,
+			{ id: "ai-texts-announcement", userId: recipient.id },
+			{ context },
+		);
+
+		const sendOptions = sendEmailMock.mock.calls[0]?.[0] as
+			| { template?: { props?: { userName?: string } } }
+			| undefined;
+		expect(sendOptions?.template?.props?.userName).toBeUndefined();
 	});
 
 	test("sendMarketingEmail rejects missing confirmation before selecting recipients", async () => {

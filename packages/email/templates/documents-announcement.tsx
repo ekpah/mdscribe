@@ -15,7 +15,7 @@ import {
 import config from '../tailwind.config';
 
 interface DocumentsAnnouncementTemplateProps {
-  readonly userName?: string;
+  readonly userName?: string | undefined;
   readonly actionUrl: string;
   readonly headline?: string;
   readonly buttonText?: string;
