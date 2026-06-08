@@ -21,6 +21,13 @@ import { Label } from "@repo/design-system/components/ui/label";
 import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
 import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
 import { Separator } from "@repo/design-system/components/ui/separator";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -74,7 +81,8 @@ const EMPTY_MODELS: PlaygroundModel[] = [];
 const EMPTY_TOP_MODEL_IDS: string[] = [];
 const USAGE_POOL_LIMIT = 100;
 const SAMPLE_FETCH_LIMIT = 40;
-const SAMPLE_DISPLAY_LIMIT = 10;
+const DEFAULT_SAMPLE_COUNT = 5;
+const SAMPLE_COUNT_OPTIONS = [1, 2, 3, 5, 10, 20] as const;
 
 type ComparisonSide = "a" | "b";
 type RunStatus = "idle" | "running" | "success" | "error";
@@ -1351,6 +1359,8 @@ const ModelComparisonHeader = ({
 	onBlindModeChange,
 	onGenerateAll,
 	onRefreshSamples,
+	onSampleCountChange,
+	sampleCountLimit,
 	sampleCount,
 }: {
 	blindMode: boolean;
@@ -1361,14 +1371,39 @@ const ModelComparisonHeader = ({
 	onBlindModeChange: (checked: boolean) => void;
 	onGenerateAll: () => void;
 	onRefreshSamples: () => void;
+	onSampleCountChange: (sampleCount: number) => void;
+	sampleCountLimit: number;
 	sampleCount: number;
 }) => (
 	<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 		<div>
 			<h1 className="font-semibold text-2xl text-solarized-base00">AI-Modell-Vergleich</h1>
-			<p className="text-sm text-solarized-base01">{sampleCount} zufällige Usage Events</p>
+			<p className="text-sm text-solarized-base01">
+				{sampleCount}/{sampleCountLimit} zufällige Usage Events
+			</p>
 		</div>
 		<div className="flex flex-wrap items-center gap-2">
+			<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-3 py-2">
+				<Label htmlFor="sample-count" className="text-sm">
+					Stichprobe
+				</Label>
+				<Select
+					value={String(sampleCountLimit)}
+					onValueChange={(value) => onSampleCountChange(Number(value))}
+					disabled={isGenerating}
+				>
+					<SelectTrigger id="sample-count" className="h-8 w-24 bg-background">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						{SAMPLE_COUNT_OPTIONS.map((option) => (
+							<SelectItem key={option} value={String(option)}>
+								{option}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
 			<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-3 py-2">
 				<EyeOff className="h-4 w-4 text-solarized-base01" />
 				<Label htmlFor="blind-mode" className="text-sm">
@@ -1420,6 +1455,7 @@ export const ModelComparisonPageClient = () => {
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [preferences, setPreferences] = useState<Record<string, ComparisonSide>>({});
 	const [results, setResults] = useState<ComparisonResults>({});
+	const [sampleCountLimit, setSampleCountLimit] = useState(DEFAULT_SAMPLE_COUNT);
 	const [sampledIds, setSampledIds] = useState<string[]>([]);
 	const [summary, setSummary] = useState<ComparisonSummary | null>(null);
 
@@ -1457,8 +1493,8 @@ export const ModelComparisonPageClient = () => {
 			usageDetailQueries.data
 				.map(toComparisonSample)
 				.filter((sample): sample is ComparisonSample => sample !== null)
-				.slice(0, SAMPLE_DISPLAY_LIMIT),
-		[usageDetailQueries.data],
+				.slice(0, sampleCountLimit),
+		[sampleCountLimit, usageDetailQueries.data],
 	);
 	const templateIds = useMemo(
 		() => [
@@ -1579,6 +1615,13 @@ export const ModelComparisonPageClient = () => {
 		setBlindMode(checked);
 	}, []);
 
+	const handleSampleCountChange = useCallback((sampleCount: number) => {
+		if (!SAMPLE_COUNT_OPTIONS.some((option) => option === sampleCount)) {
+			return;
+		}
+		setSampleCountLimit(sampleCount);
+	}, []);
+
 	const handleGenerateAll = useCallback(async () => {
 		if (!modelA || !modelB) {
 			toast.error("Bitte zwei Modelle auswählen");
@@ -1654,7 +1697,9 @@ export const ModelComparisonPageClient = () => {
 					onBlindModeChange={handleBlindModeChange}
 					onGenerateAll={handleGenerateAll}
 					onRefreshSamples={handleRefreshSamples}
+					onSampleCountChange={handleSampleCountChange}
 					sampleCount={samples.length}
+					sampleCountLimit={sampleCountLimit}
 				/>
 
 				<div className="grid gap-4 lg:grid-cols-2">
