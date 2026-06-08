@@ -72,6 +72,10 @@ export const router = {
 			const handlerModule = await import("./scribe/handlers/fill-inputs");
 			return { default: handlerModule.fillInputsHandler };
 		}),
+		ocrToMarkdown: lazy(async () => {
+			const handlerModule = await import("./scribe/handlers/ocr-to-markdown");
+			return { default: handlerModule.ocrToMarkdownHandler };
+		}),
 	},
 	scribeForms: lazy(async () => {
 		const handlerModule = await import("./scribe-forms");

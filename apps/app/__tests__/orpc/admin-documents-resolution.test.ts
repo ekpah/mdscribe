@@ -17,6 +17,7 @@ import {
 	startTestServer,
 } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
+import { ocrToMarkdownHandler } from "@/orpc/scribe/handlers/ocr-to-markdown";
 import { appendScribeInputAttachmentsToMessages } from "@/orpc/scribe/handlers/scribe-stream";
 import type { ResolvedGenerationStrategy } from "@/orpc/scribe/handlers/scribe-stream";
 import type { ResolvedModel } from "@/orpc/scribe/providers";
@@ -223,15 +224,34 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		}
 	});
 
-	test("documents.ocrToMarkdown resolves model via legacy connectionId alias", async () => {
+	test("scribe.ocrToMarkdown resolves model via legacy connectionId alias", async () => {
 		const imageBase64 = Buffer.from("fake-image").toString("base64");
 
 		const result = await call(
-			documentsHandler.ocrToMarkdown,
+			ocrToMarkdownHandler,
 			{
 				connectionId: seeded.providerId,
 				imagesBase64: [imageBase64],
 				model: seeded.modelId,
+			},
+			{ context },
+		);
+
+		expect(result.markdown).toBe("Generated text response");
+	});
+
+	test("scribe.ocrToMarkdown accepts explicit image media types", async () => {
+		const result = await call(
+			ocrToMarkdownHandler,
+			{
+				images: [
+					{
+						data: Buffer.from("fake-png").toString("base64"),
+						mediaType: "image/png",
+					},
+				],
+				model: seeded.modelId,
+				providerId: seeded.providerId,
 			},
 			{ context },
 		);
@@ -303,5 +323,36 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			.from(usageEvent)
 			.where(eq(usageEvent.name, "ai_pdf_form_parsing"));
 		expect(logged?.model).toBe("openrouter/file-model");
+	});
+
+	test("documents.parseForm resolves explicit playground model selection", async () => {
+		const selectedModelRecordId = crypto.randomUUID();
+		const selectedModelId = "openrouter/document-playground-model";
+
+		await server.db.insert(aiModel).values({
+			displayName: "Document Playground Model",
+			id: selectedModelRecordId,
+			modelId: selectedModelId,
+			providerId: seeded.providerId,
+			supportsReasoning: false,
+		});
+
+		const result = await call(
+			documentsHandler.parseForm,
+			{
+				fieldMapping: [],
+				fileBase64: Buffer.from("fake-pdf").toString("base64"),
+				model: selectedModelId,
+				providerId: seeded.providerId,
+			},
+			{ context },
+		);
+		expect(result).toBeDefined();
+
+		const [logged] = await server.db
+			.select()
+			.from(usageEvent)
+			.where(eq(usageEvent.name, "ai_pdf_form_parsing"));
+		expect(logged?.model).toBe(selectedModelId);
 	});
 });

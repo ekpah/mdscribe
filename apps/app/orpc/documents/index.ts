@@ -1,7 +1,7 @@
 import { ORPCError, type } from "@orpc/server";
 import { and, count, desc, documentTemplate, eq, or, usageEvent, user } from "@repo/database";
 import type { Database } from "@repo/database";
-import { generateObject, generateText } from "ai";
+import { generateObject } from "ai";
 import { z } from "zod";
 
 import { buildParsedMarkdocFromFieldDefinitions } from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
@@ -54,10 +54,14 @@ const documentFieldMappingSchema = z.object({
 });
 
 const parseFormInput = z.object({
+	// Backward compatibility while frontend payload migrates fully.
+	connectionId: z.string().min(1).optional(),
 	fieldMapping: z.array(documentFieldMappingSchema).optional(),
 	fieldMappings: z.array(documentFieldMappingSchema).optional(),
 	fileBase64: z.string().min(1),
 	inputFields: z.array(documentInputFieldSchema).optional(),
+	model: z.string().min(1).optional(),
+	providerId: z.string().min(1).optional(),
 });
 
 const toDocumentInputFieldType = (
@@ -76,31 +80,6 @@ const adminDocumentProcedure = authed.use(requiredAdminMiddleware);
 
 const documentTemplateVisibilitySchema = z.enum(["public", "private"]);
 type DocumentTemplateVisibility = z.infer<typeof documentTemplateVisibilitySchema>;
-
-const ocrToMarkdownPrompt = [
-	"Du extrahierst den Inhalt eines PDF-Dokuments per OCR.",
-	"Gib ausschließlich Markdown zurück und nutze keine Code-Fences.",
-	"Erhalte die Dokumentstruktur mit Überschriften, Listen und Tabellen so gut wie möglich.",
-	"Wenn Text unlesbar ist, markiere ihn als [unlesbar] statt Inhalte zu erfinden.",
-].join("\n");
-
-const ocrToMarkdownInput = z.object({
-	// Backward compatibility while frontend payload migrates fully.
-	connectionId: z.string().min(1).optional(),
-	fileBase64: z.string().min(1).optional(),
-	imagesBase64: z.array(z.string().min(1)).optional(),
-	model: z.string().min(1),
-	providerId: z.string().min(1).optional(),
-});
-
-const stripCodeFence = (markdown: string): string => {
-	const trimmed = markdown.trim();
-	const fencedMatch = trimmed.match(/^```(?:md|markdown)?\n([\s\S]*?)\n```$/i);
-	if (!fencedMatch) {
-		return trimmed;
-	}
-	return fencedMatch[1]?.trim() ?? "";
-};
 
 const MAX_CATEGORY_SUGGESTIONS = 10;
 
@@ -263,13 +242,25 @@ const parseFormHandler = adminDocumentProcedure
 		const promptText = promptMessages[0].content;
 		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
 		try {
-			const strategy = await resolveGenerationStrategy(context.db, {
-				hasFiles: true,
-			});
-			modelSelection =
-				strategy.mode === "direct"
-					? strategy.generation
-					: (strategy.fileImage ?? strategy.generation);
+			const providerId = parsed.providerId ?? parsed.connectionId;
+			if (providerId || parsed.model) {
+				if (!providerId || !parsed.model) {
+					throw new Error("providerId und model müssen gemeinsam angegeben werden");
+				}
+				modelSelection = {
+					model: await resolveProviderModel(providerId, parsed.model, context.db),
+					reasoningEffort: "none",
+					slot: "file-image",
+				};
+			} else {
+				const strategy = await resolveGenerationStrategy(context.db, {
+					hasFiles: true,
+				});
+				modelSelection =
+					strategy.mode === "direct"
+						? strategy.generation
+						: (strategy.fileImage ?? strategy.generation);
+			}
 		} catch (error) {
 			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
 			throw new ORPCError("BAD_REQUEST", {
@@ -340,114 +331,6 @@ const parseFormHandler = adminDocumentProcedure
 		);
 
 		return object;
-	});
-
-const ocrToMarkdownHandler = adminDocumentProcedure
-	.input(type<z.infer<typeof ocrToMarkdownInput>>())
-	.handler(async ({ input, context }) => {
-		const parsed = ocrToMarkdownInput.parse(input);
-
-		if (!parsed.fileBase64 && !parsed.imagesBase64?.length) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "fileBase64 oder imagesBase64 muss angegeben werden",
-			});
-		}
-
-		const providerId = parsed.providerId ?? parsed.connectionId;
-		if (!providerId) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "providerId fehlt",
-			});
-		}
-
-		const resolvedModel = await resolveProviderModel(providerId, parsed.model, context.db);
-
-		const userContent: (
-			| { type: "text"; text: string }
-			| { type: "image"; image: Uint8Array; mediaType: string }
-			| { type: "file"; data: Uint8Array; mediaType: string }
-		)[] = [{ text: ocrToMarkdownPrompt, type: "text" }];
-
-		let fileSizeBytes = 0;
-		if (parsed.imagesBase64?.length) {
-			for (const imgBase64 of parsed.imagesBase64) {
-				const bytes = new Uint8Array(Buffer.from(imgBase64, "base64"));
-				fileSizeBytes += bytes.length;
-				userContent.push({
-					image: bytes,
-					mediaType: "image/jpeg",
-					type: "image",
-				});
-			}
-		} else {
-			const { fileBase64 } = parsed;
-			if (!fileBase64) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "fileBase64 fehlt",
-				});
-			}
-			const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
-			fileSizeBytes = bytes.length;
-			userContent.push({
-				data: bytes,
-				mediaType: "application/pdf",
-				type: "file",
-			});
-		}
-
-		let result: Awaited<ReturnType<typeof generateText>>;
-		const requestStartedAt = Date.now();
-		try {
-			result = await generateText({
-				experimental_telemetry: { isEnabled: true },
-				maxOutputTokens: 24_000,
-				messages: [{ content: userContent, role: "user" }],
-				model: resolvedModel.model,
-				providerOptions: buildProviderOptions({
-					includeUsage: true,
-					model: resolvedModel,
-					userId: context.session.user.id,
-				}),
-				temperature: 0,
-			});
-		} catch (error) {
-			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
-			throw new ORPCError("BAD_REQUEST", {
-				message: `OCR fehlgeschlagen. Bitte ein OCR-fähiges Modell wählen. (${details})`,
-			});
-		}
-		const timeToCompletionMs = Date.now() - requestStartedAt;
-
-		const openRouterUsage = resolvedModel.isOpenRouter
-			? extractOpenRouterUsage(
-					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
-				)
-			: null;
-		const markdown = stripCodeFence(result.text);
-
-		await context.db.insert(usageEvent).values(
-			buildUsageEventData({
-				inputData: {
-					fileSizeBytes,
-					fileType: parsed.imagesBase64?.length ? "images" : "pdf",
-					pageCount: parsed.imagesBase64?.length,
-				},
-				metadata: {
-					promptName: "pdf_ocr_markdown",
-					promptSource: "local",
-					providerId,
-				},
-				model: resolvedModel.modelName,
-				name: "ai_pdf_ocr_markdown",
-				openRouterUsage,
-				result: markdown,
-				standardUsage: result.usage as StandardUsage,
-				timing: { timeToCompletionMs },
-				userId: context.session.user.id,
-			}),
-		);
-
-		return { markdown };
 	});
 
 const listDocumentTemplatesHandler = pub.handler(async ({ context }) => {
@@ -684,7 +567,6 @@ const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context 
 });
 
 export const documentsHandler = {
-	ocrToMarkdown: ocrToMarkdownHandler,
 	parseForm: parseFormHandler,
 	templates: {
 		create: createDocumentTemplateHandler,

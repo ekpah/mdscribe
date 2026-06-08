@@ -2,7 +2,7 @@ import { PDFDocument } from "pdf-lib";
 
 import type { DocumentFieldDefinition, DocumentInputKind, DocumentPdfType } from "./types";
 
-export interface PDFField {
+interface PDFField {
 	inputKind: DocumentInputKind;
 	label: string;
 	maxLength?: number;

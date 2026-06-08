@@ -75,13 +75,14 @@ const DEFAULT_MODEL_ROWS: {
 }[] = [
 	{
 		description:
-			"Optional. Wenn gesetzt, nutzt MDScribe dieses Modell direkt für Text, Audio sowie Datei-/Bild-Eingaben.",
+			"Optional. Wenn gesetzt, nutzt MDScribe dieses Modell direkt für Audio sowie Datei-/Bild-Eingaben. Reiner Text nutzt weiterhin das Standard-Textmodell.",
 		label: "Multi-modales Modell",
 		placeholder: "Multi-modales Modell auswählen",
 		type: "multimodal",
 	},
 	{
-		description: "Erzeugt die finale Antwort, wenn kein multi-modales Standardmodell gesetzt ist.",
+		description:
+			"Erzeugt die finale Antwort für reine Texteingaben und für vorverarbeitete Medien, wenn kein multi-modales Standardmodell greift.",
 		label: "Standard-Textmodell",
 		placeholder: "Textmodell auswählen",
 		type: "text",
@@ -95,7 +96,7 @@ const DEFAULT_MODEL_ROWS: {
 	},
 	{
 		description:
-			"Transkribiert Audioaufnahmen zu Text, wenn kein multi-modales Standardmodell gesetzt ist.",
+			"Transkribiert Audioaufnahmen zu Text, wenn kein multi-modales Standardmodell für Medien gesetzt ist.",
 		label: "Audio-Transkriptionsmodell",
 		placeholder: "Speech-to-Text-Modell auswählen",
 		type: "speech-to-text",
@@ -319,8 +320,14 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 				</CardContent>
 				<CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
 					<div className="rounded-md border border-solarized-base2/80 bg-solarized-base2/20 p-3 text-solarized-base01 text-xs">
-						<div>Multi-modal: Modell muss Text, Audio und Datei/Bild direkt verstehen.</div>
-						<div>Text: Modell muss Text-Generierung unterstützen.</div>
+						<div>
+							Multi-modal: Modell muss Text plus Audio und Datei/Bild direkt verstehen; wird
+							nur bei Medieninput bevorzugt.
+						</div>
+						<div>
+							Text: Modell muss Text-Generierung unterstützen; wird immer für reine
+							Texteingaben genutzt.
+						</div>
 						<div>
 							OCR/File/Image: Modell muss Datei- oder Bild-Eingaben (z.B. PDF/OCR) in Text
 							überführen.

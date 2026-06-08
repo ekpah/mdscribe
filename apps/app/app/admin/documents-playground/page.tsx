@@ -1,10 +1,10 @@
 import { FileText } from "lucide-react";
 import type { Metadata } from "next";
-import PDFFormSection from "./_components/pdf-form-section";
+import { DocumentPlaygroundClient } from "./_components/document-playground-client";
 
 export const metadata: Metadata = {
-	description: "PDF-Formulare hochladen und ausfüllen",
-	title: "PDF-Formular ausfüllen",
+	description: "PDF-Dateien mit auswählbarem OCR-Modell zu Markdoc oder Text verarbeiten",
+	title: "Dokumenten-Playground",
 };
 
 export default function DocumentsPage() {
@@ -21,12 +21,12 @@ export default function DocumentsPage() {
 								Dokumenten-Playground
 							</h1>
 							<p className="text-sm text-solarized-base01 sm:text-base">
-								PDF-Formulare hochladen, Felder prüfen und Inhalte ausfüllen
+								PDF-Dateien hochladen, OCR-Modell wechseln und Markdoc oder Text prüfen
 							</p>
 						</div>
 					</div>
 				</div>
-				<PDFFormSection />
+				<DocumentPlaygroundClient />
 			</div>
 		</div>
 	);

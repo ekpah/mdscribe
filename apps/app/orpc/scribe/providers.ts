@@ -389,16 +389,18 @@ export const resolveDefaultModel = async (
 /**
  * Resolves the global model strategy for a generation request.
  *
- * A configured multimodal default is treated as authoritative for text, audio,
- * and file/image input. Without it, media is preprocessed through the dedicated
- * speech-to-text and file/image defaults before the final text model runs.
+ * Text-only input always uses the text default. Media input first uses the
+ * configured multimodal default directly; without one, media is preprocessed
+ * through the dedicated speech-to-text and file/image defaults before the final
+ * text model runs.
  */
 export const resolveGenerationStrategy = async (
 	db: Database,
 	options: { hasAudio?: boolean; hasFiles?: boolean },
 ): Promise<GenerationStrategy> => {
 	const defaults = await getDefaults(db);
-	if (defaults.defaultMultimodalModelId) {
+	const hasMediaInput = Boolean(options.hasAudio || options.hasFiles);
+	if (hasMediaInput && defaults.defaultMultimodalModelId) {
 		return {
 			generation: await buildDefaultSelection(db, defaults, "multimodal"),
 			mode: "direct",

@@ -431,6 +431,17 @@ const evaluateInput = z.object({
 	response: z.string().min(1),
 });
 
+const comparisonSideSchema = z.enum(["a", "b"]);
+
+const evaluateComparisonInput = z.object({
+	documentType: z.string(),
+	inputs: z.unknown(),
+	responses: z.object({
+		a: z.string().min(1),
+		b: z.string().min(1),
+	}),
+});
+
 /**
  * Schema for the LLM's structured output.
  * totalScore is intentionally excluded: it is derived client-side as the
@@ -448,6 +459,11 @@ const evaluateOutputSchema = z.object({
 		)
 		.length(4),
 	summary: z.string(),
+});
+
+const evaluateComparisonOutputSchema = z.object({
+	note: z.string().min(1),
+	preferredResponse: comparisonSideSchema,
 });
 
 const evaluateHandler = authed
@@ -524,9 +540,81 @@ ${parsed.data.response}`,
 		};
 	});
 
+const evaluateComparisonHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(type<z.infer<typeof evaluateComparisonInput>>())
+	.handler(async ({ context, input }) => {
+		const parsed = evaluateComparisonInput.safeParse(input);
+
+		if (!parsed.success) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Ungültige Vergleichsbewertung: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+			});
+		}
+
+		const evaluationSelection = await resolveDefaultModel(context.db, "evaluation").catch(
+			(error: unknown) => {
+				const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
+				});
+			},
+		);
+
+		let comparison;
+		try {
+			comparison = await generateObject({
+				model: evaluationSelection.model.model,
+				prompt: `Vergleiche ausschliesslich die zwei Modell-Ausgaben.
+
+Dokumenttyp: ${parsed.data.documentType}
+
+Nutzergegebene Eingaben, Prompt-Spezifika und ggf. Vorlage:
+${JSON.stringify(parsed.data.inputs, null, 2)}
+
+Antwort A:
+${parsed.data.responses.a}
+
+Antwort B:
+${parsed.data.responses.b}
+
+Waehle genau die Antwort, die fuer einen deutschen Arzt klinisch korrekter, nuetzlicher, sprachlich dokumentationsreifer und strukturell passender ist.
+Wenn beide Antworten aehnlich gut sind, waehle die klinisch sicherere Antwort.
+Gib im Feld note einen kurzen deutschen Satz aus, der den wichtigsten konkreten Grund nennt.`,
+				providerOptions: buildProviderOptions({
+					model: evaluationSelection.model,
+					reasoningEffort: evaluationSelection.reasoningEffort,
+					userId: context.session.user.id,
+				}),
+				schema: evaluateComparisonOutputSchema,
+				system:
+					"Du bist ein strenger deutscher Arztbrief-Reviewer. Entscheide zwischen Antwort A und Antwort B und begruende knapp mit einem konkreten Unterschied.",
+				temperature: 0.1,
+			});
+		} catch (error) {
+			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Vergleichsbewertung konnte nicht erzeugt werden: Das Modell hat keine gültige Struktur zurückgegeben. ${error.message}`,
+				});
+			}
+			const details = error instanceof Error ? error.message : USER_MESSAGES.evaluationFailed;
+			throw new ORPCError("INTERNAL", {
+				message: `Vergleichsbewertung fehlgeschlagen: ${details}`,
+			});
+		}
+
+		const note = comparison.object.note.trim();
+
+		return {
+			note: note.length > 240 ? `${note.slice(0, 237)}...` : note,
+			preferredResponse: comparison.object.preferredResponse,
+		};
+	});
+
 export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
 	evaluate: evaluateHandler,
+	evaluateComparison: evaluateComparisonHandler,
 	prompts: {
 		get: authed
 			.use(requiredAdminMiddleware)

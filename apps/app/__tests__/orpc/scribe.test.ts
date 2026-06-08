@@ -150,7 +150,7 @@ describe("Context Builder", () => {
 });
 
 describe("Model Selection Logic", () => {
-	test("resolveGenerationStrategy uses multimodal default directly when configured", async () => {
+	test("resolveGenerationStrategy uses multimodal default directly for media input", async () => {
 		const server = await startTestServer("resolve-model-multimodal-default");
 		try {
 			const providerId = crypto.randomUUID();
@@ -204,13 +204,82 @@ describe("Model Selection Logic", () => {
 					target: aiDefaults.id,
 				});
 
-			const strategy = await resolveGenerationStrategy(server.db, {
+			const audioStrategy = await resolveGenerationStrategy(server.db, {
 				hasAudio: true,
+			});
+			expect(audioStrategy.mode).toBe("direct");
+			expect(audioStrategy.generation.model.modelName).toBe("openrouter/test-multimodal");
+			expect(audioStrategy.generation.reasoningEffort).toBe("high");
+
+			const fileStrategy = await resolveGenerationStrategy(server.db, {
 				hasFiles: true,
 			});
-			expect(strategy.mode).toBe("direct");
-			expect(strategy.generation.model.modelName).toBe("openrouter/test-multimodal");
-			expect(strategy.generation.reasoningEffort).toBe("high");
+			expect(fileStrategy.mode).toBe("direct");
+			expect(fileStrategy.generation.model.modelName).toBe("openrouter/test-multimodal");
+			expect(fileStrategy.generation.reasoningEffort).toBe("high");
+		} finally {
+			await server.close();
+		}
+	});
+
+	test("resolveGenerationStrategy uses text default for text-only input", async () => {
+		const server = await startTestServer("resolve-model-text-only-default");
+		try {
+			const providerId = crypto.randomUUID();
+			const textModelRecordId = crypto.randomUUID();
+			const multimodalModelRecordId = crypto.randomUUID();
+
+			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
+				id: providerId,
+				name: "Test Provider",
+				protocol: "openrouter",
+			});
+			await server.db.insert(aiModel).values([
+				{
+					displayName: "Text Model",
+					id: textModelRecordId,
+					modelId: "openrouter/test-text",
+					providerId,
+					supportsReasoning: false,
+				},
+				{
+					displayName: "Multimodal Model",
+					id: multimodalModelRecordId,
+					modelId: "openrouter/test-multimodal",
+					providerId,
+					supportedParameters: ["reasoning"],
+					supportsReasoning: true,
+				},
+			]);
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultMultimodalModelId: multimodalModelRecordId,
+					defaultMultimodalReasoningEffort: "high",
+					defaultTextModelId: textModelRecordId,
+					defaultTextReasoningEffort: "low",
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultMultimodalModelId: multimodalModelRecordId,
+						defaultMultimodalReasoningEffort: "high",
+						defaultTextModelId: textModelRecordId,
+						defaultTextReasoningEffort: "low",
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const strategy = await resolveGenerationStrategy(server.db, {
+				hasAudio: false,
+				hasFiles: false,
+			});
+			expect(strategy.generation.model.modelName).toBe("openrouter/test-text");
+			expect(strategy.generation.reasoningEffort).toBe("low");
 		} finally {
 			await server.close();
 		}
@@ -426,6 +495,7 @@ describe("Fill Inputs Handler", () => {
 		try {
 			const providerId = crypto.randomUUID();
 			const textModelRecordId = crypto.randomUUID();
+			const multimodalModelRecordId = crypto.randomUUID();
 
 			await server.db.insert(aiProvider).values({
 				apiKey: null,
@@ -434,18 +504,27 @@ describe("Fill Inputs Handler", () => {
 				name: "Test Provider",
 				protocol: "openrouter",
 			});
-			await server.db.insert(aiModel).values({
-				displayName: "Text Model",
-				id: textModelRecordId,
-				modelId: "openrouter/test-text",
-				providerId,
-				supportsReasoning: false,
-			});
+			await server.db.insert(aiModel).values([
+				{
+					displayName: "Text Model",
+					id: textModelRecordId,
+					modelId: "openrouter/test-text",
+					providerId,
+					supportsReasoning: false,
+				},
+				{
+					displayName: "Multimodal Model",
+					id: multimodalModelRecordId,
+					modelId: "openrouter/test-multimodal",
+					providerId,
+					supportsReasoning: false,
+				},
+			]);
 			await server.db
 				.insert(aiDefaults)
 				.values({
 					defaultFileImageModelId: textModelRecordId,
-					defaultMultimodalModelId: null,
+					defaultMultimodalModelId: multimodalModelRecordId,
 					defaultSpeechToTextModelId: null,
 					defaultTextModelId: textModelRecordId,
 					id: "global",
@@ -454,7 +533,7 @@ describe("Fill Inputs Handler", () => {
 				.onConflictDoUpdate({
 					set: {
 						defaultFileImageModelId: textModelRecordId,
-						defaultMultimodalModelId: null,
+						defaultMultimodalModelId: multimodalModelRecordId,
 						defaultSpeechToTextModelId: null,
 						defaultTextModelId: textModelRecordId,
 						updatedAt: new Date(),

@@ -1,7 +1,36 @@
+import { z } from "zod";
 import { desc, eq, favourites, inArray, sql, template, user } from "@repo/database";
 
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+
+const getAdminTemplateHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(z.object({ id: z.string() }))
+	.handler(async ({ context, input }) => {
+		const [templateData] = await context.db
+			.select({
+				author: {
+					email: user.email,
+					id: user.id,
+					name: user.name,
+				},
+				authorId: template.authorId,
+				category: template.category,
+				content: template.content,
+				examples: template.examples,
+				id: template.id,
+				title: template.title,
+				updatedAt: template.updatedAt,
+				visibility: template.visibility,
+			})
+			.from(template)
+			.leftJoin(user, eq(template.authorId, user.id))
+			.where(eq(template.id, input.id))
+			.limit(1);
+
+		return templateData ?? null;
+	});
 
 const listAdminTemplatesHandler = authed
 	.use(requiredAdminMiddleware)
@@ -73,5 +102,6 @@ const listAdminTemplatesHandler = authed
 	});
 
 export const templatesHandler = {
+	get: getAdminTemplateHandler,
 	list: listAdminTemplatesHandler,
 };

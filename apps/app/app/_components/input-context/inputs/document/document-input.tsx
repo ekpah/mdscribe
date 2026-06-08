@@ -13,6 +13,7 @@ import {
 import type { UploadedContextFile } from "../../types";
 
 interface DocumentInputProps {
+	accept?: string;
 	className?: string;
 	disabled?: boolean;
 	dropzoneClassName?: string;
@@ -41,6 +42,7 @@ const createUploadedContextFile = (file: File): UploadedContextFile => ({
 });
 
 export const DocumentInput = ({
+	accept,
 	className,
 	disabled = false,
 	dropzoneClassName,
@@ -112,6 +114,7 @@ export const DocumentInput = ({
 			)}
 		>
 			<FileDropzone
+				accept={accept}
 				className={cn(
 					"hover:border-solarized-blue data-[dragging=true]:border-solarized-blue data-[dragging=true]:bg-solarized-blue/10",
 					disabled && "pointer-events-none",

@@ -21,18 +21,28 @@ import { Label } from "@repo/design-system/components/ui/label";
 import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
 import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
 import { Separator } from "@repo/design-system/components/ui/separator";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	AlertCircle,
 	BarChart3,
+	Bot,
 	CheckCircle2,
 	EyeOff,
 	Loader2,
 	Play,
 	RefreshCcw,
+	Sparkles,
 	Trophy,
+	UserCheck,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
@@ -74,9 +84,11 @@ const EMPTY_MODELS: PlaygroundModel[] = [];
 const EMPTY_TOP_MODEL_IDS: string[] = [];
 const USAGE_POOL_LIMIT = 100;
 const SAMPLE_FETCH_LIMIT = 40;
-const SAMPLE_DISPLAY_LIMIT = 10;
+const DEFAULT_SAMPLE_COUNT = 5;
+const SAMPLE_COUNT_OPTIONS = [1, 2, 3, 5, 10, 20] as const;
 
 type ComparisonSide = "a" | "b";
+type PreferenceSource = "ai" | "human";
 type RunStatus = "idle" | "running" | "success" | "error";
 
 interface ReplayableUsageEvent {
@@ -126,6 +138,14 @@ interface ComparisonRunResult {
 }
 
 type ComparisonResults = Record<string, Partial<Record<ComparisonSide, ComparisonRunResult>>>;
+
+interface ComparisonPreference {
+	note?: string;
+	side: ComparisonSide;
+	source: PreferenceSource;
+}
+
+type ComparisonPreferences = Record<string, ComparisonPreference>;
 
 interface PlaygroundModelSelectorOption extends ModelSelectorOption {
 	isTop: boolean;
@@ -364,6 +384,14 @@ const buildReplayVariables = (
 	return variables;
 };
 
+const buildEvaluationInputs = (
+	sample: ComparisonSample,
+	templateReference: string | undefined,
+): Record<string, unknown> => ({
+	promptName: sample.promptName,
+	variables: buildReplayVariables(sample, templateReference),
+});
+
 const toComparisonSample = (
 	event: ReplayableUsageEvent | null | undefined,
 ): ComparisonSample | null => {
@@ -456,13 +484,10 @@ const shuffleArray = <T,>(items: T[]): T[] => {
 	return shuffled;
 };
 
-const buildDisplayOrder = (
-	samples: ComparisonSample[],
-	blindMode: boolean,
-): Record<string, ComparisonSide[]> => {
+const buildDisplayOrder = (sampleIds: string[], blindMode: boolean): Record<string, ComparisonSide[]> => {
 	const nextOrder: Record<string, ComparisonSide[]> = {};
-	for (const sample of samples) {
-		nextOrder[sample.id] = blindMode && Math.random() > 0.5 ? ["b", "a"] : ["a", "b"];
+	for (const sampleId of sampleIds) {
+		nextOrder[sampleId] = blindMode && Math.random() > 0.5 ? ["b", "a"] : ["a", "b"];
 	}
 	return nextOrder;
 };
@@ -573,7 +598,7 @@ const calculateSummary = ({
 }: {
 	modelA: PlaygroundModel | null;
 	modelB: PlaygroundModel | null;
-	preferences: Record<string, ComparisonSide>;
+	preferences: ComparisonPreferences;
 	results: ComparisonResults;
 	samples: ComparisonSample[];
 }): ComparisonSummary => {
@@ -635,7 +660,7 @@ const calculateSummary = ({
 				totalOutputTokens,
 				totalReasoningTokens,
 				totalTokens,
-				wins: samples.filter((sample) => preferences[sample.id] === sideConfig.side).length,
+				wins: samples.filter((sample) => preferences[sample.id]?.side === sideConfig.side).length,
 			};
 		}),
 		totalRows: samples.length,
@@ -705,14 +730,108 @@ const InputSectionsAccordion = ({ sections }: { sections: InputSection[] }) => (
 	</Accordion>
 );
 
+const PreferenceSourceBadge = ({ preference }: { preference: ComparisonPreference }) => {
+	if (preference.source === "ai") {
+		return (
+			<span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-1 font-medium text-solarized-orange text-xs">
+				<Bot aria-hidden="true" className="h-3.5 w-3.5" />
+				KI-Vorschlag
+			</span>
+		);
+	}
+
+	return (
+		<span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-solarized-green/25 bg-solarized-green/10 px-2 py-1 font-medium text-solarized-green text-xs">
+			<UserCheck aria-hidden="true" className="h-3.5 w-3.5" />
+			Manuell gewählt
+		</span>
+	);
+};
+
+const SelectionIndicator = ({
+	isSelected,
+	preference,
+}: {
+	isSelected: boolean;
+	preference: ComparisonPreference | undefined;
+}) => {
+	if (!(isSelected && preference)) {
+		return null;
+	}
+
+	const selectedByAi = preference.source === "ai";
+
+	return (
+		<div className="flex shrink-0 items-center gap-1.5">
+			<PreferenceSourceBadge preference={preference} />
+			<CheckCircle2
+				className={cn(
+					"h-4 w-4 shrink-0",
+					selectedByAi ? "text-solarized-orange" : "text-solarized-green",
+				)}
+			/>
+		</div>
+	);
+};
+
+const ResponseStatusContent = ({
+	result,
+	status,
+}: {
+	result: ComparisonRunResult;
+	status: RunStatus;
+}) => {
+	if (status === "idle") {
+		return <span className="text-solarized-base01">Noch nicht generiert</span>;
+	}
+
+	if (status === "running") {
+		return (
+			<span className="flex items-center gap-2 text-solarized-base01">
+				<Loader2 className="h-4 w-4 animate-spin" />
+				Generiert...
+			</span>
+		);
+	}
+
+	if (status === "error") {
+		return (
+			<span className="flex items-start gap-2 text-solarized-red">
+				<AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+				<span>{result.error}</span>
+			</span>
+		);
+	}
+
+	return result.text;
+};
+
+const AiPreferenceNote = ({ preference }: { preference: ComparisonPreference | undefined }) => {
+	if (preference?.source !== "ai" || !preference.note) {
+		return null;
+	}
+
+	return (
+		<div className="mt-3 rounded-md border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-1.5 text-left text-solarized-orange text-xs">
+			<div className="flex items-start gap-2">
+				<Bot aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+				<div className="min-w-0">
+					<p className="font-medium">KI-Begründung</p>
+					<p className="mt-0.5 text-solarized-orange/90">{preference.note}</p>
+				</div>
+			</div>
+		</div>
+	);
+};
+
 interface ComparisonRunCellProps {
 	blindMode: boolean;
 	displayIndex: number;
-	isSelected: boolean;
 	model: PlaygroundModel | null;
 	onPreferenceChange: (sampleId: string, side: ComparisonSide) => void;
 	onResultChange: (sampleId: string, side: ComparisonSide, result: ComparisonRunResult) => void;
 	parameters: PlaygroundParameters;
+	preference: ComparisonPreference | undefined;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 	sample: ComparisonSample;
 	shouldMaskUntilRowDone: boolean;
@@ -724,11 +843,11 @@ interface ComparisonRunCellProps {
 const ComparisonRunCell = ({
 	blindMode,
 	displayIndex,
-	isSelected,
 	model,
 	onPreferenceChange,
 	onResultChange,
 	parameters,
+	preference,
 	runTriggersRef,
 	sample,
 	shouldMaskUntilRowDone,
@@ -905,6 +1024,7 @@ const ComparisonRunCell = ({
 	}
 	const modelLabel = getModelLabel(model);
 	const visibleStatus = shouldMaskUntilRowDone ? "running" : localResult.status;
+	const isSelected = preference?.side === side;
 
 	return (
 		<button
@@ -928,27 +1048,14 @@ const ComparisonRunCell = ({
 						{blindMode ? "Verblindet" : modelLabel}
 					</p>
 				</div>
-				{isSelected ? <CheckCircle2 className="h-4 w-4 shrink-0 text-solarized-green" /> : null}
+				<SelectionIndicator isSelected={isSelected} preference={preference} />
 			</div>
 
 			<div className="mt-3 min-h-0 flex-1 whitespace-pre-wrap text-sm text-solarized-base00 leading-relaxed">
-				{visibleStatus === "idle" ? (
-					<span className="text-solarized-base01">Noch nicht generiert</span>
-				) : null}
-				{visibleStatus === "running" ? (
-					<span className="flex items-center gap-2 text-solarized-base01">
-						<Loader2 className="h-4 w-4 animate-spin" />
-						Generiert...
-					</span>
-				) : null}
-				{visibleStatus === "error" ? (
-					<span className="flex items-start gap-2 text-solarized-red">
-						<AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-						<span>{localResult.error}</span>
-					</span>
-				) : null}
-				{visibleStatus === "success" ? localResult.text : null}
+				<ResponseStatusContent result={localResult} status={visibleStatus} />
 			</div>
+
+			<AiPreferenceNote preference={isSelected ? preference : undefined} />
 
 			{showMetrics && localResult.metrics ? (
 				<div className="mt-3 grid grid-cols-2 gap-2 border-solarized-base2 border-t pt-3 text-xs">
@@ -1068,7 +1175,7 @@ const ComparisonSampleRow = ({
 	onResultChange: (sampleId: string, side: ComparisonSide, result: ComparisonRunResult) => void;
 	parametersA: PlaygroundParameters;
 	parametersB: PlaygroundParameters;
-	preferences: Record<string, ComparisonSide>;
+	preferences: ComparisonPreferences;
 	results: ComparisonResults;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 	sample: ComparisonSample;
@@ -1124,11 +1231,11 @@ const ComparisonSampleRow = ({
 					key={side}
 					blindMode={blindMode}
 					displayIndex={responseIndex}
-					isSelected={preferences[sample.id] === side}
 					model={runConfigBySide[side].model}
 					onPreferenceChange={onPreferenceChange}
 					onResultChange={onResultChange}
 					parameters={runConfigBySide[side].parameters}
+					preference={preferences[sample.id]}
 					runTriggersRef={runTriggersRef}
 					sample={sample}
 					shouldMaskUntilRowDone={rowHasStarted && !rowIsDone}
@@ -1168,7 +1275,7 @@ const ComparisonRunsSection = ({
 	onResultChange: (sampleId: string, side: ComparisonSide, result: ComparisonRunResult) => void;
 	parametersA: PlaygroundParameters;
 	parametersB: PlaygroundParameters;
-	preferences: Record<string, ComparisonSide>;
+	preferences: ComparisonPreferences;
 	results: ComparisonResults;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 	samples: ComparisonSample[];
@@ -1223,12 +1330,18 @@ const ComparisonRunsSection = ({
 );
 
 const ComparisonFooter = ({
+	canAutoEvaluate,
 	canCompare,
+	isAutoEvaluating,
+	onAutoEvaluate,
 	onCompare,
 	sampleCount,
 	selectedCount,
 }: {
+	canAutoEvaluate: boolean;
 	canCompare: boolean;
+	isAutoEvaluating: boolean;
+	onAutoEvaluate: () => void;
 	onCompare: () => void;
 	sampleCount: number;
 	selectedCount: number;
@@ -1240,10 +1353,26 @@ const ComparisonFooter = ({
 					? "Alle Präferenzen erfasst"
 					: `${selectedCount}/${sampleCount} Präferenzen erfasst`}
 			</div>
-			<Button type="button" className="gap-2" onClick={onCompare} disabled={!canCompare}>
-				<Trophy className="h-4 w-4" />
-				Vergleichen
-			</Button>
+			<div className="flex flex-col gap-2 sm:flex-row">
+				<Button
+					type="button"
+					variant="secondary"
+					className="gap-2"
+					onClick={onAutoEvaluate}
+					disabled={!canAutoEvaluate || isAutoEvaluating}
+				>
+					{isAutoEvaluating ? (
+						<Loader2 className="h-4 w-4 animate-spin" />
+					) : (
+						<Sparkles className="h-4 w-4" />
+					)}
+					Automatisch bewerten
+				</Button>
+				<Button type="button" className="gap-2" onClick={onCompare} disabled={!canCompare}>
+					<Trophy className="h-4 w-4" />
+					Vergleichen
+				</Button>
+			</div>
 		</div>
 	</div>
 );
@@ -1345,30 +1474,59 @@ const ComparisonSummaryCard = ({ summary }: { summary: ComparisonSummary | null 
 const ModelComparisonHeader = ({
 	blindMode,
 	canGenerate,
+	isAutoEvaluating,
 	isGenerating,
 	isLoadingReplayContext,
 	isRefreshingSamples,
 	onBlindModeChange,
 	onGenerateAll,
 	onRefreshSamples,
+	onSampleCountChange,
+	sampleCountLimit,
 	sampleCount,
 }: {
 	blindMode: boolean;
 	canGenerate: boolean;
+	isAutoEvaluating: boolean;
 	isGenerating: boolean;
 	isLoadingReplayContext: boolean;
 	isRefreshingSamples: boolean;
 	onBlindModeChange: (checked: boolean) => void;
 	onGenerateAll: () => void;
 	onRefreshSamples: () => void;
+	onSampleCountChange: (sampleCount: number) => void;
+	sampleCountLimit: number;
 	sampleCount: number;
 }) => (
 	<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 		<div>
 			<h1 className="font-semibold text-2xl text-solarized-base00">AI-Modell-Vergleich</h1>
-			<p className="text-sm text-solarized-base01">{sampleCount} zufällige Usage Events</p>
+			<p className="text-sm text-solarized-base01">
+				{sampleCount}/{sampleCountLimit} zufällige Usage Events
+			</p>
 		</div>
 		<div className="flex flex-wrap items-center gap-2">
+			<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-3 py-2">
+				<Label htmlFor="sample-count" className="text-sm">
+					Stichprobe
+				</Label>
+				<Select
+					value={String(sampleCountLimit)}
+					onValueChange={(value) => onSampleCountChange(Number(value))}
+					disabled={isGenerating || isAutoEvaluating}
+				>
+					<SelectTrigger id="sample-count" className="h-8 w-24 bg-background">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						{SAMPLE_COUNT_OPTIONS.map((option) => (
+							<SelectItem key={option} value={String(option)}>
+								{option}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
 			<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-3 py-2">
 				<EyeOff className="h-4 w-4 text-solarized-base01" />
 				<Label htmlFor="blind-mode" className="text-sm">
@@ -1378,7 +1536,7 @@ const ModelComparisonHeader = ({
 					id="blind-mode"
 					checked={blindMode}
 					onCheckedChange={onBlindModeChange}
-					disabled={isGenerating}
+					disabled={isGenerating || isAutoEvaluating}
 				/>
 			</div>
 			<Button
@@ -1386,7 +1544,7 @@ const ModelComparisonHeader = ({
 				variant="outline"
 				className="gap-2"
 				onClick={onRefreshSamples}
-				disabled={isRefreshingSamples || isGenerating}
+				disabled={isRefreshingSamples || isGenerating || isAutoEvaluating}
 			>
 				<RefreshCcw className={cn("h-4 w-4", isRefreshingSamples && "animate-spin")} />
 				Neue Stichprobe
@@ -1395,7 +1553,7 @@ const ModelComparisonHeader = ({
 				type="button"
 				className="gap-2"
 				onClick={onGenerateAll}
-				disabled={!canGenerate || isGenerating || isLoadingReplayContext}
+				disabled={!canGenerate || isGenerating || isLoadingReplayContext || isAutoEvaluating}
 			>
 				{isGenerating || isLoadingReplayContext ? (
 					<Loader2 className="h-4 w-4 animate-spin" />
@@ -1417,9 +1575,11 @@ export const ModelComparisonPageClient = () => {
 	const [parametersB, setParametersB] = useState<PlaygroundParameters>(DEFAULT_PARAMETERS);
 	const [blindMode, setBlindMode] = useState(true);
 	const [displayOrder, setDisplayOrder] = useState<Record<string, ComparisonSide[]>>({});
+	const [isAutoEvaluating, setIsAutoEvaluating] = useState(false);
 	const [isGenerating, setIsGenerating] = useState(false);
-	const [preferences, setPreferences] = useState<Record<string, ComparisonSide>>({});
+	const [preferences, setPreferences] = useState<ComparisonPreferences>({});
 	const [results, setResults] = useState<ComparisonResults>({});
+	const [sampleCountLimit, setSampleCountLimit] = useState(DEFAULT_SAMPLE_COUNT);
 	const [sampledIds, setSampledIds] = useState<string[]>([]);
 	const [summary, setSummary] = useState<ComparisonSummary | null>(null);
 
@@ -1457,8 +1617,8 @@ export const ModelComparisonPageClient = () => {
 			usageDetailQueries.data
 				.map(toComparisonSample)
 				.filter((sample): sample is ComparisonSample => sample !== null)
-				.slice(0, SAMPLE_DISPLAY_LIMIT),
-		[usageDetailQueries.data],
+				.slice(0, sampleCountLimit),
+		[sampleCountLimit, usageDetailQueries.data],
 	);
 	const templateIds = useMemo(
 		() => [
@@ -1472,7 +1632,7 @@ export const ModelComparisonPageClient = () => {
 	);
 	const templateDetailQueries = useQueries({
 		queries: templateIds.map((id) =>
-			orpc.templates.get.queryOptions({
+			orpc.admin.templates.get.queryOptions({
 				input: { id },
 			}),
 		),
@@ -1524,11 +1684,15 @@ export const ModelComparisonPageClient = () => {
 	}, [usageListQuery.data]);
 
 	useEffect(() => {
-		setDisplayOrder(buildDisplayOrder(samples, blindMode));
+		const sampleIds = sampleIdsKey ? sampleIdsKey.split("|") : [];
+		setDisplayOrder(buildDisplayOrder(sampleIds, blindMode));
+	}, [blindMode, sampleIdsKey]);
+
+	useEffect(() => {
 		setPreferences({});
 		setResults({});
 		setSummary(null);
-	}, [blindMode, sampleIdsKey, samples]);
+	}, [sampleIdsKey]);
 
 	const modelSelectorOptions = useMemo<PlaygroundModelSelectorOption[]>(() => {
 		const topModelIdSet = new Set(topModelIds);
@@ -1579,6 +1743,13 @@ export const ModelComparisonPageClient = () => {
 		setBlindMode(checked);
 	}, []);
 
+	const handleSampleCountChange = useCallback((sampleCount: number) => {
+		if (!SAMPLE_COUNT_OPTIONS.some((option) => option === sampleCount)) {
+			return;
+		}
+		setSampleCountLimit(sampleCount);
+	}, []);
+
 	const handleGenerateAll = useCallback(async () => {
 		if (!modelA || !modelB) {
 			toast.error("Bitte zwei Modelle auswählen");
@@ -1596,7 +1767,7 @@ export const ModelComparisonPageClient = () => {
 		setIsGenerating(true);
 		setPreferences({});
 		setSummary(null);
-		setDisplayOrder(buildDisplayOrder(samples, blindMode));
+		setDisplayOrder(buildDisplayOrder(samples.map((sample) => sample.id), blindMode));
 		setResults({});
 		const triggers = samples.flatMap((sample) => [
 			runTriggersRef.current.get(`${sample.id}-a`),
@@ -1610,7 +1781,10 @@ export const ModelComparisonPageClient = () => {
 	const handlePreferenceChange = useCallback((sampleId: string, side: ComparisonSide) => {
 		setPreferences((current) => ({
 			...current,
-			[sampleId]: side,
+			[sampleId]: {
+				side,
+				source: "human",
+			},
 		}));
 		setSummary(null);
 	}, []);
@@ -1621,7 +1795,101 @@ export const ModelComparisonPageClient = () => {
 	);
 	const selectedCount = samples.filter((sample) => preferences[sample.id]).length;
 	const canCompare =
-		samples.length > 0 && allSamplesHaveRuns && selectedCount === samples.length && !isGenerating;
+		samples.length > 0 &&
+		allSamplesHaveRuns &&
+		selectedCount === samples.length &&
+		!isGenerating &&
+		!isAutoEvaluating;
+	const canAutoEvaluate =
+		samples.length > 0 &&
+		allSamplesHaveRuns &&
+		!isGenerating &&
+		!isAutoEvaluating &&
+		!isLoadingReplayContext;
+
+	const handleAutoEvaluate = useCallback(async () => {
+		if (samples.length === 0) {
+			toast.error("Keine wiederverwendbaren Usage Events gefunden");
+			return;
+		}
+		if (!allSamplesHaveRuns) {
+			toast.error("Bitte zuerst alle Antworten generieren");
+			return;
+		}
+		if (isLoadingReplayContext) {
+			toast.error("Replay-Kontext wird noch geladen");
+			return;
+		}
+
+		setIsAutoEvaluating(true);
+		setSummary(null);
+
+		try {
+			const evaluationResults = await Promise.allSettled(
+				samples.map(async (sample) => {
+					const responseA = results[sample.id]?.a?.text?.trim();
+					const responseB = results[sample.id]?.b?.text?.trim();
+					if (!responseA || !responseB) {
+						throw new Error(`Antworten fuer ${sample.id} fehlen`);
+					}
+
+					const templateReference = sample.templateId
+						? templateReferenceById.get(sample.templateId)
+						: undefined;
+					if (sample.templateId && !templateReference) {
+						throw new Error(`Vorlage fuer ${sample.id} konnte nicht geladen werden`);
+					}
+
+					const evaluation = await orpc.admin.scribe.evaluateComparison.call({
+						documentType: sample.documentType,
+						inputs: buildEvaluationInputs(sample, templateReference),
+						responses: {
+							a: responseA,
+							b: responseB,
+						},
+					});
+
+					return {
+						note: evaluation.note,
+						preferredResponse: evaluation.preferredResponse,
+						sampleId: sample.id,
+					};
+				}),
+			);
+
+			const nextPreferences: ComparisonPreferences = {};
+			let failedCount = 0;
+			for (const result of evaluationResults) {
+				if (result.status === "fulfilled") {
+					nextPreferences[result.value.sampleId] = {
+						note: result.value.note,
+						side: result.value.preferredResponse,
+						source: "ai",
+					};
+				} else {
+					failedCount += 1;
+				}
+			}
+
+			if (Object.keys(nextPreferences).length > 0) {
+				setPreferences((current) => ({
+					...current,
+					...nextPreferences,
+				}));
+			}
+
+			if (failedCount > 0) {
+				toast.error(
+					`Automatische Bewertung teilweise fehlgeschlagen (${failedCount}/${samples.length})`,
+				);
+				return;
+			}
+
+			toast.success("Automatische Bewertung abgeschlossen");
+		} finally {
+			setIsAutoEvaluating(false);
+		}
+	}, [allSamplesHaveRuns, isLoadingReplayContext, results, samples, templateReferenceById]);
 
 	const handleCompare = useCallback(() => {
 		if (!canCompare) {
@@ -1648,13 +1916,16 @@ export const ModelComparisonPageClient = () => {
 				<ModelComparisonHeader
 					blindMode={blindMode}
 					canGenerate={canGenerateAll}
+					isAutoEvaluating={isAutoEvaluating}
 					isGenerating={isGenerating}
 					isLoadingReplayContext={isLoadingReplayContext}
 					isRefreshingSamples={usageListQuery.isFetching}
 					onBlindModeChange={handleBlindModeChange}
 					onGenerateAll={handleGenerateAll}
 					onRefreshSamples={handleRefreshSamples}
+					onSampleCountChange={handleSampleCountChange}
 					sampleCount={samples.length}
+					sampleCountLimit={sampleCountLimit}
 				/>
 
 				<div className="grid gap-4 lg:grid-cols-2">
@@ -1702,7 +1973,10 @@ export const ModelComparisonPageClient = () => {
 				/>
 
 				<ComparisonFooter
+					canAutoEvaluate={canAutoEvaluate}
 					canCompare={canCompare}
+					isAutoEvaluating={isAutoEvaluating}
+					onAutoEvaluate={handleAutoEvaluate}
 					onCompare={handleCompare}
 					sampleCount={samples.length}
 					selectedCount={selectedCount}
