@@ -178,6 +178,6 @@ bun run db:migrate       # Run Drizzle migrations
 ### Documents
 - Route family: `app/documents/layout.tsx`, `app/documents/page.tsx`, `app/documents/[id]/page.tsx`, `app/documents/(editor)/create/page.tsx`, `app/documents/(editor)/[id]/edit/page.tsx`.
 - Persisted entity: `DocumentTemplate` table with `fieldDefinitions` (jsonb), `pdfBytes` (bytea), author, timestamps.
-- Server namespace stays nested at `orpc.documents.templates.*` (`list`, `get`, `getPdf`, `create`, `update`, `editorContext`), while `orpc.documents.parseForm` and `orpc.documents.ocrToMarkdown` remain for PDF AI helpers.
+- Server namespace stays nested at `orpc.documents.templates.*` (`list`, `get`, `getPdf`, `create`, `update`, `editorContext`), while `orpc.documents.parseForm` remains for PDF form parsing. OCR/document-to-text helpers related to AIScribe live under `orpc.scribe.*` (for example `orpc.scribe.ocrToMarkdown`), not the documents namespace.
 - Keep `fieldDefinitions` as source of truth and build `parsedMarkdoc` only via `buildParsedMarkdocFromFieldDefinitions`; never persist `parsedMarkdoc` or raw `markdocContent` for documents.
 - `list` and `get` must exclude raw `pdfBytes`; binary delivery stays in `getPdf` response payload.

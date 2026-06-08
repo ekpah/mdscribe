@@ -23,6 +23,8 @@ import Link from "next/link";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 
+import { MonthlyActiveUsersChart } from "./_components/monthly-active-users-chart";
+
 interface AdminCardProps {
 	title: string;
 	description: string;
@@ -122,7 +124,7 @@ const adminFeatures: AdminCardProps[] = [
 	},
 	{
 		description:
-			"PDF-Formulare testen, Eingaben extrahieren und Sprachausfüllung für Inputs ausprobieren.",
+			"PDF-Dateien mit auswählbarem OCR/File/Image-Modell zu Markdoc oder Text verarbeiten.",
 		href: "/admin/documents-playground",
 		icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
 		status: "active",
@@ -162,11 +164,23 @@ const adminFeatures: AdminCardProps[] = [
 
 export default async function AdminDashboardPage() {
 	const queryClient = getQueryClient();
-	const weeklyStats = await queryClient.fetchQuery(
-		orpc.admin.usage.stats.queryOptions({
-			input: { filter: "week" },
-		}),
-	);
+	const [monthlyStats, weeklyStats, monthlyActiveUsers] = await Promise.all([
+		queryClient.fetchQuery(
+			orpc.admin.usage.stats.queryOptions({
+				input: { filter: "month" },
+			}),
+		),
+		queryClient.fetchQuery(
+			orpc.admin.usage.stats.queryOptions({
+				input: { filter: "week" },
+			}),
+		),
+		queryClient.fetchQuery(
+			orpc.admin.usage.monthlyActiveUsers.queryOptions({
+				input: {},
+			}),
+		),
+	]);
 
 	return (
 		<div className="p-4 sm:p-6">
@@ -190,10 +204,10 @@ export default async function AdminDashboardPage() {
 							</div>
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Wöchentlich aktive Nutzer
+									Monatlich aktive Nutzer
 								</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
-									{weeklyStats.activeUsers}
+									{monthlyStats.activeUsers}
 								</p>
 							</div>
 							<div className="space-y-1">
@@ -207,6 +221,11 @@ export default async function AdminDashboardPage() {
 						</div>
 					</CardContent>
 				</Card>
+
+				<MonthlyActiveUsersChart
+					timeZone={monthlyActiveUsers.timeZone}
+					trend={monthlyActiveUsers.trend}
+				/>
 
 				{/* Admin Tools Grid */}
 				<div className="space-y-3 sm:space-y-4">

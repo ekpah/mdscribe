@@ -29,6 +29,9 @@ const formatBucket = (date: Date, timeZone: string, granularity: "day" | "hour")
 	return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${hour}:00:00`;
 };
 
+const formatMonthBucket = (year: number, month: number) =>
+	`${year}-${String(month).padStart(2, "0")}-01T00:00:00`;
+
 describe("Admin usage stats", () => {
 	let server: TestServer;
 	let context: ReturnType<typeof createTestContext>;
@@ -119,6 +122,43 @@ describe("Admin usage stats", () => {
 		expect(currentBucket?.events).toBe(2);
 		expect(currentBucket?.tokens).toBe(450);
 		expect(currentBucket?.cost).toBeCloseTo(0.3);
+	});
+
+	test("returns all-time monthly active user buckets", async () => {
+		const { user: secondUser } = await createTestUser(server.db, {
+			email: "monthly-active-user@test.com",
+		});
+
+		await createTestUsageEvent(server.db, userId, {
+			timestamp: new Date("2020-01-15T12:00:00.000Z"),
+		});
+		await createTestUsageEvent(server.db, userId, {
+			timestamp: new Date("2020-03-04T12:00:00.000Z"),
+		});
+		await createTestUsageEvent(server.db, secondUser.id, {
+			timestamp: new Date("2020-03-05T12:00:00.000Z"),
+		});
+		await createTestUsageEvent(server.db, secondUser.id, {
+			timestamp: new Date("2020-03-06T12:00:00.000Z"),
+		});
+
+		const stats = await call(
+			usageHandler.monthlyActiveUsers,
+			{ timeZone: "UTC" },
+			{ context },
+		);
+		const januaryBucket = stats.trend.find(
+			(bucket) => bucket.bucket === formatMonthBucket(2020, 1),
+		);
+		const februaryBucket = stats.trend.find(
+			(bucket) => bucket.bucket === formatMonthBucket(2020, 2),
+		);
+		const marchBucket = stats.trend.find((bucket) => bucket.bucket === formatMonthBucket(2020, 3));
+
+		expect(stats.timeZone).toBe("UTC");
+		expect(januaryBucket?.activeUsers).toBe(1);
+		expect(februaryBucket?.activeUsers).toBe(0);
+		expect(marchBucket?.activeUsers).toBe(2);
 	});
 
 	test("buckets trend data in the requested user timezone", async () => {

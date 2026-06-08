@@ -365,6 +365,9 @@ const statsFilterInput = z.object({
 	filter: z.enum(["today", "week", "month", "all"]).optional(),
 	timeZone: z.string().trim().min(1).max(100).optional(),
 });
+const monthlyActiveUsersInput = z.object({
+	timeZone: z.string().trim().min(1).max(100).optional(),
+});
 
 type StatsFilter = NonNullable<z.infer<typeof statsFilterInput>["filter"]>;
 type TrendGranularity = "day" | "hour";
@@ -461,6 +464,11 @@ interface UsageTrendRow {
 	tokensPerSecondP95: unknown;
 }
 
+interface MonthlyActiveUsersRow {
+	activeUsers: unknown;
+	bucket: unknown;
+}
+
 const buildTrendBucket = (bucket: string, row: UsageTrendRow | undefined) => ({
 	bucket,
 	cost: Number(row?.cost) || 0,
@@ -495,6 +503,21 @@ const buildUsageTrend = (seriesRows: { bucket: string }[], trendRows: UsageTrend
 	return seriesRows.map((seriesRow) => {
 		const bucket = String(seriesRow.bucket);
 		return buildTrendBucket(bucket, rowByBucket.get(bucket));
+	});
+};
+
+const buildMonthlyActiveUsersTrend = (
+	seriesRows: { bucket: string }[],
+	trendRows: MonthlyActiveUsersRow[],
+) => {
+	const rowByBucket = new Map(trendRows.map((row) => [String(row.bucket), row]));
+	return seriesRows.map((seriesRow) => {
+		const bucket = String(seriesRow.bucket);
+		const row = rowByBucket.get(bucket);
+		return {
+			activeUsers: Number(row?.activeUsers) || 0,
+			bucket,
+		};
 	});
 };
 
@@ -719,10 +742,55 @@ const getUsageStatsHandler = authed
 		};
 	});
 
+const getMonthlyActiveUsersHandler = authed
+	.use(requiredAdminMiddleware)
+	.input(monthlyActiveUsersInput)
+	.handler(async ({ context, input }) => {
+		const timeZone = resolveStatsTimeZone(input.timeZone);
+		const timeZoneLiteral = toSqlStringLiteral(timeZone);
+		const localTimestampExpression = sql`timezone(${timeZoneLiteral}, ${usageEvent.timestamp})`;
+		const bucketExpression = sql<Date>`date_trunc('month', ${localTimestampExpression})`;
+		const localNowBucketExpression = sql`date_trunc('month', timezone(${timeZoneLiteral}, now()))`;
+		const seriesStartExpression = sql`coalesce(
+			(select min(${bucketExpression}) from ${usageEvent}),
+			${localNowBucketExpression}
+		)`;
+
+		const [trendRows, seriesRows] = await Promise.all([
+			context.db
+				.select({
+					activeUsers: sql<number>`count(distinct ${usageEvent.userId})`,
+					bucket: sql<string>`to_char(${bucketExpression}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
+				})
+				.from(usageEvent)
+				.groupBy(bucketExpression)
+				.orderBy(bucketExpression),
+			context.db.execute(
+				sql<{ bucket: string }>`
+					select to_char(series.bucket, 'YYYY-MM-DD"T"HH24:MI:SS') as bucket
+					from generate_series(
+						${seriesStartExpression},
+						${localNowBucketExpression},
+						interval '1 month'
+					) as series(bucket)
+				`,
+			),
+		]);
+
+		return {
+			timeZone,
+			trend: buildMonthlyActiveUsersTrend(
+				seriesRows.map((row) => ({ bucket: String(row.bucket) })),
+				trendRows,
+			),
+		};
+	});
+
 export const usageHandler = {
 	evaluate: evaluateUsageEventHandler,
 	findByRequestId: findByRequestIdHandler,
 	get: getUsageEventHandler,
 	list: listUsageEventsHandler,
+	monthlyActiveUsers: getMonthlyActiveUsersHandler,
 	stats: getUsageStatsHandler,
 };
