@@ -47,6 +47,9 @@ import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 
 type EmailDraft = Awaited<ReturnType<typeof orpc.admin.emails.list.call>>[number];
+type EmailTestRecipient = Awaited<
+	ReturnType<typeof orpc.admin.emails.listTestRecipients.call>
+>[number];
 type CategoryFilter = "all" | EmailDraft["category"];
 
 const MARKETING_BROADCAST_CONFIRMATION = "MARKETING E-MAIL SENDEN";
@@ -72,6 +75,15 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 		return String(error);
 	}
 	return fallback;
+};
+
+const formatTestRecipientLabel = (recipient: EmailTestRecipient): string => {
+	const name = recipient.name?.trim();
+	if (name) {
+		return `${name} · ${recipient.email}`;
+	}
+
+	return recipient.email;
 };
 
 const EmailPreviewFrame = ({
@@ -168,74 +180,112 @@ const AdminEmailsErrorState = ({ error }: { error: unknown }) => (
 const SendTestDialog = ({
 	activeDraft,
 	isPending,
+	isUsersLoading,
 	onOpenChange,
-	onRecipientChange,
 	onSendTest,
+	onUserChange,
 	open,
-	testRecipient,
+	selectedUserId,
+	users,
+	usersError,
 }: {
 	activeDraft: EmailDraft | null;
 	isPending: boolean;
+	isUsersLoading: boolean;
 	onOpenChange: (open: boolean) => void;
-	onRecipientChange: (event: ChangeEvent<HTMLInputElement>) => void;
 	onSendTest: () => void;
+	onUserChange: (userId: string) => void;
 	open: boolean;
-	testRecipient: string;
-}) => (
-	<Dialog open={open} onOpenChange={onOpenChange}>
-		<DialogTrigger asChild>
-			<Button disabled={!activeDraft}>
-				<Send className="h-4 w-4" />
-				Test senden
-			</Button>
-		</DialogTrigger>
-		<DialogContent className="sm:max-w-md">
-			<DialogHeader>
-				<DialogTitle>Test-E-Mail senden</DialogTitle>
-				<DialogDescription>
-					Sendet den ausgewählten Entwurf einmalig an eine manuell eingegebene Adresse. Es werden
-					keine Benutzerlisten verwendet.
-				</DialogDescription>
-			</DialogHeader>
-			<div className="space-y-4 py-2">
-				<div className="rounded-md border border-solarized-base2 bg-solarized-base3/70 p-3">
-					<p className="font-medium text-sm text-solarized-base00">
-						{activeDraft?.title ?? "Kein Entwurf ausgewählt"}
-					</p>
-					<p className="mt-1 text-solarized-base01 text-xs">
-						Betreff: [TEST] {activeDraft?.subject}
-					</p>
-				</div>
-				<div className="space-y-2">
-					<Label htmlFor="test-recipient">Empfänger</Label>
-					<Input
-						id="test-recipient"
-						type="email"
-						placeholder="name@example.com"
-						value={testRecipient}
-						onChange={onRecipientChange}
-					/>
-				</div>
-				<div className="flex gap-2 rounded-md border border-solarized-yellow/30 bg-solarized-yellow/10 p-3 text-solarized-base01 text-xs">
-					<ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-solarized-yellow" />
-					<p>
-						Diese Aktion sendet nur an die eingegebene Adresse. Marketing-Broadcasts laufen über
-						die separate Aktion mit Bestätigung.
-					</p>
-				</div>
-			</div>
-			<DialogFooter>
-				<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-					Abbrechen
+	selectedUserId: string;
+	users: EmailTestRecipient[];
+	usersError: unknown;
+}) => {
+	const selectedUser = users.find((recipient) => recipient.id === selectedUserId) ?? null;
+	const canSend = Boolean(activeDraft && selectedUserId && !isUsersLoading && !usersError);
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogTrigger asChild>
+				<Button disabled={!activeDraft}>
+					<Send className="h-4 w-4" />
+					Test senden
 				</Button>
-				<Button onClick={onSendTest} disabled={isPending}>
-					{isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-					Test-E-Mail senden
-				</Button>
-			</DialogFooter>
-		</DialogContent>
-	</Dialog>
-);
+			</DialogTrigger>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>Test-E-Mail senden</DialogTitle>
+					<DialogDescription>
+						Sendet den ausgewählten Entwurf einmalig an einen Nutzer und rendert
+						nutzerbezogene Variablen mit dessen Profil.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-4 py-2">
+					<div className="rounded-md border border-solarized-base2 bg-solarized-base3/70 p-3">
+						<p className="font-medium text-sm text-solarized-base00">
+							{activeDraft?.title ?? "Kein Entwurf ausgewählt"}
+						</p>
+						<p className="mt-1 text-solarized-base01 text-xs">
+							Betreff: [TEST] {activeDraft?.subject}
+						</p>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="test-user">Empfänger</Label>
+						<Select
+							value={selectedUserId}
+							onValueChange={onUserChange}
+							disabled={isUsersLoading || Boolean(usersError) || users.length === 0}
+						>
+							<SelectTrigger id="test-user">
+								<SelectValue
+									placeholder={
+										isUsersLoading ? "Nutzer werden geladen..." : "Nutzer auswählen"
+									}
+								/>
+							</SelectTrigger>
+							<SelectContent>
+								{users.map((recipient) => (
+									<SelectItem key={recipient.id} value={recipient.id}>
+										{formatTestRecipientLabel(recipient)}
+										{recipient.emailVerified ? "" : " · unverifiziert"}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						{usersError ? (
+							<p className="text-solarized-red text-xs">
+								{getErrorMessage(usersError, "Nutzer konnten nicht geladen werden")}
+							</p>
+						) : null}
+						{selectedUser ? (
+							<p className="text-solarized-base01 text-xs">
+								Personalisierung:{" "}
+								{selectedUser.name?.trim()
+									? `Hallo ${selectedUser.name.trim()},`
+									: "Hallo,"}
+							</p>
+						) : null}
+					</div>
+					<div className="flex gap-2 rounded-md border border-solarized-yellow/30 bg-solarized-yellow/10 p-3 text-solarized-base01 text-xs">
+						<ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-solarized-yellow" />
+						<p>
+							Diese Aktion sendet nur an den ausgewählten Nutzer. Marketing-Broadcasts
+							laufen über die separate Aktion mit Bestätigung.
+						</p>
+					</div>
+				</div>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+						Abbrechen
+					</Button>
+					<Button onClick={onSendTest} disabled={isPending || !canSend}>
+						{isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+						Test-E-Mail senden
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+};
 
 const SendMarketingBroadcastDialog = ({
 	activeDraft,
@@ -463,7 +513,7 @@ export default function AdminEmailsPageClient() {
 	const [search, setSearch] = useState("");
 	const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 	const [selectedDraftId, setSelectedDraftId] = useState("");
-	const [testRecipient, setTestRecipient] = useState("");
+	const [selectedTestUserId, setSelectedTestUserId] = useState("");
 	const [broadcastConfirmation, setBroadcastConfirmation] = useState("");
 	const [broadcastDialogOpen, setBroadcastDialogOpen] = useState(false);
 	const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -473,6 +523,12 @@ export default function AdminEmailsPageClient() {
 		error: draftsError,
 		isLoading: draftsLoading,
 	} = useQuery(orpc.admin.emails.list.queryOptions());
+
+	const {
+		data: testRecipients = [],
+		error: testRecipientsError,
+		isLoading: testRecipientsLoading,
+	} = useQuery(orpc.admin.emails.listTestRecipients.queryOptions());
 
 	const activeDraft = useMemo(
 		() => drafts.find((draft) => draft.id === selectedDraftId) ?? drafts[0] ?? null,
@@ -491,7 +547,7 @@ export default function AdminEmailsPageClient() {
 		mutationFn: () =>
 			orpc.admin.emails.sendTest.call({
 				id: activeDraftId,
-				to: testRecipient.trim(),
+				userId: selectedTestUserId,
 			}),
 		onError: (error) => {
 			toast.error(getErrorMessage(error, "Test-E-Mail konnte nicht gesendet werden"));
@@ -501,7 +557,7 @@ export default function AdminEmailsPageClient() {
 				description: `${result.subject} an ${result.to}`,
 			});
 			setSendDialogOpen(false);
-			setTestRecipient("");
+			setSelectedTestUserId("");
 		},
 	});
 
@@ -536,8 +592,8 @@ export default function AdminEmailsPageClient() {
 		setCategoryFilter(value as CategoryFilter);
 	}, []);
 
-	const handleRecipientChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-		setTestRecipient(event.target.value);
+	const handleTestUserChange = useCallback((userId: string) => {
+		setSelectedTestUserId(userId);
 	}, []);
 
 	const handleBroadcastConfirmationChange = useCallback(
@@ -552,13 +608,13 @@ export default function AdminEmailsPageClient() {
 			toast.error("Bitte einen E-Mail-Entwurf auswählen");
 			return;
 		}
-		if (!testRecipient.trim()) {
-			toast.error("Bitte eine Empfängeradresse eingeben");
+		if (!selectedTestUserId) {
+			toast.error("Bitte einen Nutzer auswählen");
 			return;
 		}
 
 		sendTestMutation.mutate();
-	}, [activeDraftId, sendTestMutation, testRecipient]);
+	}, [activeDraftId, selectedTestUserId, sendTestMutation]);
 
 	const handleSendMarketingBroadcast = useCallback(() => {
 		if (activeDraft?.category !== "marketing") {
@@ -604,11 +660,14 @@ export default function AdminEmailsPageClient() {
 						<SendTestDialog
 							activeDraft={activeDraft}
 							isPending={sendTestMutation.isPending}
+							isUsersLoading={testRecipientsLoading}
 							onOpenChange={setSendDialogOpen}
-							onRecipientChange={handleRecipientChange}
 							onSendTest={handleSendTest}
+							onUserChange={handleTestUserChange}
 							open={sendDialogOpen}
-							testRecipient={testRecipient}
+							selectedUserId={selectedTestUserId}
+							users={testRecipients}
+							usersError={testRecipientsError}
 						/>
 						<SendMarketingBroadcastDialog
 							activeDraft={activeDraft}

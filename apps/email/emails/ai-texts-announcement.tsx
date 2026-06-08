@@ -6,7 +6,6 @@ const ExampleAiTextsAnnouncementEmail = () => (
 		buttonText="AI Textbaustein erstellen"
 		templateButtonText="Template erstellen"
 		templateUrl="https://mdscribe.de/templates/create"
-		userName="Dr. Max Mustermann"
 	/>
 );
 

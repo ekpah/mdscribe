@@ -13,7 +13,6 @@ import {
 import config from "../tailwind.config";
 
 interface AiTextsAnnouncementTemplateProps {
-	readonly userName?: string;
 	readonly actionUrl: string;
 	readonly headline?: string;
 	readonly buttonText?: string;
@@ -23,7 +22,6 @@ interface AiTextsAnnouncementTemplateProps {
 }
 
 export const AiTextsAnnouncementTemplate = ({
-	userName,
 	actionUrl,
 	headline = "Neu: Eigene Textbausteine für passgenaue Arztbriefe",
 	buttonText = "AI Textbaustein erstellen",
@@ -31,7 +29,7 @@ export const AiTextsAnnouncementTemplate = ({
 	templateButtonText = "Template erstellen",
 	templateUrl = "https://mdscribe.de/templates/create",
 }: AiTextsAnnouncementTemplateProps) => {
-	const greeting = userName ? `Hallo ${userName},` : "Hallo,";
+	const greeting = "Hallo,";
 
 	return (
 		<Tailwind config={config}>

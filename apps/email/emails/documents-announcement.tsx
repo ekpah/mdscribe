@@ -4,7 +4,6 @@ const ExampleDocumentsAnnouncementEmail = () => (
   <DocumentsAnnouncementTemplate
     actionUrl="https://mdscribe.de/documents"
     buttonText="Dokumente ansehen"
-    userName="Dr. Max Mustermann"
   />
 );
 

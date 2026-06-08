@@ -16,10 +16,7 @@ const draftIdInput = z.object({
 });
 
 const sendTestInput = draftIdInput.extend({
-	to: z
-		.string()
-		.trim()
-		.email("Bitte eine gültige E-Mail-Adresse eingeben"),
+	userId: z.string().trim().min(1, "Nutzer ist erforderlich"),
 });
 
 const MARKETING_BROADCAST_CONFIRMATION = "MARKETING E-MAIL SENDEN";
@@ -71,6 +68,18 @@ const listEmailDraftsHandler = adminEmailProcedure.handler(() =>
 	listEmailDraftMetadata(),
 );
 
+const listEmailTestRecipientsHandler = adminEmailProcedure.handler(({ context }) =>
+	context.db
+		.select({
+			email: user.email,
+			emailVerified: user.emailVerified,
+			id: user.id,
+			name: user.name,
+		})
+		.from(user)
+		.orderBy(asc(user.email)),
+);
+
 const previewEmailDraftHandler = adminEmailProcedure
 	.input(type<z.infer<typeof draftIdInput>>())
 	.handler(async ({ input }) => {
@@ -92,22 +101,44 @@ const previewEmailDraftHandler = adminEmailProcedure
 
 const sendTestEmailDraftHandler = adminEmailProcedure
 	.input(type<z.infer<typeof sendTestInput>>())
-	.handler(async ({ input }) => {
+	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(sendTestInput, input);
 		const draft = getDraftOrThrow(parsed.id);
 		const subject = `[TEST] ${draft.subject}`;
+		const [selectedUser] = await context.db
+			.select({
+				email: user.email,
+				id: user.id,
+				name: user.name,
+			})
+			.from(user)
+			.where(eq(user.id, parsed.userId))
+			.limit(1);
+
+		if (!selectedUser) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Nutzer wurde nicht gefunden",
+			});
+		}
 
 		await sendEmail({
 			from: "noreply@mdscribe.de",
 			subject,
-			template: draft.render(),
-			to: parsed.to,
+			template: draft.render({
+				recipient: {
+					email: selectedUser.email,
+					name: selectedUser.name,
+				},
+			}),
+			to: selectedUser.email,
 		});
 
 		return {
 			id: draft.id,
 			subject,
-			to: parsed.to,
+			to: selectedUser.email,
+			userId: selectedUser.id,
+			userName: selectedUser.name,
 		};
 	});
 
@@ -154,6 +185,7 @@ const sendMarketingEmailHandler = adminEmailProcedure
 
 export const emailsHandler = {
 	list: listEmailDraftsHandler,
+	listTestRecipients: listEmailTestRecipientsHandler,
 	preview: previewEmailDraftHandler,
 	sendMarketingEmail: sendMarketingEmailHandler,
 	sendTest: sendTestEmailDraftHandler,

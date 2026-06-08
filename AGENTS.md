@@ -38,6 +38,9 @@ When implementing new functionality, deliver the complete feature rather than on
 - Update `apps/docs` for user-facing features, and update this file when architecture, routes, or conventions change.
 - For every new feature, add a React Email user-notification draft matching the existing marketing draft pattern (template in `packages/email/templates`, preview in `apps/email/emails`, registered in `packages/email/drafts.tsx`; for example the Reha-Antrag announcement), and reference it in the PR or handoff. For small fixes, explicitly note that no announcement is needed.
 - Admin bulk-send actions for email drafts must be restricted by draft category, not individual draft id: marketing broadcasts may target any `category: "marketing"` draft, and must require an explicit typed confirmation phrase before sending.
+- Marketing broadcast emails must not use demo recipient names such as `Dr. Max Mustermann`; use generic greetings like `Hallo,` unless per-recipient personalization is explicitly implemented.
+- The AI Textbausteine announcement email specifically must always use the generic greeting `Hallo,` and must not render a `userName`, including selected-user test sends.
+- Admin test-send actions for email drafts must select an existing user and render personalization from that user's profile; do not accept arbitrary raw recipient email addresses for test sends.
 
 ### Frontend Corrections
 - Canvas-backed components need actual CSS color values, not Tailwind token names. For `LiveWaveform`, prefer inherited `text-*` color and omit `barColor`; passing values like `"solarized-base2"` is invalid for `CanvasRenderingContext2D.fillStyle` and can leave the internal fade gradient as the fill style.

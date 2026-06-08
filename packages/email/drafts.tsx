@@ -12,6 +12,15 @@ import { WelcomeTemplate } from "./templates/welcome";
 
 type EmailDraftCategory = "authentication" | "marketing" | "transactional";
 
+interface EmailDraftRecipient {
+	readonly email: string;
+	readonly name: string | null;
+}
+
+interface EmailDraftRenderContext {
+	readonly recipient?: EmailDraftRecipient;
+}
+
 interface EmailDraftDefinition {
 	readonly id: string;
 	readonly title: string;
@@ -19,10 +28,21 @@ interface EmailDraftDefinition {
 	readonly category: EmailDraftCategory;
 	readonly subject: string;
 	readonly previewProps: Record<string, string>;
-	readonly render: () => ReactElement;
+	readonly render: (context?: EmailDraftRenderContext) => ReactElement;
 }
 
 type EmailDraftMetadata = Omit<EmailDraftDefinition, "render">;
+
+const getRecipientName = (
+	context: EmailDraftRenderContext | undefined,
+	previewUserName?: string,
+): string | undefined => {
+	if (context?.recipient) {
+		return context.recipient.name?.trim() || undefined;
+	}
+
+	return previewUserName;
+};
 
 const emailDrafts: readonly EmailDraftDefinition[] = [
 	{
@@ -34,7 +54,6 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 			buttonText: "AI Textbaustein erstellen",
 			templateButtonText: "Template erstellen",
 			templateUrl: "https://mdscribe.de/templates/create",
-			userName: "Dr. Max Mustermann",
 		},
 		render: () => (
 			<AiTextsAnnouncementTemplate
@@ -42,7 +61,6 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 				buttonText="AI Textbaustein erstellen"
 				templateButtonText="Template erstellen"
 				templateUrl="https://mdscribe.de/templates/create"
-				userName="Dr. Max Mustermann"
 			/>
 		),
 		subject: "Neu: AI Textbausteine für spezialisierte Vorlagen",
@@ -55,13 +73,12 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 		previewProps: {
 			actionUrl: "https://mdscribe.de/documents",
 			buttonText: "Dokumente testen",
-			userName: "Dr. Max Mustermann",
 		},
-		render: () => (
+		render: (context) => (
 			<DocumentsAnnouncementTemplate
 				actionUrl="https://mdscribe.de/documents"
 				buttonText="Dokumente testen"
-				userName="Dr. Max Mustermann"
+				userName={getRecipientName(context)}
 			/>
 		),
 		subject: "Neu: Rehaanträge schneller mit MDScribe vorbereiten",
@@ -75,14 +92,13 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 			actionUrl: "https://mdscribe.de/sign-up",
 			buttonText: "Jetzt kostenlos starten",
 			headline: "70% weniger Dokumentationszeit - KI fuer Assistenzaerzte",
-			userName: "Dr. Max Mustermann",
 		},
-		render: () => (
+		render: (context) => (
 			<ColdOutreachTemplate
 				actionUrl="https://mdscribe.de/sign-up"
 				buttonText="Jetzt kostenlos starten"
 				headline="70% weniger Dokumentationszeit - KI fuer Assistenzaerzte"
-				userName="Dr. Max Mustermann"
+				userName={getRecipientName(context)}
 			/>
 		),
 		subject: "70% weniger Dokumentationszeit mit MDScribe",
@@ -98,12 +114,12 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 			headline: "Willkommen bei MDScribe!",
 			userName: "Max Mustermann",
 		},
-		render: () => (
+		render: (context) => (
 			<WelcomeTemplate
 				actionUrl="https://mdscribe.de/dashboard"
 				buttonText="Zum Dashboard"
 				headline="Willkommen bei MDScribe!"
-				userName="Max Mustermann"
+				userName={getRecipientName(context, "Max Mustermann")}
 			/>
 		),
 		subject: "Willkommen bei MDScribe",

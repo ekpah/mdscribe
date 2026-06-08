@@ -5,7 +5,6 @@ const ExampleColdOutreachEmail = () => (
         actionUrl="https://mdscribe.de/sign-up"
         buttonText="Jetzt kostenlos starten"
         headline="🚀 70% weniger Dokumentationszeit – KI für Assistenzärzte"
-        userName="Dr. Max Mustermann"
     />
 );
 
