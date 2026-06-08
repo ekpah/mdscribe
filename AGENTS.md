@@ -133,6 +133,7 @@ bun run db:migrate       # Run Drizzle migrations
 
 ### AI / Scribe
 - Use admin-configured providers from DB — no hardcoded fallbacks
+- Model selection: text-only AIScribe and input-fill requests always use the default text model. Requests with audio, PDF, image, or other file input first use the default multimodal model when configured; otherwise they preprocess through speech-to-text and/or file-image defaults before finishing with the default text model.
 - Prompts managed in Langfuse (production/staging labels). Usage logged to `UsageEvent`.
 - Prompt text fragments live under `apps/app/orpc/scribe/prompts/core/` and `apps/app/orpc/scribe/prompts/families/` as plain strings. Prefer direct multiline literals in each family entry file (usually `index.ts`) and avoid unnecessary string composition. Keep harness wiring in `apps/app/orpc/scribe/prompts/definitions/` and keep `prompts/registry.ts` as a thin lookup/registry layer. Prompt harness IDs, display names, and backward-compatible aliases belong in the prompt registry/definitions area; do not add a separate `lib` helper for this.
 - Any prompt fragment reused across families (for example shared system-role builders or template-usage instructions) must live in `apps/app/orpc/scribe/prompts/core/`, not in `families/*/shared`.
