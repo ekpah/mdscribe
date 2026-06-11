@@ -90,7 +90,7 @@ export default function ModelsSettingsPageClient() {
 						className="min-w-[138px] shrink-0 justify-center gap-2 text-center md:w-full md:justify-start md:text-left"
 					>
 						<FileText className="h-4 w-4" />
-						AI Textbausteine
+						AI Vorlagen
 					</TabsTrigger>
 				</TabsList>
 

@@ -321,7 +321,7 @@ export default async function AIScribeLandingPage() {
 								</Button>
 							</div>
 							<p className="text-xs text-solarized-base01 sm:text-sm">
-								Ihre selbst angelegten AI Textbausteine für persönliche wiederkehrende
+								Ihre selbst angelegten AI Vorlagen für persönliche wiederkehrende
 								Dokumentationsabläufe.
 							</p>
 							{personalForms.length > 0 && (
@@ -383,7 +383,7 @@ export default async function AIScribeLandingPage() {
 								</h2>
 							</div>
 							<p className="text-xs text-solarized-base01 sm:text-sm">
-								Von MDScribe bereitgestellte AI Textbausteine für zusätzliche
+								Von MDScribe bereitgestellte AI Vorlagen für zusätzliche
 								Dokumentationsaufgaben.
 							</p>
 							<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">

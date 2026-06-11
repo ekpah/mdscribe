@@ -40,31 +40,31 @@ Pruefen Sie das Ergebnis immer fachlich:
 2. KI-Kommentare in den relevanten Abschnitten setzen
 3. Mit kurzen Iterationen arbeiten: nachschaerfen, neu generieren
 
-## AI Textbausteine
+## AI Vorlagen
 
-Admins koennen unter `/admin/settings/models` im Tab `AI Textbausteine` globale zusaetzliche AIScribe-Texte anlegen. Nutzer koennen eigene AI Textbausteine unter `/profile/ai-scribe` verwalten.
+Admins koennen unter `/admin/settings/models` im Tab `AI Vorlagen` globale zusaetzliche AIScribe-Vorlagen anlegen. Nutzer koennen eigene AI Vorlagen unter `/profile/ai-scribe` verwalten.
 
 Im Tab `Modelle` werden globale Standardmodelle gesetzt: optional ein multi-modales Modell, sonst getrennte Standards fuer Text, OCR/File/Image, Audio-Transkription und Evaluation. Pro Standardmodell kann Reasoning Effort gesetzt werden, wenn das Modell Reasoning-Unterstuetzung meldet.
 
 Die Standardmodi unter `Schnelle Dokument-Generierung` (`/aiscribe/er`, `/aiscribe/icu`, `/aiscribe/outpatient`, `/aiscribe/procedures`, `/aiscribe/discharge`, `/aiscribe/diagnoseblock`) koennen im selben Admin-Tab separat konfiguriert werden. Ohne aktive Override-Konfiguration bleibt das bisherige hardcoded Verhalten unveraendert.
 
-Jeder AI Text kann derzeit festlegen:
+Jede AI Vorlage kann derzeit festlegen:
 
 - Name (der URL-Pfad wird automatisch daraus abgeleitet)
 - Prompt Harness
 - optionales Template
 - Sichtbarkeit (`Oeffentlich` oder `Privat`)
 
-Alle AI Textbausteine verwenden aktuell denselben klinischen Vollkontext mit Notizen, Diagnoseblock, Anamnese und Befunden.
-AI Textbausteine verwenden kein eigenes Modell mehr, sondern immer die globalen Standardmodelle.
+Alle AI Vorlagen verwenden aktuell denselben klinischen Vollkontext mit Notizen, Diagnoseblock, Anamnese und Befunden.
+AI Vorlagen verwenden kein eigenes Modell mehr, sondern immer die globalen Standardmodelle.
 
-Aktivierte globale und oeffentliche nutzererstellte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `AI Textbausteine`. Aktivierte eigene Eintraege erscheinen fuer den jeweiligen Nutzer direkt unter den Standardmodi im Bereich `Meine AI Textbausteine`. Private AI Textbausteine sind eine Plus-Funktion und bleiben nur fuer den Autor sichtbar und nutzbar.
+Aktivierte globale und oeffentliche nutzererstellte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `Weitere Vorlagen`. Aktivierte eigene Eintraege erscheinen fuer den jeweiligen Nutzer direkt unter den Standardmodi im Bereich `Meine Vorlagen`. Private AI Vorlagen sind eine Plus-Funktion und bleiben nur fuer den Autor sichtbar und nutzbar.
 
 AIScribe-Eingaben nutzen dieselbe Eingabe-Leiste wie das automatische Fuellen von Vorlagen: Text, Audioaufnahmen und Kontextdateien koennen ueber die drei Eingabe-Schalter gewechselt werden. Audio- und Datei-Eingaben werden je nach globalem Modell-Setup direkt multimodal verarbeitet oder vorher transkribiert bzw. extrahiert.
 
 Audioaufnahmen werden ueber die linke Aufnahmeflaeche gestartet und gestoppt; alternativ kann `Ctrl+Shift+M` oder auf macOS `Cmd+Shift+M` genutzt werden.
 
-Die konfigurierbaren Standardmodi bleiben weiterhin nur unter ihren festen `/aiscribe/*`-Routen sichtbar und werden nicht im `AI Textbausteine`-Bereich gelistet.
+Die konfigurierbaren Standardmodi bleiben weiterhin nur unter ihren festen `/aiscribe/*`-Routen sichtbar und werden nicht im `Weitere Vorlagen`-Bereich gelistet.
 
 ## Nutzungsstatistik
 

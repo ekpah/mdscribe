@@ -317,7 +317,7 @@ const updateFormHandler = authed
 
 		if (!updated) {
 			throw new ORPCError("NOT_FOUND", {
-				message: "AI Text wurde nicht gefunden",
+				message: "AI Vorlage wurde nicht gefunden",
 			});
 		}
 
@@ -340,7 +340,7 @@ const deleteFormHandler = authed
 
 		if (!deleted) {
 			throw new ORPCError("NOT_FOUND", {
-				message: "AI Text wurde nicht gefunden",
+				message: "AI Vorlage wurde nicht gefunden",
 			});
 		}
 

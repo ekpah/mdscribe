@@ -183,7 +183,7 @@ export const ScribeFormsTab = () => {
 		},
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
-			toast.success("AI Text gespeichert");
+			toast.success("AI Vorlage gespeichert");
 			setDialogOpen(false);
 			setDraft(createEmptyDraft());
 			setPendingDeleteId(null);
@@ -199,7 +199,7 @@ export const ScribeFormsTab = () => {
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
 			setPendingDeleteId(null);
-			toast.success("AI Text gelöscht");
+			toast.success("AI Vorlage gelöscht");
 		},
 	});
 
@@ -334,7 +334,7 @@ export const ScribeFormsTab = () => {
 				<CardContent className="p-4 text-center text-solarized-red text-sm">
 					{formsError instanceof Error
 						? formsError.message
-						: "Fehler beim Laden der AI Textbausteine"}
+						: "Fehler beim Laden der AI Vorlagen"}
 				</CardContent>
 			</Card>
 		);
@@ -351,7 +351,7 @@ export const ScribeFormsTab = () => {
 							<div className="rounded-lg bg-solarized-cyan/10 p-2 text-solarized-cyan">
 								<FileText className="h-4 w-4" />
 							</div>
-							<CardTitle>AI Textbausteine</CardTitle>
+							<CardTitle>AI Vorlagen</CardTitle>
 						</div>
 						<CardDescription>
 							Zusätzliche AIScribe-Texte mit festem klinischem Kontext (Diagnoseblock, Anamnese,
@@ -360,7 +360,7 @@ export const ScribeFormsTab = () => {
 					</div>
 					<Button onClick={handleOpenCreate} size="sm">
 						<Plus className="mr-1.5 h-4 w-4" />
-						Neuer AI Text
+						Neue AI Vorlage
 					</Button>
 				</CardHeader>
 			</Card>
@@ -368,7 +368,7 @@ export const ScribeFormsTab = () => {
 			{forms.length === 0 ? (
 				<Card className="border-solarized-base2 border-dashed bg-solarized-base3">
 					<CardContent className="p-8 text-center text-solarized-base01 text-sm">
-						Noch keine AI Textbausteine vorhanden.
+						Noch keine AI Vorlagen vorhanden.
 					</CardContent>
 				</Card>
 			) : (
@@ -519,9 +519,9 @@ export const ScribeFormsTab = () => {
 			<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
 				<DialogContent className="sm:max-w-xl">
 					<DialogHeader>
-						<DialogTitle>{draft.id ? "AI Text bearbeiten" : "Neuer AI Text"}</DialogTitle>
+						<DialogTitle>{draft.id ? "AI Vorlage bearbeiten" : "Neue AI Vorlage"}</DialogTitle>
 						<DialogDescription>
-							Konfigurieren Sie einen zusätzlichen AI Textbaustein für die AIScribe-Übersicht.
+							Konfigurieren Sie eine zusätzliche AI Vorlage für die AIScribe-Übersicht.
 						</DialogDescription>
 					</DialogHeader>
 

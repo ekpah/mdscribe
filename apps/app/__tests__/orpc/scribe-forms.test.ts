@@ -253,7 +253,7 @@ describe("AI Scribe Forms Handlers", () => {
 				},
 				{ context: ownerContext },
 			),
-		).rejects.toThrow("Private AI Textbausteine");
+		).rejects.toThrow("Private AI Vorlagen");
 
 		await createTestSubscription(server.db, ownerUserId);
 
@@ -351,7 +351,7 @@ describe("AI Scribe Forms Handlers", () => {
 				},
 				{ context: otherUserContext },
 			),
-		).rejects.toThrow("AI Text wurde nicht gefunden");
+		).rejects.toThrow("AI Vorlage wurde nicht gefunden");
 
 		const ownerForm = await call(
 			scribeFormsHandler.getBySlug,

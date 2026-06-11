@@ -47,7 +47,7 @@ const FIELD_EXPLANATIONS = {
 	template:
 		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.",
 	visibility:
-		"Öffentliche AI Textbausteine können alle Nutzer sehen und verwenden. Private AI Textbausteine sind eine Plus-Funktion.",
+		"Öffentliche AI Vorlagen können alle Nutzer sehen und verwenden. Private AI Vorlagen sind eine Plus-Funktion.",
 } as const;
 
 type AiTextVisibility = "public" | "private";
@@ -205,7 +205,7 @@ export const UserAiTextsCard = () => {
 			await queryClient.invalidateQueries({
 				queryKey: orpc.scribeForms.listAvailable.queryOptions().queryKey,
 			});
-			toast.success("AI Text gespeichert");
+			toast.success("AI Vorlage gespeichert");
 			setDialogOpen(false);
 			setDraft(createEmptyDraft());
 			setPendingDeleteId(null);
@@ -224,7 +224,7 @@ export const UserAiTextsCard = () => {
 				queryKey: orpc.scribeForms.listAvailable.queryOptions().queryKey,
 			});
 			setPendingDeleteId(null);
-			toast.success("AI Text gelöscht");
+			toast.success("AI Vorlage gelöscht");
 		},
 	});
 
@@ -380,7 +380,7 @@ export const UserAiTextsCard = () => {
 				<CardContent className="p-4 text-center text-solarized-red text-sm">
 					{formsError instanceof Error
 						? formsError.message
-						: "Fehler beim Laden der AI Textbausteine"}
+						: "Fehler beim Laden der AI Vorlagen"}
 				</CardContent>
 			</Card>
 		);
@@ -402,14 +402,14 @@ export const UserAiTextsCard = () => {
 				</div>
 				<Button onClick={handleOpenCreate} size="sm" type="button">
 					<Plus className="mr-1.5 h-4 w-4" />
-					Neuer AI Text
+					Neue AI Vorlage
 				</Button>
 			</CardHeader>
 
 			<CardContent className="space-y-4">
 				{forms.length === 0 ? (
 					<div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground text-sm">
-						Noch keine AI Textbausteine vorhanden.
+						Noch keine AI Vorlagen vorhanden.
 					</div>
 				) : (
 					<div className="grid gap-4 xl:grid-cols-2">
@@ -577,9 +577,9 @@ export const UserAiTextsCard = () => {
 				<Dialog onOpenChange={setDialogOpen} open={dialogOpen}>
 					<DialogContent className="sm:max-w-xl">
 						<DialogHeader>
-							<DialogTitle>{draft.id ? "AI Text bearbeiten" : "Neuer AI Text"}</DialogTitle>
+							<DialogTitle>{draft.id ? "AI Vorlage bearbeiten" : "Neue AI Vorlage"}</DialogTitle>
 							<DialogDescription>
-								Konfigurieren Sie einen persönlichen AI Textbaustein für AIScribe.
+								Konfigurieren Sie eine persönliche AI Vorlage für AIScribe.
 							</DialogDescription>
 						</DialogHeader>
 
@@ -661,7 +661,7 @@ export const UserAiTextsCard = () => {
 									<p className="text-solarized-base01 text-xs">
 										{draft.visibility === "public"
 											? USER_MESSAGES.publicAiScribeFormVisibilityWarning
-											: "Privat: Nur Sie können diesen AI Textbaustein sehen und verwenden."}
+											: "Privat: Nur Sie können diese AI Vorlage sehen und verwenden."}
 									</p>
 								</div>
 

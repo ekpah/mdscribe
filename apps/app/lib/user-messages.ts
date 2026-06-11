@@ -9,7 +9,7 @@ export const USER_MESSAGES = {
 	modelUnavailable:
 		"Kein geeignetes KI-Modell verfügbar. Bitte konfigurieren Sie ein Modell in den Einstellungen.",
 	privateAiScribeFormRequiresPlus:
-		"Private AI Textbausteine sind nur mit Plus verfügbar. Speichern Sie den AI Textbaustein öffentlich oder aktualisieren Sie Ihr Abo.",
+		"Private AI Vorlagen sind nur mit Plus verfügbar. Speichern Sie die AI Vorlage öffentlich oder aktualisieren Sie Ihr Abo.",
 	privateDocumentRequiresPlus:
 		"Private Dokumente sind nur mit Plus verfügbar. Speichern Sie das Dokument öffentlich oder aktualisieren Sie Ihr Abo.",
 	privateTemplateRequiresPlus:
@@ -18,7 +18,7 @@ export const USER_MESSAGES = {
 		"Der API-Schlüssel wurde vom Anbieter abgelehnt. Bitte prüfen Sie die Konfiguration.",
 	providerUnavailable: "Der KI-Anbieter ist nicht erreichbar. Bitte prüfen Sie die Verbindung.",
 	publicAiScribeFormVisibilityWarning:
-		"Öffentlich: Alle Nutzer können diesen AI Textbaustein sehen und verwenden.",
+		"Öffentlich: Alle Nutzer können diese AI Vorlage sehen und verwenden.",
 	publicDocumentVisibilityWarning:
 		"Öffentlich: Alle Nutzer können dieses Dokument sehen, verwenden und kopieren.",
 	publicTemplateVisibilityWarning:
