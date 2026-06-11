@@ -1,0 +1,26 @@
+---
+title: Anthropic
+description: Claude-Modelle über die Anthropic-API.
+---
+
+## Anthropic
+
+Die direkte Anbindung an die [Anthropic-API](https://www.anthropic.com/api) stellt Claude-Modelle für den Text- und Multimodal-Slot bereit.
+
+## Einrichtung
+
+1. API-Key in der [Anthropic Console](https://console.anthropic.com) erstellen.
+2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+   - **Protokoll**: `Anthropic`
+   - **Base URL**: leer lassen
+   - **API-Key**: der erstellte Key
+3. Verbindung prüfen und speichern — die verfügbaren Claude-Modelle werden über die Models-API synchronisiert.
+
+## Besonderheiten
+
+- Claude-Modelle verarbeiten Bilder und PDFs nativ und eignen sich damit auch für den Multimodal- und Datei/Bild-Slot.
+- Anthropic bietet keine Transkriptions-API; für den Speech-to-Text-Slot wird ein anderer Provider benötigt (z.B. [Tinfoil](/providers/tinfoil) oder [OpenAI](/providers/openai)).
+
+## Einordnung für den Datenschutz
+
+Anfragen laufen über die Anthropic-Cloud (US-Anbieter). Prüfen Sie die Data-Processing-Bedingungen Ihres Kontos und die Leitplanken unter [Datenschutz](/privacy), bevor Sie sensible Inhalte verarbeiten. Für technisch erzwungene Vertraulichkeit siehe [Tinfoil](/providers/tinfoil).

@@ -1,0 +1,29 @@
+---
+title: OpenRouter
+description: Zugriff auf viele Modelle verschiedener Anbieter über einen einzigen API-Key.
+---
+
+## OpenRouter
+
+[OpenRouter](https://openrouter.ai) ist ein Aggregator: Ein API-Key gibt Zugriff auf Modelle vieler Anbieter (Anthropic, OpenAI, Google, Mistral, offene Modelle und mehr). OpenRouter ist die flexibelste Option, wenn eine Instanz mehrere Modellfamilien vergleichen oder kombinieren soll.
+
+## Einrichtung
+
+1. API-Key unter [openrouter.ai/keys](https://openrouter.ai/keys) erstellen.
+2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+   - **Protokoll**: `OpenRouter`
+   - **Base URL**: leer lassen
+   - **API-Key**: der erstellte Key
+3. Verbindung prüfen und speichern.
+
+Die Synchronisierung fragt den vollständigen Katalog inklusive Transkriptionsmodellen ab (`output_modalities=all`) und übernimmt pro Modell die unterstützten Parameter (`supported_parameters`), aus denen sich unter anderem die Reasoning-Fähigkeit ergibt.
+
+## Besonderheiten
+
+- **Reasoning-Steuerung**: Für Modelle, die Reasoning unterstützen, sendet MDScribe den konfigurierten Reasoning-Aufwand des jeweiligen Standard-Slots mit.
+- **Zero Data Retention**: Für Plus-Nutzung kann MDScribe Anfragen mit ZDR-Flag routen, sodass nur Endpunkte ohne Datenspeicherung verwendet werden — siehe [Datenschutz](/privacy).
+- **Audio-Transkription**: OpenRouter-Transkriptionsmodelle werden über die JSON-Schnittstelle (`/v1/audio/transcriptions` mit `input_audio`) angesprochen und können den Speech-to-Text-Slot belegen.
+
+## Einordnung für den Datenschutz
+
+OpenRouter leitet Anfragen an die jeweiligen Modellanbieter weiter. Die Datenschutz-Eigenschaften hängen damit vom Zielmodell und dessen Anbieter ab; das ZDR-Routing reduziert Retention-Risiken, ersetzt aber keine eigene Compliance-Prüfung. Für maximale Vertraulichkeit siehe [Tinfoil](/providers/tinfoil) oder [Self-Hosting](/providers/openai-compatible).

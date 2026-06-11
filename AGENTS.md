@@ -175,6 +175,7 @@ bun run db:migrate       # Run Drizzle migrations
 - Treat `supportedParameters` as optional at API/UI boundaries and normalize it to `[]`; older query-cache payloads or pre-sync rows may not include the field yet.
 - Playground reads models from DB, not live API fetches. Model selector uses shadcn `Select`.
 - Admin settings: `/admin/settings/models` — vertical tabs `Verbindungen` + `Modelle`. Validate connectivity before creating provider.
+- The `tinfoil` protocol must go through the `tinfoil` npm SDK (`createTinfoilAI` for generation, `TinfoilAI` for STT), never plain HTTP to `inference.tinfoil.sh` — the SDK provides the attestation + HPKE end-to-end encryption guarantees that justify the provider. Cache provider/client instances per credential set (attestation handshake is expensive); evict rejected handshakes. Model sync uses the public `/v1/models` catalog, keeps only `type: chat|audio`, maps the explicit `reasoning` flag to `supportsReasoning`, and leaves `supportedParameters` empty (no fabricated capability lists). Base URL is optional (SDK resolves the verified endpoint; set only for proxies). Provider docs live in `apps/docs/content/docs/providers/`.
 
 ### Template Editor
 - WYSIWYG: Inline Markdoc validation in TipTap mode (red squiggles + hover errors); block save when Markdoc validation has errors

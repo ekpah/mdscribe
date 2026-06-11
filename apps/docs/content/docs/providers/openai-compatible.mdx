@@ -1,0 +1,33 @@
+---
+title: OpenAI-kompatibel
+description: Lokale oder selbst gehostete Inferenz-Server wie llama.cpp, vLLM, Ollama und LM Studio anbinden.
+---
+
+## OpenAI-kompatible Server
+
+Mit dem Protokoll `OpenAI-kompatibel` lässt sich jeder Server anbinden, der die OpenAI-Chat-Completions-API implementiert — typischerweise lokale oder selbst gehostete Inferenz-Server:
+
+- [llama.cpp](https://github.com/ggml-org/llama.cpp) (`llama-server`)
+- [vLLM](https://docs.vllm.ai)
+- [Ollama](https://ollama.com)
+- [LM Studio](https://lmstudio.ai)
+
+Das ist die richtige Wahl für Self-Hosting-Szenarien, in denen klinische Daten die eigene Infrastruktur nicht verlassen sollen.
+
+## Einrichtung
+
+1. Inferenz-Server starten und die OpenAI-kompatible Schnittstelle aktivieren.
+2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+   - **Protokoll**: `OpenAI-kompatibel`
+   - **Base URL**: **erforderlich**, inklusive `/v1` (z.B. `http://localhost:11434/v1` für Ollama)
+   - **API-Key**: nur falls der Server einen verlangt
+3. Verbindung prüfen und speichern — die Modellliste wird über `GET /v1/models` synchronisiert.
+
+## Besonderheiten
+
+- Es findet keine Ableitung von Modell-Fähigkeiten statt: Reasoning-Unterstützung und Modalitäten werden nicht erraten. Der Administrator wählt selbst, welches Modell welchen Slot belegt, und kann Fähigkeiten pro Modell manuell pflegen.
+- Eine explizite Base URL ist Pflicht; es gibt bewusst keinen Fallback-Endpunkt.
+
+## Einordnung für den Datenschutz
+
+Bei einem Server in eigener Infrastruktur verlassen Eingaben das eigene Netz nicht — zusammen mit [Self-Hosting](/self-hosting) der MDScribe-Instanz ist das die Variante mit der größten Eigenkontrolle. Die Verantwortung für Betrieb, Absicherung und Compliance liegt vollständig beim Betreiber.
