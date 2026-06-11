@@ -66,6 +66,15 @@ When implementing new functionality, deliver the complete feature rather than on
 
 MDScribe is a medical documentation webapp (monorepo) for organizing medical templates and assisting doctors with AI-powered document generation, template management, and subscription-based usage tracking.
 
+## Licensing & Open-Core Architecture
+
+- The repo is licensed **FSL-1.1-Apache-2.0** (Fair Source, converts to Apache 2.0 after 2 years per release). Root `LICENSE` holds the FSL text; every `package.json` sets `"license": "FSL-1.1-Apache-2.0"`. The project was previously AGPL-3.0-or-later; do not reintroduce AGPL references.
+- In user-facing text, describe MDScribe as `Fair Source` / `quelloffen`, **not** `Open Source` (FSL is source-available, not OSI open source).
+- Future enterprise features (audit log, SSO/OIDC, org management, …) go in a **top-level `ee/` directory** as a workspace package (`@repo/ee`) under **Elastic License 2.0** with its own `LICENSE` file. `ee/` does not exist yet — create it only when the first enterprise feature lands; do not scatter enterprise code through `apps/` or `packages/`.
+- Core code imports `@repo/ee` only at thin, explicit wiring points (for example spreading `eeAuthPlugins(license)` into the better-auth `plugins` array in `auth.ts`). Routes/oRPC mounts in `apps/app` stay thin re-exports of `ee/` logic.
+- All feature gating (plan **and** future edition/license-key) must flow through `resolveProductEntitlements` in `apps/app/lib/product-entitlements.ts` and the oRPC entitlements middleware. Never check plans/subscriptions inline elsewhere. Enterprise license keys are signed tokens verified offline at boot (no phone-home) and resolve to edition entitlements.
+- DB schema and migrations for enterprise tables stay in `packages/database` under the core license (single migration chain); only the logic is gated in `ee/`.
+
 ## Git Workflow
 
 - `main` ← `staging` ← feature branches. **AI agents always target `staging`.**
