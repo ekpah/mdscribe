@@ -90,6 +90,18 @@ OpenRouter-Modelle speichern beim Modell-Sync ihre `supported_parameters`. Wenn 
 
 Auf den AIScribe-Seiten zeigt die linke Box `Kontext & Vorlage`, welches Template und welcher Prompt fuer die aktuelle Generierung verwendet werden. Wenn ein echtes Template hinterlegt ist, fuehrt der Template-Link zur normalen Template-Ansicht.
 
+## Weiterverwenden
+
+Unter `Kontext & Vorlage` koennen Sie mit `Weiterverwenden` den aktuellen Kontext in einem anderen Ziel oeffnen:
+
+- Textbaustein
+- AI Vorlage
+- Dokument (derzeit nur fuer Admins)
+
+Die Haupteingabe wird als das Zielfeld des jeweiligen Prompt-Harness uebergeben (z.B. als `Anamnese` bei einem Anamnese-basierten Textbaustein); narrative Ausgaben wie Entlassbrief, Ambulanzbrief oder ICU-Verlegung gelten als `Epikrise`. Mit `Ausgabe uebernehmen` ersetzt die generierte Ausgabe die Eingabe in diesem Zielfeld. Alle uebrigen Kontextfelder (Diagnoseblock, Anamnese, Befunde, Epikrise) werden immer mit uebergeben und landen im Ziel in den gleichnamigen Feldern; das Zielformular zieht sein eigenes Zielfeld automatisch in die Haupteingabe.
+
+MDScribe speichert den Transfer kurzlebig und verschluesselt. Der Server speichert nur den Ciphertext unter einem einmaligen Token-Hash; der Entschluesselungsschluessel bleibt im Browser und wird im URL-Fragment uebergeben. Beim Oeffnen des Ziels wird der Transfer geloescht; nicht abgeholte Transfers verfallen nach wenigen Minuten. Das schuetzt vor versehentlichem Speichern klinischer Inhalte in URLs, Logs oder der Datenbank. Es ersetzt aber keine Absicherung gegen kompromittierten Browser-Code oder unsichere Endgeraete.
+
 <Callout type="warn" title="Datenschutz">
   Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden.
   Fuer sensible Daten ist Self-Hosting der empfohlene Weg.

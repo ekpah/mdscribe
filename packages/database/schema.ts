@@ -252,6 +252,32 @@ export const usageEvent = pgTable(
 	],
 );
 
+export const contextTransfer = pgTable(
+	"ContextTransfer",
+	{
+		// Versioned envelope (version byte + IV + AES-GCM ciphertext), base64url.
+		// The decryption key never reaches the server; rows are deleted on consume.
+		ciphertext: text("ciphertext").notNull(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3, withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		expiresAt: timestamp("expiresAt", { mode: "date", precision: 3, withTimezone: true }).notNull(),
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		targetPath: text("targetPath").notNull(),
+		tokenHash: text("tokenHash").notNull().unique(),
+		// User allowed to consume the transfer (currently also the creator).
+		userId: text("userId")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		index("ContextTransfer_expiresAt_idx").on(table.expiresAt),
+		index("ContextTransfer_userId_idx").on(table.userId),
+	],
+);
+
 export const textSnippet = pgTable(
 	"TextSnippet",
 	{
@@ -375,6 +401,9 @@ export const aiDefaults = pgTable("AiDefaults", {
 export const aiScribeFormConfig = pgTable(
 	"AiScribeFormConfig",
 	{
+		authorId: text("authorId").references(() => user.id, {
+			onDelete: "cascade",
+		}),
 		createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 		description: text("description"),
 		enabled: boolean("enabled").notNull().default(true),
@@ -386,10 +415,6 @@ export const aiScribeFormConfig = pgTable(
 		name: text("name").notNull(),
 		promptHarness: text("promptHarness").notNull(),
 		slug: text("slug").notNull(),
-		authorId: text("authorId").references(() => user.id, {
-			onDelete: "cascade",
-		}),
-		visibility: text("visibility").notNull().default("public"),
 		temperature: numeric("temperature", { precision: 3, scale: 2 }),
 		templateId: text("templateId").references(() => template.id, {
 			onDelete: "set null",
@@ -399,6 +424,7 @@ export const aiScribeFormConfig = pgTable(
 			.notNull()
 			.defaultNow()
 			.$onUpdate(() => new Date()),
+		visibility: text("visibility").notNull().default("public"),
 	},
 	(table) => [
 		uniqueIndex("AiScribeFormConfig_slug_key").on(table.slug),
@@ -413,11 +439,11 @@ export const aiScribeFormConfig = pgTable(
 
 export const userRelations = relations(user, ({ many }) => ({
 	accounts: many(account),
+	aiScribeFormConfigs: many(aiScribeFormConfig),
 	documentTemplates: many(documentTemplate),
 	favourites: many(favourites),
 	sessions: many(session),
 	subscriptions: many(subscription),
-	aiScribeFormConfigs: many(aiScribeFormConfig),
 	templateCollections: many(templateCollection),
 	templates: many(template),
 	textSnippets: many(textSnippet),

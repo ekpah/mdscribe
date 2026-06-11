@@ -49,6 +49,12 @@ export const router = {
 		}),
 	},
 
+	// Context transfer operations
+	contextTransfers: lazy(async () => {
+		const handlerModule = await import("./context-transfers");
+		return { default: handlerModule.contextTransfersHandler };
+	}),
+
 	// Document operations
 	documents: lazy(async () => {
 		const handlerModule = await import("./documents");
