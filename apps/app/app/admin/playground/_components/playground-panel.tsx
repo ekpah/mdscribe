@@ -820,6 +820,7 @@ export const PlaygroundPanel = ({
 }: PlaygroundPanelProps) => {
 	const [activeView, setActiveView] = useState<PlaygroundView>("config");
 	const inputContextController = useInputContextState();
+	const mainTextareaRef = useRef<HTMLTextAreaElement>(null);
 
 	const resolvedPresetDocumentType = presetDocumentType ?? "discharge";
 	const initialDocType: PlaygroundDocumentType = isPlaygroundDocumentType(
@@ -1626,6 +1627,7 @@ export const PlaygroundPanel = ({
 					showSubmit={false}
 					mainTextareaClassName={PLAYGROUND_EDITOR_TEXTAREA_CLASS}
 					textareaId="main-input"
+					textareaRef={mainTextareaRef}
 				/>
 			</div>
 		</ScrollArea>

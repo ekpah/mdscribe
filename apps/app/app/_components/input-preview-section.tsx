@@ -12,12 +12,15 @@ import { cn } from "@repo/design-system/lib/utils";
 import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { FileText, ListChecks } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import {
 	InputContextControls,
 	useInputContextState,
 } from "@/app/_components/input-context/input-context-controls";
+import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
+import { hydrateInputContextController } from "@/app/_components/context-transfer/hydrate";
 import { useSession } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 
@@ -153,6 +156,31 @@ export const InputPreviewSection = ({
 		setValues({});
 		onValuesChange?.({});
 	}, [onValuesChange, resetKey]);
+
+	const inputContextControllerRef = useRef(inputContextController);
+	inputContextControllerRef.current = inputContextController;
+	const hasHydratedTransferRef = useRef(false);
+
+	useEffect(() => {
+		if (hasHydratedTransferRef.current) {
+			return;
+		}
+		hasHydratedTransferRef.current = true;
+
+		const hydrateTransfer = async () => {
+			try {
+				const payload = await consumeContextTransferFromFragment();
+				if (payload) {
+					hydrateInputContextController(inputContextControllerRef.current, payload);
+				}
+			} catch (error) {
+				console.error("Failed to hydrate context transfer:", error);
+				toast.error("Kontext konnte nicht übernommen werden.");
+			}
+		};
+
+		void hydrateTransfer();
+	}, []);
 
 	useEffect(() => {
 		if (!hasInputTags) {

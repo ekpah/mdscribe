@@ -66,8 +66,19 @@ export const LiveWaveform = ({
   const needsRedrawRef = useRef(true)
   const gradientCacheRef = useRef<CanvasGradient | null>(null)
   const lastWidthRef = useRef(0)
+  const onErrorRef = useRef(onError)
+  const onStreamReadyRef = useRef(onStreamReady)
+  const onStreamEndRef = useRef(onStreamEnd)
 
   const heightStyle = typeof height === "number" ? `${height}px` : height
+
+  // Keep latest callbacks in refs so the microphone stream is not torn down
+  // and re-acquired whenever a parent re-render changes callback identities.
+  useEffect(() => {
+    onErrorRef.current = onError
+    onStreamReadyRef.current = onStreamReady
+    onStreamEndRef.current = onStreamEnd
+  }, [onError, onStreamReady, onStreamEnd])
 
   // Handle canvas resizing
   useEffect(() => {
@@ -234,7 +245,7 @@ export const LiveWaveform = ({
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop())
         streamRef.current = null
-        onStreamEnd?.()
+        onStreamEndRef.current?.()
       }
       if (
         audioContextRef.current &&
@@ -267,7 +278,7 @@ export const LiveWaveform = ({
               },
         })
         streamRef.current = stream
-        onStreamReady?.(stream)
+        onStreamReadyRef.current?.(stream)
 
         const AudioContextConstructor =
           window.AudioContext ||
@@ -287,7 +298,7 @@ export const LiveWaveform = ({
         // Clear history when starting
         historyRef.current = []
       } catch (error) {
-        onError?.(error as Error)
+        onErrorRef.current?.(error as Error)
       }
     }
 
@@ -297,7 +308,7 @@ export const LiveWaveform = ({
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop())
         streamRef.current = null
-        onStreamEnd?.()
+        onStreamEndRef.current?.()
       }
       if (
         audioContextRef.current &&
@@ -311,15 +322,7 @@ export const LiveWaveform = ({
         animationRef.current = 0
       }
     }
-  }, [
-    active,
-    deviceId,
-    fftSize,
-    smoothingTimeConstant,
-    onError,
-    onStreamReady,
-    onStreamEnd,
-  ])
+  }, [active, deviceId, fftSize, smoothingTimeConstant])
 
   // Animation loop
   useEffect(() => {

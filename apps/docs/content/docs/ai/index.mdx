@@ -55,14 +55,16 @@ Jede AI Vorlage kann derzeit festlegen:
 - optionales Template
 - Sichtbarkeit (`Oeffentlich` oder `Privat`)
 
-Alle AI Vorlagen verwenden aktuell denselben klinischen Vollkontext mit Notizen, Diagnoseblock, Anamnese und Befunden.
+Die narrativen Briefformate teilen sich einen `Epikrise`-Prompt-Harness; ob ein Text als Entlassbrief, Ambulanzbrief oder ICU-Verlegung formuliert wird, bestimmt das Template (oder die eingebaute Standardstruktur der jeweiligen AIScribe-Seite). Neue AI Vorlagen waehlen daher `Epikrise` plus ein passendes Template; bestehende Eintraege mit den alten Harness-Namen funktionieren unveraendert weiter.
+
+Jeder Prompt-Harness erzeugt bzw. verbessert genau ein kanonisches Kontextfeld (Anamnese, Diagnoseblock, Befunde oder Epikrise). Die Haupteingabe einer AI Vorlage ist dieses Zielfeld; die uebrigen kanonischen Felder stehen als zusaetzliche Kontextfelder zur Verfuegung. Eine Anamnese-basierte AI Vorlage zeigt daher kein separates Anamnese-Kontextfeld; die Haupteingabe ist die Anamnese.
 AI Vorlagen verwenden kein eigenes Modell mehr, sondern immer die globalen Standardmodelle.
 
 Aktivierte globale und oeffentliche nutzererstellte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `Weitere Vorlagen`. Aktivierte eigene Eintraege erscheinen fuer den jeweiligen Nutzer direkt unter den Standardmodi im Bereich `Meine Vorlagen`. Private AI Vorlagen sind eine Plus-Funktion und bleiben nur fuer den Autor sichtbar und nutzbar.
 
 AIScribe-Eingaben nutzen dieselbe Eingabe-Leiste wie das automatische Fuellen von Vorlagen: Text, Audioaufnahmen und Kontextdateien koennen ueber die drei Eingabe-Schalter gewechselt werden. Audio- und Datei-Eingaben werden je nach globalem Modell-Setup direkt multimodal verarbeitet oder vorher transkribiert bzw. extrahiert.
 
-Audioaufnahmen werden ueber die linke Aufnahmeflaeche gestartet und gestoppt; alternativ kann `Ctrl+Shift+M` oder auf macOS `Cmd+Shift+M` genutzt werden.
+Audioaufnahmen werden ueber die linke Aufnahmeflaeche gestartet und gestoppt; alternativ startet `Ctrl+Shift+2` (macOS `Cmd+Shift+2`) die Aufnahme aus jedem Eingabe-Tab heraus und wechselt automatisch zur Audio-Eingabe. Eine laufende Aufnahme bleibt beim Wechseln der Eingabe-Tabs aktiv und wird durch einen pulsierenden roten Punkt am Mikrofon-Schalter angezeigt. Mit `Ctrl+Shift+1` (macOS `Cmd+Shift+1`) springt der Fokus in das Haupteingabefeld, `Ctrl+Enter` (macOS `Cmd+Enter`) startet die Generierung bzw. das Fuellen. Dateien koennen unabhaengig vom aktiven Eingabe-Tab per Drag-and-drop abgelegt werden; sie landen immer in der Datei-Eingabe.
 
 Die konfigurierbaren Standardmodi bleiben weiterhin nur unter ihren festen `/aiscribe/*`-Routen sichtbar und werden nicht im `Weitere Vorlagen`-Bereich gelistet.
 
