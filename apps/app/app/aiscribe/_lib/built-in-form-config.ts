@@ -10,10 +10,14 @@ import {
 	getBuiltInAiscribeOverride,
 } from "@/lib/aiscribe-built-ins";
 import type { BuiltInAiscribeOverrideKey } from "@/lib/aiscribe-built-ins";
-import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
+import {
+	getPromptHarnessLabel,
+	getPromptHarnessTargetField,
+	resolvePromptHarnessId,
+} from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
-import { resolvePromptHarnessTitle, resolveTemplateMetadata } from "./custom-form-config";
+import { resolveTemplateMetadata } from "./custom-form-config";
 import type { PublicAiTextForm } from "./custom-form-config";
 
 interface BuiltInAiscribeTemplateDefinition {
@@ -86,6 +90,7 @@ const PROMPT_HARNESS_ADDITIONAL_INPUTS: Record<string, AdditionalInputField[] | 
 	befunde: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
 	diagnosis: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
 	discharge: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
+	epikrise: STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
 	"icu-transfer": STATIONARY_CONTEXT_ADDITIONAL_INPUTS,
 	outpatient: undefined,
 	procedures: undefined,
@@ -97,13 +102,14 @@ const BUILT_IN_AISCRIBE_TEMPLATES = {
 		description: "Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
 		documentType: "diagnosis",
 		emptyStateDescription:
-			"Bitte geben Sie zuerst Patientennotizen ein und generieren Sie einen aktualisierten Diagnoseblock.",
+			"Bitte geben Sie zuerst den bestehenden Diagnoseblock ein und generieren Sie einen aktualisierten Diagnoseblock.",
 		emptyStateTitle: "Noch kein Diagnoseblock vorhanden",
 		generateButtonText: "Diagnoseblock generieren",
 		icon: FileText,
-		inputDescription: "Dokumentieren Sie den aktuellen Zustand und neue Befunde des Patienten",
-		inputPlaceholder: "Geben Sie Ihre Notizen zum aktuellen Besuch ein...",
-		inputTabTitle: "Patientennotizen",
+		inputDescription:
+			"Bestehender Diagnoseblock inkl. aktueller Diagnosen und Vorerkrankungen. Neue Informationen zu Verlauf und Befunden gehören in die Kontextfelder.",
+		inputPlaceholder: "Bestehenden Diagnoseblock eingeben...",
+		inputTabTitle: "Diagnoseblock",
 		outputTabTitle: "Diagnoseblock",
 		regenerateButtonText: "Neu generieren",
 		title: "Diagnoseblock Update",
@@ -221,16 +227,20 @@ export const buildBuiltInAiscribeTemplateConfig = ({
 	};
 	const resolvedPromptHarnessId =
 		resolvePromptHarnessId(resolvedPromptHarness) ?? resolvedPromptHarness;
-	const resolvedAdditionalInputs =
+	// The main input is the harness target field behind the scenes, so no form
+	// renders an additional context input for that same field.
+	const targetField = getPromptHarnessTargetField(resolvedPromptHarnessId);
+	const resolvedAdditionalInputs = (
 		overrideForm?.id && overrideForm.promptHarness
 			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[resolvedPromptHarnessId] ??
 				definition.additionalInputs)
-			: definition.additionalInputs;
+			: definition.additionalInputs
+	)?.filter((field) => field.name !== targetField);
 	const baseConfig = {
 		additionalInputs: resolvedAdditionalInputs,
 		contextMetadata: {
 			author: "MDScribe-Standard" as const,
-			harnessTitle: resolvePromptHarnessTitle(resolvedPromptHarness),
+			harnessTitle: getPromptHarnessLabel(resolvedPromptHarness),
 			template: resolveTemplateMetadata(contextForm),
 		},
 		description: definition.description,
@@ -243,6 +253,7 @@ export const buildBuiltInAiscribeTemplateConfig = ({
 		inputPlaceholder: definition.inputPlaceholder,
 		inputTabTitle: definition.inputTabTitle,
 		outputTabTitle: definition.outputTabTitle,
+		promptHarness: resolvedPromptHarnessId,
 		regenerateButtonText: definition.regenerateButtonText,
 		title: definition.title,
 	};

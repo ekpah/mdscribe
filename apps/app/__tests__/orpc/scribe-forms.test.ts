@@ -313,10 +313,11 @@ describe("AI Scribe Forms Handlers", () => {
 		});
 		const templateIds = editorContext.templates.map((item) => item.id);
 
-		expect(editorContext.promptNames).toContain("discharge");
+		expect(editorContext.promptNames).toContain("epikrise");
+		expect(editorContext.promptNames).not.toContain("discharge");
 		expect(editorContext.promptHarnesses).toContainEqual({
-			id: "discharge",
-			label: "Entlassbrief",
+			id: "epikrise",
+			label: "Epikrise",
 		});
 		expect(templateIds).toContain(templateId);
 		expect(templateIds).toContain(privateTemplateId);

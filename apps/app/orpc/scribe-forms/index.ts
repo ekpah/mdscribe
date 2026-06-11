@@ -30,9 +30,8 @@ import {
 } from "@/orpc/scribe-forms/shared";
 import type { ScribeFormVisibility } from "@/orpc/scribe-forms/shared";
 import {
-	PROMPT_HARNESS_IDS,
-	PROMPT_HARNESS_OPTIONS,
 	resolvePromptHarnessId,
+	SELECTABLE_PROMPT_HARNESS_OPTIONS,
 } from "@/orpc/scribe/prompts";
 
 interface PublicScribeForm {
@@ -249,8 +248,8 @@ const editorContextHandler = authed.handler(async ({ context }) => {
 
 	return {
 		canCreatePrivateAiScribeForms: entitlements.canCreatePrivateAiScribeForms,
-		promptHarnesses: PROMPT_HARNESS_OPTIONS,
-		promptNames: PROMPT_HARNESS_IDS,
+		promptHarnesses: SELECTABLE_PROMPT_HARNESS_OPTIONS,
+		promptNames: SELECTABLE_PROMPT_HARNESS_OPTIONS.map((option) => option.id),
 		templates: templates.map((item) => ({
 			...item,
 			isAuthored: item.authorId === context.session.user.id,

@@ -1,6 +1,6 @@
 import type { PatientContextData } from "@/orpc/scribe/context/types";
 
-type PatientContextTag = "diagnoseblock" | "anamnese" | "befunde" | "notizen";
+type PatientContextTag = "diagnoseblock" | "anamnese" | "befunde" | "epikrise" | "notizen";
 
 interface ContextSection {
 	purpose: string;
@@ -65,7 +65,16 @@ const PATIENT_CONTEXT_SECTION_GUIDANCE: ContextSection[] = [
 		].join("\n"),
 	},
 	{
-		purpose: "Zusätzliche vom Nutzer bewusst eingegebene Informationen",
+		purpose: "Bewertende Epikrise oder zusammenfassender klinischer Verlauf",
+		tag: "epikrise",
+		usage: [
+			"- Als bereits formulierte klinische Zusammenfassung verwenden",
+			"- Nicht unnötig wiederholen; bei Folgegenerierung als bestehende Epikrise weiterverarbeiten",
+			"- Vorrangig für Arztbrief-, Ambulanzbrief- und Verlegungstexte",
+		].join("\n"),
+	},
+	{
+		purpose: "Haupteingabe des Nutzers für das zu erstellende Dokument",
 		tag: "notizen",
 		usage: "PRIMÄRE BASIS FÜR DOKUMENT-ERSTELLUNG",
 	},
@@ -78,6 +87,7 @@ const PATIENT_CONTEXT_CONTENT_EXTRACTORS: Record<
 	anamnese: (input) => input.anamnese,
 	befunde: (input) => input.befunde,
 	diagnoseblock: (input) => input.diagnoseblock,
+	epikrise: (input) => input.epikrise,
 	notizen: (input) => input.notes,
 };
 

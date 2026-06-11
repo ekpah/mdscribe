@@ -43,6 +43,7 @@ export interface FillInputsTextContext {
 	anamnese?: string;
 	befunde?: string;
 	diagnoseblock?: string;
+	epikrise?: string;
 	notes?: string;
 }
 
@@ -77,6 +78,7 @@ export type DocumentType =
 	| "diagnosis"
 	| "procedures"
 	| "befunde"
+	| "epikrise"
 	| "outpatient"
 	| "icu-transfer";
 

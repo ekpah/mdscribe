@@ -67,11 +67,12 @@ describe("Document Type Configurations", () => {
 		expect(PROMPT_HARNESS_IDS).toContain("procedures");
 		expect(PROMPT_HARNESS_OPTIONS).toContainEqual({
 			id: "procedures",
-			label: "Befund",
+			label: "Eingriffsdokumentation",
 		});
 		expect(getDocumentTypeByPromptName("procedures")).toBe("procedures");
 		expect(getDocumentTypeByPromptName("procedure")).toBe("procedures");
 		expect(getDocumentTypeByPromptName("Befund")).toBe("procedures");
+		expect(getDocumentTypeByPromptName("Procedure_chat")).toBe("procedures");
 	});
 });
 

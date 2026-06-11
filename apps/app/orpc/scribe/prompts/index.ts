@@ -9,8 +9,11 @@ export {
 	getDocumentTypeByPromptName,
 	getPromptHarnessLabel,
 	getPromptHarnessReferences,
+	getPromptHarnessTargetField,
 	resolvePromptHarnessId,
 	PROMPT_HARNESS_IDS,
 	PROMPT_HARNESS_OPTIONS,
+	SELECTABLE_PROMPT_HARNESS_OPTIONS,
+	type CanonicalContextField,
 	type PromptHarnessId,
 } from "./registry";

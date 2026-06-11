@@ -47,6 +47,7 @@ export interface FillInputsTextContext {
 	anamnese?: string;
 	befunde?: string;
 	diagnoseblock?: string;
+	epikrise?: string;
 	notes?: string;
 }
 
