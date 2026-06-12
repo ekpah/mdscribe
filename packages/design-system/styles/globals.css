@@ -204,11 +204,22 @@ green     #859900 68 100% 30%
   --color-sidebar-border: var(--border);
 
   /* solarized colors not used in light/dark scheme */
+  --color-solarized-base03: var(--solarized-base03);
+  --color-solarized-base02: var(--solarized-base02);
+  --color-solarized-base01: var(--solarized-base01);
+  --color-solarized-base00: var(--solarized-base00);
+  --color-solarized-base0: var(--solarized-base0);
+  --color-solarized-base1: var(--solarized-base1);
+  --color-solarized-base2: var(--solarized-base2);
+  --color-solarized-base3: var(--solarized-base3);
   --color-solarized-green: var(--solarized-green);
   --color-solarized-blue: var(--solarized-blue);
   --color-solarized-red: var(--solarized-red);
   --color-solarized-orange: var(--solarized-orange);
   --color-solarized-yellow: var(--solarized-yellow);
+  --color-solarized-magenta: var(--solarized-magenta);
+  --color-solarized-violet: var(--solarized-violet);
+  --color-solarized-cyan: var(--solarized-cyan);
 }
 
 @keyframes accordion-down {
