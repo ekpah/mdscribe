@@ -2,6 +2,9 @@ import type { PatientContextData } from "@/orpc/scribe/context/types";
 
 type PatientContextTag = "diagnoseblock" | "anamnese" | "befunde" | "epikrise" | "notizen";
 
+const GENERAL_GUIDANCE =
+  `BEFUNDE und DIAGNOSEN sichten und chronologisch sortieren, um zu sortieren, was vor der aktuellen Vorstellung bereits bekannt war (Vordiagnosen) und was neu ist (aktuelle Diagnosen)`;
+
 interface ContextSection {
 	purpose: string;
 	tag: PatientContextTag;
@@ -27,7 +30,8 @@ const renderPatientContextSection = ({
 		return "";
 	}
 
-	return [
+  return [
+    GENERAL_GUIDANCE,
 		`<${section.tag}>`,
 		`<purpose>${section.purpose}</purpose>`,
 		`<usage>${usageBlock}</usage>`,

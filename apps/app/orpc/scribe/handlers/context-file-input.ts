@@ -3,7 +3,10 @@ import { generateText } from "ai";
 
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { buildProviderOptions } from "@/orpc/scribe/providers";
-import type { ResolvedDefaultModelSelection } from "@/orpc/scribe/providers";
+import type {
+	MediaPreprocessStrategy,
+	ResolvedDefaultModelSelection,
+} from "@/orpc/scribe/providers";
 import type { FillInputsContextFile } from "@/orpc/scribe/types";
 
 interface PreparedContextFilePart {
@@ -54,15 +57,21 @@ export const formatContextFileMetadataForPrompt = (
  * The returned text is passed into the final text model as normal prompt
  * context, keeping non-multimodal routes provider-agnostic and avoiding
  * implicit file support checks in the final generation model.
+ *
+ * With strategy "multimodal" the files are sent together with an extraction
+ * prompt. With strategy "direct" the files are sent without any text prompt,
+ * which dedicated OCR models expect.
  */
 export const extractContextFileText = async ({
 	contextFiles,
 	modelSelection,
+	strategy = "multimodal",
 	userId,
 	zdr,
 }: {
 	contextFiles: FillInputsContextFile[] | undefined;
 	modelSelection: ResolvedDefaultModelSelection;
+	strategy?: MediaPreprocessStrategy;
 	userId: string;
 	zdr?: boolean;
 }): Promise<string> => {
@@ -70,24 +79,34 @@ export const extractContextFileText = async ({
 		return "";
 	}
 
-	const result = await generateText({
-		messages: [
-			{
-				content:
-					"Extrahiere den relevanten medizinischen Inhalt aus den angehängten Dateien. Antworte knapp, strukturiert und ohne erfundene Details.",
-				role: "system",
-			},
-			{
-				content: [
+	const messages =
+		strategy === "direct"
+			? [
 					{
-						text: "Dateien für medizinische Dokumentation:",
-						type: "text" as const,
+						content: createContextFileParts(contextFiles),
+						role: "user" as const,
 					},
-					...createContextFileParts(contextFiles),
-				],
-				role: "user",
-			},
-		],
+				]
+			: [
+					{
+						content:
+							"Extrahiere den relevanten medizinischen Inhalt aus den angehängten Dateien. Antworte knapp, strukturiert und ohne erfundene Details.",
+						role: "system" as const,
+					},
+					{
+						content: [
+							{
+								text: "Dateien für medizinische Dokumentation:",
+								type: "text" as const,
+							},
+							...createContextFileParts(contextFiles),
+						],
+						role: "user" as const,
+					},
+				];
+
+	const result = await generateText({
+		messages,
 		model: modelSelection.model.model,
 			providerOptions: buildProviderOptions({
 				includeUsage: true,

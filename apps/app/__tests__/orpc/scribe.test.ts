@@ -12,6 +12,7 @@ import {
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
+import { encrypt } from "@/lib/encryption";
 import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
 import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
 import { USER_MESSAGES } from "@/lib/user-messages";
@@ -27,7 +28,12 @@ import {
 	PROMPT_HARNESS_IDS,
 	PROMPT_HARNESS_OPTIONS,
 } from "@/orpc/scribe/prompts";
-import { resolveDefaultModel, resolveGenerationStrategy } from "@/orpc/scribe/providers";
+import {
+	buildProviderOptions,
+	resolveDefaultModel,
+	resolveGenerationStrategy,
+} from "@/orpc/scribe/providers";
+import type { ResolvedModel } from "@/orpc/scribe/providers";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 /**
@@ -151,12 +157,11 @@ describe("Context Builder", () => {
 });
 
 describe("Model Selection Logic", () => {
-	test("resolveGenerationStrategy uses multimodal default directly for media input", async () => {
-		const server = await startTestServer("resolve-model-multimodal-default");
+	test("resolveGenerationStrategy sends media natively when standard model capabilities are declared", async () => {
+		const server = await startTestServer("resolve-model-standard-capabilities");
 		try {
 			const providerId = crypto.randomUUID();
-			const textModelRecordId = crypto.randomUUID();
-			const multimodalModelRecordId = crypto.randomUUID();
+			const standardModelRecordId = crypto.randomUUID();
 
 			await server.db.insert(aiProvider).values({
 				apiKey: null,
@@ -167,16 +172,9 @@ describe("Model Selection Logic", () => {
 			});
 			await server.db.insert(aiModel).values([
 				{
-					displayName: "Text Model",
-					id: textModelRecordId,
-					modelId: "openrouter/test-text",
-					providerId,
-					supportsReasoning: false,
-				},
-				{
-					displayName: "Multimodal Model",
-					id: multimodalModelRecordId,
-					modelId: "openrouter/test-multimodal",
+					displayName: "Standard Model",
+					id: standardModelRecordId,
+					modelId: "openrouter/test-standard",
 					providerId,
 					supportedParameters: ["reasoning"],
 					supportsReasoning: true,
@@ -185,50 +183,42 @@ describe("Model Selection Logic", () => {
 			await server.db
 				.insert(aiDefaults)
 				.values({
-					defaultFileImageModelId: textModelRecordId,
-					defaultMultimodalModelId: multimodalModelRecordId,
-					defaultMultimodalReasoningEffort: "high",
-					defaultSpeechToTextModelId: textModelRecordId,
-					defaultTextModelId: textModelRecordId,
+					defaultStandardSupportsAudio: true,
+					defaultStandardSupportsDocuments: true,
+					defaultTextModelId: standardModelRecordId,
+					defaultTextReasoningEffort: "high",
 					id: "global",
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
 					set: {
-						defaultFileImageModelId: textModelRecordId,
-						defaultMultimodalModelId: multimodalModelRecordId,
-						defaultMultimodalReasoningEffort: "high",
-						defaultSpeechToTextModelId: textModelRecordId,
-						defaultTextModelId: textModelRecordId,
+						defaultStandardSupportsAudio: true,
+						defaultStandardSupportsDocuments: true,
+						defaultTextModelId: standardModelRecordId,
+						defaultTextReasoningEffort: "high",
 						updatedAt: new Date(),
 					},
 					target: aiDefaults.id,
 				});
 
-			const audioStrategy = await resolveGenerationStrategy(server.db, {
+			const strategy = await resolveGenerationStrategy(server.db, {
 				hasAudio: true,
-			});
-			expect(audioStrategy.mode).toBe("direct");
-			expect(audioStrategy.generation.model.modelName).toBe("openrouter/test-multimodal");
-			expect(audioStrategy.generation.reasoningEffort).toBe("high");
-
-			const fileStrategy = await resolveGenerationStrategy(server.db, {
 				hasFiles: true,
 			});
-			expect(fileStrategy.mode).toBe("direct");
-			expect(fileStrategy.generation.model.modelName).toBe("openrouter/test-multimodal");
-			expect(fileStrategy.generation.reasoningEffort).toBe("high");
+			expect(strategy.audio).toEqual({ mode: "native" });
+			expect(strategy.files).toEqual({ mode: "native" });
+			expect(strategy.generation.model.modelName).toBe("openrouter/test-standard");
+			expect(strategy.generation.reasoningEffort).toBe("high");
 		} finally {
 			await server.close();
 		}
 	});
 
-	test("resolveGenerationStrategy uses text default for text-only input", async () => {
+	test("resolveGenerationStrategy uses standard model without media plans for text-only input", async () => {
 		const server = await startTestServer("resolve-model-text-only-default");
 		try {
 			const providerId = crypto.randomUUID();
 			const textModelRecordId = crypto.randomUUID();
-			const multimodalModelRecordId = crypto.randomUUID();
 
 			await server.db.insert(aiProvider).values({
 				apiKey: null,
@@ -245,20 +235,10 @@ describe("Model Selection Logic", () => {
 					providerId,
 					supportsReasoning: false,
 				},
-				{
-					displayName: "Multimodal Model",
-					id: multimodalModelRecordId,
-					modelId: "openrouter/test-multimodal",
-					providerId,
-					supportedParameters: ["reasoning"],
-					supportsReasoning: true,
-				},
 			]);
 			await server.db
 				.insert(aiDefaults)
 				.values({
-					defaultMultimodalModelId: multimodalModelRecordId,
-					defaultMultimodalReasoningEffort: "high",
 					defaultTextModelId: textModelRecordId,
 					defaultTextReasoningEffort: "low",
 					id: "global",
@@ -266,8 +246,6 @@ describe("Model Selection Logic", () => {
 				})
 				.onConflictDoUpdate({
 					set: {
-						defaultMultimodalModelId: multimodalModelRecordId,
-						defaultMultimodalReasoningEffort: "high",
 						defaultTextModelId: textModelRecordId,
 						defaultTextReasoningEffort: "low",
 						updatedAt: new Date(),
@@ -281,12 +259,14 @@ describe("Model Selection Logic", () => {
 			});
 			expect(strategy.generation.model.modelName).toBe("openrouter/test-text");
 			expect(strategy.generation.reasoningEffort).toBe("low");
+			expect(strategy.audio).toBeUndefined();
+			expect(strategy.files).toBeUndefined();
 		} finally {
 			await server.close();
 		}
 	});
 
-	test("resolveGenerationStrategy uses speech preprocessing without multimodal default", async () => {
+	test("resolveGenerationStrategy preprocesses audio when the audio capability is not declared", async () => {
 		const server = await startTestServer("resolve-model-audio-default");
 		try {
 			const providerId = crypto.randomUUID();
@@ -320,8 +300,8 @@ describe("Model Selection Logic", () => {
 				.insert(aiDefaults)
 				.values({
 					defaultFileImageModelId: textModelRecordId,
-					defaultMultimodalModelId: null,
 					defaultSpeechToTextModelId: speechModelRecordId,
+					defaultStandardSupportsAudio: false,
 					defaultTextModelId: textModelRecordId,
 					id: "global",
 					updatedAt: new Date(),
@@ -329,8 +309,8 @@ describe("Model Selection Logic", () => {
 				.onConflictDoUpdate({
 					set: {
 						defaultFileImageModelId: textModelRecordId,
-						defaultMultimodalModelId: null,
 						defaultSpeechToTextModelId: speechModelRecordId,
+						defaultStandardSupportsAudio: false,
 						defaultTextModelId: textModelRecordId,
 						updatedAt: new Date(),
 					},
@@ -340,11 +320,26 @@ describe("Model Selection Logic", () => {
 			const strategy = await resolveGenerationStrategy(server.db, {
 				hasAudio: true,
 			});
-			expect(strategy.mode).toBe("preprocess");
 			expect(strategy.generation.model.modelName).toBe("openrouter/test-text");
+			expect(strategy.audio?.mode).toBe("preprocess");
 			expect(
-				strategy.mode === "preprocess" ? strategy.speechToText?.model.modelName : undefined,
+				strategy.audio?.mode === "preprocess" ? strategy.audio.selection.model.modelName : undefined,
 			).toBe("openrouter/test-speech");
+			expect(strategy.audio?.mode === "preprocess" ? strategy.audio.strategy : undefined).toBe(
+				"direct",
+			);
+
+			await server.db
+				.update(aiDefaults)
+				.set({ defaultSpeechToTextMode: "multimodal" })
+				.where(eq(aiDefaults.id, "global"));
+
+			const promptedStrategy = await resolveGenerationStrategy(server.db, {
+				hasAudio: true,
+			});
+			expect(
+				promptedStrategy.audio?.mode === "preprocess" ? promptedStrategy.audio.strategy : undefined,
+			).toBe("multimodal");
 		} finally {
 			await server.close();
 		}
@@ -384,14 +379,12 @@ describe("Model Selection Logic", () => {
 			await server.db
 				.insert(aiDefaults)
 				.values({
-					defaultMultimodalModelId: null,
 					defaultSpeechToTextModelId: speechModelRecordId,
 					id: "global",
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
 					set: {
-						defaultMultimodalModelId: null,
 						defaultSpeechToTextModelId: speechModelRecordId,
 						updatedAt: new Date(),
 					},
@@ -426,6 +419,140 @@ describe("Model Selection Logic", () => {
 		}
 	});
 
+	test("OpenAI-compatible speech preprocessing posts multipart form data", async () => {
+		const server = await startTestServer("openai-compatible-transcription-payload");
+		const originalFetch = globalThis.fetch;
+		try {
+			const providerId = crypto.randomUUID();
+			const speechModelRecordId = crypto.randomUUID();
+			let requestAuthorization = "";
+			let requestBody: FormData | null = null;
+			let requestUrl = "";
+
+			globalThis.fetch = ((input, init) => {
+				requestUrl = String(input);
+				requestAuthorization = new Headers(init?.headers).get("Authorization") ?? "";
+				requestBody = init?.body instanceof FormData ? init.body : null;
+				return Promise.resolve(Response.json({ text: " Hallo Welt " }));
+			}) as typeof fetch;
+
+			await server.db.insert(aiProvider).values({
+				apiKey: await encrypt("test-api-key"),
+				baseUrl: "http://localhost:8000",
+				id: providerId,
+				name: "Local vLLM",
+				protocol: "openai-compatible",
+			});
+			await server.db.insert(aiModel).values({
+				displayName: "Whisper Large v3",
+				id: speechModelRecordId,
+				modelId: "whisper-large-v3",
+				providerId,
+				supportsReasoning: false,
+			});
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultSpeechToTextModelId: speechModelRecordId,
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultSpeechToTextModelId: speechModelRecordId,
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const selection = await resolveDefaultModel(server.db, "speech-to-text");
+			expect(selection.model.transcribeAudio).toBeDefined();
+
+			const result = await prepareAudioInputForModel({
+				audioFiles: [
+					{
+						data: Buffer.from("audio").toString("base64"),
+						mimeType: "audio/webm;codecs=opus",
+					},
+				],
+				mode: "transcription",
+				resolvedModel: selection.model,
+			});
+
+			expect(result.transcripts).toEqual(["Hallo Welt"]);
+			expect(requestUrl).toBe("http://localhost:8000/v1/audio/transcriptions");
+			expect(requestAuthorization).toBe("Bearer test-api-key");
+			const body = requestBody as FormData | null;
+			expect(body).not.toBeNull();
+			expect(body?.get("model")).toBe("whisper-large-v3");
+			const file = body?.get("file");
+			expect(file).toBeInstanceOf(File);
+			expect((file as File).name).toBe("aufnahme-1.webm");
+			expect((file as File).type).toBe("audio/webm");
+		} finally {
+			globalThis.fetch = originalFetch;
+			await server.close();
+		}
+	});
+
+	test("OpenAI-compatible transcription rejects empty transcription text", async () => {
+		const server = await startTestServer("openai-compatible-transcription-empty");
+		const originalFetch = globalThis.fetch;
+		try {
+			const providerId = crypto.randomUUID();
+			const speechModelRecordId = crypto.randomUUID();
+
+			globalThis.fetch = ((_input, _init) =>
+				Promise.resolve(Response.json({ text: "   " }))) as typeof fetch;
+
+			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: "http://localhost:8000",
+				id: providerId,
+				name: "Local vLLM",
+				protocol: "openai-compatible",
+			});
+			await server.db.insert(aiModel).values({
+				displayName: "Whisper Large v3",
+				id: speechModelRecordId,
+				modelId: "whisper-large-v3",
+				providerId,
+				supportsReasoning: false,
+			});
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultSpeechToTextModelId: speechModelRecordId,
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultSpeechToTextModelId: speechModelRecordId,
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const selection = await resolveDefaultModel(server.db, "speech-to-text");
+			await expect(
+				prepareAudioInputForModel({
+					audioFiles: [
+						{
+							data: Buffer.from("audio").toString("base64"),
+							mimeType: "audio/webm",
+						},
+					],
+					mode: "transcription",
+					resolvedModel: selection.model,
+				}),
+			).rejects.toThrow("Transkription lieferte keinen Text.");
+		} finally {
+			globalThis.fetch = originalFetch;
+			await server.close();
+		}
+	});
+
 	test("resolveDefaultModel throws when required default is missing", async () => {
 		const server = await startTestServer("resolve-model-missing-default");
 		try {
@@ -450,7 +577,6 @@ describe("Model Selection Logic", () => {
 				.insert(aiDefaults)
 				.values({
 					defaultFileImageModelId: textModelRecordId,
-					defaultMultimodalModelId: null,
 					defaultSpeechToTextModelId: null,
 					defaultTextModelId: textModelRecordId,
 					id: "global",
@@ -459,7 +585,6 @@ describe("Model Selection Logic", () => {
 				.onConflictDoUpdate({
 					set: {
 						defaultFileImageModelId: textModelRecordId,
-						defaultMultimodalModelId: null,
 						defaultSpeechToTextModelId: null,
 						defaultTextModelId: textModelRecordId,
 						updatedAt: new Date(),
@@ -473,6 +598,112 @@ describe("Model Selection Logic", () => {
 		} finally {
 			await server.close();
 		}
+	});
+});
+
+const createResolvedModel = (overrides: Partial<ResolvedModel>): ResolvedModel => ({
+	isOpenRouter: false,
+	model: "test/model",
+	modelName: "test/model",
+	providerId: "provider-1",
+	providerProtocol: "tinfoil",
+	supportedParameters: [],
+	supportsReasoning: true,
+	...overrides,
+});
+
+describe("buildProviderOptions", () => {
+	test("openrouter receives reasoning effort, user, usage and zdr", () => {
+		const options = buildProviderOptions({
+			includeUsage: true,
+			model: createResolvedModel({ isOpenRouter: true, providerProtocol: "openrouter" }),
+			reasoningEffort: "high",
+			userId: "user-1",
+			zdr: true,
+		});
+
+		expect(options).toEqual({
+			openrouter: {
+				reasoning: { effort: "high" },
+				usage: { include: true },
+				user: "user-1",
+				zdr: true,
+			},
+		});
+	});
+
+	test("tinfoil receives reasoning effort and user via openaiCompatible options", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({ providerProtocol: "tinfoil" }),
+			reasoningEffort: "medium",
+			userId: "user-1",
+		});
+
+		expect(options).toEqual({
+			openaiCompatible: {
+				reasoningEffort: "medium",
+				user: "user-1",
+			},
+		});
+	});
+
+	test("openai-compatible receives reasoning effort via openaiCompatible options", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({ providerProtocol: "openai-compatible" }),
+			reasoningEffort: "low",
+		});
+
+		expect(options).toEqual({
+			openaiCompatible: {
+				reasoningEffort: "low",
+			},
+		});
+	});
+
+	test("openai receives reasoning effort and user via openai options", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({ providerProtocol: "openai" }),
+			reasoningEffort: "xhigh",
+			userId: "user-1",
+		});
+
+		expect(options).toEqual({
+			openai: {
+				reasoningEffort: "xhigh",
+				user: "user-1",
+			},
+		});
+	});
+
+	test("anthropic maps reasoning effort to a thinking budget", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({ providerProtocol: "anthropic" }),
+			reasoningEffort: "medium",
+		});
+
+		expect(options).toEqual({
+			anthropic: {
+				thinking: { budgetTokens: 8192, type: "enabled" },
+			},
+		});
+	});
+
+	test("omits reasoning when the model does not support it", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({ providerProtocol: "tinfoil", supportsReasoning: false }),
+			reasoningEffort: "high",
+		});
+
+		expect(options).toBeUndefined();
+	});
+
+	test("omits reasoning when effort is none", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({ providerProtocol: "anthropic" }),
+			reasoningEffort: "none",
+		});
+
+		expect(options).toBeUndefined();
 	});
 });
 
@@ -496,7 +727,6 @@ describe("Fill Inputs Handler", () => {
 		try {
 			const providerId = crypto.randomUUID();
 			const textModelRecordId = crypto.randomUUID();
-			const multimodalModelRecordId = crypto.randomUUID();
 
 			await server.db.insert(aiProvider).values({
 				apiKey: null,
@@ -513,20 +743,14 @@ describe("Fill Inputs Handler", () => {
 					providerId,
 					supportsReasoning: false,
 				},
-				{
-					displayName: "Multimodal Model",
-					id: multimodalModelRecordId,
-					modelId: "openrouter/test-multimodal",
-					providerId,
-					supportsReasoning: false,
-				},
 			]);
 			await server.db
 				.insert(aiDefaults)
 				.values({
 					defaultFileImageModelId: textModelRecordId,
-					defaultMultimodalModelId: multimodalModelRecordId,
 					defaultSpeechToTextModelId: null,
+					defaultStandardSupportsAudio: true,
+					defaultStandardSupportsDocuments: true,
 					defaultTextModelId: textModelRecordId,
 					id: "global",
 					updatedAt: new Date(),
@@ -534,8 +758,9 @@ describe("Fill Inputs Handler", () => {
 				.onConflictDoUpdate({
 					set: {
 						defaultFileImageModelId: textModelRecordId,
-						defaultMultimodalModelId: multimodalModelRecordId,
 						defaultSpeechToTextModelId: null,
+						defaultStandardSupportsAudio: true,
+						defaultStandardSupportsDocuments: true,
 						defaultTextModelId: textModelRecordId,
 						updatedAt: new Date(),
 					},

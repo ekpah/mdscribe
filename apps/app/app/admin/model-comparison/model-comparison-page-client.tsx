@@ -52,15 +52,16 @@ import { ParameterControls } from "@/app/admin/playground/_components/parameter-
 import { isScribeDocType, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
 import { orpc } from "@/lib/orpc";
+import { buildSelectedTemplateReference } from "@/orpc/scribe/context/template/compose";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	frequencyPenalty: undefined,
-	maxTokens: 8000,
+	maxTokens: undefined,
 	presencePenalty: undefined,
 	reasoningEffort: "none",
-	temperature: 0.3,
+	temperature: 1,
 	thinking: false,
 	thinkingExplicit: false,
 	topK: undefined,
@@ -350,27 +351,6 @@ const normalizeReplayVariables = (
 	}
 
 	return replayInput;
-};
-
-const buildSelectedTemplateReference = (templateData: {
-	content: string;
-	examples: string[];
-	title: string;
-}): string => {
-	const sections = [
-		"## Ausgewaehlte Vorlage (Referenz)",
-		`Titel: ${templateData.title}`,
-		templateData.content,
-	];
-
-	if (templateData.examples.length > 0) {
-		sections.push("## Beispiele");
-		for (const example of templateData.examples) {
-			sections.push(example);
-		}
-	}
-
-	return sections.join("\n\n");
 };
 
 const buildReplayVariables = (

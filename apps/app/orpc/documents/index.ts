@@ -257,9 +257,7 @@ const parseFormHandler = adminDocumentProcedure
 					hasFiles: true,
 				});
 				modelSelection =
-					strategy.mode === "direct"
-						? strategy.generation
-						: (strategy.fileImage ?? strategy.generation);
+					strategy.files?.mode === "preprocess" ? strategy.files.selection : strategy.generation;
 			}
 		} catch (error) {
 			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -319,7 +317,6 @@ const parseFormHandler = adminDocumentProcedure
 				inputData: { fieldCount: fieldMappings.length },
 				metadata: {
 					promptName: config.promptName,
-					promptSource: "local",
 				},
 				model: modelSelection.model.modelName,
 				name: "ai_pdf_form_parsing",

@@ -12,7 +12,11 @@ import {
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { normalizeReasoningEffort } from "@/orpc/scribe/providers";
-import type { DefaultModelSlot, ReasoningEffort } from "@/orpc/scribe/providers";
+import type {
+	DefaultModelSlot,
+	MediaPreprocessStrategy,
+	ReasoningEffort,
+} from "@/orpc/scribe/providers";
 
 const admin = authed.use(requiredAdminMiddleware);
 
@@ -685,35 +689,45 @@ const deleteModelHandler = admin
 
 // ============ Defaults handlers ============
 
+const MEDIA_PREPROCESS_MODES = ["direct", "multimodal"] as const satisfies readonly
+	MediaPreprocessStrategy[];
+
+const normalizeMediaMode = (
+	value: string | null | undefined,
+	fallback: MediaPreprocessStrategy,
+): MediaPreprocessStrategy =>
+	value === "direct" || value === "multimodal" ? value : fallback;
+
+const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect> | undefined) => ({
+	defaultEvaluationModel: defaults?.defaultEvaluationModel ?? null,
+	defaultEvaluationReasoningEffort: normalizeReasoningEffort(
+		defaults?.defaultEvaluationReasoningEffort,
+	),
+	defaultFileImageMode: normalizeMediaMode(defaults?.defaultFileImageMode, "multimodal"),
+	defaultFileImageModelId: defaults?.defaultFileImageModelId ?? null,
+	defaultFileImageReasoningEffort: normalizeReasoningEffort(
+		defaults?.defaultFileImageReasoningEffort,
+	),
+	defaultSpeechToTextMode: normalizeMediaMode(defaults?.defaultSpeechToTextMode, "direct"),
+	defaultSpeechToTextModelId: defaults?.defaultSpeechToTextModelId ?? null,
+	defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
+		defaults?.defaultSpeechToTextReasoningEffort,
+	),
+	defaultStandardSupportsAudio: defaults?.defaultStandardSupportsAudio ?? false,
+	defaultStandardSupportsDocuments: defaults?.defaultStandardSupportsDocuments ?? false,
+	defaultTextModelId: defaults?.defaultTextModelId ?? null,
+	defaultTextReasoningEffort: normalizeReasoningEffort(defaults?.defaultTextReasoningEffort),
+});
+
 const getDefaultsHandler = admin.handler(async ({ context }) => {
 	const defaults = await context.db.query.aiDefaults.findFirst({
 		where: eq(aiDefaults.id, "global"),
 	});
 
-	return {
-		defaultEvaluationModel: defaults?.defaultEvaluationModel ?? null,
-		defaultEvaluationReasoningEffort: normalizeReasoningEffort(
-			defaults?.defaultEvaluationReasoningEffort,
-		),
-		defaultFileImageModelId: defaults?.defaultFileImageModelId ?? null,
-		defaultFileImageReasoningEffort: normalizeReasoningEffort(
-			defaults?.defaultFileImageReasoningEffort,
-		),
-		defaultMultimodalModelId: defaults?.defaultMultimodalModelId ?? null,
-		defaultMultimodalReasoningEffort: normalizeReasoningEffort(
-			defaults?.defaultMultimodalReasoningEffort,
-		),
-		defaultSpeechToTextModelId: defaults?.defaultSpeechToTextModelId ?? null,
-		defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
-			defaults?.defaultSpeechToTextReasoningEffort,
-		),
-		defaultTextModelId: defaults?.defaultTextModelId ?? null,
-		defaultTextReasoningEffort: normalizeReasoningEffort(defaults?.defaultTextReasoningEffort),
-	};
+	return buildDefaultsResponse(defaults);
 });
 
 const DEFAULT_MODEL_SLOTS = [
-	"multimodal",
 	"text",
 	"file-image",
 	"speech-to-text",
@@ -746,34 +760,54 @@ const buildAiDefaultsDraft = (
 	defaultEvaluationReasoningEffort: normalizeReasoningEffort(
 		current?.defaultEvaluationReasoningEffort,
 	),
+	defaultFileImageMode: normalizeMediaMode(current?.defaultFileImageMode, "multimodal"),
 	defaultFileImageModelId: current?.defaultFileImageModelId ?? null,
 	defaultFileImageReasoningEffort: normalizeReasoningEffort(
 		current?.defaultFileImageReasoningEffort,
 	),
-	defaultMultimodalModelId: current?.defaultMultimodalModelId ?? null,
-	defaultMultimodalReasoningEffort: normalizeReasoningEffort(
-		current?.defaultMultimodalReasoningEffort,
-	),
+	defaultSpeechToTextMode: normalizeMediaMode(current?.defaultSpeechToTextMode, "direct"),
 	defaultSpeechToTextModelId: current?.defaultSpeechToTextModelId ?? null,
 	defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
 		current?.defaultSpeechToTextReasoningEffort,
 	),
+	defaultStandardSupportsAudio: current?.defaultStandardSupportsAudio ?? false,
+	defaultStandardSupportsDocuments: current?.defaultStandardSupportsDocuments ?? false,
 	defaultTextModelId: current?.defaultTextModelId ?? null,
 	defaultTextReasoningEffort: normalizeReasoningEffort(current?.defaultTextReasoningEffort),
 	id: "global",
 	updatedAt: new Date(),
 });
 
+const persistAiDefaultsDraft = async (
+	db: Database,
+	hasCurrent: boolean,
+	next: AiDefaultsDraft,
+) => {
+	await (hasCurrent
+		? db
+				.update(aiDefaults)
+				.set({
+					defaultEvaluationModel: next.defaultEvaluationModel,
+					defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
+					defaultFileImageMode: next.defaultFileImageMode,
+					defaultFileImageModelId: next.defaultFileImageModelId,
+					defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
+					defaultSpeechToTextMode: next.defaultSpeechToTextMode,
+					defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
+					defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
+					defaultStandardSupportsAudio: next.defaultStandardSupportsAudio,
+					defaultStandardSupportsDocuments: next.defaultStandardSupportsDocuments,
+					defaultTextModelId: next.defaultTextModelId,
+					defaultTextReasoningEffort: next.defaultTextReasoningEffort,
+					updatedAt: next.updatedAt,
+				})
+				.where(eq(aiDefaults.id, "global"))
+		: db.insert(aiDefaults).values(next));
+};
+
 const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof setDefaultInput>) => {
 	const nextReasoningEffort = parsed.reasoningEffort;
 	switch (parsed.defaultType) {
-		case "multimodal": {
-			next.defaultMultimodalModelId = parsed.modelId;
-			if (nextReasoningEffort !== undefined) {
-				next.defaultMultimodalReasoningEffort = nextReasoningEffort;
-			}
-			break;
-		}
 		case "text": {
 			next.defaultTextModelId = parsed.modelId;
 			if (nextReasoningEffort !== undefined) {
@@ -830,37 +864,44 @@ const setDefaultHandler = admin
 		const next = buildAiDefaultsDraft(current);
 		applyDefaultSelection(next, parsed);
 
-		await (current
-			? context.db
-					.update(aiDefaults)
-					.set({
-						defaultEvaluationModel: next.defaultEvaluationModel,
-						defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
-						defaultFileImageModelId: next.defaultFileImageModelId,
-						defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
-						defaultMultimodalModelId: next.defaultMultimodalModelId,
-						defaultMultimodalReasoningEffort: next.defaultMultimodalReasoningEffort,
-						defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
-						defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
-						defaultTextModelId: next.defaultTextModelId,
-						defaultTextReasoningEffort: next.defaultTextReasoningEffort,
-						updatedAt: next.updatedAt,
-					})
-					.where(eq(aiDefaults.id, "global"))
-			: context.db.insert(aiDefaults).values(next));
+		await persistAiDefaultsDraft(context.db, Boolean(current), next);
 
-		return {
-			defaultEvaluationModel: next.defaultEvaluationModel,
-			defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
-			defaultFileImageModelId: next.defaultFileImageModelId,
-			defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
-			defaultMultimodalModelId: next.defaultMultimodalModelId,
-			defaultMultimodalReasoningEffort: next.defaultMultimodalReasoningEffort,
-			defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
-			defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
-			defaultTextModelId: next.defaultTextModelId,
-			defaultTextReasoningEffort: next.defaultTextReasoningEffort,
-		};
+		return buildDefaultsResponse(next);
+	});
+
+const setDefaultOptionsInput = z.object({
+	fileImageMode: z.enum(MEDIA_PREPROCESS_MODES).optional(),
+	speechToTextMode: z.enum(MEDIA_PREPROCESS_MODES).optional(),
+	standardSupportsAudio: z.boolean().optional(),
+	standardSupportsDocuments: z.boolean().optional(),
+});
+
+const setDefaultOptionsHandler = admin
+	.input(type<z.infer<typeof setDefaultOptionsInput>>())
+	.handler(async ({ input, context }) => {
+		const parsed = setDefaultOptionsInput.parse(input);
+
+		const current = await context.db.query.aiDefaults.findFirst({
+			where: eq(aiDefaults.id, "global"),
+		});
+
+		const next = buildAiDefaultsDraft(current);
+		if (parsed.fileImageMode !== undefined) {
+			next.defaultFileImageMode = parsed.fileImageMode;
+		}
+		if (parsed.speechToTextMode !== undefined) {
+			next.defaultSpeechToTextMode = parsed.speechToTextMode;
+		}
+		if (parsed.standardSupportsAudio !== undefined) {
+			next.defaultStandardSupportsAudio = parsed.standardSupportsAudio;
+		}
+		if (parsed.standardSupportsDocuments !== undefined) {
+			next.defaultStandardSupportsDocuments = parsed.standardSupportsDocuments;
+		}
+
+		await persistAiDefaultsDraft(context.db, Boolean(current), next);
+
+		return buildDefaultsResponse(next);
 	});
 
 export const providersHandler = {
@@ -875,6 +916,7 @@ export const providersHandler = {
 	defaults: {
 		get: getDefaultsHandler,
 		set: setDefaultHandler,
+		setOptions: setDefaultOptionsHandler,
 	},
 	models: {
 		create: createModelHandler,

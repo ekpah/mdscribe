@@ -1,95 +1,90 @@
+const DEFAULT_TEMPLATE_TITLE = "Relevante Vorlage";
+const REFERENCE_HEADING = "## Ausgewaehlte Vorlage (Referenz)";
+const TITLE_PREFIX = "Titel:";
+const OVERRIDE_INSTRUCTION_PREFIX = "Nutze die folgende Vorlage";
+// Headings must start their own line; "Beispiele:" is the legacy variant.
+const EXAMPLES_HEADING_PATTERN = /^(?:## Beispiele|Beispiele:)[ \t]*$/m;
+const EXAMPLE_HEADING_PATTERN = /^### Beispiel \d+[ \t]*$/m;
+
 export const buildSelectedTemplateReference = (templateData: {
 	content: string;
 	examples: string[];
 	title: string;
 }): string => {
-	const sections = [`Titel: ${templateData.title}`, templateData.content];
+	const sections = [
+		REFERENCE_HEADING,
+		`${TITLE_PREFIX} ${templateData.title}`,
+		templateData.content,
+	];
 
 	if (templateData.examples.length > 0) {
-		sections.push("Beispiele:");
-		for (const example of templateData.examples) {
-			sections.push(example);
-		}
+		sections.push(
+			"## Beispiele",
+			...templateData.examples.map(
+				(example, index) => `### Beispiel ${index + 1}\n\n${example}`,
+			),
+		);
 	}
 
 	return sections.join("\n\n");
 };
 
-const DEFAULT_TEMPLATE_TITLE = "Relevante Vorlage";
-const TITLE_PREFIX = "Titel:";
-const EXAMPLES_HEADINGS = new Set(["## Beispiele", "Beispiele:"]);
-const OVERRIDE_INSTRUCTION_PREFIX = "Nutze die folgende Vorlage";
-
-const trimLines = (value: string): string[] =>
-	value
-		.replaceAll("\r\n", "\n")
-		.split("\n")
-		.map((line) => line.trimEnd());
-
-const trimEmptyEdgeLines = (lines: string[]): string[] => {
-	let start = 0;
-	let end = lines.length;
-	while (start < end && lines[start]?.trim().length === 0) {
-		start += 1;
+// Splits off the first line; the remainder keeps its indentation but loses
+// leading blank lines.
+const splitFirstLine = (text: string): [string, string] => {
+	const lineBreak = text.indexOf("\n");
+	if (lineBreak === -1) {
+		return [text, ""];
 	}
-	while (end > start && lines[end - 1]?.trim().length === 0) {
-		end -= 1;
-	}
-	return lines.slice(start, end);
+	return [text.slice(0, lineBreak), text.slice(lineBreak + 1).replace(/^\n+/, "")];
 };
+
+const splitExamples = (section: string): string[] =>
+	section
+		.split(EXAMPLE_HEADING_PATTERN)
+		.map((example) => example.trim())
+		.filter((example) => example.length > 0);
 
 export const parseSelectedTemplateReference = (
 	reference: string,
 ): { content: string; examples: string[]; title: string } => {
-	const normalized = reference.trim();
+	const normalized = reference.replaceAll("\r\n", "\n").trim();
 	if (!normalized) {
-		return {
-			content: "",
-			examples: [],
-			title: DEFAULT_TEMPLATE_TITLE,
-		};
+		return { content: "", examples: [], title: DEFAULT_TEMPLATE_TITLE };
 	}
 
-	let lines = trimEmptyEdgeLines(trimLines(normalized));
-	let title: string | undefined;
+	let title = "";
+	let rest = normalized;
+
+	// Optional header lines, in order: "## <heading>", "Titel: <title>",
+	// and a leading usage instruction. Each is consumed when present.
+	let [line, remainder] = splitFirstLine(rest);
+	if (line.startsWith("## ")) {
+		title = line.slice("## ".length).trim();
+		rest = remainder;
+		[line, remainder] = splitFirstLine(rest);
+	}
+	if (line.startsWith(TITLE_PREFIX)) {
+		title = line.slice(TITLE_PREFIX.length).trim() || title;
+		rest = remainder;
+		[line, remainder] = splitFirstLine(rest);
+	}
+	if (line.startsWith(OVERRIDE_INSTRUCTION_PREFIX)) {
+		rest = remainder;
+	}
+
+	let content = rest;
 	let examples: string[] = [];
-
-	const firstLine = lines[0]?.trim();
-	if (firstLine?.startsWith("## ")) {
-		title = firstLine.replace(/^##\s+/, "").trim();
-		lines = trimEmptyEdgeLines(lines.slice(1));
+	const examplesHeading = rest.match(EXAMPLES_HEADING_PATTERN);
+	if (examplesHeading?.index !== undefined) {
+		content = rest.slice(0, examplesHeading.index);
+		examples = splitExamples(rest.slice(examplesHeading.index + examplesHeading[0].length));
 	}
-
-	const titleLine = lines[0]?.trim();
-	if (titleLine?.startsWith(TITLE_PREFIX)) {
-		const parsedTitle = titleLine.slice(TITLE_PREFIX.length).trim();
-		if (parsedTitle.length > 0) {
-			title = parsedTitle;
-		}
-		lines = trimEmptyEdgeLines(lines.slice(1));
-	}
-
-	const maybeInstruction = lines[0]?.trim();
-	if (maybeInstruction?.startsWith(OVERRIDE_INSTRUCTION_PREFIX)) {
-		lines = trimEmptyEdgeLines(lines.slice(1));
-	}
-
-	const examplesIndex = lines.findIndex((line) => EXAMPLES_HEADINGS.has(line.trim()));
-	if (examplesIndex !== -1) {
-		const exampleLines = trimEmptyEdgeLines(lines.slice(examplesIndex + 1));
-		examples = exampleLines
-			.join("\n")
-			.split(/\n{2,}/)
-			.map((example) => example.trim())
-			.filter((example) => example.length > 0);
-		lines = trimEmptyEdgeLines(lines.slice(0, examplesIndex));
-	}
-
-	const content = lines.join("\n").trim();
+	content = content.trim();
 
 	return {
 		content: content.length > 0 ? content : normalized,
 		examples,
-		title: title && title.length > 0 ? title : DEFAULT_TEMPLATE_TITLE,
+		title: title.length > 0 ? title : DEFAULT_TEMPLATE_TITLE,
 	};
 };

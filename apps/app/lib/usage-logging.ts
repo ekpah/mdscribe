@@ -25,10 +25,6 @@ export interface UsageMetadata {
 	promptLabel?: string;
 	customFormId?: string;
 	customFormSlug?: string;
-	thinkingEnabled?: boolean;
-	thinkingBudget?: number;
-	reasoningEffort?: string;
-	streamingMode?: boolean;
 	endpoint?: string;
 	modelConfig?: {
 		maxTokens?: number;

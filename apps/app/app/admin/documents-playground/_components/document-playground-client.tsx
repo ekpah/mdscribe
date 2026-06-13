@@ -32,6 +32,7 @@ import {
 import type { DocumentFieldDefinition } from "@/app/documents/_lib";
 import { formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
+import { SCRIBE_OCR_TO_MARKDOWN_PROMPT } from "@/orpc/scribe/prompts/core/ocr-to-markdown";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -68,6 +69,13 @@ interface PdfDocumentRenderable {
 }
 
 type OutputTab = "markdoc" | "ocr";
+
+type OcrPromptMode = "prompt" | "none";
+
+const OCR_PROMPT_MODE_DESCRIPTIONS: Record<OcrPromptMode, string> = {
+	none: "Das Dokument wird ohne Text-Prompt an das Modell gesendet. Sinnvoll für dedizierte OCR-Modelle, die direkt den Dokumentinhalt ausgeben.",
+	prompt: "Das Dokument wird zusammen mit dem Prompt an ein multimodales Modell gesendet.",
+};
 
 const OCR_FILE_ACCEPT = [
 	"application/pdf",
@@ -327,6 +335,73 @@ const ModelSelectionCard = ({
 	</Card>
 );
 
+const OcrPromptCard = ({
+	onPromptChange,
+	onPromptModeChange,
+	prompt,
+	promptMode,
+}: {
+	onPromptChange: (value: string) => void;
+	onPromptModeChange: (value: OcrPromptMode) => void;
+	prompt: string;
+	promptMode: OcrPromptMode;
+}) => (
+	<Card className="border-solarized-base2 bg-solarized-base3">
+		<CardHeader className="p-4 sm:p-6">
+			<CardTitle className="flex items-center gap-2 text-solarized-base00">
+				<ScanText className="h-4 w-4 text-solarized-magenta" />
+				OCR-Modus
+			</CardTitle>
+			<CardDescription className="text-solarized-base01">
+				{OCR_PROMPT_MODE_DESCRIPTIONS[promptMode]}
+			</CardDescription>
+		</CardHeader>
+		<CardContent className="space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
+			<Tabs
+				onValueChange={(value) => {
+					onPromptModeChange(value as OcrPromptMode);
+				}}
+				value={promptMode}
+			>
+				<TabsList className="h-auto max-w-full flex-wrap">
+					<TabsTrigger value="prompt">Mit Prompt</TabsTrigger>
+					<TabsTrigger value="none">Ohne Prompt</TabsTrigger>
+				</TabsList>
+			</Tabs>
+			{promptMode === "prompt" ? (
+				<div className="space-y-2">
+					<div className="flex items-center justify-between gap-2">
+						<Label htmlFor="document-playground-ocr-prompt">OCR-Prompt</Label>
+						<Button
+							disabled={prompt === SCRIBE_OCR_TO_MARKDOWN_PROMPT}
+							onClick={() => {
+								onPromptChange(SCRIBE_OCR_TO_MARKDOWN_PROMPT);
+							}}
+							size="sm"
+							type="button"
+							variant="ghost"
+						>
+							Zurücksetzen
+						</Button>
+					</div>
+					<Textarea
+						className="min-h-[120px] resize-y border-solarized-base2 bg-solarized-base2/20 text-solarized-base00 placeholder:text-solarized-base01 focus:border-solarized-magenta focus:ring-solarized-magenta/20"
+						id="document-playground-ocr-prompt"
+						onChange={(event) => {
+							onPromptChange(event.target.value);
+						}}
+						placeholder="Prompt für die OCR-Extraktion, z. B. Anweisungen zu Markdown-Struktur oder Fachvokabular."
+						value={prompt}
+					/>
+					<p className="text-solarized-base01 text-xs">
+						Leerer Prompt verwendet den Standard-Prompt.
+					</p>
+				</div>
+			) : null}
+		</CardContent>
+	</Card>
+);
+
 const DocumentFileCard = ({
 	files,
 	hasSelectedOcrFile,
@@ -507,6 +582,8 @@ export const DocumentPlaygroundClient = () => {
 	const [files, setFiles] = useState<UploadedContextFile[]>([]);
 	const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 	const [activeOutputTab, setActiveOutputTab] = useState<OutputTab>("markdoc");
+	const [ocrPromptMode, setOcrPromptMode] = useState<OcrPromptMode>("prompt");
+	const [ocrPrompt, setOcrPrompt] = useState(SCRIBE_OCR_TO_MARKDOWN_PROMPT);
 	const [markdocOutput, setMarkdocOutput] = useState("");
 	const [ocrOutput, setOcrOutput] = useState("");
 	const [markdocFieldCount, setMarkdocFieldCount] = useState(0);
@@ -608,11 +685,13 @@ export const DocumentPlaygroundClient = () => {
 
 			const fileBytes = await readFileBytes(selectedFile);
 			const fileBase64 = encodeUint8ArrayToBase64(fileBytes);
+			const promptPayload = ocrPromptMode === "none" ? null : ocrPrompt.trim() || undefined;
 			const imageMediaType = getImageMediaType(selectedFile);
 			if (imageMediaType) {
 				const result = await orpc.scribe.ocrToMarkdown.call({
 					images: [{ data: fileBase64, mediaType: imageMediaType }],
 					model: selectedModel.modelId,
+					prompt: promptPayload,
 					providerId: selectedModel.providerId,
 				});
 
@@ -630,6 +709,7 @@ export const DocumentPlaygroundClient = () => {
 						mediaType: "image/jpeg",
 					})),
 					model: selectedModel.modelId,
+					prompt: promptPayload,
 					providerId: selectedModel.providerId,
 				});
 
@@ -642,6 +722,7 @@ export const DocumentPlaygroundClient = () => {
 			const result = await orpc.scribe.ocrToMarkdown.call({
 				fileBase64,
 				model: selectedModel.modelId,
+				prompt: promptPayload,
 				providerId: selectedModel.providerId,
 			});
 
@@ -684,6 +765,13 @@ export const DocumentPlaygroundClient = () => {
 				onModelChange={setSelectedModelId}
 				selectedModel={selectedModel}
 				selectedModelId={selectedModelId}
+			/>
+
+			<OcrPromptCard
+				onPromptChange={setOcrPrompt}
+				onPromptModeChange={setOcrPromptMode}
+				prompt={ocrPrompt}
+				promptMode={ocrPromptMode}
 			/>
 
 			<div className="grid gap-4 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">

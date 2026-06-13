@@ -6,6 +6,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@repo/design-system/components/ui/accordion";
+import { Button } from "@repo/design-system/components/ui/button";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { Slider } from "@repo/design-system/components/ui/slider";
@@ -34,6 +35,14 @@ interface ParameterControlsProps {
 
 type DirectEditParameter = "maxTokens" | "temperature";
 
+const formatMaxTokensDraft = (maxTokens: number | undefined): string =>
+	maxTokens === undefined ? "" : String(maxTokens);
+
+const withoutMaxTokens = (parameters: PlaygroundParameters): PlaygroundParameters => {
+	const { maxTokens: _removed, ...rest } = parameters;
+	return rest;
+};
+
 export const ParameterControls = ({
 	parameters,
 	onChange,
@@ -44,7 +53,7 @@ export const ParameterControls = ({
 	const [activeDirectEdit, setActiveDirectEdit] =
 		useState<DirectEditParameter | null>(null);
 	const [directValueDrafts, setDirectValueDrafts] = useState<Record<DirectEditParameter, string>>({
-		maxTokens: String(parameters.maxTokens),
+		maxTokens: formatMaxTokensDraft(parameters.maxTokens),
 		temperature: String(parameters.temperature),
 	});
 	const clampNumber = useCallback(
@@ -59,7 +68,7 @@ export const ParameterControls = ({
 				maxTokens:
 					activeDirectEdit === "maxTokens"
 						? previous.maxTokens
-						: String(parameters.maxTokens),
+						: formatMaxTokensDraft(parameters.maxTokens),
 				temperature:
 					activeDirectEdit === "temperature"
 						? previous.temperature
@@ -104,6 +113,11 @@ export const ParameterControls = ({
 		updateParam("maxTokens", value);
 	}, [updateParam]);
 
+	const handleResetMaxTokens = useCallback(() => {
+		onChange(withoutMaxTokens(parameters));
+		setDirectValueDrafts((previous) => ({ ...previous, maxTokens: "" }));
+	}, [onChange, parameters]);
+
 	const setDirectDraft = useCallback((key: DirectEditParameter, value: string) => {
 		setDirectValueDrafts((previous) => ({
 			...previous,
@@ -128,20 +142,25 @@ export const ParameterControls = ({
 			return;
 		}
 
-		const parsed = Number.parseInt(directValueDrafts.maxTokens, 10);
-		if (Number.isNaN(parsed)) {
-			setDirectDraft("maxTokens", String(parameters.maxTokens));
+		if (directValueDrafts.maxTokens.trim() === "") {
+			onChange(withoutMaxTokens(parameters));
+			setDirectDraft("maxTokens", "");
 			return;
 		}
-		const clamped = clampNumber(parsed, 256, 128_000);
+		const parsed = Number.parseInt(directValueDrafts.maxTokens, 10);
+		if (Number.isNaN(parsed)) {
+			setDirectDraft("maxTokens", formatMaxTokensDraft(parameters.maxTokens));
+			return;
+		}
+		const clamped = clampNumber(parsed, 256, 100_000);
 		updateParam("maxTokens", clamped);
 		setDirectDraft("maxTokens", String(clamped));
 	}, [
 		clampNumber,
 		directValueDrafts.maxTokens,
 		directValueDrafts.temperature,
-		parameters.maxTokens,
-		parameters.temperature,
+		onChange,
+		parameters,
 		setDirectDraft,
 		updateParam,
 	]);
@@ -151,7 +170,7 @@ export const ParameterControls = ({
 			setDirectDraft("temperature", String(parameters.temperature));
 			return;
 		}
-		setDirectDraft("maxTokens", String(parameters.maxTokens));
+		setDirectDraft("maxTokens", formatMaxTokensDraft(parameters.maxTokens));
 	}, [parameters.maxTokens, parameters.temperature, setDirectDraft]);
 
 	const handleDirectEditBlur = useCallback((key: DirectEditParameter) => {
@@ -304,13 +323,25 @@ export const ParameterControls = ({
 								</TooltipTrigger>
 								<TooltipContent className="max-w-[250px]">
 									<p>
-										Maximale Anzahl an Tokens in der Antwort. 1 Token entspricht
-										ca. 4 Zeichen.
+										Maximale Anzahl an Tokens in der Antwort. Ohne Wert gilt der
+										Modell-Standard. 1 Token entspricht ca. 4 Zeichen.
 									</p>
 								</TooltipContent>
 							</Tooltip>
 						</div>
-						<div className="font-mono text-sm text-solarized-base00">
+						<div className="flex items-center gap-1.5 font-mono text-sm text-solarized-base00">
+							{parameters.maxTokens !== undefined && (
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="h-7 px-1.5 font-sans text-xs text-solarized-base01 hover:text-solarized-base00"
+									disabled={disabled}
+									onClick={handleResetMaxTokens}
+								>
+									Standard
+								</Button>
+							)}
 							<Input
 								type="number"
 								value={directValueDrafts.maxTokens}
@@ -327,21 +358,22 @@ export const ParameterControls = ({
 									handleDirectEditKeyDown("maxTokens", event);
 								}}
 								min={256}
-								max={128_000}
+								max={100_000}
 								step={256}
+								placeholder="Standard"
 								disabled={disabled}
 								className="h-7 w-28 text-right font-mono text-sm"
 							/>
 						</div>
 					</div>
-						<Slider
-							value={[parameters.maxTokens]}
-							onValueChange={handleMaxTokensChange}
+					<Slider
+						value={[parameters.maxTokens ?? 100_000]}
+						onValueChange={handleMaxTokensChange}
 						min={256}
-						max={128_000}
+						max={100_000}
 						step={256}
 						disabled={disabled}
-						className="w-full"
+						className={parameters.maxTokens === undefined ? "w-full opacity-40" : "w-full"}
 					/>
 				</div>
 			</div>

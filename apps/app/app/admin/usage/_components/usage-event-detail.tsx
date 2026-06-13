@@ -67,10 +67,16 @@ const buildPlaygroundUrl = (event: UsageDetailEvent): string => {
 		if (modelConfig?.maxTokens !== undefined) {
 			params.set("maxTokens", String(modelConfig.maxTokens));
 		}
-		if (metadata.thinkingEnabled) {
+		const reasoningEffortSource =
+			typeof modelConfig?.reasoningEffort === "string"
+				? modelConfig.reasoningEffort
+				: metadata.reasoningEffort;
+		const reasoningEffort =
+			typeof reasoningEffortSource === "string" ? reasoningEffortSource : undefined;
+		if ((reasoningEffort && reasoningEffort !== "none") || metadata.thinkingEnabled) {
 			params.set("thinking", "true");
-			if (typeof metadata.reasoningEffort === "string") {
-				params.set("reasoningEffort", metadata.reasoningEffort);
+			if (reasoningEffort) {
+				params.set("reasoningEffort", reasoningEffort);
 			}
 		}
 	}

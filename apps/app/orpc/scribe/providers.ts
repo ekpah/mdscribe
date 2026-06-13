@@ -6,7 +6,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { aiDefaults, aiModel, aiProvider, and, eq } from "@repo/database";
 import type { Database } from "@repo/database";
 import { experimental_transcribe as transcribe } from "ai";
-import type { LanguageModel } from "ai";
+import type { JSONValue, LanguageModel } from "ai";
 import { createTinfoilAI, TinfoilAI, toFile } from "tinfoil";
 
 import { decrypt } from "@/lib/encryption";
@@ -18,12 +18,9 @@ export type { ReasoningEffort } from "@/orpc/scribe/types";
 
 type ProviderProtocol = typeof aiProvider.$inferSelect.protocol;
 
-export type DefaultModelSlot =
-	| "evaluation"
-	| "file-image"
-	| "multimodal"
-	| "speech-to-text"
-	| "text";
+export type DefaultModelSlot = "evaluation" | "file-image" | "speech-to-text" | "text";
+
+export type MediaPreprocessStrategy = "direct" | "multimodal";
 
 export interface TranscribeAudioInput {
 	data: Buffer;
@@ -48,17 +45,19 @@ export interface ResolvedDefaultModelSelection {
 	slot: DefaultModelSlot;
 }
 
-type GenerationStrategy =
+export type MediaPlan =
+	| { mode: "native" }
 	| {
-			generation: ResolvedDefaultModelSelection;
-			mode: "direct";
-	  }
-	| {
-			fileImage?: ResolvedDefaultModelSelection;
-			generation: ResolvedDefaultModelSelection;
 			mode: "preprocess";
-			speechToText?: ResolvedDefaultModelSelection;
+			selection: ResolvedDefaultModelSelection;
+			strategy: MediaPreprocessStrategy;
 	  };
+
+interface GenerationStrategy {
+	audio?: MediaPlan;
+	files?: MediaPlan;
+	generation: ResolvedDefaultModelSelection;
+}
 
 type AiModelRow = typeof aiModel.$inferSelect;
 type AiProviderRow = typeof aiProvider.$inferSelect;
@@ -258,6 +257,35 @@ const createAudioTranscriber = (
 		};
 	}
 
+	if (protocol === "openai-compatible") {
+		if (!baseUrl) {
+			throw new Error("OpenAI-compatible provider is missing a base URL");
+		}
+		const endpoint = `${normalizeOpenAICompatibleBaseUrl(baseUrl)}/audio/transcriptions`;
+		return async ({ data, filename, mediaType }) => {
+			const formData = new FormData();
+			formData.append("file", new File([new Uint8Array(data)], filename, { type: mediaType }));
+			formData.append("model", modelId);
+
+			const response = await fetch(endpoint, {
+				body: formData,
+				...(apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}),
+				method: "POST",
+			});
+
+			if (!response.ok) {
+				throw new Error(`Transkription fehlgeschlagen: HTTP ${response.status}`);
+			}
+
+			const body = (await response.json()) as { text?: unknown };
+			const text = typeof body.text === "string" ? body.text.trim() : "";
+			if (!text) {
+				throw new Error("Transkription lieferte keinen Text.");
+			}
+			return text;
+		};
+	}
+
 	if (protocol === "openrouter") {
 		return async ({ data, mediaType }) => {
 			const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
@@ -400,9 +428,6 @@ const getDefaultModelRecordId = (
 		case "file-image": {
 			return defaults.defaultFileImageModelId;
 		}
-		case "multimodal": {
-			return defaults.defaultMultimodalModelId;
-		}
 		case "speech-to-text": {
 			return defaults.defaultSpeechToTextModelId;
 		}
@@ -425,9 +450,6 @@ const getDefaultReasoningEffort = (
 		}
 		case "file-image": {
 			return normalizeReasoningEffort(defaults.defaultFileImageReasoningEffort);
-		}
-		case "multimodal": {
-			return normalizeReasoningEffort(defaults.defaultMultimodalReasoningEffort);
 		}
 		case "speech-to-text": {
 			return normalizeReasoningEffort(defaults.defaultSpeechToTextReasoningEffort);
@@ -466,39 +488,67 @@ export const resolveDefaultModel = async (
 	return buildDefaultSelection(db, defaults, slot);
 };
 
+const normalizeMediaPreprocessStrategy = (
+	value: string | null | undefined,
+	fallback: MediaPreprocessStrategy,
+): MediaPreprocessStrategy =>
+	value === "direct" || value === "multimodal" ? value : fallback;
+
 /**
  * Resolves the global model strategy for a generation request.
  *
- * Text-only input always uses the text default. Media input first uses the
- * configured multimodal default directly; without one, media is preprocessed
- * through the dedicated speech-to-text and file/image defaults before the final
- * text model runs.
+ * The standard (text) model always produces the final answer. Each media kind
+ * is sent natively to the standard model when the admin declared that
+ * capability; otherwise it is preprocessed through the dedicated slot model,
+ * either via its direct parsing path (STT endpoint, promptless OCR) or as a
+ * prompted multimodal request, depending on the configured slot mode.
  */
 export const resolveGenerationStrategy = async (
 	db: Database,
 	options: { hasAudio?: boolean; hasFiles?: boolean },
 ): Promise<GenerationStrategy> => {
 	const defaults = await getDefaults(db);
-	const hasMediaInput = Boolean(options.hasAudio || options.hasFiles);
-	if (hasMediaInput && defaults.defaultMultimodalModelId) {
+
+	const buildAudioPlan = async (): Promise<MediaPlan> => {
+		if (defaults.defaultStandardSupportsAudio) {
+			return { mode: "native" };
+		}
 		return {
-			generation: await buildDefaultSelection(db, defaults, "multimodal"),
-			mode: "direct",
+			mode: "preprocess",
+			selection: await buildDefaultSelection(db, defaults, "speech-to-text"),
+			strategy: normalizeMediaPreprocessStrategy(defaults.defaultSpeechToTextMode, "direct"),
 		};
-	}
+	};
+
+	const buildFilesPlan = async (): Promise<MediaPlan> => {
+		if (defaults.defaultStandardSupportsDocuments) {
+			return { mode: "native" };
+		}
+		return {
+			mode: "preprocess",
+			selection: await buildDefaultSelection(db, defaults, "file-image"),
+			strategy: normalizeMediaPreprocessStrategy(defaults.defaultFileImageMode, "multimodal"),
+		};
+	};
 
 	return {
-		...(options.hasFiles
-			? { fileImage: await buildDefaultSelection(db, defaults, "file-image") }
-			: {}),
+		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
+		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
 		generation: await buildDefaultSelection(db, defaults, "text"),
-		mode: "preprocess",
-		...(options.hasAudio
-			? {
-					speechToText: await buildDefaultSelection(db, defaults, "speech-to-text"),
-				}
-			: {}),
 	};
+};
+
+/**
+ * Anthropic expresses reasoning as an absolute thinking-token budget instead
+ * of an effort level; these budgets approximate the effort scale used by the
+ * other protocols (Anthropic enforces a minimum of 1024).
+ */
+const ANTHROPIC_THINKING_BUDGET_TOKENS: Record<Exclude<ReasoningEffort, "none">, number> = {
+	high: 16_384,
+	low: 4096,
+	medium: 8192,
+	minimal: 2048,
+	xhigh: 32_000,
 };
 
 export const buildProviderOptions = ({
@@ -513,23 +563,57 @@ export const buildProviderOptions = ({
 	reasoningEffort?: ReasoningEffort;
 	userId?: string;
 	zdr?: boolean;
-}) => {
-	if (!model.isOpenRouter) {
-		return;
-	}
-
+}): Record<string, Record<string, JSONValue>> | undefined => {
 	const normalizedReasoningEffort = normalizeReasoningEffort(reasoningEffort);
-	const reasoningConfig =
+	const effectiveReasoningEffort =
 		model.supportsReasoning && normalizedReasoningEffort !== "none"
-			? { effort: normalizedReasoningEffort }
+			? normalizedReasoningEffort
 			: undefined;
 
-	return {
-		openrouter: {
-			...(includeUsage ? { usage: { include: true } } : {}),
-			...(userId ? { user: userId } : {}),
-			...(reasoningConfig ? { reasoning: reasoningConfig } : {}),
-			...(zdr ? { zdr: true } : {}),
-		},
-	};
+	switch (model.providerProtocol) {
+		case "openrouter": {
+			return {
+				openrouter: {
+					...(includeUsage ? { usage: { include: true } } : {}),
+					...(userId ? { user: userId } : {}),
+					...(effectiveReasoningEffort
+						? { reasoning: { effort: effectiveReasoningEffort } }
+						: {}),
+					...(zdr ? { zdr: true } : {}),
+				},
+			};
+		}
+		case "tinfoil":
+		case "openai-compatible":
+		case "openai": {
+			if (!(effectiveReasoningEffort || userId)) {
+				return;
+			}
+			// The generic `openaiCompatible` key applies regardless of the
+			// provider's registered name (`tinfoil`, `custom`, ...).
+			const optionsKey = model.providerProtocol === "openai" ? "openai" : "openaiCompatible";
+			return {
+				[optionsKey]: {
+					...(userId ? { user: userId } : {}),
+					...(effectiveReasoningEffort ? { reasoningEffort: effectiveReasoningEffort } : {}),
+				},
+			};
+		}
+		case "anthropic": {
+			if (!effectiveReasoningEffort) {
+				return;
+			}
+			return {
+				anthropic: {
+					thinking: {
+						budgetTokens: ANTHROPIC_THINKING_BUDGET_TOKENS[effectiveReasoningEffort],
+						type: "enabled" as const,
+					},
+				},
+			};
+		}
+		default: {
+			return undefined;
+		}
+	}
 };

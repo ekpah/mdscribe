@@ -368,24 +368,24 @@ export const aiDefaults = pgTable("AiDefaults", {
 	defaultEvaluationReasoningEffort: text("defaultEvaluationReasoningEffort")
 		.notNull()
 		.default("none"),
+	defaultFileImageMode: text("defaultFileImageMode").notNull().default("multimodal"),
 	defaultFileImageModelId: text("defaultFileImageModelId").references(() => aiModel.id, {
 		onDelete: "set null",
 	}),
 	defaultFileImageReasoningEffort: text("defaultFileImageReasoningEffort")
 		.notNull()
 		.default("none"),
-	defaultMultimodalModelId: text("defaultMultimodalModelId").references(() => aiModel.id, {
-		onDelete: "set null",
-	}),
-	defaultMultimodalReasoningEffort: text("defaultMultimodalReasoningEffort")
-		.notNull()
-		.default("none"),
+	defaultSpeechToTextMode: text("defaultSpeechToTextMode").notNull().default("direct"),
 	defaultSpeechToTextModelId: text("defaultSpeechToTextModelId").references(() => aiModel.id, {
 		onDelete: "set null",
 	}),
 	defaultSpeechToTextReasoningEffort: text("defaultSpeechToTextReasoningEffort")
 		.notNull()
 		.default("none"),
+	defaultStandardSupportsAudio: boolean("defaultStandardSupportsAudio").notNull().default(false),
+	defaultStandardSupportsDocuments: boolean("defaultStandardSupportsDocuments")
+		.notNull()
+		.default(false),
 	defaultTextModelId: text("defaultTextModelId").references(() => aiModel.id, {
 		onDelete: "set null",
 	}),

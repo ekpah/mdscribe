@@ -30,9 +30,6 @@ const toExamples = (value: unknown): string[] => {
 		.filter((entry) => entry.length > 0);
 };
 
-const renderMarkdocTagGuidance = (): string =>
-	`<markdoc_tag_guidance>\n${MARKDOC_TAG_GUIDANCE}\n</markdoc_tag_guidance>`;
-
 const renderTemplateContext = (
 	template?: TemplateContextInput | null,
 ): string => {
@@ -43,7 +40,6 @@ const renderTemplateContext = (
 	const title = toTrimmedString(template.title);
 	const content = toTrimmedString(template.content);
 	const examples = toExamples(template.examples);
-	const markdocTagGuidance = renderMarkdocTagGuidance();
 
 	const blocks = [
 		title ? `<title>\n${title}\n</title>` : "",
@@ -59,7 +55,7 @@ const renderTemplateContext = (
 		return "";
 	}
 
-	return `<template_context>\n<usage>\n${TEMPLATE_CONTEXT_USAGE}\n</usage>\n${markdocTagGuidance}\n<template>\n${blocks.join("\n")}\n</template>\n</template_context>`;
+	return `<template_context>\n<usage>\n${TEMPLATE_CONTEXT_USAGE}\n</usage>\n<markdoc_tag_guidance>\n${MARKDOC_TAG_GUIDANCE}\n</markdoc_tag_guidance>\n<template>\n${blocks.join("\n")}\n</template>\n</template_context>`;
 };
 
 export const buildTemplateFallbackContext = (
@@ -76,32 +72,19 @@ export const buildTemplateFallbackContext = (
 export const resolveSelectedTemplateContext = (
 	selectedTemplateReference?: string,
 ): TemplateContextInput | undefined => {
-	const selectedTemplate = selectedTemplateReference?.trim();
-	if (!hasContent(selectedTemplate)) {
+	if (!hasContent(selectedTemplateReference)) {
 		return undefined;
 	}
 
-	const parsedTemplate = parseSelectedTemplateReference(selectedTemplate);
-	if (!hasContent(parsedTemplate.content)) {
-		return undefined;
-	}
-
-	return {
-		content: parsedTemplate.content,
-		examples: parsedTemplate.examples,
-		title: parsedTemplate.title,
-	};
+	const parsedTemplate = parseSelectedTemplateReference(selectedTemplateReference);
+	return hasContent(parsedTemplate.content) ? parsedTemplate : undefined;
 };
 
 const toTemplateContextInput = (
 	data: Record<string, unknown>,
 ): TemplateContextInput => ({
 	content: toTrimmedString(data.content),
-	examples: Array.isArray(data.examples)
-		? data.examples
-				.map((entry) => toTrimmedString(entry))
-				.filter((entry) => entry.length > 0)
-		: [],
+	examples: toExamples(data.examples),
 	title: toTrimmedString(data.title),
 });
 

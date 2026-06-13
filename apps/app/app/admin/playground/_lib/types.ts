@@ -48,7 +48,8 @@ export type { ReasoningEffort };
 
 export interface PlaygroundParameters {
 	temperature: number;
-	maxTokens: number;
+	/** Undefined = Modell-Standard; nur gesetzt, wenn der Nutzer explizit ein Limit wählt. */
+	maxTokens?: number;
 	thinking: boolean;
 	thinkingExplicit: boolean;
 	reasoningEffort: ReasoningEffort;

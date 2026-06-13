@@ -23,7 +23,7 @@ import { cn } from "@repo/design-system/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Copy, Info, Play, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, MutableRefObject, UIEvent } from "react";
+import type { ChangeEvent, MutableRefObject } from "react";
 import { toast } from "sonner";
 
 import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
@@ -38,6 +38,7 @@ import type {
 } from "@/app/admin/playground/_lib/types";
 import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
 import { orpc } from "@/lib/orpc";
+import { buildSelectedTemplateReference } from "@/orpc/scribe/context/template/compose";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
@@ -60,10 +61,10 @@ interface PlaygroundPanelProps {
 
 const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	frequencyPenalty: undefined,
-	maxTokens: 8000,
+	maxTokens: undefined,
 	presencePenalty: undefined,
 	reasoningEffort: "none",
-	temperature: 0.3,
+	temperature: 1,
 	thinking: false,
 	thinkingExplicit: false,
 	topK: undefined,
@@ -307,27 +308,6 @@ const resolveDocumentTypeFromPromptHarness = (
 	return resolvedPromptHarnessId;
 };
 
-const buildSelectedTemplateReference = (templateData: {
-	content: string;
-	examples: string[];
-	title: string;
-}): string => {
-	const sections = [
-		"## Ausgewaehlte Vorlage (Referenz)",
-		`Titel: ${templateData.title}`,
-		templateData.content,
-	];
-
-	if (templateData.examples.length > 0) {
-		sections.push("## Beispiele");
-		for (const example of templateData.examples) {
-			sections.push(example);
-		}
-	}
-
-	return sections.join("\n\n");
-};
-
 const asFiniteMetricNumber = (value: unknown): number | undefined => {
 	if (typeof value !== "number" || !Number.isFinite(value)) {
 		return undefined;
@@ -452,33 +432,66 @@ const serializePromptVariable = (value: unknown): string => {
 	}
 };
 
-const getPromptMessageMatches = (
-	content: string,
-	variables: PromptPreviewVariable[],
-): PromptPreviewVariable[] =>
-	variables
-		.filter((variable) => variable.value.trim().length > 0 && content.includes(variable.value))
-		.sort((a, b) => {
-			if (a.source !== b.source) {
-				return a.source === "input" ? -1 : 1;
-			}
-			return a.label.localeCompare(b.label);
-		});
+/**
+ * Section-based prompt highlighting: compiled prompts are XML-structured, so the
+ * highlight boundaries are the section tags themselves (stable while editing),
+ * not exact-value matches that break as soon as the text changes.
+ */
+type PromptSectionKind = "patient" | "template" | "user" | "shared" | "runtime";
+
+type PromptHighlightSource = PromptSectionKind | "plain";
 
 interface PromptHighlightSegment {
-	source: PromptVariableSource | "plain";
+	source: PromptHighlightSource;
 	text: string;
 }
 
-const getSegmentHighlightClassName = (source: PromptHighlightSegment["source"]): string => {
-	if (source === "runtime") {
-		return "rounded-[3px] border border-solarized-orange/40 bg-solarized-orange/12 px-0.5 text-solarized-orange";
-	}
-	if (source === "input") {
-		return "rounded-[3px] border border-solarized-blue/40 bg-solarized-blue/12 px-0.5 text-solarized-blue";
-	}
-	return "";
+// Top-level XML tags in compiled messages mapped to their composition origin
+// (see orpc/scribe/context/* and prompts/core/*). Unlisted tags belong to the
+// prompt family itself and stay unhighlighted as editable instructions.
+const PROMPT_SECTION_TAGS: Record<string, PromptSectionKind> = {
+	patient_context: "patient",
+	template_context: "template",
+	uncertainty_handling: "shared",
+	user_context: "user",
 };
+
+const PROMPT_DATE_LINE_REGEX = /Das heutige Datum ist der [^\n]*/g;
+
+const PROMPT_SECTION_META: Record<
+	PromptSectionKind,
+	{ badgeClassName: string; highlightClassName: string; label: string }
+> = {
+	patient: {
+		badgeClassName: "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue",
+		highlightClassName: "rounded-[3px] bg-solarized-blue/12",
+		label: "Patient-Kontext",
+	},
+	runtime: {
+		badgeClassName: "border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange",
+		highlightClassName: "rounded-[3px] bg-solarized-orange/15",
+		label: "Datum (Laufzeit)",
+	},
+	shared: {
+		badgeClassName:
+			"border-(--solarized-violet)/40 bg-(--solarized-violet)/10 text-(--solarized-violet)",
+		highlightClassName: "rounded-[3px] bg-(--solarized-violet)/12",
+		label: "Geteilter Baustein",
+	},
+	template: {
+		badgeClassName: "border-solarized-green/40 bg-solarized-green/10 text-solarized-green",
+		highlightClassName: "rounded-[3px] bg-solarized-green/12",
+		label: "Template-Kontext",
+	},
+	user: {
+		badgeClassName: "border-(--solarized-cyan)/40 bg-(--solarized-cyan)/10 text-(--solarized-cyan)",
+		highlightClassName: "rounded-[3px] bg-(--solarized-cyan)/12",
+		label: "Arzt-Kontext",
+	},
+};
+
+const getSegmentHighlightClassName = (source: PromptHighlightSegment["source"]): string =>
+	source === "plain" ? "" : PROMPT_SECTION_META[source].highlightClassName;
 
 const getPromptMessageRoleBadgeClassName = (role: "system" | "user" | "assistant"): string => {
 	if (role === "system") {
@@ -524,103 +537,88 @@ const applyHarnessPlaceholders = (
 	return next;
 };
 
-const buildPromptHighlightSegments = (
-	content: string,
-	variables: PromptPreviewVariable[],
-): PromptHighlightSegment[] => {
+interface PromptSectionRange {
+	end: number;
+	kind: PromptSectionKind;
+	start: number;
+}
+
+// A section is only a complete innermost pair: an opening tag followed by its
+// closing tag with no further opening of the same tag in between. Unpaired
+// inline mentions like "… aus <template_context> und <patient_context> …" in
+// instruction text therefore never open a section, and in
+// "<template_context><template_context></template_context>" only the last two
+// tags form one.
+const PROMPT_SECTION_PATTERNS = Object.entries(PROMPT_SECTION_TAGS).map(([tag, kind]) => ({
+	kind,
+	regex: new RegExp(`<${tag}>(?:(?!<${tag}>)[\\s\\S])*?</${tag}>`, "g"),
+}));
+
+const collectPromptSectionRanges = (content: string): PromptSectionRange[] => {
+	const ranges: PromptSectionRange[] = [];
+
+	for (const { kind, regex } of PROMPT_SECTION_PATTERNS) {
+		for (const match of content.matchAll(regex)) {
+			ranges.push({
+				end: match.index + match[0].length,
+				kind,
+				start: match.index,
+			});
+		}
+	}
+
+	for (const match of content.matchAll(PROMPT_DATE_LINE_REGEX)) {
+		ranges.push({
+			end: match.index + match[0].length,
+			kind: "runtime",
+			start: match.index,
+		});
+	}
+
+	return ranges.toSorted((a, b) => a.start - b.start);
+};
+
+const buildPromptHighlightSegments = (content: string): PromptHighlightSegment[] => {
 	if (content.length === 0) {
 		return [{ source: "plain", text: "" }];
 	}
 
-	const runtimeVariables = variables.filter(
-		(variable) => variable.source === "runtime" && variable.value.trim().length > 0,
-	);
-	const inputVariables = variables.filter(
-		(variable) => variable.source === "input" && variable.value.trim().length > 0,
-	);
-	const allVariables = [...runtimeVariables, ...inputVariables];
-	if (allVariables.length === 0) {
-		return [{ source: "plain", text: content }];
-	}
-
-	const marks: (PromptVariableSource | "plain")[] = Array.from(
-		{ length: content.length },
-		() => "plain",
-	);
-
-	const applyVariableMatches = (
-		selectedVariables: PromptPreviewVariable[],
-		source: PromptVariableSource,
-	) => {
-		for (const variable of selectedVariables) {
-			let searchStart = 0;
-
-			while (searchStart < content.length) {
-				const index = content.indexOf(variable.value, searchStart);
-				if (index === -1) {
-					break;
-				}
-
-				const end = index + variable.value.length;
-				for (let offset = index; offset < end; offset += 1) {
-					if (source === "input" || marks[offset] === "plain") {
-						marks[offset] = source;
-					}
-				}
-
-				searchStart = index + Math.max(variable.value.length, 1);
-			}
-		}
-	};
-
-	applyVariableMatches(runtimeVariables, "runtime");
-	applyVariableMatches(inputVariables, "input");
-
 	const segments: PromptHighlightSegment[] = [];
-	let segmentStart = 0;
-	let currentSource = marks[0] ?? "plain";
-	for (let index = 1; index < marks.length; index += 1) {
-		if (marks[index] === currentSource) {
+	let cursor = 0;
+	for (const range of collectPromptSectionRanges(content)) {
+		if (range.start < cursor) {
 			continue;
 		}
-
-		segments.push({
-			source: currentSource,
-			text: content.slice(segmentStart, index),
-		});
-		segmentStart = index;
-		currentSource = marks[index] ?? "plain";
+		if (range.start > cursor) {
+			segments.push({ source: "plain", text: content.slice(cursor, range.start) });
+		}
+		segments.push({ source: range.kind, text: content.slice(range.start, range.end) });
+		cursor = range.end;
 	}
-	segments.push({
-		source: currentSource,
-		text: content.slice(segmentStart),
-	});
+	if (cursor < content.length) {
+		segments.push({ source: "plain", text: content.slice(cursor) });
+	}
 	return segments;
 };
 
+const getPromptMessageSectionKinds = (content: string): PromptSectionKind[] => {
+	const kinds: PromptSectionKind[] = [];
+	for (const range of collectPromptSectionRanges(content)) {
+		if (!kinds.includes(range.kind)) {
+			kinds.push(range.kind);
+		}
+	}
+	return kinds;
+};
+
 const HighlightedPromptEditor = ({
-	highlightVariables,
 	onChange,
 	value,
 }: {
-	highlightVariables: PromptPreviewVariable[];
 	onChange: (value: string) => void;
 	value: string;
 }) => {
-	const overlayContentRef = useRef<HTMLDivElement | null>(null);
-	const segments = useMemo(
-		() => buildPromptHighlightSegments(value, highlightVariables),
-		[highlightVariables, value],
-	);
-
-	const handleScroll = useCallback((event: UIEvent<HTMLTextAreaElement>) => {
-		const overlayContent = overlayContentRef.current;
-		if (!overlayContent) {
-			return;
-		}
-
-		overlayContent.style.transform = `translate(${-event.currentTarget.scrollLeft}px, ${-event.currentTarget.scrollTop}px)`;
-	}, []);
+	const segments = useMemo(() => buildPromptHighlightSegments(value), [value]);
 
 	const handleValueChange = useCallback(
 		(event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -629,33 +627,39 @@ const HighlightedPromptEditor = ({
 		[onChange],
 	);
 
+	// CSS-only autosize (`field-sizing: content` lacks Safari/Firefox support):
+	// the highlight mirror is the in-flow element and sizes the container; the
+	// textarea is stretched over it. Both render the identical string with
+	// identical box metrics (transparent border mirrors the textarea border),
+	// so their heights always match and the textarea never needs to scroll.
 	return (
-		<div className="relative h-full min-h-0">
-			<div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-md">
-				<div
-					ref={overlayContentRef}
-					className={cn(
-						"whitespace-pre-wrap break-words px-3 py-2 text-solarized-base00",
-						PLAYGROUND_EDITOR_TEXTAREA_CLASS,
-					)}
-				>
-					{segments.map((segment) => (
-						<span
-							className={cn(getSegmentHighlightClassName(segment.source))}
-							key={`${segment.source}-${segment.text}`}
-						>
-							{segment.text}
-						</span>
-					))}
-				</div>
+		<div className="relative">
+			<div
+				aria-hidden
+				className={cn(
+					"pointer-events-none min-h-32 whitespace-pre-wrap break-words rounded-md border border-transparent px-3 py-2 text-solarized-base00",
+					PLAYGROUND_EDITOR_TEXTAREA_CLASS,
+				)}
+			>
+				{segments.map((segment, index) => (
+					<span
+						className={cn(getSegmentHighlightClassName(segment.source))}
+						// biome-ignore lint/suspicious/noArrayIndexKey: segments are derived positional slices without stable ids
+						key={`${segment.source}-${index}`}
+					>
+						{segment.text}
+					</span>
+				))}
+				{/* Keeps a trailing newline visible so the mirror matches the textarea height. */}
+				{"\u200B"}
 			</div>
+			{/* The textarea paints above the mirror so caret and selection stay visible; the text itself is transparent, so the caret needs an explicit color (theme-aware via the solarized neutral swap). */}
 			<textarea
 				value={value}
 				onChange={handleValueChange}
-				onScroll={handleScroll}
 				spellCheck={false}
 				className={cn(
-					"border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-full min-h-0 w-full resize-none rounded-md border border-solarized-base2 bg-transparent px-3 py-2 text-transparent shadow-xs transition-[color,box-shadow] outline-none caret-solarized-base00 selection:bg-solarized-base2/70 selection:text-solarized-base00 focus-visible:ring-[3px]",
+					"border-input placeholder:text-solarized-base01/70 focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive absolute inset-0 block h-full w-full resize-none overflow-hidden break-words rounded-md border border-solarized-base2 bg-transparent px-3 py-2 text-transparent caret-(--solarized-base00) shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px]",
 					PLAYGROUND_EDITOR_TEXTAREA_CLASS,
 				)}
 			/>
@@ -664,18 +668,12 @@ const HighlightedPromptEditor = ({
 };
 
 const PromptHarnessPreview = ({
-	inputItems,
 	messages,
 	onMessageChange,
-	runtimeItems,
 }: {
-	inputItems: PromptPreviewVariable[];
 	messages: { role: "system" | "user" | "assistant"; content: string }[];
 	onMessageChange: (index: number, content: string) => void;
-	runtimeItems: PromptPreviewVariable[];
 }) => {
-	const allPreviewItems = [...runtimeItems, ...inputItems];
-	const shouldStretchMessageRows = messages.length > 0 && messages.length <= 3;
 	const copyMessageHandlers = useMemo(
 		() =>
 			messages.map((message) => async () => {
@@ -692,27 +690,15 @@ const PromptHarnessPreview = ({
 
 	if (messages.length === 0) {
 		return (
-			<div className="flex h-full min-h-0 items-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-4 text-sm text-solarized-base01">
+			<div className="flex min-h-24 items-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/50 p-4 text-sm text-solarized-base01">
 				Kompiliere den Prompt, um Harness, dynamische Inserts und gerenderte Nachrichten zu sehen.
 			</div>
 		);
 	}
 
 	return (
-		<div className="flex h-full min-h-0 flex-col rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
-			<div
-				className={cn(
-					"min-h-0 flex-1 pr-1",
-					shouldStretchMessageRows
-						? "grid gap-2 overflow-hidden"
-						: "flex flex-col gap-2 overflow-y-auto",
-				)}
-				style={
-					shouldStretchMessageRows
-						? { gridTemplateRows: `repeat(${messages.length}, minmax(0, 1fr))` }
-						: undefined
-				}
-			>
+		<div className="flex flex-col rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
+			<div className="flex flex-col gap-2">
 				{messages.map((message, index) => {
 					const copyMessageHandler = copyMessageHandlers[index];
 					const messageChangeHandler = messageChangeHandlers[index];
@@ -720,15 +706,11 @@ const PromptHarnessPreview = ({
 						return null;
 					}
 
-					const matchingItems = getPromptMessageMatches(message.content, allPreviewItems);
-					const isUserPromptCard = message.role === "user";
+					const sectionKinds = getPromptMessageSectionKinds(message.content);
 
 					return (
 						<div
-							className={cn(
-								"flex flex-col rounded-lg border border-solarized-base2 bg-solarized-base3 p-2",
-								shouldStretchMessageRows ? "h-full min-h-0" : "min-h-[210px]",
-							)}
+							className="flex flex-col rounded-lg border border-solarized-base2 bg-solarized-base3 p-2"
 							key={`${message.role}-${index}`}
 						>
 							<div className="flex flex-wrap items-center justify-between gap-1.5">
@@ -744,22 +726,6 @@ const PromptHarnessPreview = ({
 									</Badge>
 								</div>
 								<div className="flex items-center gap-1.5">
-									{isUserPromptCard ? (
-										<>
-											<Badge
-												variant="outline"
-												className="h-5 border-solarized-orange/40 bg-solarized-orange/10 px-1.5 text-[10px] text-solarized-orange"
-											>
-												Dynamisch
-											</Badge>
-											<Badge
-												variant="outline"
-												className="h-5 border-solarized-blue/40 bg-solarized-blue/10 px-1.5 text-[10px] text-solarized-blue"
-											>
-												Input
-											</Badge>
-										</>
-									) : null}
 									<Button
 										type="button"
 										variant="ghost"
@@ -773,35 +739,133 @@ const PromptHarnessPreview = ({
 								</div>
 							</div>
 
-							{!isUserPromptCard && matchingItems.length > 0 ? (
+							{sectionKinds.length > 0 ? (
 								<div className="mt-1 flex flex-wrap gap-1.5">
-									{matchingItems.map((item) => (
+									{sectionKinds.map((kind) => (
 										<Badge
-											key={`${message.role}-${index}-${item.source}-${item.key}`}
+											key={`${message.role}-${index}-${kind}`}
 											variant="outline"
-											className={cn(
-												item.source === "runtime"
-													? "border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange"
-													: "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue",
-											)}
+											className={cn("text-[10px]", PROMPT_SECTION_META[kind].badgeClassName)}
 										>
-											{item.source === "runtime" ? "Dynamisch" : "Input"} · {item.label}
+											{PROMPT_SECTION_META[kind].label}
 										</Badge>
 									))}
 								</div>
 							) : null}
 
-							<div className="mt-2 min-h-0 flex-1">
+							<div className="mt-2">
 								<HighlightedPromptEditor
 									value={message.content}
 									onChange={messageChangeHandler}
-									highlightVariables={allPreviewItems}
 								/>
 							</div>
 						</div>
 					);
 				})}
 			</div>
+		</div>
+	);
+};
+
+const PROMPT_HIGHLIGHT_LEGEND: { className: string; label: string }[] = [
+	...(["template", "user", "patient", "shared", "runtime"] as const).map((kind) => ({
+		className: PROMPT_SECTION_META[kind].highlightClassName,
+		label: PROMPT_SECTION_META[kind].label,
+	})),
+	{
+		className: "border border-solarized-base2",
+		label: "Prompt-Instruktionen",
+	},
+];
+
+const PromptContextOverview = ({
+	inputItems,
+	runtimeItems,
+}: {
+	inputItems: PromptPreviewVariable[];
+	runtimeItems: PromptPreviewVariable[];
+}) => {
+	const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+
+	const toggleExpanded = useCallback((key: string) => {
+		setExpandedKeys((previous) => {
+			const next = new Set(previous);
+			if (next.has(key)) {
+				next.delete(key);
+			} else {
+				next.add(key);
+			}
+			return next;
+		});
+	}, []);
+
+	const items = [...runtimeItems, ...inputItems];
+
+	return (
+		<div className="rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<p className="font-medium text-xs text-solarized-base01">Kontext & Inputs</p>
+				<div className="flex flex-wrap items-center gap-2 text-[10px] text-solarized-base01">
+					{PROMPT_HIGHLIGHT_LEGEND.map((entry) => (
+						<span className="flex items-center gap-1" key={entry.label}>
+							<span className={cn("rounded-[3px] px-1 font-mono", entry.className)}>ab</span>
+							{entry.label}
+						</span>
+					))}
+				</div>
+			</div>
+
+			{items.length === 0 ? (
+				<p className="mt-2 text-xs text-solarized-base01">
+					Noch keine dynamischen Werte – Prompt kompilieren oder Inputs ausfüllen.
+				</p>
+			) : (
+				<ul className="mt-2 flex flex-col gap-1">
+					{items.map((item) => {
+						const itemKey = `${item.source}-${item.key}`;
+						const isEmpty = item.value.trim().length === 0;
+						const isExpanded = expandedKeys.has(itemKey);
+
+						return (
+							<li key={itemKey}>
+								<div className="flex flex-wrap items-center gap-2">
+									<Badge
+										variant="outline"
+										className={cn(
+											"h-5 px-1.5 text-[10px]",
+											item.source === "runtime"
+												? "border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange"
+												: "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue",
+										)}
+									>
+										{item.source === "runtime" ? "Dynamisch" : "Input"}
+									</Badge>
+									<span className="text-xs text-solarized-base00">{item.label}</span>
+									<span className="text-[10px] text-solarized-base01">
+										{isEmpty ? "leer" : `${item.value.length.toLocaleString("de-DE")} Zeichen`}
+									</span>
+									{isEmpty ? null : (
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="h-5 px-1.5 text-[10px] text-solarized-base01 hover:text-solarized-base00"
+											onClick={() => toggleExpanded(itemKey)}
+										>
+											{isExpanded ? "Ausblenden" : "Anzeigen"}
+										</Button>
+									)}
+								</div>
+								{isExpanded ? (
+									<pre className="mt-1 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-solarized-base2 bg-solarized-base3 p-2 font-mono text-[11px] leading-[1.35] text-solarized-base00">
+										{item.value}
+									</pre>
+								) : null}
+							</li>
+						);
+					})}
+				</ul>
+			)}
 		</div>
 	);
 };
@@ -1637,8 +1701,9 @@ export const PlaygroundPanel = ({
 		const hasPromptHarnessOption = promptHarnessOptionIds.includes(promptName);
 
 		return (
-			<div className="flex h-full min-h-0 flex-col gap-2 p-2">
-				<div className="grid gap-2 lg:grid-cols-2">
+			<ScrollArea className="h-full">
+				<div className="flex flex-col gap-2 p-2">
+					<div className="grid gap-2 lg:grid-cols-2">
 					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
 						<DirtySelectorLabel isDirty={isPromptHarnessDirty} label="Basis-Prompt" />
 						<Select onValueChange={handlePromptHarnessChange} value={promptName}>
@@ -1683,6 +1748,8 @@ export const PlaygroundPanel = ({
 					</div>
 				</div>
 
+				<PromptContextOverview inputItems={inputPreviewItems} runtimeItems={runtimePromptItems} />
+
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<p className="text-xs text-solarized-base01">Prompt-Versionen für Vergleichs-Runs</p>
 					{promptComparisonMessages ? (
@@ -1712,33 +1779,30 @@ export const PlaygroundPanel = ({
 
 				<div
 					className={cn(
-						"grid min-h-0 flex-1 gap-2",
+						"grid items-start gap-2",
 						promptComparisonMessages ? "xl:grid-cols-2" : "",
 					)}
 				>
-					<div className="flex min-h-0 flex-col gap-1">
+					<div className="flex flex-col gap-1">
 						<p className="font-medium text-xs text-solarized-base01">Prompt A</p>
 						<PromptHarnessPreview
-							inputItems={inputPreviewItems}
 							messages={effectiveCompiledMessages}
 							onMessageChange={handleCompiledMessageChange}
-							runtimeItems={runtimePromptItems}
 						/>
 					</div>
 
 					{promptComparisonMessages ? (
-						<div className="flex min-h-0 flex-col gap-1">
+						<div className="flex flex-col gap-1">
 							<p className="font-medium text-xs text-solarized-base01">Prompt B</p>
 							<PromptHarnessPreview
-								inputItems={inputPreviewItems}
 								messages={promptComparisonMessages}
 								onMessageChange={handleComparisonMessageChange}
-								runtimeItems={runtimePromptItems}
 							/>
 						</div>
 					) : null}
 				</div>
-			</div>
+				</div>
+			</ScrollArea>
 		);
 	};
 
@@ -1833,12 +1897,12 @@ export const PlaygroundPanel = ({
 			<ScrollArea className="min-h-0 flex-1">
 				<div
 					className={cn(
-						"grid min-h-full auto-rows-fr gap-4",
+						"grid items-start gap-4",
 						comparisonRuns.length + (referenceResult ? 1 : 0) > 1 ? "2xl:grid-cols-2" : "",
 					)}
 				>
 					{referenceResult ? (
-						<div className="flex h-full min-h-[320px] min-w-0 flex-col gap-2 rounded-lg border border-solarized-violet/30 bg-solarized-violet/5 p-2">
+						<div className="flex min-w-0 flex-col gap-2 rounded-lg border border-solarized-violet/30 bg-solarized-violet/5 p-2">
 							<div className="shrink-0">
 								<p className="font-medium text-[10px] uppercase tracking-wide text-solarized-violet">
 									Usage Event
@@ -1847,9 +1911,7 @@ export const PlaygroundPanel = ({
 									{referenceResult.modelLabel ?? "Gespeicherter Lauf"}
 								</p>
 							</div>
-							<div className="min-h-0 flex-1">
-								<ResultDisplay result={referenceResult} />
-							</div>
+							<ResultDisplay result={referenceResult} />
 						</div>
 					) : null}
 					{comparisonRuns.map((comparisonRun) => (
@@ -2205,7 +2267,7 @@ const RunCard = ({
 	}, [runId, runTriggersRef, startRun]);
 
 	return (
-		<div className="flex h-full min-h-[320px] min-w-0 flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2">
+		<div className="flex min-w-0 flex-col gap-2 rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-2">
 			{/* Header row */}
 			<div className="flex shrink-0 items-center justify-between gap-2">
 				<div className="min-w-0 flex-1">
@@ -2248,24 +2310,22 @@ const RunCard = ({
 				</div>
 			</div>
 
-			{/* Result display - takes remaining space */}
-			<div className="min-h-0 flex-1">
-				<ResultDisplay
-					onEvaluate={handleEvaluateRun}
-					result={
-						runState
-							? {
-									error: runState.error,
-									evaluation: runState.evaluation,
-									isStreaming: runState.isStreaming,
-									metrics: runState.metrics,
-									reasoning: runState.reasoning,
-									text: runState.text,
-								}
-							: null
-					}
-				/>
-			</div>
+			{/* Result display - grows with content */}
+			<ResultDisplay
+				onEvaluate={handleEvaluateRun}
+				result={
+					runState
+						? {
+								error: runState.error,
+								evaluation: runState.evaluation,
+								isStreaming: runState.isStreaming,
+								metrics: runState.metrics,
+								reasoning: runState.reasoning,
+								text: runState.text,
+							}
+						: null
+				}
+			/>
 		</div>
 	);
 };

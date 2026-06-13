@@ -24,6 +24,8 @@ const ocrToMarkdownInput = z.object({
 	images: z.array(ocrImageInput).optional(),
 	imagesBase64: z.array(z.string().min(1)).optional(),
 	model: z.string().min(1),
+	// undefined = Standard-Prompt, null = ohne Prompt, string = eigener Prompt.
+	prompt: z.string().max(8000).nullable().optional(),
 	providerId: z.string().min(1).optional(),
 });
 
@@ -65,11 +67,13 @@ export const ocrToMarkdownHandler = authed
 
 		const resolvedModel = await resolveProviderModel(providerId, parsed.model, context.db);
 
+		const promptText =
+			parsed.prompt === null ? null : parsed.prompt?.trim() || SCRIBE_OCR_TO_MARKDOWN_PROMPT;
 		const userContent: (
 			| { type: "text"; text: string }
 			| { type: "image"; image: Uint8Array; mediaType: string }
 			| { type: "file"; data: Uint8Array; mediaType: string }
-		)[] = [{ text: SCRIBE_OCR_TO_MARKDOWN_PROMPT, type: "text" }];
+		)[] = promptText ? [{ text: promptText, type: "text" }] : [];
 
 		let fileSizeBytes = 0;
 		if (imageInputs.length > 0) {
@@ -137,7 +141,6 @@ export const ocrToMarkdownHandler = authed
 				},
 				metadata: {
 					promptName: "scribe_ocr_markdown",
-					promptSource: "local",
 					providerId,
 				},
 				model: resolvedModel.modelName,

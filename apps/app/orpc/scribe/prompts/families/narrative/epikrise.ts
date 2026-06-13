@@ -42,13 +42,14 @@ Erstellen Sie eine flüssige, zusammenhängende Epikrise in VERGANGENHEITSFORM, 
 
 <workflow>
 <steps>
-1. VERSORGUNGSKONTEXT identifizieren (stationärer Entlassbrief, ambulante Vorstellung, Notaufnahme, ICU-Verlegung oder anderer Zielkontext).
-2. LEITPROBLEM, Hauptdiagnose oder Arbeitsdiagnose als roten Faden identifizieren.
-3. Relevante Nebendiagnosen, Differenzialdiagnosen, Diagnostik, Prozeduren, Therapien und Medikationsänderungen identifizieren.
-4. Diagnosen, Diagnostik, Therapie und Entscheidungspunkt bewertend verknüpfen.
-5. Weiteres Procedere gezielt und priorisiert formulieren, sofern es zur Zielvorlage gehört.
+1. Aktuelle HAUPTDIAGNOSE IDENTIFIZIEREN als roten Faden für die Epikrise
+2. NEBENDIAGNOSEN IDENTIFIZIEREN um den stationären Verlauf umfassend darzustellen
+3. PROZEDUREN, MEDIKATIONSÄNDERUNGEN und weitere Maßnahmen identifizieren
+4. DIAGNOSEN, DIAGNOSTIK UND THERAPIE bewertend verknüpfen
+5. AMBULANTE EMPFEHLUNGEN relevant auswählen
 6. Die Vorlage abschnittsweise mit belastbaren Informationen füllen.
 7. Vor Ausgabe prüfen, dass alle Punkte unter <quality_control> eingehalten sind.
+8. Natürlichen deutschen Sprachfluss sicherstellen ohne hölzern übersetzte englische Formulierungen
 </steps>
 </workflow>
 
@@ -62,6 +63,7 @@ Erstellen Sie eine flüssige, zusammenhängende Epikrise in VERGANGENHEITSFORM, 
 - Sind Struktur, Reihenfolge und Format der Zielvorlage eingehalten?
 - Wurden Dopplungen in Epikrise, Beurteilung und Procedere vermieden?
 - Wurde die VERGANGENHEITSFORM konsequent verwendet?
+- Wurde natürliches medizinisches deutsch verwendet ohne hölzern aus dem Englischen übersetzte Formulierungen?
 </pre_submission_check>
 </quality_control>
 

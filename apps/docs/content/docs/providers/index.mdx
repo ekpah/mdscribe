@@ -21,17 +21,16 @@ MDScribe spricht nicht mit einem fest verdrahteten KI-Dienst, sondern mit **Prov
 
 1. **Verbindung anlegen**: Unter `Admin → Einstellungen → Modelle → Verbindungen` einen Provider mit Protokoll, optionaler Base URL und API-Key anlegen. Vor dem Speichern prüft MDScribe die Verbindung.
 2. **Modelle synchronisieren**: Beim Anlegen (und bei jedem manuellen Refresh) liest MDScribe die Modellliste des Providers ein. Die Datenbank ist dabei die maßgebliche Quelle — Modelle werden nicht zur Laufzeit live abgefragt.
-3. **Standard-Slots belegen**: Aus den synchronisierten Modellen wählt der Administrator globale Standardmodelle für fünf Slots:
+3. **Standard-Slots belegen**: Aus den synchronisierten Modellen wählt der Administrator globale Standardmodelle für vier Slots:
 
 | Slot | Verwendung |
 |------|-----------|
-| Text | Alle rein textbasierten Generierungen (AIScribe, AI Vorlagen) |
-| Multimodal | Direkte Verarbeitung von Audio-, PDF- und Bildeingaben |
-| Speech-to-Text | Transkription von Audioaufnahmen, wenn kein Multimodal-Modell gesetzt ist |
-| Datei/Bild | Vorverarbeitung von Dokumenten und Bildern, wenn kein Multimodal-Modell gesetzt ist |
+| Standard-Modell | Erzeugt immer die finale Antwort; Fähigkeiten (Dokumente, Audio) wählt der Administrator per Checkbox |
+| Audio-Modell | Transkribiert Audioaufnahmen, wenn die Fähigkeit Audio nicht angehakt ist |
+| Dokumenten-Modell | Extrahiert PDF- und Bildinhalte, wenn die Fähigkeit Dokumente nicht angehakt ist |
 | Evaluation | Automatische Auswertungen im Admin-Bereich |
 
-Text-Anfragen nutzen immer das Text-Standardmodell. Anfragen mit Audio oder Dateien gehen zuerst an das Multimodal-Modell; ist keines konfiguriert, werden sie über die Speech-to-Text- und Datei/Bild-Slots vorverarbeitet und anschließend vom Text-Modell abgeschlossen.
+Das Standard-Modell beantwortet jede Anfrage. Sind seine Fähigkeiten Dokumente bzw. Audio angehakt, erhält es diese Eingaben direkt als multimodalen Input. Nicht angehakte Eingaben werden zuerst vom jeweiligen Slot-Modell vorverarbeitet — wahlweise **direkt** (Transkriptions-Endpoint bzw. Dokument ohne Prompt, z. B. für dedizierte OCR-Modelle) oder **multimodal** (Prompt + Eingabe an ein Chat-Modell) — und das Ergebnis fließt als Text in die Generierung ein.
 
 ## API-Keys und Sicherheit
 

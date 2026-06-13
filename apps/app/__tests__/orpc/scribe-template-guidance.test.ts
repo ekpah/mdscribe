@@ -44,7 +44,7 @@ describe("Scribe template helpers", () => {
 
 	test("resolveSelectedTemplateContext parses selected template reference", () => {
 		const selectedTemplate = resolveSelectedTemplateContext(
-			"## Eigene Vorlage\n\nTitel: Eigene Vorlage\n\n## Abschnitt\nInhalt\n\nBeispiele:\n\nBeispiel A\n\nBeispiel B",
+			"## Eigene Vorlage\n\nTitel: Eigene Vorlage\n\n## Abschnitt\nInhalt\n\n## Beispiele\n\n### Beispiel 1\n\nBeispiel A\n\n### Beispiel 2\n\nBeispiel B",
 		);
 		const selectedTemplateContext = buildTemplateFallbackContext(selectedTemplate);
 
@@ -82,5 +82,26 @@ describe("Scribe template helpers", () => {
 		expect(parsed.content).not.toContain("## Ausgewaehlte Vorlage (Referenz)");
 		expect(parsed.content).not.toContain("## Beispiele");
 		expect(parsed.content).not.toContain("Beispiele:");
+	});
+
+	test("multi-paragraph examples survive the reference round-trip", () => {
+		const examples = [
+			"# Epikrise\n\nDer Patient stellte sich notfallmäßig vor.\n\nBei Aufnahme zeigte sich ein erhöhtes CRP.\n\n# Procedere\n\n- Laborkontrolle beim Hausarzt\n- Stationäre Wiederaufnahme",
+			"# Epikrise\n\nZweiter Fall mit eigenem Verlauf.\n\nEntlassung in stabilem Zustand.",
+		];
+		const reference = buildSelectedTemplateReference({
+			content: "## Abschnitt\nInhalt",
+			examples,
+			title: "Epikrise Vorlage",
+		});
+
+		const parsed = parseSelectedTemplateReference(reference);
+		expect(parsed.examples).toEqual(examples);
+
+		const templateContext = buildTemplateFallbackContext(
+			resolveSelectedTemplateContext(reference),
+		);
+		const exampleCount = (templateContext ?? "").split("<example>").length - 1;
+		expect(exampleCount).toBe(2);
 	});
 });

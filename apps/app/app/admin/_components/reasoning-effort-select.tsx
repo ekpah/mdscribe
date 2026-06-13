@@ -58,15 +58,16 @@ export const ReasoningEffortSelect = ({
 								onValueChange(option.value);
 							}}
 							className={cn(
-								"h-auto min-w-0 flex-col gap-0.5 rounded-none border-solarized-base2 border-l px-2 py-2 text-xs first:border-l-0 hover:bg-primary/10 hover:text-primary",
+								"h-auto w-full min-w-0 flex-col gap-0.5 rounded-none border-solarized-base2 border-l px-1.5 py-2 text-xs hover:bg-primary/10 hover:text-primary",
+								"[&:nth-child(3n+1)]:border-l-0 [&:nth-child(n+4)]:border-t sm:[&:nth-child(4)]:border-l sm:[&:nth-child(n+4)]:border-t-0",
 								isSelected &&
 									"border-primary/40 bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary",
 							)}
 						>
-							<span>{option.label}</span>
+							<span className="w-full truncate">{option.label}</span>
 							<span
 								className={cn(
-									"font-normal text-[10px] text-solarized-base01",
+									"w-full truncate font-normal text-[10px] text-solarized-base01",
 									isSelected && "text-primary/80",
 								)}
 							>

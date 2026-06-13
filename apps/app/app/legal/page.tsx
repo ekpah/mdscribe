@@ -12,7 +12,7 @@ export default function LegalPage() {
 	return (
 		<div className="h-full w-full space-y-8">
 			{/* Prominent Medical Disclaimer */}
-			<div className="rounded-lg border-2 border-solarized-red bg-solarized-base3 p-6 dark:border-solarized-orange dark:bg-solarized-base02">
+			<div className="rounded-lg border-2 border-solarized-red bg-solarized-base3 p-6 dark:border-solarized-orange">
 				<div className="flex items-start space-x-3">
 					<div className="flex-shrink-0">
 						<AlertTriangle className="h-6 w-6 text-solarized-red dark:text-solarized-orange" />
@@ -21,7 +21,7 @@ export default function LegalPage() {
 						<h3 className="font-semibold text-lg text-solarized-red dark:text-solarized-orange">
 							Wichtiger Hinweis
 						</h3>
-						<p className="text-sm text-solarized-base01 dark:text-solarized-base1">
+						<p className="text-sm text-solarized-base01">
 							<strong className="text-solarized-red dark:text-solarized-orange">
 								mdscribe.de stellt KEINE medizinische Beratung dar.
 							</strong>{" "}
@@ -91,11 +91,11 @@ export default function LegalPage() {
 							</p>
 						</div>
 
-						<div className="rounded-lg border border-solarized-base1 bg-solarized-base3 p-4 text-sm text-solarized-base01 dark:border-solarized-base01 dark:bg-solarized-base02 dark:text-solarized-base1">
+						<div className="rounded-lg border border-solarized-base1 bg-solarized-base3 p-4 text-sm text-solarized-base01">
 							<div className="flex items-start gap-3">
 								<Info className="mt-0.5 h-5 w-5 text-solarized-blue" />
 								<div className="space-y-2">
-									<p className="font-medium text-solarized-base01 dark:text-solarized-base1">
+									<p className="font-medium text-solarized-base01">
 										Hinweis zu sensiblen Gesundheitsdaten (OSS)
 									</p>
 									<ul className="list-disc space-y-1 pl-5">
@@ -282,7 +282,7 @@ export default function LegalPage() {
 										KI-Anbieter weiterleitet. Die Eingabedaten werden zur
 										Generierung von Dokumentationsinhalten verarbeitet.
 									</p>
-									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3 dark:border-solarized-yellow dark:bg-solarized-base01">
+									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3">
 										<div className="flex items-start space-x-2">
 											<div className="flex-shrink-0">
 												<AlertTriangle className="h-4 w-4 text-solarized-yellow" />
@@ -291,7 +291,7 @@ export default function LegalPage() {
 												<p className="font-medium text-sm text-solarized-yellow">
 													Wichtiger Hinweis zu externen KI-Anbietern:
 												</p>
-												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
+												<p className="text-solarized-base01 text-xs">
 													Eingabedaten werden an externe KI-Anbieter übertragen.
 													Geben Sie niemals personenbezogene Gesundheitsdaten
 													oder patientenidentifizierbare Informationen ein.
@@ -314,7 +314,7 @@ export default function LegalPage() {
 											Weitere LLM-Anbieter je nach Verfügbarkeit und Qualität
 										</li>
 									</ul>
-									<div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-3 dark:border-solarized-cyan dark:bg-solarized-base01">
+									<div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-3 dark:border-solarized-cyan">
 										<div className="flex items-start space-x-2">
 											<div className="flex-shrink-0">
 												<Shield className="h-4 w-4 text-solarized-blue dark:text-solarized-cyan" />
@@ -323,7 +323,7 @@ export default function LegalPage() {
 												<p className="font-medium text-sm text-solarized-blue dark:text-solarized-cyan">
 													Zero Data Retention (ZDR) für Plus-Abonnenten:
 												</p>
-												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
+												<p className="text-solarized-base01 text-xs">
 													Anfragen von Plus-Abonnenten werden ausschließlich an
 													KI-Anbieter geroutet, die keine Datenspeicherung (Zero
 													Data Retention) vornehmen. Damit wird sichergestellt,
@@ -499,7 +499,7 @@ export default function LegalPage() {
 									<h4 className="font-medium">
 										2. Art und Zweck der Plattform
 									</h4>
-									<div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-4 dark:border-solarized-cyan dark:bg-solarized-base01">
+									<div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-4 dark:border-solarized-cyan">
 										<div className="flex items-start space-x-3">
 											<div className="flex-shrink-0">
 												<Info className="h-5 w-5 text-solarized-blue dark:text-solarized-cyan" />
@@ -508,7 +508,7 @@ export default function LegalPage() {
 												<p className="font-semibold text-solarized-blue dark:text-solarized-cyan">
 													Was ist mdscribe.de?
 												</p>
-												<p className="text-sm text-solarized-base01 dark:text-solarized-base1">
+												<p className="text-sm text-solarized-base01">
 													mdscribe.de ist eine reine{" "}
 													<strong className="text-solarized-blue dark:text-solarized-cyan">
 														Dokumentationshilfe
@@ -535,7 +535,7 @@ export default function LegalPage() {
 										<li>Verwaltung und Organisation eigener Textvorlagen</li>
 										<li>Zeitsparende Workflows für Routinedokumentation</li>
 									</ul>
-									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3 dark:border-solarized-yellow dark:bg-solarized-base01">
+									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3">
 										<div className="flex items-start space-x-2">
 											<div className="flex-shrink-0">
 												<Info className="h-4 w-4 text-solarized-yellow" />
@@ -544,7 +544,7 @@ export default function LegalPage() {
 												<p className="font-medium text-sm text-solarized-yellow">
 													Externe KI-Dienste:
 												</p>
-												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
+												<p className="text-solarized-base01 text-xs">
 													Die KI-Funktionen werden über OpenRouter als
 													API-Router an externe Anbieter (z.B. Anthropic,
 													Google) weitergeleitet. Eingabedaten werden gemäß den
@@ -662,7 +662,7 @@ export default function LegalPage() {
 										vertraulich zu behandeln und dürfen nicht an Dritte
 										weitergegeben werden.
 									</p>
-									<div className="rounded-lg border border-solarized-red bg-solarized-base2 p-3 dark:border-solarized-orange dark:bg-solarized-base01">
+									<div className="rounded-lg border border-solarized-red bg-solarized-base2 p-3 dark:border-solarized-orange">
 										<div className="flex items-start space-x-2">
 											<div className="flex-shrink-0">
 												<AlertTriangle className="h-4 w-4 text-solarized-red dark:text-solarized-orange" />
@@ -671,7 +671,7 @@ export default function LegalPage() {
 												<p className="font-medium text-sm text-solarized-red dark:text-solarized-orange">
 													Besonders wichtig bei KI-Funktionen:
 												</p>
-												<p className="text-solarized-base01 text-xs dark:text-solarized-base1">
+												<p className="text-solarized-base01 text-xs">
 													Da Eingabedaten an externe KI-Anbieter übertragen
 													werden, dürfen NIEMALS personenbezogene
 													Gesundheitsdaten, Patientennamen oder andere
@@ -721,7 +721,7 @@ export default function LegalPage() {
 									<h4 className="font-medium">
 										8. Haftung und medizinischer Disclaimer
 									</h4>
-									<div className="rounded-lg border border-solarized-red bg-solarized-base2 p-4 dark:border-solarized-orange dark:bg-solarized-base01">
+									<div className="rounded-lg border border-solarized-red bg-solarized-base2 p-4 dark:border-solarized-orange">
 										<div className="flex items-start space-x-3">
 											<div className="flex-shrink-0">
 												<Shield className="h-5 w-5 text-solarized-red dark:text-solarized-orange" />
@@ -730,7 +730,7 @@ export default function LegalPage() {
 												<p className="font-semibold text-solarized-red dark:text-solarized-orange">
 													WICHTIGER MEDIZINISCHER DISCLAIMER:
 												</p>
-												<p className="text-sm text-solarized-base01 dark:text-solarized-base1">
+												<p className="text-sm text-solarized-base01">
 													mdscribe.de ist KEIN Medizinprodukt und bietet KEINE
 													medizinische Beratung, Diagnose oder
 													Behandlungsempfehlungen. Die Plattform dient

@@ -1,4 +1,8 @@
+import { generateText } from "ai";
+
 import { USER_MESSAGES } from "@/lib/user-messages";
+import { SCRIBE_AUDIO_TRANSCRIPTION_PROMPT } from "@/orpc/scribe/prompts/core/audio-transcription";
+import { buildProviderOptions } from "@/orpc/scribe/providers";
 import type { ResolvedModel } from "@/orpc/scribe/providers";
 import type { AudioFile } from "@/orpc/scribe/types";
 
@@ -170,6 +174,53 @@ const transcribeAudioFiles = async (
 	);
 
 	return transcripts.filter(Boolean);
+};
+
+/**
+ * Transcribes audio with a prompted multimodal chat model.
+ *
+ * Used when the speech-to-text slot is configured in multimodal mode: the
+ * recordings are attached natively to a single chat request together with a
+ * transcription prompt, and the response text is used as the transcript. This
+ * allows on-prem or general multimodal models without a dedicated STT endpoint
+ * to act as transcription models, including domain steering via the prompt.
+ */
+export const transcribeAudioFilesWithPrompt = async ({
+	audioFiles,
+	prompt,
+	resolvedModel,
+	userId,
+	zdr,
+}: {
+	audioFiles: AudioFile[];
+	prompt?: string;
+	resolvedModel: ResolvedModel;
+	userId?: string;
+	zdr?: boolean;
+}): Promise<string[]> => {
+	const promptText = prompt?.trim() || SCRIBE_AUDIO_TRANSCRIPTION_PROMPT;
+	const contentParts = audioFiles.map((audioFile, index) =>
+		selectNativeAudioPart(audioFile, resolvedModel, index),
+	);
+
+	const result = await generateText({
+		messages: [
+			{
+				content: [{ text: promptText, type: "text" }, ...contentParts],
+				role: "user",
+			},
+		],
+		model: resolvedModel.model,
+		providerOptions: buildProviderOptions({
+			model: resolvedModel,
+			userId,
+			zdr,
+		}),
+		temperature: 0,
+	});
+
+	const transcript = result.text.trim();
+	return transcript ? [transcript] : [];
 };
 
 /**
