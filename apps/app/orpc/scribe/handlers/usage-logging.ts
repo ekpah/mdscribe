@@ -52,7 +52,6 @@ export const scheduleScribeUsageLogging = (input: {
 	reasoningEffort?: string;
 	timing?: UsageTiming;
 	usageMetadata?: Partial<UsageMetadata>;
-	thinkingEnabled: boolean;
 	userId: string;
 }): void => {
 	scheduleDeferredTask(
@@ -75,11 +74,7 @@ export const scheduleScribeUsageLogging = (input: {
 						},
 						promptLabel: input.promptLabel,
 						promptName: input.promptName,
-						promptSource: "local",
-						reasoningEffort: input.reasoningEffort,
-						streamingMode: true,
 						...input.usageMetadata,
-						thinkingEnabled: input.thinkingEnabled,
 						zdrEnabled: input.activeSubscription,
 					} as UsageMetadata,
 					model: input.modelName,

@@ -27,6 +27,7 @@ export interface InputContextTextContext {
 	anamnese?: string;
 	befunde?: string;
 	diagnoseblock?: string;
+	epikrise?: string;
 	notes?: string;
 }
 
@@ -46,6 +47,7 @@ export interface UploadedContextFile {
 export type InputContextPanel = "audio" | "files" | "text";
 
 export interface InputContextController {
+	addContextFiles: (files: File[]) => boolean;
 	audioRecordings: AudioRecording[];
 	contextFiles: UploadedContextFile[];
 	effectiveMaxRecordings: number;

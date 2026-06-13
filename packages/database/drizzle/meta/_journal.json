@@ -127,6 +127,20 @@
 			"when": 1780279200000,
 			"tag": "0017_ai_scribe_form_visibility",
 			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1781010000000,
+			"tag": "0018_context_transfers",
+			"breakpoints": true
+		},
+		{
+			"idx": 19,
+			"version": "7",
+			"when": 1781222400000,
+			"tag": "0019_ai_defaults_standard_capabilities",
+			"breakpoints": true
 		}
 	]
 }

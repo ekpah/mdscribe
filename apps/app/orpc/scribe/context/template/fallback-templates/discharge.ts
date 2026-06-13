@@ -1,10 +1,11 @@
+// Inpatient discharge setting for the shared epikrise prompt harness.
 const NARRATIVE_OUTPUT_STRUCTURE = `# Epikrise
 
-(( Die Patientin ..., initialer Absatz als Beginn mit Aufnahmegrund und Leitsymptomatik))
+(( Die Patientin ..., initialer Absatz als Beginn der stationären Aufnahme mit Aufnahmegrund und Leitsymptomatik; HAUPTDIAGNOSE als roter Faden ))
 
-(( HAUPTTEIL: Diagnostik, Behandlung, Verlauf mit medizinischer Bewertung ))
+(( HAUPTTEIL: stationärer Verlauf mit Diagnostik, Therapie, Prozeduren, Verlegungen und Komplikationen in chronologischer oder sachlicher Ordnung, medizinisch bewertend verknüpft; ZEITRAUM des Aufenthalts implizit nachvollziehbar ))
 
-(( ENDE: Zustand bei Entlassung + Übergang ambulante Versorgung ))
+(( ENDE: Zustand bei Entlassung + Übergang in die ambulante Versorgung ))
 
 # Procedere
 

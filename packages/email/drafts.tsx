@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { AiTextsAnnouncementTemplate } from "./templates/ai-texts-announcement";
 import { EmailChangeTemplate } from "./templates/change-email";
 import { ColdOutreachTemplate } from "./templates/cold-outreach";
+import { ContextTransferAnnouncementTemplate } from "./templates/context-transfer-announcement";
 import { DocumentsAnnouncementTemplate } from "./templates/documents-announcement";
 import { OTPLoginTemplate } from "./templates/otp-login";
 import { ResetPasswordTemplate } from "./templates/reset-password";
@@ -45,6 +46,23 @@ const getRecipientName = (
 };
 
 const emailDrafts: readonly EmailDraftDefinition[] = [
+	{
+		category: "marketing",
+		description: "Marketingmail zur Weiterverwenden-Funktion für sichere Kontextübergabe.",
+		id: "context-transfer-announcement",
+		previewProps: {
+			actionUrl: "https://mdscribe.de/aiscribe",
+			buttonText: "AIScribe öffnen",
+		},
+		render: () => (
+			<ContextTransferAnnouncementTemplate
+				actionUrl="https://mdscribe.de/aiscribe"
+				buttonText="AIScribe öffnen"
+			/>
+		),
+		subject: "Neu: Kontext in MDScribe weiterverwenden",
+		title: "AIScribe: Weiterverwenden",
+	},
 	{
 		category: "marketing",
 		description: "Marketingmail zu AI Textbausteinen als anpassbare AIScribe-Vorlagen.",

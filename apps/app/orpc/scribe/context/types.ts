@@ -4,6 +4,7 @@ export interface PatientContextData {
 	diagnoseblock: string;
 	anamnese: string;
 	befunde: string;
+	epikrise: string;
 	notes: string;
 }
 

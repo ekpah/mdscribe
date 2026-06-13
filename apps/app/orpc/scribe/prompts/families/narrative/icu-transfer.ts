@@ -1,1 +1,0 @@
-export { DISCHARGE_SYSTEM_PROMPT as ICU_TRANSFER_SYSTEM_PROMPT } from "./discharge";

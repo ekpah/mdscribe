@@ -142,7 +142,7 @@ export default function PricingSkeleton() {
 						<ul className="mb-6 space-y-3">
 							<li className="flex items-center">
 								<Code className="mr-3 h-5 w-5 text-primary" />
-								<span className="font-medium">Open Source (AGPL-3.0)</span>
+								<span className="font-medium">Fair Source (FSL-1.1)</span>
 							</li>
 							<li className="flex items-center">
 								<Check className="mr-3 h-5 w-5 text-primary" />

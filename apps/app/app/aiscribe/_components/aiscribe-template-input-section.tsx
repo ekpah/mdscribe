@@ -78,13 +78,16 @@ export const AiscribeTemplateInputSection = ({
 		return handlers;
 	}, [additionalInputs, onAdditionalInputChange]);
 
-	const handlePromptSubmit = useCallback((_: unknown, event: FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		if (!onSubmit) {
-			return;
-		}
-		void onSubmit();
-	}, [onSubmit]);
+	const handlePromptSubmit = useCallback(
+		(_: unknown, event: FormEvent<HTMLFormElement>) => {
+			event.preventDefault();
+			if (!onSubmit) {
+				return;
+			}
+			void onSubmit();
+		},
+		[onSubmit],
+	);
 	const hasAdditionalInputValue = useMemo(
 		() =>
 			(additionalInputs ?? []).some((field) =>
@@ -161,7 +164,16 @@ export const AiscribeTemplateInputSection = ({
 					controller={resolvedInputContextController}
 					defaultPanel="text"
 					disabled={isLoading}
+					onFocusShortcut={
+						textareaRef
+							? () => {
+									textareaRef.current?.focus();
+								}
+							: undefined
+					}
+					onSubmitShortcut={onSubmit}
 					showSubmit={false}
+					submitShortcutDisabled={isLoading || submitDisabled}
 					textPanelContent={
 						<div className="space-y-4">
 							{additionalInputFields}
@@ -184,7 +196,9 @@ export const AiscribeTemplateInputSection = ({
 						</div>
 					}
 					textPanelDescription="Gib Freitext ein oder wechsle zu Audio- oder Datei-Kontext."
-					textPanelHasValue={inputValue.trim().length > 0 || hasAdditionalInputValue}
+					textPanelHasValue={
+						inputValue.trim().length > 0 || hasAdditionalInputValue
+					}
 					textPanelTitle="Text"
 					trailingAction={
 						showSubmit ? (

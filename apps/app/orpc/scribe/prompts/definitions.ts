@@ -2,9 +2,7 @@ import type { DocumentType, DocumentTypeConfig } from "@/orpc/scribe/types";
 import { withSharedUncertaintyHandling } from "./core/clinical-system-role";
 import { ANAMNESE_SYSTEM_PROMPT } from "./families/anamnese";
 import { DIAGNOSIS_SYSTEM_PROMPT } from "./families/diagnosis";
-import { DISCHARGE_SYSTEM_PROMPT } from "./families/narrative/discharge";
-import { ICU_TRANSFER_SYSTEM_PROMPT } from "./families/narrative/icu-transfer";
-import { OUTPATIENT_SYSTEM_PROMPT } from "./families/narrative/outpatient";
+import { EPIKRISE_SYSTEM_PROMPT } from "./families/narrative/epikrise";
 import { PROCEDURES_SYSTEM_PROMPT } from "./families/procedures";
 import { BEFUNDE_SYSTEM_PROMPT } from "./families/reports/befunde";
 
@@ -21,20 +19,27 @@ export const documentPromptDefinitions = {
 		promptName: "Diagnoseblock",
 		systemPrompt: withSharedUncertaintyHandling(DIAGNOSIS_SYSTEM_PROMPT),
 	},
+	// The narrative settings share one epikrise prompt; the inpatient,
+	// outpatient, and ICU framing lives in their setting templates
+	// (context/template/fallback-templates) or a user-selected template.
 	discharge: {
 		promptName: "Entlassbrief",
-		systemPrompt: withSharedUncertaintyHandling(DISCHARGE_SYSTEM_PROMPT),
+		systemPrompt: withSharedUncertaintyHandling(EPIKRISE_SYSTEM_PROMPT),
+	},
+	epikrise: {
+		promptName: "Epikrise",
+		systemPrompt: withSharedUncertaintyHandling(EPIKRISE_SYSTEM_PROMPT),
 	},
 	"icu-transfer": {
 		promptName: "Verlegungsbrief Intensivstation",
-		systemPrompt: withSharedUncertaintyHandling(ICU_TRANSFER_SYSTEM_PROMPT),
+		systemPrompt: withSharedUncertaintyHandling(EPIKRISE_SYSTEM_PROMPT),
 	},
 	outpatient: {
 		promptName: "Ambulanzkontakt",
-		systemPrompt: withSharedUncertaintyHandling(OUTPATIENT_SYSTEM_PROMPT),
+		systemPrompt: withSharedUncertaintyHandling(EPIKRISE_SYSTEM_PROMPT),
 	},
 	procedures: {
-		promptName: "Befund",
+		promptName: "Eingriffsdokumentation",
 		systemPrompt: withSharedUncertaintyHandling(PROCEDURES_SYSTEM_PROMPT),
 	},
 } satisfies Record<DocumentType, DocumentTypeConfig>;

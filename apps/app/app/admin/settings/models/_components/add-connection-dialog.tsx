@@ -20,7 +20,7 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Plus } from "lucide-react";
+import { CheckCircle2, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
@@ -38,7 +38,13 @@ const PROTOCOLS = [
 	{ label: "OpenRouter", value: "openrouter" },
 	{ label: "OpenAI", value: "openai" },
 	{ label: "Anthropic", value: "anthropic" },
+	{ label: "Tinfoil (vertrauliche Inferenz)", value: "tinfoil" },
 ] as const;
+
+const BASE_URL_PLACEHOLDERS: Record<string, string> = {
+	"openai-compatible": "http://localhost:11434/v1",
+	tinfoil: "https://inference.tinfoil.sh/v1",
+};
 
 const normalizeMaybeBaseUrl = (value: string): string | undefined => {
 	const trimmed = value.trim();
@@ -71,7 +77,8 @@ export const AddProviderDialog = () => {
 				| "openai-compatible"
 				| "openrouter"
 				| "openai"
-				| "anthropic",
+				| "anthropic"
+				| "tinfoil",
 		};
 	}, [name, protocol, baseUrl, apiKey]);
 
@@ -233,6 +240,18 @@ export const AddProviderDialog = () => {
 						</Select>
 					</div>
 
+					{protocol === "tinfoil" && (
+						<div className="flex items-start gap-2 rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2 text-solarized-green text-xs">
+							<ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+							<span>
+								Tinfoil führt Modelle in verifizierbaren Secure Enclaves aus.
+								Anfragen werden Ende-zu-Ende bis in die Enclave verschlüsselt;
+								die Hardware-Attestierung wird bei jeder Verbindung geprüft.
+								Auch der Betreiber kann Eingaben nicht mitlesen.
+							</span>
+						</div>
+					)}
+
 					<div className="space-y-2">
 						<Label htmlFor="provider-url">
 							Base URL
@@ -243,9 +262,7 @@ export const AddProviderDialog = () => {
 							<Input
 							id="provider-url"
 							placeholder={
-								protocol === "openai-compatible"
-									? "http://localhost:11434/v1"
-									: "https://api.openai.com/v1"
+								BASE_URL_PLACEHOLDERS[protocol] ?? "https://api.openai.com/v1"
 							}
 								value={baseUrl}
 								onChange={handleBaseUrlChange}

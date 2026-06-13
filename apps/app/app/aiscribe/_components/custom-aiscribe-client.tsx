@@ -9,9 +9,11 @@ import { AiscribeTemplate } from "./aiscribe-template";
 type CustomAiscribeClientProps =
 	| {
 			form: PublicAiTextForm;
+			isAdmin?: boolean;
 			mode: "custom";
 	  }
 	| {
+			isAdmin?: boolean;
 			mode: "built-in";
 			overrideForm?: PublicAiTextForm | null;
 			template: BuiltInAiscribeTemplateKey;
@@ -26,5 +28,5 @@ export const CustomAiscribeClient = (props: CustomAiscribeClientProps) => {
 					template: props.template,
 				});
 
-	return <AiscribeTemplate config={config} />;
+	return <AiscribeTemplate config={config} isAdmin={Boolean(props.isAdmin)} />;
 };

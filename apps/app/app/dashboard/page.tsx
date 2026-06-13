@@ -39,20 +39,9 @@ import { orpc } from "@/lib/orpc";
 import { PRODUCT_PLANS } from "@/lib/product-plans";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
-import type { DocumentType } from "@/orpc/scribe/types";
+import { getPromptHarnessLabel, resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 
 import { LiveTime } from "./_components/live-time";
-
-/** Readable German labels for AI scribe document types */
-const documentTypeLabels: Record<DocumentType, string> = {
-	anamnese: "ER Anamnese",
-	befunde: "ER Befunde",
-	diagnosis: "Diagnoseblock Update",
-	discharge: "Entlassungsbrief",
-	"icu-transfer": "ICU Transfer",
-	outpatient: "Ambulante Vorstellung",
-	procedures: "Prozeduren",
-};
 
 /** Readable German labels for usage event names */
 const eventNameLabels: Record<string, string> = {
@@ -181,13 +170,13 @@ const getRelativeTimeLabel = (timestamp: Date | string) => {
 const getActivityPresentation = (event: { metadata: unknown; name: string }) => {
 	if (event.name === "ai_scribe_generation") {
 		const metadata = event.metadata as Record<string, unknown> | null;
-		const endpoint = metadata?.endpoint as DocumentType | undefined;
+		const endpoint = metadata?.endpoint as string | undefined;
+		const documentType = resolvePromptHarnessId(endpoint);
 		return {
 			icon: Brain,
-			title:
-				endpoint && documentTypeLabels[endpoint]
-					? documentTypeLabels[endpoint]
-					: (eventNameLabels[event.name] ?? event.name),
+			title: documentType
+				? getPromptHarnessLabel(documentType)
+				: (eventNameLabels[event.name] ?? event.name),
 		};
 	}
 

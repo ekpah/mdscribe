@@ -91,15 +91,16 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			supportsReasoning: false,
 		};
 		const generationStrategy: ResolvedGenerationStrategy = {
+			audio: { mode: "native" },
+			files: { mode: "native" },
 			generation: {
 				model: resolvedModel,
 				reasoningEffort: "none",
-				slot: "multimodal",
+				slot: "text",
 			},
-			mode: "direct",
 		};
 
-		const resultMessages = await appendScribeInputAttachmentsToMessages({
+		const { messages: resultMessages } = await appendScribeInputAttachmentsToMessages({
 			audioFiles: [
 				{
 					data: Buffer.from("webm-audio").toString("base64"),
@@ -291,7 +292,6 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			.insert(aiDefaults)
 			.values({
 				defaultFileImageModelId: fileModelRecordId,
-				defaultMultimodalModelId: null,
 				defaultSpeechToTextModelId: textModelRecordId,
 				defaultTextModelId: textModelRecordId,
 				id: "global",
@@ -300,7 +300,6 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			.onConflictDoUpdate({
 				set: {
 					defaultFileImageModelId: fileModelRecordId,
-					defaultMultimodalModelId: null,
 					defaultSpeechToTextModelId: textModelRecordId,
 					defaultTextModelId: textModelRecordId,
 					updatedAt: new Date(),

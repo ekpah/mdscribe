@@ -122,6 +122,33 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 		},
 	},
 
+	epikrise: {
+		additionalFields: [
+			{
+				label: "Diagnoseblock",
+				name: "diagnoseblock",
+				placeholder: "Diagnoseblock eingeben...",
+			},
+			{
+				label: "Anamnese",
+				name: "anamnese",
+				placeholder: "Anamnese eingeben...",
+			},
+			{
+				label: "Befunde",
+				name: "befunde",
+				placeholder: "Befunde eingeben...",
+			},
+		],
+		defaultPromptName: "epikrise",
+		label: "Epikrise",
+		mainField: {
+			label: "Notizen",
+			name: "notes",
+			placeholder: "Notizen fuer die Epikrise eingeben...",
+		},
+	},
+
 	"icu-transfer": {
 		additionalFields: [
 			{

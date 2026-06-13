@@ -2,7 +2,6 @@
 
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { cn } from "@repo/design-system/lib/utils";
-import type { KeyboardEvent } from "react";
 import type {
 	InputContextTextContext,
 	InputContextTextContextKey,
@@ -25,7 +24,6 @@ interface TextInputProps {
 	labelClassName?: string;
 	maxCharacters?: number;
 	onMaxCharactersExceeded?: (maxCharacters: number) => void;
-	onSubmitShortcut?: () => void;
 	onValueChange: (value: InputContextTextContext) => void;
 	showCharacterCount?: boolean;
 	stretchFields?: boolean;
@@ -53,10 +51,16 @@ const TEXT_CONTEXT_FIELDS: TextInputField[] = [
 		placeholder: "Befunde eingeben...",
 	},
 	{
-		description: "Epikrise, Verlauf, Therapie oder sonstige Hinweise.",
+		description: "Bewertende Zusammenfassung, Verlauf und Empfehlungen.",
+		key: "epikrise",
+		label: "Epikrise",
+		placeholder: "Epikrise eingeben...",
+	},
+	{
+		description: "Weitere Hinweise oder bewusst ergänzte Informationen.",
 		key: "notes",
-		label: "Epikrise / Notizen",
-		placeholder: "Epikrise oder weitere Notizen eingeben...",
+		label: "Notizen",
+		placeholder: "Weitere Notizen eingeben...",
 	},
 ];
 
@@ -105,7 +109,6 @@ export const TextInput = ({
 	labelClassName,
 	maxCharacters,
 	onMaxCharactersExceeded,
-	onSubmitShortcut,
 	onValueChange,
 	showCharacterCount = true,
 	stretchFields = false,
@@ -113,19 +116,6 @@ export const TextInput = ({
 	value,
 }: TextInputProps) => {
 	const characterCount = getTextContextCharacterCount(value, fields);
-	const handleSubmitShortcutKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-		if (
-			!onSubmitShortcut ||
-			!(event.metaKey || event.ctrlKey) ||
-			event.key !== "Enter"
-		) {
-			return;
-		}
-
-		event.preventDefault();
-		event.stopPropagation();
-		onSubmitShortcut();
-	};
 
 	return (
 		<div
@@ -170,7 +160,6 @@ export const TextInput = ({
 							}
 							onValueChange(nextValue);
 						}}
-						onKeyDown={handleSubmitShortcutKeyDown}
 						placeholder={field.placeholder}
 						value={value[field.key] ?? ""}
 					/>

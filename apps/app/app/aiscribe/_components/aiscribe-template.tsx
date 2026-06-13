@@ -12,23 +12,38 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/design-system/components/ui/tabs";
 import { ExternalLink, FileText, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
+import {
+	createAudioRecordingsFromTransferPayload,
+	createUploadedFilesFromTransferPayload,
+} from "@/app/_components/context-transfer/hydrate";
 import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
-import type { AudioFile, DocumentType, FillInputsContextFile } from "@/orpc/scribe/types";
+import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
+import type {
+	AudioFile,
+	DocumentType,
+	FillInputsContextFile,
+} from "@/orpc/scribe/types";
 
 import { AiscribeTemplateInputSection } from "./aiscribe-template-input-section";
+import { ContextTransferCard } from "./context-transfer-card";
 import { MemoizedCopySection } from "./memoized-copy-section";
 
 export interface AdditionalInputField {
@@ -55,6 +70,7 @@ interface AiscribeTemplateBaseConfig {
 	description: string;
 	icon: LucideIcon;
 	contextMetadata: AiscribeContextMetadata;
+	promptHarness?: string;
 
 	// Tab configuration
 	inputTabTitle: string;
@@ -81,10 +97,14 @@ interface AiscribeTemplateBaseConfig {
 		inputData: string,
 		additionalInputs: Record<string, string>,
 	) => Record<string, unknown>;
-	customApiCall?: (inputData: string, additionalInputs: Record<string, string>) => Promise<unknown>;
+	customApiCall?: (
+		inputData: string,
+		additionalInputs: Record<string, string>,
+	) => Promise<unknown>;
 }
 
-interface DocumentTypeAiscribeTemplateConfig extends AiscribeTemplateBaseConfig {
+interface DocumentTypeAiscribeTemplateConfig
+	extends AiscribeTemplateBaseConfig {
 	documentType: DocumentType;
 	formId?: never;
 }
@@ -100,19 +120,31 @@ export type AiscribeTemplateConfig =
 
 interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
+	isAdmin?: boolean;
 }
 
-const ContextMetadataRow = ({ children, label }: { children: ReactNode; label: string }) => (
+const ContextMetadataRow = ({
+	children,
+	label,
+}: {
+	children: ReactNode;
+	label: string;
+}) => (
 	<div className="grid gap-1">
 		<div className="font-medium text-muted-foreground text-xs">{label}</div>
 		<div className="text-sm text-foreground">{children}</div>
 	</div>
 );
 
-export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
+export const AiscribeTemplate = ({
+	config,
+	isAdmin = false,
+}: AiscribeTemplateProps) => {
 	const [activeTab, setActiveTab] = useState("input");
 	const [inputData, setInputData] = useState("");
-	const [additionalInputData, setAdditionalInputData] = useState<Record<string, string>>({});
+	const [additionalInputData, setAdditionalInputData] = useState<
+		Record<string, string>
+	>({});
 	const values = useMemo<Record<string, unknown>>(() => ({}), []);
 	const inputContextController = useInputContextState();
 	// Use ref for audio files to avoid race condition between setState and sendMessage
@@ -124,7 +156,8 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	// Initialize text snippets hook
 	useTextSnippets();
 
-	const isCustomFormConfig = "formId" in config && typeof config.formId === "string";
+	const isCustomFormConfig =
+		"formId" in config && typeof config.formId === "string";
 	const chatId = isCustomFormConfig
 		? `scribe-form-${config.formId}`
 		: `scribe-${config.documentType}`;
@@ -179,7 +212,9 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 
 	// Extract completion text from the last assistant message
 	const completion = useMemo(() => {
-		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
+		const lastAssistantMessage = messages.findLast(
+			(m) => m.role === "assistant",
+		);
 		if (!lastAssistantMessage) {
 			return "";
 		}
@@ -196,12 +231,15 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 	const isLoading = status === "streaming" || status === "submitted";
 
 	// PERF: Use useCallback with functional setState for stable callback reference
-	const handleAdditionalInputChange = useCallback((name: string, value: string) => {
-		setAdditionalInputData((prev) => ({
-			...prev,
-			[name]: value,
-		}));
-	}, []);
+	const handleAdditionalInputChange = useCallback(
+		(name: string, value: string) => {
+			setAdditionalInputData((prev) => ({
+				...prev,
+				[name]: value,
+			}));
+		},
+		[],
+	);
 
 	const handleMainInputValueChange = useCallback((value: string) => {
 		setInputData(value);
@@ -252,7 +290,8 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 		// Check if any additional input field has content
 		const hasAnyAdditionalInput = config.additionalInputs?.some(
 			(field) =>
-				additionalInputData[field.name] && additionalInputData[field.name].trim().length > 0,
+				additionalInputData[field.name] &&
+				additionalInputData[field.name].trim().length > 0,
 		);
 
 		// At least one field must be filled (text, audio, files, or additional input)
@@ -294,13 +333,15 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 						...additionalInputData,
 					});
 
-			const inputContextPayload = await inputContextController.prepareSubmission();
+			const inputContextPayload =
+				await inputContextController.prepareSubmission();
 			// Use refs to avoid race condition - ref updates are synchronous.
 			preparedAudioFilesRef.current = inputContextPayload.audioFiles;
 			preparedContextFilesRef.current = inputContextPayload.contextFiles;
 
 			// Send message using AI SDK useChat
-			const promptText = typeof prompt === "string" ? prompt : JSON.stringify(prompt);
+			const promptText =
+				typeof prompt === "string" ? prompt : JSON.stringify(prompt);
 			await sendMessage({ text: promptText });
 		} catch (error) {
 			// Catch any unexpected errors not handled by onError callback
@@ -323,33 +364,62 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 		inputContextController,
 	]);
 
-	useHotkeys(
-		["meta+shift+1", "ctrl+shift+1"],
-		(event: KeyboardEvent) => {
-			event.preventDefault();
-			event.stopPropagation();
-			mainTextareaRef.current?.focus();
-		},
-		{
-			enableOnFormTags: ["INPUT", "TEXTAREA"],
-		},
-	);
-
-	useHotkeys(
-		["meta+enter", "ctrl+enter"],
-		(event: KeyboardEvent) => {
-			event.preventDefault();
-			event.stopPropagation();
-			if (!isLoading && !hasMissingRequiredFields && areRequiredFieldsFilled()) {
-				handleGenerate();
-			}
-		},
-		{
-			enableOnFormTags: ["INPUT", "TEXTAREA"],
-		},
-	);
-
 	const IconComponent = config.icon;
+
+	const inputContextControllerRef = useRef(inputContextController);
+	inputContextControllerRef.current = inputContextController;
+	const hasHydratedTransferRef = useRef(false);
+
+	useEffect(() => {
+		if (hasHydratedTransferRef.current) {
+			return;
+		}
+		hasHydratedTransferRef.current = true;
+
+		const hydrateTransfer = async () => {
+			try {
+				const payload = await consumeContextTransferFromFragment();
+				if (!payload) {
+					return;
+				}
+
+				// AIScribe renders its own text inputs, so only audio/files go
+				// into the controller; text lands in the visible form fields.
+				const controller = inputContextControllerRef.current;
+				controller.setContextFiles(
+					createUploadedFilesFromTransferPayload(payload),
+				);
+				controller.setAudioRecordings(
+					createAudioRecordingsFromTransferPayload(payload),
+				);
+
+				const nextAdditionalInputData: Record<string, string> = {};
+				for (const field of config.additionalInputs ?? []) {
+					const value =
+						payload.textContext[field.name as keyof typeof payload.textContext];
+					if (typeof value === "string") {
+						nextAdditionalInputData[field.name] = value;
+					}
+				}
+				setAdditionalInputData(nextAdditionalInputData);
+
+				// The main input is the harness target field behind the scenes.
+				const targetField = getPromptHarnessTargetField(
+					config.promptHarness ??
+						("documentType" in config ? config.documentType : undefined),
+				);
+				const mainValue =
+					payload.textContext[targetField] ?? payload.textContext.notes;
+				setInputData(mainValue ?? "");
+				toast.success("Kontext übernommen");
+			} catch (error) {
+				console.error("Failed to hydrate context transfer:", error);
+				toast.error("Kontext konnte nicht übernommen werden.");
+			}
+		};
+
+		void hydrateTransfer();
+	}, [config]);
 
 	return (
 		<div className="container mx-auto size-full overflow-y-auto overflow-x-hidden p-4">
@@ -361,21 +431,27 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 							<IconComponent className="h-8 w-8 text-solarized-blue" />
 						</div>
 						<div>
-							<h1 className="font-bold text-3xl text-primary">{config.title}</h1>
-							<p className="text-lg text-muted-foreground">{config.description}</p>
+							<h1 className="font-bold text-3xl text-primary">
+								{config.title}
+							</h1>
+							<p className="text-lg text-muted-foreground">
+								{config.description}
+							</p>
 						</div>
 					</div>
 				</div>
 
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-5 xl:grid-cols-6">
 					{/* Context Metadata Card */}
-					<div className="lg:col-span-2 xl:col-span-2">
+					<div className="space-y-6 lg:col-span-2 xl:col-span-2">
 						<Card className="h-fit border-solarized-blue/20 shadow-lg">
 							<CardHeader className="bg-gradient-to-r from-solarized-blue/5 to-solarized-green/5">
 								<div className="space-y-2">
 									<div className="flex items-center gap-2">
 										<div className="h-2 w-2 rounded-full bg-solarized-blue" />
-										<CardTitle className="text-base text-foreground">Kontext & Vorlage</CardTitle>
+										<CardTitle className="text-base text-foreground">
+											Kontext & Vorlage
+										</CardTitle>
 									</div>
 								</div>
 							</CardHeader>
@@ -396,7 +472,9 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 													<ExternalLink className="h-3.5 w-3.5 shrink-0" />
 												</Link>
 											) : (
-												<span className="break-words">{config.contextMetadata.template.title}</span>
+												<span className="break-words">
+													{config.contextMetadata.template.title}
+												</span>
 											)}
 										</ContextMetadataRow>
 										<ContextMetadataRow label="Prompt">
@@ -410,26 +488,40 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 
 								<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
 									<p className="text-solarized-green leading-relaxed">
-										Diese Angaben zeigen, welche Vorlage und welcher Prompt für die aktuelle
-										Generierung verwendet werden.
+										Diese Angaben zeigen, welche Vorlage und welcher Prompt für
+										die aktuelle Generierung verwendet werden.
 									</p>
 								</div>
 
 								<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-xs">
 									<p className="text-solarized-red leading-relaxed">
-										⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie keine privaten Patientendaten
-										ein! Diese Informationen werden an eine KI gesendet. Verwenden Sie nur
-										anonymisierte Daten.
+										⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie keine
+										privaten Patientendaten ein! Diese Informationen werden an
+										eine KI gesendet. Verwenden Sie nur anonymisierte Daten.
 									</p>
 								</div>
 							</CardContent>
 						</Card>
+						<ContextTransferCard
+							activeTab={activeTab}
+							additionalInputData={additionalInputData}
+							additionalInputs={config.additionalInputs}
+							completion={completion}
+							config={config}
+							inputContextController={inputContextController}
+							inputValue={inputData}
+							isAdmin={isAdmin}
+						/>
 					</div>
 
 					{/* Main Content with Tabs */}
 					<div className="lg:col-span-3 xl:col-span-4">
 						<Card className="border-solarized-green/20 shadow-lg">
-							<Tabs className="w-full" onValueChange={setActiveTab} value={activeTab}>
+							<Tabs
+								className="w-full"
+								onValueChange={setActiveTab}
+								value={activeTab}
+							>
 								<CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
 									<TabsList className="grid grid-cols-2 bg-background/50 backdrop-blur-sm">
 										<TabsTrigger
@@ -460,7 +552,9 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 											onAdditionalInputChange={handleAdditionalInputChange}
 											onInputValueChange={handleMainInputValueChange}
 											onSubmit={handleGenerate}
-											submitDisabled={hasMissingRequiredFields || !areRequiredFieldsFilled()}
+											submitDisabled={
+												hasMissingRequiredFields || !areRequiredFieldsFilled()
+											}
 											textareaId="input-field"
 											textareaRef={mainTextareaRef}
 										/>
@@ -475,15 +569,19 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 												<Kbd>⌘↵</Kbd>
 												<span>zum Generieren</span>
 											</div>
-												<Link
-													className="flex items-center gap-2 rounded px-2 py-1 transition "
-													href="/profile/texteditor"
-													tabIndex={0}
-													title="Zur Text-Snippets-Verwaltung"
-												>
-													<Kbd>⇧F2</Kbd>
-													<span>für Text-Snippets</span>
-												</Link>
+											<div className="flex items-center gap-2">
+												<Kbd>⌘⇧2</Kbd>
+												<span>für Aufnahme</span>
+											</div>
+											<Link
+												className="flex items-center gap-2 rounded px-2 py-1 transition "
+												href="/profile/texteditor"
+												tabIndex={0}
+												title="Zur Text-Snippets-Verwaltung"
+											>
+												<Kbd>⇧F2</Kbd>
+												<span>für Text-Snippets</span>
+											</Link>
 										</div>
 									</CardFooter>
 								</TabsContent>
@@ -504,7 +602,8 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 																Wird generiert...
 															</h3>
 															<p className="text-muted-foreground text-sm">
-																Bitte warten Sie, während der KI-Assistent Ihren Inhalt erstellt
+																Bitte warten Sie, während der KI-Assistent Ihren
+																Inhalt erstellt
 															</p>
 														</div>
 													</div>
@@ -521,7 +620,9 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 															</h4>
 															<ScrollArea className="h-[calc(100vh-400px)] rounded-lg border border-solarized-green/20 bg-background/50 p-6">
 																<MemoizedCopySection
-																	content={completion || "Keine Inhalte verfügbar"}
+																	content={
+																		completion || "Keine Inhalte verfügbar"
+																	}
 																	values={values}
 																/>
 															</ScrollArea>
@@ -543,8 +644,12 @@ export const AiscribeTemplate = ({ config }: AiscribeTemplateProps) => {
 														<FileText className="h-16 w-16" />
 													</div>
 													<div className="space-y-2">
-														<h3 className="font-semibold text-lg">{config.emptyStateTitle}</h3>
-														<p className="max-w-md text-sm">{config.emptyStateDescription}</p>
+														<h3 className="font-semibold text-lg">
+															{config.emptyStateTitle}
+														</h3>
+														<p className="max-w-md text-sm">
+															{config.emptyStateDescription}
+														</p>
 														<Button
 															className="mt-4"
 															onClick={handleSwitchToInputTab}

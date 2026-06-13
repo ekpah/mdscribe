@@ -120,9 +120,17 @@ bun run lint
 
 ## Licensing
 
-MDScribe is dual-licensed:
+MDScribe is [Fair Source](https://fair.io) software:
 
-- **AGPL-3.0-or-later** for the open-source codebase
-- **Commercial license** for enterprise features under `ee/`
+- **FSL-1.1-Apache-2.0** (Functional Source License) for the codebase. Each
+  release additionally becomes available under Apache 2.0 two years after its
+  publication.
+- **Elastic License 2.0** for future enterprise features under a top-level
+  `ee/` directory (does not exist yet; it will carry its own LICENSE file and
+  no two-year Apache grant).
 
-By contributing, you agree that your contributions will be licensed under the same terms.
+By contributing, you agree that your contributions are licensed under the
+license covering the directory they land in, and you grant the MDScribe
+maintainer the right to relicense and commercially license your contributions
+(this is required for the Fair Source future-license grant and the
+license-key-gated enterprise model to work).

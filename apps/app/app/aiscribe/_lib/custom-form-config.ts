@@ -5,7 +5,13 @@ import type {
 	AiscribeTemplateConfig,
 } from "@/app/aiscribe/_components/aiscribe-template";
 import { DEFAULT_AI_TEXT_DESCRIPTION } from "@/lib/ai-scribe-forms";
-import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
+import { resolveFallbackTemplateByContextKey } from "@/orpc/scribe/context/template/fallbacks";
+import {
+	getPromptHarnessLabel,
+	getPromptHarnessTargetField,
+	resolvePromptHarnessId,
+} from "@/orpc/scribe/prompts";
+import type { CanonicalContextField } from "@/orpc/scribe/prompts";
 
 export interface PublicAiTextForm {
 	author?: {
@@ -25,29 +31,6 @@ export interface PublicAiTextForm {
 	visibility: "public" | "private";
 }
 
-const PROMPT_HARNESS_TITLES: Record<string, string> = {
-	anamnese: "Anamnese",
-	befunde: "Befunde",
-	diagnosis: "Diagnoseblock",
-	discharge: "Entlassungsbrief",
-	"icu-transfer": "ICU Verlegungsbrief",
-	outpatient: "Ambulanter Arztbrief",
-	procedures: "Eingriffsdokumentation",
-};
-
-const FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS: Record<string, string> = {
-	anamnese: "Standardstruktur Anamnese",
-	befunde: "Standardstruktur Befunde",
-	diagnosis: "Standardstruktur Diagnoseblock",
-	discharge: "Standardstruktur Entlassbrief",
-	"icu-transfer": "Standardstruktur ICU-Verlegung",
-	outpatient: "Standardstruktur Ambulanzbrief",
-	procedures: "Standardstruktur Prozedurdokumentation",
-};
-
-export const resolvePromptHarnessTitle = (promptHarness: string): string =>
-	PROMPT_HARNESS_TITLES[resolvePromptHarnessId(promptHarness) ?? promptHarness] ?? promptHarness;
-
 export const resolveTemplateMetadata = (
 	form: PublicAiTextForm,
 ): AiscribeTemplateConfig["contextMetadata"]["template"] => {
@@ -60,9 +43,7 @@ export const resolveTemplateMetadata = (
 
 	return {
 		title:
-			FALLBACK_TEMPLATE_TITLES_BY_PROMPT_HARNESS[
-				resolvePromptHarnessId(form.promptHarness) ?? form.promptHarness
-			] ??
+			resolveFallbackTemplateByContextKey(resolvePromptHarnessId(form.promptHarness))?.title ??
 			"Eingebaute Standardvorlage",
 	};
 };
@@ -89,19 +70,61 @@ const ADDITIONAL_INPUTS: AdditionalInputField[] = [
 		placeholder: "Befunde eingeben...",
 		type: "textarea",
 	},
+	{
+		description: "Bereits formulierte Epikrise oder zusammenfassender klinischer Verlauf",
+		label: "Epikrise",
+		name: "epikrise",
+		placeholder: "Epikrise eingeben...",
+		type: "textarea",
+	},
 ];
+
+// The main input of a custom form IS its harness target field (it is still
+// sent as `notes` on the wire), so that field is hidden from the context
+// inputs and the main input is labeled after it.
+const MAIN_INPUT_UI_BY_TARGET_FIELD: Record<
+	CanonicalContextField,
+	{ description: string; placeholder: string; tabTitle: string }
+> = {
+	anamnese: {
+		description:
+			"Dokumentieren Sie Anamnese, Beschwerden und relevante Vorgeschichte. Weitere Kontextfelder stehen links zur Verfügung.",
+		placeholder: "Anamnese eingeben...",
+		tabTitle: "Anamnese",
+	},
+	befunde: {
+		description:
+			"Dokumentieren Sie Befunde, Diagnostik und Verlaufseinträge. Weitere Kontextfelder stehen links zur Verfügung.",
+		placeholder: "Befunde eingeben...",
+		tabTitle: "Befunde",
+	},
+	diagnoseblock: {
+		description:
+			"Dokumentieren Sie bestehende Diagnosen und neue Erkenntnisse. Weitere Kontextfelder stehen links zur Verfügung.",
+		placeholder: "Diagnoseblock eingeben...",
+		tabTitle: "Diagnoseblock",
+	},
+	epikrise: {
+		description:
+			"Dokumentieren Sie Notizen oder eine bisherige Epikrise als Grundlage. Weitere Kontextfelder stehen links zur Verfügung.",
+		placeholder: "Notizen oder Epikrise eingeben...",
+		tabTitle: "Epikrise",
+	},
+};
 
 export const buildCustomAiscribeTemplateConfig = (
 	form: PublicAiTextForm,
 ): AiscribeTemplateConfig => {
 	const description = form.description?.trim() || DEFAULT_AI_TEXT_DESCRIPTION;
 	const authorName = form.author?.name?.trim();
+	const targetField = getPromptHarnessTargetField(form.promptHarness);
+	const mainInputUi = MAIN_INPUT_UI_BY_TARGET_FIELD[targetField];
 
 	return {
-		additionalInputs: ADDITIONAL_INPUTS,
+		additionalInputs: ADDITIONAL_INPUTS.filter((field) => field.name !== targetField),
 		contextMetadata: {
 			author: form.authorId ? (authorName || "Nutzer-Textbaustein") : "MDScribe-Standard",
-			harnessTitle: resolvePromptHarnessTitle(form.promptHarness),
+			harnessTitle: getPromptHarnessLabel(form.promptHarness),
 			template: resolveTemplateMetadata(form),
 		},
 		description,
@@ -111,12 +134,12 @@ export const buildCustomAiscribeTemplateConfig = (
 		formId: form.id,
 		generateButtonText: "Text generieren",
 		icon: FileText,
-		inputDescription:
-			"Dokumentieren Sie die klinisch relevanten Informationen. Weitere Kontextfelder stehen links zur Verfügung.",
+		inputDescription: mainInputUi.description,
 		inputFieldName: "notes",
-		inputPlaceholder: "Notizen eingeben...",
-		inputTabTitle: "Notizen",
+		inputPlaceholder: mainInputUi.placeholder,
+		inputTabTitle: mainInputUi.tabTitle,
 		outputTabTitle: "Ausgabe",
+		promptHarness: resolvePromptHarnessId(form.promptHarness) ?? form.promptHarness,
 		regenerateButtonText: "Neu generieren",
 		title: form.name,
 	};

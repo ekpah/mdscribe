@@ -15,9 +15,14 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { buildProviderOptions, resolveGenerationStrategy } from "@/orpc/scribe/providers";
+import type { MediaPlan } from "@/orpc/scribe/providers";
 import type { FillInputsInputPayload, InputField } from "@/orpc/scribe/types";
 
-import { formatAudioTranscriptsForPrompt, prepareAudioInputForModel } from "./audio-input";
+import {
+	formatAudioTranscriptsForPrompt,
+	prepareAudioInputForModel,
+	transcribeAudioFilesWithPrompt,
+} from "./audio-input";
 import { createContextFileParts, extractContextFileText } from "./context-file-input";
 import { fillInputsConfig } from "./fill-inputs-config";
 import { enforceScribeUsageLimit } from "./usage-limit";
@@ -274,33 +279,78 @@ const assertFillInputsRequest = ({
 	});
 };
 
-const getFillInputsAudioSelection = (
-	generationStrategy: FillInputsGenerationStrategy,
-	generationSelection: FillInputsGenerationSelection,
-) =>
-	generationStrategy.mode === "direct"
-		? generationStrategy.generation
-		: (generationStrategy.speechToText ?? generationSelection);
+const describeMediaPlan = (plan: MediaPlan | undefined): string | undefined => {
+	if (!plan) {
+		return undefined;
+	}
+	return plan.mode === "native" ? "native" : `preprocess-${plan.strategy}`;
+};
+
+const prepareFillInputsAudio = async ({
+	audioFiles,
+	generationStrategy,
+	userId,
+	zdr,
+}: {
+	audioFiles: FillInputsInputPayload["audioFiles"];
+	generationStrategy: FillInputsGenerationStrategy;
+	userId: string;
+	zdr: boolean;
+}): Promise<FillInputsPreparedAudio> => {
+	const files = audioFiles ?? [];
+	if (files.length === 0) {
+		return { contentParts: [], strategy: "native", transcripts: [] };
+	}
+
+	const audioPlan = generationStrategy.audio;
+	if (!audioPlan) {
+		throw new ORPCError("BAD_REQUEST", { message: USER_MESSAGES.modelUnavailable });
+	}
+
+	if (audioPlan.mode === "native") {
+		return prepareAudioInputForModel({
+			audioFiles: files,
+			mode: "native",
+			resolvedModel: generationStrategy.generation.model,
+		});
+	}
+
+	if (audioPlan.strategy === "multimodal") {
+		const transcripts = await transcribeAudioFilesWithPrompt({
+			audioFiles: files,
+			resolvedModel: audioPlan.selection.model,
+			userId,
+			zdr,
+		});
+		return { contentParts: [], strategy: "transcription", transcripts };
+	}
+
+	return prepareAudioInputForModel({
+		audioFiles: files,
+		mode: "transcription",
+		resolvedModel: audioPlan.selection.model,
+	});
+};
 
 const extractFillInputFileText = ({
 	contextFiles,
-	generationSelection,
 	generationStrategy,
 	hasFiles,
 	userId,
 	zdr,
 }: {
 	contextFiles: FillInputsInputPayload["contextFiles"];
-	generationSelection: FillInputsGenerationSelection;
 	generationStrategy: FillInputsGenerationStrategy;
 	hasFiles: boolean;
 	userId: string;
 	zdr: boolean;
 }) => {
-	if (generationStrategy.mode === "preprocess" && hasFiles) {
+	const filesPlan = generationStrategy.files;
+	if (hasFiles && filesPlan?.mode === "preprocess") {
 		return extractContextFileText({
 			contextFiles: contextFiles ?? [],
-			modelSelection: generationStrategy.fileImage ?? generationSelection,
+			modelSelection: filesPlan.selection,
+			strategy: filesPlan.strategy,
 			userId,
 			zdr,
 		});
@@ -347,7 +397,8 @@ const buildFillInputUsageMetadata = ({
 }): UsageMetadata => ({
 	endpoint: "input_fill",
 	generationStrategy: {
-		mode: generationStrategy.mode,
+		audioMode: describeMediaPlan(generationStrategy.audio),
+		fileMode: describeMediaPlan(generationStrategy.files),
 		usedFilePreprocessing: Boolean(fileTextContext),
 		usedNativeAudio: preparedAudio.contentParts.length > 0,
 		usedTranscription: preparedAudio.transcripts.length > 0,
@@ -360,16 +411,15 @@ const buildFillInputUsageMetadata = ({
 	payloadSummary,
 	preprocessing: {
 		fileImageModel:
-			generationStrategy.mode === "preprocess"
-				? generationStrategy.fileImage?.model.modelName
+			generationStrategy.files?.mode === "preprocess"
+				? generationStrategy.files.selection.model.modelName
 				: undefined,
 		speechToTextModel:
-			generationStrategy.mode === "preprocess"
-				? generationStrategy.speechToText?.model.modelName
+			generationStrategy.audio?.mode === "preprocess"
+				? generationStrategy.audio.selection.model.modelName
 				: undefined,
 	},
 	promptName: fillInputsConfig.promptName,
-	promptSource: "local",
 	zdrEnabled: zdr,
 });
 
@@ -416,32 +466,35 @@ export const fillInputsHandler = authed
 		});
 
 		const generationSelection = generationStrategy.generation;
-		const audioSelection = getFillInputsAudioSelection(generationStrategy, generationSelection);
-		const preparedAudio = await prepareAudioInputForModel({
+		const preparedAudio = await prepareFillInputsAudio({
 			audioFiles,
-			mode: generationStrategy.mode === "direct" ? "native" : "transcription",
-			resolvedModel: audioSelection.model,
+			generationStrategy,
+			userId: context.session.user.id,
+			zdr: entitlements.hasActiveSubscription,
 		}).catch((error: unknown) => {
+			if (error instanceof ORPCError) {
+				throw error;
+			}
 			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", { message });
 		});
 		const fileTextContext = await extractFillInputFileText({
 			contextFiles,
-			generationSelection,
 			generationStrategy,
 			hasFiles,
 			userId: context.session.user.id,
 			zdr: entitlements.hasActiveSubscription,
 		});
+		const filesAreNative = generationStrategy.files?.mode === "native";
 		const messages = fillInputsConfig.prompt({
 			audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
-			contextFiles: generationStrategy.mode === "direct" ? contextFiles : undefined,
+			contextFiles: filesAreNative ? contextFiles : undefined,
 			fileTextContext,
 			textContext: input.textContext,
 		});
 
 		const outputSchema = createFillInputsSchema(input.inputFields);
-		const nativeContextFiles = generationStrategy.mode === "direct" ? contextFiles : [];
+		const nativeContextFiles = filesAreNative ? contextFiles : [];
 
 		const userContent = buildFillInputUserContent({
 			messages,

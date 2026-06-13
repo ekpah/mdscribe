@@ -4,6 +4,7 @@ import { ANAMNESE_FALLBACK_TEMPLATE } from "./fallback-templates/anamnese";
 import { BEFUNDE_FALLBACK_TEMPLATE } from "./fallback-templates/befunde";
 import { DIAGNOSIS_FALLBACK_TEMPLATE } from "./fallback-templates/diagnosis";
 import { DISCHARGE_FALLBACK_TEMPLATE } from "./fallback-templates/discharge";
+import { EPIKRISE_FALLBACK_TEMPLATE } from "./fallback-templates/epikrise";
 import { ICU_TRANSFER_FALLBACK_TEMPLATE } from "./fallback-templates/icu-transfer";
 import { OUTPATIENT_FALLBACK_TEMPLATE } from "./fallback-templates/outpatient";
 import { PROCEDURES_FALLBACK_TEMPLATE } from "./fallback-templates/procedures";
@@ -17,6 +18,7 @@ const FALLBACK_TEMPLATE_BY_CONTEXT_KEY: Record<string, TemplateContextInput> = {
 	diagnosis: DIAGNOSIS_FALLBACK_TEMPLATE,
 	diagnostic_results: BEFUNDE_FALLBACK_TEMPLATE,
 	discharge: DISCHARGE_FALLBACK_TEMPLATE,
+	epikrise: EPIKRISE_FALLBACK_TEMPLATE,
 	"icu-transfer": ICU_TRANSFER_FALLBACK_TEMPLATE,
 	icu_transfer: ICU_TRANSFER_FALLBACK_TEMPLATE,
 	outpatient: OUTPATIENT_FALLBACK_TEMPLATE,

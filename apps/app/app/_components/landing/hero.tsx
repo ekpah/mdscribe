@@ -98,7 +98,7 @@ export default function Hero({ isLoggedIn }: HeroProps) {
               target="_blank"
             >
               <Github className="h-5 w-5" />
-              <span>Open Source auf GitHub</span>
+              <span>Quellcode auf GitHub</span>
             </Link>
           </Button>
         </div>

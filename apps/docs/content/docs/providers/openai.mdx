@@ -1,0 +1,27 @@
+---
+title: OpenAI
+description: GPT-Modelle und Whisper-Transkription über die OpenAI-API.
+---
+
+## OpenAI
+
+Die direkte Anbindung an die [OpenAI-API](https://platform.openai.com) stellt GPT-Modelle für das Standard-Modell sowie Whisper-Modelle für die Audio-Transkription bereit.
+
+## Einrichtung
+
+1. API-Key unter [platform.openai.com/api-keys](https://platform.openai.com/api-keys) erstellen.
+2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+   - **Protokoll**: `OpenAI`
+   - **Base URL**: leer lassen (Standard: `https://api.openai.com/v1`)
+   - **API-Key**: der erstellte Key
+3. Verbindung prüfen und speichern.
+
+Bei der Synchronisierung werden Embedding- und TTS-Modelle automatisch ausgefiltert; übrig bleiben Chat- und Transkriptionsmodelle.
+
+## Audio-Transkription
+
+Transkriptionsmodelle (`whisper-1` sowie Modelle mit `transcribe` im Namen) können den Speech-to-Text-Slot belegen. MDScribe verwendet dafür die dedizierte Transcription-API von OpenAI.
+
+## Einordnung für den Datenschutz
+
+Anfragen laufen über die OpenAI-Cloud (US-Anbieter). Prüfen Sie die Data-Processing-Bedingungen Ihres OpenAI-Kontos (z.B. Zero-Retention-Vereinbarungen für API-Traffic) und die Leitplanken unter [Datenschutz](/privacy), bevor Sie sensible Inhalte verarbeiten. Für technisch erzwungene Vertraulichkeit siehe [Tinfoil](/providers/tinfoil).

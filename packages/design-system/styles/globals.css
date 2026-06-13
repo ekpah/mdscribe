@@ -35,14 +35,30 @@ green     #859900 68 100% 30%
 */
 
 :root {
-  --solarized-base03: hsl(192, 100%, 11%);
-  --solarized-base02: hsl(192, 81%, 14%);
-  --solarized-base01: hsl(194, 14%, 40%);
-  --solarized-base00: hsl(196, 13%, 45%);
-  --solarized-base0: hsl(186, 8%, 55%);
-  --solarized-base1: hsl(180, 7%, 60%);
-  --solarized-base2: hsl(46, 42%, 88%);
-  --solarized-base3: hsl(44, 87%, 94%);
+  /*
+  Immutable palette values. The --solarized-base* aliases below follow the
+  symmetric Solarized scheme: in dark mode each baseN swaps with base0N, so
+  utilities like text-solarized-base01 or bg-solarized-base3 stay readable in
+  both modes without per-site dark: overrides. Use the raw values only for the
+  semantic theme mappings (which must not double-swap).
+  */
+  --solarized-raw-base03: hsl(192, 100%, 11%);
+  --solarized-raw-base02: hsl(192, 81%, 14%);
+  --solarized-raw-base01: hsl(194, 14%, 40%);
+  --solarized-raw-base00: hsl(196, 13%, 45%);
+  --solarized-raw-base0: hsl(186, 8%, 55%);
+  --solarized-raw-base1: hsl(180, 7%, 60%);
+  --solarized-raw-base2: hsl(46, 42%, 88%);
+  --solarized-raw-base3: hsl(44, 87%, 94%);
+
+  --solarized-base03: var(--solarized-raw-base03);
+  --solarized-base02: var(--solarized-raw-base02);
+  --solarized-base01: var(--solarized-raw-base01);
+  --solarized-base00: var(--solarized-raw-base00);
+  --solarized-base0: var(--solarized-raw-base0);
+  --solarized-base1: var(--solarized-raw-base1);
+  --solarized-base2: var(--solarized-raw-base2);
+  --solarized-base3: var(--solarized-raw-base3);
   --solarized-yellow: hsl(45, 100%, 35%);
   --solarized-orange: hsl(18, 80%, 44%);
   --solarized-red: hsl(1, 71%, 52%);
@@ -91,74 +107,94 @@ green     #859900 68 100% 30%
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 [data-theme="dark"] {
-  --background: var(--solarized-base03);
-  --foreground: var(--solarized-base0);
-  --card: var(--solarized-base03);
-  --card-foreground: var(--solarized-base0);
-  --popover: var(--solarized-base02);
-  --popover-foreground: var(--solarized-base01);
+  /* Symmetric Solarized swap: baseN <-> base0N (see :root note) */
+  --solarized-base03: var(--solarized-raw-base3);
+  --solarized-base02: var(--solarized-raw-base2);
+  --solarized-base01: var(--solarized-raw-base1);
+  --solarized-base00: var(--solarized-raw-base0);
+  --solarized-base0: var(--solarized-raw-base00);
+  --solarized-base1: var(--solarized-raw-base01);
+  --solarized-base2: var(--solarized-raw-base02);
+  --solarized-base3: var(--solarized-raw-base03);
+
+  --background: var(--solarized-raw-base03);
+  --foreground: var(--solarized-raw-base0);
+  --card: var(--solarized-raw-base03);
+  --card-foreground: var(--solarized-raw-base0);
+  --popover: var(--solarized-raw-base02);
+  --popover-foreground: var(--solarized-raw-base01);
   --primary: var(--solarized-blue);
-  --primary-foreground: var(--solarized-base3);
-  --secondary: var(--solarized-base02);
-  --secondary-foreground: var(--solarized-base0);
-  --muted: var(--solarized-base02);
-  --muted-foreground: var(--solarized-base01);
-  --accent: var(--solarized-base02);
-  --accent-foreground: var(--solarized-base01);
+  --primary-foreground: var(--solarized-raw-base3);
+  --secondary: var(--solarized-raw-base02);
+  --secondary-foreground: var(--solarized-raw-base0);
+  --muted: var(--solarized-raw-base02);
+  --muted-foreground: var(--solarized-raw-base01);
+  --accent: var(--solarized-raw-base02);
+  --accent-foreground: var(--solarized-raw-base01);
   --destructive: var(--solarized-orange);
-  --destructive-foreground: var(--solarized-base03);
-  --border: var(--solarized-base01);
-  --input: var(--solarized-base01);
+  --destructive-foreground: var(--solarized-raw-base03);
+  --border: var(--solarized-raw-base01);
+  --input: var(--solarized-raw-base01);
   --ring: var(--solarized-blue);
   --chart-1: var(--solarized-violet);
   --chart-2: var(--solarized-cyan);
   --chart-3: var(--solarized-green);
   --chart-4: var(--solarized-magenta);
   --chart-5: var(--solarized-orange);
-  --sidebar: var(--solarized-base03);
-  --sidebar-foreground: var(--solarized-base2);
+  --sidebar: var(--solarized-raw-base03);
+  --sidebar-foreground: var(--solarized-raw-base2);
   --sidebar-primary: var(--solarized-blue);
-  --sidebar-primary-foreground: var(--solarized-base3);
-  --sidebar-accent: var(--solarized-base02);
-  --sidebar-accent-foreground: var(--solarized-base2);
-  --sidebar-border: var(--solarized-base02);
+  --sidebar-primary-foreground: var(--solarized-raw-base3);
+  --sidebar-accent: var(--solarized-raw-base02);
+  --sidebar-accent-foreground: var(--solarized-raw-base2);
+  --sidebar-border: var(--solarized-raw-base02);
   --sidebar-ring: var(--solarized-blue);
 
-  --sidebar-background: var(--solarized-base03);
+  --sidebar-background: var(--solarized-raw-base03);
 }
 
 .dark {
-  --background: var(--solarized-base03);
-  --foreground: var(--solarized-base0);
-  --card: var(--solarized-base03);
-  --card-foreground: var(--solarized-base0);
-  --popover: var(--solarized-base02);
-  --popover-foreground: var(--solarized-base01);
+  /* Symmetric Solarized swap: baseN <-> base0N (see :root note) */
+  --solarized-base03: var(--solarized-raw-base3);
+  --solarized-base02: var(--solarized-raw-base2);
+  --solarized-base01: var(--solarized-raw-base1);
+  --solarized-base00: var(--solarized-raw-base0);
+  --solarized-base0: var(--solarized-raw-base00);
+  --solarized-base1: var(--solarized-raw-base01);
+  --solarized-base2: var(--solarized-raw-base02);
+  --solarized-base3: var(--solarized-raw-base03);
+
+  --background: var(--solarized-raw-base03);
+  --foreground: var(--solarized-raw-base0);
+  --card: var(--solarized-raw-base03);
+  --card-foreground: var(--solarized-raw-base0);
+  --popover: var(--solarized-raw-base02);
+  --popover-foreground: var(--solarized-raw-base01);
   --primary: var(--solarized-blue);
-  --primary-foreground: var(--solarized-base3);
-  --secondary: var(--solarized-base02);
-  --secondary-foreground: var(--solarized-base0);
-  --muted: var(--solarized-base02);
-  --muted-foreground: var(--solarized-base01);
-  --accent: var(--solarized-base02);
-  --accent-foreground: var(--solarized-base01);
+  --primary-foreground: var(--solarized-raw-base3);
+  --secondary: var(--solarized-raw-base02);
+  --secondary-foreground: var(--solarized-raw-base0);
+  --muted: var(--solarized-raw-base02);
+  --muted-foreground: var(--solarized-raw-base01);
+  --accent: var(--solarized-raw-base02);
+  --accent-foreground: var(--solarized-raw-base01);
   --destructive: var(--solarized-orange);
-  --destructive-foreground: var(--solarized-base03);
-  --border: var(--solarized-base01);
-  --input: var(--solarized-base01);
+  --destructive-foreground: var(--solarized-raw-base03);
+  --border: var(--solarized-raw-base01);
+  --input: var(--solarized-raw-base01);
   --ring: var(--solarized-blue);
   --chart-1: var(--solarized-violet);
   --chart-2: var(--solarized-cyan);
   --chart-3: var(--solarized-green);
   --chart-4: var(--solarized-magenta);
   --chart-5: var(--solarized-orange);
-  --sidebar: var(--solarized-base03);
-  --sidebar-foreground: var(--solarized-base2);
+  --sidebar: var(--solarized-raw-base03);
+  --sidebar-foreground: var(--solarized-raw-base2);
   --sidebar-primary: var(--solarized-blue);
-  --sidebar-primary-foreground: var(--solarized-base3);
-  --sidebar-accent: var(--solarized-base02);
-  --sidebar-accent-foreground: var(--solarized-base2);
-  --sidebar-border: var(--solarized-base02);
+  --sidebar-primary-foreground: var(--solarized-raw-base3);
+  --sidebar-accent: var(--solarized-raw-base02);
+  --sidebar-accent-foreground: var(--solarized-raw-base2);
+  --sidebar-border: var(--solarized-raw-base02);
   --sidebar-ring: var(--solarized-blue);
 }
 
@@ -203,12 +239,23 @@ green     #859900 68 100% 30%
   --color-sidebar-accent-foreground: var(--accent-foreground);
   --color-sidebar-border: var(--border);
 
-  /* solarized colors not used in light/dark scheme */
+  /* Solarized palette utilities; neutrals (baseN/base0N) swap in dark mode, accents are fixed */
+  --color-solarized-base03: var(--solarized-base03);
+  --color-solarized-base02: var(--solarized-base02);
+  --color-solarized-base01: var(--solarized-base01);
+  --color-solarized-base00: var(--solarized-base00);
+  --color-solarized-base0: var(--solarized-base0);
+  --color-solarized-base1: var(--solarized-base1);
+  --color-solarized-base2: var(--solarized-base2);
+  --color-solarized-base3: var(--solarized-base3);
   --color-solarized-green: var(--solarized-green);
   --color-solarized-blue: var(--solarized-blue);
   --color-solarized-red: var(--solarized-red);
   --color-solarized-orange: var(--solarized-orange);
   --color-solarized-yellow: var(--solarized-yellow);
+  --color-solarized-magenta: var(--solarized-magenta);
+  --color-solarized-violet: var(--solarized-violet);
+  --color-solarized-cyan: var(--solarized-cyan);
 }
 
 @keyframes accordion-down {

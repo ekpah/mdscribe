@@ -5,6 +5,7 @@ const EMPTY_PATIENT_CONTEXT: PatientContextData = {
 	anamnese: "",
 	befunde: "",
 	diagnoseblock: "",
+	epikrise: "",
 	notes: "",
 };
 
@@ -28,6 +29,7 @@ const mergePatientContext = (
 	anamnese: mergeField(current.anamnese, next.anamnese),
 	befunde: mergeField(current.befunde, next.befunde),
 	diagnoseblock: mergeField(current.diagnoseblock, next.diagnoseblock),
+	epikrise: mergeField(current.epikrise, next.epikrise),
 	notes: mergeField(current.notes, next.notes),
 });
 
@@ -35,6 +37,7 @@ const normalizeFormSource = (data: Record<string, unknown>): PatientContextData 
 	anamnese: toTrimmedString(data.anamnese),
 	befunde: toTrimmedString(data.befunde),
 	diagnoseblock: toTrimmedString(data.diagnoseblock),
+	epikrise: toTrimmedString(data.epikrise),
 	notes: toTrimmedString(data.notes),
 });
 

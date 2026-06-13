@@ -13,7 +13,10 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { composeScribeContext } from "@/orpc/scribe/context";
-import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
+import {
+	prepareAudioInputForModel,
+	transcribeAudioFilesWithPrompt,
+} from "@/orpc/scribe/handlers/audio-input";
 import {
 	appendScribeInputAttachmentsToMessages,
 	DEFAULT_SCRIBE_MODEL_CONFIG,
@@ -91,7 +94,9 @@ const contextFileInputSchema = z.object({
 
 const transcribeAudioInput = z.object({
 	audioFiles: z.array(audioFileInputSchema).min(1).max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles),
+	mode: z.enum(["transcription", "native"]).optional(),
 	modelId: z.string().min(1).nullable().optional(),
+	prompt: z.string().max(4000).optional(),
 });
 
 const asFiniteNumber = (value: unknown): number | undefined => {
@@ -205,7 +210,7 @@ const runInput = z.object({
 	model: z.string(),
 	parameters: z.object({
 		frequencyPenalty: z.number().min(-2).max(2).optional(),
-		maxTokens: z.number().min(1).max(100_000).optional().default(4096),
+		maxTokens: z.number().min(1).max(100_000).optional(),
 		presencePenalty: z.number().min(-2).max(2).optional(),
 		reasoningEffort: reasoningEffortSchema.optional(),
 		temperature: z.number().min(0).max(2).optional().default(1),
@@ -272,21 +277,23 @@ const runHandler = authed
 		const reasoningEffort =
 			parsed.parameters.reasoningEffort ?? (parsed.parameters.thinking ? "medium" : "none");
 		if (audioFiles.length > 0 || contextFiles.length > 0) {
-			messages = await appendScribeInputAttachmentsToMessages({
+			const attachmentsResult = await appendScribeInputAttachmentsToMessages({
 				audioFiles,
 				contextFiles,
 				generationStrategy: {
+					audio: { mode: "native" },
+					files: { mode: "native" },
 					generation: {
 						model: resolved,
 						reasoningEffort,
-						slot: "multimodal",
+						slot: "text",
 					},
-					mode: "direct",
 				},
 				messages,
 				userId: context.session.user.id,
 				zdr: false,
 			});
+			({ messages } = attachmentsResult);
 		}
 		const providerOptions = buildProviderOptions({
 			model: resolved,
@@ -387,6 +394,7 @@ const transcribeAudioHandler = authed
 		const audioFiles = parsed.audioFiles as AudioFile[];
 		validateAudioPayload(audioFiles);
 
+		const mode = parsed.mode ?? "transcription";
 		const modelSelection = parsed.modelId
 			? {
 					model: await resolveModelByRecordId(parsed.modelId, context.db),
@@ -399,6 +407,33 @@ const transcribeAudioHandler = authed
 						message: `Kein Audio-Transkriptionsmodell konfiguriert. (${details})`,
 					});
 				});
+
+		if (mode === "native") {
+			const transcripts = await transcribeAudioFilesWithPrompt({
+				audioFiles,
+				prompt: parsed.prompt,
+				resolvedModel: modelSelection.model,
+				userId: context.session.user.id,
+			}).catch((error: unknown) => {
+				const details = error instanceof Error ? error.message : USER_MESSAGES.audioNotSupported;
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Multimodale Transkription fehlgeschlagen. Bitte ein Audio-fähiges Modell wählen. (${details})`,
+				});
+			});
+
+			const nativeTranscript = transcripts.join("\n\n").trim();
+			if (!nativeTranscript) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Die Transkription hat keinen Text zurückgegeben.",
+				});
+			}
+
+			return {
+				modelName: modelSelection.model.modelName,
+				transcript: nativeTranscript,
+				transcripts,
+			};
+		}
 
 		const preparedAudio = await prepareAudioInputForModel({
 			audioFiles,

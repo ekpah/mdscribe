@@ -1,0 +1,39 @@
+---
+title: KI-Provider
+description: Welche KI-Provider MDScribe unterstützt und wie Verbindungen, Modelle und Standard-Slots zusammenspielen.
+---
+
+## KI-Provider
+
+MDScribe spricht nicht mit einem fest verdrahteten KI-Dienst, sondern mit **Providern**, die der Administrator der Instanz konfiguriert. Jeder Provider ist eine Verbindung zu einem Inferenz-Dienst (Cloud-API oder lokaler Server), aus der MDScribe die verfügbaren Modelle synchronisiert.
+
+## Unterstützte Provider
+
+| Provider | Typ | Besonderheit |
+|----------|-----|--------------|
+| [Tinfoil](/providers/tinfoil) | Cloud (vertraulich) | Ende-zu-Ende-Verschlüsselung in attestierte Secure Enclaves |
+| [OpenRouter](/providers/openrouter) | Cloud (Aggregator) | Ein API-Key für viele Modelle, ZDR-Routing, Reasoning-Steuerung |
+| [OpenAI](/providers/openai) | Cloud | GPT-Modelle und Whisper-Transkription |
+| [Anthropic](/providers/anthropic) | Cloud | Claude-Modelle |
+| [OpenAI-kompatibel](/providers/openai-compatible) | Self-Hosted / beliebig | llama.cpp, vLLM, Ollama, LM Studio und andere lokale Server |
+
+## So funktioniert die Konfiguration
+
+1. **Verbindung anlegen**: Unter `Admin → Einstellungen → Modelle → Verbindungen` einen Provider mit Protokoll, optionaler Base URL und API-Key anlegen. Vor dem Speichern prüft MDScribe die Verbindung.
+2. **Modelle synchronisieren**: Beim Anlegen (und bei jedem manuellen Refresh) liest MDScribe die Modellliste des Providers ein. Die Datenbank ist dabei die maßgebliche Quelle — Modelle werden nicht zur Laufzeit live abgefragt.
+3. **Standard-Slots belegen**: Aus den synchronisierten Modellen wählt der Administrator globale Standardmodelle für vier Slots:
+
+| Slot | Verwendung |
+|------|-----------|
+| Standard-Modell | Erzeugt immer die finale Antwort; Fähigkeiten (Dokumente, Audio) wählt der Administrator per Checkbox |
+| Audio-Modell | Transkribiert Audioaufnahmen, wenn die Fähigkeit Audio nicht angehakt ist |
+| Dokumenten-Modell | Extrahiert PDF- und Bildinhalte, wenn die Fähigkeit Dokumente nicht angehakt ist |
+| Evaluation | Automatische Auswertungen im Admin-Bereich |
+
+Das Standard-Modell beantwortet jede Anfrage. Sind seine Fähigkeiten Dokumente bzw. Audio angehakt, erhält es diese Eingaben direkt als multimodalen Input. Nicht angehakte Eingaben werden zuerst vom jeweiligen Slot-Modell vorverarbeitet — wahlweise **direkt** (Transkriptions-Endpoint bzw. Dokument ohne Prompt, z. B. für dedizierte OCR-Modelle) oder **multimodal** (Prompt + Eingabe an ein Chat-Modell) — und das Ergebnis fließt als Text in die Generierung ein.
+
+## API-Keys und Sicherheit
+
+- API-Keys werden verschlüsselt in der Datenbank gespeichert und nie an den Browser ausgeliefert.
+- Es gibt keine hartkodierten Fallback-Provider: Ohne konfigurierte Verbindung findet keine Generierung statt.
+- Welche Datenschutz-Eigenschaften eine Generierung hat, hängt vom gewählten Provider ab — siehe die einzelnen Provider-Seiten und [KI-Datenfluss](/privacy/ki-datenfluss).

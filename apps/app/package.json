@@ -1,7 +1,7 @@
 {
 	"name": "app",
 	"private": true,
-	"license": "AGPL-3.0-or-later",
+	"license": "FSL-1.1-Apache-2.0",
 	"scripts": {
 		"dev": "bun --bun next dev -p 3000",
 		"build": "bun --bun next build",
@@ -51,6 +51,7 @@
 		"server-only": "^0.0.1",
 		"sonner": "^2.0.7",
 		"stripe": "^22.0.2",
+		"tinfoil": "^1.1.4",
 		"ua-parser-js": "^2.0.9",
 		"voyageai": "^0.0.5",
 		"ws": "^8.20.0",

@@ -13,16 +13,20 @@ import {
 import { Label } from "@repo/design-system/components/ui/label";
 import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
 import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
+import { Tabs, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AudioLines, Loader2, Mic, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 
 import { AudioInput } from "@/app/_components/input-context/inputs/audio/audio-input";
+import type { AudioInputHandle } from "@/app/_components/input-context/inputs/audio/audio-input";
 import type { AudioRecording } from "@/app/_components/input-context/types";
 import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
+import { SCRIBE_AUDIO_TRANSCRIPTION_PROMPT } from "@/orpc/scribe/prompts/core/audio-transcription";
 
 interface AudioModelOption extends ModelSelectorOption {
 	modelId: string;
@@ -35,6 +39,15 @@ interface TranscriptResult {
 	transcript: string;
 	transcripts: string[];
 }
+
+type TranscriptionMode = "transcription" | "native";
+
+const MODE_DESCRIPTIONS: Record<TranscriptionMode, string> = {
+	native:
+		"Die Aufnahme wird zusammen mit dem Prompt als multimodaler Input an ein Audio-fähiges Chat-Modell gesendet.",
+	transcription:
+		"Die Aufnahme wird ohne Prompt direkt an den Transkriptions-Endpoint des Providers gesendet.",
+};
 
 const createModelOptions = (
 	models: Awaited<ReturnType<typeof orpc.admin.models.list.call>> | undefined,
@@ -60,10 +73,157 @@ const createModelOptions = (
 const getRecordingTotalBytes = (recordings: AudioRecording[]) =>
 	recordings.reduce((total, recording) => total + recording.blob.size, 0);
 
+const ModelModeCard = ({
+	defaultSpeechToTextModelId,
+	isLoading,
+	mode,
+	modelOptions,
+	onModeChange,
+	onModelChange,
+	onPromptChange,
+	prompt,
+	selectedModel,
+	selectedModelId,
+}: {
+	defaultSpeechToTextModelId: string | null | undefined;
+	isLoading: boolean;
+	mode: TranscriptionMode;
+	modelOptions: AudioModelOption[];
+	onModeChange: (value: string) => void;
+	onModelChange: (value: string) => void;
+	onPromptChange: (value: string) => void;
+	prompt: string;
+	selectedModel: AudioModelOption | null;
+	selectedModelId: string | null;
+}) => {
+	const defaultModelId = defaultSpeechToTextModelId;
+	const defaultBadgeLabel = "Standard-Audiomodell";
+
+	return (
+		<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
+			<CardHeader className="space-y-2 p-4 sm:p-6">
+				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+					<div className="space-y-1">
+						<CardTitle className="flex items-center gap-2 text-solarized-base00">
+							<Sparkles className="h-4 w-4 text-solarized-blue" />
+							Transkriptionsmodell & Modus
+						</CardTitle>
+						<CardDescription className="text-solarized-base01">
+							{MODE_DESCRIPTIONS[mode]} MDScribe prüft die Modalität nicht automatisch.
+						</CardDescription>
+					</div>
+					{defaultModelId && selectedModelId === defaultModelId ? (
+						<Badge className="w-fit bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10">
+							{defaultBadgeLabel}
+						</Badge>
+					) : null}
+				</div>
+			</CardHeader>
+			<CardContent className="space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
+				<Tabs onValueChange={onModeChange} value={mode}>
+					<TabsList className="h-auto max-w-full flex-wrap">
+						<TabsTrigger value="transcription">Direkte Transkription</TabsTrigger>
+						<TabsTrigger value="native">Multimodal mit Prompt</TabsTrigger>
+					</TabsList>
+				</Tabs>
+				<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.5fr)]">
+					<div className="space-y-2">
+						<Label htmlFor="audio-playground-model">Modell</Label>
+						<ModelSelector<AudioModelOption>
+							className="border-solarized-base2 bg-solarized-base3"
+							emptyMessage="Keine Modelle synchronisiert."
+							id="audio-playground-model"
+							isLoading={isLoading}
+							onValueChange={onModelChange}
+							options={modelOptions}
+							placeholder="Transkriptionsmodell auswählen"
+							renderOption={(option) => (
+								<div className="min-w-0">
+									<span className="block truncate">{option.label}</span>
+									<span className="block truncate text-muted-foreground text-xs">
+										{option.providerName} · {option.modelId}
+									</span>
+								</div>
+							)}
+							renderSelected={(option) =>
+								option ? (
+									<div className="min-w-0">
+										<span className="block truncate">{option.label}</span>
+										<span className="block truncate text-muted-foreground text-xs">
+											{option.providerName} · {option.modelId}
+										</span>
+									</div>
+								) : null
+							}
+							searchPlaceholder="Modell suchen..."
+							value={selectedModelId}
+						/>
+					</div>
+					<div className="rounded-md border border-solarized-base2/80 bg-solarized-base2/20 p-3 text-solarized-base01 text-xs">
+						<div className="font-medium text-solarized-base00">Aktuelle Auswahl</div>
+						<div className="mt-1">
+							{selectedModel
+								? `${selectedModel.providerName} · ${selectedModel.modelId}`
+								: "Kein Modell ausgewählt"}
+						</div>
+					</div>
+				</div>
+				{mode === "native" ? (
+					<div className="space-y-2">
+						<div className="flex items-center justify-between gap-2">
+							<Label htmlFor="audio-playground-prompt">Transkriptions-Prompt</Label>
+							<Button
+								disabled={prompt === SCRIBE_AUDIO_TRANSCRIPTION_PROMPT}
+								onClick={() => {
+									onPromptChange(SCRIBE_AUDIO_TRANSCRIPTION_PROMPT);
+								}}
+								size="sm"
+								type="button"
+								variant="ghost"
+							>
+								Zurücksetzen
+							</Button>
+						</div>
+						<Textarea
+							className="min-h-[120px] resize-y border-solarized-base2 bg-solarized-base3 text-solarized-base00 placeholder:text-solarized-base01 focus:border-solarized-blue focus:ring-solarized-blue/20"
+							id="audio-playground-prompt"
+							onChange={(event) => {
+								onPromptChange(event.target.value);
+							}}
+							placeholder="Prompt für das multimodale Modell, z. B. Anweisung zur wortgetreuen Transkription."
+							value={prompt}
+						/>
+						<p className="text-solarized-base01 text-xs">
+							Leerer Prompt verwendet den Standard-Prompt. Hier kannst du z. B. auf deutsches
+							medizinisches Vokabular hinweisen.
+						</p>
+					</div>
+				) : null}
+			</CardContent>
+		</Card>
+	);
+};
+
 export const AudioPlaygroundClient = () => {
 	const [recordings, setRecordings] = useState<AudioRecording[]>([]);
 	const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 	const [result, setResult] = useState<TranscriptResult | null>(null);
+	const [mode, setMode] = useState<TranscriptionMode>("transcription");
+	const [prompt, setPrompt] = useState(SCRIBE_AUDIO_TRANSCRIPTION_PROMPT);
+	const audioInputRef = useRef<AudioInputHandle>(null);
+
+	useHotkeys(
+		["meta+shift+2", "ctrl+shift+2"],
+		(event: KeyboardEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+			audioInputRef.current?.toggleRecording();
+		},
+		{
+			enableOnFormTags: ["INPUT", "TEXTAREA"],
+		},
+		[],
+	);
 
 	const { data: models, isLoading: isLoadingModels } = useQuery(
 		orpc.admin.models.list.queryOptions(),
@@ -99,6 +259,11 @@ export const AudioPlaygroundClient = () => {
 		setResult(null);
 	}, []);
 
+	const handleModeChange = useCallback((nextValue: string) => {
+		setMode(nextValue as TranscriptionMode);
+		setResult(null);
+	}, []);
+
 	const transcribeMutation = useMutation({
 		mutationFn: async () => {
 			if (!selectedModelId) {
@@ -130,13 +295,16 @@ export const AudioPlaygroundClient = () => {
 					return {
 						data: payload.data,
 						mimeType: payload.mimeType,
+						wavFallback: payload.wavFallback,
 					};
 				}),
 			);
 
 			return orpc.admin.scribe.transcribeAudio.call({
 				audioFiles,
+				mode,
 				modelId: selectedModelId,
+				prompt: mode === "native" ? prompt.trim() || undefined : undefined,
 			});
 		},
 		onError: (error) => {
@@ -153,70 +321,18 @@ export const AudioPlaygroundClient = () => {
 
 	return (
 		<div className="space-y-4">
-			<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
-				<CardHeader className="space-y-2 p-4 sm:p-6">
-					<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-						<div className="space-y-1">
-							<CardTitle className="flex items-center gap-2 text-solarized-base00">
-								<Sparkles className="h-4 w-4 text-solarized-blue" />
-								Transkriptionsmodell
-							</CardTitle>
-							<CardDescription className="text-solarized-base01">
-								Wähle ein Audio-zu-Text-fähiges Modell. MDScribe prüft die Modalität nicht
-								automatisch.
-							</CardDescription>
-						</div>
-						{defaults?.defaultSpeechToTextModelId &&
-						selectedModelId === defaults.defaultSpeechToTextModelId ? (
-							<Badge className="w-fit bg-solarized-blue/10 text-solarized-blue hover:bg-solarized-blue/10">
-								Standard-Audiomodell
-							</Badge>
-						) : null}
-					</div>
-				</CardHeader>
-				<CardContent className="grid gap-3 p-4 pt-0 sm:p-6 sm:pt-0 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.5fr)]">
-					<div className="space-y-2">
-						<Label htmlFor="audio-playground-model">Modell</Label>
-						<ModelSelector<AudioModelOption>
-							className="border-solarized-base2 bg-solarized-base3"
-							emptyMessage="Keine Modelle synchronisiert."
-							id="audio-playground-model"
-							isLoading={isLoadingModels || isLoadingDefaults}
-							onValueChange={setSelectedModelId}
-							options={modelOptions}
-							placeholder="Transkriptionsmodell auswählen"
-							renderOption={(option) => (
-								<div className="min-w-0">
-									<span className="block truncate">{option.label}</span>
-									<span className="block truncate text-muted-foreground text-xs">
-										{option.providerName} · {option.modelId}
-									</span>
-								</div>
-							)}
-							renderSelected={(option) =>
-								option ? (
-									<div className="min-w-0">
-										<span className="block truncate">{option.label}</span>
-										<span className="block truncate text-muted-foreground text-xs">
-											{option.providerName} · {option.modelId}
-										</span>
-									</div>
-								) : null
-							}
-							searchPlaceholder="Modell suchen..."
-							value={selectedModelId}
-						/>
-					</div>
-					<div className="rounded-md border border-solarized-base2/80 bg-solarized-base2/20 p-3 text-solarized-base01 text-xs">
-						<div className="font-medium text-solarized-base00">Aktuelle Auswahl</div>
-						<div className="mt-1">
-							{selectedModel
-								? `${selectedModel.providerName} · ${selectedModel.modelId}`
-								: "Kein Modell ausgewählt"}
-						</div>
-					</div>
-				</CardContent>
-			</Card>
+			<ModelModeCard
+				defaultSpeechToTextModelId={defaults?.defaultSpeechToTextModelId}
+				isLoading={isLoadingModels || isLoadingDefaults}
+				mode={mode}
+				modelOptions={modelOptions}
+				onModeChange={handleModeChange}
+				onModelChange={setSelectedModelId}
+				onPromptChange={setPrompt}
+				prompt={prompt}
+				selectedModel={selectedModel}
+				selectedModelId={selectedModelId}
+			/>
 
 			<div className="grid gap-4 xl:grid-cols-[minmax(320px,0.95fr)_minmax(0,1.05fr)]">
 				<Card className="border-solarized-base2 bg-solarized-base3">
@@ -236,6 +352,7 @@ export const AudioPlaygroundClient = () => {
 							disabled={isBusy}
 							maxRecordings={1}
 							onValueChange={handleRecordingsChange}
+							ref={audioInputRef}
 							value={recordings}
 						/>
 						<Button
