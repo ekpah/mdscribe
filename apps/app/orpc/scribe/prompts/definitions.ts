@@ -1,9 +1,9 @@
 import type { DocumentType, DocumentTypeConfig } from "@/orpc/scribe/types";
-import { withSharedUncertaintyHandling } from "./core/clinical-system-role";
+import { withSharedUncertaintyHandling } from "./core/clinical-core-prompt";
 import { ANAMNESE_SYSTEM_PROMPT } from "./families/anamnese";
 import { DIAGNOSIS_SYSTEM_PROMPT } from "./families/diagnosis";
 import { EPIKRISE_SYSTEM_PROMPT } from "./families/narrative/epikrise";
-import { PROCEDURES_SYSTEM_PROMPT } from "./families/procedures";
+import { PROCEDURES_SYSTEM_PROMPT } from "./families/procedure";
 import { BEFUNDE_SYSTEM_PROMPT } from "./families/reports/befunde";
 
 export const documentPromptDefinitions = {
