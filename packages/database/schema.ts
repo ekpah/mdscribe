@@ -51,6 +51,8 @@ const bytea = customType<{ data: Uint8Array; driverData: Uint8Array | string }>(
 
 export const user = pgTable("User", {
 	createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
+	// Non-normalized username (casing preserved) from the better-auth username plugin.
+	displayUsername: text("displayUsername"),
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("emailVerified").notNull().default(false),
 	id: text("id")
@@ -62,6 +64,8 @@ export const user = pgTable("User", {
 	updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
 		.notNull()
 		.$onUpdate(() => new Date()),
+	// Normalized (lowercase) unique handle from the better-auth username plugin.
+	username: text("username").unique(),
 });
 
 export const account = pgTable("Account", {
@@ -440,11 +444,55 @@ export const aiScribeFormConfig = pgTable(
 	],
 );
 
+/**
+ * A composed documentation editor ("Brief-Baukasten" in the UI). Each section
+ * of the letter references the AI form (`AiScribeFormConfig`) that generates it.
+ * One column per prompt-harness section (diagnosis, anamnese, epikrise); befunde
+ * stays on the default for now and gets its own column later.
+ */
+export const aiScribeWorkspace = pgTable(
+	"AiScribeWorkspace",
+	{
+		anamneseFormId: text("anamneseFormId").references(() => aiScribeFormConfig.id, {
+			onDelete: "set null",
+		}),
+		authorId: text("authorId").references(() => user.id, {
+			onDelete: "cascade",
+		}),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
+		description: text("description"),
+		diagnosisFormId: text("diagnosisFormId").references(() => aiScribeFormConfig.id, {
+			onDelete: "set null",
+		}),
+		enabled: boolean("enabled").notNull().default(true),
+		epikriseFormId: text("epikriseFormId").references(() => aiScribeFormConfig.id, {
+			onDelete: "set null",
+		}),
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		name: text("name").notNull(),
+		slug: text("slug").notNull(),
+		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })
+			.notNull()
+			.defaultNow()
+			.$onUpdate(() => new Date()),
+		visibility: text("visibility").notNull().default("public"),
+	},
+	(table) => [
+		uniqueIndex("AiScribeWorkspace_slug_key").on(table.slug),
+		index("AiScribeWorkspace_authorId_idx").on(table.authorId),
+		index("AiScribeWorkspace_enabled_idx").on(table.enabled),
+		index("AiScribeWorkspace_visibility_idx").on(table.visibility),
+	],
+);
+
 // ============ RELATIONS ============
 
 export const userRelations = relations(user, ({ many }) => ({
 	accounts: many(account),
 	aiScribeFormConfigs: many(aiScribeFormConfig),
+	aiScribeWorkspaces: many(aiScribeWorkspace),
 	documentTemplates: many(documentTemplate),
 	favourites: many(favourites),
 	sessions: many(session),
@@ -542,3 +590,13 @@ export const aiScribeFormConfigRelations = relations(aiScribeFormConfig, ({ one 
 		references: [template.id],
 	}),
 }));
+
+export const aiScribeWorkspaceRelations = relations(
+	aiScribeWorkspace,
+	({ one }) => ({
+		author: one(user, {
+			fields: [aiScribeWorkspace.authorId],
+			references: [user.id],
+		}),
+	}),
+);

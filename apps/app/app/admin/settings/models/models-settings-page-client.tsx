@@ -3,7 +3,14 @@
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
-import { Database, FileText, Loader2, Settings, Sparkles } from "lucide-react";
+import {
+	Blocks,
+	Database,
+	FileText,
+	Loader2,
+	Settings,
+	Sparkles,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { orpc } from "@/lib/orpc";
@@ -29,6 +36,20 @@ const ScribeFormsTab = dynamic(
 	async () => {
 		const mod = await import("./_components/scribe-forms-tab");
 		return mod.ScribeFormsTab;
+	},
+	{
+		loading: () => (
+			<div className="flex items-center justify-center py-10 text-solarized-base01">
+				<Loader2 className="h-5 w-5 animate-spin" />
+			</div>
+		),
+	},
+);
+
+const AiScribeWorkspacesTab = dynamic(
+	async () => {
+		const mod = await import("./_components/ai-scribe-workspaces-tab");
+		return mod.AiScribeWorkspacesTab;
 	},
 	{
 		loading: () => (
@@ -92,6 +113,13 @@ export default function ModelsSettingsPageClient() {
 						<FileText className="h-4 w-4" />
 						AI Vorlagen
 					</TabsTrigger>
+					<TabsTrigger
+						value="ai-scribe-workspaces"
+						className="min-w-[138px] shrink-0 justify-center gap-2 text-center md:w-full md:justify-start md:text-left"
+					>
+						<Blocks className="h-4 w-4" />
+						Brief-Baukasten
+					</TabsTrigger>
 				</TabsList>
 
 				<div className="min-w-0 flex-1">
@@ -124,6 +152,10 @@ export default function ModelsSettingsPageClient() {
 
 					<TabsContent value="scribe-forms" className="mt-0">
 						<ScribeFormsTab />
+					</TabsContent>
+
+					<TabsContent value="ai-scribe-workspaces" className="mt-0">
+						<AiScribeWorkspacesTab />
 					</TabsContent>
 				</div>
 			</Tabs>

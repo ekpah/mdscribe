@@ -18,12 +18,23 @@ import { toast } from "sonner";
 
 import { signUp } from "@/lib/auth-client";
 
+const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
+const MIN_USERNAME_LENGTH = 3;
+
 export default function SignUp() {
+	const [username, setUsername] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [passwordConfirmation, setPasswordConfirmation] = useState("");
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
+
+	const handleUsernameChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setUsername(event.target.value);
+		},
+		[],
+	);
 
 	const handleEmailChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
 		setEmail(event.target.value);
@@ -41,6 +52,17 @@ export default function SignUp() {
 	);
 
 	const handleSignUp = useCallback(async () => {
+		const trimmedUsername = username.trim();
+		if (
+			trimmedUsername.length < MIN_USERNAME_LENGTH ||
+			!USERNAME_PATTERN.test(trimmedUsername)
+		) {
+			toast.error(
+				"Benutzername: mindestens 3 Zeichen, nur Buchstaben, Zahlen, Punkt und Unterstrich.",
+			);
+			return;
+		}
+
 		if (password !== passwordConfirmation) {
 			toast.error("Passwörter stimmen nicht überein");
 			return;
@@ -66,8 +88,9 @@ export default function SignUp() {
 			},
 			name: "",
 			password,
+			username: trimmedUsername,
 		});
-	}, [email, password, passwordConfirmation, router]);
+	}, [username, email, password, passwordConfirmation, router]);
 
 	return (
 		<Card className="z-50 max-w-md rounded-md rounded-t-none" data-testid="sign-up-card">
@@ -79,6 +102,20 @@ export default function SignUp() {
 			</CardHeader>
 			<CardContent>
 				<div className="grid gap-4">
+					<div className="grid gap-2">
+						<Label htmlFor="username">Benutzername</Label>
+						<Input
+							autoComplete="username"
+							id="username"
+							onChange={handleUsernameChange}
+							placeholder="benutzername"
+							required
+							value={username}
+						/>
+						<p className="text-muted-foreground text-xs">
+							Mind. 3 Zeichen – Buchstaben, Zahlen, Punkt und Unterstrich.
+						</p>
+					</div>
 					<div className="grid gap-2">
 						<Label htmlFor="email">E-Mail</Label>
 						<Input

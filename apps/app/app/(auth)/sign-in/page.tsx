@@ -21,7 +21,7 @@ import { signIn } from "@/lib/auth-client";
 import { getSafeRedirectPath } from "@/lib/sign-in-redirect";
 
 export default function SignIn() {
-	const [email, setEmail] = useState("");
+	const [identifier, setIdentifier] = useState("");
 	const [password, setPassword] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [rememberMe, setRememberMe] = useState(false);
@@ -30,9 +30,9 @@ export default function SignIn() {
 	const redirectParam = searchParams.get("redirect");
 	const redirect = getSafeRedirectPath(redirectParam);
 
-	const handleEmailChange = useCallback(
+	const handleIdentifierChange = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setEmail(event.target.value);
+			setIdentifier(event.target.value);
 		},
 		[],
 	);
@@ -52,35 +52,42 @@ export default function SignIn() {
 		async (event: React.FormEvent<HTMLFormElement>) => {
 			event.preventDefault();
 			setLoading(true);
+			const value = identifier.trim();
+			// An "@" means it's an email; otherwise treat it as a username.
+			const isEmail = value.includes("@");
+			const fetchOptions = {
+				onError: (ctx: { error: { status: number; message: string } }) => {
+					// Handle the error 403 - not email verified
+					if (ctx.error.status === 403) {
+						toast.error("Bitte bestätigen Sie Ihre E-Mail-Adresse");
+					} else {
+						toast.error(ctx.error.message);
+					}
+					setLoading(false);
+				},
+				onRequest: () => {
+					setLoading(true);
+				},
+				onSuccess: () => {
+					router.push(redirect);
+					setLoading(false);
+				},
+			};
 			try {
-				await signIn.email(
-					{ callbackURL: redirect, email, password, rememberMe },
-					{
-						onError: (ctx) => {
-							// Handle the error 403 - not email verified
-							if (ctx.error.status === 403) {
-								toast.error("Bitte bestätigen Sie Ihre E-Mail-Adresse");
-							} else {
-								toast.error(ctx.error.message);
-							}
-							setLoading(false);
-						},
-						onRequest: () => {
-							//show loading
-							setLoading(true);
-						},
-						onSuccess: () => {
-							//redirect to the original page or dashboard
-							router.push(redirect);
-							setLoading(false);
-						},
-					},
-				);
+				await (isEmail
+					? signIn.email(
+							{ callbackURL: redirect, email: value, password, rememberMe },
+							fetchOptions,
+						)
+					: signIn.username(
+							{ password, rememberMe, username: value },
+							fetchOptions,
+						));
 			} finally {
 				setLoading(false);
 			}
 		},
-		[email, password, redirect, rememberMe, router],
+		[identifier, password, redirect, rememberMe, router],
 	);
 
 	return (
@@ -91,19 +98,20 @@ export default function SignIn() {
 						In Ihren Account einloggen
 					</CardTitle>
 					<CardDescription className="text-center">
-						Geben Sie unten Ihre E-Mail und Ihr Passwort ein, um sich anzumelden
+						Geben Sie unten Ihre E-Mail oder Ihren Benutzernamen und Ihr Passwort
+						ein, um sich anzumelden
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div className="space-y-2">
-						<Label htmlFor="email">E-Mail</Label>
+						<Label htmlFor="identifier">E-Mail oder Benutzername</Label>
 							<Input
-								id="email"
-								onChange={handleEmailChange}
-								placeholder="m@beispiel.de"
+								autoComplete="username"
+								id="identifier"
+								onChange={handleIdentifierChange}
+								placeholder="m@beispiel.de oder benutzername"
 							required
-							type="email"
-							value={email}
+							value={identifier}
 						/>
 					</div>
 					<div className="space-y-2">

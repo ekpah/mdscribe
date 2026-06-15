@@ -18,6 +18,7 @@
 		"migrate:deploy": "drizzle-kit migrate",
 		"push": "drizzle-kit push",
 		"bootstrap": "bun run bootstrap.ts",
+		"backfill:usernames": "bun run backfill-usernames.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

@@ -148,6 +148,20 @@
 			"when": 1782000000000,
 			"tag": "0020_ai_defaults_default_temperature",
 			"breakpoints": true
+		},
+		{
+			"idx": 21,
+			"version": "7",
+			"when": 1782600000000,
+			"tag": "0021_ai_scribe_workspaces",
+			"breakpoints": true
+		},
+		{
+			"idx": 22,
+			"version": "7",
+			"when": 1783200000000,
+			"tag": "0022_user_username",
+			"breakpoints": true
 		}
 	]
 }
