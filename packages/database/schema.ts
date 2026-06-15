@@ -8,6 +8,7 @@ import {
 	numeric,
 	pgTable,
 	primaryKey,
+	real,
 	text,
 	timestamp,
 	uniqueIndex,
@@ -368,6 +369,7 @@ export const aiDefaults = pgTable("AiDefaults", {
 	defaultEvaluationReasoningEffort: text("defaultEvaluationReasoningEffort")
 		.notNull()
 		.default("none"),
+	defaultEvaluationTemperature: real("defaultEvaluationTemperature"),
 	defaultFileImageMode: text("defaultFileImageMode").notNull().default("multimodal"),
 	defaultFileImageModelId: text("defaultFileImageModelId").references(() => aiModel.id, {
 		onDelete: "set null",
@@ -375,6 +377,7 @@ export const aiDefaults = pgTable("AiDefaults", {
 	defaultFileImageReasoningEffort: text("defaultFileImageReasoningEffort")
 		.notNull()
 		.default("none"),
+	defaultFileImageTemperature: real("defaultFileImageTemperature"),
 	defaultSpeechToTextMode: text("defaultSpeechToTextMode").notNull().default("direct"),
 	defaultSpeechToTextModelId: text("defaultSpeechToTextModelId").references(() => aiModel.id, {
 		onDelete: "set null",
@@ -382,6 +385,7 @@ export const aiDefaults = pgTable("AiDefaults", {
 	defaultSpeechToTextReasoningEffort: text("defaultSpeechToTextReasoningEffort")
 		.notNull()
 		.default("none"),
+	defaultSpeechToTextTemperature: real("defaultSpeechToTextTemperature"),
 	defaultStandardSupportsAudio: boolean("defaultStandardSupportsAudio").notNull().default(false),
 	defaultStandardSupportsDocuments: boolean("defaultStandardSupportsDocuments")
 		.notNull()
@@ -390,6 +394,7 @@ export const aiDefaults = pgTable("AiDefaults", {
 		onDelete: "set null",
 	}),
 	defaultTextReasoningEffort: text("defaultTextReasoningEffort").notNull().default("none"),
+	defaultTextTemperature: real("defaultTextTemperature"),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => "global"),

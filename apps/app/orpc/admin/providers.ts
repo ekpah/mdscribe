@@ -698,26 +698,29 @@ const normalizeMediaMode = (
 ): MediaPreprocessStrategy =>
 	value === "direct" || value === "multimodal" ? value : fallback;
 
-const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect> | undefined) => ({
-	defaultEvaluationModel: defaults?.defaultEvaluationModel ?? null,
-	defaultEvaluationReasoningEffort: normalizeReasoningEffort(
-		defaults?.defaultEvaluationReasoningEffort,
-	),
-	defaultFileImageMode: normalizeMediaMode(defaults?.defaultFileImageMode, "multimodal"),
-	defaultFileImageModelId: defaults?.defaultFileImageModelId ?? null,
-	defaultFileImageReasoningEffort: normalizeReasoningEffort(
-		defaults?.defaultFileImageReasoningEffort,
-	),
-	defaultSpeechToTextMode: normalizeMediaMode(defaults?.defaultSpeechToTextMode, "direct"),
-	defaultSpeechToTextModelId: defaults?.defaultSpeechToTextModelId ?? null,
-	defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
-		defaults?.defaultSpeechToTextReasoningEffort,
-	),
-	defaultStandardSupportsAudio: defaults?.defaultStandardSupportsAudio ?? false,
-	defaultStandardSupportsDocuments: defaults?.defaultStandardSupportsDocuments ?? false,
-	defaultTextModelId: defaults?.defaultTextModelId ?? null,
-	defaultTextReasoningEffort: normalizeReasoningEffort(defaults?.defaultTextReasoningEffort),
-});
+const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect> | undefined) => {
+	const d: Partial<typeof aiDefaults.$inferSelect> = defaults ?? {};
+	return {
+		defaultEvaluationModel: d.defaultEvaluationModel ?? null,
+		defaultEvaluationReasoningEffort: normalizeReasoningEffort(d.defaultEvaluationReasoningEffort),
+		defaultEvaluationTemperature: d.defaultEvaluationTemperature ?? null,
+		defaultFileImageMode: normalizeMediaMode(d.defaultFileImageMode, "multimodal"),
+		defaultFileImageModelId: d.defaultFileImageModelId ?? null,
+		defaultFileImageReasoningEffort: normalizeReasoningEffort(d.defaultFileImageReasoningEffort),
+		defaultFileImageTemperature: d.defaultFileImageTemperature ?? null,
+		defaultSpeechToTextMode: normalizeMediaMode(d.defaultSpeechToTextMode, "direct"),
+		defaultSpeechToTextModelId: d.defaultSpeechToTextModelId ?? null,
+		defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
+			d.defaultSpeechToTextReasoningEffort,
+		),
+		defaultSpeechToTextTemperature: d.defaultSpeechToTextTemperature ?? null,
+		defaultStandardSupportsAudio: d.defaultStandardSupportsAudio ?? false,
+		defaultStandardSupportsDocuments: d.defaultStandardSupportsDocuments ?? false,
+		defaultTextModelId: d.defaultTextModelId ?? null,
+		defaultTextReasoningEffort: normalizeReasoningEffort(d.defaultTextReasoningEffort),
+		defaultTextTemperature: d.defaultTextTemperature ?? null,
+	};
+};
 
 const getDefaultsHandler = admin.handler(async ({ context }) => {
 	const defaults = await context.db.query.aiDefaults.findFirst({
@@ -749,34 +752,38 @@ const setDefaultInput = z.object({
 	defaultType: z.enum(DEFAULT_MODEL_SLOTS),
 	modelId: z.string().nullable(),
 	reasoningEffort: reasoningEffortSchema.optional(),
+	temperature: z.number().min(0).max(2).nullable().optional(),
 });
 
 type AiDefaultsDraft = typeof aiDefaults.$inferInsert;
 
 const buildAiDefaultsDraft = (
 	current: typeof aiDefaults.$inferSelect | undefined,
-): AiDefaultsDraft => ({
-	defaultEvaluationModel: current?.defaultEvaluationModel ?? null,
-	defaultEvaluationReasoningEffort: normalizeReasoningEffort(
-		current?.defaultEvaluationReasoningEffort,
-	),
-	defaultFileImageMode: normalizeMediaMode(current?.defaultFileImageMode, "multimodal"),
-	defaultFileImageModelId: current?.defaultFileImageModelId ?? null,
-	defaultFileImageReasoningEffort: normalizeReasoningEffort(
-		current?.defaultFileImageReasoningEffort,
-	),
-	defaultSpeechToTextMode: normalizeMediaMode(current?.defaultSpeechToTextMode, "direct"),
-	defaultSpeechToTextModelId: current?.defaultSpeechToTextModelId ?? null,
-	defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
-		current?.defaultSpeechToTextReasoningEffort,
-	),
-	defaultStandardSupportsAudio: current?.defaultStandardSupportsAudio ?? false,
-	defaultStandardSupportsDocuments: current?.defaultStandardSupportsDocuments ?? false,
-	defaultTextModelId: current?.defaultTextModelId ?? null,
-	defaultTextReasoningEffort: normalizeReasoningEffort(current?.defaultTextReasoningEffort),
-	id: "global",
-	updatedAt: new Date(),
-});
+): AiDefaultsDraft => {
+	const c: Partial<typeof aiDefaults.$inferSelect> = current ?? {};
+	return {
+		defaultEvaluationModel: c.defaultEvaluationModel ?? null,
+		defaultEvaluationReasoningEffort: normalizeReasoningEffort(c.defaultEvaluationReasoningEffort),
+		defaultEvaluationTemperature: c.defaultEvaluationTemperature ?? null,
+		defaultFileImageMode: normalizeMediaMode(c.defaultFileImageMode, "multimodal"),
+		defaultFileImageModelId: c.defaultFileImageModelId ?? null,
+		defaultFileImageReasoningEffort: normalizeReasoningEffort(c.defaultFileImageReasoningEffort),
+		defaultFileImageTemperature: c.defaultFileImageTemperature ?? null,
+		defaultSpeechToTextMode: normalizeMediaMode(c.defaultSpeechToTextMode, "direct"),
+		defaultSpeechToTextModelId: c.defaultSpeechToTextModelId ?? null,
+		defaultSpeechToTextReasoningEffort: normalizeReasoningEffort(
+			c.defaultSpeechToTextReasoningEffort,
+		),
+		defaultSpeechToTextTemperature: c.defaultSpeechToTextTemperature ?? null,
+		defaultStandardSupportsAudio: c.defaultStandardSupportsAudio ?? false,
+		defaultStandardSupportsDocuments: c.defaultStandardSupportsDocuments ?? false,
+		defaultTextModelId: c.defaultTextModelId ?? null,
+		defaultTextReasoningEffort: normalizeReasoningEffort(c.defaultTextReasoningEffort),
+		defaultTextTemperature: c.defaultTextTemperature ?? null,
+		id: "global",
+		updatedAt: new Date(),
+	};
+};
 
 const persistAiDefaultsDraft = async (
 	db: Database,
@@ -789,16 +796,20 @@ const persistAiDefaultsDraft = async (
 				.set({
 					defaultEvaluationModel: next.defaultEvaluationModel,
 					defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
+					defaultEvaluationTemperature: next.defaultEvaluationTemperature,
 					defaultFileImageMode: next.defaultFileImageMode,
 					defaultFileImageModelId: next.defaultFileImageModelId,
 					defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
+					defaultFileImageTemperature: next.defaultFileImageTemperature,
 					defaultSpeechToTextMode: next.defaultSpeechToTextMode,
 					defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
 					defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
+					defaultSpeechToTextTemperature: next.defaultSpeechToTextTemperature,
 					defaultStandardSupportsAudio: next.defaultStandardSupportsAudio,
 					defaultStandardSupportsDocuments: next.defaultStandardSupportsDocuments,
 					defaultTextModelId: next.defaultTextModelId,
 					defaultTextReasoningEffort: next.defaultTextReasoningEffort,
+					defaultTextTemperature: next.defaultTextTemperature,
 					updatedAt: next.updatedAt,
 				})
 				.where(eq(aiDefaults.id, "global"))
@@ -807,11 +818,15 @@ const persistAiDefaultsDraft = async (
 
 const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof setDefaultInput>) => {
 	const nextReasoningEffort = parsed.reasoningEffort;
+	const nextTemperature = parsed.temperature;
 	switch (parsed.defaultType) {
 		case "text": {
 			next.defaultTextModelId = parsed.modelId;
 			if (nextReasoningEffort !== undefined) {
 				next.defaultTextReasoningEffort = nextReasoningEffort;
+			}
+			if (nextTemperature !== undefined) {
+				next.defaultTextTemperature = nextTemperature;
 			}
 			break;
 		}
@@ -820,6 +835,9 @@ const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof set
 			if (nextReasoningEffort !== undefined) {
 				next.defaultEvaluationReasoningEffort = nextReasoningEffort;
 			}
+			if (nextTemperature !== undefined) {
+				next.defaultEvaluationTemperature = nextTemperature;
+			}
 			break;
 		}
 		case "file-image": {
@@ -827,12 +845,18 @@ const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof set
 			if (nextReasoningEffort !== undefined) {
 				next.defaultFileImageReasoningEffort = nextReasoningEffort;
 			}
+			if (nextTemperature !== undefined) {
+				next.defaultFileImageTemperature = nextTemperature;
+			}
 			break;
 		}
 		case "speech-to-text": {
 			next.defaultSpeechToTextModelId = parsed.modelId;
 			if (nextReasoningEffort !== undefined) {
 				next.defaultSpeechToTextReasoningEffort = nextReasoningEffort;
+			}
+			if (nextTemperature !== undefined) {
+				next.defaultSpeechToTextTemperature = nextTemperature;
 			}
 			break;
 		}

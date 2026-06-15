@@ -141,6 +141,13 @@
 			"when": 1781222400000,
 			"tag": "0019_ai_defaults_standard_capabilities",
 			"breakpoints": true
+		},
+		{
+			"idx": 20,
+			"version": "7",
+			"when": 1782000000000,
+			"tag": "0020_ai_defaults_default_temperature",
+			"breakpoints": true
 		}
 	]
 }
