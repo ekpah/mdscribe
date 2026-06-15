@@ -97,6 +97,72 @@ describe("Admin usage stats", () => {
 		expect(currentBucket?.tokensPerSecond).toEqual({ p50: 50, p90: 50, p95: 50 });
 	});
 
+	test("includes reasoning tokens in tokens per second", async () => {
+		// total reflects input + output + reasoning (reasoning reported separately),
+		// so generated tokens = total - input = output + reasoning = 200.
+		await createTestUsageEvent(server.db, userId, {
+			inputTokens: 100,
+			outputTokens: 100,
+			reasoningTokens: 100,
+			timeToCompletionMs: 2000,
+			totalTokens: 300,
+		});
+
+		const stats = await call(usageHandler.stats, { filter: "all" }, { context });
+
+		// Without reasoning this would be 100 tokens / 2s = 50.
+		expect(stats.tokensPerSecond).toBe(100);
+	});
+
+	test("inverts tokens-per-second percentiles so the slow tail surfaces as p90/p95", async () => {
+		const timestamp = new Date();
+		timestamp.setHours(11, 30, 0, 0);
+		const currentBucketKey = formatBucket(timestamp, "UTC", "day");
+
+		// 1000 tok/s (fast), 100 tok/s (slow). Lower is worse, so p90/p95 should
+		// trend toward the slow value while p50 stays the median.
+		await createTestUsageEvent(server.db, userId, {
+			inputTokens: 0,
+			outputTokens: 2000,
+			timeToCompletionMs: 2000,
+			timestamp,
+			totalTokens: 2000,
+		});
+		await createTestUsageEvent(server.db, userId, {
+			inputTokens: 0,
+			outputTokens: 200,
+			timeToCompletionMs: 2000,
+			timestamp,
+			totalTokens: 200,
+		});
+
+		const stats = await call(usageHandler.stats, { filter: "week", timeZone: "UTC" }, { context });
+		const currentBucket = stats.trend.find((bucket) => bucket.bucket === currentBucketKey);
+		const perSecond = currentBucket?.tokensPerSecond;
+
+		expect(perSecond?.p90).not.toBeNull();
+		expect(perSecond?.p95).not.toBeNull();
+		expect(perSecond?.p90).toBeLessThanOrEqual(perSecond?.p50 ?? 0);
+		expect(perSecond?.p95).toBeLessThanOrEqual(perSecond?.p90 ?? 0);
+	});
+
+	test("returns cost-per-request percentiles in trend buckets", async () => {
+		const timestamp = new Date();
+		timestamp.setHours(11, 30, 0, 0);
+		const currentBucketKey = formatBucket(timestamp, "UTC", "day");
+
+		for (const cost of ["0.10", "0.20", "0.30"]) {
+			await createTestUsageEvent(server.db, userId, { cost, timestamp });
+		}
+
+		const stats = await call(usageHandler.stats, { filter: "week", timeZone: "UTC" }, { context });
+		const currentBucket = stats.trend.find((bucket) => bucket.bucket === currentBucketKey);
+
+		expect(currentBucket?.costPerRequest.p50).toBeCloseTo(0.2);
+		expect(currentBucket?.costPerRequest.p90).toBeCloseTo(0.28);
+		expect(currentBucket?.costPerRequest.p95).toBeCloseTo(0.29);
+	});
+
 	test("returns daily trend buckets for week filters", async () => {
 		const timestamp = new Date();
 		timestamp.setHours(11, 30, 0, 0);
@@ -159,6 +225,27 @@ describe("Admin usage stats", () => {
 		expect(januaryBucket?.activeUsers).toBe(1);
 		expect(februaryBucket?.activeUsers).toBe(0);
 		expect(marchBucket?.activeUsers).toBe(2);
+	});
+
+	test("returns weekly AI request buckets alongside monthly active users", async () => {
+		await createTestUsageEvent(server.db, userId, {
+			timestamp: new Date("2020-01-15T12:00:00.000Z"),
+		});
+		await createTestUsageEvent(server.db, userId, {
+			timestamp: new Date("2020-01-16T12:00:00.000Z"),
+		});
+
+		const stats = await call(usageHandler.monthlyActiveUsers, { timeZone: "UTC" }, { context });
+
+		expect(Array.isArray(stats.weeklyRequests)).toBe(true);
+		const totalWeeklyRequests = stats.weeklyRequests.reduce(
+			(total, bucket) => total + bucket.requests,
+			0,
+		);
+		expect(totalWeeklyRequests).toBe(2);
+		// Both events fall in the same ISO week (Mon 2020-01-13), so one bucket holds them.
+		const weekWithRequests = stats.weeklyRequests.find((bucket) => bucket.requests > 0);
+		expect(weekWithRequests?.requests).toBe(2);
 	});
 
 	test("buckets trend data in the requested user timezone", async () => {

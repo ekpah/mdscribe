@@ -248,7 +248,7 @@ export const UsageEventDetail = ({
 							<StatBox label="Fertig" value={formatDuration(event.timeToCompletionMs)} />
 							<StatBox
 								label="Tokens/s"
-								value={formatTokensPerSecond(event.outputTokens, event.timeToCompletionMs)}
+								value={formatTokensPerSecond(event, event.timeToCompletionMs)}
 							/>
 						</div>
 					</section>

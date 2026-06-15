@@ -398,7 +398,7 @@ const UsageMobileCards = ({
 							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 								<p className="text-solarized-base01">Tokens/s</p>
 								<p className="font-mono text-solarized-base00">
-									{formatTokensPerSecond(item.outputTokens, item.timeToCompletionMs)}
+									{formatTokensPerSecond(item, item.timeToCompletionMs)}
 								</p>
 							</div>
 							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">

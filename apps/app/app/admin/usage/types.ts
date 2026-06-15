@@ -7,10 +7,12 @@ interface UsageEventUser {
 export interface UsageListEvent {
 	cost: number | string | null;
 	id: string;
+	inputTokens: number | null;
 	metadata: unknown;
 	model: string | null;
 	name: string;
 	outputTokens: number | null;
+	reasoningTokens: number | null;
 	timestamp: Date | string;
 	timeToCompletionMs: number | null;
 	timeToFirstTokenMs: number | null;

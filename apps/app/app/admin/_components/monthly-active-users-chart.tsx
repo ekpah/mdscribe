@@ -13,22 +13,32 @@ import {
 	ChartTooltipContent,
 } from "@repo/design-system/components/ui/chart";
 import type { ChartConfig } from "@repo/design-system/components/ui/chart";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 
 interface MonthlyActiveUsersBucket {
 	activeUsers: number;
 	bucket: string;
 }
 
+interface WeeklyRequestsBucket {
+	bucket: string;
+	requests: number;
+}
+
 interface MonthlyActiveUsersChartProps {
 	timeZone: string;
 	trend: MonthlyActiveUsersBucket[];
+	weeklyRequests: WeeklyRequestsBucket[];
 }
 
 const chartConfig = {
 	activeUsers: {
 		color: "var(--solarized-blue)",
-		label: "Aktive Nutzer",
+		label: "Aktive Nutzer (Monat)",
+	},
+	requests: {
+		color: "var(--solarized-orange)",
+		label: "KI-Anfragen (Woche)",
 	},
 } satisfies ChartConfig;
 
@@ -62,16 +72,29 @@ const longMonthLabels = [
 	"Dezember",
 ];
 
-const getMonthIndex = (bucket: string) => Number(bucket.slice(5, 7)) - 1;
+// Parse the local bucket date (YYYY-MM-DD) in UTC so points are placed on the
+// shared time axis without being shifted by the viewer's timezone offset.
+const bucketToEpoch = (bucket: string): number =>
+	Date.UTC(
+		Number(bucket.slice(0, 4)),
+		Number(bucket.slice(5, 7)) - 1,
+		Number(bucket.slice(8, 10)),
+	);
 
-const formatMonthTick = (bucket: string): string => {
-	const monthLabel = shortMonthLabels[getMonthIndex(bucket)] ?? bucket.slice(5, 7);
-	return `${monthLabel} ${bucket.slice(2, 4)}`;
+const formatAxisTick = (value: number): string => {
+	const date = new Date(value);
+	const monthLabel = shortMonthLabels[date.getUTCMonth()] ?? "";
+	return `${monthLabel} ${String(date.getUTCFullYear()).slice(2)}`;
 };
 
-const formatTooltipLabel = (bucket: string): string => {
-	const monthLabel = longMonthLabels[getMonthIndex(bucket)] ?? bucket.slice(5, 7);
-	return `${monthLabel} ${bucket.slice(0, 4)}`;
+const formatTooltipLabel = (value: number | string): string => {
+	const date = new Date(Number(value));
+	if (Number.isNaN(date.getTime())) {
+		return "";
+	}
+	const monthLabel = longMonthLabels[date.getUTCMonth()] ?? "";
+	const day = String(date.getUTCDate()).padStart(2, "0");
+	return `${day}. ${monthLabel} ${date.getUTCFullYear()}`;
 };
 
 const toNumericValue = (
@@ -81,12 +104,53 @@ const toNumericValue = (
 	return Number.isFinite(numericValue) ? numericValue : null;
 };
 
-const formatActiveUsers = (
+const formatCount = (
 	value: number | string | (number | string)[] | undefined,
 ): string => toNumericValue(value)?.toLocaleString("de-DE") ?? "-";
 
-export const MonthlyActiveUsersChart = ({ timeZone, trend }: MonthlyActiveUsersChartProps) => {
-	const hasData = trend.some((bucket) => bucket.activeUsers > 0);
+interface ChartPoint {
+	activeUsers?: number;
+	requests?: number;
+	x: number;
+}
+
+const buildChartData = (
+	trend: MonthlyActiveUsersBucket[],
+	weeklyRequests: WeeklyRequestsBucket[],
+): ChartPoint[] => {
+	const pointByX = new Map<number, ChartPoint>();
+	const ensurePoint = (x: number): ChartPoint => {
+		const existing = pointByX.get(x);
+		if (existing) {
+			return existing;
+		}
+		const created: ChartPoint = { x };
+		pointByX.set(x, created);
+		return created;
+	};
+
+	for (const bucket of trend) {
+		ensurePoint(bucketToEpoch(bucket.bucket)).activeUsers = bucket.activeUsers;
+	}
+	for (const bucket of weeklyRequests) {
+		ensurePoint(bucketToEpoch(bucket.bucket)).requests = bucket.requests;
+	}
+
+	return [...pointByX.values()].sort((a, b) => a.x - b.x);
+};
+
+export const MonthlyActiveUsersChart = ({
+	timeZone,
+	trend,
+	weeklyRequests,
+}: MonthlyActiveUsersChartProps) => {
+	const data = buildChartData(trend, weeklyRequests);
+	// One tick per month, placed exactly at the monthly active-users data points,
+	// so the weekly requests don't repeat the same month label across the axis.
+	const monthTicks = trend.map((bucket) => bucketToEpoch(bucket.bucket));
+	const hasData =
+		trend.some((bucket) => bucket.activeUsers > 0) ||
+		weeklyRequests.some((bucket) => bucket.requests > 0);
 
 	return (
 		<Card className="border-solarized-base2">
@@ -96,29 +160,34 @@ export const MonthlyActiveUsersChart = ({ timeZone, trend }: MonthlyActiveUsersC
 						Monatlich aktive Nutzer
 					</CardTitle>
 					<CardDescription>
-						Einzigartige Nutzer pro Kalendermonat über den gesamten Zeitraum.
+						Einzigartige Nutzer pro Kalendermonat (linke Achse) und KI-Anfragen pro Woche (rechte
+						Achse).
 					</CardDescription>
 				</div>
 				<div
 					className="inline-flex h-7 w-fit items-center rounded-full border border-solarized-base2 bg-solarized-base3 px-2.5 font-medium text-solarized-base01 text-xs"
 					title={`Zeitzone: ${timeZone}`}
 				>
-					Monat
+					Monat / Woche
 					<span className="ml-1 hidden sm:inline">· {timeZone}</span>
 				</div>
 			</CardHeader>
 			<CardContent>
 				{hasData ? (
 					<ChartContainer config={chartConfig} className="h-[260px] w-full">
-						<AreaChart accessibilityLayer data={trend}>
+						<ComposedChart accessibilityLayer data={data}>
 							<CartesianGrid vertical={false} />
 							<XAxis
-								dataKey="bucket"
-								tickLine={false}
 								axisLine={false}
-								tickMargin={10}
+								dataKey="x"
+								domain={["dataMin", "dataMax"]}
 								minTickGap={28}
-								tickFormatter={(value: string) => formatMonthTick(value)}
+								scale="time"
+								tickFormatter={formatAxisTick}
+								tickLine={false}
+								tickMargin={10}
+								ticks={monthTicks}
+								type="number"
 							/>
 							<YAxis
 								allowDecimals={false}
@@ -129,12 +198,24 @@ export const MonthlyActiveUsersChart = ({ timeZone, trend }: MonthlyActiveUsersC
 								tickMargin={8}
 								width={48}
 							/>
+							<YAxis
+								allowDecimals={false}
+								axisLine={false}
+								domain={[0, "auto"]}
+								orientation="right"
+								tickFormatter={(value: number) => value.toLocaleString("de-DE")}
+								tickLine={false}
+								tickMargin={8}
+								width={48}
+								yAxisId="requests"
+							/>
 							<ChartTooltip
 								content={
 									<ChartTooltipContent
-										hideIndicator
-										labelFormatter={(value) => (value ? formatTooltipLabel(String(value)) : "")}
-										valueFormatter={(value) => formatActiveUsers(value)}
+										labelFormatter={(label) =>
+											label === undefined ? "" : formatTooltipLabel(label)
+										}
+										valueFormatter={(value) => formatCount(value)}
 									/>
 								}
 							/>
@@ -145,14 +226,24 @@ export const MonthlyActiveUsersChart = ({ timeZone, trend }: MonthlyActiveUsersC
 								</linearGradient>
 							</defs>
 							<Area
-								type="monotone"
+								connectNulls
 								dataKey="activeUsers"
-								stroke="var(--color-activeUsers)"
-								fill="url(#monthly-active-users-fill)"
-								strokeWidth={2.5}
 								dot={false}
+								fill="url(#monthly-active-users-fill)"
+								stroke="var(--color-activeUsers)"
+								strokeWidth={2.5}
+								type="monotone"
 							/>
-						</AreaChart>
+							<Line
+								connectNulls
+								dataKey="requests"
+								dot={false}
+								stroke="var(--color-requests)"
+								strokeWidth={2.5}
+								type="monotone"
+								yAxisId="requests"
+							/>
+						</ComposedChart>
 					</ChartContainer>
 				) : (
 					<div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed border-solarized-base2 bg-solarized-base3/60 px-4 text-center text-sm text-solarized-base01">

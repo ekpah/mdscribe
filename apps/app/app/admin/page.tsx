@@ -225,6 +225,7 @@ export default async function AdminDashboardPage() {
 				<MonthlyActiveUsersChart
 					timeZone={monthlyActiveUsers.timeZone}
 					trend={monthlyActiveUsers.trend}
+					weeklyRequests={monthlyActiveUsers.weeklyRequests}
 				/>
 
 				{/* Admin Tools Grid */}
