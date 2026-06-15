@@ -9,7 +9,16 @@ import {
 import type { ChartConfig } from "@repo/design-system/components/ui/chart";
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import { cn } from "@repo/design-system/lib/utils";
-import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import {
+	Area,
+	AreaChart,
+	CartesianGrid,
+	Line,
+	LineChart,
+	ReferenceArea,
+	XAxis,
+	YAxis,
+} from "recharts";
 
 import type { StatsFilter, UsageTrendMetric } from "../types";
 
@@ -128,6 +137,39 @@ const getWeekdayIndex = (bucket: string): number =>
 			Number(bucket.slice(8, 10)),
 		),
 	).getUTCDay();
+
+const isWeekendBucket = (bucket: string): boolean => {
+	const weekday = getWeekdayIndex(bucket);
+	return weekday === 0 || weekday === 6;
+};
+
+interface WeekendBand {
+	key: string;
+	x1: string;
+	x2: string;
+}
+
+// Collapse consecutive weekend days (Sat/Sun) into contiguous bands so each
+// weekend renders as a single shaded background area behind the trend.
+const getWeekendBands = (buckets: string[]): WeekendBand[] => {
+	const bands: WeekendBand[] = [];
+	let runStart: string | null = null;
+	let runEnd: string | null = null;
+	for (const bucket of buckets) {
+		if (isWeekendBucket(bucket)) {
+			runStart ??= bucket;
+			runEnd = bucket;
+		} else if (runStart !== null && runEnd !== null) {
+			bands.push({ key: runStart, x1: runStart, x2: runEnd });
+			runStart = null;
+			runEnd = null;
+		}
+	}
+	if (runStart !== null && runEnd !== null) {
+		bands.push({ key: runStart, x1: runStart, x2: runEnd });
+	}
+	return bands;
+};
 
 const formatTick = (
 	bucket: string,
@@ -296,6 +338,20 @@ export const UsageTrendChart = ({
 	const hasPercentileData = percentileData.some(
 		(bucket) => bucket.p50 !== null || bucket.p90 !== null || bucket.p95 !== null,
 	);
+	const weekendBands =
+		trendGranularity === "day" ? getWeekendBands(trend.map((bucket) => bucket.bucket)) : [];
+	const renderWeekendBands = () =>
+		weekendBands.map((band) => (
+			<ReferenceArea
+				key={band.key}
+				x1={band.x1}
+				x2={band.x2}
+				fill="var(--solarized-base2)"
+				fillOpacity={0.6}
+				stroke="none"
+				ifOverflow="extendDomain"
+			/>
+		));
 
 	if (isLoading) {
 		return (
@@ -354,6 +410,7 @@ export const UsageTrendChart = ({
 								<ChartContainer config={percentileChartConfig} className="h-[260px] w-full">
 									<LineChart accessibilityLayer data={percentileData}>
 										<CartesianGrid vertical={false} />
+										{renderWeekendBands()}
 										<XAxis
 											dataKey="bucket"
 											tickLine={false}
@@ -438,6 +495,7 @@ export const UsageTrendChart = ({
 						>
 							<AreaChart accessibilityLayer data={aggregateData}>
 								<CartesianGrid vertical={false} />
+								{renderWeekendBands()}
 								<XAxis
 									dataKey="bucket"
 									tickLine={false}
