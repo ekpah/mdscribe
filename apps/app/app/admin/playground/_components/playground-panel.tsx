@@ -224,7 +224,10 @@ const PROVIDER_LABELS: Record<string, string> = {
 const getProviderFromModelId = (modelId: string): string => modelId.split("/")[0] || "other";
 
 const getProviderGroup = (model: PlaygroundModel): string =>
-	model.providerProtocol ?? model.connectionProtocol ?? getProviderFromModelId(model.modelId);
+	model.providerName ??
+	model.providerProtocol ??
+	model.connectionProtocol ??
+	getProviderFromModelId(model.modelId);
 
 const PLAYGROUND_EDITOR_TEXTAREA_CLASS = "font-mono text-xs leading-[1.35]";
 const TEMPLATE_SELECTOR_INFO =
