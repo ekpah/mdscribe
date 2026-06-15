@@ -569,7 +569,7 @@ export const fillInputsHandler = authed
 		// stopped by a content filter), so the structured output was never parsed.
 		// Surface that as a clean BAD_REQUEST instead of an uncaught 500.
 		const resultOutput = readStructuredOutput(result);
-		if (resultOutput == null) {
+		if (resultOutput === null || resultOutput === undefined) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Ausfüllen fehlgeschlagen. (Modell lieferte keine verwertbare Ausgabe, finishReason=${result.finishReason}.)`,
 			});

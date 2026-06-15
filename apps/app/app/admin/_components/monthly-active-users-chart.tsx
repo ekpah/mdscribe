@@ -136,7 +136,7 @@ const buildChartData = (
 		ensurePoint(bucketToEpoch(bucket.bucket)).requests = bucket.requests;
 	}
 
-	return [...pointByX.values()].sort((a, b) => a.x - b.x);
+	return [...pointByX.values()].toSorted((a, b) => a.x - b.x);
 };
 
 export const MonthlyActiveUsersChart = ({

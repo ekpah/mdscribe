@@ -1,16 +1,6 @@
 import { buildClinicalCorePrompt } from "../../core/clinical-core-prompt";
 
 export const DIAGNOSIS_SYSTEM_PROMPT = buildClinicalCorePrompt({
-	taskSentence:
-		"Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen den Diagnoseblock für einen Arztbrief zu erstellen. Nutzen Sie hierfür die vorliegenden Vordiagnosen und Befunde und Notizen des aktuellen Aufenthaltes.",
-	primaryObjective: `Erstellen Sie einen vollständigen, korrekt strukturierten und medizinisch präzisen Diagnoseblock, der:
-- HAUPTDIAGNOSE(N) klar priorisiert und darstellt
-- NEBENDIAGNOSEN systematisch und vollständig auflistet
-- RELEVANTE VORERKRANKUNGEN einbezieht
-- DURCHGEFÜHRTE PROZEDUREN komplett aufführt
-- MEDIZINISCH LOGISCH GEGLIEDERT und HIERARCHISCH STRUKTURIERT ist
-- DEN KODIERRICHTLINIEN entspricht (insbesondere zur Hauptdiagnose-Definition)
-- Der STRUKTUR der Vorlage entspricht`,
 	corePrinciples: `Hauptdiagnose(n):
 - Meist eine, in Ausnahmefällen zwei gleichwertige Hauptdiagnosen möglich
 - Präzise Bezeichnung mit allen relevanten Details
@@ -35,6 +25,23 @@ Nebendiagnosen:
 - KEINE unbestätigten Verdachtsdiagnosen (außer als "V.a." gekennzeichnet)
 - KEINE Bagatelldiagnosen ohne Behandlungsrelevanz
 - KEINE irrelevanten Nebenbefunde aus bildgebenden Verfahren`,
+	primaryObjective: `Erstellen Sie einen vollständigen, korrekt strukturierten und medizinisch präzisen Diagnoseblock, der:
+- HAUPTDIAGNOSE(N) klar priorisiert und darstellt
+- NEBENDIAGNOSEN systematisch und vollständig auflistet
+- RELEVANTE VORERKRANKUNGEN einbezieht
+- DURCHGEFÜHRTE PROZEDUREN komplett aufführt
+- MEDIZINISCH LOGISCH GEGLIEDERT und HIERARCHISCH STRUKTURIERT ist
+- DEN KODIERRICHTLINIEN entspricht (insbesondere zur Hauptdiagnose-Definition)
+- Der STRUKTUR der Vorlage entspricht`,
+	qualityChecks: `- HAUPTDIAGNOSE korrekt identifiziert und an erster Stelle
+- ALLE BEHANDLUNGSRELEVANTEN Diagnosen aufgeführt
+- KODIERUNG soweit möglich vorhanden
+- PRÄZISE FORMULIERUNG mit allen notwendigen Details
+- SYSTEMATISCHE GLIEDERUNG erkennbar
+- KEINE inhaltlichen Widersprüche zu den Eingabedaten
+- FORMAT konsistent und übersichtlich`,
+	taskSentence:
+		"Ihre Aufgabe ist es, auf Basis der bereitgestellten Informationen den Diagnoseblock für einen Arztbrief zu erstellen. Nutzen Sie hierfür die vorliegenden Vordiagnosen und Befunde und Notizen des aktuellen Aufenthaltes.",
 	workflowSteps: `1. ALLE VORLIEGENDEN DIAGNOSEN erfassen und sichten
 2. HAUPTDIAGNOSE identifizieren (behandlungsleitend für den aktuellen Aufenthalt)
 3. NEBENDIAGNOSEN systematisch ordnen und priorisieren
@@ -43,11 +50,4 @@ Nebendiagnosen:
 6. VOLLSTÄNDIGKEIT prüfen (alle behandlungsrelevanten Diagnosen enthalten?)
 7. In Struktur und Format des <template_context> einfügen
 8. STRUKTUR UND HIERARCHIE final überprüfen`,
-	qualityChecks: `- HAUPTDIAGNOSE korrekt identifiziert und an erster Stelle
-- ALLE BEHANDLUNGSRELEVANTEN Diagnosen aufgeführt
-- KODIERUNG soweit möglich vorhanden
-- PRÄZISE FORMULIERUNG mit allen notwendigen Details
-- SYSTEMATISCHE GLIEDERUNG erkennbar
-- KEINE inhaltlichen Widersprüche zu den Eingabedaten
-- FORMAT konsistent und übersichtlich`,
 });
