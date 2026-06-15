@@ -294,12 +294,6 @@ const PLAYGROUND_VIEW_META: Record<PlaygroundView, { description: string; label:
 
 const NONE_TEMPLATE_VALUE = "__none__";
 
-const PROMPT_RUNTIME_LABELS: Record<string, string> = {
-	contextXml: "Context XML",
-	relevantTemplate: "Relevante Vorlage",
-	todaysDate: "Heutiges Datum",
-};
-
 const resolveDocumentTypeFromPromptHarness = (
 	promptHarness: string,
 ): PlaygroundDocumentType | undefined => {
@@ -309,6 +303,30 @@ const resolveDocumentTypeFromPromptHarness = (
 	}
 
 	return resolvedPromptHarnessId;
+};
+
+// Builds the promptJson payload from the shared form inputs for a given document
+// type's field mapping. Shared by Prompt A and Prompt B so each side can map the
+// same inputs onto its own (possibly different) document type.
+const buildPlaygroundPromptJson = (
+	docUi: (typeof scribeDocTypeUi)[PlaygroundDocumentType],
+	formMain: string,
+	formAdditional: Record<string, string>,
+	templateReference: string,
+): string => {
+	const data: Record<string, unknown> = {
+		[docUi.mainField.name]: formMain,
+	};
+	for (const field of docUi.additionalFields) {
+		const value = formAdditional[field.name];
+		if (value !== undefined) {
+			data[field.name] = value;
+		}
+	}
+	if (templateReference.length > 0) {
+		data.relevantTemplate = templateReference;
+	}
+	return JSON.stringify(data);
 };
 
 const asFiniteMetricNumber = (value: unknown): number | undefined => {
@@ -770,109 +788,6 @@ const PromptHarnessPreview = ({
 	);
 };
 
-const PROMPT_HIGHLIGHT_LEGEND: { className: string; label: string }[] = [
-	...(["template", "user", "patient", "shared", "runtime"] as const).map((kind) => ({
-		className: PROMPT_SECTION_META[kind].highlightClassName,
-		label: PROMPT_SECTION_META[kind].label,
-	})),
-	{
-		className: "border border-solarized-base2",
-		label: "Prompt-Instruktionen",
-	},
-];
-
-const PromptContextOverview = ({
-	inputItems,
-	runtimeItems,
-}: {
-	inputItems: PromptPreviewVariable[];
-	runtimeItems: PromptPreviewVariable[];
-}) => {
-	const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
-
-	const toggleExpanded = useCallback((key: string) => {
-		setExpandedKeys((previous) => {
-			const next = new Set(previous);
-			if (next.has(key)) {
-				next.delete(key);
-			} else {
-				next.add(key);
-			}
-			return next;
-		});
-	}, []);
-
-	const items = [...runtimeItems, ...inputItems];
-
-	return (
-		<div className="rounded-lg border border-solarized-base2 bg-solarized-base3/30 p-3">
-			<div className="flex flex-wrap items-center justify-between gap-2">
-				<p className="font-medium text-xs text-solarized-base01">Kontext & Inputs</p>
-				<div className="flex flex-wrap items-center gap-2 text-[10px] text-solarized-base01">
-					{PROMPT_HIGHLIGHT_LEGEND.map((entry) => (
-						<span className="flex items-center gap-1" key={entry.label}>
-							<span className={cn("rounded-[3px] px-1 font-mono", entry.className)}>ab</span>
-							{entry.label}
-						</span>
-					))}
-				</div>
-			</div>
-
-			{items.length === 0 ? (
-				<p className="mt-2 text-xs text-solarized-base01">
-					Noch keine dynamischen Werte – Prompt kompilieren oder Inputs ausfüllen.
-				</p>
-			) : (
-				<ul className="mt-2 flex flex-col gap-1">
-					{items.map((item) => {
-						const itemKey = `${item.source}-${item.key}`;
-						const isEmpty = item.value.trim().length === 0;
-						const isExpanded = expandedKeys.has(itemKey);
-
-						return (
-							<li key={itemKey}>
-								<div className="flex flex-wrap items-center gap-2">
-									<Badge
-										variant="outline"
-										className={cn(
-											"h-5 px-1.5 text-[10px]",
-											item.source === "runtime"
-												? "border-solarized-orange/40 bg-solarized-orange/10 text-solarized-orange"
-												: "border-solarized-blue/40 bg-solarized-blue/10 text-solarized-blue",
-										)}
-									>
-										{item.source === "runtime" ? "Dynamisch" : "Input"}
-									</Badge>
-									<span className="text-xs text-solarized-base00">{item.label}</span>
-									<span className="text-[10px] text-solarized-base01">
-										{isEmpty ? "leer" : `${item.value.length.toLocaleString("de-DE")} Zeichen`}
-									</span>
-									{isEmpty ? null : (
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className="h-5 px-1.5 text-[10px] text-solarized-base01 hover:text-solarized-base00"
-											onClick={() => toggleExpanded(itemKey)}
-										>
-											{isExpanded ? "Ausblenden" : "Anzeigen"}
-										</Button>
-									)}
-								</div>
-								{isExpanded ? (
-									<pre className="mt-1 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-solarized-base2 bg-solarized-base3 p-2 font-mono text-[11px] leading-[1.35] text-solarized-base00">
-										{item.value}
-									</pre>
-								) : null}
-							</li>
-						);
-					})}
-				</ul>
-			)}
-		</div>
-	);
-};
-
 export const PlaygroundPanel = ({
 	models,
 	topModelIds,
@@ -975,17 +890,24 @@ export const PlaygroundPanel = ({
 		  }[]
 		| null
 	>(null);
-	const [promptComparisonMessages, setPromptComparisonMessages] = useState<
-		| {
-				role: "system" | "user" | "assistant";
-				content: string;
-		  }[]
-		| null
-	>(null);
 	const [promptRuntimeVariables, setPromptRuntimeVariables] = useState<Record<string, unknown>>({});
 	const compileRequestRef = useRef(0);
 	const loadedPromptHarnessNameRef = useRef<string | null>(null);
 	const loadedTemplateIdRef = useRef<string | null>(null);
+
+	// Prompt B is an independent comparison version with its own base-prompt and
+	// template selection. It reuses the shared inputs but compiles separately so
+	// different prompt/template combinations can be tested side by side.
+	const [isComparisonEnabled, setIsComparisonEnabled] = useState(false);
+	const [promptNameB, setPromptNameB] = useState<string>(initialPromptName);
+	const [selectedTemplateIdB, setSelectedTemplateIdB] = useState<string>(NONE_TEMPLATE_VALUE);
+	const [compiledMessagesB, setCompiledMessagesB] = useState<
+		{ role: "system" | "user" | "assistant"; content: string }[]
+	>([]);
+	const [compiledOverrideB, setCompiledOverrideB] = useState<
+		{ role: "system" | "user" | "assistant"; content: string }[] | null
+	>(null);
+	const compileRequestRefB = useRef(0);
 
 	useEffect(() => {
 		if (hasAppliedPresetPromptNameRef.current || !presetPromptName) {
@@ -1124,21 +1046,10 @@ export const PlaygroundPanel = ({
 		});
 	}, [selectedTemplateDetails, templateDraftContent, templateDraftExamples]);
 
-	const promptJson = useMemo(() => {
-		const data: Record<string, unknown> = {
-			[docUi.mainField.name]: formMain,
-		};
-		for (const field of docUi.additionalFields) {
-			const value = formAdditional[field.name];
-			if (value !== undefined) {
-				data[field.name] = value;
-			}
-		}
-		if (selectedTemplateReference.length > 0) {
-			data.relevantTemplate = selectedTemplateReference;
-		}
-		return JSON.stringify(data);
-	}, [docUi, formMain, formAdditional, selectedTemplateReference]);
+	const promptJson = useMemo(
+		() => buildPlaygroundPromptJson(docUi, formMain, formAdditional, selectedTemplateReference),
+		[docUi, formMain, formAdditional, selectedTemplateReference],
+	);
 
 	const compilePrompt = useCallback(async () => {
 		const requestId = compileRequestRef.current + 1;
@@ -1196,6 +1107,101 @@ export const PlaygroundPanel = ({
 		};
 	}, [compilePrompt, isFetchingSelectedTemplate, selectedTemplateDetails, selectedTemplateId]);
 
+	// --- Prompt B: independent prompt/template compilation ---
+	const documentTypeB = useMemo(
+		() => resolveDocumentTypeFromPromptHarness(promptNameB) ?? documentType,
+		[documentType, promptNameB],
+	);
+	const docUiB = scribeDocTypeUi[documentTypeB];
+
+	const templateDetailsBQueryOptions = orpc.templates.get.queryOptions({
+		input: {
+			id: selectedTemplateIdB === NONE_TEMPLATE_VALUE ? "" : selectedTemplateIdB,
+		},
+	});
+	const { data: selectedTemplateDetailsB, isFetching: isFetchingSelectedTemplateB } = useQuery({
+		...templateDetailsBQueryOptions,
+		enabled: isComparisonEnabled && selectedTemplateIdB !== NONE_TEMPLATE_VALUE,
+	});
+
+	const selectedTemplateReferenceB = useMemo(() => {
+		if (!selectedTemplateDetailsB) {
+			return "";
+		}
+		return buildSelectedTemplateReference({
+			content: selectedTemplateDetailsB.content,
+			examples: selectedTemplateDetailsB.examples ?? [],
+			title: selectedTemplateDetailsB.title,
+		});
+	}, [selectedTemplateDetailsB]);
+
+	const promptJsonB = useMemo(
+		() => buildPlaygroundPromptJson(docUiB, formMain, formAdditional, selectedTemplateReferenceB),
+		[docUiB, formMain, formAdditional, selectedTemplateReferenceB],
+	);
+
+	const compilePromptB = useCallback(async () => {
+		const requestId = compileRequestRefB.current + 1;
+		compileRequestRefB.current = requestId;
+		try {
+			const res = await orpc.admin.scribe.compilePrompt.call({
+				documentType: documentTypeB,
+				promptJson: promptJsonB,
+				promptName: promptNameB,
+			});
+
+			if (compileRequestRefB.current !== requestId) {
+				return;
+			}
+
+			setCompiledMessagesB(
+				(res.compiledMessages ?? []).map((m) => ({
+					content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+					role: m.role,
+				})),
+			);
+			setCompiledOverrideB(null);
+		} catch (error) {
+			if (compileRequestRefB.current !== requestId) {
+				return;
+			}
+			toast.error(error instanceof Error ? error.message : "Fehler beim Kompilieren (Prompt B)");
+		}
+	}, [documentTypeB, promptJsonB, promptNameB]);
+
+	useEffect(() => {
+		if (!isComparisonEnabled) {
+			return;
+		}
+		if (
+			selectedTemplateIdB !== NONE_TEMPLATE_VALUE &&
+			(isFetchingSelectedTemplateB || !selectedTemplateDetailsB)
+		) {
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			const runCompilePromptB = async () => {
+				try {
+					await compilePromptB();
+				} catch (error) {
+					console.error("Error compiling prompt B:", error);
+				}
+			};
+			runCompilePromptB();
+		}, 250);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [
+		compilePromptB,
+		isComparisonEnabled,
+		isFetchingSelectedTemplateB,
+		selectedTemplateDetailsB,
+		selectedTemplateIdB,
+	]);
+
 	const [modelRuns, setModelRuns] = useState<ModelRunConfig[]>(() => [
 		{
 			id: crypto.randomUUID(),
@@ -1250,7 +1256,6 @@ export const PlaygroundPanel = ({
 		setPromptName(nextPromptName);
 		setCompiledMessages([]);
 		setCompiledOverride(null);
-		setPromptComparisonMessages(null);
 		setPromptRuntimeVariables({});
 	}, [documentType, presetPromptName]);
 
@@ -1374,32 +1379,6 @@ export const PlaygroundPanel = ({
 		[docUi, formAdditional, formMain],
 	);
 
-	const runtimePromptItems = useMemo<PromptPreviewVariable[]>(() => {
-		const preferredOrder = ["todaysDate", "contextXml", "relevantTemplate"];
-		return Object.entries(promptRuntimeVariables)
-			.map(([key, value]) => ({
-				key,
-				label: PROMPT_RUNTIME_LABELS[key] ?? key,
-				source: "runtime" as const,
-				value: serializePromptVariable(value),
-			}))
-			.filter((item) => item.value.trim().length > 0)
-			.toSorted((a, b) => {
-				const aIndex = preferredOrder.indexOf(a.key);
-				const bIndex = preferredOrder.indexOf(b.key);
-				if (aIndex !== -1 || bIndex !== -1) {
-					if (aIndex === -1) {
-						return 1;
-					}
-					if (bIndex === -1) {
-						return -1;
-					}
-					return aIndex - bIndex;
-				}
-				return a.key.localeCompare(b.key);
-			});
-	}, [promptRuntimeVariables]);
-
 	const harnessPlaceholderValues = useMemo(
 		() => ({
 			"<patient_context></patient_context>": serializePromptVariable(
@@ -1436,6 +1415,11 @@ export const PlaygroundPanel = ({
 		[compiledMessages, compiledOverride, promptHarnessExperimentMessages],
 	);
 
+	const promptComparisonMessages = useMemo(
+		() => (isComparisonEnabled ? (compiledOverrideB ?? compiledMessagesB) : null),
+		[compiledMessagesB, compiledOverrideB, isComparisonEnabled],
+	);
+
 	const promptVersions = useMemo<PromptVersion[]>(() => {
 		const versions: PromptVersion[] = [
 			{
@@ -1450,11 +1434,11 @@ export const PlaygroundPanel = ({
 				id: "prompt-b",
 				label: "Prompt B",
 				messages: promptComparisonMessages,
-				promptName: `${promptName} (B)`,
+				promptName: promptNameB,
 			});
 		}
 		return versions;
-	}, [effectiveCompiledMessages, promptComparisonMessages, promptName]);
+	}, [effectiveCompiledMessages, promptComparisonMessages, promptName, promptNameB]);
 
 	const comparisonRuns = useMemo(
 		() =>
@@ -1633,41 +1617,50 @@ export const PlaygroundPanel = ({
 		[effectiveCompiledMessages],
 	);
 
-	const handleComparisonMessageChange = useCallback((index: number, content: string) => {
-		setPromptComparisonMessages((prev) => {
-			if (!prev || !prev[index]) {
-				return prev;
+	const handleComparisonMessageChange = useCallback(
+		(index: number, content: string) => {
+			const next = (compiledOverrideB ?? compiledMessagesB).map((entry) => ({ ...entry }));
+			if (!next[index]) {
+				return;
 			}
-
-			const next = prev.map((entry) => ({ ...entry }));
 			next[index] = {
 				...next[index],
 				content,
 			};
-			return next;
-		});
+			setCompiledOverrideB(next);
+		},
+		[compiledMessagesB, compiledOverrideB],
+	);
+
+	const handlePromptHarnessChangeB = useCallback((value: string) => {
+		setPromptNameB(value);
+		setCompiledMessagesB([]);
+		setCompiledOverrideB(null);
+	}, []);
+
+	const handleTemplateChangeB = useCallback((value: string) => {
+		setSelectedTemplateIdB(value);
+		setCompiledOverrideB(null);
 	}, []);
 
 	const handleAddPromptComparison = useCallback(() => {
-		if (promptComparisonMessages) {
+		if (isComparisonEnabled) {
 			return;
 		}
 
-		if (effectiveCompiledMessages.length === 0) {
-			toast.error("Bitte zuerst Prompt kompilieren");
-			return;
-		}
-
-		setPromptComparisonMessages(
-			effectiveCompiledMessages.map((message) => ({
-				...message,
-			})),
-		);
+		// Seed Prompt B with Prompt A's current selection so it starts from a known
+		// state; the admin then changes its base-prompt/template independently.
+		setPromptNameB(promptName);
+		setSelectedTemplateIdB(selectedTemplateId);
+		setCompiledMessagesB([]);
+		setCompiledOverrideB(null);
+		setIsComparisonEnabled(true);
 		setRunStates({});
-	}, [effectiveCompiledMessages, promptComparisonMessages]);
+	}, [isComparisonEnabled, promptName, selectedTemplateId]);
 
 	const handleRemovePromptComparison = useCallback(() => {
-		setPromptComparisonMessages(null);
+		setIsComparisonEnabled(false);
+		setCompiledOverrideB(null);
 		setRunStates((prev) => {
 			const next: Record<string, RunState> = {};
 			for (const [stateId, state] of Object.entries(prev)) {
@@ -1700,62 +1693,84 @@ export const PlaygroundPanel = ({
 		</ScrollArea>
 	);
 
-	const renderConfigView = () => {
-		const hasPromptHarnessOption = promptHarnessOptionIds.includes(promptName);
+	const renderPromptConfigColumn = (column: {
+		isPromptHarnessDirty: boolean;
+		isTemplateDirty: boolean;
+		messages: { role: "system" | "user" | "assistant"; content: string }[];
+		onMessageChange: (index: number, content: string) => void;
+		onPromptHarnessChange: (value: string) => void;
+		onTemplateChange: (value: string) => void;
+		promptName: string;
+		selectedTemplateId: string;
+		title: string;
+	}) => {
+		const hasPromptHarnessOption = promptHarnessOptionIds.includes(column.promptName);
 
 		return (
-			<ScrollArea className="h-full">
-				<div className="flex flex-col gap-2 p-2">
-					<div className="grid gap-2 lg:grid-cols-2">
-					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-						<DirtySelectorLabel isDirty={isPromptHarnessDirty} label="Basis-Prompt" />
-						<Select onValueChange={handlePromptHarnessChange} value={promptName}>
-							<SelectTrigger
-								className={cn(
-									"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
-									isPromptHarnessDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
-								)}
-							>
-								<SelectValue placeholder="Basis-Prompt wählen" />
-							</SelectTrigger>
-							<SelectContent>
-								{hasPromptHarnessOption ? null : (
-									<SelectItem value={promptName}>{promptName} (nicht verfügbar)</SelectItem>
-								)}
-								{promptHarnessOptions.map((promptHarness) => (
-									<SelectItem key={promptHarness.id} value={promptHarness.id}>
-										{promptHarness.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
+			<div className="flex min-w-0 flex-col gap-2">
+				<p className="font-medium text-xs text-solarized-base01">{column.title}</p>
 
-					<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-						<DirtySelectorLabel
-							info={TEMPLATE_SELECTOR_INFO}
-							isDirty={isTemplateDirty}
-							label="Template"
-						/>
-						<TemplateSelector
+				<div className="flex flex-col gap-1">
+					<DirtySelectorLabel isDirty={column.isPromptHarnessDirty} label="Basis-Prompt" />
+					<Select onValueChange={column.onPromptHarnessChange} value={column.promptName}>
+						<SelectTrigger
 							className={cn(
-								"w-full border-solarized-base2 bg-solarized-base3 sm:flex-1",
-								isTemplateDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
+								"w-full border-solarized-base2 bg-solarized-base3",
+								column.isPromptHarnessDirty
+									? "border-solarized-orange/50 bg-solarized-orange/10"
+									: "",
 							)}
-							noneValue={NONE_TEMPLATE_VALUE}
-							onValueChange={setSelectedTemplateId}
-							placeholder="Template wählen"
-							templates={templateOptions}
-							value={selectedTemplateId}
-						/>
-					</div>
+						>
+							<SelectValue placeholder="Basis-Prompt wählen" />
+						</SelectTrigger>
+						<SelectContent>
+							{hasPromptHarnessOption ? null : (
+								<SelectItem value={column.promptName}>
+									{column.promptName} (nicht verfügbar)
+								</SelectItem>
+							)}
+							{promptHarnessOptions.map((promptHarness) => (
+								<SelectItem key={promptHarness.id} value={promptHarness.id}>
+									{promptHarness.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
 
-				<PromptContextOverview inputItems={inputPreviewItems} runtimeItems={runtimePromptItems} />
+				<div className="flex flex-col gap-1">
+					<DirtySelectorLabel
+						info={TEMPLATE_SELECTOR_INFO}
+						isDirty={column.isTemplateDirty}
+						label="Template"
+					/>
+					<TemplateSelector
+						className={cn(
+							"w-full border-solarized-base2 bg-solarized-base3",
+							column.isTemplateDirty ? "border-solarized-orange/50 bg-solarized-orange/10" : "",
+						)}
+						noneValue={NONE_TEMPLATE_VALUE}
+						onValueChange={column.onTemplateChange}
+						placeholder="Template wählen"
+						templates={templateOptions}
+						value={column.selectedTemplateId}
+					/>
+				</div>
 
+				<PromptHarnessPreview
+					messages={column.messages}
+					onMessageChange={column.onMessageChange}
+				/>
+			</div>
+		);
+	};
+
+	const renderConfigView = () => (
+		<ScrollArea className="h-full">
+			<div className="flex flex-col gap-2 p-2">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<p className="text-xs text-solarized-base01">Prompt-Versionen für Vergleichs-Runs</p>
-					{promptComparisonMessages ? (
+					{isComparisonEnabled ? (
 						<Button
 							type="button"
 							variant="outline"
@@ -1780,34 +1795,36 @@ export const PlaygroundPanel = ({
 					)}
 				</div>
 
-				<div
-					className={cn(
-						"grid items-start gap-2",
-						promptComparisonMessages ? "xl:grid-cols-2" : "",
-					)}
-				>
-					<div className="flex flex-col gap-1">
-						<p className="font-medium text-xs text-solarized-base01">Prompt A</p>
-						<PromptHarnessPreview
-							messages={effectiveCompiledMessages}
-							onMessageChange={handleCompiledMessageChange}
-						/>
-					</div>
+				<div className={cn("grid items-start gap-3", isComparisonEnabled ? "xl:grid-cols-2" : "")}>
+					{renderPromptConfigColumn({
+						isPromptHarnessDirty,
+						isTemplateDirty,
+						messages: effectiveCompiledMessages,
+						onMessageChange: handleCompiledMessageChange,
+						onPromptHarnessChange: handlePromptHarnessChange,
+						onTemplateChange: setSelectedTemplateId,
+						promptName,
+						selectedTemplateId,
+						title: "Prompt A",
+					})}
 
-					{promptComparisonMessages ? (
-						<div className="flex flex-col gap-1">
-							<p className="font-medium text-xs text-solarized-base01">Prompt B</p>
-							<PromptHarnessPreview
-								messages={promptComparisonMessages}
-								onMessageChange={handleComparisonMessageChange}
-							/>
-						</div>
-					) : null}
+					{isComparisonEnabled
+						? renderPromptConfigColumn({
+								isPromptHarnessDirty: false,
+								isTemplateDirty: false,
+								messages: promptComparisonMessages ?? [],
+								onMessageChange: handleComparisonMessageChange,
+								onPromptHarnessChange: handlePromptHarnessChangeB,
+								onTemplateChange: handleTemplateChangeB,
+								promptName: promptNameB,
+								selectedTemplateId: selectedTemplateIdB,
+								title: "Prompt B",
+							})
+						: null}
 				</div>
-				</div>
-			</ScrollArea>
-		);
-	};
+			</div>
+		</ScrollArea>
+	);
 
 	const renderModelsView = () => (
 		<ScrollArea className="h-full">

@@ -30,8 +30,7 @@ const renderPatientContextSection = ({
 		return "";
 	}
 
-  return [
-    GENERAL_GUIDANCE,
+	return [
 		`<${section.tag}>`,
 		`<purpose>${section.purpose}</purpose>`,
 		`<usage>${usageBlock}</usage>`,
@@ -117,5 +116,5 @@ export const renderPatientContextSections = (
 		return "";
 	}
 
-	return `<patient_context>\n${sections.join("\n\n")}\n</patient_context>`;
+	return `<patient_context>\n<usage>${GENERAL_GUIDANCE}</usage>\n\n${sections.join("\n\n")}\n</patient_context>`;
 };
