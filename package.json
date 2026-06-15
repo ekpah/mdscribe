@@ -33,6 +33,7 @@
     "db:migrate": "bun run --cwd packages/database migrate",
     "db:migrate:deploy": "bun run db:migrate",
     "migrate": "bun run db:migrate",
+    "db:push": "bun run --cwd packages/database push",
     "knip": "knip --config knip.jsonc --cache",
     "knip:strict": "knip --config knip.jsonc --cache --strict",
     "knip:production": "knip --config knip.jsonc --cache --production --strict",

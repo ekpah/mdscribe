@@ -11,8 +11,8 @@ import {
 	AlertCircle,
 	ArrowRight,
 	Bed,
+	Blocks,
 	ClipboardList,
-	Edit3,
 	FileText,
 	Heart,
 	PenTool,
@@ -26,6 +26,7 @@ import Link from "next/link";
 
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
+import { getAiscribeIsAdmin } from "@/app/aiscribe/_lib/access";
 import { getServerSession } from "@/lib/server-session";
 
 import { buildCustomAiscribeTemplateConfig } from "./_lib/custom-form-config";
@@ -212,44 +213,19 @@ const quickGenerationModes: {
 	},
 ];
 
-const editorModes: {
-	title: string;
-	description: string;
-	href: string;
-	icon: React.ReactNode;
-	accentColor: AccentColor;
-}[] = [
-	{
-		accentColor: "solarized-red",
-		description:
-			"Strukturierter Editor für Notaufnahme-Dokumentation mit KI-unterstützter Textverbesserung und Vorlagen.",
-		href: "/aiscribe/editor/er",
-		icon: <Heart className="h-4 w-4 text-solarized-red sm:h-5 sm:w-5" />,
-		title: "Notaufnahme Editor",
-	},
-	{
-		accentColor: "solarized-orange",
-		description:
-			"Strukturierter Editor für ICU-Entlassungsbriefe mit KI-unterstützter Dokumentation.",
-		href: "/aiscribe/editor/icu",
-		icon: <Stethoscope className="h-4 w-4 text-solarized-orange sm:h-5 sm:w-5" />,
-		title: "ICU Editor",
-	},
-	{
-		accentColor: "solarized-yellow",
-		description:
-			"Strukturierter Editor für stationäre Dokumentation mit KI-unterstützter Entlassungsbrief-Erstellung.",
-		href: "/aiscribe/editor/inpatient",
-		icon: <Bed className="h-4 w-4 text-solarized-yellow sm:h-5 sm:w-5" />,
-		title: "Stationärer Editor",
-	},
-];
 
 export default async function AIScribeLandingPage() {
 	const queryClient = getQueryClient();
 	const session = await getServerSession();
 	const customForms = await queryClient.fetchQuery(orpc.scribeForms.listAvailable.queryOptions());
 	const isLoggedIn = !!session?.user;
+	// Brief-Baukasten editor is admin-flagged while it is iterated on.
+	const isAdmin = await getAiscribeIsAdmin();
+	const workspaces = isAdmin
+		? await queryClient.fetchQuery(
+				orpc.scribeWorkspaces.listAvailable.queryOptions(),
+			)
+		: [];
 	const adminForms = customForms.filter((form) => form.authorId === null);
 	const personalForms = session?.user
 		? customForms.filter((form) => form.authorId === session.user.id)
@@ -407,35 +383,57 @@ export default async function AIScribeLandingPage() {
 						</div>
 					)}
 
-					{/* Editor Section */}
-					<div className="space-y-3 sm:space-y-4">
-						<div className="flex items-center gap-2">
-							<Edit3 className="h-5 w-5 text-solarized-cyan" />
-							<h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
-								Arztbrief-Editor
-							</h2>
-							<Badge className="bg-solarized-cyan px-2 py-0.5 font-semibold text-xs text-solarized-base03 uppercase shadow shadow-solarized-cyan/30">
-								Beta
-							</Badge>
+					{/* Brief-Baukasten editors (admin-flagged beta) */}
+					{isAdmin && (
+						<div className="space-y-3 sm:space-y-4">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div className="flex items-center gap-2">
+									<Blocks className="h-5 w-5 text-solarized-cyan" />
+									<h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
+										Brief-Baukasten
+									</h2>
+									<Badge className="bg-solarized-cyan px-2 py-0.5 font-semibold text-xs text-solarized-base03 uppercase shadow shadow-solarized-cyan/30">
+										Beta
+									</Badge>
+								</div>
+								<Button asChild size="sm" variant="outline">
+									<Link href="/admin/settings/models">
+										<Settings className="h-4 w-4" />
+										Verwalten
+									</Link>
+								</Button>
+							</div>
+							<p className="text-xs text-solarized-base01 sm:text-sm">
+								Aus AI Vorlagen zusammengestellte Arztbrief-Editoren – mit
+								KI-Agent zum Generieren und Überarbeiten.
+							</p>
+							{workspaces.length > 0 ? (
+								<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+									{workspaces.map((workspace) => (
+										<ScribeCard
+											accentColor="solarized-cyan"
+											description={
+												workspace.description ??
+												"Aus AI Vorlagen zusammengestellter Arztbrief-Editor."
+											}
+											href={`/aiscribe/editor/${workspace.slug}`}
+											icon={
+												<Blocks className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />
+											}
+											isLoggedIn={isLoggedIn}
+											key={workspace.id}
+											title={workspace.name}
+										/>
+									))}
+								</div>
+							) : (
+								<p className="text-xs text-solarized-base01 sm:text-sm">
+									Noch kein Brief-Baukasten vorhanden. Lege unter „Verwalten“
+									einen an.
+								</p>
+							)}
 						</div>
-						<p className="text-xs text-solarized-base01 sm:text-sm">
-							Beta-Editoren für strukturierte Arztbriefe, wenn du einen kompletten Brief erstellen
-							möchtest.
-						</p>
-						<div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-							{editorModes.map((mode) => (
-								<ScribeCard
-									key={mode.title}
-									title={mode.title}
-									description={mode.description}
-									href={mode.href}
-									icon={mode.icon}
-									isLoggedIn={isLoggedIn}
-									accentColor={mode.accentColor}
-								/>
-							))}
-						</div>
-					</div>
+					)}
 				</div>
 			</div>
 		</div>

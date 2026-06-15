@@ -40,6 +40,8 @@ export interface ResolvedModel {
 }
 
 export interface ResolvedDefaultModelSelection {
+	/** Global default generation temperature, or null to use the provider standard. */
+	defaultTemperature: number | null;
 	model: ResolvedModel;
 	reasoningEffort: ReasoningEffort;
 	slot: DefaultModelSlot;
@@ -463,6 +465,26 @@ const getDefaultReasoningEffort = (
 	}
 };
 
+const getDefaultTemperature = (defaults: AiDefaultsRow, slot: DefaultModelSlot): number | null => {
+	switch (slot) {
+		case "evaluation": {
+			return defaults.defaultEvaluationTemperature ?? null;
+		}
+		case "file-image": {
+			return defaults.defaultFileImageTemperature ?? null;
+		}
+		case "speech-to-text": {
+			return defaults.defaultSpeechToTextTemperature ?? null;
+		}
+		case "text": {
+			return defaults.defaultTextTemperature ?? null;
+		}
+		default: {
+			return null;
+		}
+	}
+};
+
 const buildDefaultSelection = async (
 	db: Database,
 	defaults: AiDefaultsRow,
@@ -474,6 +496,7 @@ const buildDefaultSelection = async (
 	}
 
 	return {
+		defaultTemperature: getDefaultTemperature(defaults, slot),
 		model: await resolveModelByRecordId(modelRecordId, db),
 		reasoningEffort: getDefaultReasoningEffort(defaults, slot),
 		slot,

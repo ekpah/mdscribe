@@ -8,7 +8,6 @@ import {
 	CardContent,
 	CardFooter,
 	CardHeader,
-	CardTitle,
 } from "@repo/design-system/components/ui/card";
 import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
@@ -18,10 +17,9 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@repo/design-system/components/ui/tabs";
-import { ExternalLink, FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -43,6 +41,7 @@ import type {
 } from "@/orpc/scribe/types";
 
 import { AiscribeTemplateInputSection } from "./aiscribe-template-input-section";
+import { ContextTemplateCard } from "./context-template-card";
 import { ContextTransferCard } from "./context-transfer-card";
 import { MemoizedCopySection } from "./memoized-copy-section";
 
@@ -122,19 +121,6 @@ interface AiscribeTemplateProps {
 	config: AiscribeTemplateConfig;
 	isAdmin?: boolean;
 }
-
-const ContextMetadataRow = ({
-	children,
-	label,
-}: {
-	children: ReactNode;
-	label: string;
-}) => (
-	<div className="grid gap-1">
-		<div className="font-medium text-muted-foreground text-xs">{label}</div>
-		<div className="text-sm text-foreground">{children}</div>
-	</div>
-);
 
 export const AiscribeTemplate = ({
 	config,
@@ -444,64 +430,19 @@ export const AiscribeTemplate = ({
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-5 xl:grid-cols-6">
 					{/* Context Metadata Card */}
 					<div className="space-y-6 lg:col-span-2 xl:col-span-2">
-						<Card className="h-fit border-solarized-blue/20 shadow-lg">
-							<CardHeader className="bg-gradient-to-r from-solarized-blue/5 to-solarized-green/5">
-								<div className="space-y-2">
-									<div className="flex items-center gap-2">
-										<div className="h-2 w-2 rounded-full bg-solarized-blue" />
-										<CardTitle className="text-base text-foreground">
-											Kontext & Vorlage
-										</CardTitle>
-									</div>
-								</div>
-							</CardHeader>
-							<CardContent className="space-y-6 p-6">
-								<div className="rounded-lg border border-muted-foreground/20 border-dashed bg-muted/20 p-4">
-									<div className="space-y-5">
-										<ContextMetadataRow label="Template">
-											{config.contextMetadata.template.href ? (
-												<Link
-													className="inline-flex items-center gap-1 font-medium text-solarized-blue transition hover:text-solarized-blue/80"
-													href={config.contextMetadata.template.href}
-													rel="noreferrer"
-													target="_blank"
-												>
-													<span className="break-words">
-														{config.contextMetadata.template.title}
-													</span>
-													<ExternalLink className="h-3.5 w-3.5 shrink-0" />
-												</Link>
-											) : (
-												<span className="break-words">
-													{config.contextMetadata.template.title}
-												</span>
-											)}
-										</ContextMetadataRow>
-										<ContextMetadataRow label="Prompt">
-											{config.contextMetadata.harnessTitle}
-										</ContextMetadataRow>
-										<ContextMetadataRow label="Autor">
-											{config.contextMetadata.author}
-										</ContextMetadataRow>
-									</div>
-								</div>
-
-								<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/10 p-4 text-xs">
-									<p className="text-solarized-green leading-relaxed">
-										Diese Angaben zeigen, welche Vorlage und welcher Prompt für
-										die aktuelle Generierung verwendet werden.
-									</p>
-								</div>
-
-								<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/10 p-4 text-xs">
-									<p className="text-solarized-red leading-relaxed">
-										⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie keine
-										privaten Patientendaten ein! Diese Informationen werden an
-										eine KI gesendet. Verwenden Sie nur anonymisierte Daten.
-									</p>
-								</div>
-							</CardContent>
-						</Card>
+						<ContextTemplateCard
+							author={config.contextMetadata.author}
+							note="Diese Angaben zeigen, welche Vorlage und welcher Prompt für die aktuelle Generierung verwendet werden."
+							prompt={config.contextMetadata.harnessTitle}
+							template={config.contextMetadata.template}
+							warning={
+								<>
+									⚠️ <strong>Datenschutzhinweis:</strong> Geben Sie keine
+									privaten Patientendaten ein! Diese Informationen werden an eine
+									KI gesendet. Verwenden Sie nur anonymisierte Daten.
+								</>
+							}
+						/>
 						<ContextTransferCard
 							activeTab={activeTab}
 							additionalInputData={additionalInputData}

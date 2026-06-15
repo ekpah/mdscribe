@@ -44,7 +44,6 @@ import type {
 
 export const DEFAULT_SCRIBE_MODEL_CONFIG: ModelConfig = {
 	maxTokens: 8000,
-	temperature: 0.3,
 };
 
 const parsePromptPayload = (prompt: string): Record<string, unknown> => {
@@ -757,6 +756,13 @@ export const scribeStreamHandler = authed
 			zdr: entitlements.hasActiveSubscription,
 		});
 
+		// Effective temperature: explicit request value wins, then the global
+		// admin-configured default, otherwise omit so the provider standard applies.
+		const effectiveTemperature =
+			resolvedRequest.config.modelConfig.temperature ??
+			generationSelection.defaultTemperature ??
+			undefined;
+
 		// Stream the response
 		const requestStartedAt = Date.now();
 		let firstTokenAt: number | undefined;
@@ -783,7 +789,10 @@ export const scribeStreamHandler = authed
 					event,
 					inputData: usageInputData,
 					isOpenRouter: generationSelection.model.isOpenRouter,
-					modelConfig: resolvedRequest.config.modelConfig,
+					modelConfig: {
+						...resolvedRequest.config.modelConfig,
+						temperature: effectiveTemperature,
+					},
 					modelName: generationSelection.model.modelName,
 					promptLabel: resolvedRequest.config.promptLabel,
 					promptName: resolvedRequest.config.promptName,
@@ -801,7 +810,7 @@ export const scribeStreamHandler = authed
 				});
 			},
 			providerOptions,
-			temperature: resolvedRequest.config.modelConfig.temperature ?? 1,
+			temperature: effectiveTemperature,
 		});
 
 		return streamToEventIterator(result.toUIMessageStream());

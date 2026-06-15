@@ -9,12 +9,13 @@ import {
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
+import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
 import { Tabs, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SlidersHorizontal, X } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ReasoningEffortSelect } from "@/app/admin/_components/reasoning-effort-select";
@@ -127,6 +128,69 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 	},
 ];
 
+const DefaultTemperatureControl = ({
+	disabled,
+	id,
+	onCommit,
+	value,
+}: {
+	disabled: boolean;
+	id: string;
+	onCommit: (temperature: number | null) => void;
+	value: number | null;
+}) => {
+	const [draft, setDraft] = useState(value === null ? "" : String(value));
+
+	useEffect(() => {
+		setDraft(value === null ? "" : String(value));
+	}, [value]);
+
+	const handleCommit = () => {
+		const trimmed = draft.trim();
+		if (trimmed === "") {
+			if (value !== null) {
+				onCommit(null);
+			}
+			return;
+		}
+		const parsed = Number.parseFloat(trimmed.replace(",", "."));
+		if (Number.isNaN(parsed) || parsed < 0 || parsed > 2) {
+			toast.error("Temperatur muss zwischen 0 und 2 liegen");
+			setDraft(value === null ? "" : String(value));
+			return;
+		}
+		if (parsed !== value) {
+			onCommit(parsed);
+		}
+	};
+
+	return (
+		<div className="space-y-1.5">
+			<Label htmlFor={id}>Temperatur</Label>
+			<Input
+				className="h-9 w-32 border-solarized-base2 bg-solarized-base3"
+				disabled={disabled}
+				id={id}
+				inputMode="decimal"
+				onBlur={handleCommit}
+				onChange={(event) => {
+					setDraft(event.target.value);
+				}}
+				onKeyDown={(event) => {
+					if (event.key === "Enter") {
+						event.currentTarget.blur();
+					}
+				}}
+				placeholder="Modellstandard"
+				value={draft}
+			/>
+			<p className="text-solarized-base01 text-xs">
+				Temperatur (0–2). Leer lassen, um den Modellstandard zu verwenden.
+			</p>
+		</div>
+	);
+};
+
 const StandardCapabilities = ({
 	disabled,
 	onToggle,
@@ -230,12 +294,14 @@ const DefaultModelRow = ({
 	onMediaModeChange,
 	onModelChange,
 	onReasoningChange,
+	onTemperatureChange,
 	renderCapabilities,
 	row,
 	selectedModel,
 	selectorOptions,
 	enabledModelOptions,
 	reasoningEffort,
+	temperature,
 }: {
 	coveredByStandard: boolean;
 	enabledModelOptions: ModelOption[];
@@ -246,11 +312,13 @@ const DefaultModelRow = ({
 	onMediaModeChange: (value: MediaMode) => void;
 	onModelChange: (value: string) => void;
 	onReasoningChange: (value: ReasoningEffort) => void;
+	onTemperatureChange: (value: number | null) => void;
 	reasoningEffort: ReasoningEffort;
 	renderCapabilities?: () => React.ReactNode;
 	row: DefaultModelRowConfig;
 	selectedModel: AiModelData | null;
 	selectorOptions: ModelOption[];
+	temperature: number | null;
 }) => {
 	const supportsReasoning = supportsReasoningParameters(selectedModel);
 	const selectorId = `default-${row.type}-model`;
@@ -314,6 +382,12 @@ const DefaultModelRow = ({
 						Reasoning-Optionen.
 					</p>
 				) : null}
+				<DefaultTemperatureControl
+					disabled={rowDisabled}
+					id={`default-${row.type}-temperature`}
+					onCommit={onTemperatureChange}
+					value={temperature}
+				/>
 				{renderCapabilities ? renderCapabilities() : null}
 			</div>
 		</div>
@@ -338,7 +412,8 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 		mutationFn: (data: {
 			defaultType: DefaultType;
 			modelId: string | null;
-			reasoningEffort: ReasoningEffort;
+			reasoningEffort?: ReasoningEffort;
+			temperature?: number | null;
 		}) => orpc.admin.providers.defaults.set.call(data),
 		onError: (error) => toast.error(error instanceof Error ? error.message : "Fehler"),
 		onSuccess: async () => {
@@ -429,6 +504,29 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 		[defaults],
 	);
 
+	const getDefaultTemperature = useCallback(
+		(defaultType: DefaultType): number | null => {
+			switch (defaultType) {
+				case "text": {
+					return defaults?.defaultTextTemperature ?? null;
+				}
+				case "file-image": {
+					return defaults?.defaultFileImageTemperature ?? null;
+				}
+				case "speech-to-text": {
+					return defaults?.defaultSpeechToTextTemperature ?? null;
+				}
+				case "evaluation": {
+					return defaults?.defaultEvaluationTemperature ?? null;
+				}
+				default: {
+					return null;
+				}
+			}
+		},
+		[defaults],
+	);
+
 	const handleDefaultModelChange = useCallback(
 		(defaultType: DefaultType, value: string) => {
 			const modelId = value === NONE_VALUE ? null : value;
@@ -513,6 +611,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 										defaultType: row.type,
 										modelId: null,
 										reasoningEffort: "none",
+										temperature: null,
 									});
 								}}
 								onMediaModeChange={(value) => {
@@ -528,6 +627,13 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 										defaultType: row.type,
 										modelId,
 										reasoningEffort: value,
+									});
+								}}
+								onTemperatureChange={(value) => {
+									setDefaultMutation.mutate({
+										defaultType: row.type,
+										modelId,
+										temperature: value,
 									});
 								}}
 								reasoningEffort={getDefaultReasoningEffort(row.type)}
@@ -546,6 +652,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 								row={row}
 								selectedModel={modelId ? (modelById.get(modelId) ?? null) : null}
 								selectorOptions={selectorOptions}
+								temperature={getDefaultTemperature(row.type)}
 							/>
 						);
 					})}

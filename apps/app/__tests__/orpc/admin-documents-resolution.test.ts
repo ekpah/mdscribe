@@ -94,6 +94,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			audio: { mode: "native" },
 			files: { mode: "native" },
 			generation: {
+				defaultTemperature: null,
 				model: resolvedModel,
 				reasoningEffort: "none",
 				slot: "text",

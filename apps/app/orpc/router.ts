@@ -11,6 +11,10 @@ import { lazy } from "@orpc/server";
 export const router = {
 	// Admin operations
 	admin: {
+		aiScribeWorkspaces: lazy(async () => {
+			const handlerModule = await import("./admin/ai-scribe-workspaces");
+			return { default: handlerModule.aiScribeWorkspacesHandler };
+		}),
 		emails: lazy(async () => {
 			const handlerModule = await import("./admin/emails");
 			return { default: handlerModule.emailsHandler };
@@ -83,6 +87,13 @@ export const router = {
 			return { default: handlerModule.ocrToMarkdownHandler };
 		}),
 	},
+	// AI documentation agent (text-only MVP)
+	scribeAgent: {
+		chat: lazy(async () => {
+			const handlerModule = await import("./scribe-agent");
+			return { default: handlerModule.scribeAgentChatHandler };
+		}),
+	},
 	scribeForms: lazy(async () => {
 		const handlerModule = await import("./scribe-forms");
 		return { default: handlerModule.scribeFormsHandler };
@@ -90,6 +101,11 @@ export const router = {
 	scribeStream: lazy(async () => {
 		const handlerModule = await import("./scribe/handlers/scribe-stream");
 		return { default: handlerModule.scribeStreamHandler };
+	}),
+	// Runtime Brief-Baukasten (workspace) resolution for the editor
+	scribeWorkspaces: lazy(async () => {
+		const handlerModule = await import("./scribe-workspaces");
+		return { default: handlerModule.scribeWorkspacesHandler };
 	}),
 
 	// Template operations (all CRUD under templates)

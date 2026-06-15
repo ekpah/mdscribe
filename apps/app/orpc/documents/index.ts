@@ -248,6 +248,7 @@ const parseFormHandler = adminDocumentProcedure
 					throw new Error("providerId und model müssen gemeinsam angegeben werden");
 				}
 				modelSelection = {
+					defaultTemperature: null,
 					model: await resolveProviderModel(providerId, parsed.model, context.db),
 					reasoningEffort: "none",
 					slot: "file-image",
@@ -295,7 +296,8 @@ const parseFormHandler = adminDocumentProcedure
 					userId: context.session.user.id,
 				}),
 				schema: enhancedFieldMappingSchema,
-				temperature: config.modelConfig.temperature ?? 0.3,
+				temperature:
+					config.modelConfig.temperature ?? modelSelection.defaultTemperature ?? undefined,
 			});
 		} catch (error) {
 			const details = error instanceof Error ? error.message : "Unbekannter Fehler";

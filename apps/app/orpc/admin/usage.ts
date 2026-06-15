@@ -148,10 +148,12 @@ const listUsageEventsHandler = authed
 			.select({
 				cost: usageEvent.cost,
 				id: usageEvent.id,
+				inputTokens: usageEvent.inputTokens,
 				metadata: usageEvent.metadata,
 				model: usageEvent.model,
 				name: usageEvent.name,
 				outputTokens: usageEvent.outputTokens,
+				reasoningTokens: usageEvent.reasoningTokens,
 				timeToCompletionMs: usageEvent.timeToCompletionMs,
 				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
 				timestamp: usageEvent.timestamp,
@@ -442,6 +444,33 @@ const buildPercentileStats = (p50: unknown, p90: unknown, p95: unknown, fraction
 	p95: toRoundedMetric(p95, fractionDigits),
 });
 
+// Tokens the model actually generated, reasoning tokens included. When the
+// provider reports a trustworthy total/input split (OpenRouter, where
+// completionTokens already includes reasoning), total - input captures
+// everything generated without double-counting reasoning. Otherwise fall back
+// to output + reasoning so separately reported reasoning tokens still count.
+const generatedTokensExpression = sql`
+	case
+		when ${usageEvent.totalTokens} is not null
+			and ${usageEvent.inputTokens} is not null
+			and ${usageEvent.totalTokens} > ${usageEvent.inputTokens}
+		then ${usageEvent.totalTokens} - ${usageEvent.inputTokens}
+		else coalesce(${usageEvent.outputTokens}, 0) + coalesce(${usageEvent.reasoningTokens}, 0)
+	end
+`;
+
+// Lower throughput is worse, so the labelled p90/p95 surface the slow tail
+// (10th / 5th quantiles) while p50 stays the median.
+const tokensPerSecondOrderExpression = sql`(
+	(${generatedTokensExpression})::double precision /
+	(${usageEvent.timeToCompletionMs}::double precision / 1000)
+)`;
+const tokensPerSecondFilter = sql`(
+	where ${usageEvent.timeToCompletionMs} is not null
+		and ${usageEvent.timeToCompletionMs} > 0
+		and (${generatedTokensExpression}) > 0
+)`;
+
 const emptyPercentileStats = {
 	p50: null,
 	p90: null,
@@ -451,6 +480,9 @@ const emptyPercentileStats = {
 interface UsageTrendRow {
 	bucket: unknown;
 	cost: unknown;
+	costPerRequestP50: unknown;
+	costPerRequestP90: unknown;
+	costPerRequestP95: unknown;
 	events: unknown;
 	timeToCompletionP50: unknown;
 	timeToCompletionP90: unknown;
@@ -472,6 +504,14 @@ interface MonthlyActiveUsersRow {
 const buildTrendBucket = (bucket: string, row: UsageTrendRow | undefined) => ({
 	bucket,
 	cost: Number(row?.cost) || 0,
+	costPerRequest: row
+		? buildPercentileStats(
+				row.costPerRequestP50,
+				row.costPerRequestP90,
+				row.costPerRequestP95,
+				6,
+			)
+		: emptyPercentileStats,
 	events: Number(row?.events) || 0,
 	timeToCompletionMs: row
 		? buildPercentileStats(
@@ -608,7 +648,7 @@ const getUsageStatsHandler = authed
 								case
 									when ${usageEvent.timeToCompletionMs} is not null
 										and ${usageEvent.timeToCompletionMs} > 0
-									then coalesce(${usageEvent.outputTokens}, 0)
+									then (${generatedTokensExpression})
 									else 0
 								end
 							),
@@ -625,6 +665,21 @@ const getUsageStatsHandler = authed
 				.select({
 					bucket: sql<string>`to_char(${bucketExpression}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
 					cost: sql<number>`coalesce(sum(${usageEvent.cost}), 0)`,
+					costPerRequestP50: sql<number | null>`
+						percentile_cont(0.5)
+						within group (order by ${usageEvent.cost})
+						filter (where ${usageEvent.cost} is not null)
+					`,
+					costPerRequestP90: sql<number | null>`
+						percentile_cont(0.9)
+						within group (order by ${usageEvent.cost})
+						filter (where ${usageEvent.cost} is not null)
+					`,
+					costPerRequestP95: sql<number | null>`
+						percentile_cont(0.95)
+						within group (order by ${usageEvent.cost})
+						filter (where ${usageEvent.cost} is not null)
+					`,
 					events: count(),
 					timeToCompletionP50: sql<number | null>`
 						percentile_cont(0.5)
@@ -659,45 +714,18 @@ const getUsageStatsHandler = authed
 					tokens: sql<number>`coalesce(sum(${usageEvent.totalTokens}), 0)`,
 					tokensPerSecondP50: sql<number | null>`
 						percentile_cont(0.5)
-						within group (
-							order by (
-								${usageEvent.outputTokens}::double precision /
-								(${usageEvent.timeToCompletionMs}::double precision / 1000)
-							)
-						)
-						filter (
-							where ${usageEvent.outputTokens} is not null
-								and ${usageEvent.timeToCompletionMs} is not null
-								and ${usageEvent.timeToCompletionMs} > 0
-						)
+						within group (order by ${tokensPerSecondOrderExpression})
+						filter ${tokensPerSecondFilter}
 					`,
 					tokensPerSecondP90: sql<number | null>`
-						percentile_cont(0.9)
-						within group (
-							order by (
-								${usageEvent.outputTokens}::double precision /
-								(${usageEvent.timeToCompletionMs}::double precision / 1000)
-							)
-						)
-						filter (
-							where ${usageEvent.outputTokens} is not null
-								and ${usageEvent.timeToCompletionMs} is not null
-								and ${usageEvent.timeToCompletionMs} > 0
-						)
+						percentile_cont(0.1)
+						within group (order by ${tokensPerSecondOrderExpression})
+						filter ${tokensPerSecondFilter}
 					`,
 					tokensPerSecondP95: sql<number | null>`
-						percentile_cont(0.95)
-						within group (
-							order by (
-								${usageEvent.outputTokens}::double precision /
-								(${usageEvent.timeToCompletionMs}::double precision / 1000)
-							)
-						)
-						filter (
-							where ${usageEvent.outputTokens} is not null
-								and ${usageEvent.timeToCompletionMs} is not null
-								and ${usageEvent.timeToCompletionMs} > 0
-						)
+						percentile_cont(0.05)
+						within group (order by ${tokensPerSecondOrderExpression})
+						filter ${tokensPerSecondFilter}
 					`,
 				})
 				.from(usageEvent)
@@ -755,8 +783,14 @@ const getMonthlyActiveUsersHandler = authed
 			(select min(${bucketExpression}) from ${usageEvent}),
 			${localNowBucketExpression}
 		)`;
+		const weekBucketExpression = sql<Date>`date_trunc('week', ${localTimestampExpression})`;
+		const localNowWeekBucketExpression = sql`date_trunc('week', timezone(${timeZoneLiteral}, now()))`;
+		const weekSeriesStartExpression = sql`coalesce(
+			(select min(${weekBucketExpression}) from ${usageEvent}),
+			${localNowWeekBucketExpression}
+		)`;
 
-		const [trendRows, seriesRows] = await Promise.all([
+		const [trendRows, seriesRows, weeklyRequestRows, weekSeriesRows] = await Promise.all([
 			context.db
 				.select({
 					activeUsers: sql<number>`count(distinct ${usageEvent.userId})`,
@@ -775,7 +809,29 @@ const getMonthlyActiveUsersHandler = authed
 					) as series(bucket)
 				`,
 			),
+			context.db
+				.select({
+					bucket: sql<string>`to_char(${weekBucketExpression}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
+					requests: count(),
+				})
+				.from(usageEvent)
+				.groupBy(weekBucketExpression)
+				.orderBy(weekBucketExpression),
+			context.db.execute(
+				sql<{ bucket: string }>`
+					select to_char(series.bucket, 'YYYY-MM-DD"T"HH24:MI:SS') as bucket
+					from generate_series(
+						${weekSeriesStartExpression},
+						${localNowWeekBucketExpression},
+						interval '1 week'
+					) as series(bucket)
+				`,
+			),
 		]);
+
+		const weeklyRequestByBucket = new Map(
+			weeklyRequestRows.map((row) => [String(row.bucket), Number(row.requests) || 0]),
+		);
 
 		return {
 			timeZone,
@@ -783,6 +839,13 @@ const getMonthlyActiveUsersHandler = authed
 				seriesRows.map((row) => ({ bucket: String(row.bucket) })),
 				trendRows,
 			),
+			weeklyRequests: weekSeriesRows.map((row) => {
+				const bucket = String(row.bucket);
+				return {
+					bucket,
+					requests: weeklyRequestByBucket.get(bucket) ?? 0,
+				};
+			}),
 		};
 	});
 

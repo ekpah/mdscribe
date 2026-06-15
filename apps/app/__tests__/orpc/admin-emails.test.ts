@@ -40,6 +40,7 @@ describe("Admin emails handler", () => {
 			"reset-password",
 			"verify",
 			"welcome",
+			"workspaces-announcement",
 		]);
 	});
 
@@ -115,6 +116,7 @@ describe("Admin emails handler", () => {
 			"cold-outreach",
 			"context-transfer-announcement",
 			"documents-announcement",
+			"workspaces-announcement",
 		]);
 
 		for (const draft of marketingDrafts) {

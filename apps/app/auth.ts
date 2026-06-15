@@ -5,9 +5,36 @@ import { env } from "@repo/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
+import { username } from "better-auth/plugins";
 import { Stripe as StripeClient } from "stripe";
 
 import { USER_MESSAGES } from "@/lib/user-messages";
+
+// Usernames feed per-author slug routes, so they must be URL-safe and must not
+// collide with reserved path segments.
+const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
+const RESERVED_USERNAMES = new Set([
+	"admin",
+	"aiscribe",
+	"api",
+	"app",
+	"auth",
+	"dashboard",
+	"documents",
+	"help",
+	"mdscribe",
+	"profile",
+	"root",
+	"settings",
+	"support",
+	"system",
+	"templates",
+	"u",
+	"www",
+]);
+
+const isValidUsername = (value: string): boolean =>
+	USERNAME_PATTERN.test(value) && !RESERVED_USERNAMES.has(value.toLowerCase());
 
 // Initialize stripe client (use placeholder during Docker builds where env vars aren't available)
 const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
@@ -39,6 +66,9 @@ export const auth = betterAuth({
 			update: userNameLengthHook,
 		},
 	},
+	// We never check username availability client-side, so disable the endpoint
+	// to avoid username enumeration.
+	disabledPaths: ["/is-username-available"],
 	emailAndPassword: {
 		enabled: true,
 		onPasswordReset: async ({ user: resetUser }) => {
@@ -119,6 +149,10 @@ export const auth = betterAuth({
 					},
 				],
 			},
+		}),
+		username({
+			minUsernameLength: 3,
+			usernameValidator: isValidUsername,
 		}),
 	],
 	session: {

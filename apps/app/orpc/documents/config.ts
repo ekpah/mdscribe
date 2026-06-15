@@ -47,9 +47,7 @@ interface ParseFormVariables {
  */
 export const pdfDocumentConfigs: Record<string, PDFDocumentConfig> = {
 	parseForm: {
-		modelConfig: {
-			temperature: 0.3,
-		},
+		modelConfig: {},
 		prompt: (vars: Record<string, unknown>): PromptMessage[] => {
 			const { fieldMapping, fieldMappings, inputFields } = vars as unknown as ParseFormVariables;
 			const mappings = fieldMappings ?? fieldMapping ?? [];

@@ -1,4 +1,4 @@
-import { PROCEDURES_OUTPUT_STRUCTURE } from "@/orpc/scribe/prompts/families/procedures/index";
+import { PROCEDURES_OUTPUT_STRUCTURE } from "@/orpc/scribe/prompts/families/procedure/index";
 
 export const PROCEDURES_FALLBACK_TEMPLATE = {
 	content: PROCEDURES_OUTPUT_STRUCTURE,

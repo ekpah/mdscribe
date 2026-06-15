@@ -10,6 +10,7 @@ import { OTPLoginTemplate } from "./templates/otp-login";
 import { ResetPasswordTemplate } from "./templates/reset-password";
 import { EmailVerificationTemplate } from "./templates/verify";
 import { WelcomeTemplate } from "./templates/welcome";
+import { WorkspacesAnnouncementTemplate } from "./templates/workspaces-announcement";
 
 type EmailDraftCategory = "authentication" | "marketing" | "transactional";
 
@@ -101,6 +102,25 @@ const emailDrafts: readonly EmailDraftDefinition[] = [
 		),
 		subject: "Neu: Rehaanträge schneller mit MDScribe vorbereiten",
 		title: "Dokumente: Rehaantrag",
+	},
+	{
+		category: "marketing",
+		description:
+			"Marketingmail zum Brief-Baukasten: eigene Editoren aus AI Vorlagen plus Überarbeitung mit dem KI-Agenten.",
+		id: "workspaces-announcement",
+		previewProps: {
+			actionUrl: "https://mdscribe.de/aiscribe",
+			buttonText: "Brief-Baukasten erstellen",
+		},
+		render: (context) => (
+			<WorkspacesAnnouncementTemplate
+				actionUrl="https://mdscribe.de/aiscribe"
+				buttonText="Brief-Baukasten erstellen"
+				userName={getRecipientName(context)}
+			/>
+		),
+		subject: "Neu: Eigene Brief-Baukästen mit KI-Agent",
+		title: "Brief-Baukasten & Agent",
 	},
 	{
 		category: "marketing",

@@ -48,8 +48,17 @@ const BASE_URL_PLACEHOLDERS: Record<string, string> = {
 
 const normalizeMaybeBaseUrl = (value: string): string | undefined => {
 	const trimmed = value.trim();
-	if (!trimmed) {return undefined;}
-	return normalizeProviderBaseUrl(trimmed);
+	if (!trimmed) {
+		return undefined;
+	}
+	// Called during render while the user is still typing (e.g. "http://"),
+	// so swallow the in-progress parse error here. Validation is surfaced
+	// when the provider is actually checked/submitted.
+	try {
+		return normalizeProviderBaseUrl(trimmed);
+	} catch {
+		return undefined;
+	}
 };
 
 export const AddProviderDialog = () => {
@@ -173,11 +182,7 @@ export const AddProviderDialog = () => {
 			return;
 		}
 
-		try {
-			if (baseUrl.trim()) {
-				normalizeMaybeBaseUrl(baseUrl);
-			}
-		} catch {
+		if (baseUrl.trim() && !normalizeMaybeBaseUrl(baseUrl)) {
 			toast.error(PROVIDER_BASE_URL_ERROR_MESSAGE);
 			return;
 		}

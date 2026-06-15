@@ -10,6 +10,8 @@ export const USER_MESSAGES = {
 		"Kein geeignetes KI-Modell verfügbar. Bitte konfigurieren Sie ein Modell in den Einstellungen.",
 	privateAiScribeFormRequiresPlus:
 		"Private AI Vorlagen sind nur mit Plus verfügbar. Speichern Sie die AI Vorlage öffentlich oder aktualisieren Sie Ihr Abo.",
+	privateAiScribeWorkspaceRequiresPlus:
+		"Private Brief-Baukästen sind nur mit Plus verfügbar. Speichern Sie den Brief-Baukasten öffentlich oder aktualisieren Sie Ihr Abo.",
 	privateDocumentRequiresPlus:
 		"Private Dokumente sind nur mit Plus verfügbar. Speichern Sie das Dokument öffentlich oder aktualisieren Sie Ihr Abo.",
 	privateTemplateRequiresPlus:

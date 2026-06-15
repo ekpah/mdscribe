@@ -3,7 +3,6 @@
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import { MarkdownDiffEditor } from "@repo/design-system/components/editor/diff-editor";
-import { Label } from "@repo/design-system/components/ui/label";
 import { cn } from "@repo/design-system/lib/utils";
 import { Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,6 +22,8 @@ export interface DoctorsNoteSectionConfig {
 	description?: string;
 	/** Document type for oRPC enhancement. If omitted, the field will be a plain input without enhancement. */
 	documentType?: DocumentType;
+	/** When set, generation streams through this AI Vorlage (harness + template). */
+	formId?: string;
 	/**
 	 * Build the prompt body for this section.
 	 * Only required if documentType is provided.
@@ -40,6 +41,15 @@ interface DoctorsNoteSectionProps {
 	/** Context from other sections (keyed by section id) */
 	context: Record<string, string>;
 	disabled?: boolean;
+	/** Minimum editor height in pixels. Defaults to MIN_HEIGHT. */
+	minHeight?: number;
+	/**
+	 * External proposed content (e.g. from the agent) shown as a diff for the
+	 * user to accept/reject. Takes precedence over the section's own enhance flow.
+	 */
+	proposal?: string | null;
+	/** Called after an external proposal is accepted or rejected. */
+	onProposalResolved?: () => void;
 }
 
 export const DoctorsNoteSection = ({
@@ -48,11 +58,16 @@ export const DoctorsNoteSection = ({
 	onChange,
 	context,
 	disabled = false,
+	minHeight = MIN_HEIGHT,
+	proposal = null,
+	onProposalResolved,
 }: DoctorsNoteSectionProps) => {
 	const [proposedText, setProposedText] = useState<string | null>(null);
 
-	// Check if enhancement is available (has documentType and buildPrompt)
-	const hasEnhancement = Boolean(config.documentType && config.buildPrompt);
+	// Check if enhancement is available (has a generator and buildPrompt)
+	const hasEnhancement = Boolean(
+		(config.documentType || config.formId) && config.buildPrompt,
+	);
 
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
@@ -72,14 +87,21 @@ export const DoctorsNoteSection = ({
 				throw new Error("Unsupported");
 			},
 			async sendMessages(options) {
-				return eventIteratorToUnproxiedDataStream(
-					await orpc.scribeStream.call(
-						{
+				const requestInput = config.formId
+					? {
+							formId: config.formId,
+							messages: options.messages,
+							source: "customForm" as const,
+						}
+					: {
 							documentType: config.documentType ?? "discharge",
 							messages: options.messages,
-						},
-						{ signal: options.abortSignal },
-					),
+							source: "documentType" as const,
+						};
+				return eventIteratorToUnproxiedDataStream(
+					await orpc.scribeStream.call(requestInput, {
+						signal: options.abortSignal,
+					}),
 				);
 			},
 		},
@@ -153,30 +175,26 @@ export const DoctorsNoteSection = ({
 		sendMessage,
 	]);
 
-	// Clear proposed text after suggestion is handled
+	// External (agent) proposals take precedence over the section's own enhance.
+	const effectiveProposal = proposal ?? proposedText;
+
+	// Clear proposed text after a suggestion is accepted or rejected.
 	const handleSuggestionHandled = useCallback(() => {
 		setProposedText(null);
 		setMessages([]);
-	}, [setMessages]);
+		onProposalResolved?.();
+	}, [setMessages, onProposalResolved]);
 
 	const canEnhance = hasEnhancement && !disabled && !isLoading;
-	const isInDiffMode = proposedText !== null;
+	const isInDiffMode = effectiveProposal !== null;
 
 	return (
-		<div className="group relative space-y-1.5">
-			{/* Label row */}
-			<div className="flex items-center justify-between">
-				<Label
-					className="flex items-center gap-1.5 font-medium text-foreground text-sm"
-					htmlFor={`section-${config.id}`}
-				>
-					<div className="h-1.5 w-1.5 rounded-full bg-solarized-blue" />
-					{config.label}
-					{isLoading && (
-						<span className="ml-2 text-muted-foreground text-xs">Wird generiert...</span>
-					)}
-				</Label>
-			</div>
+		<div className="group relative h-full">
+			{isLoading && (
+				<span className="absolute top-2 left-3 z-10 text-muted-foreground text-xs">
+					Wird generiert...
+				</span>
+			)}
 
 			{/* Content area - diff editor handles both edit and diff modes */}
 			<MarkdownDiffEditor
@@ -208,20 +226,15 @@ export const DoctorsNoteSection = ({
 				disabled={disabled || isLoading}
 				id={`section-${config.id}`}
 				isStreaming={isLoading}
-				minHeight={MIN_HEIGHT}
+				minHeight={minHeight}
 				onChange={onChange}
 				onSubmit={hasEnhancement ? handleEnhance : undefined}
 				onSuggestionAccepted={handleSuggestionHandled}
 				onSuggestionRejected={handleSuggestionHandled}
 				placeholder={config.placeholder}
-				suggestedValue={proposedText}
+				suggestedValue={effectiveProposal}
 				value={value}
 			/>
-
-			{/* Description */}
-			{config.description && !isInDiffMode && (
-				<p className="text-muted-foreground text-xs">{config.description}</p>
-			)}
 		</div>
 	);
 };

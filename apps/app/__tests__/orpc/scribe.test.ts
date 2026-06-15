@@ -21,8 +21,8 @@ import { composeScribeContext } from "@/orpc/scribe/context";
 import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
 import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
-import { fillInputsConfig } from "@/orpc/scribe/handlers/fill-inputs-config";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import { composeFillInputsPrompt } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
 	getDocumentTypeByPromptName,
 	PROMPT_HARNESS_IDS,
@@ -63,9 +63,10 @@ describe("Document Type Configurations", () => {
 	});
 
 	test("uses one default model config for all scribe generations", () => {
+		// Temperature is intentionally omitted here: it resolves per model slot from
+		// the admin-configured AiDefaults.default*Temperature at generation time.
 		expect(DEFAULT_SCRIBE_MODEL_CONFIG).toEqual({
 			maxTokens: 8000,
-			temperature: 0.3,
 		});
 	});
 
@@ -708,18 +709,17 @@ describe("buildProviderOptions", () => {
 });
 
 describe("Fill Inputs Handler", () => {
-	test("formats the autofill prompt input as JSON", () => {
-		const messages = fillInputsConfig.prompt({
-			textContext: {
-				diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
-			},
+	test("builds the autofill prompt around the shared context block", () => {
+		const { contextXml } = composeScribeContext({
+			formData: { diagnoseblock: "I50.1 Akute Linksherzinsuffizienz" },
 		});
+		const messages = composeFillInputsPrompt({ contextXml });
 
-		expect(messages[1].content).toContain('"textContext": {');
-		expect(messages[1].content).toContain('"diagnoseblock": "I50.1 Akute Linksherzinsuffizienz"');
+		expect(messages[1].content).toContain("<patient_context>");
+		expect(messages[1].content).toContain("<diagnoseblock>");
+		expect(messages[1].content).toContain("I50.1 Akute Linksherzinsuffizienz");
 		expect(messages[1].content).not.toContain('"inputFields"');
 		expect(messages[1].content).not.toContain("Verfügbare Felder");
-		expect(messages[1].content).not.toContain("Klinischer Textkontext");
 	});
 
 	test("allows text-only autofill through the default text model", async () => {

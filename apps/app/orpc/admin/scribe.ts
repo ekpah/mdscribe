@@ -284,6 +284,7 @@ const runHandler = authed
 					audio: { mode: "native" },
 					files: { mode: "native" },
 					generation: {
+						defaultTemperature: null,
 						model: resolved,
 						reasoningEffort,
 						slot: "text",
@@ -397,6 +398,7 @@ const transcribeAudioHandler = authed
 		const mode = parsed.mode ?? "transcription";
 		const modelSelection = parsed.modelId
 			? {
+					defaultTemperature: null,
 					model: await resolveModelByRecordId(parsed.modelId, context.db),
 					reasoningEffort: "none" as const,
 					slot: "speech-to-text" as const,

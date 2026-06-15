@@ -9,7 +9,16 @@ import {
 import type { ChartConfig } from "@repo/design-system/components/ui/chart";
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import { cn } from "@repo/design-system/lib/utils";
-import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import {
+	Area,
+	AreaChart,
+	CartesianGrid,
+	Line,
+	LineChart,
+	ReferenceArea,
+	XAxis,
+	YAxis,
+} from "recharts";
 
 import type { StatsFilter, UsageTrendMetric } from "../types";
 
@@ -24,6 +33,7 @@ interface PercentileStats {
 interface UsageTrendBucket {
 	bucket: string;
 	cost: number;
+	costPerRequest: PercentileStats;
 	events: number;
 	timeToCompletionMs: PercentileStats;
 	timeToFirstTokenMs: PercentileStats;
@@ -49,7 +59,8 @@ interface MetricConfig {
 const metricConfig: Record<UsageTrendMetric, MetricConfig> = {
 	cost: {
 		color: "var(--solarized-green)",
-		label: "Kosten",
+		isPercentile: true,
+		label: "Kosten pro Anfrage",
 	},
 	events: {
 		color: "var(--solarized-blue)",
@@ -105,17 +116,87 @@ const periodTitleSuffix: Record<StatsFilter, string> = {
 	week: "der letzten Woche",
 };
 
-const formatTick = (bucket: string, granularity: TrendGranularity): string => {
+const shortWeekdayLabels = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const longWeekdayLabels = [
+	"Sonntag",
+	"Montag",
+	"Dienstag",
+	"Mittwoch",
+	"Donnerstag",
+	"Freitag",
+	"Samstag",
+];
+
+// Parse the local bucket date (YYYY-MM-DD) in UTC so the weekday is not shifted
+// by the viewer's timezone offset.
+const getWeekdayIndex = (bucket: string): number =>
+	new Date(
+		Date.UTC(
+			Number(bucket.slice(0, 4)),
+			Number(bucket.slice(5, 7)) - 1,
+			Number(bucket.slice(8, 10)),
+		),
+	).getUTCDay();
+
+const isWeekendBucket = (bucket: string): boolean => {
+	const weekday = getWeekdayIndex(bucket);
+	return weekday === 0 || weekday === 6;
+};
+
+interface WeekendBand {
+	key: string;
+	x1: string;
+	x2: string;
+}
+
+// Collapse consecutive weekend days (Sat/Sun) into contiguous bands so each
+// weekend renders as a single shaded background area behind the trend.
+const getWeekendBands = (buckets: string[]): WeekendBand[] => {
+	const bands: WeekendBand[] = [];
+	let runStart: string | null = null;
+	let runEnd: string | null = null;
+	for (const bucket of buckets) {
+		if (isWeekendBucket(bucket)) {
+			runStart ??= bucket;
+			runEnd = bucket;
+		} else if (runStart !== null && runEnd !== null) {
+			bands.push({ key: runStart, x1: runStart, x2: runEnd });
+			runStart = null;
+			runEnd = null;
+		}
+	}
+	if (runStart !== null && runEnd !== null) {
+		bands.push({ key: runStart, x1: runStart, x2: runEnd });
+	}
+	return bands;
+};
+
+const formatTick = (
+	bucket: string,
+	granularity: TrendGranularity,
+	showWeekday: boolean,
+): string => {
 	if (granularity === "hour") {
 		return `${bucket.slice(11, 13)} Uhr`;
 	}
-	return `${bucket.slice(8, 10)}.${bucket.slice(5, 7)}.`;
+	const dateLabel = `${bucket.slice(8, 10)}.${bucket.slice(5, 7)}.`;
+	if (showWeekday) {
+		return `${shortWeekdayLabels[getWeekdayIndex(bucket)] ?? ""} ${dateLabel}`.trim();
+	}
+	return dateLabel;
 };
 
-const formatTooltipLabel = (bucket: string, granularity: TrendGranularity): string => {
+const formatTooltipLabel = (
+	bucket: string,
+	granularity: TrendGranularity,
+	showWeekday: boolean,
+): string => {
 	const dateLabel = `${bucket.slice(8, 10)}.${bucket.slice(5, 7)}.${bucket.slice(0, 4)}`;
 	if (granularity === "hour") {
 		return `${dateLabel}, ${bucket.slice(11, 16)} Uhr`;
+	}
+	if (showWeekday) {
+		return `${longWeekdayLabels[getWeekdayIndex(bucket)] ?? ""}, ${dateLabel}`;
 	}
 	return dateLabel;
 };
@@ -138,6 +219,9 @@ const getPercentileValue = (
 	metric: UsageTrendMetric,
 	percentile: keyof PercentileStats,
 ): number | null => {
+	if (metric === "cost") {
+		return bucket.costPerRequest[percentile];
+	}
 	if (
 		metric === "timeToCompletionMs" ||
 		metric === "timeToFirstTokenMs" ||
@@ -229,11 +313,18 @@ export const UsageTrendChart = ({
 }: UsageTrendChartProps) => {
 	const metric = metricConfig[activeMetric];
 	const isPercentile = Boolean(metric.isPercentile);
+	const showWeekday = filter === "week" && trendGranularity === "day";
 	const chartTitle = `${metric.label} ${periodTitleSuffix[filter]}`;
 	const grainLabel = trendGranularity === "hour" ? "Stunde" : "Tag";
-	const chartDescription = isPercentile
-		? `${grainLabel === "Stunde" ? "Stündliche" : "Tägliche"} p50-, p90- und p95-Werte.`
-		: `${grainLabel === "Stunde" ? "Stündliche" : "Tägliche"} Werte für ${metric.label.toLowerCase()}.`;
+	const grainPrefix = grainLabel === "Stunde" ? "Stündliche" : "Tägliche";
+	let chartDescription: string;
+	if (isPercentile && activeMetric === "tokensPerSecond") {
+		chartDescription = `${grainPrefix} Perzentile – p90/p95 zeigen das langsame Ende (niedrigere Werte sind schlechter).`;
+	} else if (isPercentile) {
+		chartDescription = `${grainPrefix} p50-, p90- und p95-Werte.`;
+	} else {
+		chartDescription = `${grainPrefix} Werte für ${metric.label.toLowerCase()}.`;
+	}
 	const aggregateData = trend.map((bucket) => ({
 		bucket: bucket.bucket,
 		value: getAggregateValue(bucket, activeMetric),
@@ -247,6 +338,20 @@ export const UsageTrendChart = ({
 	const hasPercentileData = percentileData.some(
 		(bucket) => bucket.p50 !== null || bucket.p90 !== null || bucket.p95 !== null,
 	);
+	const weekendBands =
+		trendGranularity === "day" ? getWeekendBands(trend.map((bucket) => bucket.bucket)) : [];
+	const renderWeekendBands = () =>
+		weekendBands.map((band) => (
+			<ReferenceArea
+				key={band.key}
+				x1={band.x1}
+				x2={band.x2}
+				fill="var(--solarized-base2)"
+				fillOpacity={0.6}
+				stroke="none"
+				ifOverflow="extendDomain"
+			/>
+		));
 
 	if (isLoading) {
 		return (
@@ -305,13 +410,14 @@ export const UsageTrendChart = ({
 								<ChartContainer config={percentileChartConfig} className="h-[260px] w-full">
 									<LineChart accessibilityLayer data={percentileData}>
 										<CartesianGrid vertical={false} />
+										{renderWeekendBands()}
 										<XAxis
 											dataKey="bucket"
 											tickLine={false}
 											axisLine={false}
 											tickMargin={10}
 											minTickGap={28}
-											tickFormatter={(value: string) => formatTick(value, trendGranularity)}
+											tickFormatter={(value: string) => formatTick(value, trendGranularity, showWeekday)}
 										/>
 										<YAxis
 											axisLine={false}
@@ -326,7 +432,7 @@ export const UsageTrendChart = ({
 												<ChartTooltipContent
 													indicator="line"
 													labelFormatter={(value) =>
-														value ? formatTooltipLabel(String(value), trendGranularity) : ""
+														value ? formatTooltipLabel(String(value), trendGranularity, showWeekday) : ""
 													}
 													valueFormatter={(value) => formatTrendValue(activeMetric, value)}
 												/>
@@ -389,13 +495,14 @@ export const UsageTrendChart = ({
 						>
 							<AreaChart accessibilityLayer data={aggregateData}>
 								<CartesianGrid vertical={false} />
+								{renderWeekendBands()}
 								<XAxis
 									dataKey="bucket"
 									tickLine={false}
 									axisLine={false}
 									tickMargin={10}
 									minTickGap={28}
-									tickFormatter={(value: string) => formatTick(value, trendGranularity)}
+									tickFormatter={(value: string) => formatTick(value, trendGranularity, showWeekday)}
 								/>
 								<YAxis
 									axisLine={false}
@@ -410,7 +517,7 @@ export const UsageTrendChart = ({
 										<ChartTooltipContent
 											hideIndicator
 											labelFormatter={(value) =>
-												value ? formatTooltipLabel(String(value), trendGranularity) : ""
+												value ? formatTooltipLabel(String(value), trendGranularity, showWeekday) : ""
 											}
 											valueFormatter={(value) => formatTrendValue(activeMetric, value)}
 										/>

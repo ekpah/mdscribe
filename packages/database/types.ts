@@ -7,6 +7,7 @@ import type {
 	aiModel,
 	aiProvider,
 	contextTransfer,
+	aiScribeWorkspace,
 	documentTemplate,
 	favourites,
 	session,
@@ -63,3 +64,9 @@ export type NewAiProvider = InferInsertModel<typeof aiProvider>;
 export type NewAiModel = InferInsertModel<typeof aiModel>;
 export type NewAiDefaults = InferInsertModel<typeof aiDefaults>;
 export type NewAiScribeFormConfig = InferInsertModel<typeof aiScribeFormConfig>;
+export type AiScribeWorkspace = InferSelectModel<
+	typeof aiScribeWorkspace
+>;
+export type NewAiScribeWorkspace = InferInsertModel<
+	typeof aiScribeWorkspace
+>;

@@ -409,6 +409,8 @@ export const createTestUsageEvent = async (
 		name?: string;
 		inputTokens?: number;
 		outputTokens?: number;
+		reasoningTokens?: number;
+		totalTokens?: number;
 		cost?: number | string;
 		timestamp?: Date;
 		timeToCompletionMs?: number;
@@ -417,19 +419,23 @@ export const createTestUsageEvent = async (
 ) => {
 	const { usageEvent } = await import("@repo/database");
 
+	const inputTokens = options?.inputTokens ?? 100;
+	const outputTokens = options?.outputTokens ?? 200;
+
 	const result = await db
 		.insert(usageEvent)
 		.values({
 			cost: options?.cost?.toString(),
 			id: crypto.randomUUID(),
-			inputTokens: options?.inputTokens ?? 100,
+			inputTokens,
 			model: "test-model",
 			name: options?.name ?? "ai_scribe_generation",
-			outputTokens: options?.outputTokens ?? 200,
+			outputTokens,
+			reasoningTokens: options?.reasoningTokens,
 			timeToCompletionMs: options?.timeToCompletionMs,
 			timeToFirstTokenMs: options?.timeToFirstTokenMs,
 			timestamp: options?.timestamp ?? new Date(),
-			totalTokens: (options?.inputTokens ?? 100) + (options?.outputTokens ?? 200),
+			totalTokens: options?.totalTokens ?? inputTokens + outputTokens,
 			userId,
 		})
 		.returning();

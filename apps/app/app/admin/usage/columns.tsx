@@ -75,20 +75,34 @@ const formatTokensPerSecondValue = (tokensPerSecond: number | null): string => {
 	})} Tok/s`;
 };
 
+// Tokens the model generated, reasoning tokens included. Mirrors the SQL in
+// orpc/admin/usage.ts: a trustworthy total/input split already accounts for
+// reasoning, otherwise fall back to output + reasoning.
+const getGeneratedTokens = (
+	event: Pick<UsageListEvent, "inputTokens" | "outputTokens" | "reasoningTokens" | "totalTokens">,
+): number => {
+	const { inputTokens, outputTokens, reasoningTokens, totalTokens } = event;
+	if (totalTokens !== null && inputTokens !== null && totalTokens > inputTokens) {
+		return totalTokens - inputTokens;
+	}
+	return (outputTokens ?? 0) + (reasoningTokens ?? 0);
+};
+
 const calculateTokensPerSecond = (
-	outputTokens: number | null | undefined,
+	generatedTokens: number | null | undefined,
 	durationMs: number | null | undefined,
 ): number | null => {
-	if (!outputTokens || !durationMs || durationMs <= 0) {
+	if (!generatedTokens || !durationMs || durationMs <= 0) {
 		return null;
 	}
-	return outputTokens / (durationMs / 1000);
+	return generatedTokens / (durationMs / 1000);
 };
 
 export const formatTokensPerSecond = (
-	outputTokens: number | null | undefined,
+	event: Pick<UsageListEvent, "inputTokens" | "outputTokens" | "reasoningTokens" | "totalTokens">,
 	durationMs: number | null | undefined,
-): string => formatTokensPerSecondValue(calculateTokensPerSecond(outputTokens, durationMs));
+): string =>
+	formatTokensPerSecondValue(calculateTokensPerSecond(getGeneratedTokens(event), durationMs));
 
 export const formatStatTokensPerSecond = (tokensPerSecond: number | null | undefined): string =>
 	formatTokensPerSecondValue(tokensPerSecond ?? null);
@@ -279,10 +293,7 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 	columnHelper.display({
 		cell: (info) => (
 			<span className="hidden whitespace-nowrap font-mono text-xs xl:inline">
-				{formatTokensPerSecond(
-					info.row.original.outputTokens,
-					info.row.original.timeToCompletionMs,
-				)}
+				{formatTokensPerSecond(info.row.original, info.row.original.timeToCompletionMs)}
 			</span>
 		),
 		enableSorting: false,

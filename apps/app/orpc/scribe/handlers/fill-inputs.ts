@@ -14,6 +14,11 @@ import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-l
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
+import { composeScribeContext } from "@/orpc/scribe/context";
+import {
+	composeFillInputsPrompt,
+	FILL_INPUTS_PROMPT_NAME,
+} from "@/orpc/scribe/prompts/core/fill-inputs";
 import { buildProviderOptions, resolveGenerationStrategy } from "@/orpc/scribe/providers";
 import type { MediaPlan } from "@/orpc/scribe/providers";
 import type { FillInputsInputPayload, InputField } from "@/orpc/scribe/types";
@@ -24,7 +29,6 @@ import {
 	transcribeAudioFilesWithPrompt,
 } from "./audio-input";
 import { createContextFileParts, extractContextFileText } from "./context-file-input";
-import { fillInputsConfig } from "./fill-inputs-config";
 import { enforceScribeUsageLimit } from "./usage-limit";
 
 type FieldValue = boolean | number | string;
@@ -102,6 +106,34 @@ const toFillInputsResult = (
 	return {
 		fieldValues: object as Record<string, boolean | number | string>,
 	};
+};
+
+/**
+ * Reads the structured object from a `generateText` result.
+ *
+ * `result.output` is a lazy getter that throws `NoOutputGeneratedError` when the
+ * model did not finish with reason "stop" (the AI SDK only parses structured
+ * output on a clean stop). We fall back to parsing `result.text` so a complete
+ * JSON body that merely carried a non-"stop" finish reason still succeeds, and
+ * return `null` when nothing usable can be recovered.
+ */
+const readStructuredOutput = (result: {
+	output?: unknown;
+	text?: string;
+}): unknown => {
+	try {
+		return result.output;
+	} catch {
+		const text = result.text?.trim();
+		if (!text) {
+			return null;
+		}
+		try {
+			return JSON.parse(text);
+		} catch {
+			return null;
+		}
+	}
 };
 
 const hasTextContext = (input: FillInputsInputPayload) =>
@@ -360,24 +392,24 @@ const extractFillInputFileText = ({
 };
 
 const buildFillInputUserContent = ({
-	messages,
 	nativeContextFiles,
 	preparedAudio,
+	userPrompt,
 }: {
-	messages: ReturnType<typeof fillInputsConfig.prompt>;
 	nativeContextFiles: FillInputsInputPayload["contextFiles"];
 	preparedAudio: FillInputsPreparedAudio;
+	userPrompt: string;
 }) => {
 	const hasNativeAudioParts = preparedAudio.contentParts.length > 0;
 	if (hasNativeAudioParts || (nativeContextFiles?.length ?? 0) > 0) {
 		return [
-			{ text: messages[1]?.content ?? "", type: "text" as const },
+			{ text: userPrompt, type: "text" as const },
 			...preparedAudio.contentParts,
 			...createContextFileParts(nativeContextFiles ?? []),
 		];
 	}
 
-	return messages[1]?.content ?? "";
+	return userPrompt;
 };
 
 const buildFillInputUsageMetadata = ({
@@ -404,9 +436,8 @@ const buildFillInputUsageMetadata = ({
 		usedTranscription: preparedAudio.transcripts.length > 0,
 	},
 	modelConfig: {
-		maxTokens: fillInputsConfig.modelConfig.maxTokens,
 		reasoningEffort: generationSelection.reasoningEffort,
-		temperature: fillInputsConfig.modelConfig.temperature,
+		temperature: generationSelection.defaultTemperature ?? undefined,
 	},
 	payloadSummary,
 	preprocessing: {
@@ -419,7 +450,7 @@ const buildFillInputUsageMetadata = ({
 				? generationStrategy.audio.selection.model.modelName
 				: undefined,
 	},
-	promptName: fillInputsConfig.promptName,
+	promptName: FILL_INPUTS_PROMPT_NAME,
 	zdrEnabled: zdr,
 });
 
@@ -486,24 +517,28 @@ export const fillInputsHandler = authed
 			zdr: entitlements.hasActiveSubscription,
 		});
 		const filesAreNative = generationStrategy.files?.mode === "native";
-		const messages = fillInputsConfig.prompt({
+		// Reuse the shared scribe context pipeline so the clinical fields render
+		// through the same tunable <patient_context> as the main scribe flow.
+		const { contextXml } = composeScribeContext({
+			formData: { ...input.textContext },
+		});
+		const messages = composeFillInputsPrompt({
 			audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),
 			contextFiles: filesAreNative ? contextFiles : undefined,
+			contextXml,
 			fileTextContext,
-			textContext: input.textContext,
 		});
 
 		const outputSchema = createFillInputsSchema(input.inputFields);
 		const nativeContextFiles = filesAreNative ? contextFiles : [];
 
 		const userContent = buildFillInputUserContent({
-			messages,
 			nativeContextFiles,
 			preparedAudio,
+			userPrompt: messages[1]?.content ?? "",
 		});
 
 		const result = await generateText({
-			maxOutputTokens: fillInputsConfig.modelConfig.maxTokens,
 			messages: [
 				{ content: messages[0]?.content ?? "", role: "system" },
 				{ content: userContent, role: "user" },
@@ -521,7 +556,7 @@ export const fillInputsHandler = authed
 				userId: context.session.user.id,
 				zdr: entitlements.hasActiveSubscription,
 			}),
-			temperature: fillInputsConfig.modelConfig.temperature,
+			temperature: generationSelection.defaultTemperature ?? undefined,
 		}).catch((error: unknown) => {
 			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", {
@@ -529,7 +564,18 @@ export const fillInputsHandler = authed
 			});
 		});
 
-		const fillResult = toFillInputsResult(result.output, outputSchema);
+		// `result.output` is a lazy getter that throws NoOutputGeneratedError when
+		// the model did not finish with reason "stop" (e.g. truncated on length or
+		// stopped by a content filter), so the structured output was never parsed.
+		// Surface that as a clean BAD_REQUEST instead of an uncaught 500.
+		const resultOutput = readStructuredOutput(result);
+		if (resultOutput === null || resultOutput === undefined) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Ausfüllen fehlgeschlagen. (Modell lieferte keine verwertbare Ausgabe, finishReason=${result.finishReason}.)`,
+			});
+		}
+
+		const fillResult = toFillInputsResult(resultOutput, outputSchema);
 		const openRouterUsage = generationSelection.model.isOpenRouter
 			? extractOpenRouterUsage(
 					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
