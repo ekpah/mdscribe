@@ -8,6 +8,7 @@ import { ModelComparisonPageClient } from "./model-comparison-page-client";
 export default async function ModelComparisonPage() {
 	const queryClient = getQueryClient();
 	const modelsQueryOptions = orpc.admin.models.list.queryOptions();
+	const templatesQueryOptions = orpc.admin.templates.list.queryOptions();
 	const topModelsQueryOptions = orpc.admin.models.topModels.queryOptions({
 		input: { limit: 5 },
 	});
@@ -17,6 +18,7 @@ export default async function ModelComparisonPage() {
 
 	await Promise.all([
 		queryClient.prefetchQuery(modelsQueryOptions),
+		queryClient.prefetchQuery(templatesQueryOptions),
 		queryClient.prefetchQuery(topModelsQueryOptions),
 		queryClient.prefetchQuery(usageListQueryOptions),
 	]);

@@ -20,7 +20,6 @@ import {
 import { Label } from "@repo/design-system/components/ui/label";
 import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
 import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
-import { Separator } from "@repo/design-system/components/ui/separator";
 import {
 	Select,
 	SelectContent,
@@ -28,6 +27,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
+import { Separator } from "@repo/design-system/components/ui/separator";
 import { Switch } from "@repo/design-system/components/ui/switch";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,7 +53,8 @@ import { isScribeDocType, scribeDocTypeUi } from "@/app/admin/playground/_lib/sc
 import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
 import { orpc } from "@/lib/orpc";
 import { buildSelectedTemplateReference } from "@/orpc/scribe/context/template/compose";
-import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
+import { PROMPT_HARNESS_OPTIONS, resolvePromptHarnessId } from "@/orpc/scribe/prompts";
+import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
 const DEFAULT_PARAMETERS: PlaygroundParameters = {
@@ -87,6 +88,29 @@ const USAGE_POOL_LIMIT = 100;
 const SAMPLE_FETCH_LIMIT = 40;
 const DEFAULT_SAMPLE_COUNT = 5;
 const SAMPLE_COUNT_OPTIONS = [1, 2, 3, 5, 10, 20] as const;
+const ALL_HARNESSES = "all" as const;
+// Sentinel for "use the template that the original usage event used".
+const ORIGINAL_TEMPLATE = "__original__" as const;
+
+type HarnessFilter = PromptHarnessId | typeof ALL_HARNESSES;
+
+// Ambulanzkontakt and ICU-Verlegungsbrief are no longer standalone harnesses;
+// they generate via the shared epikrise prompt. They are not offered as their
+// own filter options and instead fold into the epikrise filter.
+const EPIKRISE_GROUPED_HARNESS_IDS = new Set<PromptHarnessId>([
+	"epikrise",
+	"icu-transfer",
+	"outpatient",
+]);
+const HARNESS_FILTER_OPTIONS = PROMPT_HARNESS_OPTIONS.filter(
+	(option) => option.id === "epikrise" || !EPIKRISE_GROUPED_HARNESS_IDS.has(option.id),
+);
+
+interface TemplateOption {
+	category: string | null;
+	id: string;
+	title: string;
+}
 
 type ComparisonSide = "a" | "b";
 type PreferenceSource = "ai" | "human";
@@ -372,6 +396,24 @@ const buildEvaluationInputs = (
 	variables: buildReplayVariables(sample, templateReference),
 });
 
+const usageEventMatchesHarness = (metadata: unknown, filter: HarnessFilter): boolean => {
+	if (filter === ALL_HARNESSES) {
+		return true;
+	}
+	const { promptName } = toMetadataRecord(metadata);
+	if (typeof promptName !== "string") {
+		return false;
+	}
+	const resolved = resolvePromptHarnessId(promptName);
+	if (!resolved) {
+		return false;
+	}
+	if (filter === "epikrise") {
+		return EPIKRISE_GROUPED_HARNESS_IDS.has(resolved);
+	}
+	return resolved === filter;
+};
+
 const toComparisonSample = (
 	event: ReplayableUsageEvent | null | undefined,
 ): ComparisonSample | null => {
@@ -464,7 +506,10 @@ const shuffleArray = <T,>(items: T[]): T[] => {
 	return shuffled;
 };
 
-const buildDisplayOrder = (sampleIds: string[], blindMode: boolean): Record<string, ComparisonSide[]> => {
+const buildDisplayOrder = (
+	sampleIds: string[],
+	blindMode: boolean,
+): Record<string, ComparisonSide[]> => {
 	const nextOrder: Record<string, ComparisonSide[]> = {};
 	for (const sampleId of sampleIds) {
 		nextOrder[sampleId] = blindMode && Math.random() > 0.5 ? ["b", "a"] : ["a", "b"];
@@ -810,6 +855,7 @@ interface ComparisonRunCellProps {
 	model: PlaygroundModel | null;
 	onPreferenceChange: (sampleId: string, side: ComparisonSide) => void;
 	onResultChange: (sampleId: string, side: ComparisonSide, result: ComparisonRunResult) => void;
+	overrideTemplateId: string | null;
 	parameters: PlaygroundParameters;
 	preference: ComparisonPreference | undefined;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
@@ -817,7 +863,7 @@ interface ComparisonRunCellProps {
 	shouldMaskUntilRowDone: boolean;
 	showMetrics: boolean;
 	side: ComparisonSide;
-	templateReference: string | undefined;
+	templateReferenceById: Map<string, string>;
 }
 
 const ComparisonRunCell = ({
@@ -826,6 +872,7 @@ const ComparisonRunCell = ({
 	model,
 	onPreferenceChange,
 	onResultChange,
+	overrideTemplateId,
 	parameters,
 	preference,
 	runTriggersRef,
@@ -833,9 +880,15 @@ const ComparisonRunCell = ({
 	shouldMaskUntilRowDone,
 	showMetrics,
 	side,
-	templateReference,
+	templateReferenceById,
 }: ComparisonRunCellProps) => {
 	const runId = `${sample.id}-${side}`;
+	// A per-side template override wins; otherwise fall back to the template the
+	// original usage event used.
+	const effectiveTemplateId = overrideTemplateId ?? sample.templateId;
+	const templateReference = effectiveTemplateId
+		? templateReferenceById.get(effectiveTemplateId)
+		: undefined;
 	const payloadRef = useRef<null | Parameters<typeof orpc.admin.scribe.run.call>[0]>(null);
 	const runStartedAtRef = useRef<number | null>(null);
 	const latestCompletionRef = useRef("");
@@ -939,7 +992,7 @@ const ComparisonRunCell = ({
 			});
 			return;
 		}
-		if (sample.templateId && !templateReference) {
+		if (effectiveTemplateId && !templateReference) {
 			publishResult({
 				error: "Vorlage konnte nicht geladen werden",
 				status: "error",
@@ -986,7 +1039,16 @@ const ComparisonRunCell = ({
 				status: "error",
 			});
 		}
-	}, [model, parameters, publishResult, sample, sendMessage, setMessages, templateReference]);
+	}, [
+		effectiveTemplateId,
+		model,
+		parameters,
+		publishResult,
+		sample,
+		sendMessage,
+		setMessages,
+		templateReference,
+	]);
 
 	useEffect(() => {
 		const runTriggers = runTriggersRef.current;
@@ -1072,23 +1134,31 @@ const ComparisonRunCell = ({
 const ModelConfigCard = ({
 	disabled,
 	isLoading,
+	isLoadingTemplates,
 	model,
 	modelId,
 	modelSelectorOptions,
 	onModelChange,
 	onParametersChange,
+	onTemplateOverrideChange,
 	parameters,
 	side,
+	templateOptions,
+	templateOverrideId,
 }: {
 	disabled: boolean;
 	isLoading: boolean;
+	isLoadingTemplates: boolean;
 	model: PlaygroundModel | null;
 	modelId: string | null;
 	modelSelectorOptions: PlaygroundModelSelectorOption[];
 	onModelChange: (value: string) => void;
 	onParametersChange: (parameters: PlaygroundParameters) => void;
+	onTemplateOverrideChange: (value: string | null) => void;
 	parameters: PlaygroundParameters;
 	side: ComparisonSide;
+	templateOptions: TemplateOption[];
+	templateOverrideId: string | null;
 }) => (
 	<Card className="border-solarized-base2">
 		<CardHeader className="p-4">
@@ -1118,6 +1188,31 @@ const ModelConfigCard = ({
 					value={modelId}
 				/>
 			</div>
+			<div className="space-y-2">
+				<Label>Vorlage</Label>
+				<Select
+					disabled={disabled || isLoadingTemplates}
+					onValueChange={(value) =>
+						onTemplateOverrideChange(value === ORIGINAL_TEMPLATE ? null : value)
+					}
+					value={templateOverrideId ?? ORIGINAL_TEMPLATE}
+				>
+					<SelectTrigger className="min-h-11 border-solarized-base2 bg-solarized-base3">
+						<SelectValue placeholder="Vorlage auswählen..." />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value={ORIGINAL_TEMPLATE}>Aus Usage Event</SelectItem>
+						{templateOptions.map((option) => (
+							<SelectItem key={option.id} value={option.id}>
+								{option.title}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+				<p className="text-solarized-base01 text-xs">
+					Ohne Auswahl wird die Vorlage des jeweiligen Usage Events verwendet.
+				</p>
+			</div>
 			<Separator className="bg-solarized-base2" />
 			<ParameterControls
 				disabled={disabled}
@@ -1144,6 +1239,8 @@ const ComparisonSampleRow = ({
 	runTriggersRef,
 	sample,
 	showMetrics,
+	templateOverrideIdA,
+	templateOverrideIdB,
 	templateReferenceById,
 }: {
 	blindMode: boolean;
@@ -1160,6 +1257,8 @@ const ComparisonSampleRow = ({
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 	sample: ComparisonSample;
 	showMetrics: boolean;
+	templateOverrideIdA: string | null;
+	templateOverrideIdB: string | null;
 	templateReferenceById: Map<string, string>;
 }) => {
 	const order = blindMode
@@ -1176,15 +1275,13 @@ const ComparisonSampleRow = ({
 		ComparisonSide,
 		{
 			model: PlaygroundModel | null;
+			overrideTemplateId: string | null;
 			parameters: PlaygroundParameters;
 		}
 	> = {
-		a: { model: modelA, parameters: parametersA },
-		b: { model: modelB, parameters: parametersB },
+		a: { model: modelA, overrideTemplateId: templateOverrideIdA, parameters: parametersA },
+		b: { model: modelB, overrideTemplateId: templateOverrideIdB, parameters: parametersB },
 	};
-	const templateReference = sample.templateId
-		? templateReferenceById.get(sample.templateId)
-		: undefined;
 
 	return (
 		<div className="grid gap-3 rounded-lg border border-solarized-base2 bg-solarized-base3/20 p-3 xl:grid-cols-[minmax(15rem,0.7fr)_minmax(0,1fr)_minmax(0,1fr)]">
@@ -1214,6 +1311,7 @@ const ComparisonSampleRow = ({
 					model={runConfigBySide[side].model}
 					onPreferenceChange={onPreferenceChange}
 					onResultChange={onResultChange}
+					overrideTemplateId={runConfigBySide[side].overrideTemplateId}
 					parameters={runConfigBySide[side].parameters}
 					preference={preferences[sample.id]}
 					runTriggersRef={runTriggersRef}
@@ -1221,7 +1319,7 @@ const ComparisonSampleRow = ({
 					shouldMaskUntilRowDone={rowHasStarted && !rowIsDone}
 					showMetrics={showMetrics}
 					side={side}
-					templateReference={templateReference}
+					templateReferenceById={templateReferenceById}
 				/>
 			))}
 		</div>
@@ -1244,6 +1342,8 @@ const ComparisonRunsSection = ({
 	samples,
 	selectedCount,
 	showMetrics,
+	templateOverrideIdA,
+	templateOverrideIdB,
 	templateReferenceById,
 }: {
 	blindMode: boolean;
@@ -1261,6 +1361,8 @@ const ComparisonRunsSection = ({
 	samples: ComparisonSample[];
 	selectedCount: number;
 	showMetrics: boolean;
+	templateOverrideIdA: string | null;
+	templateOverrideIdB: string | null;
 	templateReferenceById: Map<string, string>;
 }) => (
 	<div className="space-y-3">
@@ -1303,6 +1405,8 @@ const ComparisonRunsSection = ({
 				runTriggersRef={runTriggersRef}
 				sample={sample}
 				showMetrics={showMetrics}
+				templateOverrideIdA={templateOverrideIdA}
+				templateOverrideIdB={templateOverrideIdB}
 				templateReferenceById={templateReferenceById}
 			/>
 		))}
@@ -1454,12 +1558,14 @@ const ComparisonSummaryCard = ({ summary }: { summary: ComparisonSummary | null 
 const ModelComparisonHeader = ({
 	blindMode,
 	canGenerate,
+	harnessFilter,
 	isAutoEvaluating,
 	isGenerating,
 	isLoadingReplayContext,
 	isRefreshingSamples,
 	onBlindModeChange,
 	onGenerateAll,
+	onHarnessFilterChange,
 	onRefreshSamples,
 	onSampleCountChange,
 	sampleCountLimit,
@@ -1467,12 +1573,14 @@ const ModelComparisonHeader = ({
 }: {
 	blindMode: boolean;
 	canGenerate: boolean;
+	harnessFilter: HarnessFilter;
 	isAutoEvaluating: boolean;
 	isGenerating: boolean;
 	isLoadingReplayContext: boolean;
 	isRefreshingSamples: boolean;
 	onBlindModeChange: (checked: boolean) => void;
 	onGenerateAll: () => void;
+	onHarnessFilterChange: (value: HarnessFilter) => void;
 	onRefreshSamples: () => void;
 	onSampleCountChange: (sampleCount: number) => void;
 	sampleCountLimit: number;
@@ -1486,6 +1594,28 @@ const ModelComparisonHeader = ({
 			</p>
 		</div>
 		<div className="flex flex-wrap items-center gap-2">
+			<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-3 py-2">
+				<Label htmlFor="harness-filter" className="text-sm">
+					Vorlagentyp
+				</Label>
+				<Select
+					value={harnessFilter}
+					onValueChange={(value) => onHarnessFilterChange(value as HarnessFilter)}
+					disabled={isGenerating || isAutoEvaluating}
+				>
+					<SelectTrigger id="harness-filter" className="h-8 w-48 bg-background">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value={ALL_HARNESSES}>Alle</SelectItem>
+						{HARNESS_FILTER_OPTIONS.map((option) => (
+							<SelectItem key={option.id} value={option.id}>
+								{option.label}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
 			<div className="flex items-center gap-2 rounded-md border border-solarized-base2 bg-solarized-base3 px-3 py-2">
 				<Label htmlFor="sample-count" className="text-sm">
 					Stichprobe
@@ -1554,6 +1684,9 @@ export const ModelComparisonPageClient = () => {
 	const [parametersA, setParametersA] = useState<PlaygroundParameters>(DEFAULT_PARAMETERS);
 	const [parametersB, setParametersB] = useState<PlaygroundParameters>(DEFAULT_PARAMETERS);
 	const [blindMode, setBlindMode] = useState(true);
+	const [harnessFilter, setHarnessFilter] = useState<HarnessFilter>(ALL_HARNESSES);
+	const [templateOverrideIdA, setTemplateOverrideIdA] = useState<string | null>(null);
+	const [templateOverrideIdB, setTemplateOverrideIdB] = useState<string | null>(null);
 	const [displayOrder, setDisplayOrder] = useState<Record<string, ComparisonSide[]>>({});
 	const [isAutoEvaluating, setIsAutoEvaluating] = useState(false);
 	const [isGenerating, setIsGenerating] = useState(false);
@@ -1564,6 +1697,7 @@ export const ModelComparisonPageClient = () => {
 	const [summary, setSummary] = useState<ComparisonSummary | null>(null);
 
 	const modelsQuery = useQuery(orpc.admin.models.list.queryOptions());
+	const templatesQuery = useQuery(orpc.admin.templates.list.queryOptions());
 	const topModelsQuery = useQuery(
 		orpc.admin.models.topModels.queryOptions({
 			input: { limit: 5 },
@@ -1600,15 +1734,26 @@ export const ModelComparisonPageClient = () => {
 				.slice(0, sampleCountLimit),
 		[sampleCountLimit, usageDetailQueries.data],
 	);
+	const templateOptions = useMemo<TemplateOption[]>(
+		() =>
+			(templatesQuery.data ?? []).map((item) => ({
+				category: item.category,
+				id: item.id,
+				title: item.title,
+			})),
+		[templatesQuery.data],
+	);
 	const templateIds = useMemo(
 		() => [
 			...new Set(
-				samples
-					.map((sample) => sample.templateId)
-					.filter((templateId): templateId is string => typeof templateId === "string"),
+				[
+					...samples.map((sample) => sample.templateId),
+					templateOverrideIdA,
+					templateOverrideIdB,
+				].filter((templateId): templateId is string => typeof templateId === "string"),
 			),
 		],
-		[samples],
+		[samples, templateOverrideIdA, templateOverrideIdB],
 	);
 	const templateDetailQueries = useQueries({
 		queries: templateIds.map((id) =>
@@ -1655,13 +1800,16 @@ export const ModelComparisonPageClient = () => {
 	}, [models]);
 
 	useEffect(() => {
-		const ids = usageListQuery.data?.items.map((item) => item.id) ?? [];
+		const ids =
+			usageListQuery.data?.items
+				.filter((item) => usageEventMatchesHarness(item.metadata, harnessFilter))
+				.map((item) => item.id) ?? [];
 		if (ids.length === 0) {
 			setSampledIds([]);
 			return;
 		}
 		setSampledIds(shuffleArray(ids).slice(0, SAMPLE_FETCH_LIMIT));
-	}, [usageListQuery.data]);
+	}, [harnessFilter, usageListQuery.data]);
 
 	useEffect(() => {
 		const sampleIds = sampleIdsKey ? sampleIdsKey.split("|") : [];
@@ -1715,9 +1863,18 @@ export const ModelComparisonPageClient = () => {
 		setSampledIds([]);
 		await queryClient.invalidateQueries({ queryKey: usageListQueryOptions.queryKey });
 		const refreshed = await usageListQuery.refetch();
-		const ids = refreshed.data?.items.map((item) => item.id) ?? [];
+		const ids =
+			refreshed.data?.items
+				.filter((item) => usageEventMatchesHarness(item.metadata, harnessFilter))
+				.map((item) => item.id) ?? [];
 		setSampledIds(shuffleArray(ids).slice(0, SAMPLE_FETCH_LIMIT));
-	}, [clearComparisonState, queryClient, usageListQuery, usageListQueryOptions.queryKey]);
+	}, [
+		clearComparisonState,
+		harnessFilter,
+		queryClient,
+		usageListQuery,
+		usageListQueryOptions.queryKey,
+	]);
 
 	const handleBlindModeChange = useCallback((checked: boolean) => {
 		setBlindMode(checked);
@@ -1747,7 +1904,12 @@ export const ModelComparisonPageClient = () => {
 		setIsGenerating(true);
 		setPreferences({});
 		setSummary(null);
-		setDisplayOrder(buildDisplayOrder(samples.map((sample) => sample.id), blindMode));
+		setDisplayOrder(
+			buildDisplayOrder(
+				samples.map((sample) => sample.id),
+				blindMode,
+			),
+		);
 		setResults({});
 		const triggers = samples.flatMap((sample) => [
 			runTriggersRef.current.get(`${sample.id}-a`),
@@ -1896,12 +2058,14 @@ export const ModelComparisonPageClient = () => {
 				<ModelComparisonHeader
 					blindMode={blindMode}
 					canGenerate={canGenerateAll}
+					harnessFilter={harnessFilter}
 					isAutoEvaluating={isAutoEvaluating}
 					isGenerating={isGenerating}
 					isLoadingReplayContext={isLoadingReplayContext}
 					isRefreshingSamples={usageListQuery.isFetching}
 					onBlindModeChange={handleBlindModeChange}
 					onGenerateAll={handleGenerateAll}
+					onHarnessFilterChange={setHarnessFilter}
 					onRefreshSamples={handleRefreshSamples}
 					onSampleCountChange={handleSampleCountChange}
 					sampleCount={samples.length}
@@ -1912,24 +2076,32 @@ export const ModelComparisonPageClient = () => {
 					<ModelConfigCard
 						disabled={isGenerating}
 						isLoading={modelsQuery.isLoading}
+						isLoadingTemplates={templatesQuery.isLoading}
 						model={modelA}
 						modelId={modelAId}
 						modelSelectorOptions={modelSelectorOptions}
 						onModelChange={setModelAId}
 						onParametersChange={setParametersA}
+						onTemplateOverrideChange={setTemplateOverrideIdA}
 						parameters={parametersA}
 						side="a"
+						templateOptions={templateOptions}
+						templateOverrideId={templateOverrideIdA}
 					/>
 					<ModelConfigCard
 						disabled={isGenerating}
 						isLoading={modelsQuery.isLoading}
+						isLoadingTemplates={templatesQuery.isLoading}
 						model={modelB}
 						modelId={modelBId}
 						modelSelectorOptions={modelSelectorOptions}
 						onModelChange={setModelBId}
 						onParametersChange={setParametersB}
+						onTemplateOverrideChange={setTemplateOverrideIdB}
 						parameters={parametersB}
 						side="b"
+						templateOptions={templateOptions}
+						templateOverrideId={templateOverrideIdB}
 					/>
 				</div>
 
@@ -1949,6 +2121,8 @@ export const ModelComparisonPageClient = () => {
 					samples={samples}
 					selectedCount={selectedCount}
 					showMetrics={Boolean(summary)}
+					templateOverrideIdA={templateOverrideIdA}
+					templateOverrideIdB={templateOverrideIdB}
 					templateReferenceById={templateReferenceById}
 				/>
 
