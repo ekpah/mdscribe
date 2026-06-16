@@ -67,10 +67,14 @@ const slugify = (value: string): string =>
 		.replaceAll(NON_SLUG_CHARS, "-")
 		.replaceAll(EDGE_DASHES, "");
 
-/** Derive a unique slug from the name, ignoring `excludeId` (for updates). */
+/**
+ * Derive a slug from the name that is unique within the author's namespace
+ * (slugs are per-author), ignoring `excludeId` (for updates).
+ */
 const resolveUniqueSlug = async (
 	db: Database,
 	name: string,
+	authorId: string,
 	excludeId?: string,
 ): Promise<string> => {
 	const base = slugify(name) || "workspace";
@@ -78,14 +82,16 @@ const resolveUniqueSlug = async (
 	let suffix = 1;
 
 	const isTaken = async (slug: string): Promise<boolean> => {
+		const matchers = [
+			eq(aiScribeWorkspace.slug, slug),
+			eq(aiScribeWorkspace.authorId, authorId),
+		];
+		if (excludeId) {
+			matchers.push(ne(aiScribeWorkspace.id, excludeId));
+		}
 		const existing = await db.query.aiScribeWorkspace.findFirst({
 			columns: { id: true },
-			where: excludeId
-				? and(
-						eq(aiScribeWorkspace.slug, slug),
-						ne(aiScribeWorkspace.id, excludeId),
-					)
-				: eq(aiScribeWorkspace.slug, slug),
+			where: and(...matchers),
 		});
 		return Boolean(existing);
 	};
@@ -197,7 +203,11 @@ const createHandler = authed
 				description: toNullableText(parsed.description),
 				enabled: parsed.enabled,
 				name: parsed.name,
-				slug: await resolveUniqueSlug(context.db, parsed.name),
+				slug: await resolveUniqueSlug(
+					context.db,
+					parsed.name,
+					context.session.user.id,
+				),
 				visibility: parsed.visibility,
 			})
 			.returning();
@@ -221,6 +231,17 @@ const updateHandler = authed
 		};
 		await assertFormSlots(context.db, slotForms);
 
+		// Slugs are per-author, so dedupe within the existing row's author namespace.
+		const existing = await context.db.query.aiScribeWorkspace.findFirst({
+			columns: { authorId: true },
+			where: eq(aiScribeWorkspace.id, parsed.id),
+		});
+		if (!existing) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Brief-Baukasten wurde nicht gefunden.",
+			});
+		}
+
 		const [updated] = await context.db
 			.update(aiScribeWorkspace)
 			.set({
@@ -228,7 +249,12 @@ const updateHandler = authed
 				description: toNullableText(parsed.description),
 				enabled: parsed.enabled,
 				name: parsed.name,
-				slug: await resolveUniqueSlug(context.db, parsed.name, parsed.id),
+				slug: await resolveUniqueSlug(
+					context.db,
+					parsed.name,
+					existing.authorId ?? context.session.user.id,
+					parsed.id,
+				),
 				visibility: parsed.visibility,
 			})
 			.where(eq(aiScribeWorkspace.id, parsed.id))

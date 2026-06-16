@@ -27,6 +27,7 @@ import Link from "next/link";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getAiscribeIsAdmin } from "@/app/aiscribe/_lib/access";
+import { buildCustomFormPath, buildWorkspacePath } from "@/lib/aiscribe-paths";
 import { getServerSession } from "@/lib/server-session";
 
 import { buildCustomAiscribeTemplateConfig } from "./_lib/custom-form-config";
@@ -311,7 +312,7 @@ export default async function AIScribeLandingPage() {
 												key={form.id}
 												title={form.name}
 												description={form.description ?? formConfig.description}
-												href={`/aiscribe/custom/${form.slug}`}
+												href={buildCustomFormPath(form.slug, form.author?.username ?? null)}
 												icon={<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
 												isLoggedIn={isLoggedIn}
 												accentColor="solarized-cyan"
@@ -372,7 +373,7 @@ export default async function AIScribeLandingPage() {
 											key={form.id}
 											title={form.name}
 											description={form.description ?? formConfig.description}
-											href={`/aiscribe/custom/${form.slug}`}
+											href={buildCustomFormPath(form.slug, form.author?.username ?? null)}
 											icon={<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
 											isLoggedIn={isLoggedIn}
 											accentColor="solarized-cyan"
@@ -416,7 +417,7 @@ export default async function AIScribeLandingPage() {
 												workspace.description ??
 												"Aus AI Vorlagen zusammengestellter Arztbrief-Editor."
 											}
-											href={`/aiscribe/editor/${workspace.slug}`}
+											href={buildWorkspacePath(workspace.slug, workspace.authorUsername)}
 											icon={
 												<Blocks className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />
 											}

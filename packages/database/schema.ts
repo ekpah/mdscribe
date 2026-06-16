@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
 	customType,
@@ -436,7 +436,14 @@ export const aiScribeFormConfig = pgTable(
 		visibility: text("visibility").notNull().default("public"),
 	},
 	(table) => [
-		uniqueIndex("AiScribeFormConfig_slug_key").on(table.slug),
+		// Slugs are unique per namespace: global (author-less) entries share one
+		// namespace; user-owned entries are unique per author.
+		uniqueIndex("AiScribeFormConfig_global_slug_key")
+			.on(table.slug)
+			.where(sql`${table.authorId} is null`),
+		uniqueIndex("AiScribeFormConfig_author_slug_key")
+			.on(table.authorId, table.slug)
+			.where(sql`${table.authorId} is not null`),
 		index("AiScribeFormConfig_authorId_idx").on(table.authorId),
 		index("AiScribeFormConfig_authorId_visibility_idx").on(table.authorId, table.visibility),
 		index("AiScribeFormConfig_enabled_idx").on(table.enabled),
@@ -480,7 +487,12 @@ export const aiScribeWorkspace = pgTable(
 		visibility: text("visibility").notNull().default("public"),
 	},
 	(table) => [
-		uniqueIndex("AiScribeWorkspace_slug_key").on(table.slug),
+		uniqueIndex("AiScribeWorkspace_global_slug_key")
+			.on(table.slug)
+			.where(sql`${table.authorId} is null`),
+		uniqueIndex("AiScribeWorkspace_author_slug_key")
+			.on(table.authorId, table.slug)
+			.where(sql`${table.authorId} is not null`),
 		index("AiScribeWorkspace_authorId_idx").on(table.authorId),
 		index("AiScribeWorkspace_enabled_idx").on(table.enabled),
 		index("AiScribeWorkspace_visibility_idx").on(table.visibility),

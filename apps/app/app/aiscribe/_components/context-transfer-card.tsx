@@ -49,6 +49,7 @@ import {
 	MAX_TRANSFER_PAYLOAD_BYTES,
 	TransferPayloadTooLargeError,
 } from "@/lib/context-transfer-crypto";
+import { buildCustomFormPath } from "@/lib/aiscribe-paths";
 import { formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
 import {
@@ -197,7 +198,7 @@ export const ContextTransferCard = ({
 			formsQuery.data?.map((form) => ({
 				group: getPromptHarnessLabel(form.promptHarness),
 				label: form.name,
-				path: `/aiscribe/custom/${form.slug}`,
+				path: buildCustomFormPath(form.slug, form.author?.username ?? null),
 				type: "ai-form" as const,
 			})) ?? [];
 		return [...builtIns, ...configuredForms];

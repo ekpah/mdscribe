@@ -5,9 +5,11 @@ import {
 	and,
 	eq,
 	inArray,
+	isNull,
 	or,
+	user,
 } from "@repo/database";
-import type { AiScribeWorkspace } from "@repo/database";
+import type { AiScribeWorkspace, Database } from "@repo/database";
 
 import { authed } from "@/orpc";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
@@ -67,23 +69,105 @@ const resolveSections = (
 		};
 	});
 
+/** Resolve a workspace's referenced forms (visible to the viewer) into sections. */
+const resolveWorkspace = async (
+	db: Database,
+	workspace: AiScribeWorkspace,
+	viewerId: string,
+) => {
+	const referencedFormIds = [
+		workspace.diagnosisFormId,
+		workspace.anamneseFormId,
+		workspace.epikriseFormId,
+	].filter((id): id is string => id !== null);
+
+	const forms =
+		referencedFormIds.length > 0
+			? await db.query.aiScribeFormConfig.findMany({
+					columns: { id: true, promptHarness: true, templateId: true },
+					where: and(
+						eq(aiScribeFormConfig.enabled, true),
+						inArray(aiScribeFormConfig.id, referencedFormIds),
+						or(
+							eq(aiScribeFormConfig.visibility, "public"),
+							eq(aiScribeFormConfig.authorId, viewerId),
+						),
+					),
+				})
+			: [];
+	const formsById = new Map(forms.map((form) => [form.id, form]));
+
+	return {
+		description: workspace.description ?? "",
+		sections: resolveSections(workspace, formsById),
+		slug: workspace.slug,
+		title: workspace.name,
+	};
+};
+
 const listAvailableHandler = authed.handler(async ({ context }) => {
 	const rows = await context.db.query.aiScribeWorkspace.findMany({
-		columns: { description: true, id: true, name: true, slug: true },
+		columns: {
+			authorId: true,
+			description: true,
+			id: true,
+			name: true,
+			slug: true,
+		},
 		orderBy: (workspace, { asc }) => [asc(workspace.name)],
 		where: and(
 			eq(aiScribeWorkspace.enabled, true),
 			visibleToUser(context.session.user.id),
 		),
+		with: { author: { columns: { username: true } } },
 	});
-	return rows;
+	return rows.map((row) => ({
+		authorId: row.authorId,
+		authorUsername: row.author?.username ?? null,
+		description: row.description,
+		id: row.id,
+		name: row.name,
+		slug: row.slug,
+	}));
 });
 
+// Global (author-less) workspaces by slug.
 const getBySlugHandler = authed
 	.input(type<{ slug: string }>())
 	.handler(async ({ context, input }) => {
 		const workspace = await context.db.query.aiScribeWorkspace.findFirst({
 			where: and(
+				eq(aiScribeWorkspace.slug, input.slug),
+				isNull(aiScribeWorkspace.authorId),
+				eq(aiScribeWorkspace.enabled, true),
+				visibleToUser(context.session.user.id),
+			),
+		});
+		if (!workspace) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Brief-Baukasten wurde nicht gefunden.",
+			});
+		}
+		return resolveWorkspace(context.db, workspace, context.session.user.id);
+	});
+
+// User-owned workspaces by author handle + slug.
+const getByUsernameSlugHandler = authed
+	.input(type<{ slug: string; username: string }>())
+	.handler(async ({ context, input }) => {
+		const author = await context.db.query.user.findFirst({
+			columns: { id: true },
+			where: eq(user.username, input.username),
+		});
+		if (!author) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Brief-Baukasten wurde nicht gefunden.",
+			});
+		}
+
+		const workspace = await context.db.query.aiScribeWorkspace.findFirst({
+			where: and(
+				eq(aiScribeWorkspace.authorId, author.id),
 				eq(aiScribeWorkspace.slug, input.slug),
 				eq(aiScribeWorkspace.enabled, true),
 				visibleToUser(context.session.user.id),
@@ -94,38 +178,11 @@ const getBySlugHandler = authed
 				message: "Brief-Baukasten wurde nicht gefunden.",
 			});
 		}
-
-		const referencedFormIds = [
-			workspace.diagnosisFormId,
-			workspace.anamneseFormId,
-			workspace.epikriseFormId,
-		].filter((id): id is string => id !== null);
-
-		const forms =
-			referencedFormIds.length > 0
-				? await context.db.query.aiScribeFormConfig.findMany({
-						columns: { id: true, promptHarness: true, templateId: true },
-						where: and(
-							eq(aiScribeFormConfig.enabled, true),
-							inArray(aiScribeFormConfig.id, referencedFormIds),
-							or(
-								eq(aiScribeFormConfig.visibility, "public"),
-								eq(aiScribeFormConfig.authorId, context.session.user.id),
-							),
-						),
-					})
-				: [];
-		const formsById = new Map(forms.map((form) => [form.id, form]));
-
-		return {
-			description: workspace.description ?? "",
-			sections: resolveSections(workspace, formsById),
-			slug: workspace.slug,
-			title: workspace.name,
-		};
+		return resolveWorkspace(context.db, workspace, context.session.user.id);
 	});
 
 export const scribeWorkspacesHandler = {
 	getBySlug: getBySlugHandler,
+	getByUsernameSlug: getByUsernameSlugHandler,
 	listAvailable: listAvailableHandler,
 };

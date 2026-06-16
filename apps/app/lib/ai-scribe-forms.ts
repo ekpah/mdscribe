@@ -9,6 +9,7 @@ const RESERVED_AI_SCRIBE_FORM_SLUGS = [
 	"icu",
 	"outpatient",
 	"procedures",
+	"u",
 	...BUILT_IN_AISCRIBE_OVERRIDE_SLUGS,
 ] as const;
 

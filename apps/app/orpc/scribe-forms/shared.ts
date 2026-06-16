@@ -1,5 +1,5 @@
 import { ORPCError } from "@orpc/server";
-import { aiScribeFormConfig, and, eq, or, template } from "@repo/database";
+import { aiScribeFormConfig, and, eq, isNull, or, template } from "@repo/database";
 import type { Database } from "@repo/database";
 import { z } from "zod";
 
@@ -180,11 +180,26 @@ export const ensureVisibleTemplateExists = async ({
 
 export const ensureSlugUnique = async (
 	context: { db: Database },
-	slug: string,
-	excludeId?: string,
+	{
+		slug,
+		authorId,
+		excludeId,
+	}: { slug: string; authorId: string | null; excludeId?: string },
 ): Promise<void> => {
+	// Slugs are unique per namespace: global (author-less) vs. per author.
+	const namespaceWhere =
+		authorId === null
+			? and(
+					eq(aiScribeFormConfig.slug, slug),
+					isNull(aiScribeFormConfig.authorId),
+				)
+			: and(
+					eq(aiScribeFormConfig.slug, slug),
+					eq(aiScribeFormConfig.authorId, authorId),
+				);
+
 	const existing = await context.db.query.aiScribeFormConfig.findFirst({
-		where: eq(aiScribeFormConfig.slug, slug),
+		where: namespaceWhere,
 	});
 
 	if (existing && existing.id !== excludeId) {
