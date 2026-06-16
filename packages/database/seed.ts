@@ -11,6 +11,7 @@ const SEED_USER = {
 	email: "test@test.com",
 	name: "Test User",
 	password: "password123",
+	username: "testuser",
 } as const;
 
 // Global flag to prevent re-seeding during HMR
@@ -217,11 +218,13 @@ export const seedDatabase = async (db: SeedDatabase): Promise<void> => {
 	// Create test user
 	const userId = crypto.randomUUID();
 	await db.insert(schema.user).values({
+		displayUsername: SEED_USER.username,
 		email: SEED_USER.email,
 		emailVerified: true,
 		id: userId,
 		name: SEED_USER.name,
 		stripeCustomerId: `cus_test_${Date.now()}`,
+		username: SEED_USER.username,
 	});
 
 	// Create credential account with BetterAuth-compatible password hash

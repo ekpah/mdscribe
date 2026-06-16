@@ -65,7 +65,7 @@ export const user = pgTable("User", {
 		.notNull()
 		.$onUpdate(() => new Date()),
 	// Normalized (lowercase) unique handle from the better-auth username plugin.
-	username: text("username").unique(),
+	username: text("username").notNull().unique(),
 });
 
 export const account = pgTable("Account", {
