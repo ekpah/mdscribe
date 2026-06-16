@@ -319,7 +319,7 @@ ${event.result}`,
 				}),
 				schema: usageEvaluationSchema,
 				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
-				temperature: 0.1,
+				temperature: evaluationSelection.defaultTemperature ?? undefined,
 			});
 		} catch (error) {
 			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {

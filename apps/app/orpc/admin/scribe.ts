@@ -543,7 +543,7 @@ ${parsed.data.response}`,
 				}),
 				schema: evaluateOutputSchema,
 				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
-				temperature: 0.3,
+				temperature: evaluationSelection.defaultTemperature ?? undefined,
 			});
 		} catch (error) {
 			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {
@@ -626,7 +626,7 @@ Gib im Feld note einen kurzen deutschen Satz aus, der den wichtigsten konkreten 
 				schema: evaluateComparisonOutputSchema,
 				system:
 					"Du bist ein strenger deutscher Arztbrief-Reviewer. Entscheide zwischen Antwort A und Antwort B und begruende knapp mit einem konkreten Unterschied.",
-				temperature: 0.1,
+				temperature: evaluationSelection.defaultTemperature ?? undefined,
 			});
 		} catch (error) {
 			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {
