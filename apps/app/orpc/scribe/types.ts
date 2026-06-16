@@ -97,10 +97,18 @@ export interface PromptVariables {
 }
 
 /**
+ * Grammatical gender of a prompt harness `promptName`, used to decline German
+ * adjectives/articles in user-facing labels (e.g. "Verbesserte Anamnese" vs.
+ * "Verbesserten Entlassbrief"). `plural` covers names like "Befunde".
+ */
+export type GrammaticalGender = "feminine" | "masculine" | "neuter" | "plural";
+
+/**
  * Configuration for each document type
  */
 export interface DocumentTypeConfig {
 	promptName: string;
 	promptLabel?: string;
+	gender: GrammaticalGender;
 	systemPrompt: string;
 }

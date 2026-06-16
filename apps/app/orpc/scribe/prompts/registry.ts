@@ -1,6 +1,7 @@
 import type {
 	DocumentType,
 	DocumentTypeConfig,
+	GrammaticalGender,
 } from "@/orpc/scribe/types";
 import { documentPromptDefinitions } from "./definitions";
 
@@ -127,6 +128,13 @@ export const getDocumentTypeByPromptName = (
 export const getPromptHarnessLabel = (promptHarness: string): string => {
 	const documentType = getDocumentTypeByPromptName(promptHarness);
 	return documentType ? documentTypeConfigs[documentType].promptName : promptHarness;
+};
+
+export const getPromptHarnessGender = (
+	promptHarness: string,
+): GrammaticalGender => {
+	const documentType = getDocumentTypeByPromptName(promptHarness);
+	return documentType ? documentTypeConfigs[documentType].gender : "feminine";
 };
 
 export const getPromptHarnessReferences = (documentType: PromptHarnessId): readonly string[] => [

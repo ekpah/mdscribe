@@ -5,6 +5,7 @@ import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
 	CardContent,
+	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
@@ -12,7 +13,9 @@ import { Label } from "@repo/design-system/components/ui/label";
 import {
 	Select,
 	SelectContent,
+	SelectGroup,
 	SelectItem,
+	SelectLabel,
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
@@ -48,13 +51,18 @@ import {
 } from "@/lib/context-transfer-crypto";
 import { formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
-import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
+import {
+	getPromptHarnessGender,
+	getPromptHarnessLabel,
+	getPromptHarnessTargetField,
+} from "@/orpc/scribe/prompts";
 
 import type { AdditionalInputField, AiscribeTemplateConfig } from "./aiscribe-template";
 
 type TransferMode = "input" | "output";
 
 interface TransferTargetOption {
+	group: string;
 	label: string;
 	path: string;
 	type: ContextTransferTargetType;
@@ -75,6 +83,19 @@ const targetTypeLabels: Record<ContextTransferTargetType, string> = {
 	"ai-form": "AI Vorlage",
 	document: "Dokument",
 	template: "Textbaustein",
+};
+
+// Accusative declension of "verbessert" by the harness name's grammatical
+// gender (object of "übernehmen") so the switch label reads e.g.
+// "Verbesserte Anamnese" / "Verbesserten Entlassbrief".
+const improvedAdjectiveEndings: Record<
+	ReturnType<typeof getPromptHarnessGender>,
+	string
+> = {
+	feminine: "e",
+	masculine: "en",
+	neuter: "es",
+	plural: "e",
 };
 
 const toContextFilePayload = async ({
@@ -166,6 +187,7 @@ export const ContextTransferCard = ({
 		const builtIns = BUILT_IN_AISCRIBE_OVERRIDE_KEYS.map((key) => {
 			const builtIn = getBuiltInAiscribeOverride(key);
 			return {
+				group: getPromptHarnessLabel(builtIn.defaultPromptHarness),
 				label: builtIn.title,
 				path: builtIn.path,
 				type: "ai-form" as const,
@@ -173,6 +195,7 @@ export const ContextTransferCard = ({
 		});
 		const configuredForms =
 			formsQuery.data?.map((form) => ({
+				group: getPromptHarnessLabel(form.promptHarness),
 				label: form.name,
 				path: `/aiscribe/custom/${form.slug}`,
 				type: "ai-form" as const,
@@ -185,12 +208,14 @@ export const ContextTransferCard = ({
 			"ai-form": aiTargets,
 			document:
 				documentsQuery.data?.map((document) => ({
+					group: targetTypeLabels.document,
 					label: document.title,
 					path: `/documents/${document.id}`,
 					type: "document" as const,
 				})) ?? [],
 			template:
 				templatesQuery.data?.map((template) => ({
+					group: targetTypeLabels.template,
 					label: template.title,
 					path: `/templates/${template.id}`,
 					type: "template" as const,
@@ -201,6 +226,19 @@ export const ContextTransferCard = ({
 
 	const targetOptions = targetOptionsByType[targetType];
 	const selectedTarget = targetOptions.find((target) => target.path === targetPath);
+
+	const groupedTargetOptions = useMemo(() => {
+		const groups = new Map<string, TransferTargetOption[]>();
+		for (const option of targetOptions) {
+			const existing = groups.get(option.group);
+			if (existing) {
+				existing.push(option);
+			} else {
+				groups.set(option.group, [option]);
+			}
+		}
+		return [...groups.entries()];
+	}, [targetOptions]);
 
 	const estimatedPayloadBytes = useMemo(
 		() =>
@@ -304,6 +342,13 @@ export const ContextTransferCard = ({
 		? ["template", "ai-form", "document"]
 		: ["template", "ai-form"];
 
+	const harnessReference =
+		config.promptHarness ?? ("documentType" in config ? config.documentType : undefined);
+	// "Ausgabe" is feminine; an undeclared fallback keeps the default ending.
+	const harnessLabel = harnessReference ? getPromptHarnessLabel(harnessReference) : "Ausgabe";
+	const harnessGender = harnessReference ? getPromptHarnessGender(harnessReference) : "feminine";
+	const improvedAdjective = `Verbessert${improvedAdjectiveEndings[harnessGender]}`;
+
 	return (
 		<Card className="h-fit border-solarized-cyan/20 shadow-lg">
 			<CardHeader className="bg-solarized-cyan/5">
@@ -311,10 +356,14 @@ export const ContextTransferCard = ({
 					<SendToBack className="h-4 w-4 text-solarized-cyan" />
 					<CardTitle className="text-base text-foreground">Weiterverwenden</CardTitle>
 				</div>
+				<CardDescription>
+					Die aktuellen Informationen übertragen und in einem anderen Formular
+					weiterverwenden
+				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4 p-6">
 				<div className="space-y-2">
-					<Label className="text-xs">Zieltyp</Label>
+					<Label className="text-xs">Typ</Label>
 					<ToggleGroup
 						className="w-full"
 						onValueChange={(value) => {
@@ -341,10 +390,15 @@ export const ContextTransferCard = ({
 							<SelectValue placeholder="Ziel auswählen" />
 						</SelectTrigger>
 						<SelectContent>
-							{targetOptions.map((target) => (
-								<SelectItem key={target.path} value={target.path}>
-									{target.label}
-								</SelectItem>
+							{groupedTargetOptions.map(([group, options]) => (
+								<SelectGroup key={group}>
+									<SelectLabel>{group}</SelectLabel>
+									{options.map((target) => (
+										<SelectItem key={target.path} value={target.path}>
+											{target.label}
+										</SelectItem>
+									))}
+								</SelectGroup>
 							))}
 						</SelectContent>
 					</Select>
@@ -352,10 +406,12 @@ export const ContextTransferCard = ({
 
 				<div className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 p-3">
 					<div className="min-w-0">
-						<div className="font-medium text-sm">Ausgabe übernehmen</div>
+						<div className="font-medium text-sm">
+							{improvedAdjective} {harnessLabel} übernehmen
+						</div>
 						<div className="text-muted-foreground text-xs">
 							{transferMode === "output"
-								? "Die generierte Ausgabe wird statt der Eingabe übergeben"
+								? "Die verbesserte Version wird statt der Eingabe übergeben"
 								: "Die aktuelle Eingabe wird übergeben"}
 						</div>
 					</div>
