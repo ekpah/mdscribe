@@ -21,6 +21,8 @@ export const USER_MESSAGES = {
 	providerUnavailable: "Der KI-Anbieter ist nicht erreichbar. Bitte prüfen Sie die Verbindung.",
 	publicAiScribeFormVisibilityWarning:
 		"Öffentlich: Alle Nutzer können diese AI Vorlage sehen und verwenden.",
+	publicAiScribeWorkspaceVisibilityWarning:
+		"Öffentlich: Alle Nutzer können diesen Brief-Baukasten sehen und verwenden.",
 	publicDocumentVisibilityWarning:
 		"Öffentlich: Alle Nutzer können dieses Dokument sehen, verwenden und kopieren.",
 	publicTemplateVisibilityWarning:
