@@ -701,6 +701,11 @@ const normalizeMediaMode = (
 const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect> | undefined) => {
 	const d: Partial<typeof aiDefaults.$inferSelect> = defaults ?? {};
 	return {
+		defaultAgentModelId: d.defaultAgentModelId ?? null,
+		defaultAgentReasoningEffort: normalizeReasoningEffort(d.defaultAgentReasoningEffort),
+		defaultAgentSupportsAudio: d.defaultAgentSupportsAudio ?? false,
+		defaultAgentSupportsDocuments: d.defaultAgentSupportsDocuments ?? false,
+		defaultAgentTemperature: d.defaultAgentTemperature ?? null,
 		defaultEvaluationModel: d.defaultEvaluationModel ?? null,
 		defaultEvaluationReasoningEffort: normalizeReasoningEffort(d.defaultEvaluationReasoningEffort),
 		defaultEvaluationTemperature: d.defaultEvaluationTemperature ?? null,
@@ -714,6 +719,7 @@ const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect>
 			d.defaultSpeechToTextReasoningEffort,
 		),
 		defaultSpeechToTextTemperature: d.defaultSpeechToTextTemperature ?? null,
+		defaultStandardSupportsAgent: d.defaultStandardSupportsAgent ?? false,
 		defaultStandardSupportsAudio: d.defaultStandardSupportsAudio ?? false,
 		defaultStandardSupportsDocuments: d.defaultStandardSupportsDocuments ?? false,
 		defaultTextModelId: d.defaultTextModelId ?? null,
@@ -731,6 +737,7 @@ const getDefaultsHandler = admin.handler(async ({ context }) => {
 });
 
 const DEFAULT_MODEL_SLOTS = [
+	"agent",
 	"text",
 	"file-image",
 	"speech-to-text",
@@ -762,6 +769,11 @@ const buildAiDefaultsDraft = (
 ): AiDefaultsDraft => {
 	const c: Partial<typeof aiDefaults.$inferSelect> = current ?? {};
 	return {
+		defaultAgentModelId: c.defaultAgentModelId ?? null,
+		defaultAgentReasoningEffort: normalizeReasoningEffort(c.defaultAgentReasoningEffort),
+		defaultAgentSupportsAudio: c.defaultAgentSupportsAudio ?? false,
+		defaultAgentSupportsDocuments: c.defaultAgentSupportsDocuments ?? false,
+		defaultAgentTemperature: c.defaultAgentTemperature ?? null,
 		defaultEvaluationModel: c.defaultEvaluationModel ?? null,
 		defaultEvaluationReasoningEffort: normalizeReasoningEffort(c.defaultEvaluationReasoningEffort),
 		defaultEvaluationTemperature: c.defaultEvaluationTemperature ?? null,
@@ -775,6 +787,7 @@ const buildAiDefaultsDraft = (
 			c.defaultSpeechToTextReasoningEffort,
 		),
 		defaultSpeechToTextTemperature: c.defaultSpeechToTextTemperature ?? null,
+		defaultStandardSupportsAgent: c.defaultStandardSupportsAgent ?? false,
 		defaultStandardSupportsAudio: c.defaultStandardSupportsAudio ?? false,
 		defaultStandardSupportsDocuments: c.defaultStandardSupportsDocuments ?? false,
 		defaultTextModelId: c.defaultTextModelId ?? null,
@@ -794,6 +807,11 @@ const persistAiDefaultsDraft = async (
 		? db
 				.update(aiDefaults)
 				.set({
+					defaultAgentModelId: next.defaultAgentModelId,
+					defaultAgentReasoningEffort: next.defaultAgentReasoningEffort,
+					defaultAgentSupportsAudio: next.defaultAgentSupportsAudio,
+					defaultAgentSupportsDocuments: next.defaultAgentSupportsDocuments,
+					defaultAgentTemperature: next.defaultAgentTemperature,
 					defaultEvaluationModel: next.defaultEvaluationModel,
 					defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
 					defaultEvaluationTemperature: next.defaultEvaluationTemperature,
@@ -805,6 +823,7 @@ const persistAiDefaultsDraft = async (
 					defaultSpeechToTextModelId: next.defaultSpeechToTextModelId,
 					defaultSpeechToTextReasoningEffort: next.defaultSpeechToTextReasoningEffort,
 					defaultSpeechToTextTemperature: next.defaultSpeechToTextTemperature,
+					defaultStandardSupportsAgent: next.defaultStandardSupportsAgent,
 					defaultStandardSupportsAudio: next.defaultStandardSupportsAudio,
 					defaultStandardSupportsDocuments: next.defaultStandardSupportsDocuments,
 					defaultTextModelId: next.defaultTextModelId,
@@ -820,6 +839,16 @@ const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof set
 	const nextReasoningEffort = parsed.reasoningEffort;
 	const nextTemperature = parsed.temperature;
 	switch (parsed.defaultType) {
+		case "agent": {
+			next.defaultAgentModelId = parsed.modelId;
+			if (nextReasoningEffort !== undefined) {
+				next.defaultAgentReasoningEffort = nextReasoningEffort;
+			}
+			if (nextTemperature !== undefined) {
+				next.defaultAgentTemperature = nextTemperature;
+			}
+			break;
+		}
 		case "text": {
 			next.defaultTextModelId = parsed.modelId;
 			if (nextReasoningEffort !== undefined) {
@@ -894,8 +923,11 @@ const setDefaultHandler = admin
 	});
 
 const setDefaultOptionsInput = z.object({
+	agentSupportsAudio: z.boolean().optional(),
+	agentSupportsDocuments: z.boolean().optional(),
 	fileImageMode: z.enum(MEDIA_PREPROCESS_MODES).optional(),
 	speechToTextMode: z.enum(MEDIA_PREPROCESS_MODES).optional(),
+	standardSupportsAgent: z.boolean().optional(),
 	standardSupportsAudio: z.boolean().optional(),
 	standardSupportsDocuments: z.boolean().optional(),
 });
@@ -910,11 +942,20 @@ const setDefaultOptionsHandler = admin
 		});
 
 		const next = buildAiDefaultsDraft(current);
+		if (parsed.agentSupportsAudio !== undefined) {
+			next.defaultAgentSupportsAudio = parsed.agentSupportsAudio;
+		}
+		if (parsed.agentSupportsDocuments !== undefined) {
+			next.defaultAgentSupportsDocuments = parsed.agentSupportsDocuments;
+		}
 		if (parsed.fileImageMode !== undefined) {
 			next.defaultFileImageMode = parsed.fileImageMode;
 		}
 		if (parsed.speechToTextMode !== undefined) {
 			next.defaultSpeechToTextMode = parsed.speechToTextMode;
+		}
+		if (parsed.standardSupportsAgent !== undefined) {
+			next.defaultStandardSupportsAgent = parsed.standardSupportsAgent;
 		}
 		if (parsed.standardSupportsAudio !== undefined) {
 			next.defaultStandardSupportsAudio = parsed.standardSupportsAudio;

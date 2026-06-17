@@ -18,7 +18,12 @@ export type { ReasoningEffort } from "@/orpc/scribe/types";
 
 type ProviderProtocol = typeof aiProvider.$inferSelect.protocol;
 
-export type DefaultModelSlot = "evaluation" | "file-image" | "speech-to-text" | "text";
+export type DefaultModelSlot =
+	| "agent"
+	| "evaluation"
+	| "file-image"
+	| "speech-to-text"
+	| "text";
 
 export type MediaPreprocessStrategy = "direct" | "multimodal";
 
@@ -59,6 +64,10 @@ interface GenerationStrategy {
 	audio?: MediaPlan;
 	files?: MediaPlan;
 	generation: ResolvedDefaultModelSelection;
+}
+
+interface AgentGenerationStrategy extends GenerationStrategy {
+	usesStandardModel: boolean;
 }
 
 type AiModelRow = typeof aiModel.$inferSelect;
@@ -424,6 +433,9 @@ const getDefaultModelRecordId = (
 	slot: DefaultModelSlot,
 ): string | null => {
 	switch (slot) {
+		case "agent": {
+			return defaults.defaultAgentModelId;
+		}
 		case "evaluation": {
 			return defaults.defaultEvaluationModel;
 		}
@@ -447,6 +459,9 @@ const getDefaultReasoningEffort = (
 	slot: DefaultModelSlot,
 ): ReasoningEffort => {
 	switch (slot) {
+		case "agent": {
+			return normalizeReasoningEffort(defaults.defaultAgentReasoningEffort);
+		}
 		case "evaluation": {
 			return normalizeReasoningEffort(defaults.defaultEvaluationReasoningEffort);
 		}
@@ -467,6 +482,9 @@ const getDefaultReasoningEffort = (
 
 const getDefaultTemperature = (defaults: AiDefaultsRow, slot: DefaultModelSlot): number | null => {
 	switch (slot) {
+		case "agent": {
+			return defaults.defaultAgentTemperature ?? null;
+		}
 		case "evaluation": {
 			return defaults.defaultEvaluationTemperature ?? null;
 		}
@@ -558,6 +576,59 @@ export const resolveGenerationStrategy = async (
 		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
 		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
 		generation: await buildDefaultSelection(db, defaults, "text"),
+	};
+};
+
+/**
+ * Resolves the documentation-agent model. The standard model can explicitly
+ * cover the agent; otherwise the dedicated MDScribe Agent slot becomes the
+ * generator and declares its own native audio/document capabilities.
+ */
+export const resolveAgentGenerationStrategy = async (
+	db: Database,
+	options: { hasAudio?: boolean; hasFiles?: boolean },
+): Promise<AgentGenerationStrategy> => {
+	const defaults = await getDefaults(db);
+	const usesStandardModel = defaults.defaultStandardSupportsAgent;
+	const generation = await buildDefaultSelection(
+		db,
+		defaults,
+		usesStandardModel ? "text" : "agent",
+	);
+	const supportsAudio = usesStandardModel
+		? defaults.defaultStandardSupportsAudio
+		: defaults.defaultAgentSupportsAudio;
+	const supportsDocuments = usesStandardModel
+		? defaults.defaultStandardSupportsDocuments
+		: defaults.defaultAgentSupportsDocuments;
+
+	const buildAudioPlan = async (): Promise<MediaPlan> => {
+		if (supportsAudio) {
+			return { mode: "native" };
+		}
+		return {
+			mode: "preprocess",
+			selection: await buildDefaultSelection(db, defaults, "speech-to-text"),
+			strategy: normalizeMediaPreprocessStrategy(defaults.defaultSpeechToTextMode, "direct"),
+		};
+	};
+
+	const buildFilesPlan = async (): Promise<MediaPlan> => {
+		if (supportsDocuments) {
+			return { mode: "native" };
+		}
+		return {
+			mode: "preprocess",
+			selection: await buildDefaultSelection(db, defaults, "file-image"),
+			strategy: normalizeMediaPreprocessStrategy(defaults.defaultFileImageMode, "multimodal"),
+		};
+	};
+
+	return {
+		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
+		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
+		generation,
+		usesStandardModel,
 	};
 };
 

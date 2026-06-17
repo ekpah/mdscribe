@@ -49,7 +49,7 @@ import {
 	MAX_TRANSFER_PAYLOAD_BYTES,
 	TransferPayloadTooLargeError,
 } from "@/lib/context-transfer-crypto";
-import { buildCustomFormPath } from "@/lib/aiscribe-paths";
+import { buildCustomFormPath, buildWorkspacePath } from "@/lib/aiscribe-paths";
 import { formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
 import {
@@ -84,6 +84,7 @@ const targetTypeLabels: Record<ContextTransferTargetType, string> = {
 	"ai-form": "AI Vorlage",
 	document: "Dokument",
 	template: "Textbaustein",
+	workspace: "Brief-Baukasten",
 };
 
 // Accusative declension of "verbessert" by the harness name's grammatical
@@ -169,6 +170,11 @@ export const ContextTransferCard = ({
 
 	const templatesQuery = useQuery(orpc.templates.list.queryOptions());
 	const formsQuery = useQuery(orpc.scribeForms.listAvailable.queryOptions());
+	const workspacesQueryOptions = orpc.scribeWorkspaces.listAvailable.queryOptions();
+	const workspacesQuery = useQuery({
+		...workspacesQueryOptions,
+		enabled: isAdmin,
+	});
 	const documentQueryOptions = orpc.documents.templates.list.queryOptions();
 	const documentsQuery = useQuery({
 		...documentQueryOptions,
@@ -221,8 +227,15 @@ export const ContextTransferCard = ({
 					path: `/templates/${template.id}`,
 					type: "template" as const,
 				})) ?? [],
+			workspace:
+				workspacesQuery.data?.map((workspace) => ({
+					group: targetTypeLabels.workspace,
+					label: workspace.name,
+					path: buildWorkspacePath(workspace.slug, workspace.authorUsername),
+					type: "workspace" as const,
+				})) ?? [],
 		}),
-		[aiTargets, documentsQuery.data, templatesQuery.data],
+		[aiTargets, documentsQuery.data, templatesQuery.data, workspacesQuery.data],
 	);
 
 	const targetOptions = targetOptionsByType[targetType];
@@ -340,7 +353,7 @@ export const ContextTransferCard = ({
 	}, [buildTransferPayload, selectedTarget]);
 
 	const availableTargetTypes: ContextTransferTargetType[] = isAdmin
-		? ["template", "ai-form", "document"]
+		? ["template", "ai-form", "workspace", "document"]
 		: ["template", "ai-form"];
 
 	const harnessReference =

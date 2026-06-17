@@ -4,8 +4,18 @@ import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
+import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
+import {
+	createAudioRecordingsFromTransferPayload,
+	createUploadedFilesFromTransferPayload,
+} from "@/app/_components/context-transfer/hydrate";
+import type {
+	AudioRecording,
+	UploadedContextFile,
+} from "@/app/_components/input-context/types";
 import { useSession } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
@@ -53,15 +63,18 @@ interface CompiledSection extends DoctorsNoteSectionConfig {
 	templateId?: string | null;
 }
 
+interface InitialAgentContext {
+	audioRecordings: AudioRecording[];
+	contextFiles: UploadedContextFile[];
+}
+
 /**
  * Compile resolved sections into the rendered section configs. The harness
  * drives the label/target-field; sibling sections feed in as context keyed by
  * their canonical target field, and a section's own text is the main input
  * (`notes`) on the wire. A section with a `formId` streams through that form.
  */
-const compileEditorSections = (
-	sections: DoctorsNoteEditorSection[],
-): CompiledSection[] =>
+const compileEditorSections = (sections: DoctorsNoteEditorSection[]): CompiledSection[] =>
 	sections.map((section) => ({
 		buildPrompt: (notes, context) => {
 			const body: Record<string, unknown> = { notes };
@@ -93,10 +106,7 @@ export const DoctorsNoteEditor = ({
 	initialValues = {},
 	disabled = false,
 }: DoctorsNoteEditorProps) => {
-	const sections = useMemo(
-		() => compileEditorSections(sectionInput),
-		[sectionInput],
-	);
+	const sections = useMemo(() => compileEditorSections(sectionInput), [sectionInput]);
 
 	// The agent is admin-only while it is iterated on (beta). Mirrors the
 	// admin-gated documents/blog surfaces.
@@ -107,15 +117,54 @@ export const DoctorsNoteEditor = ({
 	});
 	const isAgentEnabled = authQuery.data?.isAdmin ?? false;
 
-	const [sectionValues, setSectionValues] = useState<Record<string, string>>(
-		() => {
-			const values: Record<string, string> = {};
-			for (const section of sections) {
-				values[section.id] = initialValues[section.id] || "";
+	const [sectionValues, setSectionValues] = useState<Record<string, string>>(() => {
+		const values: Record<string, string> = {};
+		for (const section of sections) {
+			values[section.id] = initialValues[section.id] || "";
+		}
+		return values;
+	});
+	const [initialAgentContext, setInitialAgentContext] = useState<InitialAgentContext | null>(null);
+	const hasHydratedTransferRef = useRef(false);
+
+	useEffect(() => {
+		if (hasHydratedTransferRef.current) {
+			return;
+		}
+		hasHydratedTransferRef.current = true;
+
+		const hydrateTransfer = async () => {
+			try {
+				const payload = await consumeContextTransferFromFragment();
+				if (!payload) {
+					return;
+				}
+
+				setSectionValues((prev) => {
+					const next = { ...prev };
+					for (const section of sections) {
+						const targetField = getPromptHarnessTargetField(section.harness);
+						const value = payload.textContext[targetField];
+						if (typeof value === "string" && value.trim().length > 0) {
+							next[section.id] = value;
+						}
+					}
+					onValuesChange?.(next);
+					return next;
+				});
+				setInitialAgentContext({
+					audioRecordings: createAudioRecordingsFromTransferPayload(payload),
+					contextFiles: createUploadedFilesFromTransferPayload(payload),
+				});
+				toast.success("Kontext übernommen");
+			} catch (error) {
+				console.error("Failed to hydrate workspace context transfer:", error);
+				toast.error("Kontext konnte nicht übernommen werden.");
 			}
-			return values;
-		},
-	);
+		};
+
+		void hydrateTransfer();
+	}, [onValuesChange, sections]);
 
 	const handleSectionChange = useCallback(
 		(sectionId: string, value: string) => {
@@ -140,9 +189,7 @@ export const DoctorsNoteEditor = ({
 
 	// Agent edits are staged as per-section proposals, reviewed via the diff
 	// editor (accept/reject) rather than applied directly.
-	const [agentProposals, setAgentProposals] = useState<
-		Record<string, string>
-	>({});
+	const [agentProposals, setAgentProposals] = useState<Record<string, string>>({});
 
 	const handleAgentPropose = useCallback((sectionId: string, content: string) => {
 		setAgentProposals((prev) => ({ ...prev, [sectionId]: content }));
@@ -153,9 +200,7 @@ export const DoctorsNoteEditor = ({
 			if (!(sectionId in prev)) {
 				return prev;
 			}
-			return Object.fromEntries(
-				Object.entries(prev).filter(([id]) => id !== sectionId),
-			);
+			return Object.fromEntries(Object.entries(prev).filter(([id]) => id !== sectionId));
 		});
 	}, []);
 
@@ -194,35 +239,32 @@ export const DoctorsNoteEditor = ({
 
 	return (
 		<div className="flex size-full flex-col overflow-hidden">
-			{/* Header Section */}
-			<div className="flex items-center gap-3 border-b px-4 py-3">
-				<div className="rounded-full bg-solarized-blue/10 p-2">
-					<FileText className="h-6 w-6 text-solarized-blue" />
-				</div>
-				<div className="min-w-0">
-					<h1 className="truncate font-bold text-primary text-xl">{title}</h1>
-					<p className="truncate text-muted-foreground text-sm">
-						{description}
-					</p>
-				</div>
-			</div>
-
 			{/* Workspace: composed letter (cards + editors) and, for admins, the agent */}
 			<div
 				className={cn(
 					"grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 lg:overflow-hidden",
-					isAgentEnabled &&
-						"lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]",
+					isAgentEnabled && "lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]",
 				)}
 			>
 				{/* Left: composed letter — each field's card beside its editor */}
 				<div className="space-y-6 lg:h-full lg:overflow-y-auto lg:pr-1">
-					{/* Privacy Warning - compact */}
-					<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/5 px-3 py-2 text-xs">
-						<p className="text-solarized-red">
-							⚠️ <strong>Datenschutz:</strong> Keine privaten Patientendaten
-							eingeben – nur anonymisierte Daten verwenden.
-						</p>
+					{/* Title (left) + privacy notice (right) */}
+					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+						<div className="flex min-w-0 items-center gap-3">
+							<div className="shrink-0 rounded-full bg-solarized-blue/10 p-2">
+								<FileText className="h-5 w-5 text-solarized-blue" />
+							</div>
+							<div className="min-w-0">
+								<h1 className="truncate font-bold text-lg text-primary">{title}</h1>
+								<p className="truncate text-muted-foreground text-sm">{description}</p>
+							</div>
+						</div>
+						<div className="rounded-lg border border-solarized-red/20 bg-solarized-red/5 px-3 py-2 text-xs lg:max-w-sm">
+							<p className="text-solarized-red">
+								⚠️ <strong>Datenschutz:</strong> Keine privaten Patientendaten eingeben – nur
+								anonymisierte Daten verwenden.
+							</p>
+						</div>
 					</div>
 
 					{/* Field rows: info card + editor side by side */}
@@ -234,14 +276,8 @@ export const DoctorsNoteEditor = ({
 							}
 
 							return (
-								<div
-									className="flex flex-col gap-4 lg:flex-row lg:items-start"
-									key={section.id}
-								>
-									<DoctorsNoteFieldCard
-										className={FIELD_CARD_CLASS}
-										config={section}
-									/>
+								<div className="flex flex-col gap-4 lg:flex-row lg:items-start" key={section.id}>
+									<DoctorsNoteFieldCard className={FIELD_CARD_CLASS} config={section} />
 									<div className="min-w-0 flex-1">
 										<DoctorsNoteSection
 											config={section}
@@ -265,8 +301,6 @@ export const DoctorsNoteEditor = ({
 							<Kbd>⌘↵</Kbd>
 							<span>zum Verbessern</span>
 						</div>
-						<span className="text-muted-foreground/50">|</span>
-						<span>🔒 Änderungen nur lokal gespeichert</span>
 					</div>
 				</div>
 
@@ -275,6 +309,7 @@ export const DoctorsNoteEditor = ({
 					<div className="lg:h-full lg:overflow-hidden">
 						<DoctorsNoteAgentPanel
 							disabled={disabled}
+							initialContext={initialAgentContext}
 							onProposeEdit={handleAgentPropose}
 							sections={agentSections}
 						/>

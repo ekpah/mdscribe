@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
+import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
 /**
  * A section of the doctor's note the agent can read and edit. The editor sends
@@ -19,4 +20,16 @@ export interface ScribeAgentSection {
 export interface ScribeAgentChatInput {
 	messages: UIMessage[];
 	sections: ScribeAgentSection[];
+	/**
+	 * Audio recordings attached to the latest user turn. Attached natively when
+	 * the standard model supports audio, otherwise transcribed via the
+	 * speech-to-text slot. Not persisted between turns.
+	 */
+	audioFiles?: AudioFile[];
+	/**
+	 * Files attached to the latest user turn. Attached natively when the standard
+	 * model supports documents, otherwise text is extracted via the file/image
+	 * slot. Not persisted between turns.
+	 */
+	contextFiles?: FillInputsContextFile[];
 }

@@ -30,6 +30,7 @@ import {
 } from "@/orpc/scribe/prompts";
 import {
 	buildProviderOptions,
+	resolveAgentGenerationStrategy,
 	resolveDefaultModel,
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
@@ -210,6 +211,101 @@ describe("Model Selection Logic", () => {
 			expect(strategy.files).toEqual({ mode: "native" });
 			expect(strategy.generation.model.modelName).toBe("openrouter/test-standard");
 			expect(strategy.generation.reasoningEffort).toBe("high");
+		} finally {
+			await server.close();
+		}
+	});
+
+	test("resolveAgentGenerationStrategy uses dedicated agent slot when standard agent capability is off", async () => {
+		const server = await startTestServer("resolve-agent-model-slot");
+		try {
+			const providerId = crypto.randomUUID();
+			const textModelRecordId = crypto.randomUUID();
+			const agentModelRecordId = crypto.randomUUID();
+			const audioModelRecordId = crypto.randomUUID();
+			const fileModelRecordId = crypto.randomUUID();
+
+			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
+				id: providerId,
+				name: "Test Provider",
+				protocol: "openrouter",
+			});
+			await server.db.insert(aiModel).values([
+				{
+					displayName: "Text Model",
+					id: textModelRecordId,
+					modelId: "openrouter/test-text",
+					providerId,
+					supportsReasoning: false,
+				},
+				{
+					displayName: "Agent Model",
+					id: agentModelRecordId,
+					modelId: "openrouter/test-agent",
+					providerId,
+					supportedParameters: ["reasoning"],
+					supportsReasoning: true,
+				},
+				{
+					displayName: "Audio Model",
+					id: audioModelRecordId,
+					modelId: "openrouter/test-audio",
+					providerId,
+					supportsReasoning: false,
+				},
+				{
+					displayName: "File Model",
+					id: fileModelRecordId,
+					modelId: "openrouter/test-file",
+					providerId,
+					supportsReasoning: false,
+				},
+			]);
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultAgentModelId: agentModelRecordId,
+					defaultAgentReasoningEffort: "high",
+					defaultAgentSupportsAudio: true,
+					defaultAgentSupportsDocuments: false,
+					defaultFileImageModelId: fileModelRecordId,
+					defaultSpeechToTextModelId: audioModelRecordId,
+					defaultStandardSupportsAgent: false,
+					defaultTextModelId: textModelRecordId,
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultAgentModelId: agentModelRecordId,
+						defaultAgentReasoningEffort: "high",
+						defaultAgentSupportsAudio: true,
+						defaultAgentSupportsDocuments: false,
+						defaultFileImageModelId: fileModelRecordId,
+						defaultSpeechToTextModelId: audioModelRecordId,
+						defaultStandardSupportsAgent: false,
+						defaultTextModelId: textModelRecordId,
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const strategy = await resolveAgentGenerationStrategy(server.db, {
+				hasAudio: true,
+				hasFiles: true,
+			});
+			expect(strategy.usesStandardModel).toBe(false);
+			expect(strategy.generation.slot).toBe("agent");
+			expect(strategy.generation.model.modelName).toBe("openrouter/test-agent");
+			expect(strategy.generation.reasoningEffort).toBe("high");
+			expect(strategy.audio).toEqual({ mode: "native" });
+			expect(strategy.files).toMatchObject({
+				mode: "preprocess",
+				selection: { slot: "file-image" },
+				strategy: "multimodal",
+			});
 		} finally {
 			await server.close();
 		}

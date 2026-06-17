@@ -484,12 +484,15 @@ export const createTestAiDefaults = async (
 	await db
 		.insert(aiDefaults)
 		.values({
+			defaultAgentModelId: modelRecordId,
+			defaultAgentReasoningEffort: "medium",
 			defaultEvaluationModel: modelRecordId,
 			defaultEvaluationReasoningEffort: "medium",
 			defaultFileImageModelId: modelRecordId,
 			defaultFileImageReasoningEffort: "none",
 			defaultSpeechToTextModelId: modelRecordId,
 			defaultSpeechToTextReasoningEffort: "none",
+			defaultStandardSupportsAgent: true,
 			defaultTextModelId: modelRecordId,
 			defaultTextReasoningEffort: "medium",
 			id: "global",
@@ -497,12 +500,15 @@ export const createTestAiDefaults = async (
 		})
 		.onConflictDoUpdate({
 			set: {
+				defaultAgentModelId: modelRecordId,
+				defaultAgentReasoningEffort: "medium",
 				defaultEvaluationModel: modelRecordId,
 				defaultEvaluationReasoningEffort: "medium",
 				defaultFileImageModelId: modelRecordId,
 				defaultFileImageReasoningEffort: "none",
 				defaultSpeechToTextModelId: modelRecordId,
 				defaultSpeechToTextReasoningEffort: "none",
+				defaultStandardSupportsAgent: true,
 				defaultTextModelId: modelRecordId,
 				defaultTextReasoningEffort: "medium",
 				updatedAt: new Date(),

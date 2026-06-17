@@ -49,9 +49,10 @@ interface ModelOption {
 	keywords: string[];
 }
 
-type DefaultType = "text" | "file-image" | "speech-to-text" | "evaluation";
+type DefaultType = "agent" | "text" | "file-image" | "speech-to-text" | "evaluation";
 type MediaMode = "direct" | "multimodal";
-type StandardCapability = "audio" | "documents";
+type ModelMediaCapability = "audio" | "documents";
+type StandardCapability = "agent" | ModelMediaCapability;
 
 const NONE_VALUE = "__none__";
 
@@ -89,6 +90,14 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 		label: "Standard-Modell",
 		placeholder: "Standard-Modell auswählen",
 		type: "text",
+	},
+	{
+		capabilityGate: "agent",
+		description:
+			"Steuert den Brief-Baukasten-Agenten, wenn das Standard-Modell die Agent-Fähigkeit nicht übernimmt.",
+		label: "MDScribe Agent",
+		placeholder: "Agent-Modell auswählen",
+		type: "agent",
 	},
 	{
 		capabilityGate: "documents",
@@ -194,11 +203,13 @@ const DefaultTemperatureControl = ({
 const StandardCapabilities = ({
 	disabled,
 	onToggle,
+	supportsAgent,
 	supportsAudio,
 	supportsDocuments,
 }: {
 	disabled: boolean;
 	onToggle: (capability: StandardCapability, enabled: boolean) => void;
+	supportsAgent: boolean;
 	supportsAudio: boolean;
 	supportsDocuments: boolean;
 }) => (
@@ -246,10 +257,89 @@ const StandardCapabilities = ({
 					Audio
 				</Label>
 			</div>
+			<div className="flex items-center gap-2">
+				<Checkbox
+					checked={supportsAgent}
+					disabled={disabled}
+					id="standard-capability-agent"
+					onCheckedChange={(checked) => {
+						onToggle("agent", checked === true);
+					}}
+				/>
+				<Label
+					className="font-normal text-sm text-solarized-base00"
+					htmlFor="standard-capability-agent"
+				>
+					Agent
+				</Label>
+			</div>
 		</div>
 		<p className="text-solarized-base01 text-xs">
-			Angehakte Eingaben werden dem Standard-Modell direkt übergeben. Für nicht angehakte
-			Eingaben wird das jeweilige Modell unten zur Vorverarbeitung genutzt.
+			Angehakte Eingaben und der Agent werden dem Standard-Modell direkt übergeben. Für
+			nicht angehakte Eingaben wird das jeweilige Modell unten zur Vorverarbeitung genutzt.
+		</p>
+	</div>
+);
+
+const AgentCapabilities = ({
+	disabled,
+	onToggle,
+	supportsAudio,
+	supportsDocuments,
+}: {
+	disabled: boolean;
+	onToggle: (capability: ModelMediaCapability, enabled: boolean) => void;
+	supportsAudio: boolean;
+	supportsDocuments: boolean;
+}) => (
+	<div className="space-y-2">
+		<Label>Fähigkeiten des MDScribe Agent</Label>
+		<div className="flex flex-wrap gap-x-5 gap-y-2">
+			<div className="flex items-center gap-2">
+				<Checkbox checked disabled id="agent-capability-text" />
+				<Label
+					className="font-normal text-sm text-solarized-base01"
+					htmlFor="agent-capability-text"
+				>
+					Text
+				</Label>
+			</div>
+			<div className="flex items-center gap-2">
+				<Checkbox
+					checked={supportsDocuments}
+					disabled={disabled}
+					id="agent-capability-documents"
+					onCheckedChange={(checked) => {
+						onToggle("documents", checked === true);
+					}}
+				/>
+				<Label
+					className="font-normal text-sm text-solarized-base00"
+					htmlFor="agent-capability-documents"
+				>
+					Dokumente
+				</Label>
+			</div>
+			<div className="flex items-center gap-2">
+				<Checkbox
+					checked={supportsAudio}
+					disabled={disabled}
+					id="agent-capability-audio"
+					onCheckedChange={(checked) => {
+						onToggle("audio", checked === true);
+					}}
+				/>
+				<Label
+					className="font-normal text-sm text-solarized-base00"
+					htmlFor="agent-capability-audio"
+				>
+					Audio
+				</Label>
+			</div>
+		</div>
+		<p className="text-solarized-base01 text-xs">
+			Angehakte Anhänge gehen nativ an den Agent. Sonst nutzt er die Dokumenten- bzw.
+			Audio-Vorverarbeitung unten.
 		</p>
 	</div>
 );
@@ -424,8 +514,11 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 
 	const setOptionsMutation = useMutation({
 		mutationFn: (data: {
+			agentSupportsAudio?: boolean;
+			agentSupportsDocuments?: boolean;
 			fileImageMode?: MediaMode;
 			speechToTextMode?: MediaMode;
+			standardSupportsAgent?: boolean;
 			standardSupportsAudio?: boolean;
 			standardSupportsDocuments?: boolean;
 		}) => orpc.admin.providers.defaults.setOptions.call(data),
@@ -461,6 +554,9 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 	const getDefaultModelId = useCallback(
 		(defaultType: DefaultType): string | null => {
 			switch (defaultType) {
+				case "agent": {
+					return defaults?.defaultAgentModelId ?? null;
+				}
 				case "text": {
 					return defaults?.defaultTextModelId ?? null;
 				}
@@ -484,6 +580,9 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 	const getDefaultReasoningEffort = useCallback(
 		(defaultType: DefaultType): ReasoningEffort => {
 			switch (defaultType) {
+				case "agent": {
+					return defaults?.defaultAgentReasoningEffort ?? "none";
+				}
 				case "text": {
 					return defaults?.defaultTextReasoningEffort ?? "none";
 				}
@@ -507,6 +606,9 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 	const getDefaultTemperature = useCallback(
 		(defaultType: DefaultType): number | null => {
 			switch (defaultType) {
+				case "agent": {
+					return defaults?.defaultAgentTemperature ?? null;
+				}
 				case "text": {
 					return defaults?.defaultTextTemperature ?? null;
 				}
@@ -545,10 +647,25 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 
 	const handleCapabilityToggle = useCallback(
 		(capability: StandardCapability, enabled: boolean) => {
+			if (capability === "agent") {
+				setOptionsMutation.mutate({ standardSupportsAgent: enabled });
+				return;
+			}
 			setOptionsMutation.mutate(
 				capability === "documents"
 					? { standardSupportsDocuments: enabled }
 					: { standardSupportsAudio: enabled },
+			);
+		},
+		[setOptionsMutation],
+	);
+
+	const handleAgentCapabilityToggle = useCallback(
+		(capability: ModelMediaCapability, enabled: boolean) => {
+			setOptionsMutation.mutate(
+				capability === "documents"
+					? { agentSupportsDocuments: enabled }
+					: { agentSupportsAudio: enabled },
 			);
 		},
 		[setOptionsMutation],
@@ -572,6 +689,9 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 	};
 
 	const isCoveredByStandard = (row: DefaultModelRowConfig): boolean => {
+		if (row.capabilityGate === "agent") {
+			return defaults?.defaultStandardSupportsAgent ?? false;
+		}
 		if (row.capabilityGate === "documents") {
 			return defaults?.defaultStandardSupportsDocuments ?? false;
 		}
@@ -598,6 +718,30 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 					{DEFAULT_MODEL_ROWS.map((row) => {
 						const modelId = getDefaultModelId(row.type);
 						const mediaMode = getMediaMode(row);
+						let renderCapabilities: (() => React.ReactNode) | undefined;
+						if (row.type === "text") {
+							renderCapabilities = () => (
+								<StandardCapabilities
+									disabled={isUpdatingDefaults}
+									onToggle={handleCapabilityToggle}
+									supportsAgent={defaults?.defaultStandardSupportsAgent ?? false}
+									supportsAudio={defaults?.defaultStandardSupportsAudio ?? false}
+									supportsDocuments={defaults?.defaultStandardSupportsDocuments ?? false}
+								/>
+							);
+						} else if (row.type === "agent") {
+							renderCapabilities = () => (
+								<AgentCapabilities
+									disabled={
+										isUpdatingDefaults || (defaults?.defaultStandardSupportsAgent ?? false)
+									}
+									onToggle={handleAgentCapabilityToggle}
+									supportsAudio={defaults?.defaultAgentSupportsAudio ?? false}
+									supportsDocuments={defaults?.defaultAgentSupportsDocuments ?? false}
+								/>
+							);
+						}
+
 						return (
 							<DefaultModelRow
 								coveredByStandard={isCoveredByStandard(row)}
@@ -637,18 +781,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 									});
 								}}
 								reasoningEffort={getDefaultReasoningEffort(row.type)}
-								renderCapabilities={
-									row.type === "text"
-										? () => (
-												<StandardCapabilities
-													disabled={isUpdatingDefaults}
-													onToggle={handleCapabilityToggle}
-													supportsAudio={defaults?.defaultStandardSupportsAudio ?? false}
-													supportsDocuments={defaults?.defaultStandardSupportsDocuments ?? false}
-												/>
-											)
-										: undefined
-								}
+								renderCapabilities={renderCapabilities}
 								row={row}
 								selectedModel={modelId ? (modelById.get(modelId) ?? null) : null}
 								selectorOptions={selectorOptions}
@@ -661,7 +794,12 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 					<div className="rounded-md border border-solarized-base2/80 bg-solarized-base2/20 p-3 text-solarized-base01 text-xs">
 						<div>
 							Standard-Modell: erzeugt immer die finale Antwort. Angehakte Fähigkeiten
-							(Dokumente, Audio) werden ihm als native Eingaben übergeben.
+							(Dokumente, Audio, Agent) werden ihm als native Eingaben übergeben.
+						</div>
+						<div>
+							MDScribe Agent: bearbeitet den Brief-Baukasten, wenn die Fähigkeit Agent beim
+							Standard-Modell nicht angehakt ist. Angehakte Agent-Fähigkeiten nutzen Anhänge
+							nativ, sonst Dokumenten-/Audio-Vorverarbeitung.
 						</div>
 						<div>
 							Dokumenten-Modell: extrahiert PDF/Bild zu Text, wenn die Fähigkeit Dokumente nicht

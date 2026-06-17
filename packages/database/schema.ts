@@ -367,6 +367,15 @@ export const aiModel = pgTable(
 );
 
 export const aiDefaults = pgTable("AiDefaults", {
+	defaultAgentModelId: text("defaultAgentModelId").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
+	defaultAgentReasoningEffort: text("defaultAgentReasoningEffort").notNull().default("none"),
+	defaultAgentSupportsAudio: boolean("defaultAgentSupportsAudio").notNull().default(false),
+	defaultAgentSupportsDocuments: boolean("defaultAgentSupportsDocuments")
+		.notNull()
+		.default(false),
+	defaultAgentTemperature: real("defaultAgentTemperature"),
 	defaultEvaluationModel: text("defaultEvaluationModel").references(() => aiModel.id, {
 		onDelete: "set null",
 	}),
@@ -390,6 +399,9 @@ export const aiDefaults = pgTable("AiDefaults", {
 		.notNull()
 		.default("none"),
 	defaultSpeechToTextTemperature: real("defaultSpeechToTextTemperature"),
+	defaultStandardSupportsAgent: boolean("defaultStandardSupportsAgent")
+		.notNull()
+		.default(false),
 	defaultStandardSupportsAudio: boolean("defaultStandardSupportsAudio").notNull().default(false),
 	defaultStandardSupportsDocuments: boolean("defaultStandardSupportsDocuments")
 		.notNull()

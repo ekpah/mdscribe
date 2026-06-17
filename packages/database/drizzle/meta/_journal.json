@@ -176,6 +176,13 @@
 			"when": 1784400000000,
 			"tag": "0024_per_author_slugs",
 			"breakpoints": true
+		},
+		{
+			"idx": 25,
+			"version": "7",
+			"when": 1784500000000,
+			"tag": "0025_ai_defaults_agent_model",
+			"breakpoints": true
 		}
 	]
 }
