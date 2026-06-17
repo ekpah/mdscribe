@@ -2,7 +2,6 @@
 
 import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { cn } from "@repo/design-system/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -16,8 +15,6 @@ import type {
 	AudioRecording,
 	UploadedContextFile,
 } from "@/app/_components/input-context/types";
-import { useSession } from "@/lib/auth-client";
-import { orpc } from "@/lib/orpc";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 
@@ -108,15 +105,6 @@ export const DoctorsNoteEditor = ({
 }: DoctorsNoteEditorProps) => {
 	const sections = useMemo(() => compileEditorSections(sectionInput), [sectionInput]);
 
-	// The agent is admin-only while it is iterated on (beta). Mirrors the
-	// admin-gated documents/blog surfaces.
-	const sessionQuery = useSession();
-	const authQuery = useQuery({
-		...orpc.user.auth.queryOptions(),
-		enabled: Boolean(sessionQuery.data?.user),
-	});
-	const isAgentEnabled = authQuery.data?.isAdmin ?? false;
-
 	const [sectionValues, setSectionValues] = useState<Record<string, string>>(() => {
 		const values: Record<string, string> = {};
 		for (const section of sections) {
@@ -190,9 +178,11 @@ export const DoctorsNoteEditor = ({
 	// Agent edits are staged as per-section proposals, reviewed via the diff
 	// editor (accept/reject) rather than applied directly.
 	const [agentProposals, setAgentProposals] = useState<Record<string, string>>({});
+	const [pendingSuggestionValues, setPendingSuggestionValues] = useState<Record<string, string>>({});
 
 	const handleAgentPropose = useCallback((sectionId: string, content: string) => {
 		setAgentProposals((prev) => ({ ...prev, [sectionId]: content }));
+		setPendingSuggestionValues((prev) => ({ ...prev, [sectionId]: content }));
 	}, []);
 
 	const handleProposalResolved = useCallback((sectionId: string) => {
@@ -201,6 +191,27 @@ export const DoctorsNoteEditor = ({
 				return prev;
 			}
 			return Object.fromEntries(Object.entries(prev).filter(([id]) => id !== sectionId));
+		});
+		setPendingSuggestionValues((prev) => {
+			if (!(sectionId in prev)) {
+				return prev;
+			}
+			return Object.fromEntries(Object.entries(prev).filter(([id]) => id !== sectionId));
+		});
+	}, []);
+
+	const handleSuggestionValueChange = useCallback((sectionId: string, value: string | null) => {
+		setPendingSuggestionValues((prev) => {
+			if (value === null) {
+				if (!(sectionId in prev)) {
+					return prev;
+				}
+				return Object.fromEntries(Object.entries(prev).filter(([id]) => id !== sectionId));
+			}
+			if (prev[sectionId] === value) {
+				return prev;
+			}
+			return { ...prev, [sectionId]: value };
 		});
 	}, []);
 
@@ -214,22 +225,30 @@ export const DoctorsNoteEditor = ({
 		return handlers;
 	}, [sections, handleProposalResolved]);
 
+	const effectiveSectionValues = useMemo(() => {
+		const values = { ...sectionValues };
+		for (const [sectionId, suggestion] of Object.entries(pendingSuggestionValues)) {
+			values[sectionId] = suggestion;
+		}
+		return values;
+	}, [pendingSuggestionValues, sectionValues]);
+
 	// Context for a section = the other sections' values, keyed by section id.
 	const getContextForSection = useCallback(
 		(sectionId: string): Record<string, string> => {
 			const context: Record<string, string> = {};
 			for (const section of sections) {
-				if (section.id !== sectionId && sectionValues[section.id]) {
-					context[section.id] = sectionValues[section.id];
+				if (section.id !== sectionId && effectiveSectionValues[section.id]) {
+					context[section.id] = effectiveSectionValues[section.id];
 				}
 			}
 			return context;
 		},
-		[sections, sectionValues],
+		[effectiveSectionValues, sections],
 	);
 
 	const agentSections = sections.map((section) => ({
-		content: sectionValues[section.id] || "",
+		content: effectiveSectionValues[section.id] || "",
 		formId: section.formId,
 		harness: section.harness,
 		id: section.id,
@@ -239,11 +258,11 @@ export const DoctorsNoteEditor = ({
 
 	return (
 		<div className="flex size-full flex-col overflow-hidden">
-			{/* Workspace: composed letter (cards + editors) and, for admins, the agent */}
+			{/* Workspace: composed letter (cards + editors) and the agent */}
 			<div
 				className={cn(
 					"grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 lg:overflow-hidden",
-					isAgentEnabled && "lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]",
+					"lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]",
 				)}
 			>
 				{/* Left: composed letter — each field's card beside its editor */}
@@ -286,6 +305,7 @@ export const DoctorsNoteEditor = ({
 											minHeight={PAIR_MIN_HEIGHT}
 											onChange={sectionChangeHandler}
 											onProposalResolved={proposalResolvedHandlers[section.id]}
+											onSuggestionValueChange={handleSuggestionValueChange}
 											proposal={agentProposals[section.id] ?? null}
 											value={sectionValues[section.id] || ""}
 										/>
@@ -304,17 +324,15 @@ export const DoctorsNoteEditor = ({
 					</div>
 				</div>
 
-				{/* Right: agent panel (admin-only beta) */}
-				{isAgentEnabled && (
-					<div className="lg:h-full lg:overflow-hidden">
-						<DoctorsNoteAgentPanel
-							disabled={disabled}
-							initialContext={initialAgentContext}
-							onProposeEdit={handleAgentPropose}
-							sections={agentSections}
-						/>
-					</div>
-				)}
+				{/* Right: agent panel */}
+				<div className="lg:h-full lg:overflow-hidden">
+					<DoctorsNoteAgentPanel
+						disabled={disabled}
+						initialContext={initialAgentContext}
+						onProposeEdit={handleAgentPropose}
+						sections={agentSections}
+					/>
+				</div>
 			</div>
 		</div>
 	);

@@ -386,6 +386,7 @@ export const DoctorsNoteAgentPanel = ({
 	const onProposeEditRef = useRef(onProposeEdit);
 	onProposeEditRef.current = onProposeEdit;
 	const appliedToolCallIds = useRef<Set<string>>(new Set());
+	const submittedContextCleanupRef = useRef<(() => void) | null>(null);
 	// Attachments belong to the turn they were sent with; the transport reads and
 	// clears this ref so follow-up turns are not re-sent the same media.
 	const pendingAttachmentsRef = useRef<{
@@ -404,7 +405,15 @@ export const DoctorsNoteAgentPanel = ({
 	const { messages, sendMessage, status } = useChat({
 		id: "scribe-agent",
 		onError: (error) => {
+			submittedContextCleanupRef.current = null;
 			toast.error(getAiscribeErrorMessage(error) ?? "Der Agent ist derzeit nicht erreichbar.");
+		},
+		onFinish: () => {
+			submittedContextCleanupRef.current?.();
+			submittedContextCleanupRef.current = null;
+			setInstruction("");
+			// After a successful send, collapse any expanded panel so the text input is shown.
+			composerRef.current?.collapsePanels();
 		},
 		transport: {
 			reconnectToStream() {
@@ -506,6 +515,15 @@ export const DoctorsNoteAgentPanel = ({
 			audioFiles: submission.audioFiles,
 			contextFiles: submission.contextFiles,
 		};
+		const submittedAudioRecordings = inputContext.audioRecordings;
+		submittedContextCleanupRef.current = () => {
+			for (const recording of submittedAudioRecordings) {
+				URL.revokeObjectURL(recording.url);
+			}
+			inputContext.setAudioRecordings([]);
+			inputContext.setContextFiles([]);
+			inputContext.setTextContext({});
+		};
 
 		// Summarize attachments in the visible user bubble; the bytes themselves
 		// travel out-of-band via the transport ref and are injected server-side.
@@ -524,16 +542,6 @@ export const DoctorsNoteAgentPanel = ({
 		const text = `${trimmed || "Bitte berücksichtige die Anhänge."}${attachmentNote}`;
 
 		void sendMessage({ text });
-
-		setInstruction("");
-		for (const recording of inputContext.audioRecordings) {
-			URL.revokeObjectURL(recording.url);
-		}
-		inputContext.setAudioRecordings([]);
-		inputContext.setContextFiles([]);
-		inputContext.setTextContext({});
-		// After sending, collapse any expanded panel so the text input is shown.
-		composerRef.current?.collapsePanels();
 	}, [disabled, hasAttachments, inputContext, instruction, isLoading, sendMessage]);
 
 	// Files dropped anywhere on the agent card are added as context and the file

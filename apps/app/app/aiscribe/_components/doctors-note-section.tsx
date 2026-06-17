@@ -50,6 +50,8 @@ interface DoctorsNoteSectionProps {
 	proposal?: string | null;
 	/** Called after an external proposal is accepted or rejected. */
 	onProposalResolved?: () => void;
+	/** Reports the currently suggested value so sibling/agent context can use it before approval. */
+	onSuggestionValueChange?: (sectionId: string, value: string | null) => void;
 }
 
 export const DoctorsNoteSection = ({
@@ -61,6 +63,7 @@ export const DoctorsNoteSection = ({
 	minHeight = MIN_HEIGHT,
 	proposal = null,
 	onProposalResolved,
+	onSuggestionValueChange,
 }: DoctorsNoteSectionProps) => {
 	const [proposedText, setProposedText] = useState<string | null>(null);
 
@@ -177,6 +180,10 @@ export const DoctorsNoteSection = ({
 
 	// External (agent) proposals take precedence over the section's own enhance.
 	const effectiveProposal = proposal ?? proposedText;
+
+	useEffect(() => {
+		onSuggestionValueChange?.(config.id, effectiveProposal);
+	}, [config.id, effectiveProposal, onSuggestionValueChange]);
 
 	// Clear proposed text after a suggestion is accepted or rejected.
 	const handleSuggestionHandled = useCallback(() => {
