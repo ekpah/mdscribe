@@ -5,7 +5,6 @@ import { Check, Code, Github, Server, Shield } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useState } from "react";
-import { PRODUCT_PLANS } from "@/lib/product-plans";
 
 interface PricingProps {
 	isLoggedIn: boolean;
@@ -87,7 +86,7 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 						<ul className="mb-6 space-y-3">
 							<li className="flex items-center">
 								<Check className="mr-3 h-5 w-5 text-solarized-green" />
-								<span>{PRODUCT_PLANS.free.scribeUsageLimit} KI-Requests/Monat</span>
+								<span>Monatliches KI-Kontingent</span>
 							</li>
 							<li className="flex items-center">
 								<Check className="mr-3 h-5 w-5 text-solarized-green" />
@@ -140,7 +139,7 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 							</li>
 							<li className="flex items-center">
 								<Check className="mr-3 h-5 w-5 text-primary" />
-								<span>{PRODUCT_PLANS.plus.scribeUsageLimit} KI-Requests/Monat</span>
+								<span>Erhöhtes monatliches KI-Kontingent</span>
 							</li>
 							<li className="flex items-center">
 								<Check className="mr-3 h-5 w-5 text-primary" />

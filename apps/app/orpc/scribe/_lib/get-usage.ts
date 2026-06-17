@@ -1,11 +1,15 @@
 import { and, eq, gte, inArray, lte, usageEvent } from "@repo/database";
+import type { Database } from "@repo/database";
 import { database } from "@repo/database/client";
+import { resolveProductEntitlements } from "@/lib/product-entitlements";
+import { getScribeUsageBudgetPercentage } from "@/lib/product-plans";
 import { BILLABLE_SCRIBE_USAGE_EVENT_NAMES } from "@/lib/usage-event-names";
 
-export const getUsage = async (
-	session: { user: { id: string } },
-	db: typeof database = database,
-) => {
+export const getMonthlyScribeUsage = async (input: {
+	db?: Database;
+	session: { user: { id: string } };
+}) => {
+	const db = input.db ?? database;
 	const now = new Date();
 	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -20,7 +24,7 @@ export const getUsage = async (
 		.from(usageEvent)
 		.where(
 			and(
-				eq(usageEvent.userId, session.user.id),
+				eq(usageEvent.userId, input.session.user.id),
 				gte(usageEvent.timestamp, firstDayOfMonth),
 				lte(usageEvent.timestamp, now),
 				inArray(usageEvent.name, [...BILLABLE_SCRIBE_USAGE_EVENT_NAMES]),
@@ -51,13 +55,42 @@ export const getUsage = async (
 	const usageCount = usage.length;
 
 	return {
+		byModel,
+		count: usageCount,
+		totalCost,
+		totalInputTokens,
+		totalOutputTokens,
+		totalTokens,
+	};
+};
+
+export const getUsage = async (
+	session: { user: { id: string } },
+	db: Database = database,
+) => {
+	const [usage, entitlements] = await Promise.all([
+		getMonthlyScribeUsage({ db, session }),
+		resolveProductEntitlements({ db, userId: session.user.id }),
+	]);
+	const monthlyUsagePercentage = getScribeUsageBudgetPercentage({
+		monthlyCostLimit: entitlements.scribeMonthlyCostLimit,
+		totalCost: usage.totalCost,
+	});
+
+	return {
 		usage: {
-			byModel,
-			count: usageCount,
-			totalCost,
-			totalInputTokens,
-			totalOutputTokens,
-			totalTokens,
+			byModel: Object.fromEntries(
+				Object.entries(usage.byModel).map(([model, value]) => [
+					model,
+					{ count: value.count, tokens: value.tokens },
+				]),
+			),
+			count: usage.count,
+			isMonthlyBudgetReached: usage.totalCost >= entitlements.scribeMonthlyCostLimit,
+			monthlyUsagePercentage,
+			totalInputTokens: usage.totalInputTokens,
+			totalOutputTokens: usage.totalOutputTokens,
+			totalTokens: usage.totalTokens,
 		},
 	};
 };

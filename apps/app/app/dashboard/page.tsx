@@ -36,7 +36,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
-import { PRODUCT_PLANS } from "@/lib/product-plans";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
 import { getPromptHarnessLabel, resolvePromptHarnessId } from "@/orpc/scribe/prompts";
@@ -313,21 +312,24 @@ const DashboardHeader = ({
 );
 
 const DashboardQuickStats = ({
-	currentUsage,
 	favoriteCount,
-	monthlyUsageLimit,
+	isMonthlyBudgetReached,
+	monthlyUsagePercentage,
 	subscriptionPlanLabel,
 	subscriptionStatus,
 	userTemplateCount,
 }: {
-	currentUsage: number;
 	favoriteCount: number;
-	monthlyUsageLimit: number;
+	isMonthlyBudgetReached: boolean;
+	monthlyUsagePercentage: number;
 	subscriptionPlanLabel: string;
 	subscriptionStatus: ReturnType<typeof getSubscriptionStatus>;
 	userTemplateCount: number;
-}) => (
-	<div className="grid grid-cols-1 gap-3 sm:gap-6 md:grid-cols-2">
+}) => {
+	const usageProgress = Math.max(0, Math.min(100, monthlyUsagePercentage));
+
+	return (
+		<div className="grid grid-cols-1 gap-3 sm:gap-6 md:grid-cols-2">
 		<Card className="h-full border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
 			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 				<CardTitle className="font-medium text-solarized-base03 text-sm">Templates</CardTitle>
@@ -367,16 +369,32 @@ const DashboardQuickStats = ({
 		<Card className="h-full border-solarized-violet/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
 			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 				<CardTitle className="font-medium text-solarized-base03 text-sm">
-					KI-Generierungen
+					KI-Nutzung
 				</CardTitle>
 				<Brain className="h-5 w-5 text-solarized-violet" />
 			</CardHeader>
 			<CardContent className="space-y-3">
-				<div className="font-bold text-solarized-base03 text-xl sm:text-3xl">
-					{currentUsage}
-					<span className="font-normal text-sm text-solarized-base01"> / {monthlyUsageLimit}</span>
+				<div className="space-y-2">
+					<div className="flex items-center justify-between gap-3">
+						<span className="font-medium text-solarized-base03 text-sm">
+							Monatskontingent
+						</span>
+						<span className="font-semibold text-solarized-base03 text-sm">
+							{usageProgress}%
+						</span>
+					</div>
+					<div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
+						<div
+							className="h-full rounded-full bg-solarized-violet transition-all"
+							style={{ width: `${usageProgress}%` }}
+						/>
+					</div>
 				</div>
-				<p className="text-solarized-base01 text-xs">Im aktuellen Monat verwendet</p>
+				<p className="text-solarized-base01 text-xs">
+					{isMonthlyBudgetReached
+						? "Monatliches Kontingent ausgeschöpft"
+						: "Im aktuellen Monat verwendet"}
+				</p>
 				<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
 					<div className="flex flex-wrap items-center justify-between gap-2">
 						<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
@@ -398,7 +416,8 @@ const DashboardQuickStats = ({
 			</CardContent>
 		</Card>
 	</div>
-);
+	);
+};
 
 const AiFunctionsSection = () => (
 	<Card className="border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
@@ -676,8 +695,8 @@ export default async function DashboardPage() {
 	const userTemplates = queryClient.getQueryData(authoredQueryOptions.queryKey);
 	const recentEvents = queryClient.getQueryData(recentActivityQueryOptions.queryKey);
 
-	const currentUsage = data?.usage?.count || 0;
-	const monthlyUsageLimit = PRODUCT_PLANS[activeSubscription ? "plus" : "free"].scribeUsageLimit;
+	const monthlyUsagePercentage = data?.usage?.monthlyUsagePercentage ?? 0;
+	const isMonthlyBudgetReached = data?.usage?.isMonthlyBudgetReached ?? false;
 	const subscriptionPlanLabel = getSubscriptionPlanLabel(activeSubscription?.plan);
 	const subscriptionStatus = getSubscriptionStatus(activeSubscription);
 	const isAdmin = session.user.email === env.ADMIN_EMAIL;
@@ -698,9 +717,9 @@ export default async function DashboardPage() {
 						userImage={session.user.image}
 					/>
 					<DashboardQuickStats
-						currentUsage={currentUsage}
 						favoriteCount={favoriteTemplates?.length ?? 0}
-						monthlyUsageLimit={monthlyUsageLimit}
+						isMonthlyBudgetReached={isMonthlyBudgetReached}
+						monthlyUsagePercentage={monthlyUsagePercentage}
 						subscriptionPlanLabel={subscriptionPlanLabel}
 						subscriptionStatus={subscriptionStatus}
 						userTemplateCount={userTemplates?.length ?? 0}

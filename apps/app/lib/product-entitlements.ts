@@ -10,7 +10,7 @@ interface ProductEntitlements {
 	canCreatePrivateTemplates: boolean;
 	hasActiveSubscription: boolean;
 	plan: ProductPlan;
-	scribeUsageLimit: number;
+	scribeMonthlyCostLimit: number;
 }
 
 export const resolveProductEntitlements = async (input: {
@@ -37,6 +37,6 @@ export const resolveProductEntitlements = async (input: {
 		canCreatePrivateTemplates: planEntitlements.canCreatePrivateTemplates,
 		hasActiveSubscription,
 		plan,
-		scribeUsageLimit: planEntitlements.scribeUsageLimit,
+		scribeMonthlyCostLimit: planEntitlements.scribeMonthlyCostLimit,
 	};
 };

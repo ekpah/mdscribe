@@ -11,11 +11,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
 import { CreditCard, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-import { PRODUCT_PLANS } from "@/lib/product-plans";
+import { orpc } from "@/lib/orpc";
 
 const getPlanLabel = (plan?: string | null) => {
 	if (!plan) {
@@ -63,8 +64,9 @@ export const SubscriptionManagementCard = ({
 }) => {
 	const [isManagingSubscription, setIsManagingSubscription] = useState(false);
 	const hasActiveSubscription = Boolean(subscription);
-	const usageLimit =
-		PRODUCT_PLANS[hasActiveSubscription ? "plus" : "free"].scribeUsageLimit;
+	const usageQuery = useQuery(orpc.getUsage.queryOptions());
+	const monthlyUsagePercentage = usageQuery.data?.usage.monthlyUsagePercentage ?? 0;
+	const usageProgress = Math.max(0, Math.min(100, monthlyUsagePercentage));
 	const statusBadge = getStatusBadge(subscription);
 	const planLabel = getPlanLabel(subscription?.plan);
 
@@ -147,13 +149,21 @@ export const SubscriptionManagementCard = ({
 						{statusBadge.label}
 					</Badge>
 				</div>
-				<div className="flex items-center justify-between rounded-lg bg-solarized-base2 p-3">
-					<span className="font-medium text-solarized-base03 text-sm">
-						Monatliches Kontingent
-					</span>
-					<span className="font-semibold text-solarized-base03 text-sm">
-						{usageLimit} KI-Generierungen
-					</span>
+				<div className="space-y-2 rounded-lg bg-solarized-base2 p-3">
+					<div className="flex items-center justify-between gap-3">
+						<span className="font-medium text-solarized-base03 text-sm">
+							Monatliche Nutzung
+						</span>
+						<span className="font-semibold text-solarized-base03 text-sm">
+							{usageProgress}%
+						</span>
+					</div>
+					<div className="h-2 overflow-hidden rounded-full bg-solarized-base3">
+						<div
+							className="h-full rounded-full bg-solarized-violet transition-all"
+							style={{ width: `${usageProgress}%` }}
+						/>
+					</div>
 				</div>
 				{subscription?.periodEnd ? (
 					<div className="flex items-center justify-between rounded-lg bg-solarized-base2 p-3">

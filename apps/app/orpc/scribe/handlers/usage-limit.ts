@@ -4,12 +4,12 @@ import type { Database } from "@repo/database";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import type { ProductPlan } from "@/lib/product-plans";
 import { USER_MESSAGES } from "@/lib/user-messages";
-import { getUsage } from "@/orpc/scribe/_lib/get-usage";
+import { getMonthlyScribeUsage } from "@/orpc/scribe/_lib/get-usage";
 
 interface ScribeEntitlements {
 	hasActiveSubscription: boolean;
 	plan: ProductPlan;
-	scribeUsageLimit: number;
+	scribeMonthlyCostLimit: number;
 }
 
 export const resolveScribeEntitlements = async (input: {
@@ -21,7 +21,7 @@ export const resolveScribeEntitlements = async (input: {
 	return {
 		hasActiveSubscription: entitlements.hasActiveSubscription,
 		plan: entitlements.plan,
-		scribeUsageLimit: entitlements.scribeUsageLimit,
+		scribeMonthlyCostLimit: entitlements.scribeMonthlyCostLimit,
 	};
 };
 
@@ -30,9 +30,12 @@ export const enforceScribeUsageLimit = async (input: {
 	entitlements: ScribeEntitlements;
 	session: { user: { id: string } };
 }) => {
-	const { usage } = await getUsage(input.session, input.db);
+	const usage = await getMonthlyScribeUsage({
+		db: input.db,
+		session: input.session,
+	});
 
-	if (usage.count >= input.entitlements.scribeUsageLimit) {
+	if (usage.totalCost >= input.entitlements.scribeMonthlyCostLimit) {
 		throw new ORPCError("FORBIDDEN", {
 			message: USER_MESSAGES.usageLimitReached,
 		});
