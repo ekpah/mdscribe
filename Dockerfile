@@ -45,6 +45,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
+
 # Copy standalone server output as the non-root runtime user
 COPY --from=builder --chown=bun:bun /app/apps/app/.next/standalone ./
 
@@ -63,6 +67,6 @@ EXPOSE 3000
 USER bun
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD bun -e "fetch('http://127.0.0.1:3000/api/healthcheck').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3000/api/healthcheck || exit 1
 
 CMD ["bun", "apps/app/server.js"]
