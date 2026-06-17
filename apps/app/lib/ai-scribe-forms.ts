@@ -4,12 +4,12 @@ const RESERVED_AI_SCRIBE_FORM_SLUGS = [
 	"custom",
 	"diagnoseblock",
 	"discharge",
-	"editor",
 	"er",
 	"icu",
 	"outpatient",
 	"procedures",
 	"u",
+	"workspace",
 	...BUILT_IN_AISCRIBE_OVERRIDE_SLUGS,
 ] as const;
 

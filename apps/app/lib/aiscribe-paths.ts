@@ -17,5 +17,5 @@ export const buildWorkspacePath = (
 	authorUsername: string | null | undefined,
 ): string =>
 	authorUsername
-		? `/aiscribe/editor/u/${authorUsername}/${slug}`
-		: `/aiscribe/editor/${slug}`;
+		? `/aiscribe/workspace/u/${authorUsername}/${slug}`
+		: `/aiscribe/workspace/${slug}`;

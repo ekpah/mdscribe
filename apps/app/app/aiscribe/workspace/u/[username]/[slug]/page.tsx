@@ -6,7 +6,7 @@ import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 
 export default async function WorkspaceUserEditorPage(
-	props: PageProps<"/aiscribe/editor/u/[username]/[slug]">,
+	props: PageProps<"/aiscribe/workspace/u/[username]/[slug]">,
 ) {
 	// Brief-Baukasten is admin-flagged while it is iterated on.
 	const isAdmin = await getAiscribeIsAdmin();
