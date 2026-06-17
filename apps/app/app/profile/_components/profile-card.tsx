@@ -20,6 +20,7 @@ import {
 	FormMessage,
 } from "@repo/design-system/components/ui/form";
 import { Input } from "@repo/design-system/components/ui/input";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect } from "react";
 import type { ControllerRenderProps } from "react-hook-form";
 import { useForm } from "react-hook-form";
@@ -28,6 +29,21 @@ import { z } from "zod";
 
 import { authClient } from "@/lib/auth-client";
 import { USER_MESSAGES } from "@/lib/user-messages";
+
+const PROFILE_UPDATE_ERROR =
+	"Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut.";
+
+const resolveUpdateErrorMessage = (error: unknown): string => {
+	if (
+		error &&
+		typeof error === "object" &&
+		"code" in error &&
+		(error as { code?: string }).code === "USERNAME_IS_ALREADY_TAKEN"
+	) {
+		return USER_MESSAGES.userNameAlreadyTaken;
+	}
+	return PROFILE_UPDATE_ERROR;
+};
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
 
@@ -64,6 +80,7 @@ interface ProfileCardProps {
 }
 
 export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps) => {
+	const router = useRouter();
 	const displayNamePlaceholder = user.email.split("@")[0] || user.email;
 	const form = useForm<ProfileFormValues>({
 		defaultValues: {
@@ -93,26 +110,34 @@ export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps)
 			const usernameChanged =
 				nextUsername.toLowerCase() !== (user.username ?? "").toLowerCase();
 
-			toast.promise(
-				authClient.updateUser({
+			// better-auth client methods resolve with `{ data, error }` instead of
+			// throwing, so surface the error explicitly for toast.promise + the form.
+			const runUpdate = async () => {
+				const result = await authClient.updateUser({
 					name: data.name.trim(),
 					...(usernameChanged ? { username: nextUsername } : {}),
-				}),
-				{
-					error: (error: unknown) =>
-						error &&
-						typeof error === "object" &&
-						"code" in error &&
-						(error as { code?: string }).code === "USERNAME_IS_ALREADY_TAKEN"
-							? USER_MESSAGES.userNameAlreadyTaken
-							: "Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut.",
-					finally: () => setIsLoading(false),
-					loading: "Dein Profil wird aktualisiert...",
-					success: "Dein Profil wurde erfolgreich aktualisiert.",
+				});
+				if (result.error) {
+					throw result.error;
+				}
+				router.refresh();
+				return result.data;
+			};
+
+			toast.promise(runUpdate(), {
+				error: (error: unknown) => {
+					const message = resolveUpdateErrorMessage(error);
+					if (message === USER_MESSAGES.userNameAlreadyTaken) {
+						form.setError("username", { message, type: "server" });
+					}
+					return message;
 				},
-			);
+				finally: () => setIsLoading(false),
+				loading: "Dein Profil wird aktualisiert...",
+				success: "Dein Profil wurde erfolgreich aktualisiert.",
+			});
 		},
-		[setIsLoading, user.username],
+		[setIsLoading, user.username, form, router],
 	);
 
 	const renderDisplayNameField = useCallback(
