@@ -29,6 +29,8 @@ import { z } from "zod";
 import { authClient } from "@/lib/auth-client";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
+const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
+
 const profileFormSchema = z.object({
 	email: z
 		.string()
@@ -39,6 +41,14 @@ const profileFormSchema = z.object({
 	name: z.string().max(30, {
 		message: USER_MESSAGES.userNameMaxLength,
 	}),
+	username: z
+		.string()
+		.trim()
+		.min(3, { message: "Benutzername: mindestens 3 Zeichen." })
+		.max(30, { message: "Benutzername darf nicht länger als 30 Zeichen sein." })
+		.regex(USERNAME_PATTERN, {
+			message: "Benutzername: nur Buchstaben, Zahlen, Punkt und Unterstrich.",
+		}),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -47,17 +57,19 @@ interface ProfileCardProps {
 	user: {
 		email: string;
 		name: string | null;
+		username?: string | null;
 	};
 	isLoading: boolean;
 	setIsLoading: (value: boolean) => void;
 }
 
 export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps) => {
-	const userNamePlaceholder = user.email.split("@")[0] || user.email;
+	const displayNamePlaceholder = user.email.split("@")[0] || user.email;
 	const form = useForm<ProfileFormValues>({
 		defaultValues: {
 			email: "",
 			name: "",
+			username: "",
 		},
 		resolver: zodResolver(profileFormSchema),
 	});
@@ -67,6 +79,7 @@ export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps)
 			form.reset({
 				email: user.email || "",
 				name: user.name ?? "",
+				username: user.username ?? "",
 			});
 		}
 	}, [user, form]);
@@ -74,35 +87,75 @@ export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps)
 	const onSubmit = useCallback(
 		(data: ProfileFormValues) => {
 			setIsLoading(true);
+			// Only send the username when it actually changed — re-submitting the
+			// same handle would otherwise trip the uniqueness check.
+			const nextUsername = data.username.trim();
+			const usernameChanged =
+				nextUsername.toLowerCase() !== (user.username ?? "").toLowerCase();
+
 			toast.promise(
 				authClient.updateUser({
 					name: data.name.trim(),
+					...(usernameChanged ? { username: nextUsername } : {}),
 				}),
 				{
-					error: "Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut.",
+					error: (error: unknown) =>
+						error &&
+						typeof error === "object" &&
+						"code" in error &&
+						(error as { code?: string }).code === "USERNAME_IS_ALREADY_TAKEN"
+							? USER_MESSAGES.userNameAlreadyTaken
+							: "Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut.",
 					finally: () => setIsLoading(false),
 					loading: "Dein Profil wird aktualisiert...",
 					success: "Dein Profil wurde erfolgreich aktualisiert.",
 				},
 			);
 		},
-		[setIsLoading],
+		[setIsLoading, user.username],
 	);
 
-	const renderNameField = useCallback(
+	const renderDisplayNameField = useCallback(
 		({ field }: { field: ControllerRenderProps<ProfileFormValues, "name"> }) => (
 			<FormItem>
-				<FormLabel>Benutzername</FormLabel>
+				<FormLabel>Anzeigename</FormLabel>
 				<FormControl>
-					<Input maxLength={30} placeholder={userNamePlaceholder} {...field} />
+					<Input maxLength={30} placeholder={displayNamePlaceholder} {...field} />
 				</FormControl>
 				<FormDescription>
-					{USER_MESSAGES.userNameFallbackHint} {USER_MESSAGES.userNameMaxLengthHint}
+					Wird z. B. als Autor bei Textbausteinen und AI Vorlagen angezeigt.{" "}
+					{USER_MESSAGES.userNameMaxLengthHint}
 				</FormDescription>
 				<FormMessage />
 			</FormItem>
 		),
-		[userNamePlaceholder],
+		[displayNamePlaceholder],
+	);
+
+	const renderUsernameField = useCallback(
+		({
+			field,
+		}: {
+			field: ControllerRenderProps<ProfileFormValues, "username">;
+		}) => (
+			<FormItem>
+				<FormLabel>Benutzername</FormLabel>
+				<FormControl>
+					<Input
+						autoComplete="username"
+						maxLength={30}
+						placeholder="benutzername"
+						{...field}
+					/>
+				</FormControl>
+				<FormDescription>
+					Dein eindeutiger Login-Name; erscheint auch in den Links zu deinen AI
+					Vorlagen. Buchstaben, Zahlen, Punkt und Unterstrich.
+				</FormDescription>
+				<FormMessage />
+			</FormItem>
+		),
+		[],
 	);
 
 	const renderEmailField = useCallback(
@@ -132,7 +185,8 @@ export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps)
 			<Form {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)}>
 					<CardContent className="space-y-6">
-						<FormField name="name" render={renderNameField} />
+						<FormField name="name" render={renderDisplayNameField} />
+						<FormField name="username" render={renderUsernameField} />
 						<FormField name="email" render={renderEmailField} />
 					</CardContent>
 					<CardFooter className="mt-auto">

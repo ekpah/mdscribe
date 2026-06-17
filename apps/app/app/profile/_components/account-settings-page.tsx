@@ -14,6 +14,7 @@ import UserCard from "./user-card";
 interface User {
 	readonly email: string;
 	readonly name: string | null;
+	readonly username?: string | null;
 }
 
 interface AccountSettingsPageProps {
