@@ -74,14 +74,15 @@ When implementing new functionality, deliver the complete feature rather than on
 
 MDScribe is a medical documentation webapp (monorepo) for organizing medical templates and assisting doctors with AI-powered document generation, template management, and subscription-based usage tracking.
 
-## Licensing & Open-Core Architecture
+## Licensing & License-Key Architecture
 
-- The repo is licensed **FSL-1.1-Apache-2.0** (Fair Source, converts to Apache 2.0 after 2 years per release). Root `LICENSE` holds the FSL text; every `package.json` sets `"license": "FSL-1.1-Apache-2.0"`. The project was previously AGPL-3.0-or-later; do not reintroduce AGPL references.
-- In user-facing text, describe MDScribe as `Fair Source` / `quelloffen`, **not** `Open Source` (FSL is source-available, not OSI open source).
-- Future enterprise features (audit log, SSO/OIDC, org management, …) go in a **top-level `ee/` directory** as a workspace package (`@repo/ee`) under **Elastic License 2.0** with its own `LICENSE` file. `ee/` does not exist yet — create it only when the first enterprise feature lands; do not scatter enterprise code through `apps/` or `packages/`.
-- Core code imports `@repo/ee` only at thin, explicit wiring points (for example spreading `eeAuthPlugins(license)` into the better-auth `plugins` array in `auth.ts`). Routes/oRPC mounts in `apps/app` stay thin re-exports of `ee/` logic.
-- All feature gating (plan **and** future edition/license-key) must flow through `resolveProductEntitlements` in `apps/app/lib/product-entitlements.ts` and the oRPC entitlements middleware. Never check plans/subscriptions inline elsewhere. Enterprise license keys are signed tokens verified offline at boot (no phone-home) and resolve to edition entitlements.
-- DB schema and migrations for enterprise tables stay in `packages/database` under the core license (single migration chain); only the logic is gated in `ee/`.
+- The repo is licensed **Elastic License 2.0** (`Elastic-2.0`, source-available). Root `LICENSE` holds the ELv2 text with MDScribe named as licensor; every `package.json` sets `"license": "Elastic-2.0"`. The project was previously AGPL-3.0-or-later and briefly FSL-1.1-Apache-2.0; do not reintroduce AGPL or FSL/Fair-Source references. ELv2 does **not** convert to open source — there is no time-bomb/future-license grant.
+- In user-facing text, describe MDScribe as `quelloffen` / `Source Available`, **not** `Open Source` and **not** `Fair Source` (ELv2 is neither OSI open source nor part of the fair.io Fair Source definition).
+- Monetization is **seat-gated**: paid deployments (large practices, hospitals — primarily on-premise) are unlocked by a signed license key encoding `maxSeats`, edition, and optional feature flags. The free community configuration runs with no key.
+- **License keys are verified entirely offline (air-gapped, no phone-home).** They are signed tokens (Ed25519, PASETO-style versioned envelope) verified against a public key embedded in the app. The verify layer lives behind `resolveLicense()` in `apps/app/lib/license/` so a managed provider (e.g. Keygen) can replace the implementation later without touching callers. The signing private key is **never** committed; it lives outside the repo and is used only by the offline `scripts/sign-license.ts` minting CLI.
+- All feature/seat gating must flow through `resolveProductEntitlements` in `apps/app/lib/product-entitlements.ts` and the oRPC entitlements middleware. Never check plans/subscriptions/license inline elsewhere. Keep the **edition** (deployment-wide, from the license key, including `maxSeats`) separate from the **plan** (per-user, from Stripe on the cloud deployment); the resolver combines them into a single entitlements object.
+- **Enforcement is intentionally soft** (medical-safety): an expired license shows a persistent admin warning but never disables clinical functionality or locks users out of documentation; exceeding `maxSeats` blocks **new** signups only and never disables existing users.
+- Future enterprise-only features (audit log, SSO/OIDC, org management, …) may live in a **top-level `ee/` directory** as a workspace package (`@repo/ee`), gated by license-key feature flags through the same entitlements choke point. `ee/` does not exist yet — create it only when the first such feature lands; do not scatter that code through `apps/` or `packages/`. DB schema/migrations stay in `packages/database` (single migration chain); only the logic is gated.
 
 ## Git Workflow
 

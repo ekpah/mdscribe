@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "homepage": "https://mdscribe.de",
-  "license": "FSL-1.1-Apache-2.0",
+  "license": "Elastic-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/ekpah/mdscribe.git"
