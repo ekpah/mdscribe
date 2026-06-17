@@ -16,6 +16,7 @@ import { encrypt } from "@/lib/encryption";
 import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
 import {
 	AI_INPUT_FILL_EVENT_NAME,
+	AI_SCRIBE_GENERATION_EVENT_NAME,
 	AI_SCRIBE_OCR_EVENT_NAME,
 	AI_SCRIBE_STT_EVENT_NAME,
 } from "@/lib/usage-event-names";
@@ -26,6 +27,7 @@ import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
 import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import { generateSectionContent } from "@/orpc/scribe-agent/lib/generate-section-content";
 import { composeFillInputsPrompt } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
 	getDocumentTypeByPromptName,
@@ -918,20 +920,19 @@ describe("Fill Inputs Handler", () => {
 		}
 	});
 
-	test("counts autofill requests against the monthly usage limit", async () => {
+	test("counts autofill cost against the monthly usage limit", async () => {
 		const server = await startTestServer("fill-inputs-usage-limit");
 		try {
 			await createTestAiDefaults(server.db);
 			const { user } = await createTestUser(server.db);
 
-			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEvent).values({
-					id: crypto.randomUUID(),
-					name: i % 2 === 0 ? "ai_scribe_generation" : AI_INPUT_FILL_EVENT_NAME,
-					timestamp: new Date(),
-					userId: user.id,
-				});
-			}
+			await server.db.insert(usageEvent).values({
+				cost: "2.00",
+				id: crypto.randomUUID(),
+				name: AI_INPUT_FILL_EVENT_NAME,
+				timestamp: new Date(),
+				userId: user.id,
+			});
 
 			await expect(
 				call(
@@ -1035,6 +1036,91 @@ describe("Fill Inputs Handler", () => {
 			expect(serializedOcrInput).toContain("befund.pdf");
 			expect(serializedOcrInput).not.toContain(fileData);
 			expect(serializedOcrInput).not.toContain(rawFile);
+		} finally {
+			await server.close();
+		}
+	});
+});
+
+describe("Scribe Agent section generation", () => {
+	test("logs AIScribe-style input data with current sections and parsed media", async () => {
+		const server = await startTestServer("agent-generate-section-usage-input");
+		try {
+			await createTestAiDefaults(server.db);
+			const { user } = await createTestUser(server.db);
+			const session = createMockSession(user);
+			const generation = await resolveDefaultModel(server.db, "text");
+			const providerOptions = buildProviderOptions({
+				includeUsage: true,
+				model: generation.model,
+				reasoningEffort: generation.reasoningEffort,
+				userId: user.id,
+				zdr: false,
+			});
+
+			const content = await generateSectionContent({
+				activeSubscription: false,
+				audioTranscripts: ["Patient berichtet seit gestern Belastungsdyspnoe."],
+				contextFileSummaries: [
+					{
+						index: 1,
+						mediaType: "application/pdf",
+						name: "labor.pdf",
+						payloadBytes: 128,
+						size: 128,
+					},
+				],
+				contextSections: [
+					{
+						content: "I50.1 Akute Linksherzinsuffizienz",
+						harness: "diagnosis",
+						id: "diagnosis",
+						label: "Diagnosen",
+					},
+					{
+						content: "Basale Rasselgeräusche beidseits.",
+						harness: "befunde",
+						id: "befunde",
+						label: "Befunde",
+					},
+				],
+				db: server.db,
+				fileTextContext: "Labor: NT-proBNP deutlich erhöht.",
+				generation,
+				harness: "anamnese",
+				notes: "Bitte Anamnese aus Agentenhinweis erzeugen.",
+				providerOptions,
+				sessionUser: session.user,
+				temperature: undefined,
+				template: null,
+				userId: user.id,
+			});
+
+			expect(content).toBe("Generated text response");
+
+			const [event] = await server.db
+				.select()
+				.from(usageEvent)
+				.where(eq(usageEvent.name, AI_SCRIBE_GENERATION_EVENT_NAME));
+
+			expect(event?.metadata).toMatchObject({
+				endpoint: "scribe-agent:generateSection:anamnese",
+				promptName: "anamnese",
+			});
+			expect(event?.inputData).toMatchObject({
+				_contextFiles: [
+					{
+						name: "labor.pdf",
+					},
+				],
+				befunde: "Basale Rasselgeräusche beidseits.",
+				diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+			});
+			const inputData = event?.inputData as Record<string, unknown> | undefined;
+			const notes = String(inputData?.notes ?? "");
+			expect(notes).toContain("Bitte Anamnese aus Agentenhinweis erzeugen.");
+			expect(notes).toContain("Patient berichtet seit gestern Belastungsdyspnoe.");
+			expect(notes).toContain("Labor: NT-proBNP deutlich erhöht.");
 		} finally {
 			await server.close();
 		}
@@ -1184,19 +1270,18 @@ describe("Scribe Stream Handler", () => {
 	});
 
 	describe("Usage Limits", () => {
-		test("enforces free tier limit (50 generations)", async () => {
+		test("enforces free tier monthly cost limit", async () => {
 			const { user } = await createTestUser(server.db);
 
-			// Create 50 usage events to hit the limit
+			// Free tier budget is $2/month.
 			const { usageEvent: usageEventTable } = await import("@repo/database");
-			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEventTable).values({
-					id: crypto.randomUUID(),
-					name: "ai_scribe_generation",
-					timestamp: new Date(),
-					userId: user.id,
-				});
-			}
+			await server.db.insert(usageEventTable).values({
+				cost: "2.00",
+				id: crypto.randomUUID(),
+				name: "ai_scribe_generation",
+				timestamp: new Date(),
+				userId: user.id,
+			});
 
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });
@@ -1219,7 +1304,7 @@ describe("Scribe Stream Handler", () => {
 			).rejects.toThrow("Monatliche Nutzungsgrenze erreicht");
 		});
 
-		test("plus subscribers have higher limit (500 generations)", async () => {
+		test("plus subscribers have a higher monthly cost limit", async () => {
 			const { user } = await createTestUser(server.db);
 
 			// Create active subscription
@@ -1228,21 +1313,20 @@ describe("Scribe Stream Handler", () => {
 				status: "active",
 			});
 
-			// Create 50 usage events (under plus limit)
+			// Free-tier budget is exhausted, but Plus still has room.
 			const { usageEvent: usageEventTable } = await import("@repo/database");
-			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEventTable).values({
-					id: crypto.randomUUID(),
-					name: "ai_scribe_generation",
-					timestamp: new Date(),
-					userId: user.id,
-				});
-			}
+			await server.db.insert(usageEventTable).values({
+				cost: "2.00",
+				id: crypto.randomUUID(),
+				name: "ai_scribe_generation",
+				timestamp: new Date(),
+				userId: user.id,
+			});
 
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });
 
-			// Should not throw - under plus limit
+			// Should not throw - under plus cost budget
 			// Note: Will still return a stream (mocked)
 			const result = await call(
 				scribeStreamHandler,
@@ -1274,7 +1358,7 @@ describe("Scribe Stream Handler", () => {
 			expect(typeof result[Symbol.asyncIterator]).toBe("function");
 		});
 
-		test("plus subscribers hit limit at 500 generations", async () => {
+		test("plus subscribers hit the monthly cost limit", async () => {
 			const { user } = await createTestUser(server.db);
 
 			// Create active subscription
@@ -1283,16 +1367,15 @@ describe("Scribe Stream Handler", () => {
 				status: "active",
 			});
 
-			// Create 500 usage events to hit the plus limit
+			// Plus budget is $8/month.
 			const { usageEvent: usageEventTable } = await import("@repo/database");
-			for (let i = 0; i < 500; i += 1) {
-				await server.db.insert(usageEventTable).values({
-					id: crypto.randomUUID(),
-					name: "ai_scribe_generation",
-					timestamp: new Date(),
-					userId: user.id,
-				});
-			}
+			await server.db.insert(usageEventTable).values({
+				cost: "8.00",
+				id: crypto.randomUUID(),
+				name: "ai_scribe_generation",
+				timestamp: new Date(),
+				userId: user.id,
+			});
 
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });

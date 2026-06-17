@@ -121,6 +121,7 @@ export const scribeAgentChatHandler = authed
 			activeSubscription: entitlements.hasActiveSubscription,
 			db: context.db,
 			generation,
+			preparedMedia,
 			providerOptions,
 			sections,
 			sessionUser: context.session.user,

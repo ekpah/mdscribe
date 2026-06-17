@@ -51,7 +51,11 @@ export interface PreparedAgentMedia {
 	nativeContentParts: PreparedFilePart[];
 	/** Text blocks (transcripts / extracted file text / metadata) injected as context. */
 	injectedTextBlocks: string[];
+	/** Audio transcripts produced by preprocessing. Empty when audio was native or absent. */
+	audioTranscripts: string[];
 	audioSummaries: AgentAudioPayloadSummary[];
+	/** Extracted text from preprocessed files. Empty when files were native or absent. */
+	fileTextContext: string;
 	fileSummaries: AgentFilePayloadSummary[];
 	usedNativeAudio: boolean;
 	usedTranscription: boolean;
@@ -62,7 +66,9 @@ export interface PreparedAgentMedia {
 
 const EMPTY_PREPARED_MEDIA: PreparedAgentMedia = {
 	audioSummaries: [],
+	audioTranscripts: [],
 	fileSummaries: [],
+	fileTextContext: "",
 	injectedTextBlocks: [],
 	nativeContentParts: [],
 	usedFilePreprocessing: false,
@@ -92,7 +98,7 @@ const assertAtMost = (value: number, limit: number, message: string) => {
  * limits. Mirrors the media portion of the fill-inputs validation so the agent
  * enforces the same ceilings as the rest of the scribe flow.
  */
-export const validateAgentMediaPayload = (
+const validateAgentMediaPayload = (
 	audioFiles: AudioFile[],
 	contextFiles: FillInputsContextFile[],
 ): { audioSummaries: AgentAudioPayloadSummary[]; fileSummaries: AgentFilePayloadSummary[] } => {
@@ -196,6 +202,8 @@ export const prepareAgentMedia = async ({
 
 	const nativeContentParts: PreparedFilePart[] = [];
 	const injectedTextBlocks: string[] = [];
+	let audioTranscripts: string[] = [];
+	let fileTextContext = "";
 	let usedNativeAudio = false;
 	let usedTranscription = false;
 	let usedFilePreprocessing = false;
@@ -214,9 +222,8 @@ export const prepareAgentMedia = async ({
 			nativeContentParts.push(...prepared.contentParts);
 			usedNativeAudio = prepared.contentParts.length > 0;
 		} else {
-			let transcripts: string[];
 			if (audioPlan.strategy === "multimodal") {
-				transcripts = await transcribeAudioFilesWithPrompt({
+				audioTranscripts = await transcribeAudioFilesWithPrompt({
 					audioFiles,
 					db,
 					resolvedModel: audioPlan.selection.model,
@@ -224,7 +231,7 @@ export const prepareAgentMedia = async ({
 					zdr,
 				});
 			} else {
-				({ transcripts } = await prepareAudioInputForModel({
+				({ transcripts: audioTranscripts } = await prepareAudioInputForModel({
 					audioFiles,
 					db,
 					mode: "transcription",
@@ -233,7 +240,7 @@ export const prepareAgentMedia = async ({
 					zdr,
 				}));
 			}
-			const transcriptBlock = formatAudioTranscriptsForPrompt(transcripts);
+			const transcriptBlock = formatAudioTranscriptsForPrompt(audioTranscripts);
 			if (transcriptBlock) {
 				injectedTextBlocks.push(transcriptBlock);
 				usedTranscription = true;
@@ -250,7 +257,7 @@ export const prepareAgentMedia = async ({
 				injectedTextBlocks.push(metadataBlock);
 			}
 		} else {
-			const fileText = await extractContextFileText({
+			fileTextContext = await extractContextFileText({
 				contextFiles,
 				db,
 				modelSelection: filesPlan.selection,
@@ -258,8 +265,8 @@ export const prepareAgentMedia = async ({
 				userId,
 				zdr,
 			});
-			if (fileText) {
-				injectedTextBlocks.push(fileText);
+			if (fileTextContext) {
+				injectedTextBlocks.push(fileTextContext);
 				usedFilePreprocessing = true;
 			}
 		}
@@ -268,8 +275,10 @@ export const prepareAgentMedia = async ({
 	return {
 		audioMode: describeMediaMode(audioPlan),
 		audioSummaries,
+		audioTranscripts,
 		fileMode: describeMediaMode(filesPlan),
 		fileSummaries,
+		fileTextContext,
 		injectedTextBlocks,
 		nativeContentParts,
 		usedFilePreprocessing,

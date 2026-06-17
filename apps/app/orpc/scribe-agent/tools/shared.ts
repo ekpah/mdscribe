@@ -4,6 +4,7 @@ import type { JSONValue } from "ai";
 import type { Session } from "@/lib/auth-types";
 import type { ResolvedDefaultModelSelection } from "@/orpc/scribe/providers";
 
+import type { PreparedAgentMedia } from "../lib/prepare-media";
 import type { ScribeAgentSection } from "../types";
 
 /**
@@ -16,6 +17,7 @@ export interface AgentToolDeps {
 	sessionUser: Session["user"];
 	activeSubscription: boolean;
 	sections: ScribeAgentSection[];
+	preparedMedia: PreparedAgentMedia;
 	generation: ResolvedDefaultModelSelection;
 	providerOptions: Record<string, Record<string, JSONValue>> | undefined;
 	temperature?: number;

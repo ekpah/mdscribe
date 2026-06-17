@@ -48,10 +48,13 @@ export const createGenerateSectionTool = (deps: AgentToolDeps) =>
 
 			const content = await generateSectionContent({
 				activeSubscription: deps.activeSubscription,
+				audioTranscripts: deps.preparedMedia.audioTranscripts,
+				contextFileSummaries: deps.preparedMedia.fileSummaries.map((summary) => ({ ...summary })),
 				contextSections: deps.sections.filter(
 					(candidate) => candidate.id !== sectionId,
 				),
 				db: deps.db,
+				fileTextContext: deps.preparedMedia.fileTextContext,
 				generation: deps.generation,
 				harness: section.harness,
 				notes,
