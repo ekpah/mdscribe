@@ -11,8 +11,11 @@ export const FILL_INPUT_PAYLOAD_LIMITS = {
 	maxTextContextCharacters: 30_000,
 } as const;
 
+export const getBase64Payload = (value: string | undefined): string =>
+	(value ?? "").split(",").at(-1)?.replaceAll(/\s/g, "") ?? "";
+
 export const getBase64DecodedByteLength = (value: string | undefined): number => {
-	const normalized = (value ?? "").split(",").at(-1)?.replaceAll(/\s/g, "") ?? "";
+	const normalized = getBase64Payload(value);
 	if (!normalized) {
 		return 0;
 	}

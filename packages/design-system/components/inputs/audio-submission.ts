@@ -136,6 +136,10 @@ const isWavMimeType = (mimeType: string): boolean => {
  * only accept selected audio formats through their chat adapters.
  */
 export const createAudioSubmissionFile = async (blob: Blob): Promise<AudioSubmissionFile> => {
+	if (blob.size === 0) {
+		throw new Error("Die Audioaufnahme enthält keine Audiodaten.");
+	}
+
 	const mimeType = blob.type || "audio/webm";
 	const payload: AudioSubmissionFile = {
 		data: await blobToBase64(blob),

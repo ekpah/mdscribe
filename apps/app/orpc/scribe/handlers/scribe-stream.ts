@@ -164,6 +164,12 @@ export const validateScribeAudioFiles = (audioFiles: AudioFile[]) => {
 		const recordingBytes = payloadBytes + wavFallbackBytes;
 		totalBytes += recordingBytes;
 
+		if (payloadBytes === 0) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Audioaufnahme ${index + 1} enthält keine Audiodaten.`,
+			});
+		}
+
 		if (recordingBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Audioaufnahme ${index + 1} ist zu groß. Maximal erlaubt sind ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,

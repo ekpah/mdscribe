@@ -727,6 +727,47 @@ const createResolvedModel = (overrides: Partial<ResolvedModel>): ResolvedModel =
 	...overrides,
 });
 
+describe("audio input preparation", () => {
+	test("strips data URL envelopes before preparing native OpenRouter audio", async () => {
+		const base64Audio = Buffer.from("audio").toString("base64");
+		const result = await prepareAudioInputForModel({
+			audioFiles: [
+				{
+					data: `data:audio/mp4;base64,${base64Audio}`,
+					mimeType: "audio/mp4",
+				},
+			],
+			mode: "native",
+			resolvedModel: createResolvedModel({
+				isOpenRouter: true,
+				providerProtocol: "openrouter",
+			}),
+		});
+
+		expect(result.contentParts).toHaveLength(1);
+		expect(result.contentParts[0]?.data.toString()).toBe("audio");
+		expect(result.contentParts[0]?.mediaType).toBe("audio/mp4");
+	});
+
+	test("rejects empty native audio before provider serialization", async () => {
+		await expect(
+			prepareAudioInputForModel({
+				audioFiles: [
+					{
+						data: "data:audio/mp4;base64,",
+						mimeType: "audio/mp4",
+					},
+				],
+				mode: "native",
+				resolvedModel: createResolvedModel({
+					isOpenRouter: true,
+					providerProtocol: "openrouter",
+				}),
+			}),
+		).rejects.toThrow("Audioaufnahme 1 enthält keine Audiodaten.");
+	});
+});
+
 describe("buildProviderOptions", () => {
 	test("openrouter receives reasoning effort, user, usage and zdr", () => {
 		const options = buildProviderOptions({

@@ -116,10 +116,13 @@ const validateAgentMediaPayload = (
 	const audioSummaries: AgentAudioPayloadSummary[] = [];
 	let audioTotalBytes = 0;
 	for (const [index, audioFile] of audioFiles.entries()) {
+		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
 		const totalBytes =
-			getBase64DecodedByteLength(audioFile.data) +
-			getBase64DecodedByteLength(audioFile.wavFallback?.data);
+			payloadBytes + getBase64DecodedByteLength(audioFile.wavFallback?.data);
 		audioTotalBytes += totalBytes;
+		if (payloadBytes === 0) {
+			throwLimit(`Audioaufnahme ${index + 1} enthält keine Audiodaten.`);
+		}
 		assertAtMost(
 			totalBytes,
 			FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording,

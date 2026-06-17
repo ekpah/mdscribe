@@ -1,6 +1,7 @@
 import type { Database } from "@repo/database";
 import { generateText } from "ai";
 
+import { getBase64Payload } from "@/lib/input-fill-limits";
 import { AI_SCRIBE_STT_EVENT_NAME } from "@/lib/usage-event-names";
 import type { StandardUsage } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
@@ -72,18 +73,25 @@ const normalizeAudioMediaType = (mimeType: string | undefined): string => {
 	}
 };
 
-const toBuffer = (data: string): Buffer => Buffer.from(data, "base64");
+const toBuffer = (data: string): Buffer => Buffer.from(getBase64Payload(data), "base64");
 
 const createAudioPart = (
 	data: string,
 	mediaType: string,
 	index: number,
-): PreparedAudioContentPart => ({
-	data: toBuffer(data),
-	filename: `aufnahme-${index + 1}.${mediaType.replace("audio/", "")}`,
-	mediaType,
-	type: "file",
-});
+): PreparedAudioContentPart => {
+	const buffer = toBuffer(data);
+	if (buffer.length === 0) {
+		throw new Error(`Audioaufnahme ${index + 1} enthält keine Audiodaten.`);
+	}
+
+	return {
+		data: buffer,
+		filename: `aufnahme-${index + 1}.${mediaType.replace("audio/", "")}`,
+		mediaType,
+		type: "file",
+	};
+};
 
 const getAudioFilename = (mediaType: string, index: number): string =>
 	`aufnahme-${index + 1}.${mediaType.replace("audio/", "")}`;
