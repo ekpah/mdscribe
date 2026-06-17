@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import type { Database } from "@repo/database";
 import { generateText } from "ai";
 
+import { getBase64Payload } from "@/lib/input-fill-limits";
 import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
 import type { StandardUsage } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
@@ -30,7 +31,7 @@ export const createContextFileParts = (
 	contextFiles: FillInputsContextFile[],
 ): PreparedContextFilePart[] =>
 	contextFiles.map((file) => ({
-		data: Buffer.from(file.data, "base64"),
+		data: Buffer.from(getBase64Payload(file.data), "base64"),
 		mediaType: file.mimeType,
 		type: "file" as const,
 	}));
@@ -142,7 +143,7 @@ export const extractContextFileText = async ({
 				index: index + 1,
 				mediaType: file.mimeType,
 				name: file.name,
-				payloadBytes: Buffer.from(file.data, "base64").length,
+				payloadBytes: Buffer.from(getBase64Payload(file.data), "base64").length,
 				size: file.size,
 			})),
 		},

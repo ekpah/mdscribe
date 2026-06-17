@@ -211,6 +211,10 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		const totalBytes = payloadBytes + wavFallbackBytes;
 		totalPayloadBytes += totalBytes;
 
+		if (payloadBytes === 0) {
+			throwLimit(`Audioaufnahme ${index + 1} enthält keine Audiodaten.`);
+		}
+
 		assertAtMost(
 			totalBytes,
 			FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording,
