@@ -49,6 +49,8 @@ const eventNameLabels: Record<string, string> = {
 	ai_input_fill_inputs: "Eingaben ausgefüllt",
 	ai_pdf_form_parsing: "PDF-Formular analysiert",
 	ai_scribe_generation: "KI-Dokumentation generiert",
+	ai_scribe_ocr: "OCR verarbeitet",
+	ai_scribe_stt: "Audio transkribiert",
 };
 
 const AI_FUNCTIONS = [
