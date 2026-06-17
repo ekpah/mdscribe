@@ -62,4 +62,7 @@ EXPOSE 3000
 
 USER bun
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD bun -e "fetch('http://127.0.0.1:3000/api/healthcheck').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 CMD ["bun", "apps/app/server.js"]
