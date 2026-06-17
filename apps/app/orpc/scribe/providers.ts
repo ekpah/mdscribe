@@ -33,6 +33,12 @@ export interface TranscribeAudioInput {
 	mediaType: string;
 }
 
+export interface TranscribeAudioResult {
+	providerMetadata?: Record<string, unknown>;
+	text: string;
+	usage?: unknown;
+}
+
 export interface ResolvedModel {
 	isOpenRouter: boolean;
 	model: LanguageModel;
@@ -41,7 +47,7 @@ export interface ResolvedModel {
 	providerProtocol: ProviderProtocol;
 	supportedParameters: string[];
 	supportsReasoning: boolean;
-	transcribeAudio?: (input: TranscribeAudioInput) => Promise<string>;
+	transcribeAudio?: (input: TranscribeAudioInput) => Promise<TranscribeAudioResult>;
 }
 
 export interface ResolvedDefaultModelSelection {
@@ -250,7 +256,7 @@ const createAudioTranscriber = (
 			if (!text) {
 				throw new Error("Tinfoil-Transkription lieferte keinen Text.");
 			}
-			return text;
+			return { text };
 		};
 	}
 
@@ -264,7 +270,12 @@ const createAudioTranscriber = (
 				audio: data,
 				model: transcriptionModel,
 			});
-			return result.text.trim();
+			return {
+				providerMetadata: (result as { providerMetadata?: Record<string, unknown> })
+					.providerMetadata,
+				text: result.text.trim(),
+				usage: (result as { usage?: unknown }).usage,
+			};
 		};
 	}
 
@@ -293,7 +304,10 @@ const createAudioTranscriber = (
 			if (!text) {
 				throw new Error("Transkription lieferte keinen Text.");
 			}
-			return text;
+			return {
+				providerMetadata: body as Record<string, unknown>,
+				text,
+			};
 		};
 	}
 
@@ -332,7 +346,15 @@ const createAudioTranscriber = (
 			if (!text.trim()) {
 				throw new Error("OpenRouter-Transkription lieferte keinen Text.");
 			}
-			return text.trim();
+			return {
+				providerMetadata: {
+					openrouter: {
+						usage: (body as { usage?: unknown }).usage,
+					},
+				},
+				text: text.trim(),
+				usage: (body as { usage?: unknown }).usage,
+			};
 		};
 	}
 

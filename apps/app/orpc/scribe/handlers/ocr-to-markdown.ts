@@ -3,6 +3,7 @@ import { usageEvent } from "@repo/database";
 import { generateText } from "ai";
 import { z } from "zod";
 
+import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type { StandardUsage } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
@@ -131,6 +132,7 @@ export const ocrToMarkdownHandler = authed
 				)
 			: null;
 		const markdown = stripCodeFence(result.text);
+		const promptName = promptText ? "ocr:prompt" : "ocr:direct";
 
 		await context.db.insert(usageEvent).values(
 			buildUsageEventData({
@@ -140,11 +142,13 @@ export const ocrToMarkdownHandler = authed
 					pageCount: imageInputs.length || undefined,
 				},
 				metadata: {
-					promptName: "scribe_ocr_markdown",
+					endpoint: promptName,
+					promptLabel: promptName,
+					promptName,
 					providerId,
 				},
 				model: resolvedModel.modelName,
-				name: "ai_scribe_ocr_markdown",
+				name: AI_SCRIBE_OCR_EVENT_NAME,
 				openRouterUsage,
 				result: markdown,
 				standardUsage: result.usage as StandardUsage,

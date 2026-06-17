@@ -14,7 +14,11 @@ import {
 } from "@/__tests__/setup";
 import { encrypt } from "@/lib/encryption";
 import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
-import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
+import {
+	AI_INPUT_FILL_EVENT_NAME,
+	AI_SCRIBE_OCR_EVENT_NAME,
+	AI_SCRIBE_STT_EVENT_NAME,
+} from "@/lib/usage-event-names";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { documentTypeConfigs } from "@/orpc/scribe/config";
 import { composeScribeContext } from "@/orpc/scribe/context";
@@ -488,6 +492,7 @@ describe("Model Selection Logic", () => {
 					target: aiDefaults.id,
 				});
 
+			const { user } = await createTestUser(server.db);
 			const selection = await resolveDefaultModel(server.db, "speech-to-text");
 			const result = await prepareAudioInputForModel({
 				audioFiles: [
@@ -496,8 +501,11 @@ describe("Model Selection Logic", () => {
 						mimeType: "audio/webm;codecs=opus",
 					},
 				],
+				db: server.db,
 				mode: "transcription",
 				resolvedModel: selection.model,
+				userId: user.id,
+				zdr: false,
 			});
 
 			expect(result.transcripts).toEqual(["Hallo Welt"]);
@@ -509,6 +517,14 @@ describe("Model Selection Logic", () => {
 					format: "webm",
 				},
 				model: "openai/whisper-large-v3",
+			});
+			const [event] = await server.db
+				.select()
+				.from(usageEvent)
+				.where(eq(usageEvent.name, AI_SCRIBE_STT_EVENT_NAME));
+			expect(event?.userId).toBe(user.id);
+			expect(event?.metadata).toMatchObject({
+				promptName: "stt:direct",
 			});
 		} finally {
 			globalThis.fetch = originalFetch;
@@ -1008,6 +1024,17 @@ describe("Fill Inputs Handler", () => {
 			expect(serializedInput).toContain("befund.pdf");
 			expect(serializedInput).not.toContain(fileData);
 			expect(serializedInput).not.toContain(rawFile);
+			const [ocrEvent] = await server.db
+				.select()
+				.from(usageEvent)
+				.where(eq(usageEvent.name, AI_SCRIBE_OCR_EVENT_NAME));
+			expect(ocrEvent?.metadata).toMatchObject({
+				promptName: "ocr:prompt",
+			});
+			const serializedOcrInput = JSON.stringify(ocrEvent?.inputData ?? {});
+			expect(serializedOcrInput).toContain("befund.pdf");
+			expect(serializedOcrInput).not.toContain(fileData);
+			expect(serializedOcrInput).not.toContain(rawFile);
 		} finally {
 			await server.close();
 		}

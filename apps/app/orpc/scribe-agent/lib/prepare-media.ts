@@ -205,8 +205,11 @@ export const prepareAgentMedia = async ({
 		if (audioPlan.mode === "native") {
 			const prepared = await prepareAudioInputForModel({
 				audioFiles,
+				db,
 				mode: "native",
 				resolvedModel: strategy.generation.model,
+				userId,
+				zdr,
 			});
 			nativeContentParts.push(...prepared.contentParts);
 			usedNativeAudio = prepared.contentParts.length > 0;
@@ -215,6 +218,7 @@ export const prepareAgentMedia = async ({
 			if (audioPlan.strategy === "multimodal") {
 				transcripts = await transcribeAudioFilesWithPrompt({
 					audioFiles,
+					db,
 					resolvedModel: audioPlan.selection.model,
 					userId,
 					zdr,
@@ -222,8 +226,11 @@ export const prepareAgentMedia = async ({
 			} else {
 				({ transcripts } = await prepareAudioInputForModel({
 					audioFiles,
+					db,
 					mode: "transcription",
 					resolvedModel: audioPlan.selection.model,
+					userId,
+					zdr,
 				}));
 			}
 			const transcriptBlock = formatAudioTranscriptsForPrompt(transcripts);
@@ -245,6 +252,7 @@ export const prepareAgentMedia = async ({
 		} else {
 			const fileText = await extractContextFileText({
 				contextFiles,
+				db,
 				modelSelection: filesPlan.selection,
 				strategy: filesPlan.strategy,
 				userId,

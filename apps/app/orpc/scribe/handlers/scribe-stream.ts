@@ -526,12 +526,14 @@ const appendPreparedAudioToMessages = (
 
 const appendContextFilesToMessages = async ({
 	contextFiles,
+	db,
 	generationStrategy,
 	messages,
 	userId,
 	zdr,
 }: {
 	contextFiles: FillInputsContextFile[];
+	db: Database;
 	generationStrategy: ResolvedGenerationStrategy;
 	messages: ModelMessage[];
 	userId: string;
@@ -558,6 +560,7 @@ const appendContextFilesToMessages = async ({
 
 	const fileTextContext = await extractContextFileText({
 		contextFiles,
+		db,
 		modelSelection: filesPlan.selection,
 		strategy: filesPlan.strategy,
 		userId,
@@ -580,6 +583,7 @@ const resolveReasoningEffort = (
 export const appendScribeInputAttachmentsToMessages = async ({
 	audioFiles,
 	contextFiles,
+	db,
 	generationStrategy,
 	messages,
 	userId,
@@ -587,6 +591,7 @@ export const appendScribeInputAttachmentsToMessages = async ({
 }: {
 	audioFiles: AudioFile[];
 	contextFiles: FillInputsContextFile[];
+	db: Database;
 	generationStrategy: ResolvedGenerationStrategy;
 	messages: ModelMessage[];
 	userId: string;
@@ -612,8 +617,11 @@ export const appendScribeInputAttachmentsToMessages = async ({
 			if (audioPlan.mode === "native") {
 				return prepareAudioInputForModel({
 					audioFiles,
+					db,
 					mode: "native",
 					resolvedModel: generationStrategy.generation.model,
+					userId,
+					zdr,
 				});
 			}
 
@@ -623,6 +631,7 @@ export const appendScribeInputAttachmentsToMessages = async ({
 					strategy: "transcription",
 					transcripts: await transcribeAudioFilesWithPrompt({
 						audioFiles,
+						db,
 						resolvedModel: audioPlan.selection.model,
 						userId,
 						zdr,
@@ -632,8 +641,11 @@ export const appendScribeInputAttachmentsToMessages = async ({
 
 			return prepareAudioInputForModel({
 				audioFiles,
+				db,
 				mode: "transcription",
 				resolvedModel: audioPlan.selection.model,
+				userId,
+				zdr,
 			});
 		};
 
@@ -649,6 +661,7 @@ export const appendScribeInputAttachmentsToMessages = async ({
 	if (contextFiles.length > 0) {
 		const filesResult = await appendContextFilesToMessages({
 			contextFiles,
+			db,
 			generationStrategy,
 			messages: nextMessages,
 			userId,
@@ -717,6 +730,7 @@ export const scribeStreamHandler = authed
 		const attachmentsResult = await appendScribeInputAttachmentsToMessages({
 			audioFiles,
 			contextFiles,
+			db: context.db,
 			generationStrategy,
 			messages: resolvedRequest.promptMessages,
 			userId: context.session.user.id,

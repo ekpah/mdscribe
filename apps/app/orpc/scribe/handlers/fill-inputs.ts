@@ -1,5 +1,6 @@
 import { ORPCError, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
+import type { Database } from "@repo/database";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 
@@ -320,11 +321,13 @@ const describeMediaPlan = (plan: MediaPlan | undefined): string | undefined => {
 
 const prepareFillInputsAudio = async ({
 	audioFiles,
+	db,
 	generationStrategy,
 	userId,
 	zdr,
 }: {
 	audioFiles: FillInputsInputPayload["audioFiles"];
+	db: Database;
 	generationStrategy: FillInputsGenerationStrategy;
 	userId: string;
 	zdr: boolean;
@@ -342,14 +345,18 @@ const prepareFillInputsAudio = async ({
 	if (audioPlan.mode === "native") {
 		return prepareAudioInputForModel({
 			audioFiles: files,
+			db,
 			mode: "native",
 			resolvedModel: generationStrategy.generation.model,
+			userId,
+			zdr,
 		});
 	}
 
 	if (audioPlan.strategy === "multimodal") {
 		const transcripts = await transcribeAudioFilesWithPrompt({
 			audioFiles: files,
+			db,
 			resolvedModel: audioPlan.selection.model,
 			userId,
 			zdr,
@@ -359,19 +366,24 @@ const prepareFillInputsAudio = async ({
 
 	return prepareAudioInputForModel({
 		audioFiles: files,
+		db,
 		mode: "transcription",
 		resolvedModel: audioPlan.selection.model,
+		userId,
+		zdr,
 	});
 };
 
 const extractFillInputFileText = ({
 	contextFiles,
+	db,
 	generationStrategy,
 	hasFiles,
 	userId,
 	zdr,
 }: {
 	contextFiles: FillInputsInputPayload["contextFiles"];
+	db: Database;
 	generationStrategy: FillInputsGenerationStrategy;
 	hasFiles: boolean;
 	userId: string;
@@ -381,6 +393,7 @@ const extractFillInputFileText = ({
 	if (hasFiles && filesPlan?.mode === "preprocess") {
 		return extractContextFileText({
 			contextFiles: contextFiles ?? [],
+			db,
 			modelSelection: filesPlan.selection,
 			strategy: filesPlan.strategy,
 			userId,
@@ -499,6 +512,7 @@ export const fillInputsHandler = authed
 		const generationSelection = generationStrategy.generation;
 		const preparedAudio = await prepareFillInputsAudio({
 			audioFiles,
+			db: context.db,
 			generationStrategy,
 			userId: context.session.user.id,
 			zdr: entitlements.hasActiveSubscription,
@@ -511,6 +525,7 @@ export const fillInputsHandler = authed
 		});
 		const fileTextContext = await extractFillInputFileText({
 			contextFiles,
+			db: context.db,
 			generationStrategy,
 			hasFiles,
 			userId: context.session.user.id,

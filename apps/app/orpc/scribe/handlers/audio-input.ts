@@ -1,10 +1,15 @@
+import type { Database } from "@repo/database";
 import { generateText } from "ai";
 
+import { AI_SCRIBE_STT_EVENT_NAME } from "@/lib/usage-event-names";
+import type { StandardUsage } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { SCRIBE_AUDIO_TRANSCRIPTION_PROMPT } from "@/orpc/scribe/prompts/core/audio-transcription";
 import { buildProviderOptions } from "@/orpc/scribe/providers";
 import type { ResolvedModel } from "@/orpc/scribe/providers";
 import type { AudioFile } from "@/orpc/scribe/types";
+
+import { logMediaPreprocessingUsage } from "./preprocessing-usage";
 
 type AudioDeliveryStrategy = "native" | "transcription";
 type AudioPreparationMode = "native" | "transcription";
@@ -83,6 +88,13 @@ const createAudioPart = (
 const getAudioFilename = (mediaType: string, index: number): string =>
 	`aufnahme-${index + 1}.${mediaType.replace("audio/", "")}`;
 
+const getAudioPayloadSummary = (audioFile: AudioFile, index: number) => ({
+	index: index + 1,
+	mediaType: audioFile.mimeType,
+	payloadBytes: toBuffer(audioFile.data).length,
+	wavFallbackBytes: audioFile.wavFallback ? toBuffer(audioFile.wavFallback.data).length : undefined,
+});
+
 const getWavFallbackPart = (
 	audioFile: AudioFile,
 	index: number,
@@ -156,6 +168,11 @@ const selectNativeAudioPart = (
 const transcribeAudioFiles = async (
 	audioFiles: AudioFile[],
 	resolvedModel: ResolvedModel,
+	options?: {
+		db?: Database;
+		userId?: string;
+		zdr?: boolean;
+	},
 ): Promise<string[]> => {
 	if (!resolvedModel.transcribeAudio) {
 		throw new Error(USER_MESSAGES.audioNotSupported);
@@ -164,12 +181,42 @@ const transcribeAudioFiles = async (
 	const transcripts = await Promise.all(
 		audioFiles.map(async (audioFile, index) => {
 			const mediaType = normalizeAudioMediaType(audioFile.mimeType);
-			const result = await resolvedModel.transcribeAudio?.({
+			const requestStartedAt = Date.now();
+			const result = (await resolvedModel.transcribeAudio?.({
 				data: toBuffer(audioFile.data),
 				filename: getAudioFilename(mediaType, index),
 				mediaType,
+			})) as
+				| Awaited<ReturnType<NonNullable<ResolvedModel["transcribeAudio"]>>>
+				| string
+				| undefined;
+			const timeToCompletionMs = Date.now() - requestStartedAt;
+			const transcript =
+				typeof result === "string" ? result.trim() : (result?.text.trim() ?? "");
+			await logMediaPreprocessingUsage({
+				db: options?.db,
+				inputData: {
+					audioFiles: [getAudioPayloadSummary(audioFile, index)],
+				},
+				isOpenRouter: resolvedModel.isOpenRouter,
+				metadata: {
+					endpoint: "stt:direct",
+					promptLabel: "stt:direct",
+					promptName: "stt:direct",
+					strategy: "direct",
+				},
+				modelName: resolvedModel.modelName,
+				name: AI_SCRIBE_STT_EVENT_NAME,
+				providerMetadata:
+					typeof result === "string" ? undefined : result?.providerMetadata,
+				result: transcript,
+				standardUsage:
+					typeof result === "string" ? undefined : (result?.usage as StandardUsage | undefined),
+				timing: { timeToCompletionMs },
+				userId: options?.userId,
+				zdr: options?.zdr,
 			});
-			return result?.trim() ?? "";
+			return transcript;
 		}),
 	);
 
@@ -187,12 +234,14 @@ const transcribeAudioFiles = async (
  */
 export const transcribeAudioFilesWithPrompt = async ({
 	audioFiles,
+	db,
 	prompt,
 	resolvedModel,
 	userId,
 	zdr,
 }: {
 	audioFiles: AudioFile[];
+	db?: Database;
 	prompt?: string;
 	resolvedModel: ResolvedModel;
 	userId?: string;
@@ -203,6 +252,7 @@ export const transcribeAudioFilesWithPrompt = async ({
 		selectNativeAudioPart(audioFile, resolvedModel, index),
 	);
 
+	const requestStartedAt = Date.now();
 	const result = await generateText({
 		messages: [
 			{
@@ -212,14 +262,37 @@ export const transcribeAudioFilesWithPrompt = async ({
 		],
 		model: resolvedModel.model,
 		providerOptions: buildProviderOptions({
+			includeUsage: true,
 			model: resolvedModel,
 			userId,
 			zdr,
 		}),
 		temperature: 0,
 	});
+	const timeToCompletionMs = Date.now() - requestStartedAt;
 
 	const transcript = result.text.trim();
+	await logMediaPreprocessingUsage({
+		db,
+		inputData: {
+			audioFiles: audioFiles.map(getAudioPayloadSummary),
+		},
+		isOpenRouter: resolvedModel.isOpenRouter,
+		metadata: {
+			endpoint: "stt:prompt",
+			promptLabel: "stt:prompt",
+			promptName: "stt:prompt",
+			strategy: "multimodal",
+		},
+		modelName: resolvedModel.modelName,
+		name: AI_SCRIBE_STT_EVENT_NAME,
+		providerMetadata: (result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
+		result: transcript,
+		standardUsage: result.usage as StandardUsage,
+		timing: { timeToCompletionMs },
+		userId,
+		zdr,
+	});
 	return transcript ? [transcript] : [];
 };
 
@@ -233,12 +306,18 @@ export const transcribeAudioFilesWithPrompt = async ({
  */
 export const prepareAudioInputForModel = async ({
 	audioFiles,
+	db,
 	mode,
 	resolvedModel,
+	userId,
+	zdr,
 }: {
 	audioFiles: AudioFile[];
+	db?: Database;
 	mode: AudioPreparationMode;
 	resolvedModel: ResolvedModel;
+	userId?: string;
+	zdr?: boolean;
 }): Promise<PreparedAudioInput> => {
 	if (audioFiles.length === 0) {
 		return {
@@ -252,7 +331,11 @@ export const prepareAudioInputForModel = async ({
 		return {
 			contentParts: [],
 			strategy: "transcription",
-			transcripts: await transcribeAudioFiles(audioFiles, resolvedModel),
+			transcripts: await transcribeAudioFiles(audioFiles, resolvedModel, {
+				db,
+				userId,
+				zdr,
+			}),
 		};
 	}
 
