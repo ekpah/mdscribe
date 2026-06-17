@@ -36,6 +36,7 @@ describe("AI Scribe Forms Handlers", () => {
 		const { user: authorUser } = await createTestUser(server.db, {
 			email: "doctor@test.com",
 			name: "Dr. Clara Autorin",
+			username: "clara",
 		});
 		const { user: otherUser } = await createTestUser(server.db, {
 			email: "other-doctor@test.com",
@@ -212,18 +213,18 @@ describe("AI Scribe Forms Handlers", () => {
 			context: adminContext,
 		});
 		const anonymousForm = await call(
-			scribeFormsHandler.getBySlug,
-			{ slug: "mein-echo-brief" },
+			scribeFormsHandler.getByUsernameSlug,
+			{ slug: "mein-echo-brief", username: "clara" },
 			{ context: publicContext },
 		);
 		const ownerForm = await call(
-			scribeFormsHandler.getBySlug,
-			{ slug: "mein-echo-brief" },
+			scribeFormsHandler.getByUsernameSlug,
+			{ slug: "mein-echo-brief", username: "clara" },
 			{ context: ownerContext },
 		);
 		const otherUserForm = await call(
-			scribeFormsHandler.getBySlug,
-			{ slug: "mein-echo-brief" },
+			scribeFormsHandler.getByUsernameSlug,
+			{ slug: "mein-echo-brief", username: "clara" },
 			{ context: otherUserContext },
 		);
 
@@ -278,18 +279,18 @@ describe("AI Scribe Forms Handlers", () => {
 			context: ownerContext,
 		});
 		const anonymousForm = await call(
-			scribeFormsHandler.getBySlug,
-			{ slug: "privater-echo-brief" },
+			scribeFormsHandler.getByUsernameSlug,
+			{ slug: "privater-echo-brief", username: "clara" },
 			{ context: publicContext },
 		);
 		const ownerForm = await call(
-			scribeFormsHandler.getBySlug,
-			{ slug: "privater-echo-brief" },
+			scribeFormsHandler.getByUsernameSlug,
+			{ slug: "privater-echo-brief", username: "clara" },
 			{ context: ownerContext },
 		);
 		const otherUserForm = await call(
-			scribeFormsHandler.getBySlug,
-			{ slug: "privater-echo-brief" },
+			scribeFormsHandler.getByUsernameSlug,
+			{ slug: "privater-echo-brief", username: "clara" },
 			{ context: otherUserContext },
 		);
 
@@ -355,8 +356,8 @@ describe("AI Scribe Forms Handlers", () => {
 		).rejects.toThrow("AI Vorlage wurde nicht gefunden");
 
 		const ownerForm = await call(
-			scribeFormsHandler.getBySlug,
-			{ slug: "mein-echo-brief" },
+			scribeFormsHandler.getByUsernameSlug,
+			{ slug: "mein-echo-brief", username: "clara" },
 			{ context: ownerContext },
 		);
 

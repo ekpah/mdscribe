@@ -14,7 +14,12 @@ import {
 } from "@/__tests__/setup";
 import { encrypt } from "@/lib/encryption";
 import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
-import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
+import {
+	AI_INPUT_FILL_EVENT_NAME,
+	AI_SCRIBE_GENERATION_EVENT_NAME,
+	AI_SCRIBE_OCR_EVENT_NAME,
+	AI_SCRIBE_STT_EVENT_NAME,
+} from "@/lib/usage-event-names";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { documentTypeConfigs } from "@/orpc/scribe/config";
 import { composeScribeContext } from "@/orpc/scribe/context";
@@ -22,6 +27,7 @@ import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
 import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
+import { generateSectionContent } from "@/orpc/scribe-agent/lib/generate-section-content";
 import { composeFillInputsPrompt } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
 	getDocumentTypeByPromptName,
@@ -30,6 +36,7 @@ import {
 } from "@/orpc/scribe/prompts";
 import {
 	buildProviderOptions,
+	resolveAgentGenerationStrategy,
 	resolveDefaultModel,
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
@@ -215,6 +222,101 @@ describe("Model Selection Logic", () => {
 		}
 	});
 
+	test("resolveAgentGenerationStrategy uses dedicated agent slot when standard agent capability is off", async () => {
+		const server = await startTestServer("resolve-agent-model-slot");
+		try {
+			const providerId = crypto.randomUUID();
+			const textModelRecordId = crypto.randomUUID();
+			const agentModelRecordId = crypto.randomUUID();
+			const audioModelRecordId = crypto.randomUUID();
+			const fileModelRecordId = crypto.randomUUID();
+
+			await server.db.insert(aiProvider).values({
+				apiKey: null,
+				baseUrl: null,
+				id: providerId,
+				name: "Test Provider",
+				protocol: "openrouter",
+			});
+			await server.db.insert(aiModel).values([
+				{
+					displayName: "Text Model",
+					id: textModelRecordId,
+					modelId: "openrouter/test-text",
+					providerId,
+					supportsReasoning: false,
+				},
+				{
+					displayName: "Agent Model",
+					id: agentModelRecordId,
+					modelId: "openrouter/test-agent",
+					providerId,
+					supportedParameters: ["reasoning"],
+					supportsReasoning: true,
+				},
+				{
+					displayName: "Audio Model",
+					id: audioModelRecordId,
+					modelId: "openrouter/test-audio",
+					providerId,
+					supportsReasoning: false,
+				},
+				{
+					displayName: "File Model",
+					id: fileModelRecordId,
+					modelId: "openrouter/test-file",
+					providerId,
+					supportsReasoning: false,
+				},
+			]);
+			await server.db
+				.insert(aiDefaults)
+				.values({
+					defaultAgentModelId: agentModelRecordId,
+					defaultAgentReasoningEffort: "high",
+					defaultAgentSupportsAudio: true,
+					defaultAgentSupportsDocuments: false,
+					defaultFileImageModelId: fileModelRecordId,
+					defaultSpeechToTextModelId: audioModelRecordId,
+					defaultStandardSupportsAgent: false,
+					defaultTextModelId: textModelRecordId,
+					id: "global",
+					updatedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					set: {
+						defaultAgentModelId: agentModelRecordId,
+						defaultAgentReasoningEffort: "high",
+						defaultAgentSupportsAudio: true,
+						defaultAgentSupportsDocuments: false,
+						defaultFileImageModelId: fileModelRecordId,
+						defaultSpeechToTextModelId: audioModelRecordId,
+						defaultStandardSupportsAgent: false,
+						defaultTextModelId: textModelRecordId,
+						updatedAt: new Date(),
+					},
+					target: aiDefaults.id,
+				});
+
+			const strategy = await resolveAgentGenerationStrategy(server.db, {
+				hasAudio: true,
+				hasFiles: true,
+			});
+			expect(strategy.usesStandardModel).toBe(false);
+			expect(strategy.generation.slot).toBe("agent");
+			expect(strategy.generation.model.modelName).toBe("openrouter/test-agent");
+			expect(strategy.generation.reasoningEffort).toBe("high");
+			expect(strategy.audio).toEqual({ mode: "native" });
+			expect(strategy.files).toMatchObject({
+				mode: "preprocess",
+				selection: { slot: "file-image" },
+				strategy: "multimodal",
+			});
+		} finally {
+			await server.close();
+		}
+	});
+
 	test("resolveGenerationStrategy uses standard model without media plans for text-only input", async () => {
 		const server = await startTestServer("resolve-model-text-only-default");
 		try {
@@ -392,6 +494,7 @@ describe("Model Selection Logic", () => {
 					target: aiDefaults.id,
 				});
 
+			const { user } = await createTestUser(server.db);
 			const selection = await resolveDefaultModel(server.db, "speech-to-text");
 			const result = await prepareAudioInputForModel({
 				audioFiles: [
@@ -400,8 +503,11 @@ describe("Model Selection Logic", () => {
 						mimeType: "audio/webm;codecs=opus",
 					},
 				],
+				db: server.db,
 				mode: "transcription",
 				resolvedModel: selection.model,
+				userId: user.id,
+				zdr: false,
 			});
 
 			expect(result.transcripts).toEqual(["Hallo Welt"]);
@@ -413,6 +519,14 @@ describe("Model Selection Logic", () => {
 					format: "webm",
 				},
 				model: "openai/whisper-large-v3",
+			});
+			const [event] = await server.db
+				.select()
+				.from(usageEvent)
+				.where(eq(usageEvent.name, AI_SCRIBE_STT_EVENT_NAME));
+			expect(event?.userId).toBe(user.id);
+			expect(event?.metadata).toMatchObject({
+				promptName: "stt:direct",
 			});
 		} finally {
 			globalThis.fetch = originalFetch;
@@ -806,20 +920,19 @@ describe("Fill Inputs Handler", () => {
 		}
 	});
 
-	test("counts autofill requests against the monthly usage limit", async () => {
+	test("counts autofill cost against the monthly usage limit", async () => {
 		const server = await startTestServer("fill-inputs-usage-limit");
 		try {
 			await createTestAiDefaults(server.db);
 			const { user } = await createTestUser(server.db);
 
-			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEvent).values({
-					id: crypto.randomUUID(),
-					name: i % 2 === 0 ? "ai_scribe_generation" : AI_INPUT_FILL_EVENT_NAME,
-					timestamp: new Date(),
-					userId: user.id,
-				});
-			}
+			await server.db.insert(usageEvent).values({
+				cost: "2.00",
+				id: crypto.randomUUID(),
+				name: AI_INPUT_FILL_EVENT_NAME,
+				timestamp: new Date(),
+				userId: user.id,
+			});
 
 			await expect(
 				call(
@@ -912,6 +1025,102 @@ describe("Fill Inputs Handler", () => {
 			expect(serializedInput).toContain("befund.pdf");
 			expect(serializedInput).not.toContain(fileData);
 			expect(serializedInput).not.toContain(rawFile);
+			const [ocrEvent] = await server.db
+				.select()
+				.from(usageEvent)
+				.where(eq(usageEvent.name, AI_SCRIBE_OCR_EVENT_NAME));
+			expect(ocrEvent?.metadata).toMatchObject({
+				promptName: "ocr:prompt",
+			});
+			const serializedOcrInput = JSON.stringify(ocrEvent?.inputData ?? {});
+			expect(serializedOcrInput).toContain("befund.pdf");
+			expect(serializedOcrInput).not.toContain(fileData);
+			expect(serializedOcrInput).not.toContain(rawFile);
+		} finally {
+			await server.close();
+		}
+	});
+});
+
+describe("Scribe Agent section generation", () => {
+	test("logs AIScribe-style input data with current sections and parsed media", async () => {
+		const server = await startTestServer("agent-generate-section-usage-input");
+		try {
+			await createTestAiDefaults(server.db);
+			const { user } = await createTestUser(server.db);
+			const session = createMockSession(user);
+			const generation = await resolveDefaultModel(server.db, "text");
+			const providerOptions = buildProviderOptions({
+				includeUsage: true,
+				model: generation.model,
+				reasoningEffort: generation.reasoningEffort,
+				userId: user.id,
+				zdr: false,
+			});
+
+			const content = await generateSectionContent({
+				activeSubscription: false,
+				audioTranscripts: ["Patient berichtet seit gestern Belastungsdyspnoe."],
+				contextFileSummaries: [
+					{
+						index: 1,
+						mediaType: "application/pdf",
+						name: "labor.pdf",
+						payloadBytes: 128,
+						size: 128,
+					},
+				],
+				contextSections: [
+					{
+						content: "I50.1 Akute Linksherzinsuffizienz",
+						harness: "diagnosis",
+						id: "diagnosis",
+						label: "Diagnosen",
+					},
+					{
+						content: "Basale Rasselgeräusche beidseits.",
+						harness: "befunde",
+						id: "befunde",
+						label: "Befunde",
+					},
+				],
+				db: server.db,
+				fileTextContext: "Labor: NT-proBNP deutlich erhöht.",
+				generation,
+				harness: "anamnese",
+				notes: "Bitte Anamnese aus Agentenhinweis erzeugen.",
+				providerOptions,
+				sessionUser: session.user,
+				temperature: undefined,
+				template: null,
+				userId: user.id,
+			});
+
+			expect(content).toBe("Generated text response");
+
+			const [event] = await server.db
+				.select()
+				.from(usageEvent)
+				.where(eq(usageEvent.name, AI_SCRIBE_GENERATION_EVENT_NAME));
+
+			expect(event?.metadata).toMatchObject({
+				endpoint: "scribe-agent:generateSection:anamnese",
+				promptName: "anamnese",
+			});
+			expect(event?.inputData).toMatchObject({
+				_contextFiles: [
+					{
+						name: "labor.pdf",
+					},
+				],
+				befunde: "Basale Rasselgeräusche beidseits.",
+				diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+			});
+			const inputData = event?.inputData as Record<string, unknown> | undefined;
+			const notes = String(inputData?.notes ?? "");
+			expect(notes).toContain("Bitte Anamnese aus Agentenhinweis erzeugen.");
+			expect(notes).toContain("Patient berichtet seit gestern Belastungsdyspnoe.");
+			expect(notes).toContain("Labor: NT-proBNP deutlich erhöht.");
 		} finally {
 			await server.close();
 		}
@@ -1061,19 +1270,18 @@ describe("Scribe Stream Handler", () => {
 	});
 
 	describe("Usage Limits", () => {
-		test("enforces free tier limit (50 generations)", async () => {
+		test("enforces free tier monthly cost limit", async () => {
 			const { user } = await createTestUser(server.db);
 
-			// Create 50 usage events to hit the limit
+			// Free tier budget is $2/month.
 			const { usageEvent: usageEventTable } = await import("@repo/database");
-			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEventTable).values({
-					id: crypto.randomUUID(),
-					name: "ai_scribe_generation",
-					timestamp: new Date(),
-					userId: user.id,
-				});
-			}
+			await server.db.insert(usageEventTable).values({
+				cost: "2.00",
+				id: crypto.randomUUID(),
+				name: "ai_scribe_generation",
+				timestamp: new Date(),
+				userId: user.id,
+			});
 
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });
@@ -1096,7 +1304,7 @@ describe("Scribe Stream Handler", () => {
 			).rejects.toThrow("Monatliche Nutzungsgrenze erreicht");
 		});
 
-		test("plus subscribers have higher limit (500 generations)", async () => {
+		test("plus subscribers have a higher monthly cost limit", async () => {
 			const { user } = await createTestUser(server.db);
 
 			// Create active subscription
@@ -1105,21 +1313,20 @@ describe("Scribe Stream Handler", () => {
 				status: "active",
 			});
 
-			// Create 50 usage events (under plus limit)
+			// Free-tier budget is exhausted, but Plus still has room.
 			const { usageEvent: usageEventTable } = await import("@repo/database");
-			for (let i = 0; i < 50; i += 1) {
-				await server.db.insert(usageEventTable).values({
-					id: crypto.randomUUID(),
-					name: "ai_scribe_generation",
-					timestamp: new Date(),
-					userId: user.id,
-				});
-			}
+			await server.db.insert(usageEventTable).values({
+				cost: "2.00",
+				id: crypto.randomUUID(),
+				name: "ai_scribe_generation",
+				timestamp: new Date(),
+				userId: user.id,
+			});
 
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });
 
-			// Should not throw - under plus limit
+			// Should not throw - under plus cost budget
 			// Note: Will still return a stream (mocked)
 			const result = await call(
 				scribeStreamHandler,
@@ -1151,7 +1358,7 @@ describe("Scribe Stream Handler", () => {
 			expect(typeof result[Symbol.asyncIterator]).toBe("function");
 		});
 
-		test("plus subscribers hit limit at 500 generations", async () => {
+		test("plus subscribers hit the monthly cost limit", async () => {
 			const { user } = await createTestUser(server.db);
 
 			// Create active subscription
@@ -1160,16 +1367,15 @@ describe("Scribe Stream Handler", () => {
 				status: "active",
 			});
 
-			// Create 500 usage events to hit the plus limit
+			// Plus budget is $8/month.
 			const { usageEvent: usageEventTable } = await import("@repo/database");
-			for (let i = 0; i < 500; i += 1) {
-				await server.db.insert(usageEventTable).values({
-					id: crypto.randomUUID(),
-					name: "ai_scribe_generation",
-					timestamp: new Date(),
-					userId: user.id,
-				});
-			}
+			await server.db.insert(usageEventTable).values({
+				cost: "8.00",
+				id: crypto.randomUUID(),
+				name: "ai_scribe_generation",
+				timestamp: new Date(),
+				userId: user.id,
+			});
 
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });

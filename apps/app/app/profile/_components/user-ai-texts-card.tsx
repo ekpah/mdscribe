@@ -36,6 +36,8 @@ import { toast } from "sonner";
 
 import { LabelWithInfo, SectionLabelWithInfo } from "@/app/_components/ai-text-forms/info-labels";
 import { TemplateSelector } from "@/app/_components/template-selector";
+import { buildCustomFormPath } from "@/lib/aiscribe-paths";
+import { useSession } from "@/lib/auth-client";
 import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
@@ -133,8 +135,14 @@ const getPromptHarnessOptions = (
 	})) ??
 	[];
 
+const getSessionUsername = (
+	session: { user?: { username?: string | null } } | null | undefined,
+): string | null => session?.user?.username ?? null;
+
 export const UserAiTextsCard = () => {
 	const queryClient = useQueryClient();
+	const sessionQuery = useSession();
+	const username = getSessionUsername(sessionQuery.data);
 	const formsQueryOptions = orpc.scribeForms.list.queryOptions();
 	const editorContextQueryOptions = orpc.scribeForms.editorContext.queryOptions();
 	const {
@@ -150,7 +158,10 @@ export const UserAiTextsCard = () => {
 
 	const listKey = formsQueryOptions.queryKey;
 	const resolvedDraftSlug = resolveDraftSlug(draft);
-	const routePreview = `/aiscribe/custom/${resolvedDraftSlug || "ai-text"}`;
+	const routePreview = buildCustomFormPath(
+		resolvedDraftSlug || "ai-text",
+		username,
+	);
 	const promptHarnessOptions = getPromptHarnessOptions(editorContext);
 	const templates = editorContext?.templates ?? [];
 	const canCreatePrivateAiScribeForms = Boolean(editorContext?.canCreatePrivateAiScribeForms);
@@ -446,7 +457,7 @@ export const UserAiTextsCard = () => {
 												{form.enabled ? (
 													<Link
 														className="inline-flex max-w-full items-center gap-1.5 transition-colors hover:text-solarized-cyan"
-														href={`/aiscribe/custom/${form.slug}`}
+														href={buildCustomFormPath(form.slug, username)}
 														rel="noreferrer"
 														target="_blank"
 													>

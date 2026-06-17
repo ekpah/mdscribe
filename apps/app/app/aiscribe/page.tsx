@@ -26,7 +26,7 @@ import Link from "next/link";
 
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
-import { getAiscribeIsAdmin } from "@/app/aiscribe/_lib/access";
+import { buildCustomFormPath, buildWorkspacePath } from "@/lib/aiscribe-paths";
 import { getServerSession } from "@/lib/server-session";
 
 import { buildCustomAiscribeTemplateConfig } from "./_lib/custom-form-config";
@@ -219,9 +219,7 @@ export default async function AIScribeLandingPage() {
 	const session = await getServerSession();
 	const customForms = await queryClient.fetchQuery(orpc.scribeForms.listAvailable.queryOptions());
 	const isLoggedIn = !!session?.user;
-	// Brief-Baukasten editor is admin-flagged while it is iterated on.
-	const isAdmin = await getAiscribeIsAdmin();
-	const workspaces = isAdmin
+	const workspaces = isLoggedIn
 		? await queryClient.fetchQuery(
 				orpc.scribeWorkspaces.listAvailable.queryOptions(),
 			)
@@ -311,7 +309,7 @@ export default async function AIScribeLandingPage() {
 												key={form.id}
 												title={form.name}
 												description={form.description ?? formConfig.description}
-												href={`/aiscribe/custom/${form.slug}`}
+												href={buildCustomFormPath(form.slug, form.author?.username ?? null)}
 												icon={<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
 												isLoggedIn={isLoggedIn}
 												accentColor="solarized-cyan"
@@ -372,7 +370,7 @@ export default async function AIScribeLandingPage() {
 											key={form.id}
 											title={form.name}
 											description={form.description ?? formConfig.description}
-											href={`/aiscribe/custom/${form.slug}`}
+											href={buildCustomFormPath(form.slug, form.author?.username ?? null)}
 											icon={<Icon className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />}
 											isLoggedIn={isLoggedIn}
 											accentColor="solarized-cyan"
@@ -383,8 +381,8 @@ export default async function AIScribeLandingPage() {
 						</div>
 					)}
 
-					{/* Brief-Baukasten editors (admin-flagged beta) */}
-					{isAdmin && (
+					{/* Brief-Baukasten editors */}
+					{isLoggedIn && (
 						<div className="space-y-3 sm:space-y-4">
 							<div className="flex flex-wrap items-center justify-between gap-3">
 								<div className="flex items-center gap-2">
@@ -397,7 +395,7 @@ export default async function AIScribeLandingPage() {
 									</Badge>
 								</div>
 								<Button asChild size="sm" variant="outline">
-									<Link href="/admin/settings/models">
+									<Link href="/profile/ai-scribe">
 										<Settings className="h-4 w-4" />
 										Verwalten
 									</Link>
@@ -416,7 +414,7 @@ export default async function AIScribeLandingPage() {
 												workspace.description ??
 												"Aus AI Vorlagen zusammengestellter Arztbrief-Editor."
 											}
-											href={`/aiscribe/editor/${workspace.slug}`}
+											href={buildWorkspacePath(workspace.slug, workspace.authorUsername)}
 											icon={
 												<Blocks className="h-4 w-4 text-solarized-cyan sm:h-5 sm:w-5" />
 											}

@@ -1,3 +1,4 @@
+import { UserBriefWorkspacesCard } from "../_components/user-brief-workspaces-card";
 import { UserAiTextsCard } from "../_components/user-ai-texts-card";
 
 export default function ProfileAiScribePage() {
@@ -11,6 +12,7 @@ export default function ProfileAiScribePage() {
 			</div>
 			<div className="space-y-6">
 				<UserAiTextsCard />
+				<UserBriefWorkspacesCard />
 			</div>
 		</div>
 	);

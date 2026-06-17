@@ -117,7 +117,7 @@ const createFormHandler = authed
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(createScribeFormInput, input);
 		await ensureTemplateExists(context, parsed);
-		await ensureSlugUnique(context, parsed.slug);
+		await ensureSlugUnique(context, { authorId: null, slug: parsed.slug });
 
 		const [created] = await context.db
 			.insert(aiScribeFormConfig)
@@ -133,7 +133,11 @@ const updateFormHandler = authed
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(updateScribeFormInput, input);
 		await ensureTemplateExists(context, parsed);
-		await ensureSlugUnique(context, parsed.slug, parsed.id);
+		await ensureSlugUnique(context, {
+			authorId: null,
+			excludeId: parsed.id,
+			slug: parsed.slug,
+		});
 
 		const [updated] = await context.db
 			.update(aiScribeFormConfig)

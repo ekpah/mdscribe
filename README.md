@@ -19,24 +19,26 @@ See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnera
 
 ## License
 
-MDScribe is [Fair Source](https://fair.io) software, licensed under the
-[Functional Source License, Version 1.1, Apache 2.0 Future License](LICENSE)
-(FSL-1.1-Apache-2.0). In short:
+MDScribe is source-available software, licensed under the
+[Elastic License 2.0](LICENSE) (`Elastic-2.0`). In short:
 
-- You may use, modify, and self-host MDScribe freely — including commercial
-  internal use, for example running it for your own practice or hospital.
-- You may not offer MDScribe (or a substantially similar product) as a
-  commercial product or service that competes with our own offering.
-- Each release automatically becomes available under the Apache License 2.0
-  two years after its publication.
+- You may read, use, modify, and self-host MDScribe freely — including
+  commercial internal use, for example running it for your own practice or
+  hospital, subject to the limits encoded in your license key (such as the
+  number of users).
+- You may not offer MDScribe to third parties as a hosted or managed service.
+- You may not move, change, disable, or circumvent the license-key
+  functionality.
 
-Future enterprise features will live in a top-level `ee/` directory under a
-separate license (Elastic License 2.0) and will not carry the two-year Apache
-grant. The `ee/` directory does not exist yet.
+Paid plans for larger practices and hospitals are unlocked by a signed license
+key that is verified entirely offline (no phone-home), so air-gapped on-premise
+deployments are fully supported. Without a key, MDScribe runs in its free
+community configuration.
 
 Third-party components incorporated into MDScribe remain under their original
-licenses. Earlier versions of MDScribe were published under AGPL-3.0-or-later
-and remain available under that license.
+licenses. Versions of MDScribe published before this license change were made
+available under AGPL-3.0-or-later and remain available under that license; the
+Elastic License 2.0 applies going forward.
 
 Our goal is to provide great software to doctors without the burden of
 classical B2B software.

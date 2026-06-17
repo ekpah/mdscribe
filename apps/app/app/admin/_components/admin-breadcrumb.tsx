@@ -70,6 +70,11 @@ const ADMIN_PAGE_OPTIONS = [
 		isMatch: (pathname: string) => pathname.startsWith("/admin/settings"),
 		label: "Systemeinstellungen",
 	},
+	{
+		href: "/admin/license",
+		isMatch: (pathname: string) => pathname.startsWith("/admin/license"),
+		label: "Lizenz",
+	},
 ] as const;
 
 export const AdminBreadcrumb = () => {

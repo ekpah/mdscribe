@@ -3,6 +3,7 @@ import { usageEvent } from "@repo/database";
 import { generateText } from "ai";
 import { z } from "zod";
 
+import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type { StandardUsage } from "@/lib/usage-logging";
 import { authed } from "@/orpc";
@@ -38,19 +39,92 @@ const stripCodeFence = (markdown: string): string => {
 	return fencedMatch[1]?.trim() ?? "";
 };
 
+type OcrInput = z.infer<typeof ocrToMarkdownInput>;
+type OcrImageInput = z.infer<typeof ocrImageInput>;
+type OcrContentPart =
+	| { type: "text"; text: string }
+	| { type: "image"; image: Uint8Array; mediaType: string }
+	| { type: "file"; data: Uint8Array; mediaType: string };
+
+const normalizeImageInputs = (input: OcrInput): OcrImageInput[] =>
+	input.images ??
+	input.imagesBase64?.map((data) => ({
+		data,
+		mediaType: "image/jpeg",
+	})) ??
+	[];
+
+const requireProviderId = (input: OcrInput): string => {
+	const providerId = input.providerId ?? input.connectionId;
+	if (!providerId) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "providerId fehlt",
+		});
+	}
+	return providerId;
+};
+
+const resolvePromptText = (prompt: OcrInput["prompt"]): string | null =>
+	prompt === null ? null : prompt?.trim() || SCRIBE_OCR_TO_MARKDOWN_PROMPT;
+
+const buildOcrContent = (
+	input: OcrInput,
+	imageInputs: OcrImageInput[],
+	promptText: string | null,
+): {
+	fileSizeBytes: number;
+	fileType: "images" | "pdf";
+	pageCount: number | undefined;
+	userContent: OcrContentPart[];
+} => {
+	const userContent: OcrContentPart[] = promptText
+		? [{ text: promptText, type: "text" }]
+		: [];
+
+	if (imageInputs.length > 0) {
+		let fileSizeBytes = 0;
+		for (const imageInput of imageInputs) {
+			const bytes = new Uint8Array(Buffer.from(imageInput.data, "base64"));
+			fileSizeBytes += bytes.length;
+			userContent.push({
+				image: bytes,
+				mediaType: imageInput.mediaType,
+				type: "image",
+			});
+		}
+		return {
+			fileSizeBytes,
+			fileType: "images",
+			pageCount: imageInputs.length,
+			userContent,
+		};
+	}
+
+	if (!input.fileBase64) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "fileBase64 oder images muss angegeben werden",
+		});
+	}
+	const bytes = new Uint8Array(Buffer.from(input.fileBase64, "base64"));
+	userContent.push({
+		data: bytes,
+		mediaType: "application/pdf",
+		type: "file",
+	});
+	return {
+		fileSizeBytes: bytes.length,
+		fileType: "pdf",
+		pageCount: undefined,
+		userContent,
+	};
+};
+
 export const ocrToMarkdownHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(type<z.infer<typeof ocrToMarkdownInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = ocrToMarkdownInput.parse(input);
-
-		const imageInputs =
-			parsed.images ??
-			parsed.imagesBase64?.map((data) => ({
-				data,
-				mediaType: "image/jpeg",
-			})) ??
-			[];
+		const imageInputs = normalizeImageInputs(parsed);
 
 		if (!parsed.fileBase64 && imageInputs.length === 0) {
 			throw new ORPCError("BAD_REQUEST", {
@@ -58,49 +132,14 @@ export const ocrToMarkdownHandler = authed
 			});
 		}
 
-		const providerId = parsed.providerId ?? parsed.connectionId;
-		if (!providerId) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "providerId fehlt",
-			});
-		}
-
+		const providerId = requireProviderId(parsed);
 		const resolvedModel = await resolveProviderModel(providerId, parsed.model, context.db);
-
-		const promptText =
-			parsed.prompt === null ? null : parsed.prompt?.trim() || SCRIBE_OCR_TO_MARKDOWN_PROMPT;
-		const userContent: (
-			| { type: "text"; text: string }
-			| { type: "image"; image: Uint8Array; mediaType: string }
-			| { type: "file"; data: Uint8Array; mediaType: string }
-		)[] = promptText ? [{ text: promptText, type: "text" }] : [];
-
-		let fileSizeBytes = 0;
-		if (imageInputs.length > 0) {
-			for (const imageInput of imageInputs) {
-				const bytes = new Uint8Array(Buffer.from(imageInput.data, "base64"));
-				fileSizeBytes += bytes.length;
-				userContent.push({
-					image: bytes,
-					mediaType: imageInput.mediaType,
-					type: "image",
-				});
-			}
-		} else {
-			const { fileBase64 } = parsed;
-			if (!fileBase64) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "fileBase64 fehlt",
-				});
-			}
-			const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
-			fileSizeBytes = bytes.length;
-			userContent.push({
-				data: bytes,
-				mediaType: "application/pdf",
-				type: "file",
-			});
-		}
+		const promptText = resolvePromptText(parsed.prompt);
+		const { fileSizeBytes, fileType, pageCount, userContent } = buildOcrContent(
+			parsed,
+			imageInputs,
+			promptText,
+		);
 
 		let result: Awaited<ReturnType<typeof generateText>>;
 		const requestStartedAt = Date.now();
@@ -131,20 +170,23 @@ export const ocrToMarkdownHandler = authed
 				)
 			: null;
 		const markdown = stripCodeFence(result.text);
+		const promptName = promptText ? "ocr:prompt" : "ocr:direct";
 
 		await context.db.insert(usageEvent).values(
 			buildUsageEventData({
 				inputData: {
 					fileSizeBytes,
-					fileType: imageInputs.length > 0 ? "images" : "pdf",
-					pageCount: imageInputs.length || undefined,
+					fileType,
+					pageCount,
 				},
 				metadata: {
-					promptName: "scribe_ocr_markdown",
+					endpoint: promptName,
+					promptLabel: promptName,
+					promptName,
 					providerId,
 				},
 				model: resolvedModel.modelName,
-				name: "ai_scribe_ocr_markdown",
+				name: AI_SCRIBE_OCR_EVENT_NAME,
 				openRouterUsage,
 				result: markdown,
 				standardUsage: result.usage as StandardUsage,

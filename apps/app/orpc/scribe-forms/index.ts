@@ -6,6 +6,7 @@ import {
 	eq,
 	favourites,
 	inArray,
+	isNull,
 	notInArray,
 	or,
 	template,
@@ -38,6 +39,7 @@ interface PublicScribeForm {
 	author?: {
 		id: string;
 		name: string | null;
+		username: string;
 	} | null;
 	authorId: string | null;
 	description: string | null;
@@ -92,6 +94,7 @@ const listAvailableHandler = pub.output(type<PublicScribeForm[]>()).handler(asyn
 				columns: {
 					id: true,
 					name: true,
+					username: true,
 				},
 			},
 			template: {
@@ -134,6 +137,7 @@ const getBySlugHandler = pub
 			},
 			where: and(
 				eq(aiScribeFormConfig.slug, input.slug),
+				isNull(aiScribeFormConfig.authorId),
 				eq(aiScribeFormConfig.enabled, true),
 				visibleFormWhere(userId),
 			),
@@ -142,6 +146,71 @@ const getBySlugHandler = pub
 					columns: {
 						id: true,
 						name: true,
+						username: true,
+					},
+				},
+				template: {
+					columns: {
+						id: true,
+						title: true,
+					},
+				},
+			},
+		});
+
+		if (!form) {
+			return null;
+		}
+
+		return {
+			author: form.author,
+			authorId: form.authorId,
+			description: form.description,
+			id: form.id,
+			name: form.name,
+			promptHarness: normalizePromptHarnessReference(form.promptHarness),
+			slug: form.slug,
+			template: form.template,
+			visibility: form.visibility as ScribeFormVisibility,
+		};
+	});
+
+const getByUsernameSlugHandler = pub
+	.input(type<{ slug: string; username: string }>())
+	.output(type<PublicScribeForm | null>())
+	.handler(async ({ context, input }) => {
+		const userId = await getOptionalUserId(context);
+		const author = await context.db.query.user.findFirst({
+			columns: { id: true },
+			where: eq(user.username, input.username),
+		});
+		if (!author) {
+			return null;
+		}
+
+		const form = await context.db.query.aiScribeFormConfig.findFirst({
+			columns: {
+				authorId: true,
+				description: true,
+				enabled: true,
+				id: true,
+				name: true,
+				promptHarness: true,
+				slug: true,
+				visibility: true,
+			},
+			where: and(
+				eq(aiScribeFormConfig.authorId, author.id),
+				eq(aiScribeFormConfig.slug, input.slug),
+				eq(aiScribeFormConfig.enabled, true),
+				visibleFormWhere(userId),
+			),
+			with: {
+				author: {
+					columns: {
+						id: true,
+						name: true,
+						username: true,
 					},
 				},
 				template: {
@@ -272,7 +341,10 @@ const createFormHandler = authed
 			input: parsed,
 			userId: context.session.user.id,
 		});
-		await ensureSlugUnique(context, parsed.slug);
+		await ensureSlugUnique(context, {
+			authorId: context.session.user.id,
+			slug: parsed.slug,
+		});
 
 		const [created] = await context.db
 			.insert(aiScribeFormConfig)
@@ -301,7 +373,11 @@ const updateFormHandler = authed
 			input: parsed,
 			userId: context.session.user.id,
 		});
-		await ensureSlugUnique(context, parsed.slug, parsed.id);
+		await ensureSlugUnique(context, {
+			authorId: context.session.user.id,
+			excludeId: parsed.id,
+			slug: parsed.slug,
+		});
 
 		const [updated] = await context.db
 			.update(aiScribeFormConfig)
@@ -351,6 +427,7 @@ export const scribeFormsHandler = {
 	delete: deleteFormHandler,
 	editorContext: editorContextHandler,
 	getBySlug: getBySlugHandler,
+	getByUsernameSlug: getByUsernameSlugHandler,
 	list: listFormsHandler,
 	listAvailable: listAvailableHandler,
 	update: updateFormHandler,

@@ -13,6 +13,7 @@ import {
 	FileAudio,
 	FileText,
 	FlaskConical,
+	KeyRound,
 	Mail,
 	NotebookTabs,
 	Settings,
@@ -160,11 +161,19 @@ const adminFeatures: AdminCardProps[] = [
 		status: "active",
 		title: "Systemeinstellungen",
 	},
+	{
+		description:
+			"Lizenzstatus, freigeschaltete Edition und Nutzer-Sitze dieser Installation einsehen.",
+		href: "/admin/license",
+		icon: <KeyRound className="h-5 w-5 text-solarized-blue" />,
+		status: "active",
+		title: "Lizenz",
+	},
 ];
 
 export default async function AdminDashboardPage() {
 	const queryClient = getQueryClient();
-	const [monthlyStats, weeklyStats, monthlyActiveUsers] = await Promise.all([
+	const [monthlyStats, weeklyStats, monthlyActiveUsers, license] = await Promise.all([
 		queryClient.fetchQuery(
 			orpc.admin.usage.stats.queryOptions({
 				input: { filter: "month" },
@@ -180,7 +189,22 @@ export default async function AdminDashboardPage() {
 				input: {},
 			}),
 		),
+		queryClient.fetchQuery(orpc.admin.license.get.queryOptions()),
 	]);
+
+	let licenseLabel: string;
+	if (!license.isConfigured) {
+		licenseLabel = "Community";
+	} else if (license.isExpired) {
+		licenseLabel = "Abgelaufen";
+	} else {
+		licenseLabel = "Lizenziert";
+	}
+	const licenseSeatSuffix =
+		license.maxSeats === null ? null : ` · ${license.seatCount}/${license.maxSeats}`;
+	const licenseColorClass = license.isExpired
+		? "text-solarized-yellow"
+		: "text-solarized-base00";
 
 	return (
 		<div className="p-4 sm:p-6">
@@ -197,9 +221,14 @@ export default async function AdminDashboardPage() {
 								</div>
 							</div>
 							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Umgebung</p>
-								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
-									{process.env.NODE_ENV === "production" ? "Produktion" : "Entwicklung"}
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Lizenz</p>
+								<p className={`font-semibold text-base sm:text-lg ${licenseColorClass}`}>
+									{licenseLabel}
+									{licenseSeatSuffix ? (
+										<span className="font-normal text-solarized-base01 text-sm">
+											{licenseSeatSuffix}
+										</span>
+									) : null}
 								</p>
 							</div>
 							<div className="space-y-1">

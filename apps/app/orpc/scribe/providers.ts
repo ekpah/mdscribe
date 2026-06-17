@@ -18,7 +18,12 @@ export type { ReasoningEffort } from "@/orpc/scribe/types";
 
 type ProviderProtocol = typeof aiProvider.$inferSelect.protocol;
 
-export type DefaultModelSlot = "evaluation" | "file-image" | "speech-to-text" | "text";
+export type DefaultModelSlot =
+	| "agent"
+	| "evaluation"
+	| "file-image"
+	| "speech-to-text"
+	| "text";
 
 export type MediaPreprocessStrategy = "direct" | "multimodal";
 
@@ -26,6 +31,12 @@ export interface TranscribeAudioInput {
 	data: Buffer;
 	filename: string;
 	mediaType: string;
+}
+
+export interface TranscribeAudioResult {
+	providerMetadata?: Record<string, unknown>;
+	text: string;
+	usage?: unknown;
 }
 
 export interface ResolvedModel {
@@ -36,7 +47,7 @@ export interface ResolvedModel {
 	providerProtocol: ProviderProtocol;
 	supportedParameters: string[];
 	supportsReasoning: boolean;
-	transcribeAudio?: (input: TranscribeAudioInput) => Promise<string>;
+	transcribeAudio?: (input: TranscribeAudioInput) => Promise<TranscribeAudioResult>;
 }
 
 export interface ResolvedDefaultModelSelection {
@@ -59,6 +70,10 @@ interface GenerationStrategy {
 	audio?: MediaPlan;
 	files?: MediaPlan;
 	generation: ResolvedDefaultModelSelection;
+}
+
+interface AgentGenerationStrategy extends GenerationStrategy {
+	usesStandardModel: boolean;
 }
 
 type AiModelRow = typeof aiModel.$inferSelect;
@@ -241,7 +256,7 @@ const createAudioTranscriber = (
 			if (!text) {
 				throw new Error("Tinfoil-Transkription lieferte keinen Text.");
 			}
-			return text;
+			return { text };
 		};
 	}
 
@@ -255,7 +270,12 @@ const createAudioTranscriber = (
 				audio: data,
 				model: transcriptionModel,
 			});
-			return result.text.trim();
+			return {
+				providerMetadata: (result as { providerMetadata?: Record<string, unknown> })
+					.providerMetadata,
+				text: result.text.trim(),
+				usage: (result as { usage?: unknown }).usage,
+			};
 		};
 	}
 
@@ -284,7 +304,10 @@ const createAudioTranscriber = (
 			if (!text) {
 				throw new Error("Transkription lieferte keinen Text.");
 			}
-			return text;
+			return {
+				providerMetadata: body as Record<string, unknown>,
+				text,
+			};
 		};
 	}
 
@@ -323,7 +346,15 @@ const createAudioTranscriber = (
 			if (!text.trim()) {
 				throw new Error("OpenRouter-Transkription lieferte keinen Text.");
 			}
-			return text.trim();
+			return {
+				providerMetadata: {
+					openrouter: {
+						usage: (body as { usage?: unknown }).usage,
+					},
+				},
+				text: text.trim(),
+				usage: (body as { usage?: unknown }).usage,
+			};
 		};
 	}
 
@@ -424,6 +455,9 @@ const getDefaultModelRecordId = (
 	slot: DefaultModelSlot,
 ): string | null => {
 	switch (slot) {
+		case "agent": {
+			return defaults.defaultAgentModelId;
+		}
 		case "evaluation": {
 			return defaults.defaultEvaluationModel;
 		}
@@ -447,6 +481,9 @@ const getDefaultReasoningEffort = (
 	slot: DefaultModelSlot,
 ): ReasoningEffort => {
 	switch (slot) {
+		case "agent": {
+			return normalizeReasoningEffort(defaults.defaultAgentReasoningEffort);
+		}
 		case "evaluation": {
 			return normalizeReasoningEffort(defaults.defaultEvaluationReasoningEffort);
 		}
@@ -467,6 +504,9 @@ const getDefaultReasoningEffort = (
 
 const getDefaultTemperature = (defaults: AiDefaultsRow, slot: DefaultModelSlot): number | null => {
 	switch (slot) {
+		case "agent": {
+			return defaults.defaultAgentTemperature ?? null;
+		}
 		case "evaluation": {
 			return defaults.defaultEvaluationTemperature ?? null;
 		}
@@ -558,6 +598,59 @@ export const resolveGenerationStrategy = async (
 		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
 		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
 		generation: await buildDefaultSelection(db, defaults, "text"),
+	};
+};
+
+/**
+ * Resolves the documentation-agent model. The standard model can explicitly
+ * cover the agent; otherwise the dedicated MDScribe Agent slot becomes the
+ * generator and declares its own native audio/document capabilities.
+ */
+export const resolveAgentGenerationStrategy = async (
+	db: Database,
+	options: { hasAudio?: boolean; hasFiles?: boolean },
+): Promise<AgentGenerationStrategy> => {
+	const defaults = await getDefaults(db);
+	const usesStandardModel = defaults.defaultStandardSupportsAgent;
+	const generation = await buildDefaultSelection(
+		db,
+		defaults,
+		usesStandardModel ? "text" : "agent",
+	);
+	const supportsAudio = usesStandardModel
+		? defaults.defaultStandardSupportsAudio
+		: defaults.defaultAgentSupportsAudio;
+	const supportsDocuments = usesStandardModel
+		? defaults.defaultStandardSupportsDocuments
+		: defaults.defaultAgentSupportsDocuments;
+
+	const buildAudioPlan = async (): Promise<MediaPlan> => {
+		if (supportsAudio) {
+			return { mode: "native" };
+		}
+		return {
+			mode: "preprocess",
+			selection: await buildDefaultSelection(db, defaults, "speech-to-text"),
+			strategy: normalizeMediaPreprocessStrategy(defaults.defaultSpeechToTextMode, "direct"),
+		};
+	};
+
+	const buildFilesPlan = async (): Promise<MediaPlan> => {
+		if (supportsDocuments) {
+			return { mode: "native" };
+		}
+		return {
+			mode: "preprocess",
+			selection: await buildDefaultSelection(db, defaults, "file-image"),
+			strategy: normalizeMediaPreprocessStrategy(defaults.defaultFileImageMode, "multimodal"),
+		};
+	};
+
+	return {
+		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
+		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
+		generation,
+		usesStandardModel,
 	};
 };
 

@@ -21,6 +21,8 @@ export const USER_MESSAGES = {
 	providerUnavailable: "Der KI-Anbieter ist nicht erreichbar. Bitte prüfen Sie die Verbindung.",
 	publicAiScribeFormVisibilityWarning:
 		"Öffentlich: Alle Nutzer können diese AI Vorlage sehen und verwenden.",
+	publicAiScribeWorkspaceVisibilityWarning:
+		"Öffentlich: Alle Nutzer können diesen Brief-Baukasten sehen und verwenden.",
 	publicDocumentVisibilityWarning:
 		"Öffentlich: Alle Nutzer können dieses Dokument sehen, verwenden und kopieren.",
 	publicTemplateVisibilityWarning:
@@ -29,6 +31,7 @@ export const USER_MESSAGES = {
 	unauthorized: "Bitte melden Sie sich an, um diese Funktion zu nutzen.",
 	unknownError: "Es ist ein unbekannter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
 	usageLimitReached: "Monatliche Nutzungsgrenze erreicht. Bitte passen Sie Ihr Abonnement an.",
+	userNameAlreadyTaken: "Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.",
 	userNameFallbackHint:
 		"Wenn du keinen Benutzernamen einträgst, verwenden wir den Teil vor dem @ deiner E-Mail-Adresse.",
 	userNameMaxLength: "Benutzername darf nicht länger als 30 Zeichen sein.",

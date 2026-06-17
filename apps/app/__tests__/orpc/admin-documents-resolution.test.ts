@@ -120,6 +120,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 					size: 9,
 				},
 			],
+			db: server.db,
 			generationStrategy,
 			messages: [{ content: "Bitte auswerten", role: "user" }],
 			userId: context.session?.user.id ?? "test-user",

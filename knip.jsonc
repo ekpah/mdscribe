@@ -10,7 +10,9 @@
 				// Keep Next.js auto-detected entrypoints from plugins.
 				// These entries only cover Bun test discovery that Knip cannot infer.
 				"__tests__/setup.ts",
-				"__tests__/{lib,orpc}/**/*.test.ts"
+				"__tests__/{lib,orpc}/**/*.test.ts",
+				// Standalone offline CLIs run via `bun run`, not imported anywhere.
+				"scripts/*.ts"
 			]
 		},
 		"apps/email": {

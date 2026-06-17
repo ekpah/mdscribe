@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
 	customType,
@@ -65,7 +65,7 @@ export const user = pgTable("User", {
 		.notNull()
 		.$onUpdate(() => new Date()),
 	// Normalized (lowercase) unique handle from the better-auth username plugin.
-	username: text("username").unique(),
+	username: text("username").notNull().unique(),
 });
 
 export const account = pgTable("Account", {
@@ -367,6 +367,15 @@ export const aiModel = pgTable(
 );
 
 export const aiDefaults = pgTable("AiDefaults", {
+	defaultAgentModelId: text("defaultAgentModelId").references(() => aiModel.id, {
+		onDelete: "set null",
+	}),
+	defaultAgentReasoningEffort: text("defaultAgentReasoningEffort").notNull().default("none"),
+	defaultAgentSupportsAudio: boolean("defaultAgentSupportsAudio").notNull().default(false),
+	defaultAgentSupportsDocuments: boolean("defaultAgentSupportsDocuments")
+		.notNull()
+		.default(false),
+	defaultAgentTemperature: real("defaultAgentTemperature"),
 	defaultEvaluationModel: text("defaultEvaluationModel").references(() => aiModel.id, {
 		onDelete: "set null",
 	}),
@@ -390,6 +399,9 @@ export const aiDefaults = pgTable("AiDefaults", {
 		.notNull()
 		.default("none"),
 	defaultSpeechToTextTemperature: real("defaultSpeechToTextTemperature"),
+	defaultStandardSupportsAgent: boolean("defaultStandardSupportsAgent")
+		.notNull()
+		.default(false),
 	defaultStandardSupportsAudio: boolean("defaultStandardSupportsAudio").notNull().default(false),
 	defaultStandardSupportsDocuments: boolean("defaultStandardSupportsDocuments")
 		.notNull()
@@ -436,7 +448,14 @@ export const aiScribeFormConfig = pgTable(
 		visibility: text("visibility").notNull().default("public"),
 	},
 	(table) => [
-		uniqueIndex("AiScribeFormConfig_slug_key").on(table.slug),
+		// Slugs are unique per namespace: global (author-less) entries share one
+		// namespace; user-owned entries are unique per author.
+		uniqueIndex("AiScribeFormConfig_global_slug_key")
+			.on(table.slug)
+			.where(sql`${table.authorId} is null`),
+		uniqueIndex("AiScribeFormConfig_author_slug_key")
+			.on(table.authorId, table.slug)
+			.where(sql`${table.authorId} is not null`),
 		index("AiScribeFormConfig_authorId_idx").on(table.authorId),
 		index("AiScribeFormConfig_authorId_visibility_idx").on(table.authorId, table.visibility),
 		index("AiScribeFormConfig_enabled_idx").on(table.enabled),
@@ -480,7 +499,12 @@ export const aiScribeWorkspace = pgTable(
 		visibility: text("visibility").notNull().default("public"),
 	},
 	(table) => [
-		uniqueIndex("AiScribeWorkspace_slug_key").on(table.slug),
+		uniqueIndex("AiScribeWorkspace_global_slug_key")
+			.on(table.slug)
+			.where(sql`${table.authorId} is null`),
+		uniqueIndex("AiScribeWorkspace_author_slug_key")
+			.on(table.authorId, table.slug)
+			.where(sql`${table.authorId} is not null`),
 		index("AiScribeWorkspace_authorId_idx").on(table.authorId),
 		index("AiScribeWorkspace_enabled_idx").on(table.enabled),
 		index("AiScribeWorkspace_visibility_idx").on(table.visibility),

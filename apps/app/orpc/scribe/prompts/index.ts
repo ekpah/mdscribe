@@ -7,6 +7,7 @@ export {
 export {
 	documentTypeConfigs,
 	getDocumentTypeByPromptName,
+	getPromptHarnessGender,
 	getPromptHarnessLabel,
 	getPromptHarnessReferences,
 	getPromptHarnessTargetField,

@@ -231,6 +231,7 @@ describe("Admin emails handler", () => {
 			emailVerified: false,
 			id: crypto.randomUUID(),
 			name: "Unverified User",
+			username: "unverified-user",
 		});
 
 		const result = await call(

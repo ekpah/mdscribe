@@ -23,6 +23,10 @@ export const router = {
 			const handlerModule = await import("./admin/embeddings");
 			return { default: handlerModule.embeddingsHandler };
 		}),
+		license: lazy(async () => {
+			const handlerModule = await import("./admin/license");
+			return { default: handlerModule.licenseHandler };
+		}),
 		models: lazy(async () => {
 			const handlerModule = await import("./admin/models");
 			return { default: handlerModule.modelsHandler };

@@ -204,6 +204,7 @@ export const createTestUser = async (
 		email?: string;
 		name?: string;
 		stripeCustomerId?: string | null;
+		username?: string;
 	},
 ): Promise<{
 	user: typeof user.$inferSelect;
@@ -214,15 +215,19 @@ export const createTestUser = async (
 	const stripeCustomerId =
 		options && "stripeCustomerId" in options ? options.stripeCustomerId : `cus_test_${Date.now()}`;
 	const userId = crypto.randomUUID();
+	const username =
+		options?.username ?? `user_${userId.replaceAll("-", "").slice(0, 12)}`;
 
 	const [fetchedUser] = await db
 		.insert(user)
 		.values({
+			displayUsername: username,
 			email,
 			emailVerified: true,
 			id: userId,
 			name,
 			stripeCustomerId,
+			username,
 		})
 		.returning();
 
@@ -479,12 +484,15 @@ export const createTestAiDefaults = async (
 	await db
 		.insert(aiDefaults)
 		.values({
+			defaultAgentModelId: modelRecordId,
+			defaultAgentReasoningEffort: "medium",
 			defaultEvaluationModel: modelRecordId,
 			defaultEvaluationReasoningEffort: "medium",
 			defaultFileImageModelId: modelRecordId,
 			defaultFileImageReasoningEffort: "none",
 			defaultSpeechToTextModelId: modelRecordId,
 			defaultSpeechToTextReasoningEffort: "none",
+			defaultStandardSupportsAgent: true,
 			defaultTextModelId: modelRecordId,
 			defaultTextReasoningEffort: "medium",
 			id: "global",
@@ -492,12 +500,15 @@ export const createTestAiDefaults = async (
 		})
 		.onConflictDoUpdate({
 			set: {
+				defaultAgentModelId: modelRecordId,
+				defaultAgentReasoningEffort: "medium",
 				defaultEvaluationModel: modelRecordId,
 				defaultEvaluationReasoningEffort: "medium",
 				defaultFileImageModelId: modelRecordId,
 				defaultFileImageReasoningEffort: "none",
 				defaultSpeechToTextModelId: modelRecordId,
 				defaultSpeechToTextReasoningEffort: "none",
+				defaultStandardSupportsAgent: true,
 				defaultTextModelId: modelRecordId,
 				defaultTextReasoningEffort: "medium",
 				updatedAt: new Date(),

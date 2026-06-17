@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from '@repo/design-system/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
-import { PRODUCT_PLANS } from '@/lib/product-plans';
+import { orpc } from '@/lib/orpc';
 
 interface SubscriptionCardProps {
   subscription?: Subscription;
@@ -26,21 +26,11 @@ export const SubscriptionCard = ({
   onCancel,
 }: SubscriptionCardProps) => {
   const hasActiveSubscription = !!subscription;
-  const monthlyUsageLimit =
-    PRODUCT_PLANS[hasActiveSubscription ? 'plus' : 'free'].scribeUsageLimit;
-
-  const { data } = useQuery({
-    queryFn: async () => {
-      const res = await fetch('/api/scribe/getUsage');
-      if (!res.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return res.json();
-    },
-    queryKey: ['usage'],
-  });
-
-  const { usage } = data || {};
+  const { data } = useQuery(orpc.getUsage.queryOptions());
+  const usageProgress = Math.max(
+    0,
+    Math.min(100, data?.usage.monthlyUsagePercentage ?? 0)
+  );
 
   const statusBadge = subscription?.cancelAtPeriodEnd ? (
     <Badge
@@ -77,13 +67,19 @@ export const SubscriptionCard = ({
               <span className="font-medium text-sm">Plan</span>
               <span className="text-sm capitalize">{subscription?.plan}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">
-                Nutzung (aktueller Monat)
-              </span>
-              <span className="text-sm">
-                {usage?.count || 0} / {monthlyUsageLimit}
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-sm">
+                  Nutzung (aktueller Monat)
+                </span>
+                <span className="font-semibold text-sm">{usageProgress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
+                <div
+                  className="h-full rounded-full bg-solarized-violet transition-all"
+                  style={{ width: `${usageProgress}%` }}
+                />
+              </div>
             </div>
             {subscription?.periodEnd && (
               <div className="flex items-center justify-between">
@@ -134,13 +130,19 @@ export const SubscriptionCard = ({
               <span className="font-medium text-sm">Plan</span>
               <span className="text-sm">Basis</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">
-                Nutzung (aktueller Monat)
-              </span>
-              <span className="text-sm">
-                {usage?.count || 0} / {monthlyUsageLimit}
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-sm">
+                  Nutzung (aktueller Monat)
+                </span>
+                <span className="font-semibold text-sm">{usageProgress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
+                <div
+                  className="h-full rounded-full bg-solarized-violet transition-all"
+                  style={{ width: `${usageProgress}%` }}
+                />
+              </div>
             </div>
           </CardContent>
           <CardFooter className="mt-auto">

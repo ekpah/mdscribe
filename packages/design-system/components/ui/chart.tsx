@@ -10,6 +10,14 @@ const THEMES = {
   light: "",
 } as const
 
+// recharts' ResponsiveContainer defaults initialDimension to {-1, -1}, which
+// makes the first render (before the ResizeObserver measures the container)
+// log "The width(-1) and height(-1) of chart should be greater than 0". recharts
+// only warns when neither dimension is > 0, so a minimal positive seed silences
+// it; the observer overwrites these with the real measured size on the next
+// frame, and 1x1 is too small to cause a visible wrong-size flash.
+const CHART_INITIAL_DIMENSION = { height: 1, width: 1 } as const
+
 export type ChartConfig = {
   [key: string]: {
     color?: string
@@ -61,7 +69,7 @@ function ChartContainer({
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
+        <RechartsPrimitive.ResponsiveContainer initialDimension={CHART_INITIAL_DIMENSION}>
           {children}
         </RechartsPrimitive.ResponsiveContainer>
       </div>

@@ -1,6 +1,9 @@
 import { ORPCError } from "@orpc/server";
+import type { Database } from "@repo/database";
 import { generateText } from "ai";
 
+import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
+import type { StandardUsage } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { buildProviderOptions } from "@/orpc/scribe/providers";
 import type {
@@ -8,6 +11,8 @@ import type {
 	ResolvedDefaultModelSelection,
 } from "@/orpc/scribe/providers";
 import type { FillInputsContextFile } from "@/orpc/scribe/types";
+
+import { logMediaPreprocessingUsage } from "./preprocessing-usage";
 
 interface PreparedContextFilePart {
 	data: Buffer;
@@ -64,12 +69,14 @@ export const formatContextFileMetadataForPrompt = (
  */
 export const extractContextFileText = async ({
 	contextFiles,
+	db,
 	modelSelection,
 	strategy = "multimodal",
 	userId,
 	zdr,
 }: {
 	contextFiles: FillInputsContextFile[] | undefined;
+	db?: Database;
 	modelSelection: ResolvedDefaultModelSelection;
 	strategy?: MediaPreprocessStrategy;
 	userId: string;
@@ -105,16 +112,17 @@ export const extractContextFileText = async ({
 					},
 				];
 
+	const requestStartedAt = Date.now();
 	const result = await generateText({
 		messages,
 		model: modelSelection.model.model,
-			providerOptions: buildProviderOptions({
-				includeUsage: true,
-				model: modelSelection.model,
-				reasoningEffort: modelSelection.reasoningEffort,
-				userId,
-				zdr,
-			}),
+		providerOptions: buildProviderOptions({
+			includeUsage: true,
+			model: modelSelection.model,
+			reasoningEffort: modelSelection.reasoningEffort,
+			userId,
+			zdr,
+		}),
 		temperature: 0.1,
 	}).catch((error: unknown) => {
 		const details =
@@ -123,8 +131,38 @@ export const extractContextFileText = async ({
 			message: `Dateien konnten nicht analysiert werden. (${details})`,
 		});
 	});
+	const timeToCompletionMs = Date.now() - requestStartedAt;
 
 	const extractedText = result.text.trim();
+	const promptName = strategy === "direct" ? "ocr:direct" : "ocr:prompt";
+	await logMediaPreprocessingUsage({
+		db,
+		inputData: {
+			contextFiles: contextFiles.map((file, index) => ({
+				index: index + 1,
+				mediaType: file.mimeType,
+				name: file.name,
+				payloadBytes: Buffer.from(file.data, "base64").length,
+				size: file.size,
+			})),
+		},
+		isOpenRouter: modelSelection.model.isOpenRouter,
+		metadata: {
+			endpoint: promptName,
+			promptLabel: promptName,
+			promptName,
+			slot: modelSelection.slot,
+			strategy,
+		},
+		modelName: modelSelection.model.modelName,
+		name: AI_SCRIBE_OCR_EVENT_NAME,
+		providerMetadata: (result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
+		result: extractedText,
+		standardUsage: result.usage as StandardUsage,
+		timing: { timeToCompletionMs },
+		userId,
+		zdr,
+	});
 	if (!extractedText) {
 		return "";
 	}

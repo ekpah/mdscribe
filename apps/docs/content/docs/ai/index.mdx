@@ -44,6 +44,8 @@ Pruefen Sie das Ergebnis immer fachlich:
 
 Admins koennen unter `/admin/settings/models` im Tab `AI Vorlagen` globale zusaetzliche AIScribe-Vorlagen anlegen. Nutzer koennen eigene AI Vorlagen unter `/profile/ai-scribe` verwalten.
 
+Nutzer koennen unter `/profile/ai-scribe` auch eigene Brief-Baukaesten erstellen. Ein Brief-Baukasten kombiniert mehrere passende AI Vorlagen zu einem Arztbrief-Editor mit Abschnitten fuer Diagnosen, Anamnese, Befunde und Epikrise. Private Brief-Baukaesten sind wie private AI Vorlagen eine Plus-Funktion; oeffentliche Brief-Baukaesten erscheinen fuer andere Nutzer auf `/aiscribe`, wenn sie aktiviert sind.
+
 Im Tab `Modelle` werden globale Standardmodelle gesetzt: optional ein multi-modales Modell, sonst getrennte Standards fuer Text, OCR/File/Image, Audio-Transkription und Evaluation. Pro Standardmodell kann Reasoning Effort gesetzt werden, wenn das Modell Reasoning-Unterstuetzung meldet.
 
 Die Standardmodi unter `Schnelle Dokument-Generierung` (`/aiscribe/er`, `/aiscribe/icu`, `/aiscribe/outpatient`, `/aiscribe/procedures`, `/aiscribe/discharge`, `/aiscribe/diagnoseblock`) koennen im selben Admin-Tab separat konfiguriert werden. Ohne aktive Override-Konfiguration bleibt das bisherige hardcoded Verhalten unveraendert.
@@ -61,6 +63,8 @@ Jeder Prompt-Harness erzeugt bzw. verbessert genau ein kanonisches Kontextfeld (
 AI Vorlagen verwenden kein eigenes Modell mehr, sondern immer die globalen Standardmodelle.
 
 Aktivierte globale und oeffentliche nutzererstellte Eintraege erscheinen automatisch auf `/aiscribe` im Bereich `Weitere Vorlagen`. Aktivierte eigene Eintraege erscheinen fuer den jeweiligen Nutzer direkt unter den Standardmodi im Bereich `Meine Vorlagen`. Private AI Vorlagen sind eine Plus-Funktion und bleiben nur fuer den Autor sichtbar und nutzbar.
+
+Aktivierte Brief-Baukaesten erscheinen auf `/aiscribe` im eigenen Brief-Baukasten-Bereich. Der integrierte Agent ist fuer alle angemeldeten Nutzer verfuegbar und verwendet bei weiteren Anfragen auch noch nicht angenommene Diff-Vorschlaege als aktuellen Abschnittsstand.
 
 AIScribe-Eingaben nutzen dieselbe Eingabe-Leiste wie das automatische Fuellen von Vorlagen: Text, Audioaufnahmen und Kontextdateien koennen ueber die drei Eingabe-Schalter gewechselt werden. Audio- und Datei-Eingaben werden je nach globalem Modell-Setup direkt multimodal verarbeitet oder vorher transkribiert bzw. extrahiert.
 

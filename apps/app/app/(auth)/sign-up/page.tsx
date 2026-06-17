@@ -17,6 +17,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { signUp } from "@/lib/auth-client";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
 const MIN_USERNAME_LENGTH = 3;
@@ -73,7 +74,11 @@ export default function SignUp() {
 			email,
 			fetchOptions: {
 				onError: (ctx) => {
-					toast.error(ctx.error.message);
+					toast.error(
+						ctx.error.code === "USERNAME_IS_ALREADY_TAKEN"
+							? USER_MESSAGES.userNameAlreadyTaken
+							: ctx.error.message,
+					);
 				},
 				onRequest: () => {
 					setLoading(true);
