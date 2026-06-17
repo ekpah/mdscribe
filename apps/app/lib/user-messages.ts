@@ -29,6 +29,7 @@ export const USER_MESSAGES = {
 	unauthorized: "Bitte melden Sie sich an, um diese Funktion zu nutzen.",
 	unknownError: "Es ist ein unbekannter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
 	usageLimitReached: "Monatliche Nutzungsgrenze erreicht. Bitte passen Sie Ihr Abonnement an.",
+	userNameAlreadyTaken: "Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.",
 	userNameFallbackHint:
 		"Wenn du keinen Benutzernamen einträgst, verwenden wir den Teil vor dem @ deiner E-Mail-Adresse.",
 	userNameMaxLength: "Benutzername darf nicht länger als 30 Zeichen sein.",
