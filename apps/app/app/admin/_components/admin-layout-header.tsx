@@ -12,6 +12,7 @@ const REFRESHABLE_ADMIN_PATHS = [
 	"/admin/usage",
 	"/admin/users",
 	"/admin/emails",
+	"/admin/license",
 ] as const;
 
 export const AdminLayoutHeader = () => {
