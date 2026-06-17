@@ -9,6 +9,9 @@ const server: Parameters<typeof createEnv>[0]["server"] = {
 
 	// Added by Node
 	CI: z.string().optional(),
+	// Signed, offline-verified license key that unlocks paid (seat-gated)
+	// configurations. Absent = free community configuration.
+	MDSCRIBE_LICENSE_KEY: z.string().optional(),
 	NEXT_RUNTIME: z.enum(["nodejs", "edge"]).optional(),
 	NODE_ENV: z.enum(["development", "production"]).default("development"),
 	OPENROUTER_API_KEY: z.string().min(1),
@@ -34,6 +37,7 @@ export const env = createEnv({
 		AUTH_POSTMARK_KEY: process.env.AUTH_POSTMARK_KEY,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		CI: process.env.CI,
+		MDSCRIBE_LICENSE_KEY: process.env.MDSCRIBE_LICENSE_KEY,
 		NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
 		NEXT_RUNTIME: process.env.NEXT_RUNTIME,
 		NODE_ENV: process.env.NODE_ENV,
