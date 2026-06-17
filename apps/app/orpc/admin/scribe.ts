@@ -280,6 +280,7 @@ const runHandler = authed
 			const attachmentsResult = await appendScribeInputAttachmentsToMessages({
 				audioFiles,
 				contextFiles,
+				db: context.db,
 				generationStrategy: {
 					audio: { mode: "native" },
 					files: { mode: "native" },
@@ -413,9 +414,11 @@ const transcribeAudioHandler = authed
 		if (mode === "native") {
 			const transcripts = await transcribeAudioFilesWithPrompt({
 				audioFiles,
+				db: context.db,
 				prompt: parsed.prompt,
 				resolvedModel: modelSelection.model,
 				userId: context.session.user.id,
+				zdr: false,
 			}).catch((error: unknown) => {
 				const details = error instanceof Error ? error.message : USER_MESSAGES.audioNotSupported;
 				throw new ORPCError("BAD_REQUEST", {
@@ -439,8 +442,11 @@ const transcribeAudioHandler = authed
 
 		const preparedAudio = await prepareAudioInputForModel({
 			audioFiles,
+			db: context.db,
 			mode: "transcription",
 			resolvedModel: modelSelection.model,
+			userId: context.session.user.id,
+			zdr: false,
 		}).catch((error: unknown) => {
 			const details = error instanceof Error ? error.message : USER_MESSAGES.audioNotSupported;
 			throw new ORPCError("BAD_REQUEST", {
