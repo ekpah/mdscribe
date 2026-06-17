@@ -44,6 +44,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+# Docker auto-sets HOSTNAME to the container ID; Next.js standalone binds to
+# `process.env.HOSTNAME || '0.0.0.0'`, so without this the server only listens
+# on the container's eth0 IP and the loopback healthcheck fails.
+ENV HOSTNAME=0.0.0.0
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl \
