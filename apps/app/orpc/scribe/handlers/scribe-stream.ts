@@ -468,6 +468,12 @@ const resolveCustomFormRequest = async ({
 
 type PreparedAudio = Awaited<ReturnType<typeof prepareAudioInputForModel>>;
 export type ResolvedGenerationStrategy = Awaited<ReturnType<typeof resolveGenerationStrategy>>;
+interface PreparedContextFiles {
+	fileParts: ReturnType<typeof createContextFileParts>;
+	fileTextContext: string;
+	metadataPrompt: string;
+	mode: "native" | "text";
+}
 
 const appendNativeAudioToMessages = (
 	messages: ModelMessage[],
@@ -530,21 +536,34 @@ const appendPreparedAudioToMessages = (
 	return appendNativeAudioToMessages(messages, preparedAudio);
 };
 
-const appendContextFilesToMessages = async ({
+const appendPreparedContextFilesToMessages = (
+	messages: ModelMessage[],
+	preparedFiles: PreparedContextFiles,
+): ModelMessage[] => {
+	if (preparedFiles.mode === "native") {
+		const withMetadata = appendTextToLastUserMessage(messages, preparedFiles.metadataPrompt);
+		return appendFilePartsToLastUserMessage(withMetadata, preparedFiles.fileParts);
+	}
+
+	return appendTextToLastUserMessage(
+		messages,
+		[preparedFiles.metadataPrompt, preparedFiles.fileTextContext].filter(Boolean).join("\n\n"),
+	);
+};
+
+const prepareContextFilesForMessages = async ({
 	contextFiles,
 	db,
 	generationStrategy,
-	messages,
 	userId,
 	zdr,
 }: {
 	contextFiles: FillInputsContextFile[];
 	db: Database;
 	generationStrategy: ResolvedGenerationStrategy;
-	messages: ModelMessage[];
 	userId: string;
 	zdr: boolean;
-}): Promise<{ fileTextContext: string; messages: ModelMessage[] }> => {
+}): Promise<PreparedContextFiles> => {
 	const filesPlan = generationStrategy.files;
 	if (!filesPlan) {
 		throw new ORPCError("BAD_REQUEST", {
@@ -554,13 +573,11 @@ const appendContextFilesToMessages = async ({
 
 	const fileMetadataPrompt = formatContextFileMetadataForPrompt(contextFiles);
 	if (filesPlan.mode === "native") {
-		const withMetadata = appendTextToLastUserMessage(messages, fileMetadataPrompt);
 		return {
+			fileParts: createContextFileParts(contextFiles),
 			fileTextContext: "",
-			messages: appendFilePartsToLastUserMessage(
-				withMetadata,
-				createContextFileParts(contextFiles),
-			),
+			metadataPrompt: fileMetadataPrompt,
+			mode: "native",
 		};
 	}
 
@@ -573,11 +590,10 @@ const appendContextFilesToMessages = async ({
 		zdr,
 	});
 	return {
+		fileParts: [],
 		fileTextContext,
-		messages: appendTextToLastUserMessage(
-			messages,
-			[fileMetadataPrompt, fileTextContext].filter(Boolean).join("\n\n"),
-		),
+		metadataPrompt: fileMetadataPrompt,
+		mode: "text",
 	};
 };
 
@@ -607,11 +623,11 @@ export const appendScribeInputAttachmentsToMessages = async ({
 	fileTextContext: string;
 	messages: ModelMessage[];
 }> => {
-	let nextMessages = messages;
-	let audioTranscripts: string[] = [];
-	let fileTextContext = "";
+	const prepareAudio = async (): Promise<PreparedAudio | null> => {
+		if (audioFiles.length === 0) {
+			return null;
+		}
 
-	if (audioFiles.length > 0) {
 		const audioPlan = generationStrategy.audio;
 		if (!audioPlan) {
 			throw new ORPCError("BAD_REQUEST", {
@@ -619,64 +635,72 @@ export const appendScribeInputAttachmentsToMessages = async ({
 			});
 		}
 
-		const prepareAudio = async (): Promise<PreparedAudio> => {
-			if (audioPlan.mode === "native") {
-				return prepareAudioInputForModel({
-					audioFiles,
-					db,
-					mode: "native",
-					resolvedModel: generationStrategy.generation.model,
-					userId,
-					zdr,
-				});
-			}
-
-			if (audioPlan.strategy === "multimodal") {
-				return {
-					contentParts: [],
-					strategy: "transcription",
-					transcripts: await transcribeAudioFilesWithPrompt({
-						audioFiles,
-						db,
-						resolvedModel: audioPlan.selection.model,
-						userId,
-						zdr,
-					}),
-				};
-			}
-
+		if (audioPlan.mode === "native") {
 			return prepareAudioInputForModel({
 				audioFiles,
 				db,
-				mode: "transcription",
-				resolvedModel: audioPlan.selection.model,
+				mode: "native",
+				resolvedModel: generationStrategy.generation.model,
 				userId,
 				zdr,
 			});
-		};
+		}
 
-		const preparedAudio = await prepareAudio().catch((error: unknown) => {
-			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-			throw new ORPCError("BAD_REQUEST", { message });
-		});
+		if (audioPlan.strategy === "multimodal") {
+			return {
+				contentParts: [],
+				strategy: "transcription",
+				transcripts: await transcribeAudioFilesWithPrompt({
+					audioFiles,
+					db,
+					resolvedModel: audioPlan.selection.model,
+					userId,
+					zdr,
+				}),
+			};
+		}
 
-		audioTranscripts = preparedAudio.transcripts;
-		nextMessages = appendPreparedAudioToMessages(nextMessages, preparedAudio);
-	}
-
-	if (contextFiles.length > 0) {
-		const filesResult = await appendContextFilesToMessages({
-			contextFiles,
+		return prepareAudioInputForModel({
+			audioFiles,
 			db,
-			generationStrategy,
-			messages: nextMessages,
+			mode: "transcription",
+			resolvedModel: audioPlan.selection.model,
 			userId,
 			zdr,
 		});
-		({ fileTextContext, messages: nextMessages } = filesResult);
-	}
+	};
 
-	return { audioTranscripts, fileTextContext, messages: nextMessages };
+	const prepareFiles = (): Promise<PreparedContextFiles | null> | null =>
+		contextFiles.length > 0
+			? prepareContextFilesForMessages({
+					contextFiles,
+					db,
+					generationStrategy,
+					userId,
+					zdr,
+				})
+			: null;
+
+	const [preparedAudio, preparedFiles] = await Promise.all([
+		prepareAudio(),
+		prepareFiles(),
+	]).catch((error: unknown) => {
+		const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+		throw new ORPCError("BAD_REQUEST", { message });
+	});
+
+	const withAudio = preparedAudio
+		? appendPreparedAudioToMessages(messages, preparedAudio)
+		: messages;
+	const nextMessages = preparedFiles
+		? appendPreparedContextFilesToMessages(withAudio, preparedFiles)
+		: withAudio;
+
+	return {
+		audioTranscripts: preparedAudio?.transcripts ?? [],
+		fileTextContext: preparedFiles?.fileTextContext ?? "",
+		messages: nextMessages,
+	};
 };
 
 /**
@@ -695,13 +719,6 @@ export const scribeStreamHandler = authed
 		// Extract prompt from the last user message
 		const prompt = extractPromptFromMessages(inputMessages);
 
-		// Check usage limits
-		const { entitlements } = await enforceScribeUsageLimit({
-			db: context.db,
-			entitlements: context.entitlements.scribe,
-			session: context.session,
-		});
-
 		// Validate input
 		const hasAudio = audioFiles.length > 0;
 		const hasContextFiles = contextFiles.length > 0;
@@ -713,24 +730,33 @@ export const scribeStreamHandler = authed
 		}
 
 		const hasFileInput = hasFileLikeInput(rawPrompt);
-		const resolvedRequest =
+		const resolvedRequestPromise =
 			input.source === "customForm"
-				? await resolveCustomFormRequest({
+				? resolveCustomFormRequest({
 						db: context.db,
 						formData: rawPrompt,
 						formId: input.formId,
 						sessionUser: context.session.user,
 					})
-				: await resolveBuiltInRequest({
+				: resolveBuiltInRequest({
 						documentType: input.documentType,
 						formData: rawPrompt,
 						sessionUser: context.session.user,
 					});
 
-		const generationStrategy = await resolveGenerationStrategy(context.db, {
-			hasAudio,
-			hasFiles: hasFileInput || hasContextFiles,
-		});
+		const [usageLimitResult, resolvedRequest, generationStrategy] = await Promise.all([
+			enforceScribeUsageLimit({
+				db: context.db,
+				entitlements: context.entitlements.scribe,
+				session: context.session,
+			}),
+			resolvedRequestPromise,
+			resolveGenerationStrategy(context.db, {
+				hasAudio,
+				hasFiles: hasFileInput || hasContextFiles,
+			}),
+		]);
+		const { entitlements } = usageLimitResult;
 		const generationSelection = generationStrategy.generation;
 
 		const attachmentsResult = await appendScribeInputAttachmentsToMessages({

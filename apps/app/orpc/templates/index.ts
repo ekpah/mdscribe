@@ -24,6 +24,18 @@ const favouriteCount = (templateId: typeof template.id) =>
 		"favouriteCount",
 	);
 
+const templateListSelection = {
+	_count: {
+		favouriteOf: favouriteCount(template.id),
+	},
+	authorId: template.authorId,
+	category: template.category,
+	id: template.id,
+	title: template.title,
+	updatedAt: template.updatedAt,
+	visibility: template.visibility,
+};
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -168,20 +180,7 @@ const ensureCanSaveTemplateVisibility = async ({
 const listTemplatesHandler = pub.handler(async ({ context }) => {
 	const userId = await getOptionalUserId(context);
 	const templates = await context.db
-		.select({
-			_count: {
-				favouriteOf: favouriteCount(template.id),
-			},
-			authorId: template.authorId,
-			category: template.category,
-			content: template.content,
-			embedding: template.embedding,
-			examples: template.examples,
-			id: template.id,
-			title: template.title,
-			updatedAt: template.updatedAt,
-			visibility: template.visibility,
-		})
+		.select(templateListSelection)
 		.from(template)
 		.where(visibleTemplateWhere(userId));
 
@@ -260,20 +259,7 @@ const getTemplateHandler = pub
  */
 const getFavouritesHandler = authed.handler(async ({ context }) => {
 	const favoriteTemplates = await context.db
-		.select({
-			_count: {
-				favouriteOf: favouriteCount(template.id),
-			},
-			authorId: template.authorId,
-			category: template.category,
-			content: template.content,
-			embedding: template.embedding,
-			examples: template.examples,
-			id: template.id,
-			title: template.title,
-			updatedAt: template.updatedAt,
-			visibility: template.visibility,
-		})
+		.select(templateListSelection)
 		.from(template)
 		.innerJoin(favourites, eq(favourites.templateId, template.id))
 		.where(
@@ -292,20 +278,7 @@ const getFavouritesHandler = authed.handler(async ({ context }) => {
  */
 const getAuthoredHandler = authed.handler(async ({ context }) => {
 	const userTemplates = await context.db
-		.select({
-			_count: {
-				favouriteOf: favouriteCount(template.id),
-			},
-			authorId: template.authorId,
-			category: template.category,
-			content: template.content,
-			embedding: template.embedding,
-			examples: template.examples,
-			id: template.id,
-			title: template.title,
-			updatedAt: template.updatedAt,
-			visibility: template.visibility,
-		})
+		.select(templateListSelection)
 		.from(template)
 		.where(eq(template.authorId, context.session.user.id))
 		.orderBy(desc(template.updatedAt))

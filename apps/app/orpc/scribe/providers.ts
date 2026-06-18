@@ -594,10 +594,16 @@ export const resolveGenerationStrategy = async (
 		};
 	};
 
+	const [audio, files, generation] = await Promise.all([
+		options.hasAudio ? buildAudioPlan() : Promise.resolve(null),
+		options.hasFiles ? buildFilesPlan() : Promise.resolve(null),
+		buildDefaultSelection(db, defaults, "text"),
+	]);
+
 	return {
-		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
-		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
-		generation: await buildDefaultSelection(db, defaults, "text"),
+		...(audio ? { audio } : {}),
+		...(files ? { files } : {}),
+		generation,
 	};
 };
 
@@ -612,11 +618,6 @@ export const resolveAgentGenerationStrategy = async (
 ): Promise<AgentGenerationStrategy> => {
 	const defaults = await getDefaults(db);
 	const usesStandardModel = defaults.defaultStandardSupportsAgent;
-	const generation = await buildDefaultSelection(
-		db,
-		defaults,
-		usesStandardModel ? "text" : "agent",
-	);
 	const supportsAudio = usesStandardModel
 		? defaults.defaultStandardSupportsAudio
 		: defaults.defaultAgentSupportsAudio;
@@ -646,9 +647,15 @@ export const resolveAgentGenerationStrategy = async (
 		};
 	};
 
+	const [generation, audio, files] = await Promise.all([
+		buildDefaultSelection(db, defaults, usesStandardModel ? "text" : "agent"),
+		options.hasAudio ? buildAudioPlan() : Promise.resolve(null),
+		options.hasFiles ? buildFilesPlan() : Promise.resolve(null),
+	]);
+
 	return {
-		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
-		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
+		...(audio ? { audio } : {}),
+		...(files ? { files } : {}),
 		generation,
 		usesStandardModel,
 	};
