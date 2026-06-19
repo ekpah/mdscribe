@@ -9,7 +9,7 @@ import {
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Download, Loader2, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, Loader2, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
@@ -37,7 +37,6 @@ const PROTOCOL_LABELS: Record<string, string> = {
 	openai: "OpenAI",
 	"openai-compatible": "OpenAI-kompatibel",
 	openrouter: "OpenRouter",
-	tinfoil: "Tinfoil",
 };
 
 interface ConnectionCardProps {
@@ -109,16 +108,6 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 						<Badge variant="outline" className="text-[10px] sm:text-xs">
 							{PROTOCOL_LABELS[connection.protocol] ?? connection.protocol}
 						</Badge>
-						{connection.protocol === "tinfoil" && (
-							<Badge
-								variant="outline"
-								className="border-solarized-green/40 bg-solarized-green/10 text-[10px] text-solarized-green sm:text-xs"
-								title="Anfragen werden Ende-zu-Ende in eine attestierte Secure Enclave verschlüsselt; auch der Betreiber kann Eingaben nicht mitlesen."
-							>
-								<ShieldCheck className="mr-1 h-3 w-3" />
-								Ende-zu-Ende verschlüsselt
-							</Badge>
-						)}
 						{connection.hasApiKey && (
 							<Badge variant="secondary" className="text-[10px] sm:text-xs">
 								API Key
