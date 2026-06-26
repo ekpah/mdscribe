@@ -36,4 +36,7 @@ export const USER_MESSAGES = {
 		"Wenn du keinen Benutzernamen einträgst, verwenden wir den Teil vor dem @ deiner E-Mail-Adresse.",
 	userNameMaxLength: "Benutzername darf nicht länger als 30 Zeichen sein.",
 	userNameMaxLengthHint: "Maximal 30 Zeichen erlaubt.",
+	weeklyUsageProjectionHint:
+		"Die gestrichelte Linie zeigt die auf sieben Tage hochgerechnete Nutzung der laufenden Woche.",
+	weeklyUsageProjectionLabel: "Prognose KI-Anfragen (Woche)",
 };

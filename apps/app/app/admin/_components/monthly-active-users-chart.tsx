@@ -15,6 +15,10 @@ import {
 import type { ChartConfig } from "@repo/design-system/components/ui/chart";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 
+import { USER_MESSAGES } from "@/lib/user-messages";
+import { getCurrentWeekUsageProjection } from "@/lib/weekly-usage-projection";
+import type { WeeklyUsageProjection } from "@/lib/weekly-usage-projection";
+
 interface MonthlyActiveUsersBucket {
 	activeUsers: number;
 	bucket: string;
@@ -35,6 +39,10 @@ const chartConfig = {
 	activeUsers: {
 		color: "var(--solarized-blue)",
 		label: "Aktive Nutzer (Monat)",
+	},
+	projectedRequests: {
+		color: "var(--solarized-orange)",
+		label: USER_MESSAGES.weeklyUsageProjectionLabel,
 	},
 	requests: {
 		color: "var(--solarized-orange)",
@@ -110,6 +118,7 @@ const formatCount = (
 
 interface ChartPoint {
 	activeUsers?: number;
+	projectedRequests?: number;
 	requests?: number;
 	x: number;
 }
@@ -117,6 +126,7 @@ interface ChartPoint {
 const buildChartData = (
 	trend: MonthlyActiveUsersBucket[],
 	weeklyRequests: WeeklyRequestsBucket[],
+	projection: WeeklyUsageProjection | null,
 ): ChartPoint[] => {
 	const pointByX = new Map<number, ChartPoint>();
 	const ensurePoint = (x: number): ChartPoint => {
@@ -132,8 +142,21 @@ const buildChartData = (
 	for (const bucket of trend) {
 		ensurePoint(bucketToEpoch(bucket.bucket)).activeUsers = bucket.activeUsers;
 	}
-	for (const bucket of weeklyRequests) {
-		ensurePoint(bucketToEpoch(bucket.bucket)).requests = bucket.requests;
+	const orderedWeeklyRequests = [...weeklyRequests].toSorted(
+		(first, second) => bucketToEpoch(first.bucket) - bucketToEpoch(second.bucket),
+	);
+	for (const [index, bucket] of orderedWeeklyRequests.entries()) {
+		const point = ensurePoint(bucketToEpoch(bucket.bucket));
+		if (bucket.bucket !== projection?.bucket) {
+			point.requests = bucket.requests;
+			continue;
+		}
+
+		point.projectedRequests = projection.requests;
+		const previousWeek = orderedWeeklyRequests[index - 1];
+		if (previousWeek) {
+			ensurePoint(bucketToEpoch(previousWeek.bucket)).projectedRequests = previousWeek.requests;
+		}
 	}
 
 	return [...pointByX.values()].toSorted((a, b) => a.x - b.x);
@@ -144,7 +167,8 @@ export const MonthlyActiveUsersChart = ({
 	trend,
 	weeklyRequests,
 }: MonthlyActiveUsersChartProps) => {
-	const data = buildChartData(trend, weeklyRequests);
+	const projection = getCurrentWeekUsageProjection(weeklyRequests, timeZone);
+	const data = buildChartData(trend, weeklyRequests, projection);
 	// One tick per month, placed exactly at the monthly active-users data points,
 	// so the weekly requests don't repeat the same month label across the axis.
 	const monthTicks = trend.map((bucket) => bucketToEpoch(bucket.bucket));
@@ -161,7 +185,7 @@ export const MonthlyActiveUsersChart = ({
 					</CardTitle>
 					<CardDescription>
 						Einzigartige Nutzer pro Kalendermonat (linke Achse) und KI-Anfragen pro Woche (rechte
-						Achse).
+						Achse). {projection ? USER_MESSAGES.weeklyUsageProjectionHint : null}
 					</CardDescription>
 				</div>
 				<div
@@ -243,6 +267,19 @@ export const MonthlyActiveUsersChart = ({
 								type="monotone"
 								yAxisId="requests"
 							/>
+							{projection ? (
+								<Line
+									connectNulls
+									dataKey="projectedRequests"
+									activeDot={false}
+									dot={false}
+									stroke="var(--color-projectedRequests)"
+									strokeDasharray="6 4"
+									strokeWidth={2.5}
+									type="monotone"
+									yAxisId="requests"
+								/>
+							) : null}
 						</ComposedChart>
 					</ChartContainer>
 				) : (
