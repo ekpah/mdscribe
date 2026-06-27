@@ -3,9 +3,19 @@
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import { Badge } from "@repo/design-system/components/ui/badge";
+import { Bubble, BubbleContent } from "@repo/design-system/components/ui/bubble";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Kbd } from "@repo/design-system/components/ui/kbd";
-import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
+import { Marker, MarkerContent, MarkerIcon } from "@repo/design-system/components/ui/marker";
+import { Message, MessageContent } from "@repo/design-system/components/ui/message";
+import {
+	MessageScroller,
+	MessageScrollerButton,
+	MessageScrollerContent,
+	MessageScrollerItem,
+	MessageScrollerProvider,
+	MessageScrollerViewport,
+} from "@repo/design-system/components/ui/message-scroller";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { cn } from "@repo/design-system/lib/utils";
 import type { UIMessage } from "ai";
@@ -215,7 +225,6 @@ const AgentComposer = forwardRef<
 		},
 		[onSend],
 	);
-
 	const requestRecordingToggle = useCallback(() => {
 		if (disabled) {
 			return;
@@ -598,122 +607,136 @@ export const DoctorsNoteAgentPanel = ({
 	);
 
 	return (
-		<div
-			className="relative flex h-full min-h-[28rem] flex-col rounded-xl border border-solarized-violet/20 bg-card"
-			onDragEnter={handleDragEnter}
-			onDragLeave={handleDragLeave}
-			onDragOver={handleDragOver}
-			onDrop={handleDrop}
-		>
-			{isDraggingFiles ? (
-				<div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-xl border-2 border-solarized-blue border-dashed bg-solarized-blue/15 text-solarized-blue backdrop-blur-sm">
-					<div className="flex items-center gap-2 rounded-md bg-background/90 px-3 py-2 font-medium text-sm shadow-sm">
-						<Paperclip className="h-4 w-4" />
-						Dateien ablegen
-					</div>
-				</div>
-			) : null}
-			{/* Header */}
-			<div className="flex items-center justify-between gap-2 border-b bg-gradient-to-r from-solarized-violet/5 to-solarized-blue/5 px-4 py-3">
-				<div className="flex items-center gap-2">
-					<div className="rounded-full bg-solarized-violet/10 p-1.5">
-						<Bot className="h-4 w-4 text-solarized-violet" />
-					</div>
-					<div>
-						<div className="font-semibold text-foreground text-sm">Agent</div>
-						<div className="text-muted-foreground text-xs">Bearbeitet den Arztbrief</div>
-					</div>
-				</div>
-				<Badge className="border-solarized-violet/30 text-solarized-violet" variant="outline">
-					Beta
-				</Badge>
-			</div>
-
-			{/* Transcript */}
-			<ScrollArea className="min-h-0 flex-1 px-4 py-4">
-				<div className="space-y-3">
-					<div className="flex justify-start">
-						<div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-foreground text-sm">
-							{INTRO_TEXT}
+		<MessageScrollerProvider autoScroll>
+			<div
+				className="relative flex h-full min-h-[28rem] flex-col rounded-xl border border-solarized-violet/20 bg-card"
+				onDragEnter={handleDragEnter}
+				onDragLeave={handleDragLeave}
+				onDragOver={handleDragOver}
+				onDrop={handleDrop}
+			>
+				{isDraggingFiles ? (
+					<div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-xl border-2 border-solarized-blue border-dashed bg-solarized-blue/15 text-solarized-blue backdrop-blur-sm">
+						<div className="flex items-center gap-2 rounded-md bg-background/90 px-3 py-2 font-medium text-sm shadow-sm">
+							<Paperclip className="h-4 w-4" />
+							Dateien ablegen
 						</div>
 					</div>
-
-					{messages.map((message) => {
-						const text = getMessageText(message);
-						const editedSectionIds =
-							message.role === "assistant" ? getAppliedSectionIds(message) : [];
-
-						return (
-							<div
-								className={cn(
-									"flex flex-col gap-1.5",
-									message.role === "user" ? "items-end" : "items-start",
-								)}
-								key={message.id}
-							>
-								{text.length > 0 && (
-									<div
-										className={cn(
-											"max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm",
-											message.role === "user"
-												? "bg-solarized-blue text-primary-foreground"
-												: "bg-muted text-foreground",
-										)}
-									>
-										{text}
-									</div>
-								)}
-								{editedSectionIds.map((sectionId) => (
-									<div
-										className="flex items-center gap-1.5 rounded-md border border-solarized-green/30 bg-solarized-green/10 px-2 py-1 text-solarized-green text-xs"
-										key={sectionId}
-									>
-										<PencilLine className="h-3.5 w-3.5" />
-										<span>
-											Vorschlag für {sectionLabelById.get(sectionId) ?? sectionId} – im Editor
-											prüfen
-										</span>
-									</div>
-								))}
-							</div>
-						);
-					})}
-
-					{isLoading && (
-						<div className="flex items-center gap-2 text-muted-foreground text-xs">
-							<Loader2 className="h-3.5 w-3.5 animate-spin" />
-							<span>Agent denkt nach…</span>
+				) : null}
+				{/* Header */}
+				<div className="flex items-center justify-between gap-2 border-b bg-gradient-to-r from-solarized-violet/5 to-solarized-blue/5 px-4 py-3">
+					<div className="flex items-center gap-2">
+						<div className="rounded-full bg-solarized-violet/10 p-1.5">
+							<Bot className="h-4 w-4 text-solarized-violet" />
 						</div>
-					)}
+						<div>
+							<div className="font-semibold text-foreground text-sm">Agent</div>
+							<div className="text-muted-foreground text-xs">Bearbeitet den Arztbrief</div>
+						</div>
+					</div>
+					<Badge className="border-solarized-violet/30 text-solarized-violet" variant="outline">
+						Beta
+					</Badge>
 				</div>
-			</ScrollArea>
 
-			{/* Composer: instruction input + reused audio/file context panels. */}
-			<div className="space-y-2 border-t p-3">
-				<AgentComposer
-					canSend={canSend}
-					controller={inputContext}
-					disabled={disabled}
-					instruction={instruction}
-					isLoading={isLoading}
-					onInstructionChange={setInstruction}
-					onSend={handleSend}
-					ref={composerRef}
-				/>
-				<div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-muted-foreground text-xs">
-					<span className="flex items-center gap-1.5">
-						<Kbd>⌘↵</Kbd> Senden
-					</span>
-					<span className="text-muted-foreground/40">|</span>
-					<span className="flex items-center gap-1.5">
-						<Kbd>⌘⇧1</Kbd> Text
-					</span>
-					<span className="text-muted-foreground/40">|</span>
-					<span className="flex items-center gap-1.5">
-						<Kbd>⌘⇧2</Kbd> Audio
-					</span>
+				{/* Transcript */}
+				<MessageScroller className="min-h-0 flex-1">
+					<MessageScrollerViewport className="px-4 py-4">
+						<MessageScrollerContent aria-busy={isLoading}>
+							<MessageScrollerItem messageId="agent-intro">
+								<Message>
+									<MessageContent>
+										<Bubble variant="muted">
+											<BubbleContent>{INTRO_TEXT}</BubbleContent>
+										</Bubble>
+									</MessageContent>
+								</Message>
+							</MessageScrollerItem>
+
+							{messages.map((message) => {
+								const text = getMessageText(message);
+								const editedSectionIds =
+									message.role === "assistant" ? getAppliedSectionIds(message) : [];
+								const isUserMessage = message.role === "user";
+
+								return (
+									<MessageScrollerItem
+										key={message.id}
+										messageId={message.id}
+										scrollAnchor={isUserMessage}
+									>
+										<Message align={isUserMessage ? "end" : "start"}>
+											<MessageContent>
+												{text.length > 0 && (
+													<Bubble
+														align={isUserMessage ? "end" : "start"}
+														variant={isUserMessage ? "default" : "muted"}
+													>
+														<BubbleContent className="whitespace-pre-wrap">{text}</BubbleContent>
+													</Bubble>
+												)}
+												{editedSectionIds.map((sectionId) => (
+													<Marker
+														className="w-fit rounded-md border border-solarized-green/30 bg-solarized-green/10 px-2 py-1 text-solarized-green text-xs"
+														key={sectionId}
+													>
+														<MarkerIcon>
+															<PencilLine className="h-3.5 w-3.5" />
+														</MarkerIcon>
+														<MarkerContent>
+															Vorschlag für {sectionLabelById.get(sectionId) ?? sectionId} – im
+															Editor prüfen
+														</MarkerContent>
+													</Marker>
+												))}
+											</MessageContent>
+										</Message>
+									</MessageScrollerItem>
+								);
+							})}
+
+							{isLoading && (
+								<MessageScrollerItem messageId="agent-loading">
+									<Marker className="w-fit text-muted-foreground text-xs">
+										<MarkerIcon>
+											<Loader2 className="h-3.5 w-3.5 animate-spin" />
+										</MarkerIcon>
+										<MarkerContent>Agent denkt nach…</MarkerContent>
+									</Marker>
+								</MessageScrollerItem>
+							)}
+						</MessageScrollerContent>
+					</MessageScrollerViewport>
+					<MessageScrollerButton />
+				</MessageScroller>
+
+				{/* Composer: instruction input + reused audio/file context panels. */}
+				<div className="space-y-2 border-t p-3">
+					<AgentComposer
+						canSend={canSend}
+						controller={inputContext}
+						disabled={disabled}
+						instruction={instruction}
+						isLoading={isLoading}
+						onInstructionChange={setInstruction}
+						onSend={handleSend}
+						ref={composerRef}
+					/>
+					<div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-muted-foreground text-xs">
+						<span className="flex items-center gap-1.5">
+							<Kbd>⌘↵</Kbd> Senden
+						</span>
+						<span className="text-muted-foreground/40">|</span>
+						<span className="flex items-center gap-1.5">
+							<Kbd>⌘⇧1</Kbd> Text
+						</span>
+						<span className="text-muted-foreground/40">|</span>
+						<span className="flex items-center gap-1.5">
+							<Kbd>⌘⇧2</Kbd> Audio
+						</span>
+					</div>
 				</div>
 			</div>
-		</div>
+		</MessageScrollerProvider>
 	);
 };
