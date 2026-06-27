@@ -24,6 +24,11 @@ export interface DoctorsNoteSectionConfig {
 	documentType?: DocumentType;
 	/** When set, generation streams through this AI Vorlage (harness + template). */
 	formId?: string;
+	/** Template metadata/content used by this section. */
+	template?: {
+		content: string;
+		title: string;
+	} | null;
 	/**
 	 * Build the prompt body for this section.
 	 * Only required if documentType is provided.

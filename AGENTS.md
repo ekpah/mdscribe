@@ -69,6 +69,7 @@ When implementing new functionality, deliver the complete feature rather than on
 - Template detail right-edge tabs switch only the right preview/examples pane; they must not replace the full card or hide the left input column when a template has inputs.
 - Like-count labels use singular `Like` for exactly 1 and plural `Likes` otherwise.
 - Template selector triggers should look like normal single-line selects after selection and use grouped shadcn Select primitives (`SelectGroup`, `SelectLabel`, `SelectSeparator`) from the design-system UI. Keep the top `Keins` option unlabelled; only actual template categories should have group labels. Keep template author/favourite ownership details out of selected values and option badges; explain in the adjacent Template tooltip that own and favourited templates are selectable.
+- AI workspace text placeholders should derive from the section's existing template content (for example `template.content`) instead of adding parallel fields such as `templatePlaceholder`.
 
 ## Project Overview
 
