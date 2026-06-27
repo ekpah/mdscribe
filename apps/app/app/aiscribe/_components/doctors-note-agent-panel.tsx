@@ -43,6 +43,7 @@ import type {
 	InputContextFile,
 	UploadedContextFile,
 } from "@/app/_components/input-context/types";
+import { useInputContextClipboardPaste } from "@/app/_components/input-context/use-input-context-clipboard-paste";
 import { useInputContextState } from "@/app/_components/input-context/use-input-context-state";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
 import { orpc } from "@/lib/orpc";
@@ -225,6 +226,14 @@ const AgentComposer = forwardRef<
 		},
 		[onSend],
 	);
+	const handleInputContextPaste = useInputContextClipboardPaste({
+		controller,
+		disabled: fieldsDisabled,
+		onContextFilesAdded: () => {
+			markPanelMounted("files");
+			setOpenPanel("files");
+		},
+	});
 	const requestRecordingToggle = useCallback(() => {
 		if (disabled) {
 			return;
@@ -302,6 +311,7 @@ const AgentComposer = forwardRef<
 					onInstructionChange(event.target.value);
 				}}
 				onKeyDown={handleInstructionKeyDown}
+				onPaste={handleInputContextPaste}
 				placeholder="Anweisung an den Agent (⌘↵ zum Senden)…"
 				ref={textareaRef}
 				value={instruction}

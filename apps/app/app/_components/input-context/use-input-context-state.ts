@@ -16,7 +16,7 @@ import {
 	getTextContextFieldCount,
 	toSubmittedTextContext,
 } from "./inputs/text/text-input";
-import { addContextFilesToValue } from "./files";
+import { addAudioFilesToValue, addContextFilesToValue } from "./files";
 import type {
 	AudioRecording,
 	InputContextAudioFile,
@@ -62,6 +62,26 @@ export const useInputContextState = ({
 	const hasAudioRecordings = audioRecordings.length > 0;
 	const hasContextFiles = contextFiles.length > 0;
 	const hasAnyContext = hasAudioRecordings || hasTextContext || hasContextFiles;
+
+	const addAudioFiles = useCallback(
+		(files: File[]) => {
+			const result = addAudioFilesToValue({
+				currentRecordings: audioRecordings,
+				files,
+				maxRecordings: effectiveMaxRecordings,
+			});
+			if (!result.ok) {
+				if (result.message) {
+					toast.error(result.message);
+				}
+				return false;
+			}
+
+			setAudioRecordings(result.recordings);
+			return true;
+		},
+		[audioRecordings, effectiveMaxRecordings],
+	);
 
 	const addContextFiles = useCallback(
 		(files: File[]) => {
@@ -139,6 +159,7 @@ export const useInputContextState = ({
 		}, [audioRecordings, contextFiles, textContext]);
 
 	return {
+		addAudioFiles,
 		addContextFiles,
 		audioRecordings,
 		contextFiles,

@@ -47,6 +47,7 @@ export interface UploadedContextFile {
 export type InputContextPanel = "audio" | "files" | "text";
 
 export interface InputContextController {
+	addAudioFiles: (files: File[]) => boolean;
 	addContextFiles: (files: File[]) => boolean;
 	audioRecordings: AudioRecording[];
 	contextFiles: UploadedContextFile[];
