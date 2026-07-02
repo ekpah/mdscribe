@@ -82,6 +82,10 @@ type AiDefaultsRow = typeof aiDefaults.$inferSelect;
 const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
 	parameters ?? [];
 
+export const modelAllowsReasoningOptions = (
+	model: Pick<ResolvedModel, "supportedParameters" | "supportsReasoning">,
+): boolean => model.supportsReasoning || model.supportedParameters.length === 0;
+
 const REASONING_EFFORTS = new Set<ReasoningEffort>([
 	"none",
 	"minimal",
@@ -616,7 +620,7 @@ export const buildProviderOptions = ({
 }): Record<string, Record<string, JSONValue>> | undefined => {
 	const normalizedReasoningEffort = normalizeReasoningEffort(reasoningEffort);
 	const effectiveReasoningEffort =
-		model.supportsReasoning && normalizedReasoningEffort !== "none"
+		modelAllowsReasoningOptions(model) && normalizedReasoningEffort !== "none"
 			? normalizedReasoningEffort
 			: undefined;
 

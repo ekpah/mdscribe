@@ -829,10 +829,28 @@ describe("buildProviderOptions", () => {
 		});
 	});
 
-	test("omits reasoning when the model does not support it", () => {
+	test("sends reasoning when support is unknown", () => {
 		const options = buildProviderOptions({
 			model: createResolvedModel({
 				providerProtocol: "openai-compatible",
+				supportedParameters: [],
+				supportsReasoning: false,
+			}),
+			reasoningEffort: "high",
+		});
+
+		expect(options).toEqual({
+			openaiCompatible: {
+				reasoningEffort: "high",
+			},
+		});
+	});
+
+	test("omits reasoning when the model explicitly does not support it", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({
+				providerProtocol: "openai-compatible",
+				supportedParameters: ["temperature"],
 				supportsReasoning: false,
 			}),
 			reasoningEffort: "high",

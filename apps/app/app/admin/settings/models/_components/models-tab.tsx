@@ -19,7 +19,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ReasoningEffortSelect } from "@/app/admin/_components/reasoning-effort-select";
-import { supportsReasoningParameters } from "@/app/admin/_lib/reasoning";
+import {
+	getReasoningSupportStatus,
+	supportsReasoningParameters,
+} from "@/app/admin/_lib/reasoning";
 import type { ReasoningEffort } from "@/app/admin/_lib/reasoning";
 import { orpc } from "@/lib/orpc";
 
@@ -410,6 +413,7 @@ const DefaultModelRow = ({
 	selectorOptions: ModelOption[];
 	temperature: number | null;
 }) => {
+	const reasoningSupportStatus = getReasoningSupportStatus(selectedModel);
 	const supportsReasoning = supportsReasoningParameters(selectedModel);
 	const selectorId = `default-${row.type}-model`;
 	const rowDisabled = isUpdating || coveredByStandard;
@@ -466,10 +470,16 @@ const DefaultModelRow = ({
 					showDescription={false}
 					value={supportsReasoning ? reasoningEffort : "none"}
 				/>
-				{selectedModel && !supportsReasoning ? (
+				{selectedModel && reasoningSupportStatus === "unsupported" ? (
 					<p className="text-solarized-base01 text-xs">
-						Dieses Modell meldet keine Reasoning-Unterstützung. MDScribe sendet deshalb keine
-						Reasoning-Optionen.
+						Dieses Modell listet Reasoning nicht als unterstützten Parameter. MDScribe sendet
+						deshalb keine Reasoning-Optionen.
+					</p>
+				) : null}
+				{selectedModel && reasoningSupportStatus === "unknown" ? (
+					<p className="text-solarized-base01 text-xs">
+						Dieser Provider meldet keine Parameterliste. Sie können Reasoning trotzdem setzen;
+						wenn das Modell es nicht unterstützt, kann der Provider die Anfrage ablehnen.
 					</p>
 				) : null}
 				<DefaultTemperatureControl
@@ -637,9 +647,10 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 			setDefaultMutation.mutate({
 				defaultType,
 				modelId,
-				reasoningEffort: supportsReasoningParameters(selectedModel)
-					? currentReasoningEffort
-					: "none",
+				reasoningEffort:
+					getReasoningSupportStatus(selectedModel) === "unsupported"
+						? "none"
+						: currentReasoningEffort,
 			});
 		},
 		[getDefaultReasoningEffort, modelById, setDefaultMutation],

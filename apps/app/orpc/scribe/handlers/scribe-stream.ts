@@ -33,7 +33,11 @@ import {
 	getPromptHarnessLabel,
 	resolvePromptHarnessId,
 } from "@/orpc/scribe/prompts";
-import { buildProviderOptions, resolveGenerationStrategy } from "@/orpc/scribe/providers";
+import {
+	buildProviderOptions,
+	modelAllowsReasoningOptions,
+	resolveGenerationStrategy,
+} from "@/orpc/scribe/providers";
 import type {
 	AudioFile,
 	DocumentType,
@@ -843,7 +847,8 @@ export const scribeStreamHandler = authed
 					promptLabel: resolvedRequest.config.promptLabel,
 					promptName: resolvedRequest.config.promptName,
 					reasoningEffort:
-						generationSelection.model.isOpenRouter && generationSelection.model.supportsReasoning
+						generationSelection.model.isOpenRouter &&
+						modelAllowsReasoningOptions(generationSelection.model)
 							? reasoningEffort
 							: "none",
 					timing: {
