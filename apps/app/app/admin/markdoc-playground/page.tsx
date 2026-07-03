@@ -30,18 +30,6 @@ import { MemoizedCopySection } from "@/app/aiscribe/_components/memoized-copy-se
 
 import TipTap from "./tip-tap-dynamic";
 
-// Tag properties are edited via the inspector; without a sidebar column this
-// page uses the sheet variant for all viewport sizes.
-const TagInspectorSheet = dynamic(
-	async () => {
-		const mod = await import(
-			"@repo/design-system/components/editor/tag-inspector/tag-inspector-sheet"
-		);
-		return mod.TagInspectorSheet;
-	},
-	{ ssr: false },
-);
-
 const DEFAULT_TEMPLATE = `# Patient Score
 
 Patient: {% info "patient_name" /%}

@@ -53,7 +53,7 @@ export interface AgentToolTraceEntry {
 	sectionId?: string;
 }
 
-const recordToolTrace = (
+export const recordToolTrace = (
 	trace: AgentToolTraceEntry[],
 	entry: AgentToolTraceEntry,
 ): void => {

@@ -34,7 +34,6 @@ import {
 	formatCost,
 	formatDate,
 	formatDuration,
-	getToolSectionId,
 	getUsageEvaluation,
 	formatScore,
 	formatStatTokensPerSecond,
@@ -704,7 +703,6 @@ interface SelectedToolPayload {
 	inputData: unknown;
 	name: string;
 	outputData: unknown;
-	sectionId: string | null;
 }
 
 const toDateMs = (value: Date | string | null | undefined): number | null => {
@@ -784,8 +782,6 @@ const buildTraceRows = ({
 				: undefined;
 			const eventForRow = linkedEvent ?? generationEvent;
 			const isTool = observation.type === "tool";
-			const observationStartedMs = toDateMs(observation.startedAt);
-			const observationEndedMs = toDateMs(observation.endedAt);
 			let rowKind: UsageListEvent["rowKind"] = "observation";
 			if (isTool) {
 				rowKind = "tool";
@@ -802,10 +798,7 @@ const buildTraceRows = ({
 					name: observation.name,
 					outputTokens: null,
 					reasoningTokens: null,
-					timeToCompletionMs:
-						observationStartedMs !== null && observationEndedMs !== null
-							? Math.max(0, observationEndedMs - observationStartedMs)
-							: null,
+					timeToCompletionMs: null,
 					timeToFirstTokenMs: null,
 					timestamp: observation.startedAt,
 					totalTokens: null,
@@ -1078,24 +1071,18 @@ const useUsageEventsState = (filters: UsageFilters, statsFilter: StatsFilter, ti
 				tableRow.toggleExpanded();
 				return;
 			}
-			if (row.rowKind === "observation") {
-				return;
+			if (row.rowKind !== "observation") {
+				setSelectedToolPayload(
+					row.rowKind === "tool"
+						? {
+							inputData: row.toolInputData,
+							name: row.name,
+							outputData: row.toolOutputData,
+						}
+						: null,
+				);
+				setSelectedEventId(row.linkedUsageEventId ?? row.id);
 			}
-			if (row.rowKind === "tool") {
-				// editSection has no linked UsageEvent — the sheet opens on the
-				// tool payload alone; generateSection additionally loads its
-				// generation event.
-				setSelectedToolPayload({
-					inputData: row.toolInputData,
-					name: row.name,
-					outputData: row.toolOutputData,
-					sectionId: getToolSectionId(row.metadata),
-				});
-				setSelectedEventId(row.linkedUsageEventId ?? null);
-				return;
-			}
-			setSelectedToolPayload(null);
-			setSelectedEventId(row.id);
 		},
 		[],
 	);

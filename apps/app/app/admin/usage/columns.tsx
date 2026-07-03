@@ -221,22 +221,11 @@ export const UsagePromptBadge = ({
 	);
 };
 
-export const getToolSectionId = (metadata: unknown): string | null => {
-	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+const getToolSectionId = (metadata: Record<string, unknown> | null): string | null => {
+	if (!metadata || typeof metadata.sectionId !== "string") {
 		return null;
 	}
-	const { sectionId } = metadata as Record<string, unknown>;
-	return typeof sectionId === "string" ? sectionId : null;
-};
-
-const toolPromptVerbs: Record<string, string> = {
-	editSection: "edit",
-	generateSection: "generate",
-};
-
-const getToolPromptLabel = (name: string, sectionId: string | null): string => {
-	const verb = toolPromptVerbs[name] ?? name;
-	return sectionId ? `${verb}: ${sectionId}` : verb;
+	return metadata.sectionId;
 };
 
 export const buildPlaygroundUrl = (event: UsageListEvent): string => {
@@ -360,19 +349,19 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 	columnHelper.accessor("name", {
 		cell: (info) => {
 			const isTrace = info.row.original.rowKind === "trace";
-			const isTool = info.row.original.rowKind === "tool";
 			return (
 				<Badge
 					variant={
-						info.row.original.rowKind === "observation" || isTool ? "secondary" : "outline"
+						info.row.original.rowKind === "observation" || info.row.original.rowKind === "tool"
+							? "secondary"
+							: "outline"
 					}
 					className={cn(
 						"hidden whitespace-nowrap sm:inline-flex",
 						isTrace && "border-solarized-green/50 bg-solarized-green/10 text-solarized-green",
-						isTool && "border-solarized-cyan/50 bg-solarized-cyan/10 text-solarized-cyan",
 					)}
 				>
-					{isTool ? "Tool-Aufruf" : info.getValue()}
+					{info.getValue()}
 				</Badge>
 			);
 		},
@@ -388,14 +377,7 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 		cell: (info) => {
 			const metadata = info.getValue() as Record<string, unknown> | null;
 			const sectionId = getToolSectionId(metadata);
-			if (info.row.original.rowKind === "tool") {
-				return (
-					<Badge variant="secondary" className="hidden max-w-[190px] font-mono text-xs lg:inline-flex">
-						{getToolPromptLabel(info.row.original.name, sectionId)}
-					</Badge>
-				);
-			}
-			if (info.row.original.rowKind === "observation") {
+			if (info.row.original.rowKind === "observation" || info.row.original.rowKind === "tool") {
 				return sectionId ? (
 					<Badge variant="secondary" className="hidden max-w-[190px] font-mono text-xs lg:inline-flex">
 						Abschnitt: {sectionId}
@@ -475,7 +457,7 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 				return null;
 			}
 			const isEvaluating = evaluatingEventId === event.id;
-			const canEvaluate = Boolean(onEvaluate && !isEvaluating);
+			const canEvaluate = Boolean(onEvaluate && event.rowKind !== "observation" && !isEvaluating);
 
 			if (!evaluation || evaluation.categories.length === 0) {
 				return (

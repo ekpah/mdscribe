@@ -22,7 +22,7 @@ interface CustomAgentSectionGenerationInput {
 	source: "customForm";
 }
 
-type AgentSectionGenerationInput =
+export type AgentSectionGenerationInput =
 	| (BuiltInAgentSectionGenerationInput | CustomAgentSectionGenerationInput) & {
 		/** Only present for media that the agent already had to preprocess. */
 		preparedAttachmentText?: string;
