@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
+import type { ActiveSessionView } from "@/lib/session-device";
 
 import { ProfileCard } from "./profile-card";
 import { SubscriptionCard } from "./subscription-card";
@@ -20,7 +21,7 @@ interface User {
 interface AccountSettingsPageProps {
 	readonly user: User;
 	readonly subscription?: Subscription;
-	readonly activeSessions: Session["session"][];
+	readonly activeSessions: ActiveSessionView[];
 	readonly session: Session;
 }
 

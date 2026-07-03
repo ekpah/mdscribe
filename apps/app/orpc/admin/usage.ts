@@ -1,16 +1,21 @@
 import { ORPCError } from "@orpc/server";
 import {
 	and,
+	asc,
 	aiScribeFormConfig,
 	avg,
 	count,
 	desc,
 	eq,
+	inArray,
 	like,
 	lt,
+	gte,
 	sql,
 	sum,
 	usageEvent,
+	usageObservation,
+	usageTrace,
 	user,
 } from "@repo/database";
 import type { Database } from "@repo/database";
@@ -21,7 +26,7 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
-import { PLAYGROUND_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
+import { USAGE_EVENT_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
 import { buildProviderOptions, resolveDefaultModel } from "@/orpc/scribe/providers";
 
 const usageEvaluationSchema = z.object({
@@ -104,28 +109,120 @@ const getDocumentTypeForEvaluation = (
 	return eventName;
 };
 
-const listUsageEventsInput = z.object({
+type StatsFilter = "today" | "week" | "month" | "all";
+type TrendGranularity = "day" | "hour";
+
+const DEFAULT_USAGE_STATS_TIME_ZONE = "UTC";
+
+const resolveStatsTimeZone = (timeZone: string | undefined): string => {
+	if (!timeZone) {
+		return DEFAULT_USAGE_STATS_TIME_ZONE;
+	}
+
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+		return timeZone;
+	} catch {
+		return DEFAULT_USAGE_STATS_TIME_ZONE;
+	}
+};
+
+const toSqlStringLiteral = (value: string): ReturnType<typeof sql.raw> =>
+	sql.raw(`'${value.replaceAll("'", "''")}'`);
+
+const getLocalRangeStartExpression = (
+	filter: StatsFilter,
+	timeZoneLiteral: ReturnType<typeof sql.raw>,
+): ReturnType<typeof sql> | null => {
+	const localToday = sql`date_trunc('day', timezone(${timeZoneLiteral}, now()))`;
+
+	switch (filter) {
+		case "today": {
+			return localToday;
+		}
+		case "week": {
+			return sql`(${localToday} - interval '7 days')`;
+		}
+		case "month": {
+			return sql`(${localToday} - interval '30 days')`;
+		}
+		case "all": {
+			return null;
+		}
+		default: {
+			return null;
+		}
+	}
+};
+
+const usageFiltersInput = z.object({
+	action: z.string().trim().min(1).optional(),
 	cursor: z.string().optional(),
+	filter: z.enum(["today", "week", "month", "all"]).optional(),
 	limit: z.number().min(1).max(100).optional(),
+	model: z.string().trim().min(1).optional(),
 	name: z.string().optional(),
+	prompt: z.string().trim().min(1).optional(),
+	timeZone: z.string().trim().min(1).max(100).optional(),
 	userId: z.string().optional(),
 });
+
+const listUsageEventsInput = usageFiltersInput;
+
+const getUsagePromptExpression = () =>
+	sql<string>`coalesce(${usageEvent.metadata} ->> 'endpoint', ${usageEvent.metadata} ->> 'promptLabel', ${usageEvent.metadata} ->> 'promptName')`;
+
+interface UsageFilterValues {
+	action?: string;
+	filter?: StatsFilter;
+	model?: string;
+	name?: string;
+	prompt?: string;
+	timeZone?: string;
+	userId?: string;
+}
+
+const buildUsageFilterConditions = (input: UsageFilterValues) => {
+	const conditions = [];
+	if (input.userId) {
+		conditions.push(eq(usageEvent.userId, input.userId));
+	}
+	if (input.name) {
+		conditions.push(like(usageEvent.name, `%${input.name}%`));
+	}
+	if (input.action) {
+		conditions.push(eq(usageEvent.name, input.action));
+	}
+	if (input.model) {
+		conditions.push(eq(usageEvent.model, input.model));
+	}
+	if (input.prompt) {
+		conditions.push(eq(getUsagePromptExpression(), input.prompt));
+	}
+
+	const timeZone = resolveStatsTimeZone(input.timeZone);
+	const rangeStart = getLocalRangeStartExpression(
+		input.filter ?? "all",
+		toSqlStringLiteral(timeZone),
+	);
+	if (rangeStart) {
+		conditions.push(
+			gte(usageEvent.timestamp, sql`(${rangeStart} at time zone ${toSqlStringLiteral(timeZone)})`),
+		);
+	}
+
+	return conditions;
+};
 
 const listUsageEventsHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(listUsageEventsInput)
 	.handler(async ({ context, input }) => {
-		const { cursor, userId, name } = input;
+		const { cursor } = input;
 		const limit = input.limit ?? 25;
 
 		// Build where conditions
-		const conditions = [];
-		if (userId) {
-			conditions.push(eq(usageEvent.userId, userId));
-		}
-		if (name) {
-			conditions.push(like(usageEvent.name, `%${name}%`));
-		}
+		const conditions = buildUsageFilterConditions(input);
 
 		// For cursor pagination, we need to get the cursor record first
 		let cursorTimestamp: Date | null = null;
@@ -158,6 +255,7 @@ const listUsageEventsHandler = authed
 				timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
 				timestamp: usageEvent.timestamp,
 				totalTokens: usageEvent.totalTokens,
+				traceId: usageEvent.traceId,
 				user: {
 					email: user.email,
 					id: user.id,
@@ -173,11 +271,77 @@ const listUsageEventsHandler = authed
 		const hasMore = events.length > limit;
 		const items = hasMore ? events.slice(0, -1) : events;
 		const nextCursor = hasMore ? items.at(-1)?.id : undefined;
+		const traceIds = [...new Set(items.flatMap((event) => (event.traceId ? [event.traceId] : [])))];
+		const traces =
+			traceIds.length === 0
+				? []
+				: await context.db.query.usageTrace.findMany({
+						orderBy: [desc(usageTrace.startedAt)],
+						where: inArray(usageTrace.id, traceIds),
+						with: { observations: { orderBy: [asc(usageObservation.sequence)] } },
+					});
+		const traceEvents =
+			traceIds.length === 0
+				? []
+				: await context.db
+						.select({
+							cost: usageEvent.cost,
+							id: usageEvent.id,
+							inputTokens: usageEvent.inputTokens,
+							metadata: usageEvent.metadata,
+							model: usageEvent.model,
+							name: usageEvent.name,
+							outputTokens: usageEvent.outputTokens,
+							reasoningTokens: usageEvent.reasoningTokens,
+							timeToCompletionMs: usageEvent.timeToCompletionMs,
+							timeToFirstTokenMs: usageEvent.timeToFirstTokenMs,
+							timestamp: usageEvent.timestamp,
+							totalTokens: usageEvent.totalTokens,
+							traceId: usageEvent.traceId,
+							user: { email: user.email, id: user.id, name: user.name },
+						})
+						.from(usageEvent)
+						.leftJoin(user, eq(usageEvent.userId, user.id))
+						.where(inArray(usageEvent.traceId, traceIds))
+						.orderBy(asc(usageEvent.timestamp));
 
 		return {
 			hasMore,
 			items,
 			nextCursor,
+			traceEvents,
+			traces,
+		};
+	});
+
+const usageFilterOptionsHandler = authed
+	.use(requiredAdminMiddleware)
+	.handler(async ({ context }) => {
+		const promptExpression = getUsagePromptExpression();
+		const [actions, models, prompts] = await Promise.all([
+			context.db
+				.select({ value: usageEvent.name })
+				.from(usageEvent)
+				.groupBy(usageEvent.name)
+				.orderBy(asc(usageEvent.name)),
+			context.db
+				.select({ value: usageEvent.model })
+				.from(usageEvent)
+				.where(sql`${usageEvent.model} is not null`)
+				.groupBy(usageEvent.model)
+				.orderBy(asc(usageEvent.model)),
+			context.db
+				.select({ value: promptExpression })
+				.from(usageEvent)
+				.where(sql`${promptExpression} is not null`)
+				.groupBy(promptExpression)
+				.orderBy(asc(promptExpression)),
+		]);
+
+		return {
+			actions: actions.map((row) => row.value),
+			models: models.flatMap((row) => (row.value ? [row.value] : [])),
+			prompts: prompts.flatMap((row) => (row.value ? [row.value] : [])),
 		};
 	});
 
@@ -318,7 +482,7 @@ ${event.result}`,
 					userId: context.session.user.id,
 				}),
 				schema: usageEvaluationSchema,
-				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
+				system: USAGE_EVENT_EVALUATION_SYSTEM_PROMPT,
 				temperature: evaluationSelection.defaultTemperature ?? undefined,
 			});
 		} catch (error) {
@@ -363,64 +527,13 @@ ${event.result}`,
 		return usageEvaluation;
 	});
 
-const statsFilterInput = z.object({
-	filter: z.enum(["today", "week", "month", "all"]).optional(),
-	timeZone: z.string().trim().min(1).max(100).optional(),
-});
+const statsFilterInput = usageFiltersInput.omit({ cursor: true, limit: true, name: true });
 const monthlyActiveUsersInput = z.object({
 	timeZone: z.string().trim().min(1).max(100).optional(),
 });
 
-type StatsFilter = NonNullable<z.infer<typeof statsFilterInput>["filter"]>;
-type TrendGranularity = "day" | "hour";
-
-const DEFAULT_USAGE_STATS_TIME_ZONE = "UTC";
-
 const getTrendGranularity = (filter: StatsFilter): TrendGranularity =>
 	filter === "today" ? "hour" : "day";
-
-const resolveStatsTimeZone = (timeZone: string | undefined): string => {
-	if (!timeZone) {
-		return DEFAULT_USAGE_STATS_TIME_ZONE;
-	}
-
-	try {
-		new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
-		return timeZone;
-	} catch {
-		return DEFAULT_USAGE_STATS_TIME_ZONE;
-	}
-};
-
-// Postgres treats repeated bind parameters as different expressions in GROUP BY,
-// so the validated IANA timezone is embedded as a quoted literal.
-const toSqlStringLiteral = (value: string): ReturnType<typeof sql.raw> =>
-	sql.raw(`'${value.replaceAll("'", "''")}'`);
-
-const getLocalRangeStartExpression = (
-	filter: StatsFilter,
-	timeZoneLiteral: ReturnType<typeof sql.raw>,
-): ReturnType<typeof sql> | null => {
-	const localToday = sql`date_trunc('day', timezone(${timeZoneLiteral}, now()))`;
-
-	switch (filter) {
-		case "today": {
-			return localToday;
-		}
-		case "week": {
-			return sql`(${localToday} - interval '7 days')`;
-		}
-		case "month": {
-			return sql`(${localToday} - interval '30 days')`;
-		}
-		case "all": {
-			return null;
-		}
-		default: {
-			return null;
-		}
-	}
-};
 
 const toFiniteMetric = (value: unknown): number | null => {
 	if (value === null || value === undefined) {
@@ -505,12 +618,7 @@ const buildTrendBucket = (bucket: string, row: UsageTrendRow | undefined) => ({
 	bucket,
 	cost: Number(row?.cost) || 0,
 	costPerRequest: row
-		? buildPercentileStats(
-				row.costPerRequestP50,
-				row.costPerRequestP90,
-				row.costPerRequestP95,
-				6,
-			)
+		? buildPercentileStats(row.costPerRequestP50, row.costPerRequestP90, row.costPerRequestP95, 6)
 		: emptyPercentileStats,
 	events: Number(row?.events) || 0,
 	timeToCompletionMs: row
@@ -593,10 +701,6 @@ const buildUsageStatsExpressions = (filter: StatsFilter, timeZone: string) => {
 	const seriesStepExpression =
 		trendGranularity === "hour" ? sql`interval '1 hour'` : sql`interval '1 day'`;
 
-	const whereClause = localRangeStartExpression
-		? sql`${usageEvent.timestamp} >= (${localRangeStartExpression} at time zone ${timeZoneLiteral})`
-		: undefined;
-
 	return {
 		bucketExpression,
 		localNowBucketExpression,
@@ -604,7 +708,6 @@ const buildUsageStatsExpressions = (filter: StatsFilter, timeZone: string) => {
 		seriesStepExpression,
 		timeZoneLiteral,
 		trendGranularity,
-		whereClause,
 	};
 };
 
@@ -620,8 +723,9 @@ const getUsageStatsHandler = authed
 			seriesStartExpression,
 			seriesStepExpression,
 			trendGranularity,
-			whereClause,
 		} = buildUsageStatsExpressions(filter, timeZone);
+		const conditions = buildUsageFilterConditions(input);
+		const filteredWhereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
 		const [statsRows, trendRows, seriesRows] = await Promise.all([
 			context.db
@@ -660,7 +764,7 @@ const getUsageStatsHandler = authed
 					totalTokens: sum(usageEvent.totalTokens),
 				})
 				.from(usageEvent)
-				.where(whereClause),
+				.where(filteredWhereClause),
 			context.db
 				.select({
 					bucket: sql<string>`to_char(${bucketExpression}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
@@ -729,7 +833,7 @@ const getUsageStatsHandler = authed
 					`,
 				})
 				.from(usageEvent)
-				.where(whereClause)
+				.where(filteredWhereClause)
 				.groupBy(bucketExpression)
 				.orderBy(bucketExpression),
 			context.db.execute(
@@ -851,6 +955,7 @@ const getMonthlyActiveUsersHandler = authed
 
 export const usageHandler = {
 	evaluate: evaluateUsageEventHandler,
+	filterOptions: usageFilterOptionsHandler,
 	findByRequestId: findByRequestIdHandler,
 	get: getUsageEventHandler,
 	list: listUsageEventsHandler,

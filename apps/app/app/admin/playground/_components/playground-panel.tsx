@@ -31,6 +31,8 @@ import type { InputContextSubmission } from "@/app/_components/input-context/typ
 import { TemplateSelector } from "@/app/_components/template-selector";
 import { allScribeDocTypes, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { PlaygroundDocumentType } from "@/app/admin/playground/_lib/scribe-doc-types";
+import { resolvePlaygroundComparisonReference } from "@/app/admin/playground/_lib/comparison-reference";
+import type { PlaygroundComparisonReference } from "@/app/admin/playground/_lib/comparison-reference";
 import type {
 	PlaygroundModel,
 	PlaygroundParameters,
@@ -164,16 +166,7 @@ interface RunState {
 	text: string;
 	isStreaming: boolean;
 	error?: string;
-	evaluation?: {
-		totalScore?: number;
-		categories: {
-			comment?: string;
-			name: string;
-			score: number;
-		}[];
-		isLoading: boolean;
-		summary?: string;
-	};
+	comparison?: PlaygroundResult["comparison"];
 	metrics: {
 		latencyMs: number;
 		inputTokens?: number;
@@ -1283,6 +1276,19 @@ export const PlaygroundPanel = ({
 		});
 	}, []);
 
+	const clearComparisons = useCallback(() => {
+		setRunStates((previous) => {
+			const next: Record<string, RunState> = {};
+			for (const [runId, runState] of Object.entries(previous)) {
+				next[runId] = {
+					...runState,
+					comparison: undefined,
+				};
+			}
+			return next;
+		});
+	}, []);
+
 	// Ref to store run trigger functions for each model
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
 
@@ -1451,6 +1457,20 @@ export const PlaygroundPanel = ({
 			),
 		[modelRuns, promptVersions],
 	);
+
+	const comparisonReference = useMemo(() => {
+		const firstRun = comparisonRuns.at(0);
+		return resolvePlaygroundComparisonReference({
+			firstResult: firstRun
+				? {
+						id: firstRun.id,
+						isStreaming: runStates[firstRun.id]?.isStreaming ?? false,
+						text: runStates[firstRun.id]?.text ?? "",
+					}
+				: undefined,
+			usageEventResponse: referenceResult?.text,
+		});
+	}, [comparisonRuns, referenceResult?.text, runStates]);
 
 	const resultsWithContentCount = useMemo(
 		() =>
@@ -1946,6 +1966,8 @@ export const PlaygroundPanel = ({
 							promptVersionLabel={comparisonRun.promptVersion.label}
 							prepareInputContextSubmission={inputContextController.prepareSubmission}
 							messagesForRun={comparisonRun.promptVersion.messages}
+							comparisonReference={comparisonReference}
+							clearComparisons={clearComparisons}
 							runState={runStates[comparisonRun.id]}
 							setRunState={setRunState}
 							runTriggersRef={runTriggersRef}
@@ -2028,6 +2050,8 @@ const RunCard = ({
 	promptVersionLabel,
 	prepareInputContextSubmission,
 	messagesForRun,
+	comparisonReference,
+	clearComparisons,
 	runState,
 	setRunState,
 	runTriggersRef,
@@ -2043,6 +2067,8 @@ const RunCard = ({
 		role: "system" | "user" | "assistant";
 		content: string;
 	}[];
+	comparisonReference: PlaygroundComparisonReference | null;
+	clearComparisons: () => void;
 	runState: RunState | undefined;
 	setRunState: (id: string, patch: Partial<RunState>) => void;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
@@ -2133,57 +2159,58 @@ const RunCard = ({
 		latestCompletionRef.current = completion;
 	}, [completion]);
 
-	const handleEvaluateRun = useCallback(async () => {
+	const handleCompareRun = useCallback(async () => {
 		const currentPayload = payloadRef.current;
-		if (!currentPayload) {
+		if (!currentPayload || !comparisonReference || comparisonReference.runId === runId) {
 			return;
 		}
 
 		const responseText = (runState?.text || latestCompletionRef.current).trim();
 		if (!responseText) {
-			toast.error("Bewertung übersprungen: Kein Antworttext gefunden");
+			toast.error("Vergleich übersprungen: Kein Antworttext gefunden");
 			return;
 		}
 
+		clearComparisons();
 		setRunState(runId, {
-			evaluation: {
-				categories: [],
+			comparison: {
 				isLoading: true,
-				summary: undefined,
-				totalScore: undefined,
+				referenceLabel: comparisonReference.label,
 			},
 		});
 
 		try {
-			const evaluation = await orpc.admin.scribe.evaluate.call({
+			const comparison = await orpc.admin.scribe.evaluateComparison.call({
 				documentType: currentPayload.documentType,
 				inputs: JSON.parse(currentPayload.promptJson || "{}") as Record<string, unknown>,
-				response: responseText,
+				responses: {
+					a: comparisonReference.text,
+					b: responseText,
+				},
 			});
 			setRunState(runId, {
-				evaluation: {
-					categories: evaluation.categories,
+				comparison: {
 					isLoading: false,
-					summary: evaluation.summary,
-					totalScore: evaluation.totalScore,
+					note: comparison.note,
+					preferredResponse:
+						comparison.preferredResponse === "b" ? "result" : "reference",
+					referenceLabel: comparisonReference.label,
 				},
 			});
 		} catch (error) {
 			toast.error(
 				error instanceof Error
-					? `Bewertung fehlgeschlagen: ${error.message}`
-					: "Bewertung fehlgeschlagen",
+					? `Vergleich fehlgeschlagen: ${error.message}`
+					: "Vergleich fehlgeschlagen",
 			);
 			setRunState(runId, {
-				evaluation: {
-					categories: [],
+				comparison: {
 					isLoading: false,
-					summary: undefined,
-					totalScore: undefined,
+					referenceLabel: comparisonReference.label,
 				},
 			});
 		}
-	}, [runId, runState?.text, setRunState]);
+	}, [clearComparisons, comparisonReference, runId, runState?.text, setRunState]);
 
 	useEffect(() => {
 		if (status === "streaming" || status === "submitted") {
@@ -2248,14 +2275,9 @@ const RunCard = ({
 			requestId,
 		};
 
+		clearComparisons();
 		setRunState(runId, {
 			error: undefined,
-			evaluation: {
-				categories: [],
-				isLoading: false,
-				summary: undefined,
-				totalScore: undefined,
-			},
 			isStreaming: true,
 			metrics: { latencyMs: 0 },
 			requestId,
@@ -2272,6 +2294,7 @@ const RunCard = ({
 		promptName,
 		promptJson,
 		runId,
+		clearComparisons,
 		setRunState,
 		setMessages,
 		sendMessage,
@@ -2332,12 +2355,16 @@ const RunCard = ({
 
 			{/* Result display - grows with content */}
 			<ResultDisplay
-				onEvaluate={handleEvaluateRun}
+				onCompare={
+					comparisonReference && comparisonReference.runId !== runId
+						? handleCompareRun
+						: undefined
+				}
 				result={
 					runState
 						? {
+								comparison: runState.comparison,
 								error: runState.error,
-								evaluation: runState.evaluation,
 								isStreaming: runState.isStreaming,
 								metrics: runState.metrics,
 								reasoning: runState.reasoning,

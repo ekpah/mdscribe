@@ -85,6 +85,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 			isOpenRouter: true,
 			model: {} as ResolvedModel["model"],
 			modelName: seeded.modelId,
+			openRouterRoutingMode: "default",
 			providerId: seeded.providerId,
 			providerProtocol: "openrouter",
 			supportedParameters: [],

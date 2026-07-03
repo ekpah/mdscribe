@@ -45,6 +45,8 @@ import type {
 	ModelConfig,
 	PromptMessage,
 } from "@/orpc/scribe/types";
+import type { Session } from "@/lib/auth-types";
+import type { ScribeEntitlements } from "./usage-limit";
 
 export const DEFAULT_SCRIBE_MODEL_CONFIG: ModelConfig = {
 	maxTokens: 8000,
@@ -200,7 +202,7 @@ const summarizeContextFilesForUsage = (contextFiles: FillInputsContextFile[]) =>
 /**
  * Scribe input type - uses UIMessage[] for AI SDK useChat compatibility
  */
-interface BuiltInScribeStreamInput {
+export interface BuiltInScribeStreamInput {
 	documentType: DocumentType;
 	messages: UIMessage[];
 	audioFiles?: AudioFile[];
@@ -208,7 +210,7 @@ interface BuiltInScribeStreamInput {
 	source?: "documentType";
 }
 
-interface CustomFormScribeStreamInput {
+export interface CustomFormScribeStreamInput {
 	formId: string;
 	messages: UIMessage[];
 	audioFiles?: AudioFile[];
@@ -285,7 +287,20 @@ const appendFilePartsToLastUserMessage = (
 	});
 };
 
-type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
+export type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
+
+export interface ScribeGenerationContext {
+	db: Database;
+	entitlements: { scribe: ScribeEntitlements };
+	session: Session;
+}
+
+export interface ScribeGenerationTraceContext {
+	agentSectionId?: string;
+	agentRunId?: string;
+	observationId?: string;
+	traceId?: string;
+}
 
 interface ResolvedScribeRequest {
 	config: {
@@ -710,10 +725,23 @@ export const appendScribeInputAttachmentsToMessages = async ({
 /**
  * Main streaming handler for all scribe document types
  */
-export const scribeStreamHandler = authed
-	.use(scribeEntitlementsMiddleware)
-	.input(type<ScribeStreamInput>())
-	.handler(async ({ input, context }) => {
+/**
+ * Executes the canonical scribe pipeline. Transport adapters may stream the
+ * returned result or await its text; validation, prompt resolution, media
+ * handling, provider selection, and UsageEvent logging stay in one place.
+ */
+export const runScribeGeneration = async ({
+	context,
+	input,
+	preparedAttachmentText,
+	traceContext,
+}: {
+	context: ScribeGenerationContext;
+	input: ScribeStreamInput;
+	/** Trusted server-side text from an already completed agent preprocessing step. */
+	preparedAttachmentText?: string;
+	traceContext?: ScribeGenerationTraceContext;
+}) => {
 		const inputMessages = input.messages;
 		const audioFiles = input.audioFiles ?? [];
 		const contextFiles = input.contextFiles ?? [];
@@ -772,7 +800,10 @@ export const scribeStreamHandler = authed
 			userId: context.session.user.id,
 			zdr: entitlements.hasActiveSubscription,
 		});
-		const { messages } = attachmentsResult;
+		const messages = appendTextToLastUserMessage(
+			attachmentsResult.messages,
+			preparedAttachmentText ?? "",
+		);
 
 		// Media that a preprocessing model parsed to text becomes part of the
 		// logged notes so the event stays reviewable and replayable as text.
@@ -781,6 +812,7 @@ export const scribeStreamHandler = authed
 				? formatAudioTranscriptsForPrompt(attachmentsResult.audioTranscripts)
 				: "",
 			attachmentsResult.fileTextContext,
+			preparedAttachmentText ?? "",
 		].filter(Boolean);
 		const baseNotes = typeof rawPrompt.notes === "string" ? rawPrompt.notes : "";
 		const usageInputData = {
@@ -844,6 +876,7 @@ export const scribeStreamHandler = authed
 						temperature: effectiveTemperature,
 					},
 					modelName: generationSelection.model.modelName,
+					observationId: traceContext?.observationId,
 					promptLabel: resolvedRequest.config.promptLabel,
 					promptName: resolvedRequest.config.promptName,
 					reasoningEffort:
@@ -854,9 +887,13 @@ export const scribeStreamHandler = authed
 					timing: {
 						timeToCompletionMs: completedAt - requestStartedAt,
 						timeToFirstTokenMs:
-							firstTokenAt === undefined ? undefined : firstTokenAt - requestStartedAt,
+								firstTokenAt === undefined ? undefined : firstTokenAt - requestStartedAt,
+						},
+					traceId: traceContext?.traceId,
+					usageMetadata: {
+						...resolvedRequest.usageMetadata,
+						...traceContext,
 					},
-					usageMetadata: resolvedRequest.usageMetadata,
 					userId: context.session.user.id,
 				});
 			},
@@ -864,5 +901,13 @@ export const scribeStreamHandler = authed
 			temperature: effectiveTemperature,
 		});
 
-		return streamToEventIterator(result.toUIMessageStream());
+		return result;
+	};
+
+export const scribeStreamHandler = authed
+	.use(scribeEntitlementsMiddleware)
+	.input(type<ScribeStreamInput>())
+	.handler(async ({ input, context }) => {
+		const generation = await runScribeGeneration({ context, input });
+		return streamToEventIterator(generation.toUIMessageStream());
 	});

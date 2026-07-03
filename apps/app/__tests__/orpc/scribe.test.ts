@@ -16,7 +16,6 @@ import { encrypt } from "@/lib/encryption";
 import { FILL_INPUT_PAYLOAD_LIMITS } from "@/lib/input-fill-limits";
 import {
 	AI_INPUT_FILL_EVENT_NAME,
-	AI_SCRIBE_GENERATION_EVENT_NAME,
 	AI_SCRIBE_OCR_EVENT_NAME,
 	AI_SCRIBE_STT_EVENT_NAME,
 } from "@/lib/usage-event-names";
@@ -27,7 +26,7 @@ import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
 import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
-import { generateSectionContent } from "@/orpc/scribe-agent/lib/generate-section-content";
+import { scribeAgentGenerateSectionHandler } from "@/orpc/scribe-agent/generate-section";
 import { composeFillInputsPrompt } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
 	getDocumentTypeByPromptName,
@@ -720,6 +719,7 @@ const createResolvedModel = (overrides: Partial<ResolvedModel>): ResolvedModel =
 	isOpenRouter: false,
 	model: "test/model",
 	modelName: "test/model",
+	openRouterRoutingMode: "default",
 	providerId: "provider-1",
 	providerProtocol: "openai-compatible",
 	supportedParameters: [],
@@ -785,6 +785,24 @@ describe("buildProviderOptions", () => {
 				user: "user-1",
 				zdr: true,
 			},
+		});
+	});
+
+	test.each([
+		["nitro", "throughput"],
+		["floor", "price"],
+		["exacto", "exacto"],
+	] as const)("sends %s routing mode as the %s provider sort", (openRouterRoutingMode, sort) => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({
+				isOpenRouter: true,
+				openRouterRoutingMode,
+				providerProtocol: "openrouter",
+			}),
+		});
+
+		expect(options).toEqual({
+			openrouter: { provider: { sort } },
 		});
 	});
 
@@ -1090,70 +1108,47 @@ describe("Fill Inputs Handler", () => {
 });
 
 describe("Scribe Agent section generation", () => {
-	test("logs AIScribe-style input data with current sections and parsed media", async () => {
+	test("uses the normal scribe generation pipeline for an agent section", async () => {
 		const server = await startTestServer("agent-generate-section-usage-input");
 		try {
 			await createTestAiDefaults(server.db);
 			const { user } = await createTestUser(server.db);
 			const session = createMockSession(user);
-			const generation = await resolveDefaultModel(server.db, "text");
-			const providerOptions = buildProviderOptions({
-				includeUsage: true,
-				model: generation.model,
-				reasoningEffort: generation.reasoningEffort,
-				userId: user.id,
-				zdr: false,
-			});
-
-			const content = await generateSectionContent({
-				activeSubscription: false,
-				audioTranscripts: ["Patient berichtet seit gestern Belastungsdyspnoe."],
-				contextFileSummaries: [
-					{
-						index: 1,
-						mediaType: "application/pdf",
-						name: "labor.pdf",
-						payloadBytes: 128,
-						size: 128,
+			const result = await call(
+				scribeAgentGenerateSectionHandler,
+				{
+					documentType: "anamnese",
+					formData: {
+						befunde: "Basale Rasselgeräusche beidseits.",
+						diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
+						notes: "Bitte Anamnese aus Agentenhinweis erzeugen.",
 					},
-				],
-				contextSections: [
-					{
-						content: "I50.1 Akute Linksherzinsuffizienz",
-						harness: "diagnosis",
-						id: "diagnosis",
-						label: "Diagnosen",
-					},
-					{
-						content: "Basale Rasselgeräusche beidseits.",
-						harness: "befunde",
-						id: "befunde",
-						label: "Befunde",
-					},
-				],
-				db: server.db,
-				fileTextContext: "Labor: NT-proBNP deutlich erhöht.",
-				generation,
-				harness: "anamnese",
-				notes: "Bitte Anamnese aus Agentenhinweis erzeugen.",
-				providerOptions,
-				sessionUser: session.user,
-				temperature: undefined,
-				template: null,
-				userId: user.id,
-			});
+					preparedAttachmentText:
+						"<audio_transkripte>\\n<aufnahme index=\"1\">\\nPatient berichtet seit gestern Belastungsdyspnoe.\\n</aufnahme>\\n</audio_transkripte>\\n\\nLabor: NT-proBNP deutlich erhöht.",
+					source: "documentType",
+					traceContext: { agentRunId: "agent-run-1", agentSectionId: "anamnese" },
+				},
+				{ context: { db: server.db, session } },
+			);
+			const content = result.text;
 
 			expect(content).toBe("Generated text response");
 
 			const [event] = await server.db
 				.select()
 				.from(usageEvent)
-				.where(eq(usageEvent.name, AI_SCRIBE_GENERATION_EVENT_NAME));
+				.where(eq(usageEvent.name, "ai_scribe_generation"));
 
 			expect(event?.metadata).toMatchObject({
-				endpoint: "scribe-agent:generateSection:anamnese",
+				agentRunId: "agent-run-1",
+				agentSectionId: "anamnese",
+				endpoint: "anamnese",
 				promptName: "anamnese",
 			});
+			const metadata = event?.metadata as Record<string, unknown> | undefined;
+			const modelConfig = metadata?.modelConfig as Record<string, unknown> | undefined;
+			expect(modelConfig).toBeDefined();
+			expect(modelConfig).not.toHaveProperty("maxTokens");
 			expect(event?.inputData).toMatchObject({
 				_contextFiles: [
 					{
@@ -1325,7 +1320,7 @@ describe("Scribe Stream Handler", () => {
 			await server.db.insert(usageEventTable).values({
 				cost: "2.00",
 				id: crypto.randomUUID(),
-				name: "ai_scribe_generation",
+				name: "admin_scribe_playground",
 				timestamp: new Date(),
 				userId: user.id,
 			});

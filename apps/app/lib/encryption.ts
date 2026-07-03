@@ -8,15 +8,25 @@ const TAG_LENGTH = 16;
 /**
  * Derive a 256-bit key from BETTER_AUTH_SECRET using SHA-256.
  */
-const deriveKey = async (): Promise<CryptoKey> => {
-	const keyMaterial = new TextEncoder().encode(
-		env.BETTER_AUTH_SECRET as string,
-	);
-	const hash = await crypto.subtle.digest("SHA-256", keyMaterial);
-	return crypto.subtle.importKey("raw", hash, { name: "AES-GCM" }, false, [
-		"encrypt",
-		"decrypt",
-	]);
+let derivedKeyPromise: Promise<CryptoKey> | undefined;
+
+const deriveKey = (): Promise<CryptoKey> => {
+	if (derivedKeyPromise) {
+		return derivedKeyPromise;
+	}
+
+	derivedKeyPromise = (async () => {
+		const keyMaterial = new TextEncoder().encode(
+			env.BETTER_AUTH_SECRET as string,
+		);
+		const hash = await crypto.subtle.digest("SHA-256", keyMaterial);
+		return crypto.subtle.importKey("raw", hash, { name: "AES-GCM" }, false, [
+			"encrypt",
+			"decrypt",
+		]);
+	})();
+
+	return derivedKeyPromise;
 };
 
 /**

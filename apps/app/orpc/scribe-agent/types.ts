@@ -14,6 +14,7 @@ export interface ScribeAgentSection {
 	label: string;
 	content: string;
 	harness: PromptHarnessId;
+	formId?: string | null;
 	templateId?: string | null;
 }
 

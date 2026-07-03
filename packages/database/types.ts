@@ -17,6 +17,8 @@ import type {
 	templateCollectionTemplate,
 	textSnippet,
 	usageEvent,
+	usageObservation,
+	usageTrace,
 	user,
 	verification,
 } from "./schema";
@@ -34,6 +36,8 @@ export type TemplateCollectionTemplate = InferSelectModel<
 >;
 export type Subscription = InferSelectModel<typeof subscription>;
 export type UsageEvent = InferSelectModel<typeof usageEvent>;
+export type UsageObservation = InferSelectModel<typeof usageObservation>;
+export type UsageTrace = InferSelectModel<typeof usageTrace>;
 export type ContextTransfer = InferSelectModel<typeof contextTransfer>;
 export type TextSnippet = InferSelectModel<typeof textSnippet>;
 export type Favourite = InferSelectModel<typeof favourites>;
@@ -51,6 +55,8 @@ export type NewTemplateCollectionTemplate = InferInsertModel<
 >;
 export type NewSubscription = InferInsertModel<typeof subscription>;
 export type NewUsageEvent = InferInsertModel<typeof usageEvent>;
+export type NewUsageObservation = InferInsertModel<typeof usageObservation>;
+export type NewUsageTrace = InferInsertModel<typeof usageTrace>;
 export type NewContextTransfer = InferInsertModel<typeof contextTransfer>;
 export type NewTextSnippet = InferInsertModel<typeof textSnippet>;
 export type NewFavourite = InferInsertModel<typeof favourites>;

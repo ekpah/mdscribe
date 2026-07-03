@@ -54,7 +54,7 @@ const DescriptionPopover = ({ description }: { description?: string }) => {
 	);
 };
 
-export const InfoInput = ({
+const InfoInput = ({
 	input,
 	value,
 	onChange,
@@ -251,3 +251,5 @@ export const InfoInput = ({
 		</div>
 	);
 };
+
+export default InfoInput;

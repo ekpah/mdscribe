@@ -8,25 +8,24 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { DataTable, DataTablePagination, DataTableViewOptions } from '@repo/design-system/components/ui/data-table';
-import type { DataTableRenderToolbarProps } from '@repo/design-system/components/ui/data-table';
+import {
+	DataTable,
+	DataTablePagination,
+	DataTableViewOptions,
+} from "@repo/design-system/components/ui/data-table";
+import type { DataTableRenderToolbarProps } from "@repo/design-system/components/ui/data-table";
 import { Input } from "@repo/design-system/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import {
-	CheckCircle,
-	Loader2,
-	Mail,
-	Star,
-	User,
-	Users,
-	XCircle,
-} from "lucide-react";
+import { CheckCircle, Loader2, Mail, Star, User, Users, XCircle } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import type { ChangeEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
+
 import { orpc } from "@/lib/orpc";
-import { columns, formatDate, getSubscriptionLabel } from './columns';
-import type { UserData } from './columns';
+
+import { columns, formatDate, getSubscriptionLabel } from "./columns";
+import type { UserData } from "./columns";
 
 const UsersTableToolbar = ({
 	onSearchFilterChange,
@@ -62,18 +61,11 @@ const UsersTableToolbar = ({
 export default function UsersPageClient() {
 	const [searchFilter, setSearchFilter] = useState("");
 
-	const {
-		data: users = [],
-		isLoading,
-		error,
-	} = useQuery(orpc.admin.users.list.queryOptions());
+	const { data: users = [], isLoading, error } = useQuery(orpc.admin.users.list.queryOptions());
 
-	const handleSearchFilterChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			setSearchFilter(event.target.value);
-		},
-		[],
-	);
+	const handleSearchFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		setSearchFilter(event.target.value);
+	}, []);
 
 	const renderToolbar = useCallback(
 		(table: DataTableRenderToolbarProps<UserData>["table"]) => (
@@ -117,10 +109,7 @@ export default function UsersPageClient() {
 		return users.filter((user) => {
 			const userName = user.name?.toLowerCase() ?? "";
 			const userEmail = user.email.toLowerCase();
-			return (
-				userName.includes(normalizedSearch) ||
-				userEmail.includes(normalizedSearch)
-			);
+			return userName.includes(normalizedSearch) || userEmail.includes(normalizedSearch);
 		});
 	}, [searchFilter, users]);
 
@@ -131,9 +120,7 @@ export default function UsersPageClient() {
 					<div className="flex min-h-[300px] items-center justify-center sm:min-h-[400px]">
 						<div className="flex items-center gap-2 text-solarized-base01">
 							<Loader2 className="h-5 w-5 animate-spin" />
-							<span className="text-sm sm:text-base">
-								Benutzer werden geladen...
-							</span>
+							<span className="text-sm sm:text-base">Benutzer werden geladen...</span>
 						</div>
 					</div>
 				</div>
@@ -186,17 +173,13 @@ export default function UsersPageClient() {
 					<CardContent className="p-4 sm:pt-6">
 						<div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-6">
 							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Gesamt
-								</p>
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Gesamt</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
 									{users.length}
 								</p>
 							</div>
 							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Verifiziert
-								</p>
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Verifiziert</p>
 								<p className="font-semibold text-base text-solarized-green sm:text-lg">
 									{users.filter((u) => u.emailVerified).length}
 								</p>
@@ -218,17 +201,13 @@ export default function UsersPageClient() {
 								</p>
 							</div>
 							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Free
-								</p>
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Free</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
 									{freeUsers}
 								</p>
 							</div>
 							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									Plus
-								</p>
+								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Plus</p>
 								<p className="font-semibold text-base text-solarized-violet sm:text-lg">
 									{plusUsers}
 								</p>
@@ -240,9 +219,7 @@ export default function UsersPageClient() {
 				{/* Users Table */}
 				<Card className="border-solarized-base2">
 					<CardHeader>
-						<CardTitle className="text-solarized-base00">
-							Benutzerliste
-						</CardTitle>
+						<CardTitle className="text-solarized-base00">Benutzerliste</CardTitle>
 						<CardDescription>
 							Übersicht aller registrierten Benutzer auf der Plattform
 						</CardDescription>
@@ -283,9 +260,7 @@ export default function UsersPageClient() {
 												<p className="truncate font-medium text-solarized-base00">
 													{user.name || "Kein Name"}
 												</p>
-												<p className="truncate text-xs text-solarized-base01">
-													{user.email}
-												</p>
+												<p className="truncate text-xs text-solarized-base01">{user.email}</p>
 											</div>
 										</div>
 
@@ -321,9 +296,7 @@ export default function UsersPageClient() {
 										<div className="mt-3 grid grid-cols-3 gap-2 text-xs">
 											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 												<p className="text-solarized-base01">Vorlagen</p>
-												<p className="font-medium text-solarized-base00">
-													{user._count.templates}
-												</p>
+												<p className="font-medium text-solarized-base00">{user._count.templates}</p>
 											</div>
 											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 												<p className="text-solarized-base01">Favoriten</p>
@@ -333,9 +306,12 @@ export default function UsersPageClient() {
 											</div>
 											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 												<p className="text-solarized-base01">KI-Nutzung (Monat)</p>
-												<p className="font-medium text-solarized-base00">
+												<Link
+													href={`/admin/usage?user=${encodeURIComponent(user.id)}`}
+													className="font-medium text-solarized-blue underline-offset-4 hover:underline"
+												>
 													{user._count.usageEvents}
-												</p>
+												</Link>
 											</div>
 										</div>
 

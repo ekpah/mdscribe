@@ -5,6 +5,7 @@ interface UsageEventUser {
 }
 
 export interface UsageListEvent {
+	children?: UsageListEvent[];
 	cost: number | string | null;
 	id: string;
 	inputTokens: number | null;
@@ -17,7 +18,13 @@ export interface UsageListEvent {
 	timeToCompletionMs: number | null;
 	timeToFirstTokenMs: number | null;
 	totalTokens: number | null;
+	traceId?: string | null;
 	user: UsageEventUser | null;
+	linkedUsageEventId?: string;
+	observationId?: string;
+	rowKind?: "event" | "observation" | "tool" | "trace";
+	toolInputData?: unknown;
+	toolOutputData?: unknown;
 }
 
 export interface UsageDetailEvent extends UsageListEvent {

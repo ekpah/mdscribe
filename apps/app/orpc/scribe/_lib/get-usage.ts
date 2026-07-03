@@ -1,9 +1,8 @@
-import { and, eq, gte, inArray, lte, usageEvent } from "@repo/database";
+import { and, eq, gte, lte, usageEvent } from "@repo/database";
 import type { Database } from "@repo/database";
 import { database } from "@repo/database/client";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { getScribeUsageBudgetPercentage } from "@/lib/product-plans";
-import { BILLABLE_SCRIBE_USAGE_EVENT_NAMES } from "@/lib/usage-event-names";
 
 export const getMonthlyScribeUsage = async (input: {
 	db?: Database;
@@ -27,7 +26,6 @@ export const getMonthlyScribeUsage = async (input: {
 				eq(usageEvent.userId, input.session.user.id),
 				gte(usageEvent.timestamp, firstDayOfMonth),
 				lte(usageEvent.timestamp, now),
-				inArray(usageEvent.name, [...BILLABLE_SCRIBE_USAGE_EVENT_NAMES]),
 			),
 		);
 

@@ -27,6 +27,10 @@ describe("admin.scribe evaluation", () => {
 		await server?.close();
 	});
 
+	test("does not expose the retired numeric score evaluation endpoint", () => {
+		expect(scribeHandler).not.toHaveProperty("evaluate");
+	});
+
 	test("returns only the preferred response for comparative evaluation", async () => {
 		const result = await call(
 			scribeHandler.evaluateComparison,

@@ -1,4 +1,4 @@
-export const PLAYGROUND_EVALUATION_SYSTEM_PROMPT = `Du bewertest medizinische KI-Antworten als strenger deutscher Arztbrief-Reviewer.
+export const USAGE_EVENT_EVALUATION_SYSTEM_PROMPT = `Du bewertest medizinische KI-Antworten als strenger deutscher Arztbrief-Reviewer.
 Ziel ist nicht, wohlwollend eine hohe Note zu geben, sondern Nuancen sichtbar zu machen: Was müsste ein Arzt vor Übernahme noch prüfen, korrigieren oder ergänzen?
 
 Bewerte ausschliesslich die Modell-Antwort und nicht die Inputs, da nur die Antwort vom Modell generiert ist und der Rest vom Nutzer eingegeben wurde.
@@ -86,3 +86,34 @@ Schreibe 2-4 kurze deutsche Saetze. Nenne konkret:
 - das groesste klinische Risiko oder "kein wesentliches klinisches Risiko",
 - die wichtigste konkrete Verbesserung.
 Erklaere den Gesamtcharakter der Bewertung so, dass ein Nutzer versteht, was z. B. 4.8 oder 8.6 praktisch bedeutet.`;
+
+export const RESPONSE_COMPARISON_SYSTEM_PROMPT = `Du bist ein strenger deutscher Arztbrief-Reviewer. Vergleiche zwei Modell-Ausgaben für denselben medizinischen Auftrag.
+
+Behandle Antwort A und Antwort B vollständig gleichwertig; ihre Reihenfolge sagt nichts über ihre Qualität aus. Die Eingaben dienen nur als Referenzmaterial, um Faktentreue und die Einhaltung von Prompt beziehungsweise Vorlage beurteilen zu können.
+
+Bevorzuge die Antwort, die für einen deutschen Arzt insgesamt klinisch korrekter, sicherer, vollständiger, nützlicher, sprachlich dokumentationsreifer und strukturell passender ist. Berücksichtige besonders erfundene oder falsche Angaben, Auslassungen klinisch relevanter Fakten, Negationen, Diagnosen, Medikamente, Dosierungen, Befunde, Therapieentscheidungen und Follow-up.
+
+Wenn beide Antworten ähnlich gut sind, wähle die klinisch sicherere und präzisere Antwort. Vergib keine Punktzahlen und bewerte nicht die Qualität der Eingaben selbst.
+
+Gib genau eine bevorzugte Antwort und eine kurze deutsche Begründung aus. Die Begründung nennt den wichtigsten konkreten Unterschied statt allgemein zu loben.`;
+
+export const buildResponseComparisonPrompt = ({
+	documentType,
+	inputs,
+	responses,
+}: {
+	documentType: string;
+	inputs: unknown;
+	responses: { a: string; b: string };
+}): string => `Vergleiche ausschliesslich diese zwei Modell-Ausgaben.
+
+Dokumenttyp: ${documentType}
+
+Nutzergegebene Eingaben, Prompt-Spezifika und gegebenenfalls Vorlage:
+${JSON.stringify(inputs, null, 2)}
+
+Antwort A:
+${responses.a}
+
+Antwort B:
+${responses.b}`;
