@@ -5,7 +5,7 @@ import {
 	PromptInputBody,
 	PromptInputSubmit,
 	PromptInputTextarea,
-} from "@repo/design-system/components/ai-elements/prompt-input";
+} from "@/app/_components/ai-elements/prompt-input";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { Textarea } from "@repo/design-system/components/ui/textarea";

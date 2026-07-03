@@ -85,6 +85,7 @@ export interface UsageTiming {
  * Parameters for creating a usage event
  */
 interface CreateUsageEventParams {
+	id?: string;
 	userId: string;
 	name: string;
 	model?: string;
@@ -97,6 +98,7 @@ interface CreateUsageEventParams {
 	// Can be string, array, or other.
 	reasoning?: string | string[] | unknown;
 	timing?: UsageTiming;
+	traceId?: string;
 }
 
 /**
@@ -147,10 +149,12 @@ export const buildUsageEventData = (
 		openRouterUsage,
 		standardUsage,
 		inputData,
+		id,
 		metadata,
 		result,
 		reasoning,
 		timing,
+		traceId,
 	} = params;
 
 	// Use OpenRouter usage if available, otherwise fall back to standard usage
@@ -164,6 +168,7 @@ export const buildUsageEventData = (
 	return {
 		cachedTokens: openRouterUsage?.promptTokensDetails?.cachedTokens,
 		cost: openRouterUsage?.cost?.toString(),
+		id,
 		inputData: inputData as Record<string, unknown>,
 		inputTokens,
 		metadata: metadata as Record<string, unknown>,
@@ -176,6 +181,7 @@ export const buildUsageEventData = (
 		timeToCompletionMs: normalizeDurationMs(timing?.timeToCompletionMs),
 		timeToFirstTokenMs: normalizeDurationMs(timing?.timeToFirstTokenMs),
 		totalTokens,
+		traceId,
 		userId,
 	};
 };

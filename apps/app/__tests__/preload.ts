@@ -6,19 +6,23 @@ process.env.POSTGRES_DATABASE_URL_TEST ??=
 
 const resolveAsync = <T>(value: T): Promise<T> => Promise.resolve(value);
 
+// Single canonical mock generation text so the streamText and generateText
+// mocks agree — handlers read `.text` off both paths.
+const MOCK_GENERATED_TEXT = "Generated text response";
+
 const createUIMessageStream = () => {
 	const encoder = new TextEncoder();
 
 	return new ReadableStream({
 		start(controller) {
-			controller.enqueue(encoder.encode('0:"This is a test response."\n'));
+			controller.enqueue(encoder.encode(`0:${JSON.stringify(MOCK_GENERATED_TEXT)}\n`));
 			controller.close();
 		},
 	});
 };
 
 const createMockStreamResult = (options?: { onFinish?: (event: unknown) => void }) => {
-	const fullText = "This is a test response.";
+	const fullText = MOCK_GENERATED_TEXT;
 	const onFinish = options?.onFinish;
 
 	if (onFinish) {
@@ -245,7 +249,7 @@ mock.module("ai", () => ({
 				?.map((message) => (typeof message.content === "string" ? message.content : ""))
 				.join("\n") ?? "";
 		const output = promptText.includes("fieldValues") ? { test: "value" } : undefined;
-		const text = output ? JSON.stringify(output) : "Generated text response";
+		const text = output ? JSON.stringify(output) : MOCK_GENERATED_TEXT;
 		return resolveAsync({
 			finishReason: "stop" as const,
 			output,

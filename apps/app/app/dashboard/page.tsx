@@ -48,6 +48,7 @@ const eventNameLabels: Record<string, string> = {
 	ai_input_fill: "Eingaben ausgefüllt",
 	ai_input_fill_inputs: "Eingaben ausgefüllt",
 	ai_pdf_form_parsing: "PDF-Formular analysiert",
+	ai_scribe_agent: "Dokumentations-Agent",
 	ai_scribe_generation: "KI-Dokumentation generiert",
 	ai_scribe_ocr: "OCR verarbeitet",
 	ai_scribe_stt: "Audio transkribiert",
@@ -169,7 +170,7 @@ const getRelativeTimeLabel = (timestamp: Date | string) => {
 };
 
 const getActivityPresentation = (event: { metadata: unknown; name: string }) => {
-	if (event.name === "ai_scribe_generation") {
+	if (event.name === "ai_scribe_generation" || event.name === "ai_scribe_agent") {
 		const metadata = event.metadata as Record<string, unknown> | null;
 		const endpoint = metadata?.endpoint as string | undefined;
 		const documentType = resolvePromptHarnessId(endpoint);

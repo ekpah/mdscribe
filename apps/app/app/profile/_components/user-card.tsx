@@ -10,15 +10,15 @@ import { LaptopIcon, Loader2, SmartphoneIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { UAParser } from "ua-parser-js";
 
 import { authClient, useSession } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-types";
+import type { ActiveSessionView } from "@/lib/session-device";
 import { sessionQueryKey } from "@/lib/session-query";
 
 export default function UserCard(props: {
 	session: Session | null;
-	activeSessions: Session["session"][];
+	activeSessions: ActiveSessionView[];
 	subscription?: Subscription;
 }) {
 	const router = useRouter();
@@ -120,19 +120,8 @@ export default function UserCard(props: {
 					<p className="font-medium text-xs">Aktive Sitzungen</p>
 					{activeSessions.map((activeSession) => {
 						const isCurrentSession = activeSession.id === session?.session?.id;
-						const parser = UAParser(activeSession.userAgent as string);
-						const isMobile = parser.device.type === "mobile";
-						const sessionClientLabel = (() => {
-							if (activeSession.userAgent?.includes("tauri-plugin-http")) {
-								return "App";
-							}
-							if (parser.os.name && parser.browser.name) {
-								return `${parser.os.name}, ${parser.browser.name}`;
-							}
-							return (
-								parser.os.name || parser.browser.name || activeSession.userAgent || "Unbekannt"
-							);
-						})();
+						const isMobile = activeSession.deviceType === "mobile";
+						const sessionClientLabel = activeSession.clientLabel;
 						return (
 							<Card
 								key={activeSession.id}

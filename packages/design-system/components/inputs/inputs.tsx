@@ -24,7 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { normalizeDateValue } from "./ui/date-utils";
-import { InfoInput } from "./ui/info-input";
+import { LazyInfoInput } from "./ui/lazy-info-input";
 import { SwitchInput } from "./ui/switch-input";
 
 export interface FillInputsAudioFile {
@@ -325,7 +325,7 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 						<SourceIndicator source={inputState} />
 					</div>
 				)}
-				<InfoInput
+				<LazyInfoInput
 					input={input}
 					inputClassName={inputStateClassName}
 					onAcceptSuggestedValue={suggestedValue ? handleApplySuggestion : undefined}
@@ -459,7 +459,7 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 													<SourceIndicator source={childInputState} />
 												</div>
 											)}
-											<InfoInput
+											<LazyInfoInput
 												input={
 													{
 														attributes: {

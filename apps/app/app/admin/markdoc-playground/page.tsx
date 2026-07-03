@@ -2,7 +2,6 @@
 
 import type { RenderableTreeNode } from "@markdoc/markdoc";
 import * as Markdoc from "@markdoc/markdoc";
-import TipTap from "@repo/design-system/components/editor/tip-tap";
 import Inputs from "@repo/design-system/components/inputs/inputs";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
@@ -26,6 +25,8 @@ import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 
 import { MemoizedCopySection } from "@/app/aiscribe/_components/memoized-copy-section";
+
+import TipTap from "./tip-tap-dynamic";
 
 const DEFAULT_TEMPLATE = `# Patient Score
 

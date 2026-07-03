@@ -31,7 +31,10 @@ import {
 	getPromptHarnessReferences,
 	PROMPT_HARNESS_OPTIONS,
 } from "@/orpc/scribe/prompts";
-import { PLAYGROUND_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
+import {
+	buildResponseComparisonPrompt,
+	RESPONSE_COMPARISON_SYSTEM_PROMPT,
+} from "@/orpc/scribe/prompts/core/evaluation";
 import {
 	buildProviderOptions,
 	resolveDefaultModel,
@@ -474,12 +477,6 @@ const transcribeAudioHandler = authed
 		};
 	});
 
-const evaluateInput = z.object({
-	documentType: z.string(),
-	inputs: z.unknown(),
-	response: z.string().min(1),
-});
-
 const comparisonSideSchema = z.enum(["a", "b"]);
 
 const evaluateComparisonInput = z.object({
@@ -491,103 +488,10 @@ const evaluateComparisonInput = z.object({
 	}),
 });
 
-/**
- * Schema for the LLM's structured output.
- * totalScore is intentionally excluded: it is derived client-side as the
- * mean of category scores so the model cannot introduce validation errors
- * by returning a mismatched value.
- */
-const evaluateOutputSchema = z.object({
-	categories: z
-		.array(
-			z.object({
-				comment: z.string(),
-				name: z.string(),
-				score: z.number().min(0).max(10),
-			}),
-		)
-		.length(4),
-	summary: z.string(),
-});
-
 const evaluateComparisonOutputSchema = z.object({
 	note: z.string().min(1),
 	preferredResponse: comparisonSideSchema,
 });
-
-const evaluateHandler = authed
-	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof evaluateInput>>())
-	.handler(async ({ context, input }) => {
-		const parsed = evaluateInput.safeParse(input);
-
-		if (!parsed.success) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Ungültige Bewertungsanfrage: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
-			});
-		}
-		const evaluationSelection = await resolveDefaultModel(context.db, "evaluation").catch(
-			(error: unknown) => {
-				const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
-				});
-			},
-		);
-
-		let evaluation;
-		try {
-			evaluation = await generateObject({
-				model: evaluationSelection.model.model,
-				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.
-
-Dokumenttyp: ${parsed.data.documentType}
-
-Nutzergegebene Eingaben, Prompt-Spezifika und ggf. Vorlage:
-${JSON.stringify(parsed.data.inputs, null, 2)}
-
-Modell-Ausgabe:
-${parsed.data.response}`,
-				providerOptions: buildProviderOptions({
-					model: evaluationSelection.model,
-					reasoningEffort: evaluationSelection.reasoningEffort,
-					userId: context.session.user.id,
-				}),
-				schema: evaluateOutputSchema,
-				system: PLAYGROUND_EVALUATION_SYSTEM_PROMPT,
-				temperature: evaluationSelection.defaultTemperature ?? undefined,
-			});
-		} catch (error) {
-			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Bewertung konnte nicht erzeugt werden: Das Modell hat keine gültige Struktur zurückgegeben. ${error.message}`,
-				});
-			}
-			const details = error instanceof Error ? error.message : USER_MESSAGES.evaluationFailed;
-			throw new ORPCError("INTERNAL", {
-				message: `Bewertung fehlgeschlagen: ${details}`,
-			});
-		}
-
-		const categories = evaluation.object.categories.map((category) => ({
-			comment: category.comment,
-			name: category.name,
-			score: Number(category.score.toFixed(1)),
-		}));
-
-		const totalScore = Number(
-			(
-				categories.reduce((sum, category) => sum + category.score, 0) /
-				Math.max(1, categories.length)
-			).toFixed(1),
-		);
-
-		return {
-			categories,
-			summary: evaluation.object.summary,
-			totalScore,
-		};
-	});
 
 const evaluateComparisonHandler = authed
 	.use(requiredAdminMiddleware)
@@ -614,30 +518,14 @@ const evaluateComparisonHandler = authed
 		try {
 			comparison = await generateObject({
 				model: evaluationSelection.model.model,
-				prompt: `Vergleiche ausschliesslich die zwei Modell-Ausgaben.
-
-Dokumenttyp: ${parsed.data.documentType}
-
-Nutzergegebene Eingaben, Prompt-Spezifika und ggf. Vorlage:
-${JSON.stringify(parsed.data.inputs, null, 2)}
-
-Antwort A:
-${parsed.data.responses.a}
-
-Antwort B:
-${parsed.data.responses.b}
-
-Waehle genau die Antwort, die fuer einen deutschen Arzt klinisch korrekter, nuetzlicher, sprachlich dokumentationsreifer und strukturell passender ist.
-Wenn beide Antworten aehnlich gut sind, waehle die klinisch sicherere Antwort.
-Gib im Feld note einen kurzen deutschen Satz aus, der den wichtigsten konkreten Grund nennt.`,
+				prompt: buildResponseComparisonPrompt(parsed.data),
 				providerOptions: buildProviderOptions({
 					model: evaluationSelection.model,
 					reasoningEffort: evaluationSelection.reasoningEffort,
 					userId: context.session.user.id,
 				}),
 				schema: evaluateComparisonOutputSchema,
-				system:
-					"Du bist ein strenger deutscher Arztbrief-Reviewer. Entscheide zwischen Antwort A und Antwort B und begruende knapp mit einem konkreten Unterschied.",
+				system: RESPONSE_COMPARISON_SYSTEM_PROMPT,
 				temperature: evaluationSelection.defaultTemperature ?? undefined,
 			});
 		} catch (error) {
@@ -662,7 +550,6 @@ Gib im Feld note einen kurzen deutschen Satz aus, der den wichtigsten konkreten 
 
 export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
-	evaluate: evaluateHandler,
 	evaluateComparison: evaluateComparisonHandler,
 	prompts: {
 		get: authed

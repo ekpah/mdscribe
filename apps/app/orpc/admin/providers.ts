@@ -11,7 +11,12 @@ import {
 } from "@/lib/openai-compatible";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { normalizeReasoningEffort } from "@/orpc/scribe/providers";
+import {
+	invalidateAiProviderResolutionCaches,
+	normalizeOpenRouterRoutingMode,
+	OPENROUTER_ROUTING_MODES,
+	normalizeReasoningEffort,
+} from "@/orpc/scribe/providers";
 import type {
 	DefaultModelSlot,
 	MediaPreprocessStrategy,
@@ -26,7 +31,6 @@ const PROVIDER_PROTOCOLS = [
 	"openai",
 	"anthropic",
 ] as const;
-
 
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
@@ -208,7 +212,6 @@ const fetchProviderModels = async (
 			supportsReasoning: false,
 		}));
 	}
-
 
 	if (config.protocol === "openai") {
 		const baseUrl = config.baseUrl ?? "https://api.openai.com/v1";
@@ -448,6 +451,7 @@ const createProviderHandler = admin
 		}
 
 		const syncResult = await syncFetchedModelsForProvider(context.db, provider.id, models);
+		invalidateAiProviderResolutionCaches();
 
 		return {
 			...provider,
@@ -520,6 +524,7 @@ const updateProviderHandler = admin
 		if (!provider) {
 			throw new ORPCError("NOT_FOUND", { message: "Provider not found" });
 		}
+		invalidateAiProviderResolutionCaches();
 
 		return {
 			...provider,
@@ -540,6 +545,7 @@ const deleteProviderHandler = admin
 		if (!provider) {
 			throw new ORPCError("NOT_FOUND", { message: "Provider not found" });
 		}
+		invalidateAiProviderResolutionCaches();
 
 		return { success: true };
 	});
@@ -556,6 +562,7 @@ const refreshProviderModelsHandler = admin
 			protocol: provider.protocol as ProviderProtocol,
 		});
 		const syncResult = await syncFetchedModelsForProvider(context.db, provider.id, models);
+		invalidateAiProviderResolutionCaches();
 
 		return {
 			models,
@@ -589,6 +596,7 @@ const createModelHandler = admin
 				supportsReasoning: parsed.supportsReasoning || supportedParameters.includes("reasoning"),
 			})
 			.returning();
+		invalidateAiProviderResolutionCaches();
 
 		return model;
 	});
@@ -597,6 +605,7 @@ const updateModelInput = z.object({
 	displayName: z.string().min(1).optional(),
 	id: z.string(),
 	modelId: z.string().min(1).optional(),
+	openRouterRoutingMode: z.enum(OPENROUTER_ROUTING_MODES).optional(),
 	supportedParameters: z.array(z.string()).optional(),
 	supportsReasoning: z.boolean().optional(),
 });
@@ -605,6 +614,18 @@ const updateModelHandler = admin
 	.input(type<z.infer<typeof updateModelInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = updateModelInput.parse(input);
+		const existing = await context.db.query.aiModel.findFirst({
+			where: eq(aiModel.id, parsed.id),
+			with: { provider: true },
+		});
+		if (!existing) {
+			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
+		}
+		if (parsed.openRouterRoutingMode !== undefined && existing.provider.protocol !== "openrouter") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Routing-Einstellungen sind nur für OpenRouter verfügbar",
+			});
+		}
 		const supportedParameters = parsed.supportedParameters
 			? normalizeSupportedParameters(parsed.supportedParameters)
 			: undefined;
@@ -613,6 +634,10 @@ const updateModelHandler = admin
 			.set({
 				displayName: parsed.displayName,
 				modelId: parsed.modelId,
+				openRouterRoutingMode:
+					parsed.openRouterRoutingMode === undefined
+						? undefined
+						: normalizeOpenRouterRoutingMode(parsed.openRouterRoutingMode),
 				supportedParameters,
 				supportsReasoning:
 					parsed.supportsReasoning ??
@@ -621,9 +646,7 @@ const updateModelHandler = admin
 			.where(eq(aiModel.id, parsed.id))
 			.returning();
 
-		if (!model) {
-			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
-		}
+		invalidateAiProviderResolutionCaches();
 
 		return model;
 	});
@@ -636,6 +659,7 @@ const deleteModelHandler = admin
 		if (!model) {
 			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
 		}
+		invalidateAiProviderResolutionCaches();
 
 		return { success: true };
 	});
@@ -871,6 +895,7 @@ const setDefaultHandler = admin
 		applyDefaultSelection(next, parsed);
 
 		await persistAiDefaultsDraft(context.db, Boolean(current), next);
+		invalidateAiProviderResolutionCaches();
 
 		return buildDefaultsResponse(next);
 	});
@@ -918,6 +943,7 @@ const setDefaultOptionsHandler = admin
 		}
 
 		await persistAiDefaultsDraft(context.db, Boolean(current), next);
+		invalidateAiProviderResolutionCaches();
 
 		return buildDefaultsResponse(next);
 	});

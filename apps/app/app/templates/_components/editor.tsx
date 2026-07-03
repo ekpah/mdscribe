@@ -2,7 +2,6 @@
 
 import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
-import TipTap from "@repo/design-system/components/editor/tip-tap";
 import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
@@ -25,6 +24,8 @@ import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
+
+import TipTap from "./tip-tap-dynamic";
 
 const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
 const MAX_TEMPLATE_EXAMPLES = 10;

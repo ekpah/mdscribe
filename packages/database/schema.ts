@@ -247,6 +247,7 @@ export const usageEvent = pgTable(
 			.notNull()
 			.defaultNow(),
 		totalTokens: integer("totalTokens"),
+		traceId: text("traceId"),
 		userId: text("userId")
 			.notNull()
 			.references(() => user.id),
@@ -254,6 +255,48 @@ export const usageEvent = pgTable(
 	(table) => [
 		index("UsageEvent_userId_timestamp_idx").on(table.userId, table.timestamp),
 		index("UsageEvent_name_timestamp_idx").on(table.name, table.timestamp),
+		index("UsageEvent_traceId_timestamp_idx").on(table.traceId, table.timestamp),
+	],
+);
+
+export const usageTrace = pgTable(
+	"UsageTrace",
+	{
+		endedAt: timestamp("endedAt", { mode: "date", precision: 3, withTimezone: true }),
+		id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+		metadata: jsonb("metadata"),
+		name: text("name").notNull(),
+		startedAt: timestamp("startedAt", { mode: "date", precision: 3, withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		status: text("status").notNull(),
+		userId: text("userId").notNull().references(() => user.id),
+	},
+	(table) => [index("UsageTrace_userId_startedAt_idx").on(table.userId, table.startedAt)],
+);
+
+export const usageObservation = pgTable(
+	"UsageObservation",
+	{
+		endedAt: timestamp("endedAt", { mode: "date", precision: 3, withTimezone: true }),
+		id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+		inputData: jsonb("inputData"),
+		metadata: jsonb("metadata"),
+		name: text("name").notNull(),
+		outputData: jsonb("outputData"),
+		parentObservationId: text("parentObservationId"),
+		sequence: integer("sequence").notNull(),
+		startedAt: timestamp("startedAt", { mode: "date", precision: 3, withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		status: text("status").notNull(),
+		traceId: text("traceId").notNull().references(() => usageTrace.id, { onDelete: "cascade" }),
+		type: text("type").notNull(),
+		usageEventId: text("usageEventId"),
+	},
+	(table) => [
+		index("UsageObservation_traceId_sequence_idx").on(table.traceId, table.sequence),
+		index("UsageObservation_usageEventId_idx").on(table.usageEventId),
 	],
 );
 
@@ -357,6 +400,7 @@ export const aiModel = pgTable(
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
 		modelId: text("modelId").notNull(),
+		openRouterRoutingMode: text("openRouterRoutingMode").notNull().default("default"),
 		providerId: text("providerId")
 			.notNull()
 			.references(() => aiProvider.id, { onDelete: "cascade" }),
@@ -557,6 +601,15 @@ export const subscriptionRelations = relations(subscription, ({ one }) => ({
 
 export const usageEventRelations = relations(usageEvent, ({ one }) => ({
 	user: one(user, { fields: [usageEvent.userId], references: [user.id] }),
+}));
+
+export const usageTraceRelations = relations(usageTrace, ({ one, many }) => ({
+	observations: many(usageObservation),
+	user: one(user, { fields: [usageTrace.userId], references: [user.id] }),
+}));
+
+export const usageObservationRelations = relations(usageObservation, ({ one }) => ({
+	trace: one(usageTrace, { fields: [usageObservation.traceId], references: [usageTrace.id] }),
 }));
 
 export const textSnippetRelations = relations(textSnippet, ({ one }) => ({
