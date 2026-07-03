@@ -125,7 +125,10 @@ export const UserBriefWorkspacesCard = () => {
 		error,
 		isLoading,
 	} = useQuery(listQueryOptions);
-	const { data: editorContext } = useQuery(editorContextQueryOptions);
+	const { data: editorContext } = useQuery({
+		...editorContextQueryOptions,
+		refetchInterval: 30_000,
+	});
 
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [draft, setDraft] = useState<WorkspaceDraft>(createEmptyDraft());

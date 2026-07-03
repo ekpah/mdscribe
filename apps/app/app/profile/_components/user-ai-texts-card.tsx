@@ -157,6 +157,9 @@ export const UserAiTextsCard = () => {
 	const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
 	const listKey = formsQueryOptions.queryKey;
+	const availableFormsKey = orpc.scribeForms.listAvailable.queryOptions().queryKey;
+	const workspaceEditorContextKey =
+		orpc.scribeWorkspaces.editorContext.queryOptions().queryKey;
 	const resolvedDraftSlug = resolveDraftSlug(draft);
 	const routePreview = buildCustomFormPath(
 		resolvedDraftSlug || "ai-text",
@@ -212,10 +215,11 @@ export const UserAiTextsCard = () => {
 			toast.error(error instanceof Error ? error.message : "Fehler");
 		},
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: listKey });
-			await queryClient.invalidateQueries({
-				queryKey: orpc.scribeForms.listAvailable.queryOptions().queryKey,
-			});
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: listKey }),
+				queryClient.invalidateQueries({ queryKey: availableFormsKey }),
+				queryClient.invalidateQueries({ queryKey: workspaceEditorContextKey }),
+			]);
 			toast.success("AI Vorlage gespeichert");
 			setDialogOpen(false);
 			setDraft(createEmptyDraft());
@@ -230,10 +234,11 @@ export const UserAiTextsCard = () => {
 			toast.error(error instanceof Error ? error.message : "Fehler");
 		},
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: listKey });
-			await queryClient.invalidateQueries({
-				queryKey: orpc.scribeForms.listAvailable.queryOptions().queryKey,
-			});
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: listKey }),
+				queryClient.invalidateQueries({ queryKey: availableFormsKey }),
+				queryClient.invalidateQueries({ queryKey: workspaceEditorContextKey }),
+			]);
 			setPendingDeleteId(null);
 			toast.success("AI Vorlage gelöscht");
 		},
@@ -257,10 +262,11 @@ export const UserAiTextsCard = () => {
 			toast.error(error instanceof Error ? error.message : "Fehler");
 		},
 		onSettled: async () => {
-			await queryClient.invalidateQueries({ queryKey: listKey });
-			await queryClient.invalidateQueries({
-				queryKey: orpc.scribeForms.listAvailable.queryOptions().queryKey,
-			});
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: listKey }),
+				queryClient.invalidateQueries({ queryKey: availableFormsKey }),
+				queryClient.invalidateQueries({ queryKey: workspaceEditorContextKey }),
+			]);
 		},
 	});
 
