@@ -127,7 +127,7 @@ export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null =>
 export const formatScore = (score?: number): string =>
 	score === undefined ? "-" : score.toFixed(1);
 
-export const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
+const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
 	if (!metadata) {
 		return "-";
 	}

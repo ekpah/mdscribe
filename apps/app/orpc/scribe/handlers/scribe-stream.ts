@@ -302,6 +302,19 @@ export interface ScribeGenerationTraceContext {
 	traceId?: string;
 }
 
+interface ScribeGenerationContext {
+	db: Database;
+	entitlements: { scribe: ScribeEntitlements };
+	session: Session;
+}
+
+interface ScribeGenerationTraceContext {
+	agentSectionId?: string;
+	agentRunId?: string;
+	observationId?: string;
+	traceId?: string;
+}
+
 interface ResolvedScribeRequest {
 	config: {
 		modelConfig: ModelConfig;
