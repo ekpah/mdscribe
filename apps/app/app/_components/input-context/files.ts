@@ -4,7 +4,7 @@ import {
 	FILL_INPUT_PAYLOAD_LIMITS,
 	formatPayloadBytes,
 } from "@/lib/input-fill-limits";
-import type { UploadedContextFile } from "./types";
+import type { AudioRecording, UploadedContextFile } from "./types";
 
 interface ContextFileLimits {
 	maxFileBytes?: number;
@@ -16,6 +16,12 @@ interface AddContextFilesResult {
 	files: UploadedContextFile[];
 	message?: string;
 	ok: boolean;
+}
+
+interface AddAudioFilesResult {
+	message?: string;
+	ok: boolean;
+	recordings: AudioRecording[];
 }
 
 const getContextFilesTotalSize = (files: UploadedContextFile[]): number => {
@@ -30,6 +36,68 @@ const createUploadedContextFile = (file: File): UploadedContextFile => ({
 	file,
 	id: `file-${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
 });
+
+const createAudioRecordingFromFile = (file: File): AudioRecording => ({
+	blob: file,
+	duration: 0,
+	id: `audio-file-${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+	mimeType: file.type,
+	sourceDeviceLabel: "Eingefügte Audiodatei",
+	url: URL.createObjectURL(file),
+});
+
+export const addAudioFilesToValue = ({
+	currentRecordings,
+	files,
+	maxRecordings,
+}: {
+	currentRecordings: AudioRecording[];
+	files: File[];
+	maxRecordings: number;
+}): AddAudioFilesResult => {
+	if (files.length === 0) {
+		return { ok: true, recordings: currentRecordings };
+	}
+
+	if (currentRecordings.length + files.length > maxRecordings) {
+		return {
+			message: `Maximal ${maxRecordings} Audioaufnahmen möglich.`,
+			ok: false,
+			recordings: currentRecordings,
+		};
+	}
+
+	let totalBytes = 0;
+	for (const recording of currentRecordings) {
+		totalBytes += recording.blob.size;
+	}
+	for (const file of files) {
+		if (file.size > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
+			return {
+				message: `"${file.name}" ist zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Audioaufnahme.`,
+				ok: false,
+				recordings: currentRecordings,
+			};
+		}
+		totalBytes += file.size;
+	}
+
+	if (totalBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal) {
+		return {
+			message: `Audioaufnahmen sind zusammen zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)} möglich.`,
+			ok: false,
+			recordings: currentRecordings,
+		};
+	}
+
+	return {
+		ok: true,
+		recordings: [
+			...currentRecordings,
+			...files.map(createAudioRecordingFromFile),
+		],
+	};
+};
 
 export const addContextFilesToValue = ({
 	currentFiles,

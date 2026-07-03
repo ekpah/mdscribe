@@ -15,6 +15,7 @@ import type {
 	AudioRecording,
 	UploadedContextFile,
 } from "@/app/_components/input-context/types";
+import { resolveFallbackTemplateByContextKey } from "@/orpc/scribe/context/template/fallbacks";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 
@@ -41,6 +42,10 @@ interface DoctorsNoteEditorSection {
 	harness: PromptHarnessId;
 	formId?: string | null;
 	templateId?: string | null;
+	template?: {
+		content: string;
+		title: string;
+	} | null;
 }
 
 interface DoctorsNoteEditorProps {
@@ -72,28 +77,34 @@ interface InitialAgentContext {
  * (`notes`) on the wire. A section with a `formId` streams through that form.
  */
 const compileEditorSections = (sections: DoctorsNoteEditorSection[]): CompiledSection[] =>
-	sections.map((section) => ({
-		buildPrompt: (notes, context) => {
-			const body: Record<string, unknown> = { notes };
-			for (const sibling of sections) {
-				if (sibling.key === section.key) {
-					continue;
+	sections.map((section) => {
+		const template =
+			section.template ?? resolveFallbackTemplateByContextKey(section.harness) ?? null;
+
+		return {
+			buildPrompt: (notes, context) => {
+				const body: Record<string, unknown> = { notes };
+				for (const sibling of sections) {
+					if (sibling.key === section.key) {
+						continue;
+					}
+					const value = context[sibling.key];
+					if (value && value.trim().length > 0) {
+						body[getPromptHarnessTargetField(sibling.harness)] = value;
+					}
 				}
-				const value = context[sibling.key];
-				if (value && value.trim().length > 0) {
-					body[getPromptHarnessTargetField(sibling.harness)] = value;
-				}
-			}
-			return body;
-		},
-		documentType: section.harness,
-		formId: section.formId ?? undefined,
-		harness: section.harness,
-		id: section.key,
-		label: section.label,
-		placeholder: `${section.label} eingeben oder diktieren …`,
-		templateId: section.templateId ?? null,
-	}));
+				return body;
+			},
+			documentType: section.harness,
+			formId: section.formId ?? undefined,
+			harness: section.harness,
+			id: section.key,
+			label: section.label,
+			placeholder: template?.content.trim() || `${section.label} eingeben oder diktieren …`,
+			template,
+			templateId: section.templateId ?? null,
+		};
+	});
 
 export const DoctorsNoteEditor = ({
 	title,

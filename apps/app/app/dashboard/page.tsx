@@ -232,7 +232,6 @@ interface DashboardTemplate {
 		favouriteOf: number;
 	};
 	category: string;
-	content: string;
 	id: string;
 	title: string;
 }
@@ -514,9 +513,6 @@ const FavoriteTemplatesCard = ({ templates }: { templates: DashboardTemplate[] }
 											</Badge>
 										</div>
 										<h3 className="mb-1 font-semibold text-solarized-base03">{template.title}</h3>
-										<p className="mb-2 line-clamp-2 text-sm text-solarized-base01">
-											{template.content.slice(0, 100)}...
-										</p>
 									</div>
 									<Link href={`/templates/${template.id}`}>
 										<Button className="gap-1" size="sm" variant="ghost">

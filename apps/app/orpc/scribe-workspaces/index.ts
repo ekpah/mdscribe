@@ -35,6 +35,22 @@ interface ResolvedWorkspaceSection {
 	harness: PromptHarnessId;
 	formId: string | null;
 	templateId: string | null;
+	template: {
+		content: string;
+		title: string;
+	} | null;
+}
+
+interface WorkspaceFormReference {
+	id: string;
+	promptHarness: string;
+	templateId: string | null;
+	template?: {
+		authorId: string;
+		content: string;
+		title: string;
+		visibility: string;
+	} | null;
 }
 
 // Section order + which workspace column drives each. Befunde always defaults.
@@ -102,6 +118,29 @@ const slugifyWorkspaceName = (value: string): string =>
 const toNullableText = (value?: string | null): string | null => {
 	const trimmed = value?.trim();
 	return trimmed && trimmed.length > 0 ? trimmed : null;
+};
+
+const isTemplateVisibleToUser = (
+	templateData: { authorId: string; visibility: string },
+	viewerId: string,
+): boolean => templateData.visibility === "public" || templateData.authorId === viewerId;
+
+export const resolveWorkspaceSectionTemplate = ({
+	form,
+	viewerId,
+}: {
+	form?: WorkspaceFormReference;
+	viewerId: string;
+}): ResolvedWorkspaceSection["template"] => {
+	if (form?.template && isTemplateVisibleToUser(form.template, viewerId)) {
+		const content = toNullableText(form.template.content);
+		const title = toNullableText(form.template.title);
+		if (content && title) {
+			return { content, title };
+		}
+	}
+
+	return null;
 };
 
 const resolveUniqueSlug = async ({
@@ -220,7 +259,8 @@ const toWorkspaceSlotValues = (input: {
 
 const resolveSections = (
 	workspace: AiScribeWorkspace,
-	formsById: Map<string, { id: string; promptHarness: string; templateId: string | null }>,
+	formsById: Map<string, WorkspaceFormReference>,
+	viewerId: string,
 ): ResolvedWorkspaceSection[] =>
 	SECTION_BLUEPRINT.map((slot) => {
 		const formId = slot.formColumn ? workspace[slot.formColumn] : null;
@@ -233,6 +273,7 @@ const resolveSections = (
 				harness,
 				key: slot.key,
 				label: slot.label,
+				template: resolveWorkspaceSectionTemplate({ form, viewerId }),
 				templateId: form.templateId,
 			};
 		}
@@ -241,6 +282,7 @@ const resolveSections = (
 			harness: slot.harness,
 			key: slot.key,
 			label: slot.label,
+			template: null,
 			templateId: null,
 		};
 	});
@@ -269,13 +311,23 @@ const resolveWorkspace = async (
 							eq(aiScribeFormConfig.authorId, viewerId),
 						),
 					),
+					with: {
+						template: {
+							columns: {
+								authorId: true,
+								content: true,
+								title: true,
+								visibility: true,
+							},
+						},
+					},
 				})
 			: [];
 	const formsById = new Map(forms.map((form) => [form.id, form]));
 
 	return {
 		description: workspace.description ?? "",
-		sections: resolveSections(workspace, formsById),
+		sections: resolveSections(workspace, formsById, viewerId),
 		slug: workspace.slug,
 		title: workspace.name,
 	};

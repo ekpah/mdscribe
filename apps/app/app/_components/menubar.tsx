@@ -56,14 +56,14 @@ export default function TopMenuBar({
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 	const sessionQuery = useSession();
-	const session = sessionQuery.data ?? initialSession;
+	const session = sessionQuery.data === undefined ? initialSession : sessionQuery.data;
 	const authQuery = useQuery({
 		...orpc.user.auth.queryOptions(),
 		enabled: Boolean(session?.user) && !initialIsAdmin,
 	});
 	const isSessionLoading = sessionQuery.isPending && session === null;
 	const showAiLink = !!session?.user;
-	const isAdmin = initialIsAdmin || (authQuery.data?.isAdmin ?? false);
+	const isAdmin = Boolean(session?.user) && (initialIsAdmin || (authQuery.data?.isAdmin ?? false));
 	const userDisplayName = getUserDisplayName(session);
 
 	const signInUrl = `/sign-in?redirect=${encodeURIComponent(pathname)}`;

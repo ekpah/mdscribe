@@ -8,6 +8,7 @@ import type {
 	UsageMetadata,
 	UsageTiming,
 } from "@/lib/usage-logging";
+import { scheduleDeferredTask } from "./usage-logging";
 
 interface LogMediaPreprocessingUsageInput {
 	db?: Database;
@@ -31,7 +32,7 @@ const redactIfNeeded = (zdr: boolean | undefined, value: string | undefined): st
 	return zdr ? "[zdr - content redacted]" : value;
 };
 
-export const logMediaPreprocessingUsage = async ({
+export const logMediaPreprocessingUsage = ({
 	db,
 	inputData,
 	isOpenRouter,
@@ -44,25 +45,29 @@ export const logMediaPreprocessingUsage = async ({
 	timing,
 	userId,
 	zdr,
-}: LogMediaPreprocessingUsageInput): Promise<void> => {
+}: LogMediaPreprocessingUsageInput): void => {
 	if (!(db && userId)) {
 		return;
 	}
 
-	await db.insert(usageEvent).values(
-		buildUsageEventData({
-			inputData,
-			metadata: {
-				...metadata,
-				zdrEnabled: Boolean(zdr),
-			},
-			model: modelName,
-			name,
-			openRouterUsage: isOpenRouter ? extractOpenRouterUsage(providerMetadata) : undefined,
-			result: redactIfNeeded(zdr, result),
-			standardUsage,
-			timing,
-			userId,
-		}),
-	);
+	scheduleDeferredTask(async () => {
+		await db.insert(usageEvent).values(
+			buildUsageEventData({
+				inputData,
+				metadata: {
+					...metadata,
+					zdrEnabled: Boolean(zdr),
+				},
+				model: modelName,
+				name,
+				openRouterUsage: isOpenRouter
+					? extractOpenRouterUsage(providerMetadata)
+					: undefined,
+				result: redactIfNeeded(zdr, result),
+				standardUsage,
+				timing,
+				userId,
+			}),
+		);
+	});
 };

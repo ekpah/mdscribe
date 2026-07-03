@@ -212,7 +212,7 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		totalPayloadBytes += totalBytes;
 
 		if (payloadBytes === 0) {
-			throwLimit(`Audioaufnahme ${index + 1} enthält keine Audiodaten.`);
+			throwPayloadLimitError(`Audioaufnahme ${index + 1} enthält keine Audiodaten.`);
 		}
 
 		assertAtMost(

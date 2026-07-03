@@ -17,6 +17,7 @@ import {
 	useInputContextState,
 } from "@/app/_components/input-context/input-context-controls";
 import type { InputContextController } from "@/app/_components/input-context/types";
+import { useInputContextClipboardPaste } from "@/app/_components/input-context/use-input-context-clipboard-paste";
 
 interface AiscribeTemplateInputField {
 	description?: string;
@@ -65,6 +66,10 @@ export const AiscribeTemplateInputSection = ({
 	const fallbackInputContextController = useInputContextState();
 	const resolvedInputContextController =
 		inputContextController ?? fallbackInputContextController;
+	const handleInputPaste = useInputContextClipboardPaste({
+		controller: resolvedInputContextController,
+		disabled: isLoading,
+	});
 	const additionalInputChangeHandlers = useMemo(() => {
 		const handlers: Record<
 			string,
@@ -188,6 +193,7 @@ export const AiscribeTemplateInputSection = ({
 									onChange={(event) => {
 										onInputValueChange(event.target.value);
 									}}
+									onPaste={handleInputPaste}
 									placeholder={inputPlaceholder}
 									ref={textareaRef}
 									value={inputValue}

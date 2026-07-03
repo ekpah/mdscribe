@@ -1,6 +1,5 @@
 "use client";
 
-import { resolveFallbackTemplateByContextKey } from "@/orpc/scribe/context/template/fallbacks";
 import { getPromptHarnessLabel } from "@/orpc/scribe/prompts";
 
 import { ContextTemplateCard } from "./context-template-card";
@@ -33,17 +32,13 @@ export const DoctorsNoteFieldCard = ({
 		);
 	}
 
-	const templateTitle = resolveFallbackTemplateByContextKey(
-		config.documentType,
-	)?.title;
-
 	return (
 		<ContextTemplateCard
 			author="MDScribe-Standard"
 			className={className}
 			compact
 			prompt={getPromptHarnessLabel(config.documentType)}
-			template={{ title: templateTitle ?? "Standardstruktur" }}
+			template={{ title: config.template?.title ?? "Standardstruktur" }}
 			title={config.label}
 		/>
 	);

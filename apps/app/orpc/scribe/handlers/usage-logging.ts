@@ -22,10 +22,10 @@ interface ScribeStreamFinishEvent {
 	usage: unknown;
 }
 
-const scheduleDeferredTask = (task: Promise<void>): void => {
+export const scheduleDeferredTask = (task: () => Promise<void>): void => {
 	const run = async () => {
 		try {
-			await task;
+			await task();
 		} catch (error) {
 			console.error("Deferred usage logging failed:", error);
 		}
@@ -55,7 +55,7 @@ export const scheduleScribeUsageLogging = (input: {
 	userId: string;
 }): void => {
 	scheduleDeferredTask(
-		(async () => {
+		async () => {
 			const openRouterUsage = input.isOpenRouter
 				? extractOpenRouterUsage(
 						input.event.providerMetadata as Record<string, unknown> | undefined,
@@ -87,6 +87,6 @@ export const scheduleScribeUsageLogging = (input: {
 					userId: input.userId,
 				}),
 			);
-		})(),
+		},
 	);
 };

@@ -70,7 +70,7 @@ EXPOSE 3000
 
 USER bun
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3000/api/healthcheck || exit 1
 
 CMD ["bun", "apps/app/server.js"]

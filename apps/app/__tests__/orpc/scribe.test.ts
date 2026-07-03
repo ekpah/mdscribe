@@ -721,7 +721,7 @@ const createResolvedModel = (overrides: Partial<ResolvedModel>): ResolvedModel =
 	model: "test/model",
 	modelName: "test/model",
 	providerId: "provider-1",
-	providerProtocol: "tinfoil",
+	providerProtocol: "openai-compatible",
 	supportedParameters: [],
 	supportsReasoning: true,
 	...overrides,
@@ -788,21 +788,6 @@ describe("buildProviderOptions", () => {
 		});
 	});
 
-	test("tinfoil receives reasoning effort and user via openaiCompatible options", () => {
-		const options = buildProviderOptions({
-			model: createResolvedModel({ providerProtocol: "tinfoil" }),
-			reasoningEffort: "medium",
-			userId: "user-1",
-		});
-
-		expect(options).toEqual({
-			openaiCompatible: {
-				reasoningEffort: "medium",
-				user: "user-1",
-			},
-		});
-	});
-
 	test("openai-compatible receives reasoning effort via openaiCompatible options", () => {
 		const options = buildProviderOptions({
 			model: createResolvedModel({ providerProtocol: "openai-compatible" }),
@@ -844,9 +829,30 @@ describe("buildProviderOptions", () => {
 		});
 	});
 
-	test("omits reasoning when the model does not support it", () => {
+	test("sends reasoning when support is unknown", () => {
 		const options = buildProviderOptions({
-			model: createResolvedModel({ providerProtocol: "tinfoil", supportsReasoning: false }),
+			model: createResolvedModel({
+				providerProtocol: "openai-compatible",
+				supportedParameters: [],
+				supportsReasoning: false,
+			}),
+			reasoningEffort: "high",
+		});
+
+		expect(options).toEqual({
+			openaiCompatible: {
+				reasoningEffort: "high",
+			},
+		});
+	});
+
+	test("omits reasoning when the model explicitly does not support it", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({
+				providerProtocol: "openai-compatible",
+				supportedParameters: ["temperature"],
+				supportsReasoning: false,
+			}),
 			reasoningEffort: "high",
 		});
 

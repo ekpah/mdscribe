@@ -40,6 +40,7 @@ import {
 	Loader2,
 	Play,
 	RefreshCcw,
+	RotateCcw,
 	Sparkles,
 	Trophy,
 	UserCheck,
@@ -497,6 +498,20 @@ const formatTokensPerSecond = (tokensPerSecond: number | null | undefined): stri
 
 const getModelLabel = (model: PlaygroundModel | null): string => model?.name ?? "Kein Modell";
 
+const areParametersEqual = (
+	left: PlaygroundParameters,
+	right: PlaygroundParameters,
+): boolean =>
+	left.frequencyPenalty === right.frequencyPenalty &&
+	left.maxTokens === right.maxTokens &&
+	left.presencePenalty === right.presencePenalty &&
+	left.reasoningEffort === right.reasoningEffort &&
+	left.temperature === right.temperature &&
+	left.thinking === right.thinking &&
+	left.thinkingExplicit === right.thinkingExplicit &&
+	left.topK === right.topK &&
+	left.topP === right.topP;
+
 const shuffleArray = <T,>(items: T[]): T[] => {
 	const shuffled = [...items];
 	for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -858,6 +873,7 @@ interface ComparisonRunCellProps {
 	overrideTemplateId: string | null;
 	parameters: PlaygroundParameters;
 	preference: ComparisonPreference | undefined;
+	storedResult: ComparisonRunResult | undefined;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
 	sample: ComparisonSample;
 	shouldMaskUntilRowDone: boolean;
@@ -875,6 +891,7 @@ const ComparisonRunCell = ({
 	overrideTemplateId,
 	parameters,
 	preference,
+	storedResult,
 	runTriggersRef,
 	sample,
 	shouldMaskUntilRowDone,
@@ -895,6 +912,12 @@ const ComparisonRunCell = ({
 	const [localResult, setLocalResult] = useState<ComparisonRunResult>({
 		status: "idle",
 	});
+
+	useEffect(() => {
+		if (!storedResult) {
+			setLocalResult({ status: "idle" });
+		}
+	}, [storedResult]);
 
 	const publishResult = useCallback(
 		(result: ComparisonRunResult) => {
@@ -1133,6 +1156,7 @@ const ComparisonRunCell = ({
 
 const ModelConfigCard = ({
 	disabled,
+	isGeneratingSide,
 	isLoading,
 	isLoadingTemplates,
 	model,
@@ -1140,6 +1164,7 @@ const ModelConfigCard = ({
 	modelSelectorOptions,
 	onModelChange,
 	onParametersChange,
+	onRegenerateSide,
 	onTemplateOverrideChange,
 	parameters,
 	side,
@@ -1147,6 +1172,7 @@ const ModelConfigCard = ({
 	templateOverrideId,
 }: {
 	disabled: boolean;
+	isGeneratingSide: boolean;
 	isLoading: boolean;
 	isLoadingTemplates: boolean;
 	model: PlaygroundModel | null;
@@ -1154,6 +1180,7 @@ const ModelConfigCard = ({
 	modelSelectorOptions: PlaygroundModelSelectorOption[];
 	onModelChange: (value: string) => void;
 	onParametersChange: (parameters: PlaygroundParameters) => void;
+	onRegenerateSide: () => void;
 	onTemplateOverrideChange: (value: string | null) => void;
 	parameters: PlaygroundParameters;
 	side: ComparisonSide;
@@ -1220,6 +1247,20 @@ const ModelConfigCard = ({
 				onChange={onParametersChange}
 				parameters={parameters}
 			/>
+			<Button
+				type="button"
+				variant="outline"
+				className="w-full gap-2"
+				onClick={onRegenerateSide}
+				disabled={disabled || !model || isGeneratingSide}
+			>
+				{isGeneratingSide ? (
+					<Loader2 className="h-4 w-4 animate-spin" />
+				) : (
+					<RotateCcw className="h-4 w-4" />
+				)}
+				Nur Modell {side === "a" ? "A" : "B"} regenerieren
+			</Button>
 		</CardContent>
 	</Card>
 );
@@ -1267,9 +1308,7 @@ const ComparisonSampleRow = ({
 	const docUi = scribeDocTypeUi[sample.documentType];
 	const rowResults = results[sample.id];
 	const rowStatuses = [rowResults?.a?.status, rowResults?.b?.status];
-	const rowHasStarted = rowStatuses.some(
-		(status) => status === "running" || status === "success" || status === "error",
-	);
+	const rowHasRunning = rowStatuses.some((status) => status === "running");
 	const rowIsDone = rowStatuses.every((status) => status === "success" || status === "error");
 	const runConfigBySide: Record<
 		ComparisonSide,
@@ -1316,9 +1355,10 @@ const ComparisonSampleRow = ({
 					preference={preferences[sample.id]}
 					runTriggersRef={runTriggersRef}
 					sample={sample}
-					shouldMaskUntilRowDone={rowHasStarted && !rowIsDone}
+					shouldMaskUntilRowDone={rowHasRunning && !rowIsDone}
 					showMetrics={showMetrics}
 					side={side}
+					storedResult={rowResults?.[side]}
 					templateReferenceById={templateReferenceById}
 				/>
 			))}
@@ -1689,7 +1729,7 @@ export const ModelComparisonPageClient = () => {
 	const [templateOverrideIdB, setTemplateOverrideIdB] = useState<string | null>(null);
 	const [displayOrder, setDisplayOrder] = useState<Record<string, ComparisonSide[]>>({});
 	const [isAutoEvaluating, setIsAutoEvaluating] = useState(false);
-	const [isGenerating, setIsGenerating] = useState(false);
+	const [generatingSide, setGeneratingSide] = useState<ComparisonSide | "all" | null>(null);
 	const [preferences, setPreferences] = useState<ComparisonPreferences>({});
 	const [results, setResults] = useState<ComparisonResults>({});
 	const [sampleCountLimit, setSampleCountLimit] = useState(DEFAULT_SAMPLE_COUNT);
@@ -1790,6 +1830,7 @@ export const ModelComparisonPageClient = () => {
 	);
 	const modelA = modelAId ? (modelById.get(modelAId) ?? null) : null;
 	const modelB = modelBId ? (modelById.get(modelBId) ?? null) : null;
+	const isGenerating = generatingSide !== null;
 
 	useEffect(() => {
 		if (models.length === 0) {
@@ -1858,6 +1899,41 @@ export const ModelComparisonPageClient = () => {
 		setSummary(null);
 	}, []);
 
+	const reshuffleDisplayOrder = useCallback(() => {
+		setDisplayOrder(
+			buildDisplayOrder(
+				samples.map((sample) => sample.id),
+				blindMode,
+			),
+		);
+	}, [blindMode, samples]);
+
+	const clearSideComparisonState = useCallback(
+		(side: ComparisonSide) => {
+			setPreferences({});
+			setSummary(null);
+			reshuffleDisplayOrder();
+			setResults((current) => {
+				const next: ComparisonResults = {};
+				for (const [sampleId, sampleResults] of Object.entries(current)) {
+					const nextSampleResults =
+						side === "a"
+							? ({ b: sampleResults.b } satisfies Partial<
+									Record<ComparisonSide, ComparisonRunResult>
+								>)
+							: ({ a: sampleResults.a } satisfies Partial<
+									Record<ComparisonSide, ComparisonRunResult>
+								>);
+					if (nextSampleResults.a || nextSampleResults.b) {
+						next[sampleId] = nextSampleResults;
+					}
+				}
+				return next;
+			});
+		},
+		[reshuffleDisplayOrder],
+	);
+
 	const handleRefreshSamples = useCallback(async () => {
 		clearComparisonState();
 		setSampledIds([]);
@@ -1887,6 +1963,54 @@ export const ModelComparisonPageClient = () => {
 		setSampleCountLimit(sampleCount);
 	}, []);
 
+	const handleSideModelChange = useCallback(
+		(side: ComparisonSide, value: string) => {
+			const currentValue = side === "a" ? modelAId : modelBId;
+			if (currentValue === value) {
+				return;
+			}
+			if (side === "a") {
+				setModelAId(value);
+			} else {
+				setModelBId(value);
+			}
+			clearSideComparisonState(side);
+		},
+		[clearSideComparisonState, modelAId, modelBId],
+	);
+
+	const handleSideParametersChange = useCallback(
+		(side: ComparisonSide, parameters: PlaygroundParameters) => {
+			const currentParameters = side === "a" ? parametersA : parametersB;
+			if (areParametersEqual(currentParameters, parameters)) {
+				return;
+			}
+			if (side === "a") {
+				setParametersA(parameters);
+			} else {
+				setParametersB(parameters);
+			}
+			clearSideComparisonState(side);
+		},
+		[clearSideComparisonState, parametersA, parametersB],
+	);
+
+	const handleSideTemplateOverrideChange = useCallback(
+		(side: ComparisonSide, value: string | null) => {
+			const currentValue = side === "a" ? templateOverrideIdA : templateOverrideIdB;
+			if (currentValue === value) {
+				return;
+			}
+			if (side === "a") {
+				setTemplateOverrideIdA(value);
+			} else {
+				setTemplateOverrideIdB(value);
+			}
+			clearSideComparisonState(side);
+		},
+		[clearSideComparisonState, templateOverrideIdA, templateOverrideIdB],
+	);
+
 	const handleGenerateAll = useCallback(async () => {
 		if (!modelA || !modelB) {
 			toast.error("Bitte zwei Modelle auswählen");
@@ -1901,15 +2025,10 @@ export const ModelComparisonPageClient = () => {
 			return;
 		}
 
-		setIsGenerating(true);
+		setGeneratingSide("all");
 		setPreferences({});
 		setSummary(null);
-		setDisplayOrder(
-			buildDisplayOrder(
-				samples.map((sample) => sample.id),
-				blindMode,
-			),
-		);
+		reshuffleDisplayOrder();
 		setResults({});
 		const triggers = samples.flatMap((sample) => [
 			runTriggersRef.current.get(`${sample.id}-a`),
@@ -1917,8 +2036,36 @@ export const ModelComparisonPageClient = () => {
 		]);
 
 		await Promise.allSettled(triggers.map((trigger) => (trigger ? trigger() : Promise.resolve())));
-		setIsGenerating(false);
-	}, [blindMode, isLoadingReplayContext, modelA, modelB, samples]);
+		setGeneratingSide(null);
+	}, [isLoadingReplayContext, modelA, modelB, reshuffleDisplayOrder, samples]);
+
+	const handleGenerateSide = useCallback(
+		async (side: ComparisonSide) => {
+			const model = side === "a" ? modelA : modelB;
+			if (!model) {
+				toast.error(`Bitte Modell ${side === "a" ? "A" : "B"} auswählen`);
+				return;
+			}
+			if (samples.length === 0) {
+				toast.error("Keine wiederverwendbaren Usage Events gefunden");
+				return;
+			}
+			if (isLoadingReplayContext) {
+				toast.error("Replay-Kontext wird noch geladen");
+				return;
+			}
+
+			setGeneratingSide(side);
+			clearSideComparisonState(side);
+			const triggers = samples.map((sample) => runTriggersRef.current.get(`${sample.id}-${side}`));
+
+			await Promise.allSettled(
+				triggers.map((trigger) => (trigger ? trigger() : Promise.resolve())),
+			);
+			setGeneratingSide(null);
+		},
+		[clearSideComparisonState, isLoadingReplayContext, modelA, modelB, samples],
+	);
 
 	const handlePreferenceChange = useCallback((sampleId: string, side: ComparisonSide) => {
 		setPreferences((current) => ({
@@ -2075,14 +2222,16 @@ export const ModelComparisonPageClient = () => {
 				<div className="grid gap-4 lg:grid-cols-2">
 					<ModelConfigCard
 						disabled={isGenerating}
+						isGeneratingSide={generatingSide === "a"}
 						isLoading={modelsQuery.isLoading}
 						isLoadingTemplates={templatesQuery.isLoading}
 						model={modelA}
 						modelId={modelAId}
 						modelSelectorOptions={modelSelectorOptions}
-						onModelChange={setModelAId}
-						onParametersChange={setParametersA}
-						onTemplateOverrideChange={setTemplateOverrideIdA}
+						onModelChange={(value) => handleSideModelChange("a", value)}
+						onParametersChange={(parameters) => handleSideParametersChange("a", parameters)}
+						onRegenerateSide={() => handleGenerateSide("a")}
+						onTemplateOverrideChange={(value) => handleSideTemplateOverrideChange("a", value)}
 						parameters={parametersA}
 						side="a"
 						templateOptions={templateOptions}
@@ -2090,14 +2239,16 @@ export const ModelComparisonPageClient = () => {
 					/>
 					<ModelConfigCard
 						disabled={isGenerating}
+						isGeneratingSide={generatingSide === "b"}
 						isLoading={modelsQuery.isLoading}
 						isLoadingTemplates={templatesQuery.isLoading}
 						model={modelB}
 						modelId={modelBId}
 						modelSelectorOptions={modelSelectorOptions}
-						onModelChange={setModelBId}
-						onParametersChange={setParametersB}
-						onTemplateOverrideChange={setTemplateOverrideIdB}
+						onModelChange={(value) => handleSideModelChange("b", value)}
+						onParametersChange={(parameters) => handleSideParametersChange("b", parameters)}
+						onRegenerateSide={() => handleGenerateSide("b")}
+						onTemplateOverrideChange={(value) => handleSideTemplateOverrideChange("b", value)}
 						parameters={parametersB}
 						side="b"
 						templateOptions={templateOptions}

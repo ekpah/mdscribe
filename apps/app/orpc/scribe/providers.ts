@@ -7,7 +7,6 @@ import { aiDefaults, aiModel, aiProvider, and, eq } from "@repo/database";
 import type { Database } from "@repo/database";
 import { experimental_transcribe as transcribe } from "ai";
 import type { JSONValue, LanguageModel } from "ai";
-import { createTinfoilAI, TinfoilAI, toFile } from "tinfoil";
 
 import { decrypt } from "@/lib/encryption";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
@@ -83,6 +82,10 @@ type AiDefaultsRow = typeof aiDefaults.$inferSelect;
 const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
 	parameters ?? [];
 
+export const modelAllowsReasoningOptions = (
+	model: Pick<ResolvedModel, "supportedParameters" | "supportsReasoning">,
+): boolean => model.supportsReasoning || model.supportedParameters.length === 0;
+
 const REASONING_EFFORTS = new Set<ReasoningEffort>([
 	"none",
 	"minimal",
@@ -95,72 +98,15 @@ const REASONING_EFFORTS = new Set<ReasoningEffort>([
 export const normalizeReasoningEffort = (value: string | null | undefined): ReasoningEffort =>
 	REASONING_EFFORTS.has(value as ReasoningEffort) ? (value as ReasoningEffort) : "none";
 
-/**
- * Tinfoil providers are cached per credential set because `createTinfoilAI`
- * performs the enclave attestation handshake (hardware signature checks plus
- * code provenance) before returning; reusing the instance keeps that cost off
- * the per-request path. Rejected handshakes are evicted so the next request
- * retries instead of caching the failure.
- */
-const tinfoilProviderCache = new Map<string, Promise<Awaited<ReturnType<typeof createTinfoilAI>>>>();
-const tinfoilTranscriptionClientCache = new Map<string, TinfoilAI>();
-
-const getTinfoilCacheKey = (apiKey: string | undefined, baseUrl: string | null): string =>
-	`${apiKey ?? ""}:${baseUrl ?? ""}`;
-
-const getTinfoilProvider = (
-	apiKey: string | undefined,
-	baseUrl: string | null,
-): Promise<Awaited<ReturnType<typeof createTinfoilAI>>> => {
-	const cacheKey = getTinfoilCacheKey(apiKey, baseUrl);
-	const cached = tinfoilProviderCache.get(cacheKey);
-	if (cached) {
-		return cached;
-	}
-
-	const created = (async () => {
-		try {
-			return await createTinfoilAI(apiKey, baseUrl ? { baseURL: baseUrl } : {});
-		} catch (error) {
-			tinfoilProviderCache.delete(cacheKey);
-			throw error;
-		}
-	})();
-	tinfoilProviderCache.set(cacheKey, created);
-	return created;
-};
-
-const getTinfoilTranscriptionClient = (
-	apiKey: string | undefined,
-	baseUrl: string | null,
-): TinfoilAI => {
-	const cacheKey = getTinfoilCacheKey(apiKey, baseUrl);
-	const cached = tinfoilTranscriptionClientCache.get(cacheKey);
-	if (cached) {
-		return cached;
-	}
-
-	const client = new TinfoilAI({
-		apiKey: apiKey ?? "",
-		...(baseUrl ? { baseURL: baseUrl } : {}),
-	});
-	tinfoilTranscriptionClientCache.set(cacheKey, client);
-	return client;
-};
-
-const createProviderModel = async (
+const createProviderModel = (
 	protocol: string,
 	modelId: string,
 	apiKey: string | undefined,
 	baseUrl: string | null,
-): Promise<LanguageModel> => {
+): LanguageModel => {
 	switch (protocol) {
 		case "openrouter": {
 			const provider = createOpenRouter({ apiKey: apiKey ?? "" });
-			return provider(modelId);
-		}
-		case "tinfoil": {
-			const provider = await getTinfoilProvider(apiKey, baseUrl);
 			return provider(modelId);
 		}
 		case "openai": {
@@ -244,21 +190,6 @@ const createAudioTranscriber = (
 	apiKey: string | undefined,
 	baseUrl: string | null,
 ): ResolvedModel["transcribeAudio"] | undefined => {
-	if (protocol === "tinfoil") {
-		return async ({ data, filename, mediaType }) => {
-			const client = getTinfoilTranscriptionClient(apiKey, baseUrl);
-			const file = await toFile(data, filename, { type: mediaType });
-			const result = await client.audio.transcriptions.create({
-				file,
-				model: modelId,
-			});
-			const text = result.text.trim();
-			if (!text) {
-				throw new Error("Tinfoil-Transkription lieferte keinen Text.");
-			}
-			return { text };
-		};
-	}
 
 	if (protocol === "openai" && isOpenAITranscriptionModel(modelId)) {
 		const provider = createOpenAI({ apiKey: apiKey ?? "" });
@@ -594,10 +525,16 @@ export const resolveGenerationStrategy = async (
 		};
 	};
 
+	const [audio, files, generation] = await Promise.all([
+		options.hasAudio ? buildAudioPlan() : Promise.resolve(null),
+		options.hasFiles ? buildFilesPlan() : Promise.resolve(null),
+		buildDefaultSelection(db, defaults, "text"),
+	]);
+
 	return {
-		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
-		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
-		generation: await buildDefaultSelection(db, defaults, "text"),
+		...(audio ? { audio } : {}),
+		...(files ? { files } : {}),
+		generation,
 	};
 };
 
@@ -612,11 +549,6 @@ export const resolveAgentGenerationStrategy = async (
 ): Promise<AgentGenerationStrategy> => {
 	const defaults = await getDefaults(db);
 	const usesStandardModel = defaults.defaultStandardSupportsAgent;
-	const generation = await buildDefaultSelection(
-		db,
-		defaults,
-		usesStandardModel ? "text" : "agent",
-	);
 	const supportsAudio = usesStandardModel
 		? defaults.defaultStandardSupportsAudio
 		: defaults.defaultAgentSupportsAudio;
@@ -646,9 +578,15 @@ export const resolveAgentGenerationStrategy = async (
 		};
 	};
 
+	const [generation, audio, files] = await Promise.all([
+		buildDefaultSelection(db, defaults, usesStandardModel ? "text" : "agent"),
+		options.hasAudio ? buildAudioPlan() : Promise.resolve(null),
+		options.hasFiles ? buildFilesPlan() : Promise.resolve(null),
+	]);
+
 	return {
-		...(options.hasAudio ? { audio: await buildAudioPlan() } : {}),
-		...(options.hasFiles ? { files: await buildFilesPlan() } : {}),
+		...(audio ? { audio } : {}),
+		...(files ? { files } : {}),
 		generation,
 		usesStandardModel,
 	};
@@ -682,7 +620,7 @@ export const buildProviderOptions = ({
 }): Record<string, Record<string, JSONValue>> | undefined => {
 	const normalizedReasoningEffort = normalizeReasoningEffort(reasoningEffort);
 	const effectiveReasoningEffort =
-		model.supportsReasoning && normalizedReasoningEffort !== "none"
+		modelAllowsReasoningOptions(model) && normalizedReasoningEffort !== "none"
 			? normalizedReasoningEffort
 			: undefined;
 
@@ -699,14 +637,11 @@ export const buildProviderOptions = ({
 				},
 			};
 		}
-		case "tinfoil":
 		case "openai-compatible":
 		case "openai": {
 			if (!(effectiveReasoningEffort || userId)) {
 				return;
 			}
-			// The generic `openaiCompatible` key applies regardless of the
-			// provider's registered name (`tinfoil`, `custom`, ...).
 			const optionsKey = model.providerProtocol === "openai" ? "openai" : "openaiCompatible";
 			return {
 				[optionsKey]: {

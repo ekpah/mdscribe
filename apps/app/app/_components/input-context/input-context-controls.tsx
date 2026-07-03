@@ -24,6 +24,7 @@ import { AudioInput } from "./inputs/audio/audio-input";
 import type { AudioInputHandle } from "./inputs/audio/audio-input";
 import { DocumentInput } from "./inputs/document/document-input";
 import { TextInput } from "./inputs/text/text-input";
+import { useInputContextClipboardPaste } from "./use-input-context-clipboard-paste";
 import type {
 	InputContextController,
 	InputContextPanel,
@@ -699,6 +700,13 @@ export const InputContextControls = ({
 		openContextPanel,
 		setDragDepth,
 	});
+	const handlePaste = useInputContextClipboardPaste({
+		controller,
+		disabled: isPanelDisabled,
+		onContextFilesAdded: () => {
+			openContextPanel("files");
+		},
+	});
 
 	usePendingRecordingShortcut({
 		audioInputRef,
@@ -796,6 +804,7 @@ export const InputContextControls = ({
 			onDragLeave={handleRootDragLeave}
 			onDragOver={handleRootDragOver}
 			onDrop={handleRootDrop}
+			onPaste={handlePaste}
 			ref={rootRef}
 		>
 			<InputContextDropOverlay active={isDraggingFiles} />
