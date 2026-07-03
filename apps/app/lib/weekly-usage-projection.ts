@@ -1,4 +1,4 @@
-export interface WeeklyUsageBucket {
+interface WeeklyUsageBucket {
 	bucket: string;
 	requests: number;
 }

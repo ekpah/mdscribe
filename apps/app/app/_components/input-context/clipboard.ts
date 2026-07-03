@@ -3,7 +3,7 @@ interface ClipboardFileData {
 	items: DataTransferItemList;
 }
 
-export interface ClipboardInputFiles {
+interface ClipboardInputFiles {
 	audioFiles: File[];
 	contextFiles: File[];
 }

@@ -13,7 +13,7 @@ export const REASONING_EFFORT_OPTIONS: {
 	{ description: "ca. 95%", label: "XHigh", value: "xhigh" },
 ];
 
-export type ReasoningSupportStatus = "supported" | "unsupported" | "unknown";
+type ReasoningSupportStatus = "supported" | "unsupported" | "unknown";
 
 export const getReasoningSupportStatus = (
 	model?: {

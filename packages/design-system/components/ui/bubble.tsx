@@ -122,4 +122,4 @@ function BubbleReactions({
   )
 }
 
-export { BubbleGroup, Bubble, BubbleContent, BubbleReactions }
+export { Bubble, BubbleContent }
