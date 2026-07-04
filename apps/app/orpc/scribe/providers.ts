@@ -9,6 +9,7 @@ import type { Database } from "@repo/database";
 import { experimental_transcribe as transcribe } from "ai";
 import type { JSONValue, LanguageModel } from "ai";
 import { revalidateTag, unstable_cache } from "next/cache";
+import { createTinfoilAI, TinfoilAI, toFile } from "tinfoil";
 
 import { decrypt } from "@/lib/encryption";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
@@ -190,7 +191,60 @@ export const invalidateAiProviderResolutionCaches = (): void => {
 	}
 };
 
-const createProviderModelUncached = (
+/**
+ * Tinfoil providers are cached per credential set because `createTinfoilAI`
+ * performs the enclave attestation handshake (hardware signature checks plus
+ * code provenance) before returning; reusing the instance keeps that cost off
+ * the per-request path. Rejected handshakes are evicted so the next request
+ * retries instead of caching the failure.
+ */
+const tinfoilProviderCache = new Map<string, Promise<Awaited<ReturnType<typeof createTinfoilAI>>>>();
+const tinfoilTranscriptionClientCache = new Map<string, TinfoilAI>();
+
+const getTinfoilCacheKey = (apiKey: string | undefined, baseUrl: string | null): string =>
+	`${apiKey ?? ""}:${baseUrl ?? ""}`;
+
+const getTinfoilProvider = (
+	apiKey: string | undefined,
+	baseUrl: string | null,
+): Promise<Awaited<ReturnType<typeof createTinfoilAI>>> => {
+	const cacheKey = getTinfoilCacheKey(apiKey, baseUrl);
+	const cached = tinfoilProviderCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
+	const created = (async () => {
+		try {
+			return await createTinfoilAI(apiKey, baseUrl ? { baseURL: baseUrl } : {});
+		} catch (error) {
+			tinfoilProviderCache.delete(cacheKey);
+			throw error;
+		}
+	})();
+	tinfoilProviderCache.set(cacheKey, created);
+	return created;
+};
+
+const getTinfoilTranscriptionClient = (
+	apiKey: string | undefined,
+	baseUrl: string | null,
+): TinfoilAI => {
+	const cacheKey = getTinfoilCacheKey(apiKey, baseUrl);
+	const cached = tinfoilTranscriptionClientCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
+	const client = new TinfoilAI({
+		apiKey: apiKey ?? "",
+		...(baseUrl ? { baseURL: baseUrl } : {}),
+	});
+	tinfoilTranscriptionClientCache.set(cacheKey, client);
+	return client;
+};
+
+const createProviderModelUncached = async (
 	protocol: string,
 	modelId: string,
 	apiKey: string | undefined,
@@ -238,7 +292,7 @@ const createProviderModel = (
 	baseUrl: string | null,
 ): Promise<LanguageModel> =>
 	getProcessCachedValue(cacheKey, languageModelCache, () =>
-		Promise.resolve(createProviderModelUncached(protocol, modelId, apiKey, baseUrl)),
+		createProviderModelUncached(protocol, modelId, apiKey, baseUrl),
 	);
 
 const isOpenAITranscriptionModel = (modelId: string): boolean => {
@@ -297,6 +351,22 @@ const createAudioTranscriber = (
 	apiKey: string | undefined,
 	baseUrl: string | null,
 ): ResolvedModel["transcribeAudio"] | undefined => {
+	if (protocol === "tinfoil") {
+		return async ({ data, filename, mediaType }) => {
+			const client = getTinfoilTranscriptionClient(apiKey, baseUrl);
+			const file = await toFile(data, filename, { type: mediaType });
+			const result = await client.audio.transcriptions.create({
+				file,
+				model: modelId,
+			});
+			const text = result.text.trim();
+			if (!text) {
+				throw new Error("Tinfoil-Transkription lieferte keinen Text.");
+			}
+			return { text };
+		};
+	}
+
 	if (protocol === "openai" && isOpenAITranscriptionModel(modelId)) {
 		const provider = createOpenAI({ apiKey: apiKey ?? "" });
 		const transcriptionModel = provider.transcription(
@@ -551,15 +621,6 @@ const getDefaultsUncached = async (db: Database): Promise<AiDefaultsRow> => {
 	return defaults;
 };
 
-const getCachedDefaults = unstable_cache(
-	(): Promise<AiDefaultsRow> => getDefaultsUncached(database),
-	["ai-provider-resolution", "defaults"],
-	{
-		revalidate: RESOLUTION_CACHE_REVALIDATE_SECONDS,
-		tags: [AI_PROVIDER_RESOLUTION_CACHE_TAG],
-	},
-);
-
 export const resolveProviderModel = async (
 	providerId: string,
 	modelId: string,
@@ -570,11 +631,10 @@ export const resolveProviderModel = async (
 };
 
 const getDefaults = (db: Database): Promise<AiDefaultsRow> => {
-	if (isResolutionCacheDisabled()) {
-		return getDefaultsUncached(db);
-	}
-
-	return getCachedDefaults();
+	// Defaults are tiny and admin-driven. Do not route them through
+	// `unstable_cache`: a stale default model can be selected for a long-running
+	// agent run while its later tool calls resolve the updated model.
+	return getDefaultsUncached(db);
 };
 
 const getDefaultModelRecordId = (

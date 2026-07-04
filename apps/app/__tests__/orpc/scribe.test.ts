@@ -806,6 +806,21 @@ describe("buildProviderOptions", () => {
 		});
 	});
 
+	test("tinfoil receives reasoning effort and user via openaiCompatible options", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({ providerProtocol: "tinfoil" }),
+			reasoningEffort: "medium",
+			userId: "user-1",
+		});
+
+		expect(options).toEqual({
+			openaiCompatible: {
+				reasoningEffort: "medium",
+				user: "user-1",
+			},
+		});
+	});
+
 	test("openai-compatible receives reasoning effort via openaiCompatible options", () => {
 		const options = buildProviderOptions({
 			model: createResolvedModel({ providerProtocol: "openai-compatible" }),

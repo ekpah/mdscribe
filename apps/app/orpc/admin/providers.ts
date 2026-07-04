@@ -33,6 +33,15 @@ const PROVIDER_PROTOCOLS = [
 	"tinfoil",
 ] as const;
 
+const TINFOIL_DEFAULT_BASE_URL = "https://inference.tinfoil.sh/v1";
+
+/**
+ * Tinfoil model types that can fill the global default slots. Embedding, TTS,
+ * tool, safety, and document models are excluded from sync because no slot can
+ * use them.
+ */
+const TINFOIL_SYNCED_MODEL_TYPES = new Set(["chat", "audio"]);
+
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
 const normalizeSupportedParameters = (parameters: unknown[] | undefined): string[] =>
@@ -247,6 +256,10 @@ const fetchProviderModels = async (
 			supportedParameters: [],
 			supportsReasoning: false,
 		}));
+	}
+
+	if (config.protocol === "tinfoil") {
+		return fetchTinfoilModels(config, signal);
 	}
 
 	if (config.protocol === "openai") {
