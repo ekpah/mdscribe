@@ -5,14 +5,13 @@ description: Lokale oder selbst gehostete Inferenz-Server wie llama.cpp, vLLM, O
 
 ## OpenAI-kompatible Server
 
-Mit dem Protokoll `OpenAI-kompatibel` lässt sich jeder Server anbinden, der die OpenAI-Chat-Completions-API implementiert — typischerweise lokale oder selbst gehostete Inferenz-Server:
+Mit dem Protokoll `OpenAI-kompatibel` lässt sich jeder Server anbinden, der die OpenAI-Chat-Completions-API implementiert:
 
-- [llama.cpp](https://github.com/ggml-org/llama.cpp) (`llama-server`)
-- [vLLM](https://docs.vllm.ai)
-- [Ollama](https://ollama.com)
-- [LM Studio](https://lmstudio.ai)
+- Lokale Inferenz-Server wie [Ollama, vLLM und llama.cpp](/providers/local) sowie [LM Studio](https://lmstudio.ai)
+- Der lokale Proxy von [Privatemode](/providers/private#privatemode) für vertrauliche Cloud-Inferenz
+- Beliebige andere Dienste mit kompatibler Schnittstelle
 
-Das ist die richtige Wahl für Self-Hosting-Szenarien, in denen klinische Daten die eigene Infrastruktur nicht verlassen sollen.
+Schritt-für-Schritt-Anleitungen für die gängigen Setups stehen unter [Lokale Modelle](/providers/local) und [Private Provider](/providers/private); diese Seite beschreibt das generische Protokoll.
 
 ## Einrichtung
 

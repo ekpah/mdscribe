@@ -50,6 +50,7 @@
 		"server-only": "^0.0.1",
 		"sonner": "catalog:",
 		"stripe": "^22.0.2",
+		"tinfoil": "^1.1.4",
 		"ua-parser-js": "^2.0.9",
 		"voyageai": "^0.0.5",
 		"ws": "^8.20.0",

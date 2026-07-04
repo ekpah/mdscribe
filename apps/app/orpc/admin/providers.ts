@@ -30,7 +30,17 @@ const PROVIDER_PROTOCOLS = [
 	"openrouter",
 	"openai",
 	"anthropic",
+	"tinfoil",
 ] as const;
+
+const TINFOIL_DEFAULT_BASE_URL = "https://inference.tinfoil.sh/v1";
+
+/**
+ * Tinfoil model types that can fill the global default slots. Embedding, TTS,
+ * tool, safety, and document models are excluded from sync because no slot can
+ * use them.
+ */
+const TINFOIL_SYNCED_MODEL_TYPES = new Set(["chat", "audio"]);
 
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
@@ -123,7 +133,7 @@ const normalizeConfiguredBaseUrl = (
 		return normalizeOpenAICompatibleBaseUrl(baseUrl);
 	}
 
-	if (protocol === "openai") {
+	if (protocol === "openai" || protocol === "tinfoil") {
 		return ensureV1BaseUrl(baseUrl);
 	}
 
@@ -141,6 +151,41 @@ const requireConfiguredBaseUrl = (protocol: ProviderProtocol, baseUrl: string | 
 	}
 
 	return baseUrl;
+};
+
+const fetchTinfoilModels = async (
+	config: ProviderFetchConfig,
+	signal: AbortSignal,
+): Promise<FetchedProviderModel[]> => {
+	const baseUrl = config.baseUrl ?? TINFOIL_DEFAULT_BASE_URL;
+	const response = await fetch(`${baseUrl}/models`, {
+		headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {},
+		signal,
+	});
+	if (!response.ok) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Provider check failed: HTTP ${response.status}`,
+		});
+	}
+
+	const body = (await response.json()) as {
+		data?: {
+			id: string;
+			display_name?: string;
+			name?: string;
+			reasoning?: boolean;
+			type?: string;
+		}[];
+	};
+
+	return (body.data ?? [])
+		.filter((model) => !model.type || TINFOIL_SYNCED_MODEL_TYPES.has(model.type))
+		.map((model) => ({
+			displayName: model.display_name ?? model.name ?? model.id,
+			modelId: model.id,
+			supportedParameters: [],
+			supportsReasoning: model.reasoning === true,
+		}));
 };
 
 const fetchProviderModels = async (
@@ -211,6 +256,10 @@ const fetchProviderModels = async (
 			supportedParameters: [],
 			supportsReasoning: false,
 		}));
+	}
+
+	if (config.protocol === "tinfoil") {
+		return fetchTinfoilModels(config, signal);
 	}
 
 	if (config.protocol === "openai") {

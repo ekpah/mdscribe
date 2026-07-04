@@ -1,0 +1,70 @@
+---
+title: Lokale Modelle
+description: Ollama, vLLM und llama.cpp als lokale Inferenz-Server für MDScribe einrichten.
+---
+
+## Lokale Modelle
+
+Mit einem lokalen Inferenz-Server verlassen klinische Daten die eigene Infrastruktur nicht — zusammen mit [Self-Hosting](/self-hosting) der MDScribe-Instanz ist das die Variante mit der größten Eigenkontrolle. Alle hier beschriebenen Server implementieren die OpenAI-Chat-Completions-API und werden in MDScribe über das Protokoll [`OpenAI-kompatibel`](/providers/openai-compatible) angebunden.
+
+Das Grundmuster ist immer gleich:
+
+1. Inferenz-Server starten und ein Modell laden.
+2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+   - **Protokoll**: `OpenAI-kompatibel`
+   - **Base URL**: **erforderlich**, inklusive `/v1` (siehe unten je Server)
+   - **API-Key**: nur falls der Server einen verlangt
+3. Verbindung prüfen und speichern — die Modellliste wird über `GET /v1/models` synchronisiert.
+4. Synchronisierte Modelle den Standard-Slots zuweisen (siehe [KI-Provider](/providers)).
+
+Modell-Fähigkeiten (Reasoning, Dokumente, Audio) werden bei OpenAI-kompatiblen Providern bewusst nicht erraten; der Administrator pflegt sie pro Modell manuell.
+
+## Ollama
+
+[Ollama](https://ollama.com) ist der einfachste Einstieg: ein Befehl zum Installieren, ein Befehl zum Laden eines Modells.
+
+```bash
+# Modell laden und Server starten (läuft danach als Dienst weiter)
+ollama pull gpt-oss:20b
+ollama serve
+```
+
+- **Base URL**: `http://localhost:11434/v1`
+- **API-Key**: leer lassen
+- Alle per `ollama pull` geladenen Modelle erscheinen bei der Synchronisierung automatisch.
+- Für den produktiven Einsatz die Kontextlänge des Modells prüfen (`OLLAMA_CONTEXT_LENGTH` bzw. Modellparameter `num_ctx`) — die Voreinstellung ist für lange Arztbriefe oft zu klein.
+
+## vLLM
+
+[vLLM](https://docs.vllm.ai) ist auf Durchsatz optimiert und die richtige Wahl für dedizierte GPU-Server, die mehrere Nutzer gleichzeitig bedienen.
+
+```bash
+# Beispiel: offenes Modell auf einer GPU bereitstellen
+vllm serve openai/gpt-oss-20b --host 0.0.0.0 --port 8000
+```
+
+- **Base URL**: `http://<server>:8000/v1`
+- **API-Key**: nur nötig, wenn der Server mit `--api-key` gestartet wurde
+- vLLM bedient pro Prozess genau ein Modell; für getrennte Text- und Speech-to-Text-Modelle laufen mehrere Instanzen auf unterschiedlichen Ports, die in MDScribe als separate Verbindungen angelegt werden.
+
+## llama.cpp
+
+[llama.cpp](https://github.com/ggml-org/llama.cpp) (`llama-server`) läuft ohne GPU-Zwang auf nahezu jeder Hardware und eignet sich für kleine Installationen und Tests.
+
+```bash
+# Beispiel: GGUF-Modell direkt von Hugging Face laden
+llama-server -hf ggml-org/gpt-oss-20b-GGUF --port 8080 -c 16384
+```
+
+- **Base URL**: `http://localhost:8080/v1`
+- **API-Key**: nur nötig, wenn der Server mit `--api-key` gestartet wurde
+- Die Kontextgröße (`-c`) großzügig wählen; quantisierte GGUF-Modelle sparen Speicher bei moderatem Qualitätsverlust.
+
+## Diktat und Dokumente lokal
+
+- **Speech-to-Text**: MDScribe spricht bei OpenAI-kompatiblen Providern den `/v1/audio/transcriptions`-Endpoint an. Ein lokaler Whisper-Server mit dieser Schnittstelle (z. B. [Speaches](https://speaches.ai) oder vLLM mit einem Whisper-Modell) kann den Speech-to-Text-Slot belegen.
+- **Dokumente/Bilder**: Vision-fähige offene Modelle (z. B. Qwen-VL-Varianten) können als Dokumenten-Modell dienen; alternativ übernimmt das Standard-Modell die Dokumente direkt, wenn seine Dokumente-Fähigkeit angehakt ist.
+
+## Einordnung für den Datenschutz
+
+Bei einem Server in eigener Infrastruktur verlassen Eingaben das eigene Netz nicht. Die Verantwortung für Betrieb, Absicherung und Compliance liegt vollständig beim Betreiber. Wer die Hardware für große Modelle nicht betreiben will, findet in den [privaten Providern](/providers/private) die nächststärkere Vertraulichkeitsstufe.

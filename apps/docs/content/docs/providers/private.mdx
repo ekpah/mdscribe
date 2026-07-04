@@ -1,0 +1,90 @@
+---
+title: Private Provider (verschlüsselt)
+description: Vertrauliche Cloud-Inferenz mit Ende-zu-Ende-Verschlüsselung — Tinfoil und Privatemode.
+---
+
+## Private Provider
+
+Private Provider verbinden die Leistung großer Cloud-GPUs mit technisch erzwungener Vertraulichkeit: Die Modelle laufen in **Confidential-Computing-Umgebungen** (Secure Enclaves), und Anfragen werden Ende-zu-Ende bis in die Enclave verschlüsselt. Anders als bei klassischen Cloud-APIs ist Zero Data Retention hier keine vertragliche Zusage, sondern eine Eigenschaft der Architektur — **auch der Betreiber des Dienstes kann Eingaben und Ausgaben nicht mitlesen**.
+
+Für eine medizinische Dokumentationsanwendung ist das die derzeit stärkste verfügbare Vertraulichkeitsgarantie, wenn keine [eigene lokale Inferenz](/providers/local) betrieben werden soll.
+
+Zwei Dienste dieser Kategorie lassen sich in MDScribe anbinden:
+
+| Dienst | Anbindung | Besonderheit |
+|--------|-----------|--------------|
+| [Tinfoil](#tinfoil) | Eigenes Protokoll `Tinfoil` (SDK) | Attestierung und Verschlüsselung direkt in MDScribe integriert |
+| [Privatemode](#privatemode) | Protokoll `OpenAI-kompatibel` über lokalen Proxy | Attestierung und Verschlüsselung übernimmt der Privatemode-Proxy; EU-Anbieter (Edgeless Systems, Deutschland) |
+
+## Tinfoil
+
+[Tinfoil](https://tinfoil.sh) ist ein Inferenz-Anbieter für vertrauliche KI: Modelle laufen in Secure Enclaves (NVIDIA Confidential Computing auf AMD SEV-SNP-Hardware), und Anfragen werden Ende-zu-Ende bis in die Enclave verschlüsselt.
+
+### Sicherheitsarchitektur
+
+MDScribe verwendet das offizielle Tinfoil-SDK, nicht nur die OpenAI-kompatible HTTP-Schnittstelle. Das SDK stellt bei jedem Verbindungsaufbau drei Garantien her:
+
+1. **Hardware-Attestierung**: Die Enclave legt einen kryptografischen Nachweis vor, dass sie auf echter Confidential-Computing-Hardware läuft. Das SDK prüft die Hardware-Signaturen (AMD SEV-SNP) bei jeder Verbindung.
+2. **Code-Provenienz**: Der Attestierungsnachweis bindet die Enclave an einen exakten, öffentlich auf GitHub einsehbaren Code-Stand, der über ein Transparenz-Log (Sigstore) verankert ist. Es läuft nachweislich der veröffentlichte Code — keine modifizierte Variante.
+3. **Ende-zu-Ende-Verschlüsselung**: Request- und Response-Inhalte werden per HPKE (RFC 9180) direkt für die attestierte Enclave verschlüsselt. Proxies, Load Balancer und die Tinfoil-Infrastruktur dazwischen sehen nur Ciphertext.
+
+Erst wenn die Attestierung erfolgreich geprüft wurde, sendet MDScribe Anfragen. Schlägt sie fehl, wird keine Verbindung aufgebaut.
+
+### Einrichtung
+
+1. API-Key bei [Tinfoil](https://docs.tinfoil.sh/get-api-key) erstellen.
+2. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+   - **Protokoll**: `Tinfoil (vertrauliche Inferenz)`
+   - **Base URL**: leer lassen (das SDK ermittelt und verifiziert den Endpunkt selbst); nur bei eigenem Proxy setzen
+   - **API-Key**: der erstellte Tinfoil-Key
+3. Verbindung prüfen und speichern — die verfügbaren Modelle werden automatisch synchronisiert.
+4. Synchronisierte Modelle den Standard-Slots zuweisen (siehe [KI-Provider](/providers)).
+
+### Verfügbare Modelle
+
+Tinfoil betreibt ausschließlich offene Modelle, deren Code und Gewichte einsehbar sind. Der Katalog ändert sich; ein manueller Modell-Refresh in der Verbindungskarte holt den aktuellen Stand. Reasoning-Fähigkeit wird bei der Synchronisierung aus dem Tinfoil-Modellkatalog übernommen.
+
+Wird ein Tinfoil-Modell im Speech-to-Text-Slot gewählt, läuft auch die Transkription diktierter Notizen über die verschlüsselte Enclave-Verbindung (`/v1/audio/transcriptions`). Audiodaten verlassen MDScribe damit ausschließlich Ende-zu-Ende-verschlüsselt.
+
+### Hinweise
+
+- Die Attestierungs- und Verschlüsselungsgarantien gelten nur bei Nutzung über das SDK — genau so bindet MDScribe Tinfoil an. Eine manuelle Anbindung als generischer OpenAI-kompatibler Provider hätte diese Garantien **nicht**.
+- Weiterführend: [Tinfoil-Dokumentation](https://docs.tinfoil.sh), [Wie die Verifikation funktioniert](https://docs.tinfoil.sh/verification/how-verification-works-in-tinfoil)
+
+## Privatemode
+
+[Privatemode](https://www.privatemode.ai) von [Edgeless Systems](https://www.edgeless.systems) (Deutschland) bietet ebenfalls Ende-zu-Ende-verschlüsselte Inferenz in Confidential-Computing-Umgebungen. Die Attestierung und Verschlüsselung übernimmt hier ein **lokaler Proxy**, der auf der eigenen Infrastruktur läuft und eine unverschlüsselte OpenAI-kompatible Schnittstelle nur nach innen anbietet. MDScribe bindet Privatemode deshalb über das Protokoll [`OpenAI-kompatibel`](/providers/openai-compatible) an.
+
+### Einrichtung
+
+1. Im [Privatemode-Portal](https://www.privatemode.ai) eine Organisation anlegen und einen API-Key erstellen.
+2. Den Privatemode-Proxy auf demselben Host (oder im selben Netz) wie die MDScribe-Instanz starten:
+
+   ```bash
+   docker run -p 8080:8080 \
+     ghcr.io/edgelesssys/privatemode/privatemode-proxy:latest \
+     --apiKey <ihr-api-key>
+   ```
+
+   Der Proxy prüft per Remote Attestation die Integrität des Dienstes und verschlüsselt alle Anfragen clientseitig, bevor sie das eigene Netz verlassen.
+3. In MDScribe unter `Admin → Einstellungen → Modelle → Verbindungen` einen neuen Provider anlegen:
+   - **Protokoll**: `OpenAI-kompatibel`
+   - **Base URL**: `http://localhost:8080/v1` (bzw. die Adresse des Proxys)
+   - **API-Key**: beliebiger Platzhalter (der echte Key steckt im Proxy; das Feld darf nur nicht leer sein, falls der Server einen Wert verlangt)
+4. Verbindung prüfen und speichern — die Modelle werden über `GET /v1/models` synchronisiert.
+
+### Verfügbare Modelle
+
+Privatemode betreibt einen kuratierten Katalog offener Modelle, darunter Chat-Modelle (z. B. `gpt-oss-120b`, `kimi-latest` mit Bildverständnis) und Speech-to-Text-Modelle (`whisper-large-v3`, `voxtral-mini-3b`). Letztere können den Speech-to-Text-Slot belegen; MDScribe spricht dafür den `/v1/audio/transcriptions`-Endpoint des Proxys an. Der aktuelle Katalog steht in der [Privatemode-Modellübersicht](https://docs.privatemode.ai/models/overview/).
+
+Wie bei allen OpenAI-kompatiblen Providern werden Modell-Fähigkeiten nicht automatisch abgeleitet: Der Administrator wählt selbst, welches Modell welchen Slot belegt.
+
+### Hinweise
+
+- Läuft der Proxy auf einem anderen Host, sollte die Verbindung zwischen MDScribe und Proxy per TLS abgesichert werden — die Strecke Proxy → Privatemode ist immer Ende-zu-Ende-verschlüsselt.
+- Weiterführend: [Privatemode-Dokumentation](https://docs.privatemode.ai), [Sicherheitsarchitektur](https://docs.privatemode.ai/security/)
+
+## Einordnung für den Datenschutz
+
+- Beide Dienste erzwingen Vertraulichkeit technisch: Klartext-Inhalte sind für den Anbieter architekturbedingt nicht einsehbar.
+- Unabhängig davon gelten die allgemeinen Leitplanken unter [Datenschutz](/privacy): Datenminimierung bleibt sinnvoll, und die Compliance-Verantwortung liegt beim Betreiber der Instanz.
