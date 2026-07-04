@@ -721,7 +721,7 @@ const createResolvedModel = (overrides: Partial<ResolvedModel>): ResolvedModel =
 	modelName: "test/model",
 	openRouterRoutingMode: "default",
 	providerId: "provider-1",
-	providerProtocol: "openai-compatible",
+	providerProtocol: "tinfoil",
 	supportedParameters: [],
 	supportsReasoning: true,
 	...overrides,
@@ -803,6 +803,21 @@ describe("buildProviderOptions", () => {
 
 		expect(options).toEqual({
 			openrouter: { provider: { sort } },
+		});
+	});
+
+	test("tinfoil receives reasoning effort and user via openaiCompatible options", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({ providerProtocol: "tinfoil" }),
+			reasoningEffort: "medium",
+			userId: "user-1",
+		});
+
+		expect(options).toEqual({
+			openaiCompatible: {
+				reasoningEffort: "medium",
+				user: "user-1",
+			},
 		});
 	});
 
