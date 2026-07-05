@@ -4,7 +4,23 @@
   "name": "MDScribe",
   "description": "Dokumentation fuer MDScribe.",
   "colors": {
-    "primary": "#2563eb"
+    "primary": "#268bd2",
+    "light": "#2aa198",
+    "dark": "#268bd2"
+  },
+  "background": {
+    "color": {
+      "light": "#fdf6e3",
+      "dark": "#002b36"
+    }
+  },
+  "styling": {
+    "codeblocks": {
+      "theme": {
+        "light": "solarized-light",
+        "dark": "solarized-dark"
+      }
+    }
   },
   "navigation": {
     "groups": [

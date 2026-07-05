@@ -409,6 +409,7 @@ export const createTestUsageEvent = async (
 		timestamp?: Date;
 		timeToCompletionMs?: number;
 		timeToFirstTokenMs?: number;
+		traceId?: string;
 	},
 ) => {
 	const inputTokens = options?.inputTokens ?? 100;
@@ -428,6 +429,7 @@ export const createTestUsageEvent = async (
 			timeToFirstTokenMs: options?.timeToFirstTokenMs,
 			timestamp: options?.timestamp ?? new Date(),
 			totalTokens: options?.totalTokens ?? inputTokens + outputTokens,
+			traceId: options?.traceId,
 			userId,
 		})
 		.returning();

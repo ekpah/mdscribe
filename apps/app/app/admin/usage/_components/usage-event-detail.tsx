@@ -32,6 +32,7 @@ interface UsageEventDetailProps {
 		inputData: unknown;
 		name: string;
 		outputData: unknown;
+		sectionId: string | null;
 	} | null;
 }
 
@@ -71,14 +72,23 @@ const ToolPayloadSection = ({ toolPayload }: { toolPayload: ToolPayload | null |
 
 	return (
 		<section>
-			<h3 className="mb-2 font-medium text-solarized-base00">Werkzeug: {toolPayload.name}</h3>
+			<h3 className="mb-2 font-medium text-solarized-base00">
+				Tool-Aufruf: {toolPayload.name}
+				{toolPayload.sectionId ? (
+					<span className="ml-2 font-mono text-xs text-solarized-base01">
+						Abschnitt: {toolPayload.sectionId}
+					</span>
+				) : null}
+			</h3>
 			<div className="space-y-2">
 				<div className="max-h-48 overflow-auto rounded-lg border border-solarized-base2 bg-solarized-base3">
 					<p className="border-b border-solarized-base2 px-3 py-2 text-xs text-solarized-base01">
 						Eingabe
 					</p>
 					<pre className="whitespace-pre-wrap p-3 font-mono text-xs">
-						{JSON.stringify(toolPayload.inputData, null, 2)}
+						{toolPayload.inputData === null || toolPayload.inputData === undefined
+							? "-"
+							: JSON.stringify(toolPayload.inputData, null, 2)}
 					</pre>
 				</div>
 				<div className="max-h-48 overflow-auto rounded-lg border border-solarized-base2 bg-solarized-base3">
@@ -86,7 +96,9 @@ const ToolPayloadSection = ({ toolPayload }: { toolPayload: ToolPayload | null |
 						Ausgabe
 					</p>
 					<pre className="whitespace-pre-wrap p-3 font-mono text-xs">
-						{JSON.stringify(toolPayload.outputData, null, 2)}
+						{toolPayload.outputData === null || toolPayload.outputData === undefined
+							? "-"
+							: JSON.stringify(toolPayload.outputData, null, 2)}
 					</pre>
 				</div>
 			</div>
@@ -124,7 +136,24 @@ export const UsageEventDetail = ({
 	toolPayload,
 }: UsageEventDetailProps) => {
 	if (!event) {
-		return null;
+		// Tool calls without a linked UsageEvent (editSection) still expose
+		// their observation input/output for inspection.
+		if (!toolPayload) {
+			return null;
+		}
+		return (
+			<Sheet open={open} onOpenChange={onOpenChange}>
+				<SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+					<SheetHeader>
+						<SheetTitle>Tool-Aufruf</SheetTitle>
+						<SheetDescription>Eingabe und Ausgabe des Tool-Aufrufs</SheetDescription>
+					</SheetHeader>
+					<div className="mt-6 space-y-6">
+						<ToolPayloadSection toolPayload={toolPayload} />
+					</div>
+				</SheetContent>
+			</Sheet>
+		);
 	}
 
 	const cost = event.cost ? Number(event.cost) : null;
