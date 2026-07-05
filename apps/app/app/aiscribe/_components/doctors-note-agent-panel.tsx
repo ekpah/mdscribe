@@ -75,21 +75,103 @@ const getMessageText = (message: UIMessage): string =>
 		.map((part) => part.text)
 		.join("");
 
-const getToolOutput = (part: { type: string }): SectionToolOutput | undefined =>
-	(part as { output?: SectionToolOutput }).output;
+interface SectionToolPart {
+	type: string;
+	toolCallId?: string;
+	state?: "input-streaming" | "input-available" | "output-available" | "output-error";
+	input?: { sectionId?: unknown };
+	output?: SectionToolOutput;
+	errorText?: string;
+}
 
-const getAppliedSectionIds = (message: UIMessage): string[] => {
-	const ids: string[] = [];
-	for (const part of message.parts) {
-		if (!SECTION_EDIT_TOOL_TYPES.has(part.type)) {
+type AssistantBlock =
+	| { kind: "text"; key: string; text: string }
+	| { kind: "tool"; key: string; part: SectionToolPart };
+
+/**
+ * Flatten an assistant message into ordered render blocks: consecutive text
+ * parts merge into one bubble, section-tool calls stay inline where they
+ * happened between the text (thinking → tool call → closing message).
+ */
+const getAssistantBlocks = (message: UIMessage): AssistantBlock[] => {
+	const blocks: AssistantBlock[] = [];
+	for (const [index, part] of message.parts.entries()) {
+		if (isTextPart(part)) {
+			const previous = blocks.at(-1);
+			if (previous?.kind === "text") {
+				previous.text += part.text;
+			} else {
+				blocks.push({ key: `text-${index}`, kind: "text", text: part.text });
+			}
 			continue;
 		}
-		const output = getToolOutput(part);
-		if (output?.ok === true && typeof output.sectionId === "string") {
-			ids.push(output.sectionId);
+		if (SECTION_EDIT_TOOL_TYPES.has(part.type)) {
+			const toolPart = part as SectionToolPart;
+			blocks.push({ key: toolPart.toolCallId ?? `tool-${index}`, kind: "tool", part: toolPart });
 		}
 	}
-	return ids;
+	return blocks.filter((block) => block.kind !== "text" || block.text.trim().length > 0);
+};
+
+/** Section targeted by a tool call: from the output once available, else the (streamed) input. */
+const getToolSectionId = (part: SectionToolPart): string | undefined => {
+	if (typeof part.output?.sectionId === "string") {
+		return part.output.sectionId;
+	}
+	return typeof part.input?.sectionId === "string" ? part.input.sectionId : undefined;
+};
+
+/** Inline status marker for one section-tool call (running / applied / failed). */
+const SectionToolMarker = ({
+	part,
+	sectionLabelById,
+}: {
+	part: SectionToolPart;
+	sectionLabelById: Map<string, string>;
+}) => {
+	const { output } = part;
+	const sectionId = getToolSectionId(part);
+	const sectionLabel = sectionId ? (sectionLabelById.get(sectionId) ?? sectionId) : "Abschnitt";
+
+	if (part.state === "output-available" && output?.ok === true) {
+		return (
+			<Marker className="w-fit rounded-md border border-solarized-green/30 bg-solarized-green/10 px-2 py-1 text-solarized-green text-xs">
+				<MarkerIcon>
+					<PencilLine className="h-3.5 w-3.5" />
+				</MarkerIcon>
+				<MarkerContent>Vorschlag für {sectionLabel} – im Editor prüfen</MarkerContent>
+			</Marker>
+		);
+	}
+
+	if (part.state === "output-error" || (part.state === "output-available" && output?.ok !== true)) {
+		const errorText =
+			typeof output?.error === "string" && output.error.length > 0
+				? output.error
+				: (part.errorText ?? "Bearbeitung fehlgeschlagen.");
+		return (
+			<Marker className="w-fit rounded-md border border-solarized-red/30 bg-solarized-red/10 px-2 py-1 text-solarized-red text-xs">
+				<MarkerIcon>
+					<PencilLine className="h-3.5 w-3.5" />
+				</MarkerIcon>
+				<MarkerContent>
+					{sectionLabel}: {errorText}
+				</MarkerContent>
+			</Marker>
+		);
+	}
+
+	const verb = part.type === "tool-generateSection" ? "Generiert" : "Bearbeitet";
+	return (
+		<Marker className="w-fit rounded-md border border-border bg-muted/60 px-2 py-1 text-muted-foreground text-xs">
+			<MarkerIcon>
+				<Loader2 className="h-3.5 w-3.5 animate-spin" />
+			</MarkerIcon>
+			<MarkerContent>
+				{verb} {sectionLabel}…
+			</MarkerContent>
+		</Marker>
+	);
 };
 
 const isFileDragEvent = (event: DragEvent<HTMLDivElement>, disabled: boolean): boolean =>
@@ -482,12 +564,7 @@ export const DoctorsNoteAgentPanel = ({
 				if (!SECTION_EDIT_TOOL_TYPES.has(part.type)) {
 					continue;
 				}
-				const toolPart = part as {
-					type: string;
-					toolCallId?: string;
-					state?: string;
-					output?: SectionToolOutput;
-				};
+				const toolPart = part as SectionToolPart;
 				const { output, state, toolCallId } = toolPart;
 				if (
 					!toolCallId ||
@@ -664,41 +741,48 @@ export const DoctorsNoteAgentPanel = ({
 							</MessageScrollerItem>
 
 							{messages.map((message) => {
-								const text = getMessageText(message);
-								const editedSectionIds =
-									message.role === "assistant" ? getAppliedSectionIds(message) : [];
 								const isUserMessage = message.role === "user";
 
+								if (isUserMessage) {
+									const text = getMessageText(message);
+									return (
+										<MessageScrollerItem key={message.id} messageId={message.id} scrollAnchor>
+											<Message align="end">
+												<MessageContent>
+													{text.length > 0 && (
+														<Bubble align="end" variant="default">
+															<BubbleContent className="whitespace-pre-wrap">
+																{text}
+															</BubbleContent>
+														</Bubble>
+													)}
+												</MessageContent>
+											</Message>
+										</MessageScrollerItem>
+									);
+								}
+
+								// Assistant turns render their parts in order: text before a
+								// tool call, the tool marker where it happened, text after.
 								return (
-									<MessageScrollerItem
-										key={message.id}
-										messageId={message.id}
-										scrollAnchor={isUserMessage}
-									>
-										<Message align={isUserMessage ? "end" : "start"}>
+									<MessageScrollerItem key={message.id} messageId={message.id}>
+										<Message align="start">
 											<MessageContent>
-												{text.length > 0 && (
-													<Bubble
-														align={isUserMessage ? "end" : "start"}
-														variant={isUserMessage ? "default" : "muted"}
-													>
-														<BubbleContent className="whitespace-pre-wrap">{text}</BubbleContent>
-													</Bubble>
+												{getAssistantBlocks(message).map((block) =>
+													block.kind === "text" ? (
+														<Bubble align="start" key={block.key} variant="muted">
+															<BubbleContent className="whitespace-pre-wrap">
+																{block.text}
+															</BubbleContent>
+														</Bubble>
+													) : (
+														<SectionToolMarker
+															key={block.key}
+															part={block.part}
+															sectionLabelById={sectionLabelById}
+														/>
+													),
 												)}
-												{editedSectionIds.map((sectionId) => (
-													<Marker
-														className="w-fit rounded-md border border-solarized-green/30 bg-solarized-green/10 px-2 py-1 text-solarized-green text-xs"
-														key={sectionId}
-													>
-														<MarkerIcon>
-															<PencilLine className="h-3.5 w-3.5" />
-														</MarkerIcon>
-														<MarkerContent>
-															Vorschlag für {sectionLabelById.get(sectionId) ?? sectionId} – im
-															Editor prüfen
-														</MarkerContent>
-													</Marker>
-												))}
 											</MessageContent>
 										</Message>
 									</MessageScrollerItem>

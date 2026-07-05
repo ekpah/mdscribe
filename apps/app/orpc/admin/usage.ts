@@ -4,7 +4,6 @@ import {
 	asc,
 	aiScribeFormConfig,
 	avg,
-	count,
 	desc,
 	eq,
 	inArray,
@@ -584,6 +583,13 @@ const tokensPerSecondFilter = sql`(
 		and (${generatedTokensExpression}) > 0
 )`;
 
+// An agent run spans multiple UsageEvent rows sharing one traceId (agent chat
+// plus every generateSection call). Counted as usage, the whole trace is a
+// single event; events without a traceId count individually.
+const distinctEventCountExpression = sql<number>`
+	count(distinct coalesce(${usageEvent.traceId}, ${usageEvent.id}))
+`.mapWith(Number);
+
 const emptyPercentileStats = {
 	p50: null,
 	p90: null,
@@ -760,7 +766,7 @@ const getUsageStatsHandler = authed
 						)
 					`,
 					totalCost: sum(usageEvent.cost),
-					totalEvents: count(),
+					totalEvents: distinctEventCountExpression,
 					totalTokens: sum(usageEvent.totalTokens),
 				})
 				.from(usageEvent)
@@ -784,7 +790,7 @@ const getUsageStatsHandler = authed
 						within group (order by ${usageEvent.cost})
 						filter (where ${usageEvent.cost} is not null)
 					`,
-					events: count(),
+					events: distinctEventCountExpression,
 					timeToCompletionP50: sql<number | null>`
 						percentile_cont(0.5)
 						within group (order by ${usageEvent.timeToCompletionMs})
@@ -916,7 +922,7 @@ const getMonthlyActiveUsersHandler = authed
 			context.db
 				.select({
 					bucket: sql<string>`to_char(${weekBucketExpression}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
-					requests: count(),
+					requests: distinctEventCountExpression,
 				})
 				.from(usageEvent)
 				.groupBy(weekBucketExpression)
