@@ -7,10 +7,11 @@ import { MarkdocMD } from '@repo/design-system/components/editor/tiptap-extensio
 import { cn } from "@repo/design-system/lib/utils";
 import { htmlToMarkdoc } from "@repo/markdoc-md/parse/html-to-markdoc";
 import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";
+import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import TipTapStarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import type { MouseEvent } from "react";
 import TipTapMenu from "./_components/tip-tap-menu";
 
@@ -19,11 +20,14 @@ export default function TipTap({
 	setContent,
 	showSource,
 	onToggleSource,
+	onEditorChange,
 }: {
 	note: string;
 	setContent: (content: string) => void;
 	showSource?: boolean;
 	onToggleSource?: () => void;
+	/** Reports the live editor instance, e.g. to drive the tag inspector. */
+	onEditorChange?: (editor: Editor | null) => void;
 }) {
 	const editor = useEditor({
 		autofocus: true,
@@ -67,6 +71,18 @@ export default function TipTap({
 			setContent(htmlToMarkdoc(html));
 		},
 	});
+
+	useEffect(() => {
+		if (!onEditorChange) {
+			return;
+		}
+
+		onEditorChange(editor);
+
+		return () => {
+			onEditorChange(null);
+		};
+	}, [editor, onEditorChange]);
 
 	// Wrap toggle to sync content before switching views
 	const handleToggleSource = useCallback(() => {
