@@ -630,12 +630,10 @@ export const resolveProviderModel = async (
 	return buildResolvedModel(row.model, row.provider);
 };
 
-const getDefaults = (db: Database): Promise<AiDefaultsRow> => {
-	// Defaults are tiny and admin-driven. Do not route them through
-	// `unstable_cache`: a stale default model can be selected for a long-running
-	// agent run while its later tool calls resolve the updated model.
-	return getDefaultsUncached(db);
-};
+// Defaults are tiny and admin-driven. Do not route them through
+// `unstable_cache`: a stale default model can be selected for a long-running
+// agent run while its later tool calls resolve the updated model.
+const getDefaults = (db: Database): Promise<AiDefaultsRow> => getDefaultsUncached(db);
 
 const getDefaultModelRecordId = (
 	defaults: AiDefaultsRow,
