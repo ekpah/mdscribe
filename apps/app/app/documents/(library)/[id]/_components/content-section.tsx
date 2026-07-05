@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
-	buildParsedMarkdocFromFieldDefinitions,
+	buildParsedMarkdocFromDocumentDefinition,
 	cloneUint8Array,
 	decodeBase64ToUint8Array,
 	downloadPdfBlob,
@@ -17,26 +17,26 @@ import {
 	printPdfBlob,
 	toPdfBlob,
 } from "@/app/documents/_lib";
-import type { DocumentFieldDefinition } from "@/app/documents/_lib";
+import type { DocumentDefinition } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 
 export default function ContentSection({
 	downloadFileName,
 	documentId,
-	fieldDefinitions,
+	definition,
 }: {
 	downloadFileName?: string;
 	documentId: string;
-	fieldDefinitions: DocumentFieldDefinition[];
+	definition: DocumentDefinition;
 }) {
 	const inputTags = useMemo(() => {
 		try {
-			return buildParsedMarkdocFromFieldDefinitions(fieldDefinitions).inputTags;
+			return buildParsedMarkdocFromDocumentDefinition(definition).inputTags;
 		} catch (error) {
 			console.error("Failed to build parsed markdoc from field definitions:", error);
 			return [];
 		}
-	}, [fieldDefinitions]);
+	}, [definition]);
 	const [values, setValues] = useState<Record<string, unknown>>({});
 	const [sourcePdfBytes, setSourcePdfBytes] = useState<Uint8Array | null>(null);
 	const [previewPdfBytes, setPreviewPdfBytes] = useState<Uint8Array | null>(null);
@@ -85,7 +85,7 @@ export default function ContentSection({
 				return;
 			}
 
-			const filledPdfBytes = await fillPDFForm(sourcePdfBytes, values, fieldDefinitions);
+			const filledPdfBytes = await fillPDFForm(sourcePdfBytes, values, definition);
 			setPreviewPdfBytes(filledPdfBytes);
 		} catch (error) {
 			console.error("Failed to refresh PDF preview:", error);
@@ -93,7 +93,7 @@ export default function ContentSection({
 		} finally {
 			setIsRefreshingPreview(false);
 		}
-	}, [fieldDefinitions, sourcePdfBytes, values]);
+	}, [definition, sourcePdfBytes, values]);
 
 	const handlePrint = useCallback(() => {
 		if (!previewPdfBytes) {

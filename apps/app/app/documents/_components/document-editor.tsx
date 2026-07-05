@@ -28,10 +28,12 @@ import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dyn
 import {
 	buildDefaultFieldDefinitionsFromPdfFields,
 	decodeBase64ToUint8Array,
+	documentDefinitionFromLegacyFieldDefinitions,
 	encodeUint8ArrayToBase64,
+	normalizeDocumentDefinition,
 	parsePDFFormFields,
 } from "@/app/documents/_lib";
-import type { DocumentFieldDefinition } from "@/app/documents/_lib";
+import type { DocumentDefinition, DocumentFieldDefinition } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
@@ -185,6 +187,190 @@ const normalizeSavedFieldDefinitions = (value: unknown): DocumentFieldDefinition
 	});
 };
 
+const isDocumentDefinition = (value: unknown): value is DocumentDefinition =>
+	typeof value === "object" &&
+	value !== null &&
+	"version" in value &&
+	(value as { version?: unknown }).version === 2 &&
+	"inputTags" in value &&
+	"fieldMappings" in value;
+
+const normalizeSavedDocumentDefinition = (value: unknown): DocumentDefinition => {
+	try {
+		if (isDocumentDefinition(value)) {
+			return normalizeDocumentDefinition(value);
+		}
+		return documentDefinitionFromLegacyFieldDefinitions(normalizeSavedFieldDefinitions(value));
+	} catch (error) {
+		console.error("Failed to load document definition:", error);
+		return { fieldMappings: [], inputTags: [], version: 2 };
+	}
+};
+
+const toEditorFieldDefinitions = (definition: DocumentDefinition): DocumentFieldDefinition[] =>
+	definition.fieldMappings.map((mapping) => {
+		const inputTag = definition.inputTags.find(
+			(tag) => tag.attributes.primary.toLowerCase() === mapping.variable.toLowerCase(),
+		);
+		const isSwitch = inputTag?.name === "Switch";
+		let inputKind: DocumentFieldDefinition["inputKind"] = "text";
+		if (isSwitch) {
+			inputKind = inputTag.attributes.type === "boolean" ? "boolean" : "choice";
+		}
+		return {
+			description: inputTag?.name === "Info" ? inputTag.attributes.description ?? "" : "",
+			fieldName: mapping.fieldName,
+			inputKind,
+			isEnabled: mapping.isEnabled,
+			label: mapping.variable,
+			markdocType: inputKind === "text" ? "Info" : "Switch",
+			options:
+				inputTag?.name === "Switch"
+					? inputTag.children.map((child) => child.attributes.primary)
+					: [],
+			pdfType: mapping.pdfType,
+			textCheckboxValue:
+				mapping.pdfType === "text" && inputKind === "boolean" ? mapping.value ?? "x" : undefined,
+			valueType: inputTag?.name === "Info" ? inputTag.attributes.type ?? "string" : "string",
+		};
+	});
+
+const updateDocumentDefinitionAt = (
+	definition: DocumentDefinition,
+	index: number,
+	update: Partial<DocumentFieldDefinition>,
+): DocumentDefinition => {
+	const mapping = definition.fieldMappings[index];
+	if (!mapping) {
+		return definition;
+	}
+	const inputTagIndex = definition.inputTags.findIndex(
+		(tag) => tag.attributes.primary.toLowerCase() === mapping.variable.toLowerCase(),
+	);
+	const currentInputTag = definition.inputTags[inputTagIndex];
+	const nextVariable = update.label?.trim() || mapping.variable;
+	const nextMappings = definition.fieldMappings.map((currentMapping, mappingIndex) => {
+		if (mappingIndex === index) {
+			const isTextCheckbox =
+				(update.pdfType ?? currentMapping.pdfType) === "text" && update.inputKind === "boolean";
+			let mappingValueUpdate = {};
+			if (update.textCheckboxValue !== undefined) {
+				mappingValueUpdate = {
+					condition: currentMapping.condition ?? "true",
+					value: update.textCheckboxValue,
+				};
+			} else if (isTextCheckbox) {
+				// This branch only runs when `textCheckboxValue` is undefined (the
+				// defined case is handled above), so fall back to the existing value.
+				mappingValueUpdate = {
+					condition: "true",
+					value: currentMapping.value || "x",
+				};
+			} else if (update.inputKind === "text") {
+				mappingValueUpdate = { condition: undefined, value: undefined };
+			}
+			return {
+				...currentMapping,
+				...(update.isEnabled === undefined ? {} : { isEnabled: update.isEnabled }),
+				...(update.pdfType === undefined ? {} : { pdfType: update.pdfType }),
+				...mappingValueUpdate,
+				variable: nextVariable,
+			};
+		}
+		return currentMapping.variable.toLowerCase() === mapping.variable.toLowerCase()
+			? { ...currentMapping, variable: nextVariable }
+			: currentMapping;
+	});
+	if (!currentInputTag) {
+		return { ...definition, fieldMappings: nextMappings };
+	}
+
+	let nextInputTag = currentInputTag;
+	if (update.inputKind === "boolean") {
+		nextInputTag = {
+			attributes: { primary: nextVariable, type: "boolean" },
+			children: ["true", "false"].map((primary) => ({
+				attributes: { primary },
+				children: [],
+				name: "Case" as const,
+			})),
+			name: "Switch",
+		};
+	} else if (update.inputKind === "text") {
+		nextInputTag = {
+			attributes: {
+				primary: nextVariable,
+				type: update.valueType ?? (currentInputTag.name === "Info" ? currentInputTag.attributes.type : "string"),
+				...(update.description?.trim() ? { description: update.description.trim() } : {}),
+			},
+			children: [],
+			name: "Info",
+		};
+	} else if (update.inputKind === "choice" && currentInputTag.name === "Info") {
+		nextInputTag = {
+			attributes: { primary: nextVariable },
+			children: (update.options ?? []).map((primary) => ({
+				attributes: { primary }, children: [], name: "Case" as const,
+			})),
+			name: "Switch",
+		};
+	} else if (currentInputTag.name === "Switch") {
+		nextInputTag = {
+			...currentInputTag,
+			attributes: { ...currentInputTag.attributes, primary: nextVariable },
+			children: (update.options ?? currentInputTag.children.map((child) => child.attributes.primary)).map(
+				(primary) => ({ attributes: { primary }, children: [], name: "Case" as const }),
+			),
+		};
+	} else {
+		nextInputTag = {
+			...currentInputTag,
+			attributes: {
+				...currentInputTag.attributes,
+				...(update.description === undefined
+					? {}
+					: { description: update.description.trim() || undefined }),
+				...(update.valueType === undefined ? {} : { type: update.valueType }),
+				primary: nextVariable,
+			},
+		};
+	}
+
+	return {
+		...definition,
+		fieldMappings: nextMappings,
+		inputTags: definition.inputTags.map((inputTag, currentIndex) =>
+			currentIndex === inputTagIndex ? nextInputTag : inputTag,
+		),
+	};
+};
+
+const assignDocumentMappingVariable = (
+	definition: DocumentDefinition,
+	index: number,
+	variable: string,
+): DocumentDefinition => {
+	const mapping = definition.fieldMappings[index];
+	if (!mapping || mapping.variable === variable) {
+		return definition;
+	}
+	const fieldMappings = definition.fieldMappings.map((currentMapping, mappingIndex) =>
+		mappingIndex === index ? { ...currentMapping, variable } : currentMapping,
+	);
+	const hasPreviousVariableMapping = fieldMappings.some(
+		(currentMapping) => currentMapping.variable.toLowerCase() === mapping.variable.toLowerCase(),
+	);
+	return {
+		...definition,
+		fieldMappings,
+		inputTags: hasPreviousVariableMapping
+			? definition.inputTags
+			: definition.inputTags.filter(
+					(inputTag) => inputTag.attributes.primary.toLowerCase() !== mapping.variable.toLowerCase(),
+				),
+	};
+};
+
 const getDocumentEditorTitle = (documentId: string | undefined): string => {
 	if (documentId) {
 		return "Dokument bearbeiten";
@@ -250,28 +436,12 @@ const toFieldMappings = (fieldDefinitions: DocumentFieldDefinition[]) =>
 		pdfType: fieldDefinition.pdfType,
 	}));
 
-const updateFieldDefinitionAt = (
-	fieldDefinitions: DocumentFieldDefinition[],
-	index: number,
-	update: Partial<DocumentFieldDefinition>,
-): DocumentFieldDefinition[] => {
-	const nextFieldDefinitions = [...fieldDefinitions];
-	const currentFieldDefinition = nextFieldDefinitions[index];
-	if (!currentFieldDefinition) {
-		return fieldDefinitions;
-	}
-
-	nextFieldDefinitions[index] = {
-		...currentFieldDefinition,
-		...update,
-	};
-	return nextFieldDefinitions;
-};
-
 interface FieldDefinitionCardProps {
 	activePdfFieldName: string | null;
 	fieldDefinition: DocumentFieldDefinition;
 	index: number;
+	inputVariables: string[];
+	onMapToVariable: (index: number, variable: string) => void;
 	onPreview: (fieldName: string) => void;
 	onUpdate: (index: number, update: Partial<DocumentFieldDefinition>) => void;
 }
@@ -281,6 +451,8 @@ const FieldDefinitionCard = memo(
 		activePdfFieldName,
 		fieldDefinition,
 		index,
+		inputVariables,
+		onMapToVariable,
 		onPreview,
 		onUpdate,
 	}: FieldDefinitionCardProps) => {
@@ -295,6 +467,13 @@ const FieldDefinitionCard = memo(
 				onUpdate(index, { label: event.target.value });
 			},
 			[index, onUpdate],
+		);
+
+		const handleVariableMappingChange = useCallback(
+			(value: string) => {
+				onMapToVariable(index, value);
+			},
+			[index, onMapToVariable],
 		);
 
 		const handleValueTypeChange = useCallback(
@@ -515,6 +694,26 @@ const FieldDefinitionCard = memo(
 											</div>
 										))}
 									</div>
+									{inputVariables.length > 1 ? (
+										<div className="min-w-0 space-y-0.5">
+											<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Bestehende Eingabe verwenden</Label>
+											<Select
+												onValueChange={handleVariableMappingChange}
+												value={fieldDefinition.label}
+											>
+												<SelectTrigger className={COMPACT_SELECT_TRIGGER_CLASS_NAME}>
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{inputVariables.map((variable) => (
+														<SelectItem key={variable} value={variable}>
+															{variable}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									) : null}
 								</div>
 							) : null}
 						</div>
@@ -585,7 +784,11 @@ export default function DocumentEditor({
 	const [pdfFileBytes, setPdfFileBytes] = useState<Uint8Array | null>(null);
 	const [pdfFileName, setPdfFileName] = useState("document.pdf");
 	const [isPdfReplaced, setIsPdfReplaced] = useState(false);
-	const [fieldDefinitions, setFieldDefinitions] = useState<DocumentFieldDefinition[]>([]);
+	const [definition, setDefinition] = useState<DocumentDefinition>({
+		fieldMappings: [],
+		inputTags: [],
+		version: 2,
+	});
 	const [activePdfFieldName, setActivePdfFieldName] = useState<string | null>(null);
 	const [visibility, setVisibility] = useState<DocumentVisibility>("public");
 
@@ -611,10 +814,10 @@ export default function DocumentEditor({
 		setTitle(sourceDocument.title);
 		setCategory(sourceDocument.category);
 		setVisibility(sourceDocument.visibility === "private" ? "private" : "public");
-		const savedFieldDefinitions = normalizeSavedFieldDefinitions(sourceDocument.fieldDefinitions);
-		if (savedFieldDefinitions.length > 0) {
-			setFieldDefinitions(savedFieldDefinitions);
-			setActivePdfFieldName(savedFieldDefinitions[0]?.fieldName ?? null);
+		const savedDefinition = normalizeSavedDocumentDefinition(sourceDocument.fieldDefinitions);
+		if (savedDefinition.fieldMappings.length > 0) {
+			setDefinition(savedDefinition);
+			setActivePdfFieldName(savedDefinition.fieldMappings[0]?.fieldName ?? null);
 		}
 		initializedRef.current = true;
 	}, [sourceDocument]);
@@ -648,7 +851,9 @@ export default function DocumentEditor({
 			setIsPdfReplaced(true);
 
 			const { fields } = await parsePDFFormFields(file);
-			setFieldDefinitions(buildDefaultFieldDefinitionsFromPdfFields(fields));
+			setDefinition(
+				documentDefinitionFromLegacyFieldDefinitions(buildDefaultFieldDefinitionsFromPdfFields(fields)),
+			);
 			setActivePdfFieldName(fields[0]?.name ?? null);
 		},
 		[],
@@ -656,7 +861,7 @@ export default function DocumentEditor({
 
 	const handleClearPdf = useCallback(() => {
 		setPdfFileBytes(null);
-		setFieldDefinitions([]);
+		setDefinition({ fieldMappings: [], inputTags: [], version: 2 });
 		setActivePdfFieldName(null);
 		setPdfFileName("document.pdf");
 		setIsPdfReplaced(true);
@@ -664,7 +869,7 @@ export default function DocumentEditor({
 
 	const handleFieldUpdate = useCallback(
 		(index: number, update: Partial<DocumentFieldDefinition>) => {
-			setFieldDefinitions((current) => updateFieldDefinitionAt(current, index, update));
+		setDefinition((current) => updateDocumentDefinitionAt(current, index, update));
 		},
 		[],
 	);
@@ -672,6 +877,13 @@ export default function DocumentEditor({
 	const handleFieldPreview = useCallback((fieldName: string) => {
 		setActivePdfFieldName(fieldName);
 	}, []);
+	const handleMapToVariable = useCallback((index: number, variable: string) => {
+		setDefinition((current) => assignDocumentMappingVariable(current, index, variable));
+	}, []);
+	const inputVariables = useMemo(
+		() => definition.inputTags.map((inputTag) => inputTag.attributes.primary),
+		[definition.inputTags],
+	);
 
 	const canCreatePrivateDocuments = Boolean(editorContext?.canCreatePrivateDocuments);
 
@@ -699,27 +911,27 @@ export default function DocumentEditor({
 		toast.loading("Eingaben werden mit KI verbessert...", { id: "enhance-ai" });
 		try {
 			const result = (await enhanceMutation.mutateAsync({
-				fieldMappings: toFieldMappings(fieldDefinitions),
+				fieldMappings: toFieldMappings(toEditorFieldDefinitions(definition)),
 				fileBase64: encodeUint8ArrayToBase64(pdfFileBytes),
-				inputFields: toEnhancementInputFields(fieldDefinitions),
+				inputFields: toEnhancementInputFields(toEditorFieldDefinitions(definition)),
 			})) as ParsedFieldMappingResult;
 
 			const aiByFieldName = new Map(
 				result.fieldMapping.map((fieldMapping) => [fieldMapping.fieldName, fieldMapping]),
 			);
-			setFieldDefinitions((current) =>
-				current.map((fieldDefinition) => {
-					const aiField = aiByFieldName.get(fieldDefinition.fieldName);
-					if (!aiField) {
-						return fieldDefinition;
+			setDefinition((current) => {
+				let nextDefinition = current;
+				for (const [index, mapping] of current.fieldMappings.entries()) {
+					const aiField = aiByFieldName.get(mapping.fieldName);
+					if (aiField) {
+						nextDefinition = updateDocumentDefinitionAt(nextDefinition, index, {
+							description: aiField.description,
+							label: aiField.label,
+						});
 					}
-					return {
-						...fieldDefinition,
-						description: aiField.description,
-						label: aiField.label,
-					};
-				}),
-			);
+				}
+				return nextDefinition;
+			});
 			toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -727,7 +939,7 @@ export default function DocumentEditor({
 				id: "enhance-ai",
 			});
 		}
-	}, [enhanceMutation, fieldDefinitions, pdfFileBytes]);
+	}, [definition, enhanceMutation, pdfFileBytes]);
 
 	const handleSave = useCallback(async () => {
 		const finalCategory = category === "new" ? newCategory : category;
@@ -745,7 +957,7 @@ export default function DocumentEditor({
 			if (documentId) {
 				const payload = {
 					category: finalCategory.trim(),
-					fieldDefinitions,
+					fieldDefinitions: definition,
 					id: documentId,
 					title: title.trim(),
 					visibility,
@@ -763,7 +975,7 @@ export default function DocumentEditor({
 
 			const createdDocument = await createMutation.mutateAsync({
 				category: finalCategory.trim(),
-				fieldDefinitions,
+				fieldDefinitions: definition,
 				pdfBase64: encodeUint8ArrayToBase64(pdfFileBytes),
 				title: title.trim(),
 				visibility,
@@ -778,7 +990,7 @@ export default function DocumentEditor({
 		category,
 		createMutation,
 		documentId,
-		fieldDefinitions,
+		definition,
 		isPdfReplaced,
 		newCategory,
 		pdfFileBytes,
@@ -968,16 +1180,18 @@ export default function DocumentEditor({
 
 					<div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none p-4 pt-4">
 						<div className="space-y-2">
-							{fieldDefinitions.length === 0 ? (
+							{definition.fieldMappings.length === 0 ? (
 								<p className="text-muted-foreground text-sm">
 									Noch keine Felder erkannt. Laden Sie ein fillbares PDF hoch.
 								</p>
 							) : null}
-							{fieldDefinitions.map((fieldDefinition, index) => (
+							{toEditorFieldDefinitions(definition).map((fieldDefinition, index) => (
 								<FieldDefinitionCard
 									activePdfFieldName={activePdfFieldName}
-									fieldDefinition={fieldDefinition}
-									index={index}
+										fieldDefinition={fieldDefinition}
+										index={index}
+										inputVariables={inputVariables}
+										onMapToVariable={handleMapToVariable}
 									key={fieldDefinition.fieldName}
 									onPreview={handleFieldPreview}
 									onUpdate={handleFieldUpdate}

@@ -4,8 +4,11 @@ import type { Database } from "@repo/database";
 import { generateObject } from "ai";
 import { z } from "zod";
 
-import { buildParsedMarkdocFromFieldDefinitions } from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
-import type { DocumentFieldDefinition } from "@/app/documents/_lib/types";
+import {
+	documentDefinitionFromLegacyFieldDefinitions,
+	normalizeDocumentDefinition,
+} from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
+import type { DocumentDefinition, DocumentFieldDefinition } from "@/app/documents/_lib/types";
 import type { Session } from "@/lib/auth-types";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
@@ -141,9 +144,41 @@ const looseDocumentFieldDefinitionSchema = z
 
 const looseDocumentFieldDefinitionsSchema = z.array(looseDocumentFieldDefinitionSchema);
 
+const documentInputTagSchema: z.ZodType<unknown> = z.lazy(() =>
+	z.object({
+		attributes: z.record(z.string(), z.unknown()),
+		children: z.array(documentInputTagSchema),
+		name: z.enum(["Info", "Switch", "Case"]),
+	}),
+);
+
+const documentDefinitionSchema = z.object({
+	fieldMappings: z.array(
+		z.object({
+			condition: z.string().optional(),
+			fieldName: z.string().min(1),
+			isEnabled: z.boolean().optional(),
+			pdfType: z.enum(["text", "multiline", "dropdown", "checkbox", "radio"]),
+			value: z.string().optional(),
+			variable: z.string().min(1),
+		}),
+	),
+	inputTags: z.array(documentInputTagSchema),
+	version: z.literal(2),
+});
+
+const documentDefinitionInputSchema = z
+	.union([looseDocumentFieldDefinitionsSchema, documentDefinitionSchema])
+	.transform((value): DocumentDefinition => {
+		if (Array.isArray(value)) {
+			return documentDefinitionFromLegacyFieldDefinitions(value);
+		}
+		return normalizeDocumentDefinition(value as DocumentDefinition);
+	});
+
 const createDocumentTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
-	fieldDefinitions: looseDocumentFieldDefinitionsSchema,
+	fieldDefinitions: documentDefinitionInputSchema,
 	pdfBase64: z.string().min(1, "PDF content is required"),
 	title: z.string().min(1, "Title is required"),
 	visibility: documentTemplateVisibilitySchema.default("public"),
@@ -151,7 +186,7 @@ const createDocumentTemplateInput = z.object({
 
 const updateDocumentTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
-	fieldDefinitions: looseDocumentFieldDefinitionsSchema,
+	fieldDefinitions: documentDefinitionInputSchema,
 	id: z.string().min(1),
 	pdfBase64: z.string().min(1).optional(),
 	title: z.string().min(1, "Title is required"),
@@ -167,13 +202,12 @@ const decodePdfBase64 = (value: string): Uint8Array => new Uint8Array(Buffer.fro
 const encodePdfBase64 = (value: Uint8Array): string => Buffer.from(value).toString("base64");
 
 const ensureValidFieldDefinitions = (
-	fieldDefinitions: DocumentFieldDefinition[],
+	fieldDefinitions: DocumentDefinition,
 ): {
-	normalizedFieldDefinitions: DocumentFieldDefinition[];
+	normalizedFieldDefinitions: DocumentDefinition;
 } => {
 	try {
-		const { normalizedFieldDefinitions } = buildParsedMarkdocFromFieldDefinitions(fieldDefinitions);
-		return { normalizedFieldDefinitions };
+		return { normalizedFieldDefinitions: normalizeDocumentDefinition(fieldDefinitions) };
 	} catch (error) {
 		throw new ORPCError("BAD_REQUEST", {
 			message:
