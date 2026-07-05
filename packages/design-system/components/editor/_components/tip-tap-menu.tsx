@@ -1,4 +1,4 @@
-import { placeCaretAfterInsertedInlineTag } from "@repo/design-system/components/editor/_lib/place-caret-after-inserted-inline-tag";
+import { selectInsertedInlineTag } from "@repo/design-system/components/editor/_lib/select-inserted-inline-tag";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Tooltip,
@@ -51,7 +51,7 @@ const MenuBar = ({
 					attrs: { primary: "..." },
 					type: "infoTag",
 				})
-				.command(placeCaretAfterInsertedInlineTag)
+				.command(selectInsertedInlineTag)
 				.run();
 		},
 		handleInsertScoreTag() {
@@ -65,7 +65,7 @@ const MenuBar = ({
 					},
 					type: "scoreTag",
 				})
-				.command(placeCaretAfterInsertedInlineTag)
+				.command(selectInsertedInlineTag)
 				.run();
 		},
 		handleInsertSwitchTag() {
@@ -79,7 +79,7 @@ const MenuBar = ({
 					},
 					type: "switchTag",
 				})
-				.command(placeCaretAfterInsertedInlineTag)
+				.command(selectInsertedInlineTag)
 				.run();
 		},
 		handleRedo() {

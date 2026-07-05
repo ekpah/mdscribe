@@ -196,6 +196,7 @@ bun run db:migrate       # Run Drizzle migrations
 
 ### Template Editor
 - WYSIWYG: Inline Markdoc validation in TipTap mode (red squiggles + hover errors); block save when Markdoc validation has errors
+- Tag properties (info/switch/score/case) are edited Figma-style in the tag inspector (`packages/design-system/components/editor/tag-inspector/`): a right sidebar on `xl+` that shows tag help when nothing is selected, and a bottom sheet below `xl` (and in the admin markdoc playground). Nodeview chips (`editorNodes/tag-chip.tsx`) only select their node on click; do not reintroduce per-tag popovers. The editor instance reaches the inspector via TipTap's `onEditorChange` prop.
 - Source editing: Admin only (`session.user.email === env.ADMIN_EMAIL`)
 - Page data centralized in `app/templates/_lib/editor-page-data.ts`. Routes under `(editor)/` with auth redirect.
 - Categories: Fetch via `orpc.templates.editorContext`, pass as `categorySuggestions`.

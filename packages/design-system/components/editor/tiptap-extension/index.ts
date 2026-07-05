@@ -9,6 +9,7 @@ import { ScoreTag } from './editorNodes/scoreTag/score-tag';
 import type { ScoreTagAttrs } from './editorNodes/scoreTag/score-tag';
 import { SwitchTag } from './editorNodes/switchTag/switch-tag';
 import type { SwitchTagAttrs } from './editorNodes/switchTag/switch-tag';
+import { TagGapCaret } from './tag-gap-caret';
 
 interface MarkdocExtensionOptions {
 	/**
@@ -64,6 +65,8 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 		if (this.options.switchTag !== false) {
 			extensions.push(SwitchTag.configure(this.options.switchTag));
 		}
+
+		extensions.push(TagGapCaret);
 
 		return extensions;
 	},

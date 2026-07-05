@@ -1,7 +1,7 @@
 "use client";
 
-import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
+import type { TagInspectorEditor } from "@repo/design-system/components/editor/tag-inspector/tag-inspector";
 import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
+import { TagInspector, TagInspectorSheet } from "./tag-inspector-dynamic";
 import TipTap from "./tip-tap-dynamic";
 
 const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
@@ -86,10 +87,10 @@ const TemplateExamplesTab = ({
 							</Button>
 						</div>
 						<Textarea
+							className="min-h-[25dvh]"
 							id={`template-example-${index}`}
 							onChange={onChangeExampleByIndex[index]}
 							placeholder="Beispiel eingeben"
-							rows={4}
 							value={example}
 						/>
 					</div>
@@ -132,6 +133,7 @@ export default function Editor({
 	const [visibility, setVisibility] = useState<TemplateVisibility>(initialVisibility);
 	const [showSource, setShowSource] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [editorInstance, setEditorInstance] = useState<TagInspectorEditor | null>(null);
 	// Counter to force TipTap remount when switching from source view
 	const editorKeyRef = useRef(0);
 
@@ -509,6 +511,7 @@ export default function Editor({
 									<TipTap
 										key={`tiptap-${editorKeyRef.current}`}
 										note={content}
+										onEditorChange={setEditorInstance}
 										onToggleSource={canEditSource ? handleSwitchToSource : undefined}
 										setContent={setContent}
 										showSource={showSource}
@@ -541,10 +544,11 @@ export default function Editor({
 				</form>
 			</Card>
 
-			{/* Sidebar */}
+			{/* Tag inspector: sidebar on xl+, bottom sheet below */}
 			<div className="hidden w-80 xl:block">
-				<EditorSidebar />
+				<TagInspector editor={editorInstance} />
 			</div>
+			<TagInspectorSheet editor={editorInstance} />
 		</div>
 	);
 }
