@@ -14,11 +14,42 @@ type SelectContextValue = {
 
 const SelectContext = React.createContext<SelectContextValue | null>(null)
 
+function collectSelectItems(
+  children: React.ReactNode,
+  items: { label: string; value: unknown }[] = []
+) {
+  React.Children.forEach(children, (child) => {
+    if (
+      !React.isValidElement<{
+        children?: React.ReactNode
+        label?: string
+        value?: unknown
+      }>(child)
+    ) {
+      return
+    }
+
+    if (child.type === SelectItem) {
+      const label = child.props.label ?? getSelectItemLabel(child.props.children)
+      if (label !== undefined) {
+        items.push({ label, value: child.props.value })
+      }
+      return
+    }
+
+    collectSelectItems(child.props.children, items)
+  })
+
+  return items
+}
+
 // Base UI types `onValueChange` as `(value: Value | null)` because items may
 // carry null values. This repo only uses non-null item values, so narrow the
 // callback to the pre-migration `(value: Value)` signature and guard nulls.
 function Select<Value>({
+  children,
   defaultValue,
+  items,
   onValueChange,
   value,
   ...props
@@ -35,6 +66,30 @@ function Select<Value>({
   >(defaultValue)
   const [labels, setLabels] = React.useState(() => new Map<unknown, string>())
   const currentValue = value !== undefined ? value : uncontrolledValue
+  const inferredItems = React.useMemo(() => {
+    if (items !== undefined) {
+      return undefined
+    }
+
+    const collectedItems = collectSelectItems(children)
+    return collectedItems.length > 0 ? collectedItems : undefined
+  }, [children, items])
+  const inferredLabels = React.useMemo(() => {
+    const nextLabels = new Map<unknown, string>()
+
+    for (const item of inferredItems ?? []) {
+      nextLabels.set(item.value, item.label)
+    }
+
+    return nextLabels
+  }, [inferredItems])
+  const resolvedLabels = React.useMemo(() => {
+    if (inferredLabels.size === 0) {
+      return labels
+    }
+
+    return new Map([...inferredLabels, ...labels])
+  }, [inferredLabels, labels])
 
   const registerLabel = React.useCallback((itemValue: unknown, label: string) => {
     setLabels((currentLabels) => {
@@ -58,11 +113,11 @@ function Select<Value>({
 
   const contextValue = React.useMemo<SelectContextValue>(
     () => ({
-      labels,
+      labels: resolvedLabels,
       registerLabel,
       value: currentValue,
     }),
-    [currentValue, labels, registerLabel]
+    [currentValue, registerLabel, resolvedLabels]
   )
 
   const handleValueChange = React.useMemo(() => {
@@ -78,10 +133,13 @@ function Select<Value>({
     <SelectContext.Provider value={contextValue}>
       <SelectPrimitive.Root
         defaultValue={defaultValue}
+        items={items ?? inferredItems}
         onValueChange={handleValueChange}
         value={value}
         {...props}
-      />
+      >
+        {children}
+      </SelectPrimitive.Root>
     </SelectContext.Provider>
   )
 }
