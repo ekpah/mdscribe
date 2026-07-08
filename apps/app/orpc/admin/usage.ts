@@ -25,7 +25,10 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
-import { USAGE_EVENT_EVALUATION_SYSTEM_PROMPT } from "@/orpc/scribe/prompts/core/evaluation";
+import {
+	buildUsageEventEvaluationPrompt,
+	USAGE_EVENT_EVALUATION_SYSTEM_PROMPT,
+} from "@/orpc/scribe/prompts/core/evaluation";
 import { buildProviderOptions, resolveDefaultModel } from "@/orpc/scribe/providers";
 
 const usageEvaluationSchema = z.object({
@@ -466,15 +469,11 @@ const evaluateUsageEventHandler = authed
 		try {
 			evaluation = await generateObject({
 				model: evaluationSelection.model.model,
-				prompt: `Bewerte ausschliesslich die Modell-Ausgabe.
-
-Dokumenttyp: ${documentType}
-
-Nutzergegebene Eingaben, Prompt-Spezifika und ggf. Vorlage:
-${JSON.stringify(event.inputData ?? {}, null, 2)}
-
-Modell-Ausgabe:
-${event.result}`,
+				prompt: buildUsageEventEvaluationPrompt({
+					documentType,
+					inputs: event.inputData ?? {},
+					response: event.result,
+				}),
 				providerOptions: buildProviderOptions({
 					model: evaluationSelection.model,
 					reasoningEffort: evaluationSelection.reasoningEffort,
