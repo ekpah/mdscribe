@@ -25,7 +25,7 @@ export const config: NextConfig = {
 	experimental: {
 		optimizePackageImports: [
 			"@repo/design-system",
-			"radix-ui",
+			"@base-ui/react",
 			"react-aria-components",
 		],
 	},
