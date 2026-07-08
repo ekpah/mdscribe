@@ -117,15 +117,15 @@ export const SwitchInput = ({
 	const currentStringValue = toCurrentStringValue(value, currentBooleanValue);
 
 	const handleBooleanChange = useCallback(
-		(checked: boolean | "indeterminate") => {
+		(checked: boolean) => {
 			onChange(checked === true);
 		},
 		[onChange],
 	);
 
 	const handleStringChange = useCallback(
-		(newValue: string) => {
-			onChange(newValue);
+		(newValue: string | null) => {
+			onChange(newValue ?? "");
 		},
 		[onChange],
 	);
@@ -211,13 +211,12 @@ export const SwitchInput = ({
 						"flex w-full max-w-full flex-row overflow-hidden rounded-md border border-input bg-background",
 						inputClassName,
 					)}
-					onValueChange={handleStringChange}
-					type="single"
-					value={currentStringValue}
+					onValueChange={(values) => handleStringChange(values[0] ?? "")}
+					value={currentStringValue ? [currentStringValue] : []}
 				>
 					{options?.map((caseTag) => (
 						<ToggleGroupItem
-							className="h-9 min-w-0 flex-1 rounded-none bg-transparent text-foreground transition-colors hover:bg-muted hover:text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+							className="h-9 min-w-0 flex-1 rounded-none bg-transparent text-foreground transition-colors hover:bg-muted hover:text-muted-foreground data-pressed:bg-accent data-pressed:text-accent-foreground"
 							key={caseTag.attributes.primary}
 							value={caseTag.attributes.primary}
 						>

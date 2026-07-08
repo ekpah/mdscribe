@@ -130,8 +130,7 @@ export function MicSelector({
 
   return (
     <DropdownMenu onOpenChange={handleDropdownOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
+      <DropdownMenuTrigger render={<Button
           variant="ghost"
           size="sm"
           className={cn(
@@ -149,8 +148,7 @@ export function MicSelector({
             {currentDevice.label}
           </span>
           <ChevronsUpDown className="h-3 w-3 flex-shrink-0" />
-        </Button>
-      </DropdownMenuTrigger>
+        </Button>} />
       <DropdownMenuContent align="center" side="top" className="w-72">
         {loading ? (
           <DropdownMenuItem disabled>Mikrofone werden geladen...</DropdownMenuItem>

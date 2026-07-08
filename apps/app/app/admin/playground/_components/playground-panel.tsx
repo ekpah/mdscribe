@@ -232,15 +232,13 @@ const DirtySelectorLabel = ({ info, isDirty, label }: DirtySelectorLabelProps) =
 			<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
 			{info ? (
 				<Tooltip>
-					<TooltipTrigger asChild>
-						<button
+					<TooltipTrigger render={<button
 							aria-label={info}
 							className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
 							type="button"
 						>
 							<Info className="h-3.5 w-3.5" />
-						</button>
-					</TooltipTrigger>
+						</button>} />
 					<TooltipContent className="max-w-64 text-xs leading-relaxed">{info}</TooltipContent>
 				</Tooltip>
 			) : null}
@@ -1328,10 +1326,9 @@ export const PlaygroundPanel = ({
 			}
 
 			return (
-				<div className="min-w-0">
-					<p className="truncate font-medium text-solarized-base00">{selected.model.name}</p>
-					<p className="truncate text-solarized-base01 text-xs">{selected.providerLabel}</p>
-				</div>
+				<span className="block min-w-0 truncate font-medium text-solarized-base00">
+					{selected.label}
+				</span>
 			);
 		},
 		[],
@@ -1990,12 +1987,12 @@ export const PlaygroundPanel = ({
 							<TabsTrigger
 								key={item.view}
 								value={item.view}
-								className="group h-auto w-full flex-col items-start justify-start gap-1 rounded-lg border border-transparent bg-transparent px-3 py-3 text-left text-solarized-base01 shadow-none hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00 data-[state=active]:border-solarized-blue/40 data-[state=active]:bg-solarized-blue/10 data-[state=active]:text-solarized-blue data-[state=active]:shadow-none data-[state=active]:hover:bg-solarized-blue/10 data-[state=active]:hover:text-solarized-blue"
+								className="group h-auto w-full flex-col items-start justify-start gap-1 rounded-lg border border-transparent bg-transparent px-3 py-3 text-left text-solarized-base01 shadow-none hover:border-solarized-base2 hover:bg-solarized-base3 hover:text-solarized-base00 data-active:border-solarized-blue/40 data-active:bg-solarized-blue/10 data-active:text-solarized-blue data-active:shadow-none data-active:hover:bg-solarized-blue/10 data-active:hover:text-solarized-blue"
 							>
-								<span className="font-medium text-sm text-solarized-base01 group-data-[state=active]:text-solarized-blue">
+								<span className="font-medium text-sm text-solarized-base01 group-data-active:text-solarized-blue">
 									{PLAYGROUND_VIEW_META[item.view].label}
 								</span>
-								<span className="line-clamp-2 text-xs text-solarized-base01 group-data-[state=active]:text-solarized-blue/80">
+								<span className="line-clamp-2 text-xs text-solarized-base01 group-data-active:text-solarized-blue/80">
 									{item.summary}
 								</span>
 							</TabsTrigger>
@@ -2007,30 +2004,30 @@ export const PlaygroundPanel = ({
 			<Card className="flex min-h-[560px] min-w-0 flex-1 flex-col border-solarized-base2 lg:min-h-0">
 				<CardContent className="min-h-0 flex-1 p-0">
 					<TabsContent
-						forceMount
+						keepMounted
 						value="config"
-						className="m-0 h-full min-h-0 data-[state=inactive]:hidden"
+						className="m-0 h-full min-h-0 data-hidden:hidden"
 					>
 						{renderConfigView()}
 					</TabsContent>
 					<TabsContent
-						forceMount
+						keepMounted
 						value="inputs"
-						className="m-0 h-full min-h-0 data-[state=inactive]:hidden"
+						className="m-0 h-full min-h-0 data-hidden:hidden"
 					>
 						{renderInputsView()}
 					</TabsContent>
 					<TabsContent
-						forceMount
+						keepMounted
 						value="models"
-						className="m-0 h-full min-h-0 data-[state=inactive]:hidden"
+						className="m-0 h-full min-h-0 data-hidden:hidden"
 					>
 						{renderModelsView()}
 					</TabsContent>
 					<TabsContent
-						forceMount
+						keepMounted
 						value="results"
-						className="m-0 h-full min-h-0 data-[state=inactive]:hidden"
+						className="m-0 h-full min-h-0 data-hidden:hidden"
 					>
 						{renderResultsView()}
 					</TabsContent>

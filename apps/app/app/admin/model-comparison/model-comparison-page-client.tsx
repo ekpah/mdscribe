@@ -713,10 +713,9 @@ const renderSelectedModelOption = (selected: PlaygroundModelSelectorOption | nul
 	}
 
 	return (
-		<div className="min-w-0">
-			<p className="truncate font-medium text-solarized-base00">{selected.model.name}</p>
-			<p className="truncate text-solarized-base01 text-xs">{selected.providerLabel}</p>
-		</div>
+		<span className="block min-w-0 truncate font-medium text-solarized-base00">
+			{selected.label}
+		</span>
 	);
 };
 
@@ -749,8 +748,8 @@ const renderModelSelectorOption = (option: PlaygroundModelSelectorOption) => (
 
 const InputSectionsAccordion = ({ sections }: { sections: InputSection[] }) => (
 	<Accordion
-		type="multiple"
 		defaultValue={sections.slice(0, 1).map((section) => section.key)}
+		multiple
 		className="rounded-md border border-solarized-base2 bg-solarized-base3"
 	>
 		{sections.map((section) => (

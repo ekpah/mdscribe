@@ -187,7 +187,7 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 		const focusHandle = window.setTimeout(() => {
 			const searchInput = searchInputRef.current
 			if (!searchInput) return
-			searchInput.focus()
+			searchInput.focus({ preventScroll: true })
 			searchInput.select()
 		}, 0)
 
@@ -196,8 +196,7 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 
 	return (
 		<Popover open={isOpen} onOpenChange={handleOpenChange}>
-			<PopoverTrigger asChild>
-				<button
+			<PopoverTrigger render={<button
 					id={id}
 					type="button"
 					role="combobox"
@@ -229,24 +228,23 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 						)}
 					</div>
 					<ChevronsUpDown className="text-muted-foreground h-4 w-4 shrink-0 opacity-70" />
-				</button>
-			</PopoverTrigger>
+				</button>} />
 			<PopoverContent
 				side="bottom"
 				align="start"
 				sideOffset={8}
 				collisionPadding={12}
-				sticky="always"
+				positionMethod="fixed"
+				sticky
 				className={cn(
-					"w-[max(var(--radix-popover-trigger-width),18rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 shadow-lg",
+					"w-[max(var(--anchor-width),18rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 shadow-lg",
 					popoverClassName
 				)}
-				onOpenAutoFocus={(event) => event.preventDefault()}
+				initialFocus={false}
 			>
 				<Command shouldFilter={false} className="bg-popover">
 					<CommandInput
 						ref={searchInputRef}
-						autoFocus={isOpen}
 						value={searchQuery}
 						onValueChange={setSearchQuery}
 						placeholder={searchPlaceholder}
@@ -254,7 +252,7 @@ export function ModelSelector<TOption extends ModelSelectorOption>({
 					/>
 					<CommandList
 						className={cn(
-							"max-h-[min(22rem,calc(var(--radix-popover-content-available-height)-3.5rem))] overflow-x-hidden overflow-y-auto overscroll-contain",
+							"max-h-[min(22rem,calc(var(--available-height)-3.5rem))] overflow-x-hidden overflow-y-auto overscroll-contain",
 							listClassName
 						)}
 					>

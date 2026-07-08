@@ -45,12 +45,10 @@ export default function Hero({ isLoggedIn }: HeroProps) {
           <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
             {/* Primary CTA */}
             <Button
-              asChild
               className="group w-full flex-1 px-6 py-4 font-semibold text-base shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl sm:px-8 sm:py-6 sm:text-lg"
               id="primary-cta"
               size="lg"
-            >
-              <Link
+             render={<Link
                 className="flex items-center justify-center gap-2"
                 href={isLoggedIn ? '/aiscribe' : signInUrl}
               >
@@ -65,33 +63,27 @@ export default function Hero({ isLoggedIn }: HeroProps) {
                     <span>Jetzt anmelden</span>
                   </>
                 )}
-              </Link>
-            </Button>
+              </Link>} />
 
             {/* Secondary CTA */}
             <Button
-              asChild
               className="w-full flex-1 px-6 py-4 font-semibold text-base sm:px-8 sm:py-6 sm:text-lg"
               size="lg"
               variant="outline"
-            >
-              <Link
+             render={<Link
                 className="flex items-center justify-center gap-2"
                 href="/templates"
               >
                 <FileText className="h-5 w-5" />
                 <span>Textbausteine</span>
-              </Link>
-            </Button>
+              </Link>} />
           </div>
 
           <Button
-            asChild
             className="w-full px-6 py-4 font-semibold text-base text-solarized-blue hover:bg-solarized-blue/10 hover:text-solarized-blue sm:px-8 sm:py-6 sm:text-lg"
             size="lg"
             variant="outline"
-          >
-            <Link
+           render={<Link
               className="flex items-center justify-center gap-2"
               href="https://github.com/ekpah/mdscribe"
               rel="noopener"
@@ -99,8 +91,7 @@ export default function Hero({ isLoggedIn }: HeroProps) {
             >
               <Github className="h-5 w-5" />
               <span>Quellcode auf GitHub</span>
-            </Link>
-          </Button>
+            </Link>} />
         </div>
 
         {/* Feature Highlights */}

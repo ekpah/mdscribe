@@ -40,17 +40,15 @@ export const NavActions = ({
 
 	return (
 		<div className="flex items-center gap-2 text-sm">
-			<TooltipProvider delayDuration={300}>
+			<TooltipProvider delay={300}>
 				<Tooltip>
-					<TooltipTrigger asChild>
-						<span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
+					<TooltipTrigger render={<span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
 							{visibility === "private" ? (
 								<FileUser className="h-4 w-4" strokeWidth={1.5} />
 							) : (
 								<FileIcon className="h-4 w-4" strokeWidth={1.5} />
 							)}
-						</span>
-					</TooltipTrigger>
+						</span>} />
 					<TooltipContent>
 						<p>{visibility === "private" ? "Privat sichtbar" : "Öffentlich sichtbar"}</p>
 					</TooltipContent>

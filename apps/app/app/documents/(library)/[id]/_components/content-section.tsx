@@ -9,11 +9,11 @@ import { toast } from "sonner";
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
-	buildParsedMarkdocFromDocumentDefinition,
 	cloneUint8Array,
 	decodeBase64ToUint8Array,
 	downloadPdfBlob,
 	fillPDFForm,
+	normalizeDocumentDefinition,
 	printPdfBlob,
 	toPdfBlob,
 } from "@/app/documents/_lib";
@@ -31,9 +31,9 @@ export default function ContentSection({
 }) {
 	const inputTags = useMemo(() => {
 		try {
-			return buildParsedMarkdocFromDocumentDefinition(definition).inputTags;
+			return normalizeDocumentDefinition(definition).inputTags;
 		} catch (error) {
-			console.error("Failed to build parsed markdoc from field definitions:", error);
+			console.error("Failed to build inputs from document definition:", error);
 			return [];
 		}
 	}, [definition]);

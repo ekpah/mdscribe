@@ -466,13 +466,13 @@ export const AiscribeTemplate = ({
 								<CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
 									<TabsList className="grid grid-cols-2 bg-background/50 backdrop-blur-sm">
 										<TabsTrigger
-											className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+											className="data-active:bg-solarized-blue data-active:text-primary-foreground"
 											value="input"
 										>
 											{config.inputTabTitle}
 										</TabsTrigger>
 										<TabsTrigger
-											className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+											className="data-active:bg-solarized-blue data-active:text-primary-foreground"
 											value="output"
 										>
 											{config.outputTabTitle}

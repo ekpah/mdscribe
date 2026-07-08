@@ -282,13 +282,11 @@ const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 	const Icon = config.icon;
 
 	return (
-		<TooltipProvider delayDuration={200}>
+		<TooltipProvider delay={200}>
 			<Tooltip>
-				<TooltipTrigger asChild>
-					<span className={cn("inline-flex cursor-help", config.className)}>
+				<TooltipTrigger render={<span className={cn("inline-flex cursor-help", config.className)}>
 						<Icon className="h-3.5 w-3.5" />
-					</span>
-				</TooltipTrigger>
+					</span>} />
 				<TooltipContent side="top" className="text-xs">
 					{config.label}
 				</TooltipContent>
@@ -400,13 +398,11 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 				>
 					{input.attributes.primary}
 				</Label>
-				<TooltipProvider delayDuration={0}>
+				<TooltipProvider delay={0}>
 					<Tooltip>
-						<TooltipTrigger asChild>
-							<Badge className="ml-2 bg-muted-foreground">
+						<TooltipTrigger render={<Badge className="ml-2 bg-muted-foreground">
 								<Sigma aria-hidden="true" className="opacity-60" size={12} />
-							</Badge>
-						</TooltipTrigger>
+							</Badge>} />
 						<TooltipContent className="overflow-hidden px-2 py-1 text-sm">
 							<div className="space-y-1">
 								<p className="font-medium text-[13px]">Formel</p>

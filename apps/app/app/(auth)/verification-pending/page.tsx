@@ -114,14 +114,11 @@ export default async function VerificationPendingPage() {
 
 						<div className="flex flex-col items-center justify-center gap-3 px-2 sm:flex-row sm:gap-4 sm:px-0">
 							<Button
-								asChild
 								className="w-full px-6 py-4 text-base sm:w-auto sm:px-8 sm:py-6 sm:text-lg"
 								size="lg"
 								type="button"
 								variant="default"
-							>
-								<Link href="/sign-in">Zur Anmeldung</Link>
-							</Button>
+							 render={<Link href="/sign-in">Zur Anmeldung</Link>} />
 						</div>
 					</div>
 
