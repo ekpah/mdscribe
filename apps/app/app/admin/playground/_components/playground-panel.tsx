@@ -1675,7 +1675,6 @@ export const PlaygroundPanel = ({
 		setCompiledMessagesB([]);
 		setCompiledOverrideB(null);
 		setIsComparisonEnabled(true);
-		setRunStates({});
 	}, [isComparisonEnabled, promptName, selectedTemplateId]);
 
 	const handleRemovePromptComparison = useCallback(() => {
