@@ -12,37 +12,49 @@ import {
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
-import { buildParsedMarkdocFromFieldDefinitions } from "@/app/documents/_lib";
-import type { DocumentFieldDefinition } from "@/app/documents/_lib";
+import { normalizeDocumentDefinition } from "@/app/documents/_lib";
+import type { DocumentDefinition } from "@/app/documents/_lib";
 import { documentsHandler } from "@/orpc/documents";
 
 const pdfBytes = new Uint8Array([1, 2, 3, 4, 5, 250, 255]);
 const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
 
-const createFieldDefinitions = (): DocumentFieldDefinition[] => [
-	{
-		description: "Patientenname",
-		fieldName: "patient_name",
-		inputKind: "text",
-		isEnabled: true,
-		label: "Patient",
-		markdocType: "Info",
-		options: [],
-		pdfType: "text",
-		valueType: "string",
-	},
-	{
-		description: "Entlassung",
-		fieldName: "discharge_mode",
-		inputKind: "choice",
-		isEnabled: true,
-		label: "Entlassung",
-		markdocType: "Switch",
-		options: ["ambulant", "stationaer"],
-		pdfType: "dropdown",
-		valueType: "string",
-	},
-];
+const createDocumentDefinition = (): DocumentDefinition => ({
+	fieldMappings: [
+		{
+			fieldName: "patient_name",
+			isEnabled: true,
+			pdfType: "text",
+			variable: "Patient",
+		},
+		{
+			fieldName: "discharge_mode",
+			isEnabled: true,
+			pdfType: "dropdown",
+			variable: "Entlassung",
+		},
+	],
+	inputTags: [
+		{
+			attributes: {
+				description: "Patientenname",
+				primary: "Patient",
+				type: "string",
+			},
+			children: [],
+			name: "Info",
+		},
+		{
+			attributes: { primary: "Entlassung" },
+			children: [
+				{ attributes: { primary: "ambulant" }, children: [], name: "Case" },
+				{ attributes: { primary: "stationaer" }, children: [], name: "Case" },
+			],
+			name: "Switch",
+		},
+	],
+	version: 2,
+});
 
 describe("documents.templates handlers", () => {
 	let server: TestServer;
@@ -66,7 +78,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
 			},
@@ -80,7 +92,7 @@ describe("documents.templates handlers", () => {
 			.where(eq(documentTemplate.id, result.id));
 
 		expect(saved).toBeDefined();
-		expect(saved?.fieldDefinitions).toBeArray();
+		expect(saved?.fieldDefinitions).toMatchObject({ version: 2 });
 		expect([...(saved?.pdfBytes ?? [])]).toEqual([...pdfBytes]);
 		expect(saved?.visibility).toBe("public");
 	});
@@ -97,7 +109,7 @@ describe("documents.templates handlers", () => {
 				documentsHandler.templates.create,
 				{
 					category: "Entlassung",
-					fieldDefinitions: createFieldDefinitions(),
+					fieldDefinitions: createDocumentDefinition(),
 					pdfBase64,
 					title: "Privates Formular",
 					visibility: "private",
@@ -119,7 +131,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Privates Formular",
 				visibility: "private",
@@ -141,7 +153,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
 			},
@@ -188,7 +200,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Privates Formular",
 				visibility: "private",
@@ -199,7 +211,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Öffentliches Formular",
 			},
@@ -252,7 +264,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
 			},
@@ -279,7 +291,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "A",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64: Buffer.from(firstPdfBytes).toString("base64"),
 				title: "Erstes Dokument",
 			},
@@ -290,7 +302,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "B",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64: Buffer.from(secondPdfBytes).toString("base64"),
 				title: "Zweites Dokument",
 			},
@@ -319,7 +331,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
 			},
@@ -335,7 +347,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.update,
 			{
 				category: "Aufnahme",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				id: created.id,
 				title: "Aufnahmeformular",
 			},
@@ -367,7 +379,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Entlassformular",
 			},
@@ -384,7 +396,7 @@ describe("documents.templates handlers", () => {
 				documentsHandler.templates.update,
 				{
 					category: "Aufnahme",
-					fieldDefinitions: createFieldDefinitions(),
+					fieldDefinitions: createDocumentDefinition(),
 					id: created.id,
 					title: "Nicht erlaubt",
 				},
@@ -405,7 +417,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				pdfBase64,
 				title: "Privates Formular",
 				visibility: "private",
@@ -420,7 +432,7 @@ describe("documents.templates handlers", () => {
 				documentsHandler.templates.update,
 				{
 					category: "Aufnahme",
-					fieldDefinitions: createFieldDefinitions(),
+					fieldDefinitions: createDocumentDefinition(),
 					id: created.id,
 					title: "Weiter privat",
 					visibility: "private",
@@ -433,7 +445,7 @@ describe("documents.templates handlers", () => {
 			documentsHandler.templates.update,
 			{
 				category: "Aufnahme",
-				fieldDefinitions: createFieldDefinitions(),
+				fieldDefinitions: createDocumentDefinition(),
 				id: created.id,
 				title: "Jetzt öffentlich",
 				visibility: "public",
@@ -444,43 +456,33 @@ describe("documents.templates handlers", () => {
 		expect(publicResult.visibility).toBe("public");
 	});
 
-	test("duplicate labels are allowed when configuration matches", async () => {
+	test("multiple PDF fields can map to one input variable", async () => {
 		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
 		});
 
-		const duplicateLabelDefinitions: DocumentFieldDefinition[] = [
-			{
-				description: "gleich",
-				fieldName: "field_a",
-				inputKind: "text",
-				isEnabled: true,
-				label: "Duplikat",
-				markdocType: "Info",
-				options: [],
-				pdfType: "text",
-				valueType: "string",
-			},
-			{
-				description: "gleich",
-				fieldName: "field_b",
-				inputKind: "text",
-				isEnabled: true,
-				label: "Duplikat",
-				markdocType: "Info",
-				options: [],
-				pdfType: "text",
-				valueType: "string",
-			},
-		];
+		const sharedVariableDefinition: DocumentDefinition = {
+			fieldMappings: [
+				{ fieldName: "field_a", isEnabled: true, pdfType: "text", variable: "Duplikat" },
+				{ fieldName: "field_b", isEnabled: true, pdfType: "text", variable: "Duplikat" },
+			],
+			inputTags: [
+				{
+					attributes: { description: "gleich", primary: "Duplikat", type: "string" },
+					children: [],
+					name: "Info",
+				},
+			],
+			version: 2,
+		};
 
 		const created = await call(
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions: duplicateLabelDefinitions,
+				fieldDefinitions: sharedVariableDefinition,
 				pdfBase64,
 				title: "Entlassformular",
 			},
@@ -492,52 +494,34 @@ describe("documents.templates handlers", () => {
 			.from(documentTemplate)
 			.where(eq(documentTemplate.id, created.id));
 
-		const normalizedFieldDefinitions = Array.isArray(saved?.fieldDefinitions)
-			? (saved.fieldDefinitions as DocumentFieldDefinition[])
-			: [];
-		const { inputTags } = buildParsedMarkdocFromFieldDefinitions(normalizedFieldDefinitions);
+		const { inputTags } = normalizeDocumentDefinition(
+			saved?.fieldDefinitions as DocumentDefinition,
+		);
 		expect(inputTags).toHaveLength(1);
 		expect(inputTags[0]?.attributes.primary).toBe("Duplikat");
 	});
 
-	test("duplicate labels with conflicting configuration are rejected", async () => {
+	test("enabled mappings must reference defined inputs", async () => {
 		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
 		});
 
-		const duplicateLabelDefinitions: DocumentFieldDefinition[] = [
-			{
-				description: "eins",
-				fieldName: "field_a",
-				inputKind: "text",
-				isEnabled: true,
-				label: "Duplikat",
-				markdocType: "Info",
-				options: [],
-				pdfType: "text",
-				valueType: "string",
-			},
-			{
-				description: "zwei",
-				fieldName: "field_b",
-				inputKind: "choice",
-				isEnabled: true,
-				label: "Duplikat",
-				markdocType: "Switch",
-				options: ["ja", "nein"],
-				pdfType: "dropdown",
-				valueType: "string",
-			},
-		];
+		const invalidDefinition: DocumentDefinition = {
+			fieldMappings: [
+				{ fieldName: "field_a", isEnabled: true, pdfType: "text", variable: "Fehlt" },
+			],
+			inputTags: [],
+			version: 2,
+		};
 
 		await expect(
 			call(
 				documentsHandler.templates.create,
 				{
 					category: "Entlassung",
-					fieldDefinitions: duplicateLabelDefinitions,
+					fieldDefinitions: invalidDefinition,
 					pdfBase64,
 					title: "Entlassformular",
 				},
@@ -546,43 +530,33 @@ describe("documents.templates handlers", () => {
 		).rejects.toThrow();
 	});
 
-	test("disabled fields are omitted from derived parsedMarkdoc", async () => {
+	test("disabled mappings do not require matching inputs", async () => {
 		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		const context = createTestContext({
 			db: server.db,
 			session: createMockSession(user),
 		});
 
-		const fieldDefinitions: DocumentFieldDefinition[] = [
-			{
-				description: "Aktiv",
-				fieldName: "active",
-				inputKind: "text",
-				isEnabled: true,
-				label: "Aktiv",
-				markdocType: "Info",
-				options: [],
-				pdfType: "text",
-				valueType: "string",
-			},
-			{
-				description: "Inaktiv",
-				fieldName: "inactive",
-				inputKind: "text",
-				isEnabled: false,
-				label: "Inaktiv",
-				markdocType: "Info",
-				options: [],
-				pdfType: "text",
-				valueType: "string",
-			},
-		];
+		const definition: DocumentDefinition = {
+			fieldMappings: [
+				{ fieldName: "active", isEnabled: true, pdfType: "text", variable: "Aktiv" },
+				{ fieldName: "inactive", isEnabled: false, pdfType: "text", variable: "Inaktiv" },
+			],
+			inputTags: [
+				{
+					attributes: { description: "Aktiv", primary: "Aktiv", type: "string" },
+					children: [],
+					name: "Info",
+				},
+			],
+			version: 2,
+		};
 
 		const created = await call(
 			documentsHandler.templates.create,
 			{
 				category: "Entlassung",
-				fieldDefinitions,
+				fieldDefinitions: definition,
 				pdfBase64,
 				title: "Entlassformular",
 			},
@@ -594,10 +568,9 @@ describe("documents.templates handlers", () => {
 			.from(documentTemplate)
 			.where(eq(documentTemplate.id, created.id));
 
-		const normalizedFieldDefinitions = Array.isArray(saved?.fieldDefinitions)
-			? (saved.fieldDefinitions as DocumentFieldDefinition[])
-			: [];
-		const { inputTags } = buildParsedMarkdocFromFieldDefinitions(normalizedFieldDefinitions);
+		const { inputTags } = normalizeDocumentDefinition(
+			saved?.fieldDefinitions as DocumentDefinition,
+		);
 		expect(inputTags).toHaveLength(1);
 		expect(inputTags[0]?.attributes.primary).toBe("Aktiv");
 	});

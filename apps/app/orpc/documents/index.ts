@@ -4,11 +4,8 @@ import type { Database } from "@repo/database";
 import { generateObject } from "ai";
 import { z } from "zod";
 
-import {
-	documentDefinitionFromLegacyFieldDefinitions,
-	normalizeDocumentDefinition,
-} from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
-import type { DocumentDefinition, DocumentFieldDefinition } from "@/app/documents/_lib/types";
+import { normalizeDocumentDefinition } from "@/app/documents/_lib/document-definition";
+import type { DocumentDefinition } from "@/app/documents/_lib/types";
 import type { Session } from "@/lib/auth-types";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
@@ -57,9 +54,6 @@ const documentFieldMappingSchema = z.object({
 });
 
 const parseFormInput = z.object({
-	// Backward compatibility while frontend payload migrates fully.
-	connectionId: z.string().min(1).optional(),
-	fieldMapping: z.array(documentFieldMappingSchema).optional(),
 	fieldMappings: z.array(documentFieldMappingSchema).optional(),
 	fileBase64: z.string().min(1),
 	inputFields: z.array(documentInputFieldSchema).optional(),
@@ -111,42 +105,9 @@ const addCategories = (
 	}
 };
 
-const looseDocumentFieldDefinitionSchema = z
-	.object({
-		description: z.string().optional(),
-		fieldName: z.string().min(1),
-		inputKind: z.enum(["boolean", "choice", "text"]),
-		isEnabled: z.boolean().optional(),
-		label: z.string().min(1),
-		markdocType: z.enum(["Info", "Switch"]).optional(),
-		maxLength: z.number().int().positive().optional(),
-		options: z.array(z.string()).optional(),
-		pdfType: z.enum(["text", "multiline", "dropdown", "checkbox", "radio"]),
-		textCheckboxValue: z.string().optional(),
-		valueType: z.enum(["string", "number", "date"]).optional(),
-	})
-	.transform((field): DocumentFieldDefinition => {
-		const isSwitch = field.inputKind !== "text";
-		return {
-			description: field.description ?? "",
-			fieldName: field.fieldName,
-			inputKind: field.inputKind,
-			isEnabled: field.isEnabled ?? true,
-			label: field.label,
-			markdocType: field.markdocType ?? (isSwitch ? "Switch" : "Info"),
-			maxLength: field.maxLength,
-			options: field.options ?? (field.inputKind === "boolean" ? ["true", "false"] : []),
-			pdfType: field.pdfType,
-			textCheckboxValue: field.textCheckboxValue,
-			valueType: field.valueType ?? "string",
-		};
-	});
-
-const looseDocumentFieldDefinitionsSchema = z.array(looseDocumentFieldDefinitionSchema);
-
 const documentInputTagSchema: z.ZodType<unknown> = z.lazy(() =>
 	z.object({
-		attributes: z.record(z.string(), z.unknown()),
+		attributes: z.object({ primary: z.string() }).catchall(z.unknown()),
 		children: z.array(documentInputTagSchema),
 		name: z.enum(["Info", "Switch", "Case"]),
 	}),
@@ -167,14 +128,11 @@ const documentDefinitionSchema = z.object({
 	version: z.literal(2),
 });
 
-const documentDefinitionInputSchema = z
-	.union([looseDocumentFieldDefinitionsSchema, documentDefinitionSchema])
-	.transform((value): DocumentDefinition => {
-		if (Array.isArray(value)) {
-			return documentDefinitionFromLegacyFieldDefinitions(value);
-		}
-		return normalizeDocumentDefinition(value as DocumentDefinition);
-	});
+// Structural validation only; semantic normalization/validation happens once
+// in the handlers via ensureValidFieldDefinitions so errors map to BAD_REQUEST.
+const documentDefinitionInputSchema = documentDefinitionSchema.transform(
+	(value) => value as unknown as DocumentDefinition,
+);
 
 const createDocumentTemplateInput = z.object({
 	category: z.string().min(1, "Category is required"),
@@ -257,7 +215,7 @@ const parseFormHandler = adminDocumentProcedure
 	.handler(async ({ input, context }) => {
 		const parsed = parseFormInput.parse(input);
 		const { fileBase64 } = parsed;
-		const fieldMappings = parsed.fieldMappings ?? parsed.fieldMapping ?? [];
+		const fieldMappings = parsed.fieldMappings ?? [];
 		const inputFields =
 			parsed.inputFields ??
 			fieldMappings.map(
@@ -276,7 +234,7 @@ const parseFormHandler = adminDocumentProcedure
 		const promptText = promptMessages[0].content;
 		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
 		try {
-			const providerId = parsed.providerId ?? parsed.connectionId;
+			const { providerId } = parsed;
 			if (providerId || parsed.model) {
 				if (!providerId || !parsed.model) {
 					throw new Error("providerId und model müssen gemeinsam angegeben werden");

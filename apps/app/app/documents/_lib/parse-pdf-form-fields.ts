@@ -1,6 +1,11 @@
 import { PDFDocument } from "pdf-lib";
 
-import type { DocumentFieldDefinition, DocumentInputKind, DocumentPdfType } from "./types";
+import type {
+	DocumentDefinition,
+	DocumentInputKind,
+	DocumentPdfType,
+} from "./types";
+import { normalizeDocumentDefinition } from "./document-definition";
 
 interface PDFField {
 	inputKind: DocumentInputKind;
@@ -159,18 +164,38 @@ const inferOptions = (field: PDFField): string[] => {
 	return field.options || [];
 };
 
-export const buildDefaultFieldDefinitionsFromPdfFields = (
+export const buildDefaultDocumentDefinitionFromPdfFields = (
 	fields: PDFField[],
-): DocumentFieldDefinition[] =>
-	fields.map((field) => ({
-		description: "",
-		fieldName: field.name,
-		inputKind: field.inputKind,
-		isEnabled: true,
-		label: field.name,
-		markdocType: field.inputKind === "text" ? "Info" : "Switch",
-		maxLength: field.maxLength,
-		options: inferOptions(field),
-		pdfType: field.type,
-		valueType: "string",
-	}));
+): DocumentDefinition =>
+	normalizeDocumentDefinition({
+		fieldMappings: fields.map((field) => ({
+			fieldName: field.name,
+			isEnabled: true,
+			pdfType: field.type,
+			variable: field.name,
+		})),
+		inputTags: fields.map((field) => {
+			if (field.inputKind === "text") {
+				return {
+					attributes: { primary: field.name, type: "string" },
+					children: [],
+					name: "Info" as const,
+				};
+			}
+
+			const options = inferOptions(field);
+			return {
+				attributes: {
+					primary: field.name,
+					...(field.inputKind === "boolean" ? { type: "boolean" as const } : {}),
+				},
+				children: options.map((option) => ({
+					attributes: { primary: option },
+					children: [],
+					name: "Case" as const,
+				})),
+				name: "Switch" as const,
+			};
+		}),
+		version: 2,
+	});

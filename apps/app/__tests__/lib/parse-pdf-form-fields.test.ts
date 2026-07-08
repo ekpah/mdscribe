@@ -4,7 +4,7 @@ import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
 import type { PDFCheckBox } from "pdf-lib";
 
 import {
-	buildDefaultFieldDefinitionsFromPdfFields,
+	buildDefaultDocumentDefinitionFromPdfFields,
 	parsePDFFormFields,
 } from "@/app/documents/_lib";
 
@@ -104,19 +104,35 @@ describe("parsePDFFormFields", () => {
 		});
 	});
 
-	test("builds default document field definitions from parsed input kinds", async () => {
+	test("builds default v2 document definitions from parsed input kinds", async () => {
 		const { fields } = await parsePDFFormFields(await createMixedFormPdf());
-		const definitions = buildDefaultFieldDefinitionsFromPdfFields(fields);
+		const definition = buildDefaultDocumentDefinitionFromPdfFields(fields);
 
-		expect(definitions.find((field) => field.fieldName === "consent")).toMatchObject({
-			inputKind: "boolean",
-			markdocType: "Switch",
-			options: ["true", "false"],
+		expect(definition.fieldMappings.find((field) => field.fieldName === "consent")).toMatchObject({
+			pdfType: "checkbox",
+			variable: "consent",
 		});
-		expect(definitions.find((field) => field.fieldName === "request_type")).toMatchObject({
-			inputKind: "choice",
-			markdocType: "Switch",
-			options: ["Reha", "Teilhabe am Arbeitsleben (LTA)", "Sonstiges"],
+		expect(definition.inputTags.find((tag) => tag.attributes.primary === "consent")).toMatchObject({
+			attributes: { primary: "consent", type: "boolean" },
+			children: [
+				{ attributes: { primary: "true" }, children: [], name: "Case" },
+				{ attributes: { primary: "false" }, children: [], name: "Case" },
+			],
+			name: "Switch",
+		});
+		expect(
+			definition.inputTags.find((tag) => tag.attributes.primary === "request_type"),
+		).toMatchObject({
+			children: [
+				{ attributes: { primary: "Reha" }, children: [], name: "Case" },
+				{
+					attributes: { primary: "Teilhabe am Arbeitsleben (LTA)" },
+					children: [],
+					name: "Case",
+				},
+				{ attributes: { primary: "Sonstiges" }, children: [], name: "Case" },
+			],
+			name: "Switch",
 		});
 	});
 });

@@ -33,7 +33,7 @@ describe("documents.parseForm", () => {
 		const result = (await call(
 			documentsHandler.parseForm,
 			{
-				fieldMapping: [],
+				fieldMappings: [],
 				fileBase64: Buffer.from(pdfBytes).toString("base64"),
 			},
 			{

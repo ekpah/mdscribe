@@ -11,11 +11,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-	documentDefinitionFromLegacyFieldDefinitions,
-	normalizeDocumentDefinition,
-} from "@/app/documents/_lib";
-import type { DocumentDefinition, DocumentFieldDefinition } from "@/app/documents/_lib";
+import { normalizeDocumentDefinition } from "@/app/documents/_lib";
+import type { DocumentDefinition } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 import ContentSection from "@/app/documents/(library)/[id]/_components/content-section";
@@ -53,11 +50,7 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 	const isAuthor = document.authorId === session?.user?.id;
 	let definition: DocumentDefinition;
 	try {
-		definition = Array.isArray(document.fieldDefinitions)
-			? documentDefinitionFromLegacyFieldDefinitions(
-					(document.fieldDefinitions as DocumentFieldDefinition[]) ?? [],
-				)
-			: normalizeDocumentDefinition(document.fieldDefinitions as DocumentDefinition);
+		definition = normalizeDocumentDefinition(document.fieldDefinitions as DocumentDefinition);
 	} catch {
 		definition = { fieldMappings: [], inputTags: [], version: 2 };
 	}

@@ -1,8 +1,12 @@
 import { PDFDocument, PDFName } from "pdf-lib";
 import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 
-import { documentDefinitionFromLegacyFieldDefinitions, normalizeDocumentDefinition } from "./build-parsed-markdoc-from-field-definitions";
-import type { DocumentDefinition, DocumentFieldDefinition, DocumentFieldMapping } from "./types";
+import {
+	canonicalizeInputValue,
+	matchesCondition,
+	normalizeDocumentDefinition,
+} from "./document-definition";
+import type { DocumentDefinition, DocumentFieldMapping } from "./types";
 
 interface PdfLibFormField {
 	acroField?: {
@@ -19,30 +23,36 @@ interface PdfLibFormField {
 	uncheck?: () => void;
 }
 
-const toStringValue = (value: unknown): string => (typeof value === "string" ? value : value?.toString() || "");
 const toCheckboxState = (value: string): boolean => ["true", "1", "yes", "ja"].includes(value.trim().toLowerCase());
 const normalizePdfOption = (value: string): string => value.trim();
+const toVariableKey = (variable: string): string => variable.trim().toLowerCase();
 
-const toDefinition = (definition: DocumentDefinition | DocumentFieldDefinition[]): DocumentDefinition =>
-	normalizeDocumentDefinition(
-		Array.isArray(definition) ? documentDefinitionFromLegacyFieldDefinitions(definition) : definition,
-	);
+interface ResolvedMapping {
+	inputTag: InputTagType | undefined;
+	value: string;
+}
 
-const resolveMappingValue = (
+const resolveMapping = (
 	mappings: DocumentFieldMapping[],
 	fieldValues: Record<string, unknown>,
-): string => {
+	inputTagsByVariable: Map<string, InputTagType>,
+): ResolvedMapping => {
+	const getInputTag = (mapping: DocumentFieldMapping) =>
+		inputTagsByVariable.get(toVariableKey(mapping.variable));
 	const matchingConditional = mappings.find(
 		(mapping) =>
-			mapping.condition !== undefined && toStringValue(fieldValues[mapping.variable]) === mapping.condition,
+			mapping.condition !== undefined &&
+			matchesCondition(getInputTag(mapping), fieldValues[mapping.variable], mapping.condition),
 	);
-	const directMapping = mappings.find((mapping) => mapping.condition === undefined);
-	const mapping = matchingConditional ?? directMapping;
+	const mapping = matchingConditional ?? mappings.find((current) => current.condition === undefined);
 	if (!mapping) {
-		return "";
+		return { inputTag: undefined, value: "" };
 	}
-	const inputValue = toStringValue(fieldValues[mapping.variable]);
-	return mapping.value === undefined ? inputValue : mapping.value;
+	const inputTag = getInputTag(mapping);
+	return {
+		inputTag,
+		value: mapping.value ?? canonicalizeInputValue(inputTag, fieldValues[mapping.variable]),
+	};
 };
 
 const setCheckboxValue = (
@@ -111,15 +121,15 @@ const fillMappedField = (
 export const fillPDFForm = async (
 	file: Uint8Array,
 	fieldValues: Record<string, unknown>,
-	definition: DocumentDefinition | DocumentFieldDefinition[],
+	definition: DocumentDefinition,
 ): Promise<Uint8Array> => {
-	const normalizedDefinition = toDefinition(definition);
+	const normalizedDefinition = normalizeDocumentDefinition(definition);
 	const pdfDoc = await PDFDocument.load(new Uint8Array(file));
 	const form = pdfDoc.getForm();
 	const mappingsByFieldName = new Map<string, DocumentFieldMapping[]>();
 	const inputTagsByVariable = new Map(
 		normalizedDefinition.inputTags.map((inputTag) => [
-			inputTag.attributes.primary.trim().toLowerCase(),
+			toVariableKey(inputTag.attributes.primary),
 			inputTag,
 		]),
 	);
@@ -136,8 +146,8 @@ export const fillPDFForm = async (
 	for (const [fieldName, mappings] of mappingsByFieldName) {
 		try {
 			const field = form.getField(fieldName) as unknown as PdfLibFormField;
-			const inputTag = inputTagsByVariable.get(mappings[0]?.variable.trim().toLowerCase() ?? "");
-			fillMappedField(field, resolveMappingValue(mappings, fieldValues), inputTag);
+			const resolved = resolveMapping(mappings, fieldValues, inputTagsByVariable);
+			fillMappedField(field, resolved.value, resolved.inputTag);
 		} catch (error) {
 			console.error(`Error filling field ${fieldName}:`, error);
 		}

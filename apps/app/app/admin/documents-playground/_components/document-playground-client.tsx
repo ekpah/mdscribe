@@ -23,13 +23,13 @@ import { toast } from "sonner";
 import { DocumentInput } from "@/app/_components/input-context/inputs/document/document-input";
 import type { UploadedContextFile } from "@/app/_components/input-context/types";
 import {
-	buildDefaultFieldDefinitionsFromPdfFields,
-	buildParsedMarkdocFromFieldDefinitions,
+	buildDefaultDocumentDefinitionFromPdfFields,
 	encodeUint8ArrayToBase64,
 	MAX_PDF_UPLOAD_BYTES,
+	normalizeDocumentDefinition,
 	parsePDFFormFields,
 } from "@/app/documents/_lib";
-import type { DocumentFieldDefinition } from "@/app/documents/_lib";
+import type { DocumentDefinition, DocumentFieldMapping } from "@/app/documents/_lib";
 import { formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
 import { SCRIBE_OCR_TO_MARKDOWN_PROMPT } from "@/orpc/scribe/prompts/core/ocr-to-markdown";
@@ -174,55 +174,142 @@ const convertPdfToImages = async (pdfBytes: Uint8Array, maxPages = 10): Promise<
 const usesOpenAiCompatibleProtocol = (model: DocumentModelOption): boolean =>
 	model.providerProtocol === "openai-compatible";
 
-const toParseFormFieldMapping = (fieldDefinitions: DocumentFieldDefinition[]) =>
-	fieldDefinitions.map((field) => ({
-		description: field.description,
-		fieldName: field.fieldName,
-		inputKind: field.inputKind,
-		label: field.label,
-		options: field.options,
-		pdfType: field.pdfType,
-	}));
+const toVariableKey = (variable: string): string => variable.trim().toLowerCase();
 
-const toFallbackFieldDefinition = (fieldMapping: AiFieldMapping): DocumentFieldDefinition => ({
-	description: fieldMapping.description,
-	fieldName: fieldMapping.fieldName,
-	inputKind: "text",
-	isEnabled: true,
-	label: fieldMapping.label,
-	markdocType: "Info",
-	options: [],
-	pdfType: "text",
-	valueType: "string",
+const getInputTagByVariable = (definition: DocumentDefinition, mapping: DocumentFieldMapping) =>
+	definition.inputTags.find(
+		(inputTag) => toVariableKey(inputTag.attributes.primary) === toVariableKey(mapping.variable),
+	);
+
+const getParseFormInputKind = (
+	inputTag: DocumentDefinition["inputTags"][number] | undefined,
+): "boolean" | "choice" | "text" => {
+	if (inputTag?.name !== "Switch") {
+		return "text";
+	}
+	return inputTag.attributes.type === "boolean" ? "boolean" : "choice";
+};
+
+const getParseFormInputFieldType = (
+	inputTag: DocumentDefinition["inputTags"][number],
+): "boolean" | "date" | "number" | "string" | "switch" => {
+	if (inputTag.name === "Info") {
+		return inputTag.attributes.type ?? "string";
+	}
+	if (inputTag.name === "Switch") {
+		return inputTag.attributes.type === "boolean" ? "boolean" : "switch";
+	}
+	return "string";
+};
+
+const toParseFormFieldMappings = (definition: DocumentDefinition) =>
+	definition.fieldMappings.map((mapping) => {
+		const inputTag = getInputTagByVariable(definition, mapping);
+		const isSwitch = inputTag?.name === "Switch";
+		return {
+			description: inputTag?.name === "Info" ? inputTag.attributes.description : undefined,
+			fieldName: mapping.fieldName,
+			inputKind: getParseFormInputKind(inputTag),
+			label: mapping.variable,
+			options: isSwitch ? inputTag.children.map((child) => child.attributes.primary) : undefined,
+			pdfType: mapping.pdfType,
+		};
+	});
+
+const toParseFormInputFields = (definition: DocumentDefinition) =>
+	definition.inputTags.map((inputTag) => {
+		const isSwitch = inputTag.name === "Switch";
+		return {
+			description: inputTag.name === "Info" ? inputTag.attributes.description : undefined,
+			label: inputTag.attributes.primary,
+			options: isSwitch ? inputTag.children.map((child) => child.attributes.primary) : undefined,
+			type: getParseFormInputFieldType(inputTag),
+		};
+	});
+
+const toFallbackDocumentDefinition = (fieldMapping: AiFieldMapping): DocumentDefinition => ({
+	fieldMappings: [
+		{
+			fieldName: fieldMapping.fieldName,
+			isEnabled: true,
+			pdfType: "text",
+			variable: fieldMapping.label,
+		},
+	],
+	inputTags: [
+		{
+			attributes: {
+				description: fieldMapping.description || undefined,
+				primary: fieldMapping.label,
+				type: "string",
+			},
+			children: [],
+			name: "Info",
+		},
+	],
+	version: 2,
 });
 
 const mergeAiFieldMappings = (
-	baseFields: DocumentFieldDefinition[],
+	baseDefinition: DocumentDefinition,
 	aiMappings: AiFieldMapping[],
-): DocumentFieldDefinition[] => {
+): DocumentDefinition => {
 	const aiByFieldName = new Map(aiMappings.map((mapping) => [mapping.fieldName, mapping]));
 	const seenFieldNames = new Set<string>();
-	const mergedFields = baseFields.map((field) => {
-		seenFieldNames.add(field.fieldName);
-		const aiMapping = aiByFieldName.get(field.fieldName);
+	const variableRenames = new Map<string, AiFieldMapping>();
+	const fieldMappings = baseDefinition.fieldMappings.map((mapping) => {
+		seenFieldNames.add(mapping.fieldName);
+		const aiMapping = aiByFieldName.get(mapping.fieldName);
 		if (!aiMapping) {
-			return field;
+			return mapping;
 		}
+		variableRenames.set(mapping.variable, aiMapping);
 
 		return {
-			...field,
-			description: aiMapping.description,
-			label: aiMapping.label,
+			...mapping,
+			variable: aiMapping.label,
 		};
+	});
+	const inputTags: DocumentDefinition["inputTags"] = baseDefinition.inputTags.map((inputTag) => {
+		const aiMapping = variableRenames.get(inputTag.attributes.primary);
+		if (!aiMapping) {
+			return inputTag;
+		}
+		if (inputTag.name === "Info") {
+			return {
+				...inputTag,
+				attributes: {
+					...inputTag.attributes,
+					description: aiMapping.description || undefined,
+					primary: aiMapping.label,
+				},
+			};
+		}
+		if (inputTag.name === "Switch") {
+			return {
+				...inputTag,
+				attributes: {
+					...inputTag.attributes,
+					primary: aiMapping.label,
+				},
+			};
+		}
+		return inputTag;
 	});
 
 	for (const aiMapping of aiMappings) {
 		if (!seenFieldNames.has(aiMapping.fieldName)) {
-			mergedFields.push(toFallbackFieldDefinition(aiMapping));
+			const fallbackDefinition = toFallbackDocumentDefinition(aiMapping);
+			fieldMappings.push(...fallbackDefinition.fieldMappings);
+			inputTags.push(...fallbackDefinition.inputTags);
 		}
 	}
 
-	return mergedFields;
+	return {
+		fieldMappings,
+		inputTags,
+		version: 2,
+	};
 };
 
 const quoteMarkdocValue = (value: string): string => JSON.stringify(value);
@@ -233,8 +320,8 @@ const renderStringAttribute = (name: string, value: string | undefined): string 
 const renderBooleanAttribute = (name: string, value: boolean | undefined): string =>
 	value ? ` ${name}=true` : "";
 
-const fieldDefinitionsToMarkdoc = (fieldDefinitions: DocumentFieldDefinition[]): string => {
-	const { inputTags } = buildParsedMarkdocFromFieldDefinitions(fieldDefinitions);
+const documentDefinitionToMarkdoc = (definition: DocumentDefinition): string => {
+	const { inputTags } = normalizeDocumentDefinition(definition);
 
 	return inputTags
 		.map((inputTag) => {
@@ -636,21 +723,19 @@ export const DocumentPlaygroundClient = () => {
 
 			const pdfBytes = await readFileBytes(selectedFile);
 			const pdfFields = await parsePDFFormFields(pdfBytes);
-			const baseFieldDefinitions = buildDefaultFieldDefinitionsFromPdfFields(pdfFields.fields);
+			const baseDefinition = buildDefaultDocumentDefinitionFromPdfFields(pdfFields.fields);
 			const result = (await orpc.documents.parseForm.call({
-				fieldMapping: toParseFormFieldMapping(baseFieldDefinitions),
+				fieldMappings: toParseFormFieldMappings(baseDefinition),
 				fileBase64: encodeUint8ArrayToBase64(pdfBytes),
+				inputFields: toParseFormInputFields(baseDefinition),
 				model: selectedModel.modelId,
 				providerId: selectedModel.providerId,
 			})) as ParseFormResult;
-			const fieldDefinitions = mergeAiFieldMappings(
-				baseFieldDefinitions,
-				result.fieldMapping,
-			);
+			const definition = mergeAiFieldMappings(baseDefinition, result.fieldMapping);
 
 			return {
-				fieldCount: fieldDefinitions.length,
-				markdoc: fieldDefinitionsToMarkdoc(fieldDefinitions),
+				fieldCount: definition.fieldMappings.length,
+				markdoc: documentDefinitionToMarkdoc(definition),
 				modelName: selectedModel.label,
 			};
 		},

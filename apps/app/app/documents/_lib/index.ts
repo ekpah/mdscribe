@@ -1,9 +1,4 @@
-export {
-	buildParsedMarkdocFromDocumentDefinition,
-	buildParsedMarkdocFromFieldDefinitions,
-	documentDefinitionFromLegacyFieldDefinitions,
-	normalizeDocumentDefinition,
-} from "./build-parsed-markdoc-from-field-definitions";
+export { matchesCondition, normalizeDocumentDefinition } from "./document-definition";
 export { fillPDFForm } from "./fill-pdf-form";
 export {
 	cloneUint8Array,
@@ -15,12 +10,11 @@ export {
 	toPdfBlob,
 } from "./pdf-data";
 export {
-	buildDefaultFieldDefinitionsFromPdfFields,
+	buildDefaultDocumentDefinitionFromPdfFields,
 	parsePDFFormFields,
 } from "./parse-pdf-form-fields";
 export type {
 	DocumentDefinition,
-	DocumentFieldDefinition,
 	DocumentFieldMapping,
 	DocumentInputKind,
 	DocumentPdfType,

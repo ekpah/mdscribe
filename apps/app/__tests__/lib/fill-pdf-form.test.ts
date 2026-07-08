@@ -4,7 +4,7 @@ import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
 import type { PDFCheckBox } from "pdf-lib";
 
 import { fillPDFForm } from "@/app/documents/_lib";
-import type { DocumentFieldDefinition } from "@/app/documents/_lib";
+import type { DocumentDefinition } from "@/app/documents/_lib";
 
 const createFormPdf = async (): Promise<Uint8Array> => {
 	const pdfDoc = await PDFDocument.create();
@@ -73,93 +73,70 @@ const createChoiceCheckboxPdf = async (): Promise<Uint8Array> => {
 	return pdfDoc.save();
 };
 
-const createFieldDefinitions = (): DocumentFieldDefinition[] => [
-	{
-		description: "",
-		fieldName: "name",
-		inputKind: "text",
-		isEnabled: true,
-		label: "Name",
-		markdocType: "Info",
-		options: [],
-		pdfType: "text",
-		valueType: "string",
-	},
-	{
-		description: "",
-		fieldName: "name_copy",
-		inputKind: "text",
-		isEnabled: true,
-		label: "Name",
-		markdocType: "Info",
-		options: [],
-		pdfType: "text",
-		valueType: "string",
-	},
-	{
-		description: "",
-		fieldName: "notes",
-		inputKind: "text",
-		isEnabled: true,
-		label: "Notizen",
-		markdocType: "Info",
-		options: [],
-		pdfType: "multiline",
-		valueType: "string",
-	},
-	{
-		description: "",
-		fieldName: "status",
-		inputKind: "choice",
-		isEnabled: true,
-		label: "Status",
-		markdocType: "Switch",
-		options: ["open", "closed"],
-		pdfType: "dropdown",
-		valueType: "string",
-	},
-	{
-		description: "",
-		fieldName: "consent",
-		inputKind: "boolean",
-		isEnabled: true,
-		label: "Einwilligung",
-		markdocType: "Switch",
-		options: ["true", "false"],
-		pdfType: "checkbox",
-		valueType: "string",
-	},
-	{
-		description: "",
-		fieldName: "priority",
-		inputKind: "choice",
-		isEnabled: true,
-		label: "Prioritaet",
-		markdocType: "Switch",
-		options: ["low", "high"],
-		pdfType: "radio",
-		valueType: "string",
-	},
-];
+const createDocumentDefinition = (): DocumentDefinition => ({
+	fieldMappings: [
+		{ fieldName: "name", isEnabled: true, pdfType: "text", variable: "Name" },
+		{ fieldName: "name_copy", isEnabled: true, pdfType: "text", variable: "Name" },
+		{ fieldName: "notes", isEnabled: true, pdfType: "multiline", variable: "Notizen" },
+		{ fieldName: "status", isEnabled: true, pdfType: "dropdown", variable: "Status" },
+		{ fieldName: "consent", isEnabled: true, pdfType: "checkbox", variable: "Einwilligung" },
+		{ fieldName: "priority", isEnabled: true, pdfType: "radio", variable: "Prioritaet" },
+	],
+	inputTags: [
+		{ attributes: { primary: "Name", type: "string" }, children: [], name: "Info" },
+		{ attributes: { primary: "Notizen", type: "string" }, children: [], name: "Info" },
+		{
+			attributes: { primary: "Status" },
+			children: [
+				{ attributes: { primary: "open" }, children: [], name: "Case" },
+				{ attributes: { primary: "closed" }, children: [], name: "Case" },
+			],
+			name: "Switch",
+		},
+		{
+			attributes: { primary: "Einwilligung", type: "boolean" },
+			children: [
+				{ attributes: { primary: "true" }, children: [], name: "Case" },
+				{ attributes: { primary: "false" }, children: [], name: "Case" },
+			],
+			name: "Switch",
+		},
+		{
+			attributes: { primary: "Prioritaet" },
+			children: [
+				{ attributes: { primary: "low" }, children: [], name: "Case" },
+				{ attributes: { primary: "high" }, children: [], name: "Case" },
+			],
+			name: "Switch",
+		},
+	],
+	version: 2,
+});
 
-const createChoiceCheckboxFieldDefinition = (): DocumentFieldDefinition[] => [
-	{
-		description: "",
-		fieldName: "request_type",
-		inputKind: "choice",
-		isEnabled: true,
-		label: "Antrag",
-		markdocType: "Switch",
-		options: ["Reha", "Teilhabe am Arbeitsleben (LTA)", "Sonstiges"],
-		pdfType: "checkbox",
-		valueType: "string",
-	},
-];
+const createChoiceCheckboxDefinition = (
+	options = ["Reha", "Teilhabe am Arbeitsleben (LTA)", "Sonstiges"],
+): DocumentDefinition => ({
+	fieldMappings: [
+		{ fieldName: "request_type", isEnabled: true, pdfType: "checkbox", variable: "Antrag" },
+	],
+	inputTags: [
+		{
+			attributes: { primary: "Antrag" },
+			children: options.map((option) => ({
+				attributes: { primary: option },
+				children: [],
+				name: "Case" as const,
+			})),
+			name: "Switch",
+		},
+	],
+	version: 2,
+});
 
 describe("fillPDFForm", () => {
 	test("fills text, multiline, dropdown, checkbox and radio fields", async () => {
 		const sourcePdf = await createFormPdf();
-		const fieldDefinitions = createFieldDefinitions();
+		const definition = createDocumentDefinition();
 
 		const filledPdf = await fillPDFForm(
 			sourcePdf,
@@ -170,7 +147,7 @@ describe("fillPDFForm", () => {
 				Prioritaet: "high",
 				Status: "closed",
 			},
-			fieldDefinitions,
+			definition,
 		);
 
 		const pdfDoc = await PDFDocument.load(filledPdf);
@@ -191,7 +168,7 @@ describe("fillPDFForm", () => {
 			{
 				Einwilligung: "false",
 			},
-			createFieldDefinitions(),
+			createDocumentDefinition(),
 		);
 
 		const pdfDoc = await PDFDocument.load(filledPdf);
@@ -206,14 +183,14 @@ describe("fillPDFForm", () => {
 			{
 				Einwilligung: true,
 			},
-			createFieldDefinitions(),
+			createDocumentDefinition(),
 		);
 		const uncheckedPdf = await fillPDFForm(
 			sourcePdf,
 			{
 				Einwilligung: false,
 			},
-			createFieldDefinitions(),
+			createDocumentDefinition(),
 		);
 
 		const checkedDoc = await PDFDocument.load(checkedPdf);
@@ -224,17 +201,28 @@ describe("fillPDFForm", () => {
 
 	test("fills text-backed checkbox fields with the configured display value", async () => {
 		const sourcePdf = await createFormPdf();
-		const definition: DocumentFieldDefinition = {
-			description: "",
-			fieldName: "name",
-			inputKind: "boolean",
-			isEnabled: true,
-			label: "Visuelle Checkbox",
-			markdocType: "Switch",
-			options: ["true", "false"],
-			pdfType: "text",
-			textCheckboxValue: "X",
-			valueType: "string",
+		const definition: DocumentDefinition = {
+			fieldMappings: [
+				{
+					condition: "true",
+					fieldName: "name",
+					isEnabled: true,
+					pdfType: "text",
+					value: "X",
+					variable: "Visuelle Checkbox",
+				},
+			],
+			inputTags: [
+				{
+					attributes: { primary: "Visuelle Checkbox", type: "boolean" },
+					children: [
+						{ attributes: { primary: "true" }, children: [], name: "Case" },
+						{ attributes: { primary: "false" }, children: [], name: "Case" },
+					],
+					name: "Switch",
+				},
+			],
+			version: 2,
 		};
 
 		const checkedPdf = await fillPDFForm(
@@ -242,14 +230,14 @@ describe("fillPDFForm", () => {
 			{
 				"Visuelle Checkbox": true,
 			},
-			[definition],
+			definition,
 		);
 		const uncheckedPdf = await fillPDFForm(
 			checkedPdf,
 			{
 				"Visuelle Checkbox": false,
 			},
-			[definition],
+			definition,
 		);
 
 		const checkedDoc = await PDFDocument.load(checkedPdf);
@@ -265,7 +253,7 @@ describe("fillPDFForm", () => {
 			{
 				Antrag: "Teilhabe am Arbeitsleben (LTA)",
 			},
-			createChoiceCheckboxFieldDefinition(),
+			createChoiceCheckboxDefinition(),
 		);
 
 		const pdfDoc = await PDFDocument.load(filledPdf);
@@ -278,22 +266,16 @@ describe("fillPDFForm", () => {
 
 	test("fills checkbox choice fields when visible option labels were edited", async () => {
 		const sourcePdf = await createChoiceCheckboxPdf();
-		const [definition] = createChoiceCheckboxFieldDefinition();
-		if (!definition) {
-			throw new Error("Expected choice checkbox definition");
-		}
-
 		const filledPdf = await fillPDFForm(
 			sourcePdf,
 			{
 				Antrag: "LTA sichtbar umbenannt",
 			},
-			[
-				{
-					...definition,
-					options: ["Medizinische Reha", "LTA sichtbar umbenannt", "Andere Leistung"],
-				},
-			],
+			createChoiceCheckboxDefinition([
+				"Medizinische Reha",
+				"LTA sichtbar umbenannt",
+				"Andere Leistung",
+			]),
 		);
 
 		const pdfDoc = await PDFDocument.load(filledPdf);
@@ -311,14 +293,14 @@ describe("fillPDFForm", () => {
 			{
 				Antrag: "Reha",
 			},
-			createChoiceCheckboxFieldDefinition(),
+			createChoiceCheckboxDefinition(),
 		);
 		const secondFilledPdf = await fillPDFForm(
 			firstFilledPdf,
 			{
 				Antrag: "Sonstiges",
 			},
-			createChoiceCheckboxFieldDefinition(),
+			createChoiceCheckboxDefinition(),
 		);
 
 		const pdfDoc = await PDFDocument.load(secondFilledPdf);
