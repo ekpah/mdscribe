@@ -23,6 +23,7 @@ const maxWidth = 800;
 interface PDFViewSectionProps {
 	activeFieldName?: string | null;
 	hasUploadedFile?: boolean;
+	onFieldSelect?: (fieldName: string) => void;
 	pdfFile: Uint8Array | null;
 }
 
@@ -56,6 +57,15 @@ interface PdfPageForHighlight {
 interface HighlightOverlayProps {
 	activeFieldName?: string | null;
 	fieldTargets: Map<string, PdfFieldTarget[]>;
+	page: PdfPageForHighlight;
+	pageNumber: number;
+	rotate: number;
+	scale: number;
+}
+
+interface FieldClickLayerProps {
+	fieldTargets: Map<string, PdfFieldTarget[]>;
+	onFieldSelect?: (fieldName: string) => void;
 	page: PdfPageForHighlight;
 	pageNumber: number;
 	rotate: number;
@@ -149,6 +159,49 @@ const HighlightOverlay = ({
 					className="absolute rounded-[2px] border-2 border-solarized-orange bg-solarized-orange/20 shadow-[0_0_0_3px_rgba(203,75,22,0.18)]"
 					key={`${activeFieldName}-${target.pageNumber}-${index}`}
 					style={getViewportStyle(target.rect, viewport)}
+				/>
+			))}
+		</div>
+	);
+};
+
+const FieldClickLayer = ({
+	fieldTargets,
+	onFieldSelect,
+	page,
+	pageNumber,
+	rotate,
+	scale,
+}: FieldClickLayerProps) => {
+	if (!onFieldSelect) {
+		return null;
+	}
+
+	const viewport = page.getViewport({ rotate, scale });
+	const targets = [...fieldTargets.entries()].flatMap(([fieldName, fieldTargetsForName]) =>
+		fieldTargetsForName
+			.filter((target) => target.pageNumber === pageNumber)
+			.map((target, index) => ({
+				fieldName,
+				key: `${fieldName}-${target.pageNumber}-${index}`,
+				rect: target.rect,
+			})),
+	);
+
+	if (targets.length === 0) {
+		return null;
+	}
+
+	return (
+		<div className="absolute inset-0 z-10">
+			{targets.map((target) => (
+				<button
+					aria-label={`PDF-Feld ${target.fieldName} auswählen`}
+					className="absolute cursor-pointer rounded-[2px] border border-transparent bg-transparent p-0 transition-colors hover:border-solarized-orange/40 hover:bg-solarized-orange/10 focus-visible:border-solarized-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/50"
+					key={target.key}
+					onClick={() => onFieldSelect(target.fieldName)}
+					style={getViewportStyle(target.rect, viewport)}
+					type="button"
 				/>
 			))}
 		</div>
@@ -270,6 +323,7 @@ const usePdfDocumentState = (pdfFile: Uint8Array | null) => {
 export const PDFViewSection = ({
 	activeFieldName,
 	hasUploadedFile = false,
+	onFieldSelect,
 	pdfFile,
 }: PDFViewSectionProps) => {
 	const { containerWidth, setContainerRef } = useContainerWidth();
@@ -340,14 +394,24 @@ export const PDFViewSection = ({
 								width={pageWidth}
 							>
 								{({ page, pageNumber: renderedPageNumber, rotate, scale }) => (
-									<HighlightOverlay
-										activeFieldName={activeFieldName}
-										fieldTargets={fieldTargets}
-										page={page}
-										pageNumber={renderedPageNumber}
-										rotate={rotate}
-										scale={scale}
-									/>
+									<>
+										<FieldClickLayer
+											fieldTargets={fieldTargets}
+											onFieldSelect={onFieldSelect}
+											page={page}
+											pageNumber={renderedPageNumber}
+											rotate={rotate}
+											scale={scale}
+										/>
+										<HighlightOverlay
+											activeFieldName={activeFieldName}
+											fieldTargets={fieldTargets}
+											page={page}
+											pageNumber={renderedPageNumber}
+											rotate={rotate}
+											scale={scale}
+										/>
+									</>
 								)}
 							</Page>
 						</Document>

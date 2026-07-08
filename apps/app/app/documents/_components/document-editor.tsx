@@ -1,6 +1,5 @@
 "use client";
 
-import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
@@ -17,7 +16,7 @@ import { Switch } from "@repo/design-system/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
+import { InfoIcon, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
@@ -26,28 +25,48 @@ import { toast } from "sonner";
 import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
-	buildDefaultFieldDefinitionsFromPdfFields,
+	buildDefaultDocumentDefinitionFromPdfFields,
 	decodeBase64ToUint8Array,
-	documentDefinitionFromLegacyFieldDefinitions,
 	encodeUint8ArrayToBase64,
 	normalizeDocumentDefinition,
 	parsePDFFormFields,
 } from "@/app/documents/_lib";
-import type { DocumentDefinition, DocumentFieldDefinition } from "@/app/documents/_lib";
+import type { DocumentDefinition, DocumentInputKind, DocumentPdfType } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
+// View-model for the per-PDF-field cards; derived from DocumentDefinition on
+// every render and never persisted.
+interface EditorFieldRow {
+	description: string;
+	fieldName: string;
+	inputKind: DocumentInputKind;
+	isEnabled: boolean;
+	label: string;
+	markdocType: "Info" | "Switch";
+	options: string[];
+	pdfType: DocumentPdfType;
+	textCheckboxValue?: string;
+	valueType: "string" | "number" | "date";
+}
+
 const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
 const COMPACT_FIELD_LABEL_CLASS_NAME = "block truncate text-[11px]";
-const COMPACT_INPUT_CLASS_NAME = "h-7 min-w-0 text-xs";
-const COMPACT_SELECT_TRIGGER_CLASS_NAME = "h-7 min-w-0 overflow-hidden text-xs [&>span]:truncate";
+const COMPACT_INPUT_CLASS_NAME = "h-8 min-w-0 text-xs";
+const COMPACT_SELECT_TRIGGER_CLASS_NAME =
+	"h-8 w-full min-w-0 rounded-md border-input bg-transparent px-3 text-xs shadow-xs [&>span]:truncate";
+const FORM_SELECT_TRIGGER_CLASS_NAME =
+	"h-9 w-full min-w-0 rounded-md border-input bg-transparent px-3 py-1 shadow-xs [&>span]:truncate";
 const META_LABEL_CLASS_NAME =
 	"text-muted-foreground text-[10px] uppercase leading-none tracking-normal";
 const META_VALUE_CLASS_NAME = "mt-1 min-w-0 truncate font-medium text-xs";
 const DOCUMENT_VISIBILITIES = ["public", "private"] as const;
 type DocumentVisibility = (typeof DOCUMENT_VISIBILITIES)[number];
 
-const toPdfTypeLabel = (pdfType: DocumentFieldDefinition["pdfType"]): string => {
+const getDocumentVisibilityLabel = (visibility: DocumentVisibility): string =>
+	visibility === "private" ? "Privat" : "Öffentlich";
+
+const toPdfTypeLabel = (pdfType: DocumentPdfType): string => {
 	switch (pdfType) {
 		case "text": {
 			return "Text";
@@ -70,7 +89,7 @@ const toPdfTypeLabel = (pdfType: DocumentFieldDefinition["pdfType"]): string => 
 	}
 };
 
-const toInputKindLabel = (inputKind: DocumentFieldDefinition["inputKind"]): string => {
+const toInputKindLabel = (inputKind: DocumentInputKind): string => {
 	switch (inputKind) {
 		case "boolean": {
 			return "Checkbox";
@@ -87,106 +106,6 @@ const toInputKindLabel = (inputKind: DocumentFieldDefinition["inputKind"]): stri
 	}
 };
 
-const isDocumentInputKind = (value: unknown): value is DocumentFieldDefinition["inputKind"] =>
-	value === "boolean" || value === "choice" || value === "text";
-
-const isDocumentMarkdocType = (value: unknown): value is DocumentFieldDefinition["markdocType"] =>
-	value === "Info" || value === "Switch";
-
-const isDocumentPdfType = (value: unknown): value is DocumentFieldDefinition["pdfType"] =>
-	value === "checkbox" ||
-	value === "dropdown" ||
-	value === "multiline" ||
-	value === "radio" ||
-	value === "text";
-
-const isDocumentValueType = (value: unknown): value is DocumentFieldDefinition["valueType"] =>
-	value === "date" || value === "number" || value === "string";
-
-const normalizeDocumentOptions = (
-	inputKind: DocumentFieldDefinition["inputKind"],
-	rawOptions: unknown,
-): string[] => {
-	if (inputKind === "boolean") {
-		return ["true", "false"];
-	}
-	if (inputKind === "choice" && Array.isArray(rawOptions)) {
-		return rawOptions.filter((option): option is string => typeof option === "string");
-	}
-	return [];
-};
-
-const normalizeDocumentMarkdocType = (
-	value: unknown,
-	isSwitch: boolean,
-): DocumentFieldDefinition["markdocType"] => {
-	const expectedMarkdocType = isSwitch ? "Switch" : "Info";
-	if (isDocumentMarkdocType(value) && value === expectedMarkdocType) {
-		return value;
-	}
-	return expectedMarkdocType;
-};
-
-const normalizeDocumentValueType = (
-	value: unknown,
-	isSwitch: boolean,
-): DocumentFieldDefinition["valueType"] => {
-	if (isSwitch) {
-		return "string";
-	}
-	if (isDocumentValueType(value)) {
-		return value;
-	}
-	return "string";
-};
-
-const normalizeSavedFieldDefinition = (value: unknown): DocumentFieldDefinition | null => {
-	if (!value || typeof value !== "object") {
-		return null;
-	}
-
-	const field = value as Partial<DocumentFieldDefinition>;
-	const fieldName = typeof field.fieldName === "string" ? field.fieldName.trim() : "";
-	if (!fieldName) {
-		return null;
-	}
-
-	const inputKind = isDocumentInputKind(field.inputKind) ? field.inputKind : "text";
-	const pdfType = isDocumentPdfType(field.pdfType) ? field.pdfType : "text";
-	const isSwitch = inputKind !== "text";
-	const options = normalizeDocumentOptions(inputKind, field.options);
-	const textCheckboxValue =
-		pdfType === "text" && inputKind === "boolean"
-			? field.textCheckboxValue?.trim() || "x"
-			: field.textCheckboxValue;
-
-	return {
-		description: typeof field.description === "string" ? field.description : "",
-		fieldName,
-		inputKind,
-		isEnabled: field.isEnabled ?? true,
-		label: typeof field.label === "string" && field.label.trim() ? field.label : fieldName,
-		markdocType: normalizeDocumentMarkdocType(field.markdocType, isSwitch),
-		maxLength:
-			typeof field.maxLength === "number" && field.maxLength > 0 ? field.maxLength : undefined,
-		options,
-		pdfType,
-		textCheckboxValue,
-		valueType: normalizeDocumentValueType(field.valueType, isSwitch),
-	};
-};
-
-const normalizeSavedFieldDefinitions = (value: unknown): DocumentFieldDefinition[] => {
-	if (!Array.isArray(value)) {
-		return [];
-	}
-
-	return value.flatMap((field) => {
-		const normalized = normalizeSavedFieldDefinition(field);
-		return normalized ? [normalized] : [];
-	});
-};
-
 const isDocumentDefinition = (value: unknown): value is DocumentDefinition =>
 	typeof value === "object" &&
 	value !== null &&
@@ -200,25 +119,25 @@ const normalizeSavedDocumentDefinition = (value: unknown): DocumentDefinition =>
 		if (isDocumentDefinition(value)) {
 			return normalizeDocumentDefinition(value);
 		}
-		return documentDefinitionFromLegacyFieldDefinitions(normalizeSavedFieldDefinitions(value));
+		return { fieldMappings: [], inputTags: [], version: 2 };
 	} catch (error) {
 		console.error("Failed to load document definition:", error);
 		return { fieldMappings: [], inputTags: [], version: 2 };
 	}
 };
 
-const toEditorFieldDefinitions = (definition: DocumentDefinition): DocumentFieldDefinition[] =>
+const toEditorFieldDefinitions = (definition: DocumentDefinition): EditorFieldRow[] =>
 	definition.fieldMappings.map((mapping) => {
 		const inputTag = definition.inputTags.find(
 			(tag) => tag.attributes.primary.toLowerCase() === mapping.variable.toLowerCase(),
 		);
 		const isSwitch = inputTag?.name === "Switch";
-		let inputKind: DocumentFieldDefinition["inputKind"] = "text";
+		let inputKind: DocumentInputKind = "text";
 		if (isSwitch) {
 			inputKind = inputTag.attributes.type === "boolean" ? "boolean" : "choice";
 		}
 		return {
-			description: inputTag?.name === "Info" ? inputTag.attributes.description ?? "" : "",
+			description: inputTag?.name === "Info" ? (inputTag.attributes.description ?? "") : "",
 			fieldName: mapping.fieldName,
 			inputKind,
 			isEnabled: mapping.isEnabled,
@@ -230,15 +149,15 @@ const toEditorFieldDefinitions = (definition: DocumentDefinition): DocumentField
 					: [],
 			pdfType: mapping.pdfType,
 			textCheckboxValue:
-				mapping.pdfType === "text" && inputKind === "boolean" ? mapping.value ?? "x" : undefined,
-			valueType: inputTag?.name === "Info" ? inputTag.attributes.type ?? "string" : "string",
+				mapping.pdfType === "text" && inputKind === "boolean" ? (mapping.value ?? "x") : undefined,
+			valueType: inputTag?.name === "Info" ? (inputTag.attributes.type ?? "string") : "string",
 		};
 	});
 
 const updateDocumentDefinitionAt = (
 	definition: DocumentDefinition,
 	index: number,
-	update: Partial<DocumentFieldDefinition>,
+	update: Partial<EditorFieldRow>,
 ): DocumentDefinition => {
 	const mapping = definition.fieldMappings[index];
 	if (!mapping) {
@@ -300,7 +219,9 @@ const updateDocumentDefinitionAt = (
 		nextInputTag = {
 			attributes: {
 				primary: nextVariable,
-				type: update.valueType ?? (currentInputTag.name === "Info" ? currentInputTag.attributes.type : "string"),
+				type:
+					update.valueType ??
+					(currentInputTag.name === "Info" ? currentInputTag.attributes.type : "string"),
 				...(update.description?.trim() ? { description: update.description.trim() } : {}),
 			},
 			children: [],
@@ -310,7 +231,9 @@ const updateDocumentDefinitionAt = (
 		nextInputTag = {
 			attributes: { primary: nextVariable },
 			children: (update.options ?? []).map((primary) => ({
-				attributes: { primary }, children: [], name: "Case" as const,
+				attributes: { primary },
+				children: [],
+				name: "Case" as const,
 			})),
 			name: "Switch",
 		};
@@ -318,9 +241,9 @@ const updateDocumentDefinitionAt = (
 		nextInputTag = {
 			...currentInputTag,
 			attributes: { ...currentInputTag.attributes, primary: nextVariable },
-			children: (update.options ?? currentInputTag.children.map((child) => child.attributes.primary)).map(
-				(primary) => ({ attributes: { primary }, children: [], name: "Case" as const }),
-			),
+			children: (
+				update.options ?? currentInputTag.children.map((child) => child.attributes.primary)
+			).map((primary) => ({ attributes: { primary }, children: [], name: "Case" as const })),
 		};
 	} else {
 		nextInputTag = {
@@ -366,7 +289,8 @@ const assignDocumentMappingVariable = (
 		inputTags: hasPreviousVariableMapping
 			? definition.inputTags
 			: definition.inputTags.filter(
-					(inputTag) => inputTag.attributes.primary.toLowerCase() !== mapping.variable.toLowerCase(),
+					(inputTag) =>
+						inputTag.attributes.primary.toLowerCase() !== mapping.variable.toLowerCase(),
 				),
 	};
 };
@@ -388,7 +312,7 @@ interface ParsedFieldMappingResult {
 }
 
 const toInputFieldType = (
-	fieldDefinition: DocumentFieldDefinition,
+	fieldDefinition: EditorFieldRow,
 ): "boolean" | "date" | "number" | "string" | "switch" => {
 	if (fieldDefinition.inputKind === "boolean") {
 		return "boolean";
@@ -399,7 +323,7 @@ const toInputFieldType = (
 	return fieldDefinition.valueType;
 };
 
-const toEnhancementInputFields = (fieldDefinitions: DocumentFieldDefinition[]) => {
+const toEnhancementInputFields = (fieldDefinitions: EditorFieldRow[]) => {
 	const inputFields: {
 		description?: string;
 		label: string;
@@ -426,7 +350,7 @@ const toEnhancementInputFields = (fieldDefinitions: DocumentFieldDefinition[]) =
 	return inputFields;
 };
 
-const toFieldMappings = (fieldDefinitions: DocumentFieldDefinition[]) =>
+const toFieldMappings = (fieldDefinitions: EditorFieldRow[]) =>
 	fieldDefinitions.map((fieldDefinition) => ({
 		description: fieldDefinition.description,
 		fieldName: fieldDefinition.fieldName,
@@ -438,12 +362,13 @@ const toFieldMappings = (fieldDefinitions: DocumentFieldDefinition[]) =>
 
 interface FieldDefinitionCardProps {
 	activePdfFieldName: string | null;
-	fieldDefinition: DocumentFieldDefinition;
+	fieldDefinition: EditorFieldRow;
 	index: number;
 	inputVariables: string[];
+	onFieldCardRef: (fieldName: string, node: HTMLDivElement | null) => void;
 	onMapToVariable: (index: number, variable: string) => void;
 	onPreview: (fieldName: string) => void;
-	onUpdate: (index: number, update: Partial<DocumentFieldDefinition>) => void;
+	onUpdate: (index: number, update: Partial<EditorFieldRow>) => void;
 }
 
 const FieldDefinitionCard = memo(
@@ -452,6 +377,7 @@ const FieldDefinitionCard = memo(
 		fieldDefinition,
 		index,
 		inputVariables,
+		onFieldCardRef,
 		onMapToVariable,
 		onPreview,
 		onUpdate,
@@ -545,19 +471,16 @@ const FieldDefinitionCard = memo(
 			fieldDefinition.inputKind === "choice" &&
 			fieldDefinition.pdfType === "checkbox" &&
 			fieldDefinition.options.length > 0;
-		const maxLengthLabel =
-			fieldDefinition.maxLength === undefined
-				? "Keine Begrenzung"
-				: `${fieldDefinition.maxLength} Zeichen`;
-
 		return (
 			<Card
 				className={cn(
 					"group overflow-hidden p-0 transition-[box-shadow,opacity] duration-150",
 					isPdfFieldActive ? "ring-2 ring-solarized-orange/70" : "",
 				)}
+				data-pdf-field-name={fieldDefinition.fieldName}
 				onFocusCapture={handlePreview}
 				onPointerDownCapture={handlePreview}
+				ref={(node) => onFieldCardRef(fieldDefinition.fieldName, node)}
 			>
 				<div className="grid gap-0 md:grid-cols-[minmax(14rem,1fr)_minmax(0,2fr)]">
 					<div className="min-w-0 border-border/70 border-b bg-muted/20 p-2 md:border-r md:border-b-0">
@@ -575,15 +498,9 @@ const FieldDefinitionCard = memo(
 									{fieldDefinition.fieldName}
 								</p>
 							</div>
-							<div className="grid grid-cols-2 gap-2">
-								<div className="min-w-0">
-									<p className={META_LABEL_CLASS_NAME}>Typ</p>
-									<p className={META_VALUE_CLASS_NAME}>{toPdfTypeLabel(fieldDefinition.pdfType)}</p>
-								</div>
-								<div className="min-w-0">
-									<p className={META_LABEL_CLASS_NAME}>Zeichenlimit</p>
-									<p className={META_VALUE_CLASS_NAME}>{maxLengthLabel}</p>
-								</div>
+							<div className="min-w-0">
+								<p className={META_LABEL_CLASS_NAME}>Typ</p>
+								<p className={META_VALUE_CLASS_NAME}>{toPdfTypeLabel(fieldDefinition.pdfType)}</p>
 							</div>
 						</div>
 					</div>
@@ -605,7 +522,7 @@ const FieldDefinitionCard = memo(
 								<div className="min-w-0 flex-[1_1_10rem] space-y-0.5">
 									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Label</Label>
 									<Input
-										className="h-7 min-w-0"
+										className={COMPACT_INPUT_CLASS_NAME}
 										onChange={handleLabelChange}
 										value={fieldDefinition.label}
 									/>
@@ -639,7 +556,7 @@ const FieldDefinitionCard = memo(
 								<div className="min-w-0 space-y-0.5">
 									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Anzeigewert</Label>
 									<Input
-										className="h-7 min-w-0"
+										className={COMPACT_INPUT_CLASS_NAME}
 										onChange={handleTextCheckboxValueChange}
 										value={fieldDefinition.textCheckboxValue ?? "x"}
 									/>
@@ -666,7 +583,7 @@ const FieldDefinitionCard = memo(
 								<div className="min-w-0 space-y-0.5">
 									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Beschreibung (optional)</Label>
 									<Input
-										className="h-7 min-w-0"
+										className={COMPACT_INPUT_CLASS_NAME}
 										onChange={handleDescriptionChange}
 										placeholder="Hilfetext für das Eingabefeld"
 										value={fieldDefinition.description}
@@ -687,7 +604,7 @@ const FieldDefinitionCard = memo(
 													{optionIndex + 1}
 												</span>
 												<Input
-													className="h-7 min-w-0 text-xs"
+													className={COMPACT_INPUT_CLASS_NAME}
 													onChange={(event) => handleOptionChange(optionIndex, event.target.value)}
 													value={option}
 												/>
@@ -696,7 +613,9 @@ const FieldDefinitionCard = memo(
 									</div>
 									{inputVariables.length > 1 ? (
 										<div className="min-w-0 space-y-0.5">
-											<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Bestehende Eingabe verwenden</Label>
+											<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>
+												Bestehende Eingabe verwenden
+											</Label>
 											<Select
 												onValueChange={handleVariableMappingChange}
 												value={fieldDefinition.label}
@@ -731,6 +650,7 @@ const FieldDefinitionCard = memo(
 interface DocumentPreviewPaneProps {
 	activePdfFieldName: string | null;
 	onClear: () => void;
+	onFieldSelect: (fieldName: string) => void;
 	onFileUpload: (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => Promise<void>;
 	pdfFileBytes: Uint8Array | null;
 	pdfFileName: string;
@@ -740,6 +660,7 @@ const DocumentPreviewPane = memo(
 	({
 		activePdfFieldName,
 		onClear,
+		onFieldSelect,
 		onFileUpload,
 		pdfFileBytes,
 		pdfFileName,
@@ -757,6 +678,7 @@ const DocumentPreviewPane = memo(
 				<PDFViewSection
 					activeFieldName={activePdfFieldName}
 					hasUploadedFile={Boolean(pdfFileBytes)}
+					onFieldSelect={onFieldSelect}
 					pdfFile={pdfFileBytes}
 				/>
 			</div>
@@ -776,6 +698,7 @@ export default function DocumentEditor({
 }) {
 	const router = useRouter();
 	const sourceDocumentId = documentId || forkId;
+	const fieldCardRefs = useRef(new Map<string, HTMLDivElement>());
 	const initializedRef = useRef(false);
 
 	const [title, setTitle] = useState("");
@@ -851,9 +774,7 @@ export default function DocumentEditor({
 			setIsPdfReplaced(true);
 
 			const { fields } = await parsePDFFormFields(file);
-			setDefinition(
-				documentDefinitionFromLegacyFieldDefinitions(buildDefaultFieldDefinitionsFromPdfFields(fields)),
-			);
+			setDefinition(buildDefaultDocumentDefinitionFromPdfFields(fields));
 			setActivePdfFieldName(fields[0]?.name ?? null);
 		},
 		[],
@@ -867,15 +788,28 @@ export default function DocumentEditor({
 		setIsPdfReplaced(true);
 	}, []);
 
-	const handleFieldUpdate = useCallback(
-		(index: number, update: Partial<DocumentFieldDefinition>) => {
+	const handleFieldUpdate = useCallback((index: number, update: Partial<EditorFieldRow>) => {
 		setDefinition((current) => updateDocumentDefinitionAt(current, index, update));
-		},
-		[],
-	);
+	}, []);
 
 	const handleFieldPreview = useCallback((fieldName: string) => {
 		setActivePdfFieldName(fieldName);
+	}, []);
+	const handleFieldCardRef = useCallback((fieldName: string, node: HTMLDivElement | null) => {
+		if (node) {
+			fieldCardRefs.current.set(fieldName, node);
+			return;
+		}
+		fieldCardRefs.current.delete(fieldName);
+	}, []);
+	const handlePdfFieldSelect = useCallback((fieldName: string) => {
+		setActivePdfFieldName(fieldName);
+		requestAnimationFrame(() => {
+			fieldCardRefs.current.get(fieldName)?.scrollIntoView({
+				block: "nearest",
+				inline: "nearest",
+			});
+		});
 	}, []);
 	const handleMapToVariable = useCallback((index: number, variable: string) => {
 		setDefinition((current) => assignDocumentMappingVariable(current, index, variable));
@@ -1053,9 +987,6 @@ export default function DocumentEditor({
 	const nameValidationMessage = isNameValid ? null : (
 		<p className="mt-1 text-solarized-red text-xs">Name ist erforderlich</p>
 	);
-	const privateDocumentsHint = canCreatePrivateDocuments ? null : (
-		<p className="mt-1 text-muted-foreground text-xs">Private Dokumente sind in Plus enthalten.</p>
-	);
 	const newCategoryValidationMessage = isNewCategoryValid ? null : (
 		<p className="mt-1 text-solarized-red text-xs">Neue Kategorie ist erforderlich</p>
 	);
@@ -1073,8 +1004,8 @@ export default function DocumentEditor({
 			</div>
 
 			<Card className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden md:grid-cols-[minmax(360px,9fr)_minmax(0,11fr)]">
-				<div className="hidden h-full min-h-0 min-w-0 overflow-hidden md:flex md:flex-col">
-					<div className="shrink-0 space-y-4 p-4 pb-0">
+				<div className="hidden h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-none p-4 md:block">
+					<div className="space-y-4">
 						<div className="flex flex-wrap items-start gap-2">
 							<div className="min-w-0 flex-[1_1_14rem] space-y-2">
 								<Label htmlFor="document-category">
@@ -1084,7 +1015,7 @@ export default function DocumentEditor({
 								<Select onValueChange={setCategory} value={category}>
 									<SelectTrigger
 										className={cn(
-											"min-w-0 overflow-hidden [&>span]:truncate",
+											FORM_SELECT_TRIGGER_CLASS_NAME,
 											isCategoryValid ? "" : "border-solarized-red",
 										)}
 										id="document-category"
@@ -1117,49 +1048,68 @@ export default function DocumentEditor({
 								{nameValidationMessage}
 							</div>
 
-							<div className="shrink-0 self-end">
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											aria-label="Eingaben mit KI verbessern"
-											disabled={pdfFileBytes ? enhanceMutation.isPending : true}
-											onClick={handleEnhanceWithAi}
-											size="icon"
-											variant="outline"
-										>
-											<Sparkles className="h-4 w-4" />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent side="left">
-										<span className="text-xs">Eingaben mit KI verbessern</span>
-									</TooltipContent>
-								</Tooltip>
-							</div>
 							<div className="min-w-0 flex-[1_1_12rem] space-y-2">
-								<Label htmlFor="document-visibility">Sichtbarkeit</Label>
-								<Select onValueChange={handleVisibilityChange} value={visibility}>
-									<SelectTrigger
-										className="min-w-0 overflow-hidden [&>span]:truncate"
-										id="document-visibility"
-									>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="public">Öffentlich</SelectItem>
-										<SelectItem disabled={canCreatePrivateDocuments === false} value="private">
-											Privat
-										</SelectItem>
-									</SelectContent>
-								</Select>
-								{privateDocumentsHint}
+								<div className="flex items-center gap-1.5">
+									<Label htmlFor="document-visibility">Sichtbarkeit</Label>
+									<Tooltip>
+										<TooltipTrigger
+											render={
+													<Button
+														aria-label="Hinweis zur Sichtbarkeit"
+														className="size-4 text-muted-foreground"
+														size="icon-xs"
+														variant="ghost"
+													>
+														<InfoIcon className="h-3 w-3" />
+													</Button>
+											}
+										/>
+										<TooltipContent align="start" className="max-w-80" side="bottom">
+											<div className="space-y-1 text-xs">
+												<p>{USER_MESSAGES.publicDocumentVisibilityWarning}</p>
+												{canCreatePrivateDocuments ? null : (
+													<p>Private Dokumente sind in Plus enthalten.</p>
+												)}
+											</div>
+										</TooltipContent>
+									</Tooltip>
+								</div>
+								<div className="flex items-center gap-2">
+									<Select onValueChange={handleVisibilityChange} value={visibility}>
+										<SelectTrigger
+											className={FORM_SELECT_TRIGGER_CLASS_NAME}
+											id="document-visibility"
+										>
+											<SelectValue>{getDocumentVisibilityLabel(visibility)}</SelectValue>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="public">Öffentlich</SelectItem>
+											<SelectItem disabled={canCreatePrivateDocuments === false} value="private">
+												Privat
+											</SelectItem>
+										</SelectContent>
+									</Select>
+									<Tooltip>
+										<TooltipTrigger
+											render={
+												<Button
+													aria-label="Eingaben mit KI verbessern"
+													disabled={pdfFileBytes ? enhanceMutation.isPending : true}
+													onClick={handleEnhanceWithAi}
+													size="icon-lg"
+													variant="outline"
+												>
+													<Sparkles className="h-4 w-4" />
+												</Button>
+											}
+										/>
+										<TooltipContent side="bottom">
+											<span className="text-xs">Eingaben mit KI verbessern</span>
+										</TooltipContent>
+									</Tooltip>
+								</div>
 							</div>
 						</div>
-
-						{visibility === "public" ? (
-							<Alert className="border-solarized-orange/50 bg-solarized-orange/10">
-								<AlertDescription>{USER_MESSAGES.publicDocumentVisibilityWarning}</AlertDescription>
-							</Alert>
-						) : null}
 
 						{category === "new" ? (
 							<div className="space-y-2">
@@ -1176,9 +1126,7 @@ export default function DocumentEditor({
 								{newCategoryValidationMessage}
 							</div>
 						) : null}
-					</div>
 
-					<div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none p-4 pt-4">
 						<div className="space-y-2">
 							{definition.fieldMappings.length === 0 ? (
 								<p className="text-muted-foreground text-sm">
@@ -1188,11 +1136,12 @@ export default function DocumentEditor({
 							{toEditorFieldDefinitions(definition).map((fieldDefinition, index) => (
 								<FieldDefinitionCard
 									activePdfFieldName={activePdfFieldName}
-										fieldDefinition={fieldDefinition}
-										index={index}
-										inputVariables={inputVariables}
-										onMapToVariable={handleMapToVariable}
+									fieldDefinition={fieldDefinition}
+									index={index}
+									inputVariables={inputVariables}
+									onFieldCardRef={handleFieldCardRef}
 									key={fieldDefinition.fieldName}
+									onMapToVariable={handleMapToVariable}
 									onPreview={handleFieldPreview}
 									onUpdate={handleFieldUpdate}
 								/>
@@ -1204,6 +1153,7 @@ export default function DocumentEditor({
 				<DocumentPreviewPane
 					activePdfFieldName={activePdfFieldName}
 					onClear={handleClearPdf}
+					onFieldSelect={handlePdfFieldSelect}
 					onFileUpload={handlePdfUpload}
 					pdfFileBytes={pdfFileBytes}
 					pdfFileName={pdfFileName}
