@@ -2,7 +2,6 @@
 
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
 import type { TagInspectorEditor } from "@repo/design-system/components/editor/tag-inspector/tag-inspector";
-import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -16,8 +15,9 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { InfoIcon, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -396,11 +396,6 @@ export default function Editor({
 	const handleSwitchToSource = useCallback(() => {
 		setShowSource(true);
 	}, []);
-	const privateTemplatesHint = canCreatePrivateTemplates ? null : (
-		<p className="mt-1 text-muted-foreground text-xs">
-			Private Textbausteine sind in Plus enthalten.
-		</p>
-	);
 	const resolvedCategory = category === "new" ? newCategory : category;
 	const isCategoryValid = resolvedCategory.trim() !== "";
 	const isNewCategoryValid = newCategory.trim() !== "";
@@ -471,7 +466,31 @@ export default function Editor({
 							{nameValidationMessage}
 						</div>
 						<div className="flex-1">
-							<Label htmlFor="template-visibility">Sichtbarkeit</Label>
+							<div className="mb-2 flex items-center gap-1.5">
+								<Label htmlFor="template-visibility">Sichtbarkeit</Label>
+								<Tooltip>
+									<TooltipTrigger
+										render={
+											<Button
+												aria-label="Hinweis zur Sichtbarkeit"
+												className="size-4 text-muted-foreground"
+												size="icon-xs"
+												variant="ghost"
+											>
+												<InfoIcon className="h-3 w-3" />
+											</Button>
+										}
+									/>
+									<TooltipContent align="start" className="max-w-80" side="bottom">
+										<div className="space-y-1 text-xs">
+											<p>{USER_MESSAGES.publicTemplateVisibilityWarning}</p>
+											{canCreatePrivateTemplates ? null : (
+												<p>Private Textbausteine sind in Plus enthalten.</p>
+											)}
+										</div>
+									</TooltipContent>
+								</Tooltip>
+							</div>
 							<Select onValueChange={handleVisibilityChange} value={visibility}>
 								<SelectTrigger id="template-visibility">
 									<SelectValue />
@@ -483,14 +502,8 @@ export default function Editor({
 									</SelectItem>
 								</SelectContent>
 							</Select>
-							{privateTemplatesHint}
 						</div>
 					</div>
-					{visibility === "public" ? (
-						<Alert className="shrink-0 border-solarized-orange/50 bg-solarized-orange/10">
-							<AlertDescription>{USER_MESSAGES.publicTemplateVisibilityWarning}</AlertDescription>
-						</Alert>
-					) : null}
 
 					<Tabs className="min-h-0 grow" defaultValue="template">
 						<TabsList className="mb-2 grid w-fit grid-cols-2">
