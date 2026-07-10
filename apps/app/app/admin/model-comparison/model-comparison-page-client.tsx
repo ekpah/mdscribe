@@ -266,6 +266,7 @@ const formatInputLabel = (key: string): string => {
 		anamnese: "Anamnese",
 		befunde: "Befunde",
 		diagnoseblock: "Diagnoseblock",
+		epikrise: "Epikrise",
 		notes: "Notizen",
 	};
 
@@ -273,7 +274,7 @@ const formatInputLabel = (key: string): string => {
 };
 
 const buildInputSections = (inputData: Record<string, unknown>): InputSection[] => {
-	const preferredKeys = ["notes", "diagnoseblock", "anamnese", "befunde"];
+	const preferredKeys = ["notes", "epikrise", "diagnoseblock", "anamnese", "befunde"];
 	const orderedKeys = [
 		...preferredKeys,
 		...Object.keys(inputData)
@@ -328,11 +329,12 @@ const normalizeReplayVariables = (
 
 	switch (documentType) {
 		case "discharge":
+		case "epikrise":
 		case "outpatient": {
 			assignCanonicalString(
 				replayInput,
 				"notes",
-				pickString(inputData, "notes", "dischargeNotes", "consultationNotes"),
+				pickString(inputData, "notes", "epikrise", "dischargeNotes", "consultationNotes"),
 			);
 			assignCanonicalString(
 				replayInput,

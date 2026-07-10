@@ -100,8 +100,9 @@ const parseVariablesToFormFields = (
 
 	switch (documentType) {
 		case "discharge":
+		case "epikrise":
 		case "outpatient": {
-			result.main = pickString("notes", "dischargeNotes", "consultationNotes");
+			result.main = pickString("notes", "epikrise", "dischargeNotes", "consultationNotes");
 			result.additional = {
 				anamnese: pickString("anamnese"),
 				befunde: pickString("befunde"),
