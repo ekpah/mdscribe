@@ -11,7 +11,7 @@ type InfoInputProps = ComponentProps<typeof InfoInput>;
 // Lightweight placeholder sized to match a rendered InfoInput (label + input row)
 // so the layout does not shift while react-aria-components / use-mask-input load.
 const InfoInputFallback = ({ inputClassName }: { inputClassName?: string }) => (
-	<div className="w-full max-w-full space-y-2">
+	<div className="w-full max-w-full space-y-1">
 		<div className="h-4 w-24 animate-pulse rounded bg-muted" />
 		<div
 			aria-hidden="true"

@@ -141,10 +141,10 @@ const InfoInput = ({
 	// Date input
 	if (isDateType) {
 		return (
-			<div className="w-full max-w-full *:not-first:mt-2" key={`info-${input.attributes.primary}`}>
+			<div className="w-full max-w-full *:not-first:mt-1" key={`info-${input.attributes.primary}`}>
 				<DatePicker
 					aria-label={`${input.attributes.primary} calendar`}
-					className="*:not-first:mt-2"
+					className="*:not-first:mt-1"
 					onChange={handleDateChange}
 					value={dateValue}
 				>
@@ -184,7 +184,7 @@ const InfoInput = ({
 		const displayValue = (value as number | undefined) ?? "";
 
 		return (
-			<div className="w-full max-w-full *:not-first:mt-2" key={`info-${input.attributes.primary}`}>
+			<div className="w-full max-w-full *:not-first:mt-1" key={`info-${input.attributes.primary}`}>
 				<div className="flex items-center gap-1.5">
 					<Label htmlFor={input.attributes.primary}>{input.attributes.primary}</Label>
 					{descriptionTooltip}
@@ -222,7 +222,7 @@ const InfoInput = ({
 	const displayValue = (value as string) ?? "";
 
 	return (
-		<div className="w-full max-w-full *:not-first:mt-2" key={`info-${input.attributes.primary}`}>
+		<div className="w-full max-w-full *:not-first:mt-1" key={`info-${input.attributes.primary}`}>
 			<div className="flex items-center gap-1.5">
 				<Label htmlFor={input.attributes.primary}>{input.attributes.primary}</Label>
 				{descriptionTooltip}

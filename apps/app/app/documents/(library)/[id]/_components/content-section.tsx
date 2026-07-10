@@ -3,7 +3,7 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Printer, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
@@ -29,27 +29,60 @@ export default function ContentSection({
 	documentId: string;
 	definition: DocumentDefinition;
 }) {
-	const inputTags = useMemo(() => {
+	const normalizedDefinition = useMemo(() => {
 		try {
-			return normalizeDocumentDefinition(definition).inputTags;
+			return normalizeDocumentDefinition(definition);
 		} catch (error) {
 			console.error("Failed to build inputs from document definition:", error);
-			return [];
+			return { fieldMappings: [], inputTags: [], version: 2 as const };
 		}
 	}, [definition]);
+	const { fieldMappings, inputTags } = normalizedDefinition;
 	const [values, setValues] = useState<Record<string, unknown>>({});
 	const [sourcePdfBytes, setSourcePdfBytes] = useState<Uint8Array | null>(null);
 	const [previewPdfBytes, setPreviewPdfBytes] = useState<Uint8Array | null>(null);
+	const [activeInputFocusKey, setActiveInputFocusKey] = useState<number>();
+	const [activePdfNavigationKey, setActivePdfNavigationKey] = useState(0);
+	const [activePdfFieldName, setActivePdfFieldName] = useState<string | null>(null);
 	const [isRefreshingPreview, setIsRefreshingPreview] = useState(false);
+	const [previewRefreshRequestKey, setPreviewRefreshRequestKey] = useState(0);
+	const previewRefreshIdRef = useRef(0);
+
+	const pdfFieldNameByInputName = useMemo(() => {
+		const map = new Map<string, string>();
+		for (const fieldMapping of fieldMappings) {
+			if (!fieldMapping.isEnabled || map.has(fieldMapping.variable)) {
+				continue;
+			}
+			map.set(fieldMapping.variable, fieldMapping.fieldName);
+		}
+		return map;
+	}, [fieldMappings]);
+
+	const activeInputName = useMemo(() => {
+		if (!activePdfFieldName) {
+			return null;
+		}
+		return (
+			fieldMappings.find(
+				(fieldMapping) => fieldMapping.isEnabled && fieldMapping.fieldName === activePdfFieldName,
+			)?.variable ?? null
+		);
+	}, [activePdfFieldName, fieldMappings]);
 
 	const { data: pdfData, isLoading: isLoadingPdf } = useQuery(
 		orpc.documents.templates.getPdf.queryOptions({ input: { id: documentId } }),
 	);
 
 	useEffect(() => {
+		previewRefreshIdRef.current += 1;
 		setSourcePdfBytes(null);
 		setPreviewPdfBytes(null);
 		setValues({});
+		setActiveInputFocusKey(undefined);
+		setActivePdfNavigationKey(0);
+		setActivePdfFieldName(null);
+		setPreviewRefreshRequestKey(0);
 	}, [documentId]);
 
 	useEffect(() => {
@@ -72,28 +105,71 @@ export default function ContentSection({
 		toast.success("PDF heruntergeladen");
 	}, [downloadFileName, previewPdfBytes]);
 
+	const refreshPreview = useCallback(
+		async ({
+			showMissingPdfToast = false,
+			showRefreshErrorToast = false,
+		}: {
+			showMissingPdfToast?: boolean;
+			showRefreshErrorToast?: boolean;
+		} = {}) => {
+			if (!sourcePdfBytes) {
+				if (showMissingPdfToast) {
+					toast.error("PDF ist noch nicht geladen.");
+				}
+				return;
+			}
+
+			const refreshId = previewRefreshIdRef.current + 1;
+			previewRefreshIdRef.current = refreshId;
+			setIsRefreshingPreview(true);
+			try {
+				const nextPdfBytes =
+					Object.keys(values).length === 0
+						? cloneUint8Array(sourcePdfBytes)
+						: await fillPDFForm(sourcePdfBytes, values, definition);
+
+				if (previewRefreshIdRef.current === refreshId) {
+					setPreviewPdfBytes(nextPdfBytes);
+				}
+			} catch (error) {
+				console.error("Failed to refresh PDF preview:", error);
+				if (showRefreshErrorToast) {
+					toast.error("Vorschau konnte nicht aktualisiert werden.");
+				}
+			} finally {
+				if (previewRefreshIdRef.current === refreshId) {
+					setIsRefreshingPreview(false);
+				}
+			}
+		},
+		[definition, sourcePdfBytes, values],
+	);
+	const refreshPreviewRef = useRef(refreshPreview);
+	refreshPreviewRef.current = refreshPreview;
+
+	useEffect(() => {
+		if (!sourcePdfBytes || previewRefreshRequestKey === 0) {
+			return;
+		}
+
+		const timeout = window.setTimeout(() => {
+			void refreshPreviewRef.current();
+		}, 600);
+
+		return () => {
+			window.clearTimeout(timeout);
+		};
+	}, [previewRefreshRequestKey, sourcePdfBytes]);
+
 	const handleRefreshPreview = useCallback(async () => {
 		if (!sourcePdfBytes) {
 			toast.error("PDF ist noch nicht geladen.");
 			return;
 		}
 
-		setIsRefreshingPreview(true);
-		try {
-			if (Object.keys(values).length === 0) {
-				setPreviewPdfBytes(cloneUint8Array(sourcePdfBytes));
-				return;
-			}
-
-			const filledPdfBytes = await fillPDFForm(sourcePdfBytes, values, definition);
-			setPreviewPdfBytes(filledPdfBytes);
-		} catch (error) {
-			console.error("Failed to refresh PDF preview:", error);
-			toast.error("Vorschau konnte nicht aktualisiert werden.");
-		} finally {
-			setIsRefreshingPreview(false);
-		}
-	}, [definition, sourcePdfBytes, values]);
+		await refreshPreview({ showMissingPdfToast: true, showRefreshErrorToast: true });
+	}, [refreshPreview, sourcePdfBytes]);
 
 	const handlePrint = useCallback(() => {
 		if (!previewPdfBytes) {
@@ -103,9 +179,38 @@ export default function ContentSection({
 		printPdfBlob(toPdfBlob(previewPdfBytes));
 	}, [previewPdfBytes]);
 
+	const handleInputSelect = useCallback(
+		(inputName: string) => {
+			const pdfFieldName = pdfFieldNameByInputName.get(inputName);
+			if (!pdfFieldName) {
+				return;
+			}
+			setActivePdfFieldName(pdfFieldName);
+			setActivePdfNavigationKey((currentKey) => currentKey + 1);
+		},
+		[pdfFieldNameByInputName],
+	);
+
+	const handleInputBlur = useCallback(() => {
+		if (!sourcePdfBytes) {
+			return;
+		}
+		setPreviewRefreshRequestKey((currentKey) => currentKey + 1);
+	}, [sourcePdfBytes]);
+
+	const handlePdfFieldSelect = useCallback((fieldName: string) => {
+		setActivePdfFieldName(fieldName);
+		setActivePdfNavigationKey((currentKey) => currentKey + 1);
+		setActiveInputFocusKey((currentKey) => (currentKey ?? 0) + 1);
+	}, []);
+
 	return (
 		<InputPreviewSection
+			activeInputFocusKey={activeInputFocusKey}
+			activeInputName={activeInputName}
 			inputTags={inputTags}
+			onInputBlur={handleInputBlur}
+			onInputSelect={handleInputSelect}
 			onValuesChange={setValues}
 			preview={() =>
 				isLoadingPdf ? (
@@ -113,7 +218,14 @@ export default function ContentSection({
 						PDF wird geladen...
 					</div>
 				) : (
-					<PDFViewSection hasUploadedFile={Boolean(previewPdfBytes)} pdfFile={previewPdfBytes} />
+					<PDFViewSection
+						activeFieldNavigationKey={activePdfNavigationKey}
+						activeFieldName={activePdfFieldName}
+						hasUploadedFile={Boolean(previewPdfBytes)}
+						onFieldSelect={handlePdfFieldSelect}
+						pdfFile={previewPdfBytes}
+						resetKey={documentId}
+					/>
 				)
 			}
 			previewToolbar={

@@ -1,6 +1,7 @@
 "use client";
 
 import { useVariables } from "@repo/markdoc-md/render/context/variable-context";
+import { InteractiveTag } from "./interactive-tag";
 
 export const Info = ({
 	primary,
@@ -23,11 +24,13 @@ export const Info = ({
 	// Missing variables intentionally render as empty to keep template output stable.
 
 	return (
-		<span className="rounded-md bg-solarized-blue px-1 text-white opacity-90">
-			<span className="inline-flex items-center gap-1">
-				{value}
-				{renderUnit && unit && ` ${unit}`}
+		<InteractiveTag tagName={primary}>
+			<span className="rounded-md bg-solarized-blue px-1 text-white opacity-90">
+				<span className="inline-flex items-center gap-1">
+					{value}
+					{renderUnit && unit && ` ${unit}`}
+				</span>
 			</span>
-		</span>
+		</InteractiveTag>
 	);
 };

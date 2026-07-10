@@ -52,8 +52,13 @@ export interface FillInputsTextContext {
 }
 
 interface InputsProps {
+	activeInputFocusKey?: string | number;
+	activeInputName?: string | null;
+	activeInputScrollKey?: string;
 	inputTags: InputTagType[];
 	onChange: (data: Record<string, unknown>) => void;
+	onInputBlur?: (inputName: string) => void;
+	onInputSelect?: (inputName: string) => void;
 	showFillInputs?: boolean;
 	onFillInputs?: (
 		inputFields: FillInputsInputField[],
@@ -257,6 +262,41 @@ const getInputStateClassName = (source?: InputSource) => {
 	return "";
 };
 
+const getInputWrapperClassName = (isActive: boolean, canSelect: boolean) =>
+	cn(
+		"relative rounded-lg border border-transparent p-1 transition-colors",
+		canSelect && "cursor-pointer",
+		canSelect && !isActive && "hover:bg-muted/40",
+		isActive && "border-solarized-orange/60 bg-solarized-orange/10",
+	);
+
+const isInteractiveElement = (element: HTMLElement): boolean =>
+	Boolean(
+		element.closest(
+			'a,button,input,select,textarea,[role="button"],[role="combobox"],[tabindex]:not([tabindex="-1"])',
+		),
+	);
+
+const focusFirstInputControl = (container: HTMLElement): void => {
+	const focusSelectors = [
+		'input:not([type="hidden"]):not([disabled])',
+		"textarea:not([disabled])",
+		"select:not([disabled])",
+		'[role="combobox"]:not([aria-disabled="true"])',
+		'[role="checkbox"]:not([aria-disabled="true"])',
+		'button:not([disabled]):not([aria-label="Mehr Informationen"])',
+		'[tabindex]:not([tabindex="-1"])',
+	];
+
+	for (const selector of focusSelectors) {
+		const control = container.querySelector<HTMLElement>(selector);
+		if (control) {
+			control.focus();
+			return;
+		}
+	}
+};
+
 const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 	if (!source) {
 		return null;
@@ -296,12 +336,67 @@ const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 };
 
 interface RenderContext {
-	values: Record<string, unknown>;
-	suggestedValues: Record<string, SuggestedValue>;
-	fieldSources: Record<string, InputSource>;
+	activeInputName?: string | null;
 	changeHandlers: Record<string, (value: unknown) => void>;
 	applySuggestionHandlers: Record<string, () => void>;
+	fieldRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
+	fieldSources: Record<string, InputSource>;
+	onInputBlur?: (inputName: string) => void;
+	onInputSelect?: (inputName: string) => void;
+	suggestedValues: Record<string, SuggestedValue>;
+	values: Record<string, unknown>;
 }
+
+const getSelectableFieldHandlers = (
+	fieldKey: string,
+	context: RenderContext,
+): {
+	onBlurCapture?: (event: React.FocusEvent<HTMLDivElement>) => void;
+	onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+	onFocusCapture?: () => void;
+	onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
+	role?: "group";
+} => {
+	const handleInputSelect = context.onInputSelect
+		? () => {
+				context.onInputSelect?.(fieldKey);
+			}
+		: undefined;
+
+	return {
+		onBlurCapture: context.onInputBlur
+			? (event) => {
+					const { currentTarget, relatedTarget } = event;
+					if (relatedTarget instanceof Node && currentTarget.contains(relatedTarget)) {
+						return;
+					}
+					context.onInputBlur?.(fieldKey);
+				}
+			: undefined,
+		onClick: handleInputSelect
+			? (event) => {
+					const { target } = event;
+					if (!(target instanceof HTMLElement) || isInteractiveElement(target)) {
+						return;
+					}
+					handleInputSelect();
+					focusFirstInputControl(event.currentTarget);
+				}
+			: undefined,
+		onFocusCapture: handleInputSelect,
+		onKeyDown: handleInputSelect
+			? (event) => {
+					if (event.target !== event.currentTarget || ![" ", "Enter"].includes(event.key)) {
+						return;
+					}
+					event.preventDefault();
+					handleInputSelect();
+					focusFirstInputControl(event.currentTarget);
+				}
+			: undefined,
+		role: handleInputSelect ? "group" : undefined,
+	};
+};
 
 const renderInputTag = (input: InputTagType, context: RenderContext): React.ReactNode | null => {
 	if (!input.attributes.primary) {
@@ -314,10 +409,24 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 	const inputStateClassName = getInputStateClassName(inputState);
 	const handleFieldChange = context.changeHandlers[fieldKey];
 	const handleApplySuggestion = context.applySuggestionHandlers[fieldKey];
+	const isActiveInput = context.activeInputName === fieldKey;
+	const selectableFieldHandlers = getSelectableFieldHandlers(fieldKey, context);
+	const handleFieldRef = (node: HTMLDivElement | null) => {
+		if (node) {
+			context.fieldRefs.current.set(fieldKey, node);
+			return;
+		}
+		context.fieldRefs.current.delete(fieldKey);
+	};
 
 	if (input.name === "Info") {
 		return (
-			<div className="relative" key={`info-${fieldKey}`}>
+			<div
+				className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
+				key={`info-${fieldKey}`}
+				ref={handleFieldRef}
+				{...selectableFieldHandlers}
+			>
 				{inputState && (
 					<div className="absolute -top-1 right-0 z-10">
 						<SourceIndicator source={inputState} />
@@ -339,9 +448,22 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 	if (input.name === "Switch") {
 		const currentValue = context.values[fieldKey] as string | boolean | undefined;
 		const currentCaseKey = toSwitchCaseKey(currentValue);
+		const selectedCaseChildren =
+			currentCaseKey && input.children
+				? input.children
+						.filter(
+							(child) => child.name === "Case" && child.attributes.primary === currentCaseKey,
+						)
+						.flatMap((caseChild) => caseChild.children)
+				: [];
 
 		return (
-			<div className="relative" key={`switch-${fieldKey}`}>
+			<div
+				className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
+				key={`switch-${fieldKey}`}
+				ref={handleFieldRef}
+				{...selectableFieldHandlers}
+			>
 				{inputState && (
 					<div className="absolute -top-1 right-0 z-10">
 						<SourceIndicator source={inputState} />
@@ -357,15 +479,9 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 					value={currentValue}
 				/>
 				{/* Render children of selected case */}
-				{currentCaseKey && input.children && (
-					<div className="mt-4 ml-4 space-y-4">
-						{input.children
-							.filter(
-								(child) => child.name === "Case" && child.attributes.primary === currentCaseKey,
-							)
-							.flatMap((caseChild) =>
-								caseChild.children.map((grandChild) => renderInputTag(grandChild, context)),
-							)}
+				{selectedCaseChildren.length > 0 && (
+					<div className="mt-2.5 ml-4 space-y-2.5">
+						{selectedCaseChildren.map((child) => renderInputTag(child, context))}
 					</div>
 				)}
 			</div>
@@ -389,8 +505,12 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 
 		return (
 			<div
-				className="justify-center-center w-full max-w-full space-y-3"
+				className={cn(
+					"justify-center-center w-full max-w-full space-y-1.5 rounded-lg border border-transparent p-1 transition-colors",
+					isActiveInput && "border-solarized-orange/60 bg-solarized-orange/10",
+				)}
 				key={`score-${input.attributes.primary}`}
+				ref={handleFieldRef}
 			>
 				<Label
 					className="font-medium text-foreground"
@@ -437,7 +557,7 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 				</div>
 				{/* Variable inputs (indented) */}
 				{input.children.length > 0 && (
-					<div className="ml-4 w-full max-w-full space-y-3 border-muted border-l-2 pr-4 pl-4">
+					<div className="ml-4 w-full max-w-full space-y-2 border-muted border-l-2 pr-4 pl-4">
 						{input.children.map((child) => (
 							<div className="w-full max-w-full space-y-1" key={child.attributes.primary}>
 								{(() => {
@@ -488,8 +608,13 @@ const renderInputTag = (input: InputTagType, context: RenderContext): React.Reac
 };
 
 export default function Inputs({
+	activeInputFocusKey,
+	activeInputName,
+	activeInputScrollKey,
 	inputTags = [],
 	onChange,
+	onInputBlur,
+	onInputSelect,
 	showFillInputs = false,
 	onFillInputs,
 	renderFillControls,
@@ -502,10 +627,32 @@ export default function Inputs({
 		suggestedValuesProp ?? {},
 	);
 	const stateRef = useRef({ fieldSources, suggestedValues, values });
+	const fieldRefs = useRef(new Map<string, HTMLDivElement>());
 
 	useEffect(() => {
 		onChange(values);
 	}, [values, onChange]);
+
+	useEffect(() => {
+		if (!activeInputName) {
+			return;
+		}
+		fieldRefs.current.get(activeInputName)?.scrollIntoView({
+			behavior: "smooth",
+			block: "center",
+		});
+	}, [activeInputFocusKey, activeInputName, activeInputScrollKey]);
+
+	useEffect(() => {
+		if (!activeInputName || activeInputFocusKey === undefined) {
+			return;
+		}
+		const activeField = fieldRefs.current.get(activeInputName);
+		if (!activeField) {
+			return;
+		}
+		focusFirstInputControl(activeField);
+	}, [activeInputFocusKey, activeInputName]);
 
 	useEffect(() => {
 		stateRef.current = { fieldSources, suggestedValues, values };
@@ -696,9 +843,13 @@ export default function Inputs({
 
 	const shouldShowFillInputs = Boolean(showFillInputs && onFillInputs && renderFillControls);
 	const renderContext: RenderContext = {
+		activeInputName,
 		applySuggestionHandlers,
 		changeHandlers,
+		fieldRefs,
 		fieldSources,
+		onInputBlur,
+		onInputSelect,
 		suggestedValues,
 		values,
 	};
@@ -706,7 +857,7 @@ export default function Inputs({
 	return (
 		<form className="flex h-full w-full flex-col overflow-hidden">
 			{/* Scrollable inputs area */}
-			<div className="flex-1 space-y-6 overflow-y-auto overscroll-none p-4 pr-4" key="inputs-list">
+			<div className="flex-1 space-y-3 overflow-y-auto overscroll-none p-3 pr-3" key="inputs-list">
 				{inputTags.map((inputTag) => renderInputTag(inputTag, renderContext))}
 			</div>
 			{/* Fixed autofill footer */}
