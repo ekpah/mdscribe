@@ -15,13 +15,6 @@ export const config: NextConfig = {
 	// PERF: Optimize barrel-file imports (15-70% faster dev boot, 28% faster builds).
 	// Next.js already optimizes a built-in list (lucide-react, recharts, date-fns, …),
 	// so only list barrels that aren't covered by that default.
-	//
-	// NOTE on zod's ~160KB i18n locale tables: zod 4.x re-exports the whole locale
-	// barrel (`export * as locales from "../locales/index.js"`), which Turbopack
-	// can't tree-shake even via optimizePackageImports (verified by build). We strip
-	// those ~30 unused locale files at the source via patches/zod@4.3.6.patch
-	// (patchedDependencies in the root package.json) — default English errors are
-	// unaffected (they use a direct `import en from "../locales/en.js"`).
 	experimental: {
 		optimizePackageImports: [
 			"@repo/design-system",

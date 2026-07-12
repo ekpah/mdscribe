@@ -534,13 +534,14 @@ const formatTokensPerSecond = (tokensPerSecond: number | null | undefined): stri
 const getModelLabel = (model: PlaygroundModel | null): string => model?.name ?? "Kein Modell";
 
 const getStoredResponseModelLabel = (samples: ComparisonSample[]): string => {
-	const originalModels = Array.from(
-		new Set(
-			samples
-				.map((sample) => sample.originalModel?.trim())
-				.filter((model): model is string => Boolean(model)),
+	const originalModels = [
+		...new Set(
+			samples.flatMap((sample) => {
+				const model = sample.originalModel?.trim();
+				return model ? [model] : [];
+			}),
 		),
-	);
+	];
 
 	if (originalModels.length === 0) {
 		return samples.length > 0 ? "Unbekanntes Usage-Event-Modell" : "Usage-Event-Modell";

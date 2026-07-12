@@ -99,6 +99,8 @@ MDScribe is a medical documentation webapp (monorepo) for organizing medical tem
 
 ## Build Commands
 
+- Do not patch third-party dependencies for bundle-size optimizations. Prefer supported imports or upstream fixes; otherwise accept the bundle cost until a clean solution is available.
+
 ```bash
 bun dev                  # Dev server (port 3000)
 bun run build            # Build all (Turbo)
