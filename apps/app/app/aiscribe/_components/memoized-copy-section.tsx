@@ -179,34 +179,20 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 				throw new Error("Clipboard API not supported");
 			}
 
-			// Try modern approach first (for newer browsers)
+			// Always offer rich text together with a plain-text representation. Paste
+			// targets can then choose the format they support without losing structure.
 			if (
 				typeof ClipboardItem !== "undefined" &&
-				ClipboardItem.supports &&
-				ClipboardItem.supports("text/html")
+				typeof navigator.clipboard.write === "function" &&
+				renderedContent
 			) {
-				// Use ClipboardItem.supports() to check HTML support (Chrome 133+)
-				const clipboardItem = new ClipboardItem({
-					"text/html": new Blob([renderedContent || ""], {
-						type: "text/html",
-					}),
-					"text/plain": new Blob([textContent || ""], {
-						type: "text/plain",
-					}),
-				});
-				await navigator.clipboard.write([clipboardItem]);
-				setIsCopied(true);
-				toast.success("Text kopiert (Rich-Text Format)");
-				return;
-			}
-
-			// Fallback approach for browsers with partial ClipboardItem support
-			// Try HTML-only ClipboardItem first
-			if (typeof ClipboardItem !== "undefined" && renderedContent) {
 				try {
 					const clipboardItem = new ClipboardItem({
 						"text/html": new Blob([renderedContent], {
 							type: "text/html",
+						}),
+						"text/plain": new Blob([textContent], {
+							type: "text/plain",
 						}),
 					});
 					await navigator.clipboard.write([clipboardItem]);
@@ -219,7 +205,7 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 			}
 
 			// Final fallback to plain text (most compatible)
-			await navigator.clipboard.writeText(textContent || renderedContent || "");
+			await navigator.clipboard.writeText(textContent);
 			setIsCopied(true);
 			toast.success("Text kopiert (Einfacher Text)");
 		} catch (error) {
@@ -228,7 +214,7 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 			// Legacy fallback using document.execCommand (for very old browsers)
 			try {
 				const textArea = document.createElement("textarea");
-				textArea.value = textContent || renderedContent || "";
+				textArea.value = textContent;
 				textArea.style.position = "fixed";
 				textArea.style.opacity = "0";
 				document.body.append(textArea);
@@ -256,7 +242,10 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 		const contentElement = contentRef.current;
 		if (contentElement) {
 			const renderedContent = contentElement.innerHTML;
-			const textContent = contentElement.textContent
+			// innerText preserves the visual separators produced by block elements and
+			// line breaks. textContent concatenates their text nodes without separators.
+			// oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- Clipboard text must match the rendered layout.
+			const textContent = contentElement.innerText
 				.replaceAll("\r\n", "\n")
 				.replaceAll("\r", "\n");
 			try {
