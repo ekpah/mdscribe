@@ -16,6 +16,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
+import { cn } from "@repo/design-system/lib/utils";
+import type { MarkdocTagDiagnostic } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InfoIcon, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -23,7 +25,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
-import { USER_MESSAGES } from "@/lib/user-messages";
+import { formatMarkdocTagDiagnostic, USER_MESSAGES } from "@/lib/user-messages";
 
 import { TagInspector, TagInspectorSheet } from "./tag-inspector-dynamic";
 import TipTap from "./tip-tap-dynamic";
@@ -35,6 +37,83 @@ const TEMPLATE_VISIBILITIES = ["public", "private"] as const;
 type TemplateVisibility = (typeof TEMPLATE_VISIBILITIES)[number];
 
 const isActionableError = (error: unknown): error is Error => error instanceof Error;
+
+const hasMarkdocValidationErrors = (diagnostics: MarkdocTagDiagnostic[] | null): boolean =>
+	diagnostics?.some((diagnostic) => diagnostic.severity === "error") ?? false;
+
+const isTemplateFormValid = ({
+	category,
+	hasMarkdocErrors,
+	isValidationPending,
+	name,
+	newCategory,
+}: {
+	category: string;
+	hasMarkdocErrors: boolean;
+	isValidationPending: boolean;
+	name: string;
+	newCategory: string;
+}): boolean => {
+	const resolvedCategory = category === "new" ? newCategory : category;
+	return (
+		resolvedCategory.trim() !== "" &&
+		name.trim() !== "" &&
+		!hasMarkdocErrors &&
+		!isValidationPending
+	);
+};
+
+const getSaveButtonLabel = ({
+	hasMarkdocErrors,
+	isFormValid,
+	isSubmitting,
+	isValidationPending,
+}: {
+	hasMarkdocErrors: boolean;
+	isFormValid: boolean;
+	isSubmitting: boolean;
+	isValidationPending: boolean;
+}): string => {
+	if (isSubmitting) {
+		return "Textbaustein speichern...";
+	}
+	if (hasMarkdocErrors) {
+		return USER_MESSAGES.resolveTemplateTagErrors;
+	}
+	if (isValidationPending) {
+		return USER_MESSAGES.checkingTemplateTags;
+	}
+	if (!isFormValid) {
+		return "Kategorie und Name erforderlich";
+	}
+	return "Textbaustein speichern";
+};
+
+const MarkdocValidationMessage = ({
+	diagnostics,
+}: {
+	diagnostics: MarkdocTagDiagnostic[] | null;
+}) => {
+	if (!diagnostics || diagnostics.length === 0) {
+		return null;
+	}
+
+	return (
+		<div
+			className="rounded-md border border-solarized-red/40 bg-solarized-red/5 p-3 text-sm"
+			role="alert"
+		>
+			<p className="font-medium text-solarized-red">{USER_MESSAGES.invalidTemplateTags}</p>
+			<ul className="mt-2 list-disc space-y-1 pl-5 text-foreground">
+				{diagnostics.map((diagnostic, index) => (
+					<li key={`${diagnostic.code}-${diagnostic.primary}-${index}`}>
+						{formatMarkdocTagDiagnostic(diagnostic)}
+					</li>
+				))}
+			</ul>
+		</div>
+	);
+};
 
 const TemplateExamplesTab = ({
 	examples,
@@ -134,11 +213,14 @@ export default function Editor({
 	const [showSource, setShowSource] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [editorInstance, setEditorInstance] = useState<TagInspectorEditor | null>(null);
+	const [markdocDiagnostics, setMarkdocDiagnostics] = useState<MarkdocTagDiagnostic[] | null>(null);
 	// Counter to force TipTap remount when switching from source view
 	const editorKeyRef = useRef(0);
 
 	const createMutation = useMutation(orpc.templates.create.mutationOptions());
 	const updateMutation = useMutation(orpc.templates.update.mutationOptions());
+	const hasMarkdocErrors = hasMarkdocValidationErrors(markdocDiagnostics);
+	const isValidationPending = markdocDiagnostics === null;
 
 	const invalidateTemplateQueries = useCallback(async () => {
 		await Promise.all([
@@ -157,11 +239,13 @@ export default function Editor({
 		]);
 	}, [queryClient]);
 
-	// Validation for required fields
-	const isFormValid = (() => {
-		const finalCategory = category === "new" ? newCategory : category;
-		return finalCategory.trim() !== "" && name.trim() !== "";
-	})();
+	const isFormValid = isTemplateFormValid({
+		category,
+		hasMarkdocErrors,
+		isValidationPending,
+		name,
+		newCategory,
+	});
 
 	const suggestedCategories = useMemo(() => {
 		const limit = 10;
@@ -390,6 +474,7 @@ export default function Editor({
 
 	const handleSwitchToVisualEditor = useCallback(() => {
 		editorKeyRef.current += 1;
+		setMarkdocDiagnostics(null);
 		setShowSource(false);
 	}, []);
 
@@ -512,7 +597,13 @@ export default function Editor({
 						</TabsList>
 
 						<TabsContent className="mt-0 flex min-h-0 grow flex-col gap-2" value="template">
-							<div className="min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
+							<div
+								aria-invalid={hasMarkdocErrors}
+								className={cn(
+									"min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2",
+									hasMarkdocErrors && "border-solarized-red",
+								)}
+							>
 								{showSource ? (
 									<PlainEditor
 										note={content}
@@ -526,11 +617,13 @@ export default function Editor({
 										note={content}
 										onEditorChange={setEditorInstance}
 										onToggleSource={canEditSource ? handleSwitchToSource : undefined}
+										onValidationChange={setMarkdocDiagnostics}
 										setContent={setContent}
 										showSource={showSource}
 									/>
 								)}
 							</div>
+							<MarkdocValidationMessage diagnostics={markdocDiagnostics} />
 						</TabsContent>
 
 						<TemplateExamplesTab
@@ -543,15 +636,12 @@ export default function Editor({
 					</Tabs>
 					<div className="flex shrink-0 flex-row gap-2">
 						<Button className="mt-2 w-full" disabled={isSubmitting || !isFormValid} type="submit">
-							{(() => {
-								if (isSubmitting) {
-									return "Textbaustein speichern...";
-								}
-								if (!isFormValid) {
-									return "Kategorie und Name erforderlich";
-								}
-								return "Textbaustein speichern";
-							})()}
+							{getSaveButtonLabel({
+								hasMarkdocErrors,
+								isFormValid,
+								isSubmitting,
+								isValidationPending,
+							})}
 						</Button>
 					</div>
 				</form>

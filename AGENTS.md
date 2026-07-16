@@ -6,6 +6,7 @@ Global guidance for coding agents. More specific rules live next to the code the
 - `apps/app/orpc/scribe/AGENTS.md`: generation, prompt, context, harness, and usage rules.
 - `apps/app/app/_components/input-context/AGENTS.md`: shared audio, file, and text input UX.
 - `packages/design-system/AGENTS.md`: Base UI, Tailwind/Solarized, and editor primitives.
+- `packages/markdoc-md/AGENTS.md`: tag contracts, validation, parsing, and rendering behavior.
 
 Before changing a scoped area, read its nearest `AGENTS.md`; the more specific file wins. Put new guidance in the narrowest applicable file instead of growing this root file.
 
@@ -16,6 +17,7 @@ Before changing a scoped area, read its nearest `AGENTS.md`; the more specific f
 When the user corrects you, immediately update the most specific applicable `AGENTS.md`. Corrections are standing authorization.
 
 - Treat user statements about local infrastructure as source of truth.
+- Use the `improve` skill only when the user explicitly requests it by name; do not infer it from audit, planning, review, or recommendation requests.
 - The local PostgreSQL test database runs on port `5432`. The restricted command sandbox cannot reach loopback TCP; rerun DB-backed tests with external/network approval after sandboxed `ECONNREFUSED` instead of reporting the database unavailable.
 - In provider/API discussions, “pi agent” means the Pi Agent used by OpenClaw, not Pydantic AI.
 

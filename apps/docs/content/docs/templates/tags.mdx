@@ -38,6 +38,30 @@ Das Score-Tag führt automatische Berechnungen basierend auf mathematischen Form
 
 Tags können miteinander kombiniert werden für komplexe Szenarien:
 
+### Tags mit demselben Namen wiederverwenden
+
+Ein Info- oder Switch-Tag kann an mehreren Stellen eines Templates denselben Namen verwenden. Alle Vorkommen greifen dann auf dasselbe Eingabefeld zu. Die gemeinsamen Einstellungen müssen zueinander passen:
+
+- Info-Tags benötigen denselben Typ. Unterschiedliche, ausdrücklich angegebene Einheiten oder Beschreibungen sind nicht erlaubt.
+- Switch-Tags benötigen denselben Typ. Fälle aus mehreren Vorkommen werden zu einer gemeinsamen Auswahlliste zusammengeführt.
+- Score-Tags mit demselben Namen benötigen dieselbe Formel.
+- `renderUnit` gilt nur für das jeweilige Vorkommen und darf unterschiedlich sein.
+- Ein Name kann nicht gleichzeitig für ein Info- und ein Switch-Tag verwendet werden.
+
+Fehlende optionale Angaben dürfen an einem anderen Vorkommen ergänzt werden. Dieses Beispiel ist gültig:
+
+```markdown
+{% info "Gewicht" type="number" /%}
+Das aktuelle Gewicht beträgt {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}.
+```
+
+Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichzeitig eine Zahl und ein Datum sein kann:
+
+```markdown
+{% info "Gewicht" type="number" /%}
+{% info "Gewicht" type="date" /%}
+```
+
 ### Beispiel: Conditional Score
 
 ```markdown
@@ -75,7 +99,8 @@ Tags können miteinander kombiniert werden für komplexe Szenarien:
 
 **Problem**: Die referenzierten Variablen existieren nicht oder sind nicht ausgefüllt.
 
-**Lösung**: 
+**Lösung**:
+
 - Überprüfen Sie, dass alle Variablen in der Formel auch als Info-Tags existieren
 - Stellen Sie sicher, dass die Variablennamen exakt übereinstimmen (inkl. Groß-/Kleinschreibung)
 
@@ -84,6 +109,7 @@ Tags können miteinander kombiniert werden für komplexe Szenarien:
 **Problem**: Der ausgewählte Wert passt zu keinem Case.
 
 **Lösung**:
+
 - Überprüfen Sie, dass alle möglichen Optionen als Case definiert sind
 - Achten Sie auf exakte Schreibweise (inkl. Leerzeichen und Groß-/Kleinschreibung)
 
@@ -92,16 +118,17 @@ Tags können miteinander kombiniert werden für komplexe Szenarien:
 **Problem**: Die Tag-Syntax ist fehlerhaft.
 
 **Lösung**:
+
 - Überprüfen Sie die Syntax: `{% info "Name" /%}` nicht `{info "Name"}`
 - Prüfen Sie, ob alle Anführungszeichen korrekt gesetzt sind
 - Self-closing Tags benötigen `/%}` am Ende
 
 ## Zusammenfassung
 
-| Tag | Farbe | Verwendung | Syntax-Beispiel |
-|-----|-------|------------|-----------------|
-| **Info** | 🔵 Blau | Variable Daten | `{% info "Name" /%}` |
-| **Switch/Case** | 🟢 Grün | Bedingte Inhalte | `{% switch "Var" %}{% case "A" %}Text{% /case %}{% /switch %}` |
-| **Score** | 🟠 Orange | Berechnungen | `{% score formula="[A] + [B]" /%}` |
+| Tag             | Farbe     | Verwendung       | Syntax-Beispiel                                                |
+| --------------- | --------- | ---------------- | -------------------------------------------------------------- |
+| **Info**        | 🔵 Blau   | Variable Daten   | `{% info "Name" /%}`                                           |
+| **Switch/Case** | 🟢 Grün   | Bedingte Inhalte | `{% switch "Var" %}{% case "A" %}Text{% /case %}{% /switch %}` |
+| **Score**       | 🟠 Orange | Berechnungen     | `{% score formula="[A] + [B]" /%}`                             |
 
 Mit diesen Tags können Sie flexible, wiederverwendbare Templates erstellen, die sich automatisch an verschiedene Situationen anpassen!
