@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Amp Orb bootstrap only. Assumes a disposable Debian environment.
+# Do not run on persistent or production PostgreSQL hosts.
+
 set -euo pipefail
 
 readonly BUN_VERSION="1.2.23"
