@@ -1,0 +1,15 @@
+import type { FinishReason } from "ai";
+
+export const isSuccessfulAiscribeFinish = (input: {
+	finishReason?: FinishReason;
+	isAbort: boolean;
+	isError: boolean;
+}) =>
+	!input.isAbort &&
+	!input.isError &&
+	input.finishReason !== "error" &&
+	input.finishReason !== "content-filter";
+
+export const hasLessThanTenPercentUsageRemaining = (
+	monthlyUsagePercentage: number,
+) => monthlyUsagePercentage > 90;

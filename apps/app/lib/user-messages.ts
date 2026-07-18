@@ -29,6 +29,7 @@ export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): st
 
 /** Single source of truth for all user-facing German messages. */
 export const USER_MESSAGES = {
+	aiscribeGenerationSuccess: "Erfolgreich generiert",
 	audioNotSupported: "Das ausgewählte Modell unterstützt keine Audio-Eingabe.",
 	checkingTemplateTags: "Tags werden geprüft...",
 	evaluationFailed:
@@ -37,6 +38,9 @@ export const USER_MESSAGES = {
 	inputInvalid: "Die Eingaben konnten nicht verarbeitet werden. Bitte prüfen Sie Ihre Angaben.",
 	invalidTemplateTags:
 		"Einige Tags mit demselben Namen haben widersprüchliche Einstellungen. Gleichen Sie die Einstellungen an.",
+	lowScribeUsageRemaining:
+		"Weniger als 10 % Ihres monatlichen KI-Budgets sind verfügbar. Passen Sie Ihr Abonnement rechtzeitig an, um Unterbrechungen zu vermeiden.",
+	lowScribeUsageSubscriptionAction: "Abo ansehen",
 	missingInput: "Bitte füllen Sie mindestens ein Pflichtfeld aus.",
 	modelUnavailable:
 		"Kein geeignetes KI-Modell verfügbar. Bitte konfigurieren Sie ein Modell in den Einstellungen.",
