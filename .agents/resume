@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Checking PostgreSQL..."
+while read -r version cluster _ status _; do
+	if [[ "${status}" != "online" ]]; then
+		sudo pg_ctlcluster --skip-systemctl-redirect "${version}" "${cluster}" start
+	fi
+done < <(pg_lsclusters --no-header)
+
+pg_isready --quiet --host 127.0.0.1 --port 5432
+echo "PostgreSQL is ready."

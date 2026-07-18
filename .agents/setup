@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly BUN_VERSION="1.2.23"
+readonly NODE_MAJOR="24"
+readonly DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe"
+
+echo "Installing system dependencies..."
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+	ca-certificates \
+	curl \
+	postgresql \
+	postgresql-contrib \
+	ssl-cert \
+	xz-utils
+
+if [[ ! -f /etc/ssl/certs/ssl-cert-snakeoil.pem ]]; then
+	sudo DEBIAN_FRONTEND=noninteractive \
+		/usr/sbin/make-ssl-cert generate-default-snakeoil --force-overwrite
+fi
+
+postgres_major="$(pg_config --version | sed -E 's/^PostgreSQL ([0-9]+).*/\1/')"
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "postgresql-${postgres_major}-pgvector"
+
+echo "Installing Node.js ${NODE_MAJOR}..."
+if ! command -v node >/dev/null 2>&1 || [[ "$(node --version)" != "v${NODE_MAJOR}."* ]]; then
+	node_releases="$(curl -fsSL https://nodejs.org/dist/index.json)"
+	node_version="$(grep -m 1 -o '"version":"v24\.[^"]*"' <<<"${node_releases}" \
+		| cut -d '"' -f 4)"
+	curl -fsSL "https://nodejs.org/dist/${node_version}/node-${node_version}-linux-x64.tar.xz" \
+		| sudo tar -xJ --strip-components=1 -C /usr/local
+fi
+
+echo "Installing Bun ${BUN_VERSION}..."
+if ! command -v bun >/dev/null 2>&1 || [[ "$(bun --version)" != "${BUN_VERSION}" ]]; then
+	curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
+fi
+export BUN_INSTALL="${HOME}/.bun"
+export PATH="${BUN_INSTALL}/bin:${PATH}"
+sudo ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
+
+echo "Installing workspace dependencies..."
+bun install --frozen-lockfile
+
+ensure_env_defaults() {
+	local env_file="$1"
+	local key value
+	shift
+
+	touch "${env_file}"
+	for entry in "$@"; do
+		key="${entry%%=*}"
+		value="${entry#*=}"
+		if ! grep -q "^${key}=" "${env_file}"; then
+			printf '%s="%s"\n' "${key}" "${value}" >>"${env_file}"
+		fi
+	done
+}
+
+readonly -a ENV_DEFAULTS=(
+	"AUTH_POSTMARK_KEY=orb-placeholder"
+	"NEXT_PUBLIC_BASE_URL=http://localhost:3000"
+	"BETTER_AUTH_SECRET=orb-development-secret-not-for-production"
+	"BETTER_AUTH_URL=http://localhost:3000"
+	"ADMIN_EMAIL=admin@example.com"
+	"POSTGRES_DATABASE_URL=${DATABASE_URL}"
+	"VOYAGE_API_KEY=orb-placeholder"
+	"OPENROUTER_API_KEY=orb-placeholder"
+	"STRIPE_SECRET_KEY=orb-placeholder"
+	"STRIPE_WEBHOOK_SECRET=orb-placeholder"
+	"STRIPE_PLUS_PRICE_ID=orb-placeholder"
+	"STRIPE_PLUS_PRICE_ID_ANNUAL=orb-placeholder"
+)
+
+echo "Ensuring local development environment..."
+ensure_env_defaults .env "${ENV_DEFAULTS[@]}"
+
+if [[ ! -e apps/app/.env && ! -L apps/app/.env ]]; then
+	cp -- .env apps/app/.env
+fi
+ensure_env_defaults apps/app/.env "${ENV_DEFAULTS[@]}"
+
+echo "Starting PostgreSQL..."
+while read -r version cluster _ status _; do
+	if [[ "${status}" != "online" ]]; then
+		sudo pg_ctlcluster --skip-systemctl-redirect "${version}" "${cluster}" start
+	fi
+done < <(pg_lsclusters --no-header)
+
+echo "Preparing local databases..."
+sudo -u postgres psql --quiet --set ON_ERROR_STOP=1 <<'SQL'
+ALTER USER postgres PASSWORD 'postgres';
+ALTER SYSTEM SET fsync = 'off';
+ALTER SYSTEM SET synchronous_commit = 'off';
+SQL
+
+for database in mdscribe mdscribe_test; do
+	if ! sudo -u postgres psql --tuples-only --no-align --command \
+		"SELECT 1 FROM pg_database WHERE datname = '${database}'" | grep -q 1; then
+		sudo -u postgres createdb "${database}"
+	fi
+	sudo -u postgres psql --quiet --set ON_ERROR_STOP=1 --dbname "${database}" \
+		--command "CREATE EXTENSION IF NOT EXISTS vector"
+done
+
+echo "Applying database migrations..."
+POSTGRES_DATABASE_URL="${DATABASE_URL}" bun run db:migrate
+
+echo "Orb setup complete."
