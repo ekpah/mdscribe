@@ -171,10 +171,6 @@ export const NavActions = ({
   const isCollectionMutationPending =
     addTemplateMutation.isPending || removeTemplateMutation.isPending;
 
-  const handleDropdownItemSelect = useCallback((event: Event) => {
-    event.preventDefault();
-  }, []);
-
   const handleFavouriteCheckedChange = useCallback(
     async (checked: boolean) => {
       try {
@@ -222,13 +218,11 @@ export const NavActions = ({
     }
 
     return (
-      <TooltipProvider delayDuration={300}>
+      <TooltipProvider delay={300}>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Link href="#">
+          <TooltipTrigger render={<Link href="#">
               <Pencil {...templateActionIconProps} />
-            </Link>
-          </TooltipTrigger>
+            </Link>} />
           <TooltipContent>
             <p>Nur für registrierte Nutzer</p>
           </TooltipContent>
@@ -239,17 +233,15 @@ export const NavActions = ({
 
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
-      <TooltipProvider delayDuration={300}>
+      <TooltipProvider delay={300}>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
+          <TooltipTrigger render={<span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
               {visibility === 'private' ? (
                 <FileUser {...templateActionIconProps} />
               ) : (
                 <FileIcon {...templateActionIconProps} />
               )}
-            </span>
-          </TooltipTrigger>
+            </span>} />
           <TooltipContent>
             <p>{visibility === 'private' ? 'Privat sichtbar' : 'Öffentlich sichtbar'}</p>
           </TooltipContent>
@@ -274,17 +266,14 @@ export const NavActions = ({
 
       {isLoggedIn && templateId && (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className="h-7 w-7" size="icon" variant="ghost">
+          <DropdownMenuTrigger render={<Button className="h-7 w-7" size="icon" variant="ghost">
               <FolderPlus {...templateActionIconProps} />
-            </Button>
-          </DropdownMenuTrigger>
+            </Button>} />
           <DropdownMenuContent align="end" className="w-64">
             <DropdownMenuCheckboxItem
               checked={isBookmark}
               disabled={favouriteMutation.isPending}
               onCheckedChange={handleFavouriteCheckedChange}
-              onSelect={handleDropdownItemSelect}
             >
               <span className="font-medium">Favoriten</span>
             </DropdownMenuCheckboxItem>
@@ -304,7 +293,6 @@ export const NavActions = ({
                   disabled={isCollectionMutationPending}
                   key={collection.id}
                   onCheckedChange={handleCollectionCheckedChange}
-                  onSelect={handleDropdownItemSelect}
                 >
                   <div className="flex flex-col">
                     <span className="font-medium">{collection.name}</span>

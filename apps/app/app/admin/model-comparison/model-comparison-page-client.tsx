@@ -118,12 +118,19 @@ type PreferenceSource = "ai" | "human";
 type RunStatus = "idle" | "running" | "success" | "error";
 
 interface ReplayableUsageEvent {
+	cost: string | null;
 	id: string;
 	inputData: unknown;
+	inputTokens: number | null;
 	metadata: unknown;
 	model: string | null;
 	name: string;
+	outputTokens: number | null;
+	reasoningTokens: number | null;
+	result: string | null;
+	timeToCompletionMs: number | null;
 	timestamp: Date | string;
+	totalTokens: number | null;
 }
 
 interface ComparisonSample {
@@ -131,7 +138,9 @@ interface ComparisonSample {
 	id: string;
 	inputData: Record<string, unknown>;
 	inputSections: InputSection[];
+	originalMetrics?: ComparisonRunMetrics;
 	originalModel: string | null;
+	originalResponse: string | null;
 	promptName: string;
 	templateId: string | null;
 	timestamp: Date | string;
@@ -257,6 +266,7 @@ const formatInputLabel = (key: string): string => {
 		anamnese: "Anamnese",
 		befunde: "Befunde",
 		diagnoseblock: "Diagnoseblock",
+		epikrise: "Epikrise",
 		notes: "Notizen",
 	};
 
@@ -264,7 +274,7 @@ const formatInputLabel = (key: string): string => {
 };
 
 const buildInputSections = (inputData: Record<string, unknown>): InputSection[] => {
-	const preferredKeys = ["notes", "diagnoseblock", "anamnese", "befunde"];
+	const preferredKeys = ["notes", "epikrise", "diagnoseblock", "anamnese", "befunde"];
 	const orderedKeys = [
 		...preferredKeys,
 		...Object.keys(inputData)
@@ -319,11 +329,12 @@ const normalizeReplayVariables = (
 
 	switch (documentType) {
 		case "discharge":
+		case "epikrise":
 		case "outpatient": {
 			assignCanonicalString(
 				replayInput,
 				"notes",
-				pickString(inputData, "notes", "dischargeNotes", "consultationNotes"),
+				pickString(inputData, "notes", "epikrise", "dischargeNotes", "consultationNotes"),
 			);
 			assignCanonicalString(
 				replayInput,
@@ -432,12 +443,36 @@ const toComparisonSample = (
 		return null;
 	}
 
+	const originalResponse =
+		typeof event.result === "string" && event.result.trim().length > 0
+			? event.result.trim()
+			: null;
+	const parsedCost =
+		typeof event.cost === "string" && event.cost.trim().length > 0 ? Number(event.cost) : undefined;
+	const originalMetrics =
+		event.timeToCompletionMs === null
+			? undefined
+			: {
+					cost: Number.isFinite(parsedCost) ? parsedCost : undefined,
+					inputTokens: event.inputTokens ?? undefined,
+					latencyMs: event.timeToCompletionMs,
+					outputTokens: event.outputTokens ?? undefined,
+					reasoningTokens: event.reasoningTokens ?? undefined,
+					tokensPerSecond:
+						event.outputTokens && event.timeToCompletionMs > 0
+							? Number((event.outputTokens / (event.timeToCompletionMs / 1000)).toFixed(1))
+							: undefined,
+					totalTokens: event.totalTokens ?? undefined,
+				};
+
 	return {
 		documentType,
 		id: event.id,
 		inputData: event.inputData,
 		inputSections: buildInputSections(event.inputData),
+		originalMetrics,
 		originalModel: event.model,
+		originalResponse,
 		promptName:
 			typeof metadata.promptName === "string"
 				? (resolvePromptHarnessId(metadata.promptName) ?? metadata.promptName)
@@ -498,6 +533,23 @@ const formatTokensPerSecond = (tokensPerSecond: number | null | undefined): stri
 
 const getModelLabel = (model: PlaygroundModel | null): string => model?.name ?? "Kein Modell";
 
+const getStoredResponseModelLabel = (samples: ComparisonSample[]): string => {
+	const originalModels = [
+		...new Set(
+			samples.flatMap((sample) => {
+				const model = sample.originalModel?.trim();
+				return model ? [model] : [];
+			}),
+		),
+	];
+
+	if (originalModels.length === 0) {
+		return samples.length > 0 ? "Unbekanntes Usage-Event-Modell" : "Usage-Event-Modell";
+	}
+
+	return originalModels.length === 1 ? originalModels[0] : "Mehrere Usage-Event-Modelle";
+};
+
 const areParametersEqual = (
 	left: PlaygroundParameters,
 	right: PlaygroundParameters,
@@ -548,6 +600,17 @@ const asFiniteMetricNumber = (value: unknown): number | undefined => {
 	return value;
 };
 
+const parseFiniteMetricNumber = (value: unknown): number | undefined => {
+	if (typeof value === "number") {
+		return Number.isFinite(value) ? value : undefined;
+	}
+	if (typeof value === "string" && value.trim().length > 0) {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : undefined;
+	}
+	return undefined;
+};
+
 const parseRunMetricsFromMetadata = (metadata: unknown): Partial<ComparisonRunMetrics> => {
 	if (!metadata || typeof metadata !== "object") {
 		return {};
@@ -555,7 +618,7 @@ const parseRunMetricsFromMetadata = (metadata: unknown): Partial<ComparisonRunMe
 
 	const value = metadata as Record<string, unknown>;
 	const parsed: Partial<ComparisonRunMetrics> = {};
-	const cost = asFiniteMetricNumber(value.cost);
+	const cost = parseFiniteMetricNumber(value.cost);
 	if (cost !== undefined) {
 		parsed.cost = cost;
 	}
@@ -635,15 +698,21 @@ const calculateSummary = ({
 	preferences,
 	results,
 	samples,
+	useStoredResponseA,
 }: {
 	modelA: PlaygroundModel | null;
 	modelB: PlaygroundModel | null;
 	preferences: ComparisonPreferences;
 	results: ComparisonResults;
 	samples: ComparisonSample[];
+	useStoredResponseA: boolean;
 }): ComparisonSummary => {
 	const sides = [
-		{ label: getModelLabel(modelA), modelId: modelA?.modelId ?? "-", side: "a" as const },
+		{
+			label: useStoredResponseA ? "Usage-Event-Antwort" : getModelLabel(modelA),
+			modelId: useStoredResponseA ? "stored-usage-event-response" : (modelA?.modelId ?? "-"),
+			side: "a" as const,
+		},
 		{ label: getModelLabel(modelB), modelId: modelB?.modelId ?? "-", side: "b" as const },
 	];
 
@@ -713,10 +782,9 @@ const renderSelectedModelOption = (selected: PlaygroundModelSelectorOption | nul
 	}
 
 	return (
-		<div className="min-w-0">
-			<p className="truncate font-medium text-solarized-base00">{selected.model.name}</p>
-			<p className="truncate text-solarized-base01 text-xs">{selected.providerLabel}</p>
-		</div>
+		<span className="block min-w-0 truncate font-medium text-solarized-base00">
+			{selected.label}
+		</span>
 	);
 };
 
@@ -749,8 +817,8 @@ const renderModelSelectorOption = (option: PlaygroundModelSelectorOption) => (
 
 const InputSectionsAccordion = ({ sections }: { sections: InputSection[] }) => (
 	<Accordion
-		type="multiple"
 		defaultValue={sections.slice(0, 1).map((section) => section.key)}
+		multiple
 		className="rounded-md border border-solarized-base2 bg-solarized-base3"
 	>
 		{sections.map((section) => (
@@ -880,6 +948,7 @@ interface ComparisonRunCellProps {
 	showMetrics: boolean;
 	side: ComparisonSide;
 	templateReferenceById: Map<string, string>;
+	useStoredResponse: boolean;
 }
 
 const ComparisonRunCell = ({
@@ -898,6 +967,7 @@ const ComparisonRunCell = ({
 	showMetrics,
 	side,
 	templateReferenceById,
+	useStoredResponse,
 }: ComparisonRunCellProps) => {
 	const runId = `${sample.id}-${side}`;
 	// A per-side template override wins; otherwise fall back to the template the
@@ -1008,6 +1078,24 @@ const ComparisonRunCell = ({
 	}, [completion, status]);
 
 	const startRun = useCallback(async () => {
+		if (useStoredResponse) {
+			if (!sample.originalResponse) {
+				publishResult({
+					error: "Dieses Usage Event enthält keine gespeicherte Antwort",
+					status: "error",
+				});
+				return;
+			}
+
+			publishResult({
+				metrics: sample.originalMetrics,
+				modelId: sample.originalModel ?? undefined,
+				status: "success",
+				text: sample.originalResponse,
+			});
+			return;
+		}
+
 		if (!model) {
 			publishResult({
 				error: "Bitte Modell auswählen",
@@ -1071,6 +1159,7 @@ const ComparisonRunCell = ({
 		sendMessage,
 		setMessages,
 		templateReference,
+		useStoredResponse,
 	]);
 
 	useEffect(() => {
@@ -1087,7 +1176,9 @@ const ComparisonRunCell = ({
 	} else {
 		title = side === "a" ? "Modell A" : "Modell B";
 	}
-	const modelLabel = getModelLabel(model);
+	const modelLabel = useStoredResponse
+		? `Usage Event${sample.originalModel ? ` · ${sample.originalModel}` : ""}`
+		: getModelLabel(model);
 	const visibleStatus = shouldMaskUntilRowDone ? "running" : localResult.status;
 	const isSelected = preference?.side === side;
 
@@ -1159,6 +1250,7 @@ const ModelConfigCard = ({
 	isGeneratingSide,
 	isLoading,
 	isLoadingTemplates,
+	hasStoredResponses,
 	model,
 	modelId,
 	modelSelectorOptions,
@@ -1166,12 +1258,16 @@ const ModelConfigCard = ({
 	onParametersChange,
 	onRegenerateSide,
 	onTemplateOverrideChange,
+	onUseStoredResponseChange,
 	parameters,
 	side,
 	templateOptions,
 	templateOverrideId,
+	storedResponseModelLabel,
+	useStoredResponse,
 }: {
 	disabled: boolean;
+	hasStoredResponses: boolean;
 	isGeneratingSide: boolean;
 	isLoading: boolean;
 	isLoadingTemplates: boolean;
@@ -1182,18 +1278,39 @@ const ModelConfigCard = ({
 	onParametersChange: (parameters: PlaygroundParameters) => void;
 	onRegenerateSide: () => void;
 	onTemplateOverrideChange: (value: string | null) => void;
+	onUseStoredResponseChange?: (checked: boolean) => void;
 	parameters: PlaygroundParameters;
 	side: ComparisonSide;
 	templateOptions: TemplateOption[];
 	templateOverrideId: string | null;
+	storedResponseModelLabel?: string;
+	useStoredResponse: boolean;
 }) => (
 	<Card className="border-solarized-base2">
 		<CardHeader className="p-4">
-			<CardTitle className="text-base text-solarized-base00">
-				Modell {side === "a" ? "A" : "B"}
-			</CardTitle>
+			<div className="flex items-center justify-between gap-3">
+				<CardTitle className="text-base text-solarized-base00">
+					Modell {side === "a" ? "A" : "B"}
+				</CardTitle>
+				{side === "a" ? (
+					<div className="flex items-center gap-2">
+						<Label htmlFor="model-a-use-stored-response" className="text-solarized-base01 text-xs">
+							Gegen bisherige Antwort vergleichen
+						</Label>
+						<Switch
+							id="model-a-use-stored-response"
+							checked={useStoredResponse}
+							disabled={disabled || (!hasStoredResponses && !useStoredResponse)}
+							onCheckedChange={(checked) => onUseStoredResponseChange?.(checked === true)}
+							aria-label="Gegen bisherige Antwort vergleichen"
+						/>
+					</div>
+				) : null}
+			</div>
 			<CardDescription className="text-solarized-base01 text-sm">
-				{model?.modelId ?? "Noch kein Modell ausgewählt"}
+				{useStoredResponse
+					? `Bisherige Antwort · ${storedResponseModelLabel ?? "Usage-Event-Modell"}`
+					: (model?.modelId ?? "Noch kein Modell ausgewählt")}
 			</CardDescription>
 		</CardHeader>
 		<CardContent className="space-y-4 p-4 pt-0">
@@ -1203,7 +1320,7 @@ const ModelConfigCard = ({
 					className="min-h-11 border-solarized-base2 bg-solarized-base3 py-2"
 					emptyMessage="Keine Modelle gefunden."
 					formatGroupLabel={formatModelGroupLabel}
-					isLoading={isLoading}
+					isLoading={!useStoredResponse && isLoading}
 					loadingMessage="Lade Modelle..."
 					onValueChange={onModelChange}
 					options={modelSelectorOptions}
@@ -1213,12 +1330,13 @@ const ModelConfigCard = ({
 					renderSelected={renderSelectedModelOption}
 					searchPlaceholder="Modell oder Anbieter suchen..."
 					value={modelId}
+					disabled={useStoredResponse}
 				/>
 			</div>
 			<div className="space-y-2">
 				<Label>Vorlage</Label>
 				<Select
-					disabled={disabled || isLoadingTemplates}
+					disabled={disabled || isLoadingTemplates || useStoredResponse}
 					onValueChange={(value) =>
 						onTemplateOverrideChange(value === ORIGINAL_TEMPLATE ? null : value)
 					}
@@ -1242,7 +1360,7 @@ const ModelConfigCard = ({
 			</div>
 			<Separator className="bg-solarized-base2" />
 			<ParameterControls
-				disabled={disabled}
+				disabled={disabled || useStoredResponse}
 				model={model}
 				onChange={onParametersChange}
 				parameters={parameters}
@@ -1252,7 +1370,7 @@ const ModelConfigCard = ({
 				variant="outline"
 				className="w-full gap-2"
 				onClick={onRegenerateSide}
-				disabled={disabled || !model || isGeneratingSide}
+				disabled={disabled || (!useStoredResponse && !model) || isGeneratingSide}
 			>
 				{isGeneratingSide ? (
 					<Loader2 className="h-4 w-4 animate-spin" />
@@ -1283,6 +1401,7 @@ const ComparisonSampleRow = ({
 	templateOverrideIdA,
 	templateOverrideIdB,
 	templateReferenceById,
+	useStoredResponseA,
 }: {
 	blindMode: boolean;
 	displayOrder: Record<string, ComparisonSide[]>;
@@ -1301,6 +1420,7 @@ const ComparisonSampleRow = ({
 	templateOverrideIdA: string | null;
 	templateOverrideIdB: string | null;
 	templateReferenceById: Map<string, string>;
+	useStoredResponseA: boolean;
 }) => {
 	const order = blindMode
 		? (displayOrder[sample.id] ?? ["a", "b"])
@@ -1360,6 +1480,7 @@ const ComparisonSampleRow = ({
 					side={side}
 					storedResult={rowResults?.[side]}
 					templateReferenceById={templateReferenceById}
+					useStoredResponse={side === "a" && useStoredResponseA}
 				/>
 			))}
 		</div>
@@ -1385,6 +1506,7 @@ const ComparisonRunsSection = ({
 	templateOverrideIdA,
 	templateOverrideIdB,
 	templateReferenceById,
+	useStoredResponseA,
 }: {
 	blindMode: boolean;
 	displayOrder: Record<string, ComparisonSide[]>;
@@ -1404,6 +1526,7 @@ const ComparisonRunsSection = ({
 	templateOverrideIdA: string | null;
 	templateOverrideIdB: string | null;
 	templateReferenceById: Map<string, string>;
+	useStoredResponseA: boolean;
 }) => (
 	<div className="space-y-3">
 		<div className="flex flex-wrap items-center justify-between gap-2">
@@ -1448,6 +1571,7 @@ const ComparisonRunsSection = ({
 				templateOverrideIdA={templateOverrideIdA}
 				templateOverrideIdB={templateOverrideIdB}
 				templateReferenceById={templateReferenceById}
+				useStoredResponseA={useStoredResponseA}
 			/>
 		))}
 	</div>
@@ -1716,6 +1840,86 @@ const ModelComparisonHeader = ({
 	</div>
 );
 
+const getGenerateAllError = ({
+	isLoadingReplayContext,
+	modelA,
+	modelB,
+	sampleCount,
+	samplesHaveStoredResponses,
+	useStoredResponseA,
+}: {
+	isLoadingReplayContext: boolean;
+	modelA: PlaygroundModel | null;
+	modelB: PlaygroundModel | null;
+	sampleCount: number;
+	samplesHaveStoredResponses: boolean;
+	useStoredResponseA: boolean;
+}): string | null => {
+	if (!modelB || (!useStoredResponseA && !modelA)) {
+		return useStoredResponseA ? "Bitte Modell B auswählen" : "Bitte zwei Modelle auswählen";
+	}
+	if (sampleCount === 0) {
+		return "Keine wiederverwendbaren Usage Events gefunden";
+	}
+	if (useStoredResponseA && !samplesHaveStoredResponses) {
+		return "Nicht alle Usage Events enthalten eine gespeicherte Antwort";
+	}
+	if (isLoadingReplayContext) {
+		return "Replay-Kontext wird noch geladen";
+	}
+	return null;
+};
+
+const getGenerateSideError = ({
+	isLoadingReplayContext,
+	model,
+	sampleCount,
+	samplesHaveStoredResponses,
+	side,
+	useStoredResponseA,
+}: {
+	isLoadingReplayContext: boolean;
+	model: PlaygroundModel | null;
+	sampleCount: number;
+	samplesHaveStoredResponses: boolean;
+	side: ComparisonSide;
+	useStoredResponseA: boolean;
+}): string | null => {
+	if (!(side === "a" && useStoredResponseA) && !model) {
+		return `Bitte Modell ${side === "a" ? "A" : "B"} auswählen`;
+	}
+	if (sampleCount === 0) {
+		return "Keine wiederverwendbaren Usage Events gefunden";
+	}
+	if (side === "a" && useStoredResponseA && !samplesHaveStoredResponses) {
+		return "Nicht alle Usage Events enthalten eine gespeicherte Antwort";
+	}
+	if (isLoadingReplayContext) {
+		return "Replay-Kontext wird noch geladen";
+	}
+	return null;
+};
+
+const canGenerateComparison = ({
+	modelA,
+	modelB,
+	sampleCount,
+	samplesHaveStoredResponses,
+	useStoredResponseA,
+}: {
+	modelA: PlaygroundModel | null;
+	modelB: PlaygroundModel | null;
+	sampleCount: number;
+	samplesHaveStoredResponses: boolean;
+	useStoredResponseA: boolean;
+}): boolean =>
+	Boolean(
+		modelB &&
+			(useStoredResponseA || modelA) &&
+			sampleCount > 0 &&
+			(!useStoredResponseA || samplesHaveStoredResponses),
+	);
+
 export const ModelComparisonPageClient = () => {
 	const queryClient = useQueryClient();
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
@@ -1727,6 +1931,7 @@ export const ModelComparisonPageClient = () => {
 	const [harnessFilter, setHarnessFilter] = useState<HarnessFilter>(ALL_HARNESSES);
 	const [templateOverrideIdA, setTemplateOverrideIdA] = useState<string | null>(null);
 	const [templateOverrideIdB, setTemplateOverrideIdB] = useState<string | null>(null);
+	const [useStoredResponseA, setUseStoredResponseA] = useState(true);
 	const [displayOrder, setDisplayOrder] = useState<Record<string, ComparisonSide[]>>({});
 	const [isAutoEvaluating, setIsAutoEvaluating] = useState(false);
 	const [generatingSide, setGeneratingSide] = useState<ComparisonSide | "all" | null>(null);
@@ -1831,6 +2036,9 @@ export const ModelComparisonPageClient = () => {
 	const modelA = modelAId ? (modelById.get(modelAId) ?? null) : null;
 	const modelB = modelBId ? (modelById.get(modelBId) ?? null) : null;
 	const isGenerating = generatingSide !== null;
+	const samplesHaveStoredResponses =
+		samples.length > 0 && samples.every((sample) => Boolean(sample.originalResponse));
+	const storedResponseModelLabel = getStoredResponseModelLabel(samples);
 
 	useEffect(() => {
 		if (models.length === 0) {
@@ -2011,17 +2219,28 @@ export const ModelComparisonPageClient = () => {
 		[clearSideComparisonState, templateOverrideIdA, templateOverrideIdB],
 	);
 
+	const handleUseStoredResponseAChange = useCallback(
+		(checked: boolean) => {
+			if (useStoredResponseA === checked) {
+				return;
+			}
+			setUseStoredResponseA(checked);
+			clearSideComparisonState("a");
+		},
+		[clearSideComparisonState, useStoredResponseA],
+	);
+
 	const handleGenerateAll = useCallback(async () => {
-		if (!modelA || !modelB) {
-			toast.error("Bitte zwei Modelle auswählen");
-			return;
-		}
-		if (samples.length === 0) {
-			toast.error("Keine wiederverwendbaren Usage Events gefunden");
-			return;
-		}
-		if (isLoadingReplayContext) {
-			toast.error("Replay-Kontext wird noch geladen");
+		const validationError = getGenerateAllError({
+			isLoadingReplayContext,
+			modelA,
+			modelB,
+			sampleCount: samples.length,
+			samplesHaveStoredResponses,
+			useStoredResponseA,
+		});
+		if (validationError) {
+			toast.error(validationError);
 			return;
 		}
 
@@ -2037,21 +2256,29 @@ export const ModelComparisonPageClient = () => {
 
 		await Promise.allSettled(triggers.map((trigger) => (trigger ? trigger() : Promise.resolve())));
 		setGeneratingSide(null);
-	}, [isLoadingReplayContext, modelA, modelB, reshuffleDisplayOrder, samples]);
+	}, [
+		isLoadingReplayContext,
+		modelA,
+		modelB,
+		reshuffleDisplayOrder,
+		samples,
+		samplesHaveStoredResponses,
+		useStoredResponseA,
+	]);
 
 	const handleGenerateSide = useCallback(
 		async (side: ComparisonSide) => {
 			const model = side === "a" ? modelA : modelB;
-			if (!model) {
-				toast.error(`Bitte Modell ${side === "a" ? "A" : "B"} auswählen`);
-				return;
-			}
-			if (samples.length === 0) {
-				toast.error("Keine wiederverwendbaren Usage Events gefunden");
-				return;
-			}
-			if (isLoadingReplayContext) {
-				toast.error("Replay-Kontext wird noch geladen");
+			const validationError = getGenerateSideError({
+				isLoadingReplayContext,
+				model,
+				sampleCount: samples.length,
+				samplesHaveStoredResponses,
+				side,
+				useStoredResponseA,
+			});
+			if (validationError) {
+				toast.error(validationError);
 				return;
 			}
 
@@ -2064,7 +2291,15 @@ export const ModelComparisonPageClient = () => {
 			);
 			setGeneratingSide(null);
 		},
-		[clearSideComparisonState, isLoadingReplayContext, modelA, modelB, samples],
+		[
+			clearSideComparisonState,
+			isLoadingReplayContext,
+			modelA,
+			modelB,
+			samples,
+			samplesHaveStoredResponses,
+			useStoredResponseA,
+		],
 	);
 
 	const handlePreferenceChange = useCallback((sampleId: string, side: ComparisonSide) => {
@@ -2191,13 +2426,20 @@ export const ModelComparisonPageClient = () => {
 				preferences,
 				results,
 				samples,
+				useStoredResponseA,
 			}),
 		);
-	}, [canCompare, modelA, modelB, preferences, results, samples]);
+	}, [canCompare, modelA, modelB, preferences, results, samples, useStoredResponseA]);
 
 	const isLoadingSamples =
 		usageListQuery.isLoading || usageDetailQueries.isLoading || usageDetailQueries.isFetching;
-	const canGenerateAll = Boolean(modelA && modelB && samples.length > 0);
+	const canGenerateAll = canGenerateComparison({
+		modelA,
+		modelB,
+		sampleCount: samples.length,
+		samplesHaveStoredResponses,
+		useStoredResponseA,
+	});
 
 	return (
 		<div className="p-4 sm:p-6">
@@ -2222,6 +2464,7 @@ export const ModelComparisonPageClient = () => {
 				<div className="grid gap-4 lg:grid-cols-2">
 					<ModelConfigCard
 						disabled={isGenerating}
+						hasStoredResponses={samplesHaveStoredResponses}
 						isGeneratingSide={generatingSide === "a"}
 						isLoading={modelsQuery.isLoading}
 						isLoadingTemplates={templatesQuery.isLoading}
@@ -2232,13 +2475,17 @@ export const ModelComparisonPageClient = () => {
 						onParametersChange={(parameters) => handleSideParametersChange("a", parameters)}
 						onRegenerateSide={() => handleGenerateSide("a")}
 						onTemplateOverrideChange={(value) => handleSideTemplateOverrideChange("a", value)}
+						onUseStoredResponseChange={handleUseStoredResponseAChange}
 						parameters={parametersA}
 						side="a"
+						storedResponseModelLabel={storedResponseModelLabel}
 						templateOptions={templateOptions}
 						templateOverrideId={templateOverrideIdA}
+						useStoredResponse={useStoredResponseA}
 					/>
 					<ModelConfigCard
 						disabled={isGenerating}
+						hasStoredResponses={false}
 						isGeneratingSide={generatingSide === "b"}
 						isLoading={modelsQuery.isLoading}
 						isLoadingTemplates={templatesQuery.isLoading}
@@ -2253,6 +2500,7 @@ export const ModelComparisonPageClient = () => {
 						side="b"
 						templateOptions={templateOptions}
 						templateOverrideId={templateOverrideIdB}
+						useStoredResponse={false}
 					/>
 				</div>
 
@@ -2275,6 +2523,7 @@ export const ModelComparisonPageClient = () => {
 					templateOverrideIdA={templateOverrideIdA}
 					templateOverrideIdB={templateOverrideIdB}
 					templateReferenceById={templateReferenceById}
+					useStoredResponseA={useStoredResponseA}
 				/>
 
 				<ComparisonFooter

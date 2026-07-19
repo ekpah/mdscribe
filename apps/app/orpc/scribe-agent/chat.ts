@@ -2,6 +2,8 @@ import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import type { ModelMessage } from "ai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 
+import { AI_SCRIBE_AGENT_EVENT_NAME } from "@/lib/usage-event-names";
+import { finishUsageTrace, startUsageTrace } from "@/lib/usage-tracing";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
@@ -13,6 +15,7 @@ import { prepareAgentMedia } from "./lib/prepare-media";
 import type { PreparedAgentMedia } from "./lib/prepare-media";
 import { buildAgentSystemPrompt } from "./prompt";
 import { createAgentTools } from "./tools";
+import type { AgentToolTraceEntry } from "./tools/shared";
 import type { ScribeAgentChatInput } from "./types";
 
 // Each editSection/generateSection call is one step; allow a few plus a summary.
@@ -22,6 +25,27 @@ const AGENT_PROMPT_LABEL = "Dokumentations-Agent";
 const AGENT_MAX_OUTPUT_TOKENS = 8000;
 // One step to (optionally) call editSection per section, plus a final summary.
 const AGENT_MAX_STEPS = 6;
+
+const buildAgentUsageInputData = ({
+	input,
+	media,
+}: {
+	input: ScribeAgentChatInput;
+	media: PreparedAgentMedia;
+}): Record<string, unknown> => {
+	const inputData: Record<string, unknown> = {
+		audioFiles: media.audioSummaries,
+		contextFiles: media.fileSummaries,
+		messageCount: input.messages.length,
+	};
+	if (media.audioMode) {
+		inputData.audioMode = media.audioMode;
+	}
+	if (media.fileMode) {
+		inputData.fileMode = media.fileMode;
+	}
+	return inputData;
+};
 
 /**
  * Appends the prepared media to the latest user turn so the standard model sees
@@ -117,20 +141,35 @@ export const scribeAgentChatHandler = authed
 			preparedMedia,
 		);
 
+		const agentRunId = crypto.randomUUID();
+		const { observationId: rootObservationId, traceId } = await startUsageTrace({
+			db: context.db,
+			metadata: { eventType: "chat" },
+			name: AGENT_ENDPOINT,
+			userId: context.session.user.id,
+		});
+		const toolTrace: AgentToolTraceEntry[] = [];
 		const tools = createAgentTools({
 			activeSubscription: entitlements.hasActiveSubscription,
+			agentRunId,
+			audioFiles: input.audioFiles ?? [],
+			contextFiles: input.contextFiles ?? [],
 			db: context.db,
 			generation,
 			preparedMedia,
 			providerOptions,
+			rootObservationId,
 			sections,
-			sessionUser: context.session.user,
+			session: context.session,
 			temperature: effectiveTemperature,
+			toolTrace,
+			traceId,
 			userId: context.session.user.id,
 		});
 
 		const requestStartedAt = Date.now();
 		let firstTokenAt: number | undefined;
+		const reasoningChunks: string[] = [];
 
 		const result = streamText({
 			maxOutputTokens: AGENT_MAX_OUTPUT_TOKENS,
@@ -144,35 +183,30 @@ export const scribeAgentChatHandler = authed
 				) {
 					firstTokenAt = Date.now();
 				}
+				if (chunk.type === "reasoning-delta" && chunk.text.length > 0) {
+					reasoningChunks.push(chunk.text);
+				}
 			},
 			onFinish: (event) => {
 				const completedAt = Date.now();
+				const streamedReasoning = reasoningChunks.join("");
 				scheduleScribeUsageLogging({
 					activeSubscription: entitlements.hasActiveSubscription,
 					db: context.db,
 					endpoint: AGENT_ENDPOINT,
-					event,
-					// Clinical text stays out of UsageEvent input; only metadata.
-					inputData: {
-						audioFiles: preparedMedia.audioSummaries,
-						contextFiles: preparedMedia.fileSummaries,
-						generationStrategy: {
-							audioMode: preparedMedia.audioMode,
-							fileMode: preparedMedia.fileMode,
-							usedFilePreprocessing: preparedMedia.usedFilePreprocessing,
-							usedNativeAudio: preparedMedia.usedNativeAudio,
-							usedTranscription: preparedMedia.usedTranscription,
-								usesStandardModel: agentStrategy.usesStandardModel,
-						},
-						messageCount: input.messages.length,
-						sectionIds: sections.map((section) => section.id),
+					event: {
+						...event,
+						reasoningText: event.reasoningText || streamedReasoning || undefined,
 					},
+					// Clinical text stays out of UsageEvent input; only metadata.
+					inputData: buildAgentUsageInputData({ input, media: preparedMedia }),
 					isOpenRouter: generation.model.isOpenRouter,
 					modelConfig: {
-						maxTokens: AGENT_MAX_OUTPUT_TOKENS,
 						temperature: effectiveTemperature,
 					},
 					modelName: generation.model.modelName,
+					name: AI_SCRIBE_AGENT_EVENT_NAME,
+					observationId: rootObservationId,
 					promptLabel: AGENT_PROMPT_LABEL,
 					promptName: AGENT_ENDPOINT,
 					reasoningEffort:
@@ -186,8 +220,16 @@ export const scribeAgentChatHandler = authed
 								? undefined
 								: firstTokenAt - requestStartedAt,
 					},
+					traceId,
+					usageMetadata: {
+						agentEventType: "chat",
+						agentModelSource: agentStrategy.usesStandardModel ? "standard" : "agent",
+						agentRunId,
+						...(toolTrace.length > 0 ? { agentToolTrace: toolTrace } : {}),
+					},
 					userId: context.session.user.id,
 				});
+				void finishUsageTrace({ db: context.db, status: "succeeded", traceId });
 			},
 			providerOptions,
 			stopWhen: stepCountIs(AGENT_MAX_STEPS),

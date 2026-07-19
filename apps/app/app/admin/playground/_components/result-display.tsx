@@ -11,14 +11,13 @@ import {
 	Coins,
 	Copy,
 	FileText,
+	GitCompareArrows,
 	Hash,
 	Loader2,
-	Medal,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import type { PlaygroundResult } from "@/app/admin/playground/_lib/types";
 
 const formatCost = (cost: number | undefined): string => {
@@ -69,21 +68,18 @@ const formatTokensPerSecond = (
 	})} Tok/s`;
 };
 
-const formatScore = (score: number | undefined): string => {
-	if (score === undefined || score === null) {
-		return "-";
-	}
-	return score.toFixed(1);
-};
-
 interface ResultDisplayProps {
 	result: PlaygroundResult | null;
 	compact?: boolean;
-	onEvaluate?: () => void;
+	onCompare?: () => void;
 }
 
-const renderEvaluationAction = (result: PlaygroundResult, onEvaluate: (() => void) | undefined) => {
-	if (result.evaluation?.isLoading) {
+const renderComparisonAction = (result: PlaygroundResult, onCompare: (() => void) | undefined) => {
+	if (!onCompare) {
+		return null;
+	}
+
+	if (result.comparison?.isLoading) {
 		return (
 			<Button
 				className="h-5 gap-1 px-1 text-solarized-base01 text-xs"
@@ -93,50 +89,55 @@ const renderEvaluationAction = (result: PlaygroundResult, onEvaluate: (() => voi
 				variant="ghost"
 			>
 				<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-				Eval
+				Vergleich
 			</Button>
-		);
-	}
-
-	if (result.evaluation?.totalScore !== undefined && result.evaluation.categories.length > 0) {
-		return (
-			<EvaluationDetailsDialog
-				canRegenerate={Boolean(onEvaluate && !result.isStreaming && result.text)}
-				evaluation={result.evaluation}
-				onRegenerate={onEvaluate}
-				trigger={
-					<Button
-						aria-label="Evaluationsdetails anzeigen"
-						className="h-5 gap-1 px-1 text-solarized-base01 text-xs hover:text-solarized-base00"
-						disabled={result.isStreaming || !result.text}
-						size="sm"
-						type="button"
-						variant="ghost"
-					>
-						<Medal className="h-3 w-3 text-solarized-yellow" />
-						{formatScore(result.evaluation.totalScore)}
-					</Button>
-				}
-			/>
 		);
 	}
 
 	return (
 		<Button
-			aria-label="Antwort bewerten"
+			aria-label="Antwort vergleichen"
 			className="h-5 gap-1 px-1 text-solarized-base01 text-xs hover:text-solarized-base00"
-			disabled={!onEvaluate || result.isStreaming || !result.text}
-			onClick={onEvaluate}
+			disabled={result.isStreaming || !result.text}
+			onClick={onCompare}
 			size="sm"
 			type="button"
 			variant="ghost"
 		>
-			<Medal className="h-3 w-3 text-solarized-yellow" />-
+			<GitCompareArrows className="h-3 w-3 text-solarized-cyan" />
+			{result.comparison?.preferredResponse ? "Erneut" : "Vergleichen"}
 		</Button>
 	);
 };
 
-export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultDisplayProps) => {
+const ComparisonResult = ({ comparison }: { comparison: NonNullable<PlaygroundResult["comparison"]> }) => {
+	if (comparison.isLoading || !comparison.preferredResponse || !comparison.note) {
+		return null;
+	}
+
+	const isResultPreferred = comparison.preferredResponse === "result";
+	const summary = isResultPreferred
+		? `Dieses Ergebnis wird gegenüber ${comparison.referenceLabel} bevorzugt.`
+		: `${comparison.referenceLabel} wird gegenüber diesem Ergebnis bevorzugt.`;
+
+	return (
+		<div
+			className={`flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs ${
+				isResultPreferred
+					? "border-solarized-green/30 bg-solarized-green/10 text-solarized-green"
+					: "border-solarized-orange/30 bg-solarized-orange/10 text-solarized-orange"
+			}`}
+		>
+			<GitCompareArrows className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+			<div>
+				<p className="font-medium">{summary}</p>
+				<p className="mt-0.5 opacity-90">{comparison.note}</p>
+			</div>
+		</div>
+	);
+};
+
+export const ResultDisplay = ({ result, compact: _compact, onCompare }: ResultDisplayProps) => {
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = useCallback(async () => {
@@ -202,7 +203,7 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 						<Hash className="h-3 w-3 text-solarized-cyan" />
 						{formatTokenBreakdown(result.metrics)}
 					</span>
-					{renderEvaluationAction(result, onEvaluate)}
+					{renderComparisonAction(result, onCompare)}
 				</div>
 				<Button
 					type="button"
@@ -229,6 +230,8 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 				</div>
 			)}
 
+			{result.comparison ? <ComparisonResult comparison={result.comparison} /> : null}
+
 			{/* Content - grows with the response instead of stretching to a fixed card height */}
 			{result.reasoning ? (
 				<Tabs defaultValue="output" className="flex flex-col">
@@ -242,7 +245,7 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 						</TabsTrigger>
 					</TabsList>
 
-					<TabsContent value="output" className="mt-1 data-[state=inactive]:hidden">
+					<TabsContent value="output" className="mt-1 data-hidden:hidden">
 						<div className="whitespace-pre-wrap rounded-md border border-solarized-base2 bg-solarized-base3 p-3 font-mono text-sm text-solarized-base00">
 							{result.text || (
 								<span className="text-solarized-base01 italic">Warte auf Antwort...</span>
@@ -250,7 +253,7 @@ export const ResultDisplay = ({ result, compact: _compact, onEvaluate }: ResultD
 						</div>
 					</TabsContent>
 
-					<TabsContent value="reasoning" className="mt-1 data-[state=inactive]:hidden">
+					<TabsContent value="reasoning" className="mt-1 data-hidden:hidden">
 						<div className="whitespace-pre-wrap rounded-md border border-solarized-violet/30 bg-solarized-violet/5 p-3 font-mono text-sm text-solarized-base01 italic">
 							{result.reasoning}
 						</div>

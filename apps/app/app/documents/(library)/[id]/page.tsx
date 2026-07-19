@@ -11,11 +11,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import type { DocumentFieldDefinition } from "@/app/documents/_lib";
-import { orpc } from "@/lib/orpc";
-import { getServerSession } from "@/lib/server-session";
 import ContentSection from "@/app/documents/(library)/[id]/_components/content-section";
 import { NavActions } from "@/app/documents/(library)/[id]/_components/nav-actions";
+import { documentDefinitionSchema, normalizeDocumentDefinition } from "@/app/documents/_lib";
+import { orpc } from "@/lib/orpc";
+import { getServerSession } from "@/lib/server-session";
 
 export const generateMetadata = async ({
 	params,
@@ -47,9 +47,11 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 	}
 
 	const isAuthor = document.authorId === session?.user?.id;
-	const fieldDefinitions = Array.isArray(document.fieldDefinitions)
-		? (document.fieldDefinitions as DocumentFieldDefinition[])
-		: [];
+	const parsedDefinition = documentDefinitionSchema.safeParse(document.fieldDefinitions);
+	if (!parsedDefinition.success) {
+		notFound();
+	}
+	const definition = normalizeDocumentDefinition(parsedDefinition.data);
 
 	return (
 		<div className="flex h-full w-full flex-col">
@@ -78,7 +80,7 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 			<ContentSection
 				downloadFileName={`${document.title}.pdf`}
 				documentId={document.id}
-				fieldDefinitions={fieldDefinitions}
+				definition={definition}
 			/>
 		</div>
 	);

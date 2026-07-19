@@ -62,15 +62,11 @@ export interface PlaygroundParameters {
 export interface PlaygroundResult {
 	text: string;
 	reasoning?: string;
-	evaluation?: {
-		totalScore?: number;
-		categories: {
-			comment?: string;
-			name: string;
-			score: number;
-		}[];
+	comparison?: {
 		isLoading: boolean;
-		summary?: string;
+		note?: string;
+		preferredResponse?: "reference" | "result";
+		referenceLabel: string;
 	};
 	metrics: {
 		latencyMs: number;

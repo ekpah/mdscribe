@@ -22,8 +22,8 @@ export default function PlainEditor({
 		<div className="flex h-full w-full flex-col overflow-hidden">
 			<div className="flex items-center gap-2 overflow-x-auto border-b border-b-solarized-blue/30 bg-solarized-blue/5 px-2 py-1.5">
 				<div className="flex flex-wrap items-center gap-0.5">
-					<TooltipProvider>
-						<Tooltip delayDuration={200}>
+					<TooltipProvider delay={200}>
+						<Tooltip>
 							<TooltipTrigger
 								className="inline-flex h-7 items-center rounded-xs px-2 text-muted-foreground text-xs hover:bg-solarized-blue/10 hover:text-foreground"
 							>

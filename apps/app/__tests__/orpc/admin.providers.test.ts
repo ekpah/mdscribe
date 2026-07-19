@@ -149,6 +149,51 @@ describe("Admin Providers Handler", () => {
 		expect(listedModel?.modelId).toBe("gemma-3n-e4b-it-q8_0");
 	});
 
+	test("connections.create syncs tinfoil chat and audio models only", async () => {
+		globalThis.fetch = (() =>
+			Response.json(
+				{
+					data: [
+						{ id: "deepseek-v4-pro", reasoning: true, type: "chat" },
+						{ id: "llama3-3-70b", reasoning: false, type: "chat" },
+						{ id: "whisper-large-v3-turbo", reasoning: false, type: "audio" },
+						{ id: "nomic-embed-text", reasoning: false, type: "embedding" },
+						{ id: "qwen3-tts", reasoning: false, type: "tts" },
+						{ id: "websearch", reasoning: false, type: "tool" },
+					],
+				},
+				{ status: 200 },
+			)) as unknown as typeof fetch;
+
+		const created = await call(
+			providersHandler.connections.create,
+			{
+				apiKey: "tinfoil-key",
+				name: "Tinfoil",
+				protocol: "tinfoil",
+			},
+			{ context },
+		);
+
+		expect(created.modelCount).toBe(3);
+		expect(created.syncResult).toEqual({ inserted: 3, removed: 0, updated: 0 });
+
+		const models = await server.db.query.aiModel.findMany({
+			where: eq(aiModel.providerId, created.id),
+		});
+		expect(models.map((model) => model.modelId).toSorted()).toEqual([
+			"deepseek-v4-pro",
+			"llama3-3-70b",
+			"whisper-large-v3-turbo",
+		]);
+
+		const reasoningModel = models.find((model) => model.modelId === "deepseek-v4-pro");
+		expect(reasoningModel?.supportsReasoning).toBe(true);
+
+		const whisper = models.find((model) => model.modelId === "whisper-large-v3-turbo");
+		expect(whisper?.supportsReasoning).toBe(false);
+	});
+
 	test("connections.refreshModels upserts and removes stale models", async () => {
 		let callCount = 0;
 		globalThis.fetch = (() => {

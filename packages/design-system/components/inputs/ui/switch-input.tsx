@@ -117,15 +117,15 @@ export const SwitchInput = ({
 	const currentStringValue = toCurrentStringValue(value, currentBooleanValue);
 
 	const handleBooleanChange = useCallback(
-		(checked: boolean | "indeterminate") => {
+		(checked: boolean) => {
 			onChange(checked === true);
 		},
 		[onChange],
 	);
 
 	const handleStringChange = useCallback(
-		(newValue: string) => {
-			onChange(newValue);
+		(newValue: string | null) => {
+			onChange(newValue ?? "");
 		},
 		[onChange],
 	);
@@ -144,7 +144,7 @@ export const SwitchInput = ({
 	if (isBooleanSwitch) {
 		const checked = currentBooleanValue ?? false;
 		return (
-			<div className="w-full max-w-full space-y-2" key={`switch-${input.attributes.primary}`}>
+			<div className="w-full max-w-full space-y-1" key={`switch-${input.attributes.primary}`}>
 				<Label
 					htmlFor={input.attributes.primary}
 					className={cn(
@@ -175,7 +175,7 @@ export const SwitchInput = ({
 	}
 
 	return (
-		<div className="w-full max-w-full space-y-2" key={`switch-${input.attributes.primary}`}>
+		<div className="w-full max-w-full space-y-1" key={`switch-${input.attributes.primary}`}>
 			<Label className="font-medium text-foreground" htmlFor={input.attributes.primary}>
 				{input.attributes.primary}
 			</Label>
@@ -187,13 +187,13 @@ export const SwitchInput = ({
 				>
 					<SelectTrigger
 						className={cn(
-							"h-9 w-full max-w-full border-input bg-background text-foreground transition-all focus:border-solarized-blue focus:ring-solarized-blue/20",
+							"h-9 w-full max-w-full border-input bg-background text-foreground opacity-100 transition-colors focus:border-solarized-blue focus:ring-solarized-blue/20",
 							inputClassName,
 						)}
 					>
 						<SelectValue placeholder={`Select ${input.attributes.primary}`} />
 					</SelectTrigger>
-					<SelectContent className="border-input bg-background">
+					<SelectContent className="border-input bg-popover text-popover-foreground opacity-100 data-closed:animate-none data-open:animate-none">
 						{options?.map((caseTag) => (
 							<SelectItem
 								className="text-foreground hover:bg-solarized-blue/10 focus:bg-solarized-blue/10"
@@ -211,13 +211,12 @@ export const SwitchInput = ({
 						"flex w-full max-w-full flex-row overflow-hidden rounded-md border border-input bg-background",
 						inputClassName,
 					)}
-					onValueChange={handleStringChange}
-					type="single"
-					value={currentStringValue}
+					onValueChange={(values) => handleStringChange(values[0] ?? "")}
+					value={currentStringValue ? [currentStringValue] : []}
 				>
 					{options?.map((caseTag) => (
 						<ToggleGroupItem
-							className="h-9 min-w-0 flex-1 rounded-none bg-transparent text-foreground transition-colors hover:bg-muted hover:text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+							className="h-9 min-w-0 flex-1 rounded-none bg-transparent text-foreground transition-colors hover:bg-muted hover:text-muted-foreground data-pressed:bg-accent data-pressed:text-accent-foreground"
 							key={caseTag.attributes.primary}
 							value={caseTag.attributes.primary}
 						>

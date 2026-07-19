@@ -30,11 +30,17 @@ import { toast } from "sonner";
 import PDFDebugPanel from "@/app/admin/documents-playground/_components/pdf-debug-panel";
 import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
-import { encodeUint8ArrayToBase64, fillPDFForm, parsePDFFormFields } from "@/app/documents/_lib";
+import {
+	encodeUint8ArrayToBase64,
+	fillPDFForm,
+	normalizeDocumentDefinition,
+	parsePDFFormFields,
+} from "@/app/documents/_lib";
 import type {
-	DocumentFieldDefinition,
+	DocumentDefinition,
 	DocumentInputKind,
 	DocumentPdfType,
+	PdfFormFieldOptionMapping,
 } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 
@@ -47,6 +53,7 @@ export interface EnhancedFieldMapping {
 	label: string;
 	markdocType: "Info" | "Switch";
 	options: string[];
+	optionMappings?: PdfFormFieldOptionMapping[];
 	pdfType: DocumentPdfType;
 }
 
@@ -71,25 +78,67 @@ const buildEnhancedMapping = (
 		...aiMapping,
 		inputKind: existing?.inputKind || "text",
 		markdocType: existing?.markdocType || "Info",
+		optionMappings: existing?.optionMappings,
 		options: existing?.options || [],
 		pdfType: existing?.pdfType || "text",
 	};
 };
 
-const toDocumentFieldDefinitions = (
-	fieldMappings: EnhancedFieldMapping[],
-): DocumentFieldDefinition[] =>
-	fieldMappings.map((fieldMapping) => ({
-		description: fieldMapping.description,
-		fieldName: fieldMapping.fieldName,
-		inputKind: fieldMapping.inputKind,
-		isEnabled: true,
-		label: fieldMapping.label,
-		markdocType: fieldMapping.markdocType,
-		options: fieldMapping.options,
-		pdfType: fieldMapping.pdfType,
-		valueType: "string",
-	}));
+const toDocumentDefinition = (fieldMappings: EnhancedFieldMapping[]): DocumentDefinition =>
+	normalizeDocumentDefinition({
+		bindings: fieldMappings.map((fieldMapping) => ({
+			fieldName: fieldMapping.fieldName,
+			inputId: fieldMapping.label,
+			isEnabled: fieldMapping.pdfType !== "unsupported",
+			...(fieldMapping.inputKind === "choice"
+				? {
+						valueMap: Object.fromEntries(
+							fieldMapping.options.map((inputValue, index) => [
+								inputValue,
+								fieldMapping.optionMappings?.[index]?.pdfValue ?? inputValue,
+							]),
+						),
+					}
+				: {}),
+			...(fieldMapping.inputKind === "boolean" && fieldMapping.pdfType === "checkbox"
+				? {
+						valueMap: {
+							false: "",
+							true: fieldMapping.optionMappings?.[0]?.pdfValue ?? "true",
+						},
+					}
+				: {}),
+			...(fieldMapping.inputKind === "boolean" && fieldMapping.pdfType === "text"
+				? { valueMap: { false: "", true: "x" } }
+				: {}),
+		})),
+		inputs: fieldMappings.map((fieldMapping) => {
+			if (fieldMapping.inputKind === "text") {
+				return {
+					attributes: {
+						description: fieldMapping.description || undefined,
+						primary: fieldMapping.label,
+						type: "string",
+					},
+					children: [],
+					name: "Info" as const,
+				};
+			}
+
+			return {
+				attributes: {
+					primary: fieldMapping.label,
+					...(fieldMapping.inputKind === "boolean" ? { type: "boolean" as const } : {}),
+				},
+				children: fieldMapping.options.map((option) => ({
+					attributes: { primary: option },
+					children: [],
+					name: "Case" as const,
+				})),
+				name: "Switch" as const,
+			};
+		}),
+	});
 
 export default function CreateDocumentSection() {
 	const [pdfFile, setPdfFile] = useState<Uint8Array | null>(null);
@@ -143,6 +192,7 @@ export default function CreateDocumentSection() {
 					inputKind: field.inputKind,
 					label: field.name,
 					markdocType: field.inputKind === "text" ? "Info" : "Switch",
+					optionMappings: field.optionMappings,
 					options: field.options ?? [],
 					pdfType: field.type,
 				})),
@@ -159,7 +209,7 @@ export default function CreateDocumentSection() {
 		const filledPdfResult = await fillPDFForm(
 			pdfFile,
 			fieldValues,
-			toDocumentFieldDefinitions(fieldMappings),
+			toDocumentDefinition(fieldMappings),
 		);
 		setFilledPdf(filledPdfResult);
 		toast.success("PDF-Formular ausgefüllt");
@@ -180,7 +230,7 @@ export default function CreateDocumentSection() {
 		});
 
 		enhanceMutation.mutate({
-			fieldMapping: fieldMappings.map((fieldMapping) => ({
+			fieldMappings: fieldMappings.map((fieldMapping) => ({
 				description: fieldMapping.description,
 				fieldName: fieldMapping.fieldName,
 				inputKind: fieldMapping.inputKind,

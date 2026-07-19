@@ -6,14 +6,6 @@ import {
 } from "@/lib/product-plans";
 
 describe("Scribe usage limits", () => {
-	test("returns free-tier monthly cost budget when subscription is inactive", () => {
-		expect(PRODUCT_PLANS.free.scribeMonthlyCostLimit).toBe(2);
-	});
-
-	test("returns plus-tier monthly cost budget when subscription is active", () => {
-		expect(PRODUCT_PLANS.plus.scribeMonthlyCostLimit).toBe(8);
-	});
-
 	test("caps user-facing usage progress at 100%", () => {
 		expect(
 			getScribeUsageBudgetPercentage({

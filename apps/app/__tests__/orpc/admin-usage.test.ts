@@ -190,6 +190,30 @@ describe("Admin usage stats", () => {
 		expect(currentBucket?.cost).toBeCloseTo(0.3);
 	});
 
+	test("counts an agent trace as a single event", async () => {
+		const timestamp = new Date();
+		timestamp.setHours(11, 30, 0, 0);
+		const currentBucketKey = formatBucket(timestamp, "UTC", "day");
+		const traceId = crypto.randomUUID();
+
+		// Agent chat event plus two generateSection events share one trace.
+		await createTestUsageEvent(server.db, userId, {
+			name: "ai_scribe_agent",
+			timestamp,
+			traceId,
+		});
+		await createTestUsageEvent(server.db, userId, { timestamp, traceId });
+		await createTestUsageEvent(server.db, userId, { timestamp, traceId });
+		// A standalone generation without a trace still counts on its own.
+		await createTestUsageEvent(server.db, userId, { timestamp });
+
+		const stats = await call(usageHandler.stats, { filter: "week", timeZone: "UTC" }, { context });
+		const currentBucket = stats.trend.find((bucket) => bucket.bucket === currentBucketKey);
+
+		expect(stats.totalEvents).toBe(2);
+		expect(currentBucket?.events).toBe(2);
+	});
+
 	test("returns all-time monthly active user buckets", async () => {
 		const { user: secondUser } = await createTestUser(server.db, {
 			email: "monthly-active-user@test.com",

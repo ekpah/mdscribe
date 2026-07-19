@@ -287,12 +287,10 @@ export default async function AIScribeLandingPage() {
 										Meine Vorlagen
 									</h2>
 								</div>
-								<Button asChild size="sm" variant="outline">
-									<Link href="/profile/ai-scribe">
+								<Button size="sm" variant="outline" render={<Link href="/profile/ai-scribe">
 										<Settings className="h-4 w-4" />
 										Verwalten
-									</Link>
-								</Button>
+									</Link>} />
 							</div>
 							<p className="text-xs text-solarized-base01 sm:text-sm">
 								Ihre selbst angelegten AI Vorlagen für persönliche wiederkehrende
@@ -394,12 +392,10 @@ export default async function AIScribeLandingPage() {
 										Beta
 									</Badge>
 								</div>
-								<Button asChild size="sm" variant="outline">
-									<Link href="/profile/ai-scribe">
+								<Button size="sm" variant="outline" render={<Link href="/profile/ai-scribe">
 										<Settings className="h-4 w-4" />
 										Verwalten
-									</Link>
-								</Button>
+									</Link>} />
 							</div>
 							<p className="text-xs text-solarized-base01 sm:text-sm">
 								Aus AI Vorlagen zusammengestellte Arztbrief-Editoren – mit

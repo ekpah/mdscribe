@@ -212,12 +212,10 @@ export const SnippetsCard = () => {
 						</CardDescription>
 					</div>
 					<Dialog onOpenChange={setIsDialogOpen} open={isDialogOpen}>
-						<DialogTrigger asChild>
-							<Button onClick={handleCreateSnippetClick} size="sm" type="button">
+						<DialogTrigger render={<Button onClick={handleCreateSnippetClick} size="sm" type="button">
 								<Plus className="mr-2 h-4 w-4" />
 								Hinzufügen
-							</Button>
-						</DialogTrigger>
+							</Button>} />
 						<DialogContent>
 							<DialogHeader>
 								<DialogTitle>

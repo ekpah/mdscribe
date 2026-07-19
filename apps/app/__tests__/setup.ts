@@ -1,6 +1,14 @@
 import { createDatabaseClient, createSqlClient, migrateDatabase } from "@repo/database/connect";
 import type { DatabaseWithSchema, SqlClient } from "@repo/database/connect";
-import { user } from "@repo/database/schema";
+import {
+	aiDefaults,
+	aiModel,
+	aiProvider,
+	subscription,
+	template,
+	usageEvent,
+	user,
+} from "@repo/database";
 
 import type { Session } from "@/lib/auth-types";
 
@@ -38,22 +46,10 @@ const parseConnectionString = (connectionString: string): URL => {
 
 const getDatabaseName = (url: URL): string => url.pathname.replace(/^\//, "");
 
-const normalizeConnectionUrl = (url: URL): string => {
-	const databaseName = getDatabaseName(url);
-	return [
-		url.protocol.replace("postgresql:", "postgres:"),
-		"//",
-		url.username,
-		":",
-		url.password,
-		"@",
-		url.hostname,
-		":",
-		url.port || "5432",
-		"/",
-		databaseName,
-	].join("");
-};
+const isSameDatabase = (a: URL, b: URL): boolean =>
+	a.hostname === b.hostname &&
+	(a.port || "5432") === (b.port || "5432") &&
+	getDatabaseName(a) === getDatabaseName(b);
 
 const assertSafeTestConnectionString = (connectionString: string): void => {
 	const testUrl = parseConnectionString(connectionString);
@@ -85,7 +81,7 @@ const assertSafeTestConnectionString = (connectionString: string): void => {
 	}
 
 	const appUrl = parseConnectionString(appConnection);
-	if (normalizeConnectionUrl(appUrl) === normalizeConnectionUrl(testUrl)) {
+	if (isSameDatabase(appUrl, testUrl)) {
 		throw new Error(
 			"Refusing to run tests because POSTGRES_DATABASE_URL_TEST matches POSTGRES_DATABASE_URL.",
 		);
@@ -170,29 +166,50 @@ const resetTestDatabase = async (client: SqlClient): Promise<void> => {
 	await client.unsafe(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
 };
 
+// The suite runs serially (--max-concurrency=1), so a single postgres client is
+// reused across every startTestServer call; per-test isolation comes from the
+// TRUNCATE in resetTestDatabase, not from reconnecting each time.
+let cachedConnection: { connectionString: string; client: SqlClient; db: TestDatabase } | null =
+	null;
+let isClosingConnection = false;
+
+const getReusableConnection = (connectionString: string) => {
+	if (cachedConnection?.connectionString === connectionString) {
+		return cachedConnection;
+	}
+	const { client, db } = createDatabaseClient(connectionString);
+	cachedConnection = { client, connectionString, db };
+	return cachedConnection;
+};
+
+// Release the shared connection once the test process drains so Bun exits cleanly.
+process.on("beforeExit", () => {
+	if (isClosingConnection || !cachedConnection) {
+		return;
+	}
+	isClosingConnection = true;
+	const { client } = cachedConnection;
+	cachedConnection = null;
+	void client.end({ timeout: 5 });
+});
+
 /**
- * Starts a test server backed by a dedicated local test database.
+ * Starts a test server backed by the shared local test database.
  */
 export const startTestServer = async (_testName: string): Promise<TestServer> => {
 	const connectionString = getTestConnectionString();
 	assertSafeTestConnectionString(connectionString);
 	await ensureTestDatabaseReady(connectionString);
 
-	const { client, db } = createDatabaseClient(connectionString);
+	const { client, db } = getReusableConnection(connectionString);
+	await resetTestDatabase(client);
 
-	try {
-		await resetTestDatabase(client);
-
-		return {
-			close: async () => {
-				await client.end({ timeout: 5 });
-			},
-			db,
-		};
-	} catch (error) {
-		await client.end({ timeout: 5 });
-		throw error;
-	}
+	return {
+		// The client is shared across the serial suite; the next startTestServer
+		// truncates, so per-test close has nothing to tear down.
+		close: () => Promise.resolve(),
+		db,
+	};
 };
 
 /**
@@ -210,10 +227,12 @@ export const createTestUser = async (
 	user: typeof user.$inferSelect;
 	session: Session;
 }> => {
-	const email = options?.email ?? `test-${Date.now()}@example.com`;
+	const email = options?.email ?? `test-${crypto.randomUUID()}@example.com`;
 	const name = options?.name ?? "Test User";
 	const stripeCustomerId =
-		options && "stripeCustomerId" in options ? options.stripeCustomerId : `cus_test_${Date.now()}`;
+		options && "stripeCustomerId" in options
+			? options.stripeCustomerId
+			: `cus_test_${crypto.randomUUID()}`;
 	const userId = crypto.randomUUID();
 	const username =
 		options?.username ?? `user_${userId.replaceAll("-", "").slice(0, 12)}`;
@@ -300,7 +319,7 @@ export const createMockSession = (mockUser: {
 			id: mockUser.id,
 			image: mockUser.image ?? null,
 			name: mockUser.name ?? "Test User",
-			stripeCustomerId: mockUser.stripeCustomerId ?? `cus_test_${Date.now()}`,
+			stripeCustomerId: mockUser.stripeCustomerId ?? `cus_test_${crypto.randomUUID()}`,
 			updatedAt: new Date(),
 		} as Session["user"] & { stripeCustomerId: string | null },
 	});
@@ -328,8 +347,6 @@ export const createTestTemplate = async (
 		visibility?: "public" | "private";
 	},
 ) => {
-	const { template } = await import("@repo/database");
-
 	const result = await db
 		.insert(template)
 		.values({
@@ -349,32 +366,6 @@ export const createTestTemplate = async (
 };
 
 /**
- * Helper to create a text snippet in the test database
- */
-export const createTestSnippet = async (
-	db: TestDatabase,
-	userId: string,
-	options?: {
-		key?: string;
-		snippet?: string;
-	},
-) => {
-	const { textSnippet } = await import("@repo/database");
-
-	const result = await db
-		.insert(textSnippet)
-		.values({
-			id: crypto.randomUUID(),
-			key: options?.key ?? `test-key-${Date.now()}`,
-			snippet: options?.snippet ?? "Test snippet content",
-			userId,
-		})
-		.returning();
-
-	return getRequiredRow(result, "Failed to create test snippet");
-};
-
-/**
  * Helper to create a subscription in the test database
  */
 export const createTestSubscription = async (
@@ -385,8 +376,6 @@ export const createTestSubscription = async (
 		status?: string;
 	},
 ) => {
-	const { subscription } = await import("@repo/database");
-
 	const result = await db
 		.insert(subscription)
 		.values({
@@ -396,8 +385,8 @@ export const createTestSubscription = async (
 			plan: options?.plan ?? "plus",
 			referenceId: userId,
 			status: options?.status ?? "active",
-			stripeCustomerId: `cus_test_${Date.now()}`,
-			stripeSubscriptionId: `sub_test_${Date.now()}`,
+			stripeCustomerId: `cus_test_${crypto.randomUUID()}`,
+			stripeSubscriptionId: `sub_test_${crypto.randomUUID()}`,
 		})
 		.returning();
 
@@ -420,10 +409,9 @@ export const createTestUsageEvent = async (
 		timestamp?: Date;
 		timeToCompletionMs?: number;
 		timeToFirstTokenMs?: number;
+		traceId?: string;
 	},
 ) => {
-	const { usageEvent } = await import("@repo/database");
-
 	const inputTokens = options?.inputTokens ?? 100;
 	const outputTokens = options?.outputTokens ?? 200;
 
@@ -441,6 +429,7 @@ export const createTestUsageEvent = async (
 			timeToFirstTokenMs: options?.timeToFirstTokenMs,
 			timestamp: options?.timestamp ?? new Date(),
 			totalTokens: options?.totalTokens ?? inputTokens + outputTokens,
+			traceId: options?.traceId,
 			userId,
 		})
 		.returning();
@@ -458,8 +447,6 @@ export const createTestAiDefaults = async (
 	modelRecordId: string;
 	modelId: string;
 }> => {
-	const { aiDefaults, aiModel, aiProvider } = await import("@repo/database");
-
 	const providerId = crypto.randomUUID();
 	const modelRecordId = crypto.randomUUID();
 	const modelId = "openrouter/test-model";
@@ -481,40 +468,25 @@ export const createTestAiDefaults = async (
 		supportsReasoning: true,
 	});
 
+	const defaults: Omit<typeof aiDefaults.$inferInsert, "id"> = {
+		defaultAgentModelId: modelRecordId,
+		defaultAgentReasoningEffort: "medium",
+		defaultEvaluationModel: modelRecordId,
+		defaultEvaluationReasoningEffort: "medium",
+		defaultFileImageModelId: modelRecordId,
+		defaultFileImageReasoningEffort: "none",
+		defaultSpeechToTextModelId: modelRecordId,
+		defaultSpeechToTextReasoningEffort: "none",
+		defaultStandardSupportsAgent: true,
+		defaultTextModelId: modelRecordId,
+		defaultTextReasoningEffort: "medium",
+		updatedAt: new Date(),
+	};
+
 	await db
 		.insert(aiDefaults)
-		.values({
-			defaultAgentModelId: modelRecordId,
-			defaultAgentReasoningEffort: "medium",
-			defaultEvaluationModel: modelRecordId,
-			defaultEvaluationReasoningEffort: "medium",
-			defaultFileImageModelId: modelRecordId,
-			defaultFileImageReasoningEffort: "none",
-			defaultSpeechToTextModelId: modelRecordId,
-			defaultSpeechToTextReasoningEffort: "none",
-			defaultStandardSupportsAgent: true,
-			defaultTextModelId: modelRecordId,
-			defaultTextReasoningEffort: "medium",
-			id: "global",
-			updatedAt: new Date(),
-		})
-		.onConflictDoUpdate({
-			set: {
-				defaultAgentModelId: modelRecordId,
-				defaultAgentReasoningEffort: "medium",
-				defaultEvaluationModel: modelRecordId,
-				defaultEvaluationReasoningEffort: "medium",
-				defaultFileImageModelId: modelRecordId,
-				defaultFileImageReasoningEffort: "none",
-				defaultSpeechToTextModelId: modelRecordId,
-				defaultSpeechToTextReasoningEffort: "none",
-				defaultStandardSupportsAgent: true,
-				defaultTextModelId: modelRecordId,
-				defaultTextReasoningEffort: "medium",
-				updatedAt: new Date(),
-			},
-			target: aiDefaults.id,
-		});
+		.values({ id: "global", ...defaults })
+		.onConflictDoUpdate({ set: defaults, target: aiDefaults.id });
 
 	return { modelId, modelRecordId, providerId };
 };

@@ -6,15 +6,13 @@ import { Info } from "lucide-react";
 
 const InfoHint = ({ text }: { text: string }) => (
 	<Tooltip>
-		<TooltipTrigger asChild>
-			<button
+		<TooltipTrigger render={<button
 				aria-label={text}
 				className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
 				type="button"
 			>
 				<Info className="h-3.5 w-3.5" />
-			</button>
-		</TooltipTrigger>
+			</button>} />
 		<TooltipContent className="max-w-64 text-xs leading-relaxed">{text}</TooltipContent>
 	</Tooltip>
 );

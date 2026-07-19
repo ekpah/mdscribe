@@ -12,9 +12,13 @@ MDScribe spricht nicht mit einem fest verdrahteten KI-Dienst, sondern mit **Prov
 | Provider | Typ | Besonderheit |
 |----------|-----|--------------|
 | [OpenRouter](/providers/openrouter) | Cloud (Aggregator) | Ein API-Key für viele Modelle, ZDR-Routing, Reasoning-Steuerung |
+| [OpenAI-kompatibel](/providers/openai-compatible) | Beliebig | Generisches Protokoll für jeden Server mit OpenAI-Chat-Completions-API |
+| [Private Provider](/providers/private) | Cloud (vertraulich) | Tinfoil und Privatemode: Ende-zu-Ende-Verschlüsselung in attestierte Secure Enclaves |
+| [Lokale Modelle](/providers/local) | Self-Hosted | Ollama, vLLM und llama.cpp in eigener Infrastruktur |
 | [OpenAI](/providers/openai) | Cloud | GPT-Modelle und Whisper-Transkription |
 | [Anthropic](/providers/anthropic) | Cloud | Claude-Modelle |
-| [OpenAI-kompatibel](/providers/openai-compatible) | Self-Hosted / beliebig | llama.cpp, vLLM, Ollama, LM Studio und andere lokale Server |
+
+Welcher Provider passt, ist vor allem eine Datenschutz-Abwägung: maximale Modellauswahl über [OpenRouter](/providers/openrouter), technisch erzwungene Vertraulichkeit über [private Provider](/providers/private), volle Eigenkontrolle über [lokale Modelle](/providers/local).
 
 ## So funktioniert die Konfiguration
 

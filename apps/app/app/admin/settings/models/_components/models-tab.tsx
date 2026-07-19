@@ -31,6 +31,7 @@ interface AiModelData {
 	providerId: string;
 	modelId: string;
 	displayName: string;
+	openRouterRoutingMode: string;
 	supportedParameters?: string[];
 	supportsReasoning: boolean;
 }
@@ -38,6 +39,7 @@ interface AiModelData {
 interface ProviderData {
 	id: string;
 	name: string;
+	protocol: string;
 	models: AiModelData[];
 }
 
@@ -56,6 +58,7 @@ type DefaultType = "agent" | "text" | "file-image" | "speech-to-text" | "evaluat
 type MediaMode = "direct" | "multimodal";
 type ModelMediaCapability = "audio" | "documents";
 type StandardCapability = "agent" | ModelMediaCapability;
+type OpenRouterRoutingMode = "default" | "nitro" | "floor" | "exacto";
 
 const NONE_VALUE = "__none__";
 
@@ -378,15 +381,56 @@ const MediaModeToggle = ({
 	</div>
 );
 
+const OPENROUTER_ROUTING_OPTIONS: { label: string; value: OpenRouterRoutingMode }[] = [
+	{ label: "Standard", value: "default" },
+	{ label: "Nitro (schnell)", value: "nitro" },
+	{ label: "Floor (günstig)", value: "floor" },
+	{ label: "Exacto (Qualität)", value: "exacto" },
+];
+
+const normalizeOpenRouterRoutingMode = (value: string | undefined): OpenRouterRoutingMode =>
+	OPENROUTER_ROUTING_OPTIONS.some((option) => option.value === value)
+		? (value as OpenRouterRoutingMode)
+		: "default";
+
+const OpenRouterRoutingControl = ({
+	disabled,
+	onValueChange,
+	value,
+}: {
+	disabled: boolean;
+	onValueChange: (value: OpenRouterRoutingMode) => void;
+	value: OpenRouterRoutingMode;
+}) => (
+	<div className="space-y-2">
+		<Label>OpenRouter-Routing</Label>
+		<Tabs onValueChange={(nextValue) => onValueChange(nextValue as OpenRouterRoutingMode)} value={value}>
+			<TabsList className="h-auto max-w-full flex-wrap">
+				{OPENROUTER_ROUTING_OPTIONS.map((option) => (
+					<TabsTrigger disabled={disabled} key={option.value} value={option.value}>
+						{option.label}
+					</TabsTrigger>
+				))}
+			</TabsList>
+		</Tabs>
+		<p className="text-solarized-base01 text-xs">
+			Standard nutzt das OpenRouter-Routing. Nitro priorisiert Durchsatz, Floor den Preis und
+			Exacto die Anbieterqualität für Tool-Aufrufe.
+		</p>
+	</div>
+);
+
 const DefaultModelRow = ({
 	coveredByStandard,
 	isUpdating,
 	mediaMode,
 	modelId,
+	isOpenRouter,
 	onClear,
 	onMediaModeChange,
 	onModelChange,
 	onReasoningChange,
+	onRoutingModeChange,
 	onTemperatureChange,
 	renderCapabilities,
 	row,
@@ -394,6 +438,7 @@ const DefaultModelRow = ({
 	selectorOptions,
 	enabledModelOptions,
 	reasoningEffort,
+	routingMode,
 	temperature,
 }: {
 	coveredByStandard: boolean;
@@ -401,12 +446,15 @@ const DefaultModelRow = ({
 	isUpdating: boolean;
 	mediaMode: MediaMode | null;
 	modelId: string | null;
+	isOpenRouter: boolean;
 	onClear: () => void;
 	onMediaModeChange: (value: MediaMode) => void;
 	onModelChange: (value: string) => void;
 	onReasoningChange: (value: ReasoningEffort) => void;
+	onRoutingModeChange: (value: OpenRouterRoutingMode) => void;
 	onTemperatureChange: (value: number | null) => void;
 	reasoningEffort: ReasoningEffort;
+	routingMode: OpenRouterRoutingMode;
 	renderCapabilities?: () => React.ReactNode;
 	row: DefaultModelRowConfig;
 	selectedModel: AiModelData | null;
@@ -488,6 +536,13 @@ const DefaultModelRow = ({
 					onCommit={onTemperatureChange}
 					value={temperature}
 				/>
+				{selectedModel && isOpenRouter ? (
+					<OpenRouterRoutingControl
+						disabled={rowDisabled}
+						onValueChange={onRoutingModeChange}
+						value={routingMode}
+					/>
+				) : null}
 				{renderCapabilities ? renderCapabilities() : null}
 			</div>
 		</div>
@@ -539,6 +594,16 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 		},
 	});
 
+	const setRoutingModeMutation = useMutation({
+		mutationFn: (data: { id: string; openRouterRoutingMode: OpenRouterRoutingMode }) =>
+			orpc.admin.providers.models.update.call(data),
+		onError: (error) => toast.error(error instanceof Error ? error.message : "Fehler"),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: listKey });
+			toast.success("OpenRouter-Routing aktualisiert");
+		},
+	});
+
 	const enabledModelOptions = connections.flatMap((provider) =>
 		provider.models.map((model) => ({
 			group: provider.name,
@@ -554,6 +619,10 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 					provider.models.map((model) => [model.id, model] as const),
 				),
 			),
+		[connections],
+	);
+	const providerById = useMemo(
+		() => new Map(connections.map((provider) => [provider.id, provider])),
 		[connections],
 	);
 	const selectorOptions = makeSelectorOptions(enabledModelOptions);
@@ -728,6 +797,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 				<CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
 					{DEFAULT_MODEL_ROWS.map((row) => {
 						const modelId = getDefaultModelId(row.type);
+						const selectedModel = modelId ? (modelById.get(modelId) ?? null) : null;
 						const mediaMode = getMediaMode(row);
 						let renderCapabilities: (() => React.ReactNode) | undefined;
 						if (row.type === "text") {
@@ -758,6 +828,11 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 								coveredByStandard={isCoveredByStandard(row)}
 								enabledModelOptions={enabledModelOptions}
 								isUpdating={isUpdatingDefaults}
+								isOpenRouter={
+									selectedModel
+										? providerById.get(selectedModel.providerId)?.protocol === "openrouter"
+										: false
+								}
 								key={row.type}
 								mediaMode={mediaMode}
 								modelId={modelId}
@@ -784,6 +859,11 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 										reasoningEffort: value,
 									});
 								}}
+								onRoutingModeChange={(openRouterRoutingMode) => {
+									if (selectedModel) {
+										setRoutingModeMutation.mutate({ id: selectedModel.id, openRouterRoutingMode });
+									}
+								}}
 								onTemperatureChange={(value) => {
 									setDefaultMutation.mutate({
 										defaultType: row.type,
@@ -794,9 +874,10 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 								reasoningEffort={getDefaultReasoningEffort(row.type)}
 								renderCapabilities={renderCapabilities}
 								row={row}
-								selectedModel={modelId ? (modelById.get(modelId) ?? null) : null}
+								selectedModel={selectedModel}
 								selectorOptions={selectorOptions}
 								temperature={getDefaultTemperature(row.type)}
+								routingMode={normalizeOpenRouterRoutingMode(selectedModel?.openRouterRoutingMode)}
 							/>
 						);
 					})}

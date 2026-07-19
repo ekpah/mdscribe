@@ -24,7 +24,7 @@ import Link from "next/link";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 
-import { MonthlyActiveUsersChart } from "./_components/monthly-active-users-chart";
+import { MonthlyActiveUsersChart } from "./_components/monthly-active-users-chart-dynamic";
 
 interface AdminCardProps {
 	title: string;

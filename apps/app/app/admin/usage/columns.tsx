@@ -3,11 +3,13 @@
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
+import { cn } from "@repo/design-system/lib/utils";
 import { createColumnHelper } from "@tanstack/react-table";
-import { Loader2, Medal } from "lucide-react";
+import { ChevronRight, Loader2, Medal } from "lucide-react";
 
 import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import { isScribeDocType } from "@/app/admin/playground/_lib/scribe-doc-types";
+import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
@@ -125,7 +127,7 @@ export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null =>
 export const formatScore = (score?: number): string =>
 	score === undefined ? "-" : score.toFixed(1);
 
-export const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
+const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
 	if (!metadata) {
 		return "-";
 	}
@@ -133,6 +135,108 @@ export const getPromptLabel = (metadata: Record<string, unknown> | null): string
 	const promptLabel = metadata.promptLabel as string | undefined;
 	const promptName = metadata.promptName as string | undefined;
 	return endpoint ?? promptLabel ?? promptName ?? "-";
+};
+
+const promptPrefixStyles = {
+	"built-in": "border-solarized-blue/30 bg-solarized-blue/10 text-solarized-blue",
+	custom: "border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet",
+	"generate-section": "border-solarized-cyan/30 bg-solarized-cyan/10 text-solarized-cyan",
+	"scribe-agent": "border-solarized-orange/30 bg-solarized-orange/10 text-solarized-orange",
+} as const;
+
+type PromptPrefix = keyof typeof promptPrefixStyles;
+
+const formatPromptPart = (value: string): string =>
+	value === "generateSection" ? "generate-section" : value;
+
+const splitPromptLabel = (
+	metadata: Record<string, unknown> | null,
+): { prefixes: PromptPrefix[]; value: string } => {
+	const label = getPromptLabel(metadata);
+	if (label === "-") {
+		return { prefixes: [], value: "-" };
+	}
+
+	const parts = label.split(":").filter(Boolean).map(formatPromptPart);
+	const prefixes: PromptPrefix[] = [];
+	let remainingParts = parts;
+
+	for (const prefix of ["custom", "built-in", "scribe-agent", "generate-section"] as const) {
+		if (remainingParts[0] === prefix) {
+			prefixes.push(prefix);
+			remainingParts = remainingParts.slice(1);
+		}
+	}
+
+	if (label === "scribe-agent" && prefixes.length === 1) {
+		const eventType = metadata?.agentEventType;
+		return {
+			prefixes,
+			value: typeof eventType === "string" && eventType.length > 0 ? formatPromptPart(eventType) : "chat",
+		};
+	}
+
+	return {
+		prefixes,
+		value: remainingParts.length > 0 ? remainingParts.join(":") : label,
+	};
+};
+
+export const UsagePromptBadge = ({
+	className,
+	metadata,
+}: {
+	className?: string;
+	metadata: Record<string, unknown> | null;
+}) => {
+	const { prefixes, value } = splitPromptLabel(metadata);
+	if (value === "-") {
+		return <span className={cn("font-mono text-xs text-solarized-base01", className)}>-</span>;
+	}
+
+	const fullLabel = getPromptLabel(metadata);
+
+	return (
+		<Badge
+			variant="secondary"
+			title={fullLabel}
+			className={cn(
+				"min-w-0 max-w-full gap-1 overflow-hidden px-1.5 py-0.5 font-mono text-xs",
+				className,
+			)}
+		>
+			{prefixes.map((prefix) => (
+				<span
+					key={prefix}
+					className={cn(
+						"shrink-0 rounded border px-1.5 py-0.5 text-[10px]",
+						promptPrefixStyles[prefix],
+					)}
+				>
+					{prefix}
+				</span>
+			))}
+			<span className="min-w-0 truncate">{value}</span>
+		</Badge>
+	);
+};
+
+export const getToolSectionId = (metadata: unknown): string | null => {
+	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+		return null;
+	}
+	const { sectionId } = metadata as Record<string, unknown>;
+	return typeof sectionId === "string" ? sectionId : null;
+};
+
+const toolPromptVerbs: Record<string, string> = {
+	editSection: "edit",
+	generateSection: "generate",
+};
+
+const getToolPromptLabel = (name: string, sectionId: string | null): string => {
+	const verb = toolPromptVerbs[name] ?? name;
+	return sectionId ? `${verb}: ${sectionId}` : verb;
 };
 
 export const buildPlaygroundUrl = (event: UsageListEvent): string => {
@@ -174,6 +278,13 @@ export const buildPlaygroundUrl = (event: UsageListEvent): string => {
 	return `/admin/playground?${params.toString()}`;
 };
 
+export const canOpenInPlayground = (
+	event: Pick<UsageListEvent, "name" | "rowKind">,
+): boolean => {
+	const rowKind = event.rowKind ?? "event";
+	return event.name === AI_SCRIBE_GENERATION_EVENT_NAME && rowKind === "event";
+};
+
 const columnHelper = createColumnHelper<UsageListEvent>();
 
 interface CreateColumnsOptions {
@@ -183,9 +294,33 @@ interface CreateColumnsOptions {
 
 export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOptions = {}) => [
 	columnHelper.accessor("timestamp", {
-		cell: (info) => (
-			<span className="whitespace-nowrap text-xs sm:text-sm">{formatDate(info.getValue())}</span>
-		),
+		cell: (info) => {
+			const { row } = info;
+			return (
+				<div className="flex items-center gap-1" style={{ paddingLeft: `${row.depth * 12}px` }}>
+					{row.getCanExpand() ? (
+						<Button
+							aria-label={row.getIsExpanded() ? "Ablauf einklappen" : "Ablauf ausklappen"}
+							className="size-6 shrink-0"
+							onClick={(event) => {
+								event.stopPropagation();
+								row.toggleExpanded();
+							}}
+							size="icon"
+							type="button"
+							variant="ghost"
+						>
+							<ChevronRight
+								className={cn("size-4 transition-transform", row.getIsExpanded() && "rotate-90")}
+							/>
+						</Button>
+					) : (
+						<span className="size-6 shrink-0" />
+					)}
+					<span className="whitespace-nowrap text-xs sm:text-sm">{formatDate(info.getValue())}</span>
+				</div>
+			);
+		},
 		header: ({ column }) => <DataTableColumnHeader column={column} title="Zeitpunkt" />,
 		id: "timestamp",
 	}),
@@ -223,11 +358,24 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 		id: "user",
 	}),
 	columnHelper.accessor("name", {
-		cell: (info) => (
-			<Badge variant="outline" className="hidden whitespace-nowrap sm:inline-flex">
-				{info.getValue()}
-			</Badge>
-		),
+		cell: (info) => {
+			const isTrace = info.row.original.rowKind === "trace";
+			const isTool = info.row.original.rowKind === "tool";
+			return (
+				<Badge
+					variant={
+						info.row.original.rowKind === "observation" || isTool ? "secondary" : "outline"
+					}
+					className={cn(
+						"hidden whitespace-nowrap sm:inline-flex",
+						isTrace && "border-solarized-green/50 bg-solarized-green/10 text-solarized-green",
+						isTool && "border-solarized-cyan/50 bg-solarized-cyan/10 text-solarized-cyan",
+					)}
+				>
+					{isTool ? "Tool-Aufruf" : info.getValue()}
+				</Badge>
+			);
+		},
 		enableSorting: false,
 		filterFn: (row, id, filterValue: string) => {
 			const name = row.getValue(id) as string;
@@ -239,14 +387,24 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 	columnHelper.accessor("metadata", {
 		cell: (info) => {
 			const metadata = info.getValue() as Record<string, unknown> | null;
-			return (
-				<Badge
-					variant="secondary"
-					className="hidden max-w-[120px] truncate whitespace-nowrap font-mono text-xs lg:inline-flex"
-				>
-					{getPromptLabel(metadata)}
-				</Badge>
-			);
+			const sectionId = getToolSectionId(metadata);
+			if (info.row.original.rowKind === "tool") {
+				return (
+					<Badge variant="secondary" className="hidden max-w-[190px] font-mono text-xs lg:inline-flex">
+						{getToolPromptLabel(info.row.original.name, sectionId)}
+					</Badge>
+				);
+			}
+			if (info.row.original.rowKind === "observation") {
+				return sectionId ? (
+					<Badge variant="secondary" className="hidden max-w-[190px] font-mono text-xs lg:inline-flex">
+						Abschnitt: {sectionId}
+					</Badge>
+				) : (
+					<span className="hidden font-mono text-xs text-solarized-base01 lg:inline">-</span>
+				);
+			}
+			return <UsagePromptBadge metadata={metadata} className="hidden max-w-[190px] lg:inline-flex" />;
 		},
 		enableSorting: false,
 		header: () => <span className="hidden lg:inline">Prompt</span>,
@@ -312,6 +470,10 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 		cell: (info) => {
 			const evaluation = getUsageEvaluation(info.getValue());
 			const event = info.row.original;
+			// Tool calls and plain observations are not evaluatable generations.
+			if (event.rowKind === "tool" || event.rowKind === "observation") {
+				return null;
+			}
 			const isEvaluating = evaluatingEventId === event.id;
 			const canEvaluate = Boolean(onEvaluate && !isEvaluating);
 

@@ -22,12 +22,10 @@ function DataTableViewOptions<TData>({
 }: DataTableViewOptionsProps<TData>) {
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Button variant="outline" size="sm" className="ml-auto h-8 lg:flex">
+			<DropdownMenuTrigger render={<Button variant="outline" size="sm" className="ml-auto h-8 lg:flex">
 					<Settings2 className="mr-2 h-4 w-4" />
 					Spalten
-				</Button>
-			</DropdownMenuTrigger>
+				</Button>} />
 			<DropdownMenuContent align="end" className="w-[150px]">
 				<DropdownMenuLabel>Spalten anzeigen</DropdownMenuLabel>
 				<DropdownMenuSeparator />

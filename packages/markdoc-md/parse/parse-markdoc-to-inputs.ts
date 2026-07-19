@@ -3,6 +3,9 @@ import * as Markdoc from "@markdoc/markdoc";
 import config from "@repo/markdoc-md/markdoc-config";
 import Formula from "fparser";
 
+import type { MarkdocTagDiagnostic } from "./validate-markdoc-tag-contracts";
+import { validateMarkdocTagContractsInAst } from "./validate-markdoc-tag-contracts";
+
 /**
  * Union type representing all possible input tag types in the Markdoc template.
  */
@@ -183,12 +186,14 @@ const mergeInfoAttributes = (target: InfoInputTagType, source: InfoInputTagType)
 	if (!target.attributes.unit && source.attributes.unit) {
 		target.attributes.unit = source.attributes.unit;
 	}
-	if (!target.attributes.renderUnit && source.attributes.renderUnit) {
-		target.attributes.renderUnit = source.attributes.renderUnit;
-	}
 };
 
-const mergeScoreAttributes = (target: ScoreInputTagType, source: ScoreInputTagType): void => {
+const mergeScoreAttributes = (target: ScoreInputTagType, source: ScoreInputTagType): boolean => {
+	const hasFormulaConflict = Boolean(
+		target.attributes.formula &&
+		source.attributes.formula &&
+		target.attributes.formula !== source.attributes.formula,
+	);
 	if (!target.attributes.formula && source.attributes.formula) {
 		target.attributes.formula = source.attributes.formula;
 	}
@@ -198,9 +203,7 @@ const mergeScoreAttributes = (target: ScoreInputTagType, source: ScoreInputTagTy
 	if (!target.attributes.unit && source.attributes.unit) {
 		target.attributes.unit = source.attributes.unit;
 	}
-	if (!target.attributes.renderUnit && source.attributes.renderUnit) {
-		target.attributes.renderUnit = source.attributes.renderUnit;
-	}
+	return !hasFormulaConflict;
 };
 
 const mergeSwitchAttributes = (target: SwitchInputTagType, source: SwitchInputTagType): void => {
@@ -251,8 +254,9 @@ const mergeInputTags = (target: InputTagType, source: InputTagType): void => {
 	}
 
 	if (target.name === "Score" && source.name === "Score") {
-		mergeScoreAttributes(target, source);
-		target.children = mergeInputTagArrays(target.children, source.children, mergeInputTags);
+		if (mergeScoreAttributes(target, source)) {
+			target.children = mergeInputTagArrays(target.children, source.children, mergeInputTags);
+		}
 		return;
 	}
 
@@ -432,6 +436,18 @@ const processNodeToInputTags = (
 const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 	const tagMap = new Map<string, InputTagType>();
 	return processNodeToInputTags(nodes, tagMap);
+};
+
+export interface MarkdocTemplateAnalysis {
+	diagnostics: MarkdocTagDiagnostic[];
+	inputs: InputTagType[];
+}
+
+export const analyzeMarkdocTemplate = (content: string): MarkdocTemplateAnalysis => {
+	const ast = Markdoc.parse(content);
+	const diagnostics = validateMarkdocTagContractsInAst(ast);
+	const nodes = Markdoc.transform(ast, config);
+	return { diagnostics, inputs: parseTagsToInputs({ nodes }) };
 };
 
 // function to take markdoc content and return parsed tags

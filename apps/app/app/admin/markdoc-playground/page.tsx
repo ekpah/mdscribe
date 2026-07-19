@@ -2,8 +2,8 @@
 
 import type { RenderableTreeNode } from "@markdoc/markdoc";
 import * as Markdoc from "@markdoc/markdoc";
-import TipTap from "@repo/design-system/components/editor/tip-tap";
 import Inputs from "@repo/design-system/components/inputs/inputs";
+import type { TagInspectorEditor } from "@repo/design-system/components/editor/tag-inspector/tag-inspector";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
@@ -22,10 +22,25 @@ import {
 	Settings,
 	TreePine,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 
 import { MemoizedCopySection } from "@/app/aiscribe/_components/memoized-copy-section";
+
+import TipTap from "./tip-tap-dynamic";
+
+// Tag properties are edited via the inspector; without a sidebar column this
+// page uses the sheet variant for all viewport sizes.
+const TagInspectorSheet = dynamic(
+	async () => {
+		const mod = await import(
+			"@repo/design-system/components/editor/tag-inspector/tag-inspector-sheet"
+		);
+		return mod.TagInspectorSheet;
+	},
+	{ ssr: false },
+);
 
 const DEFAULT_TEMPLATE = `# Patient Score
 
@@ -434,6 +449,7 @@ export default function PlaygroundPage() {
 
 	const [values, setValues] = useState<Record<string, unknown>>({});
 	const [useTipTap, setUseTipTap] = useState(false);
+	const [tipTapEditor, setTipTapEditor] = useState<TagInspectorEditor | null>(null);
 	const [middleView, setMiddleView] = useState<"inputs" | "inputTags" | "inputFields">("inputs");
 	const [rightView, setRightView] = useState<"preview" | "ast" | "transform">("preview");
 
@@ -611,7 +627,11 @@ export default function PlaygroundPage() {
 							<CardContent className="p-4">
 								<div className="h-[500px]">
 									{useTipTap ? (
-										<TipTap note={template} setContent={setTemplate} />
+										<TipTap
+											note={template}
+											onEditorChange={setTipTapEditor}
+											setContent={setTemplate}
+										/>
 									) : (
 										<Textarea
 											placeholder="Geben Sie hier Ihre Markdoc-Vorlage mit info-Tags ein..."
@@ -801,6 +821,8 @@ export default function PlaygroundPage() {
 					</ul>
 				</div>
 			</div>
+
+			<TagInspectorSheet editor={tipTapEditor} maxViewportWidth={null} />
 		</div>
 	);
 }

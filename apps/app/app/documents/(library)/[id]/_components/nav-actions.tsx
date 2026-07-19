@@ -10,6 +10,9 @@ import {
 import { Clock, File as FileIcon, FileUser, Pencil, Share2, User } from "lucide-react";
 import Link from "next/link";
 
+import { getDocumentDetailAction } from "@/app/documents/_lib/document-detail-action";
+import { USER_MESSAGES } from "@/lib/user-messages";
+
 export const NavActions = ({
 	author,
 	documentId,
@@ -29,28 +32,24 @@ export const NavActions = ({
 		className: "h-4 w-4",
 		strokeWidth: 1.5,
 	} as const;
-	let actionHref = "/sign-in?redirect=%2Fdocuments";
-	let ActionIcon = Pencil;
-	if (isLoggedIn && isAuthor) {
-		actionHref = `/documents/${documentId}/edit`;
-	} else if (isLoggedIn) {
-		actionHref = `/documents/create?fork=${documentId}`;
-		ActionIcon = Share2;
-	}
+	const action = getDocumentDetailAction({ documentId, isAuthor, isLoggedIn });
+	const ActionIcon = action?.kind === "edit" ? Pencil : Share2;
+	const actionLabel =
+		action?.kind === "edit"
+			? USER_MESSAGES.documentEditor.editDocument
+			: USER_MESSAGES.documentEditor.forkDocument;
 
 	return (
 		<div className="flex items-center gap-2 text-sm">
-			<TooltipProvider delayDuration={300}>
+			<TooltipProvider delay={300}>
 				<Tooltip>
-					<TooltipTrigger asChild>
-						<span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
+					<TooltipTrigger render={<span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
 							{visibility === "private" ? (
 								<FileUser className="h-4 w-4" strokeWidth={1.5} />
 							) : (
 								<FileIcon className="h-4 w-4" strokeWidth={1.5} />
 							)}
-						</span>
-					</TooltipTrigger>
+						</span>} />
 					<TooltipContent>
 						<p>{visibility === "private" ? "Privat sichtbar" : "Öffentlich sichtbar"}</p>
 					</TooltipContent>
@@ -67,11 +66,27 @@ export const NavActions = ({
 					dateStyle: "medium",
 				})}
 			</div>
-			<Link href={actionHref}>
-				<Button className="h-7 w-7" size="icon" variant="ghost">
-					<ActionIcon {...actionIconProps} />
-				</Button>
-			</Link>
+			{action ? (
+				<TooltipProvider delay={300}>
+					<Tooltip>
+						<TooltipTrigger
+							render={
+								<Link href={action.href}>
+									<Button
+										aria-label={actionLabel}
+										className="h-7 w-7"
+										size="icon"
+										variant="ghost"
+									>
+										<ActionIcon {...actionIconProps} />
+									</Button>
+								</Link>
+							}
+						/>
+						<TooltipContent>{actionLabel}</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
+			) : null}
 		</div>
 	);
 };

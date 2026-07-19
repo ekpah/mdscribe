@@ -1,4 +1,8 @@
 export const MAX_PDF_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const MAX_PDF_BASE64_LENGTH = Math.ceil(MAX_PDF_UPLOAD_BYTES / 3) * 4;
+export const MAX_PDF_PAGE_COUNT = 500;
+export const MAX_PDF_FORM_FIELD_COUNT = 2000;
+export const MAX_PDF_WIDGET_COUNT = 5000;
 
 const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer =>
 	bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;

@@ -20,6 +20,7 @@ import {
 import { FileText, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -31,6 +32,10 @@ import {
 import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
+import {
+	hasLessThanTenPercentUsageRemaining,
+	isSuccessfulAiscribeFinish,
+} from "@/lib/aiscribe-toasts";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
@@ -126,6 +131,7 @@ export const AiscribeTemplate = ({
 	config,
 	isAdmin = false,
 }: AiscribeTemplateProps) => {
+	const router = useRouter();
 	const [activeTab, setActiveTab] = useState("input");
 	const [inputData, setInputData] = useState("");
 	const [additionalInputData, setAdditionalInputData] = useState<
@@ -147,6 +153,30 @@ export const AiscribeTemplate = ({
 	const chatId = isCustomFormConfig
 		? `scribe-form-${config.formId}`
 		: `scribe-${config.documentType}`;
+	const handleSuccessfulGeneration = useCallback(async () => {
+		toast.success(USER_MESSAGES.aiscribeGenerationSuccess);
+
+		try {
+			const usage = await orpc.getUsage.call();
+			if (
+				!hasLessThanTenPercentUsageRemaining(
+					usage.usage.monthlyUsagePercentage,
+				)
+			) {
+				return;
+			}
+
+			toast.warning(USER_MESSAGES.lowScribeUsageRemaining, {
+				action: {
+					label: USER_MESSAGES.lowScribeUsageSubscriptionAction,
+					onClick: () => router.push("/subscription"),
+				},
+				id: "aiscribe-low-usage",
+			});
+		} catch {
+			// A failed usage refresh must not turn a successful generation into an error.
+		}
+	}, [router]);
 
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, setMessages } = useChat({
@@ -157,11 +187,16 @@ export const AiscribeTemplate = ({
 				toast.error(message);
 			}
 		},
-		onFinish: () => {
-			toast.success("Erfolgreich generiert");
+		onFinish: ({ finishReason, isAbort, isError }) => {
 			// Clear prepared media refs after generation
 			preparedAudioFilesRef.current = [];
 			preparedContextFilesRef.current = [];
+
+			if (!isSuccessfulAiscribeFinish({ finishReason, isAbort, isError })) {
+				return;
+			}
+
+			void handleSuccessfulGeneration();
 		},
 		transport: {
 			reconnectToStream() {
@@ -466,13 +501,13 @@ export const AiscribeTemplate = ({
 								<CardHeader className="bg-gradient-to-r from-solarized-green/5 to-solarized-blue/5">
 									<TabsList className="grid grid-cols-2 bg-background/50 backdrop-blur-sm">
 										<TabsTrigger
-											className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+											className="data-active:bg-solarized-blue data-active:text-primary-foreground"
 											value="input"
 										>
 											{config.inputTabTitle}
 										</TabsTrigger>
 										<TabsTrigger
-											className="data-[state=active]:bg-solarized-blue data-[state=active]:text-primary-foreground"
+											className="data-active:bg-solarized-blue data-active:text-primary-foreground"
 											value="output"
 										>
 											{config.outputTabTitle}

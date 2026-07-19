@@ -12,6 +12,7 @@ import {
 	createTestUser,
 	startTestServer,
 } from "@/__tests__/setup";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { templatesHandler } from "@/orpc/templates";
 
 /**
@@ -309,6 +310,36 @@ describe("Templates oRPC Handlers", () => {
 				).rejects.toThrow();
 			});
 
+			test("rejects templates with conflicting Markdoc tag settings", async () => {
+				const { user } = await createTestUser(server.db);
+				const context = createTestContext({
+					db: server.db,
+					session: createMockSession(user),
+				});
+
+				await expect(
+					call(
+						templatesHandler.create,
+						{
+							category: "Test Category",
+							content: `
+{% info "Gewicht" type="number" /%}
+{% info "Gewicht" type="date" /%}
+`,
+							examples: [],
+							name: "Invalid Template",
+						},
+						{ context },
+					),
+				).rejects.toThrow(USER_MESSAGES.invalidTemplateTags);
+
+				const savedTemplates = await server.db
+					.select({ id: template.id })
+					.from(template)
+					.where(eq(template.authorId, user.id));
+				expect(savedTemplates).toEqual([]);
+			});
+
 			test("allows plus users to create private templates", async () => {
 				const { user } = await createTestUser(server.db);
 				await createTestSubscription(server.db, user.id);
@@ -406,6 +437,40 @@ describe("Templates oRPC Handlers", () => {
 				);
 
 				expect(publicResult.visibility).toBe("public");
+			});
+
+			test("does not update a template with conflicting Markdoc tag settings", async () => {
+				const { user } = await createTestUser(server.db);
+				const createdTemplate = await createTestTemplate(server.db, user.id, {
+					content: "Original content",
+				});
+				const context = createTestContext({
+					db: server.db,
+					session: createMockSession(user),
+				});
+
+				await expect(
+					call(
+						templatesHandler.update,
+						{
+							category: "Updated Category",
+							content: `
+{% switch "Status" type="string" %}{% case "A" %}A{% /case %}{% /switch %}
+{% switch "Status" type="boolean" %}{% case "true" %}Ja{% /case %}{% /switch %}
+`,
+							examples: [],
+							id: createdTemplate.id,
+							name: "Invalid Update",
+						},
+						{ context },
+					),
+				).rejects.toThrow(USER_MESSAGES.invalidTemplateTags);
+
+				const [savedTemplate] = await server.db
+					.select({ content: template.content })
+					.from(template)
+					.where(eq(template.id, createdTemplate.id));
+				expect(savedTemplate?.content).toBe("Original content");
 			});
 
 			test("throws error when updating template not owned by user", async () => {

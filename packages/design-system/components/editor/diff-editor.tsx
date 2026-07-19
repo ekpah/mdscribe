@@ -296,8 +296,7 @@ export const MarkdownDiffEditor = ({
 						{/* Action buttons - accept or reject all */}
 						<div className="flex items-center gap-1">
 							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
+								<TooltipTrigger render={<Button
 										className="h-7 w-7 p-0 bg-solarized-green text-primary-foreground hover:bg-solarized-green/90 disabled:opacity-50"
 										disabled={isStreaming}
 										onClick={handleAccept}
@@ -305,14 +304,12 @@ export const MarkdownDiffEditor = ({
 										type="button"
 									>
 										<Check className="h-3.5 w-3.5" />
-									</Button>
-								</TooltipTrigger>
+									</Button>} />
 								<TooltipContent>Alle akzeptieren</TooltipContent>
 							</Tooltip>
 
 							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
+								<TooltipTrigger render={<Button
 										className="h-7 w-7 p-0 disabled:opacity-50"
 										disabled={isStreaming}
 										onClick={handleReject}
@@ -321,8 +318,7 @@ export const MarkdownDiffEditor = ({
 										variant="destructive"
 									>
 										<RotateCcw className="h-3.5 w-3.5" />
-									</Button>
-								</TooltipTrigger>
+									</Button>} />
 								<TooltipContent>Verwerfen</TooltipContent>
 							</Tooltip>
 						</div>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { getServerSession } from "@/lib/server-session";
+import { getSessionDeviceInfo } from "@/lib/session-device";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
 
 import { AccountSettingsPage } from "../_components/account-settings-page";
@@ -29,9 +30,16 @@ export default async function ProfileAccountPage() {
 		(subscription) => subscription.status === "active" || subscription.status === "trialing",
 	);
 
+	// Parse user-agents here (server-side) so `ua-parser-js` stays out of the
+	// client bundle; the card just renders the precomputed device info.
+	const activeSessionsWithDevice = structuredClone(activeSessions).map((activeSession) => ({
+		...activeSession,
+		...getSessionDeviceInfo(activeSession.userAgent),
+	}));
+
 	return (
 		<AccountSettingsPage
-			activeSessions={structuredClone(activeSessions)}
+			activeSessions={activeSessionsWithDevice}
 			session={structuredClone(session)}
 			subscription={activeSubscription ? structuredClone(activeSubscription) : undefined}
 			user={structuredClone(session.user)}

@@ -6,7 +6,7 @@ import type { ProductPlan } from "@/lib/product-plans";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { getMonthlyScribeUsage } from "@/orpc/scribe/_lib/get-usage";
 
-interface ScribeEntitlements {
+export interface ScribeEntitlements {
 	hasActiveSubscription: boolean;
 	plan: ProductPlan;
 	scribeMonthlyCostLimit: number;

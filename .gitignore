@@ -59,5 +59,9 @@ packages/database/prisma/generated/
 
 # PGlite data for dev environment
 .pglite-data/
+
+# Agent-generated implementation plans
+plans/
+
 # License signing private key (never commit)
 .license-signing-key.local

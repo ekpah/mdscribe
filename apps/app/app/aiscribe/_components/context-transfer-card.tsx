@@ -380,13 +380,13 @@ export const ContextTransferCard = ({
 					<Label className="text-xs">Typ</Label>
 					<ToggleGroup
 						className="w-full"
-						onValueChange={(value) => {
+						onValueChange={(values) => {
+							const [value] = values;
 							if (value) {
 								setTargetType(value as ContextTransferTargetType);
 							}
 						}}
-						type="single"
-						value={targetType}
+						value={[targetType]}
 						variant="outline"
 					>
 						{availableTargetTypes.map((type) => (

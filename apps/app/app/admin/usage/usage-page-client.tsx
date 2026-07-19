@@ -12,10 +12,18 @@ import {
 import { DataTable, DataTableViewOptions } from "@repo/design-system/components/ui/data-table";
 import type { DataTableRenderToolbarProps } from "@repo/design-system/components/ui/data-table";
 import { Input } from "@repo/design-system/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/design-system/components/ui/select";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Activity, Loader2, Medal, XCircle } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 
@@ -23,18 +31,20 @@ import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-deta
 import { orpc } from "@/lib/orpc";
 
 import { UsageEventDetail } from "./_components/usage-event-detail";
-import { UsageTrendChart } from "./_components/usage-trend-chart";
+import { UsageTrendChart } from "./_components/usage-trend-chart-dynamic";
 import {
 	buildPlaygroundUrl,
+	canOpenInPlayground,
 	createColumns,
 	formatCost,
 	formatDate,
 	formatDuration,
-	getPromptLabel,
+	getToolSectionId,
 	getUsageEvaluation,
 	formatScore,
 	formatStatTokensPerSecond,
 	formatTokensPerSecond,
+	UsagePromptBadge,
 } from "./columns";
 import type {
 	StatsFilter,
@@ -43,6 +53,19 @@ import type {
 	UsageListEvent,
 	UsageTrendMetric,
 } from "./types";
+
+interface UsageFilters {
+	action?: string;
+	model?: string;
+	prompt?: string;
+	userId?: string;
+}
+
+interface UsageFilterOptions {
+	actions: string[];
+	models: string[];
+	prompts: string[];
+}
 
 const filterLabels: Record<StatsFilter, string> = {
 	all: "Gesamt",
@@ -167,6 +190,96 @@ const UsageToolbar = ({
 		</div>
 	</div>
 );
+
+const UsageFilterSelect = ({
+	items,
+	label,
+	onValueChange,
+	placeholder,
+	value,
+}: {
+	items: { label: string; value: string }[];
+	label: string;
+	onValueChange: (value: string) => void;
+	placeholder: string;
+	value?: string;
+}) => (
+	<div className="min-w-0">
+		<label
+			className="mb-1 block text-xs font-medium text-solarized-base01"
+			htmlFor={`usage-filter-${label}`}
+		>
+			{label}
+		</label>
+		<Select value={value ?? "all"} onValueChange={onValueChange}>
+			<SelectTrigger id={`usage-filter-${label}`} className="w-full bg-solarized-base3">
+				<SelectValue placeholder={placeholder} />
+			</SelectTrigger>
+			<SelectContent>
+				<SelectItem value="all">Alle</SelectItem>
+				{items.map((item) => (
+					<SelectItem key={item.value} value={item.value}>
+						{item.label}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+	</div>
+);
+
+const UsageFilterControls = ({
+	filters,
+	onFiltersChange,
+	options,
+	users,
+}: {
+	filters: UsageFilters;
+	onFiltersChange: (filters: UsageFilters) => void;
+	options?: UsageFilterOptions;
+	users: { email: string; id: string; name: string | null }[];
+}) => {
+	const updateFilter = (key: keyof UsageFilters, value: string) => {
+		onFiltersChange({ ...filters, [key]: value === "all" ? undefined : value });
+	};
+
+	return (
+		<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+			<UsageFilterSelect
+				label="Benutzer"
+				placeholder="Benutzer auswählen"
+				value={filters.userId}
+				onValueChange={(value) => updateFilter("userId", value)}
+				items={users.map((currentUser) => ({
+					label: currentUser.name
+						? `${currentUser.name} (${currentUser.email})`
+						: currentUser.email,
+					value: currentUser.id,
+				}))}
+			/>
+			<UsageFilterSelect
+				label="Aktion"
+				placeholder="Aktion auswählen"
+				value={filters.action}
+				onValueChange={(value) => updateFilter("action", value)}
+				items={(options?.actions ?? []).map((value) => ({ label: value, value }))}
+			/>
+			<UsageFilterSelect
+				label="Prompt"
+				placeholder="Prompt auswählen"
+				value={filters.prompt}
+				onValueChange={(value) => updateFilter("prompt", value)}
+				items={(options?.prompts ?? []).map((value) => ({ label: value, value }))}
+			/>
+			<UsageFilterSelect
+				label="Modell"
+				placeholder="Modell auswählen"
+				value={filters.model}
+				onValueChange={(value) => updateFilter("model", value)}
+				items={(options?.models ?? []).map((value) => ({ label: value, value }))}
+			/>
+		</div>
+	);
+};
 
 const LoadingMetricValue = () => <Loader2 className="h-4 w-4 animate-spin" />;
 
@@ -344,9 +457,10 @@ const UsageMobileCards = ({
 			</div>
 		) : (
 			items.map((item) => {
-				const promptLabel = getPromptLabel(item.metadata as Record<string, unknown> | null);
+				const promptMetadata = item.metadata as Record<string, unknown> | null;
 				const evaluation = getUsageEvaluation(item.metadata);
 				const isEvaluatingItem = isEvaluating && evaluatingEventId === item.id;
+				const canUsePlayground = canOpenInPlayground(item);
 				const modelLabel = item.model?.split("/").pop() || "-";
 
 				return (
@@ -371,11 +485,7 @@ const UsageMobileCards = ({
 
 						<div className="mt-3 flex flex-wrap gap-2">
 							<Badge variant="outline">{item.name}</Badge>
-							{promptLabel !== "-" && (
-								<Badge variant="secondary" className="max-w-full truncate">
-									{promptLabel}
-								</Badge>
-							)}
+							<UsagePromptBadge metadata={promptMetadata} />
 						</div>
 
 						<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -445,9 +555,9 @@ const UsageMobileCards = ({
 							<Button variant="outline" onClick={onSelectById[item.id]} className="w-full">
 								Details anzeigen
 							</Button>
-							<Button asChild className="w-full" variant="secondary">
-								<Link href={buildPlaygroundUrl(item)}>Im Playground öffnen</Link>
-							</Button>
+							{canUsePlayground ? (
+								<Button className="w-full" variant="secondary" render={<Link href={buildPlaygroundUrl(item)}>Im Playground öffnen</Link>} />
+							) : null}
 						</div>
 					</div>
 				);
@@ -459,31 +569,42 @@ const UsageMobileCards = ({
 const UsageEventsCard = ({
 	columns,
 	evaluatingEventId,
+	filters,
 	filteredItems,
 	hasMore,
 	isEvaluating,
 	isFetchingList,
 	onEvaluate,
+	onFiltersChange,
 	onLoadMore,
 	onRowClick,
 	onSearchFilterChange,
 	onSelectById,
 	renderToolbar,
 	searchFilter,
+	filterOptions,
+	users,
 }: {
 	columns: ReturnType<typeof createColumns>;
 	evaluatingEventId?: string;
+	filters: UsageFilters;
 	filteredItems: UsageListEvent[];
 	hasMore?: boolean;
 	isEvaluating: boolean;
 	isFetchingList: boolean;
 	onEvaluate: (id: string) => void;
+	onFiltersChange: (filters: UsageFilters) => void;
 	onLoadMore: () => void;
-	onRowClick: (row: UsageListEvent) => void;
+	onRowClick: (
+		row: UsageListEvent,
+		tableRow: { getCanExpand: () => boolean; toggleExpanded: () => void },
+	) => void;
 	onSearchFilterChange: (event: ChangeEvent<HTMLInputElement>) => void;
 	onSelectById: Record<string, () => void>;
 	renderToolbar: (table: DataTableRenderToolbarProps<UsageListEvent>["table"]) => ReactNode;
 	searchFilter: string;
+	filterOptions?: UsageFilterOptions;
+	users: { email: string; id: string; name: string | null }[];
 }) => (
 	<Card className="border-solarized-base2">
 		<CardHeader>
@@ -493,6 +614,12 @@ const UsageEventsCard = ({
 			</CardDescription>
 		</CardHeader>
 		<CardContent className="space-y-4">
+			<UsageFilterControls
+				filters={filters}
+				onFiltersChange={onFiltersChange}
+				options={filterOptions}
+				users={users}
+			/>
 			<div className="space-y-3 md:hidden">
 				<Input
 					placeholder="Benutzer oder Aktion suchen..."
@@ -512,6 +639,7 @@ const UsageEventsCard = ({
 				<DataTable
 					columns={columns}
 					data={filteredItems}
+					getSubRows={(row) => row.children}
 					onRowClick={onRowClick}
 					enablePagination={false}
 					enableFiltering={false}
@@ -555,6 +683,198 @@ const mergeUsageItems = (
 	const existingIds = new Set(currentItems.map((item) => item.id));
 	const newItems = nextItems.filter((item) => !existingIds.has(item.id));
 	return [...currentItems, ...newItems];
+};
+
+interface UsageTraceObservation {
+	endedAt: Date | string | null;
+	id: string;
+	inputData: unknown;
+	metadata: unknown;
+	name: string;
+	outputData: unknown;
+	parentObservationId: string | null;
+	startedAt: Date | string;
+	status: string;
+	type: string;
+	usageEventId: string | null;
+}
+
+interface UsageTracePayload {
+	endedAt: Date | string | null;
+	id: string;
+	name: string;
+	observations: UsageTraceObservation[];
+	startedAt: Date | string;
+	status: string;
+}
+
+interface SelectedToolPayload {
+	inputData: unknown;
+	name: string;
+	outputData: unknown;
+	sectionId: string | null;
+}
+
+const toDateMs = (value: Date | string | null | undefined): number | null => {
+	if (!value) {
+		return null;
+	}
+	const timestamp = new Date(value).getTime();
+	return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const sumTraceNumber = (
+	events: UsageListEvent[],
+	selector: (event: UsageListEvent) => number | string | null,
+): number | null => {
+	let hasValue = false;
+	let total = 0;
+	for (const event of events) {
+		const value = selector(event);
+		if (value === null || value === "") {
+			continue;
+		}
+		const numericValue = Number(value);
+		if (Number.isFinite(numericValue)) {
+			hasValue = true;
+			total += numericValue;
+		}
+	}
+	return hasValue ? total : null;
+};
+
+const buildTraceRows = ({
+	events,
+	traces,
+}: {
+	events: UsageListEvent[];
+	traces: UsageTracePayload[];
+}): UsageListEvent[] => {
+	const eventsByTrace = new Map<string, UsageListEvent[]>();
+	for (const event of events) {
+		if (!event.traceId) {
+			continue;
+		}
+		const traceEvents = eventsByTrace.get(event.traceId) ?? [];
+		traceEvents.push(event);
+		eventsByTrace.set(event.traceId, traceEvents);
+	}
+
+	return traces.flatMap((trace) => {
+		const traceEvents = eventsByTrace.get(trace.id) ?? [];
+		const eventsById = new Map(traceEvents.map((event) => [event.id, event]));
+		const rootObservation = trace.observations.find(
+			(observation) => !observation.parentObservationId,
+		);
+		const rootEvent = rootObservation?.usageEventId
+			? eventsById.get(rootObservation.usageEventId)
+			: traceEvents.find((event) => event.name === "ai_scribe_agent");
+		if (!rootEvent) {
+			return [];
+		}
+
+		const buildObservationRow = (
+			observation: UsageTraceObservation,
+			includeChildren = true,
+		): UsageListEvent => {
+			const linkedEvent = observation.usageEventId
+				? eventsById.get(observation.usageEventId)
+				: undefined;
+			const generationObservation =
+				observation.type === "tool"
+					? trace.observations.find(
+							(candidate) =>
+								candidate.parentObservationId === observation.id && candidate.type === "generation",
+						)
+					: undefined;
+			const generationEvent = generationObservation?.usageEventId
+				? eventsById.get(generationObservation.usageEventId)
+				: undefined;
+			const eventForRow = linkedEvent ?? generationEvent;
+			const isTool = observation.type === "tool";
+			const observationStartedMs = toDateMs(observation.startedAt);
+			const observationEndedMs = toDateMs(observation.endedAt);
+			let rowKind: UsageListEvent["rowKind"] = "observation";
+			if (isTool) {
+				rowKind = "tool";
+			} else if (linkedEvent) {
+				rowKind = "event";
+			}
+			return {
+				...(eventForRow ?? {
+					cost: null,
+					id: observation.id,
+					inputTokens: null,
+					metadata: observation.metadata,
+					model: null,
+					name: observation.name,
+					outputTokens: null,
+					reasoningTokens: null,
+					timeToCompletionMs:
+						observationStartedMs !== null && observationEndedMs !== null
+							? Math.max(0, observationEndedMs - observationStartedMs)
+							: null,
+					timeToFirstTokenMs: null,
+					timestamp: observation.startedAt,
+					totalTokens: null,
+					traceId: trace.id,
+					user: rootEvent.user,
+				}),
+				...(includeChildren
+					? {
+						children: trace.observations
+							.filter(
+								(candidate) =>
+									candidate.parentObservationId === observation.id && candidate !== generationObservation,
+							)
+							.map((child) => buildObservationRow(child)),
+					}
+					: {}),
+				...(isTool
+					? {
+						id: observation.id,
+						linkedUsageEventId: generationEvent?.id,
+						metadata: observation.metadata,
+						name: observation.name,
+						observationId: observation.id,
+						toolInputData: observation.inputData,
+						toolOutputData: observation.outputData,
+					}
+					: {}),
+				rowKind,
+			};
+		};
+
+		const children = rootObservation
+			? [
+					buildObservationRow(rootObservation, false),
+					...trace.observations
+						.filter((observation) => observation.parentObservationId === rootObservation.id)
+						.map((observation) => buildObservationRow(observation)),
+				]
+			: [];
+		const startedAt = toDateMs(trace.startedAt);
+		const endedAt = toDateMs(trace.endedAt);
+		return [
+			{
+				...rootEvent,
+				children,
+				cost: sumTraceNumber(traceEvents, (event) => event.cost),
+				id: trace.id,
+				inputTokens: sumTraceNumber(traceEvents, (event) => event.inputTokens),
+				metadata: null,
+				model: null,
+				name: "Agent",
+				outputTokens: sumTraceNumber(traceEvents, (event) => event.outputTokens),
+				reasoningTokens: sumTraceNumber(traceEvents, (event) => event.reasoningTokens),
+				rowKind: "trace",
+				timeToCompletionMs:
+					startedAt !== null && endedAt !== null ? Math.max(0, endedAt - startedAt) : null,
+				timestamp: trace.startedAt,
+				totalTokens: sumTraceNumber(traceEvents, (event) => event.totalTokens),
+			},
+		];
+	});
 };
 
 const getMetadataRecord = (metadata: unknown): Record<string, unknown> => {
@@ -631,12 +951,12 @@ const getUsageErrorMessage = (error: unknown) => {
 const getFallbackTrendGranularity = (statsFilter: StatsFilter) =>
 	statsFilter === "today" ? "hour" : "day";
 
-const useUsageStatsState = () => {
+const useUsageStatsState = (filters: UsageFilters) => {
 	const [statsFilter, setStatsFilter] = useState<StatsFilter>("month");
 	const [trendMetric, setTrendMetric] = useState<UsageTrendMetric>("events");
 	const [timeZone, setTimeZone] = useState("UTC");
 	const statsQueryOptions = orpc.admin.usage.stats.queryOptions({
-		input: { filter: statsFilter, timeZone },
+		input: { filter: statsFilter, timeZone, ...filters },
 	});
 	const { data: stats, isLoading: statsLoading } = useQuery(statsQueryOptions);
 
@@ -667,10 +987,13 @@ const useUsageStatsState = () => {
 	};
 };
 
-const useUsageEventsState = () => {
+const useUsageEventsState = (filters: UsageFilters, statsFilter: StatsFilter, timeZone: string) => {
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+	const [selectedToolPayload, setSelectedToolPayload] = useState<SelectedToolPayload | null>(null);
 	const [cursor, setCursor] = useState<string | undefined>();
 	const [allItems, setAllItems] = useState<UsageListEvent[]>([]);
+	const [allTraceEvents, setAllTraceEvents] = useState<UsageListEvent[]>([]);
+	const [allTraces, setAllTraces] = useState<UsageTracePayload[]>([]);
 	const [evaluationByEventId, setEvaluationByEventId] = useState<Record<string, UsageEvaluation>>(
 		{},
 	);
@@ -683,7 +1006,10 @@ const useUsageEventsState = () => {
 	} = useQuery({
 		...orpc.admin.usage.list.queryOptions({
 			input: {
+				filter: statsFilter,
 				limit: 25,
+				timeZone,
+				...filters,
 				...(cursor && { cursor }),
 			},
 		}),
@@ -691,10 +1017,34 @@ const useUsageEventsState = () => {
 	});
 
 	useEffect(() => {
+		setCursor(undefined);
+		setAllItems([]);
+		setAllTraceEvents([]);
+		setAllTraces([]);
+		setSelectedEventId(null);
+		setSelectedToolPayload(null);
+	}, [filters, statsFilter, timeZone]);
+	useEffect(() => {
 		if (data?.items) {
 			setAllItems((current) => mergeUsageItems(current, data.items, cursor));
 		}
 	}, [data?.items, cursor]);
+	useEffect(() => {
+		if (data?.traceEvents) {
+			setAllTraceEvents((current) => mergeUsageItems(current, data.traceEvents, cursor));
+		}
+	}, [data?.traceEvents, cursor]);
+	useEffect(() => {
+		if (data?.traces) {
+			setAllTraces((current) => {
+				const merged = new Map(current.map((trace) => [trace.id, trace]));
+				for (const trace of data.traces as UsageTracePayload[]) {
+					merged.set(trace.id, trace);
+				}
+				return [...merged.values()];
+			});
+		}
+	}, [data?.traces]);
 
 	const { data: selectedEvent } = useQuery({
 		...orpc.admin.usage.get.queryOptions({
@@ -727,15 +1077,43 @@ const useUsageEventsState = () => {
 		},
 		[evaluateMutation],
 	);
-	const handleRowClick = useCallback((row: UsageListEvent) => {
-		setSelectedEventId(row.id);
-	}, []);
+	const handleRowClick = useCallback(
+		(
+			row: UsageListEvent,
+			tableRow: { getCanExpand: () => boolean; toggleExpanded: () => void },
+		) => {
+			if (tableRow.getCanExpand()) {
+				tableRow.toggleExpanded();
+				return;
+			}
+			if (row.rowKind === "observation") {
+				return;
+			}
+			if (row.rowKind === "tool") {
+				// editSection has no linked UsageEvent — the sheet opens on the
+				// tool payload alone; generateSection additionally loads its
+				// generation event.
+				setSelectedToolPayload({
+					inputData: row.toolInputData,
+					name: row.name,
+					outputData: row.toolOutputData,
+					sectionId: getToolSectionId(row.metadata),
+				});
+				setSelectedEventId(row.linkedUsageEventId ?? null);
+				return;
+			}
+			setSelectedToolPayload(null);
+			setSelectedEventId(row.id);
+		},
+		[],
+	);
 	const handleSearchFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
 		setSearchFilter(event.target.value);
 	}, []);
 	const handleDetailOpenChange = useCallback((open: boolean) => {
 		if (!open) {
 			setSelectedEventId(null);
+			setSelectedToolPayload(null);
 		}
 	}, []);
 	const columns = useMemo(
@@ -761,13 +1139,23 @@ const useUsageEventsState = () => {
 		[evaluationByEventId, selectedEvent],
 	);
 	const filteredItems = useMemo(
-		() => filterUsageItems(allItems, searchFilter),
-		[allItems, searchFilter],
+		() =>
+			filterUsageItems(
+				[
+					...buildTraceRows({ events: allTraceEvents, traces: allTraces }),
+					...allItems.filter((item) => !item.traceId),
+				].toSorted(
+					(left, right) => (toDateMs(right.timestamp) ?? 0) - (toDateMs(left.timestamp) ?? 0),
+				),
+				searchFilter,
+			),
+		[allItems, allTraceEvents, allTraces, searchFilter],
 	);
 	const handleEventSelectionById = useMemo<Record<string, () => void>>(() => {
 		const handlers: Record<string, () => void> = {};
 		for (const item of filteredItems) {
 			handlers[item.id] = () => {
+				setSelectedToolPayload(null);
 				setSelectedEventId(item.id);
 			};
 		}
@@ -794,12 +1182,20 @@ const useUsageEventsState = () => {
 		searchFilter,
 		selectedEventId,
 		selectedEventWithEvaluation,
+		selectedToolPayload,
 	};
 };
 
 export default function UsagePage() {
-	const statsState = useUsageStatsState();
-	const eventsState = useUsageEventsState();
+	const searchParams = useSearchParams();
+	const [filters, setFilters] = useState<UsageFilters>(() => {
+		const userId = searchParams.get("user");
+		return userId ? { userId } : {};
+	});
+	const { data: filterOptions } = useQuery(orpc.admin.usage.filterOptions.queryOptions());
+	const { data: users = [] } = useQuery(orpc.admin.users.list.queryOptions());
+	const statsState = useUsageStatsState(filters);
+	const eventsState = useUsageEventsState(filters, statsState.statsFilter, statsState.timeZone);
 
 	if (eventsState.isLoading && eventsState.allItems.length === 0) {
 		return <UsageLoadingState />;
@@ -856,17 +1252,21 @@ export default function UsagePage() {
 				<UsageEventsCard
 					columns={eventsState.columns}
 					evaluatingEventId={eventsState.evaluateMutation.variables?.id}
+					filters={filters}
 					filteredItems={eventsState.filteredItems}
 					hasMore={eventsState.data?.hasMore}
 					isEvaluating={eventsState.evaluateMutation.isPending}
 					isFetchingList={eventsState.isFetchingList}
 					onEvaluate={eventsState.handleEvaluateEvent}
+					onFiltersChange={setFilters}
 					onLoadMore={eventsState.handleLoadMore}
 					onRowClick={eventsState.handleRowClick}
 					onSearchFilterChange={eventsState.handleSearchFilterChange}
 					onSelectById={eventsState.handleEventSelectionById}
 					renderToolbar={eventsState.renderUsageToolbar}
 					searchFilter={eventsState.searchFilter}
+					filterOptions={filterOptions}
+					users={users}
 				/>
 			</div>
 
@@ -877,8 +1277,9 @@ export default function UsagePage() {
 					eventsState.evaluateMutation.variables?.id === eventsState.selectedEventId
 				}
 				onEvaluate={eventsState.handleEvaluateEvent}
-				open={!!eventsState.selectedEventId}
+				open={!!eventsState.selectedEventId || !!eventsState.selectedToolPayload}
 				onOpenChange={eventsState.handleDetailOpenChange}
+				toolPayload={eventsState.selectedToolPayload}
 			/>
 		</div>
 	);

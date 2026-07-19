@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import { findSection } from "./shared";
+import { findSection, runTracedTool } from "./shared";
 import type { AgentToolDeps, SectionToolResult } from "./shared";
 
 /**
@@ -12,7 +12,7 @@ import type { AgentToolDeps, SectionToolResult } from "./shared";
 export const createEditSectionTool = (deps: AgentToolDeps) =>
 	tool({
 		description:
-			"Ändert einen Abschnitt gezielt, indem ein vorhandener Textausschnitt durch einen neuen ersetzt wird (Diff). Nutze dies für kleine, lokale Korrekturen statt einer Neugenerierung.",
+			"Standardwerkzeug für Änderungen: aktualisiert einen Abschnitt gezielt, indem ein vorhandener Textausschnitt durch neuen Text ersetzt wird. Nutze es für einzelne neue Angaben, Ergänzungen, Streichungen und lokale Korrekturen statt generateSection.",
 		execute: ({
 			find,
 			replace,
@@ -21,28 +21,31 @@ export const createEditSectionTool = (deps: AgentToolDeps) =>
 			find: string;
 			replace: string;
 			sectionId: string;
-		}): SectionToolResult => {
-			const section = findSection(deps, sectionId);
-			if (!section) {
-				return { error: `Unbekannter Abschnitt: ${sectionId}`, ok: false };
-			}
-			if (!find) {
-				return { error: "Kein Suchtext angegeben.", ok: false };
-			}
-			if (!section.content.includes(find)) {
-				return {
-					error: `Textausschnitt nicht in Abschnitt "${sectionId}" gefunden.`,
-					ok: false,
-				};
-			}
-
-			return {
-				content: section.content.replace(find, replace),
-				ok: true,
-				sectionId,
-			};
-		},
-		inputSchema: z.object({
+		}): Promise<SectionToolResult> =>
+			runTracedTool({
+				deps,
+				execute: () => {
+					const section = findSection(deps, sectionId);
+					if (!section) {
+						return { error: `Unbekannter Abschnitt: ${sectionId}`, ok: false };
+					}
+					if (!find) {
+						return { error: "Kein Suchtext angegeben.", ok: false };
+					}
+					if (!section.content.includes(find)) {
+						return {
+							error: `Textausschnitt nicht in Abschnitt "${sectionId}" gefunden.`,
+							ok: false,
+						};
+					}
+					return { content: section.content.replace(find, replace), ok: true, sectionId };
+				},
+				inputData: { find, replace, sectionId },
+				metadata: { findCharacters: find.length, replaceCharacters: replace.length },
+					name: "editSection",
+					sectionId,
+				}),
+			inputSchema: z.object({
 			find: z
 				.string()
 				.describe(

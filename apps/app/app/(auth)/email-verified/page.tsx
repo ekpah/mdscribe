@@ -1,5 +1,3 @@
-'use client';
-
 import { Button } from '@repo/design-system/components/ui/button';
 import {
     Card,
@@ -48,19 +46,16 @@ export default function EmailVerifiedPage() {
                     {/* Primary CTA */}
                     <div className="px-4 pt-4 sm:px-0">
                         <Button
-                            asChild
                             className="w-full px-6 py-4 text-base shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl sm:w-auto sm:px-8 sm:py-6 sm:text-lg"
                             size="lg"
-                        >
-                            <Link
+                         render={<Link
                                 className="flex items-center justify-center gap-2 sm:gap-3"
                                 href="/aiscribe"
                             >
                                 <Brain className="h-5 w-5 sm:h-6 sm:w-6" />
                                 <span>KI-Funktionen jetzt ausprobieren</span>
                                 <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                            </Link>
-                        </Button>
+                            </Link>} />
                         <p className="mt-3 px-2 text-muted-foreground text-sm sm:px-0">
                             Erstelle in Sekunden professionelle Arztbriefe mit
                             KI-Unterstützung
@@ -220,32 +215,26 @@ export default function EmailVerifiedPage() {
                         </p>
                         <div className='flex flex-col items-center justify-center gap-3 px-2 pt-4 sm:flex-row sm:gap-4 sm:px-0'>
                             <Button
-                                asChild
                                 className='w-full px-6 py-4 text-base sm:w-auto sm:px-8 sm:py-6 sm:text-lg'
                                 size="lg"
-                            >
-                                <Link
+                             render={<Link
                                     className="flex items-center justify-center gap-2"
                                     href="/aiscribe"
                                 >
                                     <Brain className="h-5 w-5" />
                                     Jetzt starten
-                                </Link>
-                            </Button>
+                                </Link>} />
                             <Button
-                                asChild
                                 className='w-full px-6 py-4 text-base sm:w-auto sm:px-8 sm:py-6 sm:text-lg'
                                 size="lg"
                                 variant="outline"
-                            >
-                                <Link
+                             render={<Link
                                     className="flex items-center justify-center gap-2"
                                     href="/templates"
                                 >
                                     <FileText className="h-5 w-5" />
                                     Textbausteine ansehen
-                                </Link>
-                            </Button>
+                                </Link>} />
                         </div>
                     </div>
                 </div>

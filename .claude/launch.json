@@ -1,0 +1,13 @@
+{
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "app",
+			"cwd": "apps/app",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["--bun", "next", "dev", "-p", "3005"],
+			"port": 3005,
+			"autoPort": false
+		}
+	]
+}

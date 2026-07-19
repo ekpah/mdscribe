@@ -2,14 +2,17 @@
 
 import {
 	type ColumnDef,
+	type Row,
 	type Table as TanStackTable,
 	flexRender,
 	getCoreRowModel,
+	getExpandedRowModel,
 	getFilteredRowModel,
 	getPaginationRowModel,
 	getSortedRowModel,
 	useReactTable,
 	type ColumnFiltersState,
+	type ExpandedState,
 	type SortingState,
 	type VisibilityState,
 } from "@tanstack/react-table";
@@ -32,7 +35,7 @@ interface DataTableRenderToolbarProps<TData> {
 interface DataTableProps<TData> {
 	columns: ColumnDef<TData, any>[];
 	data: TData[];
-	onRowClick?: (row: TData) => void;
+	onRowClick?: (row: TData, tableRow: Row<TData>) => void;
 	enablePagination?: boolean;
 	enableSorting?: boolean;
 	enableFiltering?: boolean;
@@ -47,6 +50,7 @@ interface DataTableProps<TData> {
 		table: DataTableRenderToolbarProps<TData>["table"],
 	) => React.ReactNode;
 	emptyMessage?: string;
+	getSubRows?: (row: TData) => TData[] | undefined;
 }
 
 function DataTable<TData>({
@@ -63,11 +67,13 @@ function DataTable<TData>({
 	renderToolbar,
 	renderPagination,
 	emptyMessage = "Keine Ergebnisse.",
+	getSubRows,
 }: DataTableProps<TData>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
 		[],
 	);
+	const [expanded, setExpanded] = React.useState<ExpandedState>({});
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>({});
 	const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("");
@@ -80,6 +86,7 @@ function DataTable<TData>({
 		data,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
+		...(getSubRows && { getExpandedRowModel: getExpandedRowModel(), getSubRows }),
 		...(enablePagination && { getPaginationRowModel: getPaginationRowModel() }),
 		...(enableSorting && {
 			onSortingChange: setSorting,
@@ -89,6 +96,7 @@ function DataTable<TData>({
 			onColumnFiltersChange: setColumnFilters,
 			getFilteredRowModel: getFilteredRowModel(),
 		}),
+		...(getSubRows && { onExpandedChange: setExpanded }),
 		...(enableGlobalFilter && {
 			onGlobalFilterChange: setActualGlobalFilter,
 			getFilteredRowModel: getFilteredRowModel(),
@@ -102,6 +110,7 @@ function DataTable<TData>({
 			...(enableFiltering && { columnFilters }),
 			...(enableGlobalFilter && { globalFilter: actualGlobalFilter }),
 			...(enableColumnVisibility && { columnVisibility }),
+			...(getSubRows && { expanded }),
 		},
 	});
 
@@ -132,7 +141,7 @@ function DataTable<TData>({
 								<TableRow
 									key={row.id}
 									data-state={row.getIsSelected() && "selected"}
-									onClick={() => onRowClick?.(row.original)}
+								onClick={() => onRowClick?.(row.original, row)}
 									className={onRowClick ? "cursor-pointer" : undefined}
 								>
 									{row.getVisibleCells().map((cell) => (

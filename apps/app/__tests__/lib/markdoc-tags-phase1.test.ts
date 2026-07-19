@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
 
 describe("markdoc tags phase 1 regressions", () => {
 	test("keeps case scopes separate across switches with same case labels", () => {
@@ -114,5 +115,167 @@ describe("markdoc tags phase 1 regressions", () => {
 		expect(outerSwitch?.children.map((child) => child.attributes.primary)).toEqual(["x"]);
 		expect(innerSwitch).toBeDefined();
 		expect(innerSwitch?.children.map((child) => child.attributes.primary)).toEqual(["y"]);
+	});
+
+	test("allows compatible repeated info tags and fills optional metadata", () => {
+		const source = `
+{% info "Gewicht" type="number" /%}
+{% info "Gewicht" type="number" unit="kg" description="Körpergewicht" renderUnit=true /%}
+`;
+
+		const diagnostics = validateMarkdocTagContracts(source);
+		const [input] = parseMarkdocToInputs(source);
+		if (input?.name !== "Info") {
+			throw new Error("Expected info input");
+		}
+
+		expect(diagnostics).toEqual([]);
+		expect(input?.attributes).toMatchObject({
+			description: "Körpergewicht",
+			primary: "Gewicht",
+			type: "number",
+			unit: "kg",
+		});
+		expect(input?.attributes.renderUnit).toBe(false);
+	});
+
+	test("normalizes omitted tag types before comparing repeated inputs", () => {
+		const compatibleInfo = validateMarkdocTagContracts(`
+{% info "Name" /%}
+{% info "Name" type="string" /%}
+`);
+		const conflictingInfo = validateMarkdocTagContracts(`
+{% info "Alter" /%}
+{% info "Alter" type="number" /%}
+`);
+		const compatibleSwitch = validateMarkdocTagContracts(`
+{% switch "Aktiv" type="checkbox" %}{% case "true" %}Ja{% /case %}{% /switch %}
+{% switch "Aktiv" type="boolean" %}{% case "false" %}Nein{% /case %}{% /switch %}
+`);
+
+		expect(compatibleInfo).toEqual([]);
+		expect(compatibleSwitch).toEqual([]);
+		expect(conflictingInfo).toHaveLength(1);
+		expect(conflictingInfo[0]).toMatchObject({
+			code: "tag-settings-conflict",
+			conflicts: [
+				{
+					attribute: "type",
+					conflictingValue: "number",
+					firstValue: "string",
+				},
+			],
+			primary: "Alter",
+			tag: "info",
+		});
+	});
+
+	test("reports every conflicting info setting with source locations", () => {
+		const diagnostics = validateMarkdocTagContracts(`
+{% info "Gewicht" type="number" unit="kg" description="Erstes Feld" /%}
+{% info "Gewicht" type="date" unit="cm" description="Zweites Feld" /%}
+`);
+
+		expect(diagnostics).toHaveLength(1);
+		const [diagnostic] = diagnostics;
+		expect(diagnostic).toMatchObject({
+			code: "tag-settings-conflict",
+			conflicts: [
+				{ attribute: "type", conflictingValue: "date", firstValue: "number" },
+				{ attribute: "unit", conflictingValue: "cm", firstValue: "kg" },
+				{
+					attribute: "description",
+					conflictingValue: "Zweites Feld",
+					firstValue: "Erstes Feld",
+				},
+			],
+			primary: "Gewicht",
+			tag: "info",
+		});
+		if (diagnostic?.code !== "tag-settings-conflict") {
+			throw new Error("Expected settings conflict");
+		}
+		expect(diagnostic.conflictingLocation?.start.line).toBeDefined();
+		expect(diagnostic.conflicts.every((conflict) => conflict.firstLocation)).toBe(true);
+	});
+
+	test("rejects input tags of different kinds that share a primary", () => {
+		const diagnostics = validateMarkdocTagContracts(`
+{% info "Status" /%}
+{% switch "Status" %}{% case "A" %}A{% /case %}{% /switch %}
+`);
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]).toMatchObject({
+			code: "tag-kind-conflict",
+			conflictingTag: "switch",
+			firstTag: "info",
+			primary: "Status",
+		});
+	});
+
+	test("allows repeated switches to union cases when their types agree", () => {
+		const source = `
+{% switch "Status" %}{% case "A" %}A{% /case %}{% /switch %}
+{% switch "Status" type="string" %}{% case "B" %}B{% /case %}{% /switch %}
+`;
+
+		const diagnostics = validateMarkdocTagContracts(source);
+		const [input] = parseMarkdocToInputs(source);
+
+		expect(diagnostics).toEqual([]);
+		expect(input?.children.map((child) => child.attributes.primary)).toEqual(["A", "B"]);
+	});
+
+	test("reports conflicting switch types", () => {
+		const diagnostics = validateMarkdocTagContracts(`
+{% switch "Status" type="string" %}{% case "A" %}A{% /case %}{% /switch %}
+{% switch "Status" type="boolean" %}{% case "true" %}Ja{% /case %}{% /switch %}
+`);
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]).toMatchObject({
+			code: "tag-settings-conflict",
+			conflicts: [{ attribute: "type", conflictingValue: "boolean", firstValue: "string" }],
+			primary: "Status",
+			tag: "switch",
+		});
+	});
+
+	test("keeps score presentation local and rejects conflicting formulas", () => {
+		const compatible = validateMarkdocTagContracts(`
+{% score "BMI" formula="[A]+1" unit="kg" renderUnit=false /%}
+{% score "BMI" formula="[A]+1" unit="cm" renderUnit=true /%}
+`);
+		const conflictingSource = `
+{% score "Total" formula="[A]+1" /%}
+{% score "Total" formula="[B]+2" /%}
+`;
+		const conflicting = validateMarkdocTagContracts(conflictingSource);
+		const [score] = parseMarkdocToInputs(conflictingSource);
+		if (score?.name !== "Score") {
+			throw new Error("Expected score input");
+		}
+
+		expect(compatible).toEqual([]);
+		expect(conflicting).toHaveLength(1);
+		expect(conflicting[0]).toMatchObject({
+			code: "tag-settings-conflict",
+			conflicts: [{ attribute: "formula", conflictingValue: "[B]+2", firstValue: "[A]+1" }],
+			primary: "Total",
+			tag: "score",
+		});
+		expect(score?.attributes.formula).toBe("[A]+1");
+		expect(score?.children.map((child) => child.attributes.primary)).toEqual(["A"]);
+	});
+
+	test("keeps formula-only scores valid and separate", () => {
+		const source = `
+{% score formula="[A]+1" /%}
+{% score formula="[B]+2" /%}
+`;
+
+		expect(validateMarkdocTagContracts(source)).toEqual([]);
+		expect(parseMarkdocToInputs(source)).toHaveLength(2);
 	});
 });

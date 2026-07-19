@@ -25,6 +25,27 @@ export interface SwitchCase {
 
 export type SwitchTagType = "string" | "boolean";
 
+const SWITCH_BOOLEAN_CASE_PRIMARIES = ["true", "false"] as const;
+
+export const isBooleanSwitchType = (value: SwitchTagType | null | undefined): boolean =>
+	value === "boolean";
+
+export const normalizeBooleanSwitchCases = (cases: SwitchCase[]): SwitchCase[] =>
+	SWITCH_BOOLEAN_CASE_PRIMARIES.map((primary) => {
+		const existing = cases.find((caseItem) => caseItem.primary === primary);
+		return {
+			content: existing?.content ?? existing?.text ?? "",
+			primary,
+			text: existing?.text ?? "",
+		};
+	});
+
+export const hasBooleanSwitchCaseShape = (cases: SwitchCase[]): boolean =>
+	cases.length === SWITCH_BOOLEAN_CASE_PRIMARIES.length &&
+	SWITCH_BOOLEAN_CASE_PRIMARIES.every((primary) =>
+		cases.some((caseItem) => caseItem.primary === primary),
+	);
+
 const parseSwitchTagType = (rawType: string | null): SwitchTagType | null => {
 	if (rawType === "string" || rawType === "boolean") {
 		return rawType;

@@ -12,77 +12,15 @@ import { FlaskConical, Loader2, Medal } from "lucide-react";
 import Link from "next/link";
 
 import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
-import { isScribeDocType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import {
+	buildPlaygroundUrl,
+	canOpenInPlayground,
 	formatDuration,
 	formatScore,
 	formatTokensPerSecond,
 	getUsageEvaluation,
 } from "@/app/admin/usage/columns";
 import type { UsageDetailEvent } from "@/app/admin/usage/types";
-import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
-import type { DocumentType } from "@/orpc/scribe/types";
-
-const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
-	if (!metadata) {
-		return undefined;
-	}
-
-	const { endpoint } = metadata;
-	if (typeof endpoint === "string" && endpoint.trim().length > 0 && isScribeDocType(endpoint)) {
-		return endpoint;
-	}
-
-	const { promptName } = metadata;
-	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return resolvePromptHarnessId(promptName);
-	}
-
-	return undefined;
-};
-
-const buildPlaygroundUrl = (event: UsageDetailEvent): string => {
-	const params = new URLSearchParams();
-
-	// Use referenceUsageEvent for persistent URL state
-	params.set("referenceUsageEvent", event.id);
-
-	if (event.model) {
-		params.set("model", event.model);
-	}
-
-	// Prefer inferring document type from metadata (if present)
-	const metadata = event.metadata as Record<string, unknown> | null;
-	const documentType = inferDocumentType(metadata);
-	if (documentType) {
-		params.set("documentType", documentType);
-	}
-
-	// Extract parameters from metadata
-	if (metadata) {
-		const modelConfig = metadata.modelConfig as Record<string, unknown> | undefined;
-		if (modelConfig?.temperature !== undefined) {
-			params.set("temperature", String(modelConfig.temperature));
-		}
-		if (modelConfig?.maxTokens !== undefined) {
-			params.set("maxTokens", String(modelConfig.maxTokens));
-		}
-		const reasoningEffortSource =
-			typeof modelConfig?.reasoningEffort === "string"
-				? modelConfig.reasoningEffort
-				: metadata.reasoningEffort;
-		const reasoningEffort =
-			typeof reasoningEffortSource === "string" ? reasoningEffortSource : undefined;
-		if ((reasoningEffort && reasoningEffort !== "none") || metadata.thinkingEnabled) {
-			params.set("thinking", "true");
-			if (reasoningEffort) {
-				params.set("reasoningEffort", reasoningEffort);
-			}
-		}
-	}
-
-	return `/admin/playground?${params.toString()}`;
-};
 
 interface UsageEventDetailProps {
 	event: UsageDetailEvent | null | undefined;
@@ -90,7 +28,80 @@ interface UsageEventDetailProps {
 	onEvaluate?: (id: string) => void;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	toolPayload?: {
+		inputData: unknown;
+		name: string;
+		outputData: unknown;
+		sectionId: string | null;
+	} | null;
 }
+
+type ToolPayload = NonNullable<UsageEventDetailProps["toolPayload"]>;
+
+const PlaygroundLinkButton = ({
+	event,
+	hasToolPayload,
+}: {
+	event: UsageDetailEvent;
+	hasToolPayload: boolean;
+}) => {
+	if (hasToolPayload || !canOpenInPlayground(event)) {
+		return null;
+	}
+
+	return (
+		<div className="mt-4">
+			<Button
+				variant="outline"
+				className="w-full gap-2 border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet hover:bg-solarized-violet/20"
+			 render={<Link href={buildPlaygroundUrl(event)}>
+					<FlaskConical className="h-4 w-4" />
+					Im Playground öffnen
+				</Link>} />
+		</div>
+	);
+};
+
+const ToolPayloadSection = ({ toolPayload }: { toolPayload: ToolPayload | null | undefined }) => {
+	if (!toolPayload) {
+		return null;
+	}
+
+	return (
+		<section>
+			<h3 className="mb-2 font-medium text-solarized-base00">
+				Tool-Aufruf: {toolPayload.name}
+				{toolPayload.sectionId ? (
+					<span className="ml-2 font-mono text-xs text-solarized-base01">
+						Abschnitt: {toolPayload.sectionId}
+					</span>
+				) : null}
+			</h3>
+			<div className="space-y-2">
+				<div className="max-h-48 overflow-auto rounded-lg border border-solarized-base2 bg-solarized-base3">
+					<p className="border-b border-solarized-base2 px-3 py-2 text-xs text-solarized-base01">
+						Eingabe
+					</p>
+					<pre className="whitespace-pre-wrap p-3 font-mono text-xs">
+						{toolPayload.inputData === null || toolPayload.inputData === undefined
+							? "-"
+							: JSON.stringify(toolPayload.inputData, null, 2)}
+					</pre>
+				</div>
+				<div className="max-h-48 overflow-auto rounded-lg border border-solarized-base2 bg-solarized-base3">
+					<p className="border-b border-solarized-base2 px-3 py-2 text-xs text-solarized-base01">
+						Ausgabe
+					</p>
+					<pre className="whitespace-pre-wrap p-3 font-mono text-xs">
+						{toolPayload.outputData === null || toolPayload.outputData === undefined
+							? "-"
+							: JSON.stringify(toolPayload.outputData, null, 2)}
+					</pre>
+				</div>
+			</div>
+		</section>
+	);
+};
 
 const StatBox = ({ label, value }: { label: string; value: string | number | null }) => (
 	<div className="rounded-lg border border-solarized-base2 bg-solarized-base3 p-2">
@@ -119,9 +130,27 @@ export const UsageEventDetail = ({
 	onEvaluate,
 	open,
 	onOpenChange,
+	toolPayload,
 }: UsageEventDetailProps) => {
 	if (!event) {
-		return null;
+		// Tool calls without a linked UsageEvent (editSection) still expose
+		// their observation input/output for inspection.
+		if (!toolPayload) {
+			return null;
+		}
+		return (
+			<Sheet open={open} onOpenChange={onOpenChange}>
+				<SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+					<SheetHeader>
+						<SheetTitle>Tool-Aufruf</SheetTitle>
+						<SheetDescription>Eingabe und Ausgabe des Tool-Aufrufs</SheetDescription>
+					</SheetHeader>
+					<div className="mt-6 space-y-6">
+						<ToolPayloadSection toolPayload={toolPayload} />
+					</div>
+				</SheetContent>
+			</Sheet>
+		);
 	}
 
 	const cost = event.cost ? Number(event.cost) : null;
@@ -136,21 +165,11 @@ export const UsageEventDetail = ({
 					<SheetDescription>{formatDate(event.timestamp)}</SheetDescription>
 				</SheetHeader>
 
-				{/* Jump to Playground Button */}
-				<div className="mt-4">
-					<Button
-						asChild
-						variant="outline"
-						className="w-full gap-2 border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet hover:bg-solarized-violet/20"
-					>
-						<Link href={buildPlaygroundUrl(event)}>
-							<FlaskConical className="h-4 w-4" />
-							Im Playground öffnen
-						</Link>
-					</Button>
-				</div>
+				<PlaygroundLinkButton event={event} hasToolPayload={Boolean(toolPayload)} />
 
 				<div className="mt-6 space-y-6">
+					<ToolPayloadSection toolPayload={toolPayload} />
+
 					{/* User Info Section */}
 					<section>
 						<h3 className="mb-2 font-medium text-solarized-base00">Benutzer</h3>

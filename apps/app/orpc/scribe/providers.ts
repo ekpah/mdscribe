@@ -4,9 +4,12 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { aiDefaults, aiModel, aiProvider, and, eq } from "@repo/database";
+import { database } from "@repo/database/client";
 import type { Database } from "@repo/database";
 import { experimental_transcribe as transcribe } from "ai";
 import type { JSONValue, LanguageModel } from "ai";
+import { revalidateTag, unstable_cache } from "next/cache";
+import { createTinfoilAI, TinfoilAI, toFile } from "tinfoil";
 
 import { decrypt } from "@/lib/encryption";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
@@ -26,6 +29,23 @@ export type DefaultModelSlot =
 
 export type MediaPreprocessStrategy = "direct" | "multimodal";
 
+export const OPENROUTER_ROUTING_MODES = ["default", "nitro", "floor", "exacto"] as const;
+export type OpenRouterRoutingMode = (typeof OPENROUTER_ROUTING_MODES)[number];
+
+const OPENROUTER_ROUTING_MODE_SET = new Set<OpenRouterRoutingMode>(OPENROUTER_ROUTING_MODES);
+const OPENROUTER_PROVIDER_SORT: Partial<Record<OpenRouterRoutingMode, string>> = {
+	exacto: "exacto",
+	floor: "price",
+	nitro: "throughput",
+};
+
+export const normalizeOpenRouterRoutingMode = (
+	value: string | null | undefined,
+): OpenRouterRoutingMode =>
+	OPENROUTER_ROUTING_MODE_SET.has(value as OpenRouterRoutingMode)
+		? (value as OpenRouterRoutingMode)
+		: "default";
+
 export interface TranscribeAudioInput {
 	data: Buffer;
 	filename: string;
@@ -42,6 +62,7 @@ export interface ResolvedModel {
 	isOpenRouter: boolean;
 	model: LanguageModel;
 	modelName: string;
+	openRouterRoutingMode: OpenRouterRoutingMode;
 	providerId: string;
 	providerProtocol: ProviderProtocol;
 	supportedParameters: string[];
@@ -78,6 +99,51 @@ interface AgentGenerationStrategy extends GenerationStrategy {
 type AiModelRow = typeof aiModel.$inferSelect;
 type AiProviderRow = typeof aiProvider.$inferSelect;
 type AiDefaultsRow = typeof aiDefaults.$inferSelect;
+interface AiModelProviderRows {
+	model: AiModelRow;
+	provider: AiProviderRow;
+}
+interface CachedValue<T> {
+	expiresAt: number;
+	promise: Promise<T>;
+}
+
+const AI_PROVIDER_RESOLUTION_CACHE_TAG = "ai-provider-resolution";
+const RESOLUTION_CACHE_REVALIDATE_SECONDS = 60;
+const RESOLUTION_CACHE_TTL_MS = RESOLUTION_CACHE_REVALIDATE_SECONDS * 1000;
+const isResolutionCacheDisabled = () => process.env.NODE_ENV === "test";
+
+const languageModelCache = new Map<string, CachedValue<LanguageModel>>();
+
+const getProcessCachedValue = <T>(
+	cacheKey: string,
+	cache: Map<string, CachedValue<T>>,
+	load: () => Promise<T>,
+): Promise<T> => {
+	if (isResolutionCacheDisabled()) {
+		return load();
+	}
+
+	const now = Date.now();
+	const cached = cache.get(cacheKey);
+	if (cached && cached.expiresAt > now) {
+		return cached.promise;
+	}
+
+	const promise = (async () => {
+		try {
+			return await load();
+		} catch (error) {
+			cache.delete(cacheKey);
+			throw error;
+		}
+	})();
+	cache.set(cacheKey, {
+		expiresAt: now + RESOLUTION_CACHE_TTL_MS,
+		promise,
+	});
+	return promise;
+};
 
 const normalizeSupportedParameters = (parameters: string[] | undefined): string[] =>
 	parameters ?? [];
@@ -98,15 +164,99 @@ const REASONING_EFFORTS = new Set<ReasoningEffort>([
 export const normalizeReasoningEffort = (value: string | null | undefined): ReasoningEffort =>
 	REASONING_EFFORTS.has(value as ReasoningEffort) ? (value as ReasoningEffort) : "none";
 
-const createProviderModel = (
+/**
+ * Clears every layer of the provider-resolution cache after an admin write.
+ *
+ * Note the asymmetry: `revalidateTag` purges the Next Data Cache coherently
+ * across all instances/containers, but the process-level `Map`s
+ * (`languageModelCache`) are only cleared in the *local* process. Other
+ * workers keep serving stale `LanguageModel` client objects until their
+ * `RESOLUTION_CACHE_TTL_MS` entry expires — so the TTL is the real
+ * cross-instance consistency bound for the non-serializable clients.
+ * Acceptable because admin config changes are rare; do not assume this call
+ * gives read-your-writes semantics cluster-wide.
+ */
+export const invalidateAiProviderResolutionCaches = (): void => {
+	languageModelCache.clear();
+	try {
+		revalidateTag(AI_PROVIDER_RESOLUTION_CACHE_TAG, "max");
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		const isMissingCacheContext = message.includes("static generation store missing");
+		if (process.env.NODE_ENV === "test" || (process.env.NODE_ENV !== "production" && isMissingCacheContext)) {
+			return;
+		}
+
+		console.error("Failed to revalidate AI provider resolution cache:", error);
+	}
+};
+
+/**
+ * Tinfoil providers are cached per credential set because `createTinfoilAI`
+ * performs the enclave attestation handshake (hardware signature checks plus
+ * code provenance) before returning; reusing the instance keeps that cost off
+ * the per-request path. Rejected handshakes are evicted so the next request
+ * retries instead of caching the failure.
+ */
+const tinfoilProviderCache = new Map<string, Promise<Awaited<ReturnType<typeof createTinfoilAI>>>>();
+const tinfoilTranscriptionClientCache = new Map<string, TinfoilAI>();
+
+const getTinfoilCacheKey = (apiKey: string | undefined, baseUrl: string | null): string =>
+	`${apiKey ?? ""}:${baseUrl ?? ""}`;
+
+const getTinfoilProvider = (
+	apiKey: string | undefined,
+	baseUrl: string | null,
+): Promise<Awaited<ReturnType<typeof createTinfoilAI>>> => {
+	const cacheKey = getTinfoilCacheKey(apiKey, baseUrl);
+	const cached = tinfoilProviderCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
+	const created = (async () => {
+		try {
+			return await createTinfoilAI(apiKey, baseUrl ? { baseURL: baseUrl } : {});
+		} catch (error) {
+			tinfoilProviderCache.delete(cacheKey);
+			throw error;
+		}
+	})();
+	tinfoilProviderCache.set(cacheKey, created);
+	return created;
+};
+
+const getTinfoilTranscriptionClient = (
+	apiKey: string | undefined,
+	baseUrl: string | null,
+): TinfoilAI => {
+	const cacheKey = getTinfoilCacheKey(apiKey, baseUrl);
+	const cached = tinfoilTranscriptionClientCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
+	const client = new TinfoilAI({
+		apiKey: apiKey ?? "",
+		...(baseUrl ? { baseURL: baseUrl } : {}),
+	});
+	tinfoilTranscriptionClientCache.set(cacheKey, client);
+	return client;
+};
+
+const createProviderModelUncached = async (
 	protocol: string,
 	modelId: string,
 	apiKey: string | undefined,
 	baseUrl: string | null,
-): LanguageModel => {
+): Promise<LanguageModel> => {
 	switch (protocol) {
 		case "openrouter": {
 			const provider = createOpenRouter({ apiKey: apiKey ?? "" });
+			return provider(modelId);
+		}
+		case "tinfoil": {
+			const provider = await getTinfoilProvider(apiKey, baseUrl);
 			return provider(modelId);
 		}
 		case "openai": {
@@ -133,6 +283,17 @@ const createProviderModel = (
 		}
 	}
 };
+
+const createProviderModel = (
+	cacheKey: string,
+	protocol: string,
+	modelId: string,
+	apiKey: string | undefined,
+	baseUrl: string | null,
+): Promise<LanguageModel> =>
+	getProcessCachedValue(cacheKey, languageModelCache, () =>
+		createProviderModelUncached(protocol, modelId, apiKey, baseUrl),
+	);
 
 const isOpenAITranscriptionModel = (modelId: string): boolean => {
 	const id = modelId.toLowerCase();
@@ -190,6 +351,21 @@ const createAudioTranscriber = (
 	apiKey: string | undefined,
 	baseUrl: string | null,
 ): ResolvedModel["transcribeAudio"] | undefined => {
+	if (protocol === "tinfoil") {
+		return async ({ data, filename, mediaType }) => {
+			const client = getTinfoilTranscriptionClient(apiKey, baseUrl);
+			const file = await toFile(data, filename, { type: mediaType });
+			const result = await client.audio.transcriptions.create({
+				file,
+				model: modelId,
+			});
+			const text = result.text.trim();
+			if (!text) {
+				throw new Error("Tinfoil-Transkription lieferte keinen Text.");
+			}
+			return { text };
+		};
+	}
 
 	if (protocol === "openai" && isOpenAITranscriptionModel(modelId)) {
 		const provider = createOpenAI({ apiKey: apiKey ?? "" });
@@ -297,8 +473,10 @@ const buildResolvedModel = async (
 	provider: AiProviderRow,
 ): Promise<ResolvedModel> => {
 	const apiKey = provider.apiKey ? await decrypt(provider.apiKey) : undefined;
+	const languageModelCacheKey = `provider-model:${provider.id}:${model.id}`;
 
 	const languageModel = await createProviderModel(
+		languageModelCacheKey,
 		provider.protocol,
 		model.modelId,
 		apiKey,
@@ -316,6 +494,7 @@ const buildResolvedModel = async (
 		isOpenRouter: provider.protocol === "openrouter",
 		model: languageModel,
 		modelName: model.modelId,
+		openRouterRoutingMode: normalizeOpenRouterRoutingMode(model.openRouterRoutingMode),
 		providerId: provider.id,
 		providerProtocol: provider.protocol,
 		supportedParameters,
@@ -324,10 +503,10 @@ const buildResolvedModel = async (
 	};
 };
 
-export const resolveModelByRecordId = async (
+const getModelProviderRowsByRecordIdUncached = async (
 	modelRecordId: string,
 	db: Database,
-): Promise<ResolvedModel> => {
+): Promise<AiModelProviderRows> => {
 	const rows = await db
 		.select({
 			model: aiModel,
@@ -343,14 +522,53 @@ export const resolveModelByRecordId = async (
 		throw new Error(USER_MESSAGES.modelUnavailable);
 	}
 
+	return row;
+};
+
+/**
+ * Production (cached) path for model+provider lookup. Uses the singleton
+ * `database` import, NOT the caller-supplied `db`, because Next's data cache
+ * must only key on serializable arguments. In production `context.db` resolves
+ * to this same singleton via `dbProviderMiddleware`, so the two are equivalent.
+ *
+ * The `db` parameter on the public resolvers is therefore only honored on
+ * the *uncached* path (tests, where `NODE_ENV === "test"` disables the cache
+ * and injects a fresh per-test database). It is intentionally ignored here.
+ */
+const getCachedModelProviderRowsByRecordId = unstable_cache(
+	(modelRecordId: string): Promise<AiModelProviderRows> =>
+		getModelProviderRowsByRecordIdUncached(modelRecordId, database),
+	["ai-provider-resolution", "model-provider-by-record-id"],
+	{
+		revalidate: RESOLUTION_CACHE_REVALIDATE_SECONDS,
+		tags: [AI_PROVIDER_RESOLUTION_CACHE_TAG],
+	},
+);
+
+const getModelProviderRowsByRecordId = (
+	modelRecordId: string,
+	db: Database,
+): Promise<AiModelProviderRows> => {
+	if (isResolutionCacheDisabled()) {
+		return getModelProviderRowsByRecordIdUncached(modelRecordId, db);
+	}
+
+	return getCachedModelProviderRowsByRecordId(modelRecordId);
+};
+
+export const resolveModelByRecordId = async (
+	modelRecordId: string,
+	db: Database,
+): Promise<ResolvedModel> => {
+	const row = await getModelProviderRowsByRecordId(modelRecordId, db);
 	return buildResolvedModel(row.model, row.provider);
 };
 
-export const resolveProviderModel = async (
+const getModelProviderRowsByProviderModelIdUncached = async (
 	providerId: string,
 	modelId: string,
 	db: Database,
-): Promise<ResolvedModel> => {
+): Promise<AiModelProviderRows> => {
 	const provider = await db.query.aiProvider.findFirst({
 		where: eq(aiProvider.id, providerId),
 	});
@@ -363,13 +581,35 @@ export const resolveProviderModel = async (
 	});
 
 	if (model) {
-		return buildResolvedModel(model, provider);
+		return { model, provider };
 	}
 
 	throw new Error(USER_MESSAGES.modelUnavailable);
 };
 
-const getDefaults = async (db: Database): Promise<AiDefaultsRow> => {
+const getCachedModelProviderRowsByProviderModelId = unstable_cache(
+	(providerId: string, modelId: string): Promise<AiModelProviderRows> =>
+		getModelProviderRowsByProviderModelIdUncached(providerId, modelId, database),
+	["ai-provider-resolution", "model-provider-by-provider-model-id"],
+	{
+		revalidate: RESOLUTION_CACHE_REVALIDATE_SECONDS,
+		tags: [AI_PROVIDER_RESOLUTION_CACHE_TAG],
+	},
+);
+
+const getModelProviderRowsByProviderModelId = (
+	providerId: string,
+	modelId: string,
+	db: Database,
+): Promise<AiModelProviderRows> => {
+	if (isResolutionCacheDisabled()) {
+		return getModelProviderRowsByProviderModelIdUncached(providerId, modelId, db);
+	}
+
+	return getCachedModelProviderRowsByProviderModelId(providerId, modelId);
+};
+
+const getDefaultsUncached = async (db: Database): Promise<AiDefaultsRow> => {
 	const defaults = await db.query.aiDefaults.findFirst({
 		where: eq(aiDefaults.id, "global"),
 	});
@@ -380,6 +620,20 @@ const getDefaults = async (db: Database): Promise<AiDefaultsRow> => {
 
 	return defaults;
 };
+
+export const resolveProviderModel = async (
+	providerId: string,
+	modelId: string,
+	db: Database,
+): Promise<ResolvedModel> => {
+	const row = await getModelProviderRowsByProviderModelId(providerId, modelId, db);
+	return buildResolvedModel(row.model, row.provider);
+};
+
+// Defaults are tiny and admin-driven. Do not route them through
+// `unstable_cache`: a stale default model can be selected for a long-running
+// agent run while its later tool calls resolve the updated model.
+const getDefaults = (db: Database): Promise<AiDefaultsRow> => getDefaultsUncached(db);
 
 const getDefaultModelRecordId = (
 	defaults: AiDefaultsRow,
@@ -626,8 +880,10 @@ export const buildProviderOptions = ({
 
 	switch (model.providerProtocol) {
 		case "openrouter": {
+			const providerSort = OPENROUTER_PROVIDER_SORT[model.openRouterRoutingMode];
 			return {
 				openrouter: {
+					...(providerSort ? { provider: { sort: providerSort } } : {}),
 					...(includeUsage ? { usage: { include: true } } : {}),
 					...(userId ? { user: userId } : {}),
 					...(effectiveReasoningEffort
@@ -637,11 +893,14 @@ export const buildProviderOptions = ({
 				},
 			};
 		}
+		case "tinfoil":
 		case "openai-compatible":
 		case "openai": {
 			if (!(effectiveReasoningEffort || userId)) {
 				return;
 			}
+			// The generic `openaiCompatible` key applies regardless of the
+			// provider's registered name (`tinfoil`, `custom`, ...).
 			const optionsKey = model.providerProtocol === "openai" ? "openai" : "openaiCompatible";
 			return {
 				[optionsKey]: {

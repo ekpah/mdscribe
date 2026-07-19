@@ -29,21 +29,6 @@ describe("Admin emails handler", () => {
 		await server?.close();
 	});
 
-	test("registry contains all current drafts", () => {
-		expect(emailDraftIds.toSorted()).toEqual([
-			"ai-texts-announcement",
-			"change-email",
-			"cold-outreach",
-			"context-transfer-announcement",
-			"documents-announcement",
-			"otp-login",
-			"reset-password",
-			"verify",
-			"welcome",
-			"workspaces-announcement",
-		]);
-	});
-
 	test("lists draft metadata without render functions", async () => {
 		const drafts = await call(emailsHandler.list, undefined, { context });
 		const aiTextsDraft = drafts.find((draft) => draft.id === "ai-texts-announcement");

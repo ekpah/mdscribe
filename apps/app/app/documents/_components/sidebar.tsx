@@ -70,12 +70,10 @@ export default function DocumentsSidebar({
 				<>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<SidebarMenuButton asChild tooltip="Neues Dokument">
-								<Link href={createHref}>
+							<SidebarMenuButton tooltip="Neues Dokument" render={<Link href={createHref}>
 									<PlusCircle />
 									<span>Neues Dokument</span>
-								</Link>
-							</SidebarMenuButton>
+								</Link>} />
 						</SidebarMenuItem>
 					</SidebarMenu>
 					<NavigationSidebarSearch

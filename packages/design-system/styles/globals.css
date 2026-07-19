@@ -263,13 +263,13 @@ green     #859900 68 100% 30%
     height: 0;
   }
   to {
-    height: var(--radix-accordion-content-height);
+    height: var(--accordion-panel-height);
   }
 }
 
 @keyframes accordion-up {
   from {
-    height: var(--radix-accordion-content-height);
+    height: var(--accordion-panel-height);
   }
   to {
     height: 0;
@@ -283,6 +283,35 @@ green     #859900 68 100% 30%
   .animate-accordion-up {
     animation: accordion-up 0.2s ease-out;
   }
+}
+
+/* Synthetic caret between inline tag chips (see editor TagGapCaret extension).
+   Firefox cannot paint the native caret without an adjacent text node. */
+@keyframes tag-gap-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.tag-gap-caret {
+  display: inline-block;
+  width: 0;
+  height: 1.2em;
+  margin-right: -1px;
+  border-left: 1px solid currentColor;
+  vertical-align: text-bottom;
+  pointer-events: none;
+  user-select: none;
+  animation: tag-gap-caret-blink 1.1s step-end infinite;
+}
+
+.tag-gap-caret-hide-native {
+  caret-color: transparent;
 }
 
 /* This layer is added by shadcn/ui */

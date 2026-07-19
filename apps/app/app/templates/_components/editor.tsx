@@ -1,9 +1,7 @@
 "use client";
 
-import { EditorSidebar } from "@repo/design-system/components/editor/_components/editor-sidebar";
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
-import TipTap from "@repo/design-system/components/editor/tip-tap";
-import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
+import type { TagInspectorEditor } from "@repo/design-system/components/editor/tag-inspector/tag-inspector";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -17,14 +15,20 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
+import { cn } from "@repo/design-system/lib/utils";
+import type { MarkdocTagDiagnostic } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { InfoIcon, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
-import { USER_MESSAGES } from "@/lib/user-messages";
+import { formatMarkdocTagDiagnostic, USER_MESSAGES } from "@/lib/user-messages";
+
+import { TagInspector, TagInspectorSheet } from "./tag-inspector-dynamic";
+import TipTap from "./tip-tap-dynamic";
 
 const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
 const MAX_TEMPLATE_EXAMPLES = 10;
@@ -33,6 +37,83 @@ const TEMPLATE_VISIBILITIES = ["public", "private"] as const;
 type TemplateVisibility = (typeof TEMPLATE_VISIBILITIES)[number];
 
 const isActionableError = (error: unknown): error is Error => error instanceof Error;
+
+const hasMarkdocValidationErrors = (diagnostics: MarkdocTagDiagnostic[] | null): boolean =>
+	diagnostics?.some((diagnostic) => diagnostic.severity === "error") ?? false;
+
+const isTemplateFormValid = ({
+	category,
+	hasMarkdocErrors,
+	isValidationPending,
+	name,
+	newCategory,
+}: {
+	category: string;
+	hasMarkdocErrors: boolean;
+	isValidationPending: boolean;
+	name: string;
+	newCategory: string;
+}): boolean => {
+	const resolvedCategory = category === "new" ? newCategory : category;
+	return (
+		resolvedCategory.trim() !== "" &&
+		name.trim() !== "" &&
+		!hasMarkdocErrors &&
+		!isValidationPending
+	);
+};
+
+const getSaveButtonLabel = ({
+	hasMarkdocErrors,
+	isFormValid,
+	isSubmitting,
+	isValidationPending,
+}: {
+	hasMarkdocErrors: boolean;
+	isFormValid: boolean;
+	isSubmitting: boolean;
+	isValidationPending: boolean;
+}): string => {
+	if (isSubmitting) {
+		return "Textbaustein speichern...";
+	}
+	if (hasMarkdocErrors) {
+		return USER_MESSAGES.resolveTemplateTagErrors;
+	}
+	if (isValidationPending) {
+		return USER_MESSAGES.checkingTemplateTags;
+	}
+	if (!isFormValid) {
+		return "Kategorie und Name erforderlich";
+	}
+	return "Textbaustein speichern";
+};
+
+const MarkdocValidationMessage = ({
+	diagnostics,
+}: {
+	diagnostics: MarkdocTagDiagnostic[] | null;
+}) => {
+	if (!diagnostics || diagnostics.length === 0) {
+		return null;
+	}
+
+	return (
+		<div
+			className="rounded-md border border-solarized-red/40 bg-solarized-red/5 p-3 text-sm"
+			role="alert"
+		>
+			<p className="font-medium text-solarized-red">{USER_MESSAGES.invalidTemplateTags}</p>
+			<ul className="mt-2 list-disc space-y-1 pl-5 text-foreground">
+				{diagnostics.map((diagnostic, index) => (
+					<li key={`${diagnostic.code}-${diagnostic.primary}-${index}`}>
+						{formatMarkdocTagDiagnostic(diagnostic)}
+					</li>
+				))}
+			</ul>
+		</div>
+	);
+};
 
 const TemplateExamplesTab = ({
 	examples,
@@ -85,10 +166,10 @@ const TemplateExamplesTab = ({
 							</Button>
 						</div>
 						<Textarea
+							className="min-h-[25dvh]"
 							id={`template-example-${index}`}
 							onChange={onChangeExampleByIndex[index]}
 							placeholder="Beispiel eingeben"
-							rows={4}
 							value={example}
 						/>
 					</div>
@@ -131,11 +212,15 @@ export default function Editor({
 	const [visibility, setVisibility] = useState<TemplateVisibility>(initialVisibility);
 	const [showSource, setShowSource] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [editorInstance, setEditorInstance] = useState<TagInspectorEditor | null>(null);
+	const [markdocDiagnostics, setMarkdocDiagnostics] = useState<MarkdocTagDiagnostic[] | null>(null);
 	// Counter to force TipTap remount when switching from source view
 	const editorKeyRef = useRef(0);
 
 	const createMutation = useMutation(orpc.templates.create.mutationOptions());
 	const updateMutation = useMutation(orpc.templates.update.mutationOptions());
+	const hasMarkdocErrors = hasMarkdocValidationErrors(markdocDiagnostics);
+	const isValidationPending = markdocDiagnostics === null;
 
 	const invalidateTemplateQueries = useCallback(async () => {
 		await Promise.all([
@@ -154,11 +239,13 @@ export default function Editor({
 		]);
 	}, [queryClient]);
 
-	// Validation for required fields
-	const isFormValid = (() => {
-		const finalCategory = category === "new" ? newCategory : category;
-		return finalCategory.trim() !== "" && name.trim() !== "";
-	})();
+	const isFormValid = isTemplateFormValid({
+		category,
+		hasMarkdocErrors,
+		isValidationPending,
+		name,
+		newCategory,
+	});
 
 	const suggestedCategories = useMemo(() => {
 		const limit = 10;
@@ -387,17 +474,13 @@ export default function Editor({
 
 	const handleSwitchToVisualEditor = useCallback(() => {
 		editorKeyRef.current += 1;
+		setMarkdocDiagnostics(null);
 		setShowSource(false);
 	}, []);
 
 	const handleSwitchToSource = useCallback(() => {
 		setShowSource(true);
 	}, []);
-	const privateTemplatesHint = canCreatePrivateTemplates ? null : (
-		<p className="mt-1 text-muted-foreground text-xs">
-			Private Textbausteine sind in Plus enthalten.
-		</p>
-	);
 	const resolvedCategory = category === "new" ? newCategory : category;
 	const isCategoryValid = resolvedCategory.trim() !== "";
 	const isNewCategoryValid = newCategory.trim() !== "";
@@ -468,7 +551,31 @@ export default function Editor({
 							{nameValidationMessage}
 						</div>
 						<div className="flex-1">
-							<Label htmlFor="template-visibility">Sichtbarkeit</Label>
+							<div className="mb-2 flex items-center gap-1.5">
+								<Label htmlFor="template-visibility">Sichtbarkeit</Label>
+								<Tooltip>
+									<TooltipTrigger
+										render={
+											<Button
+												aria-label="Hinweis zur Sichtbarkeit"
+												className="size-4 text-muted-foreground"
+												size="icon-xs"
+												variant="ghost"
+											>
+												<InfoIcon className="h-3 w-3" />
+											</Button>
+										}
+									/>
+									<TooltipContent align="start" className="max-w-80" side="bottom">
+										<div className="space-y-1 text-xs">
+											<p>{USER_MESSAGES.publicTemplateVisibilityWarning}</p>
+											{canCreatePrivateTemplates ? null : (
+												<p>Private Textbausteine sind in Plus enthalten.</p>
+											)}
+										</div>
+									</TooltipContent>
+								</Tooltip>
+							</div>
 							<Select onValueChange={handleVisibilityChange} value={visibility}>
 								<SelectTrigger id="template-visibility">
 									<SelectValue />
@@ -480,14 +587,8 @@ export default function Editor({
 									</SelectItem>
 								</SelectContent>
 							</Select>
-							{privateTemplatesHint}
 						</div>
 					</div>
-					{visibility === "public" ? (
-						<Alert className="shrink-0 border-solarized-orange/50 bg-solarized-orange/10">
-							<AlertDescription>{USER_MESSAGES.publicTemplateVisibilityWarning}</AlertDescription>
-						</Alert>
-					) : null}
 
 					<Tabs className="min-h-0 grow" defaultValue="template">
 						<TabsList className="mb-2 grid w-fit grid-cols-2">
@@ -496,7 +597,13 @@ export default function Editor({
 						</TabsList>
 
 						<TabsContent className="mt-0 flex min-h-0 grow flex-col gap-2" value="template">
-							<div className="min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2">
+							<div
+								aria-invalid={hasMarkdocErrors}
+								className={cn(
+									"min-h-0 flex-1 w-full rounded-md border border-input focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2",
+									hasMarkdocErrors && "border-solarized-red",
+								)}
+							>
 								{showSource ? (
 									<PlainEditor
 										note={content}
@@ -508,12 +615,15 @@ export default function Editor({
 									<TipTap
 										key={`tiptap-${editorKeyRef.current}`}
 										note={content}
+										onEditorChange={setEditorInstance}
 										onToggleSource={canEditSource ? handleSwitchToSource : undefined}
+										onValidationChange={setMarkdocDiagnostics}
 										setContent={setContent}
 										showSource={showSource}
 									/>
 								)}
 							</div>
+							<MarkdocValidationMessage diagnostics={markdocDiagnostics} />
 						</TabsContent>
 
 						<TemplateExamplesTab
@@ -526,24 +636,22 @@ export default function Editor({
 					</Tabs>
 					<div className="flex shrink-0 flex-row gap-2">
 						<Button className="mt-2 w-full" disabled={isSubmitting || !isFormValid} type="submit">
-							{(() => {
-								if (isSubmitting) {
-									return "Textbaustein speichern...";
-								}
-								if (!isFormValid) {
-									return "Kategorie und Name erforderlich";
-								}
-								return "Textbaustein speichern";
-							})()}
+							{getSaveButtonLabel({
+								hasMarkdocErrors,
+								isFormValid,
+								isSubmitting,
+								isValidationPending,
+							})}
 						</Button>
 					</div>
 				</form>
 			</Card>
 
-			{/* Sidebar */}
+			{/* Tag inspector: sidebar on xl+, bottom sheet below */}
 			<div className="hidden w-80 xl:block">
-				<EditorSidebar />
+				<TagInspector editor={editorInstance} />
 			</div>
+			<TagInspectorSheet editor={editorInstance} />
 		</div>
 	);
 }

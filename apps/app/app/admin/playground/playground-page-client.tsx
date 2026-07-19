@@ -49,47 +49,6 @@ const getStringMetadataValue = (
 	return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 };
 
-const getUsageEvaluation = (
-	metadata: Record<string, unknown> | null,
-): PlaygroundResult["evaluation"] | undefined => {
-	const evaluation = metadata?.usageEvaluation;
-	if (!evaluation || typeof evaluation !== "object" || Array.isArray(evaluation)) {
-		return undefined;
-	}
-
-	const record = evaluation as Record<string, unknown>;
-	const categories = Array.isArray(record.categories)
-		? record.categories
-				.map((category) => {
-					if (!category || typeof category !== "object" || Array.isArray(category)) {
-						return null;
-					}
-					const categoryRecord = category as Record<string, unknown>;
-					const { name } = categoryRecord;
-					const { score } = categoryRecord;
-					if (typeof name !== "string" || typeof score !== "number") {
-						return null;
-					}
-					return {
-						comment:
-							typeof categoryRecord.comment === "string" ? categoryRecord.comment : undefined,
-						name,
-						score,
-					};
-				})
-				.filter((category) => category !== null)
-		: [];
-
-	const { totalScore } = record;
-	const { summary } = record;
-	return {
-		categories,
-		isLoading: false,
-		summary: typeof summary === "string" ? summary : undefined,
-		totalScore: typeof totalScore === "number" ? totalScore : undefined,
-	};
-};
-
 const toNumber = (value: unknown): number | undefined => {
 	if (value === null || value === undefined) {
 		return undefined;
@@ -169,9 +128,7 @@ const PlaygroundContent = () => {
 		if (!usageEvent?.result) {
 			return null;
 		}
-		const metadata = usageEvent.metadata as Record<string, unknown> | null;
 		return {
-			evaluation: getUsageEvaluation(metadata),
 			isStreaming: false,
 			metrics: {
 				cost: toNumber(usageEvent.cost),

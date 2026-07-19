@@ -11,7 +11,12 @@ import {
 } from "@/lib/openai-compatible";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { normalizeReasoningEffort } from "@/orpc/scribe/providers";
+import {
+	invalidateAiProviderResolutionCaches,
+	normalizeOpenRouterRoutingMode,
+	OPENROUTER_ROUTING_MODES,
+	normalizeReasoningEffort,
+} from "@/orpc/scribe/providers";
 import type {
 	DefaultModelSlot,
 	MediaPreprocessStrategy,
@@ -25,8 +30,17 @@ const PROVIDER_PROTOCOLS = [
 	"openrouter",
 	"openai",
 	"anthropic",
+	"tinfoil",
 ] as const;
 
+const TINFOIL_DEFAULT_BASE_URL = "https://inference.tinfoil.sh/v1";
+
+/**
+ * Tinfoil model types that can fill the global default slots. Embedding, TTS,
+ * tool, safety, and document models are excluded from sync because no slot can
+ * use them.
+ */
+const TINFOIL_SYNCED_MODEL_TYPES = new Set(["chat", "audio"]);
 
 type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
@@ -119,7 +133,7 @@ const normalizeConfiguredBaseUrl = (
 		return normalizeOpenAICompatibleBaseUrl(baseUrl);
 	}
 
-	if (protocol === "openai") {
+	if (protocol === "openai" || protocol === "tinfoil") {
 		return ensureV1BaseUrl(baseUrl);
 	}
 
@@ -137,6 +151,41 @@ const requireConfiguredBaseUrl = (protocol: ProviderProtocol, baseUrl: string | 
 	}
 
 	return baseUrl;
+};
+
+const fetchTinfoilModels = async (
+	config: ProviderFetchConfig,
+	signal: AbortSignal,
+): Promise<FetchedProviderModel[]> => {
+	const baseUrl = config.baseUrl ?? TINFOIL_DEFAULT_BASE_URL;
+	const response = await fetch(`${baseUrl}/models`, {
+		headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {},
+		signal,
+	});
+	if (!response.ok) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Provider check failed: HTTP ${response.status}`,
+		});
+	}
+
+	const body = (await response.json()) as {
+		data?: {
+			id: string;
+			display_name?: string;
+			name?: string;
+			reasoning?: boolean;
+			type?: string;
+		}[];
+	};
+
+	return (body.data ?? [])
+		.filter((model) => !model.type || TINFOIL_SYNCED_MODEL_TYPES.has(model.type))
+		.map((model) => ({
+			displayName: model.display_name ?? model.name ?? model.id,
+			modelId: model.id,
+			supportedParameters: [],
+			supportsReasoning: model.reasoning === true,
+		}));
 };
 
 const fetchProviderModels = async (
@@ -209,6 +258,9 @@ const fetchProviderModels = async (
 		}));
 	}
 
+	if (config.protocol === "tinfoil") {
+		return fetchTinfoilModels(config, signal);
+	}
 
 	if (config.protocol === "openai") {
 		const baseUrl = config.baseUrl ?? "https://api.openai.com/v1";
@@ -448,6 +500,7 @@ const createProviderHandler = admin
 		}
 
 		const syncResult = await syncFetchedModelsForProvider(context.db, provider.id, models);
+		invalidateAiProviderResolutionCaches();
 
 		return {
 			...provider,
@@ -520,6 +573,7 @@ const updateProviderHandler = admin
 		if (!provider) {
 			throw new ORPCError("NOT_FOUND", { message: "Provider not found" });
 		}
+		invalidateAiProviderResolutionCaches();
 
 		return {
 			...provider,
@@ -540,6 +594,7 @@ const deleteProviderHandler = admin
 		if (!provider) {
 			throw new ORPCError("NOT_FOUND", { message: "Provider not found" });
 		}
+		invalidateAiProviderResolutionCaches();
 
 		return { success: true };
 	});
@@ -556,6 +611,7 @@ const refreshProviderModelsHandler = admin
 			protocol: provider.protocol as ProviderProtocol,
 		});
 		const syncResult = await syncFetchedModelsForProvider(context.db, provider.id, models);
+		invalidateAiProviderResolutionCaches();
 
 		return {
 			models,
@@ -589,6 +645,7 @@ const createModelHandler = admin
 				supportsReasoning: parsed.supportsReasoning || supportedParameters.includes("reasoning"),
 			})
 			.returning();
+		invalidateAiProviderResolutionCaches();
 
 		return model;
 	});
@@ -597,6 +654,7 @@ const updateModelInput = z.object({
 	displayName: z.string().min(1).optional(),
 	id: z.string(),
 	modelId: z.string().min(1).optional(),
+	openRouterRoutingMode: z.enum(OPENROUTER_ROUTING_MODES).optional(),
 	supportedParameters: z.array(z.string()).optional(),
 	supportsReasoning: z.boolean().optional(),
 });
@@ -605,6 +663,18 @@ const updateModelHandler = admin
 	.input(type<z.infer<typeof updateModelInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = updateModelInput.parse(input);
+		const existing = await context.db.query.aiModel.findFirst({
+			where: eq(aiModel.id, parsed.id),
+			with: { provider: true },
+		});
+		if (!existing) {
+			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
+		}
+		if (parsed.openRouterRoutingMode !== undefined && existing.provider.protocol !== "openrouter") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Routing-Einstellungen sind nur für OpenRouter verfügbar",
+			});
+		}
 		const supportedParameters = parsed.supportedParameters
 			? normalizeSupportedParameters(parsed.supportedParameters)
 			: undefined;
@@ -613,6 +683,10 @@ const updateModelHandler = admin
 			.set({
 				displayName: parsed.displayName,
 				modelId: parsed.modelId,
+				openRouterRoutingMode:
+					parsed.openRouterRoutingMode === undefined
+						? undefined
+						: normalizeOpenRouterRoutingMode(parsed.openRouterRoutingMode),
 				supportedParameters,
 				supportsReasoning:
 					parsed.supportsReasoning ??
@@ -621,9 +695,7 @@ const updateModelHandler = admin
 			.where(eq(aiModel.id, parsed.id))
 			.returning();
 
-		if (!model) {
-			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
-		}
+		invalidateAiProviderResolutionCaches();
 
 		return model;
 	});
@@ -636,6 +708,7 @@ const deleteModelHandler = admin
 		if (!model) {
 			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
 		}
+		invalidateAiProviderResolutionCaches();
 
 		return { success: true };
 	});
@@ -871,6 +944,7 @@ const setDefaultHandler = admin
 		applyDefaultSelection(next, parsed);
 
 		await persistAiDefaultsDraft(context.db, Boolean(current), next);
+		invalidateAiProviderResolutionCaches();
 
 		return buildDefaultsResponse(next);
 	});
@@ -918,6 +992,7 @@ const setDefaultOptionsHandler = admin
 		}
 
 		await persistAiDefaultsDraft(context.db, Boolean(current), next);
+		invalidateAiProviderResolutionCaches();
 
 		return buildDefaultsResponse(next);
 	});
