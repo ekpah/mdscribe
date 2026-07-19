@@ -10,3 +10,4 @@ Scope: `packages/design-system`.
 - Canvas APIs need resolved CSS colors, not Tailwind token names. Prefer inherited `text-*` color for `LiveWaveform` and omit `barColor` when possible.
 - Tag editing uses the Figma-style inspector in `components/editor/tag-inspector/`: sidebar at `xl+`, bottom sheet below, node chips only select, and the editor connects through `onEditorChange`. Do not restore per-tag popovers.
 - Icon actions beside labelled fields align with the input control, not the label row.
+- `SelectTrigger` height variants use the `size` prop. Keep size classes mergeable so an explicit consumer height can override the default; do not combine `data-[size]` height selectors with plain `h-*` overrides.

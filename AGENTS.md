@@ -18,6 +18,7 @@ When the user corrects you, immediately update the most specific applicable `AGE
 
 - Treat user statements about local infrastructure as source of truth.
 - Use the `improve` skill only when the user explicitly requests it by name; do not infer it from audit, planning, review, or recommendation requests.
+- Store local implementation-plan artifacts under the intentionally git-ignored `plans/` directory, not `advisor-plans/`.
 - The local PostgreSQL test database runs on port `5432`. The restricted command sandbox cannot reach loopback TCP; rerun DB-backed tests with external/network approval after sandboxed `ECONNREFUSED` instead of reporting the database unavailable.
 - In provider/API discussions, “pi agent” means the Pi Agent used by OpenClaw, not Pydantic AI.
 

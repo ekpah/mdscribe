@@ -202,7 +202,7 @@ const summarizeContextFilesForUsage = (contextFiles: FillInputsContextFile[]) =>
 /**
  * Scribe input type - uses UIMessage[] for AI SDK useChat compatibility
  */
-export interface BuiltInScribeStreamInput {
+interface BuiltInScribeStreamInput {
 	documentType: DocumentType;
 	messages: UIMessage[];
 	audioFiles?: AudioFile[];
@@ -210,7 +210,7 @@ export interface BuiltInScribeStreamInput {
 	source?: "documentType";
 }
 
-export interface CustomFormScribeStreamInput {
+interface CustomFormScribeStreamInput {
 	formId: string;
 	messages: UIMessage[];
 	audioFiles?: AudioFile[];
@@ -287,20 +287,7 @@ const appendFilePartsToLastUserMessage = (
 	});
 };
 
-export type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
-
-export interface ScribeGenerationContext {
-	db: Database;
-	entitlements: { scribe: ScribeEntitlements };
-	session: Session;
-}
-
-export interface ScribeGenerationTraceContext {
-	agentSectionId?: string;
-	agentRunId?: string;
-	observationId?: string;
-	traceId?: string;
-}
+type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
 
 interface ScribeGenerationContext {
 	db: Database;

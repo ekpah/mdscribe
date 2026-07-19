@@ -16,36 +16,69 @@ import { Switch } from "@repo/design-system/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { InfoIcon, Sparkles } from "lucide-react";
+import { InfoIcon, Link2, Plus, Sparkles, Trash2, Unlink2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
 import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
+import {
+	getInputIdForPdfWidget,
+	getPdfFieldHighlightsForInput,
+} from "@/app/documents/_components/pdf-field-highlights";
+import type { PdfFieldHighlight } from "@/app/documents/_components/pdf-field-highlights";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	buildDefaultDocumentDefinitionFromPdfFields,
 	decodeBase64ToUint8Array,
+	documentDefinitionSchema,
 	encodeUint8ArrayToBase64,
+	getBooleanBindingValueMap,
+	isBooleanDocumentInput,
+	mergeCheckboxBindingIntoChoice,
 	normalizeDocumentDefinition,
 	parsePDFFormFields,
+	splitCheckboxOption,
 } from "@/app/documents/_lib";
-import type { DocumentDefinition, DocumentInputKind, DocumentPdfType } from "@/app/documents/_lib";
+import type {
+	DocumentBinding,
+	DocumentDefinition,
+	DocumentInput,
+	DocumentInputKind,
+	DocumentPdfType,
+	PdfFormField,
+} from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
-// View-model for the per-PDF-field cards; derived from DocumentDefinition on
+interface EditorPdfField {
+	bindingIndex: number;
+	fieldName: string;
+	isEnabled: boolean;
+	optionMappings: { inputValue: string; pdfValue: string }[];
+	pdfType: DocumentPdfType;
+	valueMap?: Record<string, string>;
+	widgetCount: number;
+}
+
+// View-model for one Markdoc input and all PDF fields bound to it. Derived on
 // every render and never persisted.
 interface EditorFieldRow {
+	bindingIndex: number;
+	bindingValueMap?: Record<string, string>;
 	description: string;
 	fieldName: string;
+	fieldNames: string[];
 	inputKind: DocumentInputKind;
 	isEnabled: boolean;
 	label: string;
 	markdocType: "Info" | "Switch";
 	options: string[];
+	pdfFields: EditorPdfField[];
+	pdfOptionMappings: { inputValue: string; pdfValue: string }[];
 	pdfType: DocumentPdfType;
+	pdfWidgetCount: number;
 	textCheckboxValue?: string;
 	valueType: "string" | "number" | "date";
 }
@@ -54,7 +87,7 @@ const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "On
 const COMPACT_FIELD_LABEL_CLASS_NAME = "block truncate text-[11px]";
 const COMPACT_INPUT_CLASS_NAME = "h-8 min-w-0 text-xs";
 const COMPACT_SELECT_TRIGGER_CLASS_NAME =
-	"h-8 w-full min-w-0 rounded-md border-input bg-transparent px-3 text-xs shadow-xs [&>span]:truncate";
+	"w-full min-w-0 rounded-md border-input bg-transparent px-3 text-xs shadow-xs [&>span]:truncate";
 const FORM_SELECT_TRIGGER_CLASS_NAME =
 	"h-9 w-full min-w-0 rounded-md border-input bg-transparent px-3 py-1 shadow-xs [&>span]:truncate";
 const META_LABEL_CLASS_NAME =
@@ -83,6 +116,9 @@ const toPdfTypeLabel = (pdfType: DocumentPdfType): string => {
 		case "radio": {
 			return "Radio";
 		}
+		case "unsupported": {
+			return "Nicht unterstützt";
+		}
 		default: {
 			return pdfType;
 		}
@@ -106,108 +142,167 @@ const toInputKindLabel = (inputKind: DocumentInputKind): string => {
 	}
 };
 
-const isDocumentDefinition = (value: unknown): value is DocumentDefinition =>
-	typeof value === "object" &&
-	value !== null &&
-	"version" in value &&
-	(value as { version?: unknown }).version === 2 &&
-	"inputTags" in value &&
-	"fieldMappings" in value;
-
 const normalizeSavedDocumentDefinition = (value: unknown): DocumentDefinition => {
 	try {
-		if (isDocumentDefinition(value)) {
-			return normalizeDocumentDefinition(value);
+		const parsed = documentDefinitionSchema.safeParse(value);
+		if (parsed.success) {
+			return normalizeDocumentDefinition(parsed.data);
 		}
-		return { fieldMappings: [], inputTags: [], version: 2 };
+		return { bindings: [], inputs: [] };
 	} catch (error) {
 		console.error("Failed to load document definition:", error);
-		return { fieldMappings: [], inputTags: [], version: 2 };
+		return { bindings: [], inputs: [] };
 	}
 };
 
-const toEditorFieldDefinitions = (definition: DocumentDefinition): EditorFieldRow[] =>
-	definition.fieldMappings.map((mapping) => {
-		const inputTag = definition.inputTags.find(
-			(tag) => tag.attributes.primary.toLowerCase() === mapping.variable.toLowerCase(),
-		);
-		const isSwitch = inputTag?.name === "Switch";
-		let inputKind: DocumentInputKind = "text";
-		if (isSwitch) {
-			inputKind = inputTag.attributes.type === "boolean" ? "boolean" : "choice";
-		}
-		return {
-			description: inputTag?.name === "Info" ? (inputTag.attributes.description ?? "") : "",
-			fieldName: mapping.fieldName,
-			inputKind,
-			isEnabled: mapping.isEnabled,
-			label: mapping.variable,
-			markdocType: inputKind === "text" ? "Info" : "Switch",
-			options:
-				inputTag?.name === "Switch"
-					? inputTag.children.map((child) => child.attributes.primary)
-					: [],
-			pdfType: mapping.pdfType,
-			textCheckboxValue:
-				mapping.pdfType === "text" && inputKind === "boolean" ? (mapping.value ?? "x") : undefined,
-			valueType: inputTag?.name === "Info" ? (inputTag.attributes.type ?? "string") : "string",
-		};
-	});
+const toInputKind = (input: DocumentInput | undefined): DocumentInputKind => {
+	if (input?.name !== "Switch") {
+		return "text";
+	}
+	return isBooleanDocumentInput(input) ? "boolean" : "choice";
+};
 
-const updateDocumentDefinitionAt = (
+const toEditorFieldDefinitions = (
 	definition: DocumentDefinition,
-	index: number,
-	update: Partial<EditorFieldRow>,
-): DocumentDefinition => {
-	const mapping = definition.fieldMappings[index];
-	if (!mapping) {
-		return definition;
+	pdfFields: PdfFormField[],
+): EditorFieldRow[] => {
+	const pdfFieldsByName = new Map(pdfFields.map((field) => [field.name, field]));
+	const bindingEntriesByInputId = new Map<
+		string,
+		{ binding: DocumentBinding; bindingIndex: number }[]
+	>();
+	for (const [bindingIndex, binding] of definition.bindings.entries()) {
+		const inputKey = binding.inputId.toLowerCase();
+		const entries = bindingEntriesByInputId.get(inputKey) ?? [];
+		entries.push({ binding, bindingIndex });
+		bindingEntriesByInputId.set(inputKey, entries);
 	}
-	const inputTagIndex = definition.inputTags.findIndex(
-		(tag) => tag.attributes.primary.toLowerCase() === mapping.variable.toLowerCase(),
-	);
-	const currentInputTag = definition.inputTags[inputTagIndex];
-	const nextVariable = update.label?.trim() || mapping.variable;
-	const nextMappings = definition.fieldMappings.map((currentMapping, mappingIndex) => {
-		if (mappingIndex === index) {
-			const isTextCheckbox =
-				(update.pdfType ?? currentMapping.pdfType) === "text" && update.inputKind === "boolean";
-			let mappingValueUpdate = {};
-			if (update.textCheckboxValue !== undefined) {
-				mappingValueUpdate = {
-					condition: currentMapping.condition ?? "true",
-					value: update.textCheckboxValue,
-				};
-			} else if (isTextCheckbox) {
-				// This branch only runs when `textCheckboxValue` is undefined (the
-				// defined case is handled above), so fall back to the existing value.
-				mappingValueUpdate = {
-					condition: "true",
-					value: currentMapping.value || "x",
-				};
-			} else if (update.inputKind === "text") {
-				mappingValueUpdate = { condition: undefined, value: undefined };
-			}
-			return {
-				...currentMapping,
-				...(update.isEnabled === undefined ? {} : { isEnabled: update.isEnabled }),
-				...(update.pdfType === undefined ? {} : { pdfType: update.pdfType }),
-				...mappingValueUpdate,
-				variable: nextVariable,
-			};
+	return definition.inputs.flatMap((input) => {
+		const bindingEntries =
+			bindingEntriesByInputId.get(input.attributes.primary.toLowerCase()) ?? [];
+		if (bindingEntries.length === 0) {
+			return [];
 		}
-		return currentMapping.variable.toLowerCase() === mapping.variable.toLowerCase()
-			? { ...currentMapping, variable: nextVariable }
-			: currentMapping;
+		const editorPdfFields = bindingEntries.map(({ binding, bindingIndex }) => {
+			const pdfField = pdfFieldsByName.get(binding.fieldName);
+			return {
+				bindingIndex,
+				fieldName: binding.fieldName,
+				isEnabled: binding.isEnabled,
+				optionMappings: pdfField?.optionMappings ?? [],
+				pdfType: pdfField?.type ?? "text",
+				valueMap: binding.valueMap,
+				widgetCount: pdfField?.widgetCount ?? 0,
+			};
+		});
+		const [primaryBinding] = bindingEntries;
+		const [primaryPdfField] = editorPdfFields;
+		if (!(primaryBinding && primaryPdfField)) {
+			return [];
+		}
+		const inputKind = toInputKind(input);
+		return [
+			{
+				bindingIndex: primaryBinding.bindingIndex,
+				bindingValueMap: primaryBinding.binding.valueMap,
+				description: input?.name === "Info" ? (input.attributes.description ?? "") : "",
+				fieldName: primaryPdfField.fieldName,
+				fieldNames: editorPdfFields.map((field) => field.fieldName),
+				inputKind,
+				isEnabled: editorPdfFields.every((field) => field.isEnabled),
+				label: input.attributes.primary,
+				markdocType: inputKind === "text" ? "Info" : "Switch",
+				options:
+					input?.name === "Switch"
+						? input.children.map((child) => child.attributes.primary)
+						: [],
+				pdfFields: editorPdfFields,
+				pdfOptionMappings: primaryPdfField.optionMappings,
+				pdfType: primaryPdfField.pdfType,
+				pdfWidgetCount: Math.max(...editorPdfFields.map((field) => field.widgetCount)),
+				textCheckboxValue:
+					(primaryPdfField.pdfType === "text" || primaryPdfField.pdfType === "multiline") &&
+					inputKind === "boolean"
+						? (primaryBinding.binding.valueMap?.true ?? "x")
+						: undefined,
+				valueType: input?.name === "Info" ? (input.attributes.type ?? "string") : "string",
+			},
+		];
 	});
-	if (!currentInputTag) {
-		return { ...definition, fieldMappings: nextMappings };
+};
+
+const remapValueMapKeys = (
+	valueMap: Record<string, string> | undefined,
+	previousOptions: string[],
+	nextOptions: string[],
+): Record<string, string> | undefined => {
+	if (!valueMap) {
+		return undefined;
+	}
+	return Object.fromEntries(
+		nextOptions.map((option, index) => [
+			option,
+			valueMap[previousOptions[index] ?? option] ?? option,
+		]),
+	);
+};
+
+const updateBindingForInput = ({
+	binding,
+	currentInputId,
+	isTargetBinding,
+	nextInputId,
+	nextOptions,
+	previousOptions,
+	update,
+}: {
+	binding: DocumentBinding;
+	currentInputId: string;
+	isTargetBinding: boolean;
+	nextInputId: string;
+	nextOptions: string[];
+	previousOptions: string[];
+	update: Partial<EditorFieldRow>;
+}): DocumentBinding => {
+	const referencesCurrentInput = binding.inputId.toLowerCase() === currentInputId.toLowerCase();
+	let valueMap = referencesCurrentInput
+		? remapValueMapKeys(binding.valueMap, previousOptions, nextOptions)
+		: binding.valueMap;
+	if (referencesCurrentInput && update.inputKind === "text") {
+		valueMap = undefined;
+	} else if (referencesCurrentInput && update.inputKind === "boolean") {
+		valueMap = {
+			false: "",
+			true: binding.valueMap?.true ?? update.textCheckboxValue?.trim() ?? "x",
+		};
 	}
 
-	let nextInputTag = currentInputTag;
+	if (isTargetBinding && update.textCheckboxValue !== undefined) {
+		valueMap = { false: "", true: update.textCheckboxValue };
+	}
+	if (isTargetBinding && Object.hasOwn(update, "bindingValueMap")) {
+		valueMap = update.bindingValueMap;
+	}
+
+	return {
+		...binding,
+		...(referencesCurrentInput && update.isEnabled !== undefined
+			? { isEnabled: update.isEnabled }
+			: {}),
+		...(valueMap ? { valueMap } : { valueMap: undefined }),
+		inputId: referencesCurrentInput ? nextInputId : binding.inputId,
+	};
+};
+
+const buildUpdatedDocumentInput = (
+	currentInput: DocumentInput,
+	nextInputId: string,
+	nextOptions: string[],
+	update: Partial<EditorFieldRow>,
+): DocumentInput => {
 	if (update.inputKind === "boolean") {
-		nextInputTag = {
-			attributes: { primary: nextVariable, type: "boolean" },
+		return {
+			attributes: { primary: nextInputId, type: "boolean" },
 			children: ["true", "false"].map((primary) => ({
 				attributes: { primary },
 				children: [],
@@ -215,82 +310,151 @@ const updateDocumentDefinitionAt = (
 			})),
 			name: "Switch",
 		};
-	} else if (update.inputKind === "text") {
-		nextInputTag = {
+	}
+	if (update.inputKind === "text") {
+		return {
 			attributes: {
-				primary: nextVariable,
+				primary: nextInputId,
 				type:
 					update.valueType ??
-					(currentInputTag.name === "Info" ? currentInputTag.attributes.type : "string"),
+					(currentInput.name === "Info" ? currentInput.attributes.type : "string"),
 				...(update.description?.trim() ? { description: update.description.trim() } : {}),
 			},
 			children: [],
 			name: "Info",
 		};
-	} else if (update.inputKind === "choice" && currentInputTag.name === "Info") {
-		nextInputTag = {
-			attributes: { primary: nextVariable },
-			children: (update.options ?? []).map((primary) => ({
+	}
+	if (update.inputKind === "choice") {
+		return {
+			attributes: { primary: nextInputId },
+			children: nextOptions.map((primary) => ({
 				attributes: { primary },
 				children: [],
 				name: "Case" as const,
 			})),
 			name: "Switch",
 		};
-	} else if (currentInputTag.name === "Switch") {
-		nextInputTag = {
-			...currentInputTag,
-			attributes: { ...currentInputTag.attributes, primary: nextVariable },
-			children: (
-				update.options ?? currentInputTag.children.map((child) => child.attributes.primary)
-			).map((primary) => ({ attributes: { primary }, children: [], name: "Case" as const })),
-		};
-	} else {
-		nextInputTag = {
-			...currentInputTag,
-			attributes: {
-				...currentInputTag.attributes,
-				...(update.description === undefined
-					? {}
-					: { description: update.description.trim() || undefined }),
-				...(update.valueType === undefined ? {} : { type: update.valueType }),
-				primary: nextVariable,
-			},
+	}
+	if (currentInput.name === "Switch") {
+		return {
+			...currentInput,
+			attributes: { ...currentInput.attributes, primary: nextInputId },
+			children: nextOptions.map((primary) => ({
+				attributes: { primary },
+				children: [],
+				name: "Case" as const,
+			})),
 		};
 	}
+	return {
+		...currentInput,
+		attributes: {
+			...currentInput.attributes,
+			...(update.description === undefined
+				? {}
+				: { description: update.description.trim() || undefined }),
+			...(update.valueType === undefined ? {} : { type: update.valueType }),
+			primary: nextInputId,
+		},
+	};
+};
+
+const updateDocumentDefinitionAt = (
+	definition: DocumentDefinition,
+	index: number,
+	update: Partial<EditorFieldRow>,
+): DocumentDefinition => {
+	const binding = definition.bindings[index];
+	if (!binding) {
+		return definition;
+	}
+	const inputIndex = definition.inputs.findIndex(
+		(input) => input.attributes.primary.toLowerCase() === binding.inputId.toLowerCase(),
+	);
+	const currentInput = definition.inputs[inputIndex];
+	const nextInputId = update.label?.trim() || binding.inputId;
+	const previousOptions =
+		currentInput?.name === "Switch"
+			? currentInput.children.map((child) => child.attributes.primary)
+			: [];
+	const nextOptions = update.options ?? previousOptions;
+	const nextBindings = definition.bindings.map((currentBinding, bindingIndex) =>
+		updateBindingForInput({
+			binding: currentBinding,
+			currentInputId: binding.inputId,
+			isTargetBinding: bindingIndex === index,
+			nextInputId,
+			nextOptions,
+			previousOptions,
+			update,
+		}),
+	);
+	if (!currentInput) {
+		return { ...definition, bindings: nextBindings };
+	}
+
+	const nextInput = buildUpdatedDocumentInput(currentInput, nextInputId, nextOptions, update);
 
 	return {
 		...definition,
-		fieldMappings: nextMappings,
-		inputTags: definition.inputTags.map((inputTag, currentIndex) =>
-			currentIndex === inputTagIndex ? nextInputTag : inputTag,
+		bindings: nextBindings,
+		inputs: definition.inputs.map((input, currentIndex) =>
+			currentIndex === inputIndex ? nextInput : input,
 		),
 	};
 };
 
-const assignDocumentMappingVariable = (
+const assignDocumentBindingInput = (
 	definition: DocumentDefinition,
 	index: number,
-	variable: string,
+	inputId: string,
 ): DocumentDefinition => {
-	const mapping = definition.fieldMappings[index];
-	if (!mapping || mapping.variable === variable) {
+	const binding = definition.bindings[index];
+	if (!binding || binding.inputId === inputId) {
 		return definition;
 	}
-	const fieldMappings = definition.fieldMappings.map((currentMapping, mappingIndex) =>
-		mappingIndex === index ? { ...currentMapping, variable } : currentMapping,
+	const previousInput = definition.inputs.find(
+		(input) => input.attributes.primary.toLowerCase() === binding.inputId.toLowerCase(),
 	);
-	const hasPreviousVariableMapping = fieldMappings.some(
-		(currentMapping) => currentMapping.variable.toLowerCase() === mapping.variable.toLowerCase(),
+	const nextInput = definition.inputs.find(
+		(input) => input.attributes.primary.toLowerCase() === inputId.toLowerCase(),
+	);
+	if (!previousInput || !nextInput || toInputKind(previousInput) !== toInputKind(nextInput)) {
+		return definition;
+	}
+
+	let { valueMap } = binding;
+	if (previousInput.name === "Switch" && nextInput.name === "Switch") {
+		const previousOptions = previousInput.children.map((child) => child.attributes.primary);
+		const nextOptions = nextInput.children.map((child) => child.attributes.primary);
+		if (previousOptions.length !== nextOptions.length) {
+			return definition;
+		}
+		valueMap = Object.fromEntries(
+			nextOptions.map((option, optionIndex) => [
+				option,
+				binding.valueMap?.[previousOptions[optionIndex] ?? option] ??
+					previousOptions[optionIndex] ??
+					option,
+			]),
+		);
+	} else if (nextInput.name === "Info") {
+		valueMap = undefined;
+	}
+
+	const bindings = definition.bindings.map((currentBinding, bindingIndex) =>
+		bindingIndex === index ? { ...currentBinding, inputId, valueMap } : currentBinding,
+	);
+	const hasPreviousInputBinding = bindings.some(
+		(currentBinding) => currentBinding.inputId.toLowerCase() === binding.inputId.toLowerCase(),
 	);
 	return {
 		...definition,
-		fieldMappings,
-		inputTags: hasPreviousVariableMapping
-			? definition.inputTags
-			: definition.inputTags.filter(
-					(inputTag) =>
-						inputTag.attributes.primary.toLowerCase() !== mapping.variable.toLowerCase(),
+		bindings,
+		inputs: hasPreviousInputBinding
+			? definition.inputs
+			: definition.inputs.filter(
+					(input) => input.attributes.primary.toLowerCase() !== binding.inputId.toLowerCase(),
 				),
 	};
 };
@@ -303,103 +467,336 @@ const getDocumentEditorTitle = (documentId: string | undefined): string => {
 	return "Dokument erstellen";
 };
 
-interface ParsedFieldMappingResult {
-	fieldMapping: {
-		description: string;
-		fieldName: string;
-		label: string;
-	}[];
-}
-
-const toInputFieldType = (
-	fieldDefinition: EditorFieldRow,
-): "boolean" | "date" | "number" | "string" | "switch" => {
-	if (fieldDefinition.inputKind === "boolean") {
-		return "boolean";
-	}
-	if (fieldDefinition.inputKind === "choice") {
-		return "switch";
-	}
-	return fieldDefinition.valueType;
-};
-
-const toEnhancementInputFields = (fieldDefinitions: EditorFieldRow[]) => {
-	const inputFields: {
-		description?: string;
-		label: string;
-		options?: string[];
-		type: "boolean" | "date" | "number" | "string" | "switch";
-	}[] = [];
-	const seen = new Set<string>();
-
-	for (const fieldDefinition of fieldDefinitions) {
-		const label = fieldDefinition.label.trim();
-		if (!label || seen.has(label.toLowerCase())) {
-			continue;
-		}
-
-		seen.add(label.toLowerCase());
-		inputFields.push({
-			description: fieldDefinition.description || undefined,
-			label,
-			options: fieldDefinition.options.length > 0 ? fieldDefinition.options : undefined,
-			type: toInputFieldType(fieldDefinition),
-		});
-	}
-
-	return inputFields;
-};
-
-const toFieldMappings = (fieldDefinitions: EditorFieldRow[]) =>
-	fieldDefinitions.map((fieldDefinition) => ({
-		description: fieldDefinition.description,
-		fieldName: fieldDefinition.fieldName,
-		inputKind: fieldDefinition.inputKind,
-		label: fieldDefinition.label,
-		options: fieldDefinition.options,
-		pdfType: fieldDefinition.pdfType,
-	}));
-
 interface FieldDefinitionCardProps {
-	activePdfFieldName: string | null;
+	canAddCheckboxOption: boolean;
+	canManageCheckboxOptions: boolean;
 	fieldDefinition: EditorFieldRow;
 	index: number;
 	inputVariables: string[];
-	onFieldCardRef: (fieldName: string, node: HTMLDivElement | null) => void;
+	isActive: boolean;
+	isCheckboxMergeCandidate: boolean;
+	isCheckboxMergeTarget: boolean;
+	onBeginCheckboxMerge: (inputId: string) => void;
+	onCancelCheckboxMerge: () => void;
+	onFieldCardRef: (inputId: string, node: HTMLDivElement | null) => void;
 	onMapToVariable: (index: number, variable: string) => void;
-	onPreview: (fieldName: string) => void;
+	onPreview: (inputId: string) => void;
+	onSelectCheckboxForMerge: (index: number) => void;
+	onSplitCheckboxOption: (inputId: string, option: string) => void;
 	onUpdate: (index: number, update: Partial<EditorFieldRow>) => void;
 }
 
+const getInputKindOptions = (
+	fieldDefinition: EditorFieldRow,
+): { label: string; value: DocumentInputKind }[] => {
+	if (fieldDefinition.pdfType === "text" || fieldDefinition.pdfType === "multiline") {
+		return [
+			{ label: "Text", value: "text" },
+			{ label: "Auswahl", value: "choice" },
+			{ label: "Checkbox", value: "boolean" },
+		];
+	}
+	if (
+		fieldDefinition.pdfType === "checkbox" &&
+		fieldDefinition.pdfWidgetCount <= 1 &&
+		fieldDefinition.pdfFields.length === 1
+	) {
+		return [
+			{ label: "Checkbox", value: "boolean" },
+			{ label: "Auswahl", value: "choice" },
+		];
+	}
+	return [
+		{
+			label: toInputKindLabel(fieldDefinition.inputKind),
+			value: fieldDefinition.inputKind,
+		},
+	];
+};
+
+const getChoiceConversionOptions = (fieldDefinition: EditorFieldRow, option: string): string[] => {
+	if (fieldDefinition.inputKind === "choice") {
+		return fieldDefinition.options;
+	}
+	if (fieldDefinition.inputKind === "boolean" || fieldDefinition.pdfType === "checkbox") {
+		return [option];
+	}
+	return ["Option 1", "Option 2"];
+};
+
+const getInputKindUpdate = (
+	fieldDefinition: EditorFieldRow,
+	inputKind: DocumentInputKind,
+): Partial<EditorFieldRow> => {
+	if (inputKind === "boolean") {
+		return {
+			bindingValueMap: getBooleanBindingValueMap({
+				currentValueMap: fieldDefinition.bindingValueMap,
+				pdfOptionMappings: fieldDefinition.pdfOptionMappings,
+				pdfType: fieldDefinition.pdfType,
+				textCheckboxValue: fieldDefinition.textCheckboxValue,
+			}),
+			inputKind: "boolean",
+			markdocType: "Switch",
+			options: ["true", "false"],
+			textCheckboxValue: fieldDefinition.textCheckboxValue?.trim() || "x",
+			valueType: "string",
+		};
+	}
+	if (inputKind === "choice") {
+		const option = fieldDefinition.label.trim() || "Option 1";
+		const isCheckboxLikeConversion =
+			fieldDefinition.inputKind === "boolean" || fieldDefinition.pdfType === "checkbox";
+		const selectedPdfValue =
+			fieldDefinition.bindingValueMap?.true ??
+			fieldDefinition.textCheckboxValue?.trim() ??
+			(fieldDefinition.pdfType === "checkbox" ? "true" : "x");
+		return {
+			bindingValueMap: isCheckboxLikeConversion ? { [option]: selectedPdfValue } : undefined,
+			inputKind: "choice",
+			markdocType: "Switch",
+			options: getChoiceConversionOptions(fieldDefinition, option),
+			valueType: "string",
+		};
+	}
+	return {
+		bindingValueMap: undefined,
+		inputKind: "text",
+		markdocType: "Info",
+		options: [],
+		valueType: "string",
+	};
+};
+
+interface ChoiceOptionsEditorProps {
+	canAddCheckboxOption: boolean;
+	canManageCheckboxOptions: boolean;
+	fieldDefinition: EditorFieldRow;
+	index: number;
+	inputVariables: string[];
+	isCheckboxMergeTarget: boolean;
+	onBeginCheckboxMerge: (inputId: string) => void;
+	onCancelCheckboxMerge: () => void;
+	onMapToVariable: (index: number, variable: string) => void;
+	onSplitCheckboxOption: (inputId: string, option: string) => void;
+	onUpdate: (index: number, update: Partial<EditorFieldRow>) => void;
+}
+
+interface ChoiceOptionActionProps {
+	canChangeOptionCount: boolean;
+	canDetachCheckboxOption: boolean;
+	isRemoveDisabled: boolean;
+	onDetach: () => void;
+	onRemove: () => void;
+	option: string;
+	optionIndex: number;
+}
+
+const ChoiceOptionAction = ({
+	canChangeOptionCount,
+	canDetachCheckboxOption,
+	isRemoveDisabled,
+	onDetach,
+	onRemove,
+	option,
+	optionIndex,
+}: ChoiceOptionActionProps) => {
+	if (canChangeOptionCount) {
+		return (
+			<Button
+				aria-label={`Option ${optionIndex + 1} entfernen`}
+				className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+				disabled={isRemoveDisabled}
+				onClick={onRemove}
+				size="icon-xs"
+				type="button"
+				variant="ghost"
+			>
+				<Trash2 className="h-3.5 w-3.5" />
+			</Button>
+		);
+	}
+	if (!canDetachCheckboxOption) {
+		return <span />;
+	}
+	return (
+		<Tooltip>
+			<TooltipTrigger
+				render={
+					<Button
+						aria-label={`${USER_MESSAGES.documentEditor.detachCheckboxOption}: ${option}`}
+						className="border-border/70 bg-background text-muted-foreground shadow-none hover:border-solarized-blue/40 hover:bg-solarized-blue/10 hover:text-solarized-blue"
+						onClick={onDetach}
+						size="icon-sm"
+						type="button"
+						variant="outline"
+					>
+						<Unlink2 className="h-3.5 w-3.5" />
+					</Button>
+				}
+			/>
+			<TooltipContent side="left">
+				{USER_MESSAGES.documentEditor.detachCheckboxOption}
+			</TooltipContent>
+		</Tooltip>
+	);
+};
+
+const ChoiceOptionsEditor = ({
+	canAddCheckboxOption,
+	canManageCheckboxOptions,
+	fieldDefinition,
+	index,
+	inputVariables,
+	isCheckboxMergeTarget,
+	onBeginCheckboxMerge,
+	onCancelCheckboxMerge,
+	onMapToVariable,
+	onSplitCheckboxOption,
+	onUpdate,
+}: ChoiceOptionsEditorProps) => {
+	if (fieldDefinition.inputKind !== "choice") {
+		return null;
+	}
+
+	const canChangeOptionCount =
+		!canManageCheckboxOptions &&
+		(fieldDefinition.pdfType === "text" || fieldDefinition.pdfType === "multiline");
+	const canDetachCheckboxOption = canManageCheckboxOptions && fieldDefinition.options.length > 0;
+	const handleVariableMappingChange = (value: string) => onMapToVariable(index, value);
+	const handleAddOption = () => {
+		onUpdate(index, {
+			options: [...fieldDefinition.options, `Option ${fieldDefinition.options.length + 1}`],
+		});
+	};
+	const handleRemoveOption = (optionIndex: number) => {
+		onUpdate(index, {
+			options: fieldDefinition.options.filter(
+				(_option, currentIndex) => currentIndex !== optionIndex,
+			),
+		});
+	};
+	const handleOptionChange = (optionIndex: number, value: string) => {
+		onUpdate(index, {
+			options: fieldDefinition.options.map((option, currentIndex) =>
+				currentIndex === optionIndex ? value : option,
+			),
+		});
+	};
+
+	return (
+		<div className="min-w-0 space-y-1">
+			<div className="flex items-center justify-between gap-2">
+				<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Optionen</Label>
+				{canChangeOptionCount ? (
+					<Button
+						aria-label="Option hinzufügen"
+						onClick={handleAddOption}
+						size="icon-xs"
+						type="button"
+						variant="ghost"
+					>
+						<Plus className="h-3.5 w-3.5" />
+					</Button>
+				) : null}
+			</div>
+			<div className="space-y-1">
+				{fieldDefinition.options.map((option, optionIndex) => (
+					<div
+						className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-1.5"
+						key={`${fieldDefinition.fieldName}-option-${optionIndex}`}
+					>
+						<span className="text-muted-foreground text-[11px] tabular-nums">
+							{optionIndex + 1}
+						</span>
+						<Input
+							className={COMPACT_INPUT_CLASS_NAME}
+							onChange={(event) => handleOptionChange(optionIndex, event.target.value)}
+							value={option}
+						/>
+						<ChoiceOptionAction
+							canChangeOptionCount={canChangeOptionCount}
+							canDetachCheckboxOption={canDetachCheckboxOption}
+							isRemoveDisabled={fieldDefinition.options.length <= 1}
+							onDetach={() => onSplitCheckboxOption(fieldDefinition.label, option)}
+							onRemove={() => handleRemoveOption(optionIndex)}
+							option={option}
+							optionIndex={optionIndex}
+						/>
+					</div>
+				))}
+			</div>
+			{canAddCheckboxOption ? (
+				<Button
+					className="h-7 w-fit justify-start border-dashed px-2 text-[11px] text-foreground/80 hover:text-foreground"
+					onClick={() =>
+						isCheckboxMergeTarget
+							? onCancelCheckboxMerge()
+							: onBeginCheckboxMerge(fieldDefinition.label)
+					}
+					size="xs"
+					type="button"
+					variant={isCheckboxMergeTarget ? "secondary" : "outline"}
+				>
+					{isCheckboxMergeTarget ? (
+						<X className="h-3 w-3" />
+					) : (
+						<Plus className="h-3 w-3" />
+					)}
+					{isCheckboxMergeTarget
+						? USER_MESSAGES.documentEditor.cancelAddingCheckbox
+						: USER_MESSAGES.documentEditor.addCheckboxAsOption}
+				</Button>
+			) : null}
+			{inputVariables.length > 1 ? (
+				<div className="min-w-0 space-y-0.5">
+					<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Bestehende Eingabe verwenden</Label>
+					<Select onValueChange={handleVariableMappingChange} value={fieldDefinition.label}>
+						<SelectTrigger className={COMPACT_SELECT_TRIGGER_CLASS_NAME} size="sm">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{inputVariables.map((variable) => (
+								<SelectItem key={variable} value={variable}>
+									{variable}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+			) : null}
+		</div>
+	);
+};
+
 const FieldDefinitionCard = memo(
 	({
-		activePdfFieldName,
+		canAddCheckboxOption,
+		canManageCheckboxOptions,
 		fieldDefinition,
 		index,
 		inputVariables,
+		isActive,
+		isCheckboxMergeCandidate,
+		isCheckboxMergeTarget,
+		onBeginCheckboxMerge,
+		onCancelCheckboxMerge,
 		onFieldCardRef,
 		onMapToVariable,
 		onPreview,
+		onSelectCheckboxForMerge,
+		onSplitCheckboxOption,
 		onUpdate,
 	}: FieldDefinitionCardProps) => {
-		const isPdfFieldActive = activePdfFieldName === fieldDefinition.fieldName;
-
 		const handlePreview = useCallback(() => {
-			onPreview(fieldDefinition.fieldName);
-		}, [fieldDefinition.fieldName, onPreview]);
+			onPreview(fieldDefinition.label);
+		}, [fieldDefinition.label, onPreview]);
 
 		const handleLabelChange = useCallback(
 			(event: ChangeEvent<HTMLInputElement>) => {
 				onUpdate(index, { label: event.target.value });
 			},
 			[index, onUpdate],
-		);
-
-		const handleVariableMappingChange = useCallback(
-			(value: string) => {
-				onMapToVariable(index, value);
-			},
-			[index, onMapToVariable],
 		);
 
 		const handleValueTypeChange = useCallback(
@@ -410,26 +807,10 @@ const FieldDefinitionCard = memo(
 		);
 
 		const handleInputKindChange = useCallback(
-			(value: "boolean" | "text") => {
-				if (value === "boolean") {
-					onUpdate(index, {
-						inputKind: "boolean",
-						markdocType: "Switch",
-						options: ["true", "false"],
-						textCheckboxValue: fieldDefinition.textCheckboxValue?.trim() || "x",
-						valueType: "string",
-					});
-					return;
-				}
-
-				onUpdate(index, {
-					inputKind: "text",
-					markdocType: "Info",
-					options: [],
-					valueType: "string",
-				});
+			(value: DocumentInputKind) => {
+				onUpdate(index, getInputKindUpdate(fieldDefinition, value));
 			},
-			[fieldDefinition.textCheckboxValue, index, onUpdate],
+			[fieldDefinition, index, onUpdate],
 		);
 
 		const handleDescriptionChange = useCallback(
@@ -446,17 +827,6 @@ const FieldDefinitionCard = memo(
 			[index, onUpdate],
 		);
 
-		const handleOptionChange = useCallback(
-			(optionIndex: number, value: string) => {
-				onUpdate(index, {
-					options: fieldDefinition.options.map((option, currentIndex) =>
-						currentIndex === optionIndex ? value : option,
-					),
-				});
-			},
-			[fieldDefinition.options, index, onUpdate],
-		);
-
 		const handleTextCheckboxValueChange = useCallback(
 			(event: ChangeEvent<HTMLInputElement>) => {
 				onUpdate(index, { textCheckboxValue: event.target.value });
@@ -464,44 +834,57 @@ const FieldDefinitionCard = memo(
 			[index, onUpdate],
 		);
 
-		const canEditInputKind = fieldDefinition.pdfType === "text";
-		const isTextBackedCheckbox =
-			fieldDefinition.pdfType === "text" && fieldDefinition.inputKind === "boolean";
-		const showsEditableOptions =
-			fieldDefinition.inputKind === "choice" &&
-			fieldDefinition.pdfType === "checkbox" &&
-			fieldDefinition.options.length > 0;
+		const isTextPdf = fieldDefinition.pdfType === "text" || fieldDefinition.pdfType === "multiline";
+		const isUnsupportedPdf = fieldDefinition.pdfFields.some(
+			(pdfField) => pdfField.pdfType === "unsupported",
+		);
+		const inputKindOptions = getInputKindOptions(fieldDefinition);
+		const canEditInputKind = inputKindOptions.length > 1;
+		const isTextBackedCheckbox = isTextPdf && fieldDefinition.inputKind === "boolean";
 		return (
 			<Card
 				className={cn(
-					"group overflow-hidden p-0 transition-[box-shadow,opacity] duration-150",
-					isPdfFieldActive ? "ring-2 ring-solarized-orange/70" : "",
+					"group relative overflow-hidden p-0 transition-[border-color,box-shadow,opacity] duration-150",
+					isCheckboxMergeCandidate ? "border-solarized-blue ring-1 ring-solarized-blue/50" : "",
+					isActive ? "border-transparent shadow-none ring-2 ring-solarized-orange/70" : "",
 				)}
-				data-pdf-field-name={fieldDefinition.fieldName}
+				data-document-input-id={fieldDefinition.label}
+				data-pdf-field-names={fieldDefinition.fieldNames.join(",")}
 				onFocusCapture={handlePreview}
 				onPointerDownCapture={handlePreview}
-				ref={(node) => onFieldCardRef(fieldDefinition.fieldName, node)}
+				ref={(node) => onFieldCardRef(fieldDefinition.label, node)}
 			>
 				<div className="grid gap-0 md:grid-cols-[minmax(14rem,1fr)_minmax(0,2fr)]">
 					<div className="min-w-0 border-border/70 border-b bg-muted/20 p-2 md:border-r md:border-b-0">
 						<div className="mb-2 flex items-center justify-between gap-2">
-							<p className="font-medium text-muted-foreground text-xs">PDF-Formularfeld</p>
+							<p className="font-medium text-muted-foreground text-xs">
+								{fieldDefinition.pdfFields.length === 1
+									? "PDF-Formularfeld"
+									: "PDF-Felder"}
+							</p>
 							<Badge className="h-5 px-1.5 font-medium text-[10px]" variant="secondary">
-								nicht editierbar
+								{isUnsupportedPdf ? "nicht unterstützt" : "nicht editierbar"}
 							</Badge>
 						</div>
 
-						<div className="space-y-2">
-							<div className="min-w-0">
+						<div className="space-y-1.5">
+							<div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
 								<p className={META_LABEL_CLASS_NAME}>Name</p>
-								<p className={cn(META_VALUE_CLASS_NAME, "font-mono")}>
-									{fieldDefinition.fieldName}
-								</p>
-							</div>
-							<div className="min-w-0">
 								<p className={META_LABEL_CLASS_NAME}>Typ</p>
-								<p className={META_VALUE_CLASS_NAME}>{toPdfTypeLabel(fieldDefinition.pdfType)}</p>
 							</div>
+							{fieldDefinition.pdfFields.map((pdfField) => (
+								<div
+									className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-border/50 border-t pt-1.5 first:border-t-0 first:pt-0"
+									key={pdfField.fieldName}
+								>
+									<p className={cn(META_VALUE_CLASS_NAME, "mt-0 font-mono")}>
+										{pdfField.fieldName}
+									</p>
+									<p className={cn(META_VALUE_CLASS_NAME, "mt-0")}>
+										{toPdfTypeLabel(pdfField.pdfType)}
+									</p>
+								</div>
+							))}
 						</div>
 					</div>
 
@@ -513,43 +896,40 @@ const FieldDefinitionCard = memo(
 									<span className="text-muted-foreground text-xs">Aktiv</span>
 									<Switch
 										checked={fieldDefinition.isEnabled}
+										disabled={isUnsupportedPdf}
 										onCheckedChange={handleEnabledChange}
 									/>
 								</div>
 							</div>
 
-							<div className="flex flex-wrap items-end gap-1.5">
-								<div className="min-w-0 flex-[1_1_10rem] space-y-0.5">
-									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Label</Label>
+							<div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,9rem)] gap-x-1.5 gap-y-0.5">
+								<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Label</Label>
+								<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Eingabe-Typ</Label>
+								<Input
+									className={COMPACT_INPUT_CLASS_NAME}
+									onChange={handleLabelChange}
+									value={fieldDefinition.label}
+								/>
+								{canEditInputKind ? (
+									<Select onValueChange={handleInputKindChange} value={fieldDefinition.inputKind}>
+										<SelectTrigger className={COMPACT_SELECT_TRIGGER_CLASS_NAME} size="sm">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{inputKindOptions.map((option) => (
+												<SelectItem key={option.value} value={option.value}>
+													{option.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								) : (
 									<Input
 										className={COMPACT_INPUT_CLASS_NAME}
-										onChange={handleLabelChange}
-										value={fieldDefinition.label}
+										disabled
+										value={toInputKindLabel(fieldDefinition.inputKind)}
 									/>
-								</div>
-								<div className="min-w-28 flex-[0_1_9rem] space-y-0.5">
-									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Eingabe-Typ</Label>
-									{canEditInputKind ? (
-										<Select
-											onValueChange={handleInputKindChange}
-											value={fieldDefinition.inputKind === "boolean" ? "boolean" : "text"}
-										>
-											<SelectTrigger className={COMPACT_SELECT_TRIGGER_CLASS_NAME}>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="text">Text</SelectItem>
-												<SelectItem value="boolean">Checkbox</SelectItem>
-											</SelectContent>
-										</Select>
-									) : (
-										<Input
-											className={COMPACT_INPUT_CLASS_NAME}
-											disabled
-											value={toInputKindLabel(fieldDefinition.inputKind)}
-										/>
-									)}
-								</div>
+								)}
 							</div>
 
 							{isTextBackedCheckbox ? (
@@ -567,7 +947,7 @@ const FieldDefinitionCard = memo(
 								<div className="min-w-0 space-y-0.5">
 									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Wertetyp</Label>
 									<Select onValueChange={handleValueTypeChange} value={fieldDefinition.valueType}>
-										<SelectTrigger className={COMPACT_SELECT_TRIGGER_CLASS_NAME}>
+										<SelectTrigger className={COMPACT_SELECT_TRIGGER_CLASS_NAME} size="sm">
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
@@ -591,66 +971,52 @@ const FieldDefinitionCard = memo(
 								</div>
 							) : null}
 
-							{showsEditableOptions ? (
-								<div className="min-w-0 space-y-1">
-									<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>Optionen</Label>
-									<div className="space-y-1">
-										{fieldDefinition.options.map((option, optionIndex) => (
-											<div
-												className="grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-1.5"
-												key={`${fieldDefinition.fieldName}-option-${optionIndex}`}
-											>
-												<span className="text-muted-foreground text-[11px] tabular-nums">
-													{optionIndex + 1}
-												</span>
-												<Input
-													className={COMPACT_INPUT_CLASS_NAME}
-													onChange={(event) => handleOptionChange(optionIndex, event.target.value)}
-													value={option}
-												/>
-											</div>
-										))}
-									</div>
-									{inputVariables.length > 1 ? (
-										<div className="min-w-0 space-y-0.5">
-											<Label className={COMPACT_FIELD_LABEL_CLASS_NAME}>
-												Bestehende Eingabe verwenden
-											</Label>
-											<Select
-												onValueChange={handleVariableMappingChange}
-												value={fieldDefinition.label}
-											>
-												<SelectTrigger className={COMPACT_SELECT_TRIGGER_CLASS_NAME}>
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													{inputVariables.map((variable) => (
-														<SelectItem key={variable} value={variable}>
-															{variable}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-									) : null}
-								</div>
-							) : null}
+							<ChoiceOptionsEditor
+								canAddCheckboxOption={canAddCheckboxOption}
+								canManageCheckboxOptions={canManageCheckboxOptions}
+								fieldDefinition={fieldDefinition}
+								index={index}
+								inputVariables={inputVariables}
+								isCheckboxMergeTarget={isCheckboxMergeTarget}
+								onBeginCheckboxMerge={onBeginCheckboxMerge}
+								onCancelCheckboxMerge={onCancelCheckboxMerge}
+								onMapToVariable={onMapToVariable}
+								onSplitCheckboxOption={onSplitCheckboxOption}
+								onUpdate={onUpdate}
+							/>
 						</div>
 					</div>
 				</div>
+				{isCheckboxMergeCandidate ? (
+					<button
+						aria-label={`${USER_MESSAGES.documentEditor.selectCheckboxAsOption}: ${fieldDefinition.label}`}
+						className="absolute inset-0 z-10 flex cursor-pointer items-start justify-end bg-solarized-blue/5 p-2"
+						onClick={() => onSelectCheckboxForMerge(index)}
+						type="button"
+					>
+						<span className="inline-flex h-6 items-center gap-1 rounded-md border bg-background px-2 font-medium text-[11px] shadow-xs">
+							<Link2 className="h-3 w-3" />
+							{USER_MESSAGES.documentEditor.selectCheckboxAsOption}
+						</span>
+					</button>
+				) : null}
 			</Card>
 		);
 	},
 	(previousProps, nextProps) =>
-		previousProps.activePdfFieldName === nextProps.activePdfFieldName &&
+		previousProps.canAddCheckboxOption === nextProps.canAddCheckboxOption &&
+		previousProps.canManageCheckboxOptions === nextProps.canManageCheckboxOptions &&
 		previousProps.fieldDefinition === nextProps.fieldDefinition &&
-		previousProps.index === nextProps.index,
+		previousProps.index === nextProps.index &&
+		previousProps.isActive === nextProps.isActive &&
+		previousProps.isCheckboxMergeCandidate === nextProps.isCheckboxMergeCandidate &&
+		previousProps.isCheckboxMergeTarget === nextProps.isCheckboxMergeTarget,
 );
 
 interface DocumentPreviewPaneProps {
-	activePdfFieldName: string | null;
+	activePdfFieldHighlights: PdfFieldHighlight[];
 	onClear: () => void;
-	onFieldSelect: (fieldName: string) => void;
+	onFieldSelect: (fieldName: string, widgetValue?: string) => void;
 	onFileUpload: (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => Promise<void>;
 	pdfFileBytes: Uint8Array | null;
 	pdfFileName: string;
@@ -658,7 +1024,7 @@ interface DocumentPreviewPaneProps {
 
 const DocumentPreviewPane = memo(
 	({
-		activePdfFieldName,
+		activePdfFieldHighlights,
 		onClear,
 		onFieldSelect,
 		onFileUpload,
@@ -676,7 +1042,7 @@ const DocumentPreviewPane = memo(
 			</div>
 			<div className="mt-4 min-h-0 flex-1 overflow-hidden">
 				<PDFViewSection
-					activeFieldName={activePdfFieldName}
+					activeFieldHighlights={activePdfFieldHighlights}
 					hasUploadedFile={Boolean(pdfFileBytes)}
 					onFieldSelect={onFieldSelect}
 					pdfFile={pdfFileBytes}
@@ -688,6 +1054,117 @@ const DocumentPreviewPane = memo(
 
 FieldDefinitionCard.displayName = "FieldDefinitionCard";
 DocumentPreviewPane.displayName = "DocumentPreviewPane";
+
+const useLoadSourcePdf = ({
+	isPdfReplaced,
+	pdfBase64,
+	pdfId,
+	setPdfFileBytes,
+	setPdfFields,
+	sourceDocumentId,
+}: {
+	isPdfReplaced: boolean;
+	pdfBase64?: string;
+	pdfId?: string;
+	setPdfFileBytes: (bytes: Uint8Array) => void;
+	setPdfFields: (fields: PdfFormField[]) => void;
+	sourceDocumentId?: string;
+}) => {
+	useEffect(() => {
+		if (!pdfBase64 || isPdfReplaced || (sourceDocumentId && pdfId !== sourceDocumentId)) {
+			return;
+		}
+
+		const pdfBytes = decodeBase64ToUint8Array(pdfBase64);
+		setPdfFileBytes(pdfBytes);
+		let isCancelled = false;
+		const loadPdfFields = async () => {
+			try {
+				const { fields } = await parsePDFFormFields(pdfBytes);
+				if (!isCancelled) {
+					setPdfFields(fields);
+				}
+			} catch (error) {
+				console.error("Failed to parse saved PDF fields:", error);
+				if (!isCancelled) {
+					setPdfFields([]);
+				}
+			}
+		};
+		loadPdfFields();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [isPdfReplaced, pdfBase64, pdfId, setPdfFields, setPdfFileBytes, sourceDocumentId]);
+};
+
+const getSourcePdfData = (
+	sourcePdf: { id: string; pdfBase64: string } | null | undefined,
+): { pdfBase64?: string; pdfId?: string } => ({
+	pdfBase64: sourcePdf?.pdfBase64,
+	pdfId: sourcePdf?.id,
+});
+
+const isUncheckedPdfValue = (value: string): boolean =>
+	["", "0", "false", "off"].includes(value.trim().toLowerCase());
+
+const isCheckboxLikeChoiceBinding = (
+	binding: DocumentBinding,
+	field: PdfFormField | undefined,
+	options: string[],
+): boolean => {
+	if (field?.type === "checkbox") {
+		return true;
+	}
+	if ((field?.type !== "text" && field?.type !== "multiline") || !binding.valueMap) {
+		return false;
+	}
+
+	const mappedValues = options.map((option) => binding.valueMap?.[option]);
+	return (
+		mappedValues.every((value) => typeof value === "string") &&
+		mappedValues.filter((value) => value !== undefined && !isUncheckedPdfValue(value)).length === 1
+	);
+};
+
+const getCheckboxLikeChoiceInputIds = (
+	definition: DocumentDefinition,
+	pdfFields: PdfFormField[],
+): string[] => {
+	const pdfFieldsByName = new Map(pdfFields.map((field) => [field.name, field]));
+	const bindingsByInputId = new Map<string, DocumentBinding[]>();
+	for (const binding of definition.bindings) {
+		const inputKey = binding.inputId.toLowerCase();
+		const bindings = bindingsByInputId.get(inputKey) ?? [];
+		bindings.push(binding);
+		bindingsByInputId.set(inputKey, bindings);
+	}
+	return definition.inputs
+		.filter((input) => input.name === "Switch" && !isBooleanDocumentInput(input))
+		.filter((input) => {
+			const options = input.children.map((child) => child.attributes.primary);
+			const bindings = bindingsByInputId.get(input.attributes.primary.toLowerCase()) ?? [];
+			return (
+				bindings.length > 0 &&
+				bindings.every((binding) => {
+					const field = pdfFieldsByName.get(binding.fieldName);
+					return isCheckboxLikeChoiceBinding(binding, field, options);
+				})
+			);
+		})
+		.map((input) => input.attributes.primary);
+};
+
+const isCheckboxLikeBooleanField = (field: EditorFieldRow): boolean =>
+	field.inputKind === "boolean" &&
+	field.pdfFields.every(
+		(pdfField) =>
+			pdfField.pdfType === "checkbox" ||
+			((pdfField.pdfType === "text" || pdfField.pdfType === "multiline") &&
+				Boolean(pdfField.valueMap?.true) &&
+				isUncheckedPdfValue(pdfField.valueMap?.false ?? "")),
+	);
 
 export default function DocumentEditor({
 	documentId,
@@ -705,14 +1182,15 @@ export default function DocumentEditor({
 	const [category, setCategory] = useState("");
 	const [newCategory, setNewCategory] = useState("");
 	const [pdfFileBytes, setPdfFileBytes] = useState<Uint8Array | null>(null);
+	const [pdfFields, setPdfFields] = useState<PdfFormField[]>([]);
 	const [pdfFileName, setPdfFileName] = useState("document.pdf");
 	const [isPdfReplaced, setIsPdfReplaced] = useState(false);
 	const [definition, setDefinition] = useState<DocumentDefinition>({
-		fieldMappings: [],
-		inputTags: [],
-		version: 2,
+		bindings: [],
+		inputs: [],
 	});
-	const [activePdfFieldName, setActivePdfFieldName] = useState<string | null>(null);
+	const [activeInputId, setActiveInputId] = useState<string | null>(null);
+	const [checkboxMergeTargetInputId, setCheckboxMergeTargetInputId] = useState<string | null>(null);
 	const [visibility, setVisibility] = useState<DocumentVisibility>("public");
 
 	const { data: editorContext } = useQuery(orpc.documents.templates.editorContext.queryOptions());
@@ -728,6 +1206,14 @@ export default function DocumentEditor({
 		),
 		enabled: Boolean(sourceDocumentId),
 	});
+	const sourcePdfData = getSourcePdfData(sourceDocumentPdf);
+	useLoadSourcePdf({
+		isPdfReplaced,
+		...sourcePdfData,
+		setPdfFields,
+		setPdfFileBytes,
+		sourceDocumentId,
+	});
 
 	useEffect(() => {
 		if (initializedRef.current || !sourceDocument) {
@@ -738,9 +1224,9 @@ export default function DocumentEditor({
 		setCategory(sourceDocument.category);
 		setVisibility(sourceDocument.visibility === "private" ? "private" : "public");
 		const savedDefinition = normalizeSavedDocumentDefinition(sourceDocument.fieldDefinitions);
-		if (savedDefinition.fieldMappings.length > 0) {
+		if (savedDefinition.bindings.length > 0) {
 			setDefinition(savedDefinition);
-			setActivePdfFieldName(savedDefinition.fieldMappings[0]?.fieldName ?? null);
+			setActiveInputId(savedDefinition.bindings[0]?.inputId ?? null);
 		}
 		initializedRef.current = true;
 	}, [sourceDocument]);
@@ -752,72 +1238,112 @@ export default function DocumentEditor({
 		setPdfFileName(`${sourceDocument.title}.pdf`);
 	}, [isPdfReplaced, sourceDocument]);
 
-	useEffect(() => {
-		if (!sourceDocumentPdf?.pdfBase64 || isPdfReplaced || pdfFileBytes) {
-			return;
-		}
-		if (sourceDocumentId && sourceDocumentPdf.id !== sourceDocumentId) {
-			return;
-		}
-
-		setPdfFileBytes(decodeBase64ToUint8Array(sourceDocumentPdf.pdfBase64));
-	}, [isPdfReplaced, pdfFileBytes, sourceDocumentId, sourceDocumentPdf]);
-
 	const createMutation = useMutation(orpc.documents.templates.create.mutationOptions());
 	const updateMutation = useMutation(orpc.documents.templates.update.mutationOptions());
-	const enhanceMutation = useMutation(orpc.documents.parseForm.mutationOptions());
+	const enhanceMutation = useMutation(orpc.documents.enhanceDefinition.mutationOptions());
 
 	const handlePdfUpload = useCallback(
 		async (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => {
+			const { fields } = await parsePDFFormFields(file);
+			const nextDefinition = buildDefaultDocumentDefinitionFromPdfFields(fields);
 			setPdfFileBytes(file);
 			setPdfFileName(fileMeta.name);
 			setIsPdfReplaced(true);
-
-			const { fields } = await parsePDFFormFields(file);
-			setDefinition(buildDefaultDocumentDefinitionFromPdfFields(fields));
-			setActivePdfFieldName(fields[0]?.name ?? null);
+			setPdfFields(fields);
+			setDefinition(nextDefinition);
+			setActiveInputId(nextDefinition.bindings[0]?.inputId ?? null);
+			setCheckboxMergeTargetInputId(null);
 		},
 		[],
 	);
 
 	const handleClearPdf = useCallback(() => {
 		setPdfFileBytes(null);
-		setDefinition({ fieldMappings: [], inputTags: [], version: 2 });
-		setActivePdfFieldName(null);
+		setPdfFields([]);
+		setDefinition({ bindings: [], inputs: [] });
+		setActiveInputId(null);
+		setCheckboxMergeTargetInputId(null);
 		setPdfFileName("document.pdf");
 		setIsPdfReplaced(true);
 	}, []);
 
-	const handleFieldUpdate = useCallback((index: number, update: Partial<EditorFieldRow>) => {
-		setDefinition((current) => updateDocumentDefinitionAt(current, index, update));
-	}, []);
-
-	const handleFieldPreview = useCallback((fieldName: string) => {
-		setActivePdfFieldName(fieldName);
-	}, []);
-	const handleFieldCardRef = useCallback((fieldName: string, node: HTMLDivElement | null) => {
-		if (node) {
-			fieldCardRefs.current.set(fieldName, node);
-			return;
-		}
-		fieldCardRefs.current.delete(fieldName);
-	}, []);
-	const handlePdfFieldSelect = useCallback((fieldName: string) => {
-		setActivePdfFieldName(fieldName);
-		requestAnimationFrame(() => {
-			fieldCardRefs.current.get(fieldName)?.scrollIntoView({
-				block: "nearest",
-				inline: "nearest",
-			});
-		});
-	}, []);
-	const handleMapToVariable = useCallback((index: number, variable: string) => {
-		setDefinition((current) => assignDocumentMappingVariable(current, index, variable));
-	}, []);
-	const inputVariables = useMemo(
-		() => definition.inputTags.map((inputTag) => inputTag.attributes.primary),
-		[definition.inputTags],
+	const handleFieldUpdate = useCallback(
+		(index: number, update: Partial<EditorFieldRow>) => {
+			const previousInputId = definition.bindings[index]?.inputId;
+			if (previousInputId && update.label !== undefined) {
+				setActiveInputId((currentInputId) =>
+					currentInputId?.toLowerCase() === previousInputId.toLowerCase()
+						? update.label?.trim() || previousInputId
+						: currentInputId,
+				);
+			}
+			setDefinition((current) => updateDocumentDefinitionAt(current, index, update));
+			setCheckboxMergeTargetInputId(null);
+		},
+		[definition.bindings],
 	);
+	const handleSplitCheckboxOption = useCallback(
+		(inputId: string, option: string) => {
+			setDefinition((current) => splitCheckboxOption(current, inputId, option, pdfFields));
+			setCheckboxMergeTargetInputId(null);
+		},
+		[pdfFields],
+	);
+	const handleBeginCheckboxMerge = useCallback((inputId: string) => {
+		setCheckboxMergeTargetInputId(inputId);
+	}, []);
+	const handleCancelCheckboxMerge = useCallback(() => {
+		setCheckboxMergeTargetInputId(null);
+	}, []);
+	const handleSelectCheckboxForMerge = useCallback(
+		(index: number) => {
+			if (!checkboxMergeTargetInputId) {
+				return;
+			}
+			setDefinition((current) =>
+				mergeCheckboxBindingIntoChoice(current, index, checkboxMergeTargetInputId),
+			);
+			setActiveInputId(checkboxMergeTargetInputId);
+			setCheckboxMergeTargetInputId(null);
+		},
+		[checkboxMergeTargetInputId],
+	);
+
+	const handleFieldPreview = useCallback((inputId: string) => {
+		setActiveInputId(inputId);
+	}, []);
+	const handleFieldCardRef = useCallback((inputId: string, node: HTMLDivElement | null) => {
+		const inputKey = inputId.toLowerCase();
+		if (node) {
+			fieldCardRefs.current.set(inputKey, node);
+		} else {
+			fieldCardRefs.current.delete(inputKey);
+		}
+	}, []);
+	const handlePdfFieldSelect = useCallback(
+		(fieldName: string, widgetValue?: string) => {
+			const selectedInputId = getInputIdForPdfWidget(
+				definition,
+				fieldName,
+				widgetValue,
+				{ includeDisabled: true },
+			);
+			if (!selectedInputId) {
+				return;
+			}
+			setActiveInputId(selectedInputId);
+			requestAnimationFrame(() => {
+				fieldCardRefs.current.get(selectedInputId.toLowerCase())?.scrollIntoView({
+					block: "nearest",
+					inline: "nearest",
+				});
+			});
+		},
+		[definition],
+	);
+	const handleMapToVariable = useCallback((index: number, variable: string) => {
+		setDefinition((current) => assignDocumentBindingInput(current, index, variable));
+	}, []);
 
 	const canCreatePrivateDocuments = Boolean(editorContext?.canCreatePrivateDocuments);
 
@@ -844,28 +1370,23 @@ export default function DocumentEditor({
 
 		toast.loading("Eingaben werden mit KI verbessert...", { id: "enhance-ai" });
 		try {
-			const result = (await enhanceMutation.mutateAsync({
-				fieldMappings: toFieldMappings(toEditorFieldDefinitions(definition)),
+			const result = await enhanceMutation.mutateAsync({
+				fieldDefinitions: definition,
 				fileBase64: encodeUint8ArrayToBase64(pdfFileBytes),
-				inputFields: toEnhancementInputFields(toEditorFieldDefinitions(definition)),
-			})) as ParsedFieldMappingResult;
-
-			const aiByFieldName = new Map(
-				result.fieldMapping.map((fieldMapping) => [fieldMapping.fieldName, fieldMapping]),
-			);
-			setDefinition((current) => {
-				let nextDefinition = current;
-				for (const [index, mapping] of current.fieldMappings.entries()) {
-					const aiField = aiByFieldName.get(mapping.fieldName);
-					if (aiField) {
-						nextDefinition = updateDocumentDefinitionAt(nextDefinition, index, {
-							description: aiField.description,
-							label: aiField.label,
-						});
-					}
-				}
-				return nextDefinition;
 			});
+			setDefinition(result.fieldDefinitions);
+			setActiveInputId((currentInputId) => {
+				const matchingInput = result.fieldDefinitions.inputs.find(
+					(input) =>
+						input.attributes.primary.toLowerCase() === currentInputId?.toLowerCase(),
+				);
+				return (
+					matchingInput?.attributes.primary ??
+					result.fieldDefinitions.inputs[0]?.attributes.primary ??
+					null
+				);
+			});
+			setCheckboxMergeTargetInputId(null);
 			toast.success("Eingaben mit KI verbessert", { id: "enhance-ai" });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -935,6 +1456,22 @@ export default function DocumentEditor({
 	]);
 
 	const rawCategorySuggestions = editorContext?.categorySuggestions;
+	const editorFields = useMemo(
+		() => toEditorFieldDefinitions(definition, pdfFields),
+		[definition, pdfFields],
+	);
+	const activePdfFieldHighlights = useMemo(
+		() =>
+			getPdfFieldHighlightsForInput(definition, pdfFields, activeInputId, {
+				includeDisabled: true,
+			}),
+		[activeInputId, definition, pdfFields],
+	);
+	const checkboxChoiceInputIds = useMemo(
+		() => getCheckboxLikeChoiceInputIds(definition, pdfFields),
+		[definition, pdfFields],
+	);
+	const hasBooleanCheckboxCandidate = editorFields.some(isCheckboxLikeBooleanField);
 	const suggestedCategories = useMemo(() => {
 		const limit = 10;
 		const result: string[] = [];
@@ -1054,14 +1591,14 @@ export default function DocumentEditor({
 									<Tooltip>
 										<TooltipTrigger
 											render={
-													<Button
-														aria-label="Hinweis zur Sichtbarkeit"
-														className="size-4 text-muted-foreground"
-														size="icon-xs"
-														variant="ghost"
-													>
-														<InfoIcon className="h-3 w-3" />
-													</Button>
+												<Button
+													aria-label="Hinweis zur Sichtbarkeit"
+													className="size-4 text-muted-foreground"
+													size="icon-xs"
+													variant="ghost"
+												>
+													<InfoIcon className="h-3 w-3" />
+												</Button>
 											}
 										/>
 										<TooltipContent align="start" className="max-w-80" side="bottom">
@@ -1128,30 +1665,53 @@ export default function DocumentEditor({
 						) : null}
 
 						<div className="space-y-2">
-							{definition.fieldMappings.length === 0 ? (
+							{definition.bindings.length === 0 ? (
 								<p className="text-muted-foreground text-sm">
 									Noch keine Felder erkannt. Laden Sie ein fillbares PDF hoch.
 								</p>
 							) : null}
-							{toEditorFieldDefinitions(definition).map((fieldDefinition, index) => (
-								<FieldDefinitionCard
-									activePdfFieldName={activePdfFieldName}
-									fieldDefinition={fieldDefinition}
-									index={index}
-									inputVariables={inputVariables}
-									onFieldCardRef={handleFieldCardRef}
-									key={fieldDefinition.fieldName}
-									onMapToVariable={handleMapToVariable}
-									onPreview={handleFieldPreview}
-									onUpdate={handleFieldUpdate}
-								/>
-							))}
+							{editorFields.map((fieldDefinition) => {
+								const isCheckboxChoice = checkboxChoiceInputIds.some(
+									(inputId) => inputId.toLowerCase() === fieldDefinition.label.toLowerCase(),
+								);
+								const isCheckboxMergeTarget =
+									checkboxMergeTargetInputId?.toLowerCase() === fieldDefinition.label.toLowerCase();
+								const isCheckboxMergeCandidate = Boolean(
+									checkboxMergeTargetInputId &&
+									isCheckboxLikeBooleanField(fieldDefinition),
+								);
+								return (
+									<FieldDefinitionCard
+										canAddCheckboxOption={isCheckboxChoice && hasBooleanCheckboxCandidate}
+										canManageCheckboxOptions={isCheckboxChoice}
+										fieldDefinition={fieldDefinition}
+										index={fieldDefinition.bindingIndex}
+										inputVariables={definition.inputs
+											.filter((input) => toInputKind(input) === fieldDefinition.inputKind)
+											.map((input) => input.attributes.primary)}
+										isActive={
+											activeInputId?.toLowerCase() === fieldDefinition.label.toLowerCase()
+										}
+										isCheckboxMergeCandidate={isCheckboxMergeCandidate}
+										isCheckboxMergeTarget={isCheckboxMergeTarget}
+										key={`${fieldDefinition.fieldNames.join("|")}-${fieldDefinition.label}`}
+										onBeginCheckboxMerge={handleBeginCheckboxMerge}
+										onCancelCheckboxMerge={handleCancelCheckboxMerge}
+										onFieldCardRef={handleFieldCardRef}
+										onMapToVariable={handleMapToVariable}
+										onPreview={handleFieldPreview}
+										onSelectCheckboxForMerge={handleSelectCheckboxForMerge}
+										onSplitCheckboxOption={handleSplitCheckboxOption}
+										onUpdate={handleFieldUpdate}
+									/>
+								);
+							})}
 						</div>
 					</div>
 				</div>
 
 				<DocumentPreviewPane
-					activePdfFieldName={activePdfFieldName}
+					activePdfFieldHighlights={activePdfFieldHighlights}
 					onClear={handleClearPdf}
 					onFieldSelect={handlePdfFieldSelect}
 					onFileUpload={handlePdfUpload}

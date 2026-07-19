@@ -11,12 +11,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { normalizeDocumentDefinition } from "@/app/documents/_lib";
-import type { DocumentDefinition } from "@/app/documents/_lib";
-import { orpc } from "@/lib/orpc";
-import { getServerSession } from "@/lib/server-session";
 import ContentSection from "@/app/documents/(library)/[id]/_components/content-section";
 import { NavActions } from "@/app/documents/(library)/[id]/_components/nav-actions";
+import { documentDefinitionSchema, normalizeDocumentDefinition } from "@/app/documents/_lib";
+import { orpc } from "@/lib/orpc";
+import { getServerSession } from "@/lib/server-session";
 
 export const generateMetadata = async ({
 	params,
@@ -48,12 +47,11 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 	}
 
 	const isAuthor = document.authorId === session?.user?.id;
-	let definition: DocumentDefinition;
-	try {
-		definition = normalizeDocumentDefinition(document.fieldDefinitions as DocumentDefinition);
-	} catch {
-		definition = { fieldMappings: [], inputTags: [], version: 2 };
+	const parsedDefinition = documentDefinitionSchema.safeParse(document.fieldDefinitions);
+	if (!parsedDefinition.success) {
+		notFound();
 	}
+	const definition = normalizeDocumentDefinition(parsedDefinition.data);
 
 	return (
 		<div className="flex h-full w-full flex-col">

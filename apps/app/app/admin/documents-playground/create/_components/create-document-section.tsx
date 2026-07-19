@@ -36,7 +36,12 @@ import {
 	normalizeDocumentDefinition,
 	parsePDFFormFields,
 } from "@/app/documents/_lib";
-import type { DocumentDefinition, DocumentInputKind, DocumentPdfType } from "@/app/documents/_lib";
+import type {
+	DocumentDefinition,
+	DocumentInputKind,
+	DocumentPdfType,
+	PdfFormFieldOptionMapping,
+} from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
 
 import InputEditor from "./input-editor";
@@ -48,6 +53,7 @@ export interface EnhancedFieldMapping {
 	label: string;
 	markdocType: "Info" | "Switch";
 	options: string[];
+	optionMappings?: PdfFormFieldOptionMapping[];
 	pdfType: DocumentPdfType;
 }
 
@@ -72,6 +78,7 @@ const buildEnhancedMapping = (
 		...aiMapping,
 		inputKind: existing?.inputKind || "text",
 		markdocType: existing?.markdocType || "Info",
+		optionMappings: existing?.optionMappings,
 		options: existing?.options || [],
 		pdfType: existing?.pdfType || "text",
 	};
@@ -79,13 +86,33 @@ const buildEnhancedMapping = (
 
 const toDocumentDefinition = (fieldMappings: EnhancedFieldMapping[]): DocumentDefinition =>
 	normalizeDocumentDefinition({
-		fieldMappings: fieldMappings.map((fieldMapping) => ({
+		bindings: fieldMappings.map((fieldMapping) => ({
 			fieldName: fieldMapping.fieldName,
-			isEnabled: true,
-			pdfType: fieldMapping.pdfType,
-			variable: fieldMapping.label,
+			inputId: fieldMapping.label,
+			isEnabled: fieldMapping.pdfType !== "unsupported",
+			...(fieldMapping.inputKind === "choice"
+				? {
+						valueMap: Object.fromEntries(
+							fieldMapping.options.map((inputValue, index) => [
+								inputValue,
+								fieldMapping.optionMappings?.[index]?.pdfValue ?? inputValue,
+							]),
+						),
+					}
+				: {}),
+			...(fieldMapping.inputKind === "boolean" && fieldMapping.pdfType === "checkbox"
+				? {
+						valueMap: {
+							false: "",
+							true: fieldMapping.optionMappings?.[0]?.pdfValue ?? "true",
+						},
+					}
+				: {}),
+			...(fieldMapping.inputKind === "boolean" && fieldMapping.pdfType === "text"
+				? { valueMap: { false: "", true: "x" } }
+				: {}),
 		})),
-		inputTags: fieldMappings.map((fieldMapping) => {
+		inputs: fieldMappings.map((fieldMapping) => {
 			if (fieldMapping.inputKind === "text") {
 				return {
 					attributes: {
@@ -111,7 +138,6 @@ const toDocumentDefinition = (fieldMappings: EnhancedFieldMapping[]): DocumentDe
 				name: "Switch" as const,
 			};
 		}),
-		version: 2,
 	});
 
 export default function CreateDocumentSection() {
@@ -166,6 +192,7 @@ export default function CreateDocumentSection() {
 					inputKind: field.inputKind,
 					label: field.name,
 					markdocType: field.inputKind === "text" ? "Info" : "Switch",
+					optionMappings: field.optionMappings,
 					options: field.options ?? [],
 					pdfType: field.type,
 				})),

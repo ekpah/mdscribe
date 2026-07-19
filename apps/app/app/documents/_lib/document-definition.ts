@@ -1,134 +1,176 @@
-import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import type { DocumentBinding, DocumentDefinition, DocumentInput } from "./types";
 
-import type { DocumentDefinition } from "./types";
+const toInputKey = (inputId: string): string => inputId.trim().toLowerCase();
 
-const toVariableKey = (variable: string): string => variable.trim().toLowerCase();
+export const isBooleanDocumentInput = (input: DocumentInput | undefined): boolean =>
+	input?.name === "Switch" &&
+	(input.attributes.type === "boolean" || input.attributes.type === "checkbox");
 
-const cloneInputTag = (inputTag: InputTagType): InputTagType => {
-	if (inputTag.name === "Info") {
-		return { ...inputTag, attributes: { ...inputTag.attributes }, children: [] };
-	}
-	if (inputTag.name === "Switch") {
+const normalizeInput = (input: DocumentInput): DocumentInput => {
+	if (input.name === "Info") {
 		return {
-			...inputTag,
-			attributes: { ...inputTag.attributes },
-			children: inputTag.children.map(cloneInputTag),
+			...input,
+			attributes: {
+				...input.attributes,
+				description: input.attributes.description?.trim() || undefined,
+				primary: input.attributes.primary.trim(),
+				unit: input.attributes.unit?.trim() || undefined,
+			},
+			children: [],
 		};
 	}
-	if (inputTag.name === "Case") {
-		return {
-			...inputTag,
-			attributes: { ...inputTag.attributes },
-			children: inputTag.children.map(cloneInputTag),
-		};
-	}
+
 	return {
-		...inputTag,
-		attributes: { ...inputTag.attributes },
-		children: inputTag.children.map(cloneInputTag),
+		...input,
+		attributes: { ...input.attributes, primary: input.attributes.primary.trim() },
+		children: input.children.map((child) => ({
+			...child,
+			attributes: { primary: child.attributes.primary.trim() },
+			children: [],
+		})),
 	};
 };
 
-const normalizeInputTag = (inputTag: InputTagType): InputTagType => {
-	if (inputTag.name === "Info") {
-		return {
-			...inputTag,
-			attributes: {
-				...inputTag.attributes,
-				description: inputTag.attributes.description?.trim() || undefined,
-				primary: inputTag.attributes.primary.trim(),
-			},
-		};
+const normalizeValueMap = (
+	valueMap: Record<string, string> | undefined,
+): Record<string, string> | undefined => {
+	if (!valueMap) {
+		return undefined;
 	}
 
-	if (inputTag.name === "Switch") {
-		return {
-			...inputTag,
-			attributes: { ...inputTag.attributes, primary: inputTag.attributes.primary.trim() },
-			children: inputTag.children.map(cloneInputTag),
-		};
+	const normalizedEntries: [string, string][] = [];
+	const normalizedKeys = new Set<string>();
+	for (const [inputValue, pdfValue] of Object.entries(valueMap)) {
+		const normalizedInputValue = inputValue.trim();
+		if (normalizedKeys.has(normalizedInputValue)) {
+			throw new Error(
+				`PDF-Wertzuordnung enthält den Wert "${normalizedInputValue}" mehrfach.`,
+			);
+		}
+		normalizedKeys.add(normalizedInputValue);
+		normalizedEntries.push([normalizedInputValue, pdfValue]);
 	}
-
-	return cloneInputTag(inputTag);
+	return Object.fromEntries(normalizedEntries);
 };
 
-const validateDocumentDefinition = (definition: DocumentDefinition): void => {
-	const variables = new Set<string>();
-	for (const [index, inputTag] of definition.inputTags.entries()) {
-		if (inputTag.name !== "Info" && inputTag.name !== "Switch") {
-			throw new Error(`Eingabe ${index + 1}: Nur Info- und Switch-Tags sind für PDFs erlaubt.`);
-		}
-		const variable = inputTag.attributes.primary.trim();
-		if (!variable) {
-			throw new Error(`Eingabe ${index + 1}: Variable darf nicht leer sein.`);
-		}
-		const key = toVariableKey(variable);
-		if (variables.has(key)) {
-			throw new Error(`Eingabe ${index + 1}: Variable "${variable}" ist mehrfach vorhanden.`);
-		}
-		variables.add(key);
-		if (
-			inputTag.name === "Switch" &&
-			inputTag.attributes.type !== "boolean" &&
-			inputTag.children.length === 0
-		) {
-			throw new Error(`Eingabe ${index + 1}: Auswahl benötigt mindestens eine Option.`);
-		}
+const validateValueMap = (binding: DocumentBinding, input: DocumentInput, index: number): void => {
+	if (!binding.valueMap) {
+		return;
 	}
 
-	for (const [index, mapping] of definition.fieldMappings.entries()) {
-		if (!mapping.fieldName.trim()) {
-			throw new Error(`Zuordnung ${index + 1}: PDF-Feldname darf nicht leer sein.`);
-		}
-		if (mapping.isEnabled && !variables.has(toVariableKey(mapping.variable))) {
+	let requiredValues: string[] = [];
+	if (isBooleanDocumentInput(input)) {
+		requiredValues = ["true", "false"];
+	} else if (input.name === "Switch") {
+		requiredValues = input.children.map((child) => child.attributes.primary);
+	}
+
+	for (const requiredValue of requiredValues) {
+		if (!Object.hasOwn(binding.valueMap, requiredValue)) {
 			throw new Error(
-				`Zuordnung ${index + 1}: Variable "${mapping.variable}" ist nicht als Eingabe definiert.`,
+				`Zuordnung ${index + 1}: Wert "${requiredValue}" fehlt in der PDF-Wertzuordnung.`,
+			);
+		}
+	}
+	const requiredValueSet = new Set(requiredValues);
+	for (const mappedValue of Object.keys(binding.valueMap)) {
+		if (!requiredValueSet.has(mappedValue)) {
+			throw new Error(
+				`Zuordnung ${index + 1}: Wert "${mappedValue}" gehört nicht zur Eingabe "${binding.inputId}".`,
 			);
 		}
 	}
 };
 
+const validateDocumentDefinition = (definition: DocumentDefinition): void => {
+	const inputsByKey = new Map<string, DocumentInput>();
+	for (const [index, input] of definition.inputs.entries()) {
+		const inputId = input.attributes.primary;
+		if (!inputId) {
+			throw new Error(`Eingabe ${index + 1}: Primary darf nicht leer sein.`);
+		}
+
+		const inputKey = toInputKey(inputId);
+		if (inputsByKey.has(inputKey)) {
+			throw new Error(`Eingabe ${index + 1}: Primary "${inputId}" ist mehrfach vorhanden.`);
+		}
+		inputsByKey.set(inputKey, input);
+
+		if (input.name !== "Switch" || isBooleanDocumentInput(input)) {
+			continue;
+		}
+
+		if (input.children.length === 0) {
+			throw new Error(`Eingabe ${index + 1}: Auswahl benötigt mindestens eine Option.`);
+		}
+
+		const options = new Set<string>();
+		for (const option of input.children) {
+			const optionKey = toInputKey(option.attributes.primary);
+			if (!optionKey) {
+				throw new Error(`Eingabe ${index + 1}: Auswahloption darf nicht leer sein.`);
+			}
+			if (options.has(optionKey)) {
+				throw new Error(
+					`Eingabe ${index + 1}: Auswahloption "${option.attributes.primary}" ist mehrfach vorhanden.`,
+				);
+			}
+			options.add(optionKey);
+		}
+	}
+
+	const bindingKeys = new Set<string>();
+	for (const [index, binding] of definition.bindings.entries()) {
+		const bindingKey = `${binding.fieldName}\u0000${toInputKey(binding.inputId)}`;
+		if (bindingKeys.has(bindingKey)) {
+			throw new Error(
+				`Zuordnung ${index + 1}: PDF-Feld "${binding.fieldName}" ist der Eingabe "${binding.inputId}" mehrfach zugeordnet.`,
+			);
+		}
+		bindingKeys.add(bindingKey);
+
+		const input = inputsByKey.get(toInputKey(binding.inputId));
+		if (!input) {
+			throw new Error(`Zuordnung ${index + 1}: Eingabe "${binding.inputId}" ist nicht definiert.`);
+		}
+		validateValueMap(binding, input, index);
+	}
+};
+
 export const normalizeDocumentDefinition = (definition: DocumentDefinition): DocumentDefinition => {
-	const inputTags = definition.inputTags.map(normalizeInputTag);
-	const inputVariables = new Map(
-		inputTags.map((inputTag) => [toVariableKey(inputTag.attributes.primary), inputTag.attributes.primary]),
+	const inputs = definition.inputs.map(normalizeInput);
+	const canonicalInputIds = new Map(
+		inputs.map((input) => [toInputKey(input.attributes.primary), input.attributes.primary]),
 	);
-	const fieldMappings = definition.fieldMappings.map((mapping) => ({
-		...mapping,
-		condition: mapping.condition?.trim() || undefined,
-		fieldName: mapping.fieldName.trim(),
-		value: mapping.value === undefined ? undefined : mapping.value,
-		variable: inputVariables.get(toVariableKey(mapping.variable)) ?? mapping.variable.trim(),
+	const bindings = definition.bindings.map((binding) => ({
+		...binding,
+		fieldName: binding.fieldName.trim(),
+		inputId: canonicalInputIds.get(toInputKey(binding.inputId)) ?? binding.inputId.trim(),
+		valueMap: normalizeValueMap(binding.valueMap),
 	}));
-	const normalized = { fieldMappings, inputTags, version: 2 as const };
+	const normalized = { bindings, inputs };
 	validateDocumentDefinition(normalized);
 	return normalized;
 };
 
-const toCheckboxState = (value: string): boolean =>
-	["true", "1", "yes", "ja"].includes(value.trim().toLowerCase());
-
-const toInputValueString = (value: unknown): string =>
-	typeof value === "string" ? value : value?.toString() || "";
-
-/**
- * Canonicalizes a runtime input value for condition matching and PDF output.
- * Boolean switch values normalize to "true"/"false" so tolerant user input
- * ("ja", "1", true) compares reliably against stored mapping conditions.
- */
-export const canonicalizeInputValue = (
-	inputTag: InputTagType | undefined,
-	value: unknown,
-): string => {
-	const stringValue = toInputValueString(value);
-	if (inputTag?.name === "Switch" && inputTag.attributes.type === "boolean") {
-		return toCheckboxState(stringValue) ? "true" : "false";
-	}
-	return stringValue;
+export const getEnabledDocumentInputs = (definition: DocumentDefinition): DocumentInput[] => {
+	const enabledInputKeys = new Set(
+		definition.bindings
+			.filter((binding) => binding.isEnabled)
+			.map((binding) => toInputKey(binding.inputId)),
+	);
+	return definition.inputs.filter((input) =>
+		enabledInputKeys.has(toInputKey(input.attributes.primary)),
+	);
 };
 
-export const matchesCondition = (
-	inputTag: InputTagType | undefined,
+const toBooleanState = (value: string): boolean =>
+	["true", "1", "yes", "ja"].includes(value.trim().toLowerCase());
+
+export const canonicalizeInputValue = (
+	input: DocumentInput | undefined,
 	value: unknown,
-	condition: string,
-): boolean => canonicalizeInputValue(inputTag, value) === condition;
+): string => {
+	const stringValue = typeof value === "string" ? value : value?.toString() || "";
+	return isBooleanDocumentInput(input) ? String(toBooleanState(stringValue)) : stringValue;
+};

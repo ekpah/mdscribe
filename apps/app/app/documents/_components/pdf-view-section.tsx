@@ -8,6 +8,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import type { PdfFieldHighlight } from "@/app/documents/_components/pdf-field-highlights";
 import { toPdfBlob } from "@/app/documents/_lib/pdf-data";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -28,9 +29,11 @@ const pdfLoadingPlaceholder = (
 
 interface PDFViewSectionProps {
 	activeFieldName?: string | null;
+	activeFieldNames?: string[];
+	activeFieldHighlights?: PdfFieldHighlight[];
 	activeFieldNavigationKey?: string | number;
 	hasUploadedFile?: boolean;
-	onFieldSelect?: (fieldName: string) => void;
+	onFieldSelect?: (fieldName: string, widgetValue?: string) => void;
 	pdfFile: Uint8Array | null;
 	resetKey?: string;
 }
@@ -38,9 +41,12 @@ interface PDFViewSectionProps {
 interface PdfFieldTarget {
 	pageNumber: number;
 	rect: [number, number, number, number];
+	widgetValue?: string;
 }
 
 interface PdfWidgetAnnotation {
+	buttonValue?: unknown;
+	exportValue?: unknown;
 	fieldName?: unknown;
 	rect?: unknown;
 }
@@ -63,7 +69,7 @@ interface PdfPageForHighlight {
 }
 
 interface HighlightOverlayProps {
-	activeFieldName?: string | null;
+	activeFieldHighlights: PdfFieldHighlight[];
 	fieldTargets: Map<string, PdfFieldTarget[]>;
 	page: PdfPageForHighlight;
 	pageNumber: number;
@@ -73,7 +79,7 @@ interface HighlightOverlayProps {
 
 interface FieldClickLayerProps {
 	fieldTargets: Map<string, PdfFieldTarget[]>;
-	onFieldSelect?: (fieldName: string) => void;
+	onFieldSelect?: (fieldName: string, widgetValue?: string) => void;
 	page: PdfPageForHighlight;
 	pageNumber: number;
 	rotate: number;
@@ -81,7 +87,7 @@ interface FieldClickLayerProps {
 }
 
 interface FieldScrollEffectProps {
-	activeFieldName?: string | null;
+	activeFieldHighlight?: PdfFieldHighlight;
 	activeFieldNavigationKey?: string | number;
 	fieldTargets: Map<string, PdfFieldTarget[]>;
 	lastScrolledFieldKeyRef: MutableRefObject<string | null>;
@@ -107,7 +113,8 @@ interface PdfBufferLoadState {
 }
 
 interface PdfBufferViewProps {
-	activeFieldName?: string | null;
+	activeFieldHighlight?: PdfFieldHighlight;
+	activeFieldHighlights: PdfFieldHighlight[];
 	activeFieldNavigationKey?: string | number;
 	buffer: PdfBuffer;
 	fieldTargets: Map<string, PdfFieldTarget[]>;
@@ -115,7 +122,7 @@ interface PdfBufferViewProps {
 	lastScrolledFieldKeyRef: MutableRefObject<string | null>;
 	onDocumentLoadError: (error: Error) => void;
 	onDocumentLoadSuccess: (buffer: PdfBuffer, pdfDocument: PdfDocumentForAnnotations) => void;
-	onFieldSelect?: (fieldName: string) => void;
+	onFieldSelect?: (fieldName: string, widgetValue?: string) => void;
 	onPageRenderSuccess: (buffer: PdfBuffer, pageNumber: number) => void;
 	pageNumber: number;
 	pageWidth: number;
@@ -123,7 +130,7 @@ interface PdfBufferViewProps {
 }
 
 interface PdfViewStateParams {
-	activeFieldName?: string | null;
+	activeFieldHighlight?: PdfFieldHighlight;
 	activeFieldNavigationKey?: string | number;
 	pdfFile: Uint8Array | null;
 	resetKey?: string;
@@ -149,6 +156,52 @@ interface PdfViewState {
 
 const emptyFieldTargets = new Map<string, PdfFieldTarget[]>();
 
+const resolveActiveFieldHighlights = (
+	activeFieldHighlights: PdfFieldHighlight[] | undefined,
+	activeFieldNames: string[] | undefined,
+	activeFieldName: string | null | undefined,
+): PdfFieldHighlight[] => {
+	if (activeFieldHighlights && activeFieldHighlights.length > 0) {
+		return activeFieldHighlights;
+	}
+	if (activeFieldNames && activeFieldNames.length > 0) {
+		return activeFieldNames.map((fieldName) => ({ fieldName }));
+	}
+	return activeFieldName ? [{ fieldName: activeFieldName }] : [];
+};
+
+const getHighlightedTargets = (
+	fieldTargets: Map<string, PdfFieldTarget[]>,
+	highlight: PdfFieldHighlight,
+): PdfFieldTarget[] => {
+	const targets = fieldTargets.get(highlight.fieldName) ?? [];
+	if (!highlight.widgetValues) {
+		return targets;
+	}
+
+	const matchingTargets = targets.filter(
+		(target) =>
+			typeof target.widgetValue === "string" &&
+			highlight.widgetValues?.includes(target.widgetValue),
+	);
+	if (matchingTargets.length > 0 || targets.length > 1) {
+		return matchingTargets;
+	}
+	return targets;
+};
+
+const findHighlightedTarget = (
+	fieldTargets: Map<string, PdfFieldTarget[]>,
+	highlight: PdfFieldHighlight,
+	pageNumber?: number,
+): PdfFieldTarget | undefined =>
+	getHighlightedTargets(fieldTargets, highlight).find(
+		(target) => pageNumber === undefined || target.pageNumber === pageNumber,
+	);
+
+const getHighlightKey = (highlight: PdfFieldHighlight): string =>
+	`${highlight.fieldName}:${highlight.widgetValues?.join("\u0000") ?? "*"}`;
+
 const getPageWidth = (containerWidth: number | undefined, reservedPixels: number): number => {
 	if (!containerWidth) {
 		return maxWidth - reservedPixels;
@@ -160,6 +213,13 @@ const isNumberRect = (rect: unknown): rect is [number, number, number, number] =
 	Array.isArray(rect) &&
 	rect.length === 4 &&
 	rect.every((coordinate) => typeof coordinate === "number");
+
+const getAnnotationWidgetValue = (annotation: PdfWidgetAnnotation): string | undefined => {
+	if (typeof annotation.exportValue === "string") {
+		return annotation.exportValue;
+	}
+	return typeof annotation.buttonValue === "string" ? annotation.buttonValue : undefined;
+};
 
 const collectFieldTargets = async (
 	pdfDocument: PdfDocumentForAnnotations,
@@ -178,9 +238,11 @@ const collectFieldTargets = async (
 				}
 
 				const existingTargets = fieldTargets.get(annotation.fieldName) ?? [];
+				const widgetValue = getAnnotationWidgetValue(annotation);
 				existingTargets.push({
 					pageNumber,
 					rect: annotation.rect,
+					...(widgetValue === undefined ? {} : { widgetValue }),
 				});
 				fieldTargets.set(annotation.fieldName, existingTargets);
 			}
@@ -237,21 +299,27 @@ const getPdfBufferClassName = (isVisible: boolean) =>
 		: "pointer-events-none absolute top-0 left-1/2 flex min-h-full w-full -translate-x-1/2 flex-col items-center justify-start py-2 opacity-0";
 
 const HighlightOverlay = ({
-	activeFieldName,
+	activeFieldHighlights,
 	fieldTargets,
 	page,
 	pageNumber,
 	rotate,
 	scale,
 }: HighlightOverlayProps) => {
-	if (!activeFieldName) {
+	if (activeFieldHighlights.length === 0) {
 		return null;
 	}
 
-	const targets = fieldTargets
-		.get(activeFieldName)
-		?.filter((target) => target.pageNumber === pageNumber);
-	if (!targets?.length) {
+	const targets = activeFieldHighlights.flatMap((highlight) =>
+		getHighlightedTargets(fieldTargets, highlight)
+			.filter((target) => target.pageNumber === pageNumber)
+			.map((target, index) => ({
+				fieldName: highlight.fieldName,
+				key: `${getHighlightKey(highlight)}-${target.pageNumber}-${index}`,
+				rect: target.rect,
+			})),
+	);
+	if (targets.length === 0) {
 		return null;
 	}
 
@@ -259,10 +327,10 @@ const HighlightOverlay = ({
 
 	return (
 		<div className="pointer-events-none absolute inset-0 z-10">
-			{targets.map((target, index) => (
+			{targets.map((target) => (
 				<div
 					className="absolute rounded-[2px] border-2 border-solarized-orange bg-solarized-orange/20 shadow-[0_0_0_3px_rgba(203,75,22,0.18)]"
-					key={`${activeFieldName}-${target.pageNumber}-${index}`}
+					key={target.key}
 					style={getViewportStyle(target.rect, viewport)}
 				/>
 			))}
@@ -290,6 +358,7 @@ const FieldClickLayer = ({
 				fieldName,
 				key: `${fieldName}-${target.pageNumber}-${index}`,
 				rect: target.rect,
+				widgetValue: target.widgetValue,
 			})),
 	);
 
@@ -304,7 +373,7 @@ const FieldClickLayer = ({
 					aria-label={`PDF-Feld ${target.fieldName} auswählen`}
 					className="absolute cursor-pointer rounded-[2px] border border-transparent bg-transparent p-0 transition-colors hover:border-solarized-orange/40 hover:bg-solarized-orange/10 focus-visible:border-solarized-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/50"
 					key={target.key}
-					onClick={() => onFieldSelect(target.fieldName)}
+					onClick={() => onFieldSelect(target.fieldName, target.widgetValue)}
 					style={getViewportStyle(target.rect, viewport)}
 					type="button"
 				/>
@@ -314,7 +383,7 @@ const FieldClickLayer = ({
 };
 
 const FieldScrollEffect = ({
-	activeFieldName,
+	activeFieldHighlight,
 	activeFieldNavigationKey,
 	fieldTargets,
 	lastScrolledFieldKeyRef,
@@ -325,17 +394,15 @@ const FieldScrollEffect = ({
 	scrollContainer,
 }: FieldScrollEffectProps) => {
 	useLayoutEffect(() => {
-		if (!activeFieldName || !scrollContainer) {
+		if (!activeFieldHighlight || !scrollContainer) {
 			return;
 		}
-		const scrollKey = `${activeFieldName}:${activeFieldNavigationKey ?? ""}`;
+		const scrollKey = `${getHighlightKey(activeFieldHighlight)}:${activeFieldNavigationKey ?? ""}`;
 		if (lastScrolledFieldKeyRef.current === scrollKey) {
 			return;
 		}
 
-		const target = fieldTargets
-			.get(activeFieldName)
-			?.find((fieldTarget) => fieldTarget.pageNumber === pageNumber);
+		const target = findHighlightedTarget(fieldTargets, activeFieldHighlight, pageNumber);
 		if (!target) {
 			return;
 		}
@@ -347,7 +414,7 @@ const FieldScrollEffect = ({
 		scrollContainer.scrollTo({ behavior: "smooth", top: nextScrollTop });
 		lastScrolledFieldKeyRef.current = scrollKey;
 	}, [
-		activeFieldName,
+		activeFieldHighlight,
 		activeFieldNavigationKey,
 		fieldTargets,
 		lastScrolledFieldKeyRef,
@@ -362,7 +429,8 @@ const FieldScrollEffect = ({
 };
 
 const PdfBufferView = ({
-	activeFieldName,
+	activeFieldHighlight,
+	activeFieldHighlights,
 	activeFieldNavigationKey,
 	buffer,
 	fieldTargets,
@@ -408,7 +476,7 @@ const PdfBufferView = ({
 						) : null}
 						{isVisible ? (
 							<FieldScrollEffect
-								activeFieldName={activeFieldName}
+								activeFieldHighlight={activeFieldHighlight}
 								activeFieldNavigationKey={activeFieldNavigationKey}
 								fieldTargets={fieldTargets}
 								lastScrolledFieldKeyRef={lastScrolledFieldKeyRef}
@@ -421,7 +489,7 @@ const PdfBufferView = ({
 						) : null}
 						{isVisible ? (
 							<HighlightOverlay
-								activeFieldName={activeFieldName}
+								activeFieldHighlights={activeFieldHighlights}
 								fieldTargets={fieldTargets}
 								page={page}
 								pageNumber={renderedPageNumber}
@@ -469,7 +537,7 @@ const useContainerWidth = () => {
 };
 
 const usePdfViewState = ({
-	activeFieldName,
+	activeFieldHighlight,
 	activeFieldNavigationKey,
 	pdfFile,
 	resetKey,
@@ -550,22 +618,22 @@ const usePdfViewState = ({
 	}, [pdfFile, pendingBufferFile, visibleBufferFile]);
 
 	useEffect(() => {
-		if (!activeFieldName) {
+		if (!activeFieldHighlight) {
 			return;
 		}
-		const navigationKey = `${activeFieldName}:${activeFieldNavigationKey ?? ""}`;
+		const navigationKey = `${getHighlightKey(activeFieldHighlight)}:${activeFieldNavigationKey ?? ""}`;
 		if (lastNavigatedFieldKeyRef.current === navigationKey) {
 			return;
 		}
 
-		const target = fieldTargets.get(activeFieldName)?.[0];
+		const target = findHighlightedTarget(fieldTargets, activeFieldHighlight);
 		if (!target) {
 			return;
 		}
 
 		setPageNumber(target.pageNumber);
 		lastNavigatedFieldKeyRef.current = navigationKey;
-	}, [activeFieldName, activeFieldNavigationKey, fieldTargets]);
+	}, [activeFieldHighlight, activeFieldNavigationKey, fieldTargets]);
 
 	useEffect(() => {
 		if (!numPages || pageNumber <= numPages) {
@@ -716,11 +784,19 @@ const usePdfViewState = ({
 export const PDFViewSection = ({
 	activeFieldNavigationKey,
 	activeFieldName,
+	activeFieldNames,
+	activeFieldHighlights,
 	hasUploadedFile = false,
 	onFieldSelect,
 	pdfFile,
 	resetKey,
 }: PDFViewSectionProps) => {
+	const resolvedActiveFieldHighlights = resolveActiveFieldHighlights(
+		activeFieldHighlights,
+		activeFieldNames,
+		activeFieldName,
+	);
+	const [primaryActiveFieldHighlight] = resolvedActiveFieldHighlights;
 	const { containerWidth, setContainerRef } = useContainerWidth();
 	const {
 		fieldTargets,
@@ -739,7 +815,7 @@ export const PDFViewSection = ({
 		scrollContainerRef,
 		visibleBuffer,
 	} = usePdfViewState({
-		activeFieldName,
+		activeFieldHighlight: primaryActiveFieldHighlight,
 		activeFieldNavigationKey,
 		pdfFile,
 		resetKey,
@@ -796,7 +872,8 @@ export const PDFViewSection = ({
 					<div className="relative min-h-full w-full">
 						{bufferViews.map((bufferView) => (
 							<PdfBufferView
-								activeFieldName={activeFieldName}
+								activeFieldHighlight={primaryActiveFieldHighlight}
+								activeFieldHighlights={resolvedActiveFieldHighlights}
 								activeFieldNavigationKey={activeFieldNavigationKey}
 								buffer={bufferView.buffer}
 								fieldTargets={bufferView.fieldTargets}

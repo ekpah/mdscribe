@@ -225,6 +225,7 @@ const FieldMappingCard = ({
 									<SelectItem value="dropdown">Dropdown</SelectItem>
 									<SelectItem value="checkbox">Checkbox</SelectItem>
 									<SelectItem value="radio">Radio</SelectItem>
+									<SelectItem value="unsupported">Nicht unterstützt</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>

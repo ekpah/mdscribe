@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
 import type { PDFCheckBox } from "pdf-lib";
 
-import { fillPDFForm } from "@/app/documents/_lib";
+import { DocumentFillError, fillPDFForm } from "@/app/documents/_lib";
 import type { DocumentDefinition } from "@/app/documents/_lib";
 
 const createFormPdf = async (): Promise<Uint8Array> => {
@@ -53,12 +53,11 @@ const setCheckBoxWidgetOnValue = (checkbox: PDFCheckBox, widgetIndex: number, va
 	widget.setAppearanceState(PDFName.of("Off"));
 };
 
-const createChoiceCheckboxPdf = async (): Promise<Uint8Array> => {
+const createChoiceCheckboxPdfWithOptions = async (options: string[]): Promise<Uint8Array> => {
 	const pdfDoc = await PDFDocument.create();
 	const page = pdfDoc.addPage([600, 800]);
 	const form = pdfDoc.getForm();
 	const checkbox = form.createCheckBox("request_type");
-	const options = ["Reha", "Teilhabe am Arbeitsleben (LTA) ", "Sonstiges"];
 
 	for (const [index, option] of options.entries()) {
 		checkbox.addToPage(page, {
@@ -69,20 +68,28 @@ const createChoiceCheckboxPdf = async (): Promise<Uint8Array> => {
 		});
 		setCheckBoxWidgetOnValue(checkbox, index, option);
 	}
+	form.createCheckBox("urgent").addToPage(page, { height: 16, width: 16, x: 120, y: 720 });
 
 	return pdfDoc.save();
 };
 
+const createChoiceCheckboxPdf = (): Promise<Uint8Array> =>
+	createChoiceCheckboxPdfWithOptions([
+		"Reha",
+		"Teilhabe am Arbeitsleben (LTA) ",
+		"Sonstiges",
+	]);
+
 const createDocumentDefinition = (): DocumentDefinition => ({
-	fieldMappings: [
-		{ fieldName: "name", isEnabled: true, pdfType: "text", variable: "Name" },
-		{ fieldName: "name_copy", isEnabled: true, pdfType: "text", variable: "Name" },
-		{ fieldName: "notes", isEnabled: true, pdfType: "multiline", variable: "Notizen" },
-		{ fieldName: "status", isEnabled: true, pdfType: "dropdown", variable: "Status" },
-		{ fieldName: "consent", isEnabled: true, pdfType: "checkbox", variable: "Einwilligung" },
-		{ fieldName: "priority", isEnabled: true, pdfType: "radio", variable: "Prioritaet" },
+	bindings: [
+		{ fieldName: "name", inputId: "Name", isEnabled: true },
+		{ fieldName: "name_copy", inputId: "Name", isEnabled: true },
+		{ fieldName: "notes", inputId: "Notizen", isEnabled: true },
+		{ fieldName: "status", inputId: "Status", isEnabled: true },
+		{ fieldName: "consent", inputId: "Einwilligung", isEnabled: true },
+		{ fieldName: "priority", inputId: "Prioritaet", isEnabled: true },
 	],
-	inputTags: [
+	inputs: [
 		{ attributes: { primary: "Name", type: "string" }, children: [], name: "Info" },
 		{ attributes: { primary: "Notizen", type: "string" }, children: [], name: "Info" },
 		{
@@ -110,16 +117,25 @@ const createDocumentDefinition = (): DocumentDefinition => ({
 			name: "Switch",
 		},
 	],
-	version: 2,
 });
 
 const createChoiceCheckboxDefinition = (
 	options = ["Reha", "Teilhabe am Arbeitsleben (LTA)", "Sonstiges"],
 ): DocumentDefinition => ({
-	fieldMappings: [
-		{ fieldName: "request_type", isEnabled: true, pdfType: "checkbox", variable: "Antrag" },
+	bindings: [
+		{
+			fieldName: "request_type",
+			inputId: "Antrag",
+			isEnabled: true,
+			valueMap: Object.fromEntries(
+				options.map((option, index) => [
+					option,
+					["Reha", "Teilhabe am Arbeitsleben (LTA) ", "Sonstiges"][index] ?? option,
+				]),
+			),
+		},
 	],
-	inputTags: [
+	inputs: [
 		{
 			attributes: { primary: "Antrag" },
 			children: options.map((option) => ({
@@ -130,8 +146,72 @@ const createChoiceCheckboxDefinition = (
 			name: "Switch",
 		},
 	],
-	version: 2,
 });
+
+const createSplitChoiceCheckboxDefinition = (): DocumentDefinition => ({
+	bindings: [
+		{
+			fieldName: "request_type",
+			inputId: "Reha",
+			isEnabled: true,
+			valueMap: { false: "", true: "Reha" },
+		},
+		{
+			fieldName: "request_type",
+			inputId: "LTA",
+			isEnabled: true,
+			valueMap: { false: "", true: "Teilhabe am Arbeitsleben (LTA) " },
+		},
+		{
+			fieldName: "request_type",
+			inputId: "Sonstiges",
+			isEnabled: true,
+			valueMap: { false: "", true: "Sonstiges" },
+		},
+	],
+	inputs: ["Reha", "LTA", "Sonstiges"].map((primary) => ({
+		attributes: { primary, type: "boolean" as const },
+		children: [],
+		name: "Switch" as const,
+	})),
+});
+
+const createGroupedCheckboxPdf = async (): Promise<Uint8Array> => {
+	const pdfDoc = await PDFDocument.create();
+	const page = pdfDoc.addPage([600, 800]);
+	const form = pdfDoc.getForm();
+	for (const [index, name] of ["reha", "lta", "other"].entries()) {
+		form
+			.createCheckBox(name)
+			.addToPage(page, { height: 16, width: 16, x: 40, y: 720 - index * 30 });
+	}
+	return pdfDoc.save();
+};
+
+const createGroupedCheckboxDefinition = (): DocumentDefinition => {
+	const options = ["Reha", "LTA", "Sonstiges"];
+	return {
+		bindings: ["reha", "lta", "other"].map((fieldName, selectedIndex) => ({
+			fieldName,
+			inputId: "Antragstyp",
+			isEnabled: true,
+			valueMap: Object.fromEntries(
+				options.map((option, optionIndex) => [option, String(optionIndex === selectedIndex)]),
+			),
+		})),
+		inputs: [
+			{
+				attributes: { primary: "Antragstyp" },
+				children: options.map((primary) => ({
+					attributes: { primary },
+					children: [],
+					name: "Case" as const,
+				})),
+				name: "Switch",
+			},
+		],
+	};
+};
 
 describe("fillPDFForm", () => {
 	test("fills text, multiline, dropdown, checkbox and radio fields", async () => {
@@ -176,6 +256,74 @@ describe("fillPDFForm", () => {
 		expect(form.getCheckBox("consent").isChecked()).toBe(false);
 	});
 
+	test("fills every repeated checkbox widget that shares one export value", async () => {
+		const pdfDoc = await PDFDocument.create();
+		const firstPage = pdfDoc.addPage([300, 300]);
+		const secondPage = pdfDoc.addPage([300, 300]);
+		const checkbox = pdfDoc.getForm().createCheckBox("consent_repeated");
+		checkbox.addToPage(firstPage, { height: 16, width: 16, x: 20, y: 250 });
+		checkbox.addToPage(secondPage, { height: 16, width: 16, x: 20, y: 250 });
+		const sourcePdf = await pdfDoc.save();
+		const definition: DocumentDefinition = {
+			bindings: [
+				{
+					fieldName: "consent_repeated",
+					inputId: "Einwilligung",
+					isEnabled: true,
+					valueMap: { false: "", true: "Yes" },
+				},
+			],
+			inputs: [
+				{
+					attributes: { primary: "Einwilligung", type: "boolean" },
+					children: [],
+					name: "Switch",
+				},
+			],
+		};
+
+		const filledPdf = await fillPDFForm(sourcePdf, { Einwilligung: true }, definition);
+		const filledDocument = await PDFDocument.load(filledPdf);
+		const filledCheckbox = filledDocument.getForm().getCheckBox("consent_repeated");
+
+		expect(filledCheckbox.isChecked()).toBe(true);
+		expect(
+			filledCheckbox.acroField
+				.getWidgets()
+				.map((widget) => widget.getAppearanceState()?.decodeText()),
+		).toEqual(["Yes", "Yes"]);
+	});
+
+	test("ignores disabled unsupported PDF fields", async () => {
+		const pdfDoc = await PDFDocument.create();
+		pdfDoc.addPage([300, 300]);
+		pdfDoc.getForm().createButton("submit_action");
+		const sourcePdf = await pdfDoc.save();
+
+		const filledPdf = await fillPDFForm(
+			sourcePdf,
+			{},
+			{
+				bindings: [
+					{
+						fieldName: "submit_action",
+						inputId: "submit_action",
+						isEnabled: false,
+					},
+				],
+				inputs: [
+					{
+						attributes: { primary: "submit_action", type: "string" },
+						children: [],
+						name: "Info",
+					},
+				],
+			},
+		);
+
+		expect(filledPdf.byteLength).toBeGreaterThan(0);
+	});
+
 	test("accepts boolean checkbox values directly", async () => {
 		const sourcePdf = await createFormPdf();
 		const checkedPdf = await fillPDFForm(
@@ -202,17 +350,15 @@ describe("fillPDFForm", () => {
 	test("fills text-backed checkbox fields with the configured display value", async () => {
 		const sourcePdf = await createFormPdf();
 		const definition: DocumentDefinition = {
-			fieldMappings: [
+			bindings: [
 				{
-					condition: "true",
 					fieldName: "name",
+					inputId: "Visuelle Checkbox",
 					isEnabled: true,
-					pdfType: "text",
-					value: "X",
-					variable: "Visuelle Checkbox",
+					valueMap: { false: "", true: "X" },
 				},
 			],
-			inputTags: [
+			inputs: [
 				{
 					attributes: { primary: "Visuelle Checkbox", type: "boolean" },
 					children: [
@@ -222,7 +368,6 @@ describe("fillPDFForm", () => {
 					name: "Switch",
 				},
 			],
-			version: 2,
 		};
 
 		const checkedPdf = await fillPDFForm(
@@ -244,6 +389,66 @@ describe("fillPDFForm", () => {
 		const uncheckedDoc = await PDFDocument.load(uncheckedPdf);
 		expect(checkedDoc.getForm().getTextField("name").getText()).toBe("X");
 		expect(uncheckedDoc.getForm().getTextField("name").getText() ?? "").toBe("");
+	});
+
+	test("fills text fields from a choice input", async () => {
+		const sourcePdf = await createFormPdf();
+		const definition: DocumentDefinition = {
+			bindings: [{ fieldName: "name", inputId: "Anrede", isEnabled: true }],
+			inputs: [
+				{
+					attributes: { primary: "Anrede" },
+					children: ["Frau", "Herr", "Divers"].map((primary) => ({
+						attributes: { primary },
+						children: [],
+						name: "Case" as const,
+					})),
+					name: "Switch",
+				},
+			],
+		};
+
+		const filledPdf = await fillPDFForm(sourcePdf, { Anrede: "Frau" }, definition);
+		const pdfDoc = await PDFDocument.load(filledPdf);
+		expect(pdfDoc.getForm().getTextField("name").getText()).toBe("Frau");
+	});
+
+	test("fills grouped visual checkboxes backed by separate PDF text fields", async () => {
+		const sourcePdf = await createFormPdf();
+		const options = ["Erste", "Zweite"];
+		const definition: DocumentDefinition = {
+			bindings: [
+				{
+					fieldName: "name",
+					inputId: "Auswahl",
+					isEnabled: true,
+					valueMap: { Erste: "x", Zweite: "" },
+				},
+				{
+					fieldName: "name_copy",
+					inputId: "Auswahl",
+					isEnabled: true,
+					valueMap: { Erste: "", Zweite: "x" },
+				},
+			],
+			inputs: [
+				{
+					attributes: { primary: "Auswahl" },
+					children: options.map((primary) => ({
+						attributes: { primary },
+						children: [],
+						name: "Case" as const,
+					})),
+					name: "Switch",
+				},
+			],
+		};
+
+		const filledPdf = await fillPDFForm(sourcePdf, { Auswahl: "Zweite" }, definition);
+		const pdfDoc = await PDFDocument.load(filledPdf);
+		const form = pdfDoc.getForm();
+		expect(form.getTextField("name").getText() ?? "").toBe("");
+		expect(form.getTextField("name_copy").getText()).toBe("x");
 	});
 
 	test("fills checkbox choice fields by selected widget option", async () => {
@@ -309,5 +514,153 @@ describe("fillPDFForm", () => {
 		expect(
 			checkbox.acroField.getWidgets().map((widget) => widget.getAppearanceState()?.decodeText()),
 		).toEqual(["Off", "Off", "Sonstiges"]);
+	});
+
+	test("uses one choice for multi-widget options and a separate PDF checkbox", async () => {
+		const definition: DocumentDefinition = {
+			bindings: [
+				{
+					fieldName: "request_type",
+					inputId: "Antrag",
+					isEnabled: true,
+					valueMap: {
+						Dringend: "",
+						LTA: "Teilhabe am Arbeitsleben (LTA) ",
+						Reha: "Reha",
+					},
+				},
+				{
+					fieldName: "urgent",
+					inputId: "Antrag",
+					isEnabled: true,
+					valueMap: { Dringend: "true", LTA: "false", Reha: "false" },
+				},
+			],
+			inputs: [
+				{
+					attributes: { primary: "Antrag" },
+					children: ["Reha", "LTA", "Dringend"].map((primary) => ({
+						attributes: { primary },
+						children: [],
+						name: "Case" as const,
+					})),
+					name: "Switch",
+				},
+			],
+		};
+
+		const filledPdf = await fillPDFForm(
+			await createChoiceCheckboxPdf(),
+			{ Antrag: "Dringend" },
+			definition,
+		);
+		const pdfDoc = await PDFDocument.load(filledPdf);
+		const form = pdfDoc.getForm();
+		expect(form.getCheckBox("request_type").isChecked()).toBe(false);
+		expect(form.getCheckBox("urgent").isChecked()).toBe(true);
+	});
+
+	test("fills a multi-widget PDF checkbox from split boolean inputs", async () => {
+		const sourcePdf = await createChoiceCheckboxPdf();
+		const filledPdf = await fillPDFForm(
+			sourcePdf,
+			{ LTA: true, Reha: false, Sonstiges: false },
+			createSplitChoiceCheckboxDefinition(),
+		);
+
+		const pdfDoc = await PDFDocument.load(filledPdf);
+		const checkbox = pdfDoc.getForm().getCheckBox("request_type");
+		expect(
+			checkbox.acroField.getWidgets().map((widget) => widget.getAppearanceState()?.decodeText()),
+		).toEqual(["Off", "Teilhabe am Arbeitsleben (LTA) ", "Off"]);
+	});
+
+	test("fills a split option whose multi-widget PDF export value is true", async () => {
+		const definition: DocumentDefinition = {
+			bindings: [
+				{
+					fieldName: "request_type",
+					inputId: "Antragstyp",
+					isEnabled: true,
+					valueMap: { Andere: "Andere" },
+				},
+				{
+					fieldName: "request_type",
+					inputId: "Zustimmung",
+					isEnabled: true,
+					valueMap: { false: "", true: "true" },
+				},
+			],
+			inputs: [
+				{
+					attributes: { primary: "Antragstyp" },
+					children: [{ attributes: { primary: "Andere" }, children: [], name: "Case" }],
+					name: "Switch",
+				},
+				{
+					attributes: { primary: "Zustimmung", type: "boolean" },
+					children: [],
+					name: "Switch",
+				},
+			],
+		};
+
+		const filledPdf = await fillPDFForm(
+			await createChoiceCheckboxPdfWithOptions(["true", "Andere"]),
+			{ Zustimmung: true },
+			definition,
+		);
+		const pdfDoc = await PDFDocument.load(filledPdf);
+		const checkbox = pdfDoc.getForm().getCheckBox("request_type");
+
+		expect(checkbox.acroField.getValue().decodeText()).toBe("true");
+		expect(
+			checkbox.acroField.getWidgets().map((widget) => widget.getAppearanceState()?.decodeText()),
+		).toEqual(["true", "Off"]);
+	});
+
+	test("rejects conflicting split boolean selections for one PDF checkbox", async () => {
+		await expect(
+			fillPDFForm(
+				await createChoiceCheckboxPdf(),
+				{ LTA: true, Reha: true, Sonstiges: false },
+				createSplitChoiceCheckboxDefinition(),
+			),
+		).rejects.toThrow(DocumentFillError);
+	});
+
+	test("rejects repeated bindings for a simple PDF checkbox", async () => {
+		const definition = createDocumentDefinition();
+		definition.bindings.push({
+			fieldName: "consent",
+			inputId: "Zweite Einwilligung",
+			isEnabled: true,
+		});
+		definition.inputs.push({
+			attributes: { primary: "Zweite Einwilligung", type: "boolean" },
+			children: [],
+			name: "Switch",
+		});
+
+		await expect(
+			fillPDFForm(
+				await createFormPdf(),
+				{ Einwilligung: false, "Zweite Einwilligung": false },
+				definition,
+			),
+		).rejects.toThrow(DocumentFillError);
+	});
+
+	test("fills multiple PDF checkboxes from one shared choice input", async () => {
+		const filledPdf = await fillPDFForm(
+			await createGroupedCheckboxPdf(),
+			{ Antragstyp: "LTA" },
+			createGroupedCheckboxDefinition(),
+		);
+		const pdfDoc = await PDFDocument.load(filledPdf);
+		const form = pdfDoc.getForm();
+		expect(form.getCheckBox("reha").isChecked()).toBe(false);
+		expect(form.getCheckBox("lta").isChecked()).toBe(true);
+		expect(form.getCheckBox("other").isChecked()).toBe(false);
 	});
 });

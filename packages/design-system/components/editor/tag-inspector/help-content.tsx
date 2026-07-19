@@ -68,7 +68,7 @@ export const TagInspectorHelp = () => (
 				<h4 className="font-semibold text-sm">Verfügbare Tags</h4>
 			</div>
 
-		<Accordion collapsible className="w-full" type="single">
+			<Accordion className="w-full" multiple={false}>
 				{/* Info Tag */}
 				<AccordionItem value="info">
 					<AccordionTrigger className="py-2 text-sm hover:no-underline">

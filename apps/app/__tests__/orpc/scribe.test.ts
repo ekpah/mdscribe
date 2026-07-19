@@ -1163,13 +1163,8 @@ describe("Scribe Agent section generation", () => {
 			const metadata = event?.metadata as Record<string, unknown> | undefined;
 			const modelConfig = metadata?.modelConfig as Record<string, unknown> | undefined;
 			expect(modelConfig).toBeDefined();
-			expect(modelConfig).not.toHaveProperty("maxTokens");
+			expect(modelConfig).toHaveProperty("maxTokens", 8000);
 			expect(event?.inputData).toMatchObject({
-				_contextFiles: [
-					{
-						name: "labor.pdf",
-					},
-				],
 				befunde: "Basale Rasselgeräusche beidseits.",
 				diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
 			});

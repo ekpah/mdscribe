@@ -1,20 +1,32 @@
 import { PDFDocument } from "pdf-lib";
 
-import type {
-	DocumentDefinition,
-	DocumentInputKind,
-	DocumentPdfType,
-} from "./types";
 import { normalizeDocumentDefinition } from "./document-definition";
+import {
+	MAX_PDF_FORM_FIELD_COUNT,
+	MAX_PDF_PAGE_COUNT,
+	MAX_PDF_WIDGET_COUNT,
+} from "./pdf-data";
+import type { DocumentDefinition, DocumentInputKind, DocumentPdfType } from "./types";
 
-interface PDFField {
+export interface PdfFormField {
+	fieldType: string;
 	inputKind: DocumentInputKind;
+	isExported: boolean;
+	isReadOnly: boolean;
+	isRequired: boolean;
 	label: string;
 	maxLength?: number;
 	name: string;
+	optionMappings?: PdfFormFieldOptionMapping[];
 	options?: string[];
 	type: DocumentPdfType;
-	value?: string;
+	value?: string | string[];
+	widgetCount: number;
+}
+
+export interface PdfFormFieldOptionMapping {
+	inputValue: string;
+	pdfValue: string;
 }
 
 interface PDFFormField {
@@ -23,6 +35,7 @@ interface PDFFormField {
 	getSelected?: () => string | string[];
 	getText?: () => string;
 	isChecked?: () => boolean;
+	isMultiselect?: () => boolean;
 	isMultiline?: () => boolean;
 }
 
@@ -30,6 +43,9 @@ interface PdfLibFormField {
 	acroField?: PdfLibAcroField;
 	constructor: { name: string };
 	getName: () => string;
+	isExported?: () => boolean;
+	isReadOnly?: () => boolean;
+	isRequired?: () => boolean;
 	check?: () => void;
 	select?: (value: string) => void;
 	setText?: (value: string) => void;
@@ -49,7 +65,12 @@ interface PdfLibWidget {
 	getOnValue?: () => PdfLibName | undefined;
 }
 
-const parseTextField = (pdfFormField: PDFFormField, fieldName: string): PDFField => ({
+type ParsedPdfFormField = Omit<
+	PdfFormField,
+	"fieldType" | "isExported" | "isReadOnly" | "isRequired" | "widgetCount"
+>;
+
+const parseTextField = (pdfFormField: PDFFormField, fieldName: string): ParsedPdfFormField => ({
 	inputKind: "text",
 	label: fieldName,
 	maxLength: pdfFormField.getMaxLength?.(),
@@ -58,18 +79,19 @@ const parseTextField = (pdfFormField: PDFFormField, fieldName: string): PDFField
 	value: pdfFormField.getText?.() || "",
 });
 
-const getCheckboxWidgetOptions = (field: PdfLibFormField): string[] => {
+const getCheckboxWidgetOptions = (field: PdfLibFormField): PdfFormFieldOptionMapping[] => {
 	const widgets = field.acroField?.getWidgets?.() ?? [];
-	const options: string[] = [];
+	const options: PdfFormFieldOptionMapping[] = [];
 	const seen = new Set<string>();
 
 	for (const widget of widgets) {
-		const option = widget.getOnValue?.()?.decodeText().trim();
-		if (!option || option === "Off" || seen.has(option)) {
+		const pdfValue = widget.getOnValue?.()?.decodeText() ?? "";
+		const inputValue = pdfValue.trim();
+		if (!inputValue || inputValue === "Off" || seen.has(inputValue)) {
 			continue;
 		}
-		seen.add(option);
-		options.push(option);
+		seen.add(inputValue);
+		options.push({ inputValue, pdfValue });
 	}
 
 	return options;
@@ -79,14 +101,15 @@ const parseCheckboxField = (
 	pdfFormField: PDFFormField,
 	pdfLibFormField: PdfLibFormField,
 	fieldName: string,
-): PDFField => {
+): ParsedPdfFormField => {
 	const widgetOptions = getCheckboxWidgetOptions(pdfLibFormField);
 	if (widgetOptions.length > 1) {
 		return {
 			inputKind: "choice",
 			label: fieldName,
 			name: fieldName,
-			options: widgetOptions,
+			optionMappings: widgetOptions,
+			options: widgetOptions.map((option) => option.inputValue),
 			type: "checkbox",
 			value: pdfLibFormField.acroField?.getValue?.()?.decodeText() ?? "",
 		};
@@ -96,6 +119,7 @@ const parseCheckboxField = (
 		inputKind: "boolean",
 		label: fieldName,
 		name: fieldName,
+		optionMappings: widgetOptions,
 		options: ["true", "false"],
 		type: "checkbox",
 		value: pdfFormField.isChecked?.() ? "true" : "false",
@@ -106,75 +130,153 @@ const parseSelectableField = (
 	pdfFormField: PDFFormField,
 	fieldName: string,
 	type: "dropdown" | "radio",
-): PDFField => {
+): ParsedPdfFormField => {
 	const options = pdfFormField.getOptions?.() ?? [];
-	const selected = pdfFormField.getSelected?.();
-	const selectedValue = Array.isArray(selected) ? selected[0] : selected;
+	const optionMappings = options.map((option) => ({ inputValue: option.trim(), pdfValue: option }));
+	const selected = pdfFormField.getSelected?.() ?? [];
+	const selectedValues = Array.isArray(selected) ? selected : [selected];
+	const value = selectedValues.length > 1 ? selectedValues : selectedValues[0] || "";
 
 	return {
 		inputKind: "choice",
 		label: fieldName,
 		name: fieldName,
-		options,
+		optionMappings,
+		options: optionMappings.map((option) => option.inputValue),
 		type,
-		value: selectedValue || "",
+		value,
 	};
+};
+
+const parseOptionListField = (
+	pdfFormField: PDFFormField,
+	fieldName: string,
+): ParsedPdfFormField => {
+	if (pdfFormField.isMultiselect?.()) {
+		return {
+			inputKind: "text",
+			label: fieldName,
+			name: fieldName,
+			type: "unsupported",
+		};
+	}
+	return parseSelectableField(pdfFormField, fieldName, "dropdown");
 };
 
 const pdfFieldParsers: Partial<
 	Record<
 		string,
-		(pdfFormField: PDFFormField, pdfLibFormField: PdfLibFormField, fieldName: string) => PDFField
+		(
+			pdfFormField: PDFFormField,
+			pdfLibFormField: PdfLibFormField,
+			fieldName: string,
+		) => ParsedPdfFormField
 	>
 > = {
 	PDFCheckBox: parseCheckboxField,
 	PDFDropdown: (field, _pdfLibField, name) => parseSelectableField(field, name, "dropdown"),
+	PDFOptionList: (field, _pdfLibField, name) => parseOptionListField(field, name),
 	PDFRadioGroup: (field, _pdfLibField, name) => parseSelectableField(field, name, "radio"),
 	PDFTextField: (field, _pdfLibField, name) => parseTextField(field, name),
 };
 
-const parseSingleFormField = (field: PdfLibFormField): PDFField => {
+const parseSingleFormField = (field: PdfLibFormField): PdfFormField => {
 	const fieldName = field.getName();
 	const fieldType = field.constructor.name;
 	const parser = pdfFieldParsers[fieldType];
 	const pdfFormField = field as unknown as PDFFormField;
-
-	return parser
+	const parsedField = parser
 		? parser(pdfFormField, field, fieldName)
-		: { inputKind: "text", label: fieldName, name: fieldName, type: "text", value: "" };
+		: {
+				inputKind: "text" as const,
+				label: fieldName,
+				name: fieldName,
+				type: "unsupported" as const,
+			};
+
+	return {
+		...parsedField,
+		fieldType,
+		isExported: field.isExported?.() ?? true,
+		isReadOnly: field.isReadOnly?.() ?? false,
+		isRequired: field.isRequired?.() ?? false,
+		widgetCount: field.acroField?.getWidgets?.().length ?? 0,
+	};
 };
 
-const parseFormFieldsFromPDF = async (file: Uint8Array): Promise<PDFField[]> => {
+const parseFormFieldsFromPDF = async (file: Uint8Array): Promise<PdfFormField[]> => {
 	const stableBytes = new Uint8Array(file);
 	const pdfDoc = await PDFDocument.load(stableBytes);
+	if (pdfDoc.getPageCount() > MAX_PDF_PAGE_COUNT) {
+		throw new Error(`PDFs dürfen höchstens ${MAX_PDF_PAGE_COUNT} Seiten enthalten.`);
+	}
 	const form = pdfDoc.getForm();
+	const fields = form.getFields();
+	if (fields.length > MAX_PDF_FORM_FIELD_COUNT) {
+		throw new Error(`PDFs dürfen höchstens ${MAX_PDF_FORM_FIELD_COUNT} Formularfelder enthalten.`);
+	}
+	const widgetCount = fields.reduce(
+		(total, field) =>
+			total +
+			((field as unknown as PdfLibFormField).acroField?.getWidgets?.().length ?? 0),
+		0,
+	);
+	if (widgetCount > MAX_PDF_WIDGET_COUNT) {
+		throw new Error(`PDFs dürfen höchstens ${MAX_PDF_WIDGET_COUNT} Formular-Widgets enthalten.`);
+	}
 
-	return form.getFields().map((field) => parseSingleFormField(field as unknown as PdfLibFormField));
+	return fields.map((field) => parseSingleFormField(field as unknown as PdfLibFormField));
 };
 
-export const parsePDFFormFields = async (file: Uint8Array): Promise<{ fields: PDFField[] }> => {
+export const parsePDFFormFields = async (file: Uint8Array): Promise<{ fields: PdfFormField[] }> => {
 	const fields = await parseFormFieldsFromPDF(file);
 	return { fields };
 };
 
-const inferOptions = (field: PDFField): string[] => {
+const inferOptions = (field: PdfFormField): string[] => {
 	if (field.inputKind === "boolean") {
 		return ["true", "false"];
 	}
 	return field.options || [];
 };
 
+const getDefaultBindingValueMap = (
+	field: PdfFormField,
+): Record<string, string> | undefined => {
+	if (field.inputKind === "choice") {
+		return Object.fromEntries(
+			(
+				field.optionMappings ??
+				(field.options ?? []).map((option) => ({
+					inputValue: option,
+					pdfValue: option,
+				}))
+			).map(({ inputValue, pdfValue }) => [inputValue, pdfValue]),
+		);
+	}
+	if (field.inputKind === "boolean" && field.type === "checkbox") {
+		return {
+			false: "",
+			true: field.optionMappings?.[0]?.pdfValue ?? "true",
+		};
+	}
+	return undefined;
+};
+
 export const buildDefaultDocumentDefinitionFromPdfFields = (
-	fields: PDFField[],
+	fields: PdfFormField[],
 ): DocumentDefinition =>
 	normalizeDocumentDefinition({
-		fieldMappings: fields.map((field) => ({
-			fieldName: field.name,
-			isEnabled: true,
-			pdfType: field.type,
-			variable: field.name,
-		})),
-		inputTags: fields.map((field) => {
+		bindings: fields.map((field) => {
+			const valueMap = getDefaultBindingValueMap(field);
+			return {
+				fieldName: field.name,
+				inputId: field.name,
+				isEnabled: !field.isReadOnly && field.type !== "unsupported",
+				...(valueMap ? { valueMap } : {}),
+			};
+		}),
+		inputs: fields.map((field) => {
 			if (field.inputKind === "text") {
 				return {
 					attributes: { primary: field.name, type: "string" },
@@ -197,5 +299,4 @@ export const buildDefaultDocumentDefinitionFromPdfFields = (
 				name: "Switch" as const,
 			};
 		}),
-		version: 2,
 	});
