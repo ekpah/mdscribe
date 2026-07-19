@@ -12,9 +12,6 @@
     "packages/*",
     "apps/*"
   ],
-  "patchedDependencies": {
-    "zod@4.3.6": "patches/zod@4.3.6.patch"
-  },
   "files": [
     "index.js"
   ],
