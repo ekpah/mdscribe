@@ -1,11 +1,12 @@
 "use client";
 
-import type { FieldMapping } from "@/orpc/documents/config";
 import { Card } from "@repo/design-system/components/ui/card";
+
+import type { FieldMapping } from "@/orpc/documents/config";
 
 interface PDFDebugPanelProps {
 	values: Record<string, unknown>;
-	fieldMapping: FieldMapping[];
+	fieldMapping: Pick<FieldMapping, "fieldName" | "label">[];
 }
 
 export default function PDFDebugPanel({

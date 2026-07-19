@@ -52,15 +52,12 @@ const PlaygroundLinkButton = ({
 	return (
 		<div className="mt-4">
 			<Button
-				asChild
 				variant="outline"
 				className="w-full gap-2 border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet hover:bg-solarized-violet/20"
-			>
-				<Link href={buildPlaygroundUrl(event)}>
+			 render={<Link href={buildPlaygroundUrl(event)}>
 					<FlaskConical className="h-4 w-4" />
 					Im Playground öffnen
-				</Link>
-			</Button>
+				</Link>} />
 		</div>
 	);
 };

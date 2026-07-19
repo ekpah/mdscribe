@@ -6,10 +6,10 @@ import { DateInput } from "@repo/design-system/components/ui/datefield-rac";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
-	Popover as DsPopover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@repo/design-system/components/ui/popover";
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import type { InfoInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { CalendarIcon } from "lucide-react";
@@ -26,31 +26,31 @@ type InfoValue = string | number | DateValue | undefined;
 const hasFilledValue = (value: unknown): boolean =>
 	value !== undefined && value !== null && value !== "";
 
-const DescriptionPopover = ({ description }: { description?: string }) => {
+const DescriptionTooltip = ({ description }: { description?: string }) => {
 	if (!description) {
 		return null;
 	}
 
 	return (
-		<DsPopover>
-			<PopoverTrigger asChild>
-				<button
-					type="button"
-					className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-muted-foreground leading-none hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/50"
-					aria-label="Mehr Informationen"
-				>
-					<span className="font-bold text-sm" aria-hidden="true">
-						?
-					</span>
-					<span className="sr-only">Info</span>
-				</button>
-			</PopoverTrigger>
-			<PopoverContent className="max-w-70 py-3 shadow-none" side="top">
-				<div className="space-y-1">
-					<p className="text-muted-foreground text-xs">{description}</p>
-				</div>
-			</PopoverContent>
-		</DsPopover>
+		<Tooltip delay={300}>
+			<TooltipTrigger
+				render={
+					<button
+						type="button"
+						className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-transparent text-muted-foreground leading-none hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-solarized-orange/50"
+						aria-label="Mehr Informationen"
+					>
+						<span className="font-bold text-sm" aria-hidden="true">
+							?
+						</span>
+						<span className="sr-only">Info</span>
+					</button>
+				}
+			/>
+			<TooltipContent className="max-w-70 text-xs" side="top">
+				{description}
+			</TooltipContent>
+		</Tooltip>
 	);
 };
 
@@ -136,15 +136,15 @@ const InfoInput = ({
 		/>
 	) : null;
 
-	const descriptionPopover = <DescriptionPopover description={input.attributes.description} />;
+	const descriptionTooltip = <DescriptionTooltip description={input.attributes.description} />;
 
 	// Date input
 	if (isDateType) {
 		return (
-			<div className="w-full max-w-full *:not-first:mt-2" key={`info-${input.attributes.primary}`}>
+			<div className="w-full max-w-full *:not-first:mt-1" key={`info-${input.attributes.primary}`}>
 				<DatePicker
 					aria-label={`${input.attributes.primary} calendar`}
-					className="*:not-first:mt-2"
+					className="*:not-first:mt-1"
 					onChange={handleDateChange}
 					value={dateValue}
 				>
@@ -152,7 +152,7 @@ const InfoInput = ({
 						<Label className="font-medium text-foreground text-sm">
 							{input.attributes.primary}
 						</Label>
-						{descriptionPopover}
+						{descriptionTooltip}
 					</div>
 					<div className="flex">
 						<Group className="w-full">
@@ -184,10 +184,10 @@ const InfoInput = ({
 		const displayValue = (value as number | undefined) ?? "";
 
 		return (
-			<div className="w-full max-w-full *:not-first:mt-2" key={`info-${input.attributes.primary}`}>
+			<div className="w-full max-w-full *:not-first:mt-1" key={`info-${input.attributes.primary}`}>
 				<div className="flex items-center gap-1.5">
 					<Label htmlFor={input.attributes.primary}>{input.attributes.primary}</Label>
-					{descriptionPopover}
+					{descriptionTooltip}
 				</div>
 				<div className="flex w-full max-w-full rounded-md shadow-xs">
 					<Input
@@ -222,10 +222,10 @@ const InfoInput = ({
 	const displayValue = (value as string) ?? "";
 
 	return (
-		<div className="w-full max-w-full *:not-first:mt-2" key={`info-${input.attributes.primary}`}>
+		<div className="w-full max-w-full *:not-first:mt-1" key={`info-${input.attributes.primary}`}>
 			<div className="flex items-center gap-1.5">
 				<Label htmlFor={input.attributes.primary}>{input.attributes.primary}</Label>
-				{descriptionPopover}
+				{descriptionTooltip}
 			</div>
 			<div className="flex w-full max-w-full rounded-md shadow-xs">
 				<Input

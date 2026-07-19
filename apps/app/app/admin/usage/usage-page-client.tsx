@@ -556,9 +556,7 @@ const UsageMobileCards = ({
 								Details anzeigen
 							</Button>
 							{canUsePlayground ? (
-								<Button asChild className="w-full" variant="secondary">
-									<Link href={buildPlaygroundUrl(item)}>Im Playground öffnen</Link>
-								</Button>
+								<Button className="w-full" variant="secondary" render={<Link href={buildPlaygroundUrl(item)}>Im Playground öffnen</Link>} />
 							) : null}
 						</div>
 					</div>

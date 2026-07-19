@@ -65,12 +65,10 @@ export default function BlogIndexPage() {
 									{featuredPost.description}
 								</p>
 							</div>
-							<Button asChild>
-								<Link href={`/blog/${featuredPost.id}`}>
+							<Button render={<Link href={`/blog/${featuredPost.id}`}>
 									<ArrowRight className="h-4 w-4" />
 									Artikel öffnen
-								</Link>
-							</Button>
+								</Link>} />
 						</div>
 					</section>
 				)}

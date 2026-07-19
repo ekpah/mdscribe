@@ -205,12 +205,10 @@ const SendTestDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogTrigger asChild>
-				<Button disabled={!activeDraft}>
+			<DialogTrigger render={<Button disabled={!activeDraft}>
 					<Send className="h-4 w-4" />
 					Test senden
-				</Button>
-			</DialogTrigger>
+				</Button>} />
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Test-E-Mail senden</DialogTitle>
@@ -309,12 +307,10 @@ const SendMarketingBroadcastDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogTrigger asChild>
-				<Button variant="destructive" disabled={!isMarketingDraft}>
+			<DialogTrigger render={<Button variant="destructive" disabled={!isMarketingDraft}>
 					<Users className="h-4 w-4" />
 					An alle senden
-				</Button>
-			</DialogTrigger>
+				</Button>} />
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Marketing-E-Mail versenden</DialogTitle>

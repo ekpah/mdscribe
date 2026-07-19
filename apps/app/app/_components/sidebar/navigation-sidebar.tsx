@@ -87,8 +87,7 @@ export const NavigationSidebarBrand = ({
 }: NavigationSidebarBrandProps) => (
 	<SidebarMenu>
 		<SidebarMenuItem>
-			<SidebarMenuButton asChild size="lg">
-				<Link href={href}>
+			<SidebarMenuButton size="lg" render={<Link href={href}>
 					<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
 						<Icon className="size-4" />
 					</div>
@@ -96,8 +95,7 @@ export const NavigationSidebarBrand = ({
 						<span className="truncate font-semibold">{title}</span>
 						{subtitle ? <span className="truncate text-xs">{subtitle}</span> : null}
 					</div>
-				</Link>
-			</SidebarMenuButton>
+				</Link>} />
 		</SidebarMenuItem>
 	</SidebarMenu>
 );
@@ -183,13 +181,11 @@ export const NavigationSidebar = ({
 
 											return (
 												<SidebarMenuItem key={item.key ?? item.href}>
-													<SidebarMenuButton asChild isActive={isActive}>
-														<Link href={href} onClick={handleCloseMobile}>
+													<SidebarMenuButton isActive={isActive} render={<Link href={href} onClick={handleCloseMobile}>
 															{Icon ? <Icon /> : null}
 															<span>{item.title}</span>
 															{renderItemMeta?.(item)}
-														</Link>
-													</SidebarMenuButton>
+														</Link>} />
 												</SidebarMenuItem>
 											);
 										}),
@@ -204,20 +200,18 @@ export const NavigationSidebar = ({
 												key={section.key ?? (section.title || "uncategorized")}
 											>
 												<SidebarMenuItem>
-													<CollapsibleTrigger asChild>
-														<SidebarMenuButton className={sectionButtonClassName}>
+													<CollapsibleTrigger render={<SidebarMenuButton className={sectionButtonClassName}>
 															{SectionIcon ? <SectionIcon /> : null}
 															<span>{section.title || sectionTitleFallback}</span>
 															{expandIcon === "chevron" ? (
-																<ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+																<ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
 															) : (
 																<>
-																	<Plus className="ml-auto group-data-[state=open]/collapsible:hidden" />
-																	<Minus className="ml-auto group-data-[state=closed]/collapsible:hidden" />
+																	<Plus className="ml-auto group-data-open/collapsible:hidden" />
+																	<Minus className="ml-auto group-data-closed/collapsible:hidden" />
 																</>
 															)}
-														</SidebarMenuButton>
-													</CollapsibleTrigger>
+														</SidebarMenuButton>} />
 													{section.items.length > 0 ? (
 														<CollapsibleContent>
 															<SidebarMenuSub>
@@ -226,16 +220,14 @@ export const NavigationSidebar = ({
 
 																	return (
 																		<SidebarMenuSubItem key={item.key ?? item.href}>
-																			<SidebarMenuSubButton asChild>
-																				<Link
+																			<SidebarMenuSubButton render={<Link
 																					className="flex items-center justify-between"
 																					href={href}
 																					onClick={handleCloseMobile}
 																				>
 																					<span>{item.title}</span>
 																					{renderItemMeta?.(item)}
-																				</Link>
-																			</SidebarMenuSubButton>
+																				</Link>} />
 																		</SidebarMenuSubItem>
 																	);
 																})}

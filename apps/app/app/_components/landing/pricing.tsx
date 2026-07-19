@@ -102,13 +102,10 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 							</li>
 						</ul>
 						<Button
-							asChild
 							className="mt-auto bg-solarized-green hover:bg-solarized-green/90"
-						>
-							<Link href={isLoggedIn ? "/dashboard" : "/sign-up"}>
+						 render={<Link href={isLoggedIn ? "/dashboard" : "/sign-up"}>
 								Kostenlos starten
-							</Link>
-						</Button>
+							</Link>} />
 					</div>
 
 					{/* Plus Plan */}
@@ -154,11 +151,9 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 								<span>Zero Data Retention (Input & Output)</span>
 							</li>
 						</ul>
-						<Button asChild className="mt-auto" variant="outline">
-							<Link href={isLoggedIn ? "/profile/account" : signInUrl}>
+						<Button className="mt-auto" variant="outline" render={<Link href={isLoggedIn ? "/profile/account" : signInUrl}>
 								Upgrade zu Plus
-							</Link>
-						</Button>
+							</Link>} />
 					</div>
 
 					{/* Self-Hosting Plan */}
@@ -196,8 +191,7 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 								<span>Community Support</span>
 							</li>
 						</ul>
-						<Button asChild className="mt-auto" variant="outline">
-							<Link
+						<Button className="mt-auto" variant="outline" render={<Link
 								className="flex items-center justify-center gap-2"
 								href="https://github.com/ekpah/mdscribe"
 								rel="noopener noreferrer"
@@ -205,8 +199,7 @@ export default function Pricing({ isLoggedIn }: PricingProps) {
 							>
 								<Github className="h-5 w-5" />
 								<span>GitHub</span>
-							</Link>
-						</Button>
+							</Link>} />
 					</div>
 				</div>
 

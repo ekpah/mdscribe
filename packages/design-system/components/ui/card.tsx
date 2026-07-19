@@ -2,15 +2,10 @@ import * as React from "react"
 
 import { cn } from "@repo/design-system/lib/utils"
 
-function Card({
-  className,
-  size = "default",
-  ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
-      data-size={size}
       className={cn(
         "rounded-lg border bg-card text-card-foreground shadow-xs",
         className
@@ -53,16 +48,6 @@ function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
   )
 }
 
-function CardAction({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="card-action"
-      className={cn("ml-auto", className)}
-      {...props}
-    />
-  )
-}
-
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -88,7 +73,6 @@ export {
   CardHeader,
   CardFooter,
   CardTitle,
-  
   CardDescription,
   CardContent,
 }

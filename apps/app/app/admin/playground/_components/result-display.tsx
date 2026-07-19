@@ -245,7 +245,7 @@ export const ResultDisplay = ({ result, compact: _compact, onCompare }: ResultDi
 						</TabsTrigger>
 					</TabsList>
 
-					<TabsContent value="output" className="mt-1 data-[state=inactive]:hidden">
+					<TabsContent value="output" className="mt-1 data-hidden:hidden">
 						<div className="whitespace-pre-wrap rounded-md border border-solarized-base2 bg-solarized-base3 p-3 font-mono text-sm text-solarized-base00">
 							{result.text || (
 								<span className="text-solarized-base01 italic">Warte auf Antwort...</span>
@@ -253,7 +253,7 @@ export const ResultDisplay = ({ result, compact: _compact, onCompare }: ResultDi
 						</div>
 					</TabsContent>
 
-					<TabsContent value="reasoning" className="mt-1 data-[state=inactive]:hidden">
+					<TabsContent value="reasoning" className="mt-1 data-hidden:hidden">
 						<div className="whitespace-pre-wrap rounded-md border border-solarized-violet/30 bg-solarized-violet/5 p-3 font-mono text-sm text-solarized-base01 italic">
 							{result.reasoning}
 						</div>

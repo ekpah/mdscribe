@@ -4,8 +4,18 @@ import type { Database } from "@repo/database";
 import { generateObject } from "ai";
 import { z } from "zod";
 
-import { buildParsedMarkdocFromFieldDefinitions } from "@/app/documents/_lib/build-parsed-markdoc-from-field-definitions";
-import type { DocumentFieldDefinition } from "@/app/documents/_lib/types";
+import {
+	documentDefinitionSchema,
+	MAX_PDF_BASE64_LENGTH,
+	MAX_PDF_UPLOAD_BYTES,
+	normalizeDocumentDefinition,
+	parsePDFFormFields,
+} from "@/app/documents/_lib";
+import type { DocumentDefinition } from "@/app/documents/_lib";
+import {
+	validateDocumentDefinitionAgainstPdfFields,
+	validateDocumentDefinitionPreservesPdfFields,
+} from "@/app/documents/_lib/pdf-definition-validation";
 import type { Session } from "@/lib/auth-types";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
@@ -14,6 +24,8 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed, pub } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
+import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
+import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import {
 	buildProviderOptions,
 	resolveGenerationStrategy,
@@ -36,32 +48,52 @@ const enhancedFieldMappingSchema = z.object({
 	),
 });
 
+const enhancedDocumentDefinitionSchema = z.object({
+	fieldDefinitions: documentDefinitionSchema,
+});
+
+const MAX_DOCUMENT_TITLE_LENGTH = 200;
+const MAX_DOCUMENT_CATEGORY_LENGTH = 100;
+const MAX_AI_INPUT_FIELDS = 2000;
+const MAX_AI_PROMPT_CHARACTERS = 300_000;
+const BASE64_PATTERN = /^(?:[A-Za-z\d+/]{4})*(?:[A-Za-z\d+/]{2}==|[A-Za-z\d+/]{3}=)?$/;
+
+const pdfBase64Schema = z
+	.string()
+	.min(1, "PDF content is required")
+	.max(MAX_PDF_BASE64_LENGTH, `PDF darf höchstens ${MAX_PDF_UPLOAD_BYTES} Bytes groß sein.`)
+	.regex(BASE64_PATTERN, "PDF-Inhalt ist nicht gültig Base64-kodiert.");
+
 const documentInputFieldSchema = z.object({
 	description: z.string().optional(),
-	label: z.string().min(1),
-	options: z.array(z.string()).optional(),
+	label: z.string().min(1).max(500),
+	options: z.array(z.string().max(500)).max(500).optional(),
 	type: z.enum(["string", "number", "date", "switch", "boolean"]).optional(),
 	unit: z.string().optional(),
 });
 
 const documentFieldMappingSchema = z.object({
 	description: z.string().optional(),
-	fieldName: z.string().min(1),
+	fieldName: z.string().min(1).max(500),
 	inputKind: z.enum(["boolean", "choice", "text"]),
-	label: z.string().min(1),
-	options: z.array(z.string()).optional(),
-	pdfType: z.enum(["text", "multiline", "dropdown", "checkbox", "radio"]).optional(),
+	label: z.string().min(1).max(500),
+	options: z.array(z.string().max(500)).max(500).optional(),
+	pdfType: z
+		.enum(["text", "multiline", "dropdown", "checkbox", "radio", "unsupported"])
+		.optional(),
 });
 
 const parseFormInput = z.object({
-	// Backward compatibility while frontend payload migrates fully.
-	connectionId: z.string().min(1).optional(),
-	fieldMapping: z.array(documentFieldMappingSchema).optional(),
-	fieldMappings: z.array(documentFieldMappingSchema).optional(),
-	fileBase64: z.string().min(1),
-	inputFields: z.array(documentInputFieldSchema).optional(),
+	fieldMappings: z.array(documentFieldMappingSchema).max(MAX_AI_INPUT_FIELDS).optional(),
+	fileBase64: pdfBase64Schema,
+	inputFields: z.array(documentInputFieldSchema).max(MAX_AI_INPUT_FIELDS).optional(),
 	model: z.string().min(1).optional(),
 	providerId: z.string().min(1).optional(),
+});
+
+const enhanceDefinitionInput = z.object({
+	fieldDefinitions: documentDefinitionSchema,
+	fileBase64: pdfBase64Schema,
 });
 
 const toDocumentInputFieldType = (
@@ -108,53 +140,20 @@ const addCategories = (
 	}
 };
 
-const looseDocumentFieldDefinitionSchema = z
-	.object({
-		description: z.string().optional(),
-		fieldName: z.string().min(1),
-		inputKind: z.enum(["boolean", "choice", "text"]),
-		isEnabled: z.boolean().optional(),
-		label: z.string().min(1),
-		markdocType: z.enum(["Info", "Switch"]).optional(),
-		maxLength: z.number().int().positive().optional(),
-		options: z.array(z.string()).optional(),
-		pdfType: z.enum(["text", "multiline", "dropdown", "checkbox", "radio"]),
-		textCheckboxValue: z.string().optional(),
-		valueType: z.enum(["string", "number", "date"]).optional(),
-	})
-	.transform((field): DocumentFieldDefinition => {
-		const isSwitch = field.inputKind !== "text";
-		return {
-			description: field.description ?? "",
-			fieldName: field.fieldName,
-			inputKind: field.inputKind,
-			isEnabled: field.isEnabled ?? true,
-			label: field.label,
-			markdocType: field.markdocType ?? (isSwitch ? "Switch" : "Info"),
-			maxLength: field.maxLength,
-			options: field.options ?? (field.inputKind === "boolean" ? ["true", "false"] : []),
-			pdfType: field.pdfType,
-			textCheckboxValue: field.textCheckboxValue,
-			valueType: field.valueType ?? "string",
-		};
-	});
-
-const looseDocumentFieldDefinitionsSchema = z.array(looseDocumentFieldDefinitionSchema);
-
 const createDocumentTemplateInput = z.object({
-	category: z.string().min(1, "Category is required"),
-	fieldDefinitions: looseDocumentFieldDefinitionsSchema,
-	pdfBase64: z.string().min(1, "PDF content is required"),
-	title: z.string().min(1, "Title is required"),
+	category: z.string().min(1, "Category is required").max(MAX_DOCUMENT_CATEGORY_LENGTH),
+	fieldDefinitions: documentDefinitionSchema,
+	pdfBase64: pdfBase64Schema,
+	title: z.string().min(1, "Title is required").max(MAX_DOCUMENT_TITLE_LENGTH),
 	visibility: documentTemplateVisibilitySchema.default("public"),
 });
 
 const updateDocumentTemplateInput = z.object({
-	category: z.string().min(1, "Category is required"),
-	fieldDefinitions: looseDocumentFieldDefinitionsSchema,
+	category: z.string().min(1, "Category is required").max(MAX_DOCUMENT_CATEGORY_LENGTH),
+	fieldDefinitions: documentDefinitionSchema,
 	id: z.string().min(1),
-	pdfBase64: z.string().min(1).optional(),
-	title: z.string().min(1, "Title is required"),
+	pdfBase64: pdfBase64Schema.optional(),
+	title: z.string().min(1, "Title is required").max(MAX_DOCUMENT_TITLE_LENGTH),
 	visibility: documentTemplateVisibilitySchema.default("public"),
 });
 
@@ -162,24 +161,48 @@ const getDocumentTemplateInput = z.object({
 	id: z.string(),
 });
 
-const decodePdfBase64 = (value: string): Uint8Array => new Uint8Array(Buffer.from(value, "base64"));
+const decodePdfBase64 = (value: string): Uint8Array => {
+	const bytes = new Uint8Array(Buffer.from(value, "base64"));
+	if (bytes.byteLength > MAX_PDF_UPLOAD_BYTES) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `PDF darf höchstens ${MAX_PDF_UPLOAD_BYTES} Bytes groß sein.`,
+		});
+	}
+	return bytes;
+};
 
 const encodePdfBase64 = (value: Uint8Array): string => Buffer.from(value).toString("base64");
 
 const ensureValidFieldDefinitions = (
-	fieldDefinitions: DocumentFieldDefinition[],
+	fieldDefinitions: DocumentDefinition,
 ): {
-	normalizedFieldDefinitions: DocumentFieldDefinition[];
+	normalizedFieldDefinitions: DocumentDefinition;
 } => {
 	try {
-		const { normalizedFieldDefinitions } = buildParsedMarkdocFromFieldDefinitions(fieldDefinitions);
-		return { normalizedFieldDefinitions };
+		return { normalizedFieldDefinitions: normalizeDocumentDefinition(fieldDefinitions) };
 	} catch (error) {
 		throw new ORPCError("BAD_REQUEST", {
 			message:
 				error instanceof Error && error.message
 					? error.message
 					: "Die Felddefinitionen ergeben kein gültiges Inputs-Format.",
+		});
+	}
+};
+
+const ensureDefinitionMatchesPdf = async (
+	pdfBytes: Uint8Array,
+	definition: DocumentDefinition,
+): Promise<void> => {
+	try {
+		const { fields } = await parsePDFFormFields(pdfBytes);
+		validateDocumentDefinitionAgainstPdfFields(definition, fields);
+	} catch (error) {
+		throw new ORPCError("BAD_REQUEST", {
+			message:
+				error instanceof Error
+					? error.message
+					: "PDF und Felddefinitionen konnten nicht geprüft werden.",
 		});
 	}
 };
@@ -223,7 +246,7 @@ const parseFormHandler = adminDocumentProcedure
 	.handler(async ({ input, context }) => {
 		const parsed = parseFormInput.parse(input);
 		const { fileBase64 } = parsed;
-		const fieldMappings = parsed.fieldMappings ?? parsed.fieldMapping ?? [];
+		const fieldMappings = parsed.fieldMappings ?? [];
 		const inputFields =
 			parsed.inputFields ??
 			fieldMappings.map(
@@ -237,12 +260,12 @@ const parseFormHandler = adminDocumentProcedure
 			);
 		const config = pdfDocumentConfigs.parseForm;
 
-		const bytes = new Uint8Array(Buffer.from(fileBase64, "base64"));
+		const bytes = decodePdfBase64(fileBase64);
 		const promptMessages = config.prompt({ fieldMappings, inputFields });
 		const promptText = promptMessages[0].content;
 		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
 		try {
-			const providerId = parsed.providerId ?? parsed.connectionId;
+			const { providerId } = parsed;
 			if (providerId || parsed.model) {
 				if (!providerId || !parsed.model) {
 					throw new Error("providerId und model müssen gemeinsam angegeben werden");
@@ -332,6 +355,137 @@ const parseFormHandler = adminDocumentProcedure
 		return object;
 	});
 
+const enhanceDefinitionHandler = authed
+	.use(scribeEntitlementsMiddleware)
+	.input(type<z.infer<typeof enhanceDefinitionInput>>())
+	.handler(async ({ input, context }) => {
+		const parsed = enhanceDefinitionInput.parse(input);
+		const { normalizedFieldDefinitions: currentDefinition } = ensureValidFieldDefinitions(
+			parsed.fieldDefinitions,
+		);
+		const pdfBytes = decodePdfBase64(parsed.fileBase64);
+		const { fields } = await parsePDFFormFields(pdfBytes).catch((error: unknown) => {
+			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", { message });
+		});
+
+		try {
+			validateDocumentDefinitionPreservesPdfFields(currentDefinition, currentDefinition, fields);
+			validateDocumentDefinitionAgainstPdfFields(currentDefinition, fields);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", { message });
+		}
+		const { entitlements } = await enforceScribeUsageLimit({
+			db: context.db,
+			entitlements: context.entitlements.scribe,
+			session: context.session,
+		});
+
+		const config = pdfDocumentConfigs.enhanceDefinition;
+		const promptText = config.prompt({ definition: currentDefinition, pdfFields: fields })[0]
+			.content;
+		if (promptText.length > MAX_AI_PROMPT_CHARACTERS) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: USER_MESSAGES.documentEditor.aiDefinitionTooLarge,
+			});
+		}
+
+		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
+		try {
+			const strategy = await resolveGenerationStrategy(context.db, { hasFiles: true });
+			modelSelection =
+				strategy.files?.mode === "preprocess" ? strategy.files.selection : strategy.generation;
+		} catch (error) {
+			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", {
+				message: `${USER_MESSAGES.documentEditor.aiModelUnavailable} (${details})`,
+			});
+		}
+
+		const requestStartedAt = Date.now();
+		const result = await generateObject({
+			experimental_telemetry: { isEnabled: true },
+			messages: [
+				{
+					content: [{ text: promptText, type: "text" }],
+					role: "user",
+				},
+				{
+					content: [{ data: pdfBytes, mediaType: "application/pdf", type: "file" }],
+					role: "user",
+				},
+			],
+			model: modelSelection.model.model,
+			output: "no-schema",
+			providerOptions: buildProviderOptions({
+				includeUsage: true,
+				model: modelSelection.model,
+				reasoningEffort: modelSelection.reasoningEffort,
+				userId: context.session.user.id,
+				zdr: entitlements.hasActiveSubscription,
+			}),
+			temperature: config.modelConfig.temperature ?? modelSelection.defaultTemperature ?? undefined,
+		}).catch((error: unknown) => {
+			const statusCode =
+				typeof error === "object" &&
+				error !== null &&
+				"statusCode" in error &&
+				typeof error.statusCode === "number"
+					? error.statusCode
+					: undefined;
+			console.error("Document AI enhancement provider request failed", {
+				message: error instanceof Error ? error.message : USER_MESSAGES.unknownError,
+				model: modelSelection.model.modelName,
+				providerProtocol: modelSelection.model.providerProtocol,
+				statusCode,
+			});
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: USER_MESSAGES.documentEditor.aiEnhancementFailed,
+			});
+		});
+
+		const openRouterUsage = modelSelection.model.isOpenRouter
+			? extractOpenRouterUsage(
+					(result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
+				)
+			: undefined;
+		await context.db.insert(usageEvent).values(
+			buildUsageEventData({
+				inputData: {
+					bindingCount: currentDefinition.bindings.length,
+					inputCount: currentDefinition.inputs.length,
+					pdfFieldCount: fields.length,
+				},
+				metadata: {
+					promptName: config.promptName,
+					zdrEnabled: entitlements.hasActiveSubscription,
+				},
+				model: modelSelection.model.modelName,
+				name: "ai_pdf_document_enhancement",
+				openRouterUsage,
+				standardUsage: result.usage as StandardUsage,
+				timing: { timeToCompletionMs: Date.now() - requestStartedAt },
+				userId: context.session.user.id,
+			}),
+		);
+
+		let fieldDefinitions: DocumentDefinition;
+		try {
+			const generated = enhancedDocumentDefinitionSchema.parse(result.object);
+			fieldDefinitions = normalizeDocumentDefinition(generated.fieldDefinitions);
+			validateDocumentDefinitionPreservesPdfFields(currentDefinition, fieldDefinitions, fields);
+			validateDocumentDefinitionAgainstPdfFields(fieldDefinitions, fields);
+		} catch (error) {
+			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", {
+				message: `${USER_MESSAGES.documentEditor.aiProposalInvalid} (${details})`,
+			});
+		}
+
+		return { fieldDefinitions };
+	});
+
 const listDocumentTemplatesHandler = pub.handler(async ({ context }) => {
 	const userId = await getOptionalUserId(context);
 	return context.db
@@ -414,6 +568,7 @@ const createDocumentTemplateHandler = authed
 		});
 		const { normalizedFieldDefinitions } = ensureValidFieldDefinitions(input.fieldDefinitions);
 		const pdfBytes = decodePdfBase64(input.pdfBase64);
+		await ensureDefinitionMatchesPdf(pdfBytes, normalizedFieldDefinitions);
 
 		const [createdTemplate] = await context.db
 			.insert(documentTemplate)
@@ -480,6 +635,7 @@ const updateDocumentTemplateHandler = authed
 		const pdfBytes = hasPdfReplacement
 			? decodePdfBase64(input.pdfBase64 ?? "")
 			: existingTemplate.pdfBytes;
+		await ensureDefinitionMatchesPdf(pdfBytes, normalizedFieldDefinitions);
 
 		const [updatedTemplate] = await context.db
 			.update(documentTemplate)
@@ -566,6 +722,7 @@ const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context 
 });
 
 export const documentsHandler = {
+	enhanceDefinition: enhanceDefinitionHandler,
 	parseForm: parseFormHandler,
 	templates: {
 		create: createDocumentTemplateHandler,

@@ -32,9 +32,7 @@ export const ReasoningEffortSelect = ({
 				<Brain className="h-4 w-4 text-primary" />
 				<Label className="font-medium text-solarized-base00">{label}</Label>
 				<Tooltip>
-					<TooltipTrigger asChild>
-						<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
-					</TooltipTrigger>
+					<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
 					<TooltipContent className="max-w-[250px]">
 						<p>
 							OpenRouter ordnet den Effort-Level auf passende Reasoning-Tokens oder native

@@ -253,8 +253,8 @@ const MenuBar = ({
 					<span>Score</span>
 				</Button>
 
-				<TooltipProvider>
-					<Tooltip delayDuration={200}>
+				<TooltipProvider delay={200}>
+					<Tooltip>
 						<TooltipTrigger
 							className={cn(toolbarButtonClassName, "inline-flex items-center justify-center")}
 						>

@@ -27,8 +27,12 @@ import { orpc } from "@/lib/orpc";
 type MobilePanel = "inputs" | "preview";
 
 interface InputPreviewSectionProps {
+	activeInputFocusKey?: string | number;
+	activeInputName?: string | null;
 	edgeTabs?: ReactNode;
 	inputTags: InputTagType[];
+	onInputBlur?: (inputName: string) => void;
+	onInputSelect?: (inputName: string) => void;
 	onValuesChange?: (values: Record<string, unknown>) => void;
 	preview: (values: Record<string, unknown>) => ReactNode;
 	previewToolbar?: ReactNode;
@@ -135,8 +139,12 @@ const getPreviewPanelClassName = (
 	);
 
 export const InputPreviewSection = ({
+	activeInputFocusKey,
+	activeInputName,
 	edgeTabs,
 	inputTags,
+	onInputBlur,
+	onInputSelect,
 	onValuesChange,
 	preview,
 	previewToolbar,
@@ -187,6 +195,12 @@ export const InputPreviewSection = ({
 			setMobilePanel("preview");
 		}
 	}, [hasInputTags]);
+
+	useEffect(() => {
+		if (activeInputName && hasInputTags) {
+			setMobilePanel("inputs");
+		}
+	}, [activeInputName, hasInputTags]);
 
 	const handleFormChange = useCallback(
 		(data: Record<string, unknown>) => {
@@ -256,10 +270,17 @@ export const InputPreviewSection = ({
 				role={hasInputTags ? "tabpanel" : undefined}
 			>
 				<Inputs
+					activeInputFocusKey={
+						activeInputFocusKey === undefined ? undefined : `${activeInputFocusKey}:${mobilePanel}`
+					}
+					activeInputName={activeInputName}
+					activeInputScrollKey={mobilePanel}
 					key={resetKey}
 					inputTags={inputTags}
 					onChange={handleFormChange}
 					onFillInputs={isLoggedIn ? handleFillInputs : undefined}
+					onInputBlur={onInputBlur}
+					onInputSelect={onInputSelect}
 					renderFillControls={({ onSubmit }) => (
 						<InputContextControls
 							className="shrink-0 border-t border-t-solarized-blue/30 bg-solarized-blue/5 px-4 py-3"

@@ -1,16 +1,35 @@
-export { buildParsedMarkdocFromFieldDefinitions } from "./build-parsed-markdoc-from-field-definitions";
-export { fillPDFForm } from "./fill-pdf-form";
+export {
+	canonicalizeInputValue,
+	getEnabledDocumentInputs,
+	isBooleanDocumentInput,
+	normalizeDocumentDefinition,
+} from "./document-definition";
+export {
+	getBooleanBindingValueMap,
+	mergeCheckboxBindingIntoChoice,
+	splitCheckboxOption,
+} from "./edit-document-definition";
+export { DocumentFillError, fillPDFForm } from "./fill-pdf-form";
 export {
 	cloneUint8Array,
 	decodeBase64ToUint8Array,
 	downloadPdfBlob,
 	encodeUint8ArrayToBase64,
+	MAX_PDF_BASE64_LENGTH,
 	MAX_PDF_UPLOAD_BYTES,
 	printPdfBlob,
 	toPdfBlob,
 } from "./pdf-data";
 export {
-	buildDefaultFieldDefinitionsFromPdfFields,
+	buildDefaultDocumentDefinitionFromPdfFields,
 	parsePDFFormFields,
 } from "./parse-pdf-form-fields";
-export type { DocumentFieldDefinition, DocumentInputKind, DocumentPdfType } from "./types";
+export type {
+	DocumentBinding,
+	DocumentDefinition,
+	DocumentInput,
+	DocumentInputKind,
+	DocumentPdfType,
+} from "./types";
+export { documentDefinitionSchema } from "./types";
+export type { PdfFormField, PdfFormFieldOptionMapping } from "./parse-pdf-form-fields";

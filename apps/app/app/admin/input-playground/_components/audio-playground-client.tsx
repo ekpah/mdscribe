@@ -147,12 +147,7 @@ const ModelModeCard = ({
 							)}
 							renderSelected={(option) =>
 								option ? (
-									<div className="min-w-0">
-										<span className="block truncate">{option.label}</span>
-										<span className="block truncate text-muted-foreground text-xs">
-											{option.providerName} · {option.modelId}
-										</span>
-									</div>
+									<span className="block min-w-0 truncate">{option.label}</span>
 								) : null
 							}
 							searchPlaceholder="Modell suchen..."

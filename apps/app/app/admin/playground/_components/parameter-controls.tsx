@@ -104,12 +104,12 @@ export const ParameterControls = ({
 		});
 	}, [onChange, parameters]);
 
-	const handleTemperatureChange = useCallback((values: number[]) => {
-		const [value] = values;
+	const handleTemperatureChange = useCallback((values: number | readonly number[]) => {
+		const value = Array.isArray(values) ? values[0] : (values as number);
 		updateParam("temperature", value);
 	}, [updateParam]);
-	const handleMaxTokensChange = useCallback((values: number[]) => {
-		const [value] = values;
+	const handleMaxTokensChange = useCallback((values: number | readonly number[]) => {
+		const value = Array.isArray(values) ? values[0] : (values as number);
 		updateParam("maxTokens", value);
 	}, [updateParam]);
 
@@ -264,9 +264,7 @@ export const ParameterControls = ({
 								Temperature
 							</Label>
 							<Tooltip>
-								<TooltipTrigger asChild>
-									<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
-								</TooltipTrigger>
+								<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
 								<TooltipContent className="max-w-[250px]">
 									<p>
 										Höhere Werte (z.B. 1.5) machen die Ausgabe kreativer,
@@ -318,9 +316,7 @@ export const ParameterControls = ({
 								Max Tokens
 							</Label>
 							<Tooltip>
-								<TooltipTrigger asChild>
-									<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
-								</TooltipTrigger>
+								<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
 								<TooltipContent className="max-w-[250px]">
 									<p>
 										Maximale Anzahl an Tokens in der Antwort. Ohne Wert gilt der
@@ -379,7 +375,7 @@ export const ParameterControls = ({
 			</div>
 
 			{/* Advanced Parameters */}
-			<Accordion type="single" collapsible className="w-full">
+			<Accordion multiple={false} className="w-full">
 				<AccordionItem value="advanced" className="border-solarized-base2">
 					<AccordionTrigger className="py-2 text-sm text-solarized-base01 hover:text-solarized-base00 hover:no-underline">
 						<div className="flex items-center gap-2">
@@ -394,9 +390,7 @@ export const ParameterControls = ({
 								<div className="flex items-center gap-2">
 									<Label className="text-sm text-solarized-base01">Top P</Label>
 									<Tooltip>
-										<TooltipTrigger asChild>
-											<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
-										</TooltipTrigger>
+										<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
 										<TooltipContent className="max-w-[250px]">
 											<p>
 												Nucleus Sampling - berücksichtigt nur die
@@ -426,9 +420,7 @@ export const ParameterControls = ({
 								<div className="flex items-center gap-2">
 									<Label className="text-sm text-solarized-base01">Top K</Label>
 									<Tooltip>
-										<TooltipTrigger asChild>
-											<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
-										</TooltipTrigger>
+										<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
 										<TooltipContent className="max-w-[250px]">
 											<p>
 												Begrenzt die Auswahl auf die K wahrscheinlichsten
@@ -457,9 +449,7 @@ export const ParameterControls = ({
 										Frequency Penalty
 									</Label>
 									<Tooltip>
-										<TooltipTrigger asChild>
-											<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
-										</TooltipTrigger>
+										<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
 										<TooltipContent className="max-w-[250px]">
 											<p>
 												Positive Werte reduzieren Wiederholungen basierend auf
@@ -490,9 +480,7 @@ export const ParameterControls = ({
 										Presence Penalty
 									</Label>
 									<Tooltip>
-										<TooltipTrigger asChild>
-											<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />
-										</TooltipTrigger>
+										<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
 										<TooltipContent className="max-w-[250px]">
 											<p>
 												Positive Werte fördern neue Themen, negative Werte

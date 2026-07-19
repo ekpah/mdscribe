@@ -6,7 +6,7 @@ import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs
 import { FileText, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
 
@@ -97,6 +97,8 @@ export default function ContentSection({
 	examples: string[];
 }) {
 	const inputTags = useMemo(() => parseMarkdocToInputs(note), [note]);
+	const [activeInputName, setActiveInputName] = useState<string | null>(null);
+	const [activeInputFocusKey, setActiveInputFocusKey] = useState(0);
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const buildContentViewHref = (view: TemplateContentView) => {
@@ -119,18 +121,30 @@ export default function ContentSection({
 			templateHref={buildContentViewHref("template")}
 		/>
 	);
+	const handleInputSelect = useCallback((inputName: string) => {
+		setActiveInputName(inputName);
+	}, []);
+	const handleMarkdocTagSelect = useCallback((tagName: string) => {
+		setActiveInputName(tagName);
+		setActiveInputFocusKey((currentKey) => currentKey + 1);
+	}, []);
 
 	return (
 		<InputPreviewSection
+			activeInputFocusKey={activeInputFocusKey}
+			activeInputName={activeInputName}
 			edgeTabs={contentTabs}
 			inputTags={inputTags}
+			onInputSelect={handleInputSelect}
 			preview={(values) =>
 				contentView === "examples" ? (
 					<ExamplesPreview examples={examples} />
 				) : (
 					<DynamicMarkdocRenderer
+						activeTagName={activeInputName}
 						className="prose prose-slate grow"
 						markdocContent={note as string}
+						onTagSelect={handleMarkdocTagSelect}
 						variables={values}
 					/>
 				)

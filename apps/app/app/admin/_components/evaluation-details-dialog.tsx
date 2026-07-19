@@ -11,7 +11,7 @@ import {
 	DialogTrigger,
 } from "@repo/design-system/components/ui/dialog";
 import { Loader2, Medal, RotateCcw } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactElement } from "react";
 
 interface EvaluationDetails {
 	categories: {
@@ -51,7 +51,7 @@ interface EvaluationDetailsDialogProps {
 	evaluation: EvaluationDetails;
 	isRegenerating?: boolean;
 	onRegenerate?: () => void;
-	trigger: ReactNode;
+	trigger: ReactElement;
 }
 
 export const EvaluationDetailsDialog = ({
@@ -65,7 +65,7 @@ export const EvaluationDetailsDialog = ({
 
 	return (
 		<Dialog>
-			<DialogTrigger asChild>{trigger}</DialogTrigger>
+			<DialogTrigger render={trigger} />
 			<DialogContent className="sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">

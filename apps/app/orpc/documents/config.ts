@@ -1,4 +1,5 @@
 import type { ModelConfig, PromptMessage } from "@/orpc/scribe/types";
+import type { DocumentDefinition, PdfFormField } from "@/app/documents/_lib";
 
 /**
  * Field mapping type for PDF form fields
@@ -8,8 +9,8 @@ export interface FieldMapping {
 	inputKind: "text" | "boolean" | "choice";
 	label: string;
 	options?: string[];
-	description: string;
-	pdfType?: "text" | "multiline" | "dropdown" | "checkbox" | "radio";
+	description?: string;
+	pdfType?: "text" | "multiline" | "dropdown" | "checkbox" | "radio" | "unsupported";
 }
 
 export interface DocumentInputField {
@@ -23,11 +24,15 @@ export interface DocumentInputField {
 /**
  * Configuration for PDF document AI operations
  */
-interface PDFDocumentConfig {
+interface PDFDocumentConfig<TVariables> {
 	promptName: string;
-	prompt: (vars: Record<string, unknown>) => PromptMessage[];
+	prompt: (vars: TVariables) => PromptMessage[];
 	modelConfig: ModelConfig;
 }
+
+const definePdfDocumentConfig = <TVariables>(
+	config: PDFDocumentConfig<TVariables>,
+): PDFDocumentConfig<TVariables> => config;
 
 /**
  * Variables for parseForm prompt
@@ -38,6 +43,11 @@ interface ParseFormVariables {
 	inputFields?: DocumentInputField[];
 }
 
+interface EnhanceDefinitionVariables {
+	definition: DocumentDefinition;
+	pdfFields: PdfFormField[];
+}
+
 /**
  * Configuration for all PDF document operations
  * Each configuration defines:
@@ -45,11 +55,53 @@ interface ParseFormVariables {
  * - prompt: Function that builds messages from typed variables
  * - modelConfig: AI model settings (temperature, maxTokens)
  */
-export const pdfDocumentConfigs: Record<string, PDFDocumentConfig> = {
-	parseForm: {
+export const pdfDocumentConfigs = {
+	enhanceDefinition: definePdfDocumentConfig<EnhanceDefinitionVariables>({
 		modelConfig: {},
-		prompt: (vars: Record<string, unknown>): PromptMessage[] => {
-			const { fieldMapping, fieldMappings, inputFields } = vars as unknown as ParseFormVariables;
+		prompt: ({ definition, pdfFields }): PromptMessage[] => [
+			{
+				content: `Du optimierst die Eingabedefinition eines medizinischen PDF-Formulars. Das Ergebnis wird direkt als Formular gerendert und anschließend zum Ausfüllen der PDF verwendet.
+
+Aktuelle Definition:
+${JSON.stringify(definition, null, 2)}
+
+Serverseitig aus der PDF gelesene Formularfelder:
+${JSON.stringify(pdfFields, null, 2)}
+
+Architektur:
+- "inputs" sind PDF-unabhängige, direkt renderbare Eingaben.
+- inputs[].attributes.primary ist die eindeutige, stabile Werte-ID und zugleich das sichtbare Label.
+- Ein Info-Input ist Text, Zahl oder Datum.
+- Ein Switch mit type="boolean" ist eine einzelne Ja/Nein-Checkbox.
+- Ein Switch ohne boolean-Typ ist eine Auswahl; seine Case-children sind die sichtbaren Optionen.
+- Nur "bindings" kennen die PDF-Struktur. Jedes Binding verbindet fieldName mit inputId und übersetzt Eingabewerte bei Bedarf über valueMap in rohe PDF-Werte.
+
+Aufgabe:
+1. Verbessere Labels, Beschreibungen und passende Eingabetypen anhand des sichtbaren Formulars.
+2. Verbessere bei Bedarf die vollständige Struktur der Inputs und Bindings.
+3. Gruppiere zusammengehörige PDF-Checkboxfelder als Optionen eines gemeinsamen Switches, wenn das Formular eine Einfachauswahl darstellt. Das gilt auch für Textfelder, die visuell Checkboxen sind und in der aktuellen Definition bereits eine boolesche valueMap mit einem Anzeigewert wie "x" besitzen.
+4. Trenne einzelne Optionen eines PDF-Checkboxfelds mit mehreren Widgets in boolesche Switches, wenn sie unabhängig auswählbar sind.
+5. Verwende valueMap ausschließlich in Bindings, um verständliche Markdoc-Werte auf exakte rohe PDF-Werte abzubilden.
+
+Unveränderliche Regeln:
+- Übernimm jeden vorhandenen fieldName exakt und mindestens einmal; erfinde und entferne keine PDF-Felder.
+- Markdoc-Inputs dürfen keine PDF-Feldnamen, Widget-Struktur oder PDF-Exportwerte voraussetzen.
+- Wenn primary umbenannt wird, müssen alle zugehörigen inputId-Werte exakt mit umbenannt werden.
+- Nutze für valueMap nur Werte, die das jeweilige PDF-Feld laut optionMappings unterstützt. Bei checkboxartigen Textfeldern bewahrst du den bereits konfigurierten Anzeigewert. Eine leere Zeichenkette steht für nicht ausgewählt.
+- Schreibgeschützte und nicht unterstützte PDF-Felder bleiben deaktiviert.
+- Bewahre die Aktivierung jedes PDF-Felds; aktiviere oder deaktiviere keine Felder.
+- Erzeuge keine zwei Inputs mit demselben primary und keine doppelten Bindings aus fieldName und inputId.
+- Bewahre fachlich sinnvolle bestehende Anpassungen. Ändere Struktur nur, wenn die PDF-Darstellung oder Semantik dadurch klarer wird.
+- Gib ausschließlich ein JSON-Objekt in der Form {"fieldDefinitions":{"inputs":[...],"bindings":[...]}} zurück, ohne Markdown oder zusätzlichen Text.`,
+				role: "user",
+			},
+		],
+		promptName: "pdf_document_definition_enhancement",
+	}),
+	parseForm: definePdfDocumentConfig<ParseFormVariables>({
+		modelConfig: {},
+		prompt: (vars): PromptMessage[] => {
+			const { fieldMapping, fieldMappings, inputFields } = vars;
 			const mappings = fieldMappings ?? fieldMapping ?? [];
 			return [
 				{
@@ -97,5 +149,5 @@ Achte darauf:
 			];
 		},
 		promptName: "pdf_form_enhancement",
-	},
+	}),
 };

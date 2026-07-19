@@ -76,11 +76,8 @@ export default function PricingSkeleton() {
 							</li>
 						</ul>
 						<Button
-							asChild
 							className="mt-auto bg-solarized-green hover:bg-solarized-green/90"
-						>
-							<Link href="/sign-up">Kostenlos starten</Link>
-						</Button>
+						 render={<Link href="/sign-up">Kostenlos starten</Link>} />
 					</div>
 
 					{/* Plus Plan */}
@@ -160,8 +157,7 @@ export default function PricingSkeleton() {
 								<span>Community Support</span>
 							</li>
 						</ul>
-						<Button asChild className="mt-auto" variant="outline">
-							<Link
+						<Button className="mt-auto" variant="outline" render={<Link
 								className="flex items-center justify-center gap-2"
 								href="https://github.com/ekpah/mdscribe"
 								rel="noopener noreferrer"
@@ -169,8 +165,7 @@ export default function PricingSkeleton() {
 							>
 								<Github className="h-5 w-5" />
 								<span>GitHub</span>
-							</Link>
-						</Button>
+							</Link>} />
 					</div>
 				</div>
 

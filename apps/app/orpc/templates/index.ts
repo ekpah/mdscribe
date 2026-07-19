@@ -2,6 +2,7 @@ import { ORPCError, type } from "@orpc/server";
 import { and, count, desc, eq, favourites, or, sql, template, user } from "@repo/database";
 import type { Database, Template } from "@repo/database";
 import { env } from "@repo/env";
+import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
 import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
 
@@ -166,6 +167,15 @@ const ensureCanSaveTemplateVisibility = async ({
 	if (!entitlements.canCreatePrivateTemplates) {
 		throw new ORPCError("FORBIDDEN", {
 			message: USER_MESSAGES.privateTemplateRequiresPlus,
+		});
+	}
+};
+
+const ensureValidTemplateContent = (content: string): void => {
+	const diagnostics = validateMarkdocTagContracts(content);
+	if (diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: USER_MESSAGES.invalidTemplateTags,
 		});
 	}
 };
@@ -370,6 +380,7 @@ const createTemplateHandler = authed
 			userId: context.session.user.id,
 			visibility: input.visibility,
 		});
+		ensureValidTemplateContent(input.content);
 		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
 		const examples = input.examples.map((example) => example.trim());
 
@@ -408,6 +419,7 @@ const updateTemplateHandler = authed
 			userId: context.session.user.id,
 			visibility: input.visibility,
 		});
+		ensureValidTemplateContent(input.content);
 		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
 		const examples = input.examples.map((example) => example.trim());
 

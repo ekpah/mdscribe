@@ -200,12 +200,10 @@ export const AddProviderDialog = () => {
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger asChild>
-				<Button size="sm">
+			<DialogTrigger render={<Button size="sm">
 					<Plus className="mr-1.5 h-4 w-4" />
 					Provider hinzufügen
-				</Button>
-			</DialogTrigger>
+				</Button>} />
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Neuer Provider</DialogTitle>

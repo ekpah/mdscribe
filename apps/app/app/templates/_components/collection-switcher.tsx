@@ -58,8 +58,7 @@ export const CollectionSwitcher = ({
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="w-fit px-1.5">
+          <DropdownMenuTrigger render={<SidebarMenuButton className="w-fit px-1.5">
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 {ActiveCollectionLogo ? (
                   <ActiveCollectionLogo className="size-4" />
@@ -72,8 +71,7 @@ export const CollectionSwitcher = ({
                 </span>
               </div>
               <ChevronDown className="opacity-50" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
+            </SidebarMenuButton>} />
           <DropdownMenuContent
             align="start"
             className="w-64 rounded-lg"

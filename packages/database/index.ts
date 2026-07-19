@@ -92,6 +92,8 @@ export type {
 	NewTemplateCollectionTemplate,
 	NewTextSnippet,
 	NewUsageEvent,
+	NewUsageObservation,
+	NewUsageTrace,
 	NewUser,
 	NewVerification,
 	Session,

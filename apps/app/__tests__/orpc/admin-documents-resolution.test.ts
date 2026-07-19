@@ -313,7 +313,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const result = await call(
 			documentsHandler.parseForm,
 			{
-				fieldMapping: [],
+				fieldMappings: [],
 				fileBase64: Buffer.from("fake-pdf").toString("base64"),
 			},
 			{ context },
@@ -342,7 +342,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const result = await call(
 			documentsHandler.parseForm,
 			{
-				fieldMapping: [],
+				fieldMappings: [],
 				fileBase64: Buffer.from("fake-pdf").toString("base64"),
 				model: selectedModelId,
 				providerId: seeded.providerId,

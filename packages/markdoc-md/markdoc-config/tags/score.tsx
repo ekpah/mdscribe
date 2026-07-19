@@ -3,6 +3,7 @@
 import Formula from 'fparser';
 import { useVariables } from '@repo/markdoc-md/render/context/variable-context';
 import { toFormulaValue } from '@repo/markdoc-md/parse/boolean-coercion';
+import { InteractiveTag } from './interactive-tag';
 
 interface ValueObject {
   [key: string]: number | string | ValueObject;
@@ -22,7 +23,12 @@ const getFormulaTooltipLabel = (formula: string): string => {
   return normalizedFormula ? `Formel: ${normalizedFormula}` : 'Keine Formel';
 };
 
-export const Score = ({ formula, unit, renderUnit }: { formula: string; unit?: string; renderUnit: boolean }) => {
+export const Score = ({
+  formula,
+  primary,
+  unit,
+  renderUnit,
+}: { formula: string; primary: string; unit?: string; renderUnit: boolean }) => {
   const variables = useVariables();
   const tooltipLabel = getFormulaTooltipLabel(formula);
   const formulaVariables: ValueObject = Object.fromEntries(
@@ -37,25 +43,29 @@ export const Score = ({ formula, unit, renderUnit }: { formula: string; unit?: s
     const roundedResult = typeof result === 'number' ? Number(result.toFixed(2)) : result;
 
     return (
-      <span
-        aria-label={tooltipLabel}
-        className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'
-        title={tooltipLabel}
-      >
-        {roundedResult ?? result}
-        {renderUnit && unit && ` ${unit}`}
-      </span>
+      <InteractiveTag tagName={primary}>
+        <span
+          aria-label={tooltipLabel}
+          className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'
+          title={tooltipLabel}
+        >
+          {roundedResult ?? result}
+          {renderUnit && unit && ` ${unit}`}
+        </span>
+      </InteractiveTag>
     );
   } catch {
     return (
-      <span
-        aria-label={tooltipLabel}
-        className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'
-        title={tooltipLabel}
-      >
-        ...
-        {renderUnit && unit && ` ${unit}`}
-      </span>
+      <InteractiveTag tagName={primary}>
+        <span
+          aria-label={tooltipLabel}
+          className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'
+          title={tooltipLabel}
+        >
+          ...
+          {renderUnit && unit && ` ${unit}`}
+        </span>
+      </InteractiveTag>
     );
   }
 };

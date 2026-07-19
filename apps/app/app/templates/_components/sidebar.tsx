@@ -439,16 +439,14 @@ export default function AppSidebar({
                 onOpenChange={handleCreateCollectionDialogChange}
                 open={isCreateCollectionOpen}
               >
-                <DialogTrigger asChild>
-                  <Button
+                <DialogTrigger render={<Button
                     className="w-full justify-start gap-2 px-2"
                     type="button"
                     variant="outline"
                   >
                     <FolderPlus className="h-4 w-4" />
                     <span>Neue Sammlung</span>
-                  </Button>
-                </DialogTrigger>
+                  </Button>} />
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Neue Sammlung</DialogTitle>

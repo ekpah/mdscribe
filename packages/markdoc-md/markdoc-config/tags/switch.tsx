@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import React from 'react';
 import { useVariables } from '@repo/markdoc-md/render/context/variable-context';
 import { normalizeBooleanToString } from '@repo/markdoc-md/parse/boolean-coercion';
+import { InteractiveTag } from './interactive-tag';
 
 export const SwitchContext = React.createContext<string | null>(null);
 
@@ -42,9 +43,11 @@ export const Switch = ({
 
   return (
     <SwitchContext.Provider value={resolvedSwitchValue}>
-      <span className="rounded-md bg-solarized-green px-1 text-white opacity-90">
-        {children}
-      </span>
+      <InteractiveTag tagName={primary}>
+        <span className="rounded-md bg-solarized-green px-1 text-white opacity-90">
+          {children}
+        </span>
+      </InteractiveTag>
     </SwitchContext.Provider>
   );
 };

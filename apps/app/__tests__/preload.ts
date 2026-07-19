@@ -191,6 +191,8 @@ mock.module("stripe", () => ({
 	default: MockStripe,
 }));
 
+export const aiMockState: { lastGenerateObjectOptions?: unknown } = {};
+
 mock.module("ai", () => ({
 	Output: {
 		object: (options: unknown) => options,
@@ -199,8 +201,9 @@ mock.module("ai", () => ({
 		resolveAsync({
 			text: "Transkribierter Testtext",
 		}),
-	generateObject: () =>
-		resolveAsync({
+	generateObject: (options?: unknown) => {
+		aiMockState.lastGenerateObjectOptions = options;
+		return resolveAsync({
 			finishReason: "stop" as const,
 			object: {
 				categories: [
@@ -225,6 +228,26 @@ mock.module("ai", () => ({
 						score: 8,
 					},
 				],
+				fieldDefinitions: {
+					bindings: [
+						{
+							fieldName: "patient_name",
+							inputId: "Patient",
+							isEnabled: true,
+						},
+					],
+					inputs: [
+						{
+							attributes: {
+								description: "Vollständiger Name der Patientin oder des Patienten",
+								primary: "Patient",
+								type: "string",
+							},
+							children: [],
+							name: "Info",
+						},
+					],
+				},
 				fieldMapping: [
 					{
 						description: "Patientenname aus dem PDF-Formular",
@@ -242,7 +265,8 @@ mock.module("ai", () => ({
 				promptTokens: 50,
 				totalTokens: 75,
 			},
-		}),
+		});
+	},
 	generateText: (options?: { messages?: { content?: unknown }[] }) => {
 		const promptText =
 			options?.messages

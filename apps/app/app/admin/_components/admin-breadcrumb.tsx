@@ -94,40 +94,34 @@ export const AdminBreadcrumb = () => {
 							Admin-Dashboard
 						</BreadcrumbPage>
 					) : (
-						<BreadcrumbLink asChild>
-							<Link
+						<BreadcrumbLink render={<Link
 								href="/admin"
 								className="font-semibold text-sm text-solarized-base00 hover:text-solarized-blue"
 							>
 								Admin-Dashboard
-							</Link>
-						</BreadcrumbLink>
+							</Link>} />
 					)}
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
 				<BreadcrumbItem>
 					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
+						<DropdownMenuTrigger render={<Button
 								variant="ghost"
 								size="sm"
 								className="h-auto gap-1 px-1 py-0 font-semibold text-solarized-base00 text-sm hover:bg-transparent hover:text-solarized-blue"
 							>
 								{currentPageLabel}
 								<ChevronDown className="h-3.5 w-3.5" />
-							</Button>
-						</DropdownMenuTrigger>
+							</Button>} />
 						<DropdownMenuContent align="start" className="w-56">
 							{ADMIN_PAGE_OPTIONS.map((page) => {
 								const isCurrent = page.isMatch(pathname);
 
 								return (
-									<DropdownMenuItem key={page.href} asChild>
-										<Link href={page.href} className="flex w-full items-center justify-between">
+									<DropdownMenuItem key={page.href} render={<Link href={page.href} className="flex w-full items-center justify-between">
 											<span>{page.label}</span>
 											{isCurrent ? <Check className="h-4 w-4" /> : null}
-										</Link>
-									</DropdownMenuItem>
+										</Link>} />
 								);
 							})}
 						</DropdownMenuContent>

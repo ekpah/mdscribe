@@ -1,18 +1,19 @@
 "use client";
 
-import {
-	enableKeyboardNavigation,
-} from "@harshtalks/slash-tiptap";
-import { MarkdocMD } from '@repo/design-system/components/editor/tiptap-extension';
+import { enableKeyboardNavigation } from "@harshtalks/slash-tiptap";
+import { MarkdocMD } from "@repo/design-system/components/editor/tiptap-extension";
 import { cn } from "@repo/design-system/lib/utils";
 import { htmlToMarkdoc } from "@repo/markdoc-md/parse/html-to-markdoc";
+import type { MarkdocTagDiagnostic } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
+import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
 import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";
+import { Markdown } from "@tiptap/markdown";
 import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import TipTapStarterKit from "@tiptap/starter-kit";
-import { Markdown } from "@tiptap/markdown";
 import { useCallback, useEffect } from "react";
 import type { MouseEvent } from "react";
+
 import TipTapMenu from "./_components/tip-tap-menu";
 
 export default function TipTap({
@@ -21,6 +22,7 @@ export default function TipTap({
 	showSource,
 	onToggleSource,
 	onEditorChange,
+	onValidationChange,
 }: {
 	note: string;
 	setContent: (content: string) => void;
@@ -28,6 +30,8 @@ export default function TipTap({
 	onToggleSource?: () => void;
 	/** Reports the live editor instance, e.g. to drive the tag inspector. */
 	onEditorChange?: (editor: Editor | null) => void;
+	/** Reports semantic Markdoc tag conflicts without loading Markdoc in the parent bundle. */
+	onValidationChange?: (diagnostics: MarkdocTagDiagnostic[]) => void;
 }) {
 	const editor = useEditor({
 		autofocus: true,
@@ -65,10 +69,15 @@ export default function TipTap({
 		],
 		immediatelyRender: false,
 		injectCSS: false,
+		onCreate: () => {
+			onValidationChange?.(validateMarkdocTagContracts(note));
+		},
 		onUpdate: ({ editor: updatedEditor }) => {
 			// Get the HTML and convert to markdoc format
 			const html = updatedEditor.getHTML();
-			setContent(htmlToMarkdoc(html));
+			const markdocContent = htmlToMarkdoc(html);
+			setContent(markdocContent);
+			onValidationChange?.(validateMarkdocTagContracts(markdocContent));
 		},
 	});
 
@@ -89,13 +98,15 @@ export default function TipTap({
 		if (editor && onToggleSource) {
 			// Force sync content before switching to source view
 			const html = editor.getHTML();
-			setContent(htmlToMarkdoc(html));
+			const markdocContent = htmlToMarkdoc(html);
+			setContent(markdocContent);
+			onValidationChange?.(validateMarkdocTagContracts(markdocContent));
 			// Small delay to ensure state is updated before view switch
 			setTimeout(() => {
 				onToggleSource();
 			}, 0);
 		}
-	}, [editor, onToggleSource, setContent]);
+	}, [editor, onToggleSource, onValidationChange, setContent]);
 
 	const handleEditorSurfaceMouseDown = useCallback(
 		(event: MouseEvent<HTMLDivElement>) => {
@@ -119,11 +130,7 @@ export default function TipTap({
 	return (
 		<div className="flex h-full w-full flex-col overflow-hidden">
 			<div className="shrink-0">
-				<TipTapMenu
-					editor={editor}
-					onToggleSource={handleToggleSource}
-					showSource={showSource}
-				/>
+				<TipTapMenu editor={editor} onToggleSource={handleToggleSource} showSource={showSource} />
 			</div>
 			<div
 				className="min-h-0 flex-1 overflow-y-auto p-3"

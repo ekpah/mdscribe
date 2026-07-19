@@ -1,3 +1,4 @@
+import { MarkdocInteractionProvider } from "@repo/markdoc-md/render/context/markdoc-interaction-context";
 import { VariableProvider } from "@repo/markdoc-md/render/context/variable-context";
 import renderMarkdocAsReact from "@repo/markdoc-md/render/utils/render-markdoc-as-react";
 import { useMemo } from "react";
@@ -17,6 +18,8 @@ interface DynamicMarkdocRendererProps {
 	 * Defaults to 'prose prose-slate grow' if not provided.
 	 */
 	className?: string;
+	activeTagName?: string | null;
+	onTagSelect?: (tagName: string) => void;
 }
 
 /**
@@ -31,6 +34,8 @@ interface DynamicMarkdocRendererProps {
 export const DynamicMarkdocRenderer = ({
 	markdocContent,
 	variables,
+	activeTagName,
+	onTagSelect,
 	// Default class matching Note.tsx
 	className = "prose prose-slate grow",
 }: DynamicMarkdocRendererProps) => {
@@ -41,8 +46,10 @@ export const DynamicMarkdocRenderer = ({
 	>;
 
 	return (
-		<VariableProvider value={normalizedVariables}>
-			<div className={className}>{renderedContent}</div>
-		</VariableProvider>
+		<MarkdocInteractionProvider value={{ activeTagName, onTagSelect }}>
+			<VariableProvider value={normalizedVariables}>
+				<div className={className}>{renderedContent}</div>
+			</VariableProvider>
+		</MarkdocInteractionProvider>
 	);
 };

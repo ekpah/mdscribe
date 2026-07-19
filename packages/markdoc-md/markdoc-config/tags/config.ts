@@ -44,7 +44,7 @@ export default {
 	score: {
 		attributes: {
 			formula: { required: true, type: String },
-			primary: { required: true, type: String },
+			primary: { required: false, type: String },
 			renderUnit: {
 				default: false,
 				type: Boolean,

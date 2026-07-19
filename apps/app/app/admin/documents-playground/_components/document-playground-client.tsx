@@ -23,16 +23,24 @@ import { toast } from "sonner";
 import { DocumentInput } from "@/app/_components/input-context/inputs/document/document-input";
 import type { UploadedContextFile } from "@/app/_components/input-context/types";
 import {
-	buildDefaultFieldDefinitionsFromPdfFields,
-	buildParsedMarkdocFromFieldDefinitions,
+	buildDefaultDocumentDefinitionFromPdfFields,
 	encodeUint8ArrayToBase64,
 	MAX_PDF_UPLOAD_BYTES,
+	normalizeDocumentDefinition,
 	parsePDFFormFields,
 } from "@/app/documents/_lib";
-import type { DocumentFieldDefinition } from "@/app/documents/_lib";
+import type {
+	DocumentBinding,
+	DocumentDefinition,
+	DocumentInput as DocumentInputDefinition,
+	PdfFormField,
+} from "@/app/documents/_lib";
 import { formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { SCRIBE_OCR_TO_MARKDOWN_PROMPT } from "@/orpc/scribe/prompts/core/ocr-to-markdown";
+
+import { PdfFormFieldsView } from "./pdf-form-fields-view";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -68,7 +76,7 @@ interface PdfDocumentRenderable {
 	numPages: number;
 }
 
-type OutputTab = "markdoc" | "ocr";
+type OutputTab = "form-fields" | "markdoc" | "ocr";
 
 type OcrPromptMode = "prompt" | "none";
 
@@ -138,7 +146,8 @@ const getImageMediaType = (file: File): string | null => {
 	return null;
 };
 
-const isSupportedOcrFile = (file: File): boolean => isPdfFile(file) || getImageMediaType(file) !== null;
+const isSupportedOcrFile = (file: File): boolean =>
+	isPdfFile(file) || getImageMediaType(file) !== null;
 
 const readFileBytes = async (file: File): Promise<Uint8Array> =>
 	new Uint8Array(await file.arrayBuffer());
@@ -174,55 +183,135 @@ const convertPdfToImages = async (pdfBytes: Uint8Array, maxPages = 10): Promise<
 const usesOpenAiCompatibleProtocol = (model: DocumentModelOption): boolean =>
 	model.providerProtocol === "openai-compatible";
 
-const toParseFormFieldMapping = (fieldDefinitions: DocumentFieldDefinition[]) =>
-	fieldDefinitions.map((field) => ({
-		description: field.description,
-		fieldName: field.fieldName,
-		inputKind: field.inputKind,
-		label: field.label,
-		options: field.options,
-		pdfType: field.pdfType,
-	}));
+const toInputKey = (inputId: string): string => inputId.trim().toLowerCase();
 
-const toFallbackFieldDefinition = (fieldMapping: AiFieldMapping): DocumentFieldDefinition => ({
-	description: fieldMapping.description,
-	fieldName: fieldMapping.fieldName,
-	inputKind: "text",
-	isEnabled: true,
-	label: fieldMapping.label,
-	markdocType: "Info",
-	options: [],
-	pdfType: "text",
-	valueType: "string",
+const getInputByBinding = (definition: DocumentDefinition, binding: DocumentBinding) =>
+	definition.inputs.find(
+		(input) => toInputKey(input.attributes.primary) === toInputKey(binding.inputId),
+	);
+
+const getParseFormInputKind = (
+	input: DocumentInputDefinition | undefined,
+): "boolean" | "choice" | "text" => {
+	if (input?.name !== "Switch") {
+		return "text";
+	}
+	return input.attributes.type === "boolean" ? "boolean" : "choice";
+};
+
+const getParseFormInputFieldType = (
+	input: DocumentInputDefinition,
+): "boolean" | "date" | "number" | "string" | "switch" => {
+	if (input.name === "Info") {
+		return input.attributes.type ?? "string";
+	}
+	if (input.name === "Switch") {
+		return input.attributes.type === "boolean" ? "boolean" : "switch";
+	}
+	return "string";
+};
+
+const toParseFormFieldMappings = (definition: DocumentDefinition, pdfFields: PdfFormField[]) => {
+	const pdfFieldsByName = new Map(pdfFields.map((field) => [field.name, field]));
+	return definition.bindings.map((binding) => {
+		const input = getInputByBinding(definition, binding);
+		const isSwitch = input?.name === "Switch";
+		return {
+			description: input?.name === "Info" ? input.attributes.description : undefined,
+			fieldName: binding.fieldName,
+			inputKind: getParseFormInputKind(input),
+			label: binding.inputId,
+			options: isSwitch ? input.children.map((child) => child.attributes.primary) : undefined,
+			pdfType: pdfFieldsByName.get(binding.fieldName)?.type ?? "text",
+		};
+	});
+};
+
+const toParseFormInputFields = (definition: DocumentDefinition) =>
+	definition.inputs.map((input) => {
+		const isSwitch = input.name === "Switch";
+		return {
+			description: input.name === "Info" ? input.attributes.description : undefined,
+			label: input.attributes.primary,
+			options: isSwitch ? input.children.map((child) => child.attributes.primary) : undefined,
+			type: getParseFormInputFieldType(input),
+		};
+	});
+
+const toFallbackDocumentDefinition = (fieldMapping: AiFieldMapping): DocumentDefinition => ({
+	bindings: [
+		{
+			fieldName: fieldMapping.fieldName,
+			inputId: fieldMapping.label,
+			isEnabled: true,
+		},
+	],
+	inputs: [
+		{
+			attributes: {
+				description: fieldMapping.description || undefined,
+				primary: fieldMapping.label,
+				type: "string",
+			},
+			children: [],
+			name: "Info",
+		},
+	],
 });
 
 const mergeAiFieldMappings = (
-	baseFields: DocumentFieldDefinition[],
+	baseDefinition: DocumentDefinition,
 	aiMappings: AiFieldMapping[],
-): DocumentFieldDefinition[] => {
+): DocumentDefinition => {
 	const aiByFieldName = new Map(aiMappings.map((mapping) => [mapping.fieldName, mapping]));
 	const seenFieldNames = new Set<string>();
-	const mergedFields = baseFields.map((field) => {
-		seenFieldNames.add(field.fieldName);
-		const aiMapping = aiByFieldName.get(field.fieldName);
+	const inputRenames = new Map<string, AiFieldMapping>();
+	const bindings = baseDefinition.bindings.map((binding) => {
+		seenFieldNames.add(binding.fieldName);
+		const aiMapping = aiByFieldName.get(binding.fieldName);
 		if (!aiMapping) {
-			return field;
+			return binding;
 		}
+		inputRenames.set(toInputKey(binding.inputId), aiMapping);
 
 		return {
-			...field,
-			description: aiMapping.description,
-			label: aiMapping.label,
+			...binding,
+			inputId: aiMapping.label,
+		};
+	});
+	const inputs: DocumentDefinition["inputs"] = baseDefinition.inputs.map((input) => {
+		const aiMapping = inputRenames.get(toInputKey(input.attributes.primary));
+		if (!aiMapping) {
+			return input;
+		}
+		if (input.name === "Info") {
+			return {
+				...input,
+				attributes: {
+					...input.attributes,
+					description: aiMapping.description || undefined,
+					primary: aiMapping.label,
+				},
+			};
+		}
+		return {
+			...input,
+			attributes: {
+				...input.attributes,
+				primary: aiMapping.label,
+			},
 		};
 	});
 
 	for (const aiMapping of aiMappings) {
 		if (!seenFieldNames.has(aiMapping.fieldName)) {
-			mergedFields.push(toFallbackFieldDefinition(aiMapping));
+			const fallbackDefinition = toFallbackDocumentDefinition(aiMapping);
+			bindings.push(...fallbackDefinition.bindings);
+			inputs.push(...fallbackDefinition.inputs);
 		}
 	}
 
-	return mergedFields;
+	return normalizeDocumentDefinition({ bindings, inputs });
 };
 
 const quoteMarkdocValue = (value: string): string => JSON.stringify(value);
@@ -233,26 +322,67 @@ const renderStringAttribute = (name: string, value: string | undefined): string 
 const renderBooleanAttribute = (name: string, value: boolean | undefined): string =>
 	value ? ` ${name}=true` : "";
 
-const fieldDefinitionsToMarkdoc = (fieldDefinitions: DocumentFieldDefinition[]): string => {
-	const { inputTags } = buildParsedMarkdocFromFieldDefinitions(fieldDefinitions);
+const documentDefinitionToMarkdoc = (definition: DocumentDefinition): string => {
+	const { inputs } = normalizeDocumentDefinition(definition);
 
-	return inputTags
-		.map((inputTag) => {
-			if (inputTag.name === "Info") {
-				return `{% info ${quoteMarkdocValue(inputTag.attributes.primary)}${renderStringAttribute("description", inputTag.attributes.description)}${renderStringAttribute("type", inputTag.attributes.type)}${renderStringAttribute("unit", inputTag.attributes.unit)}${renderBooleanAttribute("renderUnit", inputTag.attributes.renderUnit)} /%}`;
+	return inputs
+		.map((input) => {
+			if (input.name === "Info") {
+				return `{% info ${quoteMarkdocValue(input.attributes.primary)}${renderStringAttribute("description", input.attributes.description)}${renderStringAttribute("type", input.attributes.type)}${renderStringAttribute("unit", input.attributes.unit)}${renderBooleanAttribute("renderUnit", input.attributes.renderUnit)} /%}`;
 			}
 
-			if (inputTag.name === "Switch") {
-				const cases = inputTag.children
-					.map((child) => `{% case ${quoteMarkdocValue(child.attributes.primary)} %}${child.attributes.primary}{% /case %}`)
+			if (input.name === "Switch") {
+				const cases = input.children
+					.map(
+						(child) =>
+							`{% case ${quoteMarkdocValue(child.attributes.primary)} %}${child.attributes.primary}{% /case %}`,
+					)
 					.join("");
-				return `{% switch ${quoteMarkdocValue(inputTag.attributes.primary)}${renderStringAttribute("type", inputTag.attributes.type)} %}${cases}{% /switch %}`;
+				return `{% switch ${quoteMarkdocValue(input.attributes.primary)}${renderStringAttribute("type", input.attributes.type)} %}${cases}{% /switch %}`;
 			}
 
 			return "";
 		})
 		.filter(Boolean)
 		.join("\n");
+};
+
+const serializeFormFields = (fields: PdfFormField[] | null): string =>
+	fields ? JSON.stringify({ fields }, null, 2) : "";
+
+const getActiveOutput = (
+	tab: OutputTab,
+	formFieldsOutput: string,
+	markdocOutput: string,
+	ocrOutput: string,
+): string => {
+	if (tab === "form-fields") {
+		return formFieldsOutput;
+	}
+	if (tab === "markdoc") {
+		return markdocOutput;
+	}
+	return ocrOutput;
+};
+
+const getOutputDescription = (tab: OutputTab, lastModelName: string | null): string => {
+	if (tab === "form-fields") {
+		return USER_MESSAGES.documentPlaygroundFormFields.description;
+	}
+	if (lastModelName) {
+		return `Erzeugt mit ${lastModelName}`;
+	}
+	return "Markdoc oder OCR-Text erscheint nach der Verarbeitung hier.";
+};
+
+const getCopySuccessMessage = (tab: OutputTab): string => {
+	if (tab === "form-fields") {
+		return USER_MESSAGES.documentPlaygroundFormFields.copySuccess;
+	}
+	if (tab === "markdoc") {
+		return "Markdoc kopiert";
+	}
+	return "Text kopiert";
 };
 
 const ModelSelectionCard = ({
@@ -270,7 +400,7 @@ const ModelSelectionCard = ({
 	selectedModel: DocumentModelOption | null;
 	selectedModelId: string | null;
 }) => (
-	<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
+	<section className="rounded-lg border border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 		<CardHeader className="space-y-2 p-4 sm:p-6">
 			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 				<div className="space-y-1">
@@ -310,14 +440,7 @@ const ModelSelectionCard = ({
 						</div>
 					)}
 					renderSelected={(option) =>
-						option ? (
-							<div className="min-w-0">
-								<span className="block truncate">{option.label}</span>
-								<span className="block truncate text-muted-foreground text-xs">
-									{option.providerName} · {option.modelId}
-								</span>
-							</div>
-						) : null
+						option ? <span className="block min-w-0 truncate">{option.label}</span> : null
 					}
 					searchPlaceholder="Modell suchen..."
 					value={selectedModelId}
@@ -332,7 +455,7 @@ const ModelSelectionCard = ({
 				</div>
 			</div>
 		</CardContent>
-	</Card>
+	</section>
 );
 
 const OcrPromptCard = ({
@@ -346,7 +469,7 @@ const OcrPromptCard = ({
 	prompt: string;
 	promptMode: OcrPromptMode;
 }) => (
-	<Card className="border-solarized-base2 bg-solarized-base3">
+	<section className="rounded-lg border border-solarized-base2 bg-solarized-base3">
 		<CardHeader className="p-4 sm:p-6">
 			<CardTitle className="flex items-center gap-2 text-solarized-base00">
 				<ScanText className="h-4 w-4 text-solarized-magenta" />
@@ -399,7 +522,7 @@ const OcrPromptCard = ({
 				</div>
 			) : null}
 		</CardContent>
-	</Card>
+	</section>
 );
 
 const DocumentFileCard = ({
@@ -450,14 +573,12 @@ const DocumentFileCard = ({
 			/>
 			{selectedFile && !hasSelectedOcrFile ? (
 				<p className="text-solarized-red text-xs">
-					Bitte eine PDF- oder Bilddatei auswählen. Andere Dateitypen werden hier nicht
-					verarbeitet.
+					Bitte eine PDF- oder Bilddatei auswählen. Andere Dateitypen werden hier nicht verarbeitet.
 				</p>
 			) : null}
 			{selectedFile && hasSelectedOcrFile && !hasSelectedPdf ? (
 				<p className="text-solarized-base01 text-xs">
-					OCR funktioniert mit Bilddateien. Markdoc-Parsing ist nur für PDF-Formulare
-					verfügbar.
+					OCR funktioniert mit Bilddateien. Markdoc-Parsing ist nur für PDF-Formulare verfügbar.
 				</p>
 			) : null}
 			<div className="grid gap-2 sm:grid-cols-2">
@@ -504,79 +625,141 @@ const DocumentFileCard = ({
 const OutputCard = ({
 	activeOutput,
 	activeOutputTab,
+	defaultFileImageModelId,
+	formFields,
+	formFieldsError,
+	isFormFieldsLoading,
+	isLoadingModels,
+	isPdfSelected,
 	lastModelName,
 	markdocFieldCount,
 	markdocOutput,
+	modelOptions,
 	ocrOutput,
+	onModelChange,
 	onCopy,
+	onPromptChange,
+	onPromptModeChange,
 	onTabChange,
+	prompt,
+	promptMode,
+	selectedModel,
+	selectedModelId,
 }: {
 	activeOutput: string;
 	activeOutputTab: OutputTab;
+	defaultFileImageModelId: string | null | undefined;
+	formFields: PdfFormField[] | null;
+	formFieldsError: string | null;
+	isFormFieldsLoading: boolean;
+	isLoadingModels: boolean;
+	isPdfSelected: boolean;
 	lastModelName: string | null;
 	markdocFieldCount: number;
 	markdocOutput: string;
+	modelOptions: DocumentModelOption[];
 	ocrOutput: string;
+	onModelChange: (value: string) => void;
 	onCopy: () => void;
+	onPromptChange: (value: string) => void;
+	onPromptModeChange: (value: OcrPromptMode) => void;
 	onTabChange: (value: OutputTab) => void;
-}) => (
-	<Card className="min-h-[460px] border-solarized-base2 bg-solarized-base3">
-		<CardHeader className="gap-3 p-4 sm:p-6">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<div className="space-y-1">
-					<CardTitle className="flex items-center gap-2 text-solarized-base00">
-						<ScanText className="h-4 w-4 text-solarized-magenta" />
-						Ausgabe
-					</CardTitle>
-					<CardDescription className="text-solarized-base01">
-						{lastModelName
-							? `Erzeugt mit ${lastModelName}`
-							: "Markdoc oder OCR-Text erscheint nach der Verarbeitung hier."}
-					</CardDescription>
+	prompt: string;
+	promptMode: OcrPromptMode;
+	selectedModel: DocumentModelOption | null;
+	selectedModelId: string | null;
+}) => {
+	const description = getOutputDescription(activeOutputTab, lastModelName);
+
+	return (
+		<Card className="min-h-[460px] border-solarized-base2 bg-solarized-base3">
+			<CardHeader className="gap-3 p-4 sm:p-6">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div className="space-y-1">
+						<CardTitle className="flex items-center gap-2 text-solarized-base00">
+							<ScanText className="h-4 w-4 text-solarized-magenta" />
+							Ausgabe
+						</CardTitle>
+						<CardDescription className="text-solarized-base01">{description}</CardDescription>
+					</div>
+					<Button
+						disabled={!activeOutput}
+						onClick={onCopy}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						<Clipboard className="mr-2 h-4 w-4" />
+						Kopieren
+					</Button>
 				</div>
-				<Button disabled={!activeOutput} onClick={onCopy} size="sm" type="button" variant="outline">
-					<Clipboard className="mr-2 h-4 w-4" />
-					Kopieren
-				</Button>
-			</div>
-		</CardHeader>
-		<CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-			<Tabs
-				onValueChange={(value) => {
-					onTabChange(value as OutputTab);
-				}}
-				value={activeOutputTab}
-			>
-				<TabsList className="w-fit">
-					<TabsTrigger value="markdoc">Markdoc</TabsTrigger>
-					<TabsTrigger value="ocr">OCR-Text</TabsTrigger>
-				</TabsList>
-				<TabsContent value="markdoc" className="mt-3">
-					<Textarea
-						className="min-h-[340px] resize-y border-solarized-base2 bg-solarized-base2/20 font-mono text-solarized-base00 placeholder:text-solarized-base01 focus:border-solarized-magenta focus:ring-solarized-magenta/20"
-						placeholder="Noch kein Markdoc vorhanden."
-						readOnly
-						value={markdocOutput}
-					/>
-					{markdocOutput ? (
-						<p className="mt-2 text-solarized-base01 text-xs">
-							{markdocFieldCount.toLocaleString("de-DE")} Felder in Markdoc-Tags
-							umgewandelt.
-						</p>
-					) : null}
-				</TabsContent>
-				<TabsContent value="ocr" className="mt-3">
-					<Textarea
-						className="min-h-[340px] resize-y border-solarized-base2 bg-solarized-base2/20 font-mono text-solarized-base00 placeholder:text-solarized-base01 focus:border-solarized-magenta focus:ring-solarized-magenta/20"
-						placeholder="Noch kein OCR-Text vorhanden."
-						readOnly
-						value={ocrOutput}
-					/>
-				</TabsContent>
-			</Tabs>
-		</CardContent>
-	</Card>
-);
+			</CardHeader>
+			<CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+				<Tabs
+					onValueChange={(value) => {
+						onTabChange(value as OutputTab);
+					}}
+					value={activeOutputTab}
+				>
+					<TabsList className="w-fit">
+						<TabsTrigger value="form-fields">
+							{USER_MESSAGES.documentPlaygroundFormFields.tab}
+						</TabsTrigger>
+						<TabsTrigger value="markdoc">Markdoc</TabsTrigger>
+						<TabsTrigger value="ocr">OCR-Text</TabsTrigger>
+					</TabsList>
+					{activeOutputTab === "form-fields" ? null : (
+						<div className="mt-4 grid gap-4 xl:grid-cols-2">
+							<ModelSelectionCard
+								defaultFileImageModelId={defaultFileImageModelId}
+								isLoading={isLoadingModels}
+								modelOptions={modelOptions}
+								onModelChange={onModelChange}
+								selectedModel={selectedModel}
+								selectedModelId={selectedModelId}
+							/>
+							<OcrPromptCard
+								onPromptChange={onPromptChange}
+								onPromptModeChange={onPromptModeChange}
+								prompt={prompt}
+								promptMode={promptMode}
+							/>
+						</div>
+					)}
+					<TabsContent value="form-fields" className="mt-3">
+						<PdfFormFieldsView
+							error={formFieldsError}
+							fields={formFields}
+							isLoading={isFormFieldsLoading}
+							isPdfSelected={isPdfSelected}
+						/>
+					</TabsContent>
+					<TabsContent value="markdoc" className="mt-3">
+						<Textarea
+							className="min-h-[340px] resize-y border-solarized-base2 bg-solarized-base2/20 font-mono text-solarized-base00 placeholder:text-solarized-base01 focus:border-solarized-magenta focus:ring-solarized-magenta/20"
+							placeholder="Noch kein Markdoc vorhanden."
+							readOnly
+							value={markdocOutput}
+						/>
+						{markdocOutput ? (
+							<p className="mt-2 text-solarized-base01 text-xs">
+								{markdocFieldCount.toLocaleString("de-DE")} Felder in Markdoc-Tags umgewandelt.
+							</p>
+						) : null}
+					</TabsContent>
+					<TabsContent value="ocr" className="mt-3">
+						<Textarea
+							className="min-h-[340px] resize-y border-solarized-base2 bg-solarized-base2/20 font-mono text-solarized-base00 placeholder:text-solarized-base01 focus:border-solarized-magenta focus:ring-solarized-magenta/20"
+							placeholder="Noch kein OCR-Text vorhanden."
+							readOnly
+							value={ocrOutput}
+						/>
+					</TabsContent>
+				</Tabs>
+			</CardContent>
+		</Card>
+	);
+};
 
 export const DocumentPlaygroundClient = () => {
 	const [files, setFiles] = useState<UploadedContextFile[]>([]);
@@ -586,6 +769,9 @@ export const DocumentPlaygroundClient = () => {
 	const [ocrPrompt, setOcrPrompt] = useState(SCRIBE_OCR_TO_MARKDOWN_PROMPT);
 	const [markdocOutput, setMarkdocOutput] = useState("");
 	const [ocrOutput, setOcrOutput] = useState("");
+	const [formFields, setFormFields] = useState<PdfFormField[] | null>(null);
+	const [formFieldsError, setFormFieldsError] = useState<string | null>(null);
+	const [isFormFieldsLoading, setIsFormFieldsLoading] = useState(false);
 	const [markdocFieldCount, setMarkdocFieldCount] = useState(0);
 	const [lastModelName, setLastModelName] = useState<string | null>(null);
 
@@ -619,12 +805,52 @@ export const DocumentPlaygroundClient = () => {
 		}
 	}, [modelOptions, selectedModelId]);
 
+	useEffect(() => {
+		if (!selectedFile || !isPdfFile(selectedFile)) {
+			setIsFormFieldsLoading(false);
+			return;
+		}
+
+		let isCancelled = false;
+		setIsFormFieldsLoading(true);
+
+		const extractFormFields = async () => {
+			try {
+				const result = await parsePDFFormFields(await readFileBytes(selectedFile));
+				if (!isCancelled) {
+					setFormFields(result.fields);
+					setFormFieldsError(null);
+				}
+			} catch {
+				if (!isCancelled) {
+					setFormFields(null);
+					setFormFieldsError(USER_MESSAGES.documentPlaygroundFormFields.extractionFailed);
+				}
+			} finally {
+				if (!isCancelled) {
+					setIsFormFieldsLoading(false);
+				}
+			}
+		};
+
+		extractFormFields();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [selectedFile]);
+
 	const handleFilesChange = useCallback((nextFiles: UploadedContextFile[]) => {
 		setFiles(nextFiles);
+		setFormFields(null);
+		setFormFieldsError(null);
 		setMarkdocOutput("");
 		setOcrOutput("");
 		setMarkdocFieldCount(0);
 		setLastModelName(null);
+		if (nextFiles[0]?.file && isPdfFile(nextFiles[0].file)) {
+			setActiveOutputTab("form-fields");
+		}
 	}, []);
 
 	const parseMutation = useMutation({
@@ -641,21 +867,19 @@ export const DocumentPlaygroundClient = () => {
 
 			const pdfBytes = await readFileBytes(selectedFile);
 			const pdfFields = await parsePDFFormFields(pdfBytes);
-			const baseFieldDefinitions = buildDefaultFieldDefinitionsFromPdfFields(pdfFields.fields);
+			const baseDefinition = buildDefaultDocumentDefinitionFromPdfFields(pdfFields.fields);
 			const result = (await orpc.documents.parseForm.call({
-				fieldMapping: toParseFormFieldMapping(baseFieldDefinitions),
+				fieldMappings: toParseFormFieldMappings(baseDefinition, pdfFields.fields),
 				fileBase64: encodeUint8ArrayToBase64(pdfBytes),
+				inputFields: toParseFormInputFields(baseDefinition),
 				model: selectedModel.modelId,
 				providerId: selectedModel.providerId,
 			})) as ParseFormResult;
-			const fieldDefinitions = mergeAiFieldMappings(
-				baseFieldDefinitions,
-				result.fieldMapping,
-			);
+			const definition = mergeAiFieldMappings(baseDefinition, result.fieldMapping);
 
 			return {
-				fieldCount: fieldDefinitions.length,
-				markdoc: fieldDefinitionsToMarkdoc(fieldDefinitions),
+				fieldCount: definition.bindings.length,
+				markdoc: documentDefinitionToMarkdoc(definition),
 				modelName: selectedModel.label,
 			};
 		},
@@ -743,66 +967,72 @@ export const DocumentPlaygroundClient = () => {
 	});
 
 	const handleCopyActiveOutput = useCallback(async () => {
-		const output = activeOutputTab === "markdoc" ? markdocOutput : ocrOutput;
+		const output = getActiveOutput(
+			activeOutputTab,
+			serializeFormFields(formFields),
+			markdocOutput,
+			ocrOutput,
+		);
 		if (!output) {
 			return;
 		}
 		await navigator.clipboard.writeText(output);
-		toast.success(activeOutputTab === "markdoc" ? "Markdoc kopiert" : "Text kopiert");
-	}, [activeOutputTab, markdocOutput, ocrOutput]);
+		toast.success(getCopySuccessMessage(activeOutputTab));
+	}, [activeOutputTab, formFields, markdocOutput, ocrOutput]);
 
 	const isBusy = parseMutation.isPending || ocrMutation.isPending;
 	const hasSelectedPdf = Boolean(selectedFile && isPdfFile(selectedFile));
 	const hasSelectedOcrFile = Boolean(selectedFile && isSupportedOcrFile(selectedFile));
-	const activeOutput = activeOutputTab === "markdoc" ? markdocOutput : ocrOutput;
+	const activeOutput = getActiveOutput(
+		activeOutputTab,
+		serializeFormFields(formFields),
+		markdocOutput,
+		ocrOutput,
+	);
 
 	return (
 		<div className="space-y-4">
-			<ModelSelectionCard
+			<DocumentFileCard
+				files={files}
+				hasSelectedOcrFile={hasSelectedOcrFile}
+				hasSelectedPdf={hasSelectedPdf}
+				isBusy={isBusy}
+				isOcrPending={ocrMutation.isPending}
+				isParsePending={parseMutation.isPending}
+				onFilesChange={handleFilesChange}
+				onOcr={() => {
+					ocrMutation.mutate();
+				}}
+				onParse={() => {
+					parseMutation.mutate();
+				}}
+				selectedFile={selectedFile}
+				selectedModel={selectedModel}
+			/>
+			<OutputCard
+				activeOutput={activeOutput}
+				activeOutputTab={activeOutputTab}
 				defaultFileImageModelId={defaults?.defaultFileImageModelId}
-				isLoading={isLoadingModels || isLoadingDefaults}
+				formFields={formFields}
+				formFieldsError={formFieldsError}
+				isFormFieldsLoading={isFormFieldsLoading}
+				isLoadingModels={isLoadingModels || isLoadingDefaults}
+				isPdfSelected={hasSelectedPdf}
+				lastModelName={lastModelName}
+				markdocFieldCount={markdocFieldCount}
+				markdocOutput={markdocOutput}
 				modelOptions={modelOptions}
+				ocrOutput={ocrOutput}
 				onModelChange={setSelectedModelId}
+				onCopy={handleCopyActiveOutput}
+				onPromptChange={setOcrPrompt}
+				onPromptModeChange={setOcrPromptMode}
+				onTabChange={setActiveOutputTab}
+				prompt={ocrPrompt}
+				promptMode={ocrPromptMode}
 				selectedModel={selectedModel}
 				selectedModelId={selectedModelId}
 			/>
-
-			<OcrPromptCard
-				onPromptChange={setOcrPrompt}
-				onPromptModeChange={setOcrPromptMode}
-				prompt={ocrPrompt}
-				promptMode={ocrPromptMode}
-			/>
-
-			<div className="grid gap-4 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
-				<DocumentFileCard
-					files={files}
-					hasSelectedOcrFile={hasSelectedOcrFile}
-					hasSelectedPdf={hasSelectedPdf}
-					isBusy={isBusy}
-					isOcrPending={ocrMutation.isPending}
-					isParsePending={parseMutation.isPending}
-					onFilesChange={handleFilesChange}
-					onOcr={() => {
-						ocrMutation.mutate();
-					}}
-					onParse={() => {
-						parseMutation.mutate();
-					}}
-					selectedFile={selectedFile}
-					selectedModel={selectedModel}
-				/>
-				<OutputCard
-					activeOutput={activeOutput}
-					activeOutputTab={activeOutputTab}
-					lastModelName={lastModelName}
-					markdocFieldCount={markdocFieldCount}
-					markdocOutput={markdocOutput}
-					ocrOutput={ocrOutput}
-					onCopy={handleCopyActiveOutput}
-					onTabChange={setActiveOutputTab}
-				/>
-			</div>
 		</div>
 	);
 };

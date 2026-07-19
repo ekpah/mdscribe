@@ -7,10 +7,14 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 
 import { MAX_PDF_UPLOAD_BYTES } from "@/app/documents/_lib/pdf-data";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 interface PDFUploadSectionProps {
 	onClear: () => void;
-	onFileUpload: (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => void;
+	onFileUpload: (
+		file: Uint8Array,
+		fileMeta: { name: string; mimeType: string },
+	) => Promise<void> | void;
 	pdfFile: Uint8Array | null;
 	pdfFileName?: string;
 }
@@ -22,7 +26,10 @@ const getFirstBrowserFile = (addedFiles: { file: unknown }[]): File | null => {
 
 const handleAddedPdfFiles = async (
 	addedFiles: { file: unknown }[],
-	onFileUpload: (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => void,
+	onFileUpload: (
+		file: Uint8Array,
+		fileMeta: { name: string; mimeType: string },
+	) => Promise<void> | void,
 ) => {
 	const firstFile = getFirstBrowserFile(addedFiles);
 	if (!firstFile) {
@@ -34,12 +41,17 @@ const handleAddedPdfFiles = async (
 		return;
 	}
 
-	const arrayBuffer = await firstFile.arrayBuffer();
-	onFileUpload(new Uint8Array(arrayBuffer), {
-		mimeType: firstFile.type || "application/pdf",
-		name: firstFile.name || "document.pdf",
-	});
-	toast.success("Dokument hochgeladen");
+	try {
+		const arrayBuffer = await firstFile.arrayBuffer();
+		await onFileUpload(new Uint8Array(arrayBuffer), {
+			mimeType: firstFile.type || "application/pdf",
+			name: firstFile.name || "document.pdf",
+		});
+		toast.success(USER_MESSAGES.documentEditor.pdfUploadSuccess);
+	} catch (error) {
+		const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+		toast.error(`${USER_MESSAGES.documentEditor.pdfUploadFailed} (${details})`);
+	}
 };
 
 export const PDFUploadSection = ({
