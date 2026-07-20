@@ -32,7 +32,6 @@ import {
   Bookmark,
   Folder,
   FolderPlus,
-  Library,
   Plus,
   Pencil,
   PlusCircle,
@@ -152,7 +151,7 @@ export default function AppSidebar({
   const [searchTerm, setSearchTerm] = useState(initialFilter);
   const [activeCollection, setActiveCollection] = useQueryState(
     'activeCollection',
-    { defaultValue: 'all' }
+    { defaultValue: isLoggedIn ? 'favourites' : 'visible' }
   );
 
   const queryClient = useQueryClient();
@@ -223,14 +222,6 @@ export default function AppSidebar({
     }
   });
 
-  const baseCollections = [
-    {
-      key: 'all',
-      logo: Library,
-      name: 'Alle Textbausteine',
-    },
-  ];
-
   const userCollections = isLoggedIn
     ? [
         {
@@ -257,14 +248,15 @@ export default function AppSidebar({
   );
 
   const collections = isLoggedIn
-    ? [...baseCollections, ...userCollections, ...customCollectionEntries]
-    : baseCollections;
+    ? [...userCollections, ...customCollectionEntries]
+    : [];
 
+  const fallbackCollection = isLoggedIn ? 'favourites' : 'visible';
   const activeCollectionValue = collections.some(
     (collection) => collection.key === activeCollection
   )
     ? activeCollection
-    : 'all';
+    : fallbackCollection;
 
   useEffect(() => {
     if (activeCollectionValue !== activeCollection) {
@@ -340,7 +332,7 @@ export default function AppSidebar({
     if (activeCollectionValue === 'authored') {
       return initialAuthoredTemplates;
     }
-    if (activeCollectionValue === 'all') {
+    if (activeCollectionValue === 'visible') {
       return initialTemplates;
     }
     return activeCustomCollection?.templates ?? [];

@@ -113,6 +113,12 @@ const favouriteInput = z.object({
 	templateId: z.string(),
 });
 
+const lexicalSearchInput = z.object({
+	query: z.string().trim().min(1).max(200),
+});
+
+const LEXICAL_SEARCH_LIMIT = 20;
+
 const MAX_CATEGORY_SUGGESTIONS = 10;
 
 const addCategories = (
@@ -195,6 +201,27 @@ const listTemplatesHandler = pub.handler(async ({ context }) => {
 		.where(visibleTemplateWhere(userId));
 
 	return templates;
+});
+
+/** Search every template visible to the current user using PostgreSQL full-text ranking. */
+const searchTemplatesHandler = pub.input(lexicalSearchInput).handler(async ({ context, input }) => {
+	const userId = await getOptionalUserId(context);
+	const document = sql`setweight(to_tsvector('german', coalesce(${template.title}, '')), 'A') || setweight(to_tsvector('german', coalesce(${template.category}, '')), 'B') || setweight(to_tsvector('german', coalesce(${template.content}, '')), 'D')`;
+	const query = sql`websearch_to_tsquery('german', ${input.query})`;
+	const rank = sql<number>`ts_rank_cd(${document}, ${query}, 32)`;
+
+	return context.db
+		.select({
+			category: template.category,
+			id: template.id,
+			rank,
+			title: template.title,
+			updatedAt: template.updatedAt,
+		})
+		.from(template)
+		.where(and(visibleTemplateWhere(userId), sql`${document} @@ ${query}`))
+		.orderBy(desc(rank), desc(template.updatedAt), template.id)
+		.limit(LEXICAL_SEARCH_LIMIT);
 });
 
 /**
@@ -511,5 +538,6 @@ export const templatesHandler = {
 	list: listTemplatesHandler,
 	// Authenticated - Favourites
 	removeFavourite: removeFavouriteHandler,
+	search: searchTemplatesHandler,
 	update: updateTemplateHandler,
 };

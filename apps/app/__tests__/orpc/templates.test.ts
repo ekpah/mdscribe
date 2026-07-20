@@ -169,6 +169,55 @@ describe("Templates oRPC Handlers", () => {
 				expect(anonymousList.map((item) => item.id)).toEqual([publicTemplate.id]);
 			});
 		});
+
+		describe("templates.search", () => {
+			test("ranks title matches and applies template visibility", async () => {
+				const { user: author } = await createTestUser(server.db);
+				const titleMatch = await createTestTemplate(server.db, author.id, {
+					content: "Allgemeiner Bericht",
+					title: "Hypertonie",
+				});
+				const contentMatch = await createTestTemplate(server.db, author.id, {
+					content: "Behandlung einer Hypertonie",
+					title: "Behandlungsbericht",
+				});
+				const privateMatch = await createTestTemplate(server.db, author.id, {
+					content: "Hypertonie",
+					title: "Privater Treffer",
+					visibility: "private",
+				});
+
+				const anonymousResult = await call(
+					templatesHandler.search,
+					{ query: "  Hypertonie  " },
+					{
+						context: createTestContext({ db: server.db }),
+					},
+				);
+				const authorResult = await call(
+					templatesHandler.search,
+					{ query: "Hypertonie" },
+					{
+						context: createTestContext({ db: server.db, session: createMockSession(author) }),
+					},
+				);
+
+				expect(anonymousResult.map((item) => item.id)).toEqual([titleMatch.id, contentMatch.id]);
+				expect(authorResult.map((item) => item.id)).toContain(privateMatch.id);
+			});
+
+			test("rejects an empty query", async () => {
+				await expect(
+					call(
+						templatesHandler.search,
+						{ query: "   " },
+						{
+							context: createTestContext({ db: server.db }),
+						},
+					),
+				).rejects.toThrow();
+			});
+		});
 	});
 
 	describe("Authenticated Endpoints", () => {
