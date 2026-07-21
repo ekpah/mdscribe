@@ -8,6 +8,7 @@ Scope: everything under `apps/app`. Root rules still apply. Scribe and shared in
 - BetterAuth: server code calls `auth.api.getSession(...)`; client code uses `useSession()`. Prefer direct `auth.api.*` calls over one-off forwarding wrappers.
 - AI streaming handlers live in `orpc/scribe/handlers/`, prompts in `orpc/scribe/prompts/`, context in `orpc/scribe/context/`, and clients use `useScribeStream`.
 - Templates use Markdoc plus TipTap and 1024-dimensional Voyage embeddings.
+- `Template.information` and `DocumentTemplate.information` contain author-provided filling instructions. Render them as a distinct `<information>` block during AI generation/autofill; they are not example or clinical content, and document information stays outside PDF input definitions.
 - Templates and documents are `public` or `private`. Public items are visible/useable/forkable by everyone; private items are author-only and require Plus to create or keep private.
 - All German user-facing strings belong in `lib/user-messages.ts` (`USER_MESSAGES`). Translate visible labels, placeholders, aria labels, and permission errors before handoff.
 
@@ -29,7 +30,7 @@ Scope: everything under `apps/app`. Root rules still apply. Scribe and shared in
 - Prompt comparison has independent Prompt A/B base-prompt and template selectors; B is seeded from A and compiles through `orpc.admin.scribe.compilePrompt`. Highlight complete innermost XML sections by composition origin, never value matching or unpaired tag mentions.
 - Playground results/editors grow with content. Overlay editors use an in-flow mirror plus absolutely stretched textarea and visible caret; plain growing textareas need JS autosizing because Firefox/Safari lack reliable `field-sizing` support.
 - Template selectors use grouped design-system `Select` primitives; `Keins` stays unlabelled and only categories get labels. Keep ownership/favourite details in the adjacent tooltip, not selected values or badges.
-- Right-edge template tabs switch only the preview/examples pane. Use singular `Like` only for exactly one. Workspace placeholders derive from existing template content.
+- Right-edge template tabs switch only the preview/examples/information pane. The examples and information views each show an analogous horizontally and vertically centered empty-state card when no content is stored. Use singular `Like` only for exactly one. Workspace placeholders derive from existing template content.
 
 ## AI Vorlagen and Context Transfer
 
@@ -49,6 +50,7 @@ Scope: everything under `apps/app`. Root rules still apply. Scribe and shared in
 - Documents persist `DocumentTemplate.fieldDefinitions` as `{ inputs, bindings }` plus `pdfBytes`. `inputs[].attributes.primary` is the stable form/runtime value key; each binding connects one PDF `fieldName` to that key through `inputId` and may define an explicit `valueMap`. PDF field metadata is parsed when editing and is not persisted. Never persist document `parsedMarkdoc`/raw Markdoc.
 - Document bindings may repeat a PDF `fieldName` when a multi-widget checkbox is intentionally split into separate boolean inputs. PDF filling resolves repeated bindings as one field operation and rejects conflicting non-empty selections. Separate PDF checkbox fields may share one choice input through per-binding `true`/`false` value maps.
 - In the document editor, detach checkbox-backed choice options individually from the option row. Group separate checkbox cards through an explicit "Checkbox als Option hinzufügen" selection mode where the next eligible checkbox card click joins the target choice; do not use a target dropdown on the source card.
+- Document detail and editor views switch the right preview column between PDF and information through the shared vertical edge tabs. Edit document information only in that right-column information view.
 - Render one document-editor card per Markdoc input, even when multiple PDF fields bind to it. Show the bound PDF fields within that card and highlight every corresponding PDF widget together; adding a checkbox binding must not duplicate the Markdoc input card.
 - Identify a multi-widget checkbox preview target by both its PDF `fieldName` and raw widget export value. After splitting or moving an option, highlight only the widget values owned by that Markdoc input's bindings.
 - Use the same binding-aware `(fieldName, exportValue)` preview targeting in the document filling view. Bounding boxes stay in the PDF annotations and must not be persisted separately in the database.

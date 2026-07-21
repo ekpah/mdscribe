@@ -13,6 +13,7 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -28,6 +29,8 @@ import {
 	getPdfFieldHighlightsForInput,
 } from "@/app/documents/_components/pdf-field-highlights";
 import type { PdfFieldHighlight } from "@/app/documents/_components/pdf-field-highlights";
+import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
+import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	buildDefaultDocumentDefinitionFromPdfFields,
@@ -1015,9 +1018,11 @@ const FieldDefinitionCard = memo(
 
 interface DocumentPreviewPaneProps {
 	activePdfFieldHighlights: PdfFieldHighlight[];
+	information: string;
 	onClear: () => void;
 	onFieldSelect: (fieldName: string, widgetValue?: string) => void;
 	onFileUpload: (file: Uint8Array, fileMeta: { name: string; mimeType: string }) => Promise<void>;
+	onInformationChange: (information: string) => void;
 	pdfFileBytes: Uint8Array | null;
 	pdfFileName: string;
 }
@@ -1025,31 +1030,61 @@ interface DocumentPreviewPaneProps {
 const DocumentPreviewPane = memo(
 	({
 		activePdfFieldHighlights,
+		information,
 		onClear,
 		onFieldSelect,
 		onFileUpload,
+		onInformationChange,
 		pdfFileBytes,
 		pdfFileName,
-	}: DocumentPreviewPaneProps) => (
-		<div className="col-span-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-t p-4 md:border-t-0 md:border-l">
-			<div className="shrink-0">
-				<PDFUploadSection
-					onClear={onClear}
-					onFileUpload={onFileUpload}
-					pdfFile={pdfFileBytes}
-					pdfFileName={pdfFileName}
-				/>
+	}: DocumentPreviewPaneProps) => {
+		const [activeView, setActiveView] = useState<DocumentPreviewView>("document");
+
+		return (
+			<div className="relative col-span-1 flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-t p-4 pr-14 md:border-t-0 md:border-l">
+				<DocumentPreviewTabs activeView={activeView} onViewChange={setActiveView} />
+				{activeView === "document" ? (
+					<>
+						<div className="shrink-0">
+							<PDFUploadSection
+								onClear={onClear}
+								onFileUpload={onFileUpload}
+								pdfFile={pdfFileBytes}
+								pdfFileName={pdfFileName}
+							/>
+						</div>
+						<div className="mt-4 min-h-0 flex-1 overflow-hidden">
+							<PDFViewSection
+								activeFieldHighlights={activePdfFieldHighlights}
+								hasUploadedFile={Boolean(pdfFileBytes)}
+								onFieldSelect={onFieldSelect}
+								pdfFile={pdfFileBytes}
+							/>
+						</div>
+					</>
+				) : (
+					<div className="flex min-h-0 flex-1 flex-col gap-3">
+						<div>
+							<Label htmlFor="document-information">
+								{USER_MESSAGES.documentEditor.informationLabel}
+							</Label>
+							<p className="mt-1 text-muted-foreground text-xs">
+								{USER_MESSAGES.documentEditor.informationDescription}
+							</p>
+						</div>
+						<Textarea
+							className="min-h-0 flex-1 resize-none"
+							id="document-information"
+							maxLength={10_000}
+							onChange={(event) => onInformationChange(event.target.value)}
+							placeholder={USER_MESSAGES.documentEditor.informationPlaceholder}
+							value={information}
+						/>
+					</div>
+				)}
 			</div>
-			<div className="mt-4 min-h-0 flex-1 overflow-hidden">
-				<PDFViewSection
-					activeFieldHighlights={activePdfFieldHighlights}
-					hasUploadedFile={Boolean(pdfFileBytes)}
-					onFieldSelect={onFieldSelect}
-					pdfFile={pdfFileBytes}
-				/>
-			</div>
-		</div>
-	),
+		);
+	},
 );
 
 FieldDefinitionCard.displayName = "FieldDefinitionCard";
@@ -1180,6 +1215,7 @@ export default function DocumentEditor({
 
 	const [title, setTitle] = useState("");
 	const [category, setCategory] = useState("");
+	const [information, setInformation] = useState("");
 	const [newCategory, setNewCategory] = useState("");
 	const [pdfFileBytes, setPdfFileBytes] = useState<Uint8Array | null>(null);
 	const [pdfFields, setPdfFields] = useState<PdfFormField[]>([]);
@@ -1222,6 +1258,7 @@ export default function DocumentEditor({
 
 		setTitle(sourceDocument.title);
 		setCategory(sourceDocument.category);
+		setInformation(sourceDocument.information);
 		setVisibility(sourceDocument.visibility === "private" ? "private" : "public");
 		const savedDefinition = normalizeSavedDocumentDefinition(sourceDocument.fieldDefinitions);
 		if (savedDefinition.bindings.length > 0) {
@@ -1414,6 +1451,7 @@ export default function DocumentEditor({
 					category: finalCategory.trim(),
 					fieldDefinitions: definition,
 					id: documentId,
+					information: information.trim(),
 					title: title.trim(),
 					visibility,
 					...(isPdfReplaced
@@ -1431,6 +1469,7 @@ export default function DocumentEditor({
 			const createdDocument = await createMutation.mutateAsync({
 				category: finalCategory.trim(),
 				fieldDefinitions: definition,
+				information: information.trim(),
 				pdfBase64: encodeUint8ArrayToBase64(pdfFileBytes),
 				title: title.trim(),
 				visibility,
@@ -1446,6 +1485,7 @@ export default function DocumentEditor({
 		createMutation,
 		documentId,
 		definition,
+		information,
 		isPdfReplaced,
 		newCategory,
 		pdfFileBytes,
@@ -1712,9 +1752,11 @@ export default function DocumentEditor({
 
 				<DocumentPreviewPane
 					activePdfFieldHighlights={activePdfFieldHighlights}
+					information={information}
 					onClear={handleClearPdf}
 					onFieldSelect={handlePdfFieldSelect}
 					onFileUpload={handlePdfUpload}
+					onInformationChange={setInformation}
 					pdfFileBytes={pdfFileBytes}
 					pdfFileName={pdfFileName}
 				/>

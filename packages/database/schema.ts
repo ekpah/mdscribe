@@ -143,6 +143,7 @@ export const template = pgTable(
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
+		information: text("information").notNull().default(""),
 		title: text("title").notNull(),
 		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 }).notNull().defaultNow(),
 		visibility: text("visibility").notNull().default("public"),
@@ -165,6 +166,7 @@ export const documentTemplate = pgTable(
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
+		information: text("information").notNull().default(""),
 		pdfBytes: bytea("pdfBytes").notNull(),
 		title: text("title").notNull(),
 		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3 })

@@ -302,19 +302,6 @@ export interface ScribeGenerationTraceContext {
 	traceId?: string;
 }
 
-interface ScribeGenerationContext {
-	db: Database;
-	entitlements: { scribe: ScribeEntitlements };
-	session: Session;
-}
-
-interface ScribeGenerationTraceContext {
-	agentSectionId?: string;
-	agentRunId?: string;
-	observationId?: string;
-	traceId?: string;
-}
-
 interface ResolvedScribeRequest {
 	config: {
 		modelConfig: ModelConfig;
@@ -361,10 +348,12 @@ const extractPromptFromMessages = (messages: UIMessage[]): string => {
 const toTemplateContextInput = (template: {
 	content: string;
 	examples: string[];
+	information: string;
 	title: string;
 }): TemplateContextInput => ({
 	content: template.content,
 	examples: template.examples,
+	information: template.information,
 	title: template.title,
 });
 

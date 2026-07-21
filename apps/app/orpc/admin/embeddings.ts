@@ -85,13 +85,22 @@ const migrateEmbeddingsHandler = authed
 		stats.total = totalResult?.count ?? 0;
 
 		// Get templates to process based on mode
-			const templatesToProcess: { id: string; content: string }[] = mode === "missing"
+		const templatesToProcess: { id: string; content: string; information: string }[] =
+			mode === "missing"
 				? await context.db
-						.select({ content: template.content, id: template.id })
+						.select({
+							content: template.content,
+							id: template.id,
+							information: template.information,
+						})
 						.from(template)
 						.where(isNull(template.embedding))
 				: await context.db
-						.select({ content: template.content, id: template.id })
+						.select({
+							content: template.content,
+							id: template.id,
+							information: template.information,
+						})
 						.from(template);
 
 		if (templatesToProcess.length === 0) {
@@ -110,7 +119,9 @@ const migrateEmbeddingsHandler = authed
 
 			for (const templateItem of batch) {
 				try {
-					const embedding = await generateEmbeddings(templateItem.content);
+					const embedding = await generateEmbeddings(
+						[templateItem.content, templateItem.information].filter(Boolean).join("\n\n"),
+					);
 					await context.db
 						.update(template)
 						.set({ embedding })

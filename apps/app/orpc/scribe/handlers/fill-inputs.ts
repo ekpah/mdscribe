@@ -57,6 +57,7 @@ interface FillInputPayloadSummary {
 	audioFiles: FillInputAudioPayloadSummary[];
 	contextFiles: FillInputContextFilePayloadSummary[];
 	inputFieldCount: number;
+	templateInformationCharacters: number;
 	textContextCharacters: number;
 	totalPayloadBytes: number;
 }
@@ -167,6 +168,7 @@ const getTextContextCharacterCount = (
 const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPayloadSummary => {
 	const audioFiles = input.audioFiles ?? [];
 	const contextFiles = input.contextFiles ?? [];
+	const templateInformationCharacters = input.templateInformation?.length ?? 0;
 	const textContextCharacters = getTextContextCharacterCount(input.textContext);
 
 	assertAtMost(
@@ -183,6 +185,11 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		contextFiles.length,
 		FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles,
 		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles} Dateien können berücksichtigt werden.`,
+	);
+	assertAtMost(
+		templateInformationCharacters,
+		FILL_INPUT_PAYLOAD_LIMITS.maxTemplateInformationCharacters,
+		USER_MESSAGES.templateInformationTooLong,
 	);
 	assertAtMost(
 		textContextCharacters,
@@ -262,6 +269,7 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		audioFiles: audioSummaries,
 		contextFiles: fileSummaries,
 		inputFieldCount: input.inputFields.length,
+		templateInformationCharacters,
 		textContextCharacters,
 		totalPayloadBytes,
 	};
@@ -283,6 +291,7 @@ const buildFillInputUsageInputData = (
 	audioFiles: payloadSummary.audioFiles,
 	contextFiles: payloadSummary.contextFiles,
 	inputFields: summarizeInputFields(input.inputFields),
+	templateInformationCharacters: payloadSummary.templateInformationCharacters,
 	textContext: input.textContext,
 });
 
@@ -538,8 +547,17 @@ export const fillInputsHandler = authed
 		const filesAreNative = generationStrategy.files?.mode === "native";
 		// Reuse the shared scribe context pipeline so the clinical fields render
 		// through the same tunable <patient_context> as the main scribe flow.
+		const templateInformation = input.templateInformation?.trim();
 		const { contextXml } = composeScribeContext({
 			formData: { ...input.textContext },
+			template: templateInformation
+				? {
+						content: "",
+						examples: [],
+						information: templateInformation,
+						title: "Ausfüllhinweise",
+					}
+				: null,
 		});
 		const messages = composeFillInputsPrompt({
 			audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),

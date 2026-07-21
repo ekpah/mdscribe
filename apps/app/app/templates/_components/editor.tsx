@@ -180,12 +180,43 @@ const TemplateExamplesTab = ({
 	</TabsContent>
 );
 
+const TemplateInformationTab = ({
+	information,
+	onChange,
+}: {
+	information: string;
+	onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+}) => (
+	<TabsContent
+		className="mt-0 min-h-0 grow overflow-y-auto rounded-md border p-3"
+		value="information"
+	>
+		<div className="space-y-3">
+			<div>
+				<Label htmlFor="template-information">{USER_MESSAGES.templateInformationLabel}</Label>
+				<p className="mt-1 text-muted-foreground text-xs">
+					{USER_MESSAGES.templateInformationDescription}
+				</p>
+			</div>
+			<Textarea
+				className="min-h-[35dvh]"
+				id="template-information"
+				maxLength={10_000}
+				onChange={onChange}
+				placeholder={USER_MESSAGES.templateInformationPlaceholder}
+				value={information}
+			/>
+		</div>
+	</TabsContent>
+);
+
 export default function Editor({
 	cat,
 	categorySuggestions = [],
 	tit,
 	note,
 	examples: initialExamples = [],
+	information: initialInformation,
 	id,
 	canEditSource = false,
 	canCreatePrivateTemplates = false,
@@ -196,6 +227,7 @@ export default function Editor({
 	tit: string;
 	note: string;
 	examples?: string[];
+	information: string;
 	id?: string;
 	canEditSource?: boolean;
 	canCreatePrivateTemplates?: boolean;
@@ -209,6 +241,7 @@ export default function Editor({
 	const [examples, setExamples] = useState<string[]>(
 		initialExamples.slice(0, MAX_TEMPLATE_EXAMPLES),
 	);
+	const [information, setInformation] = useState(initialInformation);
 	const [newCategory, setNewCategory] = useState("");
 	const [visibility, setVisibility] = useState<TemplateVisibility>(initialVisibility);
 	const [showSource, setShowSource] = useState(false);
@@ -379,6 +412,7 @@ export default function Editor({
 					content,
 					examples: sanitizedExamples,
 					id,
+					information: information.trim(),
 					name,
 					visibility,
 				});
@@ -413,6 +447,7 @@ export default function Editor({
 					category: finalCategory,
 					content,
 					examples: sanitizedExamples,
+					information: information.trim(),
 					name,
 					visibility,
 				});
@@ -439,6 +474,7 @@ export default function Editor({
 			handleCreateError,
 			handleEditError,
 			id,
+			information,
 			invalidateTemplateQueries,
 			isFormValid,
 			name,
@@ -456,6 +492,9 @@ export default function Editor({
 
 	const handleNameChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
 		setName(event.target.value);
+	}, []);
+	const handleInformationChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
+		setInformation(event.target.value);
 	}, []);
 
 	const handleVisibilityChange = useCallback(
@@ -592,9 +631,12 @@ export default function Editor({
 					</div>
 
 					<Tabs className="min-h-0 grow" defaultValue="template">
-						<TabsList className="mb-2 grid w-fit grid-cols-2">
+						<TabsList className="mb-2 grid w-fit grid-cols-3">
 							<TabsTrigger value="template">Template</TabsTrigger>
 							<TabsTrigger value="examples">Beispiele</TabsTrigger>
+							<TabsTrigger value="information">
+								{USER_MESSAGES.templateInformationLabel}
+							</TabsTrigger>
 						</TabsList>
 
 						<TabsContent className="mt-0 flex min-h-0 grow flex-col gap-2" value="template">
@@ -634,6 +676,7 @@ export default function Editor({
 							onChangeExampleByIndex={handleChangeExampleByIndex}
 							onRemoveExampleByIndex={handleRemoveExampleByIndex}
 						/>
+						<TemplateInformationTab information={information} onChange={handleInformationChange} />
 					</Tabs>
 					<div className="flex shrink-0 flex-row gap-2">
 						<Button className="mt-2 w-full" disabled={isSubmitting || !isFormValid} type="submit">

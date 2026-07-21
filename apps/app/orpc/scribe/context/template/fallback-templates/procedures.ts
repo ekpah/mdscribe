@@ -52,7 +52,8 @@ Röntgen-Kontrolle, Drainage-Monitoring, Fördermengen-Dokumentation.
 
 export const buildRelevantProcedureTemplateReference = (
 	templateContent: string,
+	information = "",
 ): string => `## Relevante Textbaustein-Vorlage (Referenz)
 
 Nutze die folgende Vorlage als Beispiel eines Textbausteins. Dieser ist anhand der gegebenen Informationen ausgewählt und potenziell relevant, der Assistent baut also darauf auf. Bei Diskrepanzen, nutze auf jeden Fall die Informationen aus der Nutzereingabe!
-${templateContent}`;
+${templateContent}${information.trim() ? `\n\n## Informationen\n\n${information.trim()}` : ""}`;

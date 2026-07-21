@@ -11,6 +11,7 @@ export interface PatientContextData {
 export interface TemplateContextInput extends Record<string, unknown> {
 	content: string;
 	examples: string[];
+	information?: string;
 	title: string;
 }
 

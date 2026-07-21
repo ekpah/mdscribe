@@ -61,13 +61,16 @@ const generateEmbeddings = async (
 	content: string,
 	title: string,
 	category: string,
+	information: string,
 ): Promise<{ embedding: number[] }> => {
 	const contentWithMetadata = `---
 title: ${title}
 category: ${category}
 ---
 
-${content}`;
+${content}
+
+${information}`;
 	const embedding = await voyageClient
 		.embed({
 			input: contentWithMetadata,
@@ -93,6 +96,7 @@ const createTemplateInput = z.object({
 		.array(z.string().trim().min(1, "Example content is required"))
 		.max(10, "A maximum of 10 examples is allowed")
 		.default([]),
+	information: z.string().max(10_000, "Information is too long").default(""),
 	name: z.string().min(1, "Name is required"),
 	visibility: templateVisibilitySchema.default("public"),
 });
@@ -105,6 +109,7 @@ const updateTemplateInput = z.object({
 		.max(10, "A maximum of 10 examples is allowed")
 		.default([]),
 	id: z.string(),
+	information: z.string().max(10_000, "Information is too long").default(""),
 	name: z.string().min(1, "Name is required"),
 	visibility: templateVisibilitySchema.default("public"),
 });
@@ -246,6 +251,7 @@ const getTemplateHandler = pub
 				embedding: template.embedding,
 				examples: template.examples,
 				id: template.id,
+				information: template.information,
 				title: template.title,
 				updatedAt: template.updatedAt,
 				visibility: template.visibility,
@@ -408,7 +414,13 @@ const createTemplateHandler = authed
 			visibility: input.visibility,
 		});
 		ensureValidTemplateContent(input.content);
-		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
+		const information = input.information.trim();
+		const { embedding } = await generateEmbeddings(
+			input.content,
+			input.name,
+			input.category,
+			information,
+		);
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -420,6 +432,7 @@ const createTemplateHandler = authed
 					content: input.content,
 					embedding,
 					examples,
+					information,
 					title: input.name,
 					updatedAt: new Date(),
 					visibility: input.visibility,
@@ -447,7 +460,13 @@ const updateTemplateHandler = authed
 			visibility: input.visibility,
 		});
 		ensureValidTemplateContent(input.content);
-		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
+		const information = input.information.trim();
+		const { embedding } = await generateEmbeddings(
+			input.content,
+			input.name,
+			input.category,
+			information,
+		);
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -458,6 +477,7 @@ const updateTemplateHandler = authed
 					content: input.content,
 					embedding,
 					examples,
+					information,
 					title: input.name,
 					updatedAt: new Date(),
 					visibility: input.visibility,

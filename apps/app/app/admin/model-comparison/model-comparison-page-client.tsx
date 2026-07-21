@@ -2019,6 +2019,7 @@ export const ModelComparisonPageClient = () => {
 				buildSelectedTemplateReference({
 					content: template.content,
 					examples: template.examples ?? [],
+					information: template.information,
 					title: template.title,
 				}),
 			);

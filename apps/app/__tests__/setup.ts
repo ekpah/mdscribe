@@ -344,6 +344,7 @@ export const createTestTemplate = async (
 		content?: string;
 		embedding?: number[];
 		examples?: string[];
+		information?: string;
 		visibility?: "public" | "private";
 	},
 ) => {
@@ -356,6 +357,7 @@ export const createTestTemplate = async (
 			embedding: options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
 			examples: options?.examples ?? [],
 			id: crypto.randomUUID(),
+			information: options?.information ?? "",
 			title: options?.title ?? "Test Template",
 			updatedAt: new Date(),
 			visibility: options?.visibility ?? "public",

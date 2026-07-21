@@ -20,6 +20,8 @@ interface EvaluationDetails {
 		score: number;
 	}[];
 	evaluatedAt?: string;
+	instrument?: string;
+	maxScore?: number;
 	summary?: string;
 	totalScore?: number;
 }
@@ -62,6 +64,8 @@ export const EvaluationDetailsDialog = ({
 	trigger,
 }: EvaluationDetailsDialogProps) => {
 	const evaluatedAt = formatEvaluatedAt(evaluation.evaluatedAt);
+	const categoryMaxScore = evaluation.instrument === "PDQI-9" ? 5 : undefined;
+	const maxScore = evaluation.maxScore ?? 10;
 
 	return (
 		<Dialog>
@@ -70,10 +74,10 @@ export const EvaluationDetailsDialog = ({
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<Medal className="h-4 w-4 text-solarized-yellow" />
-						Evaluationsdetails
+						{evaluation.instrument ? `${evaluation.instrument}-Bewertung` : "Evaluationsdetails"}
 					</DialogTitle>
 					<DialogDescription>
-						Gesamt-Score {formatScore(evaluation.totalScore)} von 10
+						Gesamt-Score {formatScore(evaluation.totalScore)} von {maxScore}
 						{evaluatedAt ? `, berechnet am ${evaluatedAt}` : ""}
 					</DialogDescription>
 				</DialogHeader>
@@ -95,16 +99,14 @@ export const EvaluationDetailsDialog = ({
 
 					<div className="space-y-2">
 						{evaluation.categories.map((category) => (
-							<div
-								key={category.name}
-								className="rounded-md border border-solarized-base2 p-3"
-							>
+							<div key={category.name} className="rounded-md border border-solarized-base2 p-3">
 								<div className="flex items-start justify-between gap-4">
 									<span className="text-sm leading-snug text-solarized-base00">
 										{category.name}
 									</span>
 									<span className="shrink-0 font-mono text-sm text-solarized-base00">
 										{formatScore(category.score)}
+										{categoryMaxScore ? ` / ${categoryMaxScore}` : ""}
 									</span>
 								</div>
 								{category.comment ? (

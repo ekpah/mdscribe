@@ -124,6 +124,18 @@ describe("Templates oRPC Handlers", () => {
 				expect(result?.examples).toEqual(["First example", "Second example"]);
 			});
 
+			test("returns template information", async () => {
+				const { user } = await createTestUser(server.db);
+				const createdTemplate = await createTestTemplate(server.db, user.id, {
+					information: "Nutze kurze Absätze.",
+				});
+
+				const context = createTestContext({ db: server.db });
+				const result = await call(templatesHandler.get, { id: createdTemplate.id }, { context });
+
+				expect(result?.information).toBe("Nutze kurze Absätze.");
+			});
+
 			test("hides private templates from anonymous and other users", async () => {
 				const { user: author } = await createTestUser(server.db, {
 					email: "author-private@test.com",
@@ -316,6 +328,7 @@ describe("Templates oRPC Handlers", () => {
 						category: "Test Category",
 						content: "Template content here",
 						examples: ["Example output one", "Example output two"],
+						information: "Use concise sections.",
 						name: "New Template",
 					},
 					{ context },
@@ -331,10 +344,11 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.visibility).toBe("public");
 
 				const [savedTemplate] = await server.db
-					.select({ examples: template.examples })
+					.select({ examples: template.examples, information: template.information })
 					.from(template)
 					.where(eq(template.id, result.id));
 				expect(savedTemplate?.examples).toEqual(["Example output one", "Example output two"]);
+				expect(savedTemplate?.information).toBe("Use concise sections.");
 			});
 
 			test("requires plus to create private templates", async () => {
@@ -431,6 +445,7 @@ describe("Templates oRPC Handlers", () => {
 						content: "Updated content",
 						examples: ["Updated example one", "Updated example two"],
 						id: createdTemplate.id,
+						information: "Lead with the assessment.",
 						name: "Updated Title",
 					},
 					{ context },
@@ -441,10 +456,11 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.content).toBe("Updated content");
 
 				const [savedTemplate] = await server.db
-					.select({ examples: template.examples })
+					.select({ examples: template.examples, information: template.information })
 					.from(template)
 					.where(eq(template.id, createdTemplate.id));
 				expect(savedTemplate?.examples).toEqual(["Updated example one", "Updated example two"]);
+				expect(savedTemplate?.information).toBe("Lead with the assessment.");
 			});
 
 			test("requires plus to keep templates private on update", async () => {

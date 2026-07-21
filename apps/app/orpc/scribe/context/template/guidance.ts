@@ -6,6 +6,8 @@ const hasContent = (value: string | undefined): value is string =>
 	typeof value === "string" && value.trim().length > 0;
 
 const TEMPLATE_CONTEXT_USAGE = `Nutze diese Vorlage als primäre Zielstruktur und stilistische Orientierung.
+- Befolge <information> als verbindliche Zusatzanweisungen für das Ausfüllen der Vorlage.
+- Zusatzanweisungen dürfen keine fehlenden Patientendaten ersetzen und nicht als Inhalt ausgegeben werden.
 - Übernimm NIEMALS Inhalte aus Beispielen oder Vorlagen, nur Struktur, Form und Stil.
 - Inhalte dürfen AUSSCHLIEßLICH aus den bereitgestellten Eingaben und dem Patientenkontext stammen.
 - Übernimm nicht den Titel aus <title>; nutze ihn nur als Kontext und gib keine XML-Tags zurück.`;
@@ -40,10 +42,12 @@ const renderTemplateContext = (
 	const title = toTrimmedString(template.title);
 	const content = toTrimmedString(template.content);
 	const examples = toExamples(template.examples);
+	const information = toTrimmedString(template.information);
 
 	const blocks = [
 		title ? `<title>\n${title}\n</title>` : "",
 		content ? `<content>\n${content}\n</content>` : "",
+		information ? `<information>\n${information}\n</information>` : "",
 		examples.length > 0
 			? `<examples>\n${examples
 					.map((example) => `<example>\n${example}\n</example>`)
@@ -80,25 +84,20 @@ export const resolveSelectedTemplateContext = (
 	return hasContent(parsedTemplate.content) ? parsedTemplate : undefined;
 };
 
-const toTemplateContextInput = (
-	data: Record<string, unknown>,
-): TemplateContextInput => ({
+const toTemplateContextInput = (data: Record<string, unknown>): TemplateContextInput => ({
 	content: toTrimmedString(data.content),
 	examples: toExamples(data.examples),
+	information: toTrimmedString(data.information),
 	title: toTrimmedString(data.title),
 });
 
-const resolveTemplateContextFromSources = (
-	sources: ContextSource[],
-): string | undefined => {
+const resolveTemplateContextFromSources = (sources: ContextSource[]): string | undefined => {
 	for (const source of sources) {
 		if (source.kind !== "template") {
 			continue;
 		}
 
-		const templateContext = buildTemplateFallbackContext(
-			toTemplateContextInput(source.data),
-		);
+		const templateContext = buildTemplateFallbackContext(toTemplateContextInput(source.data));
 		if (templateContext) {
 			return templateContext;
 		}

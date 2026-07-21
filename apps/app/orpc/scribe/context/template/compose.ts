@@ -2,13 +2,16 @@ const DEFAULT_TEMPLATE_TITLE = "Relevante Vorlage";
 const REFERENCE_HEADING = "## Ausgewaehlte Vorlage (Referenz)";
 const TITLE_PREFIX = "Titel:";
 const OVERRIDE_INSTRUCTION_PREFIX = "Nutze die folgende Vorlage";
+const INFORMATION_HEADING = "## Informationen";
 // Headings must start their own line; "Beispiele:" is the legacy variant.
 const EXAMPLES_HEADING_PATTERN = /^(?:## Beispiele|Beispiele:)[ \t]*$/m;
+const INFORMATION_HEADING_PATTERN = /^(?:## Informationen|Informationen:)[ \t]*$/m;
 const EXAMPLE_HEADING_PATTERN = /^### Beispiel \d+[ \t]*$/m;
 
 export const buildSelectedTemplateReference = (templateData: {
 	content: string;
 	examples: string[];
+	information?: string;
 	title: string;
 }): string => {
 	const sections = [
@@ -16,13 +19,14 @@ export const buildSelectedTemplateReference = (templateData: {
 		`${TITLE_PREFIX} ${templateData.title}`,
 		templateData.content,
 	];
+	if (templateData.information?.trim()) {
+		sections.push(INFORMATION_HEADING, templateData.information.trim());
+	}
 
 	if (templateData.examples.length > 0) {
 		sections.push(
 			"## Beispiele",
-			...templateData.examples.map(
-				(example, index) => `### Beispiel ${index + 1}\n\n${example}`,
-			),
+			...templateData.examples.map((example, index) => `### Beispiel ${index + 1}\n\n${example}`),
 		);
 	}
 
@@ -47,10 +51,10 @@ const splitExamples = (section: string): string[] =>
 
 export const parseSelectedTemplateReference = (
 	reference: string,
-): { content: string; examples: string[]; title: string } => {
+): { content: string; examples: string[]; information: string; title: string } => {
 	const normalized = reference.replaceAll("\r\n", "\n").trim();
 	if (!normalized) {
-		return { content: "", examples: [], title: DEFAULT_TEMPLATE_TITLE };
+		return { content: "", examples: [], information: "", title: DEFAULT_TEMPLATE_TITLE };
 	}
 
 	let title = "";
@@ -75,9 +79,23 @@ export const parseSelectedTemplateReference = (
 
 	let content = rest;
 	let examples: string[] = [];
+	let information = "";
+	const informationHeading = rest.match(INFORMATION_HEADING_PATTERN);
 	const examplesHeading = rest.match(EXAMPLES_HEADING_PATTERN);
+	const contentEnd = Math.min(
+		informationHeading?.index ?? rest.length,
+		examplesHeading?.index ?? rest.length,
+	);
+	content = rest.slice(0, contentEnd);
+	if (informationHeading?.index !== undefined) {
+		const informationStart = informationHeading.index + informationHeading[0].length;
+		const informationEnd =
+			examplesHeading?.index !== undefined && examplesHeading.index > informationHeading.index
+				? examplesHeading.index
+				: rest.length;
+		information = rest.slice(informationStart, informationEnd).trim();
+	}
 	if (examplesHeading?.index !== undefined) {
-		content = rest.slice(0, examplesHeading.index);
 		examples = splitExamples(rest.slice(examplesHeading.index + examplesHeading[0].length));
 	}
 	content = content.trim();
@@ -85,6 +103,7 @@ export const parseSelectedTemplateReference = (
 	return {
 		content: content.length > 0 ? content : normalized,
 		examples,
+		information,
 		title: title.length > 0 ? title : DEFAULT_TEMPLATE_TITLE,
 	};
 };

@@ -44,9 +44,17 @@ export const USER_MESSAGES = {
 		aiModelUnavailable: "Kein kompatibles KI-Modell für PDF-Analyse verfügbar.",
 		aiProposalInvalid: "Der KI-Vorschlag konnte nicht angewendet werden.",
 		cancelAddingCheckbox: "Hinzufügen abbrechen",
+		contentTabsLabel: "Dokumentinhalt",
 		detachCheckboxOption: "Als einzelne Checkbox abtrennen",
 		editDocument: "Dokument bearbeiten",
 		forkDocument: "Dokument kopieren und bearbeiten",
+		informationDescription:
+			"Hinweise und Vorgaben zum Ausfüllen. Sie werden auch beim automatischen Ausfüllen als KI-Anweisungen berücksichtigt.",
+		informationEmpty: "Keine Informationen hinterlegt.",
+		informationEmptyDescription: "Dieses Dokument kann trotzdem direkt ausgefüllt werden.",
+		informationLabel: "Informationen",
+		informationPlaceholder: "Beschreiben Sie, wie dieses Dokument ausgefüllt werden soll.",
+		pdfTabLabel: "PDF",
 		pdfUploadFailed: "PDF konnte nicht verarbeitet werden.",
 		pdfUploadSuccess: "Dokument hochgeladen",
 		selectCheckboxAsOption: "Als Option hinzufügen",
@@ -125,6 +133,15 @@ export const USER_MESSAGES = {
 		results: "Suchergebnisse",
 		title: "Textbaustein finden",
 	},
+	templateInformationDescription:
+		"Hinweise und Vorgaben für die KI. Sie werden als Anweisungen in den Vorlagenkontext aufgenommen.",
+	templateInformationEmpty: "Keine Informationen hinterlegt.",
+	templateInformationEmptyDescription:
+		"Für diesen Textbaustein gelten keine zusätzlichen Anweisungen.",
+	templateInformationLabel: "Informationen",
+	templateInformationPlaceholder:
+		"Beschreiben Sie, wie die Vorlage ausgefüllt werden soll, und ergänzen Sie relevante Vorgaben.",
+	templateInformationTooLong: "Informationen dürfen höchstens 10.000 Zeichen lang sein.",
 	unauthorized: "Bitte melden Sie sich an, um diese Funktion zu nutzen.",
 	unknownError: "Es ist ein unbekannter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
 	usageLimitReached: "Monatliche Nutzungsgrenze erreicht. Bitte passen Sie Ihr Abonnement an.",

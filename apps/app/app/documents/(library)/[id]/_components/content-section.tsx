@@ -11,6 +11,8 @@ import {
 	getInputIdForPdfWidget,
 	getPdfFieldHighlightsForInput,
 } from "@/app/documents/_components/pdf-field-highlights";
+import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
+import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	cloneUint8Array,
@@ -24,15 +26,39 @@ import {
 } from "@/app/documents/_lib";
 import type { DocumentDefinition } from "@/app/documents/_lib";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
+
+const DocumentInformationPreview = ({ information }: { information: string }) => (
+	<div className="min-h-full">
+		{information ? (
+			<pre className="whitespace-pre-wrap rounded-md border bg-muted/30 p-4 text-sm">
+				{information}
+			</pre>
+		) : (
+			<div className="flex min-h-full items-center justify-center">
+				<div className="max-w-sm rounded-md border border-dashed bg-muted/30 p-6 text-center">
+					<p className="font-medium text-sm">
+						{USER_MESSAGES.documentEditor.informationEmpty}
+					</p>
+					<p className="mt-2 text-muted-foreground text-sm">
+						{USER_MESSAGES.documentEditor.informationEmptyDescription}
+					</p>
+				</div>
+			</div>
+		)}
+	</div>
+);
 
 export default function ContentSection({
 	downloadFileName,
 	documentId,
 	definition,
+	information,
 }: {
 	downloadFileName?: string;
 	documentId: string;
 	definition: DocumentDefinition;
+	information: string;
 }) {
 	const normalizedDefinition = useMemo(() => {
 		try {
@@ -52,6 +78,7 @@ export default function ContentSection({
 	const [activeInputFocusKey, setActiveInputFocusKey] = useState<number>();
 	const [activePdfNavigationKey, setActivePdfNavigationKey] = useState(0);
 	const [activeInputName, setActiveInputName] = useState<string | null>(null);
+	const [contentView, setContentView] = useState<DocumentPreviewView>("document");
 	const [isRefreshingPreview, setIsRefreshingPreview] = useState(false);
 	const [hasPreviewError, setHasPreviewError] = useState(false);
 	const [previewRefreshRequestKey, setPreviewRefreshRequestKey] = useState(0);
@@ -180,6 +207,7 @@ export default function ContentSection({
 	const handleInputSelect = useCallback((inputName: string) => {
 		setActiveInputName(inputName);
 		setActivePdfNavigationKey((currentKey) => currentKey + 1);
+		setContentView("document");
 	}, []);
 
 	const handleInputBlur = useCallback(() => {
@@ -206,12 +234,18 @@ export default function ContentSection({
 		<InputPreviewSection
 			activeInputFocusKey={activeInputFocusKey}
 			activeInputName={activeInputName}
+			edgeTabs={
+				<DocumentPreviewTabs activeView={contentView} onViewChange={setContentView} />
+			}
 			inputTags={inputs}
 			onInputBlur={handleInputBlur}
 			onInputSelect={handleInputSelect}
 			onValuesChange={setValues}
-			preview={() =>
-				isLoadingPdf ? (
+			preview={() => {
+				if (contentView === "information") {
+					return <DocumentInformationPreview information={information} />;
+				}
+				return isLoadingPdf ? (
 					<div className="flex min-h-40 items-center justify-center rounded-xl border border-input border-dashed px-4 py-6 text-sm text-muted-foreground">
 						PDF wird geladen...
 					</div>
@@ -224,30 +258,33 @@ export default function ContentSection({
 						pdfFile={previewPdfBytes}
 						resetKey={documentId}
 					/>
-				)
-			}
+				);
+			}}
 			previewToolbar={
-				<>
-					<Button
-						disabled={!sourcePdfBytes || isRefreshingPreview}
-						onClick={handleRefreshPreview}
-						size="sm"
-						variant="outline"
-					>
-						<RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingPreview ? "animate-spin" : ""}`} />
-						Aktualisieren
-					</Button>
-					<Button disabled={hasPreviewError} onClick={handleDownload} size="sm" variant="outline">
-						<Download className="mr-2 h-4 w-4" />
-						Herunterladen
-					</Button>
-					<Button disabled={hasPreviewError} onClick={handlePrint} size="sm" variant="outline">
-						<Printer className="mr-2 h-4 w-4" />
-						Drucken
-					</Button>
-				</>
+				contentView === "document" ? (
+					<>
+						<Button
+							disabled={!sourcePdfBytes || isRefreshingPreview}
+							onClick={handleRefreshPreview}
+							size="sm"
+							variant="outline"
+						>
+							<RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingPreview ? "animate-spin" : ""}`} />
+							Aktualisieren
+						</Button>
+						<Button disabled={hasPreviewError} onClick={handleDownload} size="sm" variant="outline">
+							<Download className="mr-2 h-4 w-4" />
+							Herunterladen
+						</Button>
+						<Button disabled={hasPreviewError} onClick={handlePrint} size="sm" variant="outline">
+							<Printer className="mr-2 h-4 w-4" />
+							Drucken
+						</Button>
+					</>
+				) : undefined
 			}
 			resetKey={documentId}
+			templateInformation={information}
 		/>
 	);
 }

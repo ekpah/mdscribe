@@ -81,6 +81,7 @@ const DocumentPage = async ({ params }: PageProps<"/documents/[id]">) => {
 				downloadFileName={`${document.title}.pdf`}
 				documentId={document.id}
 				definition={definition}
+				information={document.information}
 			/>
 		</div>
 	);

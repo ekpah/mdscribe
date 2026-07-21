@@ -8,7 +8,7 @@ description: Fillbare PDF-Formulare in MDScribe verwalten und direkt im Browser 
 Mit **Dokumente** verwalten Sie fillbare PDF-Formulare aehnlich wie Templates:
 
 - Bibliothek mit Suche und Kategorien
-- Detailseite mit Eingaben links und PDF-Vorschau rechts
+- Detailseite mit Eingaben links und einer rechten Tab-Auswahl zwischen PDF-Vorschau und Informationen
 - Autoren koennen ihre Dokumente bearbeiten; andere eingeloggte Nutzer koennen oeffentliche Dokumente forken. Ohne Anmeldung wird keine Bearbeiten- oder Forken-Aktion angezeigt.
 - Sichtbarkeit pro Dokument: oeffentliche Dokumente sind fuer alle Nutzer sichtbar, nutzbar und kopierbar; private Dokumente sieht nur der Autor
 
@@ -16,8 +16,9 @@ Mit **Dokumente** verwalten Sie fillbare PDF-Formulare aehnlich wie Templates:
 
 1. In `/documents/create` ein fillbares PDF hochladen
 2. Erkannte Felder pruefen und Labels/Beschreibungen anpassen. Optional kann die KI die komplette Eingabestruktur einschliesslich Typen, Optionen und PDF-Bindings optimieren. Der Vorschlag wird vor der Uebernahme gegen die tatsaechlichen PDF-Felder validiert.
-3. Dokument speichern
-4. Auf der Detailseite Felder ausfuellen, Vorschau ansehen, herunterladen oder drucken
+3. Optional im rechten Tab **Informationen** allgemeine Ausfuellhinweise hinterlegen. Sie werden Nutzern angezeigt und beim automatischen Ausfuellen als KI-Anweisungen beruecksichtigt, ohne selbst als Formularwert uebernommen zu werden.
+4. Dokument speichern
+5. Auf der Detailseite die Hinweise lesen, Felder ausfuellen, Vorschau ansehen, herunterladen oder drucken
 
 ## Wichtige Regeln
 
@@ -55,6 +56,7 @@ Pro Dokument werden gespeichert:
 - Felddefinitionen (`fieldDefinitions`) mit:
   - `inputs`: direkt renderbare Eingaben; `attributes.primary` ist zugleich der Schluessel fuer spaetere Fuellwerte
   - `bindings`: Zuordnung von `fieldName` zu `inputId`, Aktivierung und optionaler `valueMap`
+- Allgemeine Ausfuellhinweise (`information`), getrennt von den eigentlichen PDF-Eingaben
 
 Jedes Binding verbindet eine Eingabe mit einem PDF-Feld. Mehrere Bindings duerfen dieselbe `inputId` verwenden, damit ein eingegebener Wert mehrere PDF-Felder fuellt. Ein PDF-Checkbox-Feld mit mehreren Widgets darf umgekehrt mehrere Bindings mit unterschiedlichen booleschen Eingaben besitzen. Beim Ausfuellen darf nur eine dieser Eingaben aktiv sein. PDF-Feldtyp und Widget-Metadaten werden beim Bearbeiten aus der PDF gelesen und nicht doppelt gespeichert.
 

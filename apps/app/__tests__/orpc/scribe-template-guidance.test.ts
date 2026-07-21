@@ -72,6 +72,7 @@ describe("Scribe template helpers", () => {
 		const reference = buildSelectedTemplateReference({
 			content: "## Abschnitt\nInhalt",
 			examples: ["Beispiel A"],
+			information: "Beginne mit einer knappen Zusammenfassung.",
 			title: "Echo Vorlage",
 		});
 
@@ -79,9 +80,17 @@ describe("Scribe template helpers", () => {
 		expect(parsed.title).toBe("Echo Vorlage");
 		expect(parsed.content).toContain("## Abschnitt");
 		expect(parsed.examples).toEqual(["Beispiel A"]);
+		expect(parsed.information).toBe("Beginne mit einer knappen Zusammenfassung.");
 		expect(parsed.content).not.toContain("## Ausgewaehlte Vorlage (Referenz)");
 		expect(parsed.content).not.toContain("## Beispiele");
 		expect(parsed.content).not.toContain("Beispiele:");
+		expect(parsed.content).not.toContain("## Informationen");
+
+		const context = buildTemplateFallbackContext(parsed);
+		expect(context).toContain(
+			"<information>\nBeginne mit einer knappen Zusammenfassung.\n</information>",
+		);
+		expect(context).toContain("Befolge <information> als verbindliche Zusatzanweisungen");
 	});
 
 	test("multi-paragraph examples survive the reference round-trip", () => {

@@ -8,6 +8,7 @@ import { ContextTransferAnnouncementTemplate } from "./templates/context-transfe
 import { DocumentsAnnouncementTemplate } from "./templates/documents-announcement";
 import { OTPLoginTemplate } from "./templates/otp-login";
 import { ResetPasswordTemplate } from "./templates/reset-password";
+import { TemplateInformationAnnouncementTemplate } from "./templates/template-information-announcement";
 import { EmailVerificationTemplate } from "./templates/verify";
 import { WelcomeTemplate } from "./templates/welcome";
 import { WorkspacesAnnouncementTemplate } from "./templates/workspaces-announcement";
@@ -47,6 +48,23 @@ const getRecipientName = (
 };
 
 const emailDrafts: readonly EmailDraftDefinition[] = [
+	{
+		category: "marketing",
+		description: "Marketingmail zum Informationen-Feld für Templates und Dokumente.",
+		id: "template-information-announcement",
+		previewProps: {
+			actionUrl: "https://mdscribe.de/templates/create",
+			buttonText: "Informationen hinzufügen",
+		},
+		render: () => (
+			<TemplateInformationAnnouncementTemplate
+				actionUrl="https://mdscribe.de/templates/create"
+				buttonText="Informationen hinzufügen"
+			/>
+		),
+		subject: "Neu: Eigene Vorgaben für Templates und Dokumente",
+		title: "Templates & Dokumente: Informationen",
+	},
 	{
 		category: "marketing",
 		description: "Marketingmail zur Weiterverwenden-Funktion für sichere Kontextübergabe.",

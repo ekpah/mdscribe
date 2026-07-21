@@ -12,6 +12,7 @@ import {
 	gte,
 	sql,
 	sum,
+	template,
 	usageEvent,
 	usageObservation,
 	usageTrace,
@@ -24,11 +25,19 @@ import { z } from "zod";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
+import { resolveFallbackTemplateByContextKey } from "@/orpc/scribe/context/template/fallbacks";
+import {
+	documentTypeConfigs,
+	getPromptHarnessLabel,
+	getPromptHarnessTargetField,
+	resolvePromptHarnessId,
+} from "@/orpc/scribe/prompts";
 import {
 	buildUsageEventEvaluationPrompt,
+	PDQI_9_CATEGORY_NAMES,
 	USAGE_EVENT_EVALUATION_SYSTEM_PROMPT,
 } from "@/orpc/scribe/prompts/core/evaluation";
+import type { EvaluationPromptContext } from "@/orpc/scribe/prompts/core/evaluation";
 import { buildProviderOptions, resolveDefaultModel } from "@/orpc/scribe/providers";
 
 const usageEvaluationSchema = z.object({
@@ -36,11 +45,11 @@ const usageEvaluationSchema = z.object({
 		.array(
 			z.object({
 				comment: z.string(),
-				name: z.string(),
-				score: z.number().min(0).max(10),
+				name: z.enum(PDQI_9_CATEGORY_NAMES),
+				score: z.number().int().min(1).max(5),
 			}),
 		)
-		.length(4),
+		.length(9),
 	summary: z.string(),
 });
 
@@ -109,6 +118,66 @@ const getDocumentTypeForEvaluation = (
 	}
 
 	return eventName;
+};
+
+const getNonEmptyMetadataString = (
+	metadata: Record<string, unknown>,
+	key: string,
+): string | undefined => {
+	const value = metadata[key];
+	if (typeof value !== "string") {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const resolveEvaluationPromptContext = async ({
+	db,
+	documentType,
+	metadata,
+}: {
+	db: { query: Database["query"] };
+	documentType: string;
+	metadata: Record<string, unknown>;
+}): Promise<EvaluationPromptContext | undefined> => {
+	const promptReference = getNonEmptyMetadataString(metadata, "promptName") ?? documentType;
+	const harnessId = resolvePromptHarnessId(promptReference) ?? resolvePromptHarnessId(documentType);
+	if (!harnessId) {
+		return undefined;
+	}
+
+	const templateId = getNonEmptyMetadataString(metadata, "templateId");
+	const selectedTemplate = templateId
+		? await db.query.template.findFirst({
+				columns: {
+					content: true,
+					information: true,
+					title: true,
+				},
+				where: eq(template.id, templateId),
+			})
+		: undefined;
+	const fallbackTemplate = selectedTemplate
+		? undefined
+		: resolveFallbackTemplateByContextKey(harnessId);
+	const promptTemplate = selectedTemplate ?? fallbackTemplate;
+
+	return {
+		harnessId,
+		harnessInstructions: documentTypeConfigs[harnessId].systemPrompt,
+		promptLabel: getPromptHarnessLabel(harnessId),
+		targetField: getPromptHarnessTargetField(harnessId),
+		template: promptTemplate
+			? {
+					content: promptTemplate.content,
+					information: promptTemplate.information,
+					source: selectedTemplate ? "selected" : "built-in",
+					title: promptTemplate.title,
+				}
+			: undefined,
+	};
 };
 
 type StatsFilter = "today" | "week" | "month" | "all";
@@ -464,6 +533,11 @@ const evaluateUsageEventHandler = authed
 		);
 		const metadata = toMetadataRecord(event.metadata);
 		const documentType = getDocumentTypeForEvaluation(event.name, metadata);
+		const promptContext = await resolveEvaluationPromptContext({
+			db: context.db,
+			documentType,
+			metadata,
+		});
 
 		let evaluation;
 		try {
@@ -472,6 +546,7 @@ const evaluateUsageEventHandler = authed
 				prompt: buildUsageEventEvaluationPrompt({
 					documentType,
 					inputs: event.inputData ?? {},
+					promptContext,
 					response: event.result,
 				}),
 				providerOptions: buildProviderOptions({
@@ -495,20 +570,17 @@ const evaluateUsageEventHandler = authed
 			});
 		}
 
-		const categories = evaluation.object.categories.map((category) => ({
+		const categories = evaluation.object.categories.map((category, index) => ({
 			comment: category.comment,
-			name: category.name,
-			score: Number(category.score.toFixed(1)),
+			name: PDQI_9_CATEGORY_NAMES[index] ?? category.name,
+			score: category.score,
 		}));
-		const totalScore = Number(
-			(
-				categories.reduce((total, category) => total + category.score, 0) /
-				Math.max(1, categories.length)
-			).toFixed(1),
-		);
+		const totalScore = categories.reduce((total, category) => total + category.score, 0);
 		const usageEvaluation = {
 			categories,
 			evaluatedAt: new Date().toISOString(),
+			instrument: "PDQI-9" as const,
+			maxScore: 45,
 			summary: evaluation.object.summary,
 			totalScore,
 		};

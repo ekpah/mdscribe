@@ -101,6 +101,7 @@ describe("Admin emails handler", () => {
 			"cold-outreach",
 			"context-transfer-announcement",
 			"documents-announcement",
+			"template-information-announcement",
 			"workspaces-announcement",
 		]);
 

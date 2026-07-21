@@ -431,62 +431,62 @@ export default function AppSidebar({
                 onOpenChange={handleCreateCollectionDialogChange}
                 open={isCreateCollectionOpen}
               >
-                <DialogTrigger render={<Button
-                    className="w-full justify-start gap-2 px-2"
+              <DialogTrigger render={<Button
+                  className="w-full justify-start gap-2 px-2"
+                  type="button"
+                  variant="outline"
+                >
+                  <FolderPlus className="h-4 w-4" />
+                  <span>Neue Sammlung</span>
+                </Button>} />
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Neue Sammlung</DialogTitle>
+                  <DialogDescription>
+                    Erstellen Sie eine Sammlung für Ihre Textbausteine.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="collection-name">Name</Label>
+                    <Input
+                      id="collection-name"
+                      maxLength={100}
+                      onChange={handleCollectionNameChange}
+                      placeholder="z.B. Notfall"
+                      value={collectionForm.name}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="collection-description">Beschreibung</Label>
+                    <Textarea
+                      id="collection-description"
+                      maxLength={500}
+                      onChange={handleCollectionDescriptionChange}
+                      placeholder="Optional"
+                      value={collectionForm.description}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={handleCloseCreateCollection}
                     type="button"
                     variant="outline"
                   >
-                    <FolderPlus className="h-4 w-4" />
-                    <span>Neue Sammlung</span>
-                  </Button>} />
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Neue Sammlung</DialogTitle>
-                    <DialogDescription>
-                      Erstellen Sie eine Sammlung für Ihre Textbausteine.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="collection-name">Name</Label>
-                      <Input
-                        id="collection-name"
-                        maxLength={100}
-                        onChange={handleCollectionNameChange}
-                        placeholder="z.B. Notfall"
-                        value={collectionForm.name}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="collection-description">Beschreibung</Label>
-                      <Textarea
-                        id="collection-description"
-                        maxLength={500}
-                        onChange={handleCollectionDescriptionChange}
-                        placeholder="Optional"
-                        value={collectionForm.description}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      onClick={handleCloseCreateCollection}
-                      type="button"
-                      variant="outline"
-                    >
-                      Abbrechen
-                    </Button>
-                    <Button
-                      disabled={createCollectionMutation.isPending}
-                      onClick={handleCreateCollection}
-                      type="button"
-                    >
-                      {createCollectionMutation.isPending
-                        ? 'Speichern...'
-                        : 'Erstellen'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
+                    Abbrechen
+                  </Button>
+                  <Button
+                    disabled={createCollectionMutation.isPending}
+                    onClick={handleCreateCollection}
+                    type="button"
+                  >
+                    {createCollectionMutation.isPending
+                      ? 'Speichern...'
+                      : 'Erstellen'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
               </Dialog>
             </SidebarGroupContent>
           )}

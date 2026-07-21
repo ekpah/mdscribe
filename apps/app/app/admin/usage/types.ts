@@ -43,6 +43,8 @@ export interface UsageEvaluation {
 		score: number;
 	}[];
 	evaluatedAt: string;
+	instrument?: string;
+	maxScore?: number;
 	summary: string;
 	totalScore: number;
 }

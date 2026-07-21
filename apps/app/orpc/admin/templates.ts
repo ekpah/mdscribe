@@ -20,6 +20,7 @@ const getAdminTemplateHandler = authed
 				content: template.content,
 				examples: template.examples,
 				id: template.id,
+				information: template.information,
 				title: template.title,
 				updatedAt: template.updatedAt,
 				visibility: template.visibility,

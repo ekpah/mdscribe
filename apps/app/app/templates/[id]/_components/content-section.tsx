@@ -3,14 +3,15 @@
 import { cn } from "@repo/design-system/lib/utils";
 import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import { FileText, ListChecks } from "lucide-react";
+import { FileText, Info, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
-type TemplateContentView = "template" | "examples";
+type TemplateContentView = "template" | "examples" | "information";
 
 const tabRailClassName = "absolute right-0 top-4 z-20 flex flex-col items-end gap-1";
 
@@ -24,11 +25,13 @@ const ContentViewTabs = ({
 	activeView,
 	examplesCount,
 	examplesHref,
+	informationHref,
 	templateHref,
 }: {
 	activeView: TemplateContentView;
 	examplesCount: number;
 	examplesHref: string;
+	informationHref: string;
 	templateHref: string;
 }) => (
 	<nav aria-label="Template-Inhalt" className={tabRailClassName}>
@@ -54,6 +57,16 @@ const ContentViewTabs = ({
 			</span>
 			<span className="absolute bottom-1.5 rounded-full bg-muted px-1.5 py-0.5 font-medium text-[10px] leading-none text-muted-foreground">
 				{examplesCount}
+			</span>
+		</Link>
+		<Link
+			aria-current={activeView === "information" ? "page" : undefined}
+			className={getFolderTabClassName(activeView === "information")}
+			href={informationHref}
+		>
+			<Info aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+			<span className="rotate-180 whitespace-nowrap font-medium text-[11px] leading-none [writing-mode:vertical-rl]">
+				{USER_MESSAGES.templateInformationLabel}
 			</span>
 		</Link>
 	</nav>
@@ -87,14 +100,37 @@ const ExamplesPreview = ({ examples }: { examples: string[] }) => {
 	);
 };
 
+const InformationPreview = ({ information }: { information: string }) => {
+	if (!information) {
+		return (
+			<div className="flex min-h-full items-center justify-center">
+				<div className="max-w-sm rounded-md border border-dashed bg-muted/30 p-6 text-center">
+					<p className="font-medium text-sm">{USER_MESSAGES.templateInformationEmpty}</p>
+					<p className="mt-2 text-muted-foreground text-sm">
+						{USER_MESSAGES.templateInformationEmptyDescription}
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<pre className="whitespace-pre-wrap rounded-md border bg-muted/30 p-4 text-sm">
+			{information}
+		</pre>
+	);
+};
+
 export default function ContentSection({
 	contentView,
 	note,
 	examples,
+	information,
 }: {
 	contentView: TemplateContentView;
 	note: string;
 	examples: string[];
+	information: string;
 }) {
 	const inputTags = useMemo(() => parseMarkdocToInputs(note), [note]);
 	const [activeInputName, setActiveInputName] = useState<string | null>(null);
@@ -104,8 +140,8 @@ export default function ContentSection({
 	const buildContentViewHref = (view: TemplateContentView) => {
 		const nextSearchParams = new URLSearchParams(searchParams.toString());
 
-		if (view === "examples") {
-			nextSearchParams.set("view", "examples");
+		if (view === "examples" || view === "information") {
+			nextSearchParams.set("view", view);
 		} else {
 			nextSearchParams.delete("view");
 		}
@@ -118,6 +154,7 @@ export default function ContentSection({
 			activeView={contentView}
 			examplesCount={examples.length}
 			examplesHref={buildContentViewHref("examples")}
+			informationHref={buildContentViewHref("information")}
 			templateHref={buildContentViewHref("template")}
 		/>
 	);
@@ -136,10 +173,14 @@ export default function ContentSection({
 			edgeTabs={contentTabs}
 			inputTags={inputTags}
 			onInputSelect={handleInputSelect}
-			preview={(values) =>
-				contentView === "examples" ? (
-					<ExamplesPreview examples={examples} />
-				) : (
+			preview={(values) => {
+				if (contentView === "examples") {
+					return <ExamplesPreview examples={examples} />;
+				}
+				if (contentView === "information") {
+					return <InformationPreview information={information} />;
+				}
+				return (
 					<DynamicMarkdocRenderer
 						activeTagName={activeInputName}
 						className="prose prose-slate grow"
@@ -147,9 +188,10 @@ export default function ContentSection({
 						onTagSelect={handleMarkdocTagSelect}
 						variables={values}
 					/>
-				)
-			}
+				);
+			}}
 			resetKey={note}
+			templateInformation={information}
 		/>
 	);
 }

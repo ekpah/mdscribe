@@ -66,6 +66,7 @@ export interface FillInputsInputPayload {
 	inputFields: InputField[];
 	audioFiles?: AudioFile[];
 	contextFiles?: FillInputsContextFile[];
+	templateInformation?: string;
 	textContext?: FillInputsTextContext;
 }
 
