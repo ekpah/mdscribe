@@ -23,8 +23,9 @@ import type { ChangeEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
 
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
-import { columns, formatDate, getSubscriptionLabel } from "./columns";
+import { columns, formatDate, formatMonthlyUsage, getSubscriptionLabel } from "./columns";
 import type { UserData } from "./columns";
 
 const UsersTableToolbar = ({
@@ -94,10 +95,8 @@ export default function UsersPageClient() {
 		}
 		return "Fehler beim Laden der Benutzer";
 	})();
-	const totalGenerations = users.reduce(
-		(sum, user) => sum + Number(user._count.usageEvents ?? 0),
-		0,
-	);
+	const totalUsageCost = users.reduce((sum, user) => sum + user.monthlyUsageCost, 0);
+	const totalUsageCostLimit = users.reduce((sum, user) => sum + user.monthlyUsageCostLimit, 0);
 	const plusUsers = users.filter((user) => user.hasActiveSubscription).length;
 	const freeUsers = users.length - plusUsers;
 	const filteredUsers = useMemo(() => {
@@ -194,10 +193,10 @@ export default function UsersPageClient() {
 							</div>
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">
-									KI-Nutzung (Monat)
+									{USER_MESSAGES.adminUsers.monthlyAiUsage}
 								</p>
 								<p className="font-semibold text-base text-solarized-base00 sm:text-lg">
-									{totalGenerations}
+									{formatMonthlyUsage(totalUsageCost, totalUsageCostLimit)}
 								</p>
 							</div>
 							<div className="space-y-1">
@@ -293,7 +292,7 @@ export default function UsersPageClient() {
 											</Badge>
 										</div>
 
-										<div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+										<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
 											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 												<p className="text-solarized-base01">Vorlagen</p>
 												<p className="font-medium text-solarized-base00">{user._count.templates}</p>
@@ -305,12 +304,30 @@ export default function UsersPageClient() {
 												</p>
 											</div>
 											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-												<p className="text-solarized-base01">KI-Nutzung (Monat)</p>
+												<p className="text-solarized-base01">
+													{USER_MESSAGES.adminUsers.aiScribeForms}
+												</p>
+												<p className="font-medium text-solarized-base00">
+													{user._count.aiScribeForms}
+												</p>
+											</div>
+											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+												<p className="text-solarized-base01">
+													{USER_MESSAGES.adminUsers.aiScribeWorkspaces}
+												</p>
+												<p className="font-medium text-solarized-base00">
+													{user._count.aiScribeWorkspaces}
+												</p>
+											</div>
+											<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
+												<p className="text-solarized-base01">
+													{USER_MESSAGES.adminUsers.monthlyAiUsage}
+												</p>
 												<Link
 													href={`/admin/usage?user=${encodeURIComponent(user.id)}`}
 													className="font-medium text-solarized-blue underline-offset-4 hover:underline"
 												>
-													{user._count.usageEvents}
+													{formatMonthlyUsage(user.monthlyUsageCost, user.monthlyUsageCostLimit)}
 												</Link>
 											</div>
 										</div>

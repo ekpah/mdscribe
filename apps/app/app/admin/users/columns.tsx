@@ -7,6 +7,8 @@ import { CheckCircle, Mail, Star, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { USER_MESSAGES } from "@/lib/user-messages";
+
 export interface UserData {
 	id: string;
 	name: string | null;
@@ -18,7 +20,11 @@ export interface UserData {
 	subscriptionPlan: string | null;
 	subscriptionStatus: string | null;
 	hasActiveSubscription: boolean;
+	monthlyUsageCost: number;
+	monthlyUsageCostLimit: number;
 	_count: {
+		aiScribeForms: number;
+		aiScribeWorkspaces: number;
 		templates: number;
 		favourites: number;
 		usageEvents: number;
@@ -46,6 +52,9 @@ export const formatDate = (date: Date | string) => {
 		year: "numeric",
 	}).format(dateObj);
 };
+
+export const formatMonthlyUsage = (cost: number, limit: number) =>
+	`$${cost.toFixed(4)} / $${limit.toFixed(2)}`;
 
 export const columns = [
 	columnHelper.accessor((row) => ({ email: row.email, image: row.image, name: row.name }), {
@@ -145,17 +154,33 @@ export const columns = [
 		header: ({ column }) => <DataTableColumnHeader column={column} title="Favoriten" />,
 		id: "favourites",
 	}),
-	columnHelper.accessor("_count.usageEvents", {
+	columnHelper.accessor("_count.aiScribeForms", {
+		cell: ({ getValue }) => <span className="text-solarized-base00">{getValue()}</span>,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title={USER_MESSAGES.adminUsers.aiScribeForms} />
+		),
+		id: "aiScribeForms",
+	}),
+	columnHelper.accessor("_count.aiScribeWorkspaces", {
+		cell: ({ getValue }) => <span className="text-solarized-base00">{getValue()}</span>,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title={USER_MESSAGES.adminUsers.aiScribeWorkspaces} />
+		),
+		id: "aiScribeWorkspaces",
+	}),
+	columnHelper.accessor((row) => row.monthlyUsageCost, {
 		cell: ({ getValue, row }) => (
 			<Link
 				href={`/admin/usage?user=${encodeURIComponent(row.original.id)}`}
 				className="text-solarized-blue underline-offset-4 hover:underline"
 			>
-				{getValue()}
+				{formatMonthlyUsage(getValue(), row.original.monthlyUsageCostLimit)}
 			</Link>
 		),
-		header: ({ column }) => <DataTableColumnHeader column={column} title="KI-Nutzung (Monat)" />,
-		id: "generations",
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title={USER_MESSAGES.adminUsers.monthlyAiUsage} />
+		),
+		id: "monthlyUsageCost",
 	}),
 	columnHelper.accessor("createdAt", {
 		cell: ({ getValue }) => (

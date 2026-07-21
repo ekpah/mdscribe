@@ -29,6 +29,11 @@ export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): st
 
 /** Single source of truth for all user-facing German messages. */
 export const USER_MESSAGES = {
+	adminUsers: {
+		aiScribeForms: "AI Vorlagen",
+		aiScribeWorkspaces: "Brief-Baukästen",
+		monthlyAiUsage: "KI-Nutzung",
+	},
 	aiscribeGenerationSuccess: "Erfolgreich generiert",
 	audioNotSupported: "Das ausgewählte Modell unterstützt keine Audio-Eingabe.",
 	checkingTemplateTags: "Tags werden geprüft...",

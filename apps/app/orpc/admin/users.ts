@@ -1,5 +1,19 @@
-import { and, desc, gte, inArray, lte, sql, subscription, usageEvent, user } from "@repo/database";
+import {
+	aiScribeFormConfig,
+	aiScribeWorkspace,
+	and,
+	desc,
+	gte,
+	inArray,
+	isNotNull,
+	lte,
+	sql,
+	subscription,
+	usageEvent,
+	user,
+} from "@repo/database";
 
+import { PRODUCT_PLANS } from "@/lib/product-plans";
 import { BILLABLE_SCRIBE_USAGE_EVENT_NAMES } from "@/lib/usage-event-names";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
@@ -8,8 +22,9 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 	const now = new Date();
 	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-	const usageRows = await context.db
+	const usageQuery = context.db
 		.select({
+			cost: sql<number>`coalesce(sum(${usageEvent.cost}), 0)::double precision`.as("usageCost"),
 			count: sql<number>`count(*)::int`.as("usageEventsCount"),
 			userId: usageEvent.userId,
 		})
@@ -23,10 +38,25 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 		)
 		.groupBy(usageEvent.userId);
 
-	const usageByUserId = new Map(usageRows.map((row) => [row.userId, Number(row.count ?? 0)]));
-
-	const subscriptions = await context.db
+	const aiScribeFormsQuery = context.db
 		.select({
+			count: sql<number>`count(*)::int`,
+			userId: aiScribeFormConfig.authorId,
+		})
+		.from(aiScribeFormConfig)
+		.where(isNotNull(aiScribeFormConfig.authorId))
+		.groupBy(aiScribeFormConfig.authorId);
+	const aiScribeWorkspacesQuery = context.db
+		.select({
+			count: sql<number>`count(*)::int`,
+			userId: aiScribeWorkspace.authorId,
+		})
+		.from(aiScribeWorkspace)
+		.where(isNotNull(aiScribeWorkspace.authorId))
+		.groupBy(aiScribeWorkspace.authorId);
+	const subscriptionsQuery = context.db
+		.select({
+			plan: subscription.plan,
 			referenceId: subscription.referenceId,
 			status: subscription.status,
 		})
@@ -36,14 +66,7 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 			sql`${subscription.periodEnd} DESC NULLS LAST`,
 			desc(subscription.createdAt),
 		);
-	const subscriptionByUserId = new Map<string, (typeof subscriptions)[number]>();
-	for (const currentSubscription of subscriptions) {
-		if (!subscriptionByUserId.has(currentSubscription.referenceId)) {
-			subscriptionByUserId.set(currentSubscription.referenceId, currentSubscription);
-		}
-	}
-
-	const users = await context.db
+	const usersQuery = context.db
 		.select({
 			_count: {
 				favourites: sql<number>`(
@@ -68,20 +91,54 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 		})
 		.from(user)
 		.orderBy(desc(user.createdAt));
+	const [usageRows, aiScribeFormRows, aiScribeWorkspaceRows, subscriptions, users] =
+		await Promise.all([
+			usageQuery,
+			aiScribeFormsQuery,
+			aiScribeWorkspacesQuery,
+			subscriptionsQuery,
+			usersQuery,
+		]);
+
+	const usageByUserId = new Map(
+		usageRows.map((row) => [
+			row.userId,
+			{ cost: Number(row.cost ?? 0), count: Number(row.count ?? 0) },
+		]),
+	);
+	const aiScribeFormsByUserId = new Map(
+		aiScribeFormRows.map((row) => [row.userId, Number(row.count ?? 0)]),
+	);
+	const aiScribeWorkspacesByUserId = new Map(
+		aiScribeWorkspaceRows.map((row) => [row.userId, Number(row.count ?? 0)]),
+	);
+	const subscriptionByUserId = new Map<string, (typeof subscriptions)[number]>();
+	for (const currentSubscription of subscriptions) {
+		if (!subscriptionByUserId.has(currentSubscription.referenceId)) {
+			subscriptionByUserId.set(currentSubscription.referenceId, currentSubscription);
+		}
+	}
 
 	return users.map((currentUser) => {
 		const selectedSubscription = subscriptionByUserId.get(currentUser.id);
 		const hasActiveSubscription =
 			selectedSubscription?.status === "active" || selectedSubscription?.status === "trialing";
+		const effectivePlan = hasActiveSubscription ? "plus" : "free";
+		const usage = usageByUserId.get(currentUser.id);
 
 		return {
 			...currentUser,
 			_count: {
 				...currentUser._count,
-				usageEvents: usageByUserId.get(currentUser.id) ?? 0,
+				aiScribeForms: aiScribeFormsByUserId.get(currentUser.id) ?? 0,
+				aiScribeWorkspaces: aiScribeWorkspacesByUserId.get(currentUser.id) ?? 0,
+				usageEvents: usage?.count ?? 0,
 			},
 			hasActiveSubscription,
-			subscriptionPlan: hasActiveSubscription ? ("plus" as const) : ("free" as const),
+			monthlyUsageCost: usage?.cost ?? 0,
+			monthlyUsageCostLimit: PRODUCT_PLANS[effectivePlan].scribeMonthlyCostLimit,
+			subscriptionPlan:
+				hasActiveSubscription && selectedSubscription ? selectedSubscription.plan : "free",
 			subscriptionStatus: selectedSubscription?.status ?? null,
 		};
 	});
