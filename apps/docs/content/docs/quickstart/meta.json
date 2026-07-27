@@ -1,6 +1,0 @@
-{
-  "title": "Quickstart",
-  "description": "Schneller Einstieg in MDScribe mit einem funktionierenden End-to-End Ablauf.",
-  "root": false,
-  "pages": ["index", "schnellstart"]
-}

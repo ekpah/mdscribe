@@ -1,6 +1,0 @@
-{
-  "title": "KI-Provider",
-  "description": "Unterstützte KI-Provider und ihre Konfiguration in MDScribe.",
-  "root": false,
-  "pages": ["index", "openrouter", "openai-compatible", "private", "local", "openai", "anthropic"]
-}

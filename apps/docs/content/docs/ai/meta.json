@@ -1,6 +1,0 @@
-{
-  "title": "KI zur Dokumentation",
-  "description": "Praktische Leitlinien fuer bessere KI-Ausgaben in MDScribe.",
-  "root": false,
-  "pages": ["index", "ki-instruktionen"]
-}

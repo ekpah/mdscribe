@@ -1,6 +1,0 @@
-{
-  "title": "Templates",
-  "description": "Aufbau, Tag-Syntax und Best Practices fuer robuste Templates.",
-  "root": false,
-  "pages": ["index", "tags", "info-tag", "switch-case-tags", "score-tag"]
-}
