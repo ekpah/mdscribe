@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import type { Session } from "@/lib/auth-types";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
+import { createTemplateFuse } from "@/lib/template-search";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed, pub } from "@/orpc";
 import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
@@ -208,25 +209,22 @@ const listTemplatesHandler = pub.handler(async ({ context }) => {
 	return templates;
 });
 
-/** Search every template visible to the current user using PostgreSQL full-text ranking. */
+/** Search every template visible to the current user using the shared fuzzy matcher. */
 const searchTemplatesHandler = pub.input(lexicalSearchInput).handler(async ({ context, input }) => {
 	const userId = await getOptionalUserId(context);
-	const document = sql`setweight(to_tsvector('german', coalesce(${template.title}, '')), 'A') || setweight(to_tsvector('german', coalesce(${template.category}, '')), 'B') || setweight(to_tsvector('german', coalesce(${template.content}, '')), 'D')`;
-	const query = sql`websearch_to_tsquery('german', ${input.query})`;
-	const rank = sql<number>`ts_rank_cd(${document}, ${query}, 32)`;
-
-	return context.db
+	const templates = await context.db
 		.select({
 			category: template.category,
 			id: template.id,
-			rank,
 			title: template.title,
 			updatedAt: template.updatedAt,
 		})
 		.from(template)
-		.where(and(visibleTemplateWhere(userId), sql`${document} @@ ${query}`))
-		.orderBy(desc(rank), desc(template.updatedAt), template.id)
-		.limit(LEXICAL_SEARCH_LIMIT);
+		.where(visibleTemplateWhere(userId));
+
+	return createTemplateFuse(templates)
+		.search(input.query, { limit: LEXICAL_SEARCH_LIMIT })
+		.map((result) => result.item);
 });
 
 /**

@@ -183,38 +183,46 @@ describe("Templates oRPC Handlers", () => {
 		});
 
 		describe("templates.search", () => {
-			test("ranks title matches and applies template visibility", async () => {
+			test("fuzzy-matches titles and categories and applies template visibility", async () => {
 				const { user: author } = await createTestUser(server.db);
 				const titleMatch = await createTestTemplate(server.db, author.id, {
 					content: "Allgemeiner Bericht",
 					title: "Hypertonie",
 				});
-				const contentMatch = await createTestTemplate(server.db, author.id, {
+				const categoryMatch = await createTestTemplate(server.db, author.id, {
+					category: "Hypertonie",
+					content: "Allgemeiner Bericht",
+					title: "Behandlungsbericht",
+				});
+				const contentOnlyMatch = await createTestTemplate(server.db, author.id, {
 					content: "Behandlung einer Hypertonie",
 					title: "Behandlungsbericht",
 				});
 				const privateMatch = await createTestTemplate(server.db, author.id, {
-					content: "Hypertonie",
-					title: "Privater Treffer",
+					content: "Allgemeiner Bericht",
+					title: "Private Hypertonie-Vorlage",
 					visibility: "private",
 				});
 
 				const anonymousResult = await call(
 					templatesHandler.search,
-					{ query: "  Hypertonie  " },
+					{ query: "  Hypertonnie  " },
 					{
 						context: createTestContext({ db: server.db }),
 					},
 				);
 				const authorResult = await call(
 					templatesHandler.search,
-					{ query: "Hypertonie" },
+					{ query: "Hypertonnie" },
 					{
 						context: createTestContext({ db: server.db, session: createMockSession(author) }),
 					},
 				);
 
-				expect(anonymousResult.map((item) => item.id)).toEqual([titleMatch.id, contentMatch.id]);
+				expect(anonymousResult.map((item) => item.id)).toEqual(
+					expect.arrayContaining([titleMatch.id, categoryMatch.id]),
+				);
+				expect(anonymousResult.map((item) => item.id)).not.toContain(contentOnlyMatch.id);
 				expect(authorResult.map((item) => item.id)).toContain(privateMatch.id);
 			});
 

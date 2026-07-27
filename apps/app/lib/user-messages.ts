@@ -37,6 +37,23 @@ export const USER_MESSAGES = {
 	aiscribeGenerationSuccess: "Erfolgreich generiert",
 	audioNotSupported: "Das ausgewählte Modell unterstützt keine Audio-Eingabe.",
 	checkingTemplateTags: "Tags werden geprüft...",
+	dashboard: {
+		activity: {
+			eventTitles: {
+				admin_scribe_playground: "Playground-Generierung",
+				ai_input_fill: "Eingaben mit KI ausgefüllt",
+				ai_input_fill_inputs: "Eingaben mit KI ausgefüllt",
+				ai_pdf_document_enhancement: "PDF-Formular mit KI optimiert",
+				ai_pdf_form_parsing: "PDF-Formular analysiert",
+				ai_scribe_agent: "Brief-Baukasten mit KI bearbeitet",
+				ai_scribe_generation: "KI-Dokumentation generiert",
+				ai_scribe_ocr: "Dokument mit OCR verarbeitet",
+				ai_scribe_stt: "Audio transkribiert",
+			},
+			templateUsed: "Textbaustein verwendet",
+			unknown: "KI-Funktion verwendet",
+		},
+	},
 	documentEditor: {
 		addCheckboxAsOption: "Checkbox als Option hinzufügen",
 		aiDefinitionTooLarge: "Das PDF enthält zu viele Formulardaten für eine KI-Optimierung.",
@@ -134,14 +151,6 @@ export const USER_MESSAGES = {
 		failed: "E-Mail-Adresse, Benutzername oder Passwort ist ungültig.",
 	},
 	subscriptionRequired: "Ihr Abonnement reicht nicht aus. Bitte aktualisieren Sie Ihr Abo.",
-	templateSearch: {
-		description: "Durchsuchen Sie alle für Sie verfügbaren Textbausteine.",
-		empty: "Keine passenden Textbausteine gefunden.",
-		label: "Textbausteine durchsuchen",
-		placeholder: "Zum Beispiel Entlassungsbrief oder Hypertonie",
-		results: "Suchergebnisse",
-		title: "Textbaustein finden",
-	},
 	templateInformationDescription:
 		"Hinweise und Vorgaben für die KI. Sie werden als Anweisungen in den Vorlagenkontext aufgenommen.",
 	templateInformationEmpty: "Keine Informationen hinterlegt.",
@@ -151,6 +160,26 @@ export const USER_MESSAGES = {
 	templateInformationPlaceholder:
 		"Beschreiben Sie, wie die Vorlage ausgefüllt werden soll, und ergänzen Sie relevante Vorgaben.",
 	templateInformationTooLong: "Informationen dürfen höchstens 10.000 Zeichen lang sein.",
+	templateSearch: {
+		badge: "Vorlagenbibliothek",
+		description: "Durchsuchen Sie alle für Sie verfügbaren Textbausteine.",
+		emptyDescription:
+			"Probieren Sie einen allgemeineren Begriff oder suchen Sie nach einem Titel oder einer Kategorie.",
+		emptyTitle: "Noch kein passender Textbaustein",
+		label: "Textbausteine durchsuchen",
+		placeholder: "Zum Beispiel Entlassungsbrief oder Hypertonie",
+		quickSearchLabel: "Schnellsuche",
+		quickSearches: [
+			{ label: "Entlassbrief", query: "Entlassbrief" },
+			{ label: "Anamnese", query: "Anamnese" },
+			{ label: "Diagnose", query: "Diagnose" },
+		],
+		results: "Treffer",
+		resultsFor: "für",
+		searchAction: "Suchen",
+		searchScope: "Titel und Kategorien",
+		title: "Textbaustein finden",
+	},
 	unauthorized: "Bitte melden Sie sich an, um diese Funktion zu nutzen.",
 	unknownError: "Es ist ein unbekannter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
 	usageLimitReached: "Monatliche Nutzungsgrenze erreicht. Bitte passen Sie Ihr Abonnement an.",
@@ -163,3 +192,5 @@ export const USER_MESSAGES = {
 		"Die gestrichelte Linie zeigt die auf sieben Tage hochgerechnete Nutzung der laufenden Woche.",
 	weeklyUsageProjectionLabel: "Prognose KI-Anfragen (Woche)",
 };
+
+export const formatGeneratedAiFormActivity = (name: string): string => `${name} generiert`;
