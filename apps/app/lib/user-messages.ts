@@ -96,6 +96,11 @@ export const USER_MESSAGES = {
 	missingInput: "Bitte füllen Sie mindestens ein Pflichtfeld aus.",
 	modelUnavailable:
 		"Kein geeignetes KI-Modell verfügbar. Bitte konfigurieren Sie ein Modell in den Einstellungen.",
+	playgroundEvaluation: {
+		action: "Bewerten",
+		failed: "Die Playground-Antwort konnte nicht bewertet werden.",
+		showDetails: "Bewertungsdetails öffnen",
+	},
 	privateAiScribeFormRequiresPlus:
 		"Private AI Vorlagen sind nur mit Plus verfügbar. Speichern Sie die AI Vorlage öffentlich oder aktualisieren Sie Ihr Abo.",
 	privateAiScribeWorkspaceRequiresPlus:

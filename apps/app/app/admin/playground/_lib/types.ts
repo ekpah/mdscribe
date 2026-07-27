@@ -59,9 +59,24 @@ export interface PlaygroundParameters {
 	presencePenalty?: number;
 }
 
+export interface PlaygroundEvaluation {
+	categories: {
+		comment?: string;
+		name: string;
+		score: number;
+	}[];
+	evaluatedAt: string;
+	instrument: "PDQI-9";
+	maxScore: number;
+	summary: string;
+	totalScore: number;
+}
+
 export interface PlaygroundResult {
 	text: string;
 	reasoning?: string;
+	evaluation?: PlaygroundEvaluation;
+	isEvaluating?: boolean;
 	comparison?: {
 		isLoading: boolean;
 		note?: string;

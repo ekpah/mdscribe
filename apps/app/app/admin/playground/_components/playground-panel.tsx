@@ -41,6 +41,7 @@ import type {
 } from "@/app/admin/playground/_lib/types";
 import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { buildSelectedTemplateReference } from "@/orpc/scribe/context/template/compose";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -169,6 +170,8 @@ interface RunState {
 	isStreaming: boolean;
 	error?: string;
 	comparison?: PlaygroundResult["comparison"];
+	evaluation?: PlaygroundResult["evaluation"];
+	isEvaluating?: boolean;
 	metrics: {
 		latencyMs: number;
 		inputTokens?: number;
@@ -2213,6 +2216,36 @@ const RunCard = ({
 		}
 	}, [clearComparisons, comparisonReference, runId, runState?.text, setRunState]);
 
+	const handleEvaluateRun = useCallback(async () => {
+		const currentPayload = payloadRef.current;
+		const responseText = (runState?.text || latestCompletionRef.current).trim();
+		if (!currentPayload || !responseText) {
+			return;
+		}
+
+		setRunState(runId, { isEvaluating: true });
+		try {
+			const inputs =
+				currentPayload.variables ??
+				(JSON.parse(currentPayload.promptJson || "{}") as Record<string, unknown>);
+			const evaluation = await orpc.admin.scribe.evaluateResponse.call({
+				documentType: currentPayload.documentType,
+				inputs,
+				promptName: currentPayload.promptName,
+				response: responseText,
+			});
+			setRunState(runId, {
+				evaluation,
+				isEvaluating: false,
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : USER_MESSAGES.playgroundEvaluation.failed,
+			);
+			setRunState(runId, { isEvaluating: false });
+		}
+	}, [runId, runState?.text, setRunState]);
+
 	const isRunning = status === "streaming" || status === "submitted";
 	const persistedResult = useMemo<PlaygroundResult | null>(
 		() =>
@@ -2220,6 +2253,8 @@ const RunCard = ({
 				? {
 						comparison: runState.comparison,
 						error: runState.error,
+						evaluation: runState.evaluation,
+						isEvaluating: runState.isEvaluating,
 						isStreaming: runState.isStreaming,
 						metrics: runState.metrics,
 						reasoning: runState.reasoning,
@@ -2291,6 +2326,8 @@ const RunCard = ({
 		clearComparisons();
 		setRunState(runId, {
 			error: undefined,
+			evaluation: undefined,
+			isEvaluating: false,
 			isStreaming: true,
 			metrics: { latencyMs: 0 },
 			requestId,
@@ -2375,6 +2412,7 @@ const RunCard = ({
 						? handleCompareRun
 						: undefined
 				}
+				onEvaluate={handleEvaluateRun}
 				result={displayResult}
 			/>
 		</div>
