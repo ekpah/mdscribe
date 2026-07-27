@@ -129,6 +129,12 @@ export const router = {
 
 	// User-specific operations
 	user: {
+		aiFunctionRecommendations: lazy(async () => {
+			const handlerModule = await import("./user/activity");
+			return {
+				default: handlerModule.activityHandler.aiFunctionRecommendations,
+			};
+		}),
 		auth: lazy(async () => {
 			const handlerModule = await import("./user/auth");
 			return { default: handlerModule.authHandler.auth };

@@ -12,6 +12,13 @@ Scope: everything under `apps/app`. Root rules still apply. Scribe and shared in
 - Templates and documents are `public` or `private`. Public items are visible/useable/forkable by everyone; private items are author-only and require Plus to create or keep private.
 - All German user-facing strings belong in `lib/user-messages.ts` (`USER_MESSAGES`). Translate visible labels, placeholders, aria labels, and permission errors before handoff.
 
+## Legal Scope
+
+- The privacy policy and general terms on `/legal` apply only to the MDScribe cloud service operated at `mdscribe.de`.
+- For self-hosted or on-premise installations, MDScribe sells a software license but does not control deployment or the customer's data processing. The operator is independently responsible for infrastructure, privacy notices, and data protection.
+- Do not make blanket Zero Data Retention claims unless every configured provider, fallback, embedding path, and internal log path technically enforces and verifies that promise.
+- The operator confirms that MDScribe's own similar-product email marketing satisfies every condition of the existing-customer exception in § 7(3) UWG. The marketing preference may default to enabled for these eligible customers, must not be described as consent, and must preserve the required collection-time notice, notice in every message, and immediate free objection.
+
 ## Providers and Models
 
 - Use only admin-configured DB providers/models; the DB is authoritative. `AiProvider` owns encrypted `apiKey`; `AiModel.providerId` is the FK and `(providerId, modelId)` is the sync key.
