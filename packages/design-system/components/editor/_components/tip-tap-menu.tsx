@@ -1,3 +1,4 @@
+import { getPrimaryFromSelection } from "@repo/design-system/components/editor/_lib/get-primary-from-selection";
 import { selectInsertedInlineTag } from "@repo/design-system/components/editor/_lib/select-inserted-inline-tag";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -44,23 +45,26 @@ const MenuBar = ({
 
 	const handlers = {
 		handleInsertInfoTag() {
+			const selectedPrimary = getPrimaryFromSelection(editor.state);
 			editor
 				.chain()
 				.focus()
 				.insertContent({
-					attrs: { primary: "..." },
+					attrs: { primary: selectedPrimary ?? "..." },
 					type: "infoTag",
 				})
 				.command(selectInsertedInlineTag)
 				.run();
 		},
 		handleInsertScoreTag() {
+			const selectedPrimary = getPrimaryFromSelection(editor.state);
 			editor
 				.chain()
 				.focus()
 				.insertContent({
 					attrs: {
 						formula: "",
+						primary: selectedPrimary,
 						unit: "",
 					},
 					type: "scoreTag",
@@ -69,13 +73,14 @@ const MenuBar = ({
 				.run();
 		},
 		handleInsertSwitchTag() {
+			const selectedPrimary = getPrimaryFromSelection(editor.state);
 			editor
 				.chain()
 				.focus()
 				.insertContent({
 					attrs: {
 						cases: [{ primary: "", text: "..." }],
-						primary: "...",
+						primary: selectedPrimary ?? "...",
 					},
 					type: "switchTag",
 				})

@@ -10,5 +10,6 @@ Scope: `packages/design-system`.
 - Solarized neutrals swap automatically in dark mode. Write light-mode neutral classes without `dark:` overrides and never use raw Solarized variables in components.
 - Canvas APIs need resolved CSS colors, not Tailwind token names. Prefer inherited `text-*` color for `LiveWaveform` and omit `barColor` when possible.
 - Tag editing uses the Figma-style inspector in `components/editor/tag-inspector/`: sidebar at `xl+`, bottom sheet below, node chips only select, and the editor connects through `onEditorChange`. Do not restore per-tag popovers.
+- When inserting a Markdoc tag over an editor selection, build its `primary` from the complete selection in document order: preserve plain text and substitute each selected Markdoc tag with that tag's `primary`.
 - Icon actions beside labelled fields align with the input control, not the label row.
 - `SelectTrigger` height variants use the `size` prop. Keep size classes mergeable so an explicit consumer height can override the default; do not combine `data-[size]` height selectors with plain `h-*` overrides.
