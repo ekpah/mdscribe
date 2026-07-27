@@ -18,8 +18,8 @@ import {
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
-import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
+import { ModelSelector } from "@repo/design-system/components/ui/searchable-select";
+import type { ModelSelectorOption } from "@repo/design-system/components/ui/searchable-select";
 import {
 	Select,
 	SelectContent,

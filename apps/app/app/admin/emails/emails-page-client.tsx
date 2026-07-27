@@ -20,6 +20,7 @@ import {
 } from "@repo/design-system/components/ui/dialog";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
+import { SearchableSelect } from "@repo/design-system/components/ui/searchable-select";
 import {
 	Select,
 	SelectContent,
@@ -45,6 +46,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 type EmailDraft = Awaited<ReturnType<typeof orpc.admin.emails.list.call>>[number];
 type EmailTestRecipient = Awaited<
@@ -228,27 +230,22 @@ const SendTestDialog = ({
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="test-user">Empfänger</Label>
-						<Select
-							value={selectedUserId}
+						<SearchableSelect
+							disabled={Boolean(usersError) || users.length === 0}
+							emptyMessage={USER_MESSAGES.searchableSelect.userEmpty}
+							id="test-user"
+							isLoading={isUsersLoading}
+							loadingMessage="Nutzer werden geladen..."
 							onValueChange={onUserChange}
-							disabled={isUsersLoading || Boolean(usersError) || users.length === 0}
-						>
-							<SelectTrigger id="test-user">
-								<SelectValue
-									placeholder={
-										isUsersLoading ? "Nutzer werden geladen..." : "Nutzer auswählen"
-									}
-								/>
-							</SelectTrigger>
-							<SelectContent>
-								{users.map((recipient) => (
-									<SelectItem key={recipient.id} value={recipient.id}>
-										{formatTestRecipientLabel(recipient)}
-										{recipient.emailVerified ? "" : " · unverifiziert"}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+							options={users.map((recipient) => ({
+								keywords: [recipient.email, recipient.name ?? ""],
+								label: `${formatTestRecipientLabel(recipient)}${recipient.emailVerified ? "" : " · unverifiziert"}`,
+								value: recipient.id,
+							}))}
+							placeholder="Nutzer auswählen"
+							searchPlaceholder={USER_MESSAGES.searchableSelect.userSearch}
+							value={selectedUserId}
+						/>
 						{usersError ? (
 							<p className="text-solarized-red text-xs">
 								{getErrorMessage(usersError, "Nutzer konnten nicht geladen werden")}

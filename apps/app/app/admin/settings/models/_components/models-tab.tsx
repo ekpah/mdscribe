@@ -11,7 +11,7 @@ import {
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
+import { ModelSelector } from "@repo/design-system/components/ui/searchable-select";
 import { Tabs, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SlidersHorizontal, X } from "lucide-react";

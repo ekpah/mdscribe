@@ -108,6 +108,14 @@ export const USER_MESSAGES = {
 	publicTemplateVisibilityWarning:
 		"Öffentlich: Alle Nutzer können diesen Textbaustein sehen, verwenden und kopieren.",
 	resolveTemplateTagErrors: "Tag-Konflikte vor dem Speichern beheben",
+	searchableSelect: {
+		empty: "Keine passenden Optionen gefunden.",
+		search: "Auswahl durchsuchen...",
+		templateEmpty: "Keine passenden Templates gefunden.",
+		templateSearch: "Template suchen...",
+		userEmpty: "Keine passenden Nutzer gefunden.",
+		userSearch: "Nutzer suchen...",
+	},
 	subscriptionRequired: "Ihr Abonnement reicht nicht aus. Bitte aktualisieren Sie Ihr Abo.",
 	templateSearch: {
 		description: "Durchsuchen Sie alle für Sie verfügbaren Textbausteine.",

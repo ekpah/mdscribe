@@ -13,6 +13,7 @@ import { DataTable, DataTablePagination, DataTableViewOptions } from '@repo/desi
 import type { DataTableRenderToolbarProps } from '@repo/design-system/components/ui/data-table';
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
+import { SearchableSelect } from "@repo/design-system/components/ui/searchable-select";
 import {
 	Select,
 	SelectContent,
@@ -32,6 +33,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { columns, formatTimestamp, getUserDisplayName } from "./columns";
 import type { AdminTemplateRow } from "./columns";
 
@@ -565,43 +567,35 @@ export default function AdminTemplatesPageClient() {
 					<CardContent className="space-y-4">
 						<div className="grid gap-3 sm:grid-cols-3">
 							<div className="space-y-2">
-								<Label>Autor</Label>
-								<Select
+								<Label htmlFor="template-author-filter">Autor</Label>
+								<SearchableSelect
+									emptyMessage={USER_MESSAGES.searchableSelect.userEmpty}
+									id="template-author-filter"
 									value={selectedAuthorId}
 									onValueChange={setSelectedAuthorId}
-								>
-									<SelectTrigger>
-										<SelectValue placeholder="Alle Autoren" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">Alle Autoren</SelectItem>
-										{authorOptions.map((option) => (
-											<SelectItem key={option.id} value={option.id}>
-												{option.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									options={[
+										{ label: "Alle Autoren", value: "all" },
+										...authorOptions.map((option) => ({ label: option.label, value: option.id })),
+									]}
+									placeholder="Alle Autoren"
+									searchPlaceholder={USER_MESSAGES.searchableSelect.userSearch}
+								/>
 							</div>
 
 							<div className="space-y-2">
-								<Label>Favorisiert von</Label>
-								<Select
+								<Label htmlFor="template-favourite-user-filter">Favorisiert von</Label>
+								<SearchableSelect
+									emptyMessage={USER_MESSAGES.searchableSelect.userEmpty}
+									id="template-favourite-user-filter"
 									value={selectedFavouriteOfUserId}
 									onValueChange={setSelectedFavouriteOfUserId}
-								>
-									<SelectTrigger>
-										<SelectValue placeholder="Alle Nutzer" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">Alle Nutzer</SelectItem>
-										{favouriteUserOptions.map((option) => (
-											<SelectItem key={option.id} value={option.id}>
-												{option.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									options={[
+										{ label: "Alle Nutzer", value: "all" },
+										...favouriteUserOptions.map((option) => ({ label: option.label, value: option.id })),
+									]}
+									placeholder="Alle Nutzer"
+									searchPlaceholder={USER_MESSAGES.searchableSelect.userSearch}
+								/>
 							</div>
 
 							<div className="space-y-2">

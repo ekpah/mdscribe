@@ -29,6 +29,48 @@ function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+const inputGroupAddonVariants = cva(
+  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      align: {
+        "inline-start": "order-first pl-3",
+        "inline-end": "order-last pr-3",
+        "block-start": "order-first w-full justify-start px-3 pt-3",
+        "block-end": "order-last w-full justify-start px-3 pb-3",
+      },
+    },
+    defaultVariants: {
+      align: "inline-start",
+    },
+  }
+)
+
+function InputGroupAddon({
+  className,
+  align = "inline-start",
+  onClick,
+  ...props
+}: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    onClick?.(event)
+    if (!event.defaultPrevented && !(event.target as HTMLElement).closest("button")) {
+      event.currentTarget.parentElement?.querySelector("input")?.focus()
+    }
+  }
+
+  return (
+    <div
+      role="group"
+      data-slot="input-group-addon"
+      data-align={align}
+      className={cn(inputGroupAddonVariants({ align }), className)}
+      onClick={handleClick}
+      {...props}
+    />
+  )
+}
+
 const inputGroupButtonVariants = cva(
   "flex items-center gap-2 text-sm shadow-none",
   {
@@ -68,6 +110,22 @@ function InputGroupButton({
   )
 }
 
+function InputGroupInput({
+  className,
+  ...props
+}: React.ComponentProps<"input">) {
+  return (
+    <Input
+      data-slot="input-group-control"
+      className={cn(
+        "flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
 
 function InputGroupTextarea({
   className,
@@ -87,6 +145,8 @@ function InputGroupTextarea({
 
 export {
   InputGroup,
+  InputGroupAddon,
   InputGroupButton,
+  InputGroupInput,
   InputGroupTextarea,
 }

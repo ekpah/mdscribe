@@ -1,21 +1,11 @@
 "use client";
 
-import {
-	Select,
-	SelectContent,
-	SelectGroup,
-	SelectItem,
-	SelectLabel,
-	SelectSeparator,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/design-system/components/ui/select";
-import { Fragment } from "react";
+import { SearchableSelect } from "@repo/design-system/components/ui/searchable-select";
+import { useMemo } from "react";
+
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 const UNCATEGORIZED_LABEL = "Ohne Kategorie";
-const LOADING_VALUE = "__template_selector_loading__";
-const EMPTY_VALUE = "__template_selector_empty__";
-
 const compareTemplateText = new Intl.Collator(undefined, {
 	numeric: true,
 	sensitivity: "base",
@@ -82,50 +72,33 @@ export const TemplateSelector = <TTemplate extends TemplateSelectorTemplate>({
 	templates,
 	value,
 }: TemplateSelectorProps<TTemplate>) => {
-	const groups = groupTemplatesByCategory(templates);
+	const options = useMemo(
+		() => [
+			{ label: noneLabel, value: noneValue },
+			...groupTemplatesByCategory(templates).flatMap((group) =>
+				group.entries.map((template) => ({
+					group: group.category,
+					label: template.title,
+					value: template.id,
+				})),
+			),
+		],
+		[noneLabel, noneValue, templates],
+	);
 
 	return (
-		<Select disabled={disabled} onValueChange={onValueChange} value={value}>
-			<SelectTrigger className={className} id={id}>
-				<SelectValue placeholder={placeholder} />
-			</SelectTrigger>
-			<SelectContent>
-				<SelectItem value={noneValue}>{noneLabel}</SelectItem>
-
-				{isLoading ? (
-					<>
-						<SelectSeparator />
-						<SelectItem disabled value={LOADING_VALUE}>
-							{loadingMessage}
-						</SelectItem>
-					</>
-				) : null}
-
-				{!isLoading && groups.length === 0 ? (
-					<>
-						<SelectSeparator />
-						<SelectItem disabled value={EMPTY_VALUE}>
-							{emptyMessage}
-						</SelectItem>
-					</>
-				) : null}
-
-				{isLoading
-					? null
-					: groups.map((group) => (
-							<Fragment key={group.category}>
-								<SelectSeparator />
-								<SelectGroup>
-									<SelectLabel>{group.category}</SelectLabel>
-									{group.entries.map((template) => (
-										<SelectItem key={template.id} value={template.id}>
-											{template.title}
-										</SelectItem>
-									))}
-								</SelectGroup>
-							</Fragment>
-						))}
-			</SelectContent>
-		</Select>
+		<SearchableSelect
+			className={className}
+			disabled={disabled}
+			emptyMessage={templates.length === 0 ? emptyMessage : USER_MESSAGES.searchableSelect.templateEmpty}
+			id={id}
+			isLoading={isLoading}
+			loadingMessage={loadingMessage}
+			onValueChange={onValueChange}
+			options={options}
+			placeholder={placeholder}
+			searchPlaceholder={USER_MESSAGES.searchableSelect.templateSearch}
+			value={value}
+		/>
 	);
 };

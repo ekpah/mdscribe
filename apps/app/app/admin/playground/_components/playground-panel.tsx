@@ -6,8 +6,8 @@ import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ModelSelector } from "@repo/design-system/components/ui/model-selector";
-import type { ModelSelectorOption } from "@repo/design-system/components/ui/model-selector";
+import { ModelSelector } from "@repo/design-system/components/ui/searchable-select";
+import type { ModelSelectorOption } from "@repo/design-system/components/ui/searchable-select";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,

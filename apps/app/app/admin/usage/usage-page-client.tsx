@@ -12,13 +12,7 @@ import {
 import { DataTable, DataTableViewOptions } from "@repo/design-system/components/ui/data-table";
 import type { DataTableRenderToolbarProps } from "@repo/design-system/components/ui/data-table";
 import { Input } from "@repo/design-system/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/design-system/components/ui/select";
+import { SearchableSelect } from "@repo/design-system/components/ui/searchable-select";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Activity, Loader2, Medal, XCircle } from "lucide-react";
@@ -29,6 +23,7 @@ import type { ChangeEvent, ReactNode } from "react";
 
 import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 import { UsageEventDetail } from "./_components/usage-event-detail";
 import { UsageTrendChart } from "./_components/usage-trend-chart-dynamic";
@@ -211,19 +206,16 @@ const UsageFilterSelect = ({
 		>
 			{label}
 		</label>
-		<Select value={value ?? "all"} onValueChange={onValueChange}>
-			<SelectTrigger id={`usage-filter-${label}`} className="w-full bg-solarized-base3">
-				<SelectValue placeholder={placeholder} />
-			</SelectTrigger>
-			<SelectContent>
-				<SelectItem value="all">Alle</SelectItem>
-				{items.map((item) => (
-					<SelectItem key={item.value} value={item.value}>
-						{item.label}
-					</SelectItem>
-				))}
-			</SelectContent>
-		</Select>
+		<SearchableSelect
+			className="bg-solarized-base3"
+			emptyMessage={USER_MESSAGES.searchableSelect.empty}
+			id={`usage-filter-${label}`}
+			onValueChange={onValueChange}
+			options={[{ label: "Alle", value: "all" }, ...items]}
+			placeholder={placeholder}
+			searchPlaceholder={USER_MESSAGES.searchableSelect.search}
+			value={value ?? "all"}
+		/>
 	</div>
 );
 
