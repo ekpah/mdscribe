@@ -20,7 +20,6 @@ const sendTestInput = draftIdInput.extend({
 });
 
 const MARKETING_BROADCAST_CONFIRMATION = "MARKETING E-MAIL SENDEN";
-const POSTMARK_BATCH_SIZE = 500;
 
 const sendMarketingEmailInput = draftIdInput.extend({
 	confirmation: z.string().trim().min(1, "Bestätigung ist erforderlich"),
@@ -122,7 +121,7 @@ const sendTestEmailDraftHandler = adminEmailProcedure
 		}
 
 		await sendEmail({
-			from: "noreply@mdscribe.de",
+			delivery: draft.category === "marketing" ? "broadcast" : "transactional",
 			subject,
 			template: draft.render({
 				recipient: {
@@ -166,20 +165,19 @@ const sendMarketingEmailHandler = adminEmailProcedure
 			.orderBy(asc(user.email));
 		const recipients = dedupeEmails(recipientRows.map((row) => row.email));
 
-		const responses = await sendEmailBatch({
-			from: "noreply@mdscribe.de",
+		const deliveryResult = await sendEmailBatch({
+			delivery: "broadcast",
 			subject: draft.subject,
 			template: draft.render(),
 			to: recipients,
 		});
 
 		return {
-			batchCount:
-				recipients.length === 0 ? 0 : Math.ceil(recipients.length / POSTMARK_BATCH_SIZE),
+			acceptedCount: deliveryResult.acceptedCount,
+			failedCount: deliveryResult.failedCount,
 			id: draft.id,
 			recipientCount: recipients.length,
 			subject: draft.subject,
-			submittedCount: responses.length,
 		};
 	});
 

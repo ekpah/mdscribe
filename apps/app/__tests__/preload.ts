@@ -127,13 +127,11 @@ const MockStripe = function MockStripe() {
 
 const sendEmailMock = mock(() => resolveAsync({ success: true }));
 const sendEmailBatchMock = mock((options: { to?: readonly string[] }) =>
-	resolveAsync(
-		(options.to ?? []).map((recipient, index) => ({
-			MessageID: `batch-message-${index}`,
-			SubmittedAt: new Date().toISOString(),
-			To: recipient,
-		})),
-	),
+	resolveAsync({
+		acceptedCount: options.to?.length ?? 0,
+		attemptedCount: options.to?.length ?? 0,
+		failedCount: 0,
+	}),
 );
 
 mock.module("server-only", () => ({}));
@@ -141,8 +139,11 @@ mock.module("server-only", () => ({}));
 mock.module("@repo/env", () => ({
 	env: {
 		ADMIN_EMAIL: "admin@test.com",
-		AUTH_POSTMARK_KEY: "test-key",
 		BETTER_AUTH_SECRET: "test-secret-key-for-testing-32chars",
+		MAIL_BROADCAST_SMTP_URL: undefined,
+		MAIL_FROM_ADDRESS: "noreply@test.com",
+		MAIL_FROM_NAME: "MDScribe Test",
+		MAIL_SMTP_URL: "smtp://localhost:1025",
 		NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
 		NODE_ENV: "test",
 		OPENROUTER_API_KEY: "test-key",

@@ -29,6 +29,14 @@ export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): st
 
 /** Single source of truth for all user-facing German messages. */
 export const USER_MESSAGES = {
+	adminEmails: {
+		broadcastAccepted: "vom SMTP-Relay angenommen",
+		broadcastDialogDescription:
+			"Sendet den ausgewählten Marketing-Entwurf über den konfigurierten SMTP-Provider an alle verifizierten Nutzerkonten.",
+		broadcastFailed: "fehlgeschlagen",
+		broadcastPartialTitle: "E-Mail-Broadcast teilweise versendet",
+		broadcastSuccessTitle: "E-Mail-Broadcast versendet",
+	},
 	adminTemplates: {
 		allAuthors: "Alle Autoren",
 		allUsers: "Alle Nutzer",

@@ -64,7 +64,10 @@ ensure_env_defaults() {
 }
 
 readonly -a ENV_DEFAULTS=(
-	"AUTH_POSTMARK_KEY=orb-placeholder"
+	"MAIL_SMTP_URL=smtp://127.0.0.1:1025?ignoreTLS=true"
+	"MAIL_BROADCAST_SMTP_URL="
+	"MAIL_FROM_ADDRESS=noreply@example.com"
+	"MAIL_FROM_NAME=MDScribe"
 	"NEXT_PUBLIC_BASE_URL=http://localhost:3000"
 	"BETTER_AUTH_SECRET=orb-development-secret-not-for-production"
 	"BETTER_AUTH_URL=http://localhost:3000"

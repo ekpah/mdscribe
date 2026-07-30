@@ -312,8 +312,7 @@ const SendMarketingBroadcastDialog = ({
 				<DialogHeader>
 					<DialogTitle>Marketing-E-Mail versenden</DialogTitle>
 					<DialogDescription>
-						Sendet den ausgewählten Marketing-Entwurf per Postmark Batch an alle
-						verifizierten Nutzerkonten.
+						{USER_MESSAGES.adminEmails.broadcastDialogDescription}
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-4 py-2">
@@ -564,9 +563,16 @@ export default function AdminEmailsPageClient() {
 			toast.error(getErrorMessage(error, "E-Mail-Broadcast konnte nicht gesendet werden"));
 		},
 		onSuccess: (result) => {
-			toast.success("E-Mail-Broadcast angestoßen", {
-				description: `${result.submittedCount} von ${result.recipientCount} Empfängern in ${result.batchCount} Postmark-Batches übergeben.`,
-			});
+			const description = `${result.acceptedCount} von ${result.recipientCount} Empfängern ${USER_MESSAGES.adminEmails.broadcastAccepted}. ${result.failedCount} ${USER_MESSAGES.adminEmails.broadcastFailed}.`;
+			if (result.failedCount > 0) {
+				toast.warning(USER_MESSAGES.adminEmails.broadcastPartialTitle, {
+					description,
+				});
+			} else {
+				toast.success(USER_MESSAGES.adminEmails.broadcastSuccessTitle, {
+					description,
+				});
+			}
 			setBroadcastDialogOpen(false);
 			setBroadcastConfirmation("");
 		},

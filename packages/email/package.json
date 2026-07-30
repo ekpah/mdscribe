@@ -4,17 +4,23 @@
   "license": "Elastic-2.0",
   "private": true,
   "scripts": {
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@react-email/components": "1.0.1",
-    "postmark": "^4.0.7",
+    "@repo/env": "workspace:*",
+    "nodemailer": "^9.0.3",
     "react": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@types/bun": "catalog:",
     "@types/node": "catalog:",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "catalog:",
+    "@types/smtp-server": "^3.5.12",
+    "smtp-server": "^3.16.1",
     "typescript": "catalog:"
   }
 }

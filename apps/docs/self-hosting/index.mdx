@@ -61,7 +61,10 @@ Fuer Self-Hosting ohne integrierte SaaS-Abrechnung sind nur die Kernvariablen re
 | `NEXT_PUBLIC_BASE_URL` | erforderlich | Externe Basis-URL der Instanz |
 | `ADMIN_EMAIL` | erforderlich | Administrativer Hauptaccount |
 | `BETTER_AUTH_SECRET` | erforderlich | Signatur/Session-Secret fuer Auth |
-| `AUTH_POSTMARK_KEY` | erforderlich | E-Mail-Versand (Auth-Mails, z.B. Passwort-Reset) |
+| `MAIL_SMTP_URL` | erforderlich | SMTP-Verbindung für Authentifizierungs- und System-E-Mails |
+| `MAIL_FROM_ADDRESS` | erforderlich | Absenderadresse für alle E-Mails |
+| `MAIL_FROM_NAME` | erforderlich | Anzeigename des Absenders |
+| `MAIL_BROADCAST_SMTP_URL` | optional | Separater SMTP-Provider für Marketing-Broadcasts |
 | `OPENROUTER_API_KEY` | erforderlich | Modellzugriff ueber OpenRouter |
 | `STRIPE_SECRET_KEY` | optional | Nur fuer integrierte Abrechnung notwendig |
 | `STRIPE_WEBHOOK_SECRET` | optional | Nur fuer Stripe-Webhooks notwendig |
@@ -70,6 +73,22 @@ Fuer Self-Hosting ohne integrierte SaaS-Abrechnung sind nur die Kernvariablen re
 
 Wenn Sie keine integrierte Billing-Logik nutzen, koennen Stripe-Variablen in einem Self-Hosted-Setup weggelassen werden.
 
+### E-Mail-Provider konfigurieren
+
+MDScribe verwendet Standard-SMTP und kann dadurch einen externen Provider oder
+einen Relay in der eigenen Infrastruktur ohne Codeänderung anbinden.
+
+```dotenv
+MAIL_SMTP_URL="smtp://benutzer:passwort@smtp.example.org:587?requireTLS=true"
+MAIL_BROADCAST_SMTP_URL=""
+MAIL_FROM_ADDRESS="noreply@example.org"
+MAIL_FROM_NAME="MDScribe"
+```
+
+Ist `MAIL_BROADCAST_SMTP_URL` leer, verwendet MDScribe auch für Broadcasts
+`MAIL_SMTP_URL`. Zugangsdaten müssen URL-kodiert sein; die Zertifikatsprüfung
+bleibt in Produktion aktiviert.
+
 ## 3. Datenfluss und Kontrollgrenzen
 
 | Pfad | Standardverhalten | Betreiberkontrolle |
@@ -77,7 +96,7 @@ Wenn Sie keine integrierte Billing-Logik nutzen, koennen Stripe-Variablen in ein
 | Browser -> MDScribe | TLS-verschlüsselte Eingaben | Zugriffsschutz, Session-Policies, Logging-Policy |
 | MDScribe -> PostgreSQL | Persistenz von App-Daten | DB-Standort, Verschlüsselung, Backup/Restore |
 | MDScribe -> OpenRouter -> Modellanbieter | Verarbeitung von Prompt/Antwort | Provider- und Modellwahl, organisatorische Nutzungsrichtlinien |
-| MDScribe -> Postmark | Versand transaktionaler E-Mails | Anbieterwahl/Policy, Mail-Inhalte |
+| MDScribe -> konfigurierter SMTP-Relay | Versand transaktionaler E-Mails | Anbieterwahl/Policy, Mail-Inhalte |
 | MDScribe -> Stripe | Abrechnung und Webhooks | Billing-Setup und Zugriffsschutz |
 
 Wenn Sie striktere Grenzen benötigen (z.B. keine externen KI-Endpunkte), ist zusätzlicher Implementierungsaufwand notwendig. Es soll jedoch in Kürze auch möglich sein, MDScribe mit lokalen LLMszu nutzen.
