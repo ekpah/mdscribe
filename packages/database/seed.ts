@@ -121,7 +121,6 @@ const seedTemplates = async (db: SeedTransaction, authorId: string): Promise<voi
 			authorId,
 			category: tmpl.category,
 			content: tmpl.content,
-			embedding: null,
 			id: crypto.randomUUID(),
 			title: tmpl.title,
 		});

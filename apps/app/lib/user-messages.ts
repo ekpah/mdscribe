@@ -29,6 +29,29 @@ export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): st
 
 /** Single source of truth for all user-facing German messages. */
 export const USER_MESSAGES = {
+	adminTemplates: {
+		allAuthors: "Alle Autoren",
+		allUsers: "Alle Nutzer",
+		author: "Autor",
+		authors: "Autoren",
+		description: "Übersicht aller Vorlagen, Favoriten und Autoren",
+		empty: "Keine Vorlagen für die aktuellen Filter gefunden.",
+		favouritedBy: "Favorisiert von",
+		favourites: "Favoriten",
+		loadError: "Seite konnte nicht geladen werden",
+		loading: "Vorlagenverwaltung wird geladen...",
+		of: "von",
+		overviewDescription: "Filterbar nach Autor und Favorisiert-von",
+		overviewTitle: "Template-Übersicht",
+		searchPlaceholder: "Vorlage, Kategorie oder Autor suchen...",
+		template: "Vorlage",
+		templates: "Vorlagen",
+		title: "Vorlagenverwaltung",
+		totalFavourites: "Favoriten gesamt",
+		totalTemplates: "Vorlagen gesamt",
+		unknown: "Unbekannt",
+		updated: "Aktualisiert",
+	},
 	adminUsers: {
 		aiScribeForms: "AI Vorlagen",
 		aiScribeWorkspaces: "Brief-Baukästen",

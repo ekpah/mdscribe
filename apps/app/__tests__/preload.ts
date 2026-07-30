@@ -96,17 +96,6 @@ const createOpenRouterMockModel = (modelId: string) => ({
 	specificationVersion: "v3",
 });
 
-const MockVoyageAIClient = function MockVoyageAIClient() {
-	return {
-		embed: () => {
-			const mockEmbedding = Array.from({ length: 1024 }, () => Math.random());
-			return resolveAsync({
-				data: [{ embedding: mockEmbedding }],
-			});
-		},
-	};
-};
-
 const MockStripe = function MockStripe() {
 	return {
 		checkout: {
@@ -162,7 +151,6 @@ mock.module("@repo/env", () => ({
 		STRIPE_PLUS_PRICE_ID_ANNUAL: "price_test_plus_annual",
 		STRIPE_SECRET_KEY: "sk_test_mock_key",
 		STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
-		VOYAGE_API_KEY: "test-voyage-key",
 	},
 }));
 
@@ -175,10 +163,6 @@ mock.module("next/headers", () => ({
 			set: () => null,
 		}),
 	headers: () => resolveAsync(new Headers()),
-}));
-
-mock.module("voyageai", () => ({
-	VoyageAIClient: MockVoyageAIClient,
 }));
 
 mock.module("@repo/email", () => ({

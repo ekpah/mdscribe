@@ -92,8 +92,7 @@ const adminFeatures: AdminCardProps[] = [
 		title: "AI Playground",
 	},
 	{
-		description:
-			"Zentrale Übersicht aller Templates inklusive Embedding-Verwaltung, Favoriten und Autoren-Filter.",
+		description: "Zentrale Übersicht aller Templates inklusive Favoriten und Autoren-Filter.",
 		href: "/admin/templates",
 		icon: <Database className="h-5 w-5 text-solarized-blue" />,
 		status: "active",
@@ -202,9 +201,7 @@ export default async function AdminDashboardPage() {
 	}
 	const licenseSeatSuffix =
 		license.maxSeats === null ? null : ` · ${license.seatCount}/${license.maxSeats}`;
-	const licenseColorClass = license.isExpired
-		? "text-solarized-yellow"
-		: "text-solarized-base00";
+	const licenseColorClass = license.isExpired ? "text-solarized-yellow" : "text-solarized-base00";
 
 	return (
 		<div className="p-4 sm:p-6">

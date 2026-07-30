@@ -325,7 +325,7 @@ describe("Templates oRPC Handlers", () => {
 		});
 
 		describe("templates.create", () => {
-			test("creates a new template with embedding and examples", async () => {
+			test("creates a new template with examples", async () => {
 				const { user } = await createTestUser(server.db);
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
@@ -347,8 +347,6 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.category).toBe("Test Category");
 				expect(result.content).toBe("Template content here");
 				expect(result.authorId).toBe(user.id);
-				expect(result.embedding).toBeDefined();
-				expect(result.embedding).toHaveLength(1024);
 				expect(result.visibility).toBe("public");
 
 				const [savedTemplate] = await server.db

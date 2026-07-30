@@ -1,5 +1,3 @@
-import { createDatabaseClient, createSqlClient, migrateDatabase } from "@repo/database/connect";
-import type { DatabaseWithSchema, SqlClient } from "@repo/database/connect";
 import {
 	aiDefaults,
 	aiModel,
@@ -9,6 +7,8 @@ import {
 	usageEvent,
 	user,
 } from "@repo/database";
+import { createDatabaseClient, createSqlClient, migrateDatabase } from "@repo/database/connect";
+import type { DatabaseWithSchema, SqlClient } from "@repo/database/connect";
 
 import type { Session } from "@/lib/auth-types";
 
@@ -137,7 +137,6 @@ const ensureTestDatabaseReady = async (connectionString: string): Promise<void> 
 	const { client, db } = createDatabaseClient(connectionString);
 
 	try {
-		await client.unsafe("CREATE EXTENSION IF NOT EXISTS vector");
 		await migrateDatabase(db, migrationsFolder);
 		preparedDatabases.add(connectionString);
 	} finally {
@@ -234,8 +233,7 @@ export const createTestUser = async (
 			? options.stripeCustomerId
 			: `cus_test_${crypto.randomUUID()}`;
 	const userId = crypto.randomUUID();
-	const username =
-		options?.username ?? `user_${userId.replaceAll("-", "").slice(0, 12)}`;
+	const username = options?.username ?? `user_${userId.replaceAll("-", "").slice(0, 12)}`;
 
 	const [fetchedUser] = await db
 		.insert(user)
@@ -312,17 +310,17 @@ export const createMockSession = (mockUser: {
 		userAgent: "test-agent",
 		userId: mockUser.id,
 	},
-		user: {
-			createdAt: new Date(),
-			email: mockUser.email,
-			emailVerified: mockUser.emailVerified ?? true,
-			id: mockUser.id,
-			image: mockUser.image ?? null,
-			name: mockUser.name ?? "Test User",
-			stripeCustomerId: mockUser.stripeCustomerId ?? `cus_test_${crypto.randomUUID()}`,
-			updatedAt: new Date(),
-		} as Session["user"] & { stripeCustomerId: string | null },
-	});
+	user: {
+		createdAt: new Date(),
+		email: mockUser.email,
+		emailVerified: mockUser.emailVerified ?? true,
+		id: mockUser.id,
+		image: mockUser.image ?? null,
+		name: mockUser.name ?? "Test User",
+		stripeCustomerId: mockUser.stripeCustomerId ?? `cus_test_${crypto.randomUUID()}`,
+		updatedAt: new Date(),
+	} as Session["user"] & { stripeCustomerId: string | null },
+});
 
 const getRequiredRow = <T>(rows: T[], message: string): T => {
 	const [row] = rows;
@@ -342,7 +340,6 @@ export const createTestTemplate = async (
 		title?: string;
 		category?: string;
 		content?: string;
-		embedding?: number[];
 		examples?: string[];
 		information?: string;
 		visibility?: "public" | "private";
@@ -354,7 +351,6 @@ export const createTestTemplate = async (
 			authorId,
 			category: options?.category ?? "Test Category",
 			content: options?.content ?? "Test content",
-			embedding: options?.embedding ?? Array.from({ length: 1024 }, () => Math.random()),
 			examples: options?.examples ?? [],
 			id: crypto.randomUUID(),
 			information: options?.information ?? "",

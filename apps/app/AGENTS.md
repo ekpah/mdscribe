@@ -7,7 +7,7 @@ Scope: everything under `apps/app`. Root rules still apply. Scribe and shared in
 - oRPC bases are `pub` and `authed` in `orpc.ts`; the router is `orpc/router.ts`. App routes/components use oRPC with TanStack Query and never import database helpers directly.
 - BetterAuth: server code calls `auth.api.getSession(...)`; client code uses `useSession()`. Prefer direct `auth.api.*` calls over one-off forwarding wrappers.
 - AI streaming handlers live in `orpc/scribe/handlers/`, prompts in `orpc/scribe/prompts/`, context in `orpc/scribe/context/`, and clients use `useScribeStream`.
-- Templates use Markdoc plus TipTap and 1024-dimensional Voyage embeddings.
+- Templates use Markdoc plus TipTap.
 - `Template.information` and `DocumentTemplate.information` contain author-provided filling instructions. Render them as a distinct `<information>` block during AI generation/autofill; they are not example or clinical content, and document information stays outside PDF input definitions.
 - Templates and documents are `public` or `private`. Public items are visible/useable/forkable by everyone; private items are author-only and require Plus to create or keep private.
 - All German user-facing strings belong in `lib/user-messages.ts` (`USER_MESSAGES`). Translate visible labels, placeholders, aria labels, and permission errors before handoff.
@@ -16,7 +16,7 @@ Scope: everything under `apps/app`. Root rules still apply. Scribe and shared in
 
 - The privacy policy and general terms on `/legal` apply only to the MDScribe cloud service operated at `mdscribe.de`.
 - For self-hosted or on-premise installations, MDScribe sells a software license but does not control deployment or the customer's data processing. The operator is independently responsible for infrastructure, privacy notices, and data protection.
-- Do not make blanket Zero Data Retention claims unless every configured provider, fallback, embedding path, and internal log path technically enforces and verifies that promise.
+- Do not make blanket Zero Data Retention claims unless every configured provider, fallback, and internal log path technically enforces and verifies that promise.
 - The operator confirms that MDScribe's own similar-product email marketing satisfies every condition of the existing-customer exception in § 7(3) UWG. The marketing preference may default to enabled for these eligible customers, must not be described as consent, and must preserve the required collection-time notice, notice in every message, and immediate free objection.
 
 ## Providers and Models

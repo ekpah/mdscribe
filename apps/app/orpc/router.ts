@@ -19,10 +19,6 @@ export const router = {
 			const handlerModule = await import("./admin/emails");
 			return { default: handlerModule.emailsHandler };
 		}),
-		embeddings: lazy(async () => {
-			const handlerModule = await import("./admin/embeddings");
-			return { default: handlerModule.embeddingsHandler };
-		}),
 		license: lazy(async () => {
 			const handlerModule = await import("./admin/license");
 			return { default: handlerModule.licenseHandler };
@@ -114,17 +110,8 @@ export const router = {
 
 	// Template operations (all CRUD under templates)
 	templates: lazy(async () => {
-		const [{ templatesHandler }, { findRelevantTemplateHandler }] = await Promise.all([
-			import("./templates"),
-			import("./templates/search"),
-		]);
-
-		return {
-			default: {
-				...templatesHandler,
-				findRelevant: findRelevantTemplateHandler,
-			},
-		};
+		const handlerModule = await import("./templates");
+		return { default: handlerModule.templatesHandler };
 	}),
 
 	// User-specific operations

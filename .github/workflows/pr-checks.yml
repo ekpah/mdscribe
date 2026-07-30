@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg17
+        image: postgres:17
         env:
           POSTGRES_DB: mdscribe
           POSTGRES_PASSWORD: postgres
@@ -57,9 +57,6 @@ jobs:
 
       - name: Run knip
         run: bun run knip
-
-      - name: Ensure pgvector extension
-        run: psql "$POSTGRES_DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
       - name: Migrate database
         run: bun run db:migrate

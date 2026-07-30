@@ -24,7 +24,7 @@ Nutzer ← MDScribe-Server ← OpenRouter ← ─ ─ ─ ─ ─  Antwort
 
 1. **Eingabe im Browser:** Sie geben klinische Informationen in die MDScribe-Oberfläche ein.
 2. **Übertragung an MDScribe:** Die Daten werden TLS-verschlüsselt an den MDScribe-Server übertragen.
-3. **Prompt-Aufbereitung:** MDScribe kombiniert Ihre Eingabe mit dem passenden System-Prompt und ggf. relevanten Textbausteinen (via Vektorsuche).
+3. **Prompt-Aufbereitung:** MDScribe kombiniert Ihre Eingabe mit dem passenden System-Prompt und ggf. einem von Ihnen ausgewählten Textbaustein.
 4. **Weiterleitung an OpenRouter:** Der aufbereitete Prompt wird TLS-verschlüsselt an OpenRouter gesendet.
 5. **Routing zum KI-Anbieter:** OpenRouter leitet die Anfrage an den gewählten KI-Anbieter weiter (z.B. Anthropic, Google).
 6. **Generierung:** Der KI-Anbieter verarbeitet den Prompt und generiert den Ausgabetext.

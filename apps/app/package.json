@@ -40,7 +40,6 @@
 		"next-secure-headers": "^2.2.0",
 		"nuqs": "^2.8.9",
 		"pdf-lib": "^1.17.1",
-		"pgvector": "^0.2.1",
 		"react": "catalog:",
 		"react-dom": "catalog:",
 		"react-hook-form": "catalog:",
@@ -52,7 +51,6 @@
 		"stripe": "^22.0.2",
 		"tinfoil": "^1.1.4",
 		"ua-parser-js": "^2.0.9",
-		"voyageai": "^0.0.5",
 		"ws": "^8.20.0",
 		"zod": "catalog:"
 	},

@@ -1,9 +1,7 @@
 import { ORPCError, type } from "@orpc/server";
 import { and, count, desc, eq, favourites, or, sql, template, user } from "@repo/database";
 import type { Database, Template } from "@repo/database";
-import { env } from "@repo/env";
 import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
-import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
 
 import type { Session } from "@/lib/auth-types";
@@ -15,10 +13,6 @@ import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
 
 const templateVisibilitySchema = z.enum(["public", "private"]);
 type TemplateVisibility = z.infer<typeof templateVisibilitySchema>;
-
-const voyageClient = new VoyageAIClient({
-	apiKey: env.VOYAGE_API_KEY as string,
-});
 
 // Helper: Count how many users have favourited a template
 const favouriteCount = (templateId: typeof template.id) =>
@@ -52,34 +46,6 @@ type TemplateWithRelations = Template & {
 	favouriteOf: { id: string }[];
 	author: TemplateAuthorSummary | null;
 	_count: { favouriteOf: number };
-};
-
-// ============================================================================
-// Embedding Generation
-// ============================================================================
-
-const generateEmbeddings = async (
-	content: string,
-	title: string,
-	category: string,
-	information: string,
-): Promise<{ embedding: number[] }> => {
-	const contentWithMetadata = `---
-title: ${title}
-category: ${category}
----
-
-${content}
-
-${information}`;
-	const embedding = await voyageClient
-		.embed({
-			input: contentWithMetadata,
-			model: "voyage-3-large",
-		})
-		.then((res) => res.data?.[0].embedding ?? []);
-
-	return { embedding };
 };
 
 // ============================================================================
@@ -246,7 +212,6 @@ const getTemplateHandler = pub
 				authorId: template.authorId,
 				category: template.category,
 				content: template.content,
-				embedding: template.embedding,
 				examples: template.examples,
 				id: template.id,
 				information: template.information,
@@ -413,12 +378,6 @@ const createTemplateHandler = authed
 		});
 		ensureValidTemplateContent(input.content);
 		const information = input.information.trim();
-		const { embedding } = await generateEmbeddings(
-			input.content,
-			input.name,
-			input.category,
-			information,
-		);
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -428,7 +387,6 @@ const createTemplateHandler = authed
 					authorId: context.session.user.id,
 					category: input.category,
 					content: input.content,
-					embedding,
 					examples,
 					information,
 					title: input.name,
@@ -459,12 +417,6 @@ const updateTemplateHandler = authed
 		});
 		ensureValidTemplateContent(input.content);
 		const information = input.information.trim();
-		const { embedding } = await generateEmbeddings(
-			input.content,
-			input.name,
-			input.category,
-			information,
-		);
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -473,7 +425,6 @@ const updateTemplateHandler = authed
 				.set({
 					category: input.category,
 					content: input.content,
-					embedding,
 					examples,
 					information,
 					title: input.name,

@@ -326,7 +326,7 @@ export default function LegalPage() {
 								</div>
 
 								<div className="space-y-2">
-									<h4 className="font-medium">6.3 KI- und Embedding-Dienste</h4>
+									<h4 className="font-medium">6.3 KI-Dienste</h4>
 									<p>
 										Zur Bereitstellung der KI-Funktionen werden die für eine Anfrage erforderlichen
 										Eingaben, Anhänge, Vorlageninformationen und technischen Parameter an
@@ -334,11 +334,6 @@ export default function LegalPage() {
 										darüber ausgewählten Modellanbieter, direkt konfigurierte OpenAI-kompatible
 										Anbieter sowie Tinfoil gehören. Die tatsächlich verwendeten Anbieter hängen von
 										Funktion, Modellauswahl und aktueller Konfiguration ab.
-									</p>
-									<p>
-										Für die semantische Suche und Zuordnung von Vorlagen nutzen wir derzeit Voyage
-										AI. Hierzu können Suchbegriffe, Vorlageninhalte, Vorlageninformationen und für
-										die Suche verwendete Textabschnitte übermittelt werden.
 									</p>
 									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3">
 										<p className="text-sm">
@@ -362,16 +357,6 @@ export default function LegalPage() {
 												target="_blank"
 											>
 												Datenschutzhinweise von OpenRouter
-											</a>
-										</li>
-										<li>
-											<a
-												className="underline underline-offset-4"
-												href="https://www.voyageai.com/privacy-policy"
-												rel="noopener noreferrer"
-												target="_blank"
-											>
-												Datenschutzhinweise von Voyage AI
 											</a>
 										</li>
 									</ul>

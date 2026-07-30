@@ -14,23 +14,6 @@ import {
 	uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-// Custom vector type for pgvector
-const vector = customType<{ data: number[]; driverData: string }>({
-	dataType() {
-		return "vector(1024)";
-	},
-	fromDriver(value: string): number[] {
-		// Parse "[1,2,3]" format
-		return value
-			.slice(1, -1)
-			.split(",")
-			.map((v) => Number.parseFloat(v));
-	},
-	toDriver(value: number[]): string {
-		return `[${value.join(",")}]`;
-	},
-});
-
 const bytea = customType<{ data: Uint8Array; driverData: Uint8Array | string }>({
 	dataType() {
 		return "bytea";
@@ -138,7 +121,6 @@ export const template = pgTable(
 			.references(() => user.id),
 		category: text("category").notNull(),
 		content: text("content").notNull(),
-		embedding: vector("embedding"),
 		examples: text("examples").array().notNull().default([]),
 		id: text("id")
 			.primaryKey()

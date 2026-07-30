@@ -21,7 +21,6 @@ const server: Parameters<typeof createEnv>[0]["server"] = {
 	STRIPE_WEBHOOK_SECRET: z.string().min(1),
 	// Added by Vercel
 	VERCEL: z.string().optional(),
-	VOYAGE_API_KEY: z.string().min(1),
 };
 
 const client: Parameters<typeof createEnv>[0]["client"] = {
@@ -46,7 +45,6 @@ export const env = createEnv({
 		STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
 		STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 		VERCEL: process.env.VERCEL,
-		VOYAGE_API_KEY: process.env.VOYAGE_API_KEY,
 	},
 	server,
 	skipValidation: !!process.env.SKIP_ENV_VALIDATION,
