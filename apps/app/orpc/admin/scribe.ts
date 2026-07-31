@@ -432,7 +432,6 @@ const transcribeAudioHandler = authed
 		if (mode === "native") {
 			const transcripts = await transcribeAudioFilesWithPrompt({
 				audioFiles,
-				db: context.db,
 				prompt: parsed.prompt,
 				resolvedModel: modelSelection.model,
 				userId: context.session.user.id,
@@ -460,7 +459,6 @@ const transcribeAudioHandler = authed
 
 		const preparedAudio = await prepareAudioInputForModel({
 			audioFiles,
-			db: context.db,
 			mode: "transcription",
 			resolvedModel: modelSelection.model,
 			userId: context.session.user.id,
