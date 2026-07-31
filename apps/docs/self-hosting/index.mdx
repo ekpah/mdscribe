@@ -78,6 +78,10 @@ Wenn Sie keine integrierte Billing-Logik nutzen, koennen Stripe-Variablen in ein
 MDScribe verwendet Standard-SMTP und kann dadurch einen externen Provider oder
 einen Relay in der eigenen Infrastruktur ohne Codeänderung anbinden.
 
+Die vollständige Anleitung mit Postmark-Beispielen, On-Premises-Hinweisen,
+Versandtests und Fehlersuche finden Sie unter
+[E-Mail-Provider konfigurieren](/self-hosting/email).
+
 ```dotenv
 MAIL_SMTP_URL="smtp://benutzer:passwort@smtp.example.org:587?requireTLS=true"
 MAIL_BROADCAST_SMTP_URL=""

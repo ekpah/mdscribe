@@ -86,7 +86,8 @@
       {
         "group": "Self-Hosting",
         "pages": [
-          "self-hosting/index"
+          "self-hosting/index",
+          "self-hosting/email"
         ]
       },
       {
