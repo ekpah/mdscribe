@@ -82,91 +82,116 @@ const AdminCard = ({ title, description, href, icon, status = "active" }: AdminC
 	);
 };
 
-const adminFeatures: AdminCardProps[] = [
+interface AdminSection {
+	title: string;
+	description: string;
+	features: AdminCardProps[];
+}
+
+const adminSections: AdminSection[] = [
 	{
-		description:
-			"Experimentiere mit verschiedenen KI-Modellen, Prompts und Parametern. Vergleiche Modelle nebeneinander und teste multimodale Eingaben.",
-		href: "/admin/playground",
-		icon: <FlaskConical className="h-5 w-5 text-solarized-violet" />,
-		status: "active",
-		title: "AI Playground",
+		description: "Zentrale Einstellungen und Informationen für den Betrieb dieser Instanz.",
+		features: [
+			{
+				description: "KI-Anbieter, Modelle, API-Schlüssel und Integrationsoptionen konfigurieren.",
+				href: "/admin/settings/models",
+				icon: <Settings className="h-5 w-5 text-solarized-yellow" />,
+				status: "active",
+				title: "Systemeinstellungen",
+			},
+			{
+				description:
+					"Lizenzstatus, freigeschaltete Edition und Nutzer-Sitze dieser Installation einsehen.",
+				href: "/admin/license",
+				icon: <KeyRound className="h-5 w-5 text-solarized-blue" />,
+				status: "active",
+				title: "Lizenz",
+			},
+			{
+				description:
+					"React-Email-Entwürfe prüfen und einzelne Test-E-Mails sicher an manuelle Empfänger senden.",
+				href: "/admin/emails",
+				icon: <Mail className="h-5 w-5 text-solarized-blue" />,
+				status: "active",
+				title: "E-Mail Entwürfe",
+			},
+		],
+		title: "System & Betrieb",
 	},
 	{
-		description: "Zentrale Übersicht aller Templates inklusive Favoriten und Autoren-Filter.",
-		href: "/admin/templates",
-		icon: <Database className="h-5 w-5 text-solarized-blue" />,
-		status: "active",
-		title: "Template Management",
-	},
-	{
-		description:
-			"Benutzerkonten, Berechtigungen und Zugriffskontrollen auf der Plattform anzeigen und verwalten.",
-		href: "/admin/users",
-		icon: <Users className="h-5 w-5 text-solarized-cyan" />,
-		status: "active",
-		title: "Benutzerverwaltung",
-	},
-	{
-		description:
-			"Alle AI-Generierungen einsehen. Token-Nutzung, Kosten und Modelle pro Anfrage analysieren.",
-		href: "/admin/usage",
-		icon: <Activity className="h-5 w-5 text-solarized-green" />,
-		status: "active",
-		title: "Nutzungsstatistik",
-	},
-	{
-		description:
-			"Zwei KI-Modelle mit zufälligen historischen Inputs gegeneinander testen und Präferenzen auswerten.",
-		href: "/admin/model-comparison",
-		icon: <Bot className="h-5 w-5 text-solarized-violet" />,
-		status: "active",
-		title: "AI-Modell-Vergleich",
-	},
-	{
-		description:
-			"PDF-Dateien mit auswählbarem OCR/File/Image-Modell zu Markdoc oder Text verarbeiten.",
-		href: "/admin/documents-playground",
-		icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
-		status: "active",
-		title: "Dokumenten-Playground",
-	},
-	{
-		description:
-			"Audio aufnehmen, Transkriptionsmodell wechseln und das erzeugte Transkript prüfen.",
-		href: "/admin/input-playground",
-		icon: <FileAudio className="h-5 w-5 text-solarized-blue" />,
-		status: "active",
-		title: "Audio-Playground",
-	},
-	{
-		description:
-			"React-Email-Entwürfe prüfen und einzelne Test-E-Mails sicher an manuelle Empfänger senden.",
-		href: "/admin/emails",
-		icon: <Mail className="h-5 w-5 text-solarized-blue" />,
-		status: "active",
-		title: "E-Mail Entwürfe",
-	},
-	{
-		description: "Markdoc-Vorlagen, Tags, Eingabefelder und gerenderte Ausgabe intern prüfen.",
-		href: "/admin/markdoc-playground",
-		icon: <NotebookTabs className="h-5 w-5 text-solarized-cyan" />,
-		status: "active",
-		title: "Markdoc-Playground",
-	},
-	{
-		description: "KI-Anbieter, Modelle, API-Schlüssel und Integrationsoptionen konfigurieren.",
-		href: "/admin/settings/models",
-		icon: <Settings className="h-5 w-5 text-solarized-yellow" />,
-		status: "active",
-		title: "Systemeinstellungen",
+		description: "Nutzung, Benutzerkonten und gemeinsam verfügbare Inhalte verwalten.",
+		features: [
+			{
+				description:
+					"Alle AI-Generierungen einsehen. Token-Nutzung, Kosten und Modelle pro Anfrage analysieren.",
+				href: "/admin/usage",
+				icon: <Activity className="h-5 w-5 text-solarized-green" />,
+				status: "active",
+				title: "Nutzungsstatistik",
+			},
+			{
+				description:
+					"Benutzerkonten, Berechtigungen und Zugriffskontrollen auf der Plattform anzeigen und verwalten.",
+				href: "/admin/users",
+				icon: <Users className="h-5 w-5 text-solarized-cyan" />,
+				status: "active",
+				title: "Benutzerverwaltung",
+			},
+			{
+				description: "Zentrale Übersicht aller Templates inklusive Favoriten und Autoren-Filter.",
+				href: "/admin/templates",
+				icon: <Database className="h-5 w-5 text-solarized-blue" />,
+				status: "active",
+				title: "Template Management",
+			},
+		],
+		title: "Verwaltung",
 	},
 	{
 		description:
-			"Lizenzstatus, freigeschaltete Edition und Nutzer-Sitze dieser Installation einsehen.",
-		href: "/admin/license",
-		icon: <KeyRound className="h-5 w-5 text-solarized-blue" />,
-		status: "active",
-		title: "Lizenz",
+			"Modelle, Eingaben und Dokumentverarbeitung unabhängig vom Produktivbetrieb testen.",
+		features: [
+			{
+				description:
+					"Experimentiere mit verschiedenen KI-Modellen, Prompts und Parametern. Vergleiche Modelle nebeneinander und teste multimodale Eingaben.",
+				href: "/admin/playground",
+				icon: <FlaskConical className="h-5 w-5 text-solarized-violet" />,
+				status: "active",
+				title: "AI Playground",
+			},
+			{
+				description:
+					"Zwei KI-Modelle mit zufälligen historischen Inputs gegeneinander testen und Präferenzen auswerten.",
+				href: "/admin/model-comparison",
+				icon: <Bot className="h-5 w-5 text-solarized-violet" />,
+				status: "active",
+				title: "AI-Modell-Vergleich",
+			},
+			{
+				description:
+					"PDF-Dateien mit auswählbarem OCR/File/Image-Modell zu Markdoc oder Text verarbeiten.",
+				href: "/admin/documents-playground",
+				icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
+				status: "active",
+				title: "Dokumenten-Playground",
+			},
+			{
+				description:
+					"Audio aufnehmen, Transkriptionsmodell wechseln und das erzeugte Transkript prüfen.",
+				href: "/admin/input-playground",
+				icon: <FileAudio className="h-5 w-5 text-solarized-blue" />,
+				status: "active",
+				title: "Audio-Playground",
+			},
+			{
+				description: "Markdoc-Vorlagen, Tags, Eingabefelder und gerenderte Ausgabe intern prüfen.",
+				href: "/admin/markdoc-playground",
+				icon: <NotebookTabs className="h-5 w-5 text-solarized-cyan" />,
+				status: "active",
+				title: "Markdoc-Playground",
+			},
+		],
+		title: "Playgrounds",
 	},
 ];
 
@@ -254,13 +279,22 @@ export default async function AdminDashboardPage() {
 					weeklyRequests={monthlyActiveUsers.weeklyRequests}
 				/>
 
-				{/* Admin Tools Grid */}
-				<div className="space-y-3 sm:space-y-4">
-					<div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-						{adminFeatures.map((feature) => (
-							<AdminCard key={feature.title} {...feature} />
-						))}
-					</div>
+				<div className="space-y-8 sm:space-y-10">
+					{adminSections.map((section) => (
+						<section key={section.title} className="space-y-3 sm:space-y-4">
+							<div className="space-y-1">
+								<h2 className="font-semibold text-base text-solarized-base00 sm:text-lg">
+									{section.title}
+								</h2>
+								<p className="text-solarized-base01 text-xs sm:text-sm">{section.description}</p>
+							</div>
+							<div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+								{section.features.map((feature) => (
+									<AdminCard key={feature.title} {...feature} />
+								))}
+							</div>
+						</section>
+					))}
 				</div>
 			</div>
 		</div>
