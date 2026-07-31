@@ -21,6 +21,7 @@ When the user corrects you, immediately update the most specific applicable `AGE
 - Store local implementation-plan artifacts under the intentionally git-ignored `plans/` directory, not `advisor-plans/`.
 - The local PostgreSQL test database runs on port `5432`. The restricted command sandbox cannot reach loopback TCP; rerun DB-backed tests with external/network approval after sandboxed `ECONNREFUSED` instead of reporting the database unavailable.
 - In provider/API discussions, “pi agent” means the Pi Agent used by OpenClaw, not Pydantic AI.
+- In privacy-filter discussions, “PII Shield” means Microsoft’s PII Shield privacy proxy introduced through the Azure Developer Community unless the user identifies a different product.
 
 ### Linear Issue Tracking
 
@@ -45,7 +46,7 @@ End a first-pass issue with:
 
 ## Delivery Checklist
 
-For new functionality, deliver all relevant layers: frontend, oRPC/API, data boundary, authorization, usage logging, and billing/entitlement guards.
+For new functionality, deliver all relevant layers: frontend, oRPC/API, data boundary, authorization, usage logging, and rate limiting where applicable (no new billing or paid-entitlement guards; the project is non-commercial).
 
 - Add focused unit tests and E2E coverage for major user workflows.
 - Update `apps/docs` for user-facing changes and the nearest `AGENTS.md` for durable architectural changes.
@@ -56,14 +57,15 @@ For new functionality, deliver all relevant layers: frontend, oRPC/API, data bou
 
 ## Project and Licensing
 
-MDScribe is a medical documentation monorepo for AI-assisted document generation, templates, and subscription-based usage tracking.
+MDScribe is a medical documentation monorepo for AI-assisted document generation and templates, run as a non-commercial open-source side project.
 
-- License: Elastic License 2.0 (`Elastic-2.0`), source-available. Never reintroduce AGPL, FSL/Fair Source, or describe MDScribe as Open Source/Fair Source; user-facing wording is `quelloffen` / `Source Available`.
-- Paid on-premise deployments are seat-gated by offline Ed25519/PASETO-style signed license keys containing edition, `maxSeats`, and optional flags. The private signing key stays outside the repo; `scripts/sign-license.ts` is the offline minting CLI.
-- License verification is offline with an embedded public key and stays behind `resolveLicense()` in `apps/app/lib/license/` so callers never depend on the concrete verifier or add phone-home checks.
-- All plan/license checks flow through `resolveProductEntitlements` and oRPC entitlement middleware. Edition is deployment-wide; Stripe plan is per-user.
-- Enforcement is intentionally soft: expiry warns admins without disabling clinical work; exceeding `maxSeats` blocks only new signups.
-- Future enterprise logic belongs in a top-level `ee/` workspace package when first needed. Database schema and migrations remain in `packages/database`.
+- License: AGPL-3.0 (`AGPL-3.0-only`), decided 2026-07-29, replacing the interim Elastic-2.0 period (the original history was AGPL). Describe MDScribe publicly as `Open Source`; do not use `quelloffen`, `Source Available`, or ELv2 wording anymore. Published AGPL versions stay AGPL forever.
+- Non-commercial: no subscriptions, no checkout, no license-key sales, no B2B contracts. Voluntary support/donations without functional perks are acceptable and must not be marketed as tax-deductible. The single legacy Plus subscriber is wound down personally and in an orderly way per the master plan, never silently.
+- The first hosted-cloud BYOK implementation is an optional alternative to the existing limited operator-funded free quota. Admins expose BYOK per configured provider connection; users may store keys only for those exposed connections and cannot change their protocol or base URL. Calls fully covered by active user keys bypass the MDScribe quota; operator-funded calls retain the current free test quota. User keys must never appear in logs, error messages, or usage events.
+- The offline license-key infrastructure (`apps/app/lib/license/`, `scripts/sign-license.ts`, `resolveProductEntitlements`, entitlement middleware) is dormant: keep it compiling, add no new paid gates, sell no keys. Under AGPL, third parties may legally remove such checks; that is accepted.
+- Real or merely pseudonymized patient data belongs exclusively in self-hosted deployments operated by the user's institution; the hosted cloud stays synthetic/anonymized-content only.
+- Relicensing and monetization options stay open only while Nils is the sole copyright holder: introduce DCO/CLA before merging any outside contribution. Future commercial logic would live in a top-level `ee/` workspace package and requires a new explicit decision; the archived B2B plan (`plans/archive-b2b-onpremise-masterplan.md`) is the starting point. Database schema and migrations remain in `packages/database`.
+- Keep the documentation-assistant boundary in features and marketing: no diagnosis detection, finding interpretation, risk scoring, dosing, or therapy recommendations.
 
 ## Git Workflow
 

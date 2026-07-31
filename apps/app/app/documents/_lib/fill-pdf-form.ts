@@ -1,6 +1,7 @@
 import { PDFDocument, PDFName } from "pdf-lib";
 
 import { canonicalizeInputValue, normalizeDocumentDefinition } from "./document-definition";
+import { getPdfLibFormFieldType } from "./pdf-form-field-type";
 import type { DocumentBinding, DocumentDefinition, DocumentInput } from "./types";
 
 interface PdfLibFormField {
@@ -13,7 +14,6 @@ interface PdfLibFormField {
 	};
 	check?: () => void;
 	clear?: () => void;
-	constructor: { name: string };
 	select?: (value: string) => void;
 	setText?: (value: string) => void;
 	uncheck?: () => void;
@@ -87,7 +87,8 @@ const setCheckboxValue = (field: PdfLibFormField, value: string): void => {
 };
 
 const fillBoundField = (field: PdfLibFormField, value: string): void => {
-	switch (field.constructor.name) {
+	const fieldType = getPdfLibFormFieldType(field);
+	switch (fieldType) {
 		case "PDFCheckBox": {
 			setCheckboxValue(field, value);
 			return;
@@ -107,7 +108,7 @@ const fillBoundField = (field: PdfLibFormField, value: string): void => {
 			return;
 		}
 		default: {
-			throw new Error(`Nicht unterstützter PDF-Feldtyp: ${field.constructor.name}`);
+			throw new Error(`Nicht unterstützter PDF-Feldtyp: ${fieldType}`);
 		}
 	}
 };
@@ -129,7 +130,7 @@ const resolveFieldValue = (
 		return resolvedValues[0] ?? "";
 	}
 	if (
-		field.constructor.name !== "PDFCheckBox" ||
+		getPdfLibFormFieldType(field) !== "PDFCheckBox" ||
 		(field.acroField?.getWidgets?.().length ?? 0) <= 1
 	) {
 		throw new Error(

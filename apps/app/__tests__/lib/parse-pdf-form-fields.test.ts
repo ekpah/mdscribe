@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
-import type { PDFCheckBox } from "pdf-lib";
+import { PDFCheckBox, PDFDict, PDFDocument, PDFName, PDFTextField } from "pdf-lib";
 
 import {
 	buildDefaultDocumentDefinitionFromPdfFields,
@@ -82,6 +81,40 @@ const createMixedFormPdf = async (): Promise<Uint8Array> => {
 };
 
 describe("parsePDFFormFields", () => {
+	test("classifies fields when minification changes pdf-lib constructor names", async () => {
+		const pdfDoc = await PDFDocument.create();
+		const page = pdfDoc.addPage([300, 300]);
+		const form = pdfDoc.getForm();
+		form.createTextField("name").addToPage(page);
+		form.createCheckBox("consent").addToPage(page);
+		const sourcePdf = await pdfDoc.save();
+
+		const textFieldName = Object.getOwnPropertyDescriptor(PDFTextField, "name");
+		const checkBoxName = Object.getOwnPropertyDescriptor(PDFCheckBox, "name");
+		Object.defineProperty(PDFTextField, "name", { configurable: true, value: "a" });
+		Object.defineProperty(PDFCheckBox, "name", { configurable: true, value: "b" });
+
+		try {
+			const { fields } = await parsePDFFormFields(sourcePdf);
+
+			expect(fields.find((field) => field.name === "name")).toMatchObject({
+				fieldType: "PDFTextField",
+				type: "text",
+			});
+			expect(fields.find((field) => field.name === "consent")).toMatchObject({
+				fieldType: "PDFCheckBox",
+				type: "checkbox",
+			});
+		} finally {
+			if (textFieldName) {
+				Object.defineProperty(PDFTextField, "name", textFieldName);
+			}
+			if (checkBoxName) {
+				Object.defineProperty(PDFCheckBox, "name", checkBoxName);
+			}
+		}
+	});
+
 	test("classifies text, dropdown, radio and boolean checkbox fields", async () => {
 		const { fields } = await parsePDFFormFields(await createMixedFormPdf());
 

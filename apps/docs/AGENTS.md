@@ -19,3 +19,9 @@ bun run --cwd apps/docs check:links  # find broken internal links
 - `docs.json` - Mintlify appearance, navigation, redirects, and site settings
 - `style.css` - global Solarized light/dark styling
 - `*.mdx` and topic directories - documentation pages and public routes
+
+## Self-Hosting Documentation
+
+- Self-hosting guidance targets production operators. Do not include the
+  contributor development environment, the development database Compose stack,
+  or localhost setup in self-hosting pages.

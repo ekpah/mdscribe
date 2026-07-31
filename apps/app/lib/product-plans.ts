@@ -3,7 +3,7 @@ export const PRODUCT_PLANS = {
 		canCreatePrivateAiScribeForms: false,
 		canCreatePrivateDocuments: false,
 		canCreatePrivateTemplates: false,
-		scribeMonthlyCostLimit: 2,
+		scribeMonthlyCostLimit: 1.5,
 	},
 	plus: {
 		canCreatePrivateAiScribeForms: true,

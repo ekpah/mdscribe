@@ -12,7 +12,7 @@ describe("Scribe usage limits", () => {
 				monthlyCostLimit: PRODUCT_PLANS.free.scribeMonthlyCostLimit,
 				totalCost: 1,
 			}),
-		).toBe(50);
+		).toBe(67);
 		expect(
 			getScribeUsageBudgetPercentage({
 				monthlyCostLimit: PRODUCT_PLANS.free.scribeMonthlyCostLimit,

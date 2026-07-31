@@ -5,60 +5,83 @@ description: Wie Daten durch die KI-Pipeline von MDScribe fließen
 
 ## KI-Datenfluss
 
-Wenn Sie eine KI-Generierung in MDScribe auslösen, durchlaufen Ihre Daten folgenden Weg:
+Der konkrete Datenweg hängt von den Verbindungen und Standardmodellen ab,
+die der Administrator der jeweiligen MDScribe-Instanz konfiguriert hat.
+MDScribe macht deshalb keine pauschale Zusage zu Zero Data Retention,
+Speicherregionen oder Unterauftragnehmern.
 
-### Einordnung für OSS
+### Verantwortungsgrenze
 
-- **Cloud-gehostete Nutzung:** Sensible Patienten-PII/PHI sollten derzeit nicht eingegeben werden, solange stärkere Compliance-Kontrollen noch nicht abgeschlossen sind.
-- **Self-Hosting:** Für die Verarbeitung sensibler Daten ist Self-Hosting der empfohlene Weg, wenn Sie vollständige Kontrolle über Datenpfade und Aufbewahrung benötigen.
+- **Öffentliche MDScribe-Cloud:** ausschließlich für synthetische oder bereits
+  wirksam anonymisierte Inhalte. Reale oder lediglich pseudonymisierte
+  Patientendaten dürfen dort nicht verarbeitet werden.
+- **Self-Hosting:** Die betreibende Einrichtung kontrolliert Infrastruktur,
+  Provider, Verträge, Protokollierung und Aufbewahrung und muss den Einsatz
+  selbst technisch, organisatorisch und rechtlich prüfen.
 
 ### Übersicht
 
+```text
+Nutzer
+  ↓ TLS
+MDScribe-Server
+  ↓ TLS
+admin-konfigurierte Provider-Verbindung
+  ↓ gegebenenfalls
+nachgelagerter Modellanbieter
 ```
-Nutzer → MDScribe-Server → OpenRouter (API-Router) → KI-Anbieter
-                                                         ↓
-Nutzer ← MDScribe-Server ← OpenRouter ← ─ ─ ─ ─ ─  Antwort
-```
 
-### Schritt-für-Schritt
+Die Antwort läuft denselben Weg zurück. Bei lokalen Verbindungen kann der
+gesamte Provider-Pfad in der Infrastruktur des Betreibers bleiben. Ein
+Aggregator wie OpenRouter kann Anfragen an weitere Modellanbieter leiten.
 
-1. **Eingabe im Browser:** Sie geben klinische Informationen in die MDScribe-Oberfläche ein.
-2. **Übertragung an MDScribe:** Die Daten werden TLS-verschlüsselt an den MDScribe-Server übertragen.
-3. **Prompt-Aufbereitung:** MDScribe kombiniert Ihre Eingabe mit dem passenden System-Prompt und ggf. einem von Ihnen ausgewählten Textbaustein.
-4. **Weiterleitung an OpenRouter:** Der aufbereitete Prompt wird TLS-verschlüsselt an OpenRouter gesendet.
-5. **Routing zum KI-Anbieter:** OpenRouter leitet die Anfrage an den gewählten KI-Anbieter weiter (z.B. Anthropic, Google).
-6. **Generierung:** Der KI-Anbieter verarbeitet den Prompt und generiert den Ausgabetext.
-7. **Streaming-Rückgabe:** Die Antwort wird als Stream über OpenRouter zurück an MDScribe und an Ihren Browser gesendet.
+### Verarbeitungsschritte
 
-### Verschlüsselung
+1. Der Browser überträgt Eingaben und Anhänge verschlüsselt an den
+   MDScribe-Server.
+2. MDScribe kombiniert sie mit dem passenden, code-eigenen Prompt sowie
+   ausgewählten Template-Informationen.
+3. Das konfigurierte Standardmodell erhält die Anfrage. Nicht nativ
+   unterstützte Audio-, Bild- oder Dokumenteingaben können zuvor über andere
+   konfigurierte Modelle verarbeitet werden.
+4. Jeder Modellaufruf geht an die Verbindung, der das Modell in der
+   MDScribe-Datenbank zugeordnet ist.
+5. Provider können abhängig von ihrer eigenen Architektur weitere
+   Unterauftragnehmer oder Modellanbieter einsetzen.
+6. Ergebnisse werden an MDScribe und anschließend an den Browser
+   zurückgegeben.
 
-Alle Verbindungen in der Kette verwenden TLS-Verschlüsselung:
+### Betreiber- und Nutzerschlüssel
 
-- Browser → MDScribe: HTTPS (TLS 1.3)
-- MDScribe → OpenRouter: HTTPS (TLS 1.2+)
-- OpenRouter → KI-Anbieter: HTTPS (TLS 1.2+)
+Standardmäßig authentifiziert MDScribe Provider-Aufrufe mit dem verschlüsselt
+gespeicherten Schlüssel des Instanzbetreibers.
 
-### Datenverbleib bei KI-Anbietern
+Hat der Administrator eine konkrete Verbindung für
+[BYOK](/providers/byok) freigeschaltet und der Nutzer dort einen aktiven
+eigenen Schlüssel hinterlegt, verwendet MDScribe diesen Schlüssel für
+Modellaufrufe über genau diese Verbindung. Protokoll, Base URL und Modelle
+bleiben unverändert. Der Schlüssel ändert also die Abrechnung beziehungsweise
+Authentifizierung, nicht das Ziel des Datenflusses.
 
-#### Ohne Zero Data Retention (Basis-Nutzer)
+Nutzerschlüssel werden:
 
-- OpenRouter selbst hat eine eigene ZDR-Policy und speichert keine Prompts dauerhaft.
-- Nachgelagerte KI-Anbieter können Daten gemäß ihren eigenen Richtlinien vorübergehend speichern.
-- Die Speicherdauer variiert je nach Anbieter (typischerweise 0–30 Tage).
+- mit dem Instanz-Secret verschlüsselt in PostgreSQL gespeichert,
+- nach dem Speichern nicht wieder an den Browser ausgeliefert,
+- nicht in Nutzungsereignissen, Telemetrie oder Fehlermeldungen gespeichert
+  und
+- nur unmittelbar für Validierung und Provider-Aufruf entschlüsselt.
 
-#### Mit Zero Data Retention (Plus-Abonnenten)
+### Aufbewahrung und Providerbedingungen
 
-- MDScribe setzt das `zdr`-Flag in der API-Anfrage an OpenRouter.
-- OpenRouter routet die Anfrage **ausschließlich** an Endpunkte mit Zero Data Retention Policy.
-- Der KI-Anbieter darf keine Daten speichern — weder Eingaben noch Ausgaben.
-- Ephemeres Caching (flüchtiger KV-Cache zur Performance-Optimierung) gilt nicht als Datenspeicherung.
+Für jeden konfigurierten Provider müssen Betreiber beziehungsweise
+BYOK-Nutzer dessen aktuelle Bedingungen prüfen, insbesondere:
 
-### Verwendete KI-Anbieter
+- Zweck und Rechtsgrundlage der Verarbeitung,
+- Speicher- und Löschfristen,
+- Verarbeitungsregionen,
+- Unterauftragnehmer und mögliche Weiterleitung,
+- Nutzung für Training oder Produktverbesserung,
+- Sicherheitsmaßnahmen sowie
+- Kosten, Guthaben und Rate Limits.
 
-| Anbieter | Modelle | ZDR-kompatibel |
-|----------|---------|----------------|
-| Anthropic | Claude Opus 4.5 | Ja |
-| Google | Gemini 3 Pro, Gemini 3 Flash | Ja |
-| Z-AI | GLM-4.6 | Abhängig vom Endpunkt |
-
-Die Verfügbarkeit von Modellen und ZDR-kompatiblen Endpunkten kann sich ändern, da OpenRouter dynamisch routet.
+Ein Provider-Flag oder Marketingbegriff allein ersetzt diese Prüfung nicht.
