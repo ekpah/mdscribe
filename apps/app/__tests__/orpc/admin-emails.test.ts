@@ -98,6 +98,7 @@ describe("Admin emails handler", () => {
 
 		expect(marketingDrafts.map((draft) => draft.id).toSorted()).toEqual([
 			"ai-texts-announcement",
+			"byok-announcement",
 			"cold-outreach",
 			"context-transfer-announcement",
 			"documents-announcement",

@@ -208,9 +208,11 @@ const transcribeAudioFiles = async (
 				},
 				isOpenRouter: resolvedModel.isOpenRouter,
 				metadata: {
+					credentialSource: resolvedModel.credentialSource,
 					endpoint: "stt:direct",
 					promptLabel: "stt:direct",
 					promptName: "stt:direct",
+					providerProtocol: resolvedModel.providerProtocol,
 					strategy: "direct",
 				},
 				modelName: resolvedModel.modelName,
@@ -287,9 +289,11 @@ export const transcribeAudioFilesWithPrompt = async ({
 		},
 		isOpenRouter: resolvedModel.isOpenRouter,
 		metadata: {
+			credentialSource: resolvedModel.credentialSource,
 			endpoint: "stt:prompt",
 			promptLabel: "stt:prompt",
 			promptName: "stt:prompt",
+			providerProtocol: resolvedModel.providerProtocol,
 			strategy: "multimodal",
 		},
 		modelName: resolvedModel.modelName,

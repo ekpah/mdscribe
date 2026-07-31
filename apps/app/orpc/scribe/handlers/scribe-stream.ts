@@ -36,6 +36,7 @@ import {
 } from "@/orpc/scribe/prompts";
 import {
 	buildProviderOptions,
+	isGenerationStrategyFullyByok,
 	modelAllowsReasoningOptions,
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
@@ -755,18 +756,20 @@ export const runScribeGeneration = async ({
 					sessionUser: context.session.user,
 				});
 
-	const [usageLimitResult, resolvedRequest, generationStrategy] = await Promise.all([
-		enforceScribeUsageLimit({
-			db: context.db,
-			entitlements: context.entitlements.scribe,
-			session: context.session,
-		}),
+	const [resolvedRequest, generationStrategy] = await Promise.all([
 		resolvedRequestPromise,
 		resolveGenerationStrategy(context.db, {
 			hasAudio,
 			hasFiles: hasFileInput || hasContextFiles,
+			userId: context.session.user.id,
 		}),
 	]);
+	const usageLimitResult = await enforceScribeUsageLimit({
+		db: context.db,
+		entitlements: context.entitlements.scribe,
+		isQuotaExempt: isGenerationStrategyFullyByok(generationStrategy),
+		session: context.session,
+	});
 	const { entitlements } = usageLimitResult;
 	const generationSelection = generationStrategy.generation;
 
@@ -870,6 +873,8 @@ export const runScribeGeneration = async ({
 				},
 				traceId: traceContext?.traceId,
 				usageMetadata: {
+					credentialSource: generationSelection.model.credentialSource,
+					providerProtocol: generationSelection.model.providerProtocol,
 					...resolvedRequest.usageMetadata,
 					...traceContext,
 				},

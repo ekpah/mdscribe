@@ -32,6 +32,10 @@ Scope: everything under `apps/app`. Root rules still apply. Scribe and shared in
 ## Frontend and Admin UX
 
 - Reuse and fix matching primitives from `packages/design-system` instead of creating local copies.
+- Show each connection's BYOK control as a compact inline switch labelled `BYOK - Nutzer können eigene API-Schlüssel verwenden`; do not wrap it in a separate explanatory settings panel.
+- In user BYOK settings, show saved-and-verified status separately from active/inactive usage. Deactivating a credential keeps its verification check; only replacing or deleting the key changes credential verification state.
+- User BYOK connection cards list only the admin-selected production models that can actually use that connection's key, grouped with their standard, agent, audio, or document roles. Put audio/document badges on the standard or agent model when it handles those inputs natively; otherwise put them on the configured preprocessing model. Derive this from `AiDefaults` and capability switches, and exclude evaluation-only and inactive fallback assignments.
+- Usage-event model names show a compact `BYOK` badge when `metadata.credentialSource` is `user_byok`; apply the same presentation in desktop tables, mobile cards, and event details.
 - `/admin/input-playground` is the audio playground: recording, transcription-model selection, and transcript only. Each audio row owns one play/pause control and scrubber; no speed menu or multi-track provider.
 - `/admin/playground` attaches original truthful media directly to the selected model; it never routes media through global preprocessing. Defaults are temperature `1` and unset `maxTokens`.
 - Prompt comparison has independent Prompt A/B base-prompt and template selectors; B is seeded from A and compiles through `orpc.admin.scribe.compilePrompt`. Highlight complete innermost XML sections by composition origin, never value matching or unpaired tag mentions.

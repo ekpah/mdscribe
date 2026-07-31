@@ -66,6 +66,7 @@
         "group": "KI-Provider",
         "pages": [
           "providers/index",
+          "providers/byok",
           "providers/openrouter",
           "providers/openai-compatible",
           "providers/private",

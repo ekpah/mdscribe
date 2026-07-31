@@ -378,12 +378,6 @@ const enhanceDefinitionHandler = authed
 			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", { message });
 		}
-		const { entitlements } = await enforceScribeUsageLimit({
-			db: context.db,
-			entitlements: context.entitlements.scribe,
-			session: context.session,
-		});
-
 		const config = pdfDocumentConfigs.enhanceDefinition;
 		const promptText = config.prompt({ definition: currentDefinition, pdfFields: fields })[0]
 			.content;
@@ -395,7 +389,10 @@ const enhanceDefinitionHandler = authed
 
 		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
 		try {
-			const strategy = await resolveGenerationStrategy(context.db, { hasFiles: true });
+			const strategy = await resolveGenerationStrategy(context.db, {
+				hasFiles: true,
+				userId: context.session.user.id,
+			});
 			modelSelection =
 				strategy.files?.mode === "preprocess" ? strategy.files.selection : strategy.generation;
 		} catch (error) {
@@ -404,6 +401,12 @@ const enhanceDefinitionHandler = authed
 				message: `${USER_MESSAGES.documentEditor.aiModelUnavailable} (${details})`,
 			});
 		}
+		const { entitlements } = await enforceScribeUsageLimit({
+			db: context.db,
+			entitlements: context.entitlements.scribe,
+			isQuotaExempt: modelSelection.model.credentialSource === "user_byok",
+			session: context.session,
+		});
 
 		const requestStartedAt = Date.now();
 		const result = await generateObject({
@@ -460,7 +463,9 @@ const enhanceDefinitionHandler = authed
 					pdfFieldCount: fields.length,
 				},
 				metadata: {
+					credentialSource: modelSelection.model.credentialSource,
 					promptName: config.promptName,
+					providerProtocol: modelSelection.model.providerProtocol,
 					zdrEnabled: entitlements.hasActiveSubscription,
 				},
 				model: modelSelection.model.modelName,

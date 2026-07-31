@@ -1,7 +1,7 @@
 "use client";
 
 import { SidebarProvider, SidebarTrigger } from "@repo/design-system/components/ui/sidebar";
-import { Settings, Sparkles, Type, UserCircle } from "lucide-react";
+import { KeyRound, Settings, Sparkles, Type, UserCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -28,6 +28,11 @@ const settingsSections: NavigationSidebarSection[] = [
 				icon: Sparkles,
 				title: "AI-Scribe",
 			},
+			{
+				href: "/profile/ai-access",
+				icon: KeyRound,
+				title: "KI-Zugang",
+			},
 		],
 		key: "profile-settings",
 		title: "Einstellungen",
@@ -47,7 +52,7 @@ export const ProfileSettingsShell = ({ children }: ProfileSettingsShellProps) =>
 					<NavigationSidebarBrand
 						href="/profile/account"
 						icon={Settings}
-						subtitle="Account, Texteditor und AI-Scribe"
+						subtitle="Account, Texteditor, AI-Scribe und KI-Zugang"
 						title="Einstellungen"
 					/>
 				}

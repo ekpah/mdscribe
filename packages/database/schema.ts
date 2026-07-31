@@ -368,6 +368,7 @@ export const templateCollectionTemplate = pgTable(
 export const aiProvider = pgTable("AiProvider", {
 	apiKey: text("apiKey"),
 	baseUrl: text("baseUrl"),
+	byokEnabled: boolean("byokEnabled").notNull().default(false),
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -375,6 +376,44 @@ export const aiProvider = pgTable("AiProvider", {
 	// "openai-compatible" | "openrouter" | "openai" | "anthropic"
 	protocol: text("protocol").notNull(),
 });
+
+export const userAiProvider = pgTable(
+	"UserAiProvider",
+	{
+		apiKey: text("apiKey").notNull(),
+		createdAt: timestamp("createdAt", { mode: "date", precision: 3, withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		enabled: boolean("enabled").notNull().default(false),
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		name: text("name").notNull(),
+		providerId: text("providerId")
+			.notNull()
+			.references(() => aiProvider.id, { onDelete: "cascade" }),
+		updatedAt: timestamp("updatedAt", { mode: "date", precision: 3, withTimezone: true })
+			.notNull()
+			.defaultNow()
+			.$onUpdate(() => new Date()),
+		userId: text("userId")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		validatedAt: timestamp("validatedAt", {
+			mode: "date",
+			precision: 3,
+			withTimezone: true,
+		}).notNull(),
+	},
+	(table) => [
+		uniqueIndex("UserAiProvider_userId_providerId_key").on(
+			table.userId,
+			table.providerId,
+		),
+		index("UserAiProvider_userId_idx").on(table.userId),
+		index("UserAiProvider_providerId_idx").on(table.providerId),
+	],
+);
 
 export const aiModel = pgTable(
 	"AiModel",
@@ -543,6 +582,7 @@ export const aiScribeWorkspace = pgTable(
 
 export const userRelations = relations(user, ({ many }) => ({
 	accounts: many(account),
+	aiProviders: many(userAiProvider),
 	aiScribeFormConfigs: many(aiScribeFormConfig),
 	aiScribeWorkspaces: many(aiScribeWorkspace),
 	documentTemplates: many(documentTemplate),
@@ -632,6 +672,18 @@ export const templateCollectionTemplateRelations = relations(
 
 export const aiProviderRelations = relations(aiProvider, ({ many }) => ({
 	models: many(aiModel),
+	userCredentials: many(userAiProvider),
+}));
+
+export const userAiProviderRelations = relations(userAiProvider, ({ one }) => ({
+	provider: one(aiProvider, {
+		fields: [userAiProvider.providerId],
+		references: [aiProvider.id],
+	}),
+	user: one(user, {
+		fields: [userAiProvider.userId],
+		references: [user.id],
+	}),
 }));
 
 export const aiModelRelations = relations(aiModel, ({ one }) => ({

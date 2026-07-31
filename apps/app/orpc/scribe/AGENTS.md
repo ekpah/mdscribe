@@ -5,6 +5,7 @@ Scope: `apps/app/orpc/scribe`. Root and `apps/app/AGENTS.md` also apply.
 ## Generation and Usage
 
 - Prompts are code-owned; no external prompt service. All usage is recorded in `UsageEvent`.
+- Provider-backed `UsageEvent` metadata records `credentialSource` as `operator` or `user_byok`. Use `credentialSource` as the single source of truth when calculating quota and presenting BYOK usage; do not add a duplicate boolean.
 - The standard configured model produces the final response. Declared media is attached natively; other media is preprocessed through its configured slot. Never hardcode provider/model fallbacks.
 - `fillInputs` is billable: apply the normal scribe usage limit and record one `ai_input_fill` event. Respect ZDR; never store raw audio/document bytes, only allowed text plus metadata and payload summaries.
 - Playgrounds pass original browser media and truthful fallbacks directly to their selected model; production adapters choose compatible variants. Never relabel WebM/MP4 bytes as WAV.

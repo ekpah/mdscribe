@@ -1,6 +1,7 @@
 import { and, eq, gte, lte, usageEvent } from "@repo/database";
 import type { Database } from "@repo/database";
 import { database } from "@repo/database/client";
+import { isByokUsageMetadata } from "@/lib/usage-logging";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { getScribeUsageBudgetPercentage } from "@/lib/product-plans";
 
@@ -16,6 +17,7 @@ export const getMonthlyScribeUsage = async (input: {
 		.select({
 			cost: usageEvent.cost,
 			inputTokens: usageEvent.inputTokens,
+			metadata: usageEvent.metadata,
 			model: usageEvent.model,
 			outputTokens: usageEvent.outputTokens,
 			totalTokens: usageEvent.totalTokens,
@@ -36,10 +38,13 @@ export const getMonthlyScribeUsage = async (input: {
 	const byModel: Record<string, { count: number; tokens: number; cost: number }> = {};
 
 	for (const event of usage) {
+		const isUserByok = isByokUsageMetadata(event.metadata);
 		totalTokens += event.totalTokens ?? 0;
 		totalInputTokens += event.inputTokens ?? 0;
 		totalOutputTokens += event.outputTokens ?? 0;
-		totalCost += Number(event.cost ?? 0);
+		if (!isUserByok) {
+			totalCost += Number(event.cost ?? 0);
+		}
 
 		const model = event.model ?? "unknown";
 		if (!byModel[model]) {
@@ -47,7 +52,9 @@ export const getMonthlyScribeUsage = async (input: {
 		}
 		byModel[model].count += 1;
 		byModel[model].tokens += event.totalTokens ?? 0;
-		byModel[model].cost += Number(event.cost ?? 0);
+		if (!isUserByok) {
+			byModel[model].cost += Number(event.cost ?? 0);
+		}
 	}
 
 	const usageCount = usage.length;

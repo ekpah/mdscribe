@@ -20,6 +20,7 @@ import type {
 	usageObservation,
 	usageTrace,
 	user,
+	userAiProvider,
 	verification,
 } from "./schema";
 
@@ -41,6 +42,7 @@ export type UsageTrace = InferSelectModel<typeof usageTrace>;
 export type ContextTransfer = InferSelectModel<typeof contextTransfer>;
 export type TextSnippet = InferSelectModel<typeof textSnippet>;
 export type Favourite = InferSelectModel<typeof favourites>;
+export type UserAiProvider = InferSelectModel<typeof userAiProvider>;
 
 // Insert types (for creating records)
 export type NewUser = InferInsertModel<typeof user>;
@@ -60,6 +62,7 @@ export type NewUsageTrace = InferInsertModel<typeof usageTrace>;
 export type NewContextTransfer = InferInsertModel<typeof contextTransfer>;
 export type NewTextSnippet = InferInsertModel<typeof textSnippet>;
 export type NewFavourite = InferInsertModel<typeof favourites>;
+export type NewUserAiProvider = InferInsertModel<typeof userAiProvider>;
 
 // AI Provider types
 export type AiProvider = InferSelectModel<typeof aiProvider>;

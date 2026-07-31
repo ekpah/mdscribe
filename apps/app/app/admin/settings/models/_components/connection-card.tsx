@@ -8,11 +8,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
+import { Switch } from "@repo/design-system/components/ui/switch";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 interface AiModelData {
 	id: string;
@@ -24,6 +26,11 @@ interface AiModelData {
 }
 
 interface ProviderData {
+	byokCredentialCounts: {
+		active: number;
+		stored: number;
+	};
+	byokEnabled: boolean;
 	id: string;
 	name: string;
 	protocol: string;
@@ -82,6 +89,19 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 		},
 	});
 
+	const byokMutation = useMutation({
+		mutationFn: (enabled: boolean) =>
+			orpc.admin.providers.connections.setByokEnabled.call({
+				enabled,
+				id: connection.id,
+			}),
+		onError: () => toast.error(USER_MESSAGES.adminByok.toggleError),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: listKey });
+			toast.success(USER_MESSAGES.adminByok.toggleSuccess);
+		},
+	});
+
 	const handleDeleteClick = useCallback(() => {
 		if (!isDeleteConfirming) {
 			setIsDeleteConfirming(true);
@@ -97,6 +117,13 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 	const handleRefreshModels = useCallback(() => {
 		refreshModelsMutation.mutate();
 	}, [refreshModelsMutation]);
+
+	const handleByokChange = useCallback(
+		(enabled: boolean) => {
+			byokMutation.mutate(enabled);
+		},
+		[byokMutation],
+	);
 
 	return (
 		<Card className="border-solarized-base2">
@@ -158,6 +185,27 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 			</CardHeader>
 
 			<CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+				<div className="mb-4 flex flex-wrap items-center gap-2">
+					<Switch
+						aria-label={USER_MESSAGES.adminByok.ariaLabel}
+						checked={connection.byokEnabled}
+						disabled={byokMutation.isPending}
+						onCheckedChange={handleByokChange}
+					/>
+					<span className="text-solarized-base00 text-sm">
+						{USER_MESSAGES.adminByok.label}
+					</span>
+					{connection.byokCredentialCounts.stored > 0 && (
+						<span className="text-solarized-base01 text-xs">
+							(
+							{USER_MESSAGES.adminByok.credentialCounts(
+								connection.byokCredentialCounts.stored,
+								connection.byokCredentialCounts.active,
+							)}
+							)
+						</span>
+					)}
+				</div>
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-solarized-base01 text-sm">
 						{connection.models.length} Modell

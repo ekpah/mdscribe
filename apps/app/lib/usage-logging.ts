@@ -21,6 +21,7 @@ export interface UsageInputData {
  * Type for metadata JSON field
  */
 export interface UsageMetadata {
+	credentialSource?: "operator" | "user_byok";
 	promptName: string;
 	promptLabel?: string;
 	customFormId?: string;
@@ -31,10 +32,19 @@ export interface UsageMetadata {
 		reasoningEffort?: string;
 		temperature?: number;
 	};
+	providerProtocol?: string;
 	templateId?: string | null;
 	// Allow additional fields for future extensibility
 	[key: string]: unknown;
 }
+
+export const isByokUsageMetadata = (metadata: unknown): boolean => {
+	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+		return false;
+	}
+	const record = metadata as Record<string, unknown>;
+	return record.credentialSource === "user_byok";
+};
 
 /**
  * OpenRouter usage data structure

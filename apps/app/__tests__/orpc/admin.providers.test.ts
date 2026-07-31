@@ -113,6 +113,38 @@ describe("Admin Providers Handler", () => {
 		expect(whisper).toBeDefined();
 	});
 
+	test("connections.setByokEnabled exposes one configured connection", async () => {
+		const [provider] = await server.db
+			.insert(aiProvider)
+			.values({
+				apiKey: null,
+				baseUrl: null,
+				id: crypto.randomUUID(),
+				name: "OpenRouter BYOK",
+				protocol: "openrouter",
+			})
+			.returning();
+		expect(provider).toBeDefined();
+
+		const enabled = await call(
+			providersHandler.connections.setByokEnabled,
+			{ enabled: true, id: provider?.id ?? "" },
+			{ context },
+		);
+		expect(enabled.byokEnabled).toBe(true);
+
+		const listed = await call(
+			providersHandler.connections.list,
+			undefined,
+			{ context },
+		);
+		expect(listed[0]?.byokEnabled).toBe(true);
+		expect(listed[0]?.byokCredentialCounts).toEqual({
+			active: 0,
+			stored: 0,
+		});
+	});
+
 	test("connections.create stores openai-compatible models without modality inference", async () => {
 		globalThis.fetch = (() =>
 			Response.json(

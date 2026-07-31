@@ -19,6 +19,7 @@ import {
 	formatScore,
 	formatTokensPerSecond,
 	getUsageEvaluation,
+	UsageModelName,
 } from "@/app/admin/usage/columns";
 import type { UsageDetailEvent } from "@/app/admin/usage/types";
 
@@ -197,9 +198,11 @@ export const UsageEventDetail = ({
 							</div>
 							<div className="flex justify-between">
 								<span className="text-solarized-base01">Modell</span>
-								<span className="font-mono text-sm text-solarized-base00">
-									{event.model || "-"}
-								</span>
+								<UsageModelName
+									className="max-w-[70%] justify-end text-sm"
+									metadata={event.metadata}
+									model={event.model}
+								/>
 							</div>
 							<div className="flex justify-between">
 								<span className="text-solarized-base01">Kosten</span>

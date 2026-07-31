@@ -29,6 +29,14 @@ export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): st
 
 /** Single source of truth for all user-facing German messages. */
 export const USER_MESSAGES = {
+	adminByok: {
+		ariaLabel: "BYOK für diese Verbindung erlauben",
+		credentialCounts: (stored: number, active: number) =>
+			`${stored} hinterlegt, ${active} aktiv`,
+		label: "BYOK - Nutzer können eigene API-Schlüssel verwenden",
+		toggleError: "BYOK-Einstellung konnte nicht gespeichert werden.",
+		toggleSuccess: "BYOK-Einstellung gespeichert",
+	},
 	adminEmails: {
 		broadcastAccepted: "vom SMTP-Relay angenommen",
 		broadcastDialogDescription:
@@ -67,6 +75,67 @@ export const USER_MESSAGES = {
 	},
 	aiscribeGenerationSuccess: "Erfolgreich generiert",
 	audioNotSupported: "Das ausgewählte Modell unterstützt keine Audio-Eingabe.",
+	byok: {
+		active: "Aktiv",
+		activeDescription:
+			"Generierungen über diese Verbindung verwenden deinen eigenen API-Schlüssel und verbrauchen dafür keine MDScribe-Quota. Kosten und Limits des Anbieters gelten weiterhin.",
+		apiKeyLabel: "API-Schlüssel",
+		apiKeyPlaceholder: "API-Schlüssel eingeben",
+		assignedModelsDescription:
+			"Wenn dein Schlüssel aktiv ist, wird er für diese vom Administrator festgelegten Modelle verwendet.",
+		assignedModelsHeading: "Zugeordnete Modelle",
+		cancel: "Abbrechen",
+		connectionUnavailable:
+			"Diese Verbindung ist für eigene API-Schlüssel nicht verfügbar.",
+		connectionUnavailableStatus: "Nicht mehr freigeschaltet",
+		credentialDeleted: "Eigener API-Schlüssel gelöscht",
+		credentialDescription:
+			"Der Schlüssel wird verschlüsselt gespeichert und niemals wieder angezeigt.",
+		credentialDisabled: "Eigener API-Schlüssel deaktiviert",
+		credentialEnabled: "Eigener API-Schlüssel aktiviert",
+		credentialMissing: "Für diese Verbindung ist kein eigener API-Schlüssel hinterlegt.",
+		credentialSaved: "API-Schlüssel geprüft und gespeichert",
+		deactivate: "Deaktivieren",
+		delete: "Verbindung löschen",
+		deleteConfirm: "Löschen bestätigen",
+		disabledDescription:
+			"Der eigene API-Schlüssel ist gespeichert, wird aber nicht für Anfragen verwendet.",
+		displayNameLabel: "Name",
+		displayNamePlaceholder: "Bezeichnung der Verbindung",
+		emptyDescription:
+			"Hinterlege einen eigenen API-Schlüssel für diese vom Administrator konfigurierte Verbindung.",
+		enable: "Aktivieren",
+		hasApiKey: "API-Schlüssel hinterlegt",
+		heading: "KI-Zugang",
+		inactive: "Deaktiviert",
+		intro:
+			"Verwalte eigene API-Schlüssel für die vom Administrator freigeschalteten KI-Verbindungen.",
+		keyRejected:
+			"Der API-Schlüssel wurde vom Anbieter abgelehnt. Bitte prüfe den Schlüssel.",
+		modelRoles: {
+			agent: "Agent",
+			audio: "Audio",
+			documents: "Dokumente",
+			text: "Standardgenerierung",
+		},
+		noAssignedModels:
+			"Der Administrator hat dieser Verbindung aktuell kein verwendetes Modell zugeordnet.",
+		noConnections:
+			"Der Administrator hat keine Verbindungen für eigene API-Schlüssel freigeschaltet.",
+		providerRateLimited:
+			"Der Anbieter begrenzt derzeit die Schlüsselprüfung. Bitte versuche es später erneut.",
+		providerUnavailable:
+			"Der Anbieter konnte den API-Schlüssel nicht prüfen. Bitte versuche es später erneut.",
+		rename: "Name speichern",
+		renamed: "Name gespeichert",
+		replace: "API-Schlüssel ersetzen",
+		save: "Verbindung prüfen und speichern",
+		unavailableDescription:
+			"Der Administrator hat diese Verbindung deaktiviert. Der Schlüssel bleibt gespeichert, wird aber nicht verwendet.",
+		unlimited: "Unbegrenzte Generierungen über diese Verbindung",
+		usageBadge: "BYOK",
+		verified: "API-Schlüssel gespeichert und geprüft",
+	},
 	checkingTemplateTags: "Tags werden geprüft...",
 	dashboard: {
 		activity: {

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildUsageEventData } from "@/lib/usage-logging";
+import {
+	buildUsageEventData,
+	isByokUsageMetadata,
+} from "@/lib/usage-logging";
 import { redactIfZdrEnabled } from "@/orpc/scribe/handlers/usage-logging";
 
 describe("Scribe usage logging", () => {
@@ -28,5 +31,10 @@ describe("Scribe usage logging", () => {
 
 		expect(usageEvent.timeToCompletionMs).toBe(2451);
 		expect(usageEvent.timeToFirstTokenMs).toBe(350);
+	});
+
+	test("detects BYOK usage from the credential source", () => {
+		expect(isByokUsageMetadata({ credentialSource: "user_byok" })).toBe(true);
+		expect(isByokUsageMetadata({ credentialSource: "operator" })).toBe(false);
 	});
 });

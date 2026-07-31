@@ -28,8 +28,13 @@ export const resolveScribeEntitlements = async (input: {
 export const enforceScribeUsageLimit = async (input: {
 	db: Database;
 	entitlements: ScribeEntitlements;
+	isQuotaExempt?: boolean;
 	session: { user: { id: string } };
 }) => {
+	if (input.isQuotaExempt) {
+		return { entitlements: input.entitlements, usage: null };
+	}
+
 	const usage = await getMonthlyScribeUsage({
 		db: input.db,
 		session: input.session,

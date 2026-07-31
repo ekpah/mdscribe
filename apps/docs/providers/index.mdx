@@ -7,6 +7,11 @@ description: Welche KI-Provider MDScribe unterstützt und wie Verbindungen, Mode
 
 MDScribe spricht nicht mit einem fest verdrahteten KI-Dienst, sondern mit **Providern**, die der Administrator der Instanz konfiguriert. Jeder Provider ist eine Verbindung zu einem Inferenz-Dienst (Cloud-API oder lokaler Server), aus der MDScribe die verfügbaren Modelle synchronisiert.
 
+Administratoren können einzelne bestehende Verbindungen außerdem für
+[nutzereigene API-Schlüssel (BYOK)](/providers/byok) freigeben. Nutzer wählen
+dabei keinen beliebigen Provider: Protokoll, Base URL und Modelle bleiben
+vollständig durch die konfigurierte Verbindung vorgegeben.
+
 ## Unterstützte Provider
 
 | Provider | Typ | Besonderheit |
@@ -38,5 +43,6 @@ Das Standard-Modell beantwortet jede Anfrage. Sind seine Fähigkeiten Dokumente 
 ## API-Keys und Sicherheit
 
 - API-Keys werden verschlüsselt in der Datenbank gespeichert und nie an den Browser ausgeliefert.
+- Das gilt sowohl für Betreiber- als auch für nutzereigene BYOK-Schlüssel.
 - Es gibt keine hartkodierten Fallback-Provider: Ohne konfigurierte Verbindung findet keine Generierung statt.
 - Welche Datenschutz-Eigenschaften eine Generierung hat, hängt vom gewählten Provider ab — siehe die einzelnen Provider-Seiten und [KI-Datenfluss](/privacy/ki-datenfluss).
