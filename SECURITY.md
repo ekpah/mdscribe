@@ -17,7 +17,7 @@ Include the following in your report:
 
 ## Response Timeline
 
-- We will acknowledge your report within **48 hours**
+- We will acknowledge your report typically within **48 hours**
 - We aim to provide a fix or mitigation plan within **7 days**
 - We will coordinate disclosure with you once a fix is available
 
