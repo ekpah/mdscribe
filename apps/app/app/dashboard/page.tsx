@@ -158,6 +158,28 @@ const getSubscriptionStatus = (subscription?: { status?: string; cancelAtPeriodE
 	};
 };
 
+const formatUsageResetDate = (timestamp: string) =>
+	new Date(timestamp).toLocaleDateString("de-DE", {
+		day: "2-digit",
+		month: "2-digit",
+		timeZone: "Europe/Berlin",
+		year: "numeric",
+	});
+
+const getDashboardUsageSummary = (
+	usage:
+		| {
+				isMonthlyBudgetReached: boolean;
+				monthlyUsagePercentage: number;
+				resetsAt: string;
+		  }
+		| undefined,
+) => ({
+	isMonthlyBudgetReached: usage?.isMonthlyBudgetReached ?? false,
+	monthlyUsagePercentage: usage?.monthlyUsagePercentage ?? 0,
+	usageResetsAt: usage?.resetsAt,
+});
+
 const getRelativeTimeLabel = (timestamp: Date | string) => {
 	const now = new Date();
 	const eventTime = new Date(timestamp);
@@ -327,6 +349,7 @@ const DashboardQuickStats = ({
 	monthlyUsagePercentage,
 	subscriptionPlanLabel,
 	subscriptionStatus,
+	usageResetsAt,
 	userTemplateCount,
 }: {
 	favoriteCount: number;
@@ -334,98 +357,98 @@ const DashboardQuickStats = ({
 	monthlyUsagePercentage: number;
 	subscriptionPlanLabel: string;
 	subscriptionStatus: ReturnType<typeof getSubscriptionStatus>;
+	usageResetsAt?: string;
 	userTemplateCount: number;
 }) => {
 	const usageProgress = Math.max(0, Math.min(100, monthlyUsagePercentage));
 
 	return (
 		<div className="grid grid-cols-1 gap-3 sm:gap-6 md:grid-cols-2">
-		<Card className="h-full border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
-			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-				<CardTitle className="font-medium text-solarized-base03 text-sm">Templates</CardTitle>
-				<FileText className="h-5 w-5 text-solarized-blue" />
-			</CardHeader>
-			<CardContent className="space-y-3">
-				<div className="grid grid-cols-2 gap-3">
-					<Link href="/templates?activeCollection=favourites">
-						<div className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-3 transition-colors hover:bg-solarized-blue/10">
-							<div className="flex items-center gap-2 text-solarized-base01 text-xs">
-								<BookmarkIcon className="h-3 w-3 text-solarized-blue" />
-								Favoriten
+			<Card className="h-full border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
+				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle className="font-medium text-solarized-base03 text-sm">Templates</CardTitle>
+					<FileText className="h-5 w-5 text-solarized-blue" />
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<div className="grid grid-cols-2 gap-3">
+						<Link href="/templates?activeCollection=favourites">
+							<div className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-3 transition-colors hover:bg-solarized-blue/10">
+								<div className="flex items-center gap-2 text-solarized-base01 text-xs">
+									<BookmarkIcon className="h-3 w-3 text-solarized-blue" />
+									Favoriten
+								</div>
+								<p className="mt-1 font-bold text-solarized-base03 text-xl">{favoriteCount}</p>
 							</div>
-							<p className="mt-1 font-bold text-solarized-base03 text-xl">{favoriteCount}</p>
-						</div>
-					</Link>
-					<Link href="/templates?activeCollection=authored">
-						<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/5 p-3 transition-colors hover:bg-solarized-green/10">
-							<div className="flex items-center gap-2 text-solarized-base01 text-xs">
-								<PlusIcon className="h-3 w-3 text-solarized-green" />
-								Erstellt
+						</Link>
+						<Link href="/templates?activeCollection=authored">
+							<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/5 p-3 transition-colors hover:bg-solarized-green/10">
+								<div className="flex items-center gap-2 text-solarized-base01 text-xs">
+									<PlusIcon className="h-3 w-3 text-solarized-green" />
+									Erstellt
+								</div>
+								<p className="mt-1 font-bold text-solarized-base03 text-xl">{userTemplateCount}</p>
 							</div>
-							<p className="mt-1 font-bold text-solarized-base03 text-xl">{userTemplateCount}</p>
-						</div>
-					</Link>
-				</div>
-				<Link
-					className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
-					href="/templates"
-				>
-					Alle Templates anzeigen
-					<ArrowRight className="h-3 w-3" />
-				</Link>
-			</CardContent>
-		</Card>
-
-		<Card className="h-full border-solarized-violet/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
-			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-				<CardTitle className="font-medium text-solarized-base03 text-sm">
-					KI-Nutzung
-				</CardTitle>
-				<Brain className="h-5 w-5 text-solarized-violet" />
-			</CardHeader>
-			<CardContent className="space-y-3">
-				<div className="space-y-2">
-					<div className="flex items-center justify-between gap-3">
-						<span className="font-medium text-solarized-base03 text-sm">
-							Monatskontingent
-						</span>
-						<span className="font-semibold text-solarized-base03 text-sm">
-							{usageProgress}%
-						</span>
-					</div>
-					<div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
-						<div
-							className="h-full rounded-full bg-solarized-violet transition-all"
-							style={{ width: `${usageProgress}%` }}
-						/>
-					</div>
-				</div>
-				<p className="text-solarized-base01 text-xs">
-					{isMonthlyBudgetReached
-						? "Monatliches Kontingent ausgeschöpft"
-						: "Im aktuellen Monat verwendet"}
-				</p>
-				<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
-					<div className="flex flex-wrap items-center justify-between gap-2">
-						<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
-							<CreditCard className="h-3 w-3" />
-							{subscriptionPlanLabel}
-						</span>
-						<Badge className={subscriptionStatus.badgeClassName} variant="outline">
-							{subscriptionStatus.label}
-						</Badge>
+						</Link>
 					</div>
 					<Link
 						className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
-						href="/subscription"
+						href="/templates"
 					>
-						Abonnement verwalten
+						Alle Templates anzeigen
 						<ArrowRight className="h-3 w-3" />
 					</Link>
-				</div>
-			</CardContent>
-		</Card>
-	</div>
+				</CardContent>
+			</Card>
+
+			<Card className="h-full border-solarized-violet/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
+				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle className="font-medium text-solarized-base03 text-sm">KI-Nutzung</CardTitle>
+					<Brain className="h-5 w-5 text-solarized-violet" />
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<div className="space-y-2">
+						<div className="flex items-center justify-between gap-3">
+							<span className="font-medium text-solarized-base03 text-sm">Monatskontingent</span>
+							<span className="font-semibold text-solarized-base03 text-sm">{usageProgress}%</span>
+						</div>
+						<div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
+							<div
+								className="h-full rounded-full bg-solarized-violet transition-all"
+								style={{ width: `${usageProgress}%` }}
+							/>
+						</div>
+					</div>
+					<p className="text-solarized-base01 text-xs">
+						{isMonthlyBudgetReached
+							? "Monatliches Kontingent ausgeschöpft"
+							: "Im aktuellen Nutzungszeitraum verwendet"}
+					</p>
+					{usageResetsAt ? (
+						<p className="text-solarized-base01 text-xs">
+							Wird am {formatUsageResetDate(usageResetsAt)} zurückgesetzt
+						</p>
+					) : null}
+					<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
+								<CreditCard className="h-3 w-3" />
+								{subscriptionPlanLabel}
+							</span>
+							<Badge className={subscriptionStatus.badgeClassName} variant="outline">
+								{subscriptionStatus.label}
+							</Badge>
+						</div>
+						<Link
+							className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
+							href="/subscription"
+						>
+							Abonnement verwalten
+							<ArrowRight className="h-3 w-3" />
+						</Link>
+					</div>
+				</CardContent>
+			</Card>
+		</div>
 	);
 };
 
@@ -714,8 +737,8 @@ export default async function DashboardPage() {
 	);
 	const recentEvents = queryClient.getQueryData(recentActivityQueryOptions.queryKey);
 
-	const monthlyUsagePercentage = data?.usage?.monthlyUsagePercentage ?? 0;
-	const isMonthlyBudgetReached = data?.usage?.isMonthlyBudgetReached ?? false;
+	const { isMonthlyBudgetReached, monthlyUsagePercentage, usageResetsAt } =
+		getDashboardUsageSummary(data?.usage);
 	const subscriptionPlanLabel = getSubscriptionPlanLabel(activeSubscription?.plan);
 	const subscriptionStatus = getSubscriptionStatus(activeSubscription);
 	const isAdmin = session.user.email === env.ADMIN_EMAIL;
@@ -741,6 +764,7 @@ export default async function DashboardPage() {
 						monthlyUsagePercentage={monthlyUsagePercentage}
 						subscriptionPlanLabel={subscriptionPlanLabel}
 						subscriptionStatus={subscriptionStatus}
+						usageResetsAt={usageResetsAt}
 						userTemplateCount={userTemplates?.length ?? 0}
 					/>
 					<AiFunctionsSection

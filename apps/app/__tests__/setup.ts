@@ -370,6 +370,8 @@ export const createTestSubscription = async (
 	db: TestDatabase,
 	userId: string,
 	options?: {
+		periodEnd?: Date;
+		periodStart?: Date;
 		plan?: string;
 		status?: string;
 	},
@@ -378,8 +380,8 @@ export const createTestSubscription = async (
 		.insert(subscription)
 		.values({
 			id: crypto.randomUUID(),
-			periodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-			periodStart: new Date(),
+			periodEnd: options?.periodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+			periodStart: options?.periodStart ?? new Date(),
 			plan: options?.plan ?? "plus",
 			referenceId: userId,
 			status: options?.status ?? "active",

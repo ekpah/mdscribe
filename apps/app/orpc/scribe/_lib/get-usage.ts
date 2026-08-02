@@ -1,17 +1,27 @@
 import { and, eq, gte, lte, usageEvent } from "@repo/database";
 import type { Database } from "@repo/database";
 import { database } from "@repo/database/client";
-import { isByokUsageMetadata } from "@/lib/usage-logging";
+
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { getScribeUsageBudgetPercentage } from "@/lib/product-plans";
+import { isByokUsageMetadata } from "@/lib/usage-logging";
+import { resolveMonthlyUsagePeriod } from "@/lib/usage-period";
+import type { MonthlyUsagePeriod } from "@/lib/usage-period";
 
 export const getMonthlyScribeUsage = async (input: {
 	db?: Database;
+	now?: Date;
+	period?: MonthlyUsagePeriod;
 	session: { user: { id: string } };
 }) => {
 	const db = input.db ?? database;
-	const now = new Date();
-	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	const now = input.now ?? new Date();
+	const period =
+		input.period ??
+		resolveMonthlyUsagePeriod({
+			hasActiveSubscription: false,
+			now,
+		});
 
 	const usage = await db
 		.select({
@@ -26,7 +36,7 @@ export const getMonthlyScribeUsage = async (input: {
 		.where(
 			and(
 				eq(usageEvent.userId, input.session.user.id),
-				gte(usageEvent.timestamp, firstDayOfMonth),
+				gte(usageEvent.timestamp, period.start),
 				lte(usageEvent.timestamp, now),
 			),
 		);
@@ -62,6 +72,7 @@ export const getMonthlyScribeUsage = async (input: {
 	return {
 		byModel,
 		count: usageCount,
+		period,
 		totalCost,
 		totalInputTokens,
 		totalOutputTokens,
@@ -72,11 +83,16 @@ export const getMonthlyScribeUsage = async (input: {
 export const getUsage = async (
 	session: { user: { id: string } },
 	db: Database = database,
+	now: Date = new Date(),
 ) => {
-	const [usage, entitlements] = await Promise.all([
-		getMonthlyScribeUsage({ db, session }),
-		resolveProductEntitlements({ db, userId: session.user.id }),
-	]);
+	const entitlements = await resolveProductEntitlements({ db, userId: session.user.id });
+	const period = resolveMonthlyUsagePeriod({
+		hasActiveSubscription: entitlements.hasActiveSubscription,
+		now,
+		subscriptionPeriodEnd: entitlements.subscriptionPeriodEnd,
+		subscriptionPeriodStart: entitlements.subscriptionPeriodStart,
+	});
+	const usage = await getMonthlyScribeUsage({ db, now, period, session });
 	const monthlyUsagePercentage = getScribeUsageBudgetPercentage({
 		monthlyCostLimit: entitlements.scribeMonthlyCostLimit,
 		totalCost: usage.totalCost,
@@ -93,6 +109,9 @@ export const getUsage = async (
 			count: usage.count,
 			isMonthlyBudgetReached: usage.totalCost >= entitlements.scribeMonthlyCostLimit,
 			monthlyUsagePercentage,
+			periodStartsAt: usage.period.start.toISOString(),
+			periodType: usage.period.type,
+			resetsAt: usage.period.end.toISOString(),
 			totalInputTokens: usage.totalInputTokens,
 			totalOutputTokens: usage.totalOutputTokens,
 			totalTokens: usage.totalTokens,
