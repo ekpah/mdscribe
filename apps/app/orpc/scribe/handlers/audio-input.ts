@@ -277,7 +277,6 @@ export const transcribeAudioFilesWithPrompt = async ({
 			userId,
 			zdr,
 		}),
-		temperature: 0,
 	});
 	const timeToCompletionMs = Date.now() - requestStartedAt;
 

@@ -443,6 +443,7 @@ const createAudioTranscriber = (
 						data: data.toString("base64"),
 						format: getOpenRouterAudioFormat(mediaType),
 					},
+					language: "de",
 					model: modelId,
 				}),
 				headers: {

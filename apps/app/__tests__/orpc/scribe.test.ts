@@ -517,6 +517,7 @@ describe("Model Selection Logic", () => {
 					data: Buffer.from("audio").toString("base64"),
 					format: "webm",
 				},
+				language: "de",
 				model: "openai/whisper-large-v3",
 			});
 			const [event] = await server.db
