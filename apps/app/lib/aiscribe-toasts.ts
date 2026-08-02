@@ -1,6 +1,6 @@
 import type { FinishReason } from "ai";
 
-export const isSuccessfulAiscribeFinish = (input: {
+export const isSuccessfulChatFinish = (input: {
 	finishReason?: FinishReason;
 	isAbort: boolean;
 	isError: boolean;
@@ -9,6 +9,8 @@ export const isSuccessfulAiscribeFinish = (input: {
 	!input.isError &&
 	input.finishReason !== "error" &&
 	input.finishReason !== "content-filter";
+
+export const isSuccessfulAiscribeFinish = isSuccessfulChatFinish;
 
 export const hasLessThanTenPercentUsageRemaining = (
 	monthlyUsagePercentage: number,

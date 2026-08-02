@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { unwrapAuthClientResult } from "@/lib/auth-client-result";
 import type { Session } from "@/lib/auth-types";
 import type { ActiveSessionView } from "@/lib/session-device";
 
@@ -37,12 +38,14 @@ export const AccountSettingsPage = ({
 	const handleSubscriptionUpgrade = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			() =>
-				authClient.subscription.upgrade({
-					cancelUrl: "/profile/account",
-					plan: "plus",
-					successUrl: "/profile/account",
-				}),
+			async () =>
+				unwrapAuthClientResult(
+					await authClient.subscription.upgrade({
+						cancelUrl: "/profile/account",
+						plan: "plus",
+						successUrl: "/profile/account",
+					}),
+				),
 			{
 				error: "Dein Abonnement konnte nicht aktualisiert werden.",
 				finally: () => setIsManagingSubscription(false),
@@ -55,10 +58,12 @@ export const AccountSettingsPage = ({
 	const handleSubscriptionCancel = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			() =>
-				authClient.subscription.cancel({
-					returnUrl: "/profile/account",
-				}),
+			async () =>
+				unwrapAuthClientResult(
+					await authClient.subscription.cancel({
+						returnUrl: "/profile/account",
+					}),
+				),
 			{
 				error: "Dein Abonnement konnte nicht storniert werden.",
 				finally: () => setIsManagingSubscription(false),

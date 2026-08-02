@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	hasLessThanTenPercentUsageRemaining,
 	isSuccessfulAiscribeFinish,
+	isSuccessfulChatFinish,
 } from "@/lib/aiscribe-toasts";
 
 describe("AI Scribe toast decisions", () => {
@@ -20,6 +21,13 @@ describe("AI Scribe toast decisions", () => {
 		expect(
 			isSuccessfulAiscribeFinish({
 				finishReason: undefined,
+				isAbort: false,
+				isError: true,
+			}),
+		).toBe(false);
+		expect(
+			isSuccessfulChatFinish({
+				finishReason: "stop",
 				isAbort: false,
 				isError: true,
 			}),

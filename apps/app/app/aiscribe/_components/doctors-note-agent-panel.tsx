@@ -46,6 +46,7 @@ import type {
 import { useInputContextClipboardPaste } from "@/app/_components/input-context/use-input-context-clipboard-paste";
 import { useInputContextState } from "@/app/_components/input-context/use-input-context-state";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
+import { isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 import { orpc } from "@/lib/orpc";
 import type { ScribeAgentSection } from "@/orpc/scribe-agent";
 
@@ -509,7 +510,10 @@ export const DoctorsNoteAgentPanel = ({
 			submittedContextCleanupRef.current = null;
 			toast.error(getAiscribeErrorMessage(error) ?? "Der Agent ist derzeit nicht erreichbar.");
 		},
-		onFinish: () => {
+		onFinish: ({ finishReason, isAbort, isError }) => {
+			if (!isSuccessfulChatFinish({ finishReason, isAbort, isError })) {
+				return;
+			}
 			submittedContextCleanupRef.current?.();
 			submittedContextCleanupRef.current = null;
 			setInstruction("");

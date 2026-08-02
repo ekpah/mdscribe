@@ -280,6 +280,9 @@ export const PromptInput = ({
 
 	const convertBlobUrlToDataUrl = useCallback(async (url: string): Promise<string> => {
 		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error(`Attachment fetch failed with HTTP ${response.status}`);
+		}
 		const blob = await response.blob();
 		const bytes = new Uint8Array(await blob.arrayBuffer());
 		let binary = "";

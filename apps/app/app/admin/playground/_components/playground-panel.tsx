@@ -40,6 +40,7 @@ import type {
 	PlaygroundResult,
 } from "@/app/admin/playground/_lib/types";
 import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
+import { isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { buildSelectedTemplateReference } from "@/orpc/scribe/context/template/compose";
@@ -2093,7 +2094,19 @@ const RunCard = ({
 				text: latestCompletionRef.current,
 			});
 		},
-		onFinish: ({ message, messages: finishedMessages }) => {
+		onFinish: ({ finishReason, isAbort, isError, message, messages: finishedMessages }) => {
+			if (!isSuccessfulChatFinish({ finishReason, isAbort, isError })) {
+				const errorWasAlreadyHandled = runStartedAtRef.current === null;
+				runStartedAtRef.current = null;
+				if (!isAbort && !errorWasAlreadyHandled) {
+					setRunState(runId, {
+						error: "Die Generierung wurde nicht erfolgreich abgeschlossen.",
+						isStreaming: false,
+					});
+				}
+				return;
+			}
+
 			const startedAt = runStartedAtRef.current;
 			const latencyMs = startedAt === null ? 0 : Math.max(0, Date.now() - startedAt);
 			runStartedAtRef.current = null;
