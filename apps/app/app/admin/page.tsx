@@ -13,6 +13,7 @@ import {
 	FileAudio,
 	FileText,
 	FlaskConical,
+	HeartPulse,
 	KeyRound,
 	Mail,
 	NotebookTabs,
@@ -189,6 +190,14 @@ const adminSections: AdminSection[] = [
 				icon: <NotebookTabs className="h-5 w-5 text-solarized-cyan" />,
 				status: "active",
 				title: "Markdoc-Playground",
+			},
+			{
+				description:
+					"FHIR JSON einfügen, Laborverläufe darstellen und dynamische Source-Abfragen testen.",
+				href: "/admin/fhir-playground",
+				icon: <HeartPulse className="h-5 w-5 text-solarized-red" />,
+				status: "active",
+				title: "FHIR-Playground",
 			},
 		],
 		title: "Playgrounds",
