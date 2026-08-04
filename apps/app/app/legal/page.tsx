@@ -82,7 +82,7 @@ export default function LegalPage() {
 							<h2 className="font-semibold text-2xl">
 								Datenschutzerklärung für die MDScribe Cloud
 							</h2>
-							<p className="text-muted-foreground text-sm">Stand: 27.07.2026</p>
+							<p className="text-muted-foreground text-sm">Stand: 04.08.2026</p>
 							<p className="text-muted-foreground">
 								Diese Datenschutzerklärung gilt ausschließlich für die von uns unter mdscribe.de
 								betriebene Cloud-Version von MDScribe. Bei einer selbst gehosteten oder anderweitig
@@ -390,6 +390,44 @@ export default function LegalPage() {
 											target="_blank"
 										>
 											Datenschutzhinweise von Stripe
+										</a>
+									</p>
+								</div>
+
+								<div className="space-y-2">
+									<h4 className="font-medium">6.5 Umami Cloud – Reichweitenmessung</h4>
+									<p>
+										Zur datensparsamen Reichweitenmessung nutzen wir Umami Cloud, einen Dienst der
+										Umami Software, Inc., San Francisco, USA. Dabei werden insbesondere aufgerufene
+										Seiten einschließlich vorhandener URL-Parameter, Seitentitel, Referrer,
+										Zeitpunkt, Sprache, Bildschirmauflösung, Browser, Betriebssystem, Gerätetyp und
+										der ungefähre Standort verarbeitet. Wir verwenden diese Statistiken, um die
+										Nutzung der Plattform zu verstehen und Bedienbarkeit, Inhalte und technische
+										Zuverlässigkeit zu verbessern.
+									</p>
+									<p>
+										Umami setzt für diese Reichweitenmessung keine Cookies ein. Die IP-Adresse wird
+										zur Ableitung von Standortinformationen und zusammen mit technischen Merkmalen
+										zur Bildung wechselnder Sitzungskennungen verarbeitet, nach Angaben des
+										Anbieters jedoch nicht gespeichert. Wir übermitteln keine MDScribe-
+										Benutzerkennung an Umami und setzen keine websiteübergreifende Nutzerverfolgung
+										ein.
+									</p>
+									<p>
+										Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO. Unser berechtigtes Interesse
+										liegt in der datensparsamen Analyse und Verbesserung unseres Angebots. Umami
+										Cloud betreibt Server in der Europäischen Union und in den USA; eine
+										Verarbeitung in den USA ist daher möglich. Soweit erforderlich, werden für
+										Drittlandübermittlungen geeignete Garantien nach Art. 46 DSGVO verwendet.
+									</p>
+									<p>
+										<a
+											className="underline underline-offset-4"
+											href="https://umami.is/privacy"
+											rel="noopener noreferrer"
+											target="_blank"
+										>
+											Datenschutzhinweise von Umami
 										</a>
 									</p>
 								</div>
