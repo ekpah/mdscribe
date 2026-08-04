@@ -5,6 +5,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 
 type SeedDatabase = PostgresJsDatabase<typeof schema>;
+type SeedTransaction = Parameters<Parameters<SeedDatabase["transaction"]>[0]>[0];
 
 // Constants for test credentials
 const SEED_USER = {
@@ -112,7 +113,7 @@ Respiratorische Insuffizienz mit Intubationspflicht
 /**
  * Seed templates into the database
  */
-const seedTemplates = async (db: SeedDatabase, authorId: string): Promise<void> => {
+const seedTemplates = async (db: SeedTransaction, authorId: string): Promise<void> => {
 	console.log("Seeding templates...");
 
 	for (const tmpl of SEED_TEMPLATES) {
@@ -132,7 +133,7 @@ const seedTemplates = async (db: SeedDatabase, authorId: string): Promise<void> 
 /**
  * Seed usage events into the database
  */
-const seedUsageEvents = async (db: SeedDatabase, userId: string): Promise<void> => {
+const seedUsageEvents = async (db: SeedTransaction, userId: string): Promise<void> => {
 	console.log("Seeding usage events...");
 
 	const events = [
@@ -200,6 +201,14 @@ const seedUsageEvents = async (db: SeedDatabase, userId: string): Promise<void> 
  * Only runs once, even across HMR reloads
  */
 export const seedDatabase = async (db: SeedDatabase): Promise<void> => {
+	if (process.env.MDSCRIBE_ALLOW_DEV_SEED !== "1") {
+		console.log("Development seed disabled; skipping.");
+		return;
+	}
+	if (process.env.NODE_ENV !== "development") {
+		throw new Error("Development seed data requires NODE_ENV=development.");
+	}
+
 	// Skip if already seeded (HMR protection)
 	if (globalForSeed.seeded) {
 		console.log("Database already seeded, skipping...");
@@ -215,45 +224,44 @@ export const seedDatabase = async (db: SeedDatabase): Promise<void> => {
 
 	console.log("Seeding database with test data...");
 
-	// Create test user
-	const userId = crypto.randomUUID();
-	await db.insert(schema.user).values({
-		displayUsername: SEED_USER.username,
-		email: SEED_USER.email,
-		emailVerified: true,
-		id: userId,
-		name: SEED_USER.name,
-		stripeCustomerId: `cus_test_${Date.now()}`,
-		username: SEED_USER.username,
+	await db.transaction(async (transaction) => {
+		const now = new Date();
+		const userId = crypto.randomUUID();
+		await transaction.insert(schema.user).values({
+			displayUsername: SEED_USER.username,
+			email: SEED_USER.email,
+			emailVerified: true,
+			id: userId,
+			name: SEED_USER.name,
+			stripeCustomerId: `cus_test_${Date.now()}`,
+			updatedAt: now,
+			username: SEED_USER.username,
+		});
+
+		const hashedPassword = await hashPassword(SEED_USER.password);
+		await transaction.insert(schema.account).values({
+			accountId: userId,
+			id: crypto.randomUUID(),
+			password: hashedPassword,
+			providerId: "credential",
+			updatedAt: now,
+			userId,
+		});
+
+		await transaction.insert(schema.session).values({
+			// 30 days
+			expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+			id: crypto.randomUUID(),
+			ipAddress: "127.0.0.1",
+			token: crypto.randomUUID(),
+			updatedAt: now,
+			userAgent: "seed-script",
+			userId,
+		});
+
+		await seedTemplates(transaction, userId);
+		await seedUsageEvents(transaction, userId);
 	});
-
-	// Create credential account with BetterAuth-compatible password hash
-	const hashedPassword = await hashPassword(SEED_USER.password);
-	await db.insert(schema.account).values({
-		accountId: userId,
-		id: crypto.randomUUID(),
-		password: hashedPassword,
-		providerId: "credential",
-		userId,
-	});
-
-	// Create active session for immediate login
-	const sessionToken = crypto.randomUUID();
-	await db.insert(schema.session).values({
-		// 30 days
-		expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-		id: crypto.randomUUID(),
-		ipAddress: "127.0.0.1",
-		token: sessionToken,
-		userAgent: "seed-script",
-		userId,
-	});
-
-	// Seed templates
-	await seedTemplates(db, userId);
-
-	// Seed usage events
-	await seedUsageEvents(db, userId);
 
 	// Mark as seeded
 	globalForSeed.seeded = true;

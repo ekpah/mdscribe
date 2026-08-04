@@ -4,6 +4,11 @@
 
 set -euo pipefail
 
+if [[ -z "${AMP_THREAD_ID:-}" ]]; then
+	echo "Skipping orb setup outside an Amp thread."
+	exit 0
+fi
+
 readonly BUN_VERSION="1.2.23"
 readonly NODE_MAJOR="24"
 readonly DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe"
@@ -66,7 +71,7 @@ readonly -a ENV_DEFAULTS=(
 	"NEXT_PUBLIC_BASE_URL=http://localhost:3000"
 	"BETTER_AUTH_SECRET=orb-development-secret-not-for-production"
 	"BETTER_AUTH_URL=http://localhost:3000"
-	"ADMIN_EMAIL=admin@example.com"
+	"ADMIN_EMAIL=test@test.com"
 	"POSTGRES_DATABASE_URL=${DATABASE_URL}"
 	"VOYAGE_API_KEY=orb-placeholder"
 	"OPENROUTER_API_KEY=orb-placeholder"
@@ -107,7 +112,17 @@ for database in mdscribe mdscribe_test; do
 		--command "CREATE EXTENSION IF NOT EXISTS vector"
 done
 
-echo "Applying database migrations..."
-POSTGRES_DATABASE_URL="${DATABASE_URL}" bun run db:migrate
+echo "Applying database migrations and development seed data..."
+NODE_ENV="development" MDSCRIBE_ALLOW_DEV_SEED="1" POSTGRES_DATABASE_URL="${DATABASE_URL}" \
+	bun run db:bootstrap
+
+if [[ -n "${AMP_THREAD_ID:-}" ]] && command -v amp >/dev/null 2>&1; then
+	echo "Starting declared orb preview services..."
+	if ! amp orb services ensure; then
+		echo "Preview is still compiling; checking it again..."
+		sleep 15
+		amp orb services ensure
+	fi
+fi
 
 echo "Orb setup complete."

@@ -43,6 +43,18 @@ if (!isBuildTime && !(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET)) {
 }
 const stripeClient = new StripeClient((env.STRIPE_SECRET_KEY as string) || "sk_placeholder");
 
+const authBaseUrl = new URL(env.NEXT_PUBLIC_BASE_URL as string);
+const isOrbPreview =
+	process.env.NODE_ENV === "development" &&
+	process.env.MDSCRIBE_ORB_PREVIEW === "1" &&
+	authBaseUrl.protocol === "https:" &&
+	authBaseUrl.hostname.endsWith(".onamp.dev") &&
+	authBaseUrl.pathname === "/" &&
+	!authBaseUrl.username &&
+	!authBaseUrl.password &&
+	!authBaseUrl.search &&
+	!authBaseUrl.hash;
+
 const userNameLengthHook = {
 	before: (authUser: Record<string, unknown>) => {
 		if (typeof authUser.name === "string" && authUser.name.length > 30) {
@@ -56,6 +68,15 @@ const userNameLengthHook = {
 };
 
 export const auth = betterAuth({
+	advanced: isOrbPreview
+		? {
+				defaultCookieAttributes: {
+					partitioned: true,
+					sameSite: "none",
+					secure: true,
+				},
+			}
+		: undefined,
 	baseURL: env.NEXT_PUBLIC_BASE_URL as string,
 	database: drizzleAdapter(database, {
 		provider: "pg",

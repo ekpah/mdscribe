@@ -27,7 +27,7 @@
     "db:down": "docker compose -f docker-compose.dev-db.yml down",
     "db:reset": "docker compose -f docker-compose.dev-db.yml down -v",
     "db:logs": "docker compose -f docker-compose.dev-db.yml logs -f postgres",
-    "db:init": "bun run --cwd packages/database bootstrap",
+    "db:init": "NODE_ENV=development MDSCRIBE_ALLOW_DEV_SEED=1 bun run --cwd packages/database bootstrap",
     "db:bootstrap": "bun run --cwd packages/database bootstrap",
     "db:migrate": "bun run --cwd packages/database migrate",
     "db:migrate:deploy": "bun run db:migrate",

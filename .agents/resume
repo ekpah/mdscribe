@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -z "${AMP_THREAD_ID:-}" ]]; then
+	echo "Skipping orb resume outside an Amp thread."
+	exit 0
+fi
+
 echo "Checking PostgreSQL..."
 while read -r version cluster _ status _; do
 	if [[ "${status}" != "online" ]]; then
@@ -10,3 +15,12 @@ done < <(pg_lsclusters --no-header)
 
 pg_isready --quiet --host 127.0.0.1 --port 5432
 echo "PostgreSQL is ready."
+
+if [[ -n "${AMP_THREAD_ID:-}" ]] && command -v amp >/dev/null 2>&1; then
+	echo "Ensuring orb preview services..."
+	if ! amp orb services ensure; then
+		echo "Preview is still compiling; checking it again..."
+		sleep 15
+		amp orb services ensure
+	fi
+fi
