@@ -1,0 +1,11 @@
+services:
+  app:
+    command: >-
+      NEXT_PUBLIC_BASE_URL="$PUBLIC_URL"
+      BETTER_AUTH_URL="$PUBLIC_URL"
+      ADMIN_EMAIL="test@test.com"
+      MDSCRIBE_ORB_PREVIEW="1"
+      bun --bun next dev apps/app -p "$PORT"
+    portal:
+      title: MDScribe
+      description: Sign in with test@test.com / password123. Changes reload automatically.

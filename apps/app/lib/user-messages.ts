@@ -116,6 +116,10 @@ export const USER_MESSAGES = {
 		userEmpty: "Keine passenden Nutzer gefunden.",
 		userSearch: "Nutzer suchen...",
 	},
+	signIn: {
+		emailNotVerified: "Bitte bestätigen Sie Ihre E-Mail-Adresse.",
+		failed: "E-Mail-Adresse, Benutzername oder Passwort ist ungültig.",
+	},
 	subscriptionRequired: "Ihr Abonnement reicht nicht aus. Bitte aktualisieren Sie Ihr Abo.",
 	templateSearch: {
 		description: "Durchsuchen Sie alle für Sie verfügbaren Textbausteine.",

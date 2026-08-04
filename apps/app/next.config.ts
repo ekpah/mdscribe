@@ -11,7 +11,40 @@ export type { NextConfig };
 // Import env here to validate during build. Using jiti@^1 we can import .ts files :)
 jiti.import("@repo/env");
 
+const getOrbPortalHostname = (): string | undefined => {
+	if (
+		process.env.NODE_ENV !== "development" ||
+		process.env.MDSCRIBE_ORB_PREVIEW !== "1" ||
+		!process.env.PUBLIC_URL
+	) {
+		return undefined;
+	}
+
+	try {
+		const url = new URL(process.env.PUBLIC_URL);
+		if (
+			url.protocol !== "https:" ||
+			!url.hostname.endsWith(".onamp.dev") ||
+			url.username ||
+			url.password ||
+			url.pathname !== "/" ||
+			url.search ||
+			url.hash
+		) {
+			return undefined;
+		}
+		return url.hostname;
+	} catch {
+		return undefined;
+	}
+};
+
+const orbPortalHostname = getOrbPortalHostname();
+
 export const config: NextConfig = {
+	allowedDevOrigins: orbPortalHostname ? [orbPortalHostname] : undefined,
+	devIndicators: orbPortalHostname ? false : undefined,
+
 	// PERF: Optimize barrel-file imports (15-70% faster dev boot, 28% faster builds).
 	// Next.js already optimizes a built-in list (lucide-react, recharts, date-fns, …),
 	// so only list barrels that aren't covered by that default.
@@ -24,14 +57,23 @@ export const config: NextConfig = {
 	},
 
 	headers() {
+		const isPortalPreview = !!orbPortalHostname;
 		return [
 			{
 				headers: createSecureHeaders({
+					contentSecurityPolicy: isPortalPreview
+						? {
+								directives: {
+									frameAncestors: ["'self'", "https://ampcode.com"],
+								},
+							}
+						: false,
 					// HSTS Preload: https://hstspreload.org/
 					forceHTTPSRedirect: [
 						true,
 						{ includeSubDomains: true, maxAge: 63_072_000, preload: true },
 					],
+					frameGuard: isPortalPreview ? false : "deny",
 				}),
 				source: "/(.*)",
 			},

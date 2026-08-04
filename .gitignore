@@ -24,6 +24,9 @@ coverage
 # Turbo
 .turbo
 
+# Amp-generated portal manifests
+.amp/portals/
+
 # Vercel
 .vercel
 

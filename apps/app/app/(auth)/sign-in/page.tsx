@@ -19,6 +19,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { signIn } from "@/lib/auth-client";
 import { getSafeRedirectPath } from "@/lib/sign-in-redirect";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 export default function SignIn() {
 	const [identifier, setIdentifier] = useState("");
@@ -56,12 +57,12 @@ export default function SignIn() {
 			// An "@" means it's an email; otherwise treat it as a username.
 			const isEmail = value.includes("@");
 			const fetchOptions = {
-				onError: (ctx: { error: { status: number; message: string } }) => {
+				onError: (ctx: { error: { status: number } }) => {
 					// Handle the error 403 - not email verified
 					if (ctx.error.status === 403) {
-						toast.error("Bitte bestätigen Sie Ihre E-Mail-Adresse");
+						toast.error(USER_MESSAGES.signIn.emailNotVerified);
 					} else {
-						toast.error(ctx.error.message);
+						toast.error(USER_MESSAGES.signIn.failed);
 					}
 					setLoading(false);
 				},

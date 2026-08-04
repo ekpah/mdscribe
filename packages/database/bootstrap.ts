@@ -29,7 +29,7 @@ const bootstrapDatabase = async (): Promise<void> => {
 		}
 
 		await seedDatabase(database);
-		console.log("Development seed complete");
+		console.log("Database bootstrap complete");
 	} finally {
 		await database.$client.end({ timeout: 5 });
 	}
