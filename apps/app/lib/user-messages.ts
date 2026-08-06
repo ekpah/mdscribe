@@ -6,6 +6,7 @@ import type {
 const MARKDOC_ATTRIBUTE_LABELS: Record<MarkdocContractAttribute, string> = {
 	description: "Beschreibung",
 	formula: "Formel",
+	source: "Quelle",
 	type: "Typ",
 	unit: "Einheit",
 };

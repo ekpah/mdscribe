@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
+import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
 import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
 import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
+import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 describe("markdoc tags phase 1 regressions", () => {
 	test("keeps case scopes separate across switches with same case labels", () => {
@@ -76,6 +80,24 @@ describe("markdoc tags phase 1 regressions", () => {
 		expect(anticoagulationSwitch.attributes.type).toBe("boolean");
 	});
 
+	test("preserves and merges a Switch source attribute", () => {
+		const fhirSource = "fhir://Patient.active";
+		const source = `
+{% switch "Aktiv" type="boolean" %}{% case "true" %}Ja{% /case %}{% /switch %}
+{% switch "Aktiv" type="boolean" source=${JSON.stringify(fhirSource)} %}{% case "false" %}Nein{% /case %}{% /switch %}
+`;
+
+		const diagnostics = validateMarkdocTagContracts(source);
+		const [input] = parseMarkdocToInputs(source);
+		if (input?.name !== "Switch") {
+			throw new Error("Expected switch input");
+		}
+
+		expect(diagnostics).toEqual([]);
+		expect(input.attributes.source).toBe(fhirSource);
+		expect(renderTipTapHTML(source)).toContain(`source="${fhirSource}"`);
+	});
+
 	test("keeps formula-only score tags distinct and collects all variables", () => {
 		const source = `
 {% score formula="[A]+[B]" /%}
@@ -137,6 +159,70 @@ describe("markdoc tags phase 1 regressions", () => {
 			unit: "kg",
 		});
 		expect(input?.attributes.renderUnit).toBe(false);
+	});
+
+	test("preserves and merges an Info source attribute", () => {
+		const fhirSource =
+			"fhir://Observation.where(code.coding.system = 'http://loinc.org' and code.coding.code = '718-7').last().value";
+		const source = `
+{% info "Hämoglobin" type="number" /%}
+{% info "Hämoglobin" type="number" source=${JSON.stringify(fhirSource)} /%}
+`;
+
+		const diagnostics = validateMarkdocTagContracts(source);
+		const [input] = parseMarkdocToInputs(source);
+		if (input?.name !== "Info") {
+			throw new Error("Expected info input");
+		}
+
+		expect(diagnostics).toEqual([]);
+		expect(input.attributes.source).toBe(fhirSource);
+		expect(renderTipTapHTML(source)).toContain(`source="${fhirSource}"`);
+	});
+
+	test("reports conflicting Info sources as a shared-contract error", () => {
+		const diagnostics = validateMarkdocTagContracts(`
+{% info "Hämoglobin" source="fhir://Observation.first().value" /%}
+{% info "Hämoglobin" source="fhir://Observation.last().value" /%}
+`);
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]).toMatchObject({
+			code: "tag-settings-conflict",
+			conflicts: [
+				{
+					attribute: "source",
+					conflictingValue: "fhir://Observation.last().value",
+					firstValue: "fhir://Observation.first().value",
+				},
+			],
+			primary: "Hämoglobin",
+			tag: "info",
+		});
+	});
+
+	test("renders a sourced Info tag from its resolved variable", () => {
+		const source = `{% info "fhir-text" source="fhir://Observation.last().note.text" /%}`;
+		const html = renderToStaticMarkup(
+			createElement(DynamicMarkdocRenderer, {
+				markdocContent: source,
+				variables: { "fhir-text": "Beliebiger FHIR-Text" },
+			}),
+		);
+
+		expect(html).toContain("Beliebiger FHIR-Text");
+	});
+
+	test("renders boolean source values as text", () => {
+		const source = `{% info "active" source="fhir://Patient.active" /%}`;
+		const html = renderToStaticMarkup(
+			createElement(DynamicMarkdocRenderer, {
+				markdocContent: source,
+				variables: { active: false },
+			}),
+		);
+
+		expect(html).toContain("false");
 	});
 
 	test("normalizes omitted tag types before comparing repeated inputs", () => {
@@ -238,6 +324,27 @@ describe("markdoc tags phase 1 regressions", () => {
 			code: "tag-settings-conflict",
 			conflicts: [{ attribute: "type", conflictingValue: "boolean", firstValue: "string" }],
 			primary: "Status",
+			tag: "switch",
+		});
+	});
+
+	test("reports conflicting Switch sources", () => {
+		const diagnostics = validateMarkdocTagContracts(`
+{% switch "Aktiv" source="fhir://Patient.active" %}{% case "true" %}Ja{% /case %}{% /switch %}
+{% switch "Aktiv" source="fhir://Patient.deceased" %}{% case "false" %}Nein{% /case %}{% /switch %}
+`);
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]).toMatchObject({
+			code: "tag-settings-conflict",
+			conflicts: [
+				{
+					attribute: "source",
+					conflictingValue: "fhir://Patient.deceased",
+					firstValue: "fhir://Patient.active",
+				},
+			],
+			primary: "Aktiv",
 			tag: "switch",
 		});
 	});
