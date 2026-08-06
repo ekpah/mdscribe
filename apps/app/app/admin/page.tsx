@@ -192,8 +192,7 @@ const adminSections: AdminSection[] = [
 				title: "Markdoc-Playground",
 			},
 			{
-				description:
-					"FHIR JSON einfügen, Laborverläufe darstellen und dynamische Source-Abfragen testen.",
+				description: "FHIR JSON laden, vollständigen FHIRPath auswerten und Source Links prüfen.",
 				href: "/admin/fhir-playground",
 				icon: <HeartPulse className="h-5 w-5 text-solarized-red" />,
 				status: "active",
