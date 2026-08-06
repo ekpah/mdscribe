@@ -1,24 +1,26 @@
 {
 	"name": "@repo/markdoc-md",
 	"version": "0.1.0",
-	"description": "",
-	"main": "index.ts",
 	"private": true,
-	"type": "module",
+	"description": "",
 	"keywords": [],
-	"author": "",
 	"license": "Elastic-2.0",
+	"author": "",
+	"type": "module",
+	"main": "index.ts",
 	"scripts": {
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@markdoc/markdoc": "^0.5.7",
 		"@types/react": "catalog:",
+		"fhirpath": "^5.1.0",
 		"fparser": "^4.2.0",
 		"react": "catalog:"
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
+		"@types/bun": "catalog:",
 		"typescript": "catalog:"
 	}
 }
