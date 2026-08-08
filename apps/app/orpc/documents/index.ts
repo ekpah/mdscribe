@@ -143,6 +143,7 @@ const addCategories = (
 const createDocumentTemplateInput = z.object({
 	category: z.string().min(1, "Category is required").max(MAX_DOCUMENT_CATEGORY_LENGTH),
 	fieldDefinitions: documentDefinitionSchema,
+	information: z.string().max(10_000, "Information is too long").default(""),
 	pdfBase64: pdfBase64Schema,
 	title: z.string().min(1, "Title is required").max(MAX_DOCUMENT_TITLE_LENGTH),
 	visibility: documentTemplateVisibilitySchema.default("public"),
@@ -152,6 +153,7 @@ const updateDocumentTemplateInput = z.object({
 	category: z.string().min(1, "Category is required").max(MAX_DOCUMENT_CATEGORY_LENGTH),
 	fieldDefinitions: documentDefinitionSchema,
 	id: z.string().min(1),
+	information: z.string().max(10_000, "Information is too long").default(""),
 	pdfBase64: pdfBase64Schema.optional(),
 	title: z.string().min(1, "Title is required").max(MAX_DOCUMENT_TITLE_LENGTH),
 	visibility: documentTemplateVisibilitySchema.default("public"),
@@ -376,12 +378,6 @@ const enhanceDefinitionHandler = authed
 			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", { message });
 		}
-		const { entitlements } = await enforceScribeUsageLimit({
-			db: context.db,
-			entitlements: context.entitlements.scribe,
-			session: context.session,
-		});
-
 		const config = pdfDocumentConfigs.enhanceDefinition;
 		const promptText = config.prompt({ definition: currentDefinition, pdfFields: fields })[0]
 			.content;
@@ -393,7 +389,10 @@ const enhanceDefinitionHandler = authed
 
 		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
 		try {
-			const strategy = await resolveGenerationStrategy(context.db, { hasFiles: true });
+			const strategy = await resolveGenerationStrategy(context.db, {
+				hasFiles: true,
+				userId: context.session.user.id,
+			});
 			modelSelection =
 				strategy.files?.mode === "preprocess" ? strategy.files.selection : strategy.generation;
 		} catch (error) {
@@ -402,6 +401,12 @@ const enhanceDefinitionHandler = authed
 				message: `${USER_MESSAGES.documentEditor.aiModelUnavailable} (${details})`,
 			});
 		}
+		const { entitlements } = await enforceScribeUsageLimit({
+			db: context.db,
+			entitlements: context.entitlements.scribe,
+			isQuotaExempt: modelSelection.model.credentialSource === "user_byok",
+			session: context.session,
+		});
 
 		const requestStartedAt = Date.now();
 		const result = await generateObject({
@@ -458,7 +463,9 @@ const enhanceDefinitionHandler = authed
 					pdfFieldCount: fields.length,
 				},
 				metadata: {
+					credentialSource: modelSelection.model.credentialSource,
 					promptName: config.promptName,
+					providerProtocol: modelSelection.model.providerProtocol,
 					zdrEnabled: entitlements.hasActiveSubscription,
 				},
 				model: modelSelection.model.modelName,
@@ -523,6 +530,7 @@ const getDocumentTemplateHandler = pub
 				createdAt: documentTemplate.createdAt,
 				fieldDefinitions: documentTemplate.fieldDefinitions,
 				id: documentTemplate.id,
+				information: documentTemplate.information,
 				title: documentTemplate.title,
 				updatedAt: documentTemplate.updatedAt,
 				visibility: documentTemplate.visibility,
@@ -576,6 +584,7 @@ const createDocumentTemplateHandler = authed
 				authorId: context.session.user.id,
 				category: input.category.trim(),
 				fieldDefinitions: normalizedFieldDefinitions,
+				information: input.information.trim(),
 				pdfBytes,
 				title: input.title.trim(),
 				updatedAt: new Date(),
@@ -642,6 +651,7 @@ const updateDocumentTemplateHandler = authed
 			.set({
 				category: input.category.trim(),
 				fieldDefinitions: normalizedFieldDefinitions,
+				information: input.information.trim(),
 				pdfBytes,
 				title: input.title.trim(),
 				updatedAt: new Date(),

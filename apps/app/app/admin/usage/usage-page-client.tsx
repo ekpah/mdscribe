@@ -40,6 +40,7 @@ import {
 	formatStatTokensPerSecond,
 	formatTokensPerSecond,
 	UsagePromptBadge,
+	UsageModelName,
 } from "./columns";
 import type {
 	StatsFilter,
@@ -453,7 +454,6 @@ const UsageMobileCards = ({
 				const evaluation = getUsageEvaluation(item.metadata);
 				const isEvaluatingItem = isEvaluating && evaluatingEventId === item.id;
 				const canUsePlayground = canOpenInPlayground(item);
-				const modelLabel = item.model?.split("/").pop() || "-";
 
 				return (
 					<div
@@ -483,7 +483,11 @@ const UsageMobileCards = ({
 						<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
 							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 								<p className="text-solarized-base01">Modell</p>
-								<p className="truncate font-mono text-solarized-base00">{modelLabel}</p>
+								<UsageModelName
+									compact
+									metadata={item.metadata}
+									model={item.model}
+								/>
 							</div>
 							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 								<p className="text-solarized-base01">Tokens</p>

@@ -2,12 +2,14 @@ import { render } from "@react-email/components";
 import type { ReactElement } from "react";
 
 import { AiTextsAnnouncementTemplate } from "./templates/ai-texts-announcement";
+import { ByokAnnouncementTemplate } from "./templates/byok-announcement";
 import { EmailChangeTemplate } from "./templates/change-email";
 import { ColdOutreachTemplate } from "./templates/cold-outreach";
 import { ContextTransferAnnouncementTemplate } from "./templates/context-transfer-announcement";
 import { DocumentsAnnouncementTemplate } from "./templates/documents-announcement";
 import { OTPLoginTemplate } from "./templates/otp-login";
 import { ResetPasswordTemplate } from "./templates/reset-password";
+import { TemplateInformationAnnouncementTemplate } from "./templates/template-information-announcement";
 import { EmailVerificationTemplate } from "./templates/verify";
 import { WelcomeTemplate } from "./templates/welcome";
 import { WorkspacesAnnouncementTemplate } from "./templates/workspaces-announcement";
@@ -47,6 +49,41 @@ const getRecipientName = (
 };
 
 const emailDrafts: readonly EmailDraftDefinition[] = [
+	{
+		category: "marketing",
+		description:
+			"Marketingmail zu nutzereigenen API-Schlüsseln für admin-freigeschaltete KI-Verbindungen.",
+		id: "byok-announcement",
+		previewProps: {
+			actionUrl: "https://mdscribe.de/profile/ai-access",
+			buttonText: "Eigenen API-Schlüssel hinterlegen",
+		},
+		render: () => (
+			<ByokAnnouncementTemplate
+				actionUrl="https://mdscribe.de/profile/ai-access"
+				buttonText="Eigenen API-Schlüssel hinterlegen"
+			/>
+		),
+		subject: "Neu: Eigene API-Schlüssel in MDScribe verwenden",
+		title: "KI-Zugang: Eigene API-Schlüssel",
+	},
+	{
+		category: "marketing",
+		description: "Marketingmail zum Informationen-Feld für Templates und Dokumente.",
+		id: "template-information-announcement",
+		previewProps: {
+			actionUrl: "https://mdscribe.de/templates/create",
+			buttonText: "Informationen hinzufügen",
+		},
+		render: () => (
+			<TemplateInformationAnnouncementTemplate
+				actionUrl="https://mdscribe.de/templates/create"
+				buttonText="Informationen hinzufügen"
+			/>
+		),
+		subject: "Neu: Eigene Vorgaben für Templates und Dokumente",
+		title: "Templates & Dokumente: Informationen",
+	},
 	{
 		category: "marketing",
 		description: "Marketingmail zur Weiterverwenden-Funktion für sichere Kontextübergabe.",

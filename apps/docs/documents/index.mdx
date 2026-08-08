@@ -1,0 +1,63 @@
+---
+title: Dokumente
+description: Fillbare PDF-Formulare in MDScribe verwalten und direkt im Browser ausfuellen.
+---
+
+## Was ist die Dokumente-Funktion?
+
+Mit **Dokumente** verwalten Sie fillbare PDF-Formulare aehnlich wie Templates:
+
+- Bibliothek mit Suche und Kategorien
+- Detailseite mit Eingaben links und einer rechten Tab-Auswahl zwischen PDF-Vorschau und Informationen
+- Autoren koennen ihre Dokumente bearbeiten; andere eingeloggte Nutzer koennen oeffentliche Dokumente forken. Ohne Anmeldung wird keine Bearbeiten- oder Forken-Aktion angezeigt.
+- Sichtbarkeit pro Dokument: oeffentliche Dokumente sind fuer alle Nutzer sichtbar, nutzbar und kopierbar; private Dokumente sieht nur der Autor
+
+## Typischer Ablauf
+
+1. In `/documents/create` ein fillbares PDF hochladen
+2. Erkannte Felder pruefen und Labels/Beschreibungen anpassen. Optional kann die KI die komplette Eingabestruktur einschliesslich Typen, Optionen und PDF-Bindings optimieren. Der Vorschlag wird vor der Uebernahme gegen die tatsaechlichen PDF-Felder validiert.
+3. Optional im rechten Tab **Informationen** allgemeine Ausfuellhinweise hinterlegen. Sie werden Nutzern angezeigt und beim automatischen Ausfuellen als KI-Anweisungen beruecksichtigt, ohne selbst als Formularwert uebernommen zu werden.
+4. Dokument speichern
+5. Auf der Detailseite die Hinweise lesen, Felder ausfuellen, Vorschau ansehen, herunterladen oder drucken
+
+## Wichtige Regeln
+
+- Es werden nur AcroForm-PDFs unterstuetzt
+- `fieldName` bleibt nach dem Parsen read-only
+- Die Eingabeart wird aus dem PDF abgeleitet: Textfelder werden zu Texteingaben, einfache Checkboxen zu Ja/Nein-Schaltern, Auswahlfelder zu Switch-Eingaben
+- PDF-Textfelder koennen alternativ als Auswahl mit frei bearbeitbaren Optionen oder als Checkbox mit einem eigenen Anzeigewert dargestellt werden
+- Checkbox-Felder mit mehreren PDF-Widgets und unterschiedlichen `onValue`-Werten werden als eine Auswahl mit diesen Optionen behandelt
+- Wiederholte Checkbox-Widgets mit demselben PDF-Wert bleiben eine gemeinsame Ja/Nein-Eingabe
+- Bei solchen Checkbox-Auswahlen koennen einzelne Optionen direkt in der Optionszeile als eigener Ja/Nein-Schalter abgetrennt werden; eine explizite Wertzuordnung verbindet jedes sichtbare Label mit dem PDF-Wert
+- Ueber `Checkbox als Option hinzufuegen` wechselt der Editor in einen Auswahlmodus. Ein Klick auf eine andere Checkbox-Karte fuegt diese als Option zur gemeinsamen Auswahl hinzu; abgetrennte Optionen koennen so auch wieder hinzugefuegt werden.
+- Mehrere PDF-Checkboxen, die dieselbe Eingabe verwenden, erscheinen gemeinsam in einer Eingabe-Karte. Beim Auswaehlen der Karte werden alle zugeordneten PDF-Felder in der Vorschau hervorgehoben.
+- Sie koennen `label`, `description`, Optionen und Aktivierung anpassen
+- Deaktivierte Felder bleiben gespeichert, erscheinen aber nicht in den Eingaben
+- Nicht unterstuetzte AcroForm-Felder und Mehrfachauswahllisten werden erkannt, aber deaktiviert. Sie blockieren das Ausfuellen der uebrigen Felder nicht.
+- PDF-Dateien duerfen maximal 10 MB, 500 Seiten, 2.000 Formularfelder und 5.000 Widgets enthalten
+- Ausgefuellte PDF-Ergebnisse werden nicht dauerhaft gespeichert
+- Private Dokumente sind eine Plus-Funktion. Ohne Plus koennen private Dokumente nur oeffentlich gespeichert werden.
+
+## Automatisches Ausfuellen
+
+Auf der Detailseite koennen Sie Felder automatisch ausfuellen lassen:
+
+- links Felder mit `Inputs`
+- Audioaufnahmen und klinischen Textkontext erfassen
+- Textkontext bleibt nach dem Ausfuellen sichtbar und kann erneut verwendet oder angepasst werden
+- optional `orpc.scribe.fillInputs` mit `audioFiles` und/oder `textContext`
+- rechts Live-Aktualisierung der PDF-Vorschau
+
+## Speicherung (technisch)
+
+Pro Dokument werden gespeichert:
+
+- Original-PDF (`pdfBytes`)
+- Felddefinitionen (`fieldDefinitions`) mit:
+  - `inputs`: direkt renderbare Eingaben; `attributes.primary` ist zugleich der Schluessel fuer spaetere Fuellwerte
+  - `bindings`: Zuordnung von `fieldName` zu `inputId`, Aktivierung und optionaler `valueMap`
+- Allgemeine Ausfuellhinweise (`information`), getrennt von den eigentlichen PDF-Eingaben
+
+Jedes Binding verbindet eine Eingabe mit einem PDF-Feld. Mehrere Bindings duerfen dieselbe `inputId` verwenden, damit ein eingegebener Wert mehrere PDF-Felder fuellt. Ein PDF-Checkbox-Feld mit mehreren Widgets darf umgekehrt mehrere Bindings mit unterschiedlichen booleschen Eingaben besitzen. Beim Ausfuellen darf nur eine dieser Eingaben aktiv sein. PDF-Feldtyp und Widget-Metadaten werden beim Bearbeiten aus der PDF gelesen und nicht doppelt gespeichert.
+
+Es werden **keine** Schemaversion und kein roher oder abgeleiteter Markdoc-Text gespeichert.

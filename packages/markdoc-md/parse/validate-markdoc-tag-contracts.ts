@@ -1,9 +1,9 @@
 import type { Location, Node } from "@markdoc/markdoc";
 import * as Markdoc from "@markdoc/markdoc";
 
-export type MarkdocContractAttribute = "description" | "formula" | "type" | "unit";
-export type MarkdocInputTagKind = "info" | "switch";
-export type MarkdocValidatedTagKind = MarkdocInputTagKind | "score";
+export type MarkdocContractAttribute = "description" | "formula" | "source" | "type" | "unit";
+type MarkdocInputTagKind = "info" | "switch";
+type MarkdocValidatedTagKind = MarkdocInputTagKind | "score";
 
 export interface MarkdocSettingConflict {
 	attribute: MarkdocContractAttribute;
@@ -42,6 +42,8 @@ interface CanonicalTagContract {
 	settings: Partial<Record<MarkdocContractAttribute, CanonicalSetting>>;
 }
 
+type ContractSetting = readonly [MarkdocContractAttribute, string | undefined];
+
 const toOptionalString = (value: unknown): string | undefined =>
 	typeof value === "string" && value.length > 0 ? value : undefined;
 
@@ -56,155 +58,56 @@ const toSwitchContractType = (value: unknown): string => {
 
 const isTagNode = (node: Node): boolean => node.type === "tag" && typeof node.tag === "string";
 
-const addCanonicalSetting = (
-	contract: CanonicalTagContract,
-	attribute: MarkdocContractAttribute,
-	value: string | undefined,
-	location: Location | undefined,
-): void => {
-	if (value === undefined) {
-		return;
+const getContractSettings = (kind: MarkdocValidatedTagKind, node: Node): ContractSetting[] => {
+	if (kind === "info") {
+		return [
+			["type", toInfoType(node.attributes.type)],
+			["unit", toOptionalString(node.attributes.unit)],
+			["description", toOptionalString(node.attributes.description)],
+			["source", toOptionalString(node.attributes.source)],
+		];
 	}
-
-	contract.settings[attribute] = { location, value };
-};
-
-const compareSetting = ({
-	attribute,
-	canonical,
-	conflicts,
-	currentLocation,
-	currentValue,
-}: {
-	attribute: MarkdocContractAttribute;
-	canonical: CanonicalTagContract;
-	conflicts: MarkdocSettingConflict[];
-	currentLocation?: Location;
-	currentValue: string | undefined;
-}): void => {
-	if (currentValue === undefined) {
-		return;
+	if (kind === "switch") {
+		return [
+			["type", toSwitchContractType(node.attributes.type)],
+			["source", toOptionalString(node.attributes.source)],
+		];
 	}
+	return [["formula", toOptionalString(node.attributes.formula)]];
+};
 
-	const firstSetting = canonical.settings[attribute];
-	if (!firstSetting) {
-		addCanonicalSetting(canonical, attribute, currentValue, currentLocation);
-		return;
+const toCanonicalContract = (kind: MarkdocValidatedTagKind, node: Node): CanonicalTagContract => {
+	const settings: CanonicalTagContract["settings"] = {};
+	for (const [attribute, value] of getContractSettings(kind, node)) {
+		if (value !== undefined) {
+			settings[attribute] = { location: node.location, value };
+		}
 	}
-
-	if (firstSetting.value === currentValue) {
-		return;
-	}
-
-	conflicts.push({
-		attribute,
-		conflictingValue: currentValue,
-		firstLocation: firstSetting.location,
-		firstValue: firstSetting.value,
-	});
+	return { kind, location: node.location, settings };
 };
 
-const toInfoContract = (node: Node): CanonicalTagContract => {
-	const contract: CanonicalTagContract = {
-		kind: "info",
-		location: node.location,
-		settings: {},
-	};
-
-	addCanonicalSetting(contract, "type", toInfoType(node.attributes.type), node.location);
-	addCanonicalSetting(contract, "unit", toOptionalString(node.attributes.unit), node.location);
-	addCanonicalSetting(
-		contract,
-		"description",
-		toOptionalString(node.attributes.description),
-		node.location,
-	);
-	return contract;
-};
-
-const toSwitchContract = (node: Node): CanonicalTagContract => {
-	const contract: CanonicalTagContract = {
-		kind: "switch",
-		location: node.location,
-		settings: {},
-	};
-
-	addCanonicalSetting(contract, "type", toSwitchContractType(node.attributes.type), node.location);
-	return contract;
-};
-
-const toScoreContract = (node: Node): CanonicalTagContract => {
-	const contract: CanonicalTagContract = {
-		kind: "score",
-		location: node.location,
-		settings: {},
-	};
-
-	addCanonicalSetting(
-		contract,
-		"formula",
-		toOptionalString(node.attributes.formula),
-		node.location,
-	);
-	return contract;
-};
-
-const compareInfoContract = (
-	canonical: CanonicalTagContract,
-	node: Node,
-): MarkdocSettingConflict[] => {
+const compareContract = (canonical: CanonicalTagContract, node: Node): MarkdocSettingConflict[] => {
 	const conflicts: MarkdocSettingConflict[] = [];
-	compareSetting({
-		attribute: "type",
-		canonical,
-		conflicts,
-		currentLocation: node.location,
-		currentValue: toInfoType(node.attributes.type),
-	});
-	compareSetting({
-		attribute: "unit",
-		canonical,
-		conflicts,
-		currentLocation: node.location,
-		currentValue: toOptionalString(node.attributes.unit),
-	});
-	compareSetting({
-		attribute: "description",
-		canonical,
-		conflicts,
-		currentLocation: node.location,
-		currentValue: toOptionalString(node.attributes.description),
-	});
-	return conflicts;
-};
+	for (const [attribute, currentValue] of getContractSettings(canonical.kind, node)) {
+		if (currentValue === undefined) {
+			continue;
+		}
 
-const compareSwitchContract = (
-	canonical: CanonicalTagContract,
-	node: Node,
-): MarkdocSettingConflict[] => {
-	const conflicts: MarkdocSettingConflict[] = [];
-	compareSetting({
-		attribute: "type",
-		canonical,
-		conflicts,
-		currentLocation: node.location,
-		currentValue: toSwitchContractType(node.attributes.type),
-	});
-	return conflicts;
-};
+		const firstSetting = canonical.settings[attribute];
+		if (!firstSetting) {
+			canonical.settings[attribute] = { location: node.location, value: currentValue };
+			continue;
+		}
 
-const compareScoreContract = (
-	canonical: CanonicalTagContract,
-	node: Node,
-): MarkdocSettingConflict[] => {
-	const conflicts: MarkdocSettingConflict[] = [];
-	compareSetting({
-		attribute: "formula",
-		canonical,
-		conflicts,
-		currentLocation: node.location,
-		currentValue: toOptionalString(node.attributes.formula),
-	});
+		if (firstSetting.value !== currentValue) {
+			conflicts.push({
+				attribute,
+				conflictingValue: currentValue,
+				firstLocation: firstSetting.location,
+				firstValue: firstSetting.value,
+			});
+		}
+	}
 	return conflicts;
 };
 
@@ -220,7 +123,7 @@ const validateInputTag = (
 
 	const canonical = contracts.get(primary);
 	if (!canonical) {
-		contracts.set(primary, kind === "info" ? toInfoContract(node) : toSwitchContract(node));
+		contracts.set(primary, toCanonicalContract(kind, node));
 		return null;
 	}
 
@@ -236,8 +139,7 @@ const validateInputTag = (
 		};
 	}
 
-	const conflicts =
-		kind === "info" ? compareInfoContract(canonical, node) : compareSwitchContract(canonical, node);
+	const conflicts = compareContract(canonical, node);
 	if (conflicts.length === 0) {
 		return null;
 	}
@@ -263,11 +165,11 @@ const validateScoreTag = (
 
 	const canonical = contracts.get(primary);
 	if (!canonical) {
-		contracts.set(primary, toScoreContract(node));
+		contracts.set(primary, toCanonicalContract("score", node));
 		return null;
 	}
 
-	const conflicts = compareScoreContract(canonical, node);
+	const conflicts = compareContract(canonical, node);
 	if (conflicts.length === 0) {
 		return null;
 	}

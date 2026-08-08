@@ -1,14 +1,29 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const smtpUrlSchema = z
+	.string()
+	.url()
+	.refine((value) => ["smtp:", "smtps:"].includes(new URL(value).protocol), {
+		message: "Expected an smtp: or smtps: URL",
+	});
+
+const optionalSmtpUrlSchema = z.preprocess(
+	(value) => (value === "" ? undefined : value),
+	smtpUrlSchema.optional(),
+);
+
 const server: Parameters<typeof createEnv>[0]["server"] = {
 	ADMIN_EMAIL: z.string().email(),
 	ANALYZE: z.string().optional(),
-	AUTH_POSTMARK_KEY: z.string().min(1),
 	BETTER_AUTH_SECRET: z.string().min(1),
 
 	// Added by Node
 	CI: z.string().optional(),
+	MAIL_BROADCAST_SMTP_URL: optionalSmtpUrlSchema,
+	MAIL_FROM_ADDRESS: z.string().email(),
+	MAIL_FROM_NAME: z.string().trim().min(1).max(128),
+	MAIL_SMTP_URL: smtpUrlSchema,
 	// Signed, offline-verified license key that unlocks paid (seat-gated)
 	// configurations. Absent = free community configuration.
 	MDSCRIBE_LICENSE_KEY: z.string().optional(),
@@ -21,7 +36,6 @@ const server: Parameters<typeof createEnv>[0]["server"] = {
 	STRIPE_WEBHOOK_SECRET: z.string().min(1),
 	// Added by Vercel
 	VERCEL: z.string().optional(),
-	VOYAGE_API_KEY: z.string().min(1),
 };
 
 const client: Parameters<typeof createEnv>[0]["client"] = {
@@ -33,9 +47,12 @@ export const env = createEnv({
 	runtimeEnv: {
 		ADMIN_EMAIL: process.env.ADMIN_EMAIL,
 		ANALYZE: process.env.ANALYZE,
-		AUTH_POSTMARK_KEY: process.env.AUTH_POSTMARK_KEY,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		CI: process.env.CI,
+		MAIL_BROADCAST_SMTP_URL: process.env.MAIL_BROADCAST_SMTP_URL,
+		MAIL_FROM_ADDRESS: process.env.MAIL_FROM_ADDRESS,
+		MAIL_FROM_NAME: process.env.MAIL_FROM_NAME,
+		MAIL_SMTP_URL: process.env.MAIL_SMTP_URL,
 		MDSCRIBE_LICENSE_KEY: process.env.MDSCRIBE_LICENSE_KEY,
 		NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
 		NEXT_RUNTIME: process.env.NEXT_RUNTIME,
@@ -46,7 +63,6 @@ export const env = createEnv({
 		STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
 		STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 		VERCEL: process.env.VERCEL,
-		VOYAGE_API_KEY: process.env.VOYAGE_API_KEY,
 	},
 	server,
 	skipValidation: !!process.env.SKIP_ENV_VALIDATION,

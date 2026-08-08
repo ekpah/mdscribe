@@ -1,5 +1,5 @@
+import { desc, eq, favourites, inArray, template, user } from "@repo/database";
 import { z } from "zod";
-import { desc, eq, favourites, inArray, sql, template, user } from "@repo/database";
 
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
@@ -20,6 +20,7 @@ const getAdminTemplateHandler = authed
 				content: template.content,
 				examples: template.examples,
 				id: template.id,
+				information: template.information,
 				title: template.title,
 				updatedAt: template.updatedAt,
 				visibility: template.visibility,
@@ -44,7 +45,6 @@ const listAdminTemplatesHandler = authed
 				},
 				authorId: template.authorId,
 				category: template.category,
-				hasEmbedding: sql<boolean>`${template.embedding} IS NOT NULL`.as("hasEmbedding"),
 				id: template.id,
 				title: template.title,
 				updatedAt: template.updatedAt,

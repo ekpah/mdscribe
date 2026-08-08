@@ -34,25 +34,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { getDashboardActivityTitle } from "@/lib/dashboard-activity";
+import { DASHBOARD_AI_FUNCTION_KEYS } from "@/lib/dashboard-ai-functions";
+import type { DashboardAiFunctionKey } from "@/lib/dashboard-ai-functions";
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
-import { getPromptHarnessLabel, resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 
 import { LiveTime } from "./_components/live-time";
-
-/** Readable German labels for usage event names */
-const eventNameLabels: Record<string, string> = {
-	admin_scribe_playground: "Playground-Generierung",
-	ai_input_fill: "Eingaben ausgefüllt",
-	ai_input_fill_inputs: "Eingaben ausgefüllt",
-	ai_pdf_form_parsing: "PDF-Formular analysiert",
-	ai_scribe_agent: "Dokumentations-Agent",
-	ai_scribe_generation: "KI-Dokumentation generiert",
-	ai_scribe_ocr: "OCR verarbeitet",
-	ai_scribe_stt: "Audio transkribiert",
-};
 
 const AI_FUNCTIONS = [
 	{
@@ -62,6 +52,7 @@ const AI_FUNCTIONS = [
 		description: "Erstellen Sie professionelle Anamnese-Dokumentation für Notfallpatienten",
 		href: "/aiscribe/er",
 		icon: Heart,
+		key: "er",
 		title: "Notfall Anamnese",
 	},
 	{
@@ -71,6 +62,7 @@ const AI_FUNCTIONS = [
 		description: "Erstellen Sie professionelle Entlassungsbriefe für Ihre Patienten",
 		href: "/aiscribe/discharge",
 		icon: FileCheck,
+		key: "discharge",
 		title: "Entlassungsbrief",
 	},
 	{
@@ -80,6 +72,7 @@ const AI_FUNCTIONS = [
 		description: "Erstellen Sie professionelle Dokumentationen für medizinische Eingriffe",
 		href: "/aiscribe/procedures",
 		icon: ClipboardCheck,
+		key: "procedures",
 		title: "Prozedur-Dokumentation",
 	},
 	{
@@ -89,6 +82,7 @@ const AI_FUNCTIONS = [
 		description: "Erstellen Sie professionelle Verlegungsbriefe für Ihre ICU-Patienten",
 		href: "/aiscribe/icu",
 		icon: Stethoscope,
+		key: "icu",
 		title: "ICU Verlegungsbrief",
 	},
 	{
@@ -98,6 +92,7 @@ const AI_FUNCTIONS = [
 		description: "Erstellen Sie Dokumentationen für ambulante Patientenbesuche",
 		href: "/aiscribe/outpatient",
 		icon: FileText,
+		key: "outpatient",
 		title: "Ambulante Konsultation",
 	},
 	{
@@ -107,9 +102,22 @@ const AI_FUNCTIONS = [
 		description: "Erstellen Sie aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen",
 		href: "/aiscribe/diagnoseblock",
 		icon: FileText,
+		key: "diagnoseblock",
 		title: "Diagnoseblock Update",
 	},
-];
+] as const satisfies readonly {
+	bgColor: string;
+	borderColor: string;
+	color: string;
+	description: string;
+	href: string;
+	icon: typeof Heart;
+	key: DashboardAiFunctionKey;
+	title: string;
+}[];
+
+const getRecommendedAiFunctionKeys = (keys?: DashboardAiFunctionKey[]): DashboardAiFunctionKey[] =>
+	keys ?? DASHBOARD_AI_FUNCTION_KEYS.slice(0, 3);
 
 const getSubscriptionPlanLabel = (plan?: string | null) => {
 	if (!plan) {
@@ -150,6 +158,28 @@ const getSubscriptionStatus = (subscription?: { status?: string; cancelAtPeriodE
 	};
 };
 
+const formatUsageResetDate = (timestamp: string) =>
+	new Date(timestamp).toLocaleDateString("de-DE", {
+		day: "2-digit",
+		month: "2-digit",
+		timeZone: "Europe/Berlin",
+		year: "numeric",
+	});
+
+const getDashboardUsageSummary = (
+	usage:
+		| {
+				isMonthlyBudgetReached: boolean;
+				monthlyUsagePercentage: number;
+				resetsAt: string;
+		  }
+		| undefined,
+) => ({
+	isMonthlyBudgetReached: usage?.isMonthlyBudgetReached ?? false,
+	monthlyUsagePercentage: usage?.monthlyUsagePercentage ?? 0,
+	usageResetsAt: usage?.resetsAt,
+});
+
 const getRelativeTimeLabel = (timestamp: Date | string) => {
 	const now = new Date();
 	const eventTime = new Date(timestamp);
@@ -169,48 +199,48 @@ const getRelativeTimeLabel = (timestamp: Date | string) => {
 	return `${diffDays} ${diffDays === 1 ? "Tag" : "Tage"}`;
 };
 
-const getActivityPresentation = (event: { metadata: unknown; name: string }) => {
+const getActivityPresentation = (event: {
+	customFormName?: string | null;
+	metadata: unknown;
+	name: string;
+}) => {
 	if (event.name === "ai_scribe_generation" || event.name === "ai_scribe_agent") {
-		const metadata = event.metadata as Record<string, unknown> | null;
-		const endpoint = metadata?.endpoint as string | undefined;
-		const documentType = resolvePromptHarnessId(endpoint);
 		return {
 			icon: Brain,
-			title: documentType
-				? getPromptHarnessLabel(documentType)
-				: (eventNameLabels[event.name] ?? event.name),
+			title: getDashboardActivityTitle(event),
 		};
 	}
 
 	if (event.name === "ai_input_fill" || event.name === "ai_input_fill_inputs") {
 		return {
 			icon: FileCheck,
-			title: eventNameLabels[event.name] ?? event.name,
+			title: getDashboardActivityTitle(event),
 		};
 	}
 
-	if (event.name === "ai_pdf_form_parsing") {
+	if (event.name === "ai_pdf_form_parsing" || event.name === "ai_pdf_document_enhancement") {
 		return {
 			icon: FileText,
-			title: eventNameLabels[event.name] ?? event.name,
+			title: getDashboardActivityTitle(event),
 		};
 	}
 
 	if (event.name.includes("template")) {
 		return {
 			icon: FileText,
-			title: "Template verwendet",
+			title: getDashboardActivityTitle(event),
 		};
 	}
 
 	return {
 		icon: Activity,
-		title: eventNameLabels[event.name] ?? event.name,
+		title: getDashboardActivityTitle(event),
 	};
 };
 
 const getRecentActivityItems = (
 	events: {
+		customFormName?: string | null;
 		id: string;
 		metadata: unknown;
 		name: string;
@@ -319,6 +349,7 @@ const DashboardQuickStats = ({
 	monthlyUsagePercentage,
 	subscriptionPlanLabel,
 	subscriptionStatus,
+	usageResetsAt,
 	userTemplateCount,
 }: {
 	favoriteCount: number;
@@ -326,102 +357,102 @@ const DashboardQuickStats = ({
 	monthlyUsagePercentage: number;
 	subscriptionPlanLabel: string;
 	subscriptionStatus: ReturnType<typeof getSubscriptionStatus>;
+	usageResetsAt?: string;
 	userTemplateCount: number;
 }) => {
 	const usageProgress = Math.max(0, Math.min(100, monthlyUsagePercentage));
 
 	return (
 		<div className="grid grid-cols-1 gap-3 sm:gap-6 md:grid-cols-2">
-		<Card className="h-full border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
-			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-				<CardTitle className="font-medium text-solarized-base03 text-sm">Templates</CardTitle>
-				<FileText className="h-5 w-5 text-solarized-blue" />
-			</CardHeader>
-			<CardContent className="space-y-3">
-				<div className="grid grid-cols-2 gap-3">
-					<Link href="/templates?activeCollection=favourites">
-						<div className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-3 transition-colors hover:bg-solarized-blue/10">
-							<div className="flex items-center gap-2 text-solarized-base01 text-xs">
-								<BookmarkIcon className="h-3 w-3 text-solarized-blue" />
-								Favoriten
+			<Card className="h-full border-solarized-blue/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
+				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle className="font-medium text-solarized-base03 text-sm">Templates</CardTitle>
+					<FileText className="h-5 w-5 text-solarized-blue" />
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<div className="grid grid-cols-2 gap-3">
+						<Link href="/templates?activeCollection=favourites">
+							<div className="rounded-lg border border-solarized-blue/20 bg-solarized-blue/5 p-3 transition-colors hover:bg-solarized-blue/10">
+								<div className="flex items-center gap-2 text-solarized-base01 text-xs">
+									<BookmarkIcon className="h-3 w-3 text-solarized-blue" />
+									Favoriten
+								</div>
+								<p className="mt-1 font-bold text-solarized-base03 text-xl">{favoriteCount}</p>
 							</div>
-							<p className="mt-1 font-bold text-solarized-base03 text-xl">{favoriteCount}</p>
-						</div>
-					</Link>
-					<Link href="/templates?activeCollection=authored">
-						<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/5 p-3 transition-colors hover:bg-solarized-green/10">
-							<div className="flex items-center gap-2 text-solarized-base01 text-xs">
-								<PlusIcon className="h-3 w-3 text-solarized-green" />
-								Erstellt
+						</Link>
+						<Link href="/templates?activeCollection=authored">
+							<div className="rounded-lg border border-solarized-green/20 bg-solarized-green/5 p-3 transition-colors hover:bg-solarized-green/10">
+								<div className="flex items-center gap-2 text-solarized-base01 text-xs">
+									<PlusIcon className="h-3 w-3 text-solarized-green" />
+									Erstellt
+								</div>
+								<p className="mt-1 font-bold text-solarized-base03 text-xl">{userTemplateCount}</p>
 							</div>
-							<p className="mt-1 font-bold text-solarized-base03 text-xl">{userTemplateCount}</p>
-						</div>
-					</Link>
-				</div>
-				<Link
-					className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
-					href="/templates"
-				>
-					Alle Templates anzeigen
-					<ArrowRight className="h-3 w-3" />
-				</Link>
-			</CardContent>
-		</Card>
-
-		<Card className="h-full border-solarized-violet/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
-			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-				<CardTitle className="font-medium text-solarized-base03 text-sm">
-					KI-Nutzung
-				</CardTitle>
-				<Brain className="h-5 w-5 text-solarized-violet" />
-			</CardHeader>
-			<CardContent className="space-y-3">
-				<div className="space-y-2">
-					<div className="flex items-center justify-between gap-3">
-						<span className="font-medium text-solarized-base03 text-sm">
-							Monatskontingent
-						</span>
-						<span className="font-semibold text-solarized-base03 text-sm">
-							{usageProgress}%
-						</span>
-					</div>
-					<div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
-						<div
-							className="h-full rounded-full bg-solarized-violet transition-all"
-							style={{ width: `${usageProgress}%` }}
-						/>
-					</div>
-				</div>
-				<p className="text-solarized-base01 text-xs">
-					{isMonthlyBudgetReached
-						? "Monatliches Kontingent ausgeschöpft"
-						: "Im aktuellen Monat verwendet"}
-				</p>
-				<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
-					<div className="flex flex-wrap items-center justify-between gap-2">
-						<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
-							<CreditCard className="h-3 w-3" />
-							{subscriptionPlanLabel}
-						</span>
-						<Badge className={subscriptionStatus.badgeClassName} variant="outline">
-							{subscriptionStatus.label}
-						</Badge>
+						</Link>
 					</div>
 					<Link
 						className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
-						href="/subscription"
+						href="/templates"
 					>
-						Abonnement verwalten
+						Alle Templates anzeigen
 						<ArrowRight className="h-3 w-3" />
 					</Link>
-				</div>
-			</CardContent>
-		</Card>
-	</div>
+				</CardContent>
+			</Card>
+
+			<Card className="h-full border-solarized-violet/30 bg-solarized-base3 shadow-lg transition-all duration-300 hover:shadow-xl">
+				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle className="font-medium text-solarized-base03 text-sm">KI-Nutzung</CardTitle>
+					<Brain className="h-5 w-5 text-solarized-violet" />
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<div className="space-y-2">
+						<div className="flex items-center justify-between gap-3">
+							<span className="font-medium text-solarized-base03 text-sm">Monatskontingent</span>
+							<span className="font-semibold text-solarized-base03 text-sm">{usageProgress}%</span>
+						</div>
+						<div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
+							<div
+								className="h-full rounded-full bg-solarized-violet transition-all"
+								style={{ width: `${usageProgress}%` }}
+							/>
+						</div>
+					</div>
+					<p className="text-solarized-base01 text-xs">
+						{isMonthlyBudgetReached
+							? "Monatliches Kontingent ausgeschöpft"
+							: "Im aktuellen Nutzungszeitraum verwendet"}
+					</p>
+					{usageResetsAt ? (
+						<p className="text-solarized-base01 text-xs">
+							Wird am {formatUsageResetDate(usageResetsAt)} zurückgesetzt
+						</p>
+					) : null}
+					<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
+								<CreditCard className="h-3 w-3" />
+								{subscriptionPlanLabel}
+							</span>
+							<Badge className={subscriptionStatus.badgeClassName} variant="outline">
+								{subscriptionStatus.label}
+							</Badge>
+						</div>
+						<Link
+							className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
+							href="/subscription"
+						>
+							Abonnement verwalten
+							<ArrowRight className="h-3 w-3" />
+						</Link>
+					</div>
+				</CardContent>
+			</Card>
+		</div>
 	);
 };
 
-const AiFunctionsSection = () => (
+const AiFunctionsSection = ({ functionKeys }: { functionKeys: DashboardAiFunctionKey[] }) => (
 	<Card className="border-0 bg-solarized-base3/80 shadow-xl backdrop-blur-sm">
 		<CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 			<div>
@@ -442,33 +473,40 @@ const AiFunctionsSection = () => (
 		</CardHeader>
 		<CardContent>
 			<div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
-				{AI_FUNCTIONS.map((func) => (
-					<Link href={func.href} key={func.href}>
-						<Card className="group h-full cursor-pointer border-solarized-base1 bg-solarized-base3 transition-all duration-200 hover:scale-105 hover:shadow-xl">
-							<CardHeader className="pb-3">
-								<div className="mb-3 flex items-center justify-between">
-									<div
-										className={`inline-flex rounded-lg border-2 p-3 ${func.bgColor} ${func.borderColor}`}
-									>
-										<func.icon className={`h-6 w-6 ${func.color}`} />
+				{functionKeys.map((key) => {
+					const func = AI_FUNCTIONS.find((candidate) => candidate.key === key);
+					if (!func) {
+						return null;
+					}
+
+					return (
+						<Link href={func.href} key={func.href}>
+							<Card className="group h-full cursor-pointer border-solarized-base1 bg-solarized-base3 transition-all duration-200 hover:scale-105 hover:shadow-xl">
+								<CardHeader className="pb-3">
+									<div className="mb-3 flex items-center justify-between">
+										<div
+											className={`inline-flex rounded-lg border-2 p-3 ${func.bgColor} ${func.borderColor}`}
+										>
+											<func.icon className={`h-6 w-6 ${func.color}`} />
+										</div>
 									</div>
-								</div>
-								<CardTitle className="text-lg text-solarized-base03 transition-colors group-hover:text-solarized-blue">
-									{func.title}
-								</CardTitle>
-								<CardDescription className="text-sm text-solarized-base01">
-									{func.description}
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="pt-0">
-								<div className="flex items-center font-medium text-sm text-solarized-blue transition-transform group-hover:translate-x-1">
-									Jetzt verwenden
-									<ArrowRight className="ml-1 h-4 w-4" />
-								</div>
-							</CardContent>
-						</Card>
-					</Link>
-				))}
+									<CardTitle className="text-lg text-solarized-base03 transition-colors group-hover:text-solarized-blue">
+										{func.title}
+									</CardTitle>
+									<CardDescription className="text-sm text-solarized-base01">
+										{func.description}
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="pt-0">
+									<div className="flex items-center font-medium text-sm text-solarized-blue transition-transform group-hover:translate-x-1">
+										Jetzt verwenden
+										<ArrowRight className="ml-1 h-4 w-4" />
+									</div>
+								</CardContent>
+							</Card>
+						</Link>
+					);
+				})}
 			</div>
 		</CardContent>
 	</Card>
@@ -676,6 +714,7 @@ export default async function DashboardPage() {
 	const usageQueryOptions = orpc.getUsage.queryOptions();
 	const favouritesQueryOptions = orpc.templates.favourites.queryOptions();
 	const authoredQueryOptions = orpc.templates.authored.queryOptions();
+	const aiFunctionRecommendationsQueryOptions = orpc.user.aiFunctionRecommendations.queryOptions();
 	const recentActivityQueryOptions = orpc.user.recentActivity.queryOptions();
 
 	// PERF: Prefetch all queries in parallel
@@ -685,6 +724,7 @@ export default async function DashboardPage() {
 		queryClient.prefetchQuery(usageQueryOptions),
 		queryClient.prefetchQuery(favouritesQueryOptions),
 		queryClient.prefetchQuery(authoredQueryOptions),
+		queryClient.prefetchQuery(aiFunctionRecommendationsQueryOptions),
 		queryClient.prefetchQuery(recentActivityQueryOptions),
 	]);
 
@@ -692,10 +732,13 @@ export default async function DashboardPage() {
 	const data = queryClient.getQueryData(usageQueryOptions.queryKey);
 	const favoriteTemplates = queryClient.getQueryData(favouritesQueryOptions.queryKey);
 	const userTemplates = queryClient.getQueryData(authoredQueryOptions.queryKey);
+	const aiFunctionRecommendations = queryClient.getQueryData(
+		aiFunctionRecommendationsQueryOptions.queryKey,
+	);
 	const recentEvents = queryClient.getQueryData(recentActivityQueryOptions.queryKey);
 
-	const monthlyUsagePercentage = data?.usage?.monthlyUsagePercentage ?? 0;
-	const isMonthlyBudgetReached = data?.usage?.isMonthlyBudgetReached ?? false;
+	const { isMonthlyBudgetReached, monthlyUsagePercentage, usageResetsAt } =
+		getDashboardUsageSummary(data?.usage);
 	const subscriptionPlanLabel = getSubscriptionPlanLabel(activeSubscription?.plan);
 	const subscriptionStatus = getSubscriptionStatus(activeSubscription);
 	const isAdmin = session.user.email === env.ADMIN_EMAIL;
@@ -721,9 +764,12 @@ export default async function DashboardPage() {
 						monthlyUsagePercentage={monthlyUsagePercentage}
 						subscriptionPlanLabel={subscriptionPlanLabel}
 						subscriptionStatus={subscriptionStatus}
+						usageResetsAt={usageResetsAt}
 						userTemplateCount={userTemplates?.length ?? 0}
 					/>
-					<AiFunctionsSection />
+					<AiFunctionsSection
+						functionKeys={getRecommendedAiFunctionKeys(aiFunctionRecommendations)}
+					/>
 					<div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
 						<div className="lg:col-span-2">
 							<FavoriteTemplatesCard templates={favoriteTemplates ?? []} />

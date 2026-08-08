@@ -14,7 +14,7 @@ import { getServerSession } from "@/lib/server-session";
 import ContentSection from "./_components/content-section";
 import { NavActions } from "./_components/nav-actions";
 
-type TemplateContentView = "template" | "examples";
+type TemplateContentView = "template" | "examples" | "information";
 
 export const generateMetadata = async ({
 	params,
@@ -41,7 +41,7 @@ const NotePage = async ({
 	const { id } = await params;
 	const { view } = await searchParams;
 	const contentView: TemplateContentView =
-		view === "examples" ? "examples" : "template";
+		view === "examples" || view === "information" ? view : "template";
 	const doc = await queryClient.fetchQuery(
 		orpc.templates.get.queryOptions({ input: { id } }),
 	);
@@ -57,7 +57,7 @@ const NotePage = async ({
 	return (
 		<div className="flex h-full w-full flex-col">
 			<div className="flex h-10 items-center justify-between gap-2">
-				<SidebarTrigger className="ml-4 block md:hidden" />
+				{session?.user && <SidebarTrigger className="ml-4 block md:hidden" />}
 				<Breadcrumb>
 					<BreadcrumbList>
 						<BreadcrumbItem className="hidden md:block">
@@ -82,6 +82,7 @@ const NotePage = async ({
 			<ContentSection
 				contentView={contentView}
 				examples={doc.examples}
+				information={doc.information}
 				note={doc.content}
 			/>
 		</div>

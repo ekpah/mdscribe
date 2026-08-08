@@ -6,6 +6,7 @@ import type {
 const MARKDOC_ATTRIBUTE_LABELS: Record<MarkdocContractAttribute, string> = {
 	description: "Beschreibung",
 	formula: "Formel",
+	source: "Quelle",
 	type: "Typ",
 	unit: "Einheit",
 };
@@ -29,6 +30,45 @@ export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): st
 
 /** Single source of truth for all user-facing German messages. */
 export const USER_MESSAGES = {
+	adminByok: {
+		ariaLabel: "BYOK für diese Verbindung erlauben",
+		credentialCounts: (stored: number, active: number) =>
+			`${stored} hinterlegt, ${active} aktiv`,
+		label: "BYOK - Nutzer können eigene API-Schlüssel verwenden",
+		toggleError: "BYOK-Einstellung konnte nicht gespeichert werden.",
+		toggleSuccess: "BYOK-Einstellung gespeichert",
+	},
+	adminEmails: {
+		broadcastAccepted: "vom SMTP-Relay angenommen",
+		broadcastDialogDescription:
+			"Sendet den ausgewählten Marketing-Entwurf über den konfigurierten SMTP-Provider an alle verifizierten Nutzerkonten.",
+		broadcastFailed: "fehlgeschlagen",
+		broadcastPartialTitle: "E-Mail-Broadcast teilweise versendet",
+		broadcastSuccessTitle: "E-Mail-Broadcast versendet",
+	},
+	adminTemplates: {
+		allAuthors: "Alle Autoren",
+		allUsers: "Alle Nutzer",
+		author: "Autor",
+		authors: "Autoren",
+		description: "Übersicht aller Vorlagen, Favoriten und Autoren",
+		empty: "Keine Vorlagen für die aktuellen Filter gefunden.",
+		favouritedBy: "Favorisiert von",
+		favourites: "Favoriten",
+		loadError: "Seite konnte nicht geladen werden",
+		loading: "Vorlagenverwaltung wird geladen...",
+		of: "von",
+		overviewDescription: "Filterbar nach Autor und Favorisiert-von",
+		overviewTitle: "Template-Übersicht",
+		searchPlaceholder: "Vorlage, Kategorie oder Autor suchen...",
+		template: "Vorlage",
+		templates: "Vorlagen",
+		title: "Vorlagenverwaltung",
+		totalFavourites: "Favoriten gesamt",
+		totalTemplates: "Vorlagen gesamt",
+		unknown: "Unbekannt",
+		updated: "Aktualisiert",
+	},
 	adminUsers: {
 		aiScribeForms: "AI Vorlagen",
 		aiScribeWorkspaces: "Brief-Baukästen",
@@ -36,7 +76,85 @@ export const USER_MESSAGES = {
 	},
 	aiscribeGenerationSuccess: "Erfolgreich generiert",
 	audioNotSupported: "Das ausgewählte Modell unterstützt keine Audio-Eingabe.",
+	byok: {
+		active: "Aktiv",
+		activeDescription:
+			"Generierungen über diese Verbindung verwenden deinen eigenen API-Schlüssel und verbrauchen dafür keine MDScribe-Quota. Kosten und Limits des Anbieters gelten weiterhin.",
+		apiKeyLabel: "API-Schlüssel",
+		apiKeyPlaceholder: "API-Schlüssel eingeben",
+		assignedModelsDescription:
+			"Wenn dein Schlüssel aktiv ist, wird er für diese vom Administrator festgelegten Modelle verwendet.",
+		assignedModelsHeading: "Zugeordnete Modelle",
+		cancel: "Abbrechen",
+		connectionUnavailable:
+			"Diese Verbindung ist für eigene API-Schlüssel nicht verfügbar.",
+		connectionUnavailableStatus: "Nicht mehr freigeschaltet",
+		credentialDeleted: "Eigener API-Schlüssel gelöscht",
+		credentialDescription:
+			"Der Schlüssel wird verschlüsselt gespeichert und niemals wieder angezeigt.",
+		credentialDisabled: "Eigener API-Schlüssel deaktiviert",
+		credentialEnabled: "Eigener API-Schlüssel aktiviert",
+		credentialMissing: "Für diese Verbindung ist kein eigener API-Schlüssel hinterlegt.",
+		credentialSaved: "API-Schlüssel geprüft und gespeichert",
+		deactivate: "Deaktivieren",
+		delete: "Verbindung löschen",
+		deleteConfirm: "Löschen bestätigen",
+		disabledDescription:
+			"Der eigene API-Schlüssel ist gespeichert, wird aber nicht für Anfragen verwendet.",
+		displayNameLabel: "Name",
+		displayNamePlaceholder: "Bezeichnung der Verbindung",
+		emptyDescription:
+			"Hinterlege einen eigenen API-Schlüssel für diese vom Administrator konfigurierte Verbindung.",
+		enable: "Aktivieren",
+		hasApiKey: "API-Schlüssel hinterlegt",
+		heading: "KI-Zugang",
+		inactive: "Deaktiviert",
+		intro:
+			"Verwalte eigene API-Schlüssel für die vom Administrator freigeschalteten KI-Verbindungen.",
+		keyRejected:
+			"Der API-Schlüssel wurde vom Anbieter abgelehnt. Bitte prüfe den Schlüssel.",
+		modelRoles: {
+			agent: "Agent",
+			audio: "Audio",
+			documents: "Dokumente",
+			text: "Standardgenerierung",
+		},
+		noAssignedModels:
+			"Der Administrator hat dieser Verbindung aktuell kein verwendetes Modell zugeordnet.",
+		noConnections:
+			"Der Administrator hat keine Verbindungen für eigene API-Schlüssel freigeschaltet.",
+		providerRateLimited:
+			"Der Anbieter begrenzt derzeit die Schlüsselprüfung. Bitte versuche es später erneut.",
+		providerUnavailable:
+			"Der Anbieter konnte den API-Schlüssel nicht prüfen. Bitte versuche es später erneut.",
+		rename: "Name speichern",
+		renamed: "Name gespeichert",
+		replace: "API-Schlüssel ersetzen",
+		save: "Verbindung prüfen und speichern",
+		unavailableDescription:
+			"Der Administrator hat diese Verbindung deaktiviert. Der Schlüssel bleibt gespeichert, wird aber nicht verwendet.",
+		unlimited: "Unbegrenzte Generierungen über diese Verbindung",
+		usageBadge: "BYOK",
+		verified: "API-Schlüssel gespeichert und geprüft",
+	},
 	checkingTemplateTags: "Tags werden geprüft...",
+	dashboard: {
+		activity: {
+			eventTitles: {
+				admin_scribe_playground: "Playground-Generierung",
+				ai_input_fill: "Eingaben mit KI ausgefüllt",
+				ai_input_fill_inputs: "Eingaben mit KI ausgefüllt",
+				ai_pdf_document_enhancement: "PDF-Formular mit KI optimiert",
+				ai_pdf_form_parsing: "PDF-Formular analysiert",
+				ai_scribe_agent: "Brief-Baukasten mit KI bearbeitet",
+				ai_scribe_generation: "KI-Dokumentation generiert",
+				ai_scribe_ocr: "Dokument mit OCR verarbeitet",
+				ai_scribe_stt: "Audio transkribiert",
+			},
+			templateUsed: "Textbaustein verwendet",
+			unknown: "KI-Funktion verwendet",
+		},
+	},
 	documentEditor: {
 		addCheckboxAsOption: "Checkbox als Option hinzufügen",
 		aiDefinitionTooLarge: "Das PDF enthält zu viele Formulardaten für eine KI-Optimierung.",
@@ -44,9 +162,17 @@ export const USER_MESSAGES = {
 		aiModelUnavailable: "Kein kompatibles KI-Modell für PDF-Analyse verfügbar.",
 		aiProposalInvalid: "Der KI-Vorschlag konnte nicht angewendet werden.",
 		cancelAddingCheckbox: "Hinzufügen abbrechen",
+		contentTabsLabel: "Dokumentinhalt",
 		detachCheckboxOption: "Als einzelne Checkbox abtrennen",
 		editDocument: "Dokument bearbeiten",
 		forkDocument: "Dokument kopieren und bearbeiten",
+		informationDescription:
+			"Hinweise und Vorgaben zum Ausfüllen. Sie werden auch beim automatischen Ausfüllen als KI-Anweisungen berücksichtigt.",
+		informationEmpty: "Keine Informationen hinterlegt.",
+		informationEmptyDescription: "Dieses Dokument kann trotzdem direkt ausgefüllt werden.",
+		informationLabel: "Informationen",
+		informationPlaceholder: "Beschreiben Sie, wie dieses Dokument ausgefüllt werden soll.",
+		pdfTabLabel: "PDF",
 		pdfUploadFailed: "PDF konnte nicht verarbeitet werden.",
 		pdfUploadSuccess: "Dokument hochgeladen",
 		selectCheckboxAsOption: "Als Option hinzufügen",
@@ -88,6 +214,11 @@ export const USER_MESSAGES = {
 	missingInput: "Bitte füllen Sie mindestens ein Pflichtfeld aus.",
 	modelUnavailable:
 		"Kein geeignetes KI-Modell verfügbar. Bitte konfigurieren Sie ein Modell in den Einstellungen.",
+	playgroundEvaluation: {
+		action: "Bewerten",
+		failed: "Die Playground-Antwort konnte nicht bewertet werden.",
+		showDetails: "Bewertungsdetails öffnen",
+	},
 	privateAiScribeFormRequiresPlus:
 		"Private AI Vorlagen sind nur mit Plus verfügbar. Speichern Sie die AI Vorlage öffentlich oder aktualisieren Sie Ihr Abo.",
 	privateAiScribeWorkspaceRequiresPlus:
@@ -121,12 +252,33 @@ export const USER_MESSAGES = {
 		failed: "E-Mail-Adresse, Benutzername oder Passwort ist ungültig.",
 	},
 	subscriptionRequired: "Ihr Abonnement reicht nicht aus. Bitte aktualisieren Sie Ihr Abo.",
+	templateInformationDescription:
+		"Hinweise und Vorgaben für die KI. Sie werden als Anweisungen in den Vorlagenkontext aufgenommen.",
+	templateInformationEmpty: "Keine Informationen hinterlegt.",
+	templateInformationEmptyDescription:
+		"Für diesen Textbaustein gelten keine zusätzlichen Anweisungen.",
+	templateInformationLabel: "Informationen",
+	templateInformationPlaceholder:
+		"Beschreiben Sie, wie die Vorlage ausgefüllt werden soll, und ergänzen Sie relevante Vorgaben.",
+	templateInformationTooLong: "Informationen dürfen höchstens 10.000 Zeichen lang sein.",
 	templateSearch: {
+		badge: "Vorlagenbibliothek",
 		description: "Durchsuchen Sie alle für Sie verfügbaren Textbausteine.",
-		empty: "Keine passenden Textbausteine gefunden.",
+		emptyDescription:
+			"Probieren Sie einen allgemeineren Begriff oder suchen Sie nach einem Titel oder einer Kategorie.",
+		emptyTitle: "Noch kein passender Textbaustein",
 		label: "Textbausteine durchsuchen",
 		placeholder: "Zum Beispiel Entlassungsbrief oder Hypertonie",
-		results: "Suchergebnisse",
+		quickSearchLabel: "Schnellsuche",
+		quickSearches: [
+			{ label: "Entlassbrief", query: "Entlassbrief" },
+			{ label: "Anamnese", query: "Anamnese" },
+			{ label: "Diagnose", query: "Diagnose" },
+		],
+		results: "Treffer",
+		resultsFor: "für",
+		searchAction: "Suchen",
+		searchScope: "Titel und Kategorien",
 		title: "Textbaustein finden",
 	},
 	unauthorized: "Bitte melden Sie sich an, um diese Funktion zu nutzen.",
@@ -141,3 +293,5 @@ export const USER_MESSAGES = {
 		"Die gestrichelte Linie zeigt die auf sieben Tage hochgerechnete Nutzung der laufenden Woche.",
 	weeklyUsageProjectionLabel: "Prognose KI-Anfragen (Woche)",
 };
+
+export const formatGeneratedAiFormActivity = (name: string): string => `${name} generiert`;

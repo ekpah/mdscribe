@@ -33,6 +33,7 @@ export type InfoInputTagType = BaseInputTag & {
 		unit?: string;
 		description?: string;
 		renderUnit?: boolean;
+		source?: string;
 	};
 };
 
@@ -48,6 +49,7 @@ export type SwitchInputTagType = BaseInputTag & {
 	name: "Switch";
 	attributes: {
 		primary: string;
+		source?: string;
 		type?: "string" | "boolean" | "checkbox";
 	};
 };
@@ -186,6 +188,9 @@ const mergeInfoAttributes = (target: InfoInputTagType, source: InfoInputTagType)
 	if (!target.attributes.unit && source.attributes.unit) {
 		target.attributes.unit = source.attributes.unit;
 	}
+	if (!target.attributes.source && source.attributes.source) {
+		target.attributes.source = source.attributes.source;
+	}
 };
 
 const mergeScoreAttributes = (target: ScoreInputTagType, source: ScoreInputTagType): boolean => {
@@ -207,6 +212,9 @@ const mergeScoreAttributes = (target: ScoreInputTagType, source: ScoreInputTagTy
 };
 
 const mergeSwitchAttributes = (target: SwitchInputTagType, source: SwitchInputTagType): void => {
+	if (!target.attributes.source && source.attributes.source) {
+		target.attributes.source = source.attributes.source;
+	}
 	if (!target.attributes.type && source.attributes.type) {
 		target.attributes.type = source.attributes.type;
 	}
@@ -282,6 +290,7 @@ const toSwitchTag = (node: MarkdocTagNode, children: InputTagType[]): SwitchInpu
 	({
 		attributes: {
 			primary: node.attributes.primary ?? "",
+			source: toKeyPart(node.attributes.source) || undefined,
 			type: toSwitchType(node.attributes.type),
 		},
 		children,

@@ -113,7 +113,6 @@ export const auth = betterAuth({
 				import("@repo/email/templates/reset-password"),
 			]);
 			await sendEmail({
-				from: "noreply@mdscribe.de",
 				subject: "Setze dein Passwort zurück",
 				template: ResetPasswordTemplate({ url }),
 				to: resetUser.email,
@@ -140,7 +139,6 @@ export const auth = betterAuth({
 				import("@repo/email/templates/verify"),
 			]);
 			await sendEmail({
-				from: "noreply@mdscribe.de",
 				subject: "Verify your email address",
 				template: EmailVerificationTemplate({ url }),
 				to: authUser.email,
@@ -203,7 +201,6 @@ export const auth = betterAuth({
 					import("@repo/email/templates/change-email"),
 				]);
 				await sendEmail({
-					from: "noreply@mdscribe.de",
 					subject: "Genehmige E-Mail-Änderung",
 					template: EmailChangeTemplate({ newEmail, url }),
 					to: authUser.email,

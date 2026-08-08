@@ -61,6 +61,8 @@ export {
 	usageTrace,
 	usageTraceRelations,
 	user,
+	userAiProvider,
+	userAiProviderRelations,
 	userRelations,
 	verification,
 } from "./schema";
@@ -95,6 +97,7 @@ export type {
 	NewUsageObservation,
 	NewUsageTrace,
 	NewUser,
+	NewUserAiProvider,
 	NewVerification,
 	Session,
 	Subscription,
@@ -104,5 +107,6 @@ export type {
 	TextSnippet,
 	UsageEvent,
 	User,
+	UserAiProvider,
 	Verification,
 } from "./types";

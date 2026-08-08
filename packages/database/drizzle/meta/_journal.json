@@ -204,6 +204,27 @@
 			"when": 1784510800000,
 			"tag": "0028_ai_model_openrouter_routing",
 			"breakpoints": true
+		},
+		{
+			"idx": 29,
+			"version": "7",
+			"when": 1784514400000,
+			"tag": "0029_template_document_information",
+			"breakpoints": true
+		},
+		{
+			"idx": 30,
+			"version": "7",
+			"when": 1785369600000,
+			"tag": "0030_remove_template_embeddings",
+			"breakpoints": true
+		},
+		{
+			"idx": 31,
+			"version": "7",
+			"when": 1785373200000,
+			"tag": "0031_user_provider_byok",
+			"breakpoints": true
 		}
 	]
 }

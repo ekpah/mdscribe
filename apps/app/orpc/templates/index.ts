@@ -1,23 +1,18 @@
 import { ORPCError, type } from "@orpc/server";
 import { and, count, desc, eq, favourites, or, sql, template, user } from "@repo/database";
 import type { Database, Template } from "@repo/database";
-import { env } from "@repo/env";
 import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
-import { VoyageAIClient } from "voyageai";
 import { z } from "zod";
 
 import type { Session } from "@/lib/auth-types";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
+import { createTemplateFuse } from "@/lib/template-search";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed, pub } from "@/orpc";
 import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
 
 const templateVisibilitySchema = z.enum(["public", "private"]);
 type TemplateVisibility = z.infer<typeof templateVisibilitySchema>;
-
-const voyageClient = new VoyageAIClient({
-	apiKey: env.VOYAGE_API_KEY as string,
-});
 
 // Helper: Count how many users have favourited a template
 const favouriteCount = (templateId: typeof template.id) =>
@@ -54,31 +49,6 @@ type TemplateWithRelations = Template & {
 };
 
 // ============================================================================
-// Embedding Generation
-// ============================================================================
-
-const generateEmbeddings = async (
-	content: string,
-	title: string,
-	category: string,
-): Promise<{ embedding: number[] }> => {
-	const contentWithMetadata = `---
-title: ${title}
-category: ${category}
----
-
-${content}`;
-	const embedding = await voyageClient
-		.embed({
-			input: contentWithMetadata,
-			model: "voyage-3-large",
-		})
-		.then((res) => res.data?.[0].embedding ?? []);
-
-	return { embedding };
-};
-
-// ============================================================================
 // Input Schemas
 // ============================================================================
 
@@ -93,6 +63,7 @@ const createTemplateInput = z.object({
 		.array(z.string().trim().min(1, "Example content is required"))
 		.max(10, "A maximum of 10 examples is allowed")
 		.default([]),
+	information: z.string().max(10_000, "Information is too long").default(""),
 	name: z.string().min(1, "Name is required"),
 	visibility: templateVisibilitySchema.default("public"),
 });
@@ -105,6 +76,7 @@ const updateTemplateInput = z.object({
 		.max(10, "A maximum of 10 examples is allowed")
 		.default([]),
 	id: z.string(),
+	information: z.string().max(10_000, "Information is too long").default(""),
 	name: z.string().min(1, "Name is required"),
 	visibility: templateVisibilitySchema.default("public"),
 });
@@ -203,25 +175,22 @@ const listTemplatesHandler = pub.handler(async ({ context }) => {
 	return templates;
 });
 
-/** Search every template visible to the current user using PostgreSQL full-text ranking. */
+/** Search every template visible to the current user using the shared fuzzy matcher. */
 const searchTemplatesHandler = pub.input(lexicalSearchInput).handler(async ({ context, input }) => {
 	const userId = await getOptionalUserId(context);
-	const document = sql`setweight(to_tsvector('german', coalesce(${template.title}, '')), 'A') || setweight(to_tsvector('german', coalesce(${template.category}, '')), 'B') || setweight(to_tsvector('german', coalesce(${template.content}, '')), 'D')`;
-	const query = sql`websearch_to_tsquery('german', ${input.query})`;
-	const rank = sql<number>`ts_rank_cd(${document}, ${query}, 32)`;
-
-	return context.db
+	const templates = await context.db
 		.select({
 			category: template.category,
 			id: template.id,
-			rank,
 			title: template.title,
 			updatedAt: template.updatedAt,
 		})
 		.from(template)
-		.where(and(visibleTemplateWhere(userId), sql`${document} @@ ${query}`))
-		.orderBy(desc(rank), desc(template.updatedAt), template.id)
-		.limit(LEXICAL_SEARCH_LIMIT);
+		.where(visibleTemplateWhere(userId));
+
+	return createTemplateFuse(templates)
+		.search(input.query, { limit: LEXICAL_SEARCH_LIMIT })
+		.map((result) => result.item);
 });
 
 /**
@@ -243,9 +212,9 @@ const getTemplateHandler = pub
 				authorId: template.authorId,
 				category: template.category,
 				content: template.content,
-				embedding: template.embedding,
 				examples: template.examples,
 				id: template.id,
+				information: template.information,
 				title: template.title,
 				updatedAt: template.updatedAt,
 				visibility: template.visibility,
@@ -408,7 +377,7 @@ const createTemplateHandler = authed
 			visibility: input.visibility,
 		});
 		ensureValidTemplateContent(input.content);
-		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
+		const information = input.information.trim();
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -418,8 +387,8 @@ const createTemplateHandler = authed
 					authorId: context.session.user.id,
 					category: input.category,
 					content: input.content,
-					embedding,
 					examples,
+					information,
 					title: input.name,
 					updatedAt: new Date(),
 					visibility: input.visibility,
@@ -447,7 +416,7 @@ const updateTemplateHandler = authed
 			visibility: input.visibility,
 		});
 		ensureValidTemplateContent(input.content);
-		const { embedding } = await generateEmbeddings(input.content, input.name, input.category);
+		const information = input.information.trim();
 		const examples = input.examples.map((example) => example.trim());
 
 		return context.db.transaction(async (tx) => {
@@ -456,8 +425,8 @@ const updateTemplateHandler = authed
 				.set({
 					category: input.category,
 					content: input.content,
-					embedding,
 					examples,
+					information,
 					title: input.name,
 					updatedAt: new Date(),
 					visibility: input.visibility,

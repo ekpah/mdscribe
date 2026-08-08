@@ -10,6 +10,8 @@ import { ChevronRight, Loader2, Medal } from "lucide-react";
 import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import { isScribeDocType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
+import { isByokUsageMetadata } from "@/lib/usage-logging";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
 
@@ -126,6 +128,32 @@ export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null =>
 
 export const formatScore = (score?: number): string =>
 	score === undefined ? "-" : score.toFixed(1);
+
+export const UsageModelName = ({
+	className,
+	compact = false,
+	metadata,
+	model,
+}: {
+	className?: string;
+	compact?: boolean;
+	metadata: unknown;
+	model: string | null;
+}) => {
+	const modelLabel = compact ? model?.split("/").pop() : model;
+	return (
+		<span className={cn("flex min-w-0 items-center gap-1.5", className)}>
+			<span className="truncate font-mono text-solarized-base00">
+				{modelLabel || "-"}
+			</span>
+			{isByokUsageMetadata(metadata) && (
+				<Badge className="shrink-0 border-solarized-violet/40 bg-solarized-violet/10 px-1.5 py-0 text-[10px] text-solarized-violet">
+					{USER_MESSAGES.byok.usageBadge}
+				</Badge>
+			)}
+		</span>
+	);
+};
 
 const getPromptLabel = (metadata: Record<string, unknown> | null): string => {
 	if (!metadata) {
@@ -412,9 +440,12 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 	}),
 	columnHelper.accessor("model", {
 		cell: (info) => (
-			<span className="hidden font-mono text-xs md:inline">
-				{info.getValue()?.split("/").pop() || "-"}
-			</span>
+			<UsageModelName
+				className="hidden text-xs md:flex"
+				compact
+				metadata={info.row.original.metadata}
+				model={info.getValue()}
+			/>
 		),
 		enableSorting: false,
 		header: () => <span className="hidden md:inline">Modell</span>,

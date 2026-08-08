@@ -5,7 +5,6 @@ import { authed } from "@/orpc";
 import { startUsageObservation } from "@/lib/usage-tracing";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { runScribeGeneration } from "@/orpc/scribe/handlers/scribe-stream";
-import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import type { DocumentType, AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
 interface BuiltInAgentSectionGenerationInput {
@@ -22,7 +21,7 @@ interface CustomAgentSectionGenerationInput {
 	source: "customForm";
 }
 
-type AgentSectionGenerationInput =
+export type AgentSectionGenerationInput =
 	| (BuiltInAgentSectionGenerationInput | CustomAgentSectionGenerationInput) & {
 		/** Only present for media that the agent already had to preprocess. */
 		preparedAttachmentText?: string;
@@ -53,12 +52,6 @@ export const scribeAgentGenerateSectionHandler = authed
 	.use(scribeEntitlementsMiddleware)
 	.input(type<AgentSectionGenerationInput>())
 	.handler(async ({ context, input }) => {
-		await enforceScribeUsageLimit({
-			db: context.db,
-			entitlements: context.entitlements.scribe,
-			session: context.session,
-		});
-
 		const observationId = input.traceContext?.traceId
 			? await startUsageObservation({
 					db: context.db,

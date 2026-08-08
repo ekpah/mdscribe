@@ -96,17 +96,6 @@ const createOpenRouterMockModel = (modelId: string) => ({
 	specificationVersion: "v3",
 });
 
-const MockVoyageAIClient = function MockVoyageAIClient() {
-	return {
-		embed: () => {
-			const mockEmbedding = Array.from({ length: 1024 }, () => Math.random());
-			return resolveAsync({
-				data: [{ embedding: mockEmbedding }],
-			});
-		},
-	};
-};
-
 const MockStripe = function MockStripe() {
 	return {
 		checkout: {
@@ -138,13 +127,11 @@ const MockStripe = function MockStripe() {
 
 const sendEmailMock = mock(() => resolveAsync({ success: true }));
 const sendEmailBatchMock = mock((options: { to?: readonly string[] }) =>
-	resolveAsync(
-		(options.to ?? []).map((recipient, index) => ({
-			MessageID: `batch-message-${index}`,
-			SubmittedAt: new Date().toISOString(),
-			To: recipient,
-		})),
-	),
+	resolveAsync({
+		acceptedCount: options.to?.length ?? 0,
+		attemptedCount: options.to?.length ?? 0,
+		failedCount: 0,
+	}),
 );
 
 mock.module("server-only", () => ({}));
@@ -152,8 +139,11 @@ mock.module("server-only", () => ({}));
 mock.module("@repo/env", () => ({
 	env: {
 		ADMIN_EMAIL: "admin@test.com",
-		AUTH_POSTMARK_KEY: "test-key",
 		BETTER_AUTH_SECRET: "test-secret-key-for-testing-32chars",
+		MAIL_BROADCAST_SMTP_URL: undefined,
+		MAIL_FROM_ADDRESS: "noreply@test.com",
+		MAIL_FROM_NAME: "MDScribe Test",
+		MAIL_SMTP_URL: "smtp://localhost:1025",
 		NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
 		NODE_ENV: "test",
 		OPENROUTER_API_KEY: "test-key",
@@ -162,7 +152,6 @@ mock.module("@repo/env", () => ({
 		STRIPE_PLUS_PRICE_ID_ANNUAL: "price_test_plus_annual",
 		STRIPE_SECRET_KEY: "sk_test_mock_key",
 		STRIPE_WEBHOOK_SECRET: "whsec_test_secret",
-		VOYAGE_API_KEY: "test-voyage-key",
 	},
 }));
 
@@ -177,12 +166,8 @@ mock.module("next/headers", () => ({
 	headers: () => resolveAsync(new Headers()),
 }));
 
-mock.module("voyageai", () => ({
-	VoyageAIClient: MockVoyageAIClient,
-}));
-
 mock.module("@repo/email", () => ({
-  sendEmail: sendEmailMock,
+	sendEmail: sendEmailMock,
 	sendEmailBatch: sendEmailBatchMock,
 }));
 
@@ -209,23 +194,48 @@ mock.module("ai", () => ({
 				categories: [
 					{
 						comment: "Testbewertung",
-						name: "Faktentreue: 0 weg, 0 erf., 0 falsch",
-						score: 8,
+						name: "Aktualität",
+						score: 4,
 					},
 					{
 						comment: "Testbewertung",
-						name: "Klinische Nutzbarkeit: 0 offene Punkte",
-						score: 8,
+						name: "Richtigkeit",
+						score: 4,
 					},
 					{
 						comment: "Testbewertung",
-						name: "Sprache: 0 Fehler, 0 unnat.",
-						score: 8,
+						name: "Vollständigkeit",
+						score: 4,
 					},
 					{
 						comment: "Testbewertung",
-						name: "Struktur: 0 Strukturprobleme",
-						score: 8,
+						name: "Nützlichkeit",
+						score: 4,
+					},
+					{
+						comment: "Testbewertung",
+						name: "Organisation",
+						score: 4,
+					},
+					{
+						comment: "Testbewertung",
+						name: "Verständlichkeit",
+						score: 4,
+					},
+					{
+						comment: "Testbewertung",
+						name: "Prägnanz",
+						score: 4,
+					},
+					{
+						comment: "Testbewertung",
+						name: "Synthese",
+						score: 4,
+					},
+					{
+						comment: "Testbewertung",
+						name: "Innere Konsistenz",
+						score: 4,
 					},
 				],
 				fieldDefinitions: {

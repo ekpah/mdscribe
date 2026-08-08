@@ -1,0 +1,72 @@
+---
+title: Eigene API-Schlüssel (BYOK)
+description: Wie Administratoren einzelne KI-Verbindungen für nutzereigene API-Schlüssel freigeben.
+---
+
+## Eigene API-Schlüssel verwenden
+
+Mit Bring Your Own Key (BYOK) können Nutzer einen eigenen API-Schlüssel für
+eine vom Administrator vorkonfigurierte KI-Verbindung hinterlegen. Nutzer
+können dabei weder neue Provider noch eigene Base URLs, Protokolle, Header oder
+Modelle hinzufügen.
+
+<Info>
+  BYOK ist pro Verbindung standardmäßig deaktiviert. Ohne aktive
+  BYOK-Verbindung verwendet MDScribe weiterhin den vom Administrator
+  hinterlegten Schlüssel und die begrenzte kostenlose Test-Quota.
+</Info>
+
+## Für Administratoren
+
+1. Öffnen Sie
+   `Admin → Systemeinstellungen → KI-Provider & Modelle → Verbindungen`.
+2. Aktivieren Sie auf einer bestehenden Verbindung
+   **Nutzer-API-Schlüssel (BYOK)**.
+3. Die Verbindung erscheint danach unter `Einstellungen → KI-Zugang` bei den
+   Nutzern.
+
+Die Verbindung bleibt vollständig unter Kontrolle des Administrators:
+Protokoll, Base URL, Modellkatalog und Standardmodelle können Nutzer nicht
+ändern. Die Freigabe kann jederzeit deaktiviert werden. Bereits verschlüsselt
+gespeicherte Nutzerschlüssel bleiben dabei erhalten, werden aber nicht
+verwendet.
+
+## Für Nutzer
+
+Öffnen Sie `Einstellungen → KI-Zugang`. Für jede freigeschaltete Verbindung
+können Sie:
+
+- einen Anzeigenamen und API-Schlüssel hinterlegen,
+- den Schlüssel prüfen und verschlüsselt speichern,
+- die Verwendung aktivieren oder deaktivieren,
+- Namen oder Schlüssel ersetzen sowie
+- die Verbindung vollständig löschen.
+
+Der Schlüssel ist write-only: Nach dem Speichern wird er nicht wieder im
+Browser angezeigt. Eine Umbenennung oder Deaktivierung liest den Schlüssel
+nicht aus.
+
+## Quota und Kosten
+
+Ein Modellaufruf über eine aktive eigene Verbindung verbraucht keine
+MDScribe-Quota. Benötigt eine Anfrage mehrere Modelle, etwa für
+Audio-Transkription und Textgenerierung, ist sie nur dann vollständig von der
+MDScribe-Quota ausgenommen, wenn jeder dieser Aufrufe durch einen aktiven
+Nutzerschlüssel abgedeckt ist.
+
+Kosten, Guthaben, Rate Limits, Aufbewahrung und Nutzungsbedingungen des
+jeweiligen Providers gelten weiterhin für den Nutzer. Wird ein aktiver
+Nutzerschlüssel vom Provider abgelehnt, wechselt MDScribe nicht automatisch
+auf den Betreiberschlüssel.
+
+## Sicherheit und Datenschutz
+
+- Schlüssel werden mit dem Instanz-Secret verschlüsselt in PostgreSQL
+  gespeichert.
+- Schlüssel, Chiffretexte und nutzerspezifische Verbindungsnamen erscheinen
+  nicht in Nutzungsereignissen, Telemetrie oder Fehlermeldungen.
+- Nutzer-Clients werden pro Anfrage erstellt und nicht global gecacht.
+- Die Inhalte fließen weiterhin über den MDScribe-Server zum vom
+  Administrator konfigurierten Provider.
+- Der Datenweg und mögliche nachgelagerte Anbieter richten sich nach dieser
+  Verbindung; siehe [KI-Datenfluss](/privacy/ki-datenfluss).

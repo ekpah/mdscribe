@@ -1,14 +1,15 @@
 /** @type {import('@markdoc/markdoc').Config} */
 
-import * as functions from './functions';
+import { includes, upper } from './functions';
 import nodes from './nodes';
 import tags from './tags/config';
 import variables from './variables';
 
 export default {
-  ...functions,
+  includes,
   nodes,
   tags,
+  upper,
   variables,
   // add other stuff here
 };

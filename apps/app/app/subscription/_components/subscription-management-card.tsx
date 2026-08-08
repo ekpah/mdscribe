@@ -16,6 +16,7 @@ import { CreditCard, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { unwrapAuthClientResult } from "@/lib/auth-client-result";
 import { orpc } from "@/lib/orpc";
 
 const getPlanLabel = (plan?: string | null) => {
@@ -73,12 +74,14 @@ export const SubscriptionManagementCard = ({
 	const handleUpgrade = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			() =>
-				authClient.subscription.upgrade({
-					cancelUrl: "/subscription",
-					plan: "plus",
-					successUrl: "/subscription",
-				}),
+			async () =>
+				unwrapAuthClientResult(
+					await authClient.subscription.upgrade({
+						cancelUrl: "/subscription",
+						plan: "plus",
+						successUrl: "/subscription",
+					}),
+				),
 			{
 				error: "Abonnement konnte nicht aktualisiert werden.",
 				finally: () => setIsManagingSubscription(false),
@@ -91,10 +94,12 @@ export const SubscriptionManagementCard = ({
 	const handleCancel = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			() =>
-				authClient.subscription.cancel({
-					returnUrl: "/subscription",
-				}),
+			async () =>
+				unwrapAuthClientResult(
+					await authClient.subscription.cancel({
+						returnUrl: "/subscription",
+					}),
+				),
 			{
 				error: "Abonnement konnte nicht storniert werden.",
 				finally: () => setIsManagingSubscription(false),
@@ -107,10 +112,12 @@ export const SubscriptionManagementCard = ({
 	const handleBillingPortal = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			() =>
-				authClient.subscription.billingPortal({
-					returnUrl: "/subscription",
-				}),
+			async () =>
+				unwrapAuthClientResult(
+					await authClient.subscription.billingPortal({
+						returnUrl: "/subscription",
+					}),
+				),
 			{
 				error: "Zahlungsportal konnte nicht geöffnet werden.",
 				finally: () => setIsManagingSubscription(false),

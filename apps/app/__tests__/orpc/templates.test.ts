@@ -124,6 +124,18 @@ describe("Templates oRPC Handlers", () => {
 				expect(result?.examples).toEqual(["First example", "Second example"]);
 			});
 
+			test("returns template information", async () => {
+				const { user } = await createTestUser(server.db);
+				const createdTemplate = await createTestTemplate(server.db, user.id, {
+					information: "Nutze kurze Absätze.",
+				});
+
+				const context = createTestContext({ db: server.db });
+				const result = await call(templatesHandler.get, { id: createdTemplate.id }, { context });
+
+				expect(result?.information).toBe("Nutze kurze Absätze.");
+			});
+
 			test("hides private templates from anonymous and other users", async () => {
 				const { user: author } = await createTestUser(server.db, {
 					email: "author-private@test.com",
@@ -171,38 +183,46 @@ describe("Templates oRPC Handlers", () => {
 		});
 
 		describe("templates.search", () => {
-			test("ranks title matches and applies template visibility", async () => {
+			test("fuzzy-matches titles and categories and applies template visibility", async () => {
 				const { user: author } = await createTestUser(server.db);
 				const titleMatch = await createTestTemplate(server.db, author.id, {
 					content: "Allgemeiner Bericht",
 					title: "Hypertonie",
 				});
-				const contentMatch = await createTestTemplate(server.db, author.id, {
+				const categoryMatch = await createTestTemplate(server.db, author.id, {
+					category: "Hypertonie",
+					content: "Allgemeiner Bericht",
+					title: "Behandlungsbericht",
+				});
+				const contentOnlyMatch = await createTestTemplate(server.db, author.id, {
 					content: "Behandlung einer Hypertonie",
 					title: "Behandlungsbericht",
 				});
 				const privateMatch = await createTestTemplate(server.db, author.id, {
-					content: "Hypertonie",
-					title: "Privater Treffer",
+					content: "Allgemeiner Bericht",
+					title: "Private Hypertonie-Vorlage",
 					visibility: "private",
 				});
 
 				const anonymousResult = await call(
 					templatesHandler.search,
-					{ query: "  Hypertonie  " },
+					{ query: "  Hypertonnie  " },
 					{
 						context: createTestContext({ db: server.db }),
 					},
 				);
 				const authorResult = await call(
 					templatesHandler.search,
-					{ query: "Hypertonie" },
+					{ query: "Hypertonnie" },
 					{
 						context: createTestContext({ db: server.db, session: createMockSession(author) }),
 					},
 				);
 
-				expect(anonymousResult.map((item) => item.id)).toEqual([titleMatch.id, contentMatch.id]);
+				expect(anonymousResult.map((item) => item.id)).toEqual(
+					expect.arrayContaining([titleMatch.id, categoryMatch.id]),
+				);
+				expect(anonymousResult.map((item) => item.id)).not.toContain(contentOnlyMatch.id);
 				expect(authorResult.map((item) => item.id)).toContain(privateMatch.id);
 			});
 
@@ -305,7 +325,7 @@ describe("Templates oRPC Handlers", () => {
 		});
 
 		describe("templates.create", () => {
-			test("creates a new template with embedding and examples", async () => {
+			test("creates a new template with examples", async () => {
 				const { user } = await createTestUser(server.db);
 				const session = createMockSession(user);
 				const context = createTestContext({ db: server.db, session });
@@ -316,6 +336,7 @@ describe("Templates oRPC Handlers", () => {
 						category: "Test Category",
 						content: "Template content here",
 						examples: ["Example output one", "Example output two"],
+						information: "Use concise sections.",
 						name: "New Template",
 					},
 					{ context },
@@ -326,15 +347,14 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.category).toBe("Test Category");
 				expect(result.content).toBe("Template content here");
 				expect(result.authorId).toBe(user.id);
-				expect(result.embedding).toBeDefined();
-				expect(result.embedding).toHaveLength(1024);
 				expect(result.visibility).toBe("public");
 
 				const [savedTemplate] = await server.db
-					.select({ examples: template.examples })
+					.select({ examples: template.examples, information: template.information })
 					.from(template)
 					.where(eq(template.id, result.id));
 				expect(savedTemplate?.examples).toEqual(["Example output one", "Example output two"]);
+				expect(savedTemplate?.information).toBe("Use concise sections.");
 			});
 
 			test("requires plus to create private templates", async () => {
@@ -431,6 +451,7 @@ describe("Templates oRPC Handlers", () => {
 						content: "Updated content",
 						examples: ["Updated example one", "Updated example two"],
 						id: createdTemplate.id,
+						information: "Lead with the assessment.",
 						name: "Updated Title",
 					},
 					{ context },
@@ -441,10 +462,11 @@ describe("Templates oRPC Handlers", () => {
 				expect(result.content).toBe("Updated content");
 
 				const [savedTemplate] = await server.db
-					.select({ examples: template.examples })
+					.select({ examples: template.examples, information: template.information })
 					.from(template)
 					.where(eq(template.id, createdTemplate.id));
 				expect(savedTemplate?.examples).toEqual(["Updated example one", "Updated example two"]);
+				expect(savedTemplate?.information).toBe("Lead with the assessment.");
 			});
 
 			test("requires plus to keep templates private on update", async () => {

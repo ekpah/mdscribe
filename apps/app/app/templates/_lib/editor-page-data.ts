@@ -9,6 +9,7 @@ interface TemplateEditorData {
 	tit: string;
 	note: string;
 	examples: string[];
+	information: string;
 	id?: string;
 	canEditSource: boolean;
 	canCreatePrivateTemplates: boolean;
@@ -42,6 +43,7 @@ export const getCreateTemplateEditorData = async ({
 		...sharedData,
 		cat: forkedTemplate?.category || "",
 		examples: forkedTemplate?.examples ?? [],
+		information: forkedTemplate?.information ?? "",
 		note: JSON.stringify(forkedTemplate?.content || ""),
 		tit: forkedTemplate?.title || "",
 		visibility:
@@ -72,6 +74,7 @@ export const getEditTemplateEditorData = async ({
 		cat: doc.category || "",
 		examples: doc.examples ?? [],
 		id,
+		information: doc.information ?? "",
 		note: JSON.stringify(doc.content || ""),
 		tit: doc.title || "",
 		visibility: doc.visibility === "private" ? "private" : "public",

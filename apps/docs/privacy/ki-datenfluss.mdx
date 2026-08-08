@@ -1,0 +1,87 @@
+---
+title: KI-Datenfluss
+description: Wie Daten durch die KI-Pipeline von MDScribe fließen
+---
+
+## KI-Datenfluss
+
+Der konkrete Datenweg hängt von den Verbindungen und Standardmodellen ab,
+die der Administrator der jeweiligen MDScribe-Instanz konfiguriert hat.
+MDScribe macht deshalb keine pauschale Zusage zu Zero Data Retention,
+Speicherregionen oder Unterauftragnehmern.
+
+### Verantwortungsgrenze
+
+- **Öffentliche MDScribe-Cloud:** ausschließlich für synthetische oder bereits
+  wirksam anonymisierte Inhalte. Reale oder lediglich pseudonymisierte
+  Patientendaten dürfen dort nicht verarbeitet werden.
+- **Self-Hosting:** Die betreibende Einrichtung kontrolliert Infrastruktur,
+  Provider, Verträge, Protokollierung und Aufbewahrung und muss den Einsatz
+  selbst technisch, organisatorisch und rechtlich prüfen.
+
+### Übersicht
+
+```text
+Nutzer
+  ↓ TLS
+MDScribe-Server
+  ↓ TLS
+admin-konfigurierte Provider-Verbindung
+  ↓ gegebenenfalls
+nachgelagerter Modellanbieter
+```
+
+Die Antwort läuft denselben Weg zurück. Bei lokalen Verbindungen kann der
+gesamte Provider-Pfad in der Infrastruktur des Betreibers bleiben. Ein
+Aggregator wie OpenRouter kann Anfragen an weitere Modellanbieter leiten.
+
+### Verarbeitungsschritte
+
+1. Der Browser überträgt Eingaben und Anhänge verschlüsselt an den
+   MDScribe-Server.
+2. MDScribe kombiniert sie mit dem passenden, code-eigenen Prompt sowie
+   ausgewählten Template-Informationen.
+3. Das konfigurierte Standardmodell erhält die Anfrage. Nicht nativ
+   unterstützte Audio-, Bild- oder Dokumenteingaben können zuvor über andere
+   konfigurierte Modelle verarbeitet werden.
+4. Jeder Modellaufruf geht an die Verbindung, der das Modell in der
+   MDScribe-Datenbank zugeordnet ist.
+5. Provider können abhängig von ihrer eigenen Architektur weitere
+   Unterauftragnehmer oder Modellanbieter einsetzen.
+6. Ergebnisse werden an MDScribe und anschließend an den Browser
+   zurückgegeben.
+
+### Betreiber- und Nutzerschlüssel
+
+Standardmäßig authentifiziert MDScribe Provider-Aufrufe mit dem verschlüsselt
+gespeicherten Schlüssel des Instanzbetreibers.
+
+Hat der Administrator eine konkrete Verbindung für
+[BYOK](/providers/byok) freigeschaltet und der Nutzer dort einen aktiven
+eigenen Schlüssel hinterlegt, verwendet MDScribe diesen Schlüssel für
+Modellaufrufe über genau diese Verbindung. Protokoll, Base URL und Modelle
+bleiben unverändert. Der Schlüssel ändert also die Abrechnung beziehungsweise
+Authentifizierung, nicht das Ziel des Datenflusses.
+
+Nutzerschlüssel werden:
+
+- mit dem Instanz-Secret verschlüsselt in PostgreSQL gespeichert,
+- nach dem Speichern nicht wieder an den Browser ausgeliefert,
+- nicht in Nutzungsereignissen, Telemetrie oder Fehlermeldungen gespeichert
+  und
+- nur unmittelbar für Validierung und Provider-Aufruf entschlüsselt.
+
+### Aufbewahrung und Providerbedingungen
+
+Für jeden konfigurierten Provider müssen Betreiber beziehungsweise
+BYOK-Nutzer dessen aktuelle Bedingungen prüfen, insbesondere:
+
+- Zweck und Rechtsgrundlage der Verarbeitung,
+- Speicher- und Löschfristen,
+- Verarbeitungsregionen,
+- Unterauftragnehmer und mögliche Weiterleitung,
+- Nutzung für Training oder Produktverbesserung,
+- Sicherheitsmaßnahmen sowie
+- Kosten, Guthaben und Rate Limits.
+
+Ein Provider-Flag oder Marketingbegriff allein ersetzt diese Prüfung nicht.

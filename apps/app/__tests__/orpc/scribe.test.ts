@@ -517,6 +517,7 @@ describe("Model Selection Logic", () => {
 					data: Buffer.from("audio").toString("base64"),
 					format: "webm",
 				},
+				language: "de",
 				model: "openai/whisper-large-v3",
 			});
 			const [event] = await server.db
@@ -906,12 +907,20 @@ describe("Fill Inputs Handler", () => {
 	test("builds the autofill prompt around the shared context block", () => {
 		const { contextXml } = composeScribeContext({
 			formData: { diagnoseblock: "I50.1 Akute Linksherzinsuffizienz" },
+			template: {
+				content: "",
+				examples: [],
+				information: "Bevorzuge kurze, eindeutige Werte.",
+				title: "Ausfüllhinweise",
+			},
 		});
 		const messages = composeFillInputsPrompt({ contextXml });
 
 		expect(messages[1].content).toContain("<patient_context>");
 		expect(messages[1].content).toContain("<diagnoseblock>");
 		expect(messages[1].content).toContain("I50.1 Akute Linksherzinsuffizienz");
+		expect(messages[1].content).toContain("<information>");
+		expect(messages[1].content).toContain("Bevorzuge kurze, eindeutige Werte.");
 		expect(messages[1].content).not.toContain('"inputFields"');
 		expect(messages[1].content).not.toContain("Verfügbare Felder");
 	});
@@ -975,6 +984,7 @@ describe("Fill Inputs Handler", () => {
 							type: "string",
 						},
 					],
+					templateInformation: "Nur gesicherte Angaben übernehmen.",
 					textContext: {
 						diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
 					},
@@ -991,6 +1001,7 @@ describe("Fill Inputs Handler", () => {
 			expect(event?.userId).toBe(user.id);
 			expect(event?.model).toBe("openrouter/test-text");
 			expect(event?.inputData).toMatchObject({
+				templateInformationCharacters: "Nur gesicherte Angaben übernehmen.".length,
 				textContext: {
 					diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
 				},
@@ -1064,6 +1075,24 @@ describe("Fill Inputs Handler", () => {
 					},
 				),
 			).rejects.toThrow("zu-gross.pdf");
+
+			await expect(
+				call(
+					fillInputsHandler,
+					{
+						inputFields: [{ label: "Patient", type: "string" }],
+						templateInformation: "x".repeat(
+							FILL_INPUT_PAYLOAD_LIMITS.maxTemplateInformationCharacters + 1,
+						),
+					},
+					{
+						context: createTestContext({
+							db: server.db,
+							session: createMockSession(user),
+						}),
+					},
+				),
+			).rejects.toThrow(USER_MESSAGES.templateInformationTooLong);
 		} finally {
 			await server.close();
 		}

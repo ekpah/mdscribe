@@ -1,4 +1,4 @@
-import { and, eq, inArray, subscription } from "@repo/database";
+import { and, desc, eq, inArray, subscription } from "@repo/database";
 import type { Database } from "@repo/database";
 
 import type { LicenseEdition } from "@/lib/license/types";
@@ -20,6 +20,8 @@ interface ProductEntitlements {
 	maxSeats: number | null;
 	plan: ProductPlan;
 	scribeMonthlyCostLimit: number;
+	subscriptionPeriodEnd: Date | null;
+	subscriptionPeriodStart: Date | null;
 }
 
 export const resolveProductEntitlements = async (input: {
@@ -28,18 +30,25 @@ export const resolveProductEntitlements = async (input: {
 }): Promise<ProductEntitlements> => {
 	const [subscriptions, license] = await Promise.all([
 		input.db
-			.select({ id: subscription.id })
+			.select({
+				createdAt: subscription.createdAt,
+				periodEnd: subscription.periodEnd,
+				periodStart: subscription.periodStart,
+			})
 			.from(subscription)
 			.where(
 				and(
 					eq(subscription.referenceId, input.userId),
 					inArray(subscription.status, ["active", "trialing"]),
 				),
-			),
+			)
+			.orderBy(desc(subscription.createdAt))
+			.limit(1),
 		resolveLicense(),
 	]);
 
-	const hasActiveSubscription = subscriptions.length > 0;
+	const [activeSubscription] = subscriptions;
+	const hasActiveSubscription = Boolean(activeSubscription);
 	const plan: ProductPlan = hasActiveSubscription ? "plus" : "free";
 	const planEntitlements = PRODUCT_PLANS[plan];
 
@@ -54,5 +63,8 @@ export const resolveProductEntitlements = async (input: {
 		maxSeats: license?.maxSeats ?? null,
 		plan,
 		scribeMonthlyCostLimit: planEntitlements.scribeMonthlyCostLimit,
+		subscriptionPeriodEnd: activeSubscription?.periodEnd ?? null,
+		subscriptionPeriodStart:
+			activeSubscription?.periodStart ?? activeSubscription?.createdAt ?? null,
 	};
 };

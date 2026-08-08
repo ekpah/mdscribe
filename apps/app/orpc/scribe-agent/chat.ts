@@ -9,7 +9,11 @@ import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import { scheduleScribeUsageLogging } from "@/orpc/scribe/handlers/usage-logging";
-import { buildProviderOptions, resolveAgentGenerationStrategy } from "@/orpc/scribe/providers";
+import {
+	buildProviderOptions,
+	isGenerationStrategyFullyByok,
+	resolveAgentGenerationStrategy,
+} from "@/orpc/scribe/providers";
 
 import { prepareAgentMedia } from "./lib/prepare-media";
 import type { PreparedAgentMedia } from "./lib/prepare-media";
@@ -104,17 +108,18 @@ export const scribeAgentChatHandler = authed
 			});
 		}
 
-		const { entitlements } = await enforceScribeUsageLimit({
-			db: context.db,
-			entitlements: context.entitlements.scribe,
-			session: context.session,
-		});
-
 		// The admin can let the standard model run the agent or configure a
 		// dedicated MDScribe Agent model.
 		const agentStrategy = await resolveAgentGenerationStrategy(context.db, {
 			hasAudio: (input.audioFiles?.length ?? 0) > 0,
 			hasFiles: (input.contextFiles?.length ?? 0) > 0,
+			userId: context.session.user.id,
+		});
+		const { entitlements } = await enforceScribeUsageLimit({
+			db: context.db,
+			entitlements: context.entitlements.scribe,
+			isQuotaExempt: isGenerationStrategyFullyByok(agentStrategy),
+			session: context.session,
 		});
 		const { generation } = agentStrategy;
 
@@ -132,6 +137,7 @@ export const scribeAgentChatHandler = authed
 			audioFiles: input.audioFiles ?? [],
 			contextFiles: input.contextFiles ?? [],
 			db: context.db,
+			strategy: agentStrategy,
 			userId: context.session.user.id,
 			zdr: entitlements.hasActiveSubscription,
 		});
@@ -225,6 +231,8 @@ export const scribeAgentChatHandler = authed
 						agentEventType: "chat",
 						agentModelSource: agentStrategy.usesStandardModel ? "standard" : "agent",
 						agentRunId,
+						credentialSource: generation.model.credentialSource,
+						providerProtocol: generation.model.providerProtocol,
 						...(toolTrace.length > 0 ? { agentToolTrace: toolTrace } : {}),
 					},
 					userId: context.session.user.id,

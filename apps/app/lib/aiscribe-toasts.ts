@@ -1,6 +1,6 @@
 import type { FinishReason } from "ai";
 
-export const isSuccessfulAiscribeFinish = (input: {
+export const isSuccessfulChatFinish = (input: {
 	finishReason?: FinishReason;
 	isAbort: boolean;
 	isError: boolean;

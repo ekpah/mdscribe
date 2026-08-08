@@ -37,6 +37,7 @@ interface InputPreviewSectionProps {
 	preview: (values: Record<string, unknown>) => ReactNode;
 	previewToolbar?: ReactNode;
 	resetKey?: string;
+	templateInformation?: string;
 }
 
 const getMobileTabClassName = (isActive: boolean) =>
@@ -149,6 +150,7 @@ export const InputPreviewSection = ({
 	preview,
 	previewToolbar,
 	resetKey,
+	templateInformation,
 }: InputPreviewSectionProps) => {
 	const [values, setValues] = useState<Record<string, unknown>>({});
 	const [mobilePanel, setMobilePanel] = useState<MobilePanel>("preview");
@@ -239,11 +241,12 @@ export const InputPreviewSection = ({
 				audioFiles,
 				contextFiles,
 				inputFields,
+				templateInformation,
 				textContext,
 			});
 			return result.fieldValues;
 		},
-		[],
+		[templateInformation],
 	);
 
 	const inputPanelClassName = getInputPanelClassName(hasInputTags, mobilePanel);

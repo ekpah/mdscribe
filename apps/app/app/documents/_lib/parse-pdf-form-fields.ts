@@ -1,11 +1,8 @@
 import { PDFDocument } from "pdf-lib";
 
 import { normalizeDocumentDefinition } from "./document-definition";
-import {
-	MAX_PDF_FORM_FIELD_COUNT,
-	MAX_PDF_PAGE_COUNT,
-	MAX_PDF_WIDGET_COUNT,
-} from "./pdf-data";
+import { MAX_PDF_FORM_FIELD_COUNT, MAX_PDF_PAGE_COUNT, MAX_PDF_WIDGET_COUNT } from "./pdf-data";
+import { getPdfLibFormFieldType } from "./pdf-form-field-type";
 import type { DocumentDefinition, DocumentInputKind, DocumentPdfType } from "./types";
 
 export interface PdfFormField {
@@ -182,7 +179,7 @@ const pdfFieldParsers: Partial<
 
 const parseSingleFormField = (field: PdfLibFormField): PdfFormField => {
 	const fieldName = field.getName();
-	const fieldType = field.constructor.name;
+	const fieldType = getPdfLibFormFieldType(field);
 	const parser = pdfFieldParsers[fieldType];
 	const pdfFormField = field as unknown as PDFFormField;
 	const parsedField = parser
@@ -217,8 +214,7 @@ const parseFormFieldsFromPDF = async (file: Uint8Array): Promise<PdfFormField[]>
 	}
 	const widgetCount = fields.reduce(
 		(total, field) =>
-			total +
-			((field as unknown as PdfLibFormField).acroField?.getWidgets?.().length ?? 0),
+			total + ((field as unknown as PdfLibFormField).acroField?.getWidgets?.().length ?? 0),
 		0,
 	);
 	if (widgetCount > MAX_PDF_WIDGET_COUNT) {
@@ -240,9 +236,7 @@ const inferOptions = (field: PdfFormField): string[] => {
 	return field.options || [];
 };
 
-const getDefaultBindingValueMap = (
-	field: PdfFormField,
-): Record<string, string> | undefined => {
+const getDefaultBindingValueMap = (field: PdfFormField): Record<string, string> | undefined => {
 	if (field.inputKind === "choice") {
 		return Object.fromEntries(
 			(

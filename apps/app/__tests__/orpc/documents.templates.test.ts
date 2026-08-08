@@ -130,6 +130,7 @@ describe("documents.templates handlers", () => {
 			{
 				category: "Entlassung",
 				fieldDefinitions: createDocumentDefinition(),
+				information: "Bitte Pflichtfelder zuerst ausfüllen.",
 				pdfBase64,
 				title: "Entlassformular",
 			},
@@ -146,6 +147,7 @@ describe("documents.templates handlers", () => {
 		expect(saved?.fieldDefinitions).toEqual(
 			normalizeDocumentDefinition(createDocumentDefinition()),
 		);
+		expect(saved?.information).toBe("Bitte Pflichtfelder zuerst ausfüllen.");
 		expect([...(saved?.pdfBytes ?? [])]).toEqual([...pdfBytes]);
 		expect(saved?.visibility).toBe("public");
 	});
@@ -402,6 +404,7 @@ describe("documents.templates handlers", () => {
 				category: "Aufnahme",
 				fieldDefinitions: createDocumentDefinition(),
 				id: created.id,
+				information: "Neue Ausfüllhinweise",
 				title: "Aufnahmeformular",
 			},
 			{ context },
@@ -413,6 +416,7 @@ describe("documents.templates handlers", () => {
 			.where(eq(documentTemplate.id, created.id));
 
 		expect([...(afterUpdate?.pdfBytes ?? [])]).toEqual([...(beforeUpdate?.pdfBytes ?? [])]);
+		expect(afterUpdate?.information).toBe("Neue Ausfüllhinweise");
 	});
 
 	test("update rejects non-authors", async () => {

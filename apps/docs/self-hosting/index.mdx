@@ -1,0 +1,314 @@
+---
+title: MDScribe selbst hosten
+description: Deployment, Betrieb und Verantwortung einer MDScribe-Instanz in eigener Infrastruktur
+---
+
+MDScribe ist eine Open-Source-Anwendung für medizinische Dokumentation. Sie
+können die Anwendung in Ihrer eigenen Infrastruktur betreiben und dadurch
+Speicherort, Netzwerk, Zugriffe und KI-Provider selbst kontrollieren.
+
+<Warning>
+  **Betrieb auf eigene Verantwortung**
+
+  MDScribe wird ohne Garantie, Supportzusage oder Service Level Agreement
+  bereitgestellt. Self-Hosting erfordert Erfahrung mit Serverbetrieb,
+  PostgreSQL, TLS, Secrets, Backups und der Absicherung sensibler Daten.
+  Produktiver Einsatz mit realen oder pseudonymisierten Patientendaten setzt
+  eine eigene technische, organisatorische und rechtliche Prüfung voraus.
+</Warning>
+
+Die öffentliche MDScribe-Instanz ist ausschließlich für synthetische oder
+wirksam anonymisierte Inhalte vorgesehen. Reale oder lediglich pseudonymisierte
+Patientendaten gehören in eine von Ihrer Einrichtung verantwortete
+Self-Hosted-Installation. Self-Hosting allein macht einen Betrieb jedoch nicht
+automatisch sicher oder rechtskonform.
+
+## Einstieg
+
+<Columns cols={2}>
+  <Card title="Konfiguration" href="#konfiguration">
+    Produktions-URL, Datenbank, Authentifizierung und Secrets vorbereiten.
+  </Card>
+  <Card title="Docker und Coolify" href="#docker-und-coolify">
+    Container-Konfiguration, Healthcheck und Coolify-Einstellungen nachschlagen.
+  </Card>
+  <Card title="Datenbankmigrationen" href="#datenbankmigrationen">
+    Schemaänderungen kontrolliert vor beziehungsweise während eines Rollouts
+    anwenden.
+  </Card>
+  <Card title="Aktualisierungen" href="#aktualisierungen">
+    Eine Instanz sichern, auf einen geprüften Stand aktualisieren und
+    zurückrollbar halten.
+  </Card>
+  <Card title="KI-Provider" href="/providers">
+    Cloud-Dienste, vertrauliche Provider oder lokale Modelle konfigurieren.
+  </Card>
+  <Card title="Datenschutz" href="/privacy/ki-datenfluss">
+    Datenwege und Verantwortungsgrenzen vor dem Produktivbetrieb prüfen.
+  </Card>
+</Columns>
+
+## Architektur
+
+Für eine minimale Installation benötigen Sie:
+
+- die MDScribe-Anwendung aus diesem Repository,
+- eine PostgreSQL-Datenbank,
+- einen Reverse Proxy oder Load Balancer mit TLS,
+- einen SMTP-Provider oder eigenen SMTP-Relay für Authentifizierungs-E-Mails
+  sowie
+- mindestens einen im Admin-Bereich konfigurierten KI-Provider.
+
+```text
+Browser
+  |
+  | HTTPS
+  v
+Reverse Proxy
+  |
+  v
+MDScribe App --------> PostgreSQL
+  |                    Konten, Templates, PDF-Dateien,
+  |                    Konfiguration und Nutzungsdaten
+  |
+  +------------------> konfigurierter SMTP-Relay
+  |                    Authentifizierungs- und System-E-Mails
+  |
+  +------------------> konfigurierter KI-Provider
+                       Cloud-API oder lokaler Inferenz-Server
+```
+
+MDScribe bringt PostgreSQL oder einen KI-Inferenz-Server nicht im
+Produktions-Image mit. Diese Dienste werden als produktionsgeeignete,
+abgesicherte Komponenten separat betrieben.
+
+## Konfiguration
+
+Die maßgeblichen Variablen stehen in `.env.example`. Für eine
+Self-Hosted-Installation sind insbesondere diese Werte relevant:
+
+| Variable | Zweck |
+|---|---|
+| `POSTGRES_DATABASE_URL` | Verbindung zur PostgreSQL-Datenbank |
+| `NEXT_PUBLIC_BASE_URL` | Öffentliche HTTPS-URL der Instanz, ohne abschließenden Slash |
+| `BETTER_AUTH_SECRET` | Signiert Sessions und verschlüsselt gespeicherte Provider-Schlüssel |
+| `ADMIN_EMAIL` | E-Mail-Adresse des Instanzadministrators |
+| `MAIL_SMTP_URL` | SMTP-Verbindung für Authentifizierungs- und System-E-Mails |
+| `MAIL_FROM_ADDRESS` | Absenderadresse für alle von MDScribe versendeten E-Mails |
+| `MAIL_FROM_NAME` | Anzeigename des Absenders |
+| `MAIL_BROADCAST_SMTP_URL` | Optionaler separater SMTP-Provider für Marketing-Broadcasts |
+
+Erzeugen Sie für `BETTER_AUTH_SECRET` ein langes, zufälliges Secret. Verwenden
+Sie die Adresse aus `ADMIN_EMAIL` für den administrativen Account der Instanz.
+
+Behandeln Sie `BETTER_AUTH_SECRET` wie einen dauerhaften
+Verschlüsselungsschlüssel. Eine unvorbereitete Änderung kann bestehende Sessions
+ungültig machen und verschlüsselt gespeicherte KI-Provider-Schlüssel unbrauchbar
+machen.
+
+### E-Mail-Provider konfigurieren
+
+MDScribe verwendet Standard-SMTP. Dadurch können Sie einen externen
+E-Mail-Provider oder einen Relay in Ihrer eigenen Infrastruktur anbinden, ohne
+den Anwendungscode zu ändern.
+
+Die vollständige Anleitung mit Postmark-Beispielen, On-Premises-Hinweisen,
+Versandtests und Fehlersuche finden Sie unter
+[E-Mail-Provider konfigurieren](/self-hosting/email).
+
+Für einen Provider mit STARTTLS auf Port `587`:
+
+```dotenv
+MAIL_SMTP_URL="smtp://benutzer:passwort@smtp.example.org:587?requireTLS=true"
+MAIL_FROM_ADDRESS="noreply@example.org"
+MAIL_FROM_NAME="MDScribe"
+```
+
+Für implizites TLS auf Port `465` verwenden Sie `smtps://`:
+
+```dotenv
+MAIL_SMTP_URL="smtps://benutzer:passwort@smtp.example.org:465"
+```
+
+Ein interner Relay ohne SMTP-Authentifizierung kann ebenfalls verwendet werden:
+
+```dotenv
+MAIL_SMTP_URL="smtp://mail.intern.example.org:25?requireTLS=true"
+```
+
+Sonderzeichen in Benutzername und Passwort müssen URL-kodiert sein. Lassen Sie
+die Zertifikatsprüfung in Produktion aktiviert. Für interne
+Zertifizierungsstellen muss deren CA-Zertifikat im Container beziehungsweise in
+der Runtime als vertrauenswürdig installiert werden.
+
+Marketing-E-Mails können optional über einen getrennten Provider oder
+Broadcast-Stream versendet werden:
+
+```dotenv
+MAIL_BROADCAST_SMTP_URL="smtp://benutzer:passwort@smtp-broadcast.example.org:587?requireTLS=true"
+```
+
+Ist `MAIL_BROADCAST_SMTP_URL` leer, verwendet MDScribe auch für Broadcasts
+`MAIL_SMTP_URL`. Es gibt keinen automatischen Fallback zu einem externen
+Anbieter. Ein Ausfall des konfigurierten Relays führt zu einem sichtbaren
+Versandfehler.
+
+Prüfen Sie nach der Einrichtung mindestens Verifizierungs-E-Mail,
+Passwort-Reset und eine Admin-Test-E-Mail. Autorisieren Sie die Absenderdomain
+entsprechend den Vorgaben Ihres Providers mit SPF, DKIM und DMARC.
+
+KI-Zugangsdaten sind keine globalen Deployment-Variablen. Legen Sie Provider
+nach der Anmeldung unter
+`Admin → Einstellungen → Modelle → Verbindungen` an. Die API-Schlüssel werden
+verschlüsselt in PostgreSQL gespeichert und nicht an den Browser
+zurückgegeben. Ohne konfigurierte Verbindung findet keine KI-Generierung statt.
+
+Optional können Sie auf jeder Verbindung
+**Nutzer-API-Schlüssel (BYOK)** aktivieren. Nur dann erscheint diese Verbindung
+unter `Einstellungen → KI-Zugang` für Nutzer. Protokoll und Base URL bleiben
+durch Ihre Admin-Konfiguration festgelegt. Wenn Sie keine nutzereigenen
+Schlüssel erlauben möchten, lassen Sie den Schalter auf allen Verbindungen
+deaktiviert. Details stehen unter [Eigene API-Schlüssel (BYOK)](/providers/byok).
+
+## Docker und Coolify
+
+Das `Dockerfile` baut eine Next.js-Standalone-Anwendung und startet sie als
+unprivilegierter Benutzer auf Port `3000`. Die öffentliche Basis-URL wird
+bereits beim Build benötigt:
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_BASE_URL=https://mdscribe.example.org \
+  --tag mdscribe:local \
+  .
+```
+
+Starten Sie den Container mit den Produktions-Secrets Ihrer Deployment-Plattform:
+
+```bash
+docker run --detach \
+  --name mdscribe \
+  --env-file .env \
+  --publish 3000:3000 \
+  mdscribe:local
+```
+
+Setzen Sie TLS vor dem Container ein und leiten Sie nur den Reverse Proxy auf
+Port `3000` weiter. Der integrierte Healthcheck ruft
+`/api/healthcheck` auf und meldet nur dann Erfolg, wenn auch PostgreSQL
+erreichbar ist.
+
+Für ein Deployment über Coolify kann das Repository direkt mit dem vorhandenen
+`Dockerfile` gebaut werden. Setzen Sie `NEXT_PUBLIC_BASE_URL` sowohl als
+Build-Argument als auch als Runtime-Variable und hinterlegen Sie alle Secrets in
+Coolify, nicht im Repository.
+
+## Datenbankmigrationen
+
+Das Anwendungs-Image führt beim Start bewusst keine Migrationen aus. Wenden Sie
+die eingecheckten Drizzle-Migrationen in der Deployment-Pipeline an:
+
+```bash
+bun run db:migrate
+```
+
+Das Runtime-Image enthält das Datenbankpaket und die benötigten Abhängigkeiten.
+Bei Coolify lautet der Post-Deployment-Befehl:
+
+```sh
+cd /app/packages/database && bun run migrate
+```
+
+Führen Sie Migrationen nur einmal pro Release aus. Erstellen Sie vorher ein
+Backup und testen Sie neue Migrationen mit einer Kopie der Produktionsdatenbank.
+Mehrere gleichzeitig startende App-Container dürfen nicht jeweils selbst eine
+Migration anstoßen.
+
+## KI-Provider und Datenwege
+
+Self-Hosting der Anwendung entscheidet noch nicht, wohin Inhalte für eine
+Generierung gesendet werden. Das hängt vom konfigurierten Provider ab:
+
+| Variante | Datenweg | Geeignet, wenn |
+|---|---|---|
+| [Lokales Modell](/providers/local) | MDScribe → eigener Inferenz-Server | Inhalte das eigene Netz nicht verlassen sollen |
+| [OpenAI-kompatibel](/providers/openai-compatible) | MDScribe → frei gewählter Endpoint | ein eigener oder spezialisierter Dienst angebunden wird |
+| [Private Provider](/providers/private) | MDScribe → vertraulicher Cloud-Dienst | eigene GPU-Infrastruktur vermieden werden soll |
+| [OpenRouter](/providers/openrouter) | MDScribe → OpenRouter → Modellanbieter | Modellauswahl wichtiger als vollständige lokale Verarbeitung ist |
+| [OpenAI](/providers/openai) oder [Anthropic](/providers/anthropic) | MDScribe → jeweiliger Anbieter | dessen Datenschutz- und Vertragsbedingungen akzeptiert sind |
+
+Prüfen Sie für jeden aktiven Provider Auftragsverarbeitung, Speicherfristen,
+Region, Protokollierung und mögliche Unterauftragnehmer. Eine Provider-Angabe
+wie „Zero Data Retention“ ersetzt keine Prüfung des gesamten Datenwegs.
+
+## Aktualisierungen
+
+MDScribe hat keinen automatischen Updater. Planen Sie Aktualisierungen wie
+andere Änderungen an einer produktiven Webanwendung:
+
+1. Sichern Sie PostgreSQL und prüfen Sie die Wiederherstellbarkeit.
+2. Wählen Sie einen konkreten, intern getesteten Commit oder Release-Stand.
+3. Bauen Sie ein neues, eindeutig versioniertes Image.
+4. Prüfen Sie die enthaltenen Datenbankmigrationen.
+5. Führen Sie die Migration einmal im Deployment-Prozess aus.
+6. Rollen Sie die neue App-Version aus und prüfen Sie den Healthcheck.
+7. Behalten Sie das vorherige Image für einen kontrollierten Rollback.
+
+Ein Rollback der Anwendung macht eine bereits ausgeführte Datenbankmigration
+nicht automatisch rückgängig. Prüfen Sie deshalb vorab, ob alte und neue
+App-Version während des Rollouts mit dem migrierten Schema funktionieren.
+
+## Backup und Betrieb
+
+PostgreSQL enthält neben Konten und Konfiguration auch Templates und
+hochgeladene PDF-Dateien. Sichern Sie die Datenbank daher vollständig.
+
+- Erstellen Sie automatisierte, verschlüsselte Backups mit definierter
+  Aufbewahrungsfrist.
+- Bewahren Sie mindestens eine Kopie getrennt von der Produktivumgebung auf.
+- Testen Sie die Wiederherstellung regelmäßig in einer isolierten Umgebung.
+- Dokumentieren Sie Wiederanlaufzeit und maximal tolerierbaren Datenverlust.
+- Überwachen Sie App, Datenbank, Zertifikate, Speicherkapazität und
+  fehlgeschlagene Anmeldungen.
+- Halten Sie Logs frei von Patientendaten, Prompts, Antworten, Dateiinhalten und
+  Provider-API-Schlüsseln.
+- Senden Sie keine klinischen Inhalte über zentrale Crash-Dumps,
+  Fernwartung, Support-Uploads oder Telemetrie an MDScribe.
+
+## MDScribe-Cloud und Self-Hosting
+
+Anders als bei einem kommerziellen On-Premise-Produkt gibt es keine
+kostenpflichtige Self-Hosting-Edition. Der Quellcode steht unter
+`AGPL-3.0-only`; für eine eigene Installation gelten die Lizenzbedingungen des
+Repositories und nicht die Nutzungsbedingungen der MDScribe-Cloud.
+
+| Bereich | MDScribe-Cloud | Self-Hosted |
+|---|---|---|
+| Zulässige klinische Inhalte | Nur synthetisch oder wirksam anonymisiert | Reale oder pseudonymisierte Daten nur unter Verantwortung der betreibenden Einrichtung |
+| Infrastruktur und Updates | Durch MDScribe betrieben | Durch den Betreiber geplant und ausgeführt |
+| PostgreSQL und Backups | Durch MDScribe betrieben | Speicherort, Verschlüsselung, Sicherung und Restore durch den Betreiber |
+| KI-Provider | Nutzerseitig hinterlegter Schlüssel; Datenweg abhängig vom Provider | Admin wählt Cloud- oder lokale Provider und verantwortet deren Datenweg |
+| Datenschutz und Aufbewahrung | Cloud-Datenschutzhinweise gelten | Betreiber erstellt eigene Hinweise, Fristen und Prozesse |
+| Support und Verfügbarkeit | Keine zugesicherte SLA | Keine Support- oder SLA-Zusage durch MDScribe |
+| Funktionsumfang | Konfiguration der öffentlichen Instanz | Open-Source-Anwendung, an eigene Infrastruktur anpassbar |
+
+## Checkliste vor dem Produktivbetrieb
+
+- [ ] Öffentliche URL und TLS funktionieren ohne HTTP-Fallback.
+- [ ] Datenbank und Backups sind verschlüsselt und nicht öffentlich erreichbar.
+- [ ] Ein Restore wurde mit einer aktuellen Sicherung erfolgreich getestet.
+- [ ] `BETTER_AUTH_SECRET` und alle Zugangsdaten liegen in einem Secret Manager.
+- [ ] Admin-Zugang, Benutzerregistrierung und Berechtigungen wurden geprüft.
+- [ ] E-Mail-Verifizierung und Passwort-Reset funktionieren.
+- [ ] Datenweg jedes konfigurierten KI-Providers ist dokumentiert und freigegeben.
+- [ ] Logs, Monitoring, Crash-Reporting und Support-Prozesse enthalten keine klinischen Inhalte.
+- [ ] Migration und Rollback wurden für die eingesetzte Version getestet.
+- [ ] Verantwortlichkeiten, Aufbewahrungsfristen und Incident-Prozess sind dokumentiert.
+
+<Note>
+  Diese Seite beschreibt technische Leitplanken und ist keine Rechtsberatung.
+  Die betreibende Organisation ist für Sicherheit, Datenschutz, Compliance und
+  den konkreten Einsatz von MDScribe verantwortlich. MDScribe strukturiert und
+  formuliert bereitgestellte Inhalte; es ersetzt keine medizinische
+  Entscheidung und ist nicht für Diagnosen oder Therapieempfehlungen bestimmt.
+</Note>

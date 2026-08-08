@@ -34,7 +34,7 @@ import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
 import {
 	hasLessThanTenPercentUsageRemaining,
-	isSuccessfulAiscribeFinish,
+	isSuccessfulChatFinish,
 } from "@/lib/aiscribe-toasts";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
@@ -192,7 +192,7 @@ export const AiscribeTemplate = ({
 			preparedAudioFilesRef.current = [];
 			preparedContextFilesRef.current = [];
 
-			if (!isSuccessfulAiscribeFinish({ finishReason, isAbort, isError })) {
+			if (!isSuccessfulChatFinish({ finishReason, isAbort, isError })) {
 				return;
 			}
 

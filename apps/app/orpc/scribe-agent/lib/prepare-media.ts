@@ -6,7 +6,6 @@ import {
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
 } from "@/lib/input-fill-limits";
-import { USER_MESSAGES } from "@/lib/user-messages";
 import {
 	formatAudioTranscriptsForPrompt,
 	prepareAudioInputForModel,
@@ -17,8 +16,10 @@ import {
 	extractContextFileText,
 	formatContextFileMetadataForPrompt,
 } from "@/orpc/scribe/handlers/context-file-input";
-import { resolveAgentGenerationStrategy } from "@/orpc/scribe/providers";
-import type { MediaPlan } from "@/orpc/scribe/providers";
+import type {
+	AgentGenerationStrategy,
+	MediaPlan,
+} from "@/orpc/scribe/providers";
 import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
 /**
@@ -176,12 +177,14 @@ export const prepareAgentMedia = async ({
 	audioFiles,
 	contextFiles,
 	db,
+	strategy,
 	userId,
 	zdr,
 }: {
 	audioFiles: AudioFile[];
 	contextFiles: FillInputsContextFile[];
 	db: Database;
+	strategy: AgentGenerationStrategy;
 	userId: string;
 	zdr: boolean;
 }): Promise<PreparedAgentMedia> => {
@@ -194,13 +197,6 @@ export const prepareAgentMedia = async ({
 	const { audioSummaries, fileSummaries } = validateAgentMediaPayload(
 		audioFiles,
 		contextFiles,
-	);
-
-	const strategy = await resolveAgentGenerationStrategy(db, { hasAudio, hasFiles }).catch(
-		(error: unknown) => {
-			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-			throw new ORPCError("BAD_REQUEST", { message });
-		},
 	);
 
 	const nativeContentParts: PreparedFilePart[] = [];

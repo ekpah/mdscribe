@@ -33,13 +33,16 @@ import { allScribeDocTypes, scribeDocTypeUi } from "@/app/admin/playground/_lib/
 import type { PlaygroundDocumentType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import { resolvePlaygroundComparisonReference } from "@/app/admin/playground/_lib/comparison-reference";
 import type { PlaygroundComparisonReference } from "@/app/admin/playground/_lib/comparison-reference";
+import { resolveStreamingPlaygroundResult } from "@/app/admin/playground/_lib/streaming-result";
 import type {
 	PlaygroundModel,
 	PlaygroundParameters,
 	PlaygroundResult,
 } from "@/app/admin/playground/_lib/types";
 import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
+import { isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 import { orpc } from "@/lib/orpc";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { buildSelectedTemplateReference } from "@/orpc/scribe/context/template/compose";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -168,6 +171,8 @@ interface RunState {
 	isStreaming: boolean;
 	error?: string;
 	comparison?: PlaygroundResult["comparison"];
+	evaluation?: PlaygroundResult["evaluation"];
+	isEvaluating?: boolean;
 	metrics: {
 		latencyMs: number;
 		inputTokens?: number;
@@ -1034,6 +1039,7 @@ export const PlaygroundPanel = ({
 		return buildSelectedTemplateReference({
 			content: templateDraftContent,
 			examples: templateDraftExamples,
+			information: selectedTemplateDetails.information,
 			title: selectedTemplateDetails.title,
 		});
 	}, [selectedTemplateDetails, templateDraftContent, templateDraftExamples]);
@@ -1123,6 +1129,7 @@ export const PlaygroundPanel = ({
 		return buildSelectedTemplateReference({
 			content: selectedTemplateDetailsB.content,
 			examples: selectedTemplateDetailsB.examples ?? [],
+			information: selectedTemplateDetailsB.information,
 			title: selectedTemplateDetailsB.title,
 		});
 	}, [selectedTemplateDetailsB]);
@@ -2073,31 +2080,39 @@ const RunCard = ({
 	const payloadRef = useRef<null | Parameters<typeof orpc.admin.scribe.run.call>[0]>(null);
 	const runStartedAtRef = useRef<number | null>(null);
 	const latestCompletionRef = useRef("");
+	const latestReasoningRef = useRef("");
 
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
+		experimental_throttle: 50,
 		id: `admin-scribe-playground-${runId}`,
 		onError: (error) => {
 			runStartedAtRef.current = null;
 			setRunState(runId, {
 				error: error.message,
 				isStreaming: false,
+				reasoning: latestReasoningRef.current || undefined,
+				text: latestCompletionRef.current,
 			});
 		},
-		onFinish: ({ message, messages: finishedMessages }) => {
+		onFinish: ({ finishReason, isAbort, isError, message, messages: finishedMessages }) => {
+			if (!isSuccessfulChatFinish({ finishReason, isAbort, isError })) {
+				const errorWasAlreadyHandled = runStartedAtRef.current === null;
+				runStartedAtRef.current = null;
+				if (!isAbort && !errorWasAlreadyHandled) {
+					setRunState(runId, {
+						error: "Die Generierung wurde nicht erfolgreich abgeschlossen.",
+						isStreaming: false,
+					});
+				}
+				return;
+			}
+
 			const startedAt = runStartedAtRef.current;
 			const latencyMs = startedAt === null ? 0 : Math.max(0, Date.now() - startedAt);
 			runStartedAtRef.current = null;
 
 			const { metadata } = message as { metadata?: unknown };
 			const inMemoryMetrics = parseRunMetricsFromMetadata(metadata);
-
-			setRunState(runId, {
-				isStreaming: false,
-				metrics: {
-					latencyMs,
-					...inMemoryMetrics,
-				},
-			});
 
 			const responseText =
 				getTextFromUiMessage(message) ||
@@ -2109,11 +2124,15 @@ const RunCard = ({
 				) ||
 				latestCompletionRef.current;
 
-			if (responseText.trim()) {
-				setRunState(runId, {
-					text: responseText,
-				});
-			}
+			setRunState(runId, {
+				isStreaming: false,
+				metrics: {
+					latencyMs,
+					...inMemoryMetrics,
+				},
+				reasoning: latestReasoningRef.current || undefined,
+				text: responseText,
+			});
 		},
 		transport: {
 			reconnectToStream() {
@@ -2154,7 +2173,8 @@ const RunCard = ({
 
 	useEffect(() => {
 		latestCompletionRef.current = completion;
-	}, [completion]);
+		latestReasoningRef.current = reasoning;
+	}, [completion, reasoning]);
 
 	const handleCompareRun = useCallback(async () => {
 		const currentPayload = payloadRef.current;
@@ -2209,28 +2229,72 @@ const RunCard = ({
 		}
 	}, [clearComparisons, comparisonReference, runId, runState?.text, setRunState]);
 
-	useEffect(() => {
-		if (status === "streaming" || status === "submitted") {
-			setRunState(runId, {
-				isStreaming: true,
-				reasoning: reasoning || undefined,
-				text: completion,
-			});
-		} else if (completion) {
-			setRunState(runId, {
-				isStreaming: false,
-				reasoning: reasoning || undefined,
-				text: completion,
-			});
+	const handleEvaluateRun = useCallback(async () => {
+		const currentPayload = payloadRef.current;
+		const responseText = (runState?.text || latestCompletionRef.current).trim();
+		if (!currentPayload || !responseText) {
+			return;
 		}
-	}, [completion, reasoning, status, runId, setRunState]);
+
+		setRunState(runId, { isEvaluating: true });
+		try {
+			const inputs =
+				currentPayload.variables ??
+				(JSON.parse(currentPayload.promptJson || "{}") as Record<string, unknown>);
+			const evaluation = await orpc.admin.scribe.evaluateResponse.call({
+				documentType: currentPayload.documentType,
+				inputs,
+				promptName: currentPayload.promptName,
+				response: responseText,
+			});
+			setRunState(runId, {
+				evaluation,
+				isEvaluating: false,
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : USER_MESSAGES.playgroundEvaluation.failed,
+			);
+			setRunState(runId, { isEvaluating: false });
+		}
+	}, [runId, runState?.text, setRunState]);
 
 	const isRunning = status === "streaming" || status === "submitted";
+	const persistedResult = useMemo<PlaygroundResult | null>(
+		() =>
+			runState
+				? {
+						comparison: runState.comparison,
+						error: runState.error,
+						evaluation: runState.evaluation,
+						isEvaluating: runState.isEvaluating,
+						isStreaming: runState.isStreaming,
+						metrics: runState.metrics,
+						reasoning: runState.reasoning,
+						text: runState.text,
+					}
+				: null,
+		[runState],
+	);
+	const displayResult = useMemo(
+		() =>
+			resolveStreamingPlaygroundResult({
+				completion,
+				isRunning,
+				reasoning,
+				result: persistedResult,
+			}),
+		[completion, isRunning, persistedResult, reasoning],
+	);
 
 	const handleStopRun = useCallback(() => {
 		stop();
 		runStartedAtRef.current = null;
-		setRunState(runId, { isStreaming: false });
+		setRunState(runId, {
+			isStreaming: false,
+			reasoning: latestReasoningRef.current || undefined,
+			text: latestCompletionRef.current,
+		});
 	}, [runId, setRunState, stop]);
 
 	const startRun = useCallback(async () => {
@@ -2275,11 +2339,15 @@ const RunCard = ({
 		clearComparisons();
 		setRunState(runId, {
 			error: undefined,
+			evaluation: undefined,
+			isEvaluating: false,
 			isStreaming: true,
 			metrics: { latencyMs: 0 },
 			requestId,
 			text: "",
 		});
+		latestCompletionRef.current = "";
+		latestReasoningRef.current = "";
 		setMessages([]);
 		await sendMessage({ text: "run" });
 	}, [
@@ -2357,18 +2425,8 @@ const RunCard = ({
 						? handleCompareRun
 						: undefined
 				}
-				result={
-					runState
-						? {
-								comparison: runState.comparison,
-								error: runState.error,
-								isStreaming: runState.isStreaming,
-								metrics: runState.metrics,
-								reasoning: runState.reasoning,
-								text: runState.text,
-							}
-						: null
-				}
+				onEvaluate={handleEvaluateRun}
+				result={displayResult}
 			/>
 		</div>
 	);

@@ -28,6 +28,10 @@ export default {
 				default: false,
 				type: Boolean,
 			},
+			source: {
+				required: false,
+				type: String,
+			},
 			type: {
 				default: "string",
 				matches: ["string", "number", "date"],
@@ -56,6 +60,7 @@ export default {
 	switch: {
 		attributes: {
 			primary: { required: true, type: String },
+			source: { required: false, type: String },
 			type: {
 				matches: ["string", "boolean", "checkbox"],
 				required: false,

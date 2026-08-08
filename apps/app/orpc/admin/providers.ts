@@ -1,5 +1,12 @@
 import { ORPCError, type } from "@orpc/server";
-import { aiDefaults, aiModel, aiProvider, eq, inArray } from "@repo/database";
+import {
+	aiDefaults,
+	aiModel,
+	aiProvider,
+	eq,
+	inArray,
+	userAiProvider,
+} from "@repo/database";
 import type { Database } from "@repo/database";
 import { z } from "zod";
 
@@ -42,7 +49,7 @@ const TINFOIL_DEFAULT_BASE_URL = "https://inference.tinfoil.sh/v1";
  */
 const TINFOIL_SYNCED_MODEL_TYPES = new Set(["chat", "audio"]);
 
-type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
+export type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
 
 const normalizeSupportedParameters = (parameters: unknown[] | undefined): string[] =>
 	[
@@ -188,7 +195,7 @@ const fetchTinfoilModels = async (
 		}));
 };
 
-const fetchProviderModels = async (
+export const fetchProviderModels = async (
 	config: ProviderFetchConfig,
 ): Promise<FetchedProviderModel[]> => {
 	const signal = AbortSignal.timeout(15_000);
@@ -413,24 +420,61 @@ const getProviderById = async (db: Database, id: string) => {
 // ============ Provider handlers ============
 
 const listProvidersHandler = admin.handler(async ({ context }) => {
-	const providers = await context.db.query.aiProvider.findMany({
-		orderBy: (provider, { asc }) => asc(provider.name),
-		with: { models: true },
-	});
-
-	return providers.map((provider) => ({
-		...provider,
-		apiKey: undefined,
-		hasApiKey: !!provider.apiKey,
-		models: provider.models.map((model) => {
-			const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
-			return {
-				...model,
-				supportedParameters,
-				supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
-			};
+	const [providers, credentialStates] = await Promise.all([
+		context.db.query.aiProvider.findMany({
+			orderBy: (provider, { asc }) => asc(provider.name),
+			with: { models: true },
 		}),
-	}));
+		context.db
+			.select({
+				enabled: userAiProvider.enabled,
+				providerId: userAiProvider.providerId,
+			})
+			.from(userAiProvider),
+	]);
+	const credentialCounts = new Map<
+		string,
+		{ active: number; stored: number }
+	>();
+	for (const credential of credentialStates) {
+		const counts = credentialCounts.get(credential.providerId) ?? {
+			active: 0,
+			stored: 0,
+		};
+		counts.stored += 1;
+		if (credential.enabled) {
+			counts.active += 1;
+		}
+		credentialCounts.set(credential.providerId, counts);
+	}
+
+	return providers.map((provider) => {
+		const counts = credentialCounts.get(provider.id) ?? {
+			active: 0,
+			stored: 0,
+		};
+		return {
+			...provider,
+			apiKey: undefined,
+			byokCredentialCounts: {
+				active: provider.byokEnabled ? counts.active : 0,
+				stored: counts.stored,
+			},
+			hasApiKey: !!provider.apiKey,
+			models: provider.models.map((model) => {
+				const supportedParameters = normalizeSupportedParameters(
+					model.supportedParameters,
+				);
+				return {
+					...model,
+					supportedParameters,
+					supportsReasoning:
+						model.supportsReasoning ||
+						supportedParameters.includes("reasoning"),
+				};
+			}),
+		};
+	});
 });
 
 const previewProviderInput = z.object({
@@ -573,6 +617,12 @@ const updateProviderHandler = admin
 		if (!provider) {
 			throw new ORPCError("NOT_FOUND", { message: "Provider not found" });
 		}
+		if (parsed.protocol !== undefined || parsed.baseUrl !== undefined) {
+			await context.db
+				.update(userAiProvider)
+				.set({ enabled: false })
+				.where(eq(userAiProvider.providerId, provider.id));
+		}
 		invalidateAiProviderResolutionCaches();
 
 		return {
@@ -581,6 +631,31 @@ const updateProviderHandler = admin
 			hasApiKey: !!provider.apiKey,
 			syncResult,
 		};
+	});
+
+const setProviderByokEnabledInput = z.object({
+	enabled: z.boolean(),
+	id: z.string(),
+});
+
+const setProviderByokEnabledHandler = admin
+	.input(type<z.infer<typeof setProviderByokEnabledInput>>())
+	.handler(async ({ input, context }) => {
+		const parsed = setProviderByokEnabledInput.parse(input);
+		const [provider] = await context.db
+			.update(aiProvider)
+			.set({ byokEnabled: parsed.enabled })
+			.where(eq(aiProvider.id, parsed.id))
+			.returning({
+				byokEnabled: aiProvider.byokEnabled,
+				id: aiProvider.id,
+			});
+
+		if (!provider) {
+			throw new ORPCError("NOT_FOUND", { message: "Provider not found" });
+		}
+		invalidateAiProviderResolutionCaches();
+		return provider;
 	});
 
 const deleteProviderHandler = admin
@@ -1004,6 +1079,7 @@ export const providersHandler = {
 		list: listProvidersHandler,
 		previewModels: previewProviderHandler,
 		refreshModels: refreshProviderModelsHandler,
+		setByokEnabled: setProviderByokEnabledHandler,
 		update: updateProviderHandler,
 	},
 	defaults: {

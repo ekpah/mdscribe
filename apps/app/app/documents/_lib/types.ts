@@ -6,7 +6,7 @@ const MAX_DOCUMENT_OPTIONS = 500;
 const MAX_DOCUMENT_IDENTIFIER_LENGTH = 500;
 const MAX_DOCUMENT_DESCRIPTION_LENGTH = 4000;
 
-export const documentPdfTypeSchema = z.enum([
+const documentPdfTypeSchema = z.enum([
 	"text",
 	"multiline",
 	"dropdown",
@@ -51,12 +51,12 @@ const documentSwitchInputSchema = z
 	})
 	.strict();
 
-export const documentInputSchema = z.discriminatedUnion("name", [
+const documentInputSchema = z.discriminatedUnion("name", [
 	documentInfoInputSchema,
 	documentSwitchInputSchema,
 ]);
 
-export const documentBindingSchema = z
+const documentBindingSchema = z
 	.object({
 		fieldName: z.string().min(1).max(MAX_DOCUMENT_IDENTIFIER_LENGTH),
 		inputId: z.string().min(1).max(MAX_DOCUMENT_IDENTIFIER_LENGTH),

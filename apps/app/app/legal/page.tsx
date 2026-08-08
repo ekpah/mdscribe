@@ -1,74 +1,75 @@
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { AlertTriangle, Info, Shield } from "lucide-react";
+
+const supportEmail = "support@mdscribe.de";
+
+const withdrawalHref =
+	"mailto:support@mdscribe.de?subject=Vertrag%20widerrufen&body=Hiermit%20widerrufe%20ich%20meinen%20MDScribe-Vertrag.%0A%0AName:%0AE-Mail-Adresse%20des%20MDScribe-Kontos:%0ABestelldatum%20(optional):";
 
 export default function LegalPage() {
 	return (
 		<div className="h-full w-full space-y-8">
-			{/* Prominent Medical Disclaimer */}
 			<div className="rounded-lg border-2 border-solarized-red bg-solarized-base3 p-6 dark:border-solarized-orange">
 				<div className="flex items-start space-x-3">
-					<div className="flex-shrink-0">
-						<AlertTriangle className="h-6 w-6 text-solarized-red dark:text-solarized-orange" />
-					</div>
+					<AlertTriangle className="h-6 w-6 flex-shrink-0 text-solarized-red dark:text-solarized-orange" />
 					<div className="space-y-2">
 						<h3 className="font-semibold text-lg text-solarized-red dark:text-solarized-orange">
 							Wichtiger Hinweis
 						</h3>
 						<p className="text-sm text-solarized-base01">
 							<strong className="text-solarized-red dark:text-solarized-orange">
-								mdscribe.de stellt KEINE medizinische Beratung dar.
+								MDScribe stellt keine medizinische Beratung bereit.
 							</strong>{" "}
-							Diese Plattform dient ausschließlich der Vereinfachung und
-							Beschleunigung der medizinischen Dokumentation. Die generierten
-							Texte und Vorlagen ersetzen nicht die klinische Beurteilung,
-							Diagnose oder Behandlung durch qualifizierte Ärzte. Alle
-							medizinischen Entscheidungen müssen weiterhin auf Basis der
-							individuellen klinischen Beurteilung und aktueller medizinischer
-							Standards getroffen werden.
+							Die Cloud-Plattform dient ausschließlich der Vereinfachung und Beschleunigung
+							medizinischer Dokumentation. Generierte Inhalte ersetzen weder die klinische
+							Beurteilung noch Diagnose, Therapieentscheidung oder Behandlung durch qualifizierte
+							medizinische Fachkräfte. Sämtliche Inhalte sind vor ihrer Verwendung fachlich zu
+							prüfen.
 						</p>
 					</div>
 				</div>
 			</div>
 
-			{/* Impressum section always visible at the top */}
 			<section className="space-y-6">
 				<h2 className="font-semibold text-xl">Impressum</h2>
 				<div className="space-y-4">
-					<h3 className="font-semibold">Angaben gemäß § 5 TMG</h3>
-					<div className="space-y-2">
-						<p>Dr. med. Nils Hapke</p>
-					</div>
+					<h3 className="font-semibold">Angaben gemäß § 5 DDG</h3>
+					<p>Dr. med. Nils Hapke</p>
 				</div>
 
 				<div className="space-y-4">
 					<h3 className="font-semibold">Kontakt</h3>
-					<div className="space-y-2">
-						<p>E-Mail: support@mdscribe.de</p>
-					</div>
+					<p>
+						E-Mail:{" "}
+						<a className="underline underline-offset-4" href={`mailto:${supportEmail}`}>
+							{supportEmail}
+						</a>
+					</p>
 				</div>
 
 				<div className="space-y-4">
-					<h3 className="font-semibold">Streitschlichtung</h3>
+					<h3 className="font-semibold">Verbraucherstreitbeilegung</h3>
 					<p>
-						Die Europäische Kommission stellt eine Plattform zur
-						Online-Streitbeilegung (OS) bereit:
-						https://ec.europa.eu/consumers/odr/
+						Wir sind weder verpflichtet noch bereit, an einem Streitbeilegungsverfahren vor einer
+						Verbraucherschlichtungsstelle teilzunehmen.
 					</p>
-					<p className="mt-4 w-full text-center text-muted-foreground text-xs">
-						Die Informationen auf dieser Website dienen ausschließlich zu
-						Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch
-						keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation
-						eines Arztes / einer Ärztin.
+					<p>
+						Die frühere Europäische Plattform für Online-Streitbeilegung (OS-Plattform) wurde zum
+						20. Juli 2025 eingestellt. Informationen der Europäischen Kommission zur
+						außergerichtlichen Verbraucherstreitbeilegung finden Sie unter{" "}
+						<a
+							className="underline underline-offset-4"
+							href="https://consumer-redress.ec.europa.eu/index_de"
+							rel="noopener noreferrer"
+							target="_blank"
+						>
+							consumer-redress.ec.europa.eu
+						</a>
+						.
 					</p>
 				</div>
 			</section>
 
-			{/* Tabs for Datenschutz and AGB */}
 			<Tabs className="w-full" defaultValue="datenschutz">
 				<TabsList className="grid w-full grid-cols-2">
 					<TabsTrigger value="datenschutz">Datenschutzerklärung</TabsTrigger>
@@ -78,395 +79,468 @@ export default function LegalPage() {
 				<TabsContent className="space-y-8" value="datenschutz">
 					<div className="space-y-8">
 						<div className="space-y-4">
-							<p className="text-muted-foreground text-sm">Stand: 27.01.2026</p>
+							<h2 className="font-semibold text-2xl">
+								Datenschutzerklärung für die MDScribe Cloud
+							</h2>
+							<p className="text-muted-foreground text-sm">Stand: 04.08.2026</p>
 							<p className="text-muted-foreground">
-								Wir freuen uns über Ihr Interesse an mdscribe.de. Der Schutz
-								Ihrer personenbezogenen Daten ist uns ein wichtiges Anliegen.
-								Nachfolgend informieren wir Sie über die Art, den Umfang und den
-								Zweck der Verarbeitung personenbezogener Daten auf unserer
-								Website gemäß den Vorgaben der Datenschutz-Grundverordnung
-								(DSGVO).
+								Diese Datenschutzerklärung gilt ausschließlich für die von uns unter mdscribe.de
+								betriebene Cloud-Version von MDScribe. Bei einer selbst gehosteten oder anderweitig
+								vor Ort betriebenen Installation stellt MDScribe lediglich die Softwarelizenz
+								bereit. Der jeweilige Betreiber entscheidet dort selbst über Bereitstellung und
+								Datenverarbeitung und ist für seine Datenschutzhinweise sowie die Einhaltung des
+								Datenschutzrechts verantwortlich.
 							</p>
 						</div>
 
-						<div className="rounded-lg border border-solarized-base1 bg-solarized-base3 p-4 text-sm text-solarized-base01">
+						<div className="rounded-lg border border-solarized-yellow bg-solarized-base3 p-4 text-sm text-solarized-base01">
 							<div className="flex items-start gap-3">
-								<Info className="mt-0.5 h-5 w-5 text-solarized-blue" />
+								<AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-solarized-yellow" />
 								<div className="space-y-2">
-									<p className="font-medium text-solarized-base01">
-										Hinweis zu sensiblen Gesundheitsdaten (OSS)
-									</p>
-									<ul className="list-disc space-y-1 pl-5">
-										<li>
-											Die cloud-gehostete Nutzung sollte derzeit nicht für
-											sensible Patienten-PII/PHI genutzt werden. Wir arbeiten
-											daran, dies zu ermöglichen, haben aber aktuell noch keine
-											umfangreichen Datenschutzzertifizierungen.
-										</li>
-										<li>
-											Self-Hosting ist der empfohlene Weg, wenn Sie volle Kontrolle
-											darüber benötigen, wo Daten verarbeitet und gespeichert
-											werden.
-										</li>
-									</ul>
+									<p className="font-medium">Keine patientenidentifizierenden Gesundheitsdaten</p>
 									<p>
-										Diese Hinweise sind risikobasiert und sollen helfen, ein
-										geeignetes Bereitstellungsmodell für Ihre Anforderungen zu
-										wählen.
+										Die MDScribe Cloud ist derzeit nicht für die Verarbeitung
+										patientenidentifizierender Gesundheitsdaten vorgesehen. Eingaben müssen vor der
+										Übermittlung wirksam anonymisiert werden. Insbesondere dürfen keine Namen,
+										Geburtsdaten, Kontaktdaten, Versicherungsnummern oder sonstigen Angaben
+										eingegeben werden, durch die eine Person bestimmt oder bestimmbar wird.
 									</p>
 								</div>
 							</div>
 						</div>
 
 						<section className="space-y-4">
-							<h3 className="font-semibold text-xl">1. Verantwortlicher</h3>
+							<h3 className="font-semibold text-xl">1. Verantwortlicher und Kontakt</h3>
 							<div className="space-y-2">
-								<p>
-									Verantwortlich für die Datenverarbeitung auf dieser Website
-									ist:
-								</p>
+								<p>Verantwortlicher für die MDScribe Cloud ist:</p>
 								<p>Dr. med. Nils Hapke</p>
+								<p>
+									E-Mail:{" "}
+									<a className="underline underline-offset-4" href={`mailto:${supportEmail}`}>
+										{supportEmail}
+									</a>
+								</p>
 							</div>
 						</section>
 
 						<section className="space-y-4">
 							<h3 className="font-semibold text-xl">
-								2. Datenverarbeitung beim Besuch der Website
+								2. Aufruf der Website, Geräte- und Sitzungsdaten
 							</h3>
+							<div className="space-y-3">
+								<p>
+									Beim Aufruf der Website und während der Nutzung können IP-Adresse, Datum und
+									Uhrzeit, aufgerufene URL, Referrer, Browsertyp und -version, Betriebssystem,
+									Geräteinformationen sowie Fehler- und Sicherheitsereignisse verarbeitet werden.
+									Dies ist erforderlich, um die Plattform auszuliefern, technische Fehler zu
+									untersuchen, Angriffe abzuwehren und die Stabilität zu gewährleisten.
+								</p>
+								<p>
+									Für Anmeldung und Sitzungsverwaltung verwenden wir technisch notwendige Cookies
+									beziehungsweise vergleichbare Speichertechniken. Sie enthalten insbesondere einen
+									Sitzungsbezug und können eine kurzzeitig zwischengespeicherte Anmeldeinformation
+									enthalten. Zusätzlich kann eine Oberflächeneinstellung, etwa der Zustand der
+									Seitenleiste, gespeichert werden. Ohne diese Funktionen sind Anmeldung und
+									grundlegende Bedienung nicht zuverlässig möglich.
+								</p>
+								<p>
+									Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO, soweit die Verarbeitung zur
+									Nutzung der Plattform erforderlich ist, und Art. 6 Abs. 1 lit. f DSGVO für
+									Sicherheit, Fehleranalyse und Missbrauchsprävention. Der Zugriff auf technisch
+									notwendige Endgeräteinformationen erfolgt nach § 25 Abs. 2 Nr. 2 TDDDG.
+								</p>
+							</div>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">3. Registrierung und Nutzerkonto</h3>
+							<div className="space-y-3">
+								<p>
+									Bei Registrierung und Kontoverwaltung verarbeiten wir E-Mail-Adresse,
+									Benutzername, Anzeigename, den Verifizierungsstatus, Konto- und
+									Änderungszeitpunkte sowie, falls vom Nutzer hinterlegt, Name und Profilbild.
+									Passwörter werden nicht im Klartext, sondern als kryptografischer Prüfwert
+									gespeichert. Für Sicherheit und Sitzungsverwaltung können außerdem Sitzungstoken,
+									Ablaufzeitpunkt, IP-Adresse und User-Agent verarbeitet werden.
+								</p>
+								<p>
+									Die Datenschutzerklärung dient der Information und muss nicht als Einwilligung
+									angenommen werden. Rechtsgrundlage für die Konto- und Vertragsverwaltung ist Art.
+									6 Abs. 1 lit. b DSGVO; für Verifizierung und Kontosicherheit Art. 6 Abs. 1 lit. f
+									DSGVO.
+								</p>
+							</div>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">4. Plattforminhalte und KI-Nutzung</h3>
 							<div className="space-y-4">
-								<p>
-									Beim Aufruf unserer Website werden automatisch Informationen
-									durch den Webserver erfasst. Diese sogenannten Server-Logfiles
-									können folgende Daten enthalten:
-								</p>
-								<ul className="list-disc space-y-2 pl-6">
-									<li>IP-Adresse (gekürzt oder anonymisiert gespeichert)</li>
-									<li>Datum und Uhrzeit der Anfrage</li>
-									<li>aufgerufene Seite/Datei</li>
-									<li>Browsertyp und Version</li>
-									<li>verwendetes Betriebssystem</li>
-									<li>Referrer-URL (sofern übermittelt)</li>
-								</ul>
-								<p>
-									Diese Daten dienen der technischen Überwachung, der Stabilität
-									und Sicherheit der Website. Eine Zusammenführung mit anderen
-									Datenquellen oder eine Profilbildung erfolgt nicht.
-								</p>
-								<p>
-									Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
-									Interesse)
-								</p>
-							</div>
-						</section>
-
-						<section className="space-y-4">
-							<h3 className="font-semibold text-xl">
-								3. Registrierung und Nutzerkonto
-							</h3>
-							<div className="space-y-2">
-								<p>
-									Für die Nutzung erweiterter Funktionen können Sie sich auf
-									mdscribe.de registrieren. Dabei werden folgende Daten
-									verarbeitet:
-								</p>
-								<ul className="list-disc space-y-2 pl-6">
-									<li>Name (frei wählbar)</li>
-									<li>E-Mail-Adresse</li>
-									<li>Passwort (verschlüsselt gespeichert)</li>
-								</ul>
-								<p>
-									Bei der Registrierung stimmen Sie dieser Datenschutzerklärung
-									ausdrücklich zu.
-								</p>
-								<p>
-									Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO
-									(Vertragserfüllung), Art. 6 Abs. 1 lit. a DSGVO (Einwilligung)
-								</p>
-							</div>
-						</section>
-
-						<section className="space-y-4">
-							<h3 className="font-semibold text-xl">
-								4. Nutzungsprotokollierung und Kontingentüberwachung
-							</h3>
-							<div className="space-y-4">
-								<p>
-									Zur Sicherstellung der Funktionalität, zur Optimierung der
-									Services und zur Überwachung von Nutzungskontingenten wird die
-									Nutzung der Plattform protokolliert. Der Umfang der
-									Protokollierung unterscheidet sich je nach Abonnement.
-								</p>
+								<div className="space-y-2">
+									<h4 className="font-medium">
+										4.1 Vorlagen, Dokumente und sonstige Nutzerinhalte
+									</h4>
+									<p>
+										Wir verarbeiten die vom Nutzer erstellten Vorlagen, Anweisungen,
+										Dokumentdefinitionen, Formularinhalte und weitere gespeicherte Inhalte, um die
+										gewählten Funktionen bereitzustellen. Bei als öffentlich gekennzeichneten
+										Inhalten werden Inhalt, Benutzername beziehungsweise Autorenangabe und
+										zugehörige Interaktionen anderen Nutzern angezeigt. Private Inhalte sind nur im
+										Rahmen der dafür vorgesehenen Kontofunktionen zugänglich.
+									</p>
+								</div>
 
 								<div className="space-y-2">
-									<h4 className="font-medium">4.1 Basis-Nutzer (kostenlos)</h4>
+									<h4 className="font-medium">4.2 KI-Eingaben, Ausgaben und Nutzungsprotokolle</h4>
 									<p>
-										Für Basis-Nutzer werden folgende Daten zur
-										Qualitätssicherung und Serviceoptimierung erfasst:
+										Zur Durchführung einer KI-Anfrage werden Eingaben, Anhänge, ausgewählte Vorlagen
+										und Konfigurationen an die jeweils eingesetzten KI-Dienste übermittelt. Die
+										erzeugten Ausgaben werden an das Nutzerkonto zurückgegeben und nur dann
+										dauerhaft als Plattforminhalt gespeichert, wenn die jeweilige Funktion dies
+										vorsieht oder der Nutzer sie speichert.
 									</p>
-									<ul className="list-disc space-y-2 pl-6">
-										<li>Nutzungszeitpunkt</li>
-										<li>Art und Anzahl der genutzten KI-Funktionen</li>
-										<li>Verbrauchte Kontingente (Tokens, Generierungen)</li>
-										<li>Kosten und verwendetes KI-Modell</li>
-										<li>
-											Eingabedaten und generierte Ausgabetexte (zur
-											Qualitätssicherung)
-										</li>
-									</ul>
+									<p>
+										Für kostenlose Konten können Eingaben und Ausgaben zusammen mit Nutzungsdaten
+										zur Fehleranalyse, Qualitätssicherung und Produktverbesserung intern
+										protokolliert werden. Bei aktiven Plus-Abonnements werden in der regulären
+										internen Nutzungsprotokollierung keine Eingabe- oder Ausgabeinhalte gespeichert.
+										In beiden Tarifen werden kontobezogene Metadaten verarbeitet, insbesondere
+										Zeitpunkt, Funktion, Modell, Token- und Kostenwerte, Status, Endpunkt und
+										technische Konfiguration. Diese Metadaten sind wegen ihres Kontobezugs nicht
+										anonym.
+									</p>
+									<p>
+										Diese Aussage betrifft allein die interne Nutzungsprotokollierung von MDScribe.
+										Für die Verarbeitung durch externe KI-Dienste gelten zusätzlich Abschnitt 6 und
+										die Bedingungen des jeweils eingesetzten Dienstes. Eine pauschale Zusicherung,
+										dass sämtliche Anbieter keinerlei Daten vorübergehend speichern, wird nicht
+										erteilt.
+									</p>
+									<p>
+										Soweit ein Nutzer für eine vom Administrator freigeschaltete KI-Verbindung
+										einen eigenen API-Schlüssel hinterlegt, wird dieser verschlüsselt gespeichert
+										und für passende KI-Anfragen anstelle des Betreiberschlüssels verwendet. Der
+										Schlüssel wird nicht wieder im Browser angezeigt und nicht in
+										Nutzungsprotokollen gespeichert. Für Verarbeitung, Kosten, Nutzungslimits und
+										Aufbewahrung beim jeweiligen KI-Dienst gelten dessen Bedingungen. Protokoll,
+										Zieladresse und Modelle der Verbindung bleiben durch den Administrator
+										vorgegeben.
+									</p>
 								</div>
 
 								<div className="space-y-2">
 									<h4 className="font-medium">
-										4.2 Plus-Abonnenten (erweiterter Datenschutz)
+										4.3 Kontingente, Abrechnung und Missbrauchsprävention
 									</h4>
 									<p>
-										Für Plus-Abonnenten werden ausschließlich anonyme Metadaten
-										gespeichert. Es werden{" "}
-										<strong>
-											keine Eingabeinhalte und keine generierten Texte
-										</strong>{" "}
-										protokolliert:
-									</p>
-									<ul className="list-disc space-y-2 pl-6">
-										<li>Anzahl der KI-Generierungen und Token-Verbrauch</li>
-										<li>Kosten und verwendetes KI-Modell</li>
-										<li>Endpunkt und Konfigurationsparameter</li>
-									</ul>
-									<p>
-										Zusätzlich wird für Plus-Abonnenten Zero Data Retention
-										(ZDR) bei den KI-Anbietern erzwungen. Anfragen werden
-										ausschließlich an Anbieter geroutet, die keine
-										Datenspeicherung vornehmen.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">4.3 Kontingentüberwachung</h4>
-									<p>
-										Für alle Nutzer werden Nutzungskontingente in Echtzeit
-										überwacht, um sicherzustellen, dass die vereinbarten Limits
-										eingehalten werden. Dies umfasst:
-									</p>
-									<ul className="list-disc space-y-2 pl-6">
-										<li>Anzahl der KI-Generierungen pro Zeitraum</li>
-										<li>Verbrauchte Tokens und Rechenressourcen</li>
-									</ul>
-									<p>
-										Diese Daten werden ausschließlich zur Bereitstellung der
-										vereinbarten Serviceleistungen und zur Abrechnung verwendet.
+										Wir verarbeiten Anzahl und Art der Aufrufe, Token- und Ressourcenverbrauch,
+										geschätzte beziehungsweise angefallene Kosten sowie den Abonnementstatus, um
+										Nutzungskontingente durchzusetzen, Leistungen abzurechnen und missbräuchliche
+										Nutzung zu erkennen.
 									</p>
 								</div>
 
 								<p>
-									Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO
-									(Vertragserfüllung), Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
-									Interesse)
+									Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Soweit Protokolle zur Sicherheit,
+									Fehleranalyse oder Produktverbesserung erforderlich sind, ist Rechtsgrundlage Art.
+									6 Abs. 1 lit. f DSGVO. Unser berechtigtes Interesse liegt im sicheren,
+									wirtschaftlichen und technisch zuverlässigen Betrieb der Plattform.
 								</p>
 							</div>
 						</section>
 
 						<section className="space-y-4">
-							<h3 className="font-semibold text-xl">
-								5. Externe Dienste und Datenverarbeitung
-							</h3>
-							<div className="space-y-4">
+							<h3 className="font-semibold text-xl">5. E-Mail-Kommunikation</h3>
+							<div className="space-y-3">
+								<p>
+									Wir verwenden die im Konto hinterlegte E-Mail-Adresse für Verifizierung,
+									Anmeldung, Passwortzurücksetzung, Sicherheitsmeldungen, wesentliche
+									Vertragsinformationen und sonstige zur Bereitstellung der Plattform erforderliche
+									Nachrichten. Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b und lit. f DSGVO.
+								</p>
+								<p>
+									Die im Zusammenhang mit dem Erwerb unserer Dienstleistung erhaltene E-Mail-Adresse
+									können wir nach § 7 Abs. 3 UWG für Informationen über eigene ähnliche Funktionen
+									und Angebote verwenden. Rechtsgrundlage der hierfür erforderlichen
+									Datenverarbeitung ist Art. 6 Abs. 1 lit. f DSGVO; unser berechtigtes Interesse ist
+									die Information bestehender Nutzer über die Weiterentwicklung von MDScribe. Einer
+									werblichen Verwendung der E-Mail-Adresse kann jederzeit kostenfrei und formlos
+									über{" "}
+									<a className="underline underline-offset-4" href={`mailto:${supportEmail}`}>
+										{supportEmail}
+									</a>{" "}
+									widersprochen werden. Auf diese Möglichkeit weisen wir bei Erhebung der
+									E-Mail-Adresse und in jeder entsprechenden Nachricht hin. Vertrags- und
+									Sicherheitsnachrichten bleiben davon unberührt.
+								</p>
+							</div>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">6. Empfänger und eingesetzte Dienstleister</h3>
+							<div className="space-y-5">
+								<p>
+									Wir übermitteln personenbezogene Daten nur, soweit dies für die nachfolgend
+									beschriebenen Zwecke erforderlich ist, gesetzlich verlangt wird oder eine wirksame
+									Einwilligung vorliegt. Dienstleister erhalten nur die für ihre Aufgabe
+									erforderlichen Daten.
+								</p>
+
 								<div className="space-y-2">
-									<h4 className="font-medium">
-										5.1 Externe KI-Anbieter (Large Language Model Services)
-									</h4>
+									<h4 className="font-medium">6.1 Hetzner Online GmbH – Hosting</h4>
 									<p>
-										Für die Bereitstellung der KI-basierten Funktionen nutzen
-										wir OpenRouter als API-Router, der Anfragen an nachgelagerte
-										KI-Anbieter weiterleitet. Die Eingabedaten werden zur
-										Generierung von Dokumentationsinhalten verarbeitet.
+										Hetzner stellt die technische Infrastruktur für die MDScribe Cloud bereit. Dabei
+										können sämtliche auf der Plattform verarbeiteten Daten, Serverprotokolle und
+										Sicherungen auf der Hosting-Infrastruktur verarbeitet werden. Rechtsgrundlagen
+										sind Art. 6 Abs. 1 lit. b und lit. f DSGVO.
+									</p>
+									<p>
+										<a
+											className="underline underline-offset-4"
+											href="https://www.hetzner.com/de/legal/privacy-policy/"
+											rel="noopener noreferrer"
+											target="_blank"
+										>
+											Datenschutzhinweise von Hetzner
+										</a>
+									</p>
+								</div>
+
+								<div className="space-y-2">
+									<h4 className="font-medium">6.2 Postmark – E-Mail-Versand</h4>
+									<p>
+										Für den Versand von Konto-, Sicherheits-, Vertrags- und gegebenenfalls
+										zulässigen Produktnachrichten nutzen wir Postmark (AC PM LLC), einen Dienst der
+										ActiveCampaign-Gruppe. Dabei werden insbesondere Empfängeradresse, Absender,
+										Nachrichteninhalt, Versandzeitpunkt, Zustellstatus sowie technische Zustell- und
+										Unterdrückungsdaten verarbeitet. Postmark verarbeitet Daten auch in den USA. Für
+										erforderliche Drittlandübermittlungen werden die anwendbaren
+										Übermittlungsmechanismen, insbesondere EU-Standardvertragsklauseln, verwendet.
+									</p>
+									<p>
+										Nach den Angaben von Postmark werden Nachrichteninhalt und Metadaten regulär 45
+										Tage vorgehalten. Informationen über Unzustellbarkeit, Spam-Beschwerden und
+										abgemeldete Empfänger können in einer Unterdrückungsliste ohne feste Löschfrist
+										gespeichert werden, damit entsprechende Nachrichten nicht erneut versandt
+										werden.
+									</p>
+									<p>
+										<a
+											className="underline underline-offset-4"
+											href="https://postmarkapp.com/eu-privacy"
+											rel="noopener noreferrer"
+											target="_blank"
+										>
+											Datenschutzinformationen von Postmark
+										</a>
+									</p>
+								</div>
+
+								<div className="space-y-2">
+									<h4 className="font-medium">6.3 KI-Dienste</h4>
+									<p>
+										Zur Bereitstellung der KI-Funktionen werden die für eine Anfrage erforderlichen
+										Eingaben, Anhänge, Vorlageninformationen und technischen Parameter an
+										administrativ konfigurierte Anbieter übertragen. Dazu können OpenRouter und die
+										darüber ausgewählten Modellanbieter, direkt konfigurierte OpenAI-kompatible
+										Anbieter sowie Tinfoil gehören. Die tatsächlich verwendeten Anbieter hängen von
+										Funktion, Modellauswahl und aktueller Konfiguration ab.
 									</p>
 									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3">
-										<div className="flex items-start space-x-2">
-											<div className="flex-shrink-0">
-												<AlertTriangle className="h-4 w-4 text-solarized-yellow" />
-											</div>
-											<div>
-												<p className="font-medium text-sm text-solarized-yellow">
-													Wichtiger Hinweis zu externen KI-Anbietern:
-												</p>
-												<p className="text-solarized-base01 text-xs">
-													Eingabedaten werden an externe KI-Anbieter übertragen.
-													Geben Sie niemals personenbezogene Gesundheitsdaten
-													oder patientenidentifizierbare Informationen ein.
-												</p>
-											</div>
-										</div>
+										<p className="text-sm">
+											<strong>Keine patientenidentifizierenden Daten übermitteln:</strong> Inhalte
+											können außerhalb der Europäischen Union verarbeitet werden. Nutzen Sie die
+											Cloud-KI-Funktionen ausschließlich mit wirksam anonymisierten Inhalten.
+										</p>
 									</div>
 									<p>
-										<strong>Datenfluss:</strong> Nutzer → MDScribe → OpenRouter
-										→ KI-Anbieter. Die gesamte Kommunikation erfolgt
-										TLS-verschlüsselt.
-									</p>
-									<p>
-										<strong>Nachgelagerte KI-Anbieter können umfassen:</strong>
+										Bei Übermittlungen in Drittländer stützen wir uns, soweit erforderlich, auf
+										einen Angemessenheitsbeschluss oder geeignete Garantien wie
+										EU-Standardvertragsklauseln. Rechtsgrundlage für die zur Leistungserbringung
+										erforderliche Übermittlung ist Art. 6 Abs. 1 lit. b DSGVO.
 									</p>
 									<ul className="list-disc space-y-1 pl-6">
-										<li>Anthropic (Claude-Modelle)</li>
-										<li>Google (Gemini-Modelle)</li>
 										<li>
-											Weitere LLM-Anbieter je nach Verfügbarkeit und Qualität
+											<a
+												className="underline underline-offset-4"
+												href="https://openrouter.ai/privacy"
+												rel="noopener noreferrer"
+												target="_blank"
+											>
+												Datenschutzhinweise von OpenRouter
+											</a>
 										</li>
 									</ul>
-									<div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-3 dark:border-solarized-cyan">
-										<div className="flex items-start space-x-2">
-											<div className="flex-shrink-0">
-												<Shield className="h-4 w-4 text-solarized-blue dark:text-solarized-cyan" />
-											</div>
-											<div>
-												<p className="font-medium text-sm text-solarized-blue dark:text-solarized-cyan">
-													Zero Data Retention (ZDR) für Plus-Abonnenten:
-												</p>
-												<p className="text-solarized-base01 text-xs">
-													Anfragen von Plus-Abonnenten werden ausschließlich an
-													KI-Anbieter geroutet, die keine Datenspeicherung (Zero
-													Data Retention) vornehmen. Damit wird sichergestellt,
-													dass weder Eingaben noch Ausgaben bei den KI-Anbietern
-													gespeichert werden.
-												</p>
-											</div>
-										</div>
-									</div>
+								</div>
+
+								<div className="space-y-2">
+									<h4 className="font-medium">6.4 Stripe – Abonnement und Zahlung</h4>
 									<p>
-										Diese Anbieter verarbeiten die Daten gemäß ihren jeweiligen
-										Datenschutzrichtlinien. Die Datenübertragung erfolgt
-										verschlüsselt und ausschließlich für die Textgenerierung.
+										Für Checkout, wiederkehrende Zahlungen, Rechnungs- und Abonnementverwaltung
+										nutzen wir Stripe. Dabei verarbeiten wir eine Stripe-Kundenkennung sowie
+										Abonnementstatus, Tarif, Laufzeit- und Zahlungsstatus. Zahlungsdaten werden im
+										Stripe-Checkout unmittelbar von Stripe erhoben und nicht auf unseren Servern
+										gespeichert. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO; gesetzlich
+										erforderliche Abrechnungsdaten verarbeiten wir nach Art. 6 Abs. 1 lit. c DSGVO.
 									</p>
 									<p>
-										Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO
-										(Vertragserfüllung), Art. 6 Abs. 1 lit. f DSGVO
-										(berechtigtes Interesse)
+										<a
+											className="underline underline-offset-4"
+											href="https://stripe.com/de/privacy"
+											rel="noopener noreferrer"
+											target="_blank"
+										>
+											Datenschutzhinweise von Stripe
+										</a>
 									</p>
 								</div>
 
 								<div className="space-y-2">
-									<h4 className="font-medium">
-										5.2 Stripe (Zahlungsabwicklung)
-									</h4>
+									<h4 className="font-medium">6.5 Umami Cloud – Reichweitenmessung</h4>
 									<p>
-										Für die Abwicklung von Zahlungen bei kostenpflichtigen
-										Abonnements nutzen wir Stripe. Stripe verarbeitet
-										Zahlungsdaten gemäß den geltenden PCI-DSS-Standards.
-										Kreditkartendaten werden nicht auf unseren Servern
-										gespeichert, sondern direkt bei Stripe verarbeitet.
+										Zur datensparsamen Reichweitenmessung nutzen wir Umami Cloud, einen Dienst der
+										Umami Software, Inc., San Francisco, USA. Dabei werden insbesondere aufgerufene
+										Seiten einschließlich vorhandener URL-Parameter, Seitentitel, Referrer,
+										Zeitpunkt, Sprache, Bildschirmauflösung, Browser, Betriebssystem, Gerätetyp und
+										der ungefähre Standort verarbeitet. Wir verwenden diese Statistiken, um die
+										Nutzung der Plattform zu verstehen und Bedienbarkeit, Inhalte und technische
+										Zuverlässigkeit zu verbessern.
 									</p>
 									<p>
-										Weitere Informationen finden Sie in der Datenschutzerklärung
-										von Stripe: https://stripe.com/privacy
+										Umami setzt für diese Reichweitenmessung keine Cookies ein. Die IP-Adresse wird
+										zur Ableitung von Standortinformationen und zusammen mit technischen Merkmalen
+										zur Bildung wechselnder Sitzungskennungen verarbeitet, nach Angaben des
+										Anbieters jedoch nicht gespeichert. Wir übermitteln keine MDScribe-
+										Benutzerkennung an Umami und setzen keine websiteübergreifende Nutzerverfolgung
+										ein.
 									</p>
 									<p>
-										Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO
-										(Vertragserfüllung)
+										Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO. Unser berechtigtes Interesse
+										liegt in der datensparsamen Analyse und Verbesserung unseres Angebots. Umami
+										Cloud betreibt Server in der Europäischen Union und in den USA; eine
+										Verarbeitung in den USA ist daher möglich. Soweit erforderlich, werden für
+										Drittlandübermittlungen geeignete Garantien nach Art. 46 DSGVO verwendet.
+									</p>
+									<p>
+										<a
+											className="underline underline-offset-4"
+											href="https://umami.is/privacy"
+											rel="noopener noreferrer"
+											target="_blank"
+										>
+											Datenschutzhinweise von Umami
+										</a>
 									</p>
 								</div>
+							</div>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">7. Speicherdauer und Löschung</h3>
+							<div className="space-y-3">
+								<p>
+									Wir speichern personenbezogene Daten nicht länger, als es für den jeweiligen Zweck
+									erforderlich ist. Dabei gelten insbesondere folgende Kriterien:
+								</p>
+								<ul className="list-disc space-y-2 pl-6">
+									<li>
+										Konto- und Profildaten werden grundsätzlich für die Dauer des Nutzerkontos
+										gespeichert.
+									</li>
+									<li>
+										Sitzungs-, Verifizierungs- und Passwortzurücksetzungsdaten werden nach Ablauf
+										oder Zweckerreichung gelöscht, soweit sie nicht vorübergehend zur Sicherheits-
+										und Missbrauchsaufklärung benötigt werden.
+									</li>
+									<li>
+										Private Inhalte werden bis zur Löschung durch den Nutzer oder bis zur
+										Kontolöschung gespeichert. Öffentliche Inhalte können bis zu ihrer Löschung oder
+										Sperrung veröffentlicht bleiben.
+									</li>
+									<li>
+										Nutzungs- und Sicherheitsprotokolle werden gelöscht oder ihres Personenbezugs
+										entledigt, sobald sie für Kontingentverwaltung, Abrechnung, Fehleranalyse und
+										Sicherheit nicht mehr erforderlich sind.
+									</li>
+									<li>
+										Vertrags-, Abrechnungs- und Zahlungsnachweise bleiben erhalten, solange
+										gesetzliche handels- oder steuerrechtliche Aufbewahrungspflichten oder die
+										Geltendmachung, Ausübung oder Verteidigung von Rechtsansprüchen dies erfordern.
+									</li>
+									<li>
+										In Sicherungen enthaltene Daten werden mit dem regulären Austausch der
+										Sicherungen überschrieben, sofern keine gesetzliche Pflicht zur längeren
+										Aufbewahrung besteht.
+									</li>
+								</ul>
+								<p>
+									Ein Löschverlangen kann über{" "}
+									<a className="underline underline-offset-4" href={`mailto:${supportEmail}`}>
+										{supportEmail}
+									</a>{" "}
+									gestellt werden. Vor einer Löschung können wir einen Nachweis verlangen, der
+									erforderlich ist, um die anfragende Person sicher zu identifizieren.
+								</p>
 							</div>
 						</section>
 
 						<section className="space-y-4">
 							<h3 className="font-semibold text-xl">
-								6. Eingaben auf der Plattform
+								8. Gesetzliche Empfänger und Rechtsdurchsetzung
 							</h3>
-							<div className="space-y-2">
-								<p>
-									Die Plattform dient der Eingabe anonymisierter Stichpunkte
-									oder Daten, jedoch nicht von personenbezogenen
-									Gesundheitsdaten. Nutzer sind verpflichtet, keine
-									personenbezogenen Gesundheitsdaten einzugeben.
-								</p>
-								<p>
-									Bitte beachten Sie: mdscribe.de ist nicht als medizinisches
-									Informationssystem zugelassen.
-								</p>
-							</div>
-						</section>
-
-						<section className="space-y-4">
-							<h3 className="font-semibold text-xl">7. Speicherdauer</h3>
-							<div className="space-y-2">
-								<p>
-									Die bei der Registrierung angegebenen Daten werden so lange
-									gespeichert, wie das Nutzerkonto aktiv ist. Nach Löschung des
-									Kontos werden personenbezogene Daten innerhalb von 30 Tagen
-									gelöscht, soweit keine gesetzlichen Aufbewahrungspflichten
-									entgegenstehen.
-								</p>
-							</div>
-						</section>
-
-						<section className="space-y-4">
-							<h3 className="font-semibold text-xl">8. Weitergabe von Daten</h3>
-							<div className="space-y-2">
-								<p>
-									Eine Weitergabe Ihrer personenbezogenen Daten an Dritte
-									erfolgt nicht, es sei denn:
-								</p>
-								<ul className="list-disc space-y-2 pl-6">
-									<li>Sie haben ausdrücklich eingewilligt</li>
-									<li>
-										dies ist zur Erfüllung gesetzlicher Pflichten erforderlich
-									</li>
-									<li>
-										dies ist zur Durchsetzung unserer Rechte notwendig (z. B.
-										bei Missbrauch)
-									</li>
-								</ul>
-							</div>
+							<p>
+								Daten können außerdem an Gerichte, Behörden, Rechtsberater oder sonstige berechtigte
+								Stellen übermittelt werden, wenn wir dazu gesetzlich verpflichtet sind oder dies zur
+								Geltendmachung, Ausübung oder Verteidigung von Rechtsansprüchen sowie zur Aufklärung
+								rechtswidriger Nutzung erforderlich ist. Rechtsgrundlagen sind Art. 6 Abs. 1 lit. c
+								und lit. f DSGVO.
+							</p>
 						</section>
 
 						<section className="space-y-4">
 							<h3 className="font-semibold text-xl">9. Ihre Rechte</h3>
-							<div className="space-y-2">
-								<p>Sie haben das Recht:</p>
-								<ul className="list-disc space-y-2 pl-6">
-									<li>auf Auskunft gemäß Art. 15 DSGVO</li>
-									<li>auf Berichtigung gemäß Art. 16 DSGVO</li>
-									<li>auf Löschung gemäß Art. 17 DSGVO</li>
-									<li>
-										auf Einschränkung der Verarbeitung gemäß Art. 18 DSGVO
-									</li>
-									<li>auf Datenübertragbarkeit gemäß Art. 20 DSGVO</li>
-									<li>
-										auf Widerspruch gegen die Verarbeitung gemäß Art. 21 DSGVO
-									</li>
-									<li>
-										auf Widerruf einer Einwilligung gemäß Art. 7 Abs. 3 DSGVO
-									</li>
-									<li>
-										auf Beschwerde bei einer Aufsichtsbehörde gemäß Art. 77
-										DSGVO
-									</li>
-								</ul>
+							<div className="space-y-3">
+								<p>
+									Soweit die gesetzlichen Voraussetzungen vorliegen, haben Sie das Recht auf
+									Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung und
+									Datenübertragbarkeit. Sie können einer Verarbeitung auf Grundlage berechtigter
+									Interessen aus Gründen Ihrer besonderen Situation widersprechen. Eine Einwilligung
+									kann jederzeit mit Wirkung für die Zukunft widerrufen werden.
+								</p>
+								<p>
+									Zur Ausübung Ihrer Rechte genügt eine Nachricht an{" "}
+									<a className="underline underline-offset-4" href={`mailto:${supportEmail}`}>
+										{supportEmail}
+									</a>
+									. Außerdem können Sie sich bei einer Datenschutzaufsichtsbehörde beschweren,
+									insbesondere an Ihrem gewöhnlichen Aufenthaltsort, Arbeitsplatz oder am Ort des
+									vermuteten Verstoßes.
+								</p>
+								<p>
+									Eine ausschließlich automatisierte Entscheidung, die Ihnen gegenüber rechtliche
+									Wirkung entfaltet oder Sie in ähnlicher Weise erheblich beeinträchtigt, findet
+									nicht statt.
+								</p>
 							</div>
 						</section>
 
 						<section className="space-y-4">
 							<h3 className="font-semibold text-xl">10. Datensicherheit</h3>
-							<div className="space-y-2">
-								<p>
-									Wir setzen geeignete technische und organisatorische Maßnahmen
-									ein, um Ihre Daten vor Verlust, Missbrauch und unbefugtem
-									Zugriff zu schützen. Die Datenübertragung erfolgt über eine
-									verschlüsselte Verbindung (SSL/TLS).
-								</p>
-							</div>
+							<p>
+								Wir treffen angemessene technische und organisatorische Maßnahmen zum Schutz
+								personenbezogener Daten. Die Übertragung zwischen Browser und Plattform erfolgt
+								verschlüsselt. Ein absoluter Schutz vor sämtlichen Risiken kann jedoch nicht
+								garantiert werden.
+							</p>
 						</section>
 
 						<section className="space-y-4">
-							<h3 className="font-semibold text-xl">
-								11. Änderungen dieser Datenschutzerklärung
-							</h3>
-							<div className="space-y-2">
-								<p>
-									Wir behalten uns vor, diese Datenschutzerklärung bei Bedarf
-									anzupassen, insbesondere bei technischen Änderungen oder neuen
-									gesetzlichen Anforderungen. Die jeweils aktuelle Version ist
-									jederzeit auf mdscribe.de abrufbar.
-								</p>
-							</div>
+							<h3 className="font-semibold text-xl">11. Änderungen dieser Datenschutzerklärung</h3>
+							<p>
+								Wir aktualisieren diese Datenschutzerklärung, wenn sich Verarbeitungen,
+								Dienstleister oder rechtliche Anforderungen ändern. Die jeweils aktuelle Fassung ist
+								auf mdscribe.de abrufbar. Über wesentliche Änderungen informieren wir registrierte
+								Nutzer in angemessener Form.
+							</p>
 						</section>
 					</div>
 				</TabsContent>
@@ -474,330 +548,301 @@ export default function LegalPage() {
 				<TabsContent className="space-y-8" value="agb">
 					<div className="space-y-8">
 						<div className="space-y-4">
-							<p className="text-muted-foreground text-sm">Stand: 27.01.2026</p>
+							<h2 className="font-semibold text-2xl">
+								Allgemeine Geschäftsbedingungen für die MDScribe Cloud
+							</h2>
+							<p className="text-muted-foreground text-sm">Stand: 27.07.2026</p>
 						</div>
 
+						<section className="space-y-3">
+							<h3 className="font-semibold text-xl">1. Geltungsbereich</h3>
+							<p>
+								Diese Allgemeinen Geschäftsbedingungen gelten für die Nutzung der von Dr. med. Nils
+								Hapke unter mdscribe.de betriebenen Cloud-Version von MDScribe (&quot;MDScribe
+								Cloud&quot;). Das Angebot richtet sich insbesondere an Assistenzärztinnen und
+								Assistenzärzte sowie andere medizinische Fachkräfte.
+							</p>
+							<p>
+								Diese AGB gelten nicht für selbst gehostete oder vor Ort betriebene Installationen.
+								Für solche Installationen wird lediglich eine gesonderte Softwarelizenz verkauft;
+								Bereitstellung, Betrieb und Datenschutz liegen in der Verantwortung des jeweiligen
+								Betreibers.
+							</p>
+						</section>
+
 						<section className="space-y-4">
-							<h3 className="font-semibold text-xl">
-								Allgemeine Geschäftsbedingungen (AGB) für mdscribe.de
-							</h3>
-							<div className="space-y-4">
-								<div className="space-y-2">
-									<h4 className="font-medium">1. Geltungsbereich</h4>
-										<p>
-											Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die
-											Nutzung der Website mdscribe.de (im Folgenden &quot;Plattform&quot;),
-											betrieben von Dr. med. Nils Hapke. Sie regeln das Verhältnis
-										zwischen dem Anbieter und den registrierten sowie nicht
-										registrierten Nutzern der Plattform.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">
-										2. Art und Zweck der Plattform
-									</h4>
-									<div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-4 dark:border-solarized-cyan">
-										<div className="flex items-start space-x-3">
-											<div className="flex-shrink-0">
-												<Info className="h-5 w-5 text-solarized-blue dark:text-solarized-cyan" />
-											</div>
-											<div>
-												<p className="font-semibold text-solarized-blue dark:text-solarized-cyan">
-													Was ist mdscribe.de?
-												</p>
-												<p className="text-sm text-solarized-base01">
-													mdscribe.de ist eine reine{" "}
-													<strong className="text-solarized-blue dark:text-solarized-cyan">
-														Dokumentationshilfe
-													</strong>{" "}
-													für medizinische Fachkräfte. Die Plattform nutzt
-													KI-Technologie ausschließlich zur Vereinfachung und
-													Beschleunigung der Texterstellung für administrative
-													und dokumentarische Zwecke.
-												</p>
-											</div>
-										</div>
-									</div>
-									<p>
-										<strong>Was die Plattform bietet:</strong>
-									</p>
-									<ul className="list-disc space-y-1 pl-6">
-										<li>
-											Textbausteine und Vorlagen für medizinische Dokumentation
-										</li>
-										<li>
-											KI-unterstützte Generierung von Dokumentationstexten durch
-											externe LLM-Anbieter
-										</li>
-										<li>Verwaltung und Organisation eigener Textvorlagen</li>
-										<li>Zeitsparende Workflows für Routinedokumentation</li>
-									</ul>
-									<div className="rounded-lg border border-solarized-yellow bg-solarized-base2 p-3">
-										<div className="flex items-start space-x-2">
-											<div className="flex-shrink-0">
-												<Info className="h-4 w-4 text-solarized-yellow" />
-											</div>
-											<div>
-												<p className="font-medium text-sm text-solarized-yellow">
-													Externe KI-Dienste:
-												</p>
-												<p className="text-solarized-base01 text-xs">
-													Die KI-Funktionen werden über OpenRouter als
-													API-Router an externe Anbieter (z.B. Anthropic,
-													Google) weitergeleitet. Eingabedaten werden gemäß den
-													Datenschutzrichtlinien der jeweiligen Anbieter
-													verarbeitet.
-												</p>
-											</div>
-										</div>
-									</div>
-									<p>
-										<strong>Was die Plattform NICHT bietet:</strong>
-									</p>
-									<ul className="list-disc space-y-1 pl-6">
-										<li>Medizinische Beratung oder Diagnosestellung</li>
-										<li>Behandlungsempfehlungen oder Therapievorschläge</li>
-										<li>
-											Ersatz für medizinische Fachliteratur oder Leitlinien
-										</li>
-										<li>Validierte medizinische Entscheidungsunterstützung</li>
-									</ul>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">3. Leistungen von mdscribe.de</h4>
-									<p className="font-medium text-sm">
-										2.1 Unregistrierte Nutzung (kostenfrei)
-									</p>
-									<p>
-										Nutzer können die öffentlich zugänglichen Textbausteine auf
-										der Plattform kostenlos und ohne Registrierung durchsuchen
-										und nutzen. Es besteht kein Anspruch auf Verfügbarkeit oder
-										Vollständigkeit.
-									</p>
-									<p className="font-medium text-sm">
-										2.2 Registrierung (kostenfrei)
-									</p>
-									<p>
-										Registrierte Nutzer können eigene Textbausteine erstellen,
-										speichern und verwalten. Die Registrierung ist kostenlos.
-										Ein Anspruch auf Registrierung oder dauerhafte Nutzung
-										besteht nicht.
-									</p>
-									<p className="font-medium text-sm">
-										2.3 Kostenpflichtige Abonnements und Kontingente
-									</p>
-									<p>
-										Registrierte Nutzer können kostenpflichtige Abonnements mit
-										verschiedenen Kontingenten abschließen. Diese ermöglichen
-										den Zugang zu erweiterten KI-basierten Funktionen zur
-										Erstellung medizinischer Dokumentation.
-									</p>
-									<div className="space-y-2">
-										<p className="font-medium text-sm">Abonnement-Modelle:</p>
-										<ul className="list-disc space-y-1 pl-6">
-											<li>
-												<strong>Basis-Kontingent:</strong> Begrenzte Anzahl an
-												KI-Generierungen pro Monat
-											</li>
-											<li>
-												<strong>Premium-Kontingent:</strong> Erhöhte Anzahl an
-												KI-Generierungen und erweiterte Funktionen
-											</li>
-											<li>
-												<strong>Unbegrenztes Kontingent:</strong> Unlimitierte
-												Nutzung aller KI-Funktionen
-											</li>
-										</ul>
-										<p className="text-sm">
-											<strong>Kontingent-Bereitstellung:</strong> Nach
-											erfolgreicher Zahlung werden die gebuchten Kontingente
-											automatisch dem Nutzerkonto gutgeschrieben und sind sofort
-											verfügbar. Nicht verbrauchte Kontingente verfallen am Ende
-											des Abrechnungszeitraums und werden nicht übertragen.
-										</p>
-										<p className="text-sm">
-											<strong>Nutzungsüberwachung:</strong> Der Verbrauch wird
-											in Echtzeit überwacht. Bei Erreichen des Limits werden
-											weitere Anfragen gesperrt, bis das Kontingent erneuert
-											oder erweitert wird.
-										</p>
-									</div>
-									<p>
-										Die genauen Preise, Kontingentgrößen und verfügbaren
-										Abonnement-Optionen sind auf der Website einsehbar.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">3. Vertragsabschluss</h4>
-									<p>
-										Mit der Registrierung oder dem Abschluss eines Abonnements
-										erkennt der Nutzer diese AGB an. Der Vertrag über das
-										Abonnement kommt durch die Bestellung des Nutzers und die
-										Bestätigung durch mdscribe.de zustande.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">4. Nutzungsrechte</h4>
-									<p>
-										Die Inhalte und Funktionen von mdscribe.de dürfen
-										ausschließlich für private, nicht-kommerzielle oder
-										berufliche Zwecke im Rahmen ärztlicher Tätigkeit genutzt
-										werden. Die kommerzielle Weiterverwertung der Textbausteine
-										oder generierten Texte ohne ausdrückliche Zustimmung des
-										Anbieters ist untersagt.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">5. Pflichten der Nutzer</h4>
-									<p>
-										Nutzer verpflichten sich, bei der Registrierung
-										wahrheitsgemäße Angaben zu machen. Die Zugangsdaten sind
-										vertraulich zu behandeln und dürfen nicht an Dritte
-										weitergegeben werden.
-									</p>
-									<div className="rounded-lg border border-solarized-red bg-solarized-base2 p-3 dark:border-solarized-orange">
-										<div className="flex items-start space-x-2">
-											<div className="flex-shrink-0">
-												<AlertTriangle className="h-4 w-4 text-solarized-red dark:text-solarized-orange" />
-											</div>
-											<div>
-												<p className="font-medium text-sm text-solarized-red dark:text-solarized-orange">
-													Besonders wichtig bei KI-Funktionen:
-												</p>
-												<p className="text-solarized-base01 text-xs">
-													Da Eingabedaten an externe KI-Anbieter übertragen
-													werden, dürfen NIEMALS personenbezogene
-													Gesundheitsdaten, Patientennamen oder andere
-													identifizierbare Informationen eingegeben werden.
-													Erlaubt sind ausschließlich anonymisierte Inhalte und
-													allgemeine Stichpunkte.
-												</p>
-											</div>
-										</div>
-									</div>
-									<p>
-										Ein Verstoß gegen diese Pflichten, insbesondere die Eingabe
-										personenbezogener Daten, kann zur sofortigen Sperrung des
-										Accounts führen.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">
-										6. Verfügbarkeit und Änderungen
-									</h4>
-									<p>
-										mdscribe.de bemüht sich um eine hohe Verfügbarkeit der
-										Plattform, kann dies aber nicht garantieren. Der Anbieter
-										behält sich das Recht vor, Funktionen zu ändern,
-										einzuschränken oder ganz einzustellen. Abonnenten werden im
-										Falle wesentlicher Änderungen rechtzeitig informiert.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">7. Laufzeit und Kündigung</h4>
-									<p>
-										Kostenpflichtige Abonnements haben die jeweils gewählte
-										Laufzeit (z. B. monatlich oder jährlich) und verlängern sich
-										automatisch, sofern sie nicht fristgerecht vor Ablauf
-										gekündigt werden. Eine Kündigung kann über die
-										Kontoeinstellungen erfolgen.
-									</p>
-									<p>
-										Kostenlose Konten können jederzeit ohne Angabe von Gründen
-										gelöscht werden.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">
-										8. Haftung und medizinischer Disclaimer
-									</h4>
-									<div className="rounded-lg border border-solarized-red bg-solarized-base2 p-4 dark:border-solarized-orange">
-										<div className="flex items-start space-x-3">
-											<div className="flex-shrink-0">
-												<Shield className="h-5 w-5 text-solarized-red dark:text-solarized-orange" />
-											</div>
-											<div>
-												<p className="font-semibold text-solarized-red dark:text-solarized-orange">
-													WICHTIGER MEDIZINISCHER DISCLAIMER:
-												</p>
-												<p className="text-sm text-solarized-base01">
-													mdscribe.de ist KEIN Medizinprodukt und bietet KEINE
-													medizinische Beratung, Diagnose oder
-													Behandlungsempfehlungen. Die Plattform dient
-													ausschließlich als technisches Hilfsmittel zur
-													Vereinfachung der Dokumentation und Textgenerierung.
-												</p>
-											</div>
-										</div>
-									</div>
-									<p>
-										<strong>Zweck und Grenzen der Plattform:</strong> Die
-										generierten Inhalte sind ausschließlich als
-										Dokumentationshilfe gedacht und müssen stets durch
-										qualifizierte medizinische Fachkräfte überprüft, angepasst
-										und verantwortet werden. Alle medizinischen Entscheidungen
-										bleiben vollständig in der Verantwortung der behandelnden
-										Ärzte.
-									</p>
-									<p>
-										<strong>Keine Haftung für medizinische Inhalte:</strong> Für
-										die Richtigkeit, Vollständigkeit, Anwendbarkeit oder
-										medizinische Korrektheit der generierten Inhalte übernimmt
-										mdscribe.de keine Haftung. Die Nutzung erfolgt
-										ausschließlich auf eigene Verantwortung des Anwenders.
-									</p>
-									<p>
-										<strong>Allgemeine Haftungsbeschränkung:</strong> Eine
-										Haftung für leichte Fahrlässigkeit ist ausgeschlossen, außer
-										bei Verletzung wesentlicher Vertragspflichten, bei Schäden
-										aus der Verletzung des Lebens, des Körpers oder der
-										Gesundheit sowie nach dem Produkthaftungsgesetz.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">9. Datenschutz</h4>
-									<p>
-										Die Verarbeitung personenbezogener Daten erfolgt gemäß der
-										auf der Website einsehbaren Datenschutzerklärung. Mit der
-										Nutzung der Plattform erklärt sich der Nutzer mit dieser
-										einverstanden.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">10. Änderungen der AGB</h4>
-									<p>
-										Der Anbieter behält sich vor, diese AGB bei Bedarf
-										anzupassen. Nutzer werden über Änderungen rechtzeitig
-										informiert. Widerspricht ein registrierter Nutzer der
-										Änderung nicht innerhalb von 14 Tagen, gelten die neuen AGB
-										als akzeptiert.
-									</p>
-								</div>
-
-								<div className="space-y-2">
-									<h4 className="font-medium">11. Schlussbestimmungen</h4>
-									<p>
-										Es gilt das Recht der Bundesrepublik Deutschland.
-										Gerichtsstand für alle Streitigkeiten aus diesem Vertrag
-										ist, soweit gesetzlich zulässig, der Sitz des Anbieters.
-									</p>
-									<p>
-										Sollten einzelne Bestimmungen dieser AGB ganz oder teilweise
-										unwirksam sein, bleibt die Wirksamkeit der übrigen
-										Bestimmungen unberührt.
+							<h3 className="font-semibold text-xl">2. Gegenstand und Grenzen der Plattform</h3>
+							<div className="rounded-lg border border-solarized-blue bg-solarized-base2 p-4 dark:border-solarized-cyan">
+								<div className="flex items-start space-x-3">
+									<Info className="h-5 w-5 flex-shrink-0 text-solarized-blue dark:text-solarized-cyan" />
+									<p className="text-sm">
+										MDScribe ist eine Dokumentationshilfe. Die Plattform unterstützt unter anderem
+										bei Vorlagen, Textbausteinen, Formularen und KI-gestützter Texterstellung. Sie
+										erbringt keine medizinische Beratung und keine eigenständige Diagnose- oder
+										Therapieentscheidung.
 									</p>
 								</div>
 							</div>
+							<p>
+								KI-Ausgaben können unvollständig, unzutreffend oder für den Einzelfall ungeeignet
+								sein. Der Nutzer muss jede Ausgabe vor ihrer Verwendung fachlich prüfen und bleibt
+								für Dokumentation und medizinische Entscheidungen verantwortlich. Die MDScribe Cloud
+								ist nicht für patientenidentifizierende Gesundheitsdaten vorgesehen.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">3. Konten, Tarife und Leistungsumfang</h3>
+							<div className="space-y-2">
+								<h4 className="font-medium">3.1 Kostenloser Tarif</h4>
+								<p>
+									Der kostenlose Tarif ermöglicht die Nutzung ausgewählter öffentlicher Inhalte
+									sowie, nach Registrierung, der jeweils ausgewiesenen kostenlosen Konto- und
+									KI-Funktionen. Umfang und Nutzungslimits ergeben sich aus der aktuellen
+									Leistungsbeschreibung auf der Homepage.
+								</p>
+							</div>
+							<div className="space-y-2">
+								<h4 className="font-medium">3.2 Plus-Tarif</h4>
+								<p>
+									Plus ist ein kostenpflichtiges Abonnement mit erweitertem Nutzungsbudget und
+									zusätzlichen Funktionen, insbesondere für private Inhalte. Plus kann mit
+									monatlicher oder jährlicher Abrechnung angeboten werden. Nicht verbrauchtes
+									Nutzungsbudget wird nicht in einen folgenden Abrechnungszeitraum übertragen.
+								</p>
+							</div>
+							<div className="space-y-2">
+								<h4 className="font-medium">3.3 Preise und konkrete Leistungsbeschreibung</h4>
+								<p>
+									Die jeweils gültigen Preise, Abrechnungsintervalle, Nutzungslimits und enthaltenen
+									Funktionen werden auf der Homepage und vor Abschluss im Checkout angezeigt. Die
+									Checkout-Angaben gehen bei Abweichungen einer allgemeinen Beschreibung auf dieser
+									Seite vor. Preisänderungen gelten nicht rückwirkend für bereits bezahlte
+									Abrechnungszeiträume.
+								</p>
+							</div>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">
+								4. Vertragsschluss, Leistungsbeginn und Zahlung
+							</h3>
+							<p>
+								Ein kostenloses Nutzungsverhältnis kommt mit erfolgreicher Registrierung zustande.
+								Der Plus-Vertrag kommt zustande, wenn der Nutzer im Stripe-Checkout die
+								zahlungspflichtige Bestellung abgibt und der Abschluss bestätigt wird.
+							</p>
+							<p>
+								Die Plus-Funktionen werden grundsätzlich unmittelbar nach erfolgreichem Checkout
+								aktiviert. Der Preis für den gewählten monatlichen oder jährlichen
+								Abrechnungszeitraum ist jeweils zu Beginn dieses Zeitraums im Voraus fällig. Stripe
+								zieht den Betrag über die im Checkout gewählte Zahlungsmethode ein und stellt die
+								dort vorgesehenen Zahlungs- und Rechnungsinformationen bereit.
+							</p>
+							<p>
+								Schlägt eine fällige Zahlung fehl, können die Plus-Funktionen bis zur erfolgreichen
+								Zahlung eingeschränkt werden. Gesetzliche Rechte wegen Zahlungsverzugs bleiben
+								unberührt.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">5. Laufzeit und Kündigung</h3>
+							<p>
+								Plus läuft für den im Checkout gewählten monatlichen oder jährlichen
+								Abrechnungszeitraum und verlängert sich jeweils um einen weiteren gleich langen
+								Zeitraum, wenn es nicht vor der nächsten Verlängerung gekündigt wird.
+							</p>
+							<p>
+								Das Abonnement kann jederzeit über &quot;Abonnement&quot; beziehungsweise die dort
+								verknüpfte Stripe-Abonnementverwaltung gekündigt werden. Die Kündigung wird zum Ende
+								des bereits bezahlten Abrechnungszeitraums wirksam; bis dahin bleiben die
+								Plus-Funktionen nutzbar. Eine anteilige Erstattung für den laufenden Zeitraum
+								erfolgt nicht, soweit kein gesetzlicher Erstattungsanspruch besteht.
+							</p>
+							<p>
+								Die Kündigung von Plus löscht das Nutzerkonto nicht. Die Löschung eines kostenlosen
+								oder nach Kündigung verbleibenden Kontos kann über{" "}
+								<a className="underline underline-offset-4" href={`mailto:${supportEmail}`}>
+									{supportEmail}
+								</a>{" "}
+								verlangt werden.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">6. Widerrufsrecht für Verbraucher</h3>
+							<p>
+								Verbraucher haben bei einem im Fernabsatz geschlossenen kostenpflichtigen Vertrag
+								grundsätzlich ein gesetzliches Widerrufsrecht von vierzehn Tagen ab Vertragsschluss.
+								Zur Ausübung genügt eine eindeutige Erklärung, aus der der Entschluss zum Widerruf
+								hervorgeht. Die Angabe eines Grundes ist nicht erforderlich.
+							</p>
+							<p>
+								Der Widerruf kann per E-Mail an{" "}
+								<a className="underline underline-offset-4" href={`mailto:${supportEmail}`}>
+									{supportEmail}
+								</a>{" "}
+								gesendet werden. Verwenden Sie dafür auf Wunsch den folgenden vorbereiteten Link:
+							</p>
+							<p>
+								<a
+									className="inline-flex rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground"
+									href={withdrawalHref}
+								>
+									Vertrag widerrufen
+								</a>
+							</p>
+							<p>
+								Zur Zuordnung genügen Name und E-Mail-Adresse des MDScribe-Kontos. Nach wirksamem
+								Widerruf werden empfangene Zahlungen nach Maßgabe der gesetzlichen Vorschriften
+								zurückgewährt. Gesetzliche Regelungen zum Wertersatz für bis zum Widerruf bereits
+								erbrachte Leistungen bleiben unberührt.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">7. Pflichten der Nutzer</h3>
+							<ul className="list-disc space-y-2 pl-6">
+								<li>
+									Kontodaten sind richtig und aktuell zu halten; Zugangsdaten dürfen nicht an
+									unberechtigte Dritte weitergegeben werden.
+								</li>
+								<li>
+									Es dürfen keine patientenidentifizierenden oder sonstigen unzulässigen
+									personenbezogenen Daten in die MDScribe Cloud eingegeben werden.
+								</li>
+								<li>
+									Die Plattform darf nicht missbräuchlich, rechtswidrig oder zur Beeinträchtigung
+									ihrer Sicherheit und Verfügbarkeit genutzt werden.
+								</li>
+								<li>
+									Automatisierte Zugriffe und eine Umgehung von Nutzungslimits sind ohne vorherige
+									Erlaubnis unzulässig.
+								</li>
+							</ul>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">8. Nutzerinhalte und Moderation</h3>
+							<p>
+								Nutzer sind für sämtliche Inhalte verantwortlich, die sie erstellen, hochladen,
+								speichern oder veröffentlichen. Sie müssen über alle dafür erforderlichen Rechte
+								verfügen und sicherstellen, dass die Inhalte deutsches Recht und Rechte Dritter
+								einhalten. Unzulässig sind insbesondere rechtswidrige, beleidigende,
+								diskriminierende, bedrohende, urheberrechtsverletzende oder datenschutzwidrige
+								Inhalte.
+							</p>
+							<p>
+								Der Nutzer behält seine Rechte an seinen Inhalten. Er räumt uns die für Betrieb,
+								Speicherung, Verarbeitung, Sicherung und Anzeige innerhalb der Plattform
+								erforderlichen, einfachen und auf die Nutzungsdauer beschränkten Rechte ein. Für vom
+								Nutzer als öffentlich gekennzeichnete Inhalte umfasst dies die öffentliche Anzeige
+								und die von der Plattform vorgesehene Nutzung durch andere Nutzer.
+							</p>
+							<p>
+								Wir dürfen rechtswidrige oder vertragswidrige Inhalte sperren oder entfernen und
+								Konten vorübergehend sperren oder bei schweren beziehungsweise wiederholten
+								Verstößen kündigen. Maßnahmen richten sich nach Art, Schwere, Häufigkeit und
+								Auswirkung des Verstoßes. Bei eindeutig rechtswidrigen Inhalten, akuten
+								Sicherheitsrisiken oder Gefahr im Verzug kann eine Maßnahme sofort erfolgen. Soweit
+								rechtlich zulässig und zumutbar, informieren wir den betroffenen Nutzer über Grund
+								und Umfang der Maßnahme.
+							</p>
+							<p>
+								Hinweise auf rechtswidrige Inhalte und Einwände gegen Moderationsmaßnahmen können an{" "}
+								<a className="underline underline-offset-4" href={`mailto:${supportEmail}`}>
+									{supportEmail}
+								</a>{" "}
+								gesendet werden.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">9. Verfügbarkeit und Leistungsänderungen</h3>
+							<p>
+								Wir schulden keine ununterbrochene Verfügbarkeit. Vorübergehende Einschränkungen
+								können insbesondere durch Wartung, Sicherheitsmaßnahmen, Störungen bei
+								Dienstleistern oder Ereignisse außerhalb unseres Einflussbereichs entstehen.
+							</p>
+							<p>
+								Wir dürfen Funktionen aus sachlichem Grund ändern, etwa wegen Sicherheit,
+								technischer Weiterentwicklung, geänderter Dienstleister, Missbrauchsschutz oder
+								rechtlicher Anforderungen, sofern das vertragliche Gleichgewicht nicht grundlos
+								zulasten des Nutzers verschoben wird. Über Änderungen, die Zugriff oder Nutzbarkeit
+								mehr als nur unerheblich beeinträchtigen, informieren wir innerhalb angemessener
+								Frist. Gesetzliche Rechte bei Änderungen digitaler Produkte bleiben unberührt.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">10. Gewerbliche Schutzrechte</h3>
+							<p>
+								Software, Gestaltung, Marken und vom Anbieter bereitgestellte Inhalte sind rechtlich
+								geschützt. Nutzer erhalten für die Vertragsdauer ein einfaches, nicht übertragbares
+								Recht, die Plattform bestimmungsgemäß zu verwenden. Rechte an Nutzerinhalten richten
+								sich nach Abschnitt 8.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">11. Haftung</h3>
+							<div className="rounded-lg border border-solarized-red bg-solarized-base2 p-4 dark:border-solarized-orange">
+								<div className="flex items-start space-x-3">
+									<Shield className="h-5 w-5 flex-shrink-0 text-solarized-red dark:text-solarized-orange" />
+									<p className="text-sm">
+										Generierte Inhalte sind fachlich zu prüfen. MDScribe übernimmt keine
+										medizinische Entscheidung und ersetzt weder ärztliche Sorgfalt noch die
+										Dokumentationspflicht des Nutzers.
+									</p>
+								</div>
+							</div>
+							<p>
+								Wir haften unbeschränkt bei Vorsatz und grober Fahrlässigkeit, bei schuldhafter
+								Verletzung von Leben, Körper oder Gesundheit, nach dem Produkthaftungsgesetz sowie
+								in sonstigen gesetzlich zwingenden Fällen. Bei leicht fahrlässiger Verletzung einer
+								wesentlichen Vertragspflicht ist die Haftung auf den bei Vertragsschluss
+								vorhersehbaren, vertragstypischen Schaden begrenzt. Im Übrigen ist die Haftung für
+								leichte Fahrlässigkeit ausgeschlossen.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">12. Datenschutz</h3>
+							<p>
+								Informationen zur Verarbeitung personenbezogener Daten in der MDScribe Cloud enthält
+								die Datenschutzerklärung auf dieser Seite. Die Datenschutzerklärung ist eine
+								Information und wird nicht durch bloße Nutzung der Plattform als Einwilligung
+								angenommen.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">13. Änderungen dieser AGB</h3>
+							<p>
+								Wir können diese AGB ändern, wenn ein sachlicher Grund besteht, etwa eine Änderung
+								der Rechtslage oder eine erforderliche Anpassung an die technische
+								Weiterentwicklung, und die Änderung für Nutzer zumutbar ist. Über wesentliche
+								Änderungen informieren wir vor ihrem Inkrafttreten. Soweit eine Änderung die
+								Zustimmung des Nutzers erfordert, wird sie erst nach ausdrücklicher Zustimmung
+								Vertragsbestandteil. Schweigen gilt nicht allein deshalb als Zustimmung, weil eine
+								Mitteilung versandt wurde.
+							</p>
+						</section>
+
+						<section className="space-y-4">
+							<h3 className="font-semibold text-xl">14. Schlussbestimmungen</h3>
+							<p>
+								Es gilt deutsches Recht unter Ausschluss des UN-Kaufrechts. Gegenüber Verbrauchern
+								gilt diese Rechtswahl nur, soweit ihnen dadurch der Schutz zwingender Bestimmungen
+								des Staates ihres gewöhnlichen Aufenthalts nicht entzogen wird. Ein Gerichtsstand
+								wird nur vereinbart, soweit dies gesetzlich zulässig ist.
+							</p>
+							<p>
+								Sollte eine Bestimmung ganz oder teilweise unwirksam sein, bleibt die Wirksamkeit
+								der übrigen Bestimmungen unberührt. An die Stelle der unwirksamen Bestimmung treten
+								die gesetzlichen Vorschriften.
+							</p>
 						</section>
 					</div>
 				</TabsContent>
@@ -805,13 +850,3 @@ export default function LegalPage() {
 		</div>
 	);
 }
-
-/*
-Diese Plattform dient ausschließlich dem Informationsaustausch zwischen Behandlungspartnern im Rahmen der Akut- und Notfallmedizin.
-
-Rechtlich verantwortlich ist ausschließlich der Nutzer der Plattform. Der Plattformbetreiber haftet nicht für etwaige Rechtsverletzungen im Zusammenhang mit der Nutzung dieser Plattform. Das Hochladen von Inhalten, die nicht im Zusammenhang mit der notfallmedizinischen Versorgung von Patienten stehen, ist untersagt.
-
-Beim Hochladen sind die Persönlichkeitsrechte und Datenschutzrechte der Patienten zu wahren. Es dürfen nur Dokumente hochgeladen werden, die keine Rückschlüsse auf die abgebildeten Personen zulassen. Der Nutzer verpflichtet sich dazu, keine personenbezogenen Daten gem. Art. 4 DSGVO über die Plattform zu verarbeiten und stellt ggf. eine Anonymisierung durch geeignete Maßnahmen sicher. Sollten Teile eines Dokumentes einen Bezug zu Personen enthalten, so müssen diese Stellen mit der Funktion "Bild bearbeiten" geschwärzt und damit unkenntlich gemacht werden. Für die in den hochgeladenen Dokumenten vorhandenen datenschutzrelevanten Inhalte trägt alleine der Nutzer die rechtliche Verantwortung.
-
-Die IP-Adresse des Nutzers wird lediglich zur Nachverfolgung bei missbräuchlichem Gebrauch dieser Plattform gespeichert.
-*/

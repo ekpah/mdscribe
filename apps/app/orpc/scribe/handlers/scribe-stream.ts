@@ -4,6 +4,7 @@ import type { Database } from "@repo/database";
 import { streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
 
+import type { Session } from "@/lib/auth-types";
 import {
 	FILL_INPUT_PAYLOAD_LIMITS,
 	formatPayloadBytes,
@@ -12,7 +13,7 @@ import {
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
-import { composeScribeContext, findRelevantTemplateForProcedure } from "@/orpc/scribe/context";
+import { composeScribeContext } from "@/orpc/scribe/context";
 import type { ContextBuildInput, TemplateContextInput } from "@/orpc/scribe/context";
 import {
 	formatAudioTranscriptsForPrompt,
@@ -35,6 +36,7 @@ import {
 } from "@/orpc/scribe/prompts";
 import {
 	buildProviderOptions,
+	isGenerationStrategyFullyByok,
 	modelAllowsReasoningOptions,
 	resolveGenerationStrategy,
 } from "@/orpc/scribe/providers";
@@ -45,7 +47,7 @@ import type {
 	ModelConfig,
 	PromptMessage,
 } from "@/orpc/scribe/types";
-import type { Session } from "@/lib/auth-types";
+
 import type { ScribeEntitlements } from "./usage-limit";
 
 export const DEFAULT_SCRIBE_MODEL_CONFIG: ModelConfig = {
@@ -287,15 +289,15 @@ const appendFilePartsToLastUserMessage = (
 	});
 };
 
-type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
+export type ScribeStreamInput = BuiltInScribeStreamInput | CustomFormScribeStreamInput;
 
-interface ScribeGenerationContext {
+export interface ScribeGenerationContext {
 	db: Database;
 	entitlements: { scribe: ScribeEntitlements };
 	session: Session;
 }
 
-interface ScribeGenerationTraceContext {
+export interface ScribeGenerationTraceContext {
 	agentSectionId?: string;
 	agentRunId?: string;
 	observationId?: string;
@@ -348,27 +350,16 @@ const extractPromptFromMessages = (messages: UIMessage[]): string => {
 const toTemplateContextInput = (template: {
 	content: string;
 	examples: string[];
+	information: string;
 	title: string;
 }): TemplateContextInput => ({
 	content: template.content,
 	examples: template.examples,
+	information: template.information,
 	title: template.title,
 });
 
-const readTrimmedStringField = (
-	formData: Record<string, unknown>,
-	field: string,
-): string | undefined => {
-	const raw = formData[field];
-	if (typeof raw !== "string") {
-		return undefined;
-	}
-
-	const trimmed = raw.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
-};
-
-const resolveBuiltInRequest = async ({
+const resolveBuiltInRequest = ({
 	documentType,
 	formData,
 	sessionUser,
@@ -376,7 +367,7 @@ const resolveBuiltInRequest = async ({
 	documentType: DocumentType;
 	formData: Record<string, unknown>;
 	sessionUser: ContextBuildInput["sessionUser"];
-}): Promise<ResolvedScribeRequest> => {
+}): ResolvedScribeRequest => {
 	const config = documentTypeConfigs[documentType];
 	if (!config) {
 		throw new ORPCError("BAD_REQUEST", {
@@ -384,14 +375,9 @@ const resolveBuiltInRequest = async ({
 		});
 	}
 
-	const selectedTemplateReference =
-		documentType === "procedures"
-			? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
-			: undefined;
-	const { contextPrompt, contextXml } = await composeScribeContext({
+	const { contextPrompt, contextXml } = composeScribeContext({
 		formData,
 		promptContextKey: documentType,
-		selectedTemplateReference,
 		sessionUser,
 	});
 
@@ -447,14 +433,9 @@ const resolveCustomFormRequest = async ({
 	}
 
 	const template = customForm.template ? toTemplateContextInput(customForm.template) : null;
-	const selectedTemplateReference =
-		promptHarnessId === "procedures" && !template
-			? await findRelevantTemplateForProcedure(readTrimmedStringField(formData, "notes") ?? "")
-			: undefined;
-	const { contextPrompt, contextXml } = await composeScribeContext({
+	const { contextPrompt, contextXml } = composeScribeContext({
 		formData,
 		promptContextKey: promptHarnessId,
-		selectedTemplateReference,
 		sessionUser,
 		template,
 	});
@@ -700,13 +681,12 @@ export const appendScribeInputAttachmentsToMessages = async ({
 				})
 			: null;
 
-	const [preparedAudio, preparedFiles] = await Promise.all([
-		prepareAudio(),
-		prepareFiles(),
-	]).catch((error: unknown) => {
-		const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-		throw new ORPCError("BAD_REQUEST", { message });
-	});
+	const [preparedAudio, preparedFiles] = await Promise.all([prepareAudio(), prepareFiles()]).catch(
+		(error: unknown) => {
+			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", { message });
+		},
+	);
 
 	const withAudio = preparedAudio
 		? appendPreparedAudioToMessages(messages, preparedAudio)
@@ -742,167 +722,171 @@ export const runScribeGeneration = async ({
 	preparedAttachmentText?: string;
 	traceContext?: ScribeGenerationTraceContext;
 }) => {
-		const inputMessages = input.messages;
-		const audioFiles = input.audioFiles ?? [];
-		const contextFiles = input.contextFiles ?? [];
-		validateScribeAudioFiles(audioFiles);
-		validateScribeContextFiles(contextFiles);
+	const inputMessages = input.messages;
+	const audioFiles = input.audioFiles ?? [];
+	const contextFiles = input.contextFiles ?? [];
+	validateScribeAudioFiles(audioFiles);
+	validateScribeContextFiles(contextFiles);
 
-		// Extract prompt from the last user message
-		const prompt = extractPromptFromMessages(inputMessages);
+	// Extract prompt from the last user message
+	const prompt = extractPromptFromMessages(inputMessages);
 
-		// Validate input
-		const hasAudio = audioFiles.length > 0;
-		const hasContextFiles = contextFiles.length > 0;
-		const rawPrompt = parsePromptPayload(prompt);
-		if (!(hasAudio || hasContextFiles || hasNonEmptyInput(rawPrompt))) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: USER_MESSAGES.missingInput,
-			});
-		}
-
-		const hasFileInput = hasFileLikeInput(rawPrompt);
-		const resolvedRequestPromise =
-			input.source === "customForm"
-				? resolveCustomFormRequest({
-						db: context.db,
-						formData: rawPrompt,
-						formId: input.formId,
-						sessionUser: context.session.user,
-					})
-				: resolveBuiltInRequest({
-						documentType: input.documentType,
-						formData: rawPrompt,
-						sessionUser: context.session.user,
-					});
-
-		const [usageLimitResult, resolvedRequest, generationStrategy] = await Promise.all([
-			enforceScribeUsageLimit({
-				db: context.db,
-				entitlements: context.entitlements.scribe,
-				session: context.session,
-			}),
-			resolvedRequestPromise,
-			resolveGenerationStrategy(context.db, {
-				hasAudio,
-				hasFiles: hasFileInput || hasContextFiles,
-			}),
-		]);
-		const { entitlements } = usageLimitResult;
-		const generationSelection = generationStrategy.generation;
-
-		const attachmentsResult = await appendScribeInputAttachmentsToMessages({
-			audioFiles,
-			contextFiles,
-			db: context.db,
-			generationStrategy,
-			messages: resolvedRequest.promptMessages,
-			userId: context.session.user.id,
-			zdr: entitlements.hasActiveSubscription,
+	// Validate input
+	const hasAudio = audioFiles.length > 0;
+	const hasContextFiles = contextFiles.length > 0;
+	const rawPrompt = parsePromptPayload(prompt);
+	if (!(hasAudio || hasContextFiles || hasNonEmptyInput(rawPrompt))) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: USER_MESSAGES.missingInput,
 		});
-		const messages = appendTextToLastUserMessage(
-			attachmentsResult.messages,
-			preparedAttachmentText ?? "",
-		);
+	}
 
-		// Media that a preprocessing model parsed to text becomes part of the
-		// logged notes so the event stays reviewable and replayable as text.
-		const parsedMediaSections = [
-			attachmentsResult.audioTranscripts.length > 0
-				? formatAudioTranscriptsForPrompt(attachmentsResult.audioTranscripts)
-				: "",
-			attachmentsResult.fileTextContext,
-			preparedAttachmentText ?? "",
-		].filter(Boolean);
-		const baseNotes = typeof rawPrompt.notes === "string" ? rawPrompt.notes : "";
-		const usageInputData = {
-			...rawPrompt,
-			...(hasContextFiles && !("_contextFiles" in rawPrompt)
-				? { _contextFiles: summarizeContextFilesForUsage(contextFiles) }
-				: {}),
-			...(parsedMediaSections.length > 0
-				? { notes: [baseNotes, ...parsedMediaSections].filter(Boolean).join("\n\n") }
-				: {}),
-		};
-
-		// Build provider options — only include OpenRouter-specific options when using OpenRouter
-		const reasoningEffort = resolveReasoningEffort(
-			resolvedRequest.config.modelConfig,
-			generationSelection,
-		);
-		const providerOptions = buildProviderOptions({
-			includeUsage: true,
-			model: generationSelection.model,
-			reasoningEffort,
-			userId: context.session.user.id,
-			zdr: entitlements.hasActiveSubscription,
-		});
-
-		// Effective temperature: explicit request value wins, then the global
-		// admin-configured default, otherwise omit so the provider standard applies.
-		const effectiveTemperature =
-			resolvedRequest.config.modelConfig.temperature ??
-			generationSelection.defaultTemperature ??
-			undefined;
-
-		// Stream the response
-		const requestStartedAt = Date.now();
-		let firstTokenAt: number | undefined;
-
-		const result = streamText({
-			maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
-			messages,
-			model: generationSelection.model.model,
-			onChunk: ({ chunk }) => {
-				if (
-					firstTokenAt === undefined &&
-					(chunk.type === "text-delta" || chunk.type === "reasoning-delta") &&
-					chunk.text.length > 0
-				) {
-					firstTokenAt = Date.now();
-				}
-			},
-			onFinish: (event) => {
-				const completedAt = Date.now();
-				scheduleScribeUsageLogging({
-					activeSubscription: entitlements.hasActiveSubscription,
+	const hasFileInput = hasFileLikeInput(rawPrompt);
+	const resolvedRequestPromise =
+		input.source === "customForm"
+			? resolveCustomFormRequest({
 					db: context.db,
-					endpoint: resolvedRequest.endpoint,
-					event,
-					inputData: usageInputData,
-					isOpenRouter: generationSelection.model.isOpenRouter,
-					modelConfig: {
-						...resolvedRequest.config.modelConfig,
-						temperature: effectiveTemperature,
-					},
-					modelName: generationSelection.model.modelName,
-					observationId: traceContext?.observationId,
-					promptLabel: resolvedRequest.config.promptLabel,
-					promptName: resolvedRequest.config.promptName,
-					reasoningEffort:
-						generationSelection.model.isOpenRouter &&
-						modelAllowsReasoningOptions(generationSelection.model)
-							? reasoningEffort
-							: "none",
-					timing: {
-						timeToCompletionMs: completedAt - requestStartedAt,
-						timeToFirstTokenMs:
-								firstTokenAt === undefined ? undefined : firstTokenAt - requestStartedAt,
-						},
-					traceId: traceContext?.traceId,
-					usageMetadata: {
-						...resolvedRequest.usageMetadata,
-						...traceContext,
-					},
-					userId: context.session.user.id,
+					formData: rawPrompt,
+					formId: input.formId,
+					sessionUser: context.session.user,
+				})
+			: resolveBuiltInRequest({
+					documentType: input.documentType,
+					formData: rawPrompt,
+					sessionUser: context.session.user,
 				});
-			},
-			providerOptions,
-			temperature: effectiveTemperature,
-		});
 
-		return result;
+	const [resolvedRequest, generationStrategy] = await Promise.all([
+		resolvedRequestPromise,
+		resolveGenerationStrategy(context.db, {
+			hasAudio,
+			hasFiles: hasFileInput || hasContextFiles,
+			userId: context.session.user.id,
+		}),
+	]);
+	const usageLimitResult = await enforceScribeUsageLimit({
+		db: context.db,
+		entitlements: context.entitlements.scribe,
+		isQuotaExempt: isGenerationStrategyFullyByok(generationStrategy),
+		session: context.session,
+	});
+	const { entitlements } = usageLimitResult;
+	const generationSelection = generationStrategy.generation;
+
+	const attachmentsResult = await appendScribeInputAttachmentsToMessages({
+		audioFiles,
+		contextFiles,
+		db: context.db,
+		generationStrategy,
+		messages: resolvedRequest.promptMessages,
+		userId: context.session.user.id,
+		zdr: entitlements.hasActiveSubscription,
+	});
+	const messages = appendTextToLastUserMessage(
+		attachmentsResult.messages,
+		preparedAttachmentText ?? "",
+	);
+
+	// Media that a preprocessing model parsed to text becomes part of the
+	// logged notes so the event stays reviewable and replayable as text.
+	const parsedMediaSections = [
+		attachmentsResult.audioTranscripts.length > 0
+			? formatAudioTranscriptsForPrompt(attachmentsResult.audioTranscripts)
+			: "",
+		attachmentsResult.fileTextContext,
+		preparedAttachmentText ?? "",
+	].filter(Boolean);
+	const baseNotes = typeof rawPrompt.notes === "string" ? rawPrompt.notes : "";
+	const usageInputData = {
+		...rawPrompt,
+		...(hasContextFiles && !("_contextFiles" in rawPrompt)
+			? { _contextFiles: summarizeContextFilesForUsage(contextFiles) }
+			: {}),
+		...(parsedMediaSections.length > 0
+			? { notes: [baseNotes, ...parsedMediaSections].filter(Boolean).join("\n\n") }
+			: {}),
 	};
+
+	// Build provider options — only include OpenRouter-specific options when using OpenRouter
+	const reasoningEffort = resolveReasoningEffort(
+		resolvedRequest.config.modelConfig,
+		generationSelection,
+	);
+	const providerOptions = buildProviderOptions({
+		includeUsage: true,
+		model: generationSelection.model,
+		reasoningEffort,
+		userId: context.session.user.id,
+		zdr: entitlements.hasActiveSubscription,
+	});
+
+	// Effective temperature: explicit request value wins, then the global
+	// admin-configured default, otherwise omit so the provider standard applies.
+	const effectiveTemperature =
+		resolvedRequest.config.modelConfig.temperature ??
+		generationSelection.defaultTemperature ??
+		undefined;
+
+	// Stream the response
+	const requestStartedAt = Date.now();
+	let firstTokenAt: number | undefined;
+
+	const result = streamText({
+		maxOutputTokens: resolvedRequest.config.modelConfig.maxTokens ?? 20_000,
+		messages,
+		model: generationSelection.model.model,
+		onChunk: ({ chunk }) => {
+			if (
+				firstTokenAt === undefined &&
+				(chunk.type === "text-delta" || chunk.type === "reasoning-delta") &&
+				chunk.text.length > 0
+			) {
+				firstTokenAt = Date.now();
+			}
+		},
+		onFinish: (event) => {
+			const completedAt = Date.now();
+			scheduleScribeUsageLogging({
+				activeSubscription: entitlements.hasActiveSubscription,
+				db: context.db,
+				endpoint: resolvedRequest.endpoint,
+				event,
+				inputData: usageInputData,
+				isOpenRouter: generationSelection.model.isOpenRouter,
+				modelConfig: {
+					...resolvedRequest.config.modelConfig,
+					temperature: effectiveTemperature,
+				},
+				modelName: generationSelection.model.modelName,
+				observationId: traceContext?.observationId,
+				promptLabel: resolvedRequest.config.promptLabel,
+				promptName: resolvedRequest.config.promptName,
+				reasoningEffort:
+					generationSelection.model.isOpenRouter &&
+					modelAllowsReasoningOptions(generationSelection.model)
+						? reasoningEffort
+						: "none",
+				timing: {
+					timeToCompletionMs: completedAt - requestStartedAt,
+					timeToFirstTokenMs:
+						firstTokenAt === undefined ? undefined : firstTokenAt - requestStartedAt,
+				},
+				traceId: traceContext?.traceId,
+				usageMetadata: {
+					credentialSource: generationSelection.model.credentialSource,
+					providerProtocol: generationSelection.model.providerProtocol,
+					...resolvedRequest.usageMetadata,
+					...traceContext,
+				},
+				userId: context.session.user.id,
+			});
+		},
+		providerOptions,
+		temperature: effectiveTemperature,
+	});
+
+	return result;
+};
 
 export const scribeStreamHandler = authed
 	.use(scribeEntitlementsMiddleware)

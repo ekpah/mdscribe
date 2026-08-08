@@ -98,9 +98,11 @@ describe("Admin emails handler", () => {
 
 		expect(marketingDrafts.map((draft) => draft.id).toSorted()).toEqual([
 			"ai-texts-announcement",
+			"byok-announcement",
 			"cold-outreach",
 			"context-transfer-announcement",
 			"documents-announcement",
+			"template-information-announcement",
 			"workspaces-announcement",
 		]);
 
@@ -157,7 +159,7 @@ describe("Admin emails handler", () => {
 		});
 		expect(sendEmailMock).toHaveBeenCalledTimes(1);
 		expect(sendEmailMock.mock.calls[0]?.[0]).toMatchObject({
-			from: "noreply@mdscribe.de",
+			delivery: "broadcast",
 			subject: "[TEST] Neu: Rehaanträge schneller mit MDScribe vorbereiten",
 			to: "nils@example.com",
 		});
@@ -226,17 +228,41 @@ describe("Admin emails handler", () => {
 		);
 
 		expect(result).toMatchObject({
-			batchCount: 1,
+			acceptedCount: 2,
+			failedCount: 0,
 			id: "documents-announcement",
 			recipientCount: 2,
-			submittedCount: 2,
 		});
 		expect(result.subject).toContain("Rehaanträge");
 		expect(sendEmailBatchMock).toHaveBeenCalledTimes(1);
 		const batchOptions = sendEmailBatchMock.mock.calls[0]?.[0] as
-			| { subject: string; to: string[] }
+			| { delivery: string; subject: string; to: string[] }
 			| undefined;
+		expect(batchOptions?.delivery).toBe("broadcast");
 		expect(batchOptions?.subject).toContain("Rehaanträge");
 		expect(batchOptions?.to.toSorted()).toEqual(["admin@test.com", "verified@example.com"]);
+	});
+
+	test("sendMarketingEmail reports partial SMTP delivery failures", async () => {
+		await createTestUser(server.db, { email: "verified@example.com" });
+		sendEmailBatchMock.mockImplementationOnce((options: { to?: readonly string[] }) =>
+			Promise.resolve({
+				acceptedCount: 1,
+				attemptedCount: options.to?.length ?? 0,
+				failedCount: 1,
+			}),
+		);
+
+		const result = await call(
+			emailsHandler.sendMarketingEmail,
+			{ confirmation: "MARKETING E-MAIL SENDEN", id: "documents-announcement" },
+			{ context },
+		);
+
+		expect(result).toMatchObject({
+			acceptedCount: 1,
+			failedCount: 1,
+			recipientCount: 2,
+		});
 	});
 });

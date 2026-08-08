@@ -3,7 +3,14 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { aiDefaults, aiModel, aiProvider, and, eq } from "@repo/database";
+import {
+	aiDefaults,
+	aiModel,
+	aiProvider,
+	and,
+	eq,
+	userAiProvider,
+} from "@repo/database";
 import { database } from "@repo/database/client";
 import type { Database } from "@repo/database";
 import { experimental_transcribe as transcribe } from "ai";
@@ -46,19 +53,20 @@ export const normalizeOpenRouterRoutingMode = (
 		? (value as OpenRouterRoutingMode)
 		: "default";
 
-export interface TranscribeAudioInput {
+interface TranscribeAudioInput {
 	data: Buffer;
 	filename: string;
 	mediaType: string;
 }
 
-export interface TranscribeAudioResult {
+interface TranscribeAudioResult {
 	providerMetadata?: Record<string, unknown>;
 	text: string;
 	usage?: unknown;
 }
 
 export interface ResolvedModel {
+	credentialSource?: "operator" | "user_byok";
 	isOpenRouter: boolean;
 	model: LanguageModel;
 	modelName: string;
@@ -92,7 +100,7 @@ interface GenerationStrategy {
 	generation: ResolvedDefaultModelSelection;
 }
 
-interface AgentGenerationStrategy extends GenerationStrategy {
+export interface AgentGenerationStrategy extends GenerationStrategy {
 	usesStandardModel: boolean;
 }
 
@@ -249,6 +257,7 @@ const createProviderModelUncached = async (
 	modelId: string,
 	apiKey: string | undefined,
 	baseUrl: string | null,
+	isUserCredential = false,
 ): Promise<LanguageModel> => {
 	switch (protocol) {
 		case "openrouter": {
@@ -256,7 +265,9 @@ const createProviderModelUncached = async (
 			return provider(modelId);
 		}
 		case "tinfoil": {
-			const provider = await getTinfoilProvider(apiKey, baseUrl);
+			const provider = isUserCredential
+				? await createTinfoilAI(apiKey, baseUrl ? { baseURL: baseUrl } : {})
+				: await getTinfoilProvider(apiKey, baseUrl);
 			return provider(modelId);
 		}
 		case "openai": {
@@ -350,10 +361,16 @@ const createAudioTranscriber = (
 	modelId: string,
 	apiKey: string | undefined,
 	baseUrl: string | null,
+	isUserCredential = false,
 ): ResolvedModel["transcribeAudio"] | undefined => {
 	if (protocol === "tinfoil") {
 		return async ({ data, filename, mediaType }) => {
-			const client = getTinfoilTranscriptionClient(apiKey, baseUrl);
+			const client = isUserCredential
+				? new TinfoilAI({
+						apiKey: apiKey ?? "",
+						...(baseUrl ? { baseURL: baseUrl } : {}),
+					})
+				: getTinfoilTranscriptionClient(apiKey, baseUrl);
 			const file = await toFile(data, filename, { type: mediaType });
 			const result = await client.audio.transcriptions.create({
 				file,
@@ -426,6 +443,7 @@ const createAudioTranscriber = (
 						data: data.toString("base64"),
 						format: getOpenRouterAudioFormat(mediaType),
 					},
+					language: "de",
 					model: modelId,
 				}),
 				headers: {
@@ -471,26 +489,47 @@ const createAudioTranscriber = (
 const buildResolvedModel = async (
 	model: AiModelRow,
 	provider: AiProviderRow,
+	options?: { db: Database; userId: string },
 ): Promise<ResolvedModel> => {
-	const apiKey = provider.apiKey ? await decrypt(provider.apiKey) : undefined;
-	const languageModelCacheKey = `provider-model:${provider.id}:${model.id}`;
-
-	const languageModel = await createProviderModel(
-		languageModelCacheKey,
-		provider.protocol,
-		model.modelId,
-		apiKey,
-		provider.baseUrl,
-	);
+	const userCredential =
+		options && provider.byokEnabled
+			? await options.db.query.userAiProvider.findFirst({
+					where: and(
+						eq(userAiProvider.providerId, provider.id),
+						eq(userAiProvider.userId, options.userId),
+						eq(userAiProvider.enabled, true),
+					),
+				})
+			: null;
+	const isUserCredential = Boolean(userCredential);
+	const encryptedApiKey = userCredential?.apiKey ?? provider.apiKey;
+	const apiKey = encryptedApiKey ? await decrypt(encryptedApiKey) : undefined;
+	const languageModel = isUserCredential
+		? await createProviderModelUncached(
+				provider.protocol,
+				model.modelId,
+				apiKey,
+				provider.baseUrl,
+				true,
+			)
+		: await createProviderModel(
+				`provider-model:${provider.id}:${model.id}`,
+				provider.protocol,
+				model.modelId,
+				apiKey,
+				provider.baseUrl,
+			);
 	const transcribeAudio = createAudioTranscriber(
 		provider.protocol,
 		model.modelId,
 		apiKey,
 		provider.baseUrl,
+		isUserCredential,
 	);
 	const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
 
 	return {
+		credentialSource: isUserCredential ? "user_byok" : "operator",
 		isOpenRouter: provider.protocol === "openrouter",
 		model: languageModel,
 		modelName: model.modelId,
@@ -559,9 +598,14 @@ const getModelProviderRowsByRecordId = (
 export const resolveModelByRecordId = async (
 	modelRecordId: string,
 	db: Database,
+	userId?: string,
 ): Promise<ResolvedModel> => {
 	const row = await getModelProviderRowsByRecordId(modelRecordId, db);
-	return buildResolvedModel(row.model, row.provider);
+	return buildResolvedModel(
+		row.model,
+		row.provider,
+		userId ? { db, userId } : undefined,
+	);
 };
 
 const getModelProviderRowsByProviderModelIdUncached = async (
@@ -625,9 +669,14 @@ export const resolveProviderModel = async (
 	providerId: string,
 	modelId: string,
 	db: Database,
+	userId?: string,
 ): Promise<ResolvedModel> => {
 	const row = await getModelProviderRowsByProviderModelId(providerId, modelId, db);
-	return buildResolvedModel(row.model, row.provider);
+	return buildResolvedModel(
+		row.model,
+		row.provider,
+		userId ? { db, userId } : undefined,
+	);
 };
 
 // Defaults are tiny and admin-driven. Do not route them through
@@ -714,6 +763,7 @@ const buildDefaultSelection = async (
 	db: Database,
 	defaults: AiDefaultsRow,
 	slot: DefaultModelSlot,
+	userId?: string,
 ): Promise<ResolvedDefaultModelSelection> => {
 	const modelRecordId = getDefaultModelRecordId(defaults, slot);
 	if (!modelRecordId) {
@@ -722,7 +772,7 @@ const buildDefaultSelection = async (
 
 	return {
 		defaultTemperature: getDefaultTemperature(defaults, slot),
-		model: await resolveModelByRecordId(modelRecordId, db),
+		model: await resolveModelByRecordId(modelRecordId, db, userId),
 		reasoningEffort: getDefaultReasoningEffort(defaults, slot),
 		slot,
 	};
@@ -731,9 +781,10 @@ const buildDefaultSelection = async (
 export const resolveDefaultModel = async (
 	db: Database,
 	slot: DefaultModelSlot,
+	userId?: string,
 ): Promise<ResolvedDefaultModelSelection> => {
 	const defaults = await getDefaults(db);
-	return buildDefaultSelection(db, defaults, slot);
+	return buildDefaultSelection(db, defaults, slot, userId);
 };
 
 const normalizeMediaPreprocessStrategy = (
@@ -753,9 +804,10 @@ const normalizeMediaPreprocessStrategy = (
  */
 export const resolveGenerationStrategy = async (
 	db: Database,
-	options: { hasAudio?: boolean; hasFiles?: boolean },
+	options: { hasAudio?: boolean; hasFiles?: boolean; userId?: string },
 ): Promise<GenerationStrategy> => {
 	const defaults = await getDefaults(db);
+	const { userId } = options;
 
 	const buildAudioPlan = async (): Promise<MediaPlan> => {
 		if (defaults.defaultStandardSupportsAudio) {
@@ -763,7 +815,12 @@ export const resolveGenerationStrategy = async (
 		}
 		return {
 			mode: "preprocess",
-			selection: await buildDefaultSelection(db, defaults, "speech-to-text"),
+			selection: await buildDefaultSelection(
+				db,
+				defaults,
+				"speech-to-text",
+				userId,
+			),
 			strategy: normalizeMediaPreprocessStrategy(defaults.defaultSpeechToTextMode, "direct"),
 		};
 	};
@@ -774,7 +831,7 @@ export const resolveGenerationStrategy = async (
 		}
 		return {
 			mode: "preprocess",
-			selection: await buildDefaultSelection(db, defaults, "file-image"),
+			selection: await buildDefaultSelection(db, defaults, "file-image", userId),
 			strategy: normalizeMediaPreprocessStrategy(defaults.defaultFileImageMode, "multimodal"),
 		};
 	};
@@ -782,7 +839,7 @@ export const resolveGenerationStrategy = async (
 	const [audio, files, generation] = await Promise.all([
 		options.hasAudio ? buildAudioPlan() : Promise.resolve(null),
 		options.hasFiles ? buildFilesPlan() : Promise.resolve(null),
-		buildDefaultSelection(db, defaults, "text"),
+		buildDefaultSelection(db, defaults, "text", userId),
 	]);
 
 	return {
@@ -799,9 +856,10 @@ export const resolveGenerationStrategy = async (
  */
 export const resolveAgentGenerationStrategy = async (
 	db: Database,
-	options: { hasAudio?: boolean; hasFiles?: boolean },
+	options: { hasAudio?: boolean; hasFiles?: boolean; userId?: string },
 ): Promise<AgentGenerationStrategy> => {
 	const defaults = await getDefaults(db);
+	const { userId } = options;
 	const usesStandardModel = defaults.defaultStandardSupportsAgent;
 	const supportsAudio = usesStandardModel
 		? defaults.defaultStandardSupportsAudio
@@ -816,7 +874,12 @@ export const resolveAgentGenerationStrategy = async (
 		}
 		return {
 			mode: "preprocess",
-			selection: await buildDefaultSelection(db, defaults, "speech-to-text"),
+			selection: await buildDefaultSelection(
+				db,
+				defaults,
+				"speech-to-text",
+				userId,
+			),
 			strategy: normalizeMediaPreprocessStrategy(defaults.defaultSpeechToTextMode, "direct"),
 		};
 	};
@@ -827,13 +890,18 @@ export const resolveAgentGenerationStrategy = async (
 		}
 		return {
 			mode: "preprocess",
-			selection: await buildDefaultSelection(db, defaults, "file-image"),
+			selection: await buildDefaultSelection(db, defaults, "file-image", userId),
 			strategy: normalizeMediaPreprocessStrategy(defaults.defaultFileImageMode, "multimodal"),
 		};
 	};
 
 	const [generation, audio, files] = await Promise.all([
-		buildDefaultSelection(db, defaults, usesStandardModel ? "text" : "agent"),
+		buildDefaultSelection(
+			db,
+			defaults,
+			usesStandardModel ? "text" : "agent",
+			userId,
+		),
 		options.hasAudio ? buildAudioPlan() : Promise.resolve(null),
 		options.hasFiles ? buildFilesPlan() : Promise.resolve(null),
 	]);
@@ -844,6 +912,23 @@ export const resolveAgentGenerationStrategy = async (
 		generation,
 		usesStandardModel,
 	};
+};
+
+export const isGenerationStrategyFullyByok = (
+	strategy: GenerationStrategy,
+): boolean => {
+	if (strategy.generation.model.credentialSource !== "user_byok") {
+		return false;
+	}
+	for (const plan of [strategy.audio, strategy.files]) {
+		if (
+			plan?.mode === "preprocess" &&
+			plan.selection.model.credentialSource !== "user_byok"
+		) {
+			return false;
+		}
+	}
+	return true;
 };
 
 /**

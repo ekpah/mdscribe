@@ -19,10 +19,6 @@ export const router = {
 			const handlerModule = await import("./admin/emails");
 			return { default: handlerModule.emailsHandler };
 		}),
-		embeddings: lazy(async () => {
-			const handlerModule = await import("./admin/embeddings");
-			return { default: handlerModule.embeddingsHandler };
-		}),
 		license: lazy(async () => {
 			const handlerModule = await import("./admin/license");
 			return { default: handlerModule.licenseHandler };
@@ -114,21 +110,22 @@ export const router = {
 
 	// Template operations (all CRUD under templates)
 	templates: lazy(async () => {
-		const [{ templatesHandler }, { findRelevantTemplateHandler }] = await Promise.all([
-			import("./templates"),
-			import("./templates/search"),
-		]);
-
-		return {
-			default: {
-				...templatesHandler,
-				findRelevant: findRelevantTemplateHandler,
-			},
-		};
+		const handlerModule = await import("./templates");
+		return { default: handlerModule.templatesHandler };
 	}),
 
 	// User-specific operations
 	user: {
+		aiFunctionRecommendations: lazy(async () => {
+			const handlerModule = await import("./user/activity");
+			return {
+				default: handlerModule.activityHandler.aiFunctionRecommendations,
+			};
+		}),
+		aiProviders: lazy(async () => {
+			const handlerModule = await import("./user/ai-providers");
+			return { default: handlerModule.aiProvidersHandler };
+		}),
 		auth: lazy(async () => {
 			const handlerModule = await import("./user/auth");
 			return { default: handlerModule.authHandler.auth };

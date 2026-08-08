@@ -27,70 +27,110 @@
       {
         "group": "Start",
         "pages": [
-          "content/docs/index",
-          "content/docs/quickstart/index",
-          "content/docs/quickstart/schnellstart",
-          "content/docs/faq"
+          "index",
+          "quickstart/index",
+          "quickstart/schnellstart",
+          "faq"
         ]
       },
       {
         "group": "Tutorials",
         "pages": [
-          "content/docs/tutorials/index"
+          "tutorials/index"
         ]
       },
       {
         "group": "How-to",
         "pages": [
-          "content/docs/how-to/index",
-          "content/docs/how-to/ki-instruktionen",
-          "content/docs/how-to/self-hosting"
+          "how-to/index",
+          "how-to/ki-instruktionen",
+          "how-to/self-hosting"
         ]
       },
       {
         "group": "Produktbereiche",
         "pages": [
-          "content/docs/templates/index",
-          "content/docs/templates/tags",
-          "content/docs/templates/info-tag",
-          "content/docs/templates/score-tag",
-          "content/docs/templates/switch-case-tags",
-          "content/docs/documents/index",
-          "content/docs/ai/index",
-          "content/docs/ai/ki-instruktionen",
-          "content/docs/text-snippets",
-          "content/docs/knowledge"
+          "templates/index",
+          "templates/tags",
+          "templates/info-tag",
+          "templates/score-tag",
+          "templates/switch-case-tags",
+          "documents/index",
+          "ai/index",
+          "ai/ki-instruktionen",
+          "text-snippets",
+          "knowledge"
+        ]
+      },
+      {
+        "group": "KI-Provider",
+        "pages": [
+          "providers/index",
+          "providers/byok",
+          "providers/openrouter",
+          "providers/openai-compatible",
+          "providers/private",
+          "providers/local",
+          "providers/openai",
+          "providers/anthropic"
         ]
       },
       {
         "group": "Datenschutz",
         "pages": [
-          "content/docs/privacy/index",
-          "content/docs/privacy/private-vs-anonyme-daten",
-          "content/docs/privacy/ki-datenfluss"
+          "privacy/index",
+          "privacy/private-vs-anonyme-daten",
+          "privacy/ki-datenfluss"
         ]
       },
       {
         "group": "Self-Hosting",
         "pages": [
-          "content/docs/self-hosting/index"
+          "self-hosting/index",
+          "self-hosting/email"
         ]
       },
       {
         "group": "Referenz",
         "pages": [
-          "content/docs/reference/index",
-          "content/docs/reference/tags"
+          "reference/index",
+          "reference/tags"
         ]
       },
       {
         "group": "Erklaerungen",
         "pages": [
-          "content/docs/explanation/index",
-          "content/docs/explanation/diataxis",
-          "content/docs/explanation/privacy"
+          "explanation/index",
+          "explanation/diataxis",
+          "explanation/privacy"
         ]
       }
     ]
-  }
+  },
+  "redirects": [
+    {
+      "source": "/content/docs/:slug*",
+      "destination": "/:slug*"
+    },
+    {
+      "source": "/docs/tags",
+      "destination": "/templates/tags"
+    },
+    {
+      "source": "/docs/schnellstart",
+      "destination": "/quickstart/schnellstart"
+    },
+    {
+      "source": "/docs/ki-instruktionen",
+      "destination": "/ai/ki-instruktionen"
+    },
+    {
+      "source": "/docs/templates/:slug*",
+      "destination": "/templates/:slug*"
+    },
+    {
+      "source": "/docs/:slug*",
+      "destination": "/:slug*"
+    }
+  ]
 }

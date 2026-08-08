@@ -73,7 +73,8 @@ const customMarkdocRenderers: Partial<
 			"renderUnit",
 			readAttribute(element, "renderUnit") ?? readAttribute(element, "renderunit"),
 		);
-		return `{% info ${quoteMarkdocValue(infoPrimary)}${descriptionAttribute}${typeAttribute}${unitAttribute}${renderUnitAttribute} /%}`;
+		const sourceAttribute = serializeStringAttribute("source", readAttribute(element, "source"));
+		return `{% info ${quoteMarkdocValue(infoPrimary)}${descriptionAttribute}${typeAttribute}${unitAttribute}${renderUnitAttribute}${sourceAttribute} /%}`;
 	},
 	score: (element) => {
 		const formula = readAttribute(element, "formula") || "";
@@ -89,8 +90,9 @@ const customMarkdocRenderers: Partial<
 	switch: (element, innerContent) => {
 		const switchPrimary = readAttribute(element, "primary") || "";
 		const primary = quoteMarkdocValue(switchPrimary);
+		const sourceAttribute = serializeStringAttribute("source", readAttribute(element, "source"));
 		const typeAttribute = serializeStringAttribute("type", readAttribute(element, "type"));
-		return `{% switch ${primary}${typeAttribute} %}${innerContent}{% /switch %}`;
+		return `{% switch ${primary}${typeAttribute}${sourceAttribute} %}${innerContent}{% /switch %}`;
 	},
 };
 

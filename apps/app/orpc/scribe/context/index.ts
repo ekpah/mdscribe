@@ -1,12 +1,9 @@
 import { composePatientContext, derivePatientContext } from "./patient";
 import { composeTemplateContext } from "./template";
-import { findRelevantTemplateForProcedure } from "./template/relevant-template";
 import type { ComposedScribeContext, ComposeScribeContextInput, ContextSource } from "./types";
 import { composeUserContext } from "./user";
 
 export type { ContextBuildInput, TemplateContextInput } from "./types";
-
-export { findRelevantTemplateForProcedure };
 
 const hasContent = (value: string | undefined): value is string =>
 	typeof value === "string" && value.trim().length > 0;

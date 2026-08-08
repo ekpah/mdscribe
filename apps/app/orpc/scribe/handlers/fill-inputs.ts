@@ -20,7 +20,11 @@ import {
 	composeFillInputsPrompt,
 	FILL_INPUTS_PROMPT_NAME,
 } from "@/orpc/scribe/prompts/core/fill-inputs";
-import { buildProviderOptions, resolveGenerationStrategy } from "@/orpc/scribe/providers";
+import {
+	buildProviderOptions,
+	isGenerationStrategyFullyByok,
+	resolveGenerationStrategy,
+} from "@/orpc/scribe/providers";
 import type { MediaPlan } from "@/orpc/scribe/providers";
 import type { FillInputsInputPayload, InputField } from "@/orpc/scribe/types";
 
@@ -57,6 +61,7 @@ interface FillInputPayloadSummary {
 	audioFiles: FillInputAudioPayloadSummary[];
 	contextFiles: FillInputContextFilePayloadSummary[];
 	inputFieldCount: number;
+	templateInformationCharacters: number;
 	textContextCharacters: number;
 	totalPayloadBytes: number;
 }
@@ -167,6 +172,7 @@ const getTextContextCharacterCount = (
 const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPayloadSummary => {
 	const audioFiles = input.audioFiles ?? [];
 	const contextFiles = input.contextFiles ?? [];
+	const templateInformationCharacters = input.templateInformation?.length ?? 0;
 	const textContextCharacters = getTextContextCharacterCount(input.textContext);
 
 	assertAtMost(
@@ -183,6 +189,11 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		contextFiles.length,
 		FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles,
 		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles} Dateien können berücksichtigt werden.`,
+	);
+	assertAtMost(
+		templateInformationCharacters,
+		FILL_INPUT_PAYLOAD_LIMITS.maxTemplateInformationCharacters,
+		USER_MESSAGES.templateInformationTooLong,
 	);
 	assertAtMost(
 		textContextCharacters,
@@ -262,6 +273,7 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		audioFiles: audioSummaries,
 		contextFiles: fileSummaries,
 		inputFieldCount: input.inputFields.length,
+		templateInformationCharacters,
 		textContextCharacters,
 		totalPayloadBytes,
 	};
@@ -283,6 +295,7 @@ const buildFillInputUsageInputData = (
 	audioFiles: payloadSummary.audioFiles,
 	contextFiles: payloadSummary.contextFiles,
 	inputFields: summarizeInputFields(input.inputFields),
+	templateInformationCharacters: payloadSummary.templateInformationCharacters,
 	textContext: input.textContext,
 });
 
@@ -444,6 +457,7 @@ const buildFillInputUsageMetadata = ({
 	preparedAudio: FillInputsPreparedAudio;
 	zdr: boolean;
 }): UsageMetadata => ({
+	credentialSource: generationSelection.model.credentialSource,
 	endpoint: "input_fill",
 	generationStrategy: {
 		audioMode: describeMediaPlan(generationStrategy.audio),
@@ -468,6 +482,7 @@ const buildFillInputUsageMetadata = ({
 				: undefined,
 	},
 	promptName: FILL_INPUTS_PROMPT_NAME,
+	providerProtocol: generationSelection.model.providerProtocol,
 	zdrEnabled: zdr,
 });
 
@@ -492,12 +507,6 @@ export const fillInputsHandler = authed
 		const hasText = hasTextContext(input);
 		const payloadSummary = summarizeAndValidatePayload(input);
 
-		const { entitlements } = await enforceScribeUsageLimit({
-			db: context.db,
-			entitlements: context.entitlements.scribe,
-			session: context.session,
-		});
-
 		assertFillInputsRequest({
 			hasAudio,
 			hasFiles,
@@ -508,9 +517,16 @@ export const fillInputsHandler = authed
 		const generationStrategy = await resolveGenerationStrategy(context.db, {
 			hasAudio,
 			hasFiles,
+			userId: context.session.user.id,
 		}).catch((error: unknown) => {
 			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", { message });
+		});
+		const { entitlements } = await enforceScribeUsageLimit({
+			db: context.db,
+			entitlements: context.entitlements.scribe,
+			isQuotaExempt: isGenerationStrategyFullyByok(generationStrategy),
+			session: context.session,
 		});
 
 		const generationSelection = generationStrategy.generation;
@@ -538,8 +554,17 @@ export const fillInputsHandler = authed
 		const filesAreNative = generationStrategy.files?.mode === "native";
 		// Reuse the shared scribe context pipeline so the clinical fields render
 		// through the same tunable <patient_context> as the main scribe flow.
+		const templateInformation = input.templateInformation?.trim();
 		const { contextXml } = composeScribeContext({
 			formData: { ...input.textContext },
+			template: templateInformation
+				? {
+						content: "",
+						examples: [],
+						information: templateInformation,
+						title: "Ausfüllhinweise",
+					}
+				: null,
 		});
 		const messages = composeFillInputsPrompt({
 			audioTranscripts: formatAudioTranscriptsForPrompt(preparedAudio.transcripts),

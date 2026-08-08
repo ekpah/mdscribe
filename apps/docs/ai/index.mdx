@@ -1,0 +1,122 @@
+---
+title: KI zur Dokumentation
+description: Praktische Leitlinien fuer bessere KI-Ausgaben in MDScribe.
+---
+
+## KI zur Dokumentation
+
+MDScribe kombiniert Ihre Eingaben mit Template-Struktur, Tags und KI-Instruktionen. Die Ausgabequalitaet haengt dabei vor allem von der Eingabequalitaet ab.
+
+## Vor der Generierung
+
+Nutzen Sie diesen Kurzcheck:
+
+- Ist die klinische Kerninformation enthalten?
+- Sind Diagnosen, Verlauf und Befunde klar getrennt?
+- Enthalten die Notizen nur die Informationen, die wirklich ins Dokument sollen?
+
+## Gute Eingabe statt langer Eingabe
+
+```text
+Aufnahme wegen Thoraxschmerz seit 2 Tagen.
+Vorgeschichte: Hypertonie, DM2.
+Befunde: Troponin erhoeht, EKG mit ST-Senkungen V4-V6.
+Therapie: antithrombotisch, klinische Stabilisierung.
+Entlassung in stabilem Allgemeinzustand.
+```
+
+## Nach der Generierung
+
+Pruefen Sie das Ergebnis immer fachlich:
+
+1. Medizinische Korrektheit
+2. Vollstaendigkeit
+3. Plausibilitaet von Zeitpunkten/Medikation
+4. Keine Halluzinationen
+
+## KI-Ausgaben verbessern
+
+1. Template vereinfachen, statt immer mehr Prompt-Text einzugeben
+2. KI-Kommentare in den relevanten Abschnitten setzen
+3. Mit kurzen Iterationen arbeiten: nachschaerfen, neu generieren
+
+## AI Vorlagen
+
+Admins koennen unter `/admin/settings/models` im Tab `AI Vorlagen` globale zusaetzliche AIScribe-Vorlagen anlegen. Nutzer koennen eigene AI Vorlagen unter `/profile/ai-scribe` verwalten.
+
+Nutzer koennen unter `/profile/ai-scribe` auch eigene Brief-Baukaesten erstellen. Ein Brief-Baukasten kombiniert mehrere passende AI Vorlagen zu einem Arztbrief-Editor mit Abschnitten fuer Diagnosen, Anamnese, Befunde und Epikrise. Private Brief-Baukaesten sind wie private AI Vorlagen eine Plus-Funktion; oeffentliche Brief-Baukaesten koennen ueber ihren Freigabelink auch von anderen Nutzern verwendet werden.
+
+Im Tab `Modelle` werden globale Standardmodelle gesetzt: optional ein multi-modales Modell, sonst getrennte Standards fuer Text, OCR/File/Image, Audio-Transkription und Evaluation. Pro Standardmodell kann Reasoning Effort gesetzt werden, wenn das Modell Reasoning-Unterstuetzung meldet.
+
+Die Standardmodi unter `Schnelle Dokument-Generierung` (`/aiscribe/er`, `/aiscribe/icu`, `/aiscribe/outpatient`, `/aiscribe/procedures`, `/aiscribe/discharge`, `/aiscribe/diagnoseblock`) koennen im selben Admin-Tab separat konfiguriert werden. Ohne aktive Override-Konfiguration bleibt das bisherige hardcoded Verhalten unveraendert.
+
+Jede AI Vorlage kann derzeit festlegen:
+
+- Name (der URL-Pfad wird automatisch daraus abgeleitet)
+- Prompt Harness
+- optionales Template
+- Sichtbarkeit (`Oeffentlich` oder `Privat`)
+
+Die narrativen Briefformate teilen sich einen `Epikrise`-Prompt-Harness; ob ein Text als Entlassbrief, Ambulanzbrief oder ICU-Verlegung formuliert wird, bestimmt das Template (oder die eingebaute Standardstruktur der jeweiligen AIScribe-Seite). Neue AI Vorlagen waehlen daher `Epikrise` plus ein passendes Template; bestehende Eintraege mit den alten Harness-Namen funktionieren unveraendert weiter.
+
+Jeder Prompt-Harness erzeugt bzw. verbessert genau ein kanonisches Kontextfeld (Anamnese, Diagnoseblock, Befunde oder Epikrise). Die Haupteingabe einer AI Vorlage ist dieses Zielfeld; die uebrigen kanonischen Felder stehen als zusaetzliche Kontextfelder zur Verfuegung. Eine Anamnese-basierte AI Vorlage zeigt daher kein separates Anamnese-Kontextfeld; die Haupteingabe ist die Anamnese.
+AI Vorlagen verwenden kein eigenes Modell mehr, sondern immer die globalen Standardmodelle.
+
+Aktivierte eigene AI Vorlagen und Brief-Baukaesten erscheinen fuer den jeweiligen Nutzer gemeinsam im Bereich `Meine Vorlagen`. Von MDScribe bereitgestellte AI Vorlagen, Brief-Baukaesten und feste Standardmodi erscheinen gemeinsam unter `Schnelle Dokument-Generierung`. Private AI Vorlagen und Brief-Baukaesten sind eine Plus-Funktion und bleiben nur fuer den Autor sichtbar und nutzbar.
+
+Brief-Baukaesten sind auf `/aiscribe` mit dem Baukasten-Symbol oben rechts auf der Karte gekennzeichnet. Der integrierte Agent ist fuer alle angemeldeten Nutzer verfuegbar und verwendet bei weiteren Anfragen auch noch nicht angenommene Diff-Vorschlaege als aktuellen Abschnittsstand.
+
+AIScribe-Eingaben nutzen dieselbe Eingabe-Leiste wie das automatische Fuellen von Vorlagen: Text, Audioaufnahmen und Kontextdateien koennen ueber die drei Eingabe-Schalter gewechselt werden. Audio- und Datei-Eingaben werden je nach globalem Modell-Setup direkt multimodal verarbeitet oder vorher transkribiert bzw. extrahiert.
+
+Audioaufnahmen werden ueber die linke Aufnahmeflaeche gestartet und gestoppt; alternativ startet `Ctrl+Shift+2` (macOS `Cmd+Shift+2`) die Aufnahme aus jedem Eingabe-Tab heraus und wechselt automatisch zur Audio-Eingabe. Eine laufende Aufnahme bleibt beim Wechseln der Eingabe-Tabs aktiv und wird durch einen pulsierenden roten Punkt am Mikrofon-Schalter angezeigt. Mit `Ctrl+Shift+1` (macOS `Cmd+Shift+1`) springt der Fokus in das Haupteingabefeld, `Ctrl+Enter` (macOS `Cmd+Enter`) startet die Generierung bzw. das Fuellen. Dateien koennen unabhaengig vom aktiven Eingabe-Tab per Drag-and-drop abgelegt werden; sie landen immer in der Datei-Eingabe.
+
+Die konfigurierbaren Standardmodi verwenden weiterhin ihre festen `/aiscribe/*`-Routen und werden gemeinsam mit den weiteren von MDScribe bereitgestellten Eintraegen unter `Schnelle Dokument-Generierung` gelistet.
+
+## Nutzungsstatistik
+
+Admins koennen unter `/admin/usage` die AI-Nutzung nach Heute, Woche, Monat oder Gesamt auswerten. Die Summary-Werte sind direkt anklickbar und steuern den Trendchart darunter. Die Zeitraeume und Buckets werden in der Zeitzone des aktuellen Browsers angezeigt.
+
+Das Dashboard zeigt unter `KI-Funktionen` die drei in den vergangenen 30 Tagen am haeufigsten verwendeten AIScribe-Modi des aktuellen Nutzers. Fehlende Plaetze werden mit den MDScribe-weit am haeufigsten verwendeten, fuer den Nutzer verfuegbaren Modi aufgefuellt. Ohne persoenliche Nutzung basiert die gesamte Auswahl auf dieser MDScribe-weiten Rangfolge. `Letzte Aktivitaet` verwendet lesbare deutsche Bezeichnungen und bei eigenen AI Vorlagen deren Namen statt interner Ereignisnamen oder Slugs.
+
+Events, Tokens und Kosten zeigen aggregierte Stunden- oder Tageswerte. Erster Token, Dauer und Tokens/s zeigen p50, p90 und p95, damit typische und langsame Generierungen getrennt sichtbar bleiben.
+
+Automatisches Fuellen von Eingaben wird als `ai_input_fill` protokolliert und zaehlt gegen dieselbe monatliche Nutzungsgrenze wie AIScribe-Generierungen. Audio- und Dateianhaenge werden in Usage Events nur als Metadaten gespeichert; Rohdateien und Audiodaten werden nicht im Usage Event abgelegt.
+
+Fuer Eingabe-Fuellen gelten serverseitige Payload-Grenzen: bis zu 3 Audioaufnahmen (12 MB pro Aufnahme, 30 MB gesamt), 5 Kontextdateien, 10 MB pro Datei, 25 MB Dateigesamtgroesse und 30.000 Zeichen Textkontext.
+
+## AI-Modell-Vergleich
+
+Admins koennen unter `/admin/model-comparison` zwei konfigurierte KI-Modelle mit zufaellig ausgewaehlten historischen AIScribe-Inputs vergleichen. Die Seite erzeugt pro Stichprobe beide Antworten, kann die Antwortzuordnung verblinden und wertet anschliessend Praeferenzen, Laufzeit, Tokens und Kosten aus.
+
+## Reasoning Effort
+
+OpenRouter-Modelle speichern beim Modell-Sync ihre `supported_parameters`. Wenn ein Modell `reasoning` unterstuetzt, zeigen Playground und Modellvergleich einen Reasoning-Effort-Schalter mit `none`, `minimal`, `low`, `medium`, `high` und `xhigh`. OpenRouter mappt diese Werte auf passende Reasoning-Tokens oder native Thinking-Level des Zielmodells.
+
+## Kontext & Vorlage
+
+Auf den AIScribe-Seiten zeigt die linke Box `Kontext & Vorlage`, welches Template und welcher Prompt fuer die aktuelle Generierung verwendet werden. Wenn ein echtes Template hinterlegt ist, fuehrt der Template-Link zur normalen Template-Ansicht.
+
+## Weiterverwenden
+
+Unter `Kontext & Vorlage` koennen Sie mit `Weiterverwenden` den aktuellen Kontext in einem anderen Ziel oeffnen:
+
+- Textbaustein
+- AI Vorlage
+- Dokument (derzeit nur fuer Admins)
+
+Die Haupteingabe wird als das Zielfeld des jeweiligen Prompt-Harness uebergeben (z.B. als `Anamnese` bei einem Anamnese-basierten Textbaustein); narrative Ausgaben wie Entlassbrief, Ambulanzbrief oder ICU-Verlegung gelten als `Epikrise`. Mit `Ausgabe uebernehmen` ersetzt die generierte Ausgabe die Eingabe in diesem Zielfeld. Alle uebrigen Kontextfelder (Diagnoseblock, Anamnese, Befunde, Epikrise) werden immer mit uebergeben und landen im Ziel in den gleichnamigen Feldern; das Zielformular zieht sein eigenes Zielfeld automatisch in die Haupteingabe.
+
+MDScribe speichert den Transfer kurzlebig und verschluesselt. Der Server speichert nur den Ciphertext unter einem einmaligen Token-Hash; der Entschluesselungsschluessel bleibt im Browser und wird im URL-Fragment uebergeben. Beim Oeffnen des Ziels wird der Transfer geloescht; nicht abgeholte Transfers verfallen nach wenigen Minuten. Das schuetzt vor versehentlichem Speichern klinischer Inhalte in URLs, Logs oder der Datenbank. Es ersetzt aber keine Absicherung gegen kompromittierten Browser-Code oder unsichere Endgeraete.
+
+<Warning>
+  **Datenschutz**
+
+Fuer cloud-gehostete Nutzung sollten derzeit keine sensiblen Patienten-PII/PHI eingegeben werden.
+Fuer sensible Daten ist Self-Hosting der empfohlene Weg.
+
+</Warning>
+
+## Weiterfuehrend
+
+- [KI-Instruktionen](/ai/ki-instruktionen)
+- [Datenschutz](/privacy)

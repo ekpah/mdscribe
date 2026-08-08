@@ -1,0 +1,66 @@
+:root {
+  --mdscribe-background: #fdf6e3;
+  --mdscribe-surface: #eee8d5;
+  --mdscribe-border: #93a1a1;
+  --mdscribe-text: #586e75;
+  --mdscribe-heading: #073642;
+  --default-border-color: 147 161 161;
+}
+
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+  --mdscribe-background: #002b36;
+  --mdscribe-surface: #073642;
+  --mdscribe-border: #586e75;
+  --mdscribe-text: #93a1a1;
+  --mdscribe-heading: #fdf6e3;
+  --default-border-color: 88 110 117;
+}
+
+html,
+body,
+#background-color,
+#body-content {
+  background-color: var(--mdscribe-background) !important;
+}
+
+#navbar,
+#sidebar,
+#mobile-nav,
+#mobile-nav-content,
+#table-of-contents {
+  border-color: var(--mdscribe-border) !important;
+  background-color: var(--mdscribe-background) !important;
+}
+
+#search-bar-entry,
+#search-bar-entry-mobile,
+#content-area .card,
+#pagination a {
+  border-color: var(--mdscribe-border) !important;
+  background-color: var(--mdscribe-surface) !important;
+}
+
+#content-area,
+.mdx-content {
+  color: var(--mdscribe-text);
+}
+
+#page-title,
+#content-area h2,
+#content-area h3,
+#content-area h4,
+#content-area h5,
+#content-area h6,
+#content-area strong {
+  color: var(--mdscribe-heading) !important;
+}
+
+#sidebar-content li:not([data-active]) a,
+#table-of-contents a {
+  color: var(--mdscribe-text);
+}

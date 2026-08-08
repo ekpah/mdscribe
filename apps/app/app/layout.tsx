@@ -43,7 +43,8 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 				<meta content="strict-origin" name="referrer" />
 
 				<link href="/favicon.ico" rel="shortcut icon" />
-				<link href="/favicon.ico" rel="icon" />
+        <link href="/favicon.ico" rel="icon" />
+				<script defer src="https://cloud.umami.is/script.js" data-website-id="8cfcabe5-4485-4904-95ba-95a39e09e2dd" />
 			</head>
 			<body className="items-center bg-background font-sans text-foreground">
 				<NuqsAdapter>

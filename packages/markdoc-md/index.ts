@@ -2,7 +2,12 @@ export {
 	analyzeMarkdocTemplate,
 	default as parseMarkdocToInputs,
 } from "./parse/parse-markdoc-to-inputs";
-export type { MarkdocTemplateAnalysis } from "./parse/parse-markdoc-to-inputs";
+export type {
+	InfoInputTagType,
+	InputTagType,
+	MarkdocTemplateAnalysis,
+	SwitchInputTagType,
+} from "./parse/parse-markdoc-to-inputs";
 export { validateMarkdocTagContracts } from "./parse/validate-markdoc-tag-contracts";
 export type {
 	MarkdocContractAttribute,
@@ -11,10 +16,12 @@ export type {
 } from "./parse/validate-markdoc-tag-contracts";
 export { DynamicMarkdocRenderer } from "./render/components/dynamic-markdoc-renderer";
 export { useVariables, VariableProvider } from "./render/context/variable-context";
-
-// Optionally, you could also export the lower-level functions if needed elsewhere
-// export { parseMarkdoc, renderMarkdocNode } from './renderNote';
-
-// You might also want to export your tag components or schemas if they
-// need to be imported directly by consuming applications.
-// export * from './markdoc-config/tags';
+export { inspectMarkdocSources, resolveMarkdocSources } from "./sources/resolve-markdoc-sources";
+export type {
+	InspectedMarkdocSource,
+	InspectedMarkdocSources,
+	MarkdocSourceContexts,
+	MarkdocSourceDiagnostic,
+	MarkdocSourceValue,
+	ResolvedMarkdocSources,
+} from "./sources/resolve-markdoc-sources";

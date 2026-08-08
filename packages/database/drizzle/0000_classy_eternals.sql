@@ -77,8 +77,7 @@ CREATE TABLE "Template" (
 	"category" text NOT NULL,
 	"content" text NOT NULL,
 	"authorId" text NOT NULL,
-	"updatedAt" timestamp (3) DEFAULT now() NOT NULL,
-	"embedding" vector(1024)
+	"updatedAt" timestamp (3) DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "TextSnippet" (

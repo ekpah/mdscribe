@@ -2,5 +2,16 @@
   "name": "docs",
   "version": "0.0.0",
   "license": "Elastic-2.0",
-  "private": true
+  "private": true,
+  "scripts": {
+    "check:links": "mint broken-links",
+    "dev": "mint dev --no-open --port 3333",
+    "validate": "mint validate"
+  },
+  "devDependencies": {
+    "mint": "^4.2.776"
+  },
+  "engines": {
+    "node": ">=20.17.0"
+  }
 }

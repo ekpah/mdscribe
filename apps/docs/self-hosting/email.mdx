@@ -1,0 +1,192 @@
+---
+title: E-Mail-Provider konfigurieren
+description: Einen SMTP-Provider oder internen Mail-Relay für MDScribe einrichten und testen
+---
+
+MDScribe versendet E-Mails über Standard-SMTP. Sie können deshalb einen
+externen Anbieter wie Postmark, Amazon SES, SendGrid, Microsoft 365 oder Google
+Workspace ebenso verwenden wie einen Mail-Relay in Ihrer eigenen Infrastruktur.
+Ein Wechsel des Anbieters erfordert nur neue Umgebungsvariablen und einen
+Neustart der Anwendung.
+
+## Funktionsweise
+
+| Versandart | SMTP-Verbindung | Beispiele |
+|---|---|---|
+| Transaktional | `MAIL_SMTP_URL` | Anmeldung, E-Mail-Verifizierung, Passwort-Reset und System-E-Mails |
+| Broadcast | `MAIL_BROADCAST_SMTP_URL`, falls gesetzt; sonst `MAIL_SMTP_URL` | Marketing- und Admin-Broadcasts |
+
+MDScribe weicht bei einem Fehler nicht automatisch auf einen externen Anbieter
+aus. Ist der konfigurierte Server nicht erreichbar oder lehnt er eine Nachricht
+ab, wird der Versandfehler sichtbar zurückgegeben.
+
+## Benötigte Angaben
+
+Halten Sie vor der Einrichtung folgende Informationen Ihres Providers oder
+Mail-Administrators bereit:
+
+| Angabe | Beschreibung |
+|---|---|
+| SMTP-Host | Vollständiger Hostname des Mailservers |
+| Port | Meist `587` für STARTTLS, `465` für implizites TLS oder ein intern festgelegter Relay-Port |
+| Verschlüsselung | STARTTLS oder implizites TLS |
+| Zugangsdaten | Benutzername und Passwort beziehungsweise ein SMTP-Token; bei einem internen Relay gegebenenfalls nicht erforderlich |
+| Absenderadresse | Vom Provider verifizierte oder vom Relay erlaubte Adresse |
+| Absendername | Sichtbarer Name, zum Beispiel `MDScribe` |
+
+## Umgebungsvariablen
+
+Setzen Sie in Ihrer Produktionsumgebung:
+
+| Variable | Erforderlich | Zweck |
+|---|---|---|
+| `MAIL_SMTP_URL` | Ja | SMTP-Verbindung für transaktionale und System-E-Mails |
+| `MAIL_FROM_ADDRESS` | Ja | Absenderadresse aller E-Mails |
+| `MAIL_FROM_NAME` | Ja | Sichtbarer Absendername |
+| `MAIL_BROADCAST_SMTP_URL` | Nein | Separate SMTP-Verbindung nur für Broadcasts |
+
+<Warning>
+  Speichern Sie SMTP-Passwörter und Tokens im Secret-Management Ihrer
+  Deployment-Plattform. Übernehmen Sie keine echten Zugangsdaten in Git,
+  Container-Images oder öffentlich sichtbare Build-Logs.
+</Warning>
+
+## SMTP-URL bilden
+
+### STARTTLS auf Port 587
+
+Verwenden Sie `smtp://` und fordern Sie die verschlüsselte Verbindung an:
+
+```dotenv
+MAIL_SMTP_URL="smtp://benutzer:passwort@smtp.example.org:587?requireTLS=true"
+MAIL_FROM_ADDRESS="noreply@example.org"
+MAIL_FROM_NAME="MDScribe"
+```
+
+### Implizites TLS auf Port 465
+
+Verwenden Sie für einen Provider mit implizitem TLS `smtps://`:
+
+```dotenv
+MAIL_SMTP_URL="smtps://benutzer:passwort@smtp.example.org:465"
+MAIL_FROM_ADDRESS="noreply@example.org"
+MAIL_FROM_NAME="MDScribe"
+```
+
+### Interner Relay ohne Authentifizierung
+
+Akzeptiert der Relay Nachrichten aus dem Anwendungsnetz ohne SMTP-Login, lassen
+Sie Benutzername und Passwort weg:
+
+```dotenv
+MAIL_SMTP_URL="smtp://mail.intern.example.org:25?requireTLS=true"
+MAIL_FROM_ADDRESS="mdscribe@intern.example.org"
+MAIL_FROM_NAME="MDScribe"
+```
+
+Sonderzeichen in Benutzername oder Passwort müssen URL-kodiert sein. Aus
+`p@ss:w/rd` wird beispielsweise `p%40ss%3Aw%2Frd`.
+
+## Postmark einrichten
+
+### Transaktionale E-Mails
+
+1. Öffnen Sie in Postmark den verwendeten Server.
+2. Kopieren Sie unter **API Tokens** den **Server API Token**. Verwenden Sie
+   nicht den Account API Token.
+3. Setzen Sie denselben Server API Token als SMTP-Benutzername und
+   SMTP-Passwort ein.
+4. Hinterlegen Sie eine in Postmark verifizierte Absenderadresse oder Domain.
+
+```dotenv
+MAIL_SMTP_URL="smtp://SERVER_API_TOKEN:SERVER_API_TOKEN@smtp.postmarkapp.com:587?requireTLS=true"
+MAIL_FROM_ADDRESS="noreply@example.org"
+MAIL_FROM_NAME="MDScribe"
+```
+
+Postmark unterstützt für SMTP die Ports `25`, `2525` und `587` mit STARTTLS,
+nicht aber Port `465`. Port `587` ist die übliche Wahl.
+
+### Separater Broadcast-Stream
+
+Ein [Postmark Broadcast Message Stream](https://postmarkapp.com/support/article/how-to-create-and-send-through-message-streams)
+kann Marketing-E-Mails von transaktionalen Nachrichten trennen:
+
+1. Öffnen Sie den Broadcast Message Stream in Postmark.
+2. Erzeugen Sie in dessen Einstellungen ein SMTP-Token.
+3. Verwenden Sie den angezeigten Access Key als Benutzernamen und den Secret
+   Key als Passwort.
+
+```dotenv
+MAIL_BROADCAST_SMTP_URL="smtp://ACCESS_KEY:SECRET_KEY@smtp-broadcasts.postmarkapp.com:587?requireTLS=true"
+```
+
+Wenn Sie keinen getrennten Broadcast-Stream benötigen, lassen Sie
+`MAIL_BROADCAST_SMTP_URL` ungesetzt. Broadcasts verwenden dann ebenfalls
+`MAIL_SMTP_URL`.
+
+Weitere Details finden Sie in der
+[Postmark-Dokumentation zu SMTP-Zugangsdaten](https://postmarkapp.com/support/article/811-what-are-the-smtp-details-api-tokens-i-should-be-using).
+
+## Internen Mail-Relay betreiben
+
+Für einen On-Premises-Relay sollten Sie zusätzlich sicherstellen, dass:
+
+- der Container oder Anwendungsserver den SMTP-Host per DNS auflösen und den
+  freigegebenen Port erreichen kann,
+- der Relay nur Nachrichten aus dem vorgesehenen Netz oder von authentifizierten
+  Clients akzeptiert,
+- Absenderadresse und Absenderdomain für MDScribe freigegeben sind,
+- ausgehende Zustellung, Warteschlange und Unzustellbarkeiten überwacht werden,
+- das Zertifikat auf den SMTP-Host ausgestellt und für die Runtime vertrauenswürdig
+  ist.
+
+Lassen Sie die Zertifikatsprüfung in Produktion aktiviert. Bei einer internen
+Zertifizierungsstelle installieren Sie deren CA-Zertifikat im Container oder in
+der Runtime, anstatt die TLS-Prüfung zu deaktivieren.
+
+## Konfiguration testen
+
+Starten Sie MDScribe nach einer Änderung der Umgebungsvariablen neu und prüfen
+Sie anschließend mindestens:
+
+1. eine E-Mail-Verifizierung bei der Anmeldung,
+2. einen Passwort-Reset,
+3. eine Admin-Test-E-Mail,
+4. bei gesetztem `MAIL_BROADCAST_SMTP_URL` zusätzlich einen Test-Broadcast.
+
+Kontrollieren Sie neben der Oberfläche auch die Anwendungs- und Mailserver-Logs.
+Ein syntaktisch gültiger SMTP-URL garantiert noch nicht, dass Netzwerkzugriff,
+Authentifizierung und Absenderfreigabe funktionieren.
+
+## Zustellbarkeit absichern
+
+Autorisieren Sie die Absenderdomain entsprechend den Vorgaben Ihres Providers
+mit SPF und DKIM. Ergänzen Sie eine passende DMARC-Richtlinie und überwachen Sie
+deren Berichte. Beim Betrieb eines eigenen ausgehenden Mailservers sind außerdem
+korrektes Reverse DNS und eine gepflegte IP-Reputation wichtig.
+
+## Provider wechseln
+
+1. Verifizieren Sie Absenderadresse oder Domain beim neuen Provider.
+2. Ersetzen Sie `MAIL_SMTP_URL` und bei Bedarf `MAIL_BROADCAST_SMTP_URL`.
+3. Passen Sie `MAIL_FROM_ADDRESS` und `MAIL_FROM_NAME` an, falls nötig.
+4. Starten Sie die Anwendung neu und führen Sie die Versandtests erneut durch.
+
+Es ist keine Code- oder Datenbankmigration erforderlich. Lassen Sie die alten
+Zugangsdaten erst auslaufen, nachdem die Tests mit dem neuen Provider erfolgreich
+waren.
+
+## Fehlersuche
+
+| Symptom | Prüfen |
+|---|---|
+| Anwendung lehnt die Konfiguration ab | Vollständiger URL mit `smtp://` oder `smtps://`, gültige Absenderadresse und alle Pflichtvariablen |
+| Authentifizierung schlägt fehl | SMTP- statt Account-Zugangsdaten, URL-kodierte Sonderzeichen und nicht abgelaufenes Token |
+| Verbindung läuft in einen Timeout | DNS, Firewall, ausgehende Netzwerkregeln, SMTP-Host und Port |
+| TLS- oder Zertifikatsfehler | Hostname des Zertifikats, Zertifikatskette und installierte interne CA |
+| Absender wird abgelehnt | Verifizierte Domain, erlaubte Absenderadresse und Relay-Richtlinien |
+| Transaktionale E-Mails funktionieren, Broadcasts nicht | Broadcast-Host und -Token; alternativ `MAIL_BROADCAST_SMTP_URL` entfernen, um die primäre Verbindung zu verwenden |
+
+Die vollständige Produktionskonfiguration finden Sie unter
+[Self-Hosting](/self-hosting).

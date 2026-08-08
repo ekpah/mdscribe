@@ -14,11 +14,14 @@ import {
 	GitCompareArrows,
 	Hash,
 	Loader2,
+	Medal,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import type { PlaygroundResult } from "@/app/admin/playground/_lib/types";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 const formatCost = (cost: number | undefined): string => {
 	if (cost === undefined || cost === null) {
@@ -72,7 +75,63 @@ interface ResultDisplayProps {
 	result: PlaygroundResult | null;
 	compact?: boolean;
 	onCompare?: () => void;
+	onEvaluate?: () => void;
 }
+
+const renderEvaluationAction = (
+	result: PlaygroundResult,
+	onEvaluate: (() => void) | undefined,
+) => {
+	if (!onEvaluate) {
+		return null;
+	}
+
+	const isDisabled = result.isStreaming || !result.text;
+	if (!result.evaluation) {
+		return (
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				className="h-5 gap-1 px-1 text-solarized-base01 text-xs hover:text-solarized-base00"
+				disabled={isDisabled || result.isEvaluating}
+				onClick={onEvaluate}
+			>
+				{result.isEvaluating ? (
+					<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
+				) : (
+					<Medal className="h-3 w-3 text-solarized-yellow" />
+				)}
+				{USER_MESSAGES.playgroundEvaluation.action}
+			</Button>
+		);
+	}
+
+	return (
+		<EvaluationDetailsDialog
+			canRegenerate={!isDisabled && !result.isEvaluating}
+			evaluation={result.evaluation}
+			isRegenerating={result.isEvaluating}
+			onRegenerate={onEvaluate}
+			trigger={
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					aria-label={USER_MESSAGES.playgroundEvaluation.showDetails}
+					className="h-5 gap-1 px-1 font-mono text-solarized-base00 text-xs"
+				>
+					{result.isEvaluating ? (
+						<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
+					) : (
+						<Medal className="h-3 w-3 text-solarized-yellow" />
+					)}
+					{result.evaluation.totalScore} / {result.evaluation.maxScore}
+				</Button>
+			}
+		/>
+	);
+};
 
 const renderComparisonAction = (result: PlaygroundResult, onCompare: (() => void) | undefined) => {
 	if (!onCompare) {
@@ -137,7 +196,12 @@ const ComparisonResult = ({ comparison }: { comparison: NonNullable<PlaygroundRe
 	);
 };
 
-export const ResultDisplay = ({ result, compact: _compact, onCompare }: ResultDisplayProps) => {
+export const ResultDisplay = ({
+	result,
+	compact: _compact,
+	onCompare,
+	onEvaluate,
+}: ResultDisplayProps) => {
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = useCallback(async () => {
@@ -204,6 +268,7 @@ export const ResultDisplay = ({ result, compact: _compact, onCompare }: ResultDi
 						{formatTokenBreakdown(result.metrics)}
 					</span>
 					{renderComparisonAction(result, onCompare)}
+					{renderEvaluationAction(result, onEvaluate)}
 				</div>
 				<Button
 					type="button"

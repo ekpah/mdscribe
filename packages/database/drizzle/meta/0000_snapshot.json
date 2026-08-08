@@ -536,12 +536,6 @@
 					"primaryKey": false,
 					"notNull": true,
 					"default": "now()"
-				},
-				"embedding": {
-					"name": "embedding",
-					"type": "vector(1024)",
-					"primaryKey": false,
-					"notNull": false
 				}
 			},
 			"indexes": {},

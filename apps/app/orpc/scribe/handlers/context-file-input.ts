@@ -149,9 +149,11 @@ export const extractContextFileText = async ({
 		},
 		isOpenRouter: modelSelection.model.isOpenRouter,
 		metadata: {
+			credentialSource: modelSelection.model.credentialSource,
 			endpoint: promptName,
 			promptLabel: promptName,
 			promptName,
+			providerProtocol: modelSelection.model.providerProtocol,
 			slot: modelSelection.slot,
 			strategy,
 		},

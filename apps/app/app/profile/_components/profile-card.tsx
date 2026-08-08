@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { unwrapAuthClientResult } from "@/lib/auth-client-result";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 const PROFILE_UPDATE_ERROR =
@@ -117,11 +118,9 @@ export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps)
 					name: data.name.trim(),
 					...(usernameChanged ? { username: nextUsername } : {}),
 				});
-				if (result.error) {
-					throw result.error;
-				}
+				const updatedUser = unwrapAuthClientResult(result);
 				router.refresh();
-				return result.data;
+				return updatedUser;
 			};
 
 			toast.promise(runUpdate(), {

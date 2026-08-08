@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { ParameterControls } from "@/app/admin/playground/_components/parameter-controls";
 import { isScribeDocType, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { PlaygroundModel, PlaygroundParameters } from "@/app/admin/playground/_lib/types";
+import { isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 import { orpc } from "@/lib/orpc";
 import { buildSelectedTemplateReference } from "@/orpc/scribe/context/template/compose";
 import { PROMPT_HARNESS_OPTIONS, resolvePromptHarnessId } from "@/orpc/scribe/prompts";
@@ -1006,7 +1007,19 @@ const ComparisonRunCell = ({
 				status: "error",
 			});
 		},
-		onFinish: ({ message, messages: finishedMessages }) => {
+		onFinish: ({ finishReason, isAbort, isError, message, messages: finishedMessages }) => {
+			if (!isSuccessfulChatFinish({ finishReason, isAbort, isError })) {
+				const errorWasAlreadyHandled = runStartedAtRef.current === null;
+				runStartedAtRef.current = null;
+				if (!isAbort && !errorWasAlreadyHandled) {
+					publishResult({
+						error: "Die Generierung wurde nicht erfolgreich abgeschlossen.",
+						status: "error",
+					});
+				}
+				return;
+			}
+
 			const startedAt = runStartedAtRef.current;
 			const latencyMs = startedAt === null ? 0 : Math.max(0, Date.now() - startedAt);
 			runStartedAtRef.current = null;
@@ -2019,6 +2032,7 @@ export const ModelComparisonPageClient = () => {
 				buildSelectedTemplateReference({
 					content: template.content,
 					examples: template.examples ?? [],
+					information: template.information,
 					title: template.title,
 				}),
 			);
