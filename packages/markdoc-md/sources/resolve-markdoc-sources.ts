@@ -10,7 +10,7 @@ const FHIR_SOURCE_PREFIX = "fhir://";
 
 export type MarkdocSourceValue = boolean | number | string;
 
-export type MarkdocSourceDiagnosticCode =
+type MarkdocSourceDiagnosticCode =
 	| "evaluation-error"
 	| "invalid-source"
 	| "invalid-template"

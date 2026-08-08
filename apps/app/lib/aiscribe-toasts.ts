@@ -10,8 +10,6 @@ export const isSuccessfulChatFinish = (input: {
 	input.finishReason !== "error" &&
 	input.finishReason !== "content-filter";
 
-export const isSuccessfulAiscribeFinish = isSuccessfulChatFinish;
-
 export const hasLessThanTenPercentUsageRemaining = (
 	monthlyUsagePercentage: number,
 ) => monthlyUsagePercentage > 90;

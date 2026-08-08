@@ -9,7 +9,7 @@ export const DASHBOARD_AI_FUNCTION_KEYS = [
 
 export type DashboardAiFunctionKey = (typeof DASHBOARD_AI_FUNCTION_KEYS)[number];
 
-export const DASHBOARD_AI_FUNCTION_USAGE_ENDPOINTS: Record<
+const DASHBOARD_AI_FUNCTION_USAGE_ENDPOINTS: Record<
 	DashboardAiFunctionKey,
 	readonly string[]
 > = {

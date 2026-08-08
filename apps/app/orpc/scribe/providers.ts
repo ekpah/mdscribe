@@ -53,13 +53,13 @@ export const normalizeOpenRouterRoutingMode = (
 		? (value as OpenRouterRoutingMode)
 		: "default";
 
-export interface TranscribeAudioInput {
+interface TranscribeAudioInput {
 	data: Buffer;
 	filename: string;
 	mediaType: string;
 }
 
-export interface TranscribeAudioResult {
+interface TranscribeAudioResult {
 	providerMetadata?: Record<string, unknown>;
 	text: string;
 	usage?: unknown;

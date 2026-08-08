@@ -204,7 +204,7 @@ const summarizeContextFilesForUsage = (contextFiles: FillInputsContextFile[]) =>
 /**
  * Scribe input type - uses UIMessage[] for AI SDK useChat compatibility
  */
-export interface BuiltInScribeStreamInput {
+interface BuiltInScribeStreamInput {
 	documentType: DocumentType;
 	messages: UIMessage[];
 	audioFiles?: AudioFile[];
@@ -212,7 +212,7 @@ export interface BuiltInScribeStreamInput {
 	source?: "documentType";
 }
 
-export interface CustomFormScribeStreamInput {
+interface CustomFormScribeStreamInput {
 	formId: string;
 	messages: UIMessage[];
 	audioFiles?: AudioFile[];

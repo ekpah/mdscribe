@@ -1,5 +1,6 @@
 import { Separator } from '@repo/design-system/components/ui/separator';
 import Link from 'next/link';
+
 export default function Footer() {
   const date = new Date().getFullYear();
   return (

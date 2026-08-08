@@ -59,7 +59,7 @@ export interface PlaygroundParameters {
 	presencePenalty?: number;
 }
 
-export interface PlaygroundEvaluation {
+interface PlaygroundEvaluation {
 	categories: {
 		comment?: string;
 		name: string;

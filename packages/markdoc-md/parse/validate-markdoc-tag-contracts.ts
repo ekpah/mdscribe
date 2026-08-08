@@ -2,8 +2,8 @@ import type { Location, Node } from "@markdoc/markdoc";
 import * as Markdoc from "@markdoc/markdoc";
 
 export type MarkdocContractAttribute = "description" | "formula" | "source" | "type" | "unit";
-export type MarkdocInputTagKind = "info" | "switch";
-export type MarkdocValidatedTagKind = MarkdocInputTagKind | "score";
+type MarkdocInputTagKind = "info" | "switch";
+type MarkdocValidatedTagKind = MarkdocInputTagKind | "score";
 
 export interface MarkdocSettingConflict {
 	attribute: MarkdocContractAttribute;

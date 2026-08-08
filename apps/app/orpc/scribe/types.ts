@@ -39,7 +39,7 @@ export interface FillInputsContextFile {
 /**
  * Reusable clinical text context for input autofill
  */
-export interface FillInputsTextContext {
+interface FillInputsTextContext {
 	anamnese?: string;
 	befunde?: string;
 	diagnoseblock?: string;

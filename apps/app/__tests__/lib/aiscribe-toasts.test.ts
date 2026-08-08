@@ -2,14 +2,13 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	hasLessThanTenPercentUsageRemaining,
-	isSuccessfulAiscribeFinish,
 	isSuccessfulChatFinish,
 } from "@/lib/aiscribe-toasts";
 
 describe("AI Scribe toast decisions", () => {
 	test("shows success only for a completed generation", () => {
 		expect(
-			isSuccessfulAiscribeFinish({
+			isSuccessfulChatFinish({
 				finishReason: "stop",
 				isAbort: false,
 				isError: false,
@@ -19,7 +18,7 @@ describe("AI Scribe toast decisions", () => {
 
 	test("does not show success after a stream error", () => {
 		expect(
-			isSuccessfulAiscribeFinish({
+			isSuccessfulChatFinish({
 				finishReason: undefined,
 				isAbort: false,
 				isError: true,
@@ -33,7 +32,7 @@ describe("AI Scribe toast decisions", () => {
 			}),
 		).toBe(false);
 		expect(
-			isSuccessfulAiscribeFinish({
+			isSuccessfulChatFinish({
 				finishReason: "error",
 				isAbort: false,
 				isError: false,
@@ -43,14 +42,14 @@ describe("AI Scribe toast decisions", () => {
 
 	test("does not show success after an abort or content filter", () => {
 		expect(
-			isSuccessfulAiscribeFinish({
+			isSuccessfulChatFinish({
 				finishReason: "stop",
 				isAbort: true,
 				isError: false,
 			}),
 		).toBe(false);
 		expect(
-			isSuccessfulAiscribeFinish({
+			isSuccessfulChatFinish({
 				finishReason: "content-filter",
 				isAbort: false,
 				isError: false,

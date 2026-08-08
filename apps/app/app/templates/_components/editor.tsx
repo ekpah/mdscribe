@@ -2,7 +2,6 @@
 
 import PlainEditor from "@repo/design-system/components/editor/plain-editor";
 import type { TagInspectorEditor } from "@repo/design-system/components/editor/tag-inspector/tag-inspector";
-import { Alert, AlertDescription } from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import { Input } from "@repo/design-system/components/ui/input";

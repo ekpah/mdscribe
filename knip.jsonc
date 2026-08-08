@@ -1,8 +1,8 @@
 {
-	"$schema": "https://unpkg.com/knip@5/schema-jsonc.json",
+	"$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
 	"ignoreIssues": {
 		"packages/design-system/styles/globals.css": ["unresolved"],
-		"packages/typescript-config/nextjs.json": ["unresolved"]
+		"packages/typescript-config/nextjs.json": ["unresolved"],
 	},
 	"workspaces": {
 		"apps/app": {
@@ -11,15 +11,29 @@
 				// These entries only cover Bun test discovery that Knip cannot infer.
 				"__tests__/setup.ts",
 				"__tests__/{lib,orpc}/**/*.test.ts",
+				"app/**/*.test.ts",
 				// Standalone offline CLIs run via `bun run`, not imported anywhere.
-				"scripts/*.ts"
-			]
+				"scripts/*.ts",
+			],
 		},
 		"apps/email": {
 			"entry": [
 				// Keep package/plugin entries; add React Email template discovery.
-				"emails/**/*.tsx"
-			]
-		}
-	}
+				"emails/**/*.tsx",
+			],
+			// React Email 6.9 no longer has the @react-email/ui runtime dependency
+			// that Knip 6's plugin assumes. Entries are declared above instead.
+			"ignoreDependencies": ["@react-email/ui"],
+			"react-email": false,
+		},
+		"packages/database": {
+			// Static analysis does not need to execute the environment-gated
+			// Drizzle CLI config; package entrypoints already reach the schema.
+			"drizzle": false,
+			"ignoreFiles": ["drizzle.config.ts"],
+		},
+		"packages/markdoc-md": {
+			"entry": ["**/*.test.ts"],
+		},
+	},
 }

@@ -1,4 +1,4 @@
-export interface EvaluationPromptTemplate {
+interface EvaluationPromptTemplate {
 	content: string;
 	information?: string;
 	source: "built-in" | "selected";
