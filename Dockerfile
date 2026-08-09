@@ -1,5 +1,5 @@
 # ---- Base ----
-FROM oven/bun:1.2.23-slim AS base
+FROM oven/bun:1.3.14-slim AS base
 
 # ---- Pruner ----
 FROM base AS pruner
