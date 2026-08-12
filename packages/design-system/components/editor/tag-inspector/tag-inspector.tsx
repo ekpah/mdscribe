@@ -59,11 +59,25 @@ export const TagPanelBody = ({
 		case "caseTag":
 			return <CaseTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
 		case "infoTag":
-			return <InfoTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
+			return (
+				<InfoTagPanel
+					editor={editor}
+					node={selectedTag.node}
+					pos={selectedTag.pos}
+					selectPrimary={selectedTag.selectPrimary}
+				/>
+			);
 		case "scoreTag":
 			return <ScoreTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
 		case "switchTag":
-			return <SwitchTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
+			return (
+				<SwitchTagPanel
+					editor={editor}
+					node={selectedTag.node}
+					pos={selectedTag.pos}
+					selectPrimary={selectedTag.selectPrimary}
+				/>
+			);
 		default:
 			return null;
 	}

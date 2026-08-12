@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { getPrimaryFromSelection } from "@repo/design-system/components/editor/_lib/get-primary-from-selection";
+import {
+	FOCUS_INSERTED_TAG_PRIMARY_META,
+	selectInsertedInlineTag,
+} from "@repo/design-system/components/editor/_lib/select-inserted-inline-tag";
+import { Schema } from "@tiptap/pm/model";
+import type { Transaction } from "@tiptap/pm/state";
+import { EditorState, NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 type SelectionState = Parameters<typeof getPrimaryFromSelection>[0];
 
@@ -68,5 +75,36 @@ describe("Markdoc tag insertion primary", () => {
 		});
 
 		expect(getPrimaryFromSelection(state)).toBeNull();
+	});
+});
+
+describe("inserted Markdoc tag selection", () => {
+	test("requests primary input focus when selecting the inserted inline tag", () => {
+		const schema = new Schema({
+			nodes: {
+				doc: { content: "inline*" },
+				infoTag: { atom: true, group: "inline", inline: true },
+				text: { group: "inline" },
+			},
+		});
+		const doc = schema.node("doc", null, [schema.text("selected text"), schema.node("infoTag")]);
+		const state = EditorState.create({
+			doc,
+			schema,
+			selection: TextSelection.create(doc, doc.content.size),
+		});
+		const dispatchedTransactions: Transaction[] = [];
+
+		selectInsertedInlineTag({
+			dispatch: (transaction) => {
+				dispatchedTransactions.push(transaction);
+			},
+			tr: state.tr,
+		});
+
+		const [transaction] = dispatchedTransactions;
+		expect(transaction).toBeDefined();
+		expect(transaction?.selection).toBeInstanceOf(NodeSelection);
+		expect(transaction?.getMeta(FOCUS_INSERTED_TAG_PRIMARY_META)).toBe(true);
 	});
 });

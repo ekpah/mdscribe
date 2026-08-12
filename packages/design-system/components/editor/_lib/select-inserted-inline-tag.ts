@@ -1,6 +1,8 @@
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import type { Transaction } from "@tiptap/pm/state";
 
+export const FOCUS_INSERTED_TAG_PRIMARY_META = "focusInsertedTagPrimary";
+
 /**
  * After `insertContent` of an inline atom tag, the caret sits right behind the
  * new node. Select that node instead so the tag inspector opens with it.
@@ -21,7 +23,12 @@ export const selectInsertedInlineTag = ({
 
 	if (nodeBefore?.isAtom && nodeBefore.isInline) {
 		const nodePos = $from.pos - nodeBefore.nodeSize;
-		dispatch(tr.setSelection(NodeSelection.create(tr.doc, nodePos)).scrollIntoView());
+		dispatch(
+			tr
+				.setMeta(FOCUS_INSERTED_TAG_PRIMARY_META, true)
+				.setSelection(NodeSelection.create(tr.doc, nodePos))
+				.scrollIntoView(),
+		);
 		return true;
 	}
 

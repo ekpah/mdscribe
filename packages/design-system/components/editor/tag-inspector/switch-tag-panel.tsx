@@ -8,7 +8,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import { Code2, Plus, Trash2 } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
 	SwitchCase,
@@ -27,11 +27,14 @@ export const SwitchTagPanel = ({
 	editor,
 	node,
 	pos,
+	selectPrimary,
 }: {
 	editor: Editor;
 	node: ProseMirrorNode;
 	pos: number;
+	selectPrimary: boolean;
 }) => {
+	const primaryInputRef = useRef<HTMLInputElement>(null);
 	const [newCase, setNewCase] = useState({ primary: "", text: "" });
 
 	const rawCases = Array.isArray(node.attrs.cases) ? (node.attrs.cases as SwitchCase[]) : EMPTY_CASES;
@@ -41,6 +44,21 @@ export const SwitchTagPanel = ({
 		() => (isBooleanSwitch ? normalizeBooleanSwitchCases(rawCases) : rawCases),
 		[isBooleanSwitch, rawCases],
 	);
+
+	useEffect(() => {
+		if (!selectPrimary) {
+			return;
+		}
+
+		const animationFrame = requestAnimationFrame(() => {
+			primaryInputRef.current?.focus();
+			primaryInputRef.current?.select();
+		});
+
+		return () => {
+			cancelAnimationFrame(animationFrame);
+		};
+	}, [selectPrimary]);
 
 	useEffect(() => {
 		if (isBooleanSwitch && !hasBooleanSwitchCaseShape(rawCases)) {
@@ -171,6 +189,7 @@ export const SwitchTagPanel = ({
 					id="switch-tag-primary"
 					onChange={handlePrimaryChange}
 					placeholder="z.B. patiententyp, zustand"
+					ref={primaryInputRef}
 					value={node.attrs.primary || ""}
 				/>
 			</div>

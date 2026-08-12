@@ -1,5 +1,6 @@
 "use client";
 
+import { FOCUS_INSERTED_TAG_PRIMARY_META } from "@repo/design-system/components/editor/_lib/select-inserted-inline-tag";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
 import { NodeSelection } from "@tiptap/pm/state";
@@ -17,6 +18,8 @@ export interface SelectedMarkdocTag {
 	 * the text cursor sits inside the tag content (case tags only).
 	 */
 	via: "content" | "node";
+	/** Select the primary input when this tag was just inserted from the toolbar. */
+	selectPrimary: boolean;
 }
 
 const MARKDOC_TAG_NODE_NAMES: readonly string[] = [
@@ -29,13 +32,19 @@ const MARKDOC_TAG_NODE_NAMES: readonly string[] = [
 const asMarkdocTagKind = (name: string): MarkdocTagKind | null =>
 	MARKDOC_TAG_NODE_NAMES.includes(name) ? (name as MarkdocTagKind) : null;
 
-const readSelectedTag = (editor: Editor): SelectedMarkdocTag | null => {
+const readSelectedTag = (editor: Editor, selectPrimary = false): SelectedMarkdocTag | null => {
 	const { selection } = editor.state;
 
 	if (selection instanceof NodeSelection) {
 		const kind = asMarkdocTagKind(selection.node.type.name);
 		if (kind) {
-			return { kind, node: selection.node, pos: selection.from, via: "node" };
+			return {
+				kind,
+				node: selection.node,
+				pos: selection.from,
+				selectPrimary,
+				via: "node",
+			};
 		}
 	}
 
@@ -44,7 +53,13 @@ const readSelectedTag = (editor: Editor): SelectedMarkdocTag | null => {
 	for (let depth = $from.depth; depth > 0; depth -= 1) {
 		const node = $from.node(depth);
 		if (node.type.name === "caseTag") {
-			return { kind: "caseTag", node, pos: $from.before(depth), via: "content" };
+			return {
+				kind: "caseTag",
+				node,
+				pos: $from.before(depth),
+				selectPrimary,
+				via: "content",
+			};
 		}
 	}
 
@@ -76,9 +91,20 @@ export const useSelectedMarkdocTag = (
 				return;
 			}
 
-			const liveTag = readSelectedTag(editor);
+			const requestsPrimarySelection =
+				transaction.getMeta(FOCUS_INSERTED_TAG_PRIMARY_META) === true;
+			const liveTag = readSelectedTag(editor, requestsPrimarySelection);
 			if (liveTag) {
-				setSelectedTag(liveTag);
+				setSelectedTag((previous) => ({
+					...liveTag,
+					selectPrimary:
+						requestsPrimarySelection ||
+						Boolean(
+							previous?.selectPrimary &&
+							previous.kind === liveTag.kind &&
+							transaction.mapping.map(previous.pos) === liveTag.pos,
+						),
+				}));
 				return;
 			}
 
@@ -91,7 +117,13 @@ export const useSelectedMarkdocTag = (
 				const mappedPos = transaction.mapping.map(previous.pos);
 				const node = editor.state.doc.nodeAt(mappedPos);
 				if (node && node.type.name === previous.kind) {
-					return { kind: previous.kind, node, pos: mappedPos, via: previous.via };
+					return {
+						kind: previous.kind,
+						node,
+						pos: mappedPos,
+						selectPrimary: false,
+						via: previous.via,
+					};
 				}
 				return null;
 			});

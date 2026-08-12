@@ -12,7 +12,7 @@ import {
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import type { ChangeEvent } from "react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { updateMarkdocTagAttributes } from "./use-selected-markdoc-tag";
 
@@ -29,11 +29,30 @@ export const InfoTagPanel = ({
 	editor,
 	node,
 	pos,
+	selectPrimary,
 }: {
 	editor: Editor;
 	node: ProseMirrorNode;
 	pos: number;
+	selectPrimary: boolean;
 }) => {
+	const primaryInputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (!selectPrimary) {
+			return;
+		}
+
+		const animationFrame = requestAnimationFrame(() => {
+			primaryInputRef.current?.focus();
+			primaryInputRef.current?.select();
+		});
+
+		return () => {
+			cancelAnimationFrame(animationFrame);
+		};
+	}, [selectPrimary]);
+
 	const handlePrimaryChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
 			updateMarkdocTagAttributes(editor, pos, { primary: event.target.value });
@@ -75,6 +94,7 @@ export const InfoTagPanel = ({
 					id="info-tag-primary"
 					onChange={handlePrimaryChange}
 					placeholder="z.B. patientenname, alter"
+					ref={primaryInputRef}
 					value={node.attrs.primary || ""}
 				/>
 			</div>
