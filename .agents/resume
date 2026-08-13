@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if ! command -v pg_lsclusters >/dev/null 2>&1 || ! command -v pg_isready >/dev/null 2>&1; then
+	echo "PostgreSQL tools are unavailable; skipping readiness check."
+	exit 0
+fi
+
 echo "Checking PostgreSQL..."
 while read -r version cluster _ status _; do
 	if [[ "${status}" != "online" ]]; then

@@ -6,8 +6,8 @@ Thank you for your interest in contributing to MDScribe! This guide will help yo
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) 1.2.23
-- Node.js 24
+- [Bun](https://bun.sh/) (v1.2+)
+- Node.js 18+
 - Git
 
 ### Getting Started
@@ -63,41 +63,12 @@ MDScribe is a monorepo managed with Bun workspaces and Turborepo:
 |---------|-------------|
 | `bun dev` | Start development server |
 | `bun run build` | Build all packages |
-| `bun run format` | Format the repository with Oxfmt |
-| `bun run format:check` | Check formatting without changing files |
 | `bun run lint` | Lint all packages (Ultracite/OXC) |
-| `bun run typecheck` | Generate Next.js route types and typecheck all packages |
 | `bun run test` | Run tests |
 | `bun run knip` | Check for unused dependencies |
 | `bun run db:up` | Start local PostgreSQL container |
 | `bun run db:down` | Stop local PostgreSQL container |
 | `bun run db:init` | Re-run schema + idempotent seed |
-
-## Database Migrations
-
-Migration SQL lives in `packages/database/drizzle`, and Drizzle applies files listed in
-`packages/database/drizzle/meta/_journal.json`. The checked-in snapshots currently describe only
-migrations 0000 and 0001; migrations 0002 onward were maintained manually. **Do not run
-`drizzle-kit generate` until the snapshot metadata has been reconciled.** It may generate an
-incorrect migration from stale metadata.
-
-Until that reconciliation is complete, use this workflow for schema changes:
-
-1. Update `packages/database/schema.ts`.
-2. Add the next zero-padded migration SQL file under `packages/database/drizzle` by hand. Make the
-   SQL safe for the supported upgrade state and use `--> statement-breakpoint` between statements
-   where required by Drizzle.
-3. Add the matching entry to `packages/database/drizzle/meta/_journal.json`, with the next `idx`, a
-   unique increasing `when` value, and a `tag` exactly matching the SQL filename without `.sql`.
-4. Validate an empty database by creating a disposable database, pointing
-   `POSTGRES_DATABASE_URL` at it, and running `bun run db:migrate`.
-5. Validate an upgrade by restoring or copying a representative pre-change database, recording its
-   existing Drizzle migration history, then running `bun run db:migrate` against that disposable
-   copy. Verify both the resulting schema/data and that a second migration run is a no-op.
-6. Run the database and app typechecks plus representative DB-backed tests before submitting.
-
-Never perform migration validation against a shared, production, or otherwise non-disposable
-database. Snapshot reconciliation is intentionally a separate task.
 
 ## Branching Strategy
 
