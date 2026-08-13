@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   lint-and-unit:
-    name: Lint + Knip + Unit Tests
+    name: Format + Lint + Types + Knip + Unit Tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -52,8 +52,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Lint affected packages
-        run: bun run lint:affected
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Lint packages
+        run: bun run lint
+
+      - name: Typecheck packages
+        run: bun run typecheck
 
       - name: Run knip
         run: bun run knip
@@ -92,8 +98,7 @@ jobs:
             echo
             echo '| Check | Result |'
             echo '| --- | --- |'
-            echo "| Lint + Knip + Unit Tests (`bun run lint:affected`, `bun run knip`, `bun run test:affected`) | $(to_emoji "$lint_status") |"
-            echo "| Playwright E2E (`bunx playwright test`) | $(to_emoji "$e2e_status") |"
+            echo "| Format + Lint + Types + Knip + Unit Tests | $(to_emoji "$lint_status") |"
             echo
             echo "Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo 'EOF'

@@ -18,6 +18,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "format": "bun --bun oxfmt",
+    "format:check": "bun --bun oxfmt --check",
     "lint": "turbo run lint",
     "lint:affected": "turbo run lint --affected",
     "test": "turbo run test",
@@ -40,12 +42,12 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^26.1.2",
+    "@types/node": "catalog:",
     "knip": "^6.31.0",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
     "turbo": "^2.10.8",
-    "typescript": "^7.0.2",
+    "typescript": "catalog:",
     "ultracite": "^7.10.1"
   },
   "overrides": {
@@ -55,7 +57,7 @@
     "tar": "7.5.22"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=24 <25"
   },
   "packageManager": "bun@1.2.23",
   "catalog": {

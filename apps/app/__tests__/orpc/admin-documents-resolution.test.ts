@@ -233,7 +233,9 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const originalFetch = globalThis.fetch;
 		try {
 			globalThis.fetch = (() =>
-				Promise.resolve(Response.json({ text: "Direktes Admin-Transkript" }))) as typeof fetch;
+				Promise.resolve(
+					Response.json({ text: "Direktes Admin-Transkript" }),
+				)) as unknown as typeof fetch;
 
 			const audioFiles = [
 				{

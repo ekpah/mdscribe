@@ -15,7 +15,7 @@ const bootstrapDatabase = async (): Promise<void> => {
 		console.log("Ensuring pgvector extension...");
 		await database.$client.unsafe("CREATE EXTENSION IF NOT EXISTS vector");
 
-		const hasMigrationsTable = await hasTable("public.__drizzle_migrations");
+		const hasMigrationsTable = await hasTable("drizzle.__drizzle_migrations");
 		const hasUserTable = await hasTable('public."User"');
 
 		if (hasMigrationsTable || !hasUserTable) {

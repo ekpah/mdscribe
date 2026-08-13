@@ -16,6 +16,8 @@
     "**/dist/**",
     "**/build/**",
     "**/.source/**",
+    "**/*.md",
+    "**/*.mdx",
     "**/packages/design-system/components/ui/**",
     "**/packages/design-system/lib/**",
     "**/packages/design-system/hooks/**",
