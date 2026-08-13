@@ -8,25 +8,20 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
-import { FlaskConical, Loader2, Medal } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 import Link from "next/link";
 
-import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import {
 	buildPlaygroundUrl,
 	canOpenInPlayground,
 	formatDuration,
-	formatScore,
 	formatTokensPerSecond,
-	getUsageEvaluation,
 	UsageModelName,
 } from "@/app/admin/usage/columns";
 import type { UsageDetailEvent } from "@/app/admin/usage/types";
 
 interface UsageEventDetailProps {
 	event: UsageDetailEvent | null | undefined;
-	isEvaluating?: boolean;
-	onEvaluate?: (id: string) => void;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	toolPayload?: {
@@ -53,12 +48,15 @@ const PlaygroundLinkButton = ({
 	return (
 		<div className="mt-4">
 			<Button
-				variant="outline"
 				className="w-full gap-2 border-solarized-violet/30 bg-solarized-violet/10 text-solarized-violet hover:bg-solarized-violet/20"
-			 render={<Link href={buildPlaygroundUrl(event)}>
-					<FlaskConical className="h-4 w-4" />
-					Im Playground öffnen
-				</Link>} />
+				render={
+					<Link href={buildPlaygroundUrl(event)}>
+						<FlaskConical className="h-4 w-4" />
+						Im Playground öffnen
+					</Link>
+				}
+				variant="outline"
+			/>
 		</div>
 	);
 };
@@ -127,8 +125,6 @@ const formatDate = (date: Date | string) => {
 
 export const UsageEventDetail = ({
 	event,
-	isEvaluating = false,
-	onEvaluate,
 	open,
 	onOpenChange,
 	toolPayload,
@@ -155,8 +151,6 @@ export const UsageEventDetail = ({
 	}
 
 	const cost = event.cost ? Number(event.cost) : null;
-	const evaluation = getUsageEvaluation(event.metadata);
-	const canEvaluate = Boolean(onEvaluate && event.result && !isEvaluating);
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
@@ -209,44 +203,6 @@ export const UsageEventDetail = ({
 								<span className="font-mono text-sm text-solarized-base00">
 									{cost === null ? "-" : `$${cost.toFixed(6)}`}
 								</span>
-							</div>
-							<div className="flex items-center justify-between">
-								<span className="text-solarized-base01">Score</span>
-								{evaluation ? (
-									<EvaluationDetailsDialog
-										canRegenerate={canEvaluate}
-										evaluation={evaluation}
-										isRegenerating={isEvaluating}
-										onRegenerate={() => onEvaluate?.(event.id)}
-										trigger={
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												className="h-7 gap-1 px-2 font-mono text-sm text-solarized-base00"
-											>
-												<Medal className="h-3.5 w-3.5 text-solarized-yellow" />
-												{formatScore(evaluation.totalScore)}
-											</Button>
-										}
-									/>
-								) : (
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										disabled={!canEvaluate}
-										onClick={() => onEvaluate?.(event.id)}
-										className="h-7 gap-1 px-2 font-mono text-sm text-solarized-base00"
-									>
-										{isEvaluating ? (
-											<Loader2 className="h-3.5 w-3.5 animate-spin text-solarized-orange" />
-										) : (
-											<Medal className="h-3.5 w-3.5 text-solarized-yellow" />
-										)}
-											{isEvaluating ? "..." : formatScore()}
-									</Button>
-								)}
 							</div>
 						</div>
 					</section>

@@ -74,11 +74,11 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		expect(streamedChunkCount).toBeGreaterThanOrEqual(0);
 		await Bun.sleep(80);
 
-		const [playgroundEvent] = await server.db
+		const [legacyAdminEvent] = await server.db
 			.select()
 			.from(usageEvent)
 			.where(eq(usageEvent.name, "admin_scribe_playground"));
-		expect(playgroundEvent).toBeUndefined();
+		expect(legacyAdminEvent).toBeUndefined();
 	});
 
 	test("shared attachment flow adds audio and context file parts", async () => {
@@ -146,7 +146,7 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		);
 	});
 
-	test("admin.scribe.run accepts context files in the playground payload", async () => {
+	test("admin.scribe.run accepts context files in the comparison payload", async () => {
 		const result = await call(
 			scribeHandler.run,
 			{
@@ -182,11 +182,11 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		expect(typeof result[Symbol.asyncIterator]).toBe("function");
 	});
 
-	test("admin.scribe.run sends audio natively to the selected playground model", async () => {
+	test("admin.scribe.run sends audio natively to the selected comparison model", async () => {
 		const originalFetch = globalThis.fetch;
 		try {
 			globalThis.fetch = (() => {
-				throw new Error("Playground audio should not call transcription fetch");
+				throw new Error("Comparison audio should not call transcription fetch");
 			}) as unknown as typeof fetch;
 
 			const result = await call(
@@ -229,13 +229,11 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		}
 	});
 
-	test("admin audio playground does not log STT usage events", async () => {
+	test("admin audio model run does not log STT usage events", async () => {
 		const originalFetch = globalThis.fetch;
 		try {
 			globalThis.fetch = (() =>
-				Promise.resolve(
-					Response.json({ text: "Direktes Admin-Transkript" }),
-				)) as unknown as typeof fetch;
+				Promise.resolve(Response.json({ text: "Direktes Admin-Transkript" }))) as unknown as typeof fetch;
 
 			const audioFiles = [
 				{
@@ -377,12 +375,12 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		expect(logged?.model).toBe("openrouter/file-model");
 	});
 
-	test("documents.parseForm resolves explicit playground model selection", async () => {
+	test("documents.parseForm resolves an explicit model selection", async () => {
 		const selectedModelRecordId = crypto.randomUUID();
-		const selectedModelId = "openrouter/document-playground-model";
+		const selectedModelId = "openrouter/document-test-model";
 
 		await server.db.insert(aiModel).values({
-			displayName: "Document Playground Model",
+			displayName: "Document Test Model",
 			id: selectedModelRecordId,
 			modelId: selectedModelId,
 			providerId: seeded.providerId,

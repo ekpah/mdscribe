@@ -1,6 +1,6 @@
 "use client";
 import * as Markdoc from "@markdoc/markdoc";
-import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
+import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { Check, Copy } from "lucide-react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";

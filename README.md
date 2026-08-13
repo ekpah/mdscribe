@@ -19,26 +19,16 @@ See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnera
 
 ## License
 
-MDScribe is source-available software, licensed under the
-[Elastic License 2.0](LICENSE) (`Elastic-2.0`). In short:
-
-- You may read, use, modify, and self-host MDScribe freely — including
-  commercial internal use, for example running it for your own practice or
-  hospital, subject to the limits encoded in your license key (such as the
-  number of users).
-- You may not offer MDScribe to third parties as a hosted or managed service.
-- You may not move, change, disable, or circumvent the license-key
-  functionality.
-
-Paid plans for larger practices and hospitals are unlocked by a signed license
-key that is verified entirely offline (no phone-home), so air-gapped on-premise
-deployments are fully supported. Without a key, MDScribe runs in its free
-community configuration.
+MDScribe is open-source software licensed under the
+[Apache License 2.0](LICENSE) (`Apache-2.0`). You may use, modify, distribute,
+and self-host MDScribe, including for commercial purposes, subject to the
+license terms. The MDScribe name and branding are not granted by the software
+license.
 
 Third-party components incorporated into MDScribe remain under their original
-licenses. Versions of MDScribe published before this license change were made
-available under AGPL-3.0-or-later and remain available under that license; the
-Elastic License 2.0 applies going forward.
+licenses. Earlier releases remain available under the licenses that accompanied
+those releases. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for
+incorporated source, assets, and dependencies with attribution requirements.
 
 Our goal is to provide great software to doctors without the burden of
 classical B2B software.

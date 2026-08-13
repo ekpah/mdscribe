@@ -5,35 +5,15 @@ import { Button } from "@repo/design-system/components/ui/button";
 import { DataTableColumnHeader } from "@repo/design-system/components/ui/data-table";
 import { cn } from "@repo/design-system/lib/utils";
 import { createColumnHelper } from "@tanstack/react-table";
-import { ChevronRight, Loader2, Medal } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
-import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import { isScribeDocType } from "@/app/admin/playground/_lib/scribe-doc-types";
 import { AI_SCRIBE_GENERATION_EVENT_NAME } from "@/lib/usage-event-names";
 import { isByokUsageMetadata } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
-import type { DocumentType } from "@/orpc/scribe/types";
 
-import type { UsageEvaluation, UsageListEvent } from "./types";
-
-const inferDocumentType = (metadata: Record<string, unknown> | null): DocumentType | undefined => {
-	if (!metadata) {
-		return undefined;
-	}
-
-	const { endpoint } = metadata;
-	if (typeof endpoint === "string" && endpoint.trim().length > 0 && isScribeDocType(endpoint)) {
-		return endpoint;
-	}
-
-	const { promptName } = metadata;
-	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return resolvePromptHarnessId(promptName);
-	}
-
-	return undefined;
-};
+import type { UsageListEvent } from "./types";
 
 export const formatDate = (date: Date | string) => {
 	const dateObj = typeof date === "string" ? new Date(date) : date;
@@ -111,24 +91,6 @@ export const formatTokensPerSecond = (
 export const formatStatTokensPerSecond = (tokensPerSecond: number | null | undefined): string =>
 	formatTokensPerSecondValue(tokensPerSecond ?? null);
 
-export const getUsageEvaluation = (metadata: unknown): UsageEvaluation | null => {
-	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-		return null;
-	}
-	const evaluation = (metadata as Record<string, unknown>).usageEvaluation;
-	if (!evaluation || typeof evaluation !== "object" || Array.isArray(evaluation)) {
-		return null;
-	}
-	const { totalScore } = evaluation as Record<string, unknown>;
-	if (typeof totalScore !== "number" || !Number.isFinite(totalScore)) {
-		return null;
-	}
-	return evaluation as UsageEvaluation;
-};
-
-export const formatScore = (score?: number): string =>
-	score === undefined ? "-" : score.toFixed(1);
-
 export const UsageModelName = ({
 	className,
 	compact = false,
@@ -143,9 +105,7 @@ export const UsageModelName = ({
 	const modelLabel = compact ? model?.split("/").pop() : model;
 	return (
 		<span className={cn("flex min-w-0 items-center gap-1.5", className)}>
-			<span className="truncate font-mono text-solarized-base00">
-				{modelLabel || "-"}
-			</span>
+			<span className="truncate font-mono text-solarized-base00">{modelLabel || "-"}</span>
 			{isByokUsageMetadata(metadata) && (
 				<Badge className="shrink-0 border-solarized-violet/40 bg-solarized-violet/10 px-1.5 py-0 text-[10px] text-solarized-violet">
 					{USER_MESSAGES.byok.usageBadge}
@@ -200,7 +160,10 @@ const splitPromptLabel = (
 		const eventType = metadata?.agentEventType;
 		return {
 			prefixes,
-			value: typeof eventType === "string" && eventType.length > 0 ? formatPromptPart(eventType) : "chat",
+			value:
+				typeof eventType === "string" && eventType.length > 0
+					? formatPromptPart(eventType)
+					: "chat",
 		};
 	}
 
@@ -276,51 +239,48 @@ export const buildPlaygroundUrl = (event: UsageListEvent): string => {
 	}
 
 	const metadata = event.metadata as Record<string, unknown> | null;
-	const documentType = inferDocumentType(metadata);
+	const endpoint = metadata?.endpoint;
+	const promptName = metadata?.promptName;
+	let documentType: string | undefined;
+	if (typeof endpoint === "string" && isScribeDocType(endpoint)) {
+		documentType = endpoint;
+	} else if (typeof promptName === "string") {
+		documentType = resolvePromptHarnessId(promptName);
+	}
 	if (documentType) {
 		params.set("documentType", documentType);
 	}
 
-	if (metadata) {
-		const modelConfig = metadata.modelConfig as Record<string, unknown> | undefined;
-		if (modelConfig?.temperature !== undefined) {
-			params.set("temperature", String(modelConfig.temperature));
-		}
-		if (modelConfig?.maxTokens !== undefined) {
-			params.set("maxTokens", String(modelConfig.maxTokens));
-		}
-		const reasoningEffortSource =
-			typeof modelConfig?.reasoningEffort === "string"
-				? modelConfig.reasoningEffort
-				: metadata.reasoningEffort;
-		const reasoningEffort =
-			typeof reasoningEffortSource === "string" ? reasoningEffortSource : undefined;
-		if ((reasoningEffort && reasoningEffort !== "none") || metadata.thinkingEnabled) {
-			params.set("thinking", "true");
-			if (reasoningEffort) {
-				params.set("reasoningEffort", reasoningEffort);
+	const modelConfig = metadata?.modelConfig;
+	if (modelConfig && typeof modelConfig === "object" && !Array.isArray(modelConfig)) {
+		const config = modelConfig as Record<string, unknown>;
+		for (const key of ["maxTokens", "temperature"] as const) {
+			const value = config[key];
+			if (typeof value === "number" && Number.isFinite(value)) {
+				params.set(key, String(value));
 			}
 		}
+		if (typeof config.thinking === "boolean") {
+			params.set("thinking", String(config.thinking));
+		}
+	}
+
+	const reasoningEffort = metadata?.reasoningEffort;
+	if (typeof reasoningEffort === "string") {
+		params.set("reasoningEffort", reasoningEffort);
 	}
 
 	return `/admin/playground?${params.toString()}`;
 };
 
-export const canOpenInPlayground = (
-	event: Pick<UsageListEvent, "name" | "rowKind">,
-): boolean => {
+export const canOpenInPlayground = (event: Pick<UsageListEvent, "name" | "rowKind">): boolean => {
 	const rowKind = event.rowKind ?? "event";
 	return event.name === AI_SCRIBE_GENERATION_EVENT_NAME && rowKind === "event";
 };
 
 const columnHelper = createColumnHelper<UsageListEvent>();
 
-interface CreateColumnsOptions {
-	evaluatingEventId?: string;
-	onEvaluate?: (id: string) => void;
-}
-
-export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOptions = {}) => [
+export const createColumns = () => [
 	columnHelper.accessor("timestamp", {
 		cell: (info) => {
 			const { row } = info;
@@ -345,7 +305,9 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 					) : (
 						<span className="size-6 shrink-0" />
 					)}
-					<span className="whitespace-nowrap text-xs sm:text-sm">{formatDate(info.getValue())}</span>
+					<span className="whitespace-nowrap text-xs sm:text-sm">
+						{formatDate(info.getValue())}
+					</span>
 				</div>
 			);
 		},
@@ -391,9 +353,7 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 			const isTool = info.row.original.rowKind === "tool";
 			return (
 				<Badge
-					variant={
-						info.row.original.rowKind === "observation" || isTool ? "secondary" : "outline"
-					}
+					variant={info.row.original.rowKind === "observation" || isTool ? "secondary" : "outline"}
 					className={cn(
 						"hidden whitespace-nowrap sm:inline-flex",
 						isTrace && "border-solarized-green/50 bg-solarized-green/10 text-solarized-green",
@@ -418,21 +378,29 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 			const sectionId = getToolSectionId(metadata);
 			if (info.row.original.rowKind === "tool") {
 				return (
-					<Badge variant="secondary" className="hidden max-w-[190px] font-mono text-xs lg:inline-flex">
+					<Badge
+						variant="secondary"
+						className="hidden max-w-[190px] font-mono text-xs lg:inline-flex"
+					>
 						{getToolPromptLabel(info.row.original.name, sectionId)}
 					</Badge>
 				);
 			}
 			if (info.row.original.rowKind === "observation") {
 				return sectionId ? (
-					<Badge variant="secondary" className="hidden max-w-[190px] font-mono text-xs lg:inline-flex">
+					<Badge
+						variant="secondary"
+						className="hidden max-w-[190px] font-mono text-xs lg:inline-flex"
+					>
 						Abschnitt: {sectionId}
 					</Badge>
 				) : (
 					<span className="hidden font-mono text-xs text-solarized-base01 lg:inline">-</span>
 				);
 			}
-			return <UsagePromptBadge metadata={metadata} className="hidden max-w-[190px] lg:inline-flex" />;
+			return (
+				<UsagePromptBadge metadata={metadata} className="hidden max-w-[190px] lg:inline-flex" />
+			);
 		},
 		enableSorting: false,
 		header: () => <span className="hidden lg:inline">Prompt</span>,
@@ -496,64 +464,5 @@ export const createColumns = ({ evaluatingEventId, onEvaluate }: CreateColumnsOp
 		enableSorting: false,
 		header: ({ column }) => <DataTableColumnHeader column={column} title="Kosten" />,
 		id: "cost",
-	}),
-	columnHelper.accessor("metadata", {
-		cell: (info) => {
-			const evaluation = getUsageEvaluation(info.getValue());
-			const event = info.row.original;
-			// Tool calls and plain observations are not evaluatable generations.
-			if (event.rowKind === "tool" || event.rowKind === "observation") {
-				return null;
-			}
-			const isEvaluating = evaluatingEventId === event.id;
-			const canEvaluate = Boolean(onEvaluate && !isEvaluating);
-
-			if (!evaluation || evaluation.categories.length === 0) {
-				return (
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						disabled={!canEvaluate}
-						onClick={(event_) => {
-							event_.stopPropagation();
-							onEvaluate?.(event.id);
-						}}
-						className="h-6 gap-1 px-1 font-mono text-xs text-solarized-base00"
-					>
-						{isEvaluating ? (
-							<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-						) : (
-							<Medal className="h-3 w-3 text-solarized-yellow" />
-						)}
-						{isEvaluating ? "..." : "-"}
-					</Button>
-				);
-			}
-
-			return (
-				<EvaluationDetailsDialog
-					canRegenerate={canEvaluate}
-					evaluation={evaluation}
-					isRegenerating={isEvaluating}
-					onRegenerate={() => onEvaluate?.(event.id)}
-					trigger={
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={(event_) => event_.stopPropagation()}
-							className="h-6 gap-1 px-1 font-mono text-xs text-solarized-base00"
-						>
-							<Medal className="h-3 w-3 text-solarized-yellow" />
-							{formatScore(evaluation.totalScore)}
-						</Button>
-					}
-				/>
-			);
-		},
-		enableSorting: false,
-		header: "Score",
-		id: "score",
 	}),
 ];

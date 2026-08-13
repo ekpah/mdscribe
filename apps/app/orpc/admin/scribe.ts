@@ -1,5 +1,5 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
-import { generateObject, streamText } from "ai";
+import { streamText } from "ai";
 import type { ModelMessage } from "ai";
 import { z } from "zod";
 
@@ -13,8 +13,6 @@ import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { composeScribeContext } from "@/orpc/scribe/context";
-import { parseSelectedTemplateReference } from "@/orpc/scribe/context/template";
-import { resolveFallbackTemplateByContextKey } from "@/orpc/scribe/context/template/fallbacks";
 import {
 	prepareAudioInputForModel,
 	transcribeAudioFilesWithPrompt,
@@ -30,20 +28,9 @@ import {
 	composeDocumentTypePrompt,
 	documentTypeConfigs,
 	getDocumentTypeByPromptName,
-	getPromptHarnessLabel,
 	getPromptHarnessReferences,
-	getPromptHarnessTargetField,
 	PROMPT_HARNESS_OPTIONS,
-	resolvePromptHarnessId,
 } from "@/orpc/scribe/prompts";
-import {
-	buildResponseComparisonPrompt,
-	buildUsageEventEvaluationPrompt,
-	PDQI_9_CATEGORY_NAMES,
-	RESPONSE_COMPARISON_SYSTEM_PROMPT,
-	USAGE_EVENT_EVALUATION_SYSTEM_PROMPT,
-} from "@/orpc/scribe/prompts/core/evaluation";
-import type { EvaluationPromptContext } from "@/orpc/scribe/prompts/core/evaluation";
 import {
 	buildProviderOptions,
 	resolveDefaultModel,
@@ -76,7 +63,7 @@ const parsePromptJson = (promptJson?: string): Record<string, unknown> => {
 	}
 };
 
-interface PlaygroundRunMetrics {
+interface AdminRunMetrics {
 	cost?: number;
 	inputTokens?: number;
 	outputTokens?: number;
@@ -323,7 +310,7 @@ const runHandler = authed
 			userId: context.session.user.id,
 		});
 
-		let latestMetrics: PlaygroundRunMetrics = {};
+		let latestMetrics: AdminRunMetrics = {};
 		const result = streamText({
 			frequencyPenalty: parsed.parameters.frequencyPenalty,
 			maxOutputTokens: parsed.parameters.maxTokens,
@@ -369,7 +356,7 @@ const runHandler = authed
 						return;
 					}
 
-					const metadata: PlaygroundRunMetrics = {};
+					const metadata: AdminRunMetrics = {};
 
 					const { cost } = latestMetrics;
 					if (cost !== undefined) {
@@ -486,202 +473,8 @@ const transcribeAudioHandler = authed
 		};
 	});
 
-const evaluateResponseInput = z.object({
-	documentType: z.string(),
-	inputs: z.record(z.string(), z.unknown()),
-	promptName: z.string().optional(),
-	response: z.string().trim().min(1),
-});
-
-const responseEvaluationSchema = z.object({
-	categories: z
-		.array(
-			z.object({
-				comment: z.string(),
-				name: z.enum(PDQI_9_CATEGORY_NAMES),
-				score: z.number().int().min(1).max(5),
-			}),
-		)
-		.length(9),
-	summary: z.string(),
-});
-
-const resolvePlaygroundEvaluationPromptContext = ({
-	documentType,
-	inputs,
-	promptName,
-}: z.infer<typeof evaluateResponseInput>): EvaluationPromptContext | undefined => {
-	const promptReference = promptName ?? documentType;
-	const harnessId =
-		resolvePromptHarnessId(promptReference) ?? resolvePromptHarnessId(documentType);
-	if (!harnessId) {
-		return undefined;
-	}
-
-	const templateReference =
-		typeof inputs.relevantTemplate === "string" && inputs.relevantTemplate.trim().length > 0
-			? inputs.relevantTemplate
-			: undefined;
-	const selectedTemplate = templateReference
-		? parseSelectedTemplateReference(templateReference)
-		: undefined;
-	const fallbackTemplate = selectedTemplate
-		? undefined
-		: resolveFallbackTemplateByContextKey(harnessId);
-	const promptTemplate = selectedTemplate ?? fallbackTemplate;
-
-	return {
-		harnessId,
-		harnessInstructions: documentTypeConfigs[harnessId].systemPrompt,
-		promptLabel: getPromptHarnessLabel(harnessId),
-		targetField: getPromptHarnessTargetField(harnessId),
-		template: promptTemplate
-			? {
-					content: promptTemplate.content,
-					information: promptTemplate.information,
-					source: selectedTemplate ? "selected" : "built-in",
-					title: promptTemplate.title,
-				}
-			: undefined,
-	};
-};
-
-const evaluateResponseHandler = authed
-	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof evaluateResponseInput>>())
-	.handler(async ({ context, input }) => {
-		const parsed = evaluateResponseInput.parse(input);
-		const evaluationSelection = await resolveDefaultModel(context.db, "evaluation").catch(
-			(error: unknown) => {
-				const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
-				});
-			},
-		);
-
-		let evaluation;
-		try {
-			evaluation = await generateObject({
-				model: evaluationSelection.model.model,
-				prompt: buildUsageEventEvaluationPrompt({
-					documentType: parsed.documentType,
-					inputs: parsed.inputs,
-					promptContext: resolvePlaygroundEvaluationPromptContext(parsed),
-					response: parsed.response,
-				}),
-				providerOptions: buildProviderOptions({
-					model: evaluationSelection.model,
-					reasoningEffort: evaluationSelection.reasoningEffort,
-					userId: context.session.user.id,
-				}),
-				schema: responseEvaluationSchema,
-				system: USAGE_EVENT_EVALUATION_SYSTEM_PROMPT,
-				temperature: evaluationSelection.defaultTemperature ?? undefined,
-			});
-		} catch (error) {
-			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Bewertung konnte nicht erzeugt werden: Das Modell hat keine gültige Struktur zurückgegeben. ${error.message}`,
-				});
-			}
-			const details = error instanceof Error ? error.message : USER_MESSAGES.evaluationFailed;
-			throw new ORPCError("INTERNAL", {
-				message: `Bewertung fehlgeschlagen: ${details}`,
-			});
-		}
-
-		const categories = evaluation.object.categories.map((category, index) => ({
-			comment: category.comment,
-			name: PDQI_9_CATEGORY_NAMES[index] ?? category.name,
-			score: category.score,
-		}));
-
-		return {
-			categories,
-			evaluatedAt: new Date().toISOString(),
-			instrument: "PDQI-9" as const,
-			maxScore: 45,
-			summary: evaluation.object.summary,
-			totalScore: categories.reduce((total, category) => total + category.score, 0),
-		};
-	});
-
-const comparisonSideSchema = z.enum(["a", "b"]);
-
-const evaluateComparisonInput = z.object({
-	documentType: z.string(),
-	inputs: z.unknown(),
-	responses: z.object({
-		a: z.string().min(1),
-		b: z.string().min(1),
-	}),
-});
-
-const evaluateComparisonOutputSchema = z.object({
-	note: z.string().min(1),
-	preferredResponse: comparisonSideSchema,
-});
-
-const evaluateComparisonHandler = authed
-	.use(requiredAdminMiddleware)
-	.input(type<z.infer<typeof evaluateComparisonInput>>())
-	.handler(async ({ context, input }) => {
-		const parsed = evaluateComparisonInput.safeParse(input);
-
-		if (!parsed.success) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: `Ungültige Vergleichsbewertung: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
-			});
-		}
-
-		const evaluationSelection = await resolveDefaultModel(context.db, "evaluation").catch(
-			(error: unknown) => {
-				const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
-				});
-			},
-		);
-
-		let comparison;
-		try {
-			comparison = await generateObject({
-				model: evaluationSelection.model.model,
-				prompt: buildResponseComparisonPrompt(parsed.data),
-				providerOptions: buildProviderOptions({
-					model: evaluationSelection.model,
-					reasoningEffort: evaluationSelection.reasoningEffort,
-					userId: context.session.user.id,
-				}),
-				schema: evaluateComparisonOutputSchema,
-				system: RESPONSE_COMPARISON_SYSTEM_PROMPT,
-				temperature: evaluationSelection.defaultTemperature ?? undefined,
-			});
-		} catch (error) {
-			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Vergleichsbewertung konnte nicht erzeugt werden: Das Modell hat keine gültige Struktur zurückgegeben. ${error.message}`,
-				});
-			}
-			const details = error instanceof Error ? error.message : USER_MESSAGES.evaluationFailed;
-			throw new ORPCError("INTERNAL", {
-				message: `Vergleichsbewertung fehlgeschlagen: ${details}`,
-			});
-		}
-
-		const note = comparison.object.note.trim();
-
-		return {
-			note: note.length > 240 ? `${note.slice(0, 237)}...` : note,
-			preferredResponse: comparison.object.preferredResponse,
-		};
-	});
-
 export const scribeHandler = {
 	compilePrompt: compilePromptHandler,
-	evaluateComparison: evaluateComparisonHandler,
-	evaluateResponse: evaluateResponseHandler,
 	prompts: {
 		get: authed
 			.use(requiredAdminMiddleware)

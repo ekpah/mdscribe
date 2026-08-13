@@ -14,29 +14,23 @@ import type { DataTableRenderToolbarProps } from "@repo/design-system/components
 import { Input } from "@repo/design-system/components/ui/input";
 import { SearchableSelect } from "@repo/design-system/components/ui/searchable-select";
 import { cn } from "@repo/design-system/lib/utils";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Activity, Loader2, Medal, XCircle } from "lucide-react";
-import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, Loader2, XCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 
-import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 import { UsageEventDetail } from "./_components/usage-event-detail";
 import { UsageTrendChart } from "./_components/usage-trend-chart-dynamic";
 import {
-	buildPlaygroundUrl,
-	canOpenInPlayground,
 	createColumns,
 	formatCost,
 	formatDate,
 	formatDuration,
 	getToolSectionId,
-	getUsageEvaluation,
-	formatScore,
 	formatStatTokensPerSecond,
 	formatTokensPerSecond,
 	UsagePromptBadge,
@@ -44,8 +38,6 @@ import {
 } from "./columns";
 import type {
 	StatsFilter,
-	UsageDetailEvent,
-	UsageEvaluation,
 	UsageListEvent,
 	UsageTrendMetric,
 } from "./types";
@@ -431,16 +423,10 @@ const UsageStatsCard = ({
 );
 
 const UsageMobileCards = ({
-	evaluatingEventId,
-	isEvaluating,
 	items,
-	onEvaluate,
 	onSelectById,
 }: {
-	evaluatingEventId?: string;
-	isEvaluating: boolean;
 	items: UsageListEvent[];
-	onEvaluate: (id: string) => void;
 	onSelectById: Record<string, () => void>;
 }) => (
 	<div className="space-y-3 md:hidden">
@@ -451,9 +437,6 @@ const UsageMobileCards = ({
 		) : (
 			items.map((item) => {
 				const promptMetadata = item.metadata as Record<string, unknown> | null;
-				const evaluation = getUsageEvaluation(item.metadata);
-				const isEvaluatingItem = isEvaluating && evaluatingEventId === item.id;
-				const canUsePlayground = canOpenInPlayground(item);
 
 				return (
 					<div
@@ -507,53 +490,12 @@ const UsageMobileCards = ({
 									{formatTokensPerSecond(item, item.timeToCompletionMs)}
 								</p>
 							</div>
-							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
-								<p className="text-solarized-base01">Score</p>
-								{evaluation ? (
-									<EvaluationDetailsDialog
-										canRegenerate={!isEvaluatingItem}
-										evaluation={evaluation}
-										isRegenerating={isEvaluatingItem}
-										onRegenerate={() => onEvaluate(item.id)}
-										trigger={
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												className="h-6 gap-1 px-0 font-mono text-xs text-solarized-base00"
-											>
-												<Medal className="h-3 w-3 text-solarized-yellow" />
-												{formatScore(evaluation.totalScore)}
-											</Button>
-										}
-									/>
-								) : (
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										disabled={isEvaluatingItem}
-										onClick={() => onEvaluate(item.id)}
-										className="h-6 gap-1 px-0 font-mono text-xs text-solarized-base00"
-									>
-										{isEvaluatingItem ? (
-											<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-										) : (
-											<Medal className="h-3 w-3 text-solarized-yellow" />
-										)}
-										{isEvaluatingItem ? "..." : "-"}
-									</Button>
-								)}
-							</div>
 						</div>
 
 						<div className="mt-3 flex flex-col gap-2">
 							<Button variant="outline" onClick={onSelectById[item.id]} className="w-full">
 								Details anzeigen
 							</Button>
-							{canUsePlayground ? (
-								<Button className="w-full" variant="secondary" render={<Link href={buildPlaygroundUrl(item)}>Im Playground öffnen</Link>} />
-							) : null}
 						</div>
 					</div>
 				);
@@ -564,13 +506,10 @@ const UsageMobileCards = ({
 
 const UsageEventsCard = ({
 	columns,
-	evaluatingEventId,
 	filters,
 	filteredItems,
 	hasMore,
-	isEvaluating,
 	isFetchingList,
-	onEvaluate,
 	onFiltersChange,
 	onLoadMore,
 	onRowClick,
@@ -582,13 +521,10 @@ const UsageEventsCard = ({
 	users,
 }: {
 	columns: ReturnType<typeof createColumns>;
-	evaluatingEventId?: string;
 	filters: UsageFilters;
 	filteredItems: UsageListEvent[];
 	hasMore?: boolean;
-	isEvaluating: boolean;
 	isFetchingList: boolean;
-	onEvaluate: (id: string) => void;
 	onFiltersChange: (filters: UsageFilters) => void;
 	onLoadMore: () => void;
 	onRowClick: (
@@ -623,10 +559,7 @@ const UsageEventsCard = ({
 					onChange={onSearchFilterChange}
 				/>
 				<UsageMobileCards
-					evaluatingEventId={evaluatingEventId}
-					isEvaluating={isEvaluating}
 					items={filteredItems}
-					onEvaluate={onEvaluate}
 					onSelectById={onSelectById}
 				/>
 			</div>
@@ -873,53 +806,6 @@ const buildTraceRows = ({
 	});
 };
 
-const getMetadataRecord = (metadata: unknown): Record<string, unknown> => {
-	if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
-		return metadata as Record<string, unknown>;
-	}
-	return {};
-};
-
-const applyUsageEvaluationToItems = (
-	items: UsageListEvent[],
-	eventId: string,
-	evaluation: UsageEvaluation,
-) =>
-	items.map((item) => {
-		if (item.id !== eventId) {
-			return item;
-		}
-		return {
-			...item,
-			metadata: {
-				...getMetadataRecord(item.metadata),
-				usageEvaluation: evaluation,
-			},
-		};
-	});
-
-const resolveSelectedEventWithEvaluation = (
-	selectedEvent: UsageDetailEvent | null | undefined,
-	evaluationByEventId: Record<string, UsageEvaluation>,
-): UsageDetailEvent | null | undefined => {
-	if (!selectedEvent) {
-		return selectedEvent;
-	}
-
-	const evaluation = evaluationByEventId[selectedEvent.id];
-	if (!evaluation) {
-		return selectedEvent;
-	}
-
-	return {
-		...selectedEvent,
-		metadata: {
-			...getMetadataRecord(selectedEvent.metadata),
-			usageEvaluation: evaluation,
-		},
-	};
-};
-
 const filterUsageItems = (items: UsageListEvent[], searchFilter: string) => {
 	const search = searchFilter.trim().toLowerCase();
 	if (!search) {
@@ -990,9 +876,6 @@ const useUsageEventsState = (filters: UsageFilters, statsFilter: StatsFilter, ti
 	const [allItems, setAllItems] = useState<UsageListEvent[]>([]);
 	const [allTraceEvents, setAllTraceEvents] = useState<UsageListEvent[]>([]);
 	const [allTraces, setAllTraces] = useState<UsageTracePayload[]>([]);
-	const [evaluationByEventId, setEvaluationByEventId] = useState<Record<string, UsageEvaluation>>(
-		{},
-	);
 	const [searchFilter, setSearchFilter] = useState("");
 	const {
 		data,
@@ -1049,30 +932,11 @@ const useUsageEventsState = (filters: UsageFilters, statsFilter: StatsFilter, ti
 		enabled: !!selectedEventId,
 	});
 
-	const evaluateMutation = useMutation(
-		orpc.admin.usage.evaluate.mutationOptions({
-			onSuccess: (evaluation, variables) => {
-				const eventId = variables.id;
-				setEvaluationByEventId((current) => ({
-					...current,
-					[eventId]: evaluation,
-				}));
-				setAllItems((current) => applyUsageEvaluationToItems(current, eventId, evaluation));
-			},
-		}),
-	);
-
 	const handleLoadMore = useCallback(() => {
 		if (data?.nextCursor) {
 			setCursor(data.nextCursor);
 		}
 	}, [data?.nextCursor]);
-	const handleEvaluateEvent = useCallback(
-		(id: string) => {
-			evaluateMutation.mutate({ id });
-		},
-		[evaluateMutation],
-	);
 	const handleRowClick = useCallback(
 		(
 			row: UsageListEvent,
@@ -1112,14 +976,7 @@ const useUsageEventsState = (filters: UsageFilters, statsFilter: StatsFilter, ti
 			setSelectedToolPayload(null);
 		}
 	}, []);
-	const columns = useMemo(
-		() =>
-			createColumns({
-				evaluatingEventId: evaluateMutation.isPending ? evaluateMutation.variables?.id : undefined,
-				onEvaluate: handleEvaluateEvent,
-			}),
-		[evaluateMutation.isPending, evaluateMutation.variables?.id, handleEvaluateEvent],
-	);
+	const columns = useMemo(() => createColumns(), []);
 	const renderUsageToolbar = useCallback(
 		(table: DataTableRenderToolbarProps<UsageListEvent>["table"]) => (
 			<UsageToolbar
@@ -1129,10 +986,6 @@ const useUsageEventsState = (filters: UsageFilters, statsFilter: StatsFilter, ti
 			/>
 		),
 		[handleSearchFilterChange, searchFilter],
-	);
-	const selectedEventWithEvaluation = useMemo(
-		() => resolveSelectedEventWithEvaluation(selectedEvent, evaluationByEventId),
-		[evaluationByEventId, selectedEvent],
 	);
 	const filteredItems = useMemo(
 		() =>
@@ -1164,10 +1017,8 @@ const useUsageEventsState = (filters: UsageFilters, statsFilter: StatsFilter, ti
 		data,
 		error,
 		errorMessage: getUsageErrorMessage(error),
-		evaluateMutation,
 		filteredItems,
 		handleDetailOpenChange,
-		handleEvaluateEvent,
 		handleEventSelectionById,
 		handleLoadMore,
 		handleRowClick,
@@ -1176,8 +1027,8 @@ const useUsageEventsState = (filters: UsageFilters, statsFilter: StatsFilter, ti
 		isLoading,
 		renderUsageToolbar,
 		searchFilter,
+		selectedEvent,
 		selectedEventId,
-		selectedEventWithEvaluation,
 		selectedToolPayload,
 	};
 };
@@ -1247,13 +1098,10 @@ export default function UsagePage() {
 
 				<UsageEventsCard
 					columns={eventsState.columns}
-					evaluatingEventId={eventsState.evaluateMutation.variables?.id}
 					filters={filters}
 					filteredItems={eventsState.filteredItems}
 					hasMore={eventsState.data?.hasMore}
-					isEvaluating={eventsState.evaluateMutation.isPending}
 					isFetchingList={eventsState.isFetchingList}
-					onEvaluate={eventsState.handleEvaluateEvent}
 					onFiltersChange={setFilters}
 					onLoadMore={eventsState.handleLoadMore}
 					onRowClick={eventsState.handleRowClick}
@@ -1267,12 +1115,7 @@ export default function UsagePage() {
 			</div>
 
 			<UsageEventDetail
-				event={eventsState.selectedEventWithEvaluation}
-				isEvaluating={
-					eventsState.evaluateMutation.isPending &&
-					eventsState.evaluateMutation.variables?.id === eventsState.selectedEventId
-				}
-				onEvaluate={eventsState.handleEvaluateEvent}
+				event={eventsState.selectedEvent}
 				open={!!eventsState.selectedEventId || !!eventsState.selectedToolPayload}
 				onOpenChange={eventsState.handleDetailOpenChange}
 				toolPayload={eventsState.selectedToolPayload}

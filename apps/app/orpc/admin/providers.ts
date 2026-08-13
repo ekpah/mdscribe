@@ -807,9 +807,6 @@ const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect>
 		defaultAgentSupportsAudio: d.defaultAgentSupportsAudio ?? false,
 		defaultAgentSupportsDocuments: d.defaultAgentSupportsDocuments ?? false,
 		defaultAgentTemperature: d.defaultAgentTemperature ?? null,
-		defaultEvaluationModel: d.defaultEvaluationModel ?? null,
-		defaultEvaluationReasoningEffort: normalizeReasoningEffort(d.defaultEvaluationReasoningEffort),
-		defaultEvaluationTemperature: d.defaultEvaluationTemperature ?? null,
 		defaultFileImageMode: normalizeMediaMode(d.defaultFileImageMode, "multimodal"),
 		defaultFileImageModelId: d.defaultFileImageModelId ?? null,
 		defaultFileImageReasoningEffort: normalizeReasoningEffort(d.defaultFileImageReasoningEffort),
@@ -842,7 +839,6 @@ const DEFAULT_MODEL_SLOTS = [
 	"text",
 	"file-image",
 	"speech-to-text",
-	"evaluation",
 ] as const satisfies readonly DefaultModelSlot[];
 
 const REASONING_EFFORT_VALUES = [
@@ -875,9 +871,6 @@ const buildAiDefaultsDraft = (
 		defaultAgentSupportsAudio: c.defaultAgentSupportsAudio ?? false,
 		defaultAgentSupportsDocuments: c.defaultAgentSupportsDocuments ?? false,
 		defaultAgentTemperature: c.defaultAgentTemperature ?? null,
-		defaultEvaluationModel: c.defaultEvaluationModel ?? null,
-		defaultEvaluationReasoningEffort: normalizeReasoningEffort(c.defaultEvaluationReasoningEffort),
-		defaultEvaluationTemperature: c.defaultEvaluationTemperature ?? null,
 		defaultFileImageMode: normalizeMediaMode(c.defaultFileImageMode, "multimodal"),
 		defaultFileImageModelId: c.defaultFileImageModelId ?? null,
 		defaultFileImageReasoningEffort: normalizeReasoningEffort(c.defaultFileImageReasoningEffort),
@@ -913,9 +906,6 @@ const persistAiDefaultsDraft = async (
 					defaultAgentSupportsAudio: next.defaultAgentSupportsAudio,
 					defaultAgentSupportsDocuments: next.defaultAgentSupportsDocuments,
 					defaultAgentTemperature: next.defaultAgentTemperature,
-					defaultEvaluationModel: next.defaultEvaluationModel,
-					defaultEvaluationReasoningEffort: next.defaultEvaluationReasoningEffort,
-					defaultEvaluationTemperature: next.defaultEvaluationTemperature,
 					defaultFileImageMode: next.defaultFileImageMode,
 					defaultFileImageModelId: next.defaultFileImageModelId,
 					defaultFileImageReasoningEffort: next.defaultFileImageReasoningEffort,
@@ -957,16 +947,6 @@ const applyDefaultSelection = (next: AiDefaultsDraft, parsed: z.infer<typeof set
 			}
 			if (nextTemperature !== undefined) {
 				next.defaultTextTemperature = nextTemperature;
-			}
-			break;
-		}
-		case "evaluation": {
-			next.defaultEvaluationModel = parsed.modelId;
-			if (nextReasoningEffort !== undefined) {
-				next.defaultEvaluationReasoningEffort = nextReasoningEffort;
-			}
-			if (nextTemperature !== undefined) {
-				next.defaultEvaluationTemperature = nextTemperature;
 			}
 			break;
 		}

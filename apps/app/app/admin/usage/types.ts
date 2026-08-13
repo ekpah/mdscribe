@@ -36,19 +36,6 @@ export interface UsageDetailEvent extends UsageListEvent {
 	result: string | null;
 }
 
-export interface UsageEvaluation {
-	categories: {
-		comment?: string;
-		name: string;
-		score: number;
-	}[];
-	evaluatedAt: string;
-	instrument?: string;
-	maxScore?: number;
-	summary: string;
-	totalScore: number;
-}
-
 export type StatsFilter = "today" | "week" | "month" | "all";
 
 export type UsageTrendMetric =

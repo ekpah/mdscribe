@@ -11,8 +11,7 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@repo/design-system/components/ui/toggle-group";
 import { cn } from "@repo/design-system/lib/utils";
-import { toBooleanValue } from "@repo/markdoc-md/parse/boolean-coercion";
-import type { SwitchInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import { toBooleanValue, type SwitchInputTagType } from "markdoc-md/parse";
 import { useCallback } from "react";
 
 import { SuggestionBadge } from "./suggestion-badge";

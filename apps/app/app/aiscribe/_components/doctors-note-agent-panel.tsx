@@ -721,7 +721,7 @@ export const DoctorsNoteAgentPanel = ({
 							<Bot className="h-4 w-4 text-solarized-violet" />
 						</div>
 						<div>
-							<div className="font-semibold text-foreground text-sm">Agent</div>
+							<div className="font-semibold text-foreground text-sm">MDScribe Agent</div>
 							<div className="text-muted-foreground text-xs">Bearbeitet den Arztbrief</div>
 						</div>
 					</div>

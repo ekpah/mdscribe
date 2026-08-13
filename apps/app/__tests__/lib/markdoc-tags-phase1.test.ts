@@ -1,9 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
-import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
-import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
-import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";
+import { renderTipTapHTML } from "markdoc-md/editor";
+import { parseMarkdocToInputs, validateMarkdocTagContracts } from "markdoc-md/parse";
+import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 

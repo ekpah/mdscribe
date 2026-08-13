@@ -19,10 +19,6 @@ export const router = {
 			const handlerModule = await import("./admin/emails");
 			return { default: handlerModule.emailsHandler };
 		}),
-		license: lazy(async () => {
-			const handlerModule = await import("./admin/license");
-			return { default: handlerModule.licenseHandler };
-		}),
 		models: lazy(async () => {
 			const handlerModule = await import("./admin/models");
 			return { default: handlerModule.modelsHandler };

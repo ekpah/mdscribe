@@ -62,6 +62,11 @@ COPY --from=builder --chown=bun:bun /app/apps/app/.next/static ./apps/app/.next/
 # Copy public files
 COPY --from=builder --chown=bun:bun /app/apps/app/public ./apps/app/public
 
+# Include project and third-party licensing materials in every runtime image.
+COPY --from=pruner --chown=bun:bun /app/LICENSE ./LICENSE
+COPY --from=pruner --chown=bun:bun /app/NOTICE ./NOTICE
+COPY --from=pruner --chown=bun:bun /app/THIRD_PARTY_NOTICES.md ./THIRD_PARTY_NOTICES.md
+
 # Keep the database package plus installed dependencies in the runtime image so
 # Coolify can run the post-deploy Drizzle migration hook.
 COPY --from=builder --chown=bun:bun /app/packages/database ./packages/database

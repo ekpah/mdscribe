@@ -1,6 +1,6 @@
 "use client";
-import { normalizeBooleanToString } from "@repo/markdoc-md/parse/boolean-coercion";
-import { useVariables } from "@repo/markdoc-md/render/context/variable-context";
+import { normalizeBooleanToString } from "../../parse/boolean-coercion";
+import { useVariables } from "../../render/context/variable-context";
 import type { ReactNode } from "react";
 import React from "react";
 
@@ -11,6 +11,13 @@ export const SwitchContext = React.createContext<string | null>(null);
 // this component mainly needs to handle reactivity around the Condition
 
 type SwitchType = "string" | "boolean" | "checkbox" | null | undefined;
+
+export interface SwitchProps {
+	primary: string;
+	type?: SwitchType;
+	source?: string;
+	children?: ReactNode;
+}
 
 const isBooleanSwitchType = (type: SwitchType): boolean =>
 	type === "boolean" || type === "checkbox";
@@ -32,16 +39,12 @@ export const Switch = ({
 	type,
 	source: _source,
 	children,
-}: {
-	primary: string | null;
-	type?: SwitchType;
-	source?: string;
-	children: ReactNode[];
-}) => {
+}: SwitchProps) => {
 	const variables = useVariables();
+	const variableName = typeof primary === "string" ? primary : null;
 	let resolvedSwitchValue: string | null = null;
-	if (primary !== null) {
-		const valueFromContext = variables[primary];
+	if (variableName !== null) {
+		const valueFromContext = variables[variableName];
 		// valueFromContext can be undefined or a non-string/non-null type.
 		// Boolean switches normalize truthy/falsey representations to "true"/"false".
 		resolvedSwitchValue = normalizeSwitchValue(valueFromContext, type);
@@ -50,7 +53,7 @@ export const Switch = ({
 
 	return (
 		<SwitchContext.Provider value={resolvedSwitchValue}>
-			<InteractiveTag tagName={primary}>
+			<InteractiveTag tagName={variableName}>
 				<span className="rounded-md bg-solarized-green px-1 text-white opacity-90">{children}</span>
 			</InteractiveTag>
 		</SwitchContext.Provider>

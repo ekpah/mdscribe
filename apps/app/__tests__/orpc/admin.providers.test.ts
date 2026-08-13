@@ -416,16 +416,6 @@ describe("Admin Providers Handler", () => {
 		await call(
 			providersHandler.defaults.set,
 			{
-				defaultType: "evaluation",
-				modelId: model.id,
-				reasoningEffort: "none",
-			},
-			{ context },
-		);
-
-		await call(
-			providersHandler.defaults.set,
-			{
 				defaultType: "text",
 				modelId: model.id,
 				reasoningEffort: "none",
@@ -455,7 +445,6 @@ describe("Admin Providers Handler", () => {
 		const defaults = await server.db.query.aiDefaults.findFirst({
 			where: eq(aiDefaults.id, "global"),
 		});
-		expect(defaults?.defaultEvaluationModel).toBeNull();
 		expect(defaults?.defaultTextModelId).toBeNull();
 	});
 });

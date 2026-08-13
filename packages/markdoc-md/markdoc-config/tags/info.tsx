@@ -1,8 +1,17 @@
 "use client";
 
-import { useVariables } from "@repo/markdoc-md/render/context/variable-context";
+import { useVariables } from "../../render/context/variable-context";
 
 import { InteractiveTag } from "./interactive-tag";
+
+export interface InfoProps {
+	primary: string;
+	type?: "date" | "number" | "string";
+	unit?: string;
+	renderUnit?: boolean;
+	description?: string;
+	source?: string;
+}
 
 export const Info = ({
 	primary,
@@ -11,24 +20,18 @@ export const Info = ({
 	renderUnit,
 	description: _description,
 	source: _source,
-}: {
-	primary: string;
-	type: string;
-	unit: string;
-	renderUnit: boolean;
-	description: string;
-	source?: string;
-}) => {
+}: InfoProps) => {
 	const variables = useVariables();
+	const variableName = typeof primary === "string" ? primary : undefined;
 	// Look up the value from context using the 'primary' prop as the key.
 	// Provide an empty string as a fallback if the variable doesn't exist.
-	const value = variables[primary] ?? undefined;
+	const value = variableName ? variables[variableName] : undefined;
 	const renderedValue = typeof value === "boolean" ? String(value) : value;
 
 	// Missing variables intentionally render as empty to keep template output stable.
 
 	return (
-		<InteractiveTag tagName={primary}>
+		<InteractiveTag tagName={variableName}>
 			<span className="rounded-md bg-solarized-blue px-1 text-white opacity-90">
 				<span className="inline-flex items-center gap-1">
 					{renderedValue}

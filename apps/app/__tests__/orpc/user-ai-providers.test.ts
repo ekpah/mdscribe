@@ -121,7 +121,6 @@ describe("User AI provider credentials", () => {
 
 		const modelIds = {
 			agent: crypto.randomUUID(),
-			evaluation: crypto.randomUUID(),
 			fileImage: crypto.randomUUID(),
 			speechToText: crypto.randomUUID(),
 			text: crypto.randomUUID(),
@@ -151,12 +150,6 @@ describe("User AI provider credentials", () => {
 				modelId: "provider/file",
 				providerId,
 			},
-			{
-				displayName: "Evaluation Model",
-				id: modelIds.evaluation,
-				modelId: "provider/evaluation",
-				providerId,
-			},
 		]);
 		await server.db
 			.insert(aiDefaults)
@@ -164,7 +157,6 @@ describe("User AI provider credentials", () => {
 				defaultAgentModelId: modelIds.agent,
 				defaultAgentSupportsAudio: true,
 				defaultAgentSupportsDocuments: true,
-				defaultEvaluationModel: modelIds.evaluation,
 				defaultFileImageModelId: modelIds.fileImage,
 				defaultSpeechToTextModelId: modelIds.speechToText,
 				defaultStandardSupportsAgent: true,
@@ -179,7 +171,6 @@ describe("User AI provider credentials", () => {
 					defaultAgentModelId: modelIds.agent,
 					defaultAgentSupportsAudio: true,
 					defaultAgentSupportsDocuments: true,
-					defaultEvaluationModel: modelIds.evaluation,
 					defaultFileImageModelId: modelIds.fileImage,
 					defaultSpeechToTextModelId: modelIds.speechToText,
 					defaultStandardSupportsAgent: true,

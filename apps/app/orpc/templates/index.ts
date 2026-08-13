@@ -1,7 +1,7 @@
 import { ORPCError, type } from "@orpc/server";
 import { and, count, desc, eq, favourites, or, sql, template, user } from "@repo/database";
 import type { Database, Template } from "@repo/database";
-import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
+import { validateMarkdocTagContracts } from "markdoc-md/parse";
 import { z } from "zod";
 
 import type { Session } from "@/lib/auth-types";

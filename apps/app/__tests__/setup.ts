@@ -471,8 +471,6 @@ export const createTestAiDefaults = async (
 	const defaults: Omit<typeof aiDefaults.$inferInsert, "id"> = {
 		defaultAgentModelId: modelRecordId,
 		defaultAgentReasoningEffort: "medium",
-		defaultEvaluationModel: modelRecordId,
-		defaultEvaluationReasoningEffort: "medium",
 		defaultFileImageModelId: modelRecordId,
 		defaultFileImageReasoningEffort: "none",
 		defaultSpeechToTextModelId: modelRecordId,

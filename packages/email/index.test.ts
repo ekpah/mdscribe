@@ -1,16 +1,7 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
 import { createElement } from "react";
 import { SMTPServer } from "smtp-server";
-
-const mailEnv = {
-	MAIL_BROADCAST_SMTP_URL: "",
-	MAIL_FROM_ADDRESS: "noreply@example.com",
-	MAIL_FROM_NAME: "MDScribe Test",
-	MAIL_SMTP_URL: "",
-};
-
-mock.module("@repo/env", () => ({ env: mailEnv }));
 
 const transactionalMessages: string[] = [];
 const broadcastMessages: string[] = [];
@@ -81,8 +72,10 @@ const getEmailModule = (): typeof import("./index") => {
 
 beforeAll(async () => {
 	await Promise.all([listen(transactionalServer), listen(broadcastServer)]);
-	mailEnv.MAIL_SMTP_URL = `smtp://127.0.0.1:${getPort(transactionalServer)}?ignoreTLS=true`;
-	mailEnv.MAIL_BROADCAST_SMTP_URL = `smtp://127.0.0.1:${getPort(broadcastServer)}?ignoreTLS=true`;
+	process.env.MAIL_FROM_ADDRESS = "noreply@example.com";
+	process.env.MAIL_FROM_NAME = "MDScribe Test";
+	process.env.MAIL_SMTP_URL = `smtp://127.0.0.1:${getPort(transactionalServer)}?ignoreTLS=true`;
+	process.env.MAIL_BROADCAST_SMTP_URL = `smtp://127.0.0.1:${getPort(broadcastServer)}?ignoreTLS=true`;
 	emailModule = await import("./index");
 });
 

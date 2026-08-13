@@ -32,4 +32,4 @@ export type {
 	DocumentPdfType,
 } from "./types";
 export { documentDefinitionSchema } from "./types";
-export type { PdfFormField, PdfFormFieldOptionMapping } from "./parse-pdf-form-fields";
+export type { PdfFormField } from "./parse-pdf-form-fields";

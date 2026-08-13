@@ -1,4 +1,4 @@
-import { env } from "@repo/env";
+import { env } from "@/env";
 
 import { getServerSession } from "@/lib/server-session";
 

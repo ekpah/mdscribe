@@ -1,7 +1,7 @@
 // Required for pre-rendering.
 import "@/lib/orpc.server";
 import { DesignSystemProvider } from "@repo/design-system/providers";
-import { env } from "@repo/env";
+import { env } from "@/env";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
 

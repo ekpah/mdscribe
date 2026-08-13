@@ -49,13 +49,10 @@ MDScribe is a monorepo managed with Bun workspaces and Turborepo:
 
 - `apps/app` — Main Next.js application
 - `apps/docs` — Documentation site (Fumadocs)
-- `apps/email` — Email template preview (React Email)
 - `packages/database` — Drizzle ORM schema and client
 - `packages/design-system` — Shared UI components
 - `packages/email` — Email sending utilities
-- `packages/env` — Environment variable validation
 - `packages/markdoc-md` — Custom Markdoc extensions for medical templates
-- `packages/typescript-config` — Shared TypeScript configuration
 
 ## Available Commands
 
@@ -120,12 +117,16 @@ bun run lint
 
 ## Licensing
 
-MDScribe is source-available software licensed under the **Elastic License 2.0**
-(`Elastic-2.0`). You may use, modify, and self-host it; you may not offer it as a
-hosted/managed service to third parties or circumvent the license-key
-functionality.
+MDScribe is open-source software licensed under the **Apache License 2.0**
+(`Apache-2.0`). Contributions are accepted under the same license.
 
-By contributing, you agree that your contributions are licensed under the
-Elastic License 2.0, and you grant the MDScribe maintainer the right to
-relicense and commercially license your contributions (this is required for the
-license-key-gated commercial model to work).
+This project uses the [Developer Certificate of Origin 1.1](DCO). Sign off every
+commit to certify that you have the right to submit the contribution:
+
+```bash
+git commit --signoff
+```
+
+The sign-off adds a `Signed-off-by: Name <email>` trailer using your Git author
+identity. By contributing, you certify the statements in the DCO; this is not a
+copyright assignment.

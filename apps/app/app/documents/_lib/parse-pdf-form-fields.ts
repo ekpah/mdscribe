@@ -21,7 +21,7 @@ export interface PdfFormField {
 	widgetCount: number;
 }
 
-export interface PdfFormFieldOptionMapping {
+interface PdfFormFieldOptionMapping {
 	inputValue: string;
 	pdfValue: string;
 }

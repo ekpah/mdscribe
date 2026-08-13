@@ -15,8 +15,6 @@ import {
 } from "@/__tests__/setup";
 import { documentsHandler } from "@/orpc/documents";
 
-const samplePdfPath = new URL("../documents/S0051.pdf", import.meta.url);
-
 describe("documents.parseForm", () => {
 	let server: TestServer;
 
@@ -32,7 +30,13 @@ describe("documents.parseForm", () => {
 		const { session } = await createTestUser(server.db, { email: ADMIN_EMAIL });
 		await createTestAiDefaults(server.db);
 
-		const pdfBytes = await Bun.file(samplePdfPath).arrayBuffer();
+		const pdf = await PDFDocument.create();
+		const page = pdf.addPage([300, 300]);
+		pdf
+			.getForm()
+			.createTextField("patient_name")
+			.addToPage(page, { height: 20, width: 180, x: 30, y: 240 });
+		const pdfBytes = await pdf.save();
 		const result = (await call(
 			documentsHandler.parseForm,
 			{

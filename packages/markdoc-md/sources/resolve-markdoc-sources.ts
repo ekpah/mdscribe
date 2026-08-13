@@ -1,3 +1,4 @@
+import type { Config } from "@markdoc/markdoc";
 import type {
 	InfoInputTagType,
 	InputTagType,
@@ -10,7 +11,7 @@ const FHIR_SOURCE_PREFIX = "fhir://";
 
 export type MarkdocSourceValue = boolean | number | string;
 
-type MarkdocSourceDiagnosticCode =
+export type MarkdocSourceDiagnosticCode =
 	| "evaluation-error"
 	| "invalid-source"
 	| "invalid-template"
@@ -27,6 +28,8 @@ export interface MarkdocSourceDiagnostic {
 }
 
 export interface MarkdocSourceContexts {
+	/** Optional extended config used while discovering built-in input tags. */
+	config?: Config;
 	fhir?: unknown;
 }
 
@@ -159,9 +162,15 @@ export const inspectMarkdocSources = (
 	const diagnostics: MarkdocSourceDiagnostic[] = [];
 	const resolvedEntries: [string, MarkdocSourceValue][] = [];
 	const sources: InspectedMarkdocSource[] = [];
-	const analysis = analyzeMarkdocTemplate(markdocContent);
+	const analysis = analyzeMarkdocTemplate(markdocContent, contexts.config);
 	const conflictingPrimaries = new Set(
-		analysis.diagnostics.map((diagnostic) => diagnostic.primary),
+		analysis.diagnostics
+			.filter(
+				(diagnostic) =>
+					diagnostic.code === "tag-kind-conflict" ||
+					diagnostic.code === "tag-settings-conflict",
+			)
+			.map((diagnostic) => diagnostic.primary),
 	);
 
 	for (const input of collectSourcedInputTags(analysis.inputs)) {

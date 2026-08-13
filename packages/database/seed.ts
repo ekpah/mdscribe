@@ -20,7 +20,8 @@ const globalForSeed = globalThis as unknown as {
 	seeded: boolean | undefined;
 };
 
-// Template seed data
+// Synthetic development examples. Clinical decisions remain placeholders and
+// must be completed from the facts of an individual case.
 const SEED_TEMPLATES = [
 	{
 		category: "Prozeduren",
@@ -37,7 +38,7 @@ Akute Appendizitis
 ## Nachsorge
 - Kostaufbau nach Toleranz
 - Frühmobilisation
-- Entlassung nach 1-2 Tagen bei komplikationslosem Verlauf`,
+- Entlassungszeitpunkt nach individueller klinischer Beurteilung`,
 		title: "Akute Appendizitis",
 	},
 	{
@@ -62,7 +63,7 @@ Akute Appendizitis
 		content: `# Entlassbrief - Herzinsuffizienz
 
 ## Diagnosen
-1. Dekompensierte Herzinsuffizienz (NYHA III)
+1. Dekompensierte Herzinsuffizienz (NYHA-Klasse nach Befund: __)
 2. [Weitere Diagnosen]
 
 ## Verlauf
@@ -73,9 +74,9 @@ Unter diuretischer Therapie zeigte sich eine rasche Rekompensation.
 - [Medikamentenliste]
 
 ## Empfehlungen
-- Flüssigkeitsrestriktion 1.5L/Tag
-- Tägliche Gewichtskontrolle
-- Kardiologische Wiedervorstellung in 4 Wochen`,
+- [Individuell indizierte Trinkmenge: __]
+- [Gewichtskontrollen nach individueller Empfehlung: __]
+- [Ambulante Verlaufskontrolle mit festgelegtem Intervall: __]`,
 		title: "Herzinsuffizienz Entlassbrief",
 	},
 	{
@@ -83,8 +84,8 @@ Unter diuretischer Therapie zeigte sich eine rasche Rekompensation.
 		content: `## Diagnoseblock
 E11.9 Diabetes mellitus Typ 2 ohne Komplikationen
 - HbA1c: ___%
-- Metformin __ mg 1-0-1
-- Diätberatung erfolgt`,
+- Medikation bei Entlassung: [aus dem Medikationsplan übernehmen]
+- Beratung: [nur dokumentieren, wenn erfolgt]`,
 		title: "Diabetes Mellitus Typ 2",
 	},
 	{
@@ -104,8 +105,8 @@ Respiratorische Insuffizienz mit Intubationspflicht
 - Noradrenalin: __ µg/kg/min
 
 ## Offene Maßnahmen
-- CT Thorax ausstehend
-- Bronchoskopie geplant`,
+- [Ausstehende Diagnostik: __]
+- [Geplante Maßnahmen: __]`,
 		title: "Intensivverlegung ARDS",
 	},
 ];

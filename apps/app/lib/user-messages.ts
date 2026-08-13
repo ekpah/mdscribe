@@ -1,7 +1,7 @@
 import type {
 	MarkdocContractAttribute,
 	MarkdocTagDiagnostic,
-} from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
+} from "markdoc-md/parse";
 
 const MARKDOC_ATTRIBUTE_LABELS: Record<MarkdocContractAttribute, string> = {
 	description: "Beschreibung",
@@ -141,7 +141,7 @@ export const USER_MESSAGES = {
 	dashboard: {
 		activity: {
 			eventTitles: {
-				admin_scribe_playground: "Playground-Generierung",
+				admin_scribe_playground: "Historische Admin-Generierung",
 				ai_input_fill: "Eingaben mit KI ausgefüllt",
 				ai_input_fill_inputs: "Eingaben mit KI ausgefüllt",
 				ai_pdf_document_enhancement: "PDF-Formular mit KI optimiert",
@@ -177,33 +177,6 @@ export const USER_MESSAGES = {
 		pdfUploadSuccess: "Dokument hochgeladen",
 		selectCheckboxAsOption: "Als Option hinzufügen",
 	},
-	documentPlaygroundFormFields: {
-		copySuccess: "Formularfelder kopiert",
-		description: "Direkt mit pdf-lib aus der PDF extrahiert – ohne KI-Modell.",
-		empty: "Diese PDF enthält keine auslesbaren AcroForm-Felder.",
-		extractionFailed: "Die Formularfelder konnten nicht aus der PDF ausgelesen werden.",
-		fieldCount: "Felder",
-		loading: "Formularfelder werden ausgelesen…",
-		propertyLabels: {
-			fieldType: "Bibliothekstyp",
-			inputKind: "Eingabeart",
-			isExported: "Wird exportiert",
-			isReadOnly: "Schreibgeschützt",
-			isRequired: "Pflichtfeld",
-			label: "Bezeichnung",
-			maxLength: "Maximale Länge",
-			name: "Feldname",
-			options: "Optionen",
-			type: "PDF-Typ",
-			value: "Wert",
-			widgetCount: "Darstellungen",
-		},
-		rawJson: "JSON-Rohdaten",
-		tab: "Formularfelder",
-		unavailable: "Formularfelder sind nur für PDF-Dateien verfügbar.",
-	},
-	evaluationFailed:
-		"Die Bewertung konnte nicht erzeugt werden. Bitte versuchen Sie es später erneut.",
 	filesNotSupported: "Das ausgewählte Modell unterstützt keine Datei-Eingabe.",
 	inputInvalid: "Die Eingaben konnten nicht verarbeitet werden. Bitte prüfen Sie Ihre Angaben.",
 	invalidTemplateTags:
@@ -214,11 +187,6 @@ export const USER_MESSAGES = {
 	missingInput: "Bitte füllen Sie mindestens ein Pflichtfeld aus.",
 	modelUnavailable:
 		"Kein geeignetes KI-Modell verfügbar. Bitte konfigurieren Sie ein Modell in den Einstellungen.",
-	playgroundEvaluation: {
-		action: "Bewerten",
-		failed: "Die Playground-Antwort konnte nicht bewertet werden.",
-		showDetails: "Bewertungsdetails öffnen",
-	},
 	privateAiScribeFormRequiresPlus:
 		"Private AI Vorlagen sind nur mit Plus verfügbar. Speichern Sie die AI Vorlage öffentlich oder aktualisieren Sie Ihr Abo.",
 	privateAiScribeWorkspaceRequiresPlus:

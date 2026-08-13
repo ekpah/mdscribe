@@ -36,7 +36,6 @@ Welcher Provider passt, ist vor allem eine Datenschutz-Abwägung: maximale Model
 | Standard-Modell | Erzeugt immer die finale Antwort; Fähigkeiten (Dokumente, Audio) wählt der Administrator per Checkbox |
 | Audio-Modell | Transkribiert Audioaufnahmen, wenn die Fähigkeit Audio nicht angehakt ist |
 | Dokumenten-Modell | Extrahiert PDF- und Bildinhalte, wenn die Fähigkeit Dokumente nicht angehakt ist |
-| Evaluation | Automatische Auswertungen im Admin-Bereich |
 
 Das Standard-Modell beantwortet jede Anfrage. Sind seine Fähigkeiten Dokumente bzw. Audio angehakt, erhält es diese Eingaben direkt als multimodalen Input. Nicht angehakte Eingaben werden zuerst vom jeweiligen Slot-Modell vorverarbeitet — wahlweise **direkt** (Transkriptions-Endpoint bzw. Dokument ohne Prompt, z. B. für dedizierte OCR-Modelle) oder **multimodal** (Prompt + Eingabe an ein Chat-Modell) — und das Ergebnis fließt als Text in die Generierung ein.
 

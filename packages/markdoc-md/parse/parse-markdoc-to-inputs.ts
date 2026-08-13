@@ -1,10 +1,10 @@
-import type { RenderableTreeNode } from "@markdoc/markdoc";
-import * as Markdoc from "@markdoc/markdoc";
-import config from "@repo/markdoc-md/markdoc-config";
-import Formula from "fparser";
+import type { Config, RenderableTreeNode } from "@markdoc/markdoc";
+import Markdoc from "@markdoc/markdoc";
+import { markdocConfig as config } from "../markdoc-config";
 
-import type { MarkdocTagDiagnostic } from "./validate-markdoc-tag-contracts";
-import { validateMarkdocTagContractsInAst } from "./validate-markdoc-tag-contracts";
+import { getFormulaVariables } from "./formula";
+import type { MarkdocTemplateDiagnostic } from "./validate-markdoc-template";
+import { validateMarkdocTemplateAst } from "./validate-markdoc-template";
 
 /**
  * Union type representing all possible input tag types in the Markdoc template.
@@ -15,7 +15,7 @@ export type InputTagType =
 	| CaseInputTagType
 	| ScoreInputTagType;
 
-interface BaseInputTag {
+export interface BaseInputTag {
 	$$mdtype?: "Tag";
 	children: InputTagType[];
 }
@@ -60,7 +60,7 @@ export type SwitchInputTagType = BaseInputTag & {
  * @example
  * {% case "male" %}Male{% /case %}
  */
-type CaseInputTagType = BaseInputTag & {
+export type CaseInputTagType = BaseInputTag & {
 	name: "Case";
 	attributes: {
 		primary: string;
@@ -72,7 +72,7 @@ type CaseInputTagType = BaseInputTag & {
  * @example
  * {% score formula="[age]*2+[gender_score]*3" unit="points" /%}
  */
-type ScoreInputTagType = BaseInputTag & {
+export type ScoreInputTagType = BaseInputTag & {
 	name: "Score";
 	attributes: {
 		primary: string;
@@ -306,8 +306,7 @@ const toCaseTag = (node: MarkdocTagNode, children: InputTagType[]): CaseInputTag
 
 const appendFormulaVariables = (scoreTag: ScoreInputTagType, formulaValue: string) => {
 	try {
-		const formula = new Formula(formulaValue);
-		for (const variable of formula.getVariables()) {
+		for (const variable of getFormulaVariables(formulaValue)) {
 			scoreTag.children.push({
 				attributes: {
 					primary: variable,
@@ -316,8 +315,9 @@ const appendFormulaVariables = (scoreTag: ScoreInputTagType, formulaValue: strin
 				name: "Info" as const,
 			} as InfoInputTagType);
 		}
-	} catch (error) {
-		console.error("Error parsing formula", error);
+	} catch {
+		// Input discovery is intentionally tolerant. Validation reports malformed
+		// formulas at editor and mutation boundaries.
 	}
 };
 
@@ -448,21 +448,27 @@ const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 };
 
 export interface MarkdocTemplateAnalysis {
-	diagnostics: MarkdocTagDiagnostic[];
+	diagnostics: MarkdocTemplateDiagnostic[];
 	inputs: InputTagType[];
 }
 
-export const analyzeMarkdocTemplate = (content: string): MarkdocTemplateAnalysis => {
+export const analyzeMarkdocTemplate = (
+	content: string,
+	markdocConfig: Config = config,
+): MarkdocTemplateAnalysis => {
 	const ast = Markdoc.parse(content);
-	const diagnostics = validateMarkdocTagContractsInAst(ast);
-	const nodes = Markdoc.transform(ast, config);
+	const diagnostics = validateMarkdocTemplateAst(ast, markdocConfig);
+	const nodes = Markdoc.transform(ast, markdocConfig);
 	return { diagnostics, inputs: parseTagsToInputs({ nodes }) };
 };
 
 // function to take markdoc content and return parsed tags
-const parseMarkdocToInputs = (content: string): InputTagType[] => {
+const parseMarkdocToInputs = (
+	content: string,
+	markdocConfig: Config = config,
+): InputTagType[] => {
 	const ast = Markdoc.parse(content);
-	const nodes = Markdoc.transform(ast, config);
+	const nodes = Markdoc.transform(ast, markdocConfig);
 	return parseTagsToInputs({ nodes });
 };
 

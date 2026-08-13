@@ -54,7 +54,7 @@ interface ModelOption {
 	keywords: string[];
 }
 
-type DefaultType = "agent" | "text" | "file-image" | "speech-to-text" | "evaluation";
+type DefaultType = "agent" | "text" | "file-image" | "speech-to-text";
 type MediaMode = "direct" | "multimodal";
 type ModelMediaCapability = "audio" | "documents";
 type StandardCapability = "agent" | ModelMediaCapability;
@@ -100,8 +100,8 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 	{
 		capabilityGate: "agent",
 		description:
-			"Steuert den Brief-Baukasten-Agenten, wenn das Standard-Modell die Agent-Fähigkeit nicht übernimmt.",
-		label: "MDScribe Agent",
+			"Steuert den MDScribe Agent (Beta) im Brief-Baukasten, wenn das Standard-Modell die Agent-Fähigkeit nicht übernimmt.",
+		label: "MDScribe Agent (Beta)",
 		placeholder: "Agent-Modell auswählen",
 		type: "agent",
 	},
@@ -134,12 +134,6 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 		mediaModeKey: "speechToTextMode",
 		placeholder: "Audio-Modell auswählen",
 		type: "speech-to-text",
-	},
-	{
-		description: "Bewertet Playground- und Usage-Ausgaben.",
-		label: "Evaluationsmodell",
-		placeholder: "Evaluationsmodell auswählen",
-		type: "evaluation",
 	},
 ];
 
@@ -276,7 +270,7 @@ const StandardCapabilities = ({
 					className="font-normal text-sm text-solarized-base00"
 					htmlFor="standard-capability-agent"
 				>
-					Agent
+					Agent (Beta)
 				</Label>
 			</div>
 		</div>
@@ -299,7 +293,7 @@ const AgentCapabilities = ({
 	supportsDocuments: boolean;
 }) => (
 	<div className="space-y-2">
-		<Label>Fähigkeiten des MDScribe Agent</Label>
+		<Label>Fähigkeiten des MDScribe Agent (Beta)</Label>
 		<div className="flex flex-wrap gap-x-5 gap-y-2">
 			<div className="flex items-center gap-2">
 				<Checkbox checked disabled id="agent-capability-text" />
@@ -645,9 +639,6 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 				case "speech-to-text": {
 					return defaults?.defaultSpeechToTextModelId ?? null;
 				}
-				case "evaluation": {
-					return defaults?.defaultEvaluationModel ?? null;
-				}
 				default: {
 					return null;
 				}
@@ -671,9 +662,6 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 				case "speech-to-text": {
 					return defaults?.defaultSpeechToTextReasoningEffort ?? "none";
 				}
-				case "evaluation": {
-					return defaults?.defaultEvaluationReasoningEffort ?? "none";
-				}
 				default: {
 					return "none";
 				}
@@ -696,9 +684,6 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 				}
 				case "speech-to-text": {
 					return defaults?.defaultSpeechToTextTemperature ?? null;
-				}
-				case "evaluation": {
-					return defaults?.defaultEvaluationTemperature ?? null;
 				}
 				default: {
 					return null;
@@ -889,7 +874,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 							(Dokumente, Audio, Agent) werden ihm als native Eingaben übergeben.
 						</div>
 						<div>
-							MDScribe Agent: bearbeitet den Brief-Baukasten, wenn die Fähigkeit Agent beim
+							MDScribe Agent (Beta): bearbeitet den Brief-Baukasten, wenn die Fähigkeit Agent beim
 							Standard-Modell nicht angehakt ist. Angehakte Agent-Fähigkeiten nutzen Anhänge
 							nativ, sonst Dokumenten-/Audio-Vorverarbeitung.
 						</div>
@@ -901,7 +886,6 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 							Audio-Modell: transkribiert Aufnahmen, wenn die Fähigkeit Audio nicht angehakt ist
 							— direkt (Transkriptions-Endpoint) oder multimodal (Prompt + Audio).
 						</div>
-						<div>Evaluation: Modell wird für Playground-Bewertung (Score) genutzt.</div>
 					</div>
 				</CardContent>
 			</Card>

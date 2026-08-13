@@ -1,6 +1,6 @@
 import "server-only";
 
-import { env } from "@repo/env";
+import { env } from "@/env";
 
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;

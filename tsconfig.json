@@ -1,16 +1,14 @@
 {
-	"extends": "@repo/typescript-config/base.json",
-	"compilerOptions": {
-		"baseUrl": ".",
-		"paths": {
-			"@repo/design-system/components": ["packages/design-system/components"],
-			"@repo/design-system/components/*": ["packages/design-system/components/*"],
-			"@repo/design-system/hooks": ["packages/design-system/hooks"],
-			"@repo/design-system/hooks/*": ["packages/design-system/hooks/*"],
-			"@repo/design-system/lib": ["packages/design-system/lib"],
-			"@repo/design-system/lib/*": ["packages/design-system/lib/*"]
-		},
-		"types": ["bun", "react"],
-		"strictNullChecks": true
-	}
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@repo/design-system/components": ["./packages/design-system/components"],
+      "@repo/design-system/components/*": ["./packages/design-system/components/*"],
+      "@repo/design-system/hooks": ["./packages/design-system/hooks"],
+      "@repo/design-system/hooks/*": ["./packages/design-system/hooks/*"],
+      "@repo/design-system/lib": ["./packages/design-system/lib"],
+      "@repo/design-system/lib/*": ["./packages/design-system/lib/*"]
+    },
+    "types": ["bun"]
+  }
 }

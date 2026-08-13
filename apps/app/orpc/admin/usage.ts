@@ -1,4 +1,3 @@
-import { ORPCError } from "@orpc/server";
 import {
 	and,
 	asc,
@@ -12,46 +11,16 @@ import {
 	gte,
 	sql,
 	sum,
-	template,
 	usageEvent,
 	usageObservation,
 	usageTrace,
 	user,
 } from "@repo/database";
 import type { Database } from "@repo/database";
-import { generateObject } from "ai";
 import { z } from "zod";
 
-import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
-import { resolveFallbackTemplateByContextKey } from "@/orpc/scribe/context/template/fallbacks";
-import {
-	documentTypeConfigs,
-	getPromptHarnessLabel,
-	getPromptHarnessTargetField,
-	resolvePromptHarnessId,
-} from "@/orpc/scribe/prompts";
-import {
-	buildUsageEventEvaluationPrompt,
-	PDQI_9_CATEGORY_NAMES,
-	USAGE_EVENT_EVALUATION_SYSTEM_PROMPT,
-} from "@/orpc/scribe/prompts/core/evaluation";
-import type { EvaluationPromptContext } from "@/orpc/scribe/prompts/core/evaluation";
-import { buildProviderOptions, resolveDefaultModel } from "@/orpc/scribe/providers";
-
-const usageEvaluationSchema = z.object({
-	categories: z
-		.array(
-			z.object({
-				comment: z.string(),
-				name: z.enum(PDQI_9_CATEGORY_NAMES),
-				score: z.number().int().min(1).max(5),
-			}),
-		)
-		.length(9),
-	summary: z.string(),
-});
 
 const toMetadataRecord = (metadata: unknown): Record<string, unknown> => {
 	if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
@@ -100,83 +69,6 @@ const enrichCustomFormUsageMetadata = async (
 		customFormSlug: metadataRecord.customFormSlug ?? form.slug,
 		promptName: metadataRecord.promptName ?? form.promptHarness,
 		templateId: metadataRecord.templateId ?? form.templateId,
-	};
-};
-
-const getDocumentTypeForEvaluation = (
-	eventName: string,
-	metadata: Record<string, unknown>,
-): string => {
-	const { endpoint } = metadata;
-	if (typeof endpoint === "string" && endpoint.trim().length > 0) {
-		return endpoint;
-	}
-
-	const { promptName } = metadata;
-	if (typeof promptName === "string" && promptName.trim().length > 0) {
-		return resolvePromptHarnessId(promptName) ?? promptName;
-	}
-
-	return eventName;
-};
-
-const getNonEmptyMetadataString = (
-	metadata: Record<string, unknown>,
-	key: string,
-): string | undefined => {
-	const value = metadata[key];
-	if (typeof value !== "string") {
-		return undefined;
-	}
-
-	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
-};
-
-const resolveEvaluationPromptContext = async ({
-	db,
-	documentType,
-	metadata,
-}: {
-	db: { query: Database["query"] };
-	documentType: string;
-	metadata: Record<string, unknown>;
-}): Promise<EvaluationPromptContext | undefined> => {
-	const promptReference = getNonEmptyMetadataString(metadata, "promptName") ?? documentType;
-	const harnessId = resolvePromptHarnessId(promptReference) ?? resolvePromptHarnessId(documentType);
-	if (!harnessId) {
-		return undefined;
-	}
-
-	const templateId = getNonEmptyMetadataString(metadata, "templateId");
-	const selectedTemplate = templateId
-		? await db.query.template.findFirst({
-				columns: {
-					content: true,
-					information: true,
-					title: true,
-				},
-				where: eq(template.id, templateId),
-			})
-		: undefined;
-	const fallbackTemplate = selectedTemplate
-		? undefined
-		: resolveFallbackTemplateByContextKey(harnessId);
-	const promptTemplate = selectedTemplate ?? fallbackTemplate;
-
-	return {
-		harnessId,
-		harnessInstructions: documentTypeConfigs[harnessId].systemPrompt,
-		promptLabel: getPromptHarnessLabel(harnessId),
-		targetField: getPromptHarnessTargetField(harnessId),
-		template: promptTemplate
-			? {
-					content: promptTemplate.content,
-					information: promptTemplate.information,
-					source: selectedTemplate ? "selected" : "built-in",
-					title: promptTemplate.title,
-				}
-			: undefined,
 	};
 };
 
@@ -503,98 +395,6 @@ const findByRequestIdHandler = authed
 			...event,
 			metadata: await enrichCustomFormUsageMetadata(context.db, event.metadata),
 		};
-	});
-
-const evaluateUsageEventHandler = authed
-	.use(requiredAdminMiddleware)
-	.input(z.object({ id: z.string() }))
-	.handler(async ({ context, input }) => {
-		const event = await context.db.query.usageEvent.findFirst({
-			where: eq(usageEvent.id, input.id),
-		});
-
-		if (!event) {
-			throw new ORPCError("NOT_FOUND", { message: "Event not found" });
-		}
-
-		if (!event.result?.trim()) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Dieses Event enthält kein bewertbares Ergebnis.",
-			});
-		}
-
-		const evaluationSelection = await resolveDefaultModel(context.db, "evaluation").catch(
-			(error: unknown) => {
-				const details = error instanceof Error ? error.message : USER_MESSAGES.modelUnavailable;
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Kein Standard-Evaluationsmodell konfiguriert. (${details})`,
-				});
-			},
-		);
-		const metadata = toMetadataRecord(event.metadata);
-		const documentType = getDocumentTypeForEvaluation(event.name, metadata);
-		const promptContext = await resolveEvaluationPromptContext({
-			db: context.db,
-			documentType,
-			metadata,
-		});
-
-		let evaluation;
-		try {
-			evaluation = await generateObject({
-				model: evaluationSelection.model.model,
-				prompt: buildUsageEventEvaluationPrompt({
-					documentType,
-					inputs: event.inputData ?? {},
-					promptContext,
-					response: event.result,
-				}),
-				providerOptions: buildProviderOptions({
-					model: evaluationSelection.model,
-					reasoningEffort: evaluationSelection.reasoningEffort,
-					userId: context.session.user.id,
-				}),
-				schema: usageEvaluationSchema,
-				system: USAGE_EVENT_EVALUATION_SYSTEM_PROMPT,
-				temperature: evaluationSelection.defaultTemperature ?? undefined,
-			});
-		} catch (error) {
-			if (error instanceof Error && error.name === "AI_NoObjectGeneratedError") {
-				throw new ORPCError("BAD_REQUEST", {
-					message: `Bewertung konnte nicht erzeugt werden: Das Modell hat keine gültige Struktur zurückgegeben. ${error.message}`,
-				});
-			}
-			const details = error instanceof Error ? error.message : USER_MESSAGES.evaluationFailed;
-			throw new ORPCError("INTERNAL", {
-				message: `Bewertung fehlgeschlagen: ${details}`,
-			});
-		}
-
-		const categories = evaluation.object.categories.map((category, index) => ({
-			comment: category.comment,
-			name: PDQI_9_CATEGORY_NAMES[index] ?? category.name,
-			score: category.score,
-		}));
-		const totalScore = categories.reduce((total, category) => total + category.score, 0);
-		const usageEvaluation = {
-			categories,
-			evaluatedAt: new Date().toISOString(),
-			instrument: "PDQI-9" as const,
-			maxScore: 45,
-			summary: evaluation.object.summary,
-			totalScore,
-		};
-		const nextMetadata = {
-			...metadata,
-			usageEvaluation,
-		};
-
-		await context.db
-			.update(usageEvent)
-			.set({ metadata: nextMetadata })
-			.where(eq(usageEvent.id, event.id));
-
-		return usageEvaluation;
 	});
 
 const statsFilterInput = usageFiltersInput.omit({ cursor: true, limit: true, name: true });
@@ -1031,7 +831,6 @@ const getMonthlyActiveUsersHandler = authed
 	});
 
 export const usageHandler = {
-	evaluate: evaluateUsageEventHandler,
 	filterOptions: usageFilterOptionsHandler,
 	findByRequestId: findByRequestIdHandler,
 	get: getUsageEventHandler,

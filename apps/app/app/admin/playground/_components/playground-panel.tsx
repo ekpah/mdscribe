@@ -6,9 +6,9 @@ import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card, CardContent } from "@repo/design-system/components/ui/card";
 import { Label } from "@repo/design-system/components/ui/label";
+import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import { ModelSelector } from "@repo/design-system/components/ui/searchable-select";
 import type { ModelSelectorOption } from "@repo/design-system/components/ui/searchable-select";
-import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
 	Select,
 	SelectContent,
@@ -31,8 +31,6 @@ import type { InputContextSubmission } from "@/app/_components/input-context/typ
 import { TemplateSelector } from "@/app/_components/template-selector";
 import { allScribeDocTypes, scribeDocTypeUi } from "@/app/admin/playground/_lib/scribe-doc-types";
 import type { PlaygroundDocumentType } from "@/app/admin/playground/_lib/scribe-doc-types";
-import { resolvePlaygroundComparisonReference } from "@/app/admin/playground/_lib/comparison-reference";
-import type { PlaygroundComparisonReference } from "@/app/admin/playground/_lib/comparison-reference";
 import { resolveStreamingPlaygroundResult } from "@/app/admin/playground/_lib/streaming-result";
 import type {
 	PlaygroundModel,
@@ -42,7 +40,6 @@ import type {
 import { AiscribeTemplateInputSection } from "@/app/aiscribe/_components/aiscribe-template-input-section";
 import { isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 import { orpc } from "@/lib/orpc";
-import { USER_MESSAGES } from "@/lib/user-messages";
 import { buildSelectedTemplateReference } from "@/orpc/scribe/context/template/compose";
 import { resolvePromptHarnessId } from "@/orpc/scribe/prompts";
 import type { DocumentType } from "@/orpc/scribe/types";
@@ -169,9 +166,6 @@ interface RunState {
 	text: string;
 	isStreaming: boolean;
 	error?: string;
-	comparison?: PlaygroundResult["comparison"];
-	evaluation?: PlaygroundResult["evaluation"];
-	isEvaluating?: boolean;
 	metrics: {
 		latencyMs: number;
 		inputTokens?: number;
@@ -237,13 +231,17 @@ const DirtySelectorLabel = ({ info, isDirty, label }: DirtySelectorLabelProps) =
 			<Label className="text-sm leading-4 text-solarized-base01">{label}</Label>
 			{info ? (
 				<Tooltip>
-					<TooltipTrigger render={<button
-							aria-label={info}
-							className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
-							type="button"
-						>
-							<Info className="h-3.5 w-3.5" />
-						</button>} />
+					<TooltipTrigger
+						render={
+							<button
+								aria-label={info}
+								className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
+								type="button"
+							>
+								<Info className="h-3.5 w-3.5" />
+							</button>
+						}
+					/>
 					<TooltipContent className="max-w-64 text-xs leading-relaxed">{info}</TooltipContent>
 				</Tooltip>
 			) : null}
@@ -771,10 +769,7 @@ const PromptHarnessPreview = ({
 							) : null}
 
 							<div className="mt-2">
-								<HighlightedPromptEditor
-									value={message.content}
-									onChange={messageChangeHandler}
-								/>
+								<HighlightedPromptEditor value={message.content} onChange={messageChangeHandler} />
 							</div>
 						</div>
 					);
@@ -1281,19 +1276,6 @@ export const PlaygroundPanel = ({
 		});
 	}, []);
 
-	const clearComparisons = useCallback(() => {
-		setRunStates((previous) => {
-			const next: Record<string, RunState> = {};
-			for (const [runId, runState] of Object.entries(previous)) {
-				next[runId] = {
-					...runState,
-					comparison: undefined,
-				};
-			}
-			return next;
-		});
-	}, []);
-
 	// Ref to store run trigger functions for each model
 	const runTriggersRef = useRef<Map<string, () => Promise<void>>>(new Map());
 
@@ -1461,20 +1443,6 @@ export const PlaygroundPanel = ({
 			),
 		[modelRuns, promptVersions],
 	);
-
-	const comparisonReference = useMemo(() => {
-		const firstRun = comparisonRuns.at(0);
-		return resolvePlaygroundComparisonReference({
-			firstResult: firstRun
-				? {
-						id: firstRun.id,
-						isStreaming: runStates[firstRun.id]?.isStreaming ?? false,
-						text: runStates[firstRun.id]?.text ?? "",
-					}
-				: undefined,
-			usageEventResponse: referenceResult?.text,
-		});
-	}, [comparisonRuns, referenceResult?.text, runStates]);
 
 	const resultsWithContentCount = useMemo(
 		() =>
@@ -1780,10 +1748,7 @@ export const PlaygroundPanel = ({
 					/>
 				</div>
 
-				<PromptHarnessPreview
-					messages={column.messages}
-					onMessageChange={column.onMessageChange}
-				/>
+				<PromptHarnessPreview messages={column.messages} onMessageChange={column.onMessageChange} />
 			</div>
 		);
 	};
@@ -1969,8 +1934,6 @@ export const PlaygroundPanel = ({
 							promptVersionLabel={comparisonRun.promptVersion.label}
 							prepareInputContextSubmission={inputContextController.prepareSubmission}
 							messagesForRun={comparisonRun.promptVersion.messages}
-							comparisonReference={comparisonReference}
-							clearComparisons={clearComparisons}
 							runState={runStates[comparisonRun.id]}
 							setRunState={setRunState}
 							runTriggersRef={runTriggersRef}
@@ -2010,25 +1973,13 @@ export const PlaygroundPanel = ({
 
 			<Card className="flex min-h-[560px] min-w-0 flex-1 flex-col border-solarized-base2 lg:min-h-0">
 				<CardContent className="min-h-0 flex-1 p-0">
-					<TabsContent
-						keepMounted
-						value="config"
-						className="m-0 h-full min-h-0 data-hidden:hidden"
-					>
+					<TabsContent keepMounted value="config" className="m-0 h-full min-h-0 data-hidden:hidden">
 						{renderConfigView()}
 					</TabsContent>
-					<TabsContent
-						keepMounted
-						value="inputs"
-						className="m-0 h-full min-h-0 data-hidden:hidden"
-					>
+					<TabsContent keepMounted value="inputs" className="m-0 h-full min-h-0 data-hidden:hidden">
 						{renderInputsView()}
 					</TabsContent>
-					<TabsContent
-						keepMounted
-						value="models"
-						className="m-0 h-full min-h-0 data-hidden:hidden"
-					>
+					<TabsContent keepMounted value="models" className="m-0 h-full min-h-0 data-hidden:hidden">
 						{renderModelsView()}
 					</TabsContent>
 					<TabsContent
@@ -2053,8 +2004,6 @@ const RunCard = ({
 	promptVersionLabel,
 	prepareInputContextSubmission,
 	messagesForRun,
-	comparisonReference,
-	clearComparisons,
 	runState,
 	setRunState,
 	runTriggersRef,
@@ -2070,8 +2019,6 @@ const RunCard = ({
 		role: "system" | "user" | "assistant";
 		content: string;
 	}[];
-	comparisonReference: PlaygroundComparisonReference | null;
-	clearComparisons: () => void;
 	runState: RunState | undefined;
 	setRunState: (id: string, patch: Partial<RunState>) => void;
 	runTriggersRef: MutableRefObject<Map<string, () => Promise<void>>>;
@@ -2175,98 +2122,12 @@ const RunCard = ({
 		latestReasoningRef.current = reasoning;
 	}, [completion, reasoning]);
 
-	const handleCompareRun = useCallback(async () => {
-		const currentPayload = payloadRef.current;
-		if (!currentPayload || !comparisonReference || comparisonReference.runId === runId) {
-			return;
-		}
-
-		const responseText = (runState?.text || latestCompletionRef.current).trim();
-		if (!responseText) {
-			toast.error("Vergleich übersprungen: Kein Antworttext gefunden");
-			return;
-		}
-
-		clearComparisons();
-		setRunState(runId, {
-			comparison: {
-				isLoading: true,
-				referenceLabel: comparisonReference.label,
-			},
-		});
-
-		try {
-			const comparison = await orpc.admin.scribe.evaluateComparison.call({
-				documentType: currentPayload.documentType,
-				inputs: JSON.parse(currentPayload.promptJson || "{}") as Record<string, unknown>,
-				responses: {
-					a: comparisonReference.text,
-					b: responseText,
-				},
-			});
-			setRunState(runId, {
-				comparison: {
-					isLoading: false,
-					note: comparison.note,
-					preferredResponse:
-						comparison.preferredResponse === "b" ? "result" : "reference",
-					referenceLabel: comparisonReference.label,
-				},
-			});
-		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? `Vergleich fehlgeschlagen: ${error.message}`
-					: "Vergleich fehlgeschlagen",
-			);
-			setRunState(runId, {
-				comparison: {
-					isLoading: false,
-					referenceLabel: comparisonReference.label,
-				},
-			});
-		}
-	}, [clearComparisons, comparisonReference, runId, runState?.text, setRunState]);
-
-	const handleEvaluateRun = useCallback(async () => {
-		const currentPayload = payloadRef.current;
-		const responseText = (runState?.text || latestCompletionRef.current).trim();
-		if (!currentPayload || !responseText) {
-			return;
-		}
-
-		setRunState(runId, { isEvaluating: true });
-		try {
-			const inputs =
-				currentPayload.variables ??
-				(JSON.parse(currentPayload.promptJson || "{}") as Record<string, unknown>);
-			const evaluation = await orpc.admin.scribe.evaluateResponse.call({
-				documentType: currentPayload.documentType,
-				inputs,
-				promptName: currentPayload.promptName,
-				response: responseText,
-			});
-			setRunState(runId, {
-				evaluation,
-				isEvaluating: false,
-			});
-		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : USER_MESSAGES.playgroundEvaluation.failed,
-			);
-			setRunState(runId, { isEvaluating: false });
-		}
-	}, [runId, runState?.text, setRunState]);
-
 	const isRunning = status === "streaming" || status === "submitted";
 	const persistedResult = useMemo<PlaygroundResult | null>(
 		() =>
 			runState
 				? {
-						comparison: runState.comparison,
 						error: runState.error,
-						evaluation: runState.evaluation,
-						isEvaluating: runState.isEvaluating,
 						isStreaming: runState.isStreaming,
 						metrics: runState.metrics,
 						reasoning: runState.reasoning,
@@ -2335,11 +2196,8 @@ const RunCard = ({
 			requestId,
 		};
 
-		clearComparisons();
 		setRunState(runId, {
 			error: undefined,
-			evaluation: undefined,
-			isEvaluating: false,
 			isStreaming: true,
 			metrics: { latencyMs: 0 },
 			requestId,
@@ -2358,7 +2216,6 @@ const RunCard = ({
 		promptName,
 		promptJson,
 		runId,
-		clearComparisons,
 		setRunState,
 		setMessages,
 		sendMessage,
@@ -2418,15 +2275,7 @@ const RunCard = ({
 			</div>
 
 			{/* Result display - grows with content */}
-			<ResultDisplay
-				onCompare={
-					comparisonReference && comparisonReference.runId !== runId
-						? handleCompareRun
-						: undefined
-				}
-				onEvaluate={handleEvaluateRun}
-				result={displayResult}
-			/>
+			<ResultDisplay result={displayResult} />
 		</div>
 	);
 };

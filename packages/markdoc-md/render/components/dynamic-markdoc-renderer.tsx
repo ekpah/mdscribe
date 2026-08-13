@@ -1,9 +1,15 @@
-import { MarkdocInteractionProvider } from "@repo/markdoc-md/render/context/markdoc-interaction-context";
-import { VariableProvider } from "@repo/markdoc-md/render/context/variable-context";
-import renderMarkdocAsReact from "@repo/markdoc-md/render/utils/render-markdoc-as-react";
+"use client";
+
+import type { Config } from "@markdoc/markdoc";
+import type { CitationRequest } from "../../citations/resolvers";
+import type { MarkdocComponentMap } from "../../markdoc-config/tags/components";
+import { MarkdocInteractionProvider } from "../context/markdoc-interaction-context";
+import { VariableProvider } from "../context/variable-context";
+import { useCitationModifier } from "../hooks/use-citation-modifier";
+import renderMarkdocAsReact from "../utils/render-markdoc-as-react";
 import { useMemo } from "react";
 
-interface DynamicMarkdocRendererProps {
+export interface DynamicMarkdocRendererProps {
 	/**
 	 * The raw Markdoc content string.
 	 */
@@ -18,7 +24,13 @@ interface DynamicMarkdocRendererProps {
 	 * Defaults to 'prose prose-slate grow' if not provided.
 	 */
 	className?: string;
+	/** Additional or replacement React components for custom render names. */
+	components?: MarkdocComponentMap;
+	/** A complete Markdoc config. */
+	config?: Config;
 	activeTagName?: string | null;
+	/** Called with the cited source URI when a cite mark is clicked or keyboard-activated. */
+	onCitationSelect?: (citation: CitationRequest) => void;
 	onTagSelect?: (tagName: string) => void;
 }
 
@@ -35,18 +47,27 @@ export const DynamicMarkdocRenderer = ({
 	markdocContent,
 	variables,
 	activeTagName,
+	onCitationSelect,
 	onTagSelect,
 	// Default class matching Note.tsx
 	className = "prose prose-slate grow",
+	components,
+	config,
 }: DynamicMarkdocRendererProps) => {
-	const renderedContent = useMemo(() => renderMarkdocAsReact(markdocContent), [markdocContent]);
+	const areCitationsHighlighted = useCitationModifier();
+	const renderedContent = useMemo(
+		() => renderMarkdocAsReact(markdocContent, { components, config }),
+		[components, config, markdocContent],
+	);
 	const normalizedVariables = (variables ?? {}) as Record<
 		string,
 		string | number | boolean | null | undefined
 	>;
 
 	return (
-		<MarkdocInteractionProvider value={{ activeTagName, onTagSelect }}>
+		<MarkdocInteractionProvider
+			value={{ activeTagName, areCitationsHighlighted, onCitationSelect, onTagSelect }}
+		>
 			<VariableProvider value={normalizedVariables}>
 				<div className={className}>{renderedContent}</div>
 			</VariableProvider>

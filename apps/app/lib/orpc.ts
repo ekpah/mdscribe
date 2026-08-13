@@ -1,7 +1,7 @@
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import { createTanstackQueryUtils } from '@orpc/tanstack-query';
-import { env } from '@repo/env';
+import { env } from "@/env";
 import type { RouterClient } from '@orpc/server';
 import type { router } from '@/orpc/router';
 

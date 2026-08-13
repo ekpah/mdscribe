@@ -1,26 +1,87 @@
 {
-	"name": "@repo/markdoc-md",
+	"name": "markdoc-md",
 	"version": "0.1.0",
-	"private": true,
-	"description": "",
-	"keywords": [],
-	"license": "Elastic-2.0",
-	"author": "",
+	"description": "Typed Markdoc schemas, validation, React rendering, dynamic inputs, FHIR sources, scores, and citations for medical documentation.",
+	"keywords": ["markdoc-md", "markdown", "react", "fhir", "citations", "typescript"],
+	"license": "Apache-2.0",
+	"homepage": "https://github.com/ekpah/mdscribe/tree/main/packages/markdoc-md#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ekpah/mdscribe.git",
+		"directory": "packages/markdoc-md"
+	},
+	"bugs": {
+		"url": "https://github.com/ekpah/mdscribe/issues"
+	},
 	"type": "module",
-	"main": "index.ts",
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": ["dist", "README.md", "LICENSE"],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./citations": {
+			"types": "./dist/citations.d.ts",
+			"import": "./dist/citations.js"
+		},
+		"./config": {
+			"types": "./dist/config.d.ts",
+			"import": "./dist/config.js"
+		},
+		"./editor": {
+			"types": "./dist/editor.d.ts",
+			"import": "./dist/editor.js"
+		},
+		"./parse": {
+			"types": "./dist/parse.d.ts",
+			"import": "./dist/parse.js"
+		},
+		"./react": {
+			"types": "./dist/react.d.ts",
+			"import": "./dist/react.js"
+		},
+		"./sources": {
+			"types": "./dist/sources.d.ts",
+			"import": "./dist/sources.js"
+		},
+		"./package.json": "./package.json"
+	},
 	"scripts": {
+		"build": "bun scripts/build.mjs",
+		"check": "bun run build && bun run test && bun run typecheck",
+		"prepack": "bun run build",
+		"test": "bun test",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@markdoc/markdoc": "^0.5.7",
-		"@types/react": "catalog:",
 		"fhirpath": "^5.1.0",
 		"fparser": "^4.2.0",
-		"react": "catalog:"
+		"@markdoc/markdoc": "^0.5.7"
+	},
+	"peerDependencies": {
+		"react": ">=18.2.0 <20.0.0"
+	},
+	"peerDependenciesMeta": {
+		"react": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
-		"@repo/typescript-config": "workspace:*",
 		"@types/bun": "catalog:",
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"react": "catalog:",
+		"react-dom": "catalog:",
 		"typescript": "catalog:"
+	},
+	"engines": {
+		"node": ">=20"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

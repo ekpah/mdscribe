@@ -9,7 +9,7 @@ import type {
 } from "@repo/design-system/components/inputs/inputs";
 import { Card } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
-import type { InputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import type { InputTagType } from "markdoc-md/parse";
 import { FileText, ListChecks } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";

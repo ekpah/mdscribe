@@ -13,11 +13,11 @@ import { cn } from "@repo/design-system/lib/utils";
 import {
 	toFormulaValue,
 	toVoiceBooleanValue as toFillInputsBooleanValue,
-} from "@repo/markdoc-md/parse/boolean-coercion";
+} from "markdoc-md/parse";
 import type {
 	InfoInputTagType,
 	InputTagType,
-} from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+} from "markdoc-md/parse";
 import Formula from "fparser";
 import { Bot, Pencil, Sigma } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

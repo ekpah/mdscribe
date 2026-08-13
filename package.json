@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "homepage": "https://mdscribe.de",
-  "license": "Elastic-2.0",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/ekpah/mdscribe.git"
@@ -18,8 +18,6 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "format": "bun --bun oxfmt",
-    "format:check": "bun --bun oxfmt --check",
     "lint": "turbo run lint",
     "lint:affected": "turbo run lint --affected",
     "test": "turbo run test",
@@ -41,13 +39,12 @@
     "knip:ci": "bun run knip"
   },
   "devDependencies": {
-    "@repo/typescript-config": "workspace:*",
-    "@types/node": "catalog:",
+    "@types/node": "^26.1.2",
     "knip": "^6.31.0",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
     "turbo": "^2.10.8",
-    "typescript": "catalog:",
+    "typescript": "^7.0.2",
     "ultracite": "^7.10.1"
   },
   "overrides": {
@@ -57,7 +54,7 @@
     "tar": "7.5.22"
   },
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=20.9.0"
   },
   "packageManager": "bun@1.2.23",
   "catalog": {

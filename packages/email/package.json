@@ -1,7 +1,7 @@
 {
   "name": "@repo/email",
   "version": "0.0.0",
-  "license": "Elastic-2.0",
+  "license": "Apache-2.0",
   "private": true,
   "scripts": {
     "test": "bun test",
@@ -9,12 +9,10 @@
   },
   "dependencies": {
     "@react-email/components": "1.0.1",
-    "@repo/env": "workspace:*",
     "nodemailer": "^9.0.3",
     "react": "catalog:"
   },
   "devDependencies": {
-    "@repo/typescript-config": "workspace:*",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@types/nodemailer": "^8.0.1",

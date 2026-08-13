@@ -21,11 +21,6 @@ import { usePathname } from "next/navigation";
 
 const ADMIN_PAGE_OPTIONS = [
 	{
-		href: "/admin/playground",
-		isMatch: (pathname: string) => pathname.startsWith("/admin/playground"),
-		label: "AI Playground",
-	},
-	{
 		href: "/admin/templates",
 		isMatch: (pathname: string) => pathname.startsWith("/admin/templates"),
 		label: "Vorlagenverwaltung",
@@ -41,19 +36,9 @@ const ADMIN_PAGE_OPTIONS = [
 		label: "Nutzungsstatistik",
 	},
 	{
-		href: "/admin/model-comparison",
-		isMatch: (pathname: string) => pathname.startsWith("/admin/model-comparison"),
-		label: "AI-Modell-Vergleich",
-	},
-	{
-		href: "/admin/documents-playground",
-		isMatch: (pathname: string) => pathname.startsWith("/admin/documents-playground"),
-		label: "Dokumenten-Playground",
-	},
-	{
-		href: "/admin/input-playground",
-		isMatch: (pathname: string) => pathname.startsWith("/admin/input-playground"),
-		label: "Audio-Playground",
+		href: "/admin/playground",
+		isMatch: (pathname: string) => pathname.startsWith("/admin/playground"),
+		label: "AI-Playground",
 	},
 	{
 		href: "/admin/emails",
@@ -61,19 +46,9 @@ const ADMIN_PAGE_OPTIONS = [
 		label: "E-Mail Entwürfe",
 	},
 	{
-		href: "/admin/markdoc-playground",
-		isMatch: (pathname: string) => pathname.startsWith("/admin/markdoc-playground"),
-		label: "Markdoc-Playground",
-	},
-	{
 		href: "/admin/settings/models",
 		isMatch: (pathname: string) => pathname.startsWith("/admin/settings"),
 		label: "Systemeinstellungen",
-	},
-	{
-		href: "/admin/license",
-		isMatch: (pathname: string) => pathname.startsWith("/admin/license"),
-		label: "Lizenz",
 	},
 ] as const;
 
@@ -94,34 +69,47 @@ export const AdminBreadcrumb = () => {
 							Admin-Dashboard
 						</BreadcrumbPage>
 					) : (
-						<BreadcrumbLink render={<Link
-								href="/admin"
-								className="font-semibold text-sm text-solarized-base00 hover:text-solarized-blue"
-							>
-								Admin-Dashboard
-							</Link>} />
+						<BreadcrumbLink
+							render={
+								<Link
+									href="/admin"
+									className="font-semibold text-sm text-solarized-base00 hover:text-solarized-blue"
+								>
+									Admin-Dashboard
+								</Link>
+							}
+						/>
 					)}
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
 				<BreadcrumbItem>
 					<DropdownMenu>
-						<DropdownMenuTrigger render={<Button
-								variant="ghost"
-								size="sm"
-								className="h-auto gap-1 px-1 py-0 font-semibold text-solarized-base00 text-sm hover:bg-transparent hover:text-solarized-blue"
-							>
-								{currentPageLabel}
-								<ChevronDown className="h-3.5 w-3.5" />
-							</Button>} />
+						<DropdownMenuTrigger
+							render={
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-auto gap-1 px-1 py-0 font-semibold text-solarized-base00 text-sm hover:bg-transparent hover:text-solarized-blue"
+								>
+									{currentPageLabel}
+									<ChevronDown className="h-3.5 w-3.5" />
+								</Button>
+							}
+						/>
 						<DropdownMenuContent align="start" className="w-56">
 							{ADMIN_PAGE_OPTIONS.map((page) => {
 								const isCurrent = page.isMatch(pathname);
 
 								return (
-									<DropdownMenuItem key={page.href} render={<Link href={page.href} className="flex w-full items-center justify-between">
-											<span>{page.label}</span>
-											{isCurrent ? <Check className="h-4 w-4" /> : null}
-										</Link>} />
+									<DropdownMenuItem
+										key={page.href}
+										render={
+											<Link href={page.href} className="flex w-full items-center justify-between">
+												<span>{page.label}</span>
+												{isCurrent ? <Check className="h-4 w-4" /> : null}
+											</Link>
+										}
+									/>
 								);
 							})}
 						</DropdownMenuContent>

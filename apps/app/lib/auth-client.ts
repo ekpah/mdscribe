@@ -1,5 +1,5 @@
 import { stripeClient } from "@better-auth/stripe/client";
-import { env } from "@repo/env";
+import { env } from "@/env";
 import { useQuery } from "@tanstack/react-query";
 import {
 	inferAdditionalFields,

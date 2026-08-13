@@ -1,13 +1,19 @@
 {
-  "extends": "@repo/typescript-config/nextjs.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    "allowJs": true,
+    "declaration": false,
+    "declarationMap": false,
+    "jsx": "preserve",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
     "paths": {
       "@/*": ["./*"],
       "@repo/*": ["../../packages/*"]
     },
-    "declaration": false,
-    "declarationMap": false
+    "plugins": [{ "name": "next" }],
+    "types": ["bun", "node"]
   },
   "include": [
     "next-env.d.ts",
@@ -16,5 +22,6 @@
     ".next/types/**/*.ts",
     "markdoc/variables.ts",
     "next.config.ts"
-  ]
+  ],
+  "exclude": ["node_modules"]
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMarkdocInteraction } from "@repo/markdoc-md/render/context/markdoc-interaction-context";
+import { useMarkdocInteraction } from "../../render/context/markdoc-interaction-context";
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
 

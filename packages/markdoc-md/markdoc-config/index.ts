@@ -1,15 +1,6 @@
-/** @type {import('@markdoc/markdoc').Config} */
+import type { Config } from "@markdoc/markdoc";
 
-import { includes, upper } from './functions';
-import nodes from './nodes';
-import tags from './tags/config';
-import variables from './variables';
+import nodes from "./nodes";
+import tags from "./tags/config";
 
-export default {
-  includes,
-  nodes,
-  tags,
-  upper,
-  variables,
-  // add other stuff here
-};
+export const markdocConfig: Config = { nodes, tags };

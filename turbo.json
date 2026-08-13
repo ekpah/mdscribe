@@ -37,9 +37,6 @@
     "app#build": {
       "dependsOn": ["@repo/database#build"]
     },
-    "email#build": {
-      "outputs": ["out/**"]
-    },
     "test": {
       "dependsOn": ["^build"]
     },

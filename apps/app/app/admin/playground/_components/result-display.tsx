@@ -11,17 +11,13 @@ import {
 	Coins,
 	Copy,
 	FileText,
-	GitCompareArrows,
 	Hash,
 	Loader2,
-	Medal,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { EvaluationDetailsDialog } from "@/app/admin/_components/evaluation-details-dialog";
 import type { PlaygroundResult } from "@/app/admin/playground/_lib/types";
-import { USER_MESSAGES } from "@/lib/user-messages";
 
 const formatCost = (cost: number | undefined): string => {
 	if (cost === undefined || cost === null) {
@@ -74,134 +70,9 @@ const formatTokensPerSecond = (
 interface ResultDisplayProps {
 	result: PlaygroundResult | null;
 	compact?: boolean;
-	onCompare?: () => void;
-	onEvaluate?: () => void;
 }
 
-const renderEvaluationAction = (
-	result: PlaygroundResult,
-	onEvaluate: (() => void) | undefined,
-) => {
-	if (!onEvaluate) {
-		return null;
-	}
-
-	const isDisabled = result.isStreaming || !result.text;
-	if (!result.evaluation) {
-		return (
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				className="h-5 gap-1 px-1 text-solarized-base01 text-xs hover:text-solarized-base00"
-				disabled={isDisabled || result.isEvaluating}
-				onClick={onEvaluate}
-			>
-				{result.isEvaluating ? (
-					<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-				) : (
-					<Medal className="h-3 w-3 text-solarized-yellow" />
-				)}
-				{USER_MESSAGES.playgroundEvaluation.action}
-			</Button>
-		);
-	}
-
-	return (
-		<EvaluationDetailsDialog
-			canRegenerate={!isDisabled && !result.isEvaluating}
-			evaluation={result.evaluation}
-			isRegenerating={result.isEvaluating}
-			onRegenerate={onEvaluate}
-			trigger={
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					aria-label={USER_MESSAGES.playgroundEvaluation.showDetails}
-					className="h-5 gap-1 px-1 font-mono text-solarized-base00 text-xs"
-				>
-					{result.isEvaluating ? (
-						<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-					) : (
-						<Medal className="h-3 w-3 text-solarized-yellow" />
-					)}
-					{result.evaluation.totalScore} / {result.evaluation.maxScore}
-				</Button>
-			}
-		/>
-	);
-};
-
-const renderComparisonAction = (result: PlaygroundResult, onCompare: (() => void) | undefined) => {
-	if (!onCompare) {
-		return null;
-	}
-
-	if (result.comparison?.isLoading) {
-		return (
-			<Button
-				className="h-5 gap-1 px-1 text-solarized-base01 text-xs"
-				disabled
-				size="sm"
-				type="button"
-				variant="ghost"
-			>
-				<Loader2 className="h-3 w-3 animate-spin text-solarized-orange" />
-				Vergleich
-			</Button>
-		);
-	}
-
-	return (
-		<Button
-			aria-label="Antwort vergleichen"
-			className="h-5 gap-1 px-1 text-solarized-base01 text-xs hover:text-solarized-base00"
-			disabled={result.isStreaming || !result.text}
-			onClick={onCompare}
-			size="sm"
-			type="button"
-			variant="ghost"
-		>
-			<GitCompareArrows className="h-3 w-3 text-solarized-cyan" />
-			{result.comparison?.preferredResponse ? "Erneut" : "Vergleichen"}
-		</Button>
-	);
-};
-
-const ComparisonResult = ({ comparison }: { comparison: NonNullable<PlaygroundResult["comparison"]> }) => {
-	if (comparison.isLoading || !comparison.preferredResponse || !comparison.note) {
-		return null;
-	}
-
-	const isResultPreferred = comparison.preferredResponse === "result";
-	const summary = isResultPreferred
-		? `Dieses Ergebnis wird gegenüber ${comparison.referenceLabel} bevorzugt.`
-		: `${comparison.referenceLabel} wird gegenüber diesem Ergebnis bevorzugt.`;
-
-	return (
-		<div
-			className={`flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs ${
-				isResultPreferred
-					? "border-solarized-green/30 bg-solarized-green/10 text-solarized-green"
-					: "border-solarized-orange/30 bg-solarized-orange/10 text-solarized-orange"
-			}`}
-		>
-			<GitCompareArrows className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-			<div>
-				<p className="font-medium">{summary}</p>
-				<p className="mt-0.5 opacity-90">{comparison.note}</p>
-			</div>
-		</div>
-	);
-};
-
-export const ResultDisplay = ({
-	result,
-	compact: _compact,
-	onCompare,
-	onEvaluate,
-}: ResultDisplayProps) => {
+export const ResultDisplay = ({ result, compact: _compact }: ResultDisplayProps) => {
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = useCallback(async () => {
@@ -212,7 +83,7 @@ export const ResultDisplay = ({
 		setCopied(true);
 		toast.success("Kopiert!");
 		setTimeout(() => setCopied(false), 2000);
-	}, [result?.text]);
+	}, [result]);
 
 	if (!result) {
 		return (
@@ -267,8 +138,6 @@ export const ResultDisplay = ({
 						<Hash className="h-3 w-3 text-solarized-cyan" />
 						{formatTokenBreakdown(result.metrics)}
 					</span>
-					{renderComparisonAction(result, onCompare)}
-					{renderEvaluationAction(result, onEvaluate)}
 				</div>
 				<Button
 					type="button"
@@ -294,8 +163,6 @@ export const ResultDisplay = ({
 					<div className="text-xs text-solarized-red">{result.error}</div>
 				</div>
 			)}
-
-			{result.comparison ? <ComparisonResult comparison={result.comparison} /> : null}
 
 			{/* Content - grows with the response instead of stretching to a fixed card height */}
 			{result.reasoning ? (

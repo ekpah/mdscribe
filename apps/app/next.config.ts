@@ -9,7 +9,7 @@ const jiti = createJiti(import.meta.url);
 export type { NextConfig };
 
 // Import env here to validate during build. Using jiti@^1 we can import .ts files :)
-jiti.import("@repo/env");
+jiti.import("./env.ts");
 
 const getOrbPortalHostname = (): string | undefined => {
 	if (

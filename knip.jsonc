@@ -2,7 +2,6 @@
 	"$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
 	"ignoreIssues": {
 		"packages/design-system/styles/globals.css": ["unresolved"],
-		"packages/typescript-config/nextjs.json": ["unresolved"],
 	},
 	"workspaces": {
 		"apps/app": {
@@ -11,20 +10,7 @@
 				// These entries only cover Bun test discovery that Knip cannot infer.
 				"__tests__/setup.ts",
 				"__tests__/{lib,orpc}/**/*.test.ts",
-				"app/**/*.test.ts",
-				// Standalone offline CLIs run via `bun run`, not imported anywhere.
-				"scripts/*.ts",
 			],
-		},
-		"apps/email": {
-			"entry": [
-				// Keep package/plugin entries; add React Email template discovery.
-				"emails/**/*.tsx",
-			],
-			// React Email 6.9 no longer has the @react-email/ui runtime dependency
-			// that Knip 6's plugin assumes. Entries are declared above instead.
-			"ignoreDependencies": ["@react-email/ui"],
-			"react-email": false,
 		},
 		"packages/database": {
 			// Static analysis does not need to execute the environment-gated
@@ -33,7 +19,15 @@
 			"ignoreFiles": ["drizzle.config.ts"],
 		},
 		"packages/markdoc-md": {
-			"entry": ["**/*.test.ts"],
+			"entry": [
+				// Published package entry points are intentionally broader than the
+				// subset currently consumed by this monorepo.
+				"{index,citations,config,editor,parse,react,sources}.ts",
+				"**/*.test.{ts,tsx}",
+				// The build script invokes these consumer-facing package checks.
+				"__tests__/public-types.tsx",
+				"__tests__/verify-dist.mjs",
+			],
 		},
 	},
 }

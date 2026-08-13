@@ -1,12 +1,19 @@
 'use client';
 
 import Formula from 'fparser';
-import { useVariables } from '@repo/markdoc-md/render/context/variable-context';
-import { toFormulaValue } from '@repo/markdoc-md/parse/boolean-coercion';
+import { toFormulaValue } from '../../parse/boolean-coercion';
+import { useVariables } from '../../render/context/variable-context';
 import { InteractiveTag } from './interactive-tag';
 
 interface ValueObject {
   [key: string]: number | string | ValueObject;
+}
+
+export interface ScoreProps {
+  formula: string;
+  primary?: string;
+  unit?: string;
+  renderUnit?: boolean;
 }
 
 const formatFormulaForTooltip = (formula: string): string =>
@@ -20,7 +27,7 @@ const formatFormulaForTooltip = (formula: string): string =>
 
 const getFormulaTooltipLabel = (formula: string): string => {
   const normalizedFormula = formatFormulaForTooltip(formula);
-  return normalizedFormula ? `Formel: ${normalizedFormula}` : 'Keine Formel';
+  return normalizedFormula ? `Formula: ${normalizedFormula}` : 'No formula';
 };
 
 export const Score = ({
@@ -28,22 +35,24 @@ export const Score = ({
   primary,
   unit,
   renderUnit,
-}: { formula: string; primary: string; unit?: string; renderUnit: boolean }) => {
+}: ScoreProps) => {
   const variables = useVariables();
-  const tooltipLabel = getFormulaTooltipLabel(formula);
+  const normalizedFormula = typeof formula === 'string' ? formula : '';
+  const tagName = typeof primary === 'string' ? primary : undefined;
+  const tooltipLabel = getFormulaTooltipLabel(normalizedFormula);
   const formulaVariables: ValueObject = Object.fromEntries(
     Object.entries(variables).map(([key, value]) => [key, toFormulaValue(value)])
   ) as ValueObject;
 
   try {
-    const f = new Formula(formula);
+    const f = new Formula(normalizedFormula);
 
     const result = f.evaluate(formulaVariables);
 
     const roundedResult = typeof result === 'number' ? Number(result.toFixed(2)) : result;
 
     return (
-      <InteractiveTag tagName={primary}>
+      <InteractiveTag tagName={tagName}>
         <span
           aria-label={tooltipLabel}
           className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'
@@ -56,7 +65,7 @@ export const Score = ({
     );
   } catch {
     return (
-      <InteractiveTag tagName={primary}>
+      <InteractiveTag tagName={tagName}>
         <span
           aria-label={tooltipLabel}
           className='cursor-help rounded-md bg-solarized-orange px-1 text-white opacity-90'

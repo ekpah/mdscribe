@@ -1,18 +1,23 @@
-import { Tag } from "@markdoc/markdoc";
 import type { Config, Node } from "@markdoc/markdoc";
-import type { ComponentType } from "react";
+import Markdoc from "@markdoc/markdoc";
 
-import { Case } from "./case";
-import { Info } from "./info";
-import { Score } from "./score";
-import { Switch } from "./switch";
+import { isValidFormula } from "../../parse/formula";
 
-export default {
+const tags: NonNullable<Config["tags"]> = {
 	// cases should not contain breaks, as this will not be rendered correctly
 	case: {
 		attributes: { primary: { render: true, type: String } },
 		children: ["text", "strong", "em", "code", "link", "inline"],
 		render: "Case",
+	},
+	cite: {
+		attributes: {
+			quote: { required: false, type: String },
+			source: { required: true, type: String },
+		},
+		children: ["text", "strong", "em", "code", "inline"],
+		render: "Cite",
+		selfClosing: false,
 	},
 	info: {
 		attributes: {
@@ -47,7 +52,22 @@ export default {
 	},
 	score: {
 		attributes: {
-			formula: { required: true, type: String },
+			formula: {
+				required: true,
+				type: String,
+				validate(value) {
+					if (typeof value !== "string" || isValidFormula(value)) {
+						return [];
+					}
+					return [
+						{
+							id: "score-formula-invalid",
+							level: "error",
+							message: "The 'formula' attribute must be a valid score formula.",
+						},
+					];
+				},
+			},
 			primary: { required: false, type: String },
 			renderUnit: {
 				default: false,
@@ -110,14 +130,9 @@ export default {
 			const attributes = node.transformAttributes(config);
 			const children = node.transformChildren(config);
 
-			return new Tag("Switch", attributes, children);
+			return new Markdoc.Tag("Switch", attributes, children);
 		},
 	},
 };
 
-export const components: Record<string, ComponentType<unknown>> = {
-	Case: Case as ComponentType<unknown>,
-	Info: Info as ComponentType<unknown>,
-	Score: Score as ComponentType<unknown>,
-	Switch: Switch as ComponentType<unknown>,
-};
+export default tags;

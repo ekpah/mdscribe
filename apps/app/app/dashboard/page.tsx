@@ -8,7 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { env } from "@repo/env";
+import { env } from "@/env";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
 	Activity,

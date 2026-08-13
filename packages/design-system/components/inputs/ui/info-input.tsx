@@ -11,7 +11,7 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
-import type { InfoInputTagType } from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import type { InfoInputTagType } from "markdoc-md/parse";
 import { CalendarIcon } from "lucide-react";
 import type React from "react";
 import { useCallback, useMemo } from "react";

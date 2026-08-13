@@ -16,7 +16,7 @@ import type { Database } from "@repo/database";
 import { experimental_transcribe as transcribe } from "ai";
 import type { JSONValue, LanguageModel } from "ai";
 import { revalidateTag, unstable_cache } from "next/cache";
-import { createTinfoilAI, TinfoilAI, toFile } from "tinfoil";
+import { SecureClient, TinfoilAI, toFile } from "tinfoil";
 
 import { decrypt } from "@/lib/encryption";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
@@ -29,7 +29,6 @@ type ProviderProtocol = typeof aiProvider.$inferSelect.protocol;
 
 export type DefaultModelSlot =
 	| "agent"
-	| "evaluation"
 	| "file-image"
 	| "speech-to-text"
 	| "text";
@@ -200,22 +199,51 @@ export const invalidateAiProviderResolutionCaches = (): void => {
 };
 
 /**
- * Tinfoil providers are cached per credential set because `createTinfoilAI`
+ * Tinfoil providers are cached per credential set because `SecureClient`
  * performs the enclave attestation handshake (hardware signature checks plus
  * code provenance) before returning; reusing the instance keeps that cost off
  * the per-request path. Rejected handshakes are evicted so the next request
  * retries instead of caching the failure.
  */
-const tinfoilProviderCache = new Map<string, Promise<Awaited<ReturnType<typeof createTinfoilAI>>>>();
+type TinfoilProvider = ReturnType<typeof createOpenAICompatible>;
+
+const tinfoilProviderCache = new Map<string, Promise<TinfoilProvider>>();
 const tinfoilTranscriptionClientCache = new Map<string, TinfoilAI>();
 
 const getTinfoilCacheKey = (apiKey: string | undefined, baseUrl: string | null): string =>
 	`${apiKey ?? ""}:${baseUrl ?? ""}`;
 
+const createTinfoilProvider = async (
+	apiKey: string | undefined,
+	baseUrl: string | null,
+): Promise<TinfoilProvider> => {
+	const resolvedApiKey = apiKey ?? process.env.TINFOIL_API_KEY;
+	if (!resolvedApiKey) {
+		throw new Error("Tinfoil API key is required");
+	}
+
+	const secureClient = new SecureClient(baseUrl ? { baseURL: baseUrl } : {});
+	await secureClient.ready();
+	const secureBaseUrl = secureClient.getBaseURL();
+	if (!secureBaseUrl) {
+		throw new Error("Tinfoil secure client did not resolve a base URL");
+	}
+
+	// Tinfoil 1.2 uses AI SDK provider protocol v4 internally. MDScribe is
+	// currently on AI SDK 6 (provider protocol v3), so compose Tinfoil's
+	// public verified transport with the matching OpenAI-compatible adapter.
+	return createOpenAICompatible({
+		apiKey: resolvedApiKey,
+		baseURL: secureBaseUrl,
+		fetch: secureClient.fetch,
+		name: "tinfoil",
+	});
+};
+
 const getTinfoilProvider = (
 	apiKey: string | undefined,
 	baseUrl: string | null,
-): Promise<Awaited<ReturnType<typeof createTinfoilAI>>> => {
+): Promise<TinfoilProvider> => {
 	const cacheKey = getTinfoilCacheKey(apiKey, baseUrl);
 	const cached = tinfoilProviderCache.get(cacheKey);
 	if (cached) {
@@ -224,7 +252,7 @@ const getTinfoilProvider = (
 
 	const created = (async () => {
 		try {
-			return await createTinfoilAI(apiKey, baseUrl ? { baseURL: baseUrl } : {});
+			return await createTinfoilProvider(apiKey, baseUrl);
 		} catch (error) {
 			tinfoilProviderCache.delete(cacheKey);
 			throw error;
@@ -266,7 +294,7 @@ const createProviderModelUncached = async (
 		}
 		case "tinfoil": {
 			const provider = isUserCredential
-				? await createTinfoilAI(apiKey, baseUrl ? { baseURL: baseUrl } : {})
+				? await createTinfoilProvider(apiKey, baseUrl)
 				: await getTinfoilProvider(apiKey, baseUrl);
 			return provider(modelId);
 		}
@@ -692,9 +720,6 @@ const getDefaultModelRecordId = (
 		case "agent": {
 			return defaults.defaultAgentModelId;
 		}
-		case "evaluation": {
-			return defaults.defaultEvaluationModel;
-		}
 		case "file-image": {
 			return defaults.defaultFileImageModelId;
 		}
@@ -718,9 +743,6 @@ const getDefaultReasoningEffort = (
 		case "agent": {
 			return normalizeReasoningEffort(defaults.defaultAgentReasoningEffort);
 		}
-		case "evaluation": {
-			return normalizeReasoningEffort(defaults.defaultEvaluationReasoningEffort);
-		}
 		case "file-image": {
 			return normalizeReasoningEffort(defaults.defaultFileImageReasoningEffort);
 		}
@@ -740,9 +762,6 @@ const getDefaultTemperature = (defaults: AiDefaultsRow, slot: DefaultModelSlot):
 	switch (slot) {
 		case "agent": {
 			return defaults.defaultAgentTemperature ?? null;
-		}
-		case "evaluation": {
-			return defaults.defaultEvaluationTemperature ?? null;
 		}
 		case "file-image": {
 			return defaults.defaultFileImageTemperature ?? null;

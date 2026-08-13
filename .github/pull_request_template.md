@@ -19,4 +19,5 @@ Brief description of the changes.
 - [ ] `bun run lint` passes
 - [ ] `bun run build` passes
 - [ ] Relevant unit and E2E test commands pass
+- [ ] Every commit includes a DCO `Signed-off-by` trailer
 - [ ] PR targets `staging` branch

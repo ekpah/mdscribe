@@ -1,7 +1,6 @@
 import { stripe } from "@better-auth/stripe";
 import { eq, user as userTable } from "@repo/database";
 import { database } from "@repo/database/client";
-import { env } from "@repo/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
@@ -9,6 +8,7 @@ import { username } from "better-auth/plugins";
 import { Stripe as StripeClient } from "stripe";
 
 import { USER_MESSAGES } from "@/lib/user-messages";
+import { env } from "@/env";
 
 // Usernames feed per-author slug routes, so they must be URL-safe and must not
 // collide with reserved path segments.

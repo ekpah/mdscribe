@@ -73,15 +73,18 @@ export interface FillInputsInputPayload {
 /**
  * Document type configurations
  */
-export type DocumentType =
-	| "discharge"
-	| "anamnese"
-	| "diagnosis"
-	| "procedures"
-	| "befunde"
-	| "epikrise"
-	| "outpatient"
-	| "icu-transfer";
+const DOCUMENT_TYPES = [
+	"discharge",
+	"anamnese",
+	"diagnosis",
+	"procedures",
+	"befunde",
+	"epikrise",
+	"outpatient",
+	"icu-transfer",
+] as const;
+
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 /**
  * Prompt message for LLM

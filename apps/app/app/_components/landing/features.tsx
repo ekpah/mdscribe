@@ -1,7 +1,8 @@
 'use client';
 
 import Inputs from '@repo/design-system/components/inputs/inputs';
-import { DynamicMarkdocRenderer, parseMarkdocToInputs } from '@repo/markdoc-md';
+import { parseMarkdocToInputs } from 'markdoc-md/parse';
+import { DynamicMarkdocRenderer } from 'markdoc-md/react';
 import {
   ArrowUpRightIcon,
   BrainCircuitIcon,
@@ -151,7 +152,7 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
           <div className="flex w-full flex-1 flex-col items-center sm:w-auto">
             <div className="mb-3 flex w-full items-start justify-between">
               <span className="font-semibold text-foreground text-lg">
-                [J18.9]: Pneumonie
+                Strukturierte Anamnese
               </span>
 
               <span className="flex items-center gap-1 rounded-full bg-solarized-green/10 px-2.5 py-1 font-medium text-sm text-solarized-green">
@@ -169,8 +170,7 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
                 <p className="mb-2">
                   Der Patient berichtet über seit drei Tagen bestehende Atemnot
                   (Dyspnoe), begleitet von Husten mit gelblichem Auswurf. Die
-                  Symptome haben sich über diesen Zeitraum kontinuierlich
-                  entwickelt, ohne Hinweise auf eine Besserungstendenz.
+                  Beschwerden bestehen seit drei Tagen.
                 </p>
                 <p className="mb-2">
                   Als Begleitsymptome gibt der Patient Fieber an. Relevante
@@ -203,7 +203,12 @@ Röntgen-Kontrolle, dann ist ein Befahren des ZVK möglich.
             </span>
             <div className="flex h-full w-full flex-col rounded-xl border border-border bg-card p-6 shadow-lg transition-shadow">
               <div className="flex-1 whitespace-pre-line font-mono text-base text-foreground sm:text-lg">
-                zvk 4 lumen rechts jugulär
+                {`ZVK 4-lumig rechts jugulär
+sonografisch geführt, steril
+Lokalanästhesie: Menge eintragen
+alle Lumina aspirierbar und gespült
+fixiert, keine unmittelbare Komplikation
+Lagekontrolle vor Nutzung vorgesehen`}
               </div>
             </div>
 

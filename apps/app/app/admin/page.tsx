@@ -5,21 +5,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import {
-	Activity,
-	ArrowRight,
-	Bot,
-	Database,
-	FileAudio,
-	FileText,
-	FlaskConical,
-	HeartPulse,
-	KeyRound,
-	Mail,
-	NotebookTabs,
-	Settings,
-	Users,
-} from "lucide-react";
+import { Activity, ArrowRight, Database, FlaskConical, Mail, Settings, Users } from "lucide-react";
 import Link from "next/link";
 
 import { getQueryClient } from "@/lib/get-query-client";
@@ -102,14 +88,6 @@ const adminSections: AdminSection[] = [
 			},
 			{
 				description:
-					"Lizenzstatus, freigeschaltete Edition und Nutzer-Sitze dieser Installation einsehen.",
-				href: "/admin/license",
-				icon: <KeyRound className="h-5 w-5 text-solarized-blue" />,
-				status: "active",
-				title: "Lizenz",
-			},
-			{
-				description:
 					"React-Email-Entwürfe prüfen und einzelne Test-E-Mails sicher an manuelle Empfänger senden.",
 				href: "/admin/emails",
 				icon: <Mail className="h-5 w-5 text-solarized-blue" />,
@@ -149,63 +127,23 @@ const adminSections: AdminSection[] = [
 		title: "Verwaltung",
 	},
 	{
-		description:
-			"Modelle, Eingaben und Dokumentverarbeitung unabhängig vom Produktivbetrieb testen.",
+		description: "Prompts, Modelle und Parameter mit realistischen Eingaben ausprobieren.",
 		features: [
 			{
-				description:
-					"Experimentiere mit verschiedenen KI-Modellen, Prompts und Parametern. Vergleiche Modelle nebeneinander und teste multimodale Eingaben.",
+				description: "KI-Generierungen mit frei wählbaren Modellen, Prompts und Parametern testen.",
 				href: "/admin/playground",
 				icon: <FlaskConical className="h-5 w-5 text-solarized-violet" />,
 				status: "active",
-				title: "AI Playground",
-			},
-			{
-				description:
-					"Zwei KI-Modelle mit zufälligen historischen Inputs gegeneinander testen und Präferenzen auswerten.",
-				href: "/admin/model-comparison",
-				icon: <Bot className="h-5 w-5 text-solarized-violet" />,
-				status: "active",
-				title: "AI-Modell-Vergleich",
-			},
-			{
-				description:
-					"PDF-Dateien mit auswählbarem OCR/File/Image-Modell zu Markdoc oder Text verarbeiten.",
-				href: "/admin/documents-playground",
-				icon: <FileText className="h-5 w-5 text-solarized-magenta" />,
-				status: "active",
-				title: "Dokumenten-Playground",
-			},
-			{
-				description:
-					"Audio aufnehmen, Transkriptionsmodell wechseln und das erzeugte Transkript prüfen.",
-				href: "/admin/input-playground",
-				icon: <FileAudio className="h-5 w-5 text-solarized-blue" />,
-				status: "active",
-				title: "Audio-Playground",
-			},
-			{
-				description: "Markdoc-Vorlagen, Tags, Eingabefelder und gerenderte Ausgabe intern prüfen.",
-				href: "/admin/markdoc-playground",
-				icon: <NotebookTabs className="h-5 w-5 text-solarized-cyan" />,
-				status: "active",
-				title: "Markdoc-Playground",
-			},
-			{
-				description: "FHIR JSON laden, vollständigen FHIRPath auswerten und Source Links prüfen.",
-				href: "/admin/fhir-playground",
-				icon: <HeartPulse className="h-5 w-5 text-solarized-red" />,
-				status: "active",
-				title: "FHIR-Playground",
+				title: "AI-Playground",
 			},
 		],
-		title: "Playgrounds",
+		title: "Entwicklung & Tests",
 	},
 ];
 
 export default async function AdminDashboardPage() {
 	const queryClient = getQueryClient();
-	const [monthlyStats, weeklyStats, monthlyActiveUsers, license] = await Promise.all([
+	const [monthlyStats, weeklyStats, monthlyActiveUsers] = await Promise.all([
 		queryClient.fetchQuery(
 			orpc.admin.usage.stats.queryOptions({
 				input: { filter: "month" },
@@ -221,20 +159,7 @@ export default async function AdminDashboardPage() {
 				input: {},
 			}),
 		),
-		queryClient.fetchQuery(orpc.admin.license.get.queryOptions()),
 	]);
-
-	let licenseLabel: string;
-	if (!license.isConfigured) {
-		licenseLabel = "Community";
-	} else if (license.isExpired) {
-		licenseLabel = "Abgelaufen";
-	} else {
-		licenseLabel = "Lizenziert";
-	}
-	const licenseSeatSuffix =
-		license.maxSeats === null ? null : ` · ${license.seatCount}/${license.maxSeats}`;
-	const licenseColorClass = license.isExpired ? "text-solarized-yellow" : "text-solarized-base00";
 
 	return (
 		<div className="p-4 sm:p-6">
@@ -242,24 +167,13 @@ export default async function AdminDashboardPage() {
 				{/* Quick Stats */}
 				<Card className="border-solarized-base2 bg-gradient-to-br from-solarized-base3 to-solarized-base2/50">
 					<CardContent className="p-4 sm:pt-6">
-						<div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
+						<div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3">
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Status</p>
 								<div className="flex items-center gap-2">
 									<span className="h-2 w-2 animate-pulse rounded-full bg-solarized-green" />
 									<p className="font-semibold text-base text-solarized-green sm:text-lg">Online</p>
 								</div>
-							</div>
-							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Lizenz</p>
-								<p className={`font-semibold text-base sm:text-lg ${licenseColorClass}`}>
-									{licenseLabel}
-									{licenseSeatSuffix ? (
-										<span className="font-normal text-solarized-base01 text-sm">
-											{licenseSeatSuffix}
-										</span>
-									) : null}
-								</p>
 							</div>
 							<div className="space-y-1">
 								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">

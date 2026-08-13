@@ -34,7 +34,6 @@ export default defineConfig({
 		"**/packages/design-system/lib/**",
 		"**/packages/design-system/hooks/**",
 		"**/apps/docs/**/*.json",
-		"**/apps/email/.react-email/**",
 		"**/.react-email/**",
 	],
 });

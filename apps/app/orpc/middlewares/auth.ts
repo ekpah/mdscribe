@@ -1,5 +1,5 @@
 import { ORPCError, os } from '@orpc/server';
-import { env } from '@repo/env';
+import { env } from "@/env";
 import { headers } from 'next/headers';
 import { auth } from '@/auth';
 import type { Session } from '@/lib/auth-types';

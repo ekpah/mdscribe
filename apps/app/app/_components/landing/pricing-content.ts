@@ -41,7 +41,7 @@ export const pricingContent = {
 			cta: "GitHub",
 			description: "Volle Kontrolle für deine Dokumentation",
 			features: [
-				{ emphasized: true, icon: "code", label: "Quelloffen (Elastic-2.0)" },
+				{ emphasized: true, icon: "code", label: "Open Source (Apache-2.0)" },
 				{ icon: "check", label: "Eigene API-Keys" },
 				{ icon: "check", label: "Lokale KI-Modelle" },
 				{ icon: "server", label: "Volle Datenkontrolle" },

@@ -443,13 +443,6 @@ export const aiDefaults = pgTable("AiDefaults", {
 		.notNull()
 		.default(false),
 	defaultAgentTemperature: real("defaultAgentTemperature"),
-	defaultEvaluationModel: text("defaultEvaluationModel").references(() => aiModel.id, {
-		onDelete: "set null",
-	}),
-	defaultEvaluationReasoningEffort: text("defaultEvaluationReasoningEffort")
-		.notNull()
-		.default("none"),
-	defaultEvaluationTemperature: real("defaultEvaluationTemperature"),
 	defaultFileImageMode: text("defaultFileImageMode").notNull().default("multimodal"),
 	defaultFileImageModelId: text("defaultFileImageModelId").references(() => aiModel.id, {
 		onDelete: "set null",

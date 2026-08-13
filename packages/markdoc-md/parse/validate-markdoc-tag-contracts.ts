@@ -1,5 +1,5 @@
 import type { Location, Node } from "@markdoc/markdoc";
-import * as Markdoc from "@markdoc/markdoc";
+import Markdoc from "@markdoc/markdoc";
 
 export type MarkdocContractAttribute = "description" | "formula" | "source" | "type" | "unit";
 type MarkdocInputTagKind = "info" | "switch";

@@ -66,5 +66,5 @@ packages/database/prisma/generated/
 # Agent-generated implementation plans
 plans/
 
-# License signing private key (never commit)
+# Legacy local signing material; never commit
 .license-signing-key.local

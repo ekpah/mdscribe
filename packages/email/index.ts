@@ -1,5 +1,4 @@
 import { render } from "@react-email/components";
-import { env } from "@repo/env";
 import { createTransport } from "nodemailer";
 import type { Transporter } from "nodemailer";
 import type SMTPPool from "nodemailer/lib/smtp-pool";
@@ -41,6 +40,14 @@ type SmtpTransporter = Transporter<SMTPPool.SentMessageInfo, SMTPPool.Options>;
 let transactionalTransport: SmtpTransporter | null = null;
 let broadcastTransport: SmtpTransporter | null = null;
 
+const getRequiredEnvironmentValue = (name: string): string => {
+	const value = process.env[name]?.trim();
+	if (!value) {
+		throw new Error(`${name} is required for email delivery`);
+	}
+	return value;
+};
+
 const createSmtpTransport = (url: string): SmtpTransporter => {
 	const options: SMTPPool.Options & { maxRequeues: number } = {
 		maxConnections: SMTP_MAX_CONNECTIONS,
@@ -54,22 +61,24 @@ const createSmtpTransport = (url: string): SmtpTransporter => {
 
 const getTransactionalTransport = (): SmtpTransporter => {
 	if (!transactionalTransport) {
-		transactionalTransport = createSmtpTransport(env.MAIL_SMTP_URL as string);
+		transactionalTransport = createSmtpTransport(getRequiredEnvironmentValue("MAIL_SMTP_URL"));
 	}
 	return transactionalTransport;
 };
 
 const getTransport = (delivery: EmailDelivery): SmtpTransporter => {
+	const broadcastUrl = process.env.MAIL_BROADCAST_SMTP_URL?.trim();
+	const transactionalUrl = getRequiredEnvironmentValue("MAIL_SMTP_URL");
 	if (
 		delivery !== "broadcast" ||
-		!env.MAIL_BROADCAST_SMTP_URL ||
-		env.MAIL_BROADCAST_SMTP_URL === env.MAIL_SMTP_URL
+		!broadcastUrl ||
+		broadcastUrl === transactionalUrl
 	) {
 		return getTransactionalTransport();
 	}
 
 	if (!broadcastTransport) {
-		broadcastTransport = createSmtpTransport(env.MAIL_BROADCAST_SMTP_URL as string);
+		broadcastTransport = createSmtpTransport(broadcastUrl);
 	}
 	return broadcastTransport;
 };
@@ -104,8 +113,8 @@ const sendRenderedEmail = async ({
 		disableFileAccess: true,
 		disableUrlAccess: true,
 		from: {
-			address: env.MAIL_FROM_ADDRESS as string,
-			name: env.MAIL_FROM_NAME as string,
+			address: getRequiredEnvironmentValue("MAIL_FROM_ADDRESS"),
+			name: getRequiredEnvironmentValue("MAIL_FROM_NAME"),
 		},
 		html,
 		subject,

@@ -46,7 +46,7 @@ Admins koennen unter `/admin/settings/models` im Tab `AI Vorlagen` globale zusae
 
 Nutzer koennen unter `/profile/ai-scribe` auch eigene Brief-Baukaesten erstellen. Ein Brief-Baukasten kombiniert mehrere passende AI Vorlagen zu einem Arztbrief-Editor mit Abschnitten fuer Diagnosen, Anamnese, Befunde und Epikrise. Private Brief-Baukaesten sind wie private AI Vorlagen eine Plus-Funktion; oeffentliche Brief-Baukaesten koennen ueber ihren Freigabelink auch von anderen Nutzern verwendet werden.
 
-Im Tab `Modelle` werden globale Standardmodelle gesetzt: optional ein multi-modales Modell, sonst getrennte Standards fuer Text, OCR/File/Image, Audio-Transkription und Evaluation. Pro Standardmodell kann Reasoning Effort gesetzt werden, wenn das Modell Reasoning-Unterstuetzung meldet.
+Im Tab `Modelle` werden globale Standardmodelle gesetzt: optional ein multi-modales Modell, sonst getrennte Standards fuer Text, OCR/File/Image und Audio-Transkription. Pro Standardmodell kann Reasoning Effort gesetzt werden, wenn das Modell Reasoning-Unterstuetzung meldet.
 
 Die Standardmodi unter `Schnelle Dokument-Generierung` (`/aiscribe/er`, `/aiscribe/icu`, `/aiscribe/outpatient`, `/aiscribe/procedures`, `/aiscribe/discharge`, `/aiscribe/diagnoseblock`) koennen im selben Admin-Tab separat konfiguriert werden. Ohne aktive Override-Konfiguration bleibt das bisherige hardcoded Verhalten unveraendert.
 
@@ -64,7 +64,7 @@ AI Vorlagen verwenden kein eigenes Modell mehr, sondern immer die globalen Stand
 
 Aktivierte eigene AI Vorlagen und Brief-Baukaesten erscheinen fuer den jeweiligen Nutzer gemeinsam im Bereich `Meine Vorlagen`. Von MDScribe bereitgestellte AI Vorlagen, Brief-Baukaesten und feste Standardmodi erscheinen gemeinsam unter `Schnelle Dokument-Generierung`. Private AI Vorlagen und Brief-Baukaesten sind eine Plus-Funktion und bleiben nur fuer den Autor sichtbar und nutzbar.
 
-Brief-Baukaesten sind auf `/aiscribe` mit dem Baukasten-Symbol oben rechts auf der Karte gekennzeichnet. Der integrierte Agent ist fuer alle angemeldeten Nutzer verfuegbar und verwendet bei weiteren Anfragen auch noch nicht angenommene Diff-Vorschlaege als aktuellen Abschnittsstand.
+Brief-Baukaesten sind auf `/aiscribe` mit dem Baukasten-Symbol oben rechts auf der Karte gekennzeichnet. Der integrierte **MDScribe Agent ist eine Beta-Funktion**. Er ist fuer alle angemeldeten Nutzer verfuegbar und verwendet bei weiteren Anfragen auch noch nicht angenommene Diff-Vorschlaege als aktuellen Abschnittsstand. Beta-Funktionen koennen sich noch veraendern und ihre Ausgaben muessen vor der Uebernahme fachlich geprueft werden.
 
 AIScribe-Eingaben nutzen dieselbe Eingabe-Leiste wie das automatische Fuellen von Vorlagen: Text, Audioaufnahmen und Kontextdateien koennen ueber die drei Eingabe-Schalter gewechselt werden. Audio- und Datei-Eingaben werden je nach globalem Modell-Setup direkt multimodal verarbeitet oder vorher transkribiert bzw. extrahiert.
 

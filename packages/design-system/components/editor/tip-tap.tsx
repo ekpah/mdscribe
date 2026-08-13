@@ -3,10 +3,11 @@
 import { enableKeyboardNavigation } from "@harshtalks/slash-tiptap";
 import { MarkdocMD } from "@repo/design-system/components/editor/tiptap-extension";
 import { cn } from "@repo/design-system/lib/utils";
-import { htmlToMarkdoc } from "@repo/markdoc-md/parse/html-to-markdoc";
-import type { MarkdocTagDiagnostic } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
-import { validateMarkdocTagContracts } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
-import { renderTipTapHTML } from "@repo/markdoc-md/render/utils/render-markdoc-as-tip-tap-html";
+import { htmlToMarkdoc, renderTipTapHTML } from "markdoc-md/editor";
+import {
+	type MarkdocTagDiagnostic,
+	validateMarkdocTagContracts,
+} from "markdoc-md/parse";
 import { Markdown } from "@tiptap/markdown";
 import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor } from "@tiptap/react";

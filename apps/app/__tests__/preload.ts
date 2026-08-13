@@ -136,7 +136,7 @@ const sendEmailBatchMock = mock((options: { to?: readonly string[] }) =>
 
 mock.module("server-only", () => ({}));
 
-mock.module("@repo/env", () => ({
+mock.module("@/env", () => ({
 	env: {
 		ADMIN_EMAIL: "admin@test.com",
 		BETTER_AUTH_SECRET: "test-secret-key-for-testing-32chars",
@@ -191,53 +191,6 @@ mock.module("ai", () => ({
 		return resolveAsync({
 			finishReason: "stop" as const,
 			object: {
-				categories: [
-					{
-						comment: "Testbewertung",
-						name: "Aktualität",
-						score: 4,
-					},
-					{
-						comment: "Testbewertung",
-						name: "Richtigkeit",
-						score: 4,
-					},
-					{
-						comment: "Testbewertung",
-						name: "Vollständigkeit",
-						score: 4,
-					},
-					{
-						comment: "Testbewertung",
-						name: "Nützlichkeit",
-						score: 4,
-					},
-					{
-						comment: "Testbewertung",
-						name: "Organisation",
-						score: 4,
-					},
-					{
-						comment: "Testbewertung",
-						name: "Verständlichkeit",
-						score: 4,
-					},
-					{
-						comment: "Testbewertung",
-						name: "Prägnanz",
-						score: 4,
-					},
-					{
-						comment: "Testbewertung",
-						name: "Synthese",
-						score: 4,
-					},
-					{
-						comment: "Testbewertung",
-						name: "Innere Konsistenz",
-						score: 4,
-					},
-				],
 				fieldDefinitions: {
 					bindings: [
 						{

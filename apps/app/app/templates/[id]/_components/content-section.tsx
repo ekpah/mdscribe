@@ -1,8 +1,8 @@
 "use client";
 
 import { cn } from "@repo/design-system/lib/utils";
-import { DynamicMarkdocRenderer } from "@repo/markdoc-md";
-import parseMarkdocToInputs from "@repo/markdoc-md/parse/parse-markdoc-to-inputs";
+import { parseMarkdocToInputs } from "markdoc-md/parse";
+import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { FileText, Info, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";

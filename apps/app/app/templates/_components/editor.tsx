@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/co
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
-import type { MarkdocTagDiagnostic } from "@repo/markdoc-md/parse/validate-markdoc-tag-contracts";
+import type { MarkdocTagDiagnostic } from "markdoc-md/parse";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InfoIcon, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";

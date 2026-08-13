@@ -1,4 +1,4 @@
-import { env } from "@repo/env";
+import { env } from "@/env";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";

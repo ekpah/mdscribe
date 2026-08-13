@@ -14,7 +14,7 @@ interface ModelCapabilities {
 	outputsAudio: boolean;
 }
 
-interface PlaygroundModel {
+interface AdminModel {
 	id: string;
 	modelId: string;
 	name: string;
@@ -67,7 +67,7 @@ const listModelsHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 		with: { models: true },
 	});
 
-	const models: PlaygroundModel[] = [];
+	const models: AdminModel[] = [];
 	for (const provider of providers) {
 		for (const model of provider.models) {
 			const supportedParameters = normalizeSupportedParameters(model.supportedParameters);

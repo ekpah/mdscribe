@@ -4,7 +4,7 @@ import type { DocumentDefinition, PdfFormField } from "@/app/documents/_lib";
 /**
  * Field mapping type for PDF form fields
  */
-export interface FieldMapping {
+interface FieldMapping {
 	fieldName: string;
 	inputKind: "text" | "boolean" | "choice";
 	label: string;

@@ -1,12 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { call } from "@orpc/server";
-import { template, usageEvent } from "@repo/database";
-
-import { aiMockState } from "@/__tests__/preload";
 import {
 	ADMIN_EMAIL,
-	createTestAiDefaults,
 	createTestContext,
 	createTestUsageEvent,
 	createTestUser,
@@ -70,46 +66,6 @@ describe("Admin usage stats", () => {
 		expect(stats.averageTimeToCompletionMs).toBe(1500);
 		expect(stats.averageTimeToFirstTokenMs).toBe(1000);
 		expect(stats.tokensPerSecond).toBe(50);
-	});
-
-	test("evaluates against the selected prompt template with PDQI-9", async () => {
-		await createTestAiDefaults(server.db);
-		const templateId = crypto.randomUUID();
-		await server.db.insert(template).values({
-			authorId: userId,
-			category: "Epikrise",
-			content: "# Epikrise\n(( Nur klinischen Verlauf ausgeben ))",
-			id: templateId,
-			information: "Diagnosen werden in einem anderen Briefteil dokumentiert.",
-			title: "Fokussierte Epikrise",
-		});
-		const eventId = crypto.randomUUID();
-		await server.db.insert(usageEvent).values({
-			id: eventId,
-			inputData: { notes: "Unkomplizierter Verlauf." },
-			metadata: {
-				endpoint: "custom:fokussierte-epikrise",
-				promptName: "epikrise",
-				templateId,
-			},
-			model: "test-model",
-			name: "ai_scribe_generation",
-			result: "Der stationäre Verlauf gestaltete sich unkompliziert.",
-			userId,
-		});
-
-		const evaluation = await call(usageHandler.evaluate, { id: eventId }, { context });
-		const generationOptions = aiMockState.lastGenerateObjectOptions as { prompt: string };
-
-		expect(generationOptions.prompt).toContain('"title": "Fokussierte Epikrise"');
-		expect(generationOptions.prompt).toContain(
-			"Diagnosen werden in einem anderen Briefteil dokumentiert.",
-		);
-		expect(generationOptions.prompt).toContain('"targetField": "epikrise"');
-		expect(evaluation.instrument).toBe("PDQI-9");
-		expect(evaluation.categories).toHaveLength(9);
-		expect(evaluation.totalScore).toBe(36);
-		expect(evaluation.maxScore).toBe(45);
 	});
 
 	test("returns hourly trend buckets for today with percentile metrics", async () => {

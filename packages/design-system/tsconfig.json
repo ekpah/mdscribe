@@ -1,19 +1,11 @@
 {
-  "extends": "@repo/typescript-config/react-library.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "plugins": [{ "name": "next" }],
     "paths": {
       "@repo/design-system/*": ["./*"],
-      "@repo/markdoc-md": ["../markdoc-md/index.ts"],
-      "@repo/markdoc-md/*": ["../markdoc-md/*"],
-      "@/lib/*": ["lib/*"]
+      "@/lib/*": ["./lib/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
