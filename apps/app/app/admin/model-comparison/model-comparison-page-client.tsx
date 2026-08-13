@@ -63,7 +63,6 @@ const DEFAULT_PARAMETERS: PlaygroundParameters = {
 	frequencyPenalty: undefined,
 	maxTokens: undefined,
 	presencePenalty: undefined,
-	reasoningEffort: "none",
 	temperature: 1,
 	thinking: false,
 	thinkingExplicit: false,

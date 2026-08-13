@@ -293,7 +293,7 @@ const runHandler = authed
 		}
 
 		const reasoningEffort =
-			parsed.parameters.reasoningEffort ?? (parsed.parameters.thinking ? "medium" : "none");
+			parsed.parameters.reasoningEffort ?? (parsed.parameters.thinking ? "medium" : undefined);
 		if (audioFiles.length > 0 || contextFiles.length > 0) {
 			const attachmentsResult = await appendScribeInputAttachmentsToMessages({
 				audioFiles,
@@ -305,7 +305,7 @@ const runHandler = authed
 					generation: {
 						defaultTemperature: null,
 						model: resolved,
-						reasoningEffort,
+						reasoningEffort: reasoningEffort ?? "none",
 						slot: "text",
 					},
 				},
@@ -317,6 +317,8 @@ const runHandler = authed
 		}
 		const providerOptions = buildProviderOptions({
 			model: resolved,
+			openRouterReasoningEffort:
+				parsed.parameters.reasoningEffort === "none" ? "none" : undefined,
 			reasoningEffort,
 			userId: context.session.user.id,
 		});

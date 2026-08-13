@@ -52,7 +52,7 @@ export interface PlaygroundParameters {
 	maxTokens?: number;
 	thinking: boolean;
 	thinkingExplicit: boolean;
-	reasoningEffort: ReasoningEffort;
+	reasoningEffort?: ReasoningEffort;
 	topP?: number;
 	topK?: number;
 	frequencyPenalty?: number;

@@ -947,12 +947,14 @@ const ANTHROPIC_THINKING_BUDGET_TOKENS: Record<Exclude<ReasoningEffort, "none">,
 export const buildProviderOptions = ({
 	includeUsage,
 	model,
+	openRouterReasoningEffort,
 	reasoningEffort,
 	userId,
 	zdr,
 }: {
 	includeUsage?: boolean;
 	model: ResolvedModel;
+	openRouterReasoningEffort?: ReasoningEffort;
 	reasoningEffort?: ReasoningEffort;
 	userId?: string;
 	zdr?: boolean;
@@ -966,13 +968,14 @@ export const buildProviderOptions = ({
 	switch (model.providerProtocol) {
 		case "openrouter": {
 			const providerSort = OPENROUTER_PROVIDER_SORT[model.openRouterRoutingMode];
+			const resolvedReasoningEffort = effectiveReasoningEffort ?? openRouterReasoningEffort;
 			return {
 				openrouter: {
 					...(providerSort ? { provider: { sort: providerSort } } : {}),
 					...(includeUsage ? { usage: { include: true } } : {}),
 					...(userId ? { user: userId } : {}),
-					...(effectiveReasoningEffort
-						? { reasoning: { effort: effectiveReasoningEffort } }
+					...(resolvedReasoningEffort
+						? { reasoning: { effort: resolvedReasoningEffort } }
 						: {}),
 					...(zdr ? { zdr: true } : {}),
 				},

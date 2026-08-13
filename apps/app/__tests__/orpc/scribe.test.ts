@@ -901,6 +901,42 @@ describe("buildProviderOptions", () => {
 
 		expect(options).toBeUndefined();
 	});
+
+	test("passes explicit off to OpenRouter when effort is none", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({
+				isOpenRouter: true,
+				providerProtocol: "openrouter",
+			}),
+			openRouterReasoningEffort: "none",
+			reasoningEffort: "none",
+		});
+
+		expect(options).toEqual({ openrouter: { reasoning: { effort: "none" } } });
+	});
+
+	test("keeps production-style OpenRouter none omitted without the playground flag", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({
+				isOpenRouter: true,
+				providerProtocol: "openrouter",
+			}),
+			reasoningEffort: "none",
+		});
+
+		expect(options).toEqual({ openrouter: {} });
+	});
+
+	test("omits OpenRouter reasoning when no effort was provided", () => {
+		const options = buildProviderOptions({
+			model: createResolvedModel({
+				isOpenRouter: true,
+				providerProtocol: "openrouter",
+			}),
+		});
+
+		expect(options).toEqual({ openrouter: {} });
+	});
 });
 
 describe("Fill Inputs Handler", () => {

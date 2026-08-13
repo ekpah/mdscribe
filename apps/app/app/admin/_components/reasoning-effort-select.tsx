@@ -15,7 +15,7 @@ interface ReasoningEffortSelectProps {
 	label?: string;
 	onValueChange: (value: ReasoningEffort) => void;
 	showDescription?: boolean;
-	value: ReasoningEffort;
+	value?: ReasoningEffort;
 }
 
 export const ReasoningEffortSelect = ({
