@@ -334,12 +334,3 @@ with `createMdscribeSource` or the documented URI syntax.
 `components` maps. `renderTipTapHTML` from `markdoc-md/editor` produces HTML without requiring a DOM.
 `htmlToMarkdoc` performs the reverse conversion and deliberately throws outside an environment with
 `DOMParser`; use `isHtmlToMarkdocSupported()` before offering that editor action.
-
-## Publishing
-
-`bun run build` creates production ESM, declarations, and source maps in `dist`. It then imports all
-public entries under Node, performs an SSR smoke test, checks the React/headless boundaries, and
-compiles the emitted public types with strict `NodeNext` resolution. `bun run check` adds source
-tests and source type checking. `npm pack --dry-run` executes the same checks via `prepack` and shows
-the exact release contents. The package is licensed under Apache-2.0; the full license text is
-included in the tarball.
