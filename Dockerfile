@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 
 # Generate a pruned monorepo containing only app + its transitive workspace deps.
-RUN bunx --bun turbo@2.7.1 prune app --docker --out-dir=out
+RUN bunx --bun turbo@2.10.9 prune app --docker --out-dir=out
 
 # ---- Dependencies ----
 FROM base AS deps
