@@ -18,6 +18,17 @@ WORKDIR /app
 COPY --from=pruner /app/out/json/ ./
 RUN bun install --frozen-lockfile
 
+# ---- Workspace packages ----
+FROM base AS packages
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=pruner /app/out/full/ ./
+COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
+
+# markdoc-md publishes generated dist entrypoints consumed by the app.
+RUN cd packages/markdoc-md && bun run build
+
 # ---- Builder ----
 # Use Node for Next.js build compatibility (Next 16 build workers rely on
 # worker_threads options that Bun doesn't fully implement yet).
@@ -26,6 +37,9 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=pruner /app/out/full/ ./
+# Turborepo does not include root configs that workspace tsconfigs extend.
+COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
+COPY --from=packages /app/packages/markdoc-md/dist ./packages/markdoc-md/dist
 
 ENV SKIP_ENV_VALIDATION=1
 ENV NODE_ENV=production
