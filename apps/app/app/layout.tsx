@@ -1,18 +1,19 @@
 // Required for pre-rendering.
 import "@/lib/orpc.server";
 import { DesignSystemProvider } from "@repo/design-system/providers";
-import { env } from "@/env";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 
 import "@repo/design-system/styles/globals.css";
-import dynamic from "next/dynamic";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from "react";
 import type { ReactNode } from "react";
 
+import { env } from "@/env";
 import { getServerSession } from "@/lib/server-session";
 import { sessionQueryKey } from "@/lib/session-query";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 import MenubarSkeleton from "./_components/landing/skeletons/menubar-skeleton";
 import QueryProvider from "./providers/query-provider";
@@ -22,8 +23,8 @@ const Menubar = dynamic(() => import("./_components/menubar"), {
 });
 
 export const metadata: Metadata = {
-	description: "A powerful, flexible, Markdown-based authoring framework",
-	title: "MDScribe",
+	description: USER_MESSAGES.landing.metadata.description,
+	title: USER_MESSAGES.landing.metadata.title,
 };
 
 interface RootLayoutProperties {
@@ -37,14 +38,18 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 	queryClient.setQueryData(sessionQueryKey, session);
 
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang="de" suppressHydrationWarning>
 			<head>
 				<meta content="width=device-width, initial-scale=1.0" name="viewport" />
 				<meta content="strict-origin" name="referrer" />
 
 				<link href="/favicon.ico" rel="shortcut icon" />
-        <link href="/favicon.ico" rel="icon" />
-				<script defer src="https://cloud.umami.is/script.js" data-website-id="8cfcabe5-4485-4904-95ba-95a39e09e2dd" />
+				<link href="/favicon.ico" rel="icon" />
+				<script
+					defer
+					src="https://cloud.umami.is/script.js"
+					data-website-id="8cfcabe5-4485-4904-95ba-95a39e09e2dd"
+				/>
 			</head>
 			<body className="items-center bg-background font-sans text-foreground">
 				<NuqsAdapter>
