@@ -92,22 +92,6 @@ runBun([
 ]);
 
 runBun(["__tests__/verify-dist.mjs"]);
-runBun([
-	"x",
-	"tsc",
-	"--noEmit",
-	"--target",
-	"ES2022",
-	"--module",
-	"NodeNext",
-	"--moduleResolution",
-	"NodeNext",
-	"--jsx",
-	"react-jsx",
-	"--strict",
-	"--skipLibCheck",
-	"true",
-	"--types",
-	"node,react,react-dom",
-	"__tests__/public-types.tsx",
-]);
+// Type-check the public surface via a dedicated tsconfig. Passing files on the
+// command line errors under TypeScript 7 (TS5112) because tsconfig.json is present.
+runBun(["x", "tsc", "-p", "__tests__/tsconfig.json"]);

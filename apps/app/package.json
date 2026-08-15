@@ -4,7 +4,7 @@
 	"license": "Apache-2.0",
 	"scripts": {
 		"dev": "bun --bun next dev -p 3000",
-		"build": "next build --webpack",
+		"build": "next build",
 		"start": "bun --bun next start",
 		"lint": "oxlint .",
 		"analyze": "bun --bun next analyze",

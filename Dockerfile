@@ -22,7 +22,10 @@ RUN bun install --frozen-lockfile
 FROM base AS packages
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
+# Copy the whole deps workspace, not just root node_modules: bun nests
+# conflicting dependency versions into per-workspace node_modules, which a
+# root-only copy would drop.
+COPY --from=deps /app ./
 COPY --from=pruner /app/out/full/ ./
 COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
 
@@ -35,7 +38,8 @@ RUN cd packages/markdoc-md && bun run build
 FROM node:20-slim AS builder
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
+# Copy the whole deps workspace (see packages stage above).
+COPY --from=deps /app ./
 COPY --from=pruner /app/out/full/ ./
 # Turborepo does not include root configs that workspace tsconfigs extend.
 COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
@@ -50,7 +54,7 @@ ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
 
 # Build only the app (docs is deployed separately).
 # Run Next directly under Node to avoid Bun worker_threads build issues.
-RUN cd apps/app && node ../../node_modules/next/dist/bin/next build --webpack
+RUN cd apps/app && node ../../node_modules/next/dist/bin/next build
 
 # ---- Runner ----
 FROM base AS runner
