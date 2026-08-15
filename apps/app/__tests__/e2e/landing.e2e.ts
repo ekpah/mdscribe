@@ -60,9 +60,9 @@ test.describe("Landing Page", () => {
 			.toBeLessThan(100);
 	});
 
-	test("shows the complete Markdown feature narrative", async ({ page }) => {
+	test("shows the complete text block feature narrative", async ({ page }) => {
 		await expect(
-			page.getByRole("heading", { name: /Markdown, das im Klinikalltag mehr kann/i }),
+			page.getByRole("heading", { name: /Textbausteine, die im Klinikalltag mitdenken/i }),
 		).toBeVisible();
 		await expect(page.getByRole("link", { name: /markdoc-md auf npm/i })).toHaveCount(0);
 		const markdownSection = page.locator("#feature-markdown");
@@ -78,10 +78,10 @@ test.describe("Landing Page", () => {
 			}),
 		).toHaveCount(0);
 		await expect(
-			page.getByRole("heading", { name: /Dokumentation beginnt mit lesbaren Vorlagen/i }),
+			page.getByRole("heading", { name: /Dokumentation beginnt mit passenden Textbausteinen/i }),
 		).toBeVisible();
 		await expect(
-			page.getByRole("heading", { name: /Markdown reagiert auf deine Eingaben/i }),
+			page.getByRole("heading", { name: /Textbausteine passen sich deinen Angaben an/i }),
 		).toBeVisible();
 		await expect(
 			page.getByRole("heading", { name: /Scores werden Teil der Dokumentation/i }),

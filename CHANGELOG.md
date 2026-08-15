@@ -6,6 +6,7 @@
 
 ### Changed
 
+- Reworked the landing page copy to address doctors instead of developers: replaced technical terms like "Markdown" and "Markdoc" with "Textbausteine" throughout hero, feature sections, demo labels, and metadata.
 - Unified all workspaces on TypeScript 7.0.2 via the root package catalog (workspaces previously used 5.9.3 while the root used 7.0.2).
 - Build the app with Turbopack (the Next 16 default) instead of forcing `--webpack`; the flag was a leftover from deploy debugging, not a Turbopack incompatibility.
 

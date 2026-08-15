@@ -184,8 +184,8 @@ export const USER_MESSAGES = {
 	landing: {
 		features: {
 			description:
-				"Vorlagen bleiben als Text verständlich und werden dort interaktiv, wo der klinische Alltag Struktur braucht.",
-			eyebrow: "MARKDOWN + MARKDOC",
+				"Bewährte Textbausteine geben deiner Dokumentation Struktur und passen sich den Angaben an, die du im Alltag bereits erfasst.",
+			eyebrow: "DOKUMENTATION, DIE MITDENKT",
 			frame: {
 				ai: {
 					badge: "KI-strukturiert",
@@ -220,8 +220,8 @@ export const USER_MESSAGES = {
 					title: "reha-antrag.pdf",
 				},
 				markdown: {
-					badge: "Standard-Markdown",
-					previewLabel: "Vorschau",
+					badge: "Textbaustein",
+					previewLabel: "Fertige Dokumentation",
 					source: `# Synkope
 
 ## Anamnese
@@ -233,8 +233,8 @@ Die notfallmäßige Vorstellung erfolgt bei Synkope am **XX.XX.XXXX**. Die Synko
 - **E:** EKG-Auffälligkeiten: XX
 - **S:** RR bei Triage XX/XX mmHg
 - **S:** Dyspnoe vor oder nach Synkope: XX`,
-					sourceLabel: "Markdown",
-					title: "synkope.md",
+					sourceLabel: "Textbaustein",
+					title: "Synkope · Anamnese",
 				},
 				preview: "Live-Vorschau",
 				score: {
@@ -318,15 +318,15 @@ Die Patientin oder der Patient war anschließend kardiorespiratorisch stabil; un
 				},
 				markdown: {
 					description:
-						"Schreibe einfach so, wie es dir gerade in den Sinn kommt – mit Überschriften, Listen oder Formatierung.",
+						"Starte mit einem bewährten Textbaustein und halte fest, was für den aktuellen Fall wichtig ist.",
 					detail: "",
-					label: "STRUKTUR",
+					label: "TEXTBAUSTEINE",
 					number: "01",
-					title: "Dokumentation beginnt mit lesbaren Vorlagen.",
+					title: "Dokumentation beginnt mit passenden Textbausteinen.",
 				},
 				score: {
 					description:
-						"Formeln greifen auf dieselben Eingaben zu und aktualisieren Ergebnisse direkt in der Vorlage.",
+						"Die Angaben aus der Dokumentation fließen direkt in den passenden Score ein.",
 					detail: "Werte einmal erfassen, konsistent weiterverwenden.",
 					label: "BERECHNUNGEN",
 					number: "03",
@@ -334,14 +334,14 @@ Die Patientin oder der Patient war anschließend kardiorespiratorisch stabil; un
 				},
 				template: {
 					description:
-						"Mit Markdoc-MD-Tags erstellst du ausfüllbare, wiederverwendbare Vorlagen mit Variablen und Logik.",
+						"Mit wenigen Angaben entsteht aus deinem Textbaustein eine vollständige, passende Dokumentation.",
 					detail: "",
-					label: "VARIABLEN + LOGIK",
+					label: "PASSEND ERGÄNZEN",
 					number: "02",
-					title: "Markdown reagiert auf deine Eingaben.",
+					title: "Textbausteine passen sich deinen Angaben an.",
 				},
 			},
-			title: "Markdown, das im Klinikalltag mehr kann.",
+			title: "Textbausteine, die im Klinikalltag mitdenken.",
 		},
 		footer: {
 			brand: "MDScribe",
@@ -353,7 +353,7 @@ Die Patientin oder der Patient war anschließend kardiorespiratorisch stabil; un
 			demo: {
 				diagnosis: "Pneumonie, nicht näher bezeichnet",
 				diagnosisCode: "J18.9",
-				filename: "notfallaufnahme.md",
+				filename: "Notaufnahme · Anamnese",
 				output: `Vorstellung bei seit drei Tagen bestehender Dyspnoe, Fieber und produktivem Husten. Thoraxschmerzen werden verneint.
 
 Vitalparameter bei Aufnahme am ${CURRENT_LANDING_DATE}:
@@ -367,21 +367,21 @@ RR 110/80 mmHg, Puls 96/min, Temperatur 38,9 °C, SpO₂ 99 %.`,
 - produktiver Husten
 - Fieber 38,9 °C
 - keine Thoraxschmerzen`,
-				sourceLabel: "Markdown",
+				sourceLabel: "Stichpunkte",
 			},
 			description:
-				"MDScribe verbindet KI mit flexiblen Markdown-Vorlagen und macht aus Stichpunkten, Diktaten und Eingaben strukturierte medizinische Dokumentation.",
+				"MDScribe macht aus Stichpunkten, Diktaten und Textbausteinen eine strukturierte medizinische Dokumentation – damit mehr Zeit für deine Patientinnen und Patienten bleibt.",
 			githubCta: "Quellcode ansehen",
 			primaryCta: "Kostenlos starten",
 			primaryCtaAuthenticated: "Dokumentation starten",
 			scrollHint: "Scrollen, um MDScribe kennenzulernen",
 			titleAccent: "Mehr Medizin.",
 			titleLead: "Weniger tippen.",
-			trust: ["Open Source", "Anpassbar", "Eigene Modelle"],
+			trust: ["Für Praxis und Klinik", "Anpassbar", "Ihre Daten im Blick"],
 		},
 		metadata: {
 			description:
-				"Das Open-Source-Tool MDScribe erleichtert medizinische Dokumentation mit KI, Markdown-Vorlagen und Self-Hosting.",
+				"MDScribe erleichtert medizinische Dokumentation mit KI, Textbausteinen und anpassbaren Vorlagen.",
 			title: "MDScribe – Open Source für medizinische Dokumentation",
 		},
 		pricing: {
