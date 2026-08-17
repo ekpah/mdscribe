@@ -1,7 +1,7 @@
 import { ORPCError, type } from "@orpc/server";
 import { usageEvent } from "@repo/database";
 import type { Database } from "@repo/database";
-import { generateText, Output } from "ai";
+import { extractJsonMiddleware, generateText, Output, wrapLanguageModel } from "ai";
 import { z } from "zod";
 
 import {
@@ -581,13 +581,20 @@ export const fillInputsHandler = authed
 			preparedAudio,
 			userPrompt: messages[1]?.content ?? "",
 		});
+		const generationModel = generationSelection.model.model;
 
 		const result = await generateText({
 			messages: [
 				{ content: messages[0]?.content ?? "", role: "system" },
 				{ content: userContent, role: "user" },
 			],
-			model: generationSelection.model.model,
+			model:
+				typeof generationModel === "string" || generationModel.specificationVersion !== "v3"
+					? generationModel
+					: wrapLanguageModel({
+							middleware: extractJsonMiddleware(),
+							model: generationModel,
+						}),
 			output: Output.object({
 				description: "Suggested field values for the requested input fields.",
 				name: "FillInputsResult",

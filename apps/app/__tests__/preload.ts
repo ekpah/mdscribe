@@ -176,7 +176,10 @@ mock.module("stripe", () => ({
 	default: MockStripe,
 }));
 
-export const aiMockState: { lastGenerateObjectOptions?: unknown } = {};
+export const aiMockState: {
+	lastGenerateObjectOptions?: unknown;
+	lastGenerateTextOptions?: unknown;
+} = {};
 
 mock.module("ai", () => ({
 	Output: {
@@ -186,6 +189,7 @@ mock.module("ai", () => ({
 		resolveAsync({
 			text: "Transkribierter Testtext",
 		}),
+	extractJsonMiddleware: () => "extract-json-middleware",
 	generateObject: (options?: unknown) => {
 		aiMockState.lastGenerateObjectOptions = options;
 		return resolveAsync({
@@ -231,6 +235,7 @@ mock.module("ai", () => ({
 		});
 	},
 	generateText: (options?: { messages?: { content?: unknown }[] }) => {
+		aiMockState.lastGenerateTextOptions = options;
 		const promptText =
 			options?.messages
 				?.map((message) => (typeof message.content === "string" ? message.content : ""))
@@ -249,6 +254,7 @@ mock.module("ai", () => ({
 		});
 	},
 	streamText: (options: { onFinish?: (event: unknown) => void }) => createMockStreamResult(options),
+	wrapLanguageModel: (options: unknown) => ({ wrappedLanguageModel: options }),
 }));
 
 mock.module("@openrouter/ai-sdk-provider", () => ({

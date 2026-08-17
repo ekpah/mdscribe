@@ -12,4 +12,5 @@
 
 ### Fixed
 
+- Fill-document autofill now strips model-added Markdown JSON fences before structured-output parsing, preventing valid responses from failing with "could not parse the response".
 - Docker build: copy the full pruned deps workspace into the `packages` and `builder` stages instead of only the root `node_modules`, so nested per-workspace `node_modules` from version-conflict resolution survive the stage boundary. Previously `bun x tsc` in `packages/markdoc-md` fell back to the root TypeScript 7 and the build failed with TS5112.

@@ -4,6 +4,7 @@ import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
 
 import type { TestServer } from "@/__tests__/setup";
+import { aiMockState } from "@/__tests__/preload";
 import {
 	createMockSession,
 	createTestAiDefaults,
@@ -1029,6 +1030,13 @@ describe("Fill Inputs Handler", () => {
 			);
 
 			expect(result.fieldValues).toEqual({ test: "value" });
+			expect(aiMockState.lastGenerateTextOptions).toMatchObject({
+				model: {
+					wrappedLanguageModel: {
+						middleware: "extract-json-middleware",
+					},
+				},
+			});
 
 			const [event] = await server.db
 				.select()
