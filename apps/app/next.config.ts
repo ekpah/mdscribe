@@ -49,11 +49,7 @@ export const config: NextConfig = {
 	// Next.js already optimizes a built-in list (lucide-react, recharts, date-fns, …),
 	// so only list barrels that aren't covered by that default.
 	experimental: {
-		optimizePackageImports: [
-			"@repo/design-system",
-			"@base-ui/react",
-			"react-aria-components",
-		],
+		optimizePackageImports: ["@repo/design-system", "@base-ui/react", "react-aria-components"],
 	},
 
 	headers() {
@@ -64,7 +60,7 @@ export const config: NextConfig = {
 					contentSecurityPolicy: isPortalPreview
 						? {
 								directives: {
-									frameAncestors: ["'self'", "https://ampcode.com"],
+									frameAncestors: ["'self'", "https://ampcode.com", "https://*.ampcode.com"],
 								},
 							}
 						: false,

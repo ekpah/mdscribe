@@ -90,6 +90,16 @@ test.describe("Landing Page", () => {
 		await expect(
 			page.getByRole("heading", { name: /PDF-Formulare ausfüllen, genau so leicht/i }),
 		).toBeVisible();
+		for (const [featureId, title] of [
+			["markdown", "Synkope · Anamnese"],
+			["template", "Vorhofflimmern · Kardioversion"],
+			["score", "Vorhofflimmern · Diagnoseblock"],
+			["ai", "Notaufnahme · Anamnese"],
+			["document", "Rehabilitation · Antrag"],
+		]) {
+			await expect(page.locator(`#feature-${featureId}`)).toContainText(title);
+		}
+		await expect(page.locator("#markdown")).not.toContainText(/\.(?:md|pdf)\b/);
 	});
 
 	test("explains self-hosting and the available plans", async ({ page }) => {
@@ -154,8 +164,12 @@ test.describe("Landing Page Markdoc demos", () => {
 		const templateSection = page.locator("#feature-template");
 		await templateSection.scrollIntoViewIfNeeded();
 
-		await templateSection.getByRole("textbox", { name: "Dosis Propofol" }).fill("60");
-		await templateSection.getByRole("textbox", { name: "Joule 1. Schock" }).fill("200");
+		await templateSection.getByRole("textbox", { name: "Dosis Propofol" }).pressSequentially("60");
+		await expect(templateSection).toContainText("60 mg");
+		await templateSection
+			.getByRole("textbox", { name: "Joule 1. Schock" })
+			.pressSequentially("200");
+		await expect(templateSection).toContainText("200 J");
 		await templateSection.getByRole("button", { name: "Sinusrhythmus" }).click();
 
 		await expect(
@@ -164,8 +178,6 @@ test.describe("Landing Page Markdoc demos", () => {
 			}),
 		).toHaveCount(0);
 		await expect(templateSection).toContainText("Erfolgreiche Konversion in den Sinusrhythmus");
-		await expect(templateSection).toContainText("60 mg");
-		await expect(templateSection).toContainText("200 J");
 		await expect
 			.poll(() =>
 				templateSection
@@ -228,7 +240,8 @@ test.describe("Landing Page Markdoc demos", () => {
 			"(( Formuliere aus den Notizen eine strukturierte Anamnese. ))",
 		);
 		await expect(aiDemo).toContainText(/Vitalparameter bei Aufnahme am \d{2}\.\d{2}\./);
-		await expect(aiDemo.locator("[data-ai-template]")).not.toContainText("- **RR:**");
+		await expect(aiDemo.locator("[data-ai-template-vitals]")).toContainText('RR {% info "RR"');
+		await expect(aiDemo.locator("[data-ai-template-vitals]")).not.toContainText("**RR:**");
 		const aiOutput = aiDemo.locator("[data-ai-output]");
 		await expect(aiOutput.locator("ul")).toHaveCount(0);
 		await expect(aiOutput).toContainText(
@@ -276,6 +289,16 @@ test.describe("Landing Page desktop scroll visuals", () => {
 
 	test("keeps the right-hand visual synchronized with each feature", async ({ page }) => {
 		await page.goto("/");
+		const activeVisual = page.locator("[data-active-feature]");
+		const progress = page.locator("[data-feature-progress]");
+		await expect(progress).toBeVisible();
+		const [visualBox, progressBox] = await Promise.all([
+			activeVisual.boundingBox(),
+			progress.boundingBox(),
+		]);
+		expect(progressBox?.x).toBeGreaterThan(visualBox?.x ? visualBox.x + visualBox.width : 0);
+		expect(progressBox?.height).toBeGreaterThan(progressBox?.width ?? 0);
+
 		await expect
 			.poll(() =>
 				page.locator("[data-feature-step]").evaluateAll((steps) =>
@@ -298,10 +321,7 @@ test.describe("Landing Page desktop scroll visuals", () => {
 			await page
 				.locator(`#feature-${featureId}`)
 				.evaluate((element) => element.scrollIntoView({ block: "center" }));
-			await expect(page.locator("[data-active-feature]")).toHaveAttribute(
-				"data-active-feature",
-				featureId,
-			);
+			await expect(activeVisual).toHaveAttribute("data-active-feature", featureId);
 		}
 
 		for (const height of [655, 787]) {

@@ -24,8 +24,9 @@ coverage
 # Turbo
 .turbo
 
-# Amp-generated portal manifests
+# Amp-generated portal artifacts
 .amp/portals/
+.amp/portal-proxy.mjs
 
 # Vercel
 .vercel

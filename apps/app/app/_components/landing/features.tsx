@@ -662,12 +662,13 @@ export const Features = () => {
 							</div>
 							<div
 								aria-hidden="true"
-								className="absolute top-full right-0 left-0 mt-5 flex justify-center gap-2"
+								className="absolute top-0 bottom-0 left-full ml-5 flex flex-col justify-center gap-2"
+								data-feature-progress
 							>
 								{FEATURE_IDS.map((featureId) => (
 									<span
-										className={`h-1 rounded-full transition-all duration-300 motion-reduce:transition-none ${
-											activeFeature === featureId ? "w-8 bg-solarized-blue" : "w-2 bg-border"
+										className={`w-1 rounded-full transition-all duration-300 motion-reduce:transition-none ${
+											activeFeature === featureId ? "h-8 bg-solarized-blue" : "h-2 bg-border"
 										}`}
 										key={featureId}
 									/>

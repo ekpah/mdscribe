@@ -1,10 +1,10 @@
 services:
   app:
     command: >-
-      NEXT_PUBLIC_BASE_URL="$PUBLIC_URL"
+      export NEXT_PUBLIC_BASE_URL="$PUBLIC_URL"
       BETTER_AUTH_URL="$PUBLIC_URL"
       ADMIN_EMAIL="test@test.com"
-      MDSCRIBE_ORB_PREVIEW="1"
+      MDSCRIBE_ORB_PREVIEW="1" &&
       bun run --cwd packages/markdoc-md build &&
       bun --bun next dev apps/app -p "$PORT"
     portal:

@@ -200,8 +200,8 @@ export const USER_MESSAGES = {
 (( Formuliere aus den Notizen eine strukturierte Anamnese. ))`,
 					templateLabel: "Vorlage",
 					templateVitals: `## Vitalparameter bei Aufnahme am {% info "Datum" type="date" /%}
-**RR:** {% info "RR" unit="mmHg" renderUnit=true /%}, **Puls:** {% info "Puls" unit="/min" renderUnit=true /%}, **Temperatur:** {% info "Temperatur" unit="°C" renderUnit=true /%}, **SpO₂:** {% info "SpO2" unit="%" renderUnit=true /%}`,
-					title: "notfallaufnahme.md",
+RR {% info "RR" unit="mmHg" renderUnit=true /%}, Puls {% info "Puls" unit="/min" renderUnit=true /%}, Temperatur {% info "Temperatur" unit="°C" renderUnit=true /%}, SpO₂ {% info "SpO2" unit="%" renderUnit=true /%}`,
+					title: "Notaufnahme · Anamnese",
 					vitals: ["RR 110/80 mmHg", "Puls 96/min", "Temperatur 38,9 °C", "SpO₂ 99 %"],
 					vitalsLabel: `Vitalparameter bei Aufnahme am ${CURRENT_LANDING_DATE}`,
 				},
@@ -217,7 +217,7 @@ export const USER_MESSAGES = {
 					patientLabel: "Patientin/Patient",
 					previewLabel: "PDF-Vorschau",
 					signatureLabel: "Digital vorbereitet",
-					title: "reha-antrag.pdf",
+					title: "Rehabilitation · Antrag",
 				},
 				markdown: {
 					badge: "Textbaustein",
@@ -276,7 +276,7 @@ Die notfallmäßige Vorstellung erfolgt bei Synkope am **XX.XX.XXXX**. Die Synko
 					},
 					inputLabel: "Score-Eingabe",
 					outputLabel: "Diagnoseblock",
-					title: "diagnoseblock-vorhofflimmern.md",
+					title: "Vorhofflimmern · Diagnoseblock",
 				},
 				template: {
 					badge: "Dynamische Vorlage",
@@ -296,7 +296,7 @@ Nach Sedierung mit Propofol ({% info "Dosis Propofol" type="number" unit="mg" re
 Die Patientin oder der Patient war anschließend kardiorespiratorisch stabil; unmittelbare Komplikationen traten nicht auf.`,
 					inputLabel: "Kardioversion",
 					outputLabel: "Prozedur-Dokumentation",
-					title: "elektrische-kardioversion.md",
+					title: "Vorhofflimmern · Kardioversion",
 				},
 			},
 			steps: {
