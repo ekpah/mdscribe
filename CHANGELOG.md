@@ -4,6 +4,8 @@
 
 ### Added
 
+- Pasting Markdoc text into the template editor now converts supported input, score, and switch syntax directly into interactive editor tags.
+
 ### Changed
 
 - Aligned the landing-page feature previews with their vertical scroll interaction, including right-side pagination, consistent clinical titles, and matching inline vital-sign examples.

@@ -3,19 +3,20 @@
 import { enableKeyboardNavigation } from "@harshtalks/slash-tiptap";
 import { MarkdocMD } from "@repo/design-system/components/editor/tiptap-extension";
 import { cn } from "@repo/design-system/lib/utils";
-import { htmlToMarkdoc, renderTipTapHTML } from "markdoc-md/editor";
-import {
-	type MarkdocTagDiagnostic,
-	validateMarkdocTagContracts,
-} from "markdoc-md/parse";
 import { Markdown } from "@tiptap/markdown";
+import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import TipTapStarterKit from "@tiptap/starter-kit";
+import { htmlToMarkdoc, renderTipTapHTML } from "markdoc-md/editor";
+import { type MarkdocTagDiagnostic, validateMarkdocTagContracts } from "markdoc-md/parse";
 import { useCallback, useEffect } from "react";
 import type { MouseEvent } from "react";
 
 import TipTapMenu from "./_components/tip-tap-menu";
+
+const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:info|score|switch)\b/iu;
+const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Info|Score|Switch)\b/iu;
 
 export default function TipTap({
 	note,
@@ -56,6 +57,27 @@ export default function TipTap({
 			},
 			handleDOMEvents: {
 				keydown: (_, v) => enableKeyboardNavigation(v),
+			},
+			handlePaste: (view, event) => {
+				const clipboardText = event.clipboardData?.getData("text/plain") ?? "";
+				if (!MARKDOC_INPUT_TAG_PATTERN.test(clipboardText)) {
+					return false;
+				}
+
+				const html = renderTipTapHTML(clipboardText);
+				if (!TIPTAP_INPUT_ELEMENT_PATTERN.test(html)) {
+					return false;
+				}
+
+				const container = document.createElement("div");
+				container.innerHTML = html;
+				const slice = ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(container, {
+					preserveWhitespace: true,
+				});
+
+				event.preventDefault();
+				view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+				return true;
 			},
 		},
 		extensions: [
