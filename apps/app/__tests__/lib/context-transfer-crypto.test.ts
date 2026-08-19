@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+	createTransferKey,
 	createTransferToken,
 	decryptTransferEnvelope,
 	encryptTransferEnvelope,
@@ -23,6 +24,15 @@ describe("context transfer crypto", () => {
 
 		const decrypted = await decryptTransferEnvelope<typeof payload>(envelope, key);
 		expect(decrypted).toEqual(payload);
+	});
+
+	test("encrypts with a key created on another device", async () => {
+		const key = createTransferKey();
+		const payload = { contextFiles: [{ name: "foto.jpg" }], version: 1 };
+		const encrypted = await encryptTransferEnvelope(payload, key);
+
+		expect(encrypted.key).toBe(key);
+		expect(await decryptTransferEnvelope<typeof payload>(encrypted.envelope, key)).toEqual(payload);
 	});
 
 	test("fails to decrypt with a wrong key or tampered envelope", async () => {

@@ -4,6 +4,7 @@
 
 ### Added
 
+- The file input context now supports photo transfers from an unauthenticated phone via QR code.
 - Pasting Markdoc text into the template editor now converts supported input, score, and switch syntax directly into interactive editor tags.
 
 ### Changed

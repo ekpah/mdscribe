@@ -12,6 +12,7 @@ import {
 } from "@/lib/input-fill-limits";
 import { addContextFilesToValue } from "../../files";
 import type { UploadedContextFile } from "../../types";
+import { MobileFileUpload } from "./mobile-file-upload";
 
 interface DocumentInputProps {
 	accept?: string;
@@ -50,22 +51,18 @@ export const DocumentInput = ({
 		null,
 	);
 
-	const handleAddFiles = useCallback(
-		(files: { file: unknown }[]) => {
+	const handleRawFiles = useCallback(
+		(nextFiles: File[]) => {
 			if (disabled) {
-				return;
+				return false;
 			}
 
-			const nextFiles = files
-				.map(({ file }) => file)
-				.filter((file): file is File => file instanceof File);
 			if (nextFiles.length === 0) {
-				return;
+				return false;
 			}
 
 			if (onAddFiles) {
-				onAddFiles(nextFiles);
-				return;
+				return Boolean(onAddFiles(nextFiles));
 			}
 
 			const result = addContextFilesToValue({
@@ -79,10 +76,11 @@ export const DocumentInput = ({
 				if (result.message) {
 					toast.error(result.message);
 				}
-				return;
+				return false;
 			}
 
 			onValueChange(result.files);
+			return true;
 		},
 		[
 			disabled,
@@ -93,6 +91,14 @@ export const DocumentInput = ({
 			onValueChange,
 			value,
 		],
+	);
+	const handleAddFiles = useCallback(
+		(files: { file: unknown }[]) => {
+			handleRawFiles(
+				files.map(({ file }) => file).filter((file): file is File => file instanceof File),
+			);
+		},
+		[handleRawFiles],
 	);
 
 	const handleRemoveFile = useCallback(
@@ -159,6 +165,7 @@ export const DocumentInput = ({
 				title="Dateien hier ablegen oder auswählen"
 				variant="compact"
 			/>
+			<MobileFileUpload disabled={disabled} onFilesReceived={handleRawFiles} />
 			<div className={cn("grid gap-2 overflow-y-auto", listClassName)}>
 				{value.length > 0 ? (
 					value.map(({ file, id }) => {

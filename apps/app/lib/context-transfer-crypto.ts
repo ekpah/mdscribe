@@ -49,6 +49,12 @@ export const createTransferToken = (): string => {
 	return bytesToBase64Url(bytes);
 };
 
+export const createTransferKey = (): string => {
+	const bytes = new Uint8Array(TRANSFER_KEY_BYTES);
+	crypto.getRandomValues(bytes);
+	return bytesToBase64Url(bytes);
+};
+
 export const hashTransferToken = async (token: string): Promise<string | null> => {
 	const tokenBytes = base64UrlToBytes(token);
 	if (tokenBytes.byteLength < TRANSFER_TOKEN_BYTES) {
@@ -63,9 +69,12 @@ const importAesKey = (keyBytes: Uint8Array, usage: KeyUsage): Promise<CryptoKey>
 
 export const encryptTransferEnvelope = async (
 	payload: unknown,
+	key = createTransferKey(),
 ): Promise<{ envelope: string; key: string; payloadBytes: number }> => {
-	const keyBytes = new Uint8Array(TRANSFER_KEY_BYTES);
-	crypto.getRandomValues(keyBytes);
+	const keyBytes = base64UrlToBytes(key);
+	if (keyBytes.byteLength !== TRANSFER_KEY_BYTES) {
+		throw new Error("Invalid transfer key");
+	}
 	const iv = new Uint8Array(TRANSFER_IV_BYTES);
 	crypto.getRandomValues(iv);
 
@@ -86,7 +95,7 @@ export const encryptTransferEnvelope = async (
 
 	return {
 		envelope: bytesToBase64Url(envelopeBytes),
-		key: bytesToBase64Url(keyBytes),
+		key,
 		payloadBytes: plaintext.byteLength,
 	};
 };
