@@ -1,42 +1,21 @@
 import {
 	aiScribeFormConfig,
 	aiScribeWorkspace,
-	and,
 	desc,
-	gte,
-	inArray,
 	isNotNull,
-	lte,
 	sql,
 	subscription,
-	usageEvent,
 	user,
 } from "@repo/database";
 
-import { PRODUCT_PLANS } from "@/lib/product-plans";
-import { BILLABLE_SCRIBE_USAGE_EVENT_NAMES } from "@/lib/usage-event-names";
+import { resolveMonthlyUsagePeriod } from "@/lib/usage-period";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { getMonthlyScribeUsage } from "@/orpc/scribe/_lib/get-usage";
+import { resolveScribeEntitlements } from "@/orpc/scribe/handlers/usage-limit";
 
 const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ context }) => {
 	const now = new Date();
-	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-	const usageQuery = context.db
-		.select({
-			cost: sql<number>`coalesce(sum(${usageEvent.cost}), 0)::double precision`.as("usageCost"),
-			count: sql<number>`count(*)::int`.as("usageEventsCount"),
-			userId: usageEvent.userId,
-		})
-		.from(usageEvent)
-		.where(
-			and(
-				inArray(usageEvent.name, [...BILLABLE_SCRIBE_USAGE_EVENT_NAMES]),
-				gte(usageEvent.timestamp, firstDayOfMonth),
-				lte(usageEvent.timestamp, now),
-			),
-		)
-		.groupBy(usageEvent.userId);
 
 	const aiScribeFormsQuery = context.db
 		.select({
@@ -91,20 +70,42 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 		})
 		.from(user)
 		.orderBy(desc(user.createdAt));
-	const [usageRows, aiScribeFormRows, aiScribeWorkspaceRows, subscriptions, users] =
-		await Promise.all([
-			usageQuery,
-			aiScribeFormsQuery,
-			aiScribeWorkspacesQuery,
-			subscriptionsQuery,
-			usersQuery,
-		]);
-
+	const [aiScribeFormRows, aiScribeWorkspaceRows, subscriptions, users] = await Promise.all([
+		aiScribeFormsQuery,
+		aiScribeWorkspacesQuery,
+		subscriptionsQuery,
+		usersQuery,
+	]);
 	const usageByUserId = new Map(
-		usageRows.map((row) => [
-			row.userId,
-			{ cost: Number(row.cost ?? 0), count: Number(row.count ?? 0) },
-		]),
+		await Promise.all(
+			users.map(async (currentUser) => {
+				const entitlements = await resolveScribeEntitlements({
+					db: context.db,
+					userId: currentUser.id,
+				});
+				const period = resolveMonthlyUsagePeriod({
+					hasActiveSubscription: entitlements.hasActiveSubscription,
+					now,
+					subscriptionPeriodEnd: entitlements.subscriptionPeriodEnd,
+					subscriptionPeriodStart: entitlements.subscriptionPeriodStart,
+				});
+				const usage = await getMonthlyScribeUsage({
+					db: context.db,
+					now,
+					period,
+					session: { user: { id: currentUser.id } },
+				});
+
+				return [
+					currentUser.id,
+					{
+						cost: usage.totalCost,
+						count: usage.count,
+						limit: entitlements.scribeMonthlyCostLimit,
+					},
+				] as const;
+			}),
+		),
 	);
 	const aiScribeFormsByUserId = new Map(
 		aiScribeFormRows.map((row) => [row.userId, Number(row.count ?? 0)]),
@@ -123,7 +124,6 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 		const selectedSubscription = subscriptionByUserId.get(currentUser.id);
 		const hasActiveSubscription =
 			selectedSubscription?.status === "active" || selectedSubscription?.status === "trialing";
-		const effectivePlan = hasActiveSubscription ? "plus" : "free";
 		const usage = usageByUserId.get(currentUser.id);
 
 		return {
@@ -136,7 +136,7 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 			},
 			hasActiveSubscription,
 			monthlyUsageCost: usage?.cost ?? 0,
-			monthlyUsageCostLimit: PRODUCT_PLANS[effectivePlan].scribeMonthlyCostLimit,
+			monthlyUsageCostLimit: usage?.limit ?? 0,
 			subscriptionPlan:
 				hasActiveSubscription && selectedSubscription ? selectedSubscription.plan : "free",
 			subscriptionStatus: selectedSubscription?.status ?? null,

@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- The admin user-management AI-usage column now follows each user's quota period and excludes usage billed through their own API key.
 - Fill-document autofill now strips model-added Markdown JSON fences before structured-output parsing, preventing valid responses from failing with "could not parse the response".
 - Amp portal previews now preserve their public URL configuration across setup commands, permit framing only from Amp origins, and ignore generated proxy artifacts.
 - Docker build: copy the full pruned deps workspace into the `packages` and `builder` stages instead of only the root `node_modules`, so nested per-workspace `node_modules` from version-conflict resolution survive the stage boundary. Previously `bun x tsc` in `packages/markdoc-md` fell back to the root TypeScript 7 and the build failed with TS5112.

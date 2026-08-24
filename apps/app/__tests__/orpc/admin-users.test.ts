@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { call } from "@orpc/server";
-import { aiScribeFormConfig, aiScribeWorkspace, eq, subscription } from "@repo/database";
+import { aiScribeFormConfig, aiScribeWorkspace, eq, subscription, usageEvent } from "@repo/database";
 
 import {
 	ADMIN_EMAIL,
@@ -71,6 +71,34 @@ describe("Admin users", () => {
 		expect(listedUser?.monthlyUsageCostLimit).toBe(8);
 		expect(listedUser?._count.aiScribeForms).toBe(1);
 		expect(listedUser?._count.aiScribeWorkspaces).toBe(1);
+	});
+
+	test("uses the same period and BYOK exclusion as the user's quota", async () => {
+		const { user } = await createTestUser(server.db);
+		const now = new Date();
+		await createTestSubscription(server.db, user.id, {
+			periodEnd: new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000),
+			periodStart: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000),
+		});
+		await createTestUsageEvent(server.db, user.id, { cost: 1 });
+		await server.db.insert(usageEvent).values({
+			cost: "2",
+			id: crypto.randomUUID(),
+			metadata: { credentialSource: "user_byok" },
+			name: "ai_scribe_generation",
+			timestamp: now,
+			userId: user.id,
+		});
+		await createTestUsageEvent(server.db, user.id, {
+			cost: 4,
+			timestamp: new Date(now.getTime() - 16 * 24 * 60 * 60 * 1000),
+		});
+
+		const users = await call(usersHandler.list, undefined, { context });
+		const listedUser = users.find((candidate) => candidate.id === user.id);
+
+		expect(listedUser?.monthlyUsageCost).toBe(1);
+		expect(listedUser?._count.usageEvents).toBe(2);
 	});
 
 	test.each(["past_due", "canceled", "cancelled", "ACTIVE"])(
