@@ -1,5 +1,16 @@
 import { ORPCError, type } from "@orpc/server";
-import { and, count, desc, eq, favourites, or, sql, template, user } from "@repo/database";
+import {
+	aiScribeFormConfig,
+	and,
+	count,
+	desc,
+	eq,
+	favourites,
+	or,
+	sql,
+	template,
+	user,
+} from "@repo/database";
 import type { Database, Template } from "@repo/database";
 import { validateMarkdocTagContracts } from "markdoc-md/parse";
 import { z } from "zod";
@@ -79,6 +90,10 @@ const updateTemplateInput = z.object({
 	information: z.string().max(10_000, "Information is too long").default(""),
 	name: z.string().min(1, "Name is required"),
 	visibility: templateVisibilitySchema.default("public"),
+});
+
+const deleteTemplateInput = z.object({
+	id: z.string(),
 });
 
 const favouriteInput = z.object({
@@ -443,6 +458,38 @@ const updateTemplateHandler = authed
 		});
 	});
 
+/**
+ * Delete an authored template and every AI template based on it. Deleting the
+ * AI templates resets referencing workspace slots to their default via the
+ * existing ON DELETE SET NULL foreign keys.
+ */
+const deleteTemplateHandler = authed.input(deleteTemplateInput).handler(({ context, input }) =>
+	context.db.transaction(async (tx) => {
+		const ownedTemplate = await tx.query.template.findFirst({
+			columns: { id: true },
+			where: and(eq(template.id, input.id), eq(template.authorId, context.session.user.id)),
+		});
+
+		if (!ownedTemplate) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Textbaustein wurde nicht gefunden",
+			});
+		}
+
+		const deletedAiTemplates = await tx
+			.delete(aiScribeFormConfig)
+			.where(eq(aiScribeFormConfig.templateId, input.id))
+			.returning({ id: aiScribeFormConfig.id });
+
+		await tx.delete(template).where(eq(template.id, input.id));
+
+		return {
+			deletedAiTemplateCount: deletedAiTemplates.length,
+			success: true,
+		};
+	}),
+);
+
 // ============================================================================
 // Authenticated Handlers - Favourite Operations
 // ============================================================================
@@ -499,6 +546,7 @@ export const templatesHandler = {
 	authored: getAuthoredHandler,
 	// Authenticated - CRUD
 	create: createTemplateHandler,
+	delete: deleteTemplateHandler,
 	editorContext: getEditorContextHandler,
 	// Authenticated - Read
 	favourites: getFavouritesHandler,

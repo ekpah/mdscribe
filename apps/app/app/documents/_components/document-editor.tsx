@@ -3,6 +3,14 @@
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@repo/design-system/components/ui/dialog";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
@@ -16,8 +24,8 @@ import { Switch } from "@repo/design-system/components/ui/switch";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { InfoIcon, Link2, Plus, Sparkles, Trash2, Unlink2, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { InfoIcon, Link2, Loader2, Plus, Sparkles, Trash2, Unlink2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
@@ -1201,6 +1209,107 @@ const isCheckboxLikeBooleanField = (field: EditorFieldRow): boolean =>
 				isUncheckedPdfValue(pdfField.valueMap?.false ?? "")),
 	);
 
+const DeleteDocumentButton = ({
+	disabled,
+	documentId,
+	title,
+}: {
+	disabled: boolean;
+	documentId?: string;
+	title: string;
+}) => {
+	const router = useRouter();
+	const queryClient = useQueryClient();
+	const [dialogOpen, setDialogOpen] = useState(false);
+	const deleteMutation = useMutation(orpc.documents.templates.delete.mutationOptions());
+
+	const handleDelete = async () => {
+		if (!documentId) {
+			return;
+		}
+
+		try {
+			await deleteMutation.mutateAsync({ id: documentId });
+			queryClient.removeQueries({
+				queryKey: orpc.documents.templates.get.queryOptions({ input: { id: documentId } }).queryKey,
+			});
+			queryClient.removeQueries({
+				queryKey: orpc.documents.templates.getPdf.queryOptions({ input: { id: documentId } })
+					.queryKey,
+			});
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: orpc.documents.templates.list.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.documents.templates.editorContext.queryOptions().queryKey,
+				}),
+			]);
+			toast.success("Dokument gelöscht");
+			router.push("/documents");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+			toast.error(`Löschen fehlgeschlagen: ${message}`);
+		}
+	};
+
+	if (!documentId) {
+		return null;
+	}
+
+	return (
+		<>
+			<Button
+				disabled={disabled || deleteMutation.isPending}
+				onClick={() => {
+					setDialogOpen(true);
+				}}
+				variant="destructive"
+			>
+				<Trash2 className="h-4 w-4" />
+				Löschen
+			</Button>
+			<Dialog
+				onOpenChange={(open) => {
+					if (!deleteMutation.isPending) {
+						setDialogOpen(open);
+					}
+				}}
+				open={dialogOpen}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle className="pr-6">Dokument wirklich löschen?</DialogTitle>
+						<DialogDescription>
+							Das Dokument „{title}“ einschließlich des hinterlegten PDFs wird unwiderruflich
+							gelöscht.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							disabled={deleteMutation.isPending}
+							onClick={() => {
+								setDialogOpen(false);
+							}}
+							variant="outline"
+						>
+							Abbrechen
+						</Button>
+						<Button
+							disabled={deleteMutation.isPending}
+							onClick={handleDelete}
+							variant="destructive"
+						>
+							{deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+							Unwiderruflich löschen
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
+	);
+};
+
 export default function DocumentEditor({
 	documentId,
 	forkId,
@@ -1575,9 +1684,12 @@ export default function DocumentEditor({
 		>
 			<div className="mb-3 shrink-0 flex items-center justify-between gap-2">
 				<h1 className="font-semibold text-lg">{getDocumentEditorTitle(documentId)}</h1>
-				<Button disabled={isSavePending} onClick={handleSave}>
-					{isSavePending ? "Speichert..." : "Speichern"}
-				</Button>
+				<div className="flex items-center gap-2">
+					<DeleteDocumentButton disabled={isSavePending} documentId={documentId} title={title} />
+					<Button disabled={isSavePending} onClick={handleSave}>
+						{isSavePending ? "Speichert..." : "Speichern"}
+					</Button>
+				</div>
 			</div>
 
 			<Card className="grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden md:grid-cols-[minmax(360px,9fr)_minmax(0,11fr)]">

@@ -4,6 +4,14 @@ import PlainEditor from "@repo/design-system/components/editor/plain-editor";
 import type { TagInspectorEditor } from "@repo/design-system/components/editor/tag-inspector/tag-inspector";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@repo/design-system/components/ui/dialog";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
@@ -17,9 +25,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/co
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
-import type { MarkdocTagDiagnostic } from "markdoc-md/parse";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { InfoIcon, Plus, Trash2 } from "lucide-react";
+import { InfoIcon, Loader2, Plus, Trash2 } from "lucide-react";
+import type { MarkdocTagDiagnostic } from "markdoc-md/parse";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -208,6 +216,132 @@ const TemplateInformationTab = ({
 		</div>
 	</TabsContent>
 );
+
+const DeleteTemplateButton = ({
+	disabled,
+	id,
+	name,
+}: {
+	disabled: boolean;
+	id?: string;
+	name: string;
+}) => {
+	const router = useRouter();
+	const queryClient = useQueryClient();
+	const [dialogOpen, setDialogOpen] = useState(false);
+	const deleteMutation = useMutation(orpc.templates.delete.mutationOptions());
+
+	const handleDelete = async () => {
+		if (!id) {
+			return;
+		}
+
+		try {
+			await deleteMutation.mutateAsync({ id });
+			queryClient.removeQueries({
+				queryKey: orpc.templates.get.queryOptions({ input: { id } }).queryKey,
+			});
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: orpc.templates.list.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.templates.favourites.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.templates.authored.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.templates.editorContext.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.scribeForms.list.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.scribeForms.listAvailable.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.scribeForms.editorContext.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.scribeWorkspaces.list.queryOptions().queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: orpc.scribeWorkspaces.editorContext.queryOptions().queryKey,
+				}),
+			]);
+			toast.success("Textbaustein gelöscht");
+			router.push("/templates");
+		} catch (error) {
+			toast.error(
+				isActionableError(error) ? error.message : "Fehler beim Löschen des Textbausteins",
+			);
+		}
+	};
+
+	if (!id) {
+		return null;
+	}
+
+	return (
+		<>
+			<Button
+				aria-label="Textbaustein löschen"
+				className="mt-2"
+				disabled={disabled || deleteMutation.isPending}
+				onClick={() => {
+					setDialogOpen(true);
+				}}
+				size="icon"
+				title="Textbaustein löschen"
+				type="button"
+				variant="destructive"
+			>
+				<Trash2 className="h-4 w-4" />
+			</Button>
+			<Dialog
+				onOpenChange={(open) => {
+					if (!deleteMutation.isPending) {
+						setDialogOpen(open);
+					}
+				}}
+				open={dialogOpen}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle className="pr-6">Textbaustein wirklich löschen?</DialogTitle>
+						<DialogDescription>
+							Der Textbaustein „{name}“ und alle darauf basierenden AI Vorlagen werden
+							unwiderruflich gelöscht. Betroffene Brief-Baukästen verwenden danach die
+							Standard-Vorlage.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							disabled={deleteMutation.isPending}
+							onClick={() => {
+								setDialogOpen(false);
+							}}
+							type="button"
+							variant="outline"
+						>
+							Abbrechen
+						</Button>
+						<Button
+							disabled={deleteMutation.isPending}
+							onClick={handleDelete}
+							type="button"
+							variant="destructive"
+						>
+							{deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+							Unwiderruflich löschen
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
+	);
+};
 
 export default function Editor({
 	cat,
@@ -520,6 +654,7 @@ export default function Editor({
 	const handleSwitchToSource = useCallback(() => {
 		setShowSource(true);
 	}, []);
+
 	const resolvedCategory = category === "new" ? newCategory : category;
 	const isCategoryValid = resolvedCategory.trim() !== "";
 	const isNewCategoryValid = newCategory.trim() !== "";
@@ -678,7 +813,11 @@ export default function Editor({
 						<TemplateInformationTab information={information} onChange={handleInformationChange} />
 					</Tabs>
 					<div className="flex shrink-0 flex-row gap-2">
-						<Button className="mt-2 w-full" disabled={isSubmitting || !isFormValid} type="submit">
+						<Button
+							className="mt-2 min-w-0 flex-1"
+							disabled={isSubmitting || !isFormValid}
+							type="submit"
+						>
 							{getSaveButtonLabel({
 								hasMarkdocErrors,
 								isFormValid,
@@ -686,6 +825,7 @@ export default function Editor({
 								isValidationPending,
 							})}
 						</Button>
+						<DeleteTemplateButton disabled={isSubmitting} id={id} name={name} />
 					</div>
 				</form>
 			</Card>

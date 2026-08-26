@@ -78,9 +78,7 @@ const documentFieldMappingSchema = z.object({
 	inputKind: z.enum(["boolean", "choice", "text"]),
 	label: z.string().min(1).max(500),
 	options: z.array(z.string().max(500)).max(500).optional(),
-	pdfType: z
-		.enum(["text", "multiline", "dropdown", "checkbox", "radio", "unsupported"])
-		.optional(),
+	pdfType: z.enum(["text", "multiline", "dropdown", "checkbox", "radio", "unsupported"]).optional(),
 });
 
 const parseFormInput = z.object({
@@ -682,6 +680,28 @@ const updateDocumentTemplateHandler = authed
 		return updatedTemplate;
 	});
 
+const deleteDocumentTemplateHandler = authed
+	.input(getDocumentTemplateInput)
+	.handler(async ({ context, input }) => {
+		const [deletedTemplate] = await context.db
+			.delete(documentTemplate)
+			.where(
+				and(
+					eq(documentTemplate.id, input.id),
+					eq(documentTemplate.authorId, context.session.user.id),
+				),
+			)
+			.returning({ id: documentTemplate.id });
+
+		if (!deletedTemplate) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Dokument wurde nicht gefunden.",
+			});
+		}
+
+		return { success: true };
+	});
+
 const getDocumentTemplateEditorContextHandler = authed.handler(async ({ context }) => {
 	const userId = context.session.user.id;
 	const limit = MAX_CATEGORY_SUGGESTIONS;
@@ -736,6 +756,7 @@ export const documentsHandler = {
 	parseForm: parseFormHandler,
 	templates: {
 		create: createDocumentTemplateHandler,
+		delete: deleteDocumentTemplateHandler,
 		editorContext: getDocumentTemplateEditorContextHandler,
 		get: getDocumentTemplateHandler,
 		getPdf: getDocumentTemplatePdfHandler,

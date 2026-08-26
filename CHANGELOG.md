@@ -6,6 +6,8 @@
 
 - The file input context now supports photo transfers from an unauthenticated phone via QR code.
 - Pasting Markdoc text into the template editor now converts supported input, score, and switch syntax directly into interactive editor tags.
+- Users can now delete their own text templates from the template editor; dependent AI templates are removed and affected Brief-Baukasten sections revert to the default AI template.
+- Users can now delete their own PDF document templates from the document editor.
 
 ### Changed
 

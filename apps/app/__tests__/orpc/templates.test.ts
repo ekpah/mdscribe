@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { call } from "@orpc/server";
-import { and, eq, template } from "@repo/database";
+import { aiScribeFormConfig, aiScribeWorkspace, and, eq, template } from "@repo/database";
 
 import type { TestServer } from "@/__tests__/setup";
 import {
@@ -570,6 +570,118 @@ describe("Templates oRPC Handlers", () => {
 						{ context },
 					),
 				).rejects.toThrow();
+			});
+		});
+
+		describe("templates.delete", () => {
+			test("deletes referencing AI templates and resets Brief-Baukasten slots", async () => {
+				const { user: owner } = await createTestUser(server.db, {
+					email: "template-owner@test.com",
+				});
+				const { user: aiTemplateOwner } = await createTestUser(server.db, {
+					email: "ai-template-owner@test.com",
+				});
+				const deletedTemplate = await createTestTemplate(server.db, owner.id);
+				const retainedTemplate = await createTestTemplate(server.db, owner.id, {
+					title: "Retained Template",
+				});
+				const deletedFormId = crypto.randomUUID();
+				const retainedFormId = crypto.randomUUID();
+
+				await server.db.insert(aiScribeFormConfig).values([
+					{
+						authorId: aiTemplateOwner.id,
+						id: deletedFormId,
+						inputPreset: "transcript",
+						name: "Delete with template",
+						promptHarness: "diagnosis",
+						slug: "delete-with-template",
+						templateId: deletedTemplate.id,
+					},
+					{
+						authorId: aiTemplateOwner.id,
+						id: retainedFormId,
+						inputPreset: "transcript",
+						name: "Keep with template",
+						promptHarness: "anamnese",
+						slug: "keep-with-template",
+						templateId: retainedTemplate.id,
+					},
+				]);
+				const workspaceId = crypto.randomUUID();
+				await server.db.insert(aiScribeWorkspace).values({
+					anamneseFormId: retainedFormId,
+					authorId: aiTemplateOwner.id,
+					diagnosisFormId: deletedFormId,
+					epikriseFormId: deletedFormId,
+					id: workspaceId,
+					name: "Test-Baukasten",
+					slug: "test-baukasten",
+				});
+
+				const result = await call(
+					templatesHandler.delete,
+					{ id: deletedTemplate.id },
+					{
+						context: createTestContext({
+							db: server.db,
+							session: createMockSession(owner),
+						}),
+					},
+				);
+
+				expect(result).toEqual({ deletedAiTemplateCount: 1, success: true });
+				expect(
+					await server.db.query.template.findFirst({
+						where: eq(template.id, deletedTemplate.id),
+					}),
+				).toBeUndefined();
+				expect(
+					await server.db.query.aiScribeFormConfig.findFirst({
+						where: eq(aiScribeFormConfig.id, deletedFormId),
+					}),
+				).toBeUndefined();
+				expect(
+					await server.db.query.aiScribeFormConfig.findFirst({
+						where: eq(aiScribeFormConfig.id, retainedFormId),
+					}),
+				).toBeDefined();
+
+				const workspace = await server.db.query.aiScribeWorkspace.findFirst({
+					where: eq(aiScribeWorkspace.id, workspaceId),
+				});
+				expect(workspace?.diagnosisFormId).toBeNull();
+				expect(workspace?.epikriseFormId).toBeNull();
+				expect(workspace?.anamneseFormId).toBe(retainedFormId);
+			});
+
+			test("does not delete a template owned by another user", async () => {
+				const { user: owner } = await createTestUser(server.db, {
+					email: "delete-owner@test.com",
+				});
+				const { user: other } = await createTestUser(server.db, {
+					email: "delete-other@test.com",
+				});
+				const testTemplate = await createTestTemplate(server.db, owner.id);
+
+				await expect(
+					call(
+						templatesHandler.delete,
+						{ id: testTemplate.id },
+						{
+							context: createTestContext({
+								db: server.db,
+								session: createMockSession(other),
+							}),
+						},
+					),
+				).rejects.toThrow("Textbaustein wurde nicht gefunden");
+
+				expect(
+					await server.db.query.template.findFirst({
+						where: eq(template.id, testTemplate.id),
+					}),
+				).toBeDefined();
 			});
 		});
 

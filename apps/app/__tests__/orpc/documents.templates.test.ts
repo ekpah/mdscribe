@@ -462,6 +462,70 @@ describe("documents.templates handlers", () => {
 		).rejects.toThrow();
 	});
 
+	test("delete removes an authored document and its stored PDF", async () => {
+		const { user } = await createTestUser(server.db, { email: ADMIN_EMAIL });
+		const context = createTestContext({
+			db: server.db,
+			session: createMockSession(user),
+		});
+		const created = await call(
+			documentsHandler.templates.create,
+			{
+				category: "Entlassung",
+				fieldDefinitions: createDocumentDefinition(),
+				pdfBase64,
+				title: "Zu löschendes Formular",
+			},
+			{ context },
+		);
+
+		expect(await call(documentsHandler.templates.delete, { id: created.id }, { context })).toEqual({
+			success: true,
+		});
+		expect(
+			await server.db.query.documentTemplate.findFirst({
+				where: eq(documentTemplate.id, created.id),
+			}),
+		).toBeUndefined();
+	});
+
+	test("delete rejects non-authors without removing the document", async () => {
+		const { user: owner } = await createTestUser(server.db, { email: ADMIN_EMAIL });
+		const { user: other } = await createTestUser(server.db, { email: "delete-other@test.com" });
+		const ownerContext = createTestContext({
+			db: server.db,
+			session: createMockSession(owner),
+		});
+		const created = await call(
+			documentsHandler.templates.create,
+			{
+				category: "Entlassung",
+				fieldDefinitions: createDocumentDefinition(),
+				pdfBase64,
+				title: "Geschütztes Formular",
+			},
+			{ context: ownerContext },
+		);
+
+		await expect(
+			call(
+				documentsHandler.templates.delete,
+				{ id: created.id },
+				{
+					context: createTestContext({
+						db: server.db,
+						session: createMockSession(other),
+					}),
+				},
+			),
+		).rejects.toThrow("Dokument wurde nicht gefunden");
+		expect(
+			await server.db.query.documentTemplate.findFirst({
+				where: eq(documentTemplate.id, created.id),
+			}),
+		).toBeDefined();
+	});
+
 	test("requires plus to keep documents private on update", async () => {
 		const { user } = await createTestUser(server.db, { email: "owner@test.com" });
 		await createTestSubscription(server.db, user.id);
