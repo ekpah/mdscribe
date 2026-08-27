@@ -18,7 +18,7 @@ import { useCallback, useMemo } from "react";
 import { Button, DatePicker, Dialog, Group, Popover } from "react-aria-components";
 import { withMask } from "use-mask-input";
 
-import { formatDateGerman, getTodayDate, parseDateInput } from "./date-utils";
+import { formatDateGerman, parseDateInput } from "./date-utils";
 import { SuggestionBadge } from "./suggestion-badge";
 
 type InfoValue = string | number | DateValue | undefined;
@@ -74,14 +74,7 @@ const InfoInput = ({
 	const isDateType = input.attributes.type === "date";
 	const isNumberType = input.attributes.type === "number";
 
-	// Parse date value, defaulting to today only if no value provided
-	const dateValue = useMemo(() => {
-		if (!isDateType) {
-			return getTodayDate();
-		}
-		const parsed = parseDateInput(value);
-		return parsed ?? getTodayDate();
-	}, [isDateType, value]);
+	const dateValue = useMemo(() => parseDateInput(value), [value]);
 
 	// Parse suggested date value for display
 	const formattedSuggestedValue = useMemo(() => {

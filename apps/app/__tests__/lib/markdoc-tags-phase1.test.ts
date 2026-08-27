@@ -224,6 +224,24 @@ describe("markdoc tags phase 1 regressions", () => {
 		expect(html).toContain("false");
 	});
 
+	test("renders an undefined checkbox value as false", () => {
+		const source = `
+{% switch "Aktiv" type="checkbox" %}
+{% case "true" %}Ja{% /case %}
+{% case "false" %}Nein{% /case %}
+{% /switch %}
+`;
+		const html = renderToStaticMarkup(
+			createElement(DynamicMarkdocRenderer, {
+				markdocContent: source,
+				variables: {},
+			}),
+		);
+
+		expect(html).toContain("Nein");
+		expect(html).not.toContain("Ja");
+	});
+
 	test("normalizes omitted tag types before comparing repeated inputs", () => {
 		const compatibleInfo = validateMarkdocTagContracts(`
 {% info "Name" /%}

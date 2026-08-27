@@ -1,4 +1,4 @@
-import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date';
+import { DateFormatter, getLocalTimeZone, parseDate } from '@internationalized/date';
 import type { DateValue } from '@internationalized/date';
 
 const germanFormatter = new DateFormatter("de-DE", { dateStyle: "short" });
@@ -45,9 +45,6 @@ export const parseDateInput = (input: unknown): DateValue | null => {
 /** Format a DateValue to German locale (e.g., "15.01.2024") */
 export const formatDateGerman = (date: DateValue) =>
 	germanFormatter.format(date.toDate(getLocalTimeZone()));
-
-/** Get today's date as a DateValue */
-export const getTodayDate = () => today(getLocalTimeZone());
 
 /**
  * Normalize a date string to German format.

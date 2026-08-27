@@ -24,7 +24,7 @@ const isBooleanSwitchType = (type: SwitchType): boolean =>
 
 const normalizeSwitchValue = (value: unknown, type: SwitchType): string | null => {
 	if (isBooleanSwitchType(type)) {
-		return normalizeBooleanToString(value);
+		return value === undefined ? "false" : normalizeBooleanToString(value);
 	}
 
 	if (typeof value === "string" || value === null) {

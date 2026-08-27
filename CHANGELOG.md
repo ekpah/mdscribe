@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Checkbox inputs now render their initially unchecked state as `false`, while empty date inputs no longer display an uncommitted current-date value.
 - The admin user-management AI-usage column now follows each user's quota period and excludes usage billed through their own API key.
 - Fill-document autofill now strips model-added Markdown JSON fences before structured-output parsing, preventing valid responses from failing with "could not parse the response".
 - Amp portal previews now preserve their public URL configuration across setup commands, permit framing only from Amp origins, and ignore generated proxy artifacts.
