@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/lib/orpc";
 import { formatMarkdocTagDiagnostic, USER_MESSAGES } from "@/lib/user-messages";
 
@@ -585,6 +586,7 @@ export default function Editor({
 					visibility,
 				});
 
+				trackEvent("template-created");
 				await invalidateTemplateQueries();
 				await queryClient.invalidateQueries({
 					queryKey: orpc.templates.get.queryOptions({

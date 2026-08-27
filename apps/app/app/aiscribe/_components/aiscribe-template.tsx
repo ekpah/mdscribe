@@ -36,6 +36,7 @@ import {
 	hasLessThanTenPercentUsageRemaining,
 	isSuccessfulChatFinish,
 } from "@/lib/aiscribe-toasts";
+import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
@@ -154,6 +155,9 @@ export const AiscribeTemplate = ({
 		? `scribe-form-${config.formId}`
 		: `scribe-${config.documentType}`;
 	const handleSuccessfulGeneration = useCallback(async () => {
+		trackEvent("ai-scribe-used", {
+			source: isCustomFormConfig ? "custom-form" : "document-type",
+		});
 		toast.success(USER_MESSAGES.aiscribeGenerationSuccess);
 
 		try {
@@ -176,7 +180,7 @@ export const AiscribeTemplate = ({
 		} catch {
 			// A failed usage refresh must not turn a successful generation into an error.
 		}
-	}, [router]);
+	}, [isCustomFormConfig, router]);
 
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, setMessages } = useChat({

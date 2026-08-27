@@ -234,6 +234,7 @@ export default function ContentSection({
 		<InputPreviewSection
 			activeInputFocusKey={activeInputFocusKey}
 			activeInputName={activeInputName}
+			contentType="document"
 			edgeTabs={
 				<DocumentPreviewTabs activeView={contentView} onViewChange={setContentView} />
 			}

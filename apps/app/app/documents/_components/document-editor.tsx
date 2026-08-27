@@ -60,6 +60,7 @@ import type {
 	DocumentPdfType,
 	PdfFormField,
 } from "@/app/documents/_lib";
+import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
@@ -1583,6 +1584,7 @@ export default function DocumentEditor({
 				title: title.trim(),
 				visibility,
 			});
+			trackEvent("document-created");
 			toast.success("Dokument erstellt", { id: "document-save" });
 			router.push(`/documents/${createdDocument.id}`);
 		} catch (error) {

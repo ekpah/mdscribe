@@ -21,6 +21,7 @@ import {
 } from "@/app/_components/input-context/input-context-controls";
 import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
 import { hydrateInputContextController } from "@/app/_components/context-transfer/hydrate";
+import { trackEvent } from "@/lib/analytics";
 import { useSession } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 
@@ -29,6 +30,7 @@ type MobilePanel = "inputs" | "preview";
 interface InputPreviewSectionProps {
 	activeInputFocusKey?: string | number;
 	activeInputName?: string | null;
+	contentType: "document" | "template";
 	edgeTabs?: ReactNode;
 	inputTags: InputTagType[];
 	onInputBlur?: (inputName: string) => void;
@@ -142,6 +144,7 @@ const getPreviewPanelClassName = (
 export const InputPreviewSection = ({
 	activeInputFocusKey,
 	activeInputName,
+	contentType,
 	edgeTabs,
 	inputTags,
 	onInputBlur,
@@ -244,9 +247,10 @@ export const InputPreviewSection = ({
 				templateInformation,
 				textContext,
 			});
+			trackEvent(`${contentType}-filled-with-ai`);
 			return result.fieldValues;
 		},
-		[templateInformation],
+		[contentType, templateInformation],
 	);
 
 	const inputPanelClassName = getInputPanelClassName(hasInputTags, mobilePanel);

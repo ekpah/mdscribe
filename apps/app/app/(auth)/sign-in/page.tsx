@@ -17,6 +17,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+
+import { trackEvent } from "@/lib/analytics";
 import { signIn } from "@/lib/auth-client";
 import { getSafeRedirectPath } from "@/lib/sign-in-redirect";
 import { USER_MESSAGES } from "@/lib/user-messages";
@@ -70,6 +72,7 @@ export default function SignIn() {
 					setLoading(true);
 				},
 				onSuccess: () => {
+					trackEvent("user-login", { method: isEmail ? "email" : "username" });
 					router.push(redirect);
 					setLoading(false);
 				},

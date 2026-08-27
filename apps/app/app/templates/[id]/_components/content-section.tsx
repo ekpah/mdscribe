@@ -170,6 +170,7 @@ export default function ContentSection({
 		<InputPreviewSection
 			activeInputFocusKey={activeInputFocusKey}
 			activeInputName={activeInputName}
+			contentType="template"
 			edgeTabs={contentTabs}
 			inputTags={inputTags}
 			onInputSelect={handleInputSelect}

@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { trackEvent } from "@/lib/analytics";
 import { signUp } from "@/lib/auth-client";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
@@ -87,6 +88,7 @@ export default function SignUp() {
 					setLoading(false);
 				},
 				onSuccess: () => {
+					trackEvent("user-signup");
 					toast.success("Konto erstellt! Bitte bestätige deine E-Mail.");
 					router.push("/verification-pending");
 				},
