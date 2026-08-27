@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, usageEvent } from "@repo/database";
+import { aiProvider, and, eq, gte, lte, usageEvent, userAiProvider } from "@repo/database";
 import type { Database } from "@repo/database";
 import { database } from "@repo/database/client";
 
@@ -92,7 +92,21 @@ export const getUsage = async (
 		subscriptionPeriodEnd: entitlements.subscriptionPeriodEnd,
 		subscriptionPeriodStart: entitlements.subscriptionPeriodStart,
 	});
-	const usage = await getMonthlyScribeUsage({ db, now, period, session });
+	const [usage, activeByokConnections] = await Promise.all([
+		getMonthlyScribeUsage({ db, now, period, session }),
+		db
+			.select({ id: userAiProvider.id })
+			.from(userAiProvider)
+			.innerJoin(aiProvider, eq(aiProvider.id, userAiProvider.providerId))
+			.where(
+				and(
+					eq(userAiProvider.userId, session.user.id),
+					eq(userAiProvider.enabled, true),
+					eq(aiProvider.byokEnabled, true),
+				),
+			)
+			.limit(1),
+	]);
 	const monthlyUsagePercentage = getScribeUsageBudgetPercentage({
 		monthlyCostLimit: entitlements.scribeMonthlyCostLimit,
 		totalCost: usage.totalCost,
@@ -107,6 +121,7 @@ export const getUsage = async (
 				]),
 			),
 			count: usage.count,
+			hasActiveByokConnection: activeByokConnections.length > 0,
 			isMonthlyBudgetReached: usage.totalCost >= entitlements.scribeMonthlyCostLimit,
 			monthlyUsagePercentage,
 			periodStartsAt: usage.period.start.toISOString(),

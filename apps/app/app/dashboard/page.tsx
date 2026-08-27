@@ -8,7 +8,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/design-system/components/ui/card";
-import { env } from "@/env";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
 	Activity,
@@ -24,6 +23,7 @@ import {
 	PlusIcon,
 	SearchIcon,
 	Settings,
+	ShieldCheck,
 	ShieldIcon,
 	Star,
 	Stethoscope,
@@ -34,6 +34,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { env } from "@/env";
 import { getDashboardActivityTitle } from "@/lib/dashboard-activity";
 import { DASHBOARD_AI_FUNCTION_KEYS } from "@/lib/dashboard-ai-functions";
 import type { DashboardAiFunctionKey } from "@/lib/dashboard-ai-functions";
@@ -169,12 +170,14 @@ const formatUsageResetDate = (timestamp: string) =>
 const getDashboardUsageSummary = (
 	usage:
 		| {
+				hasActiveByokConnection: boolean;
 				isMonthlyBudgetReached: boolean;
 				monthlyUsagePercentage: number;
 				resetsAt: string;
 		  }
 		| undefined,
 ) => ({
+	hasActiveByokConnection: usage?.hasActiveByokConnection ?? false,
 	isMonthlyBudgetReached: usage?.isMonthlyBudgetReached ?? false,
 	monthlyUsagePercentage: usage?.monthlyUsagePercentage ?? 0,
 	usageResetsAt: usage?.resetsAt,
@@ -345,6 +348,7 @@ const DashboardHeader = ({
 
 const DashboardQuickStats = ({
 	favoriteCount,
+	hasActiveByokConnection,
 	isMonthlyBudgetReached,
 	monthlyUsagePercentage,
 	subscriptionPlanLabel,
@@ -353,6 +357,7 @@ const DashboardQuickStats = ({
 	userTemplateCount,
 }: {
 	favoriteCount: number;
+	hasActiveByokConnection: boolean;
 	isMonthlyBudgetReached: boolean;
 	monthlyUsagePercentage: number;
 	subscriptionPlanLabel: string;
@@ -406,6 +411,30 @@ const DashboardQuickStats = ({
 					<Brain className="h-5 w-5 text-solarized-violet" />
 				</CardHeader>
 				<CardContent className="space-y-3">
+					{hasActiveByokConnection ? (
+						<div className="rounded-lg border border-solarized-green/30 bg-solarized-green/10 p-3">
+							<div className="flex items-center justify-between gap-3">
+								<span className="flex items-center gap-2 font-semibold text-sm text-solarized-green">
+									<ShieldCheck className="h-4 w-4" />
+									Eigener API-Key aktiv
+								</span>
+								<Badge className="border-solarized-green/40 bg-solarized-green/10 text-solarized-green">
+									BYOK
+								</Badge>
+							</div>
+							<p className="mt-2 text-solarized-base01 text-xs">
+								Du hast einen eigenen API-Key hinterlegt, sodass einige oder alle Anfragen hierüber
+								abgerechnet werden und nicht dein MDScribe-Kontingent verbrauchen.
+							</p>
+							<Link
+								className="mt-2 inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
+								href="/profile/ai-access"
+							>
+								KI-Zugang verwalten
+								<ArrowRight className="h-3 w-3" />
+							</Link>
+						</div>
+					) : null}
 					<div className="space-y-2">
 						<div className="flex items-center justify-between gap-3">
 							<span className="font-medium text-solarized-base03 text-sm">Monatskontingent</span>
@@ -737,7 +766,7 @@ export default async function DashboardPage() {
 	);
 	const recentEvents = queryClient.getQueryData(recentActivityQueryOptions.queryKey);
 
-	const { isMonthlyBudgetReached, monthlyUsagePercentage, usageResetsAt } =
+	const { hasActiveByokConnection, isMonthlyBudgetReached, monthlyUsagePercentage, usageResetsAt } =
 		getDashboardUsageSummary(data?.usage);
 	const subscriptionPlanLabel = getSubscriptionPlanLabel(activeSubscription?.plan);
 	const subscriptionStatus = getSubscriptionStatus(activeSubscription);
@@ -760,6 +789,7 @@ export default async function DashboardPage() {
 					/>
 					<DashboardQuickStats
 						favoriteCount={favoriteTemplates?.length ?? 0}
+						hasActiveByokConnection={hasActiveByokConnection}
 						isMonthlyBudgetReached={isMonthlyBudgetReached}
 						monthlyUsagePercentage={monthlyUsagePercentage}
 						subscriptionPlanLabel={subscriptionPlanLabel}

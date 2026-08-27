@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { usageEvent } from "@repo/database";
+import { aiProvider, usageEvent, userAiProvider } from "@repo/database";
 
 import { createTestSubscription, createTestUser, startTestServer } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
@@ -41,9 +41,33 @@ describe("Scribe subscription usage periods", () => {
 		const result = await getUsage(session, server.db, new Date("2026-07-31T12:00:00.000Z"));
 
 		expect(result.usage.count).toBe(1);
+		expect(result.usage.hasActiveByokConnection).toBe(false);
 		expect(result.usage.monthlyUsagePercentage).toBe(25);
 		expect(result.usage.periodStartsAt).toBe("2026-07-15T09:30:00.000Z");
 		expect(result.usage.periodType).toBe("subscription");
 		expect(result.usage.resetsAt).toBe("2026-08-15T09:30:00.000Z");
+	});
+
+	test("reports an active user API-key connection as BYOK usage", async () => {
+		const { session, user } = await createTestUser(server.db);
+		const providerId = crypto.randomUUID();
+		await server.db.insert(aiProvider).values({
+			byokEnabled: true,
+			id: providerId,
+			name: "OpenRouter",
+			protocol: "openrouter",
+		});
+		await server.db.insert(userAiProvider).values({
+			apiKey: "encrypted-test-key",
+			enabled: true,
+			name: "Eigener Schlüssel",
+			providerId,
+			userId: user.id,
+			validatedAt: new Date(),
+		});
+
+		const result = await getUsage(session, server.db);
+
+		expect(result.usage.hasActiveByokConnection).toBe(true);
 	});
 });

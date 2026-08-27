@@ -12,6 +12,7 @@
 
 ### Changed
 
+- The dashboard usage card now identifies active BYOK connections while continuing to show the MDScribe quota consumed by requests using other models.
 - Aligned the landing-page feature previews with their vertical scroll interaction, including right-side pagination, consistent clinical titles, and matching inline vital-sign examples.
 - Reworked the landing page copy to address doctors instead of developers: replaced technical terms like "Markdown" and "Markdoc" with "Textbausteine" throughout hero, feature sections, demo labels, and metadata.
 - Unified all workspaces on TypeScript 7.0.2 via the root package catalog (workspaces previously used 5.9.3 while the root used 7.0.2).
