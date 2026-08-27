@@ -3,16 +3,9 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	and,
-	eq,
-	userAiProvider,
-} from "@repo/database";
-import { database } from "@repo/database/client";
+import { aiDefaults, aiModel, aiProvider, and, eq, userAiProvider } from "@repo/database";
 import type { Database } from "@repo/database";
+import { database } from "@repo/database/client";
 import { experimental_transcribe as transcribe } from "ai";
 import type { JSONValue, LanguageModel } from "ai";
 import { revalidateTag, unstable_cache } from "next/cache";
@@ -27,11 +20,7 @@ export type { ReasoningEffort } from "@/orpc/scribe/types";
 
 type ProviderProtocol = typeof aiProvider.$inferSelect.protocol;
 
-export type DefaultModelSlot =
-	| "agent"
-	| "file-image"
-	| "speech-to-text"
-	| "text";
+export type DefaultModelSlot = "agent" | "file-image" | "speech-to-text" | "text";
 
 export type MediaPreprocessStrategy = "direct" | "multimodal";
 
@@ -190,7 +179,10 @@ export const invalidateAiProviderResolutionCaches = (): void => {
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		const isMissingCacheContext = message.includes("static generation store missing");
-		if (process.env.NODE_ENV === "test" || (process.env.NODE_ENV !== "production" && isMissingCacheContext)) {
+		if (
+			process.env.NODE_ENV === "test" ||
+			(process.env.NODE_ENV !== "production" && isMissingCacheContext)
+		) {
 			return;
 		}
 
@@ -629,11 +621,7 @@ export const resolveModelByRecordId = async (
 	userId?: string,
 ): Promise<ResolvedModel> => {
 	const row = await getModelProviderRowsByRecordId(modelRecordId, db);
-	return buildResolvedModel(
-		row.model,
-		row.provider,
-		userId ? { db, userId } : undefined,
-	);
+	return buildResolvedModel(row.model, row.provider, userId ? { db, userId } : undefined);
 };
 
 const getModelProviderRowsByProviderModelIdUncached = async (
@@ -700,11 +688,7 @@ export const resolveProviderModel = async (
 	userId?: string,
 ): Promise<ResolvedModel> => {
 	const row = await getModelProviderRowsByProviderModelId(providerId, modelId, db);
-	return buildResolvedModel(
-		row.model,
-		row.provider,
-		userId ? { db, userId } : undefined,
-	);
+	return buildResolvedModel(row.model, row.provider, userId ? { db, userId } : undefined);
 };
 
 // Defaults are tiny and admin-driven. Do not route them through
@@ -809,8 +793,7 @@ export const resolveDefaultModel = async (
 const normalizeMediaPreprocessStrategy = (
 	value: string | null | undefined,
 	fallback: MediaPreprocessStrategy,
-): MediaPreprocessStrategy =>
-	value === "direct" || value === "multimodal" ? value : fallback;
+): MediaPreprocessStrategy => (value === "direct" || value === "multimodal" ? value : fallback);
 
 /**
  * Resolves the global model strategy for a generation request.
@@ -834,12 +817,7 @@ export const resolveGenerationStrategy = async (
 		}
 		return {
 			mode: "preprocess",
-			selection: await buildDefaultSelection(
-				db,
-				defaults,
-				"speech-to-text",
-				userId,
-			),
+			selection: await buildDefaultSelection(db, defaults, "speech-to-text", userId),
 			strategy: normalizeMediaPreprocessStrategy(defaults.defaultSpeechToTextMode, "direct"),
 		};
 	};
@@ -893,12 +871,7 @@ export const resolveAgentGenerationStrategy = async (
 		}
 		return {
 			mode: "preprocess",
-			selection: await buildDefaultSelection(
-				db,
-				defaults,
-				"speech-to-text",
-				userId,
-			),
+			selection: await buildDefaultSelection(db, defaults, "speech-to-text", userId),
 			strategy: normalizeMediaPreprocessStrategy(defaults.defaultSpeechToTextMode, "direct"),
 		};
 	};
@@ -915,12 +888,7 @@ export const resolveAgentGenerationStrategy = async (
 	};
 
 	const [generation, audio, files] = await Promise.all([
-		buildDefaultSelection(
-			db,
-			defaults,
-			usesStandardModel ? "text" : "agent",
-			userId,
-		),
+		buildDefaultSelection(db, defaults, usesStandardModel ? "text" : "agent", userId),
 		options.hasAudio ? buildAudioPlan() : Promise.resolve(null),
 		options.hasFiles ? buildFilesPlan() : Promise.resolve(null),
 	]);
@@ -933,17 +901,12 @@ export const resolveAgentGenerationStrategy = async (
 	};
 };
 
-export const isGenerationStrategyFullyByok = (
-	strategy: GenerationStrategy,
-): boolean => {
+export const isGenerationStrategyFullyByok = (strategy: GenerationStrategy): boolean => {
 	if (strategy.generation.model.credentialSource !== "user_byok") {
 		return false;
 	}
 	for (const plan of [strategy.audio, strategy.files]) {
-		if (
-			plan?.mode === "preprocess" &&
-			plan.selection.model.credentialSource !== "user_byok"
-		) {
+		if (plan?.mode === "preprocess" && plan.selection.model.credentialSource !== "user_byok") {
 			return false;
 		}
 	}
@@ -993,9 +956,7 @@ export const buildProviderOptions = ({
 					...(providerSort ? { provider: { sort: providerSort } } : {}),
 					...(includeUsage ? { usage: { include: true } } : {}),
 					...(userId ? { user: userId } : {}),
-					...(resolvedReasoningEffort
-						? { reasoning: { effort: resolvedReasoningEffort } }
-						: {}),
+					...(resolvedReasoningEffort ? { reasoning: { effort: resolvedReasoningEffort } } : {}),
 					...(zdr ? { zdr: true } : {}),
 				},
 			};

@@ -1,6 +1,5 @@
 const CITE_TAG_PATTERN = /\{%\s*(\/?)cite\b[\s\S]*?%\}/giu;
-const BLOCK_BOUNDARY_PATTERN =
-	/\n[ \t]*\n|\n[ \t]*(?:#{1,6}\s|[-+*]\s|\d+[.)]\s|>|```|~~~)/u;
+const BLOCK_BOUNDARY_PATTERN = /\n[ \t]*\n|\n[ \t]*(?:#{1,6}\s|[-+*]\s|\d+[.)]\s|>|```|~~~)/u;
 
 interface CiteToken {
 	end: number;
@@ -26,11 +25,7 @@ const codeRanges = (content: string): CiteToken[] => {
 			}
 		} else {
 			const closing = /^ {0,3}(`+|~+)[ \t]*$/u.exec(line);
-			if (
-				closing &&
-				closing[1][0] === fence.character &&
-				closing[1].length >= fence.length
-			) {
+			if (closing && closing[1][0] === fence.character && closing[1].length >= fence.length) {
 				fencedRanges.push({ end: lineEnd, start: fence.start });
 				fence = undefined;
 			}

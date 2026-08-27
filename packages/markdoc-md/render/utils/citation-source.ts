@@ -29,10 +29,7 @@ export type CitationSourceReference =
 			source: string;
 	  };
 
-const parseInternalSource = (
-	url: URL,
-	source: string,
-): CitationSourceReference | null => {
+const parseInternalSource = (url: URL, source: string): CitationSourceReference | null => {
 	if (url.protocol !== "mdscribe:") {
 		return null;
 	}
@@ -73,9 +70,7 @@ const parseInternalSource = (
  * Locators live in the fragment so the source identity stays stable and a
  * resolver can interpret the range without navigating the URI.
  */
-export const parseCitationSource = (
-	rawSource: unknown,
-): CitationSourceReference => {
+export const parseCitationSource = (rawSource: unknown): CitationSourceReference => {
 	if (typeof rawSource !== "string") {
 		return { kind: "invalid", reason: "unsupported", source: "" };
 	}
@@ -124,10 +119,8 @@ export const parseCitationSource = (
 	};
 };
 
-export const createMdscribeSource = (
-	kind: "file" | "input",
-	id: string,
-): string => `mdscribe://${kind}/${encodeURIComponent(id)}`;
+export const createMdscribeSource = (kind: "file" | "input", id: string): string =>
+	`mdscribe://${kind}/${encodeURIComponent(id)}`;
 
 /** Parse a citation source when a caller only needs safe external previews. */
 export const parseExternalCitationUrl = (source: unknown): URL | null => {

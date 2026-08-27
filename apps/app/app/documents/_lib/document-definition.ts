@@ -43,9 +43,7 @@ const normalizeValueMap = (
 	for (const [inputValue, pdfValue] of Object.entries(valueMap)) {
 		const normalizedInputValue = inputValue.trim();
 		if (normalizedKeys.has(normalizedInputValue)) {
-			throw new Error(
-				`PDF-Wertzuordnung enthält den Wert "${normalizedInputValue}" mehrfach.`,
-			);
+			throw new Error(`PDF-Wertzuordnung enthält den Wert "${normalizedInputValue}" mehrfach.`);
 		}
 		normalizedKeys.add(normalizedInputValue);
 		normalizedEntries.push([normalizedInputValue, pdfValue]);

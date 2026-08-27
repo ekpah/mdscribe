@@ -1,8 +1,6 @@
 import type { DocumentType, PromptMessage, PromptVariables } from "@/orpc/scribe/types";
-import {
-	documentTypeConfigs,
-	getDocumentTypeByPromptName,
-} from "./registry";
+
+import { documentTypeConfigs, getDocumentTypeByPromptName } from "./registry";
 
 interface PromptCompositionInput {
 	contextPrompt?: string;

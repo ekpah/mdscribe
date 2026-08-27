@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CreditCard, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+
 import { authClient } from "@/lib/auth-client";
 import { unwrapAuthClientResult } from "@/lib/auth-client-result";
 import { orpc } from "@/lib/orpc";
@@ -58,11 +59,7 @@ const getStatusBadge = (subscription?: Subscription) => {
 	};
 };
 
-export const SubscriptionManagementCard = ({
-	subscription,
-}: {
-	subscription?: Subscription;
-}) => {
+export const SubscriptionManagementCard = ({ subscription }: { subscription?: Subscription }) => {
 	const [isManagingSubscription, setIsManagingSubscription] = useState(false);
 	const hasActiveSubscription = Boolean(subscription);
 	const usageQuery = useQuery(orpc.getUsage.queryOptions());
@@ -135,35 +132,24 @@ export const SubscriptionManagementCard = ({
 					Aktueller Tarif
 				</CardTitle>
 				<CardDescription>
-					Sehen Sie Ihren aktuellen Tarifstatus ein und verwalten Sie Ihr
-					Abonnement.
+					Sehen Sie Ihren aktuellen Tarifstatus ein und verwalten Sie Ihr Abonnement.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
 				<div className="flex items-center justify-between rounded-lg bg-solarized-base2 p-3">
-					<span className="font-medium text-solarized-base03 text-sm">
-						Tarif
-					</span>
-					<span className="font-semibold text-solarized-base03 text-sm">
-						{planLabel}
-					</span>
+					<span className="font-medium text-solarized-base03 text-sm">Tarif</span>
+					<span className="font-semibold text-solarized-base03 text-sm">{planLabel}</span>
 				</div>
 				<div className="flex items-center justify-between rounded-lg bg-solarized-base2 p-3">
-					<span className="font-medium text-solarized-base03 text-sm">
-						Status
-					</span>
+					<span className="font-medium text-solarized-base03 text-sm">Status</span>
 					<Badge className={statusBadge.className} variant="outline">
 						{statusBadge.label}
 					</Badge>
 				</div>
 				<div className="space-y-2 rounded-lg bg-solarized-base2 p-3">
 					<div className="flex items-center justify-between gap-3">
-						<span className="font-medium text-solarized-base03 text-sm">
-							Monatliche Nutzung
-						</span>
-						<span className="font-semibold text-solarized-base03 text-sm">
-							{usageProgress}%
-						</span>
+						<span className="font-medium text-solarized-base03 text-sm">Monatliche Nutzung</span>
+						<span className="font-semibold text-solarized-base03 text-sm">{usageProgress}%</span>
 					</div>
 					<div className="h-2 overflow-hidden rounded-full bg-solarized-base3">
 						<div
@@ -175,9 +161,7 @@ export const SubscriptionManagementCard = ({
 				{subscription?.periodEnd ? (
 					<div className="flex items-center justify-between rounded-lg bg-solarized-base2 p-3">
 						<span className="font-medium text-solarized-base03 text-sm">
-							{subscription.cancelAtPeriodEnd
-								? "Endet am"
-								: "Nächste Abrechnung"}
+							{subscription.cancelAtPeriodEnd ? "Endet am" : "Nächste Abrechnung"}
 						</span>
 						<span className="font-semibold text-solarized-base03 text-sm">
 							{new Date(subscription.periodEnd).toLocaleDateString("de-DE", {

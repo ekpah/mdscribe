@@ -3,10 +3,43 @@ import Markdoc from "@markdoc/markdoc";
 
 import { isValidFormula } from "../../parse/formula";
 
+const calcTag: NonNullable<Config["tags"]>[string] = {
+	attributes: {
+		formula: {
+			required: true,
+			type: String,
+			validate(value) {
+				if (typeof value !== "string" || isValidFormula(value)) {
+					return [];
+				}
+				return [
+					{
+						id: "calc-formula-invalid",
+						level: "error",
+						message: "The 'formula' attribute must be a valid calc formula.",
+					},
+				];
+			},
+		},
+		primary: { required: false, type: String },
+		renderUnit: {
+			default: false,
+			type: Boolean,
+		},
+		unit: { type: String },
+	},
+	children: ["tag", "text"],
+	render: "Calc",
+};
+
 const tags: NonNullable<Config["tags"]> = {
+	calc: calcTag,
 	// cases should not contain breaks, as this will not be rendered correctly
 	case: {
-		attributes: { primary: { render: true, type: String } },
+		attributes: {
+			primary: { render: true, type: String },
+			value: { required: false, type: Number },
+		},
 		children: ["text", "strong", "em", "code", "link", "inline"],
 		render: "Case",
 	},
@@ -50,33 +83,8 @@ const tags: NonNullable<Config["tags"]> = {
 		render: "Info",
 		selfClosing: true,
 	},
-	score: {
-		attributes: {
-			formula: {
-				required: true,
-				type: String,
-				validate(value) {
-					if (typeof value !== "string" || isValidFormula(value)) {
-						return [];
-					}
-					return [
-						{
-							id: "score-formula-invalid",
-							level: "error",
-							message: "The 'formula' attribute must be a valid score formula.",
-						},
-					];
-				},
-			},
-			primary: { required: false, type: String },
-			renderUnit: {
-				default: false,
-				type: Boolean,
-			},
-			unit: { type: String },
-		},
-		render: "Score",
-	},
+	// Legacy alias. Both syntaxes transform to the canonical Calc component.
+	score: calcTag,
 	switch: {
 		attributes: {
 			primary: { required: true, type: String },

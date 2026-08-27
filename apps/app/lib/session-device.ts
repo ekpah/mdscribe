@@ -1,5 +1,4 @@
 import "server-only";
-
 import type { Session } from "@/lib/auth-types";
 
 export interface SessionDeviceInfo {
@@ -46,9 +45,7 @@ const findClientFamily = (
  * string. This intentionally recognizes only common browser and operating
  * system families; unknown clients retain their original user-agent string.
  */
-export const getSessionDeviceInfo = (
-	userAgent: string | null | undefined,
-): SessionDeviceInfo => {
+export const getSessionDeviceInfo = (userAgent: string | null | undefined): SessionDeviceInfo => {
 	if (userAgent?.includes("tauri-plugin-http")) {
 		return { clientLabel: "App", deviceType: "desktop" };
 	}

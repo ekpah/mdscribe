@@ -37,7 +37,10 @@ assert.deepEqual(
 const publicJavaScriptEntries = [];
 for (const [subpath, declaration] of Object.entries(packageJson.exports)) {
 	if (typeof declaration === "string") {
-		assert(existsSync(join(packageDirectory, declaration)), `missing export ${subpath}: ${declaration}`);
+		assert(
+			existsSync(join(packageDirectory, declaration)),
+			`missing export ${subpath}: ${declaration}`,
+		);
 		continue;
 	}
 	for (const field of ["types", "import"]) {
@@ -70,7 +73,10 @@ for (const declaration of collectDeclarations(distDirectory)) {
 }
 
 const reactEntry = readFileSync(join(distDirectory, "react.js"), "utf8");
-assert(reactEntry.startsWith('"use client";'), "the React entry must preserve its client directive");
+assert(
+	reactEntry.startsWith('"use client";'),
+	"the React entry must preserve its client directive",
+);
 
 const collectReachableImports = (entry) => {
 	const visited = new Set();
@@ -110,4 +116,6 @@ const html = renderToStaticMarkup(
 );
 assert(html.includes("Packed API"), "the built React renderer failed its Node SSR smoke test");
 
-console.log(`Verified ${publicJavaScriptEntries.length} public entries and ${distJavaScriptFiles.length} JavaScript artifacts.`);
+console.log(
+	`Verified ${publicJavaScriptEntries.length} public entries and ${distJavaScriptFiles.length} JavaScript artifacts.`,
+);

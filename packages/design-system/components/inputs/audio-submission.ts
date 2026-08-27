@@ -46,7 +46,7 @@ const writeAscii = (view: DataView, offset: number, value: string) => {
 
 const writePcmSample = (view: DataView, offset: number, sample: number) => {
 	const clamped = Math.max(-1, Math.min(1, sample));
-		const scaled = clamped < 0 ? clamped * 0x80_00 : clamped * 0x7F_FF;
+	const scaled = clamped < 0 ? clamped * 0x80_00 : clamped * 0x7f_ff;
 	view.setInt16(offset, scaled, true);
 };
 

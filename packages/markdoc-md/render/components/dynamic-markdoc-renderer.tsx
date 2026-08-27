@@ -1,13 +1,14 @@
 "use client";
 
 import type { Config } from "@markdoc/markdoc";
+import { useMemo } from "react";
+
 import type { CitationRequest } from "../../citations/resolvers";
 import type { MarkdocComponentMap } from "../../markdoc-config/tags/components";
 import { MarkdocInteractionProvider } from "../context/markdoc-interaction-context";
 import { VariableProvider } from "../context/variable-context";
 import { useCitationModifier } from "../hooks/use-citation-modifier";
 import renderMarkdocAsReact from "../utils/render-markdoc-as-react";
-import { useMemo } from "react";
 
 export interface DynamicMarkdocRendererProps {
 	/**

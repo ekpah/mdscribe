@@ -36,9 +36,9 @@ import { toast } from "sonner";
 
 import { LabelWithInfo, SectionLabelWithInfo } from "@/app/_components/ai-text-forms/info-labels";
 import { TemplateSelector } from "@/app/_components/template-selector";
+import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
 import { buildCustomFormPath } from "@/lib/aiscribe-paths";
 import { useSession } from "@/lib/auth-client";
-import { DEFAULT_AI_TEXT_DESCRIPTION, slugifyAiScribeFormName } from "@/lib/ai-scribe-forms";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
@@ -158,13 +158,9 @@ export const UserAiTextsCard = () => {
 
 	const listKey = formsQueryOptions.queryKey;
 	const availableFormsKey = orpc.scribeForms.listAvailable.queryOptions().queryKey;
-	const workspaceEditorContextKey =
-		orpc.scribeWorkspaces.editorContext.queryOptions().queryKey;
+	const workspaceEditorContextKey = orpc.scribeWorkspaces.editorContext.queryOptions().queryKey;
 	const resolvedDraftSlug = resolveDraftSlug(draft);
-	const routePreview = buildCustomFormPath(
-		resolvedDraftSlug || "ai-text",
-		username,
-	);
+	const routePreview = buildCustomFormPath(resolvedDraftSlug || "ai-text", username);
 	const promptHarnessOptions = getPromptHarnessOptions(editorContext);
 	const templates = editorContext?.templates ?? [];
 	const canCreatePrivateAiScribeForms = Boolean(editorContext?.canCreatePrivateAiScribeForms);
@@ -395,9 +391,7 @@ export const UserAiTextsCard = () => {
 		return (
 			<Card className="border-solarized-red/20 bg-solarized-red/10">
 				<CardContent className="p-4 text-center text-solarized-red text-sm">
-					{formsError instanceof Error
-						? formsError.message
-						: "Fehler beim Laden der AI Vorlagen"}
+					{formsError instanceof Error ? formsError.message : "Fehler beim Laden der AI Vorlagen"}
 				</CardContent>
 			</Card>
 		);

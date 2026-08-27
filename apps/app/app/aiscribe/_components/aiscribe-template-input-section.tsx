@@ -1,17 +1,18 @@
 "use client";
 
-import {
-	PromptInput,
-	PromptInputBody,
-	PromptInputSubmit,
-	PromptInputTextarea,
-} from "@/app/_components/ai-elements/prompt-input";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { cn } from "@repo/design-system/lib/utils";
 import { useCallback, useMemo } from "react";
 import type { ChangeEvent, FormEvent, RefObject } from "react";
+
+import {
+	PromptInput,
+	PromptInputBody,
+	PromptInputSubmit,
+	PromptInputTextarea,
+} from "@/app/_components/ai-elements/prompt-input";
 import {
 	InputContextControls,
 	useInputContextState,
@@ -64,8 +65,7 @@ export const AiscribeTemplateInputSection = ({
 	textareaRef,
 }: AiscribeTemplateInputSectionProps) => {
 	const fallbackInputContextController = useInputContextState();
-	const resolvedInputContextController =
-		inputContextController ?? fallbackInputContextController;
+	const resolvedInputContextController = inputContextController ?? fallbackInputContextController;
 	const handleInputPaste = useInputContextClipboardPaste({
 		controller: resolvedInputContextController,
 		disabled: isLoading,
@@ -95,9 +95,7 @@ export const AiscribeTemplateInputSection = ({
 	);
 	const hasAdditionalInputValue = useMemo(
 		() =>
-			(additionalInputs ?? []).some((field) =>
-				Boolean(additionalInputData[field.name]?.trim()),
-			),
+			(additionalInputs ?? []).some((field) => Boolean(additionalInputData[field.name]?.trim())),
 		[additionalInputData, additionalInputs],
 	);
 	const additionalInputFields =
@@ -105,14 +103,11 @@ export const AiscribeTemplateInputSection = ({
 			<section className="space-y-4">
 				<div className="flex items-center gap-2">
 					<div className="h-1.5 w-1.5 rounded-full bg-solarized-blue" />
-					<h4 className="font-medium text-foreground text-sm">
-						Zusätzliche Informationen
-					</h4>
+					<h4 className="font-medium text-foreground text-sm">Zusätzliche Informationen</h4>
 				</div>
 				<div className="grid gap-4">
 					{additionalInputs.map((field) => {
-						const handleAdditionalInputFieldChange =
-							additionalInputChangeHandlers[field.name];
+						const handleAdditionalInputFieldChange = additionalInputChangeHandlers[field.name];
 						if (!handleAdditionalInputFieldChange) {
 							return null;
 						}
@@ -121,9 +116,7 @@ export const AiscribeTemplateInputSection = ({
 							<div className="space-y-2" key={field.name}>
 								<Label className="font-medium text-sm" htmlFor={field.name}>
 									{field.label}
-									{field.required ? (
-										<span className="ml-1 text-red-500">*</span>
-									) : null}
+									{field.required ? <span className="ml-1 text-red-500">*</span> : null}
 								</Label>
 								{field.type === "textarea" ? (
 									<Textarea
@@ -148,9 +141,7 @@ export const AiscribeTemplateInputSection = ({
 									/>
 								)}
 								{field.description ? (
-									<p className="text-muted-foreground text-xs">
-										{field.description}
-									</p>
+									<p className="text-muted-foreground text-xs">{field.description}</p>
 								) : null}
 							</div>
 						);
@@ -202,14 +193,10 @@ export const AiscribeTemplateInputSection = ({
 						</div>
 					}
 					textPanelDescription="Gib Freitext ein oder wechsle zu Audio- oder Datei-Kontext."
-					textPanelHasValue={
-						inputValue.trim().length > 0 || hasAdditionalInputValue
-					}
+					textPanelHasValue={inputValue.trim().length > 0 || hasAdditionalInputValue}
 					textPanelTitle="Text"
 					trailingAction={
-						showSubmit ? (
-							<PromptInputSubmit disabled={isLoading || submitDisabled} />
-						) : null
+						showSubmit ? <PromptInputSubmit disabled={isLoading || submitDisabled} /> : null
 					}
 					variant="tabs"
 				/>

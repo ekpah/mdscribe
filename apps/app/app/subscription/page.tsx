@@ -3,9 +3,11 @@ import { ArrowLeft } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import { auth } from "@/auth";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
+
 import { SubscriptionManagementCard } from "./_components/subscription-management-card";
 
 export default async function SubscriptionPage() {
@@ -16,15 +18,11 @@ export default async function SubscriptionPage() {
 			headers: requestHeaders,
 		}),
 	]).catch((_e) => {
-		throw redirect(
-			createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")),
-		);
+		throw redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")));
 	});
 
 	if (!session?.user) {
-		redirect(
-			createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")),
-		);
+		redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")));
 	}
 
 	const activeSubscription = subscriptions.find(
@@ -42,20 +40,14 @@ export default async function SubscriptionPage() {
 				</Link>
 
 				<div className="space-y-2">
-					<h1 className="font-bold text-3xl text-solarized-base03">
-						Abonnement
-					</h1>
+					<h1 className="font-bold text-3xl text-solarized-base03">Abonnement</h1>
 					<p className="text-solarized-base01">
 						Verwalten Sie Ihren Tarif und Ihre Zahlungsinformationen.
 					</p>
 				</div>
 
 				<SubscriptionManagementCard
-					subscription={
-						activeSubscription
-							? structuredClone(activeSubscription)
-							: undefined
-					}
+					subscription={activeSubscription ? structuredClone(activeSubscription) : undefined}
 				/>
 			</div>
 		</div>

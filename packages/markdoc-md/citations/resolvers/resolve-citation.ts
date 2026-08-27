@@ -4,11 +4,7 @@ import { resolveFileCitation } from "./file-resolver";
 import { resolveHttpsCitation } from "./https-resolver";
 import { resolveInputCitation } from "./input-resolver";
 import { resolveInvalidCitation } from "./invalid-resolver";
-import type {
-	CitationRequest,
-	CitationResolution,
-	CitationResolverContext,
-} from "./types";
+import type { CitationRequest, CitationResolution, CitationResolverContext } from "./types";
 import { MAX_CITATION_QUOTE_LENGTH } from "./types";
 
 export const resolveCitation = async (

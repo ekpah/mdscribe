@@ -2,10 +2,8 @@
 
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { cn } from "@repo/design-system/lib/utils";
-import type {
-	InputContextTextContext,
-	InputContextTextContextKey,
-} from "../../types";
+
+import type { InputContextTextContext, InputContextTextContextKey } from "../../types";
 
 interface TextInputField {
 	description: string;
@@ -64,8 +62,7 @@ const TEXT_CONTEXT_FIELDS: TextInputField[] = [
 	},
 ];
 
-const hasTextValue = (value: string | undefined): boolean =>
-	Boolean(value?.trim());
+const hasTextValue = (value: string | undefined): boolean => Boolean(value?.trim());
 
 export const getTextContextFieldCount = (
 	textContext: InputContextTextContext,
@@ -140,9 +137,7 @@ export const TextInput = ({
 					<Textarea
 						className={cn(
 							"resize-y bg-background text-xs placeholder:text-muted-foreground focus:border-solarized-blue focus:ring-solarized-blue/20",
-							stretchFields
-								? "min-h-0 flex-1 resize-none"
-								: "min-h-24 sm:min-h-32",
+							stretchFields ? "min-h-0 flex-1 resize-none" : "min-h-24 sm:min-h-32",
 							textareaClassName,
 						)}
 						disabled={disabled}
@@ -163,25 +158,16 @@ export const TextInput = ({
 						placeholder={field.placeholder}
 						value={value[field.key] ?? ""}
 					/>
-					<span
-						className={cn(
-							"block text-muted-foreground text-[11px]",
-							descriptionClassName,
-						)}
-					>
+					<span className={cn("block text-muted-foreground text-[11px]", descriptionClassName)}>
 						{field.description}
 					</span>
 				</label>
 			))}
 			{showCharacterCount && maxCharacters !== undefined ? (
 				<div
-					className={cn(
-						"text-muted-foreground text-[11px] md:col-span-2",
-						characterCountClassName,
-					)}
+					className={cn("text-muted-foreground text-[11px] md:col-span-2", characterCountClassName)}
 				>
-					{characterCount.toLocaleString("de-DE")} /{" "}
-					{maxCharacters.toLocaleString("de-DE")} Zeichen
+					{characterCount.toLocaleString("de-DE")} / {maxCharacters.toLocaleString("de-DE")} Zeichen
 				</div>
 			) : null}
 		</div>

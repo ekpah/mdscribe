@@ -33,19 +33,13 @@ export default function SignIn() {
 	const redirectParam = searchParams.get("redirect");
 	const redirect = getSafeRedirectPath(redirectParam);
 
-	const handleIdentifierChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setIdentifier(event.target.value);
-		},
-		[],
-	);
+	const handleIdentifierChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+		setIdentifier(event.target.value);
+	}, []);
 
-	const handlePasswordChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setPassword(event.target.value);
-		},
-		[],
-	);
+	const handlePasswordChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+		setPassword(event.target.value);
+	}, []);
 
 	const handleRememberMeClick = useCallback(() => {
 		setRememberMe((current) => !current);
@@ -83,10 +77,7 @@ export default function SignIn() {
 							{ callbackURL: redirect, email: value, password, rememberMe },
 							fetchOptions,
 						)
-					: signIn.username(
-							{ password, rememberMe, username: value },
-							fetchOptions,
-						));
+					: signIn.username({ password, rememberMe, username: value }, fetchOptions));
 			} finally {
 				setLoading(false);
 			}
@@ -95,54 +86,46 @@ export default function SignIn() {
 	);
 
 	return (
-			<Card className="w-full max-w-md" data-testid="sign-in-card">
-				<form onSubmit={handleSubmit}>
+		<Card className="w-full max-w-md" data-testid="sign-in-card">
+			<form onSubmit={handleSubmit}>
 				<CardHeader className="space-y-1">
 					<CardTitle className="text-center font-bold text-2xl">
 						In Ihren Account einloggen
 					</CardTitle>
 					<CardDescription className="text-center">
-						Geben Sie unten Ihre E-Mail oder Ihren Benutzernamen und Ihr Passwort
-						ein, um sich anzumelden
+						Geben Sie unten Ihre E-Mail oder Ihren Benutzernamen und Ihr Passwort ein, um sich
+						anzumelden
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div className="space-y-2">
 						<Label htmlFor="identifier">E-Mail oder Benutzername</Label>
-							<Input
-								autoComplete="username"
-								id="identifier"
-								onChange={handleIdentifierChange}
-								placeholder="m@beispiel.de oder benutzername"
+						<Input
+							autoComplete="username"
+							id="identifier"
+							onChange={handleIdentifierChange}
+							placeholder="m@beispiel.de oder benutzername"
 							required
 							value={identifier}
 						/>
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="password">Passwort</Label>
-							<Input
-								id="password"
-								onChange={handlePasswordChange}
-								required
+						<Input
+							id="password"
+							onChange={handlePasswordChange}
+							required
 							type="password"
 							value={password}
 						/>
 					</div>
 					<div className="flex items-center gap-2">
-							<Checkbox
-								checked={rememberMe}
-								id="remember"
-								onClick={handleRememberMeClick}
-							/>
+						<Checkbox checked={rememberMe} id="remember" onClick={handleRememberMeClick} />
 						<Label htmlFor="remember">Angemeldet bleiben</Label>
 					</div>
 
 					<Button className="w-full" disabled={loading} type="submit">
-						{loading ? (
-							<Loader2 className="animate-spin" size={16} />
-						) : (
-							"Anmelden"
-						)}
+						{loading ? <Loader2 className="animate-spin" size={16} /> : "Anmelden"}
 					</Button>
 				</CardContent>
 				<CardFooter className="flex flex-wrap items-center justify-between gap-2">
@@ -152,34 +135,24 @@ export default function SignIn() {
 							Registrieren
 						</Link>
 					</div>
-					<Link
-						className="text-primary text-sm hover:underline"
-						href="/forgot-password"
-					>
+					<Link className="text-primary text-sm hover:underline" href="/forgot-password">
 						Passwort vergessen?
 					</Link>
 					<p className="text-muted-foreground text-xs">
 						Mit der Anmeldung akzeptieren Sie unsere{" "}
-						<Link
-							className="text-primary hover:underline"
-							href="/legal?tab=datenschutz"
-						>
+						<Link className="text-primary hover:underline" href="/legal?tab=datenschutz">
 							Datenschutzerklärung
 						</Link>{" "}
 						und unsere{" "}
-						<Link
-							className="text-primary hover:underline"
-							href="/legal?tab=agb"
-						>
+						<Link className="text-primary hover:underline" href="/legal?tab=agb">
 							Geschäftsbedingungen
 						</Link>
 						.
 					</p>
 					<p className="mt-4 w-full text-center text-muted-foreground text-xs">
-						Die Informationen auf dieser Website dienen ausschließlich zu
-						Bildungszwecken und Vereinfachung der Dokumentation, stellen jedoch
-						keine medizinische Beratung dar. Sie ersetzen nicht die Konsultation
-						eines Arztes / einer Ärztin.
+						Die Informationen auf dieser Website dienen ausschließlich zu Bildungszwecken und
+						Vereinfachung der Dokumentation, stellen jedoch keine medizinische Beratung dar. Sie
+						ersetzen nicht die Konsultation eines Arztes / einer Ärztin.
 					</p>
 				</CardFooter>
 			</form>

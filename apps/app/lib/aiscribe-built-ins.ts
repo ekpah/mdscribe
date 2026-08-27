@@ -17,8 +17,7 @@ export const BUILT_IN_AISCRIBE_OVERRIDE_KEYS = [
 	"diagnoseblock",
 ] as const;
 
-export type BuiltInAiscribeOverrideKey =
-	(typeof BUILT_IN_AISCRIBE_OVERRIDE_KEYS)[number];
+export type BuiltInAiscribeOverrideKey = (typeof BUILT_IN_AISCRIBE_OVERRIDE_KEYS)[number];
 
 const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 	BuiltInAiscribeOverrideKey,
@@ -26,8 +25,7 @@ const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 > = {
 	diagnoseblock: {
 		defaultPromptHarness: "diagnosis",
-		description:
-			"Aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen erstellen.",
+		description: "Aktualisierte Diagnoseblöcke basierend auf bestehenden Diagnosen erstellen.",
 		path: "/aiscribe/diagnoseblock",
 		slug: "builtin-diagnoseblock",
 		title: "Diagnoseblock Update",
@@ -66,26 +64,23 @@ const BUILT_IN_AISCRIBE_OVERRIDES: Record<
 	},
 	procedures: {
 		defaultPromptHarness: "procedures",
-		description:
-			"AI Scribe für Prozeduren. Dokumentation für medizinische Eingriffe generieren.",
+		description: "AI Scribe für Prozeduren. Dokumentation für medizinische Eingriffe generieren.",
 		path: "/aiscribe/procedures",
 		slug: "builtin-procedures",
 		title: "Prozeduren Modus",
 	},
 };
 
-export const BUILT_IN_AISCRIBE_OVERRIDE_SLUGS =
-	BUILT_IN_AISCRIBE_OVERRIDE_KEYS.map(
-		(key) => BUILT_IN_AISCRIBE_OVERRIDES[key].slug,
-	);
+export const BUILT_IN_AISCRIBE_OVERRIDE_SLUGS = BUILT_IN_AISCRIBE_OVERRIDE_KEYS.map(
+	(key) => BUILT_IN_AISCRIBE_OVERRIDES[key].slug,
+);
 
 export const getBuiltInAiscribeOverride = (
 	key: BuiltInAiscribeOverrideKey,
 ): BuiltInAiscribeOverrideDefinition => BUILT_IN_AISCRIBE_OVERRIDES[key];
 
-export const getBuiltInAiscribeOverrideSlug = (
-	key: BuiltInAiscribeOverrideKey,
-): string => BUILT_IN_AISCRIBE_OVERRIDES[key].slug;
+export const getBuiltInAiscribeOverrideSlug = (key: BuiltInAiscribeOverrideKey): string =>
+	BUILT_IN_AISCRIBE_OVERRIDES[key].slug;
 
 export const isBuiltInAiscribeOverrideSlug = (slug: string): boolean =>
 	BUILT_IN_AISCRIBE_OVERRIDE_SLUGS.includes(slug);

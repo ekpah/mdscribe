@@ -47,19 +47,16 @@ const DEFAULT_VALUE = "__default__";
 type Visibility = "public" | "private";
 type FormFieldKey = "diagnosisFormId" | "anamneseFormId" | "epikriseFormId";
 type WorkspaceRecord = Awaited<ReturnType<typeof orpc.scribeWorkspaces.list.call>>[number];
-type WorkspaceEditorContext = Awaited<
-	ReturnType<typeof orpc.scribeWorkspaces.editorContext.call>
->;
+type WorkspaceEditorContext = Awaited<ReturnType<typeof orpc.scribeWorkspaces.editorContext.call>>;
 type FormRecord = WorkspaceEditorContext["forms"][number];
 
 const EMPTY_FORMS: FormRecord[] = [];
 
-const FORM_FIELDS: { key: FormFieldKey; label: string; harness: PromptHarnessId }[] =
-	[
-		{ harness: "diagnosis", key: "diagnosisFormId", label: "Diagnosen" },
-		{ harness: "anamnese", key: "anamneseFormId", label: "Anamnese" },
-		{ harness: "epikrise", key: "epikriseFormId", label: "Epikrise" },
-	];
+const FORM_FIELDS: { key: FormFieldKey; label: string; harness: PromptHarnessId }[] = [
+	{ harness: "diagnosis", key: "diagnosisFormId", label: "Diagnosen" },
+	{ harness: "anamnese", key: "anamneseFormId", label: "Anamnese" },
+	{ harness: "epikrise", key: "epikriseFormId", label: "Epikrise" },
+];
 
 const FIELD_EXPLANATIONS = {
 	sections:
@@ -120,11 +117,7 @@ export const UserBriefWorkspacesCard = () => {
 	const username = getSessionUsername(sessionQuery.data);
 	const listQueryOptions = orpc.scribeWorkspaces.list.queryOptions();
 	const editorContextQueryOptions = orpc.scribeWorkspaces.editorContext.queryOptions();
-	const {
-		data: workspaces = [],
-		error,
-		isLoading,
-	} = useQuery(listQueryOptions);
+	const { data: workspaces = [], error, isLoading } = useQuery(listQueryOptions);
 	const { data: editorContext } = useQuery({
 		...editorContextQueryOptions,
 		refetchInterval: 30_000,
@@ -137,12 +130,12 @@ export const UserBriefWorkspacesCard = () => {
 	const canCreatePrivateAiScribeForms = Boolean(editorContext?.canCreatePrivateAiScribeForms);
 	const forms = editorContext?.forms ?? EMPTY_FORMS;
 	const listKey = listQueryOptions.queryKey;
-	const formNameById = useMemo(
-		() => new Map(forms.map((form) => [form.id, form.name])),
-		[forms],
-	);
+	const formNameById = useMemo(() => new Map(forms.map((form) => [form.id, form.name])), [forms]);
 	const routePreview = draft.id
-		? buildWorkspacePath(workspaces.find((workspace) => workspace.id === draft.id)?.slug ?? "", username)
+		? buildWorkspacePath(
+				workspaces.find((workspace) => workspace.id === draft.id)?.slug ?? "",
+				username,
+			)
 		: "Pfad wird beim Speichern erzeugt";
 
 	const formsByField = useMemo(() => {
@@ -376,8 +369,7 @@ export const UserBriefWorkspacesCard = () => {
 															{field.label}
 														</span>
 														<span>
-															{formNameById.get(workspace[field.key] ?? "") ??
-																"Standard-Vorlage"}
+															{formNameById.get(workspace[field.key] ?? "") ?? "Standard-Vorlage"}
 														</span>
 													</div>
 												))}
@@ -465,8 +457,8 @@ export const UserBriefWorkspacesCard = () => {
 								{draft.id ? "Brief-Baukasten bearbeiten" : "Neuer Brief-Baukasten"}
 							</DialogTitle>
 							<DialogDescription>
-								Wähle pro Abschnitt die zugrunde liegende AI Vorlage. Befunde verwendet
-								vorerst die Standard-Vorlage.
+								Wähle pro Abschnitt die zugrunde liegende AI Vorlage. Befunde verwendet vorerst die
+								Standard-Vorlage.
 							</DialogDescription>
 						</DialogHeader>
 

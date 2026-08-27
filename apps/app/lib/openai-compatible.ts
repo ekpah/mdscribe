@@ -17,9 +17,7 @@ export const normalizeProviderBaseUrl = (url: string): string => {
 		throw new Error(PROVIDER_BASE_URL_ERROR_MESSAGE);
 	}
 
-	const candidate = HTTP_SCHEME_REGEX.test(trimmed)
-		? trimmed
-		: `http://${trimmed}`;
+	const candidate = HTTP_SCHEME_REGEX.test(trimmed) ? trimmed : `http://${trimmed}`;
 
 	let parsed: URL;
 	try {

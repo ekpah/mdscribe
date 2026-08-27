@@ -1,161 +1,144 @@
-import type { Subscription } from '@better-auth/stripe';
-import { Badge } from '@repo/design-system/components/ui/badge';
-import { Button } from '@repo/design-system/components/ui/button';
+import type { Subscription } from "@better-auth/stripe";
+import { Badge } from "@repo/design-system/components/ui/badge";
+import { Button } from "@repo/design-system/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@repo/design-system/components/ui/card';
-import { useQuery } from '@tanstack/react-query';
-import { orpc } from '@/lib/orpc';
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@repo/design-system/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+
+import { orpc } from "@/lib/orpc";
 
 interface SubscriptionCardProps {
-  subscription?: Subscription;
-  isManagingSubscription: boolean;
-  onUpgrade: () => void;
-  onCancel: () => void;
+	subscription?: Subscription;
+	isManagingSubscription: boolean;
+	onUpgrade: () => void;
+	onCancel: () => void;
 }
 
 export const SubscriptionCard = ({
-  subscription,
-  isManagingSubscription,
-  onUpgrade,
-  onCancel,
+	subscription,
+	isManagingSubscription,
+	onUpgrade,
+	onCancel,
 }: SubscriptionCardProps) => {
-  const hasActiveSubscription = !!subscription;
-  const { data } = useQuery(orpc.getUsage.queryOptions());
-  const usageProgress = Math.max(
-    0,
-    Math.min(100, data?.usage.monthlyUsagePercentage ?? 0)
-  );
+	const hasActiveSubscription = !!subscription;
+	const { data } = useQuery(orpc.getUsage.queryOptions());
+	const usageProgress = Math.max(0, Math.min(100, data?.usage.monthlyUsagePercentage ?? 0));
 
-  const statusBadge = subscription?.cancelAtPeriodEnd ? (
-    <Badge
-      className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-700"
-      variant="outline"
-    >
-      Wird gekündigt
-    </Badge>
-  ) : (
-    <Badge
-      className="bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700"
-      variant="outline"
-    >
-      Aktiv
-    </Badge>
-  );
+	const statusBadge = subscription?.cancelAtPeriodEnd ? (
+		<Badge
+			className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-700"
+			variant="outline"
+		>
+			Wird gekündigt
+		</Badge>
+	) : (
+		<Badge
+			className="bg-green-50 text-green-700 hover:bg-green-50 hover:text-green-700"
+			variant="outline"
+		>
+			Aktiv
+		</Badge>
+	);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Aktuelles Abonnement</CardTitle>
-        <CardDescription>
-          Verwalte Dein Abonnement und Deine Zahlungsinformationen.
-        </CardDescription>
-      </CardHeader>
-      {hasActiveSubscription ? (
-        <>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">Status</span>
-              {statusBadge}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">Plan</span>
-              <span className="text-sm capitalize">{subscription?.plan}</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium text-sm">
-                  Nutzung (aktueller Monat)
-                </span>
-                <span className="font-semibold text-sm">{usageProgress}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
-                <div
-                  className="h-full rounded-full bg-solarized-violet transition-all"
-                  style={{ width: `${usageProgress}%` }}
-                />
-              </div>
-            </div>
-            {subscription?.periodEnd && (
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">
-                  {subscription?.cancelAtPeriodEnd
-                    ? 'Endet am'
-                    : 'Nächstes Abrechnungsdatum'}
-                </span>
-                <span className="text-sm">
-                  {new Date(subscription?.periodEnd).toLocaleDateString(
-                    'de-DE',
-                    {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    }
-                  )}
-                </span>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="mt-auto">
-            {!subscription?.cancelAtPeriodEnd && (
-              <Button
-                className="text-destructive hover:text-destructive"
-                disabled={isManagingSubscription}
-                onClick={onCancel}
-                variant="outline"
-              >
-                Abonnement kündigen
-              </Button>
-            )}
-          </CardFooter>
-        </>
-      ) : (
-        <>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">Status</span>
-              <Badge
-                className="bg-gray-50 text-gray-700 hover:bg-gray-50 hover:text-gray-700"
-                variant="outline"
-              >
-                Kein Abonnement
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">Plan</span>
-              <span className="text-sm">Basis</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium text-sm">
-                  Nutzung (aktueller Monat)
-                </span>
-                <span className="font-semibold text-sm">{usageProgress}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
-                <div
-                  className="h-full rounded-full bg-solarized-violet transition-all"
-                  style={{ width: `${usageProgress}%` }}
-                />
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="mt-auto">
-            <Button
-              className="w-full"
-              disabled={isManagingSubscription}
-              onClick={onUpgrade}
-            >
-              Abonnieren
-            </Button>
-          </CardFooter>
-        </>
-      )}
-    </Card>
-  );
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Aktuelles Abonnement</CardTitle>
+				<CardDescription>Verwalte Dein Abonnement und Deine Zahlungsinformationen.</CardDescription>
+			</CardHeader>
+			{hasActiveSubscription ? (
+				<>
+					<CardContent className="space-y-4">
+						<div className="flex items-center justify-between">
+							<span className="font-medium text-sm">Status</span>
+							{statusBadge}
+						</div>
+						<div className="flex items-center justify-between">
+							<span className="font-medium text-sm">Plan</span>
+							<span className="text-sm capitalize">{subscription?.plan}</span>
+						</div>
+						<div className="space-y-2">
+							<div className="flex items-center justify-between gap-3">
+								<span className="font-medium text-sm">Nutzung (aktueller Monat)</span>
+								<span className="font-semibold text-sm">{usageProgress}%</span>
+							</div>
+							<div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
+								<div
+									className="h-full rounded-full bg-solarized-violet transition-all"
+									style={{ width: `${usageProgress}%` }}
+								/>
+							</div>
+						</div>
+						{subscription?.periodEnd && (
+							<div className="flex items-center justify-between">
+								<span className="font-medium text-sm">
+									{subscription?.cancelAtPeriodEnd ? "Endet am" : "Nächstes Abrechnungsdatum"}
+								</span>
+								<span className="text-sm">
+									{new Date(subscription?.periodEnd).toLocaleDateString("de-DE", {
+										day: "2-digit",
+										month: "2-digit",
+										year: "numeric",
+									})}
+								</span>
+							</div>
+						)}
+					</CardContent>
+					<CardFooter className="mt-auto">
+						{!subscription?.cancelAtPeriodEnd && (
+							<Button
+								className="text-destructive hover:text-destructive"
+								disabled={isManagingSubscription}
+								onClick={onCancel}
+								variant="outline"
+							>
+								Abonnement kündigen
+							</Button>
+						)}
+					</CardFooter>
+				</>
+			) : (
+				<>
+					<CardContent className="space-y-4">
+						<div className="flex items-center justify-between">
+							<span className="font-medium text-sm">Status</span>
+							<Badge
+								className="bg-gray-50 text-gray-700 hover:bg-gray-50 hover:text-gray-700"
+								variant="outline"
+							>
+								Kein Abonnement
+							</Badge>
+						</div>
+						<div className="flex items-center justify-between">
+							<span className="font-medium text-sm">Plan</span>
+							<span className="text-sm">Basis</span>
+						</div>
+						<div className="space-y-2">
+							<div className="flex items-center justify-between gap-3">
+								<span className="font-medium text-sm">Nutzung (aktueller Monat)</span>
+								<span className="font-semibold text-sm">{usageProgress}%</span>
+							</div>
+							<div className="h-2 overflow-hidden rounded-full bg-solarized-base2">
+								<div
+									className="h-full rounded-full bg-solarized-violet transition-all"
+									style={{ width: `${usageProgress}%` }}
+								/>
+							</div>
+						</div>
+					</CardContent>
+					<CardFooter className="mt-auto">
+						<Button className="w-full" disabled={isManagingSubscription} onClick={onUpgrade}>
+							Abonnieren
+						</Button>
+					</CardFooter>
+				</>
+			)}
+		</Card>
+	);
 };

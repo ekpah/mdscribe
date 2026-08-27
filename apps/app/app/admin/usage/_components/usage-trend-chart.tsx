@@ -1,6 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@repo/design-system/components/ui/card";
 import {
 	ChartContainer,
 	ChartTooltip,
@@ -417,7 +422,9 @@ export const UsageTrendChart = ({
 											axisLine={false}
 											tickMargin={10}
 											minTickGap={28}
-											tickFormatter={(value: string) => formatTick(value, trendGranularity, showWeekday)}
+											tickFormatter={(value: string) =>
+												formatTick(value, trendGranularity, showWeekday)
+											}
 										/>
 										<YAxis
 											axisLine={false}
@@ -432,7 +439,9 @@ export const UsageTrendChart = ({
 												<ChartTooltipContent
 													indicator="line"
 													labelFormatter={(value) =>
-														value ? formatTooltipLabel(String(value), trendGranularity, showWeekday) : ""
+														value
+															? formatTooltipLabel(String(value), trendGranularity, showWeekday)
+															: ""
 													}
 													valueFormatter={(value) => formatTrendValue(activeMetric, value)}
 												/>
@@ -502,7 +511,9 @@ export const UsageTrendChart = ({
 									axisLine={false}
 									tickMargin={10}
 									minTickGap={28}
-									tickFormatter={(value: string) => formatTick(value, trendGranularity, showWeekday)}
+									tickFormatter={(value: string) =>
+										formatTick(value, trendGranularity, showWeekday)
+									}
 								/>
 								<YAxis
 									axisLine={false}
@@ -517,7 +528,9 @@ export const UsageTrendChart = ({
 										<ChartTooltipContent
 											hideIndicator
 											labelFormatter={(value) =>
-												value ? formatTooltipLabel(String(value), trendGranularity, showWeekday) : ""
+												value
+													? formatTooltipLabel(String(value), trendGranularity, showWeekday)
+													: ""
 											}
 											valueFormatter={(value) => formatTrendValue(activeMetric, value)}
 										/>

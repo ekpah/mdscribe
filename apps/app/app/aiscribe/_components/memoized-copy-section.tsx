@@ -1,7 +1,7 @@
 "use client";
 import * as Markdoc from "@markdoc/markdoc";
-import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { Check, Copy } from "lucide-react";
+import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -245,9 +245,7 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 			// innerText preserves the visual separators produced by block elements and
 			// line breaks. textContent concatenates their text nodes without separators.
 			// oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- Clipboard text must match the rendered layout.
-			const textContent = contentElement.innerText
-				.replaceAll("\r\n", "\n")
-				.replaceAll("\r", "\n");
+			const textContent = contentElement.innerText.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
 			try {
 				await handleCopy(renderedContent, textContent);
 			} catch (error) {

@@ -24,10 +24,8 @@ import { CheckCircle2, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
-import {
-	normalizeProviderBaseUrl,
-	PROVIDER_BASE_URL_ERROR_MESSAGE,
-} from "@/lib/openai-compatible";
+
+import { normalizeProviderBaseUrl, PROVIDER_BASE_URL_ERROR_MESSAGE } from "@/lib/openai-compatible";
 import { orpc } from "@/lib/orpc";
 
 const PROTOCOLS = [
@@ -82,12 +80,7 @@ export const AddProviderDialog = () => {
 			apiKey: apiKey.trim() || undefined,
 			baseUrl: normalizedBaseUrl,
 			name: name.trim(),
-			protocol: protocol as
-				| "openai-compatible"
-				| "openrouter"
-				| "openai"
-				| "anthropic"
-				| "tinfoil",
+			protocol: protocol as "openai-compatible" | "openrouter" | "openai" | "anthropic" | "tinfoil",
 		};
 	}, [name, protocol, baseUrl, apiKey]);
 
@@ -109,9 +102,7 @@ export const AddProviderDialog = () => {
 			}),
 		onError: (error) => {
 			setValidated(false);
-			toast.error(
-				error instanceof Error ? error.message : "Validierung fehlgeschlagen",
-			);
+			toast.error(error instanceof Error ? error.message : "Validierung fehlgeschlagen");
 		},
 		onSuccess: (data) => {
 			setValidated(true);
@@ -130,10 +121,8 @@ export const AddProviderDialog = () => {
 				protocol: providerPayload.protocol,
 			}),
 		onError: (error) => {
-			toast.error(
-				error instanceof Error ? error.message : "Fehler beim Erstellen",
-			);
-			},
+			toast.error(error instanceof Error ? error.message : "Fehler beim Erstellen");
+		},
 		onSuccess: async (result) => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
 			toast.success("Provider erstellt", {
@@ -141,44 +130,48 @@ export const AddProviderDialog = () => {
 			});
 			handleReset();
 		},
-		});
+	});
 
-	const handleFieldChange = useCallback((
-		setter: (value: string) => void,
-		value: string,
-	) => {
+	const handleFieldChange = useCallback((setter: (value: string) => void, value: string) => {
 		setter(value);
 		setValidated(false);
 	}, []);
 
-	const handleNameChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-		handleFieldChange(setName, event.target.value);
-	}, [handleFieldChange]);
+	const handleNameChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			handleFieldChange(setName, event.target.value);
+		},
+		[handleFieldChange],
+	);
 
-	const handleProtocolChange = useCallback((value: string) => {
-		handleFieldChange(setProtocol, value);
-	}, [handleFieldChange]);
+	const handleProtocolChange = useCallback(
+		(value: string) => {
+			handleFieldChange(setProtocol, value);
+		},
+		[handleFieldChange],
+	);
 
-	const handleBaseUrlChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-		handleFieldChange(setBaseUrl, event.target.value);
-	}, [handleFieldChange]);
+	const handleBaseUrlChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			handleFieldChange(setBaseUrl, event.target.value);
+		},
+		[handleFieldChange],
+	);
 
-	const handleApiKeyChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-		handleFieldChange(setApiKey, event.target.value);
-	}, [handleFieldChange]);
+	const handleApiKeyChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			handleFieldChange(setApiKey, event.target.value);
+		},
+		[handleFieldChange],
+	);
 
 	const handleCheck = useCallback(() => {
 		if (!providerPayload.name) {
 			toast.error("Bitte einen Namen eingeben");
 			return;
 		}
-		if (
-			providerPayload.protocol === "openai-compatible" &&
-			!providerPayload.baseUrl
-		) {
-			toast.error(
-				"OpenAI-kompatible Provider benoetigen eine Base URL (inkl. /v1)",
-			);
+		if (providerPayload.protocol === "openai-compatible" && !providerPayload.baseUrl) {
+			toast.error("OpenAI-kompatible Provider benoetigen eine Base URL (inkl. /v1)");
 			return;
 		}
 
@@ -200,36 +193,36 @@ export const AddProviderDialog = () => {
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger render={<Button size="sm">
-					<Plus className="mr-1.5 h-4 w-4" />
-					Provider hinzufügen
-				</Button>} />
+			<DialogTrigger
+				render={
+					<Button size="sm">
+						<Plus className="mr-1.5 h-4 w-4" />
+						Provider hinzufügen
+					</Button>
+				}
+			/>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Neuer Provider</DialogTitle>
 					<DialogDescription>
-						Erst prüfen, dann speichern. Beim Erstellen werden alle Modelle
-						synchronisiert.
+						Erst prüfen, dann speichern. Beim Erstellen werden alle Modelle synchronisiert.
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4 py-4">
 					<div className="space-y-2">
 						<Label htmlFor="provider-name">Name</Label>
-							<Input
-								id="provider-name"
-								placeholder="z.B. OpenRouter oder Local llama.cpp"
-								value={name}
-								onChange={handleNameChange}
-							/>
+						<Input
+							id="provider-name"
+							placeholder="z.B. OpenRouter oder Local llama.cpp"
+							value={name}
+							onChange={handleNameChange}
+						/>
 					</div>
 
 					<div className="space-y-2">
 						<Label>Protokoll</Label>
-							<Select
-								value={protocol}
-								onValueChange={handleProtocolChange}
-							>
+						<Select value={protocol} onValueChange={handleProtocolChange}>
 							<SelectTrigger>
 								<SelectValue />
 							</SelectTrigger>
@@ -247,10 +240,9 @@ export const AddProviderDialog = () => {
 						<div className="flex items-start gap-2 rounded-md border border-solarized-green/30 bg-solarized-green/10 px-3 py-2 text-solarized-green text-xs">
 							<ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
 							<span>
-								Tinfoil führt Modelle in verifizierbaren Secure Enclaves aus.
-								Anfragen werden Ende-zu-Ende bis in die Enclave verschlüsselt;
-								die Hardware-Attestierung wird bei jeder Verbindung geprüft.
-								Auch der Betreiber kann Eingaben nicht mitlesen.
+								Tinfoil führt Modelle in verifizierbaren Secure Enclaves aus. Anfragen werden
+								Ende-zu-Ende bis in die Enclave verschlüsselt; die Hardware-Attestierung wird bei
+								jeder Verbindung geprüft. Auch der Betreiber kann Eingaben nicht mitlesen.
 							</span>
 						</div>
 					)}
@@ -258,29 +250,25 @@ export const AddProviderDialog = () => {
 					<div className="space-y-2">
 						<Label htmlFor="provider-url">
 							Base URL
-							{protocol === "openai-compatible"
-								? " (erforderlich)"
-								: " (optional)"}
+							{protocol === "openai-compatible" ? " (erforderlich)" : " (optional)"}
 						</Label>
-							<Input
+						<Input
 							id="provider-url"
-							placeholder={
-								BASE_URL_PLACEHOLDERS[protocol] ?? "https://api.openai.com/v1"
-							}
-								value={baseUrl}
-								onChange={handleBaseUrlChange}
-							/>
+							placeholder={BASE_URL_PLACEHOLDERS[protocol] ?? "https://api.openai.com/v1"}
+							value={baseUrl}
+							onChange={handleBaseUrlChange}
+						/>
 					</div>
 
 					<div className="space-y-2">
 						<Label htmlFor="provider-key">API Key (optional)</Label>
-							<Input
+						<Input
 							id="provider-key"
 							type="password"
 							placeholder="sk-..."
-								value={apiKey}
-								onChange={handleApiKeyChange}
-							/>
+							value={apiKey}
+							onChange={handleApiKeyChange}
+						/>
 					</div>
 
 					{validated && (
@@ -300,18 +288,11 @@ export const AddProviderDialog = () => {
 						onClick={handleCheck}
 						disabled={checkMutation.isPending || createMutation.isPending}
 					>
-						{checkMutation.isPending && (
-							<Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-						)}
+						{checkMutation.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 						Verbindung prüfen
 					</Button>
-					<Button
-						onClick={handleCreate}
-						disabled={!validated || createMutation.isPending}
-					>
-						{createMutation.isPending && (
-							<Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-						)}
+					<Button onClick={handleCreate} disabled={!validated || createMutation.isPending}>
+						{createMutation.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 						Erstellen
 					</Button>
 				</DialogFooter>
@@ -321,4 +302,3 @@ export const AddProviderDialog = () => {
 };
 
 // Backward-compatible export during migration of import sites.
-;

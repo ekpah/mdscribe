@@ -1,5 +1,6 @@
-import { database } from "./client";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+
+import { database } from "./client";
 import { seedDatabase } from "./seed";
 
 const hasTable = async (tableName: string): Promise<boolean> => {

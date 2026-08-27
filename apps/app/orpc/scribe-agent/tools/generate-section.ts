@@ -2,8 +2,8 @@ import { call } from "@orpc/server";
 import { tool } from "ai";
 import { z } from "zod";
 
-import { formatAudioTranscriptsForPrompt } from "@/orpc/scribe/handlers/audio-input";
 import { scribeAgentGenerateSectionHandler } from "@/orpc/scribe-agent/generate-section";
+import { formatAudioTranscriptsForPrompt } from "@/orpc/scribe/handlers/audio-input";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
 
 import { findSection, runTracedTool } from "./shared";
@@ -49,30 +49,36 @@ export const createGenerateSectionTool = (deps: AgentToolDeps) =>
 						return { error: `Unbekannter Abschnitt: ${sectionId}`, ok: false };
 					}
 					const result = await call(
-					scribeAgentGenerateSectionHandler,
-					section.formId
-						? {
-							audioFiles: deps.preparedMedia.usedTranscription ? [] : deps.audioFiles,
-							contextFiles: deps.preparedMedia.usedFilePreprocessing
-								? []
-								: deps.contextFiles,
-							formData: buildSectionFormData(deps, sectionId, notes),
-							formId: section.formId,
-							preparedAttachmentText: getPreparedAttachmentText(deps),
-							source: "customForm" as const,
-							traceContext: { agentRunId: deps.agentRunId, agentSectionId: sectionId, parentObservationId: toolObservationId, traceId: deps.traceId },
-						}
-						: {
-							audioFiles: deps.preparedMedia.usedTranscription ? [] : deps.audioFiles,
-							contextFiles: deps.preparedMedia.usedFilePreprocessing
-								? []
-								: deps.contextFiles,
-							documentType: section.harness,
-							formData: buildSectionFormData(deps, sectionId, notes),
-							preparedAttachmentText: getPreparedAttachmentText(deps),
-							source: "documentType" as const,
-							traceContext: { agentRunId: deps.agentRunId, agentSectionId: sectionId, parentObservationId: toolObservationId, traceId: deps.traceId },
-						},
+						scribeAgentGenerateSectionHandler,
+						section.formId
+							? {
+									audioFiles: deps.preparedMedia.usedTranscription ? [] : deps.audioFiles,
+									contextFiles: deps.preparedMedia.usedFilePreprocessing ? [] : deps.contextFiles,
+									formData: buildSectionFormData(deps, sectionId, notes),
+									formId: section.formId,
+									preparedAttachmentText: getPreparedAttachmentText(deps),
+									source: "customForm" as const,
+									traceContext: {
+										agentRunId: deps.agentRunId,
+										agentSectionId: sectionId,
+										parentObservationId: toolObservationId,
+										traceId: deps.traceId,
+									},
+								}
+							: {
+									audioFiles: deps.preparedMedia.usedTranscription ? [] : deps.audioFiles,
+									contextFiles: deps.preparedMedia.usedFilePreprocessing ? [] : deps.contextFiles,
+									documentType: section.harness,
+									formData: buildSectionFormData(deps, sectionId, notes),
+									preparedAttachmentText: getPreparedAttachmentText(deps),
+									source: "documentType" as const,
+									traceContext: {
+										agentRunId: deps.agentRunId,
+										agentSectionId: sectionId,
+										parentObservationId: toolObservationId,
+										traceId: deps.traceId,
+									},
+								},
 						{ context: { db: deps.db, session: deps.session } },
 					);
 					return { content: result.text, ok: true, sectionId };
@@ -80,7 +86,7 @@ export const createGenerateSectionTool = (deps: AgentToolDeps) =>
 				inputData: { notes, sectionId },
 				name: "generateSection",
 				sectionId,
-				}),
+			}),
 		inputSchema: z.object({
 			notes: z.string().describe("Die rohen Notizen / klinischen Informationen für den Abschnitt."),
 			sectionId: z.string().describe("Die ID des zu generierenden Abschnitts."),

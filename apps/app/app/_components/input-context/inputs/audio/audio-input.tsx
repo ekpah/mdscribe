@@ -8,14 +8,7 @@ import {
 	MicSelector,
 } from "@repo/design-system/components/ui/mic-selector";
 import { cn } from "@repo/design-system/lib/utils";
-import {
-	forwardRef,
-	useCallback,
-	useEffect,
-	useImperativeHandle,
-	useRef,
-	useState,
-} from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { AudioRecording } from "../../types";
@@ -34,21 +27,14 @@ export interface AudioInputHandle {
 	toggleRecording: () => void;
 }
 
-const preferredAudioTypes = [
-	"audio/mp4",
-	"audio/webm;codecs=opus",
-	"audio/webm",
-	"audio/wav",
-];
+const preferredAudioTypes = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/wav"];
 
 const getSupportedMimeType = () => {
 	if (typeof MediaRecorder === "undefined") {
 		return;
 	}
 
-	return preferredAudioTypes.find((type) =>
-		MediaRecorder.isTypeSupported(type),
-	);
+	return preferredAudioTypes.find((type) => MediaRecorder.isTypeSupported(type));
 };
 
 const cleanDeviceLabel = (label: string | undefined) =>
@@ -106,10 +92,7 @@ export const AudioInput = forwardRef<AudioInputHandle, AudioInputProps>(
 
 		const handleStreamReady = useCallback((stream: MediaStream) => {
 			const mimeType = getSupportedMimeType();
-			const mediaRecorder = new MediaRecorder(
-				stream,
-				mimeType ? { mimeType } : undefined,
-			);
+			const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
 			mediaRecorderRef.current = mediaRecorder;
 			audioChunksRef.current = [];
@@ -122,8 +105,7 @@ export const AudioInput = forwardRef<AudioInputHandle, AudioInputProps>(
 			});
 
 			mediaRecorder.addEventListener("stop", () => {
-				const recordingMimeType =
-					mediaRecorder.mimeType || mimeType || "audio/webm";
+				const recordingMimeType = mediaRecorder.mimeType || mimeType || "audio/webm";
 				const blob = new Blob(audioChunksRef.current, {
 					type: recordingMimeType,
 				});
@@ -181,10 +163,7 @@ export const AudioInput = forwardRef<AudioInputHandle, AudioInputProps>(
 		}, [canRecord, isMicMuted, maxRecordings]);
 
 		const handleStopRecording = useCallback(() => {
-			if (
-				!mediaRecorderRef.current ||
-				mediaRecorderRef.current.state === "inactive"
-			) {
+			if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") {
 				setIsRecording(false);
 				return;
 			}

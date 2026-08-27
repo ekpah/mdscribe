@@ -1,35 +1,37 @@
 "use client";
 
-import Inputs from "@repo/design-system/components/inputs/inputs";
+import { Card } from "@repo/design-system/components/ui/card";
+import { cn } from "@repo/design-system/lib/utils";
+import { FileText, ListChecks } from "lucide-react";
+import type { InputTagType } from "markdoc-md/parse";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
+import { hydrateInputContextController } from "@/app/_components/context-transfer/hydrate";
+import {
+	InputContextControls,
+	useInputContextState,
+} from "@/app/_components/input-context/input-context-controls";
+import { useSession } from "@/lib/auth-client";
+import { orpc } from "@/lib/orpc";
+import { trackEvent } from "@/lib/analytics";
+
 import type {
 	FillInputsAudioFile,
 	FillInputsContextFile,
 	FillInputsInputField,
 	FillInputsTextContext,
-} from "@repo/design-system/components/inputs/inputs";
-import { Card } from "@repo/design-system/components/ui/card";
-import { cn } from "@repo/design-system/lib/utils";
-import type { InputTagType } from "markdoc-md/parse";
-import { FileText, ListChecks } from "lucide-react";
-import type { ReactNode } from "react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { toast } from "sonner";
-
-import {
-	InputContextControls,
-	useInputContextState,
-} from "@/app/_components/input-context/input-context-controls";
-import { consumeContextTransferFromFragment } from "@/app/_components/context-transfer/client";
-import { hydrateInputContextController } from "@/app/_components/context-transfer/hydrate";
-import { trackEvent } from "@/lib/analytics";
-import { useSession } from "@/lib/auth-client";
-import { orpc } from "@/lib/orpc";
+} from "./inputs/inputs";
+import Inputs from "./inputs/inputs";
 
 type MobilePanel = "inputs" | "preview";
 
 interface InputPreviewSectionProps {
 	activeInputFocusKey?: string | number;
 	activeInputName?: string | null;
+	activePreviewFocusKey?: string | number;
 	contentType: "document" | "template";
 	edgeTabs?: ReactNode;
 	inputTags: InputTagType[];
@@ -39,6 +41,7 @@ interface InputPreviewSectionProps {
 	preview: (values: Record<string, unknown>) => ReactNode;
 	previewToolbar?: ReactNode;
 	resetKey?: string;
+	templateExamples?: string[];
 	templateInformation?: string;
 }
 
@@ -144,6 +147,7 @@ const getPreviewPanelClassName = (
 export const InputPreviewSection = ({
 	activeInputFocusKey,
 	activeInputName,
+	activePreviewFocusKey,
 	contentType,
 	edgeTabs,
 	inputTags,
@@ -153,6 +157,7 @@ export const InputPreviewSection = ({
 	preview,
 	previewToolbar,
 	resetKey,
+	templateExamples,
 	templateInformation,
 }: InputPreviewSectionProps) => {
 	const [values, setValues] = useState<Record<string, unknown>>({});
@@ -160,6 +165,8 @@ export const InputPreviewSection = ({
 	const [previewPanelElement, setPreviewPanelElement] = useState<HTMLDivElement | null>(null);
 	const [usesPreviewPanelPortal, setUsesPreviewPanelPortal] = useState(false);
 	const inputContextController = useInputContextState();
+	const lastInputFocusKeyRef = useRef(activeInputFocusKey);
+	const lastPreviewFocusKeyRef = useRef(activePreviewFocusKey);
 	const mobileTabId = useId();
 	const { data: session } = useSession();
 	const isLoggedIn = Boolean(session?.user?.id);
@@ -202,10 +209,35 @@ export const InputPreviewSection = ({
 	}, [hasInputTags]);
 
 	useEffect(() => {
-		if (activeInputName && hasInputTags) {
+		if (
+			activeInputFocusKey !== undefined &&
+			!Object.is(lastInputFocusKeyRef.current, activeInputFocusKey)
+		) {
+			lastInputFocusKeyRef.current = activeInputFocusKey;
 			setMobilePanel("inputs");
 		}
-	}, [activeInputName, hasInputTags]);
+	}, [activeInputFocusKey]);
+
+	useEffect(() => {
+		if (
+			activePreviewFocusKey === undefined ||
+			Object.is(lastPreviewFocusKeyRef.current, activePreviewFocusKey)
+		) {
+			return;
+		}
+		if (mobilePanel !== "preview") {
+			setMobilePanel("preview");
+			return;
+		}
+		lastPreviewFocusKeyRef.current = activePreviewFocusKey;
+		if (!activeInputName || !previewPanelElement) {
+			return;
+		}
+		const activeTag = Array.from(
+			previewPanelElement.querySelectorAll<HTMLElement>("[data-markdoc-input]"),
+		).find((element) => element.dataset.markdocInput === activeInputName);
+		activeTag?.scrollIntoView({ behavior: "smooth", block: "center" });
+	}, [activeInputName, activePreviewFocusKey, mobilePanel, previewPanelElement]);
 
 	const handleFormChange = useCallback(
 		(data: Record<string, unknown>) => {
@@ -244,13 +276,14 @@ export const InputPreviewSection = ({
 				audioFiles,
 				contextFiles,
 				inputFields,
+				templateExamples,
 				templateInformation,
 				textContext,
 			});
 			trackEvent(`${contentType}-filled-with-ai`);
 			return result.fieldValues;
 		},
-		[contentType, templateInformation],
+		[contentType, templateExamples, templateInformation],
 	);
 
 	const inputPanelClassName = getInputPanelClassName(hasInputTags, mobilePanel);
@@ -277,11 +310,8 @@ export const InputPreviewSection = ({
 				role={hasInputTags ? "tabpanel" : undefined}
 			>
 				<Inputs
-					activeInputFocusKey={
-						activeInputFocusKey === undefined ? undefined : `${activeInputFocusKey}:${mobilePanel}`
-					}
+					activeInputFocusKey={mobilePanel === "inputs" ? activeInputFocusKey : undefined}
 					activeInputName={activeInputName}
-					activeInputScrollKey={mobilePanel}
 					key={resetKey}
 					inputTags={inputTags}
 					onChange={handleFormChange}

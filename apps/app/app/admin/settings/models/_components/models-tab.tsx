@@ -19,10 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ReasoningEffortSelect } from "@/app/admin/_components/reasoning-effort-select";
-import {
-	getReasoningSupportStatus,
-	supportsReasoningParameters,
-} from "@/app/admin/_lib/reasoning";
+import { getReasoningSupportStatus, supportsReasoningParameters } from "@/app/admin/_lib/reasoning";
 import type { ReasoningEffort } from "@/app/admin/_lib/reasoning";
 import { orpc } from "@/lib/orpc";
 
@@ -111,8 +108,7 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 			"Extrahiert PDF- oder Bildinhalte zu Text, bevor das Standard-Modell weiterarbeitet.",
 		label: "Dokumenten-Modell",
 		mediaModeDescriptions: {
-			direct:
-				"Direkt: Das Dokument wird ohne Text-Prompt gesendet — für dedizierte OCR-Modelle.",
+			direct: "Direkt: Das Dokument wird ohne Text-Prompt gesendet — für dedizierte OCR-Modelle.",
 			multimodal:
 				"Multimodal: Das Dokument wird zusammen mit einem Extraktions-Prompt an ein multimodales Modell gesendet.",
 		},
@@ -122,8 +118,7 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 	},
 	{
 		capabilityGate: "audio",
-		description:
-			"Transkribiert Audioaufnahmen zu Text, bevor das Standard-Modell weiterarbeitet.",
+		description: "Transkribiert Audioaufnahmen zu Text, bevor das Standard-Modell weiterarbeitet.",
 		label: "Audio-Modell",
 		mediaModeDescriptions: {
 			direct:
@@ -275,8 +270,8 @@ const StandardCapabilities = ({
 			</div>
 		</div>
 		<p className="text-solarized-base01 text-xs">
-			Angehakte Eingaben und der Agent werden dem Standard-Modell direkt übergeben. Für
-			nicht angehakte Eingaben wird das jeweilige Modell unten zur Vorverarbeitung genutzt.
+			Angehakte Eingaben und der Agent werden dem Standard-Modell direkt übergeben. Für nicht
+			angehakte Eingaben wird das jeweilige Modell unten zur Vorverarbeitung genutzt.
 		</p>
 	</div>
 );
@@ -398,7 +393,10 @@ const OpenRouterRoutingControl = ({
 }) => (
 	<div className="space-y-2">
 		<Label>OpenRouter-Routing</Label>
-		<Tabs onValueChange={(nextValue) => onValueChange(nextValue as OpenRouterRoutingMode)} value={value}>
+		<Tabs
+			onValueChange={(nextValue) => onValueChange(nextValue as OpenRouterRoutingMode)}
+			value={value}
+		>
 			<TabsList className="h-auto max-w-full flex-wrap">
 				{OPENROUTER_ROUTING_OPTIONS.map((option) => (
 					<TabsTrigger disabled={disabled} key={option.value} value={option.value}>
@@ -408,8 +406,8 @@ const OpenRouterRoutingControl = ({
 			</TabsList>
 		</Tabs>
 		<p className="text-solarized-base01 text-xs">
-			Standard nutzt das OpenRouter-Routing. Nitro priorisiert Durchsatz, Floor den Preis und
-			Exacto die Anbieterqualität für Tool-Aufrufe.
+			Standard nutzt das OpenRouter-Routing. Nitro priorisiert Durchsatz, Floor den Preis und Exacto
+			die Anbieterqualität für Tool-Aufrufe.
 		</p>
 	</div>
 );
@@ -520,8 +518,8 @@ const DefaultModelRow = ({
 				) : null}
 				{selectedModel && reasoningSupportStatus === "unknown" ? (
 					<p className="text-solarized-base01 text-xs">
-						Dieser Provider meldet keine Parameterliste. Sie können Reasoning trotzdem setzen;
-						wenn das Modell es nicht unterstützt, kann der Provider die Anfrage ablehnen.
+						Dieser Provider meldet keine Parameterliste. Sie können Reasoning trotzdem setzen; wenn
+						das Modell es nicht unterstützt, kann der Provider die Anfrage ablehnen.
 					</p>
 				) : null}
 				<DefaultTemperatureControl
@@ -798,9 +796,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 						} else if (row.type === "agent") {
 							renderCapabilities = () => (
 								<AgentCapabilities
-									disabled={
-										isUpdatingDefaults || (defaults?.defaultStandardSupportsAgent ?? false)
-									}
+									disabled={isUpdatingDefaults || (defaults?.defaultStandardSupportsAgent ?? false)}
 									onToggle={handleAgentCapabilityToggle}
 									supportsAudio={defaults?.defaultAgentSupportsAudio ?? false}
 									supportsDocuments={defaults?.defaultAgentSupportsDocuments ?? false}
@@ -870,21 +866,21 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 				<CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6 sm:pt-0">
 					<div className="rounded-md border border-solarized-base2/80 bg-solarized-base2/20 p-3 text-solarized-base01 text-xs">
 						<div>
-							Standard-Modell: erzeugt immer die finale Antwort. Angehakte Fähigkeiten
-							(Dokumente, Audio, Agent) werden ihm als native Eingaben übergeben.
+							Standard-Modell: erzeugt immer die finale Antwort. Angehakte Fähigkeiten (Dokumente,
+							Audio, Agent) werden ihm als native Eingaben übergeben.
 						</div>
 						<div>
 							MDScribe Agent (Beta): bearbeitet den Brief-Baukasten, wenn die Fähigkeit Agent beim
-							Standard-Modell nicht angehakt ist. Angehakte Agent-Fähigkeiten nutzen Anhänge
-							nativ, sonst Dokumenten-/Audio-Vorverarbeitung.
+							Standard-Modell nicht angehakt ist. Angehakte Agent-Fähigkeiten nutzen Anhänge nativ,
+							sonst Dokumenten-/Audio-Vorverarbeitung.
 						</div>
 						<div>
 							Dokumenten-Modell: extrahiert PDF/Bild zu Text, wenn die Fähigkeit Dokumente nicht
 							angehakt ist — direkt (ohne Prompt) oder multimodal (mit Prompt).
 						</div>
 						<div>
-							Audio-Modell: transkribiert Aufnahmen, wenn die Fähigkeit Audio nicht angehakt ist
-							— direkt (Transkriptions-Endpoint) oder multimodal (Prompt + Audio).
+							Audio-Modell: transkribiert Aufnahmen, wenn die Fähigkeit Audio nicht angehakt ist —
+							direkt (Transkriptions-Endpoint) oder multimodal (Prompt + Audio).
 						</div>
 					</div>
 				</CardContent>

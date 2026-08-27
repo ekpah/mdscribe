@@ -11,9 +11,7 @@ const ENVELOPE_VERSION = 1;
 // files, base64-encoded into the payload JSON at 4/3, plus text): ~74 MiB.
 // The envelope cap adds the version byte, IV, GCM tag, and base64url expansion.
 export const MAX_TRANSFER_PAYLOAD_BYTES = 80 * 1024 * 1024;
-export const MAX_TRANSFER_ENVELOPE_CHARS = Math.ceil(
-	((MAX_TRANSFER_PAYLOAD_BYTES + 1024) * 4) / 3,
-);
+export const MAX_TRANSFER_ENVELOPE_CHARS = Math.ceil(((MAX_TRANSFER_PAYLOAD_BYTES + 1024) * 4) / 3);
 
 export class TransferPayloadTooLargeError extends Error {
 	constructor() {

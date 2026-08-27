@@ -1,14 +1,16 @@
 import { describe, expect, test } from "bun:test";
+
 import React from "react";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { htmlToMarkdoc, isHtmlToMarkdocSupported } from "../editor";
 import {
 	analyzeMarkdocTemplate,
 	markdocConfig,
+	parseMarkdocToInputs,
 	validateMarkdocTemplate,
 } from "../index";
-import { htmlToMarkdoc, isHtmlToMarkdocSupported } from "../editor";
 import { DynamicMarkdocRenderer, renderMarkdocAsReact } from "../react";
 
 describe("public integration APIs", () => {
@@ -49,24 +51,43 @@ describe("public integration APIs", () => {
 		expect(html).toContain("Ada");
 	});
 
-	test("fails explicitly when the browser-only HTML converter is unavailable", () => {
-		expect(isHtmlToMarkdocSupported()).toBe(false);
-		expect(() => htmlToMarkdoc("<p>hello</p>")).toThrow(
-			"htmlToMarkdoc requires a DOM environment",
+	test("prefers an explicit named calc value over its formula", () => {
+		const html = renderToStaticMarkup(
+			React.createElement(DynamicMarkdocRenderer, {
+				markdocContent: `{% calc primary="risk" formula="[age] * 2" /%}`,
+				variables: { age: 4, risk: 11 },
+			}),
 		);
+		expect(html).toContain(">11<");
+		expect(html).not.toContain(">8<");
 	});
 
-	test("reports malformed score formulas through validation and analysis", () => {
-		const template = `{% score primary="risk" formula="[age] +" /%}`;
+	test("fails explicitly when the browser-only HTML converter is unavailable", () => {
+		expect(isHtmlToMarkdocSupported()).toBe(false);
+		expect(() => htmlToMarkdoc("<p>hello</p>")).toThrow("htmlToMarkdoc requires a DOM environment");
+	});
+
+	test("reports malformed calc formulas through validation and analysis", () => {
+		const template = `{% calc primary="risk" formula="[age] +" /%}`;
 		const diagnostics = validateMarkdocTemplate(template);
 		expect(diagnostics).toContainEqual(
-			expect.objectContaining({ code: "markdoc-schema", id: "score-formula-invalid" }),
+			expect.objectContaining({ code: "markdoc-schema", id: "calc-formula-invalid" }),
 		);
 		expect(analyzeMarkdocTemplate(template).diagnostics).toEqual(diagnostics);
 	});
 
+	test("maps the legacy score alias to the canonical calc implementation", () => {
+		const calc = `{% calc primary="risk" formula="[age] * 2" /%}`;
+		const score = `{% score primary="risk" formula="[age] * 2" /%}`;
+		expect(parseMarkdocToInputs(score)).toEqual(parseMarkdocToInputs(calc));
+		expect(parseMarkdocToInputs(score)[0]?.name).toBe("Calc");
+		expect(renderToStaticMarkup(renderMarkdocAsReact(score))).toBe(
+			renderToStaticMarkup(renderMarkdocAsReact(calc)),
+		);
+	});
+
 	test("renders malformed built-in tag attributes without throwing", () => {
-		const template = `{% info /%} {% score formula=true /%} {% switch %}{% case %}x{% /case %}{% /switch %}`;
+		const template = `{% info /%} {% calc formula=true /%} {% switch %}{% case %}x{% /case %}{% /switch %}`;
 		const html = renderToStaticMarkup(renderMarkdocAsReact(template));
 		expect(html).toContain("No formula");
 		expect(html).toContain("...");

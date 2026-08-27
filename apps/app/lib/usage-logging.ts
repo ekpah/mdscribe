@@ -66,11 +66,11 @@ interface OpenRouterUsage {
 export const extractOpenRouterUsage = (
 	providerMetadata: Record<string, unknown> | undefined,
 ): OpenRouterUsage | null => {
-	if (!providerMetadata) {return null;}
+	if (!providerMetadata) {
+		return null;
+	}
 
-	const openrouterData = providerMetadata.openrouter as
-		| { usage?: OpenRouterUsage }
-		| undefined;
+	const openrouterData = providerMetadata.openrouter as { usage?: OpenRouterUsage } | undefined;
 	return openrouterData?.usage ?? null;
 };
 
@@ -115,9 +115,7 @@ interface CreateUsageEventParams {
  * Normalize reasoning to a string or undefined
  * Handles arrays (from thinking mode), strings, and other types
  */
-const normalizeReasoning = (
-	reasoning: string | string[] | unknown,
-): string | undefined => {
+const normalizeReasoning = (reasoning: string | string[] | unknown): string | undefined => {
 	if (reasoning === undefined || reasoning === null) {
 		return undefined;
 	}
@@ -130,9 +128,7 @@ const normalizeReasoning = (
 			return undefined;
 		}
 		// Join array elements, filtering out non-strings
-		const joined = reasoning
-			.filter((item) => typeof item === "string")
-			.join("\n");
+		const joined = reasoning.filter((item) => typeof item === "string").join("\n");
 		return joined || undefined;
 	}
 	// For other types, try to convert to string
@@ -149,9 +145,7 @@ const normalizeDurationMs = (durationMs: number | undefined): number | undefined
 /**
  * Build a consistent usage event data object for database insertion
  */
-export const buildUsageEventData = (
-	params: CreateUsageEventParams,
-): NewUsageEvent => {
+export const buildUsageEventData = (params: CreateUsageEventParams): NewUsageEvent => {
 	const {
 		userId,
 		name,
@@ -168,12 +162,9 @@ export const buildUsageEventData = (
 	} = params;
 
 	// Use OpenRouter usage if available, otherwise fall back to standard usage
-	const inputTokens =
-		openRouterUsage?.promptTokens ?? standardUsage?.inputTokens;
-	const outputTokens =
-		openRouterUsage?.completionTokens ?? standardUsage?.outputTokens;
-	const totalTokens =
-		openRouterUsage?.totalTokens ?? standardUsage?.totalTokens;
+	const inputTokens = openRouterUsage?.promptTokens ?? standardUsage?.inputTokens;
+	const outputTokens = openRouterUsage?.completionTokens ?? standardUsage?.outputTokens;
+	const totalTokens = openRouterUsage?.totalTokens ?? standardUsage?.totalTokens;
 
 	return {
 		cachedTokens: openRouterUsage?.promptTokensDetails?.cachedTokens,

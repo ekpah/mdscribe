@@ -7,12 +7,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
+import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
+import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
 import {
 	getInputIdForPdfWidget,
 	getPdfFieldHighlightsForInput,
 } from "@/app/documents/_components/pdf-field-highlights";
-import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
-import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	cloneUint8Array,
@@ -37,9 +37,7 @@ const DocumentInformationPreview = ({ information }: { information: string }) =>
 		) : (
 			<div className="flex min-h-full items-center justify-center">
 				<div className="max-w-sm rounded-md border border-dashed bg-muted/30 p-6 text-center">
-					<p className="font-medium text-sm">
-						{USER_MESSAGES.documentEditor.informationEmpty}
-					</p>
+					<p className="font-medium text-sm">{USER_MESSAGES.documentEditor.informationEmpty}</p>
 					<p className="mt-2 text-muted-foreground text-sm">
 						{USER_MESSAGES.documentEditor.informationEmptyDescription}
 					</p>
@@ -235,9 +233,7 @@ export default function ContentSection({
 			activeInputFocusKey={activeInputFocusKey}
 			activeInputName={activeInputName}
 			contentType="document"
-			edgeTabs={
-				<DocumentPreviewTabs activeView={contentView} onViewChange={setContentView} />
-			}
+			edgeTabs={<DocumentPreviewTabs activeView={contentView} onViewChange={setContentView} />}
 			inputTags={inputs}
 			onInputBlur={handleInputBlur}
 			onInputSelect={handleInputSelect}

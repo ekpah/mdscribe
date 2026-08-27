@@ -25,10 +25,7 @@ export const getScribeUsageBudgetPercentage = (input: {
 		return 0;
 	}
 
-	return Math.min(
-		100,
-		Math.max(1, Math.round((input.totalCost / input.monthlyCostLimit) * 100)),
-	);
+	return Math.min(100, Math.max(1, Math.round((input.totalCost / input.monthlyCostLimit) * 100)));
 };
 
 export type ProductPlan = keyof typeof PRODUCT_PLANS;

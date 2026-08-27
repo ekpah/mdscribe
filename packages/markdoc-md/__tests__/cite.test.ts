@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -33,9 +34,7 @@ describe("tolerant cite rendering", () => {
 	});
 
 	test("unwraps a block-spanning cite instead of producing nested paragraphs", () => {
-		const html = render(
-			`{% cite source="https://example.test" %}first\n\nsecond{% /cite %}`,
-		);
+		const html = render(`{% cite source="https://example.test" %}first\n\nsecond{% /cite %}`);
 		expect(html).toBe("<article><p>first</p><p>second</p></article>");
 	});
 });

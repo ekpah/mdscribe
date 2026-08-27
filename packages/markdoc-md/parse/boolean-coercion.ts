@@ -110,7 +110,12 @@ export const toVoiceBooleanValue = (value: string): boolean | undefined => {
 	if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "ja") {
 		return true;
 	}
-	if (normalized === "false" || normalized === "0" || normalized === "no" || normalized === "nein") {
+	if (
+		normalized === "false" ||
+		normalized === "0" ||
+		normalized === "no" ||
+		normalized === "nein"
+	) {
 		return false;
 	}
 	return undefined;

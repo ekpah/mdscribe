@@ -6,6 +6,8 @@ import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { collectFillInputFields } from "@/app/_components/inputs/inputs";
+
 describe("markdoc tags phase 1 regressions", () => {
 	test("keeps case scopes separate across switches with same case labels", () => {
 		const source = `
@@ -97,20 +99,74 @@ describe("markdoc tags phase 1 regressions", () => {
 		expect(renderTipTapHTML(source)).toContain(`source="${fhirSource}"`);
 	});
 
-	test("keeps formula-only score tags distinct and collects all variables", () => {
+	test("normalizes legacy score tags to Calc elements for the rich editor", () => {
+		const html = renderTipTapHTML(
+			`{% score primary="Risk" formula="[Age]" %}{% info "Age" type="number" /%}{% /score %}`,
+		);
+
+		expect(html).toContain("<Calc");
+		expect(html).not.toContain("<Score");
+	});
+
+	test("keeps formula-only calc tags distinct and collects all variables", () => {
 		const source = `
-{% score formula="[A]+[B]" /%}
-{% score formula="[C]+[D]" /%}
+{% calc formula="[A]+[B]" /%}
+{% calc formula="[C]+[D]" /%}
 `;
 
 		const tags = parseMarkdocToInputs(source);
-		const scoreTags = tags.filter((tag) => tag.name === "Score");
-		const referencedVariables = scoreTags.flatMap((scoreTag) =>
-			scoreTag.children.map((childTag) => childTag.attributes.primary),
+		const calcTags = tags.filter((tag) => tag.name === "Calc");
+		const referencedVariables = calcTags.flatMap((calcTag) =>
+			calcTag.children.map((childTag) => childTag.attributes.primary),
 		);
 
-		expect(scoreTags).toHaveLength(2);
+		expect(calcTags).toHaveLength(2);
 		expect(new Set(referencedVariables)).toEqual(new Set(["A", "B", "C", "D"]));
+	});
+
+	test("includes named calculations and their components in autofill metadata", () => {
+		const tags = parseMarkdocToInputs(`
+{% info "A" type="number" /%}
+{% calc primary="Risk" formula="[A]+[B]" unit="Punkte" /%}
+`);
+		const { fields } = collectFillInputFields(tags);
+
+		expect(fields).toContainEqual({
+			calculation: { components: ["A", "B"], formula: "[A]+[B]" },
+			description: undefined,
+			label: "Risk",
+			options: undefined,
+			type: "number",
+			unit: "Punkte",
+		});
+		expect(fields.map((field) => field.label)).toEqual(["A", "Risk", "B"]);
+	});
+
+	test("keeps explicit checkbox calc components and only synthesizes missing variables", () => {
+		const tags = parseMarkdocToInputs(`
+{% calc primary="Risk" formula="[Diabetes]+[Alter]" %}
+{% switch "Diabetes" type="checkbox" %}
+{% case "true" %}Ja{% /case %}
+{% case "false" %}Nein{% /case %}
+{% /switch %}
+{% /calc %}
+`);
+		const [calc] = tags;
+
+		expect(calc?.name).toBe("Calc");
+		if (calc?.name !== "Calc") {
+			throw new Error("Expected calc input");
+		}
+		expect(calc.children.map((child) => [child.name, child.attributes.primary])).toEqual([
+			["Switch", "Diabetes"],
+			["Info", "Alter"],
+		]);
+		const { fields } = collectFillInputFields(tags);
+		expect(fields.map((field) => [field.label, field.type])).toEqual([
+			["Risk", "number"],
+			["Diabetes", "boolean"],
+			["Alter", "number"],
+		]);
 	});
 
 	test("does not leak nested case tags into outer switches", () => {
@@ -366,19 +422,19 @@ describe("markdoc tags phase 1 regressions", () => {
 		});
 	});
 
-	test("keeps score presentation local and rejects conflicting formulas", () => {
+	test("keeps calc presentation local and rejects conflicting formulas", () => {
 		const compatible = validateMarkdocTagContracts(`
-{% score "BMI" formula="[A]+1" unit="kg" renderUnit=false /%}
-{% score "BMI" formula="[A]+1" unit="cm" renderUnit=true /%}
+{% calc "BMI" formula="[A]+1" unit="kg" renderUnit=false %}{% info "A" type="number" /%}{% /calc %}
+{% calc "BMI" formula="[A]+1" unit="cm" renderUnit=true %}{% info "A" type="number" /%}{% /calc %}
 `);
 		const conflictingSource = `
-{% score "Total" formula="[A]+1" /%}
-{% score "Total" formula="[B]+2" /%}
+{% calc "Total" formula="[A]+1" %}{% info "A" type="number" /%}{% /calc %}
+{% calc "Total" formula="[B]+2" %}{% info "B" type="number" /%}{% /calc %}
 `;
 		const conflicting = validateMarkdocTagContracts(conflictingSource);
-		const [score] = parseMarkdocToInputs(conflictingSource);
-		if (score?.name !== "Score") {
-			throw new Error("Expected score input");
+		const [calc] = parseMarkdocToInputs(conflictingSource);
+		if (calc?.name !== "Calc") {
+			throw new Error("Expected calc input");
 		}
 
 		expect(compatible).toEqual([]);
@@ -387,16 +443,16 @@ describe("markdoc tags phase 1 regressions", () => {
 			code: "tag-settings-conflict",
 			conflicts: [{ attribute: "formula", conflictingValue: "[B]+2", firstValue: "[A]+1" }],
 			primary: "Total",
-			tag: "score",
+			tag: "calc",
 		});
-		expect(score?.attributes.formula).toBe("[A]+1");
-		expect(score?.children.map((child) => child.attributes.primary)).toEqual(["A"]);
+		expect(calc?.attributes.formula).toBe("[A]+1");
+		expect(calc?.children.map((child) => child.attributes.primary)).toEqual(["A"]);
 	});
 
-	test("keeps formula-only scores valid and separate", () => {
+	test("keeps unnamed calculations valid and separate when they contain their components", () => {
 		const source = `
-{% score formula="[A]+1" /%}
-{% score formula="[B]+2" /%}
+{% calc formula="[A]+1" %}{% info "A" type="number" /%}{% /calc %}
+{% calc formula="[B]+2" %}{% info "B" type="number" /%}{% /calc %}
 `;
 
 		expect(validateMarkdocTagContracts(source)).toEqual([]);

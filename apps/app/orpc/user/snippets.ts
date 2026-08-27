@@ -13,12 +13,7 @@ const getSnippetByIDHandler = authed
 		const [snippet] = await context.db
 			.select()
 			.from(textSnippet)
-			.where(
-				and(
-					eq(textSnippet.id, input.id),
-					eq(textSnippet.userId, context.session.user.id),
-				),
-			)
+			.where(and(eq(textSnippet.id, input.id), eq(textSnippet.userId, context.session.user.id)))
 			.limit(1);
 		return snippet ?? null;
 	});
@@ -69,12 +64,7 @@ const updateSnippetHandler = authed
 		const [existing] = await context.db
 			.select()
 			.from(textSnippet)
-			.where(
-				and(
-					eq(textSnippet.id, input.id),
-					eq(textSnippet.userId, context.session.user.id),
-				),
-			)
+			.where(and(eq(textSnippet.id, input.id), eq(textSnippet.userId, context.session.user.id)))
 			.limit(1);
 
 		if (!existing) {
@@ -105,12 +95,7 @@ const deleteSnippetHandler = authed
 		const [existing] = await context.db
 			.select()
 			.from(textSnippet)
-			.where(
-				and(
-					eq(textSnippet.id, input.id),
-					eq(textSnippet.userId, context.session.user.id),
-				),
-			)
+			.where(and(eq(textSnippet.id, input.id), eq(textSnippet.userId, context.session.user.id)))
 			.limit(1);
 
 		if (!existing) {

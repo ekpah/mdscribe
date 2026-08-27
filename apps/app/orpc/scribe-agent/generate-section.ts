@@ -1,8 +1,8 @@
 import { type } from "@orpc/server";
 import type { UIMessage } from "ai";
 
-import { authed } from "@/orpc";
 import { startUsageObservation } from "@/lib/usage-tracing";
+import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
 import { runScribeGeneration } from "@/orpc/scribe/handlers/scribe-stream";
 import type { DocumentType, AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
@@ -21,19 +21,21 @@ interface CustomAgentSectionGenerationInput {
 	source: "customForm";
 }
 
-export type AgentSectionGenerationInput =
-	| (BuiltInAgentSectionGenerationInput | CustomAgentSectionGenerationInput) & {
-		/** Only present for media that the agent already had to preprocess. */
-		preparedAttachmentText?: string;
-		audioFiles?: AudioFile[];
-		contextFiles?: FillInputsContextFile[];
-		traceContext?: {
-			agentRunId: string;
-			agentSectionId: string;
-			parentObservationId?: string;
-			traceId?: string;
-		};
+export type AgentSectionGenerationInput = (
+	| BuiltInAgentSectionGenerationInput
+	| CustomAgentSectionGenerationInput
+) & {
+	/** Only present for media that the agent already had to preprocess. */
+	preparedAttachmentText?: string;
+	audioFiles?: AudioFile[];
+	contextFiles?: FillInputsContextFile[];
+	traceContext?: {
+		agentRunId: string;
+		agentSectionId: string;
+		parentObservationId?: string;
+		traceId?: string;
 	};
+};
 
 const toScribeMessages = (formData: Record<string, unknown>): UIMessage[] => [
 	{
@@ -68,23 +70,21 @@ export const scribeAgentGenerateSectionHandler = authed
 			input:
 				input.source === "customForm"
 					? {
-						audioFiles: input.audioFiles,
-						contextFiles: input.contextFiles,
-						formId: input.formId,
-						messages: toScribeMessages(input.formData),
-						source: "customForm",
-					}
+							audioFiles: input.audioFiles,
+							contextFiles: input.contextFiles,
+							formId: input.formId,
+							messages: toScribeMessages(input.formData),
+							source: "customForm",
+						}
 					: {
-						audioFiles: input.audioFiles,
-						contextFiles: input.contextFiles,
-						documentType: input.documentType,
-						messages: toScribeMessages(input.formData),
-						source: "documentType",
-					},
+							audioFiles: input.audioFiles,
+							contextFiles: input.contextFiles,
+							documentType: input.documentType,
+							messages: toScribeMessages(input.formData),
+							source: "documentType",
+						},
 			preparedAttachmentText: input.preparedAttachmentText,
-			traceContext: input.traceContext
-				? { ...input.traceContext, observationId }
-				: undefined,
+			traceContext: input.traceContext ? { ...input.traceContext, observationId } : undefined,
 		});
 
 		return { text: await generation.text };

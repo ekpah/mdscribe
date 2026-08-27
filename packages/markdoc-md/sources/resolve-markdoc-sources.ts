@@ -1,4 +1,5 @@
 import type { Config } from "@markdoc/markdoc";
+
 import type {
 	InfoInputTagType,
 	InputTagType,
@@ -167,8 +168,7 @@ export const inspectMarkdocSources = (
 		analysis.diagnostics
 			.filter(
 				(diagnostic) =>
-					diagnostic.code === "tag-kind-conflict" ||
-					diagnostic.code === "tag-settings-conflict",
+					diagnostic.code === "tag-kind-conflict" || diagnostic.code === "tag-settings-conflict",
 			)
 			.map((diagnostic) => diagnostic.primary),
 	);

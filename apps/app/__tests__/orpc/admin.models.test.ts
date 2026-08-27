@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { call } from "@orpc/server";
 import { aiModel, eq } from "@repo/database";
-import { modelsHandler } from "@/orpc/admin/models";
+
 import {
 	ADMIN_EMAIL,
 	createTestAiDefaults,
@@ -10,6 +11,7 @@ import {
 	startTestServer,
 } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
+import { modelsHandler } from "@/orpc/admin/models";
 
 describe("Admin Models Handler", () => {
 	let server: TestServer;
@@ -29,9 +31,7 @@ describe("Admin Models Handler", () => {
 
 	test("list returns DB-backed models with provider metadata", async () => {
 		const models = await call(modelsHandler.list, undefined, { context });
-		const seededModel = models.find(
-			(model) => model.id === seeded.modelRecordId,
-		);
+		const seededModel = models.find((model) => model.id === seeded.modelRecordId);
 
 		expect(models.length).toBeGreaterThan(0);
 		expect(seededModel).toBeDefined();
@@ -52,9 +52,7 @@ describe("Admin Models Handler", () => {
 			.where(eq(aiModel.id, seeded.modelRecordId));
 
 		const models = await call(modelsHandler.list, undefined, { context });
-		const updatedModel = models.find(
-			(model) => model.id === seeded.modelRecordId,
-		);
+		const updatedModel = models.find((model) => model.id === seeded.modelRecordId);
 
 		expect(updatedModel?.name).toBe("Renamed test model");
 		expect(updatedModel?.supportsReasoning).toBe(false);

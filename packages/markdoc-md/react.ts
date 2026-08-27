@@ -1,8 +1,6 @@
 "use client";
 
-export {
-	DynamicMarkdocRenderer,
-} from "./render/components/dynamic-markdoc-renderer";
+export { DynamicMarkdocRenderer } from "./render/components/dynamic-markdoc-renderer";
 export type { DynamicMarkdocRendererProps } from "./render/components/dynamic-markdoc-renderer";
 export {
 	MarkdocInteractionProvider,

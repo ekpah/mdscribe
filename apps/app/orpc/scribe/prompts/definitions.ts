@@ -1,4 +1,5 @@
 import type { DocumentType, DocumentTypeConfig } from "@/orpc/scribe/types";
+
 import { withSharedUncertaintyHandling } from "./core/clinical-core-prompt";
 import { ANAMNESE_SYSTEM_PROMPT } from "./families/anamnese";
 import { DIAGNOSIS_SYSTEM_PROMPT } from "./families/diagnosis";

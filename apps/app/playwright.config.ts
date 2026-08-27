@@ -4,8 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
  * See https://playwright.dev/docs/test-configuration.
  */
 const playwrightPort = process.env.PLAYWRIGHT_PORT ?? "3000";
-const playwrightBaseURL =
-	process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${playwrightPort}`;
+const playwrightBaseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${playwrightPort}`;
 
 export default defineConfig({
 	forbidOnly: !!process.env.CI,

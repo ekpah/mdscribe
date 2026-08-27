@@ -73,9 +73,7 @@ export const DoctorsNoteSection = ({
 	const [proposedText, setProposedText] = useState<string | null>(null);
 
 	// Check if enhancement is available (has a generator and buildPrompt)
-	const hasEnhancement = Boolean(
-		(config.documentType || config.formId) && config.buildPrompt,
-	);
+	const hasEnhancement = Boolean((config.documentType || config.formId) && config.buildPrompt);
 
 	// Use AI SDK useChat with custom oRPC transport
 	const { messages, sendMessage, status, stop, setMessages } = useChat({
@@ -118,7 +116,9 @@ export const DoctorsNoteSection = ({
 	// Extract completion text from the last assistant message
 	const completion = useMemo(() => {
 		const lastAssistantMessage = messages.findLast((m) => m.role === "assistant");
-		if (!lastAssistantMessage) {return "";}
+		if (!lastAssistantMessage) {
+			return "";
+		}
 		if (lastAssistantMessage.parts) {
 			return lastAssistantMessage.parts
 				.filter((p) => p.type === "text")
@@ -152,7 +152,9 @@ export const DoctorsNoteSection = ({
 
 	// Handle enhance button click
 	const handleEnhance = useCallback(() => {
-		if (!hasEnhancement || !config.buildPrompt) {return;}
+		if (!hasEnhancement || !config.buildPrompt) {
+			return;
+		}
 
 		if (isLoading) {
 			stop();

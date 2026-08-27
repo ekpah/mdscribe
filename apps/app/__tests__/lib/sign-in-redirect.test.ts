@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
+
 import { NextRequest } from "next/server";
 
-import { proxy } from "@/proxy";
 import {
 	createSignInRedirect,
 	getRequestedPath,
 	getSafeRedirectPath,
 } from "@/lib/sign-in-redirect";
+import { proxy } from "@/proxy";
 
 describe("sign-in redirects", () => {
 	test("uses the stamped request path including query parameters", () => {
@@ -14,9 +15,7 @@ describe("sign-in redirects", () => {
 			"x-mdscribe-path": "/admin/settings/models?tab=forms",
 		});
 
-		expect(getRequestedPath(headers, "/admin")).toBe(
-			"/admin/settings/models?tab=forms",
-		);
+		expect(getRequestedPath(headers, "/admin")).toBe("/admin/settings/models?tab=forms");
 		expect(createSignInRedirect(getRequestedPath(headers, "/admin"))).toBe(
 			"/sign-in?redirect=%2Fadmin%2Fsettings%2Fmodels%3Ftab%3Dforms",
 		);
@@ -45,9 +44,7 @@ describe("sign-in redirects", () => {
 	});
 
 	test("sanitizes redirect parameters used by the sign-in page", () => {
-		expect(getSafeRedirectPath("/admin/settings/models")).toBe(
-			"/admin/settings/models",
-		);
+		expect(getSafeRedirectPath("/admin/settings/models")).toBe("/admin/settings/models");
 		expect(getSafeRedirectPath("/")).toBe("/dashboard");
 		expect(getSafeRedirectPath("https://example.com/admin")).toBe("/admin");
 		expect(getSafeRedirectPath("//example.com/admin")).toBe("/dashboard");

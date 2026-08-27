@@ -1,26 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { ORPCError, call } from "@orpc/server";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	eq,
-	usageEvent,
-	userAiProvider,
-} from "@repo/database";
+import { aiDefaults, aiModel, aiProvider, eq, usageEvent, userAiProvider } from "@repo/database";
 
-import {
-	createTestContext,
-	createTestUser,
-	startTestServer,
-} from "@/__tests__/setup";
+import { createTestContext, createTestUser, startTestServer } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { getMonthlyScribeUsage } from "@/orpc/scribe/_lib/get-usage";
-import {
-	resolveModelByRecordId,
-} from "@/orpc/scribe/providers";
+import { resolveModelByRecordId } from "@/orpc/scribe/providers";
 import { aiProvidersHandler } from "@/orpc/user/ai-providers";
 
 describe("User AI provider credentials", () => {
@@ -102,9 +89,7 @@ describe("User AI provider credentials", () => {
 			hasApiKey: true,
 			isVerified: true,
 		});
-		expect(inactiveStatus.connections[0]?.credential?.verifiedAt).toEqual(
-			verifiedAt,
-		);
+		expect(inactiveStatus.connections[0]?.credential?.verifiedAt).toEqual(verifiedAt);
 		expect(JSON.stringify(status)).not.toContain("user-secret-key");
 	});
 
@@ -223,11 +208,7 @@ describe("User AI provider credentials", () => {
 		});
 
 		await expect(
-			call(
-				aiProvidersHandler.delete,
-				{ providerId: provider?.id ?? "" },
-				{ context: contextB },
-			),
+			call(aiProvidersHandler.delete, { providerId: provider?.id ?? "" }, { context: contextB }),
 		).rejects.toThrow(ORPCError);
 
 		await server.db
@@ -282,8 +263,7 @@ describe("User AI provider credentials", () => {
 			validatedAt: new Date(),
 		});
 
-		globalThis.fetch = (() =>
-			new Response(null, { status: 401 })) as unknown as typeof fetch;
+		globalThis.fetch = (() => new Response(null, { status: 401 })) as unknown as typeof fetch;
 		await expect(
 			call(
 				aiProvidersHandler.save,
@@ -336,22 +316,14 @@ describe("User AI provider credentials", () => {
 			validatedAt: new Date(),
 		});
 
-		const ownKeyModel = await resolveModelByRecordId(
-			model?.id ?? "",
-			server.db,
-			session.user.id,
-		);
+		const ownKeyModel = await resolveModelByRecordId(model?.id ?? "", server.db, session.user.id);
 		expect(ownKeyModel.credentialSource).toBe("user_byok");
 
 		await server.db
 			.update(aiProvider)
 			.set({ byokEnabled: false })
 			.where(eq(aiProvider.id, provider?.id ?? ""));
-		const operatorModel = await resolveModelByRecordId(
-			model?.id ?? "",
-			server.db,
-			session.user.id,
-		);
+		const operatorModel = await resolveModelByRecordId(model?.id ?? "", server.db, session.user.id);
 		expect(operatorModel.credentialSource).toBe("operator");
 	});
 

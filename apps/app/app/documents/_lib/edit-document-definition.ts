@@ -134,11 +134,12 @@ export const splitCheckboxOption = (
 		const isMultiWidgetOwner = (widgetCountsByFieldName.get(binding.fieldName) ?? 0) > 1;
 		const ownerPdfType = pdfTypesByFieldName.get(binding.fieldName);
 		const isTextOwner = ownerPdfType === "text" || ownerPdfType === "multiline";
-		const ownerUnselectedPdfValue = isMultiWidgetOwner || isTextOwner
-			? ""
-			: (Object.entries(binding.valueMap ?? {}).find(
-					([inputValue]) => inputValue !== option,
-				)?.[1] ?? "false");
+		const ownerUnselectedPdfValue =
+			isMultiWidgetOwner || isTextOwner
+				? ""
+				: (Object.entries(binding.valueMap ?? {}).find(
+						([inputValue]) => inputValue !== option,
+					)?.[1] ?? "false");
 		const detachedBinding = {
 			fieldName: binding.fieldName,
 			inputId: detachedInputId,
@@ -156,10 +157,7 @@ export const splitCheckboxOption = (
 	};
 	const inputs = definition.inputs.flatMap((current) =>
 		current === input
-			? [
-					...(hasRemainingOptions ? [nextInput] : []),
-					createBooleanDocumentInput(detachedInputId),
-				]
+			? [...(hasRemainingOptions ? [nextInput] : []), createBooleanDocumentInput(detachedInputId)]
 			: [current],
 	);
 

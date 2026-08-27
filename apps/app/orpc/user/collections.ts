@@ -72,10 +72,7 @@ const listCollectionsHandler = authed.handler(async ({ context }) => {
 		.where(
 			and(
 				inArray(templateCollectionTemplate.collectionId, collectionIds),
-				or(
-					eq(template.visibility, "public"),
-					eq(template.authorId, context.session.user.id),
-				),
+				or(eq(template.visibility, "public"), eq(template.authorId, context.session.user.id)),
 			),
 		)
 		.orderBy(desc(template.updatedAt));

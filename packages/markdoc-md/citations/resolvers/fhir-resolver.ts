@@ -25,18 +25,13 @@ export const resolveFhirCitation = async (
 	}
 
 	try {
-		const expression =
-			reference.source.slice("fhir://".length).split("#", 1)[0] ?? "";
+		const expression = reference.source.slice("fhir://".length).split("#", 1)[0] ?? "";
 		const results = evaluateFhirSource(context.fhir, expression);
 		const text = results
-			.map((result) =>
-				typeof result === "string" ? result : JSON.stringify(result, null, 2),
-			)
+			.map((result) => (typeof result === "string" ? result : JSON.stringify(result, null, 2)))
 			.join("\n\n");
 		const quote = request.quote?.trim();
-		const match = quote
-			? (findQuoteInInputText(text, quote) ?? undefined)
-			: undefined;
+		const match = quote ? (findQuoteInInputText(text, quote) ?? undefined) : undefined;
 		return {
 			kind: "text",
 			label: `FHIR · ${expression}`,

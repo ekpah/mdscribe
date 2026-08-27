@@ -76,47 +76,43 @@ export const scheduleScribeUsageLogging = (input: {
 	userId: string;
 }): void => {
 	const usageEventId = crypto.randomUUID();
-	scheduleDeferredTask(
-		async () => {
-			const openRouterUsage = input.isOpenRouter
-				? extractOpenRouterUsage(
-						input.event.providerMetadata as Record<string, unknown> | undefined,
-					)
-				: undefined;
+	scheduleDeferredTask(async () => {
+		const openRouterUsage = input.isOpenRouter
+			? extractOpenRouterUsage(input.event.providerMetadata as Record<string, unknown> | undefined)
+			: undefined;
 
-			await input.db.insert(usageEvent).values(
-				buildUsageEventData({
-					id: usageEventId,
-					inputData: input.activeSubscription ? undefined : (input.inputData as UsageInputData),
-					metadata: {
-						endpoint: input.endpoint,
-						modelConfig: buildLoggedModelConfig(input.modelConfig, input.reasoningEffort),
-						promptLabel: input.promptLabel,
-						promptName: input.promptName,
-						...input.usageMetadata,
-						zdrEnabled: input.activeSubscription,
-					} as UsageMetadata,
-					model: input.modelName,
-					name: input.name ?? AI_SCRIBE_GENERATION_EVENT_NAME,
-					openRouterUsage,
-					reasoning: redactIfZdrEnabled(input.activeSubscription, input.event.reasoningText),
-					result: redactIfZdrEnabled(input.activeSubscription, input.event.text),
-					standardUsage: input.event.usage as StandardUsage,
-					timing: input.timing,
-					traceId: input.traceId,
-					userId: input.userId,
-				}),
-			);
-			if (input.observationId) {
-				await input.db
-					.update(usageObservation)
-					.set({
-						endedAt: new Date(),
-						status: "succeeded",
-						usageEventId,
-					})
-					.where(eq(usageObservation.id, input.observationId));
-			}
-		},
-	);
+		await input.db.insert(usageEvent).values(
+			buildUsageEventData({
+				id: usageEventId,
+				inputData: input.activeSubscription ? undefined : (input.inputData as UsageInputData),
+				metadata: {
+					endpoint: input.endpoint,
+					modelConfig: buildLoggedModelConfig(input.modelConfig, input.reasoningEffort),
+					promptLabel: input.promptLabel,
+					promptName: input.promptName,
+					...input.usageMetadata,
+					zdrEnabled: input.activeSubscription,
+				} as UsageMetadata,
+				model: input.modelName,
+				name: input.name ?? AI_SCRIBE_GENERATION_EVENT_NAME,
+				openRouterUsage,
+				reasoning: redactIfZdrEnabled(input.activeSubscription, input.event.reasoningText),
+				result: redactIfZdrEnabled(input.activeSubscription, input.event.text),
+				standardUsage: input.event.usage as StandardUsage,
+				timing: input.timing,
+				traceId: input.traceId,
+				userId: input.userId,
+			}),
+		);
+		if (input.observationId) {
+			await input.db
+				.update(usageObservation)
+				.set({
+					endedAt: new Date(),
+					status: "succeeded",
+					usageEventId,
+				})
+				.where(eq(usageObservation.id, input.observationId));
+		}
+	});
 };

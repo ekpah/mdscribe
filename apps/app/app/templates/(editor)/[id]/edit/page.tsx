@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+
 import Editor from "@/app/templates/_components/editor";
 import { getEditTemplateEditorData } from "@/app/templates/_lib/editor-page-data";
 
@@ -8,9 +9,7 @@ interface MetadataProps {
 	params: Promise<{ template: [category: string, name: string] }>;
 }
 
-export const generateMetadata = async (
-	props: MetadataProps,
-): Promise<Metadata> => {
+export const generateMetadata = async (props: MetadataProps): Promise<Metadata> => {
 	const params = await props.params;
 	const { template: templateParam } = params;
 	const [_category, name] = templateParam || [undefined, "Scribe"];
@@ -19,9 +18,7 @@ export const generateMetadata = async (
 	};
 };
 
-export default async function EditTemplate(
-	props: PageProps<"/templates/[id]/edit">,
-) {
+export default async function EditTemplate(props: PageProps<"/templates/[id]/edit">) {
 	const params = await props.params;
 	const { id } = params;
 	const editorData = await getEditTemplateEditorData({ id });

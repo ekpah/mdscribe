@@ -53,6 +53,10 @@ interface FillInputsTextContext {
  */
 export interface InputField {
 	label: string;
+	calculation?: {
+		components: string[];
+		formula: string;
+	};
 	description?: string;
 	options?: string[];
 	unit?: string;
@@ -66,6 +70,7 @@ export interface FillInputsInputPayload {
 	inputFields: InputField[];
 	audioFiles?: AudioFile[];
 	contextFiles?: FillInputsContextFile[];
+	templateExamples?: string[];
 	templateInformation?: string;
 	textContext?: FillInputsTextContext;
 }

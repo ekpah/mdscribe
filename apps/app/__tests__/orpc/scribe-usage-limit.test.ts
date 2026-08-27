@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-	getScribeUsageBudgetPercentage,
-	PRODUCT_PLANS,
-} from "@/lib/product-plans";
+import { getScribeUsageBudgetPercentage, PRODUCT_PLANS } from "@/lib/product-plans";
 
 describe("Scribe usage limits", () => {
 	test("caps user-facing usage progress at 100%", () => {

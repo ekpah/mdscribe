@@ -1,4 +1,5 @@
 import type { ContextSource, TemplateContextInput } from "@/orpc/scribe/context/types";
+
 import { parseSelectedTemplateReference } from "./compose";
 import { resolveFallbackTemplateByContextKey } from "./fallbacks";
 
@@ -17,24 +18,19 @@ const MARKDOC_TAG_GUIDANCE = `Markdoc-Tags in der Vorlage sind nur Platzhalterlo
 - {% info ... /%}: durch passenden Wert ersetzen; falls unbekannt: [nicht dokumentiert].
 - {% switch ... %}{% case ... %}{% /switch %}: nur Text des passenden case ausgeben; falls unklar: [nicht dokumentiert].
 - Bei {% switch ... type="boolean" %}: case "true" für wahr, case "false" für falsch verwenden.
-- {% score ... /%}: nur mit belegten Angaben berechnen; falls nicht sicher berechenbar: [nicht berechenbar].`;
+- {% calc ... %}...{% /calc %}: nur mit belegten Angaben berechnen; die enthaltenen Tags sind Berechnungskomponenten; falls nicht sicher berechenbar: [nicht berechenbar].`;
 
-const toTrimmedString = (value: unknown): string =>
-	typeof value === "string" ? value.trim() : "";
+const toTrimmedString = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
 const toExamples = (value: unknown): string[] => {
 	if (!Array.isArray(value)) {
 		return [];
 	}
 
-	return value
-		.map((entry) => toTrimmedString(entry))
-		.filter((entry) => entry.length > 0);
+	return value.map((entry) => toTrimmedString(entry)).filter((entry) => entry.length > 0);
 };
 
-const renderTemplateContext = (
-	template?: TemplateContextInput | null,
-): string => {
+const renderTemplateContext = (template?: TemplateContextInput | null): string => {
 	if (!template) {
 		return "";
 	}
@@ -112,9 +108,7 @@ interface ComposeTemplateContextInput {
 	sources: ContextSource[];
 }
 
-export const composeTemplateContext = (
-	input: ComposeTemplateContextInput,
-): string | undefined => {
+export const composeTemplateContext = (input: ComposeTemplateContextInput): string | undefined => {
 	const selectedTemplateContext = buildTemplateFallbackContext(
 		resolveSelectedTemplateContext(input.selectedTemplateReference),
 	);
@@ -127,7 +121,5 @@ export const composeTemplateContext = (
 		return sourceTemplateContext;
 	}
 
-	return buildTemplateFallbackContext(
-		resolveFallbackTemplateByContextKey(input.promptContextKey),
-	);
+	return buildTemplateFallbackContext(resolveFallbackTemplateByContextKey(input.promptContextKey));
 };

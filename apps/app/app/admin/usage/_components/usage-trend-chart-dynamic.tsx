@@ -13,5 +13,5 @@ export const UsageTrendChart = dynamic(
 	{
 		loading: () => <Skeleton className="h-[320px] w-full" />,
 		ssr: false,
-	}
+	},
 );

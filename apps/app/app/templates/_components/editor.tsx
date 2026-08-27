@@ -1,7 +1,5 @@
 "use client";
 
-import PlainEditor from "@repo/design-system/components/editor/plain-editor";
-import type { TagInspectorEditor } from "@repo/design-system/components/editor/tag-inspector/tag-inspector";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Card } from "@repo/design-system/components/ui/card";
 import {
@@ -21,15 +19,25 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InfoIcon, Loader2, Plus, Trash2 } from "lucide-react";
+import type { TagInspectorEditor } from "markdoc-md-editor/tag-inspector/tag-inspector";
 import type { MarkdocTagDiagnostic } from "markdoc-md/parse";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { trackEvent } from "@/lib/analytics";
@@ -115,9 +123,7 @@ const MarkdocValidationMessage = ({
 			<p className="font-medium text-solarized-red">{USER_MESSAGES.invalidTemplateTags}</p>
 			<ul className="mt-2 list-disc space-y-1 pl-5 text-foreground">
 				{diagnostics.map((diagnostic, index) => (
-					<li key={`${diagnostic.code}-${diagnostic.primary}-${index}`}>
-						{formatMarkdocTagDiagnostic(diagnostic)}
-					</li>
+					<li key={`${diagnostic.code}-${index}`}>{formatMarkdocTagDiagnostic(diagnostic)}</li>
 				))}
 			</ul>
 		</div>
@@ -352,7 +358,6 @@ export default function Editor({
 	examples: initialExamples = [],
 	information: initialInformation,
 	id,
-	canEditSource = false,
 	canCreatePrivateTemplates = false,
 	visibility: initialVisibility = "public",
 }: {
@@ -363,7 +368,6 @@ export default function Editor({
 	examples?: string[];
 	information: string;
 	id?: string;
-	canEditSource?: boolean;
 	canCreatePrivateTemplates?: boolean;
 	visibility?: TemplateVisibility;
 }) {
@@ -378,12 +382,9 @@ export default function Editor({
 	const [information, setInformation] = useState(initialInformation);
 	const [newCategory, setNewCategory] = useState("");
 	const [visibility, setVisibility] = useState<TemplateVisibility>(initialVisibility);
-	const [showSource, setShowSource] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [editorInstance, setEditorInstance] = useState<TagInspectorEditor | null>(null);
 	const [markdocDiagnostics, setMarkdocDiagnostics] = useState<MarkdocTagDiagnostic[] | null>(null);
-	// Counter to force TipTap remount when switching from source view
-	const editorKeyRef = useRef(0);
 
 	const createMutation = useMutation(orpc.templates.create.mutationOptions());
 	const updateMutation = useMutation(orpc.templates.update.mutationOptions());
@@ -647,16 +648,6 @@ export default function Editor({
 		[canCreatePrivateTemplates],
 	);
 
-	const handleSwitchToVisualEditor = useCallback(() => {
-		editorKeyRef.current += 1;
-		setMarkdocDiagnostics(null);
-		setShowSource(false);
-	}, []);
-
-	const handleSwitchToSource = useCallback(() => {
-		setShowSource(true);
-	}, []);
-
 	const resolvedCategory = category === "new" ? newCategory : category;
 	const isCategoryValid = resolvedCategory.trim() !== "";
 	const isNewCategoryValid = newCategory.trim() !== "";
@@ -783,24 +774,12 @@ export default function Editor({
 									hasMarkdocErrors && "border-solarized-red",
 								)}
 							>
-								{showSource ? (
-									<PlainEditor
-										note={content}
-										onToggleSource={handleSwitchToVisualEditor}
-										setContent={setContent}
-										showSource={showSource}
-									/>
-								) : (
-									<TipTap
-										key={`tiptap-${editorKeyRef.current}`}
-										note={content}
-										onEditorChange={setEditorInstance}
-										onToggleSource={canEditSource ? handleSwitchToSource : undefined}
-										onValidationChange={setMarkdocDiagnostics}
-										setContent={setContent}
-										showSource={showSource}
-									/>
-								)}
+								<TipTap
+									note={content}
+									onEditorChange={setEditorInstance}
+									onValidationChange={setMarkdocDiagnostics}
+									setContent={setContent}
+								/>
 							</div>
 							<MarkdocValidationMessage diagnostics={markdocDiagnostics} />
 						</TabsContent>

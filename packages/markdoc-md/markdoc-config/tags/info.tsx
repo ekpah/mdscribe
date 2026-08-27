@@ -1,7 +1,6 @@
 "use client";
 
 import { useVariables } from "../../render/context/variable-context";
-
 import { InteractiveTag } from "./interactive-tag";
 
 export interface InfoProps {

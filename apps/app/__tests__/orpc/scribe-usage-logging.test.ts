@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-	buildUsageEventData,
-	isByokUsageMetadata,
-} from "@/lib/usage-logging";
+import { buildUsageEventData, isByokUsageMetadata } from "@/lib/usage-logging";
 import { redactIfZdrEnabled } from "@/orpc/scribe/handlers/usage-logging";
 
 describe("Scribe usage logging", () => {

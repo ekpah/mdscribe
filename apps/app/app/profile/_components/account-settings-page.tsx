@@ -77,17 +77,11 @@ export const AccountSettingsPage = ({
 		<div className="space-y-6">
 			<div className="space-y-1">
 				<h2 className="font-semibold text-solarized-base00 text-2xl">Account</h2>
-				<p className="text-sm text-solarized-base01">
-					Profil, aktive Sitzungen und Abonnement.
-				</p>
+				<p className="text-sm text-solarized-base01">Profil, aktive Sitzungen und Abonnement.</p>
 			</div>
 			<div className="space-y-6">
 				<ProfileCard isLoading={isLoading} setIsLoading={setIsLoading} user={user} />
-				<UserCard
-					activeSessions={activeSessions}
-					session={session}
-					subscription={subscription}
-				/>
+				<UserCard activeSessions={activeSessions} session={session} subscription={subscription} />
 				<SubscriptionCard
 					isManagingSubscription={isManagingSubscription}
 					onCancel={handleSubscriptionCancel}

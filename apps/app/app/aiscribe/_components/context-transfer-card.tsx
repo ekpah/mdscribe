@@ -20,10 +20,7 @@ import {
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
-import {
-	ToggleGroup,
-	ToggleGroupItem,
-} from "@repo/design-system/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@repo/design-system/components/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Loader2, SendToBack } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -45,11 +42,11 @@ import {
 	BUILT_IN_AISCRIBE_OVERRIDE_KEYS,
 	getBuiltInAiscribeOverride,
 } from "@/lib/aiscribe-built-ins";
+import { buildCustomFormPath, buildWorkspacePath } from "@/lib/aiscribe-paths";
 import {
 	MAX_TRANSFER_PAYLOAD_BYTES,
 	TransferPayloadTooLargeError,
 } from "@/lib/context-transfer-crypto";
-import { buildCustomFormPath, buildWorkspacePath } from "@/lib/aiscribe-paths";
 import { formatPayloadBytes } from "@/lib/input-fill-limits";
 import { orpc } from "@/lib/orpc";
 import {
@@ -90,21 +87,14 @@ const targetTypeLabels: Record<ContextTransferTargetType, string> = {
 // Accusative declension of "verbessert" by the harness name's grammatical
 // gender (object of "übernehmen") so the switch label reads e.g.
 // "Verbesserte Anamnese" / "Verbesserten Entlassbrief".
-const improvedAdjectiveEndings: Record<
-	ReturnType<typeof getPromptHarnessGender>,
-	string
-> = {
+const improvedAdjectiveEndings: Record<ReturnType<typeof getPromptHarnessGender>, string> = {
 	feminine: "e",
 	masculine: "en",
 	neuter: "es",
 	plural: "e",
 };
 
-const toContextFilePayload = async ({
-	file,
-}: {
-	file: File;
-}): Promise<InputContextFile> => ({
+const toContextFilePayload = async ({ file }: { file: File }): Promise<InputContextFile> => ({
 	data: await blobToBase64(file),
 	mimeType: file.type || "application/octet-stream",
 	name: file.name,
@@ -146,8 +136,10 @@ const estimateTransferPayloadBytes = ({
 	texts: (string | undefined)[];
 }): number => {
 	const mediaBytes =
-		controller.audioRecordings.reduce((sum, recording) => sum + toBase64Bytes(recording.blob.size), 0) +
-		controller.contextFiles.reduce((sum, { file }) => sum + toBase64Bytes(file.size), 0);
+		controller.audioRecordings.reduce(
+			(sum, recording) => sum + toBase64Bytes(recording.blob.size),
+			0,
+		) + controller.contextFiles.reduce((sum, { file }) => sum + toBase64Bytes(file.size), 0);
 	const textBytes = texts.reduce((sum, text) => sum + (text?.length ?? 0), 0);
 	return mediaBytes + textBytes + 16 * 1024;
 };
@@ -371,8 +363,7 @@ export const ContextTransferCard = ({
 					<CardTitle className="text-base text-foreground">Weiterverwenden</CardTitle>
 				</div>
 				<CardDescription>
-					Die aktuellen Informationen übertragen und in einem anderen Formular
-					weiterverwenden
+					Die aktuellen Informationen übertragen und in einem anderen Formular weiterverwenden
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4 p-6">
@@ -399,7 +390,11 @@ export const ContextTransferCard = ({
 
 				<div className="space-y-2">
 					<Label className="text-xs">Ziel</Label>
-					<Select disabled={targetOptions.length === 0} onValueChange={setTargetPath} value={targetPath}>
+					<Select
+						disabled={targetOptions.length === 0}
+						onValueChange={setTargetPath}
+						value={targetPath}
+					>
 						<SelectTrigger>
 							<SelectValue placeholder="Ziel auswählen" />
 						</SelectTrigger>
@@ -454,9 +449,8 @@ export const ContextTransferCard = ({
 				</Button>
 				{isPayloadTooLarge ? (
 					<p className="text-destructive text-xs">
-						Eingaben zu groß für die Übergabe (ca.{" "}
-						{formatPayloadBytes(estimatedPayloadBytes)}, maximal{" "}
-						{formatPayloadBytes(MAX_TRANSFER_PAYLOAD_BYTES)}). Entfernen Sie Audio- oder
+						Eingaben zu groß für die Übergabe (ca. {formatPayloadBytes(estimatedPayloadBytes)},
+						maximal {formatPayloadBytes(MAX_TRANSFER_PAYLOAD_BYTES)}). Entfernen Sie Audio- oder
 						Dateianhänge, um den Kontext weiterzugeben.
 					</p>
 				) : null}

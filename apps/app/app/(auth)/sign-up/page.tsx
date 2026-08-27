@@ -31,12 +31,9 @@ export default function SignUp() {
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
 
-	const handleUsernameChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setUsername(event.target.value);
-		},
-		[],
-	);
+	const handleUsernameChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+		setUsername(event.target.value);
+	}, []);
 
 	const handleEmailChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
 		setEmail(event.target.value);
@@ -55,10 +52,7 @@ export default function SignUp() {
 
 	const handleSignUp = useCallback(async () => {
 		const trimmedUsername = username.trim();
-		if (
-			trimmedUsername.length < MIN_USERNAME_LENGTH ||
-			!USERNAME_PATTERN.test(trimmedUsername)
-		) {
+		if (trimmedUsername.length < MIN_USERNAME_LENGTH || !USERNAME_PATTERN.test(trimmedUsername)) {
 			toast.error(
 				"Benutzername: mindestens 3 Zeichen, nur Buchstaben, Zahlen, Punkt und Unterstrich.",
 			);

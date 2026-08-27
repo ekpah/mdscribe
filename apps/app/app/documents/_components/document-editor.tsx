@@ -22,7 +22,11 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { InfoIcon, Link2, Loader2, Plus, Sparkles, Trash2, Unlink2, X } from "lucide-react";
@@ -31,14 +35,14 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
-import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
+import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
+import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
 import {
 	getInputIdForPdfWidget,
 	getPdfFieldHighlightsForInput,
 } from "@/app/documents/_components/pdf-field-highlights";
 import type { PdfFieldHighlight } from "@/app/documents/_components/pdf-field-highlights";
-import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
-import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
+import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
 import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	buildDefaultDocumentDefinitionFromPdfFields,
@@ -225,9 +229,7 @@ const toEditorFieldDefinitions = (
 				label: input.attributes.primary,
 				markdocType: inputKind === "text" ? "Info" : "Switch",
 				options:
-					input?.name === "Switch"
-						? input.children.map((child) => child.attributes.primary)
-						: [],
+					input?.name === "Switch" ? input.children.map((child) => child.attributes.primary) : [],
 				pdfFields: editorPdfFields,
 				pdfOptionMappings: primaryPdfField.optionMappings,
 				pdfType: primaryPdfField.pdfType,
@@ -750,11 +752,7 @@ const ChoiceOptionsEditor = ({
 					type="button"
 					variant={isCheckboxMergeTarget ? "secondary" : "outline"}
 				>
-					{isCheckboxMergeTarget ? (
-						<X className="h-3 w-3" />
-					) : (
-						<Plus className="h-3 w-3" />
-					)}
+					{isCheckboxMergeTarget ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
 					{isCheckboxMergeTarget
 						? USER_MESSAGES.documentEditor.cancelAddingCheckbox
 						: USER_MESSAGES.documentEditor.addCheckboxAsOption}
@@ -870,9 +868,7 @@ const FieldDefinitionCard = memo(
 					<div className="min-w-0 border-border/70 border-b bg-muted/20 p-2 md:border-r md:border-b-0">
 						<div className="mb-2 flex items-center justify-between gap-2">
 							<p className="font-medium text-muted-foreground text-xs">
-								{fieldDefinition.pdfFields.length === 1
-									? "PDF-Formularfeld"
-									: "PDF-Felder"}
+								{fieldDefinition.pdfFields.length === 1 ? "PDF-Formularfeld" : "PDF-Felder"}
 							</p>
 							<Badge className="h-5 px-1.5 font-medium text-[10px]" variant="secondary">
 								{isUnsupportedPdf ? "nicht unterstützt" : "nicht editierbar"}
@@ -1469,12 +1465,9 @@ export default function DocumentEditor({
 	}, []);
 	const handlePdfFieldSelect = useCallback(
 		(fieldName: string, widgetValue?: string) => {
-			const selectedInputId = getInputIdForPdfWidget(
-				definition,
-				fieldName,
-				widgetValue,
-				{ includeDisabled: true },
-			);
+			const selectedInputId = getInputIdForPdfWidget(definition, fieldName, widgetValue, {
+				includeDisabled: true,
+			});
 			if (!selectedInputId) {
 				return;
 			}
@@ -1524,8 +1517,7 @@ export default function DocumentEditor({
 			setDefinition(result.fieldDefinitions);
 			setActiveInputId((currentInputId) => {
 				const matchingInput = result.fieldDefinitions.inputs.find(
-					(input) =>
-						input.attributes.primary.toLowerCase() === currentInputId?.toLowerCase(),
+					(input) => input.attributes.primary.toLowerCase() === currentInputId?.toLowerCase(),
 				);
 				return (
 					matchingInput?.attributes.primary ??
@@ -1831,8 +1823,7 @@ export default function DocumentEditor({
 								const isCheckboxMergeTarget =
 									checkboxMergeTargetInputId?.toLowerCase() === fieldDefinition.label.toLowerCase();
 								const isCheckboxMergeCandidate = Boolean(
-									checkboxMergeTargetInputId &&
-									isCheckboxLikeBooleanField(fieldDefinition),
+									checkboxMergeTargetInputId && isCheckboxLikeBooleanField(fieldDefinition),
 								);
 								return (
 									<FieldDefinitionCard
@@ -1843,9 +1834,7 @@ export default function DocumentEditor({
 										inputVariables={definition.inputs
 											.filter((input) => toInputKind(input) === fieldDefinition.inputKind)
 											.map((input) => input.attributes.primary)}
-										isActive={
-											activeInputId?.toLowerCase() === fieldDefinition.label.toLowerCase()
-										}
+										isActive={activeInputId?.toLowerCase() === fieldDefinition.label.toLowerCase()}
 										isCheckboxMergeCandidate={isCheckboxMergeCandidate}
 										isCheckboxMergeTarget={isCheckboxMergeTarget}
 										key={`${fieldDefinition.fieldNames.join("|")}-${fieldDefinition.label}`}

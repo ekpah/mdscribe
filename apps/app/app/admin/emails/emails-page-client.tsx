@@ -207,16 +207,20 @@ const SendTestDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogTrigger render={<Button disabled={!activeDraft}>
-					<Send className="h-4 w-4" />
-					Test senden
-				</Button>} />
+			<DialogTrigger
+				render={
+					<Button disabled={!activeDraft}>
+						<Send className="h-4 w-4" />
+						Test senden
+					</Button>
+				}
+			/>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Test-E-Mail senden</DialogTitle>
 					<DialogDescription>
-						Sendet den ausgewählten Entwurf einmalig an einen Nutzer und rendert
-						nutzerbezogene Variablen mit dessen Profil.
+						Sendet den ausgewählten Entwurf einmalig an einen Nutzer und rendert nutzerbezogene
+						Variablen mit dessen Profil.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-4 py-2">
@@ -254,17 +258,15 @@ const SendTestDialog = ({
 						{selectedUser ? (
 							<p className="text-solarized-base01 text-xs">
 								Personalisierung:{" "}
-								{selectedUser.name?.trim()
-									? `Hallo ${selectedUser.name.trim()},`
-									: "Hallo,"}
+								{selectedUser.name?.trim() ? `Hallo ${selectedUser.name.trim()},` : "Hallo,"}
 							</p>
 						) : null}
 					</div>
 					<div className="flex gap-2 rounded-md border border-solarized-yellow/30 bg-solarized-yellow/10 p-3 text-solarized-base01 text-xs">
 						<ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-solarized-yellow" />
 						<p>
-							Diese Aktion sendet nur an den ausgewählten Nutzer. Marketing-Broadcasts
-							laufen über die separate Aktion mit Bestätigung.
+							Diese Aktion sendet nur an den ausgewählten Nutzer. Marketing-Broadcasts laufen über
+							die separate Aktion mit Bestätigung.
 						</p>
 					</div>
 				</div>
@@ -273,7 +275,11 @@ const SendTestDialog = ({
 						Abbrechen
 					</Button>
 					<Button onClick={onSendTest} disabled={isPending || !canSend}>
-						{isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+						{isPending ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<Send className="h-4 w-4" />
+						)}
 						Test-E-Mail senden
 					</Button>
 				</DialogFooter>
@@ -304,10 +310,14 @@ const SendMarketingBroadcastDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogTrigger render={<Button variant="destructive" disabled={!isMarketingDraft}>
-					<Users className="h-4 w-4" />
-					An alle senden
-				</Button>} />
+			<DialogTrigger
+				render={
+					<Button variant="destructive" disabled={!isMarketingDraft}>
+						<Users className="h-4 w-4" />
+						An alle senden
+					</Button>
+				}
+			/>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Marketing-E-Mail versenden</DialogTitle>
@@ -320,15 +330,13 @@ const SendMarketingBroadcastDialog = ({
 						<p className="font-medium text-sm text-solarized-base00">
 							{activeDraft?.title ?? "Kein Entwurf ausgewählt"}
 						</p>
-						<p className="mt-1 text-solarized-base01 text-xs">
-							Betreff: {activeDraft?.subject}
-						</p>
+						<p className="mt-1 text-solarized-base01 text-xs">Betreff: {activeDraft?.subject}</p>
 					</div>
 					<div className="flex gap-2 rounded-md border border-solarized-red/30 bg-solarized-red/10 p-3 text-solarized-base01 text-xs">
 						<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-solarized-red" />
 						<p>
-							Diese Aktion versendet echte E-Mails. Prüfen Sie vorher die Vorschau und senden
-							Sie eine Test-E-Mail.
+							Diese Aktion versendet echte E-Mails. Prüfen Sie vorher die Vorschau und senden Sie
+							eine Test-E-Mail.
 						</p>
 					</div>
 					<div className="space-y-2">
@@ -595,12 +603,9 @@ export default function AdminEmailsPageClient() {
 		setSelectedTestUserId(userId);
 	}, []);
 
-	const handleBroadcastConfirmationChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			setBroadcastConfirmation(event.target.value);
-		},
-		[],
-	);
+	const handleBroadcastConfirmationChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+		setBroadcastConfirmation(event.target.value);
+	}, []);
 
 	const handleSendTest = useCallback(() => {
 		if (!activeDraftId) {
@@ -649,8 +654,7 @@ export default function AdminEmailsPageClient() {
 								E-Mail Entwürfe
 							</h1>
 							<p className="text-sm text-solarized-base01 sm:text-base">
-								React-Email-Vorlagen prüfen, Test-E-Mails senden und Marketing-Broadcasts
-								auslösen.
+								React-Email-Vorlagen prüfen, Test-E-Mails senden und Marketing-Broadcasts auslösen.
 							</p>
 						</div>
 					</div>

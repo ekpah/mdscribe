@@ -1,12 +1,6 @@
 "use client";
 
 import {
-	NavigationSidebar,
-	NavigationSidebarBrand,
-	NavigationSidebarSearch,
-	groupNavigationItemsByCategory,
-} from "@/app/_components/sidebar/navigation-sidebar";
-import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
@@ -16,6 +10,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
+
+import {
+	NavigationSidebar,
+	NavigationSidebarBrand,
+	NavigationSidebarSearch,
+	groupNavigationItemsByCategory,
+} from "@/app/_components/sidebar/navigation-sidebar";
 
 interface SidebarDocument {
 	category: string;
@@ -70,10 +71,15 @@ export default function DocumentsSidebar({
 				<>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<SidebarMenuButton tooltip="Neues Dokument" render={<Link href={createHref}>
-									<PlusCircle />
-									<span>Neues Dokument</span>
-								</Link>} />
+							<SidebarMenuButton
+								tooltip="Neues Dokument"
+								render={
+									<Link href={createHref}>
+										<PlusCircle />
+										<span>Neues Dokument</span>
+									</Link>
+								}
+							/>
 						</SidebarMenuItem>
 					</SidebarMenu>
 					<NavigationSidebarSearch

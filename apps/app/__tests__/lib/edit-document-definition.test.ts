@@ -355,12 +355,7 @@ describe("document definition editor transforms", () => {
 	});
 
 	test("allows detaching the final choice option", () => {
-		const firstSplit = splitCheckboxOption(
-			choiceDefinition,
-			"Antragstyp",
-			"LTA",
-			choicePdfFields,
-		);
+		const firstSplit = splitCheckboxOption(choiceDefinition, "Antragstyp", "LTA", choicePdfFields);
 		const result = splitCheckboxOption(firstSplit, "Antragstyp", "Reha", choicePdfFields);
 
 		expect(result.inputs.map((input) => input.attributes.primary)).toEqual(["Reha", "LTA"]);
@@ -406,9 +401,7 @@ describe("document definition editor transforms", () => {
 				inputs: [
 					{
 						attributes: { primary: "Auswahl" },
-						children: [
-							{ attributes: { primary: "Bestehend" }, children: [], name: "Case" },
-						],
+						children: [{ attributes: { primary: "Bestehend" }, children: [], name: "Case" }],
 						name: "Switch",
 					},
 					{

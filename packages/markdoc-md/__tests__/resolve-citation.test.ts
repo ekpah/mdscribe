@@ -18,19 +18,13 @@ const context = (overrides: Partial<CitationResolverContext> = {}): CitationReso
 
 describe("citation resolver boundary", () => {
 	test("resolves sources without unrelated host capabilities", async () => {
-		const external = await resolveCitation(
-			{ source: "https://example.test/report" },
-			{},
-		);
+		const external = await resolveCitation({ source: "https://example.test/report" }, {});
 		expect(external).toMatchObject({
 			kind: "external",
 			url: "https://example.test/report",
 		});
 
-		const missingInput = await resolveCitation(
-			{ source: "mdscribe://input/notes" },
-			{},
-		);
+		const missingInput = await resolveCitation({ source: "mdscribe://input/notes" }, {});
 		expect(missingInput).toMatchObject({
 			code: "source-not-found",
 			kind: "error",

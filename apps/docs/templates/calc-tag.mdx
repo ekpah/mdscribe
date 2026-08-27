@@ -1,0 +1,109 @@
+---
+title: Calc-Tag
+description: Dokumentation zum Calc-Tag für automatische Berechnungen in Templates
+---
+
+## Calc-Tag
+
+Das Calc-Tag führt automatische Berechnungen basierend auf Formeln durch.
+
+### Syntax
+
+```markdown
+{% calc formula="[Variable1] + [Variable2]" %}
+{% info "Variable1" type="number" /%}
+{% info "Variable2" type="number" /%}
+{% /calc %}
+```
+
+Jede in der Formel referenzierte Variable muss als `info`- oder `switch`-Tag innerhalb des Calc-Tags enthalten sein. Die enthaltenen Tags werden im Dokument nicht doppelt gerendert, sondern definieren und verifizieren die Berechnungskomponenten.
+
+### Parameter
+
+| Parameter | Typ | Pflicht | Beschreibung |
+|-----------|-----|---------|--------------|
+| `formula` | String | Ja | Die mathematische Formel |
+| `unit` | String | Nein | Einheit für das Ergebnis |
+| `renderUnit` | Boolean | Nein | Ob die Einheit angezeigt werden soll |
+
+### Formel-Syntax
+
+Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
+
+**Unterstützte Operatoren:**
+- Addition: `+`
+- Subtraktion: `-`
+- Multiplikation: `*`
+- Division: `/`
+- Potenz: `^`
+- Klammern: `()`
+
+### Beispiele
+
+**Body-Mass-Index (BMI):**
+```markdown
+**BMI**: {% calc formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}
+{% info "Gewicht" type="number" unit="kg" /%}
+{% info "Groesse" type="number" unit="cm" /%}
+{% /calc %}
+```
+
+**Mittlerer arterieller Druck (MAP):**
+```markdown
+**MAP**: {% calc formula="([RR_sys] + 2 * [RR_dia]) / 3" unit="mmHg" renderUnit=true %}
+{% info "RR_sys" type="number" unit="mmHg" /%}
+{% info "RR_dia" type="number" unit="mmHg" /%}
+{% /calc %}
+```
+
+**Einfache Summe:**
+```markdown
+**Gesamtscore**: {% calc formula="[Score1] + [Score2] + [Score3]" %}
+{% info "Score1" type="number" /%}
+{% info "Score2" type="number" /%}
+{% info "Score3" type="number" /%}
+{% /calc %}
+```
+
+**CHA₂DS₂-VASc-Score (vereinfacht):**
+```markdown
+**CHA₂DS₂-VASc-Score**: {% calc formula="[Herzinsuffizienz] + [Hypertonie] + [Alter75] * 2 + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Alter65] + [Geschlecht]" %}
+{% info "Herzinsuffizienz" type="number" /%}
+{% info "Hypertonie" type="number" /%}
+{% info "Alter75" type="number" /%}
+{% info "Diabetes" type="number" /%}
+{% info "Schlaganfall" type="number" /%}
+{% info "Gefaesserkrankung" type="number" /%}
+{% info "Alter65" type="number" /%}
+{% info "Geschlecht" type="number" /%}
+{% /calc %}
+
+<!-- Dabei sind die Variablen: -->
+<!-- Herzinsuffizienz: 0 oder 1 -->
+<!-- Hypertonie: 0 oder 1 -->
+<!-- Alter75: 0 oder 1 (≥75 Jahre) -->
+<!-- etc. -->
+```
+
+### Funktionsweise
+
+1. Das Calc-Tag enthält und referenziert seine Variablen als Info- oder Switch-Tags
+2. Die Formel wird automatisch berechnet, wenn Werte eingegeben werden
+3. Das Ergebnis wird gerundet auf **2 Dezimalstellen**
+4. Bei fehlenden oder ungültigen Werten wird `...` angezeigt
+5. Das Ergebnis erscheint als **orangener Badge** im Dokument
+
+### Best Practices
+
+- ✅ Stellen Sie sicher, dass alle **referenzierten Variablen existieren**
+- ✅ Verwenden Sie **klare Variablennamen** ohne Leerzeichen
+- ✅ Verwenden Sie **Unterstriche** statt Leerzeichen: `RR_sys` statt `RR sys`
+- ✅ Testen Sie Ihre Formeln mit verschiedenen Werten
+- ❌ Vermeiden Sie **Division durch Null** (prüfen Sie Ihre Formeln)
+- ✅ Dokumentieren Sie komplexe Berechnungen mit Kommentaren
+
+### Tooltip-Funktion
+
+Calc-Tags zeigen beim Hovern ein Tooltip mit der verwendeten Formel an. Dies hilft Benutzern zu verstehen, wie der Wert berechnet wurde.
+
+Die frühere Syntax `{% score ... %}` bleibt als Alias kompatibel. Neue Templates und der Editor verwenden `{% calc ... %}`.

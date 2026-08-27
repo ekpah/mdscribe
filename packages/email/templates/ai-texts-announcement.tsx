@@ -10,6 +10,7 @@ import {
 	Tailwind,
 	Text,
 } from "@react-email/components";
+
 import config from "../tailwind.config";
 
 interface AiTextsAnnouncementTemplateProps {
@@ -40,26 +41,22 @@ export const AiTextsAnnouncementTemplate = ({
 					<Container className="mx-auto py-12">
 						<Section className="mt-8 rounded-md bg-muted p-px">
 							<Section className="rounded-[5px] bg-card p-8">
-								<Text className="mt-0 mb-4 font-semibold text-2xl text-foreground">
-									{headline}
-								</Text>
+								<Text className="mt-0 mb-4 font-semibold text-2xl text-foreground">{headline}</Text>
 
 								<Text className="m-0 text-muted-foreground">{greeting}</Text>
 								<Text className="text-muted-foreground">
-									Heute freuen wir uns, dir eine <strong>neue Funktion</strong>{" "}
-									vorstellen zu können, um mit MDScribe noch{" "}
-									<strong>passgenauere Arztbriefe</strong> schreiben zu können.
-									MDScribe funktioniert weiterhin sofort mit einer{" "}
-									<strong>Standardvorlage</strong>. Neu ist: Du kannst diese Basis
-									jetzt <strong>deutlich genauer an Deinen klinischen Alltag</strong>{" "}
-									anpassen und <strong>eigene Vorlagen</strong> einbinden, um
-									MDScribe genau zu erklären, wie deine Briefe aussehen sollen.
+									Heute freuen wir uns, dir eine <strong>neue Funktion</strong> vorstellen zu
+									können, um mit MDScribe noch <strong>passgenauere Arztbriefe</strong> schreiben zu
+									können. MDScribe funktioniert weiterhin sofort mit einer{" "}
+									<strong>Standardvorlage</strong>. Neu ist: Du kannst diese Basis jetzt{" "}
+									<strong>deutlich genauer an Deinen klinischen Alltag</strong> anpassen und{" "}
+									<strong>eigene Vorlagen</strong> einbinden, um MDScribe genau zu erklären, wie
+									deine Briefe aussehen sollen.
 								</Text>
 								<Text className="text-muted-foreground">
-									Statt jedes Mal die gleichen Sachen zu erwähnen oder mühsam etwas
-									umformulieren zu müssen, erstellst du so{" "}
-									<strong>einmal eine Vorlage</strong> und hast in Zukunft immer{" "}
-									<strong>passgenaue Arztbriefe oder Befunde</strong>.
+									Statt jedes Mal die gleichen Sachen zu erwähnen oder mühsam etwas umformulieren zu
+									müssen, erstellst du so <strong>einmal eine Vorlage</strong> und hast in Zukunft
+									immer <strong>passgenaue Arztbriefe oder Befunde</strong>.
 								</Text>
 
 								<Section className="mt-6 rounded-md border border-border bg-background p-4">
@@ -67,12 +64,12 @@ export const AiTextsAnnouncementTemplate = ({
 										1. Eigenes Template erstellen
 									</Text>
 									<Text className="text-muted-foreground">
-										Lege zuerst ein Template an, das die gewünschte Struktur vorgibt:
-										zum Beispiel Überschriften, feste Formulierungen, Auswahlfelder
-										oder Abschnitte für Diagnostik, Therapie und Empfehlung. Dieses
-										Template ist die Grundlage, an der sich MDScribe später
-										orientiert. Zusätzlich kannst du Beispiele hinzufügen, die dir
-										besonders gut gefallen. Der finale Text wird dann ähnlich wie die Beispiele klingen und formatiert sein.
+										Lege zuerst ein Template an, das die gewünschte Struktur vorgibt: zum Beispiel
+										Überschriften, feste Formulierungen, Auswahlfelder oder Abschnitte für
+										Diagnostik, Therapie und Empfehlung. Dieses Template ist die Grundlage, an der
+										sich MDScribe später orientiert. Zusätzlich kannst du Beispiele hinzufügen, die
+										dir besonders gut gefallen. Der finale Text wird dann ähnlich wie die Beispiele
+										klingen und formatiert sein.
 									</Text>
 									<Button
 										className="rounded-md border border-border bg-card px-5 py-3 font-semibold text-foreground text-sm"
@@ -87,8 +84,9 @@ export const AiTextsAnnouncementTemplate = ({
 										2. AI Textbaustein daraus erstellen
 									</Text>
 									<Text className="text-muted-foreground">
-										Öffne danach deine AI-Scribe-Einstellungen, erstelle einen neuen
-										AI Textbaustein, wähle das passende Template aus und wähle auch einen Basis-Prompt, der zum klinischen Setting passt.
+										Öffne danach deine AI-Scribe-Einstellungen, erstelle einen neuen AI
+										Textbaustein, wähle das passende Template aus und wähle auch einen Basis-Prompt,
+										der zum klinischen Setting passt.
 									</Text>
 									<Button
 										className="rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground text-sm"
@@ -107,8 +105,8 @@ export const AiTextsAnnouncementTemplate = ({
 											Kurzbrief aus der Notaufnahme
 										</Text>
 										<Text className="mb-0 text-muted-foreground text-xs">
-											Für kurze ambulante Entlassungen mit fokussierter Diagnostik,
-											Therapie und Empfehlung.
+											Für kurze ambulante Entlassungen mit fokussierter Diagnostik, Therapie und
+											Empfehlung.
 										</Text>
 									</Section>
 									<Section className="mt-2 rounded-sm bg-muted p-3">
@@ -116,8 +114,8 @@ export const AiTextsAnnouncementTemplate = ({
 											Brief Spezialambulanz
 										</Text>
 										<Text className="mb-0 text-muted-foreground text-xs">
-											Für strukturierte Verlaufsbriefe mit spezieller Fragestellung,
-											Befundbewertung und weiterem Vorgehen mit speziellem Fokus
+											Für strukturierte Verlaufsbriefe mit spezieller Fragestellung, Befundbewertung
+											und weiterem Vorgehen mit speziellem Fokus
 										</Text>
 									</Section>
 									<Section className="mt-2 rounded-sm bg-muted p-3">

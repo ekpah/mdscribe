@@ -29,5 +29,8 @@
 				"__tests__/verify-dist.mjs",
 			],
 		},
+		"packages/markdoc-md-editor": {
+			"entry": ["tip-tap.tsx", "tag-inspector/{tag-inspector,tag-inspector-sheet}.tsx"],
+		},
 	},
 }

@@ -42,18 +42,12 @@ export const createEditSectionTool = (deps: AgentToolDeps) =>
 				},
 				inputData: { find, replace, sectionId },
 				metadata: { findCharacters: find.length, replaceCharacters: replace.length },
-					name: "editSection",
-					sectionId,
-				}),
-			inputSchema: z.object({
-			find: z
-				.string()
-				.describe(
-					"Der exakte vorhandene Textausschnitt, der ersetzt werden soll.",
-				),
-			replace: z
-				.string()
-				.describe("Der neue Text, der den gefundenen Ausschnitt ersetzt."),
+				name: "editSection",
+				sectionId,
+			}),
+		inputSchema: z.object({
+			find: z.string().describe("Der exakte vorhandene Textausschnitt, der ersetzt werden soll."),
+			replace: z.string().describe("Der neue Text, der den gefundenen Ausschnitt ersetzt."),
 			sectionId: z.string().describe("Die ID des zu ändernden Abschnitts."),
 		}),
 	});

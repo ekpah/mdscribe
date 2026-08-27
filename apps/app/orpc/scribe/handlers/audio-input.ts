@@ -199,8 +199,7 @@ const transcribeAudioFiles = async (
 				| string
 				| undefined;
 			const timeToCompletionMs = Date.now() - requestStartedAt;
-			const transcript =
-				typeof result === "string" ? result.trim() : (result?.text.trim() ?? "");
+			const transcript = typeof result === "string" ? result.trim() : (result?.text.trim() ?? "");
 			await logMediaPreprocessingUsage({
 				db: options?.db,
 				inputData: {
@@ -217,8 +216,7 @@ const transcribeAudioFiles = async (
 				},
 				modelName: resolvedModel.modelName,
 				name: AI_SCRIBE_STT_EVENT_NAME,
-				providerMetadata:
-					typeof result === "string" ? undefined : result?.providerMetadata,
+				providerMetadata: typeof result === "string" ? undefined : result?.providerMetadata,
 				result: transcript,
 				standardUsage:
 					typeof result === "string" ? undefined : (result?.usage as StandardUsage | undefined),

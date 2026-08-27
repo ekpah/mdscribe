@@ -8,6 +8,7 @@ import type {
 	UsageMetadata,
 	UsageTiming,
 } from "@/lib/usage-logging";
+
 import { scheduleDeferredTask } from "./usage-logging";
 
 interface LogMediaPreprocessingUsageInput {
@@ -25,7 +26,10 @@ interface LogMediaPreprocessingUsageInput {
 	zdr?: boolean;
 }
 
-const redactIfNeeded = (zdr: boolean | undefined, value: string | undefined): string | undefined => {
+const redactIfNeeded = (
+	zdr: boolean | undefined,
+	value: string | undefined,
+): string | undefined => {
 	if (value === undefined) {
 		return undefined;
 	}
@@ -60,9 +64,7 @@ export const logMediaPreprocessingUsage = ({
 				},
 				model: modelName,
 				name,
-				openRouterUsage: isOpenRouter
-					? extractOpenRouterUsage(providerMetadata)
-					: undefined,
+				openRouterUsage: isOpenRouter ? extractOpenRouterUsage(providerMetadata) : undefined,
 				result: redactIfNeeded(zdr, result),
 				standardUsage,
 				timing,

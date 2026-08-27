@@ -19,9 +19,11 @@ Antworte nur mit JSON:
 }
 
 Regeln:
-- Verwende exakt die Keys aus dem Output-Schema.
-- Erfinde nichts. Wenn du keine Information findest, nutze "".
+- Verwende ausschließlich Keys aus dem Output-Schema.
+- Erfinde nichts. Lass Felder ohne passende Quellinformation weg.
 - Beachte die Beschreibung/Metadaten im Output-Schema.
+- Bei berechneten Scores bevorzuge die einzelnen Komponenten, damit der Score aus der Formel berechnet wird.
+- Gib einen Score-Wert nur aus, wenn nicht alle Komponenten aus den Quellen belegt werden können. Ein ausgegebener Score-Wert hat Vorrang vor der Berechnung.
 - Bei switch muss der Wert exakt eine der options sein.
 - Bei boolean nutze true oder false.`;
 

@@ -1,18 +1,13 @@
 import { stripeClient } from "@better-auth/stripe/client";
-import { env } from "@/env";
 import { useQuery } from "@tanstack/react-query";
-import {
-	inferAdditionalFields,
-	usernameClient,
-} from "better-auth/client/plugins";
+import { inferAdditionalFields, usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
+
 import type { auth } from "@/auth.ts";
+import { env } from "@/env";
+
 import type { Session } from "./auth-types";
-import {
-	normalizeSession,
-	sessionQueryKey,
-	sessionQueryStaleTime,
-} from "./session-query";
+import { normalizeSession, sessionQueryKey, sessionQueryStaleTime } from "./session-query";
 
 export const authClient = createAuthClient({
 	baseURL: env.NEXT_PUBLIC_BASE_URL as string,

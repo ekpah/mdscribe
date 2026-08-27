@@ -8,6 +8,7 @@ import {
 import { CheckCircle2, Mail, MailCheck, Shield } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import { getServerSession } from "@/lib/server-session";
 
 export default async function VerificationPendingPage() {
@@ -25,10 +26,7 @@ export default async function VerificationPendingPage() {
 				<div className="mb-10 space-y-5 text-center sm:mb-16 sm:space-y-6">
 					<div className="flex justify-center">
 						<div className="relative">
-							<Mail
-								className="h-12 w-12 text-solarized-blue sm:h-16 sm:w-16"
-								strokeWidth={1.5}
-							/>
+							<Mail className="h-12 w-12 text-solarized-blue sm:h-16 sm:w-16" strokeWidth={1.5} />
 							<div className="-top-1 -right-1 absolute">
 								<div className="flex h-5 w-5 items-center justify-center rounded-full bg-solarized-orange">
 									<div className="h-2 w-2 animate-pulse rounded-full bg-white" />
@@ -39,13 +37,11 @@ export default async function VerificationPendingPage() {
 
 					<div className="space-y-3 sm:space-y-4">
 						<h1 className="px-2 font-bold text-3xl text-foreground leading-tight sm:text-4xl lg:text-5xl">
-							Bestätige deine{" "}
-							<span className="text-solarized-blue">E-Mail-Adresse</span>
+							Bestätige deine <span className="text-solarized-blue">E-Mail-Adresse</span>
 						</h1>
 						<p className="mx-auto max-w-2xl px-4 text-lg text-muted-foreground sm:px-0 sm:text-xl">
-							Wir haben dir eine E-Mail mit einem Verifizierungslink geschickt.
-							Bitte überprüfe dein Postfach und klicke auf den Link, um deine
-							Registrierung abzuschließen.
+							Wir haben dir eine E-Mail mit einem Verifizierungslink geschickt. Bitte überprüfe dein
+							Postfach und klicke auf den Link, um deine Registrierung abzuschließen.
 						</p>
 					</div>
 				</div>
@@ -63,8 +59,8 @@ export default async function VerificationPendingPage() {
 									1. E-Mail öffnen
 								</CardTitle>
 								<CardDescription className="text-sm">
-									Öffne die E-Mail, die wir dir gerade geschickt haben. Prüfe
-									auch deinen Spam-Ordner.
+									Öffne die E-Mail, die wir dir gerade geschickt haben. Prüfe auch deinen
+									Spam-Ordner.
 								</CardDescription>
 							</CardHeader>
 						</Card>
@@ -78,8 +74,7 @@ export default async function VerificationPendingPage() {
 									2. Link klicken
 								</CardTitle>
 								<CardDescription className="text-sm">
-									Klicke auf den Verifizierungslink in der E-Mail, um dein Konto
-									zu aktivieren.
+									Klicke auf den Verifizierungslink in der E-Mail, um dein Konto zu aktivieren.
 								</CardDescription>
 							</CardHeader>
 						</Card>
@@ -93,8 +88,7 @@ export default async function VerificationPendingPage() {
 									3. Fertig!
 								</CardTitle>
 								<CardDescription className="text-sm">
-									Nach der Verifizierung kannst du alle Funktionen von MDScribe
-									nutzen.
+									Nach der Verifizierung kannst du alle Funktionen von MDScribe nutzen.
 								</CardDescription>
 							</CardHeader>
 						</Card>
@@ -107,8 +101,8 @@ export default async function VerificationPendingPage() {
 								Keine E-Mail erhalten?
 							</h3>
 							<p className="text-muted-foreground text-sm sm:text-base">
-								Überprüfe deinen Spam-Ordner oder probiere dich erneut
-								anzumelden - dann bekommst du eine neue E-Mail.
+								Überprüfe deinen Spam-Ordner oder probiere dich erneut anzumelden - dann bekommst du
+								eine neue E-Mail.
 							</p>
 						</div>
 
@@ -118,35 +112,33 @@ export default async function VerificationPendingPage() {
 								size="lg"
 								type="button"
 								variant="default"
-							 render={<Link href="/sign-in">Zur Anmeldung</Link>} />
+								render={<Link href="/sign-in">Zur Anmeldung</Link>}
+							/>
 						</div>
 					</div>
 
 					{/* Help Section */}
 					<div className="mx-2 space-y-4 rounded-2xl border border-border bg-card p-4 sm:mx-0 sm:p-6">
-						<h4 className="font-semibold text-foreground text-lg">
-							Häufige Probleme
-						</h4>
+						<h4 className="font-semibold text-foreground text-lg">Häufige Probleme</h4>
 						<ul className="space-y-2 text-muted-foreground text-sm">
 							<li className="flex gap-2">
 								<span className="text-solarized-blue">•</span>
 								<span>
-									<strong>E-Mail nicht gefunden?</strong> Prüfe deinen Spam-
-									oder Junk-Ordner
+									<strong>E-Mail nicht gefunden?</strong> Prüfe deinen Spam- oder Junk-Ordner
 								</span>
 							</li>
 							<li className="flex gap-2">
 								<span className="text-solarized-blue">•</span>
 								<span>
-									<strong>Link funktioniert nicht?</strong> Der Link ist 60
-									Minuten gültig. Fordere eine neue E-Mail an
+									<strong>Link funktioniert nicht?</strong> Der Link ist 60 Minuten gültig. Fordere
+									eine neue E-Mail an
 								</span>
 							</li>
 							<li className="flex gap-2">
 								<span className="text-solarized-blue">•</span>
 								<span>
-									<strong>Falsche E-Mail-Adresse?</strong> Registriere dich
-									erneut mit der korrekten E-Mail-Adresse
+									<strong>Falsche E-Mail-Adresse?</strong> Registriere dich erneut mit der korrekten
+									E-Mail-Adresse
 								</span>
 							</li>
 						</ul>

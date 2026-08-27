@@ -2,8 +2,7 @@ import type { PatientContextData } from "@/orpc/scribe/context/types";
 
 type PatientContextTag = "diagnoseblock" | "anamnese" | "befunde" | "epikrise" | "notizen";
 
-const GENERAL_GUIDANCE =
-  `BEFUNDE und DIAGNOSEN sichten und chronologisch sortieren, um zu sortieren, was vor der aktuellen Vorstellung bereits bekannt war (Vordiagnosen) und was neu ist (aktuelle Diagnosen)`;
+const GENERAL_GUIDANCE = `BEFUNDE und DIAGNOSEN sichten und chronologisch sortieren, um zu sortieren, was vor der aktuellen Vorstellung bereits bekannt war (Vordiagnosen) und was neu ist (aktuelle Diagnosen)`;
 
 interface ContextSection {
 	purpose: string;
@@ -22,9 +21,7 @@ const renderPatientContextSection = ({
 	content: string;
 	section: ContextSection;
 }): string => {
-	const usageBlock = section.usage.includes("\n")
-		? `\n${section.usage}\n`
-		: section.usage;
+	const usageBlock = section.usage.includes("\n") ? `\n${section.usage}\n` : section.usage;
 	const trimmedContent = content.trim();
 	if (!trimmedContent) {
 		return "";
@@ -94,23 +91,20 @@ const PATIENT_CONTEXT_CONTENT_EXTRACTORS: Record<
 	notizen: (input) => input.notes,
 };
 
-const PATIENT_CONTEXT_SECTIONS: PatientContextSection[] =
-	PATIENT_CONTEXT_SECTION_GUIDANCE.map((section) => ({
+const PATIENT_CONTEXT_SECTIONS: PatientContextSection[] = PATIENT_CONTEXT_SECTION_GUIDANCE.map(
+	(section) => ({
 		...section,
 		getContent: PATIENT_CONTEXT_CONTENT_EXTRACTORS[section.tag],
-	}));
+	}),
+);
 
-export const renderPatientContextSections = (
-	patientContext: PatientContextData,
-): string => {
-	const sections = PATIENT_CONTEXT_SECTIONS
-		.map((section) =>
-			renderPatientContextSection({
-				content: section.getContent(patientContext),
-				section,
-			}),
-		)
-		.filter((section) => section.length > 0);
+export const renderPatientContextSections = (patientContext: PatientContextData): string => {
+	const sections = PATIENT_CONTEXT_SECTIONS.map((section) =>
+		renderPatientContextSection({
+			content: section.getContent(patientContext),
+			section,
+		}),
+	).filter((section) => section.length > 0);
 
 	if (sections.length === 0) {
 		return "";

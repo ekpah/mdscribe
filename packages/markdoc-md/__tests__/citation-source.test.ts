@@ -13,9 +13,7 @@ describe("citation source references", () => {
 	});
 
 	test("keeps a text range locator separate from the input identity", () => {
-		expect(
-			parseCitationSource("mdscribe://input/anamnese#char=12,48"),
-		).toMatchObject({
+		expect(parseCitationSource("mdscribe://input/anamnese#char=12,48")).toMatchObject({
 			id: "anamnese",
 			kind: "input",
 			locator: "char=12,48",
@@ -36,9 +34,7 @@ describe("citation source references", () => {
 			kind: "invalid",
 			reason: "unsafe-external",
 		});
-		expect(
-			parseCitationSource("https://user:secret@example.test/report"),
-		).toMatchObject({
+		expect(parseCitationSource("https://user:secret@example.test/report")).toMatchObject({
 			kind: "invalid",
 			reason: "unsafe-external",
 		});

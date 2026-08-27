@@ -1,7 +1,4 @@
-export {
-	parseSelectedTemplateReference,
-	buildSelectedTemplateReference,
-} from "./compose";
+export { parseSelectedTemplateReference, buildSelectedTemplateReference } from "./compose";
 export {
 	buildTemplateFallbackContext,
 	composeTemplateContext,

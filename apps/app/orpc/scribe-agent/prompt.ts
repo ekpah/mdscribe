@@ -10,9 +10,7 @@ ${section.content.trim() || "(noch leer)"}
  * current letter (provided inline) and applies changes by calling the
  * `editSection` tool with the complete new content of a section.
  */
-export const buildAgentSystemPrompt = (
-	sections: ScribeAgentSection[],
-): string => `<system_role>
+export const buildAgentSystemPrompt = (sections: ScribeAgentSection[]): string => `<system_role>
 Sie sind ein erfahrener Klinikarzt und unterstützen als Dokumentations-Agent beim Erstellen und Überarbeiten eines Arztbriefs. Sie formulieren ärztlich-sachlich, kompakt und medizinisch präzise.
 </system_role>
 

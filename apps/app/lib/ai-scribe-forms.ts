@@ -18,9 +18,7 @@ export const DEFAULT_AI_TEXT_DESCRIPTION =
 	"Generiert strukturierte Texte auf Basis von Notizen, Diagnosen, Anamnese und Befunden.";
 
 export const isReservedAiScribeFormSlug = (slug: string): boolean =>
-	RESERVED_AI_SCRIBE_FORM_SLUGS.includes(
-		slug as (typeof RESERVED_AI_SCRIBE_FORM_SLUGS)[number],
-	);
+	RESERVED_AI_SCRIBE_FORM_SLUGS.includes(slug as (typeof RESERVED_AI_SCRIBE_FORM_SLUGS)[number]);
 
 export const slugifyAiScribeFormName = (value: string): string =>
 	value

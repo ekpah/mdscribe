@@ -1,6 +1,5 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
 	Card,
@@ -16,17 +15,16 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { authClient } from "@/lib/auth-client";
+
 export default function ForgotPassword() {
 	const [email, setEmail] = useState("");
 	const router = useRouter();
 	const [loading, setLoading] = useState(false);
 
-	const handleEmailChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setEmail(event.target.value);
-		},
-		[],
-	);
+	const handleEmailChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+		setEmail(event.target.value);
+	}, []);
 
 	const handleRequestPasswordReset = useCallback(async () => {
 		setLoading(true);
@@ -53,9 +51,7 @@ export default function ForgotPassword() {
 	return (
 		<Card className="z-50 max-w-md rounded-md rounded-t-none">
 			<CardHeader>
-				<CardTitle className="text-lg md:text-xl">
-					Passwort zurücksetzen
-				</CardTitle>
+				<CardTitle className="text-lg md:text-xl">Passwort zurücksetzen</CardTitle>
 				<CardDescription className="text-xs md:text-sm">
 					Geben Sie Ihre E-Mail-Adresse ein, um Ihr Passwort zurückzusetzen
 				</CardDescription>
@@ -64,22 +60,22 @@ export default function ForgotPassword() {
 				<div className="grid gap-4">
 					<div className="grid gap-2">
 						<Label htmlFor="email">E-Mail</Label>
-							<Input
-								id="email"
-								type="email"
-								placeholder="m@beispiel.de"
-								required
-								onChange={handleEmailChange}
-								value={email}
-							/>
+						<Input
+							id="email"
+							type="email"
+							placeholder="m@beispiel.de"
+							required
+							onChange={handleEmailChange}
+							value={email}
+						/>
 					</div>
 
-						<Button
-							type="submit"
-							className="w-full"
-							disabled={loading}
-							onClick={handleRequestPasswordReset}
-						>
+					<Button
+						type="submit"
+						className="w-full"
+						disabled={loading}
+						onClick={handleRequestPasswordReset}
+					>
 						{loading ? (
 							<Loader2 size={16} className="animate-spin" />
 						) : (

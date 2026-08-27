@@ -8,9 +8,7 @@ export const buildCustomFormPath = (
 	slug: string,
 	authorUsername: string | null | undefined,
 ): string =>
-	authorUsername
-		? `/aiscribe/custom/u/${authorUsername}/${slug}`
-		: `/aiscribe/custom/${slug}`;
+	authorUsername ? `/aiscribe/custom/u/${authorUsername}/${slug}` : `/aiscribe/custom/${slug}`;
 
 export const buildWorkspacePath = (
 	slug: string,

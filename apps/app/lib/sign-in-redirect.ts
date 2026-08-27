@@ -54,10 +54,7 @@ export const createSignInRedirect = (redirectPath: string): string => {
 	return `/sign-in?redirect=${encodeURIComponent(safePath)}`;
 };
 
-export const getRequestedPath = (
-	requestHeaders: Headers,
-	fallbackPath: string,
-): string => {
+export const getRequestedPath = (requestHeaders: Headers, fallbackPath: string): string => {
 	for (const headerName of REQUEST_PATH_HEADERS) {
 		const headerPath = normalizePath(requestHeaders.get(headerName));
 		if (headerPath) {

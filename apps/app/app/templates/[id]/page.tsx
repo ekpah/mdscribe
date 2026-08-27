@@ -9,8 +9,10 @@ import { SidebarTrigger } from "@repo/design-system/components/ui/sidebar";
 import { QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
 import Link from "next/link";
+
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
+
 import ContentSection from "./_components/content-section";
 import { NavActions } from "./_components/nav-actions";
 
@@ -23,28 +25,21 @@ export const generateMetadata = async ({
 }): Promise<Metadata> => {
 	const { id } = await params;
 	const queryClient = new QueryClient();
-	const doc = await queryClient.fetchQuery(
-		orpc.templates.get.queryOptions({ input: { id } }),
-	);
+	const doc = await queryClient.fetchQuery(orpc.templates.get.queryOptions({ input: { id } }));
 
 	return {
 		title: doc?.title,
 	};
 };
 
-const NotePage = async ({
-	params,
-	searchParams,
-}: PageProps<"/templates/[id]">) => {
+const NotePage = async ({ params, searchParams }: PageProps<"/templates/[id]">) => {
 	const queryClient = new QueryClient();
 	const session = await getServerSession();
 	const { id } = await params;
 	const { view } = await searchParams;
 	const contentView: TemplateContentView =
 		view === "examples" || view === "information" ? view : "template";
-	const doc = await queryClient.fetchQuery(
-		orpc.templates.get.queryOptions({ input: { id } }),
-	);
+	const doc = await queryClient.fetchQuery(orpc.templates.get.queryOptions({ input: { id } }));
 	if (!doc) {
 		throw new Error("Document not found");
 	}

@@ -1,14 +1,16 @@
 "use client";
 
-import { useMarkdocInteraction } from "../../render/context/markdoc-interaction-context";
 import type { ReactNode } from "react";
-import { useLayoutEffect, useRef } from "react";
+
+import { useMarkdocInteraction } from "../../render/context/markdoc-interaction-context";
 
 const getInteractiveTagClassName = (isActive: boolean, canSelect: boolean) =>
 	[
 		"inline rounded-md border border-transparent px-1 transition-colors",
 		canSelect ? "cursor-pointer hover:border-solarized-orange/40 hover:bg-solarized-orange/10" : "",
-		isActive ? "border-solarized-orange/70 bg-solarized-orange/20 ring-2 ring-solarized-orange/20" : "",
+		isActive
+			? "border-solarized-orange/70 bg-solarized-orange/20 ring-2 ring-solarized-orange/20"
+			: "",
 	]
 		.filter(Boolean)
 		.join(" ");
@@ -21,16 +23,8 @@ export const InteractiveTag = ({
 	tagName?: string | null;
 }) => {
 	const { activeTagName, onTagSelect } = useMarkdocInteraction();
-	const elementRef = useRef<HTMLSpanElement | null>(null);
 	const canSelect = Boolean(onTagSelect);
 	const isActive = Boolean(tagName && activeTagName === tagName);
-
-	useLayoutEffect(() => {
-		if (!isActive) {
-			return;
-		}
-		elementRef.current?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-	}, [isActive]);
 
 	if (!tagName) {
 		return <>{children}</>;
@@ -52,7 +46,6 @@ export const InteractiveTag = ({
 						}
 					: undefined
 			}
-			ref={elementRef}
 			role={canSelect ? "button" : undefined}
 			tabIndex={canSelect ? 0 : undefined}
 		>

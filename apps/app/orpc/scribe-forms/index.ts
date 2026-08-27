@@ -30,10 +30,7 @@ import {
 	updateScribeFormInput,
 } from "@/orpc/scribe-forms/shared";
 import type { ScribeFormVisibility } from "@/orpc/scribe-forms/shared";
-import {
-	resolvePromptHarnessId,
-	SELECTABLE_PROMPT_HARNESS_OPTIONS,
-} from "@/orpc/scribe/prompts";
+import { resolvePromptHarnessId, SELECTABLE_PROMPT_HARNESS_OPTIONS } from "@/orpc/scribe/prompts";
 
 interface PublicScribeForm {
 	author?: {

@@ -180,23 +180,13 @@ export const ensureVisibleTemplateExists = async ({
 
 export const ensureSlugUnique = async (
 	context: { db: Database },
-	{
-		slug,
-		authorId,
-		excludeId,
-	}: { slug: string; authorId: string | null; excludeId?: string },
+	{ slug, authorId, excludeId }: { slug: string; authorId: string | null; excludeId?: string },
 ): Promise<void> => {
 	// Slugs are unique per namespace: global (author-less) vs. per author.
 	const namespaceWhere =
 		authorId === null
-			? and(
-					eq(aiScribeFormConfig.slug, slug),
-					isNull(aiScribeFormConfig.authorId),
-				)
-			: and(
-					eq(aiScribeFormConfig.slug, slug),
-					eq(aiScribeFormConfig.authorId, authorId),
-				);
+			? and(eq(aiScribeFormConfig.slug, slug), isNull(aiScribeFormConfig.authorId))
+			: and(eq(aiScribeFormConfig.slug, slug), eq(aiScribeFormConfig.authorId, authorId));
 
 	const existing = await context.db.query.aiScribeFormConfig.findFirst({
 		where: namespaceWhere,

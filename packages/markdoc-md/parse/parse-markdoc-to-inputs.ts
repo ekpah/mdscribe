@@ -1,7 +1,7 @@
 import type { Config, RenderableTreeNode } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
-import { markdocConfig as config } from "../markdoc-config";
 
+import { markdocConfig as config } from "../markdoc-config";
 import { getFormulaVariables } from "./formula";
 import type { MarkdocTemplateDiagnostic } from "./validate-markdoc-template";
 import { validateMarkdocTemplateAst } from "./validate-markdoc-template";
@@ -13,7 +13,7 @@ export type InputTagType =
 	| InfoInputTagType
 	| SwitchInputTagType
 	| CaseInputTagType
-	| ScoreInputTagType;
+	| CalcInputTagType;
 
 export interface BaseInputTag {
 	$$mdtype?: "Tag";
@@ -64,16 +64,17 @@ export type CaseInputTagType = BaseInputTag & {
 	name: "Case";
 	attributes: {
 		primary: string;
+		value?: number;
 	};
 };
 
 /**
- * Represents a score tag for calculating values based on a formula.
+ * Represents a calc tag for calculating values based on a formula.
  * @example
- * {% score formula="[age]*2+[gender_score]*3" unit="points" /%}
+ * {% calc formula="[age]*2+[gender_score]*3" unit="points" /%}
  */
-export type ScoreInputTagType = BaseInputTag & {
-	name: "Score";
+export type CalcInputTagType = BaseInputTag & {
+	name: "Calc";
 	attributes: {
 		primary: string;
 		formula?: string;
@@ -82,9 +83,12 @@ export type ScoreInputTagType = BaseInputTag & {
 	};
 };
 
+/** @deprecated Use CalcInputTagType. */
+export type ScoreInputTagType = CalcInputTagType;
+
 // Constants for better performance
-const VALID_TAG_NAMES = new Set(["Info", "Case", "Switch", "Score"]);
-type ValidTagName = "Info" | "Case" | "Score" | "Switch";
+const VALID_TAG_NAMES = new Set(["Calc", "Info", "Case", "Switch"]);
+type ValidTagName = "Calc" | "Info" | "Case" | "Switch";
 interface NodeContext {
 	path: string;
 	type: ValidTagName;
@@ -147,14 +151,14 @@ const toTagKey = (node: MarkdocTagNode, parentContext?: NodeContext): string => 
 		case "Case": {
 			return `Case:${parentContext?.path ?? "root"}:${primary}`;
 		}
-		case "Score": {
+		case "Calc": {
 			if (primary) {
-				return `Score:${primary}`;
+				return `Calc:${primary}`;
 			}
 			if (formula) {
-				return `ScoreFormula:${formula}`;
+				return `CalcFormula:${formula}`;
 			}
-			return `Score:${parentContext?.path ?? "root"}`;
+			return `Calc:${parentContext?.path ?? "root"}`;
 		}
 		default: {
 			return assertNeverTagNode(node);
@@ -165,13 +169,13 @@ const toTagKey = (node: MarkdocTagNode, parentContext?: NodeContext): string => 
 const toInputTagMergeKey = (tag: InputTagType): string => {
 	const primary = toKeyPart(tag.attributes.primary);
 
-	if (tag.name === "Score") {
+	if (tag.name === "Calc") {
 		const formula = toKeyPart(tag.attributes.formula);
 		if (primary) {
-			return `Score:${primary}`;
+			return `Calc:${primary}`;
 		}
 		if (formula) {
-			return `ScoreFormula:${formula}`;
+			return `CalcFormula:${formula}`;
 		}
 	}
 
@@ -193,7 +197,7 @@ const mergeInfoAttributes = (target: InfoInputTagType, source: InfoInputTagType)
 	}
 };
 
-const mergeScoreAttributes = (target: ScoreInputTagType, source: ScoreInputTagType): boolean => {
+const mergeCalcAttributes = (target: CalcInputTagType, source: CalcInputTagType): boolean => {
 	const hasFormulaConflict = Boolean(
 		target.attributes.formula &&
 		source.attributes.formula &&
@@ -261,8 +265,8 @@ const mergeInputTags = (target: InputTagType, source: InputTagType): void => {
 		return;
 	}
 
-	if (target.name === "Score" && source.name === "Score") {
-		if (mergeScoreAttributes(target, source)) {
+	if (target.name === "Calc" && source.name === "Calc") {
+		if (mergeCalcAttributes(target, source)) {
 			target.children = mergeInputTagArrays(target.children, source.children, mergeInputTags);
 		}
 		return;
@@ -299,15 +303,34 @@ const toSwitchTag = (node: MarkdocTagNode, children: InputTagType[]): SwitchInpu
 
 const toCaseTag = (node: MarkdocTagNode, children: InputTagType[]): CaseInputTagType =>
 	({
-		attributes: { primary: node.attributes.primary ?? "" },
+		attributes: {
+			primary: node.attributes.primary ?? "",
+			value: typeof node.attributes.value === "number" ? node.attributes.value : undefined,
+		},
 		children,
 		name: "Case" as const,
 	}) as CaseInputTagType;
 
-const appendFormulaVariables = (scoreTag: ScoreInputTagType, formulaValue: string) => {
+const appendFormulaVariables = (calcTag: CalcInputTagType, formulaValue: string) => {
 	try {
+		const existingInputs = new Set<string>();
+		const collectExistingInputs = (input: InputTagType) => {
+			if (input.name !== "Case" && input.attributes.primary) {
+				existingInputs.add(input.attributes.primary);
+			}
+			for (const child of input.children ?? []) {
+				collectExistingInputs(child);
+			}
+		};
+		for (const child of calcTag.children) {
+			collectExistingInputs(child);
+		}
+
 		for (const variable of getFormulaVariables(formulaValue)) {
-			scoreTag.children.push({
+			if (existingInputs.has(variable)) {
+				continue;
+			}
+			calcTag.children.push({
 				attributes: {
 					primary: variable,
 					type: "number",
@@ -321,8 +344,8 @@ const appendFormulaVariables = (scoreTag: ScoreInputTagType, formulaValue: strin
 	}
 };
 
-const toScoreTag = (node: MarkdocTagNode, children: InputTagType[]): ScoreInputTagType => {
-	const scoreTag = {
+const toCalcTag = (node: MarkdocTagNode, children: InputTagType[]): CalcInputTagType =>
+	({
 		attributes: {
 			formula: toKeyPart(node.attributes.formula) || undefined,
 			primary: toKeyPart(node.attributes.primary),
@@ -331,11 +354,8 @@ const toScoreTag = (node: MarkdocTagNode, children: InputTagType[]): ScoreInputT
 			unit: toKeyPart(node.attributes.unit) || undefined,
 		},
 		children,
-		name: "Score" as const,
-	} as ScoreInputTagType;
-	appendFormulaVariables(scoreTag, scoreTag.attributes.formula ?? "");
-	return scoreTag;
-};
+		name: "Calc" as const,
+	}) as CalcInputTagType;
 
 const tagBuilders: Record<
 	ValidTagName,
@@ -343,7 +363,7 @@ const tagBuilders: Record<
 > = {
 	Case: toCaseTag,
 	Info: toInfoTag,
-	Score: toScoreTag,
+	Calc: toCalcTag,
 	Switch: toSwitchTag,
 };
 
@@ -444,7 +464,19 @@ const processNodeToInputTags = (
 
 const parseTagsToInputs = ({ nodes }: { nodes: RenderableTreeNode }) => {
 	const tagMap = new Map<string, InputTagType>();
-	return processNodeToInputTags(nodes, tagMap);
+	const inputs = processNodeToInputTags(nodes, tagMap);
+	const appendMissingCalcInputs = (input: InputTagType) => {
+		if (input.name === "Calc") {
+			appendFormulaVariables(input, input.attributes.formula ?? "");
+		}
+		for (const child of input.children ?? []) {
+			appendMissingCalcInputs(child);
+		}
+	};
+	for (const input of inputs) {
+		appendMissingCalcInputs(input);
+	}
+	return inputs;
 };
 
 export interface MarkdocTemplateAnalysis {
@@ -463,10 +495,7 @@ export const analyzeMarkdocTemplate = (
 };
 
 // function to take markdoc content and return parsed tags
-const parseMarkdocToInputs = (
-	content: string,
-	markdocConfig: Config = config,
-): InputTagType[] => {
+const parseMarkdocToInputs = (content: string, markdocConfig: Config = config): InputTagType[] => {
 	const ast = Markdoc.parse(content);
 	const nodes = Markdoc.transform(ast, markdocConfig);
 	return parseTagsToInputs({ nodes });

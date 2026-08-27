@@ -37,12 +37,8 @@ import { orpc } from "@/lib/orpc";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 
-type WorkspaceRecord = Awaited<
-	ReturnType<typeof orpc.admin.aiScribeWorkspaces.list.call>
->[number];
-type FormRecord = Awaited<
-	ReturnType<typeof orpc.admin.scribeForms.list.call>
->[number];
+type WorkspaceRecord = Awaited<ReturnType<typeof orpc.admin.aiScribeWorkspaces.list.call>>[number];
+type FormRecord = Awaited<ReturnType<typeof orpc.admin.scribeForms.list.call>>[number];
 
 // Sentinel for "no form selected" → the section uses the standard template.
 const DEFAULT_VALUE = "__default__";
@@ -51,12 +47,11 @@ type FormFieldKey = "diagnosisFormId" | "anamneseFormId" | "epikriseFormId";
 
 // One field per prompt-harness section; each slot only accepts forms whose
 // harness targets that section. Befunde stays on the default for now.
-const FORM_FIELDS: { key: FormFieldKey; label: string; harness: PromptHarnessId }[] =
-	[
-		{ harness: "diagnosis", key: "diagnosisFormId", label: "Diagnosen" },
-		{ harness: "anamnese", key: "anamneseFormId", label: "Anamnese" },
-		{ harness: "epikrise", key: "epikriseFormId", label: "Epikrise" },
-	];
+const FORM_FIELDS: { key: FormFieldKey; label: string; harness: PromptHarnessId }[] = [
+	{ harness: "diagnosis", key: "diagnosisFormId", label: "Diagnosen" },
+	{ harness: "anamnese", key: "anamneseFormId", label: "Anamnese" },
+	{ harness: "epikrise", key: "epikriseFormId", label: "Epikrise" },
+];
 
 type Visibility = "public" | "private";
 
@@ -99,11 +94,7 @@ export const AiScribeWorkspacesTab = () => {
 	const listQueryOptions = orpc.admin.aiScribeWorkspaces.list.queryOptions();
 	const formsQueryOptions = orpc.admin.scribeForms.list.queryOptions();
 
-	const {
-		data: workspaces = [],
-		isLoading,
-		error,
-	} = useQuery(listQueryOptions);
+	const { data: workspaces = [], isLoading, error } = useQuery(listQueryOptions);
 	const { data: forms = [] } = useQuery(formsQueryOptions);
 
 	const [dialogOpen, setDialogOpen] = useState(false);
@@ -111,10 +102,7 @@ export const AiScribeWorkspacesTab = () => {
 	const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
 	const listKey = listQueryOptions.queryKey;
-	const formNameById = useMemo(
-		() => new Map(forms.map((form) => [form.id, form.name])),
-		[forms],
-	);
+	const formNameById = useMemo(() => new Map(forms.map((form) => [form.id, form.name])), [forms]);
 
 	// Forms eligible for each slot: harness must target the slot's section.
 	const formsByField = useMemo(() => {
@@ -123,9 +111,7 @@ export const AiScribeWorkspacesTab = () => {
 			const target = getPromptHarnessTargetField(field.harness);
 			map.set(
 				field.key,
-				forms.filter(
-					(form) => getPromptHarnessTargetField(form.promptHarness) === target,
-				),
+				forms.filter((form) => getPromptHarnessTargetField(form.promptHarness) === target),
 			);
 		}
 		return map;
@@ -161,9 +147,7 @@ export const AiScribeWorkspacesTab = () => {
 			return orpc.admin.aiScribeWorkspaces.create.call(payload);
 		},
 		onError: (mutationError) => {
-			toast.error(
-				mutationError instanceof Error ? mutationError.message : "Fehler",
-			);
+			toast.error(mutationError instanceof Error ? mutationError.message : "Fehler");
 		},
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
@@ -174,13 +158,10 @@ export const AiScribeWorkspacesTab = () => {
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: (id: string) =>
-			orpc.admin.aiScribeWorkspaces.delete.call({ id }),
+		mutationFn: (id: string) => orpc.admin.aiScribeWorkspaces.delete.call({ id }),
 		onError: (mutationError) => {
 			setPendingDeleteId(null);
-			toast.error(
-				mutationError instanceof Error ? mutationError.message : "Fehler",
-			);
+			toast.error(mutationError instanceof Error ? mutationError.message : "Fehler");
 		},
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: listKey });
@@ -199,12 +180,9 @@ export const AiScribeWorkspacesTab = () => {
 		setDialogOpen(true);
 	}, []);
 
-	const handleFieldChange = useCallback(
-		(key: FormFieldKey, value: string) => {
-			setDraft((current) => ({ ...current, [key]: value }));
-		},
-		[],
-	);
+	const handleFieldChange = useCallback((key: FormFieldKey, value: string) => {
+		setDraft((current) => ({ ...current, [key]: value }));
+	}, []);
 
 	const handleSave = useCallback(() => {
 		saveMutation.mutate(draft);
@@ -233,11 +211,7 @@ export const AiScribeWorkspacesTab = () => {
 					{workspace.enabled ? null : (
 						<span className="text-solarized-base01 text-xs">Deaktiviert</span>
 					)}
-					<Button
-						onClick={() => handleOpenEdit(workspace)}
-						size="sm"
-						variant="outline"
-					>
+					<Button onClick={() => handleOpenEdit(workspace)} size="sm" variant="outline">
 						Bearbeiten
 					</Button>
 					{pendingDeleteId === workspace.id ? (
@@ -250,11 +224,7 @@ export const AiScribeWorkspacesTab = () => {
 							>
 								Löschen
 							</Button>
-							<Button
-								onClick={() => setPendingDeleteId(null)}
-								size="sm"
-								variant="ghost"
-							>
+							<Button onClick={() => setPendingDeleteId(null)} size="sm" variant="ghost">
 								Abbrechen
 							</Button>
 						</div>
@@ -274,12 +244,9 @@ export const AiScribeWorkspacesTab = () => {
 				<dl className="space-y-1 text-sm">
 					{FORM_FIELDS.map((field) => (
 						<div className="flex items-center gap-2" key={field.key}>
-							<dt className="w-24 shrink-0 text-solarized-base01">
-								{field.label}
-							</dt>
+							<dt className="w-24 shrink-0 text-solarized-base01">{field.label}</dt>
 							<dd className="text-solarized-base00">
-								{formNameById.get(workspace[field.key] ?? "") ??
-									"Standard-Vorlage"}
+								{formNameById.get(workspace[field.key] ?? "") ?? "Standard-Vorlage"}
 							</dd>
 						</div>
 					))}
@@ -314,12 +281,10 @@ export const AiScribeWorkspacesTab = () => {
 		<div className="space-y-4">
 			<div className="flex items-center justify-between gap-2">
 				<div>
-					<h2 className="font-semibold text-base text-solarized-base00">
-						Brief-Baukasten
-					</h2>
+					<h2 className="font-semibold text-base text-solarized-base00">Brief-Baukasten</h2>
 					<p className="text-solarized-base01 text-sm">
-						Editor-Seiten aus AI Vorlagen zusammenstellen. Jeder Abschnitt nutzt
-						eine AI Vorlage mit dem passenden Prompt-Harness.
+						Editor-Seiten aus AI Vorlagen zusammenstellen. Jeder Abschnitt nutzt eine AI Vorlage mit
+						dem passenden Prompt-Harness.
 					</p>
 				</div>
 				<Button onClick={handleOpenCreate} size="sm">
@@ -332,9 +297,9 @@ export const AiScribeWorkspacesTab = () => {
 				<Card className="border-solarized-yellow/30 bg-solarized-yellow/10">
 					<CardContent className="p-4 text-sm text-solarized-base00">
 						Für folgende Abschnitte fehlt noch eine passende AI Vorlage:{" "}
-						{fieldsWithoutForms.map((field) => field.label).join(", ")}. Lege sie
-						zuerst unter „AI Vorlagen“ mit dem passenden Basis-Prompt an. Diese
-						Abschnitte nutzen sonst die Standard-Vorlage.
+						{fieldsWithoutForms.map((field) => field.label).join(", ")}. Lege sie zuerst unter „AI
+						Vorlagen“ mit dem passenden Basis-Prompt an. Diese Abschnitte nutzen sonst die
+						Standard-Vorlage.
 					</CardContent>
 				</Card>
 			)}
@@ -381,8 +346,8 @@ export const AiScribeWorkspacesTab = () => {
 							{draft.id ? "Brief-Baukasten bearbeiten" : "Neuer Brief-Baukasten"}
 						</DialogTitle>
 						<DialogDescription>
-							Wähle pro Abschnitt die zugrunde liegende AI Vorlage. Befunde
-							verwendet vorerst die Standard-Vorlage.
+							Wähle pro Abschnitt die zugrunde liegende AI Vorlage. Befunde verwendet vorerst die
+							Standard-Vorlage.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -460,10 +425,7 @@ export const AiScribeWorkspacesTab = () => {
 										</Label>
 										<Select
 											onValueChange={(value) =>
-												handleFieldChange(
-													field.key,
-													value === DEFAULT_VALUE ? "" : value,
-												)
+												handleFieldChange(field.key, value === DEFAULT_VALUE ? "" : value)
 											}
 											value={draft[field.key] || DEFAULT_VALUE}
 										>
@@ -471,9 +433,7 @@ export const AiScribeWorkspacesTab = () => {
 												<SelectValue placeholder="Standard-Vorlage" />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value={DEFAULT_VALUE}>
-													Standard-Vorlage
-												</SelectItem>
+												<SelectItem value={DEFAULT_VALUE}>Standard-Vorlage</SelectItem>
 												{fieldForms.map((form) => (
 													<SelectItem key={form.id} value={form.id}>
 														{form.name}
@@ -485,28 +445,18 @@ export const AiScribeWorkspacesTab = () => {
 								);
 							})}
 							<p className="text-solarized-base01 text-xs">
-								Ohne Auswahl wird die Standard-Vorlage verwendet. Befunde nutzt
-								vorerst immer die Standard-Vorlage.
+								Ohne Auswahl wird die Standard-Vorlage verwendet. Befunde nutzt vorerst immer die
+								Standard-Vorlage.
 							</p>
 						</div>
 					</div>
 
 					<DialogFooter>
-						<Button
-							onClick={() => setDialogOpen(false)}
-							type="button"
-							variant="ghost"
-						>
+						<Button onClick={() => setDialogOpen(false)} type="button" variant="ghost">
 							Abbrechen
 						</Button>
-						<Button
-							disabled={saveMutation.isPending}
-							onClick={handleSave}
-							type="button"
-						>
-							{saveMutation.isPending ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : null}
+						<Button disabled={saveMutation.isPending} onClick={handleSave} type="button">
+							{saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
 							Speichern
 						</Button>
 					</DialogFooter>

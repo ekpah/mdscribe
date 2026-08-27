@@ -3,33 +3,20 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { cn } from "@repo/design-system/lib/utils";
 import { ChevronDown, FileText, Mic, Paperclip } from "lucide-react";
-import type {
-	Dispatch,
-	DragEvent,
-	ReactNode,
-	RefObject,
-	SetStateAction,
-} from "react";
+import type { Dispatch, DragEvent, ReactNode, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-} from "@/lib/input-fill-limits";
+import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
 
 import { AudioInput } from "./inputs/audio/audio-input";
 import type { AudioInputHandle } from "./inputs/audio/audio-input";
 import { DocumentInput } from "./inputs/document/document-input";
 import { TextInput } from "./inputs/text/text-input";
+import type { InputContextController, InputContextPanel, InputContextSubmission } from "./types";
 import { useInputContextClipboardPaste } from "./use-input-context-clipboard-paste";
-import type {
-	InputContextController,
-	InputContextPanel,
-	InputContextSubmission,
-} from "./types";
 
 export { useInputContextState } from "./use-input-context-state";
 
@@ -67,17 +54,12 @@ const getPanelShellClassName = ({
 	let placementClassName =
 		"static mb-3 max-h-[min(60svh,32rem)] overflow-y-auto overscroll-contain rounded-lg lg:absolute lg:right-4 lg:bottom-full lg:left-4 lg:mb-2 lg:max-h-96";
 	if (isTabVariant) {
-		placementClassName =
-			"static min-h-[min(68svh,36rem)] rounded-t-lg shadow-none";
+		placementClassName = "static min-h-[min(68svh,36rem)] rounded-t-lg shadow-none";
 	} else if (hasPortalTarget) {
-		placementClassName =
-			"absolute inset-0 flex min-h-0 flex-col overflow-hidden rounded-none";
+		placementClassName = "absolute inset-0 flex min-h-0 flex-col overflow-hidden rounded-none";
 	}
 
-	return cn(
-		"z-20 bg-solarized-blue/10 p-4 shadow-lg backdrop-blur",
-		placementClassName,
-	);
+	return cn("z-20 bg-solarized-blue/10 p-4 shadow-lg backdrop-blur", placementClassName);
 };
 
 const PanelShell = ({
@@ -175,15 +157,11 @@ const INPUT_CONTEXT_PANELS: InputContextPanel[] = ["text", "audio", "files"];
 const isFileTransfer = (dataTransfer: DataTransfer): boolean =>
 	[...dataTransfer.types].includes("Files");
 
-const shouldHandleFileDragEvent = (
-	event: DragEvent<HTMLDivElement>,
-	disabled: boolean,
-): boolean =>
+const shouldHandleFileDragEvent = (event: DragEvent<HTMLDivElement>, disabled: boolean): boolean =>
 	!event.defaultPrevented && !disabled && isFileTransfer(event.dataTransfer);
 
-const getMountedPanels = (
-	panel: InputContextPanel | null,
-): Set<InputContextPanel> => (panel ? new Set([panel]) : new Set());
+const getMountedPanels = (panel: InputContextPanel | null): Set<InputContextPanel> =>
+	panel ? new Set([panel]) : new Set();
 
 const useInputContextFileDrop = ({
 	controller,
@@ -340,9 +318,7 @@ const ToolbarTitle = ({ title }: { title?: string }) => {
 	if (title) {
 		return (
 			<div className="min-w-0 flex-1">
-				<span className="truncate font-medium text-foreground text-xs">
-					{title}
-				</span>
+				<span className="truncate font-medium text-foreground text-xs">{title}</span>
 			</div>
 		);
 	}
@@ -373,10 +349,7 @@ const SubmitButton = ({
 
 	return (
 		<Button
-			className={cn(
-				"h-9 shrink-0 px-3 text-xs",
-				hasTrailingAction ? undefined : "ml-auto",
-			)}
+			className={cn("h-9 shrink-0 px-3 text-xs", hasTrailingAction ? undefined : "ml-auto")}
 			disabled={disabled}
 			onClick={onClick}
 			type="button"
@@ -433,9 +406,7 @@ const renderInputContextPanels = ({
 		return createPortal(
 			<>
 				{mountedPanelNodes}
-				<InputContextDropOverlay
-					active={isDraggingFiles && openPanel !== null}
-				/>
+				<InputContextDropOverlay active={isDraggingFiles && openPanel !== null} />
 			</>,
 			panelPortalTarget,
 		);
@@ -476,8 +447,7 @@ const InputContextToolbar = ({
 	<div
 		className={cn(
 			"flex min-w-0 items-center gap-2",
-			isTabVariant &&
-				"rounded-b-lg border border-solarized-blue/20 bg-solarized-blue/5 px-3 py-2",
+			isTabVariant && "rounded-b-lg border border-solarized-blue/20 bg-solarized-blue/5 px-3 py-2",
 		)}
 	>
 		<ToolbarTitle title={title} />
@@ -496,19 +466,13 @@ const InputContextToolbar = ({
 				isRecordingAudio ? "Aufnahme läuft – Audio-Kontext öffnen" : "Audio-Kontext öffnen"
 			}
 			hasValue={controller.hasAudioRecordings}
-			icon={
-				<Mic
-					className={cn("h-4 w-4", isRecordingAudio && "text-solarized-red")}
-				/>
-			}
+			icon={<Mic className={cn("h-4 w-4", isRecordingAudio && "text-solarized-red")} />}
 			isActive={openPanel === "audio"}
 			isRecording={isRecordingAudio}
 			onClick={() => {
 				handlePanelToggle("audio");
 			}}
-			title={
-				isRecordingAudio ? "Aufnahme läuft – Audio-Kontext öffnen" : "Audio-Kontext öffnen"
-			}
+			title={isRecordingAudio ? "Aufnahme läuft – Audio-Kontext öffnen" : "Audio-Kontext öffnen"}
 		/>
 		<ContextToggleButton
 			ariaLabel="Textkontext öffnen"
@@ -555,11 +519,9 @@ export const InputContextControls = ({
 	trailingAction,
 	variant = "overlay",
 }: InputContextControlsProps) => {
-	const [openPanel, setOpenPanel] = useState<InputContextPanel | null>(
-		defaultPanel,
-	);
-	const [mountedPanels, setMountedPanels] = useState<Set<InputContextPanel>>(
-		() => getMountedPanels(defaultPanel),
+	const [openPanel, setOpenPanel] = useState<InputContextPanel | null>(defaultPanel);
+	const [mountedPanels, setMountedPanels] = useState<Set<InputContextPanel>>(() =>
+		getMountedPanels(defaultPanel),
 	);
 	const [dragDepth, setDragDepth] = useState(0);
 	const [recordingShortcutRequest, setRecordingShortcutRequest] = useState(0);
@@ -611,9 +573,7 @@ export const InputContextControls = ({
 		}
 
 		if (!controller.hasAnyContext) {
-			toast.error(
-				"Bitte zuerst Audio aufnehmen, Text eingeben oder Dateien hinzufügen",
-			);
+			toast.error("Bitte zuerst Audio aufnehmen, Text eingeben oder Dateien hinzufügen");
 			return;
 		}
 
@@ -631,14 +591,11 @@ export const InputContextControls = ({
 		}
 	}, [controller, onSubmit]);
 
-	const handleTextContextLimitExceeded = useCallback(
-		(maxCharacters: number) => {
-			toast.error(
-				`Textkontext ist zu lang. Maximal ${maxCharacters.toLocaleString("de-DE")} Zeichen möglich.`,
-			);
-		},
-		[],
-	);
+	const handleTextContextLimitExceeded = useCallback((maxCharacters: number) => {
+		toast.error(
+			`Textkontext ist zu lang. Maximal ${maxCharacters.toLocaleString("de-DE")} Zeichen möglich.`,
+		);
+	}, []);
 
 	const focusFirstTextField = useCallback(() => {
 		const scope = panelPortalTarget ?? rootRef.current;
@@ -672,14 +629,7 @@ export const InputContextControls = ({
 		if (onSubmit) {
 			void handleSubmit();
 		}
-	}, [
-		disabled,
-		handleSubmit,
-		isSubmitting,
-		onSubmit,
-		onSubmitShortcut,
-		submitShortcutDisabled,
-	]);
+	}, [disabled, handleSubmit, isSubmitting, onSubmit, onSubmitShortcut, submitShortcutDisabled]);
 
 	const requestRecordingToggle = useCallback(() => {
 		if (disabled) {
@@ -689,17 +639,13 @@ export const InputContextControls = ({
 		setRecordingShortcutRequest((request) => request + 1);
 	}, [disabled, openContextPanel]);
 
-	const {
-		handleRootDragEnter,
-		handleRootDragLeave,
-		handleRootDragOver,
-		handleRootDrop,
-	} = useInputContextFileDrop({
-		controller,
-		disabled,
-		openContextPanel,
-		setDragDepth,
-	});
+	const { handleRootDragEnter, handleRootDragLeave, handleRootDragOver, handleRootDrop } =
+		useInputContextFileDrop({
+			controller,
+			disabled,
+			openContextPanel,
+			setDragDepth,
+		});
 	const handlePaste = useInputContextClipboardPaste({
 		controller,
 		disabled: isPanelDisabled,

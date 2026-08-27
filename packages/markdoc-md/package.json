@@ -2,23 +2,34 @@
 	"name": "markdoc-md",
 	"version": "0.1.0",
 	"description": "Typed Markdoc schemas, validation, React rendering, dynamic inputs, FHIR sources, scores, and citations for medical documentation.",
-	"keywords": ["markdoc-md", "markdown", "react", "fhir", "citations", "typescript"],
-	"license": "Apache-2.0",
+	"keywords": [
+		"citations",
+		"fhir",
+		"markdoc-md",
+		"markdown",
+		"react",
+		"typescript"
+	],
 	"homepage": "https://github.com/ekpah/mdscribe/tree/main/packages/markdoc-md#readme",
+	"bugs": {
+		"url": "https://github.com/ekpah/mdscribe/issues"
+	},
+	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ekpah/mdscribe.git",
 		"directory": "packages/markdoc-md"
 	},
-	"bugs": {
-		"url": "https://github.com/ekpah/mdscribe/issues"
-	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
 	"type": "module",
 	"sideEffects": true,
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
-	"files": ["dist", "README.md", "LICENSE"],
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
@@ -50,6 +61,9 @@
 		},
 		"./package.json": "./package.json"
 	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"scripts": {
 		"build": "bun scripts/build.mjs",
 		"check": "bun run build && bun run test && bun run typecheck",
@@ -58,17 +72,9 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@markdoc/markdoc": "^0.5.7",
 		"fhirpath": "^5.1.0",
-		"fparser": "^4.2.0",
-		"@markdoc/markdoc": "^0.5.7"
-	},
-	"peerDependencies": {
-		"react": ">=18.2.0 <20.0.0"
-	},
-	"peerDependenciesMeta": {
-		"react": {
-			"optional": true
-		}
+		"fparser": "^4.2.0"
 	},
 	"devDependencies": {
 		"@types/bun": "catalog:",
@@ -78,10 +84,15 @@
 		"react-dom": "catalog:",
 		"typescript": "catalog:"
 	},
+	"peerDependencies": {
+		"react": ">=18.2.0 <20.0.0"
+	},
+	"peerDependenciesMeta": {
+		"react": {
+			"optional": true
+		}
+	},
 	"engines": {
 		"node": ">=20"
-	},
-	"publishConfig": {
-		"access": "public"
 	}
 }

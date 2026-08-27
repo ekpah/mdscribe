@@ -9,10 +9,7 @@ export const DASHBOARD_AI_FUNCTION_KEYS = [
 
 export type DashboardAiFunctionKey = (typeof DASHBOARD_AI_FUNCTION_KEYS)[number];
 
-const DASHBOARD_AI_FUNCTION_USAGE_ENDPOINTS: Record<
-	DashboardAiFunctionKey,
-	readonly string[]
-> = {
+const DASHBOARD_AI_FUNCTION_USAGE_ENDPOINTS: Record<DashboardAiFunctionKey, readonly string[]> = {
 	diagnoseblock: ["diagnosis", "custom:builtin-diagnoseblock"],
 	discharge: ["discharge", "custom:builtin-discharge"],
 	er: ["anamnese", "custom:builtin-er"],

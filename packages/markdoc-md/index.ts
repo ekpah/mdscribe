@@ -4,6 +4,7 @@ export {
 } from "./parse/parse-markdoc-to-inputs";
 export type {
 	BaseInputTag,
+	CalcInputTagType,
 	CaseInputTagType,
 	InfoInputTagType,
 	InputTagType,

@@ -195,37 +195,45 @@ test.describe("Landing Page Markdoc demos", () => {
 		await scoreSection.scrollIntoViewIfNeeded();
 
 		const scoreOutput = scoreSection.locator("[data-score-output]");
-		await expect(scoreOutput).toContainText("5 Punkte");
+		await expect(scoreOutput).toContainText("0 Punkte");
 		await expect(scoreSection.locator("[data-score-input] svg.lucide-bot")).toHaveCount(0);
 		await expect(scoreSection.locator("[data-score-input]").getByRole("checkbox")).toHaveCount(5);
-		await expect(scoreSection.getByRole("button", { exact: true, name: "≥ 75" })).toHaveAttribute(
-			"aria-pressed",
-			"true",
-		);
-		await expect(
-			scoreSection.getByRole("button", { exact: true, name: "Weiblich" }),
-		).toHaveAttribute("aria-pressed", "true");
+		await expect(scoreSection.getByText("CHA₂DS₂-VASc-Score", { exact: true })).toBeVisible();
+		await expect(scoreSection.getByText("Berechnet", { exact: true })).toBeVisible();
+		await expect(scoreSection.getByText("Alter", { exact: true })).toBeVisible();
+		await expect(scoreSection.getByText("Geschlecht", { exact: true })).toBeVisible();
 		await expect(scoreSection.getByText("Alter75", { exact: true })).toHaveCount(0);
 		await expect(scoreSection.getByText("Alter65", { exact: true })).toHaveCount(0);
-		await expect(scoreSection.locator("[data-score-input]").getByRole("spinbutton")).toHaveCount(0);
+		const scoreInput = scoreSection.locator("[data-score-input]").getByRole("spinbutton");
+		await expect(scoreInput).toHaveCount(1);
+		await scoreInput.fill("");
+		await expect(scoreInput).toHaveValue("");
+		await scoreInput.fill("12");
+		await expect(scoreOutput).toContainText("0 Punkte");
+		await expect(
+			scoreSection.getByRole("button", { name: "Berechneten Score wiederherstellen" }),
+		).toHaveCount(0);
+		await scoreInput.press("Tab");
+		await expect(scoreOutput).toContainText("12 Punkte");
+		await scoreSection.getByRole("button", { name: "Berechneten Score wiederherstellen" }).click();
+		await expect(scoreOutput).toContainText("0 Punkte");
+		await scoreInput.fill("0");
+		await scoreInput.press("Tab");
+		await expect(
+			scoreSection.getByRole("button", { name: "Berechneten Score wiederherstellen" }),
+		).toHaveCount(0);
 
-		await scoreSection.getByRole("button", { exact: true, name: "65–74" }).click();
-		await expect(scoreOutput).toContainText("4 Punkte");
-		await scoreSection.getByRole("button", { exact: true, name: "< 65" }).click();
-		await expect(scoreOutput).toContainText("3 Punkte");
 		await scoreSection.getByRole("button", { exact: true, name: "≥ 75" }).click();
-		await expect(scoreOutput).toContainText("5 Punkte");
-		await scoreSection.getByRole("button", { exact: true, name: "Männlich" }).click();
-		await expect(scoreOutput).toContainText("4 Punkte");
+		await expect(scoreOutput).toContainText("2 Punkte");
 		await scoreSection.getByRole("button", { exact: true, name: "Weiblich" }).click();
-		await expect(scoreOutput).toContainText("5 Punkte");
-		await scoreSection.getByText("Schlaganfall", { exact: true }).click();
+		await expect(scoreOutput).toContainText("3 Punkte");
+		await scoreSection.getByRole("checkbox", { name: "Schlaganfall" }).check();
 		await expect(scoreSection.getByRole("checkbox", { name: "Schlaganfall" })).toBeChecked();
-		await expect(scoreOutput).toContainText("7 Punkte");
-		await scoreSection.getByText("Schlaganfall", { exact: true }).click();
-		await expect(scoreSection.getByRole("checkbox", { name: "Schlaganfall" })).not.toBeChecked();
 		await expect(scoreOutput).toContainText("5 Punkte");
-		await scoreSection.getByRole("checkbox", { name: "Diabetes" }).uncheck();
+		await scoreSection.getByRole("checkbox", { name: "Schlaganfall" }).uncheck();
+		await expect(scoreSection.getByRole("checkbox", { name: "Schlaganfall" })).not.toBeChecked();
+		await expect(scoreOutput).toContainText("3 Punkte");
+		await scoreSection.getByRole("checkbox", { name: "Diabetes" }).check();
 		await expect(scoreOutput).toContainText("4 Punkte");
 	});
 

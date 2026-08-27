@@ -21,7 +21,6 @@ Der Patient konnte in stabilem Allgemeinzustand und beschwerdefrei entlassen wer
 - Pulmonalvenenisolation am 12.03.2026, 7:15 Uhr, nüchtern erscheinen
 - Präinterventionelle Aufklärung und TEE am 11.03.2026, 8:00 Uhr, nüchtern, mit Begleitperson, Medikamentenplan, Krankenhauseinweisung und Versichertenkarte mitbringen`;
 
-
 export const ICU_TRANSFER_FALLBACK_TEMPLATE = {
 	content: ICU_TRANSFER_OUTPUT_STRUCTURE,
 	examples: [ICU_TRANSFER_OUTPUT_EXAMPLE],

@@ -20,9 +20,7 @@ const getLocalDate = (now: Date, timeZone: string): Date => {
 	}).formatToParts(now);
 	const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
 
-	return new Date(
-		Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)),
-	);
+	return new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)));
 };
 
 const toBucket = (date: Date): string =>
@@ -46,7 +44,8 @@ export const getCurrentWeekUsageProjection = (
 		return null;
 	}
 
-	const elapsedDays = Math.floor((localDate.getTime() - currentWeekStart.getTime()) / DAY_IN_MS) + 1;
+	const elapsedDays =
+		Math.floor((localDate.getTime() - currentWeekStart.getTime()) / DAY_IN_MS) + 1;
 	return {
 		bucket,
 		requests: Math.round((currentWeek.requests / elapsedDays) * WEEK_LENGTH_DAYS),

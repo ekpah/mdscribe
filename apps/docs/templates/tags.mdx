@@ -12,7 +12,7 @@ Tags sind spezielle Markierungen in Ihren Templates, die dynamische und interakt
 - Automatische Berechnungen durchführen
 - Strukturierte, wiederverwendbare Templates erstellen
 
-MDScribe bietet drei Haupttypen von Tags: **Info**, **Switch/Case**, und **Score**.
+MDScribe bietet drei Haupttypen von Tags: **Info**, **Switch/Case** und **Calc**.
 
 ## Verfügbare Tags
 
@@ -28,11 +28,11 @@ Switch/Case-Tags ermöglichen bedingte Inhalte basierend auf verschiedenen Optio
 
 [→ Zur vollständigen Switch/Case-Tags Dokumentation](/templates/switch-case-tags)
 
-### 🟠 Score-Tag
+### 🟠 Calc-Tag
 
-Das Score-Tag führt automatische Berechnungen basierend auf mathematischen Formeln durch. Es referenziert andere Variablen und berechnet Werte in Echtzeit.
+Das Calc-Tag führt automatische Berechnungen basierend auf mathematischen Formeln durch. Es referenziert andere Variablen und berechnet Werte in Echtzeit.
 
-[→ Zur vollständigen Score-Tag Dokumentation](/templates/score-tag)
+[→ Zur vollständigen Calc-Tag Dokumentation](/templates/calc-tag)
 
 ## Tags kombinieren
 
@@ -44,7 +44,7 @@ Ein Info- oder Switch-Tag kann an mehreren Stellen eines Templates denselben Nam
 
 - Info-Tags benötigen denselben Typ. Unterschiedliche, ausdrücklich angegebene Einheiten oder Beschreibungen sind nicht erlaubt.
 - Switch-Tags benötigen denselben Typ. Fälle aus mehreren Vorkommen werden zu einer gemeinsamen Auswahlliste zusammengeführt.
-- Score-Tags mit demselben Namen benötigen dieselbe Formel.
+- Calc-Tags mit demselben Namen benötigen dieselbe Formel.
 - `renderUnit` gilt nur für das jeweilige Vorkommen und darf unterschiedlich sein.
 - Ein Name kann nicht gleichzeitig für ein Info- und ein Switch-Tag verwendet werden.
 
@@ -62,7 +62,7 @@ Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichze
 {% info "Gewicht" type="date" /%}
 ```
 
-### Beispiel: Conditional Score
+### Beispiel: Bedingte Berechnung
 
 ```markdown
 ## Nierenfunktion
@@ -76,14 +76,17 @@ Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichze
 {% /switch %}
 ```
 
-### Beispiel: Score mit Info-Tags
+### Beispiel: Calc mit Info-Tags
 
 ```markdown
 **Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
 
 **Größe**: {% info "Groesse" type="number" unit="cm" renderUnit=true /%}
 
-**BMI**: {% score formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true /%}
+**BMI**: {% calc formula="[Gewicht] / ([Groesse] / 100) ^ 2" unit="kg/m²" renderUnit=true %}
+{% info "Gewicht" type="number" unit="kg" /%}
+{% info "Groesse" type="number" unit="cm" /%}
+{% /calc %}
 
 {% switch "BMI_Kategorie" %}
 {% case "Untergewicht" %}Der Patient ist untergewichtig.{% /case %}
@@ -95,7 +98,7 @@ Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichze
 
 ## Häufige Fehler und Lösungen
 
-### Fehler: Score zeigt "..." an
+### Fehler: Calc zeigt "..." an
 
 **Problem**: Die referenzierten Variablen existieren nicht oder sind nicht ausgefüllt.
 
@@ -129,6 +132,6 @@ Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichze
 | --------------- | --------- | ---------------- | -------------------------------------------------------------- |
 | **Info**        | 🔵 Blau   | Variable Daten   | `{% info "Name" /%}`                                           |
 | **Switch/Case** | 🟢 Grün   | Bedingte Inhalte | `{% switch "Var" %}{% case "A" %}Text{% /case %}{% /switch %}` |
-| **Score**       | 🟠 Orange | Berechnungen     | `{% score formula="[A] + [B]" /%}`                             |
+| **Calc**        | 🟠 Orange | Berechnungen     | `{% calc formula="[A]" %}{% info "A" type="number" /%}{% /calc %}` |
 
 Mit diesen Tags können Sie flexible, wiederverwendbare Templates erstellen, die sich automatisch an verschiedene Situationen anpassen!

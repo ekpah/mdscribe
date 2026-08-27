@@ -1,5 +1,5 @@
-import type { ModelConfig, PromptMessage } from "@/orpc/scribe/types";
 import type { DocumentDefinition, PdfFormField } from "@/app/documents/_lib";
+import type { ModelConfig, PromptMessage } from "@/orpc/scribe/types";
 
 /**
  * Field mapping type for PDF form fields

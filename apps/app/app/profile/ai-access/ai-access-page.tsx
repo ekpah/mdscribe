@@ -61,18 +61,12 @@ const MODEL_ROLE_LABELS: Record<AssignedModelRole, string> = {
 };
 
 // oxlint-disable-next-line complexity
-const ConnectionCredentialCard = ({
-	connection,
-}: {
-	connection: ConnectionSummary;
-}) => {
+const ConnectionCredentialCard = ({ connection }: { connection: ConnectionSummary }) => {
 	const queryClient = useQueryClient();
 	const statusKey = orpc.user.aiProviders.status.queryOptions().queryKey;
 	const [apiKey, setApiKey] = useState("");
 	const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
-	const [name, setName] = useState(
-		connection.credential?.name ?? connection.connectionName,
-	);
+	const [name, setName] = useState(connection.credential?.name ?? connection.connectionName);
 
 	const invalidateStatus = useCallback(
 		() => queryClient.invalidateQueries({ queryKey: statusKey }),
@@ -87,9 +81,7 @@ const ConnectionCredentialCard = ({
 				providerId: connection.connectionId,
 			}),
 		onError: (error) =>
-			toast.error(
-				error instanceof Error ? error.message : USER_MESSAGES.unknownError,
-			),
+			toast.error(error instanceof Error ? error.message : USER_MESSAGES.unknownError),
 		onSuccess: async () => {
 			setApiKey("");
 			await invalidateStatus();
@@ -104,9 +96,7 @@ const ConnectionCredentialCard = ({
 				providerId: connection.connectionId,
 			}),
 		onError: (error) =>
-			toast.error(
-				error instanceof Error ? error.message : USER_MESSAGES.unknownError,
-			),
+			toast.error(error instanceof Error ? error.message : USER_MESSAGES.unknownError),
 		onSuccess: async (result) => {
 			await invalidateStatus();
 			toast.success(
@@ -124,9 +114,7 @@ const ConnectionCredentialCard = ({
 				providerId: connection.connectionId,
 			}),
 		onError: (error) =>
-			toast.error(
-				error instanceof Error ? error.message : USER_MESSAGES.unknownError,
-			),
+			toast.error(error instanceof Error ? error.message : USER_MESSAGES.unknownError),
 		onSuccess: async () => {
 			await invalidateStatus();
 			toast.success(USER_MESSAGES.byok.renamed);
@@ -140,9 +128,7 @@ const ConnectionCredentialCard = ({
 			}),
 		onError: (error) => {
 			setIsDeleteConfirming(false);
-			toast.error(
-				error instanceof Error ? error.message : USER_MESSAGES.unknownError,
-			);
+			toast.error(error instanceof Error ? error.message : USER_MESSAGES.unknownError);
 		},
 		onSuccess: async () => {
 			setIsDeleteConfirming(false);
@@ -193,17 +179,14 @@ const ConnectionCredentialCard = ({
 							<Badge variant="outline">
 								{PROTOCOL_LABELS[connection.protocol] ?? connection.protocol}
 							</Badge>
-							{connection.credential?.hasApiKey &&
-								connection.credential.isVerified && (
-									<Badge className="border-solarized-green/40 bg-solarized-green/10 text-solarized-green">
-										<CircleCheck className="mr-1 h-3.5 w-3.5" />
-										{USER_MESSAGES.byok.verified}
-									</Badge>
-								)}
-							{!connection.available && (
-								<Badge variant="secondary">
-									{USER_MESSAGES.byok.connectionUnavailableStatus}
+							{connection.credential?.hasApiKey && connection.credential.isVerified && (
+								<Badge className="border-solarized-green/40 bg-solarized-green/10 text-solarized-green">
+									<CircleCheck className="mr-1 h-3.5 w-3.5" />
+									{USER_MESSAGES.byok.verified}
 								</Badge>
+							)}
+							{!connection.available && (
+								<Badge variant="secondary">{USER_MESSAGES.byok.connectionUnavailableStatus}</Badge>
 							)}
 						</div>
 						<CardDescription>
@@ -321,25 +304,14 @@ const ConnectionCredentialCard = ({
 
 				<div className="flex flex-wrap gap-2">
 					{connection.available && (
-						<Button
-							disabled={isPending || !apiKey.trim() || !name.trim()}
-							onClick={handleSave}
-						>
-							{saveMutation.isPending && (
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							)}
-							{connection.credential
-								? USER_MESSAGES.byok.replace
-								: USER_MESSAGES.byok.save}
+						<Button disabled={isPending || !apiKey.trim() || !name.trim()} onClick={handleSave}>
+							{saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							{connection.credential ? USER_MESSAGES.byok.replace : USER_MESSAGES.byok.save}
 						</Button>
 					)}
 					{connection.available && connection.credential && (
 						<Button
-							disabled={
-								isPending ||
-								!name.trim() ||
-								name.trim() === connection.credential.name
-							}
+							disabled={isPending || !name.trim() || name.trim() === connection.credential.name}
 							onClick={handleRename}
 							variant="outline"
 						>
@@ -347,11 +319,7 @@ const ConnectionCredentialCard = ({
 						</Button>
 					)}
 					{!connection.available && connection.credential?.enabled && (
-						<Button
-							disabled={isPending}
-							onClick={handleDeactivate}
-							variant="outline"
-						>
+						<Button disabled={isPending} onClick={handleDeactivate} variant="outline">
 							{USER_MESSAGES.byok.deactivate}
 						</Button>
 					)}
@@ -361,17 +329,11 @@ const ConnectionCredentialCard = ({
 							onClick={handleDelete}
 							variant={isDeleteConfirming ? "destructive" : "outline"}
 						>
-							{isDeleteConfirming
-								? USER_MESSAGES.byok.deleteConfirm
-								: USER_MESSAGES.byok.delete}
+							{isDeleteConfirming ? USER_MESSAGES.byok.deleteConfirm : USER_MESSAGES.byok.delete}
 						</Button>
 					)}
 					{isDeleteConfirming && (
-						<Button
-							disabled={isPending}
-							onClick={handleCancelDelete}
-							variant="ghost"
-						>
+						<Button disabled={isPending} onClick={handleCancelDelete} variant="ghost">
 							{USER_MESSAGES.byok.cancel}
 						</Button>
 					)}
@@ -382,34 +344,29 @@ const ConnectionCredentialCard = ({
 };
 
 export const AiAccessPage = () => {
-	const { data, error, isLoading } = useQuery(
-		orpc.user.aiProviders.status.queryOptions(),
-	);
+	const { data, error, isLoading } = useQuery(orpc.user.aiProviders.status.queryOptions());
 	const content = (() => {
 		if (isLoading) {
 			return (
-			<div className="flex justify-center py-16">
-				<Loader2 className="h-6 w-6 animate-spin text-solarized-base01" />
-			</div>
+				<div className="flex justify-center py-16">
+					<Loader2 className="h-6 w-6 animate-spin text-solarized-base01" />
+				</div>
 			);
 		}
 		if (error) {
 			return (
-			<Card className="border-solarized-red/30">
-				<CardContent className="p-6 text-solarized-red">
-					{error instanceof Error ? error.message : USER_MESSAGES.unknownError}
-				</CardContent>
-			</Card>
+				<Card className="border-solarized-red/30">
+					<CardContent className="p-6 text-solarized-red">
+						{error instanceof Error ? error.message : USER_MESSAGES.unknownError}
+					</CardContent>
+				</Card>
 			);
 		}
 		if (data?.connections.length) {
 			return (
 				<div className="space-y-4">
 					{data.connections.map((connection) => (
-						<ConnectionCredentialCard
-							connection={connection}
-							key={connection.connectionId}
-						/>
+						<ConnectionCredentialCard connection={connection} key={connection.connectionId} />
 					))}
 				</div>
 			);
@@ -430,12 +387,8 @@ export const AiAccessPage = () => {
 					<KeyRound className="h-5 w-5 text-solarized-blue" />
 				</div>
 				<div>
-					<h1 className="font-bold text-2xl text-solarized-base00">
-						{USER_MESSAGES.byok.heading}
-					</h1>
-					<p className="mt-1 text-solarized-base01 text-sm">
-						{USER_MESSAGES.byok.intro}
-					</p>
+					<h1 className="font-bold text-2xl text-solarized-base00">{USER_MESSAGES.byok.heading}</h1>
+					<p className="mt-1 text-solarized-base01 text-sm">{USER_MESSAGES.byok.intro}</p>
 				</div>
 			</div>
 

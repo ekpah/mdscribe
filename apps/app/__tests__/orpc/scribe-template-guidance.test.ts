@@ -18,20 +18,14 @@ describe("Scribe template helpers", () => {
 		expect(fallbackTemplate?.title).toBe("Standardstruktur Entlassbrief");
 		expect(fallbackContextValue).toContain("<template_context>");
 		expect(fallbackContextValue).toContain("<usage>");
-		expect(fallbackContextValue).toContain(
-			"primäre Zielstruktur und stilistische Orientierung",
-		);
+		expect(fallbackContextValue).toContain("primäre Zielstruktur und stilistische Orientierung");
 		expect(fallbackContextValue).toContain("<markdoc_tag_guidance>");
-		expect(fallbackContextValue).toContain(
-			"Markdoc-Tags in der Vorlage sind nur Platzhalterlogik",
-		);
+		expect(fallbackContextValue).toContain("Markdoc-Tags in der Vorlage sind nur Platzhalterlogik");
 		expect(fallbackContextValue).toContain("kein {% ... %}");
 		expect(fallbackContextValue.indexOf("<usage>")).toBeLessThan(
 			fallbackContextValue.indexOf("<template>"),
 		);
-		expect(fallbackContextValue).toContain(
-			"<title>\nStandardstruktur Entlassbrief\n</title>",
-		);
+		expect(fallbackContextValue).toContain("<title>\nStandardstruktur Entlassbrief\n</title>");
 	});
 
 	test("resolves outpatient and befunde fallback templates", () => {
@@ -107,9 +101,7 @@ describe("Scribe template helpers", () => {
 		const parsed = parseSelectedTemplateReference(reference);
 		expect(parsed.examples).toEqual(examples);
 
-		const templateContext = buildTemplateFallbackContext(
-			resolveSelectedTemplateContext(reference),
-		);
+		const templateContext = buildTemplateFallbackContext(resolveSelectedTemplateContext(reference));
 		const exampleCount = (templateContext ?? "").split("<example>").length - 1;
 		expect(exampleCount).toBe(2);
 	});

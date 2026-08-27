@@ -755,9 +755,7 @@ export const DoctorsNoteAgentPanel = ({
 												<MessageContent>
 													{text.length > 0 && (
 														<Bubble align="end" variant="default">
-															<BubbleContent className="whitespace-pre-wrap">
-																{text}
-															</BubbleContent>
+															<BubbleContent className="whitespace-pre-wrap">{text}</BubbleContent>
 														</Bubble>
 													)}
 												</MessageContent>

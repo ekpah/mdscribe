@@ -90,7 +90,9 @@ export const TemplateSelector = <TTemplate extends TemplateSelectorTemplate>({
 		<SearchableSelect
 			className={className}
 			disabled={disabled}
-			emptyMessage={templates.length === 0 ? emptyMessage : USER_MESSAGES.searchableSelect.templateEmpty}
+			emptyMessage={
+				templates.length === 0 ? emptyMessage : USER_MESSAGES.searchableSelect.templateEmpty
+			}
 			id={id}
 			isLoading={isLoading}
 			loadingMessage={loadingMessage}

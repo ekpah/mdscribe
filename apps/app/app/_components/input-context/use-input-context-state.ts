@@ -6,17 +6,19 @@ import {
 } from "@repo/design-system/components/inputs/audio-submission";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+
 import {
 	FILL_INPUT_PAYLOAD_LIMITS,
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
 } from "@/lib/input-fill-limits";
+
+import { addAudioFilesToValue, addContextFilesToValue } from "./files";
 import {
 	getTextContextCharacterCount,
 	getTextContextFieldCount,
 	toSubmittedTextContext,
 } from "./inputs/text/text-input";
-import { addAudioFilesToValue, addContextFilesToValue } from "./files";
 import type {
 	AudioRecording,
 	InputContextAudioFile,
@@ -38,9 +40,7 @@ const fileToContextFile = async (file: File): Promise<InputContextFile> => ({
 	size: file.size,
 });
 
-const getAudioSubmissionPayloadBytes = (
-	audioFile: InputContextAudioFile,
-): number =>
+const getAudioSubmissionPayloadBytes = (audioFile: InputContextAudioFile): number =>
 	getBase64DecodedByteLength(audioFile.data) +
 	getBase64DecodedByteLength(audioFile.wavFallback?.data);
 
@@ -49,13 +49,8 @@ export const useInputContextState = ({
 }: UseInputContextStateOptions = {}): InputContextController => {
 	const [audioRecordings, setAudioRecordings] = useState<AudioRecording[]>([]);
 	const [contextFiles, setContextFiles] = useState<UploadedContextFile[]>([]);
-	const [textContext, setTextContextState] = useState<InputContextTextContext>(
-		{},
-	);
-	const effectiveMaxRecordings = Math.min(
-		maxRecordings,
-		FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles,
-	);
+	const [textContext, setTextContextState] = useState<InputContextTextContext>({});
+	const effectiveMaxRecordings = Math.min(maxRecordings, FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles);
 
 	const textContextFieldCount = getTextContextFieldCount(textContext);
 	const hasTextContext = textContextFieldCount > 0;
@@ -102,61 +97,50 @@ export const useInputContextState = ({
 		[contextFiles],
 	);
 
-	const setTextContext = useCallback(
-		(nextTextContext: InputContextTextContext) => {
-			if (
-				getTextContextCharacterCount(nextTextContext) >
-				FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters
-			) {
-				toast.error(
-					`Textkontext ist zu lang. Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters.toLocaleString("de-DE")} Zeichen möglich.`,
-				);
-				return;
-			}
-
-			setTextContextState(nextTextContext);
-		},
-		[],
-	);
-
-	const prepareSubmission =
-		useCallback(async (): Promise<InputContextSubmission> => {
-			const audioFiles = await Promise.all(
-				audioRecordings.map((recording) =>
-					createAudioSubmissionFile(recording.blob),
-				),
+	const setTextContext = useCallback((nextTextContext: InputContextTextContext) => {
+		if (
+			getTextContextCharacterCount(nextTextContext) >
+			FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters
+		) {
+			toast.error(
+				`Textkontext ist zu lang. Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxTextContextCharacters.toLocaleString("de-DE")} Zeichen möglich.`,
 			);
-			let audioPayloadBytes = 0;
-			for (const [index, audioFile] of audioFiles.entries()) {
-				const recordingPayloadBytes = getAudioSubmissionPayloadBytes(audioFile);
-				audioPayloadBytes += recordingPayloadBytes;
-				if (
-					recordingPayloadBytes >
-					FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording
-				) {
-					throw new Error(
-						`Aufnahme ${index + 1} ist zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
-					);
-				}
-			}
-			if (
-				audioPayloadBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal
-			) {
+			return;
+		}
+
+		setTextContextState(nextTextContext);
+	}, []);
+
+	const prepareSubmission = useCallback(async (): Promise<InputContextSubmission> => {
+		const audioFiles = await Promise.all(
+			audioRecordings.map((recording) => createAudioSubmissionFile(recording.blob)),
+		);
+		let audioPayloadBytes = 0;
+		for (const [index, audioFile] of audioFiles.entries()) {
+			const recordingPayloadBytes = getAudioSubmissionPayloadBytes(audioFile);
+			audioPayloadBytes += recordingPayloadBytes;
+			if (recordingPayloadBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording) {
 				throw new Error(
-					`Audioaufnahmen sind zusammen zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)} möglich.`,
+					`Aufnahme ${index + 1} ist zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesPerRecording)} pro Aufnahme.`,
 				);
 			}
-
-			const submittedContextFiles = await Promise.all(
-				contextFiles.map(({ file }) => fileToContextFile(file)),
+		}
+		if (audioPayloadBytes > FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal) {
+			throw new Error(
+				`Audioaufnahmen sind zusammen zu groß. Maximal ${formatPayloadBytes(FILL_INPUT_PAYLOAD_LIMITS.maxAudioPayloadBytesTotal)} möglich.`,
 			);
+		}
 
-			return {
-				audioFiles,
-				contextFiles: submittedContextFiles,
-				textContext: toSubmittedTextContext(textContext),
-			};
-		}, [audioRecordings, contextFiles, textContext]);
+		const submittedContextFiles = await Promise.all(
+			contextFiles.map(({ file }) => fileToContextFile(file)),
+		);
+
+		return {
+			audioFiles,
+			contextFiles: submittedContextFiles,
+			textContext: toSubmittedTextContext(textContext),
+		};
+	}, [audioRecordings, contextFiles, textContext]);
 
 	return {
 		addAudioFiles,

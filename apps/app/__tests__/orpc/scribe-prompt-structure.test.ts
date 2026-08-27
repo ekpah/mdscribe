@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { composeScribeContext } from "@/orpc/scribe/context";
 import { composeDocumentTypePrompt } from "@/orpc/scribe/prompts/compose";
 
@@ -25,9 +26,7 @@ describe("Scribe Prompt Structure", () => {
 		expect(messages[0]?.role).toBe("system");
 		expect(userContent).toContain("<context>");
 		expect(userContent).toContain("<template_context>");
-		expect(userContent).toContain(
-			"primäre Zielstruktur und stilistische Orientierung",
-		);
+		expect(userContent).toContain("primäre Zielstruktur und stilistische Orientierung");
 		expect(userContent).toContain("Standardstruktur Intensiv-Verlegungsbrief");
 		expect(userContent).toContain("Das heutige Datum ist der 11.03.2026.");
 		expect(userContent).toContain("<patient_context>");
@@ -37,17 +36,16 @@ describe("Scribe Prompt Structure", () => {
 		expect(userContent.indexOf("<template_context>")).toBeLessThan(
 			userContent.indexOf("<patient_context>"),
 		);
-		expect(
-			userContent.indexOf("primäre Zielstruktur und stilistische Orientierung"),
-		).toBeLessThan(userContent.indexOf("<template>"));
+		expect(userContent.indexOf("primäre Zielstruktur und stilistische Orientierung")).toBeLessThan(
+			userContent.indexOf("<template>"),
+		);
 	});
 
 	test("icu transfer uses provided selected template and skips built-in fallback", () => {
 		const { contextPrompt, contextXml } = composeScribeContext({
 			formData: { notes: "Kurze Notiz" },
 			promptContextKey: "icu-transfer",
-			selectedTemplateReference:
-				"## Eigene Vorlage\n\nTitel: Eigene Vorlage\n\nEigener Stil",
+			selectedTemplateReference: "## Eigene Vorlage\n\nTitel: Eigene Vorlage\n\nEigener Stil",
 			sessionUser: null,
 			todaysDate: "11.03.2026",
 		});
@@ -57,9 +55,7 @@ describe("Scribe Prompt Structure", () => {
 		});
 
 		const userContent = getLastUserContent(messages);
-		expect(userContent).toContain(
-			"primäre Zielstruktur und stilistische Orientierung",
-		);
+		expect(userContent).toContain("primäre Zielstruktur und stilistische Orientierung");
 		expect(userContent).toContain("Eigene Vorlage");
 		expect(userContent).not.toContain("Standardstruktur Intensiv-Verlegungsbrief");
 	});

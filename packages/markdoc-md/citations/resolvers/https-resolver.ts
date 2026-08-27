@@ -1,8 +1,4 @@
-import type {
-	CitationReference,
-	CitationRequest,
-	CitationResolution,
-} from "./types";
+import type { CitationReference, CitationRequest, CitationResolution } from "./types";
 
 export const resolveHttpsCitation = (
 	request: CitationRequest,

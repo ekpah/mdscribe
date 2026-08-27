@@ -2,12 +2,12 @@ import type { Database } from "@repo/database";
 import type { JSONValue } from "ai";
 
 import type { Session } from "@/lib/auth-types";
+import { finishUsageObservation, startUsageObservation } from "@/lib/usage-tracing";
 import type { ResolvedDefaultModelSelection } from "@/orpc/scribe/providers";
+import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
 import type { PreparedAgentMedia } from "../lib/prepare-media";
 import type { ScribeAgentSection } from "../types";
-import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
-import { finishUsageObservation, startUsageObservation } from "@/lib/usage-tracing";
 
 /**
  * Everything a tool needs to act on the current letter and to run the standard
@@ -53,10 +53,7 @@ export interface AgentToolTraceEntry {
 	sectionId?: string;
 }
 
-const recordToolTrace = (
-	trace: AgentToolTraceEntry[],
-	entry: AgentToolTraceEntry,
-): void => {
+const recordToolTrace = (trace: AgentToolTraceEntry[], entry: AgentToolTraceEntry): void => {
 	trace.push({
 		...entry,
 		durationMs: Math.max(0, Math.round(entry.durationMs)),

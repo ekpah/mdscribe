@@ -17,7 +17,9 @@ export const startUsageTrace = async ({
 	const traceId = crypto.randomUUID();
 	const observationId = crypto.randomUUID();
 	const startedAt = new Date();
-	await db.insert(usageTrace).values({ id: traceId, metadata, name, startedAt, status: "running", userId });
+	await db
+		.insert(usageTrace)
+		.values({ id: traceId, metadata, name, startedAt, status: "running", userId });
 	await db.insert(usageObservation).values({
 		id: observationId,
 		name,
@@ -67,8 +69,19 @@ export const startUsageObservation = async ({
 	return observationId;
 };
 
-export const finishUsageTrace = async ({ db, status, traceId }: { db: Database; status: "failed" | "succeeded"; traceId: string }) => {
-	await db.update(usageTrace).set({ endedAt: new Date(), status }).where(eq(usageTrace.id, traceId));
+export const finishUsageTrace = async ({
+	db,
+	status,
+	traceId,
+}: {
+	db: Database;
+	status: "failed" | "succeeded";
+	traceId: string;
+}) => {
+	await db
+		.update(usageTrace)
+		.set({ endedAt: new Date(), status })
+		.where(eq(usageTrace.id, traceId));
 };
 
 export const finishUsageObservation = async ({

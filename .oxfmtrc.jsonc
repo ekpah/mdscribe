@@ -1,35 +1,35 @@
 // Ultracite oxfmt configuration
 {
-  "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "useTabs": true,
-  "sortImports": {
-    "ignoreCase": true,
-    "newlinesBetween": true,
-    "order": "asc"
-  },
-  "sortPackageJson": null,
-  "ignorePatterns": [
-    "**/node_modules/**",
-    "**/.next/**",
-    "**/.turbo/**",
-    "**/coverage/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/.source/**",
-    "**/*.md",
-    "**/*.mdx",
-    "**/packages/design-system/components/ui/**",
-    "**/packages/design-system/lib/**",
-    "**/packages/design-system/hooks/**",
-    "**/apps/docs/**/*.json",
-    "**/.react-email/**"
-  ],
-  "overrides": [
-    {
-      "files": ["apps/docs/**/*"],
-      "options": {
-        "useTabs": false
-      }
-    }
-  ]
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"sortImports": {
+		"ignoreCase": true,
+		"newlinesBetween": true,
+		"order": "asc",
+	},
+	"sortPackageJson": null,
+	"ignorePatterns": [
+		"**/node_modules/**",
+		"**/.next/**",
+		"**/.turbo/**",
+		"**/coverage/**",
+		"**/dist/**",
+		"**/build/**",
+		"**/.source/**",
+		"**/*.md",
+		"**/*.mdx",
+		"**/packages/design-system/components/ui/**",
+		"**/packages/design-system/lib/**",
+		"**/packages/design-system/hooks/**",
+		"**/apps/docs/**/*.json",
+		"**/.react-email/**",
+	],
+	"overrides": [
+		{
+			"files": ["apps/docs/**/*"],
+			"options": {
+				"useTabs": false,
+			},
+		},
+	],
 }

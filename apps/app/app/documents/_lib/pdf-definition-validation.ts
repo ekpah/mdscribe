@@ -1,11 +1,11 @@
+import { isBooleanDocumentInput } from "./document-definition";
+import type { PdfFormField } from "./parse-pdf-form-fields";
 import type {
 	DocumentBinding,
 	DocumentDefinition,
 	DocumentInput,
 	DocumentInputKind,
 } from "./types";
-import { isBooleanDocumentInput } from "./document-definition";
-import type { PdfFormField } from "./parse-pdf-form-fields";
 
 const toDocumentInputKind = (input: DocumentInput): DocumentInputKind => {
 	if (input.name === "Info") {
@@ -49,14 +49,10 @@ const isBooleanBindingCompatible = (
 	if (inputKind === "text" || (inputKind === "choice" && !binding.valueMap)) {
 		return false;
 	}
-	const checkedPdfValues = new Set(
-		(field.optionMappings ?? []).map((option) => option.pdfValue),
-	);
+	const checkedPdfValues = new Set((field.optionMappings ?? []).map((option) => option.pdfValue));
 	if (
 		checkedPdfValues.size > 0 &&
-		!mappedValues.every(
-			(value) => isUncheckedPdfValue(value) || checkedPdfValues.has(value),
-		)
+		!mappedValues.every((value) => isUncheckedPdfValue(value) || checkedPdfValues.has(value))
 	) {
 		return false;
 	}
@@ -152,7 +148,9 @@ export const validateDocumentDefinitionPreservesPdfFields = (
 ): void => {
 	const knownFieldNames = new Set(fields.map((field) => field.name));
 	const currentFieldNames = new Set(currentDefinition.bindings.map((binding) => binding.fieldName));
-	const proposedFieldNames = new Set(proposedDefinition.bindings.map((binding) => binding.fieldName));
+	const proposedFieldNames = new Set(
+		proposedDefinition.bindings.map((binding) => binding.fieldName),
+	);
 	const currentEnabledFieldNames = new Set(
 		currentDefinition.bindings
 			.filter((binding) => binding.isEnabled)

@@ -16,10 +16,7 @@ import {
 	extractContextFileText,
 	formatContextFileMetadataForPrompt,
 } from "@/orpc/scribe/handlers/context-file-input";
-import type {
-	AgentGenerationStrategy,
-	MediaPlan,
-} from "@/orpc/scribe/providers";
+import type { AgentGenerationStrategy, MediaPlan } from "@/orpc/scribe/providers";
 import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
 
 /**
@@ -118,8 +115,7 @@ const validateAgentMediaPayload = (
 	let audioTotalBytes = 0;
 	for (const [index, audioFile] of audioFiles.entries()) {
 		const payloadBytes = getBase64DecodedByteLength(audioFile.data);
-		const totalBytes =
-			payloadBytes + getBase64DecodedByteLength(audioFile.wavFallback?.data);
+		const totalBytes = payloadBytes + getBase64DecodedByteLength(audioFile.wavFallback?.data);
 		audioTotalBytes += totalBytes;
 		if (payloadBytes === 0) {
 			throwLimit(`Audioaufnahme ${index + 1} enthält keine Audiodaten.`);
@@ -194,10 +190,7 @@ export const prepareAgentMedia = async ({
 		return EMPTY_PREPARED_MEDIA;
 	}
 
-	const { audioSummaries, fileSummaries } = validateAgentMediaPayload(
-		audioFiles,
-		contextFiles,
-	);
+	const { audioSummaries, fileSummaries } = validateAgentMediaPayload(audioFiles, contextFiles);
 
 	const nativeContentParts: PreparedFilePart[] = [];
 	const injectedTextBlocks: string[] = [];

@@ -1,0 +1,38 @@
+{
+	"name": "markdoc-md-editor",
+	"version": "0.0.0",
+	"private": true,
+	"license": "Apache-2.0",
+	"type": "module",
+	"exports": {
+		"./editor-helpers/get-primary-from-selection": "./editor-helpers/get-primary-from-selection.ts",
+		"./editor-helpers/select-inserted-inline-tag": "./editor-helpers/select-inserted-inline-tag.ts",
+		"./tag-inspector/tag-inspector": "./tag-inspector/tag-inspector.tsx",
+		"./tag-inspector/tag-inspector-sheet": "./tag-inspector/tag-inspector-sheet.tsx",
+		"./tag-inspector/use-selected-markdoc-tag": "./tag-inspector/use-selected-markdoc-tag.ts",
+		"./tip-tap": "./tip-tap.tsx",
+		"./tiptap-extension": "./tiptap-extension/index.ts",
+		"./tiptap-extension/editorNodes/scoreTag/score-tag": "./tiptap-extension/editorNodes/scoreTag/score-tag.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@repo/design-system": "workspace:*",
+		"@tiptap/core": "^3.22.4",
+		"@tiptap/markdown": "^3.22.4",
+		"@tiptap/pm": "^3.22.4",
+		"@tiptap/react": "^3.22.4",
+		"@tiptap/starter-kit": "^3.22.4",
+		"fparser": "^4.2.0",
+		"lucide-react": "catalog:",
+		"markdoc-md": "workspace:*",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	},
+	"devDependencies": {
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"typescript": "catalog:"
+	}
+}

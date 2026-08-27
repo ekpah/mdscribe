@@ -247,14 +247,18 @@ export const usageTrace = pgTable(
 	"UsageTrace",
 	{
 		endedAt: timestamp("endedAt", { mode: "date", precision: 3, withTimezone: true }),
-		id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
 		metadata: jsonb("metadata"),
 		name: text("name").notNull(),
 		startedAt: timestamp("startedAt", { mode: "date", precision: 3, withTimezone: true })
 			.notNull()
 			.defaultNow(),
 		status: text("status").notNull(),
-		userId: text("userId").notNull().references(() => user.id),
+		userId: text("userId")
+			.notNull()
+			.references(() => user.id),
 	},
 	(table) => [index("UsageTrace_userId_startedAt_idx").on(table.userId, table.startedAt)],
 );
@@ -263,7 +267,9 @@ export const usageObservation = pgTable(
 	"UsageObservation",
 	{
 		endedAt: timestamp("endedAt", { mode: "date", precision: 3, withTimezone: true }),
-		id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
 		inputData: jsonb("inputData"),
 		metadata: jsonb("metadata"),
 		name: text("name").notNull(),
@@ -274,7 +280,9 @@ export const usageObservation = pgTable(
 			.notNull()
 			.defaultNow(),
 		status: text("status").notNull(),
-		traceId: text("traceId").notNull().references(() => usageTrace.id, { onDelete: "cascade" }),
+		traceId: text("traceId")
+			.notNull()
+			.references(() => usageTrace.id, { onDelete: "cascade" }),
 		type: text("type").notNull(),
 		usageEventId: text("usageEventId"),
 	},
@@ -406,10 +414,7 @@ export const userAiProvider = pgTable(
 		}).notNull(),
 	},
 	(table) => [
-		uniqueIndex("UserAiProvider_userId_providerId_key").on(
-			table.userId,
-			table.providerId,
-		),
+		uniqueIndex("UserAiProvider_userId_providerId_key").on(table.userId, table.providerId),
 		index("UserAiProvider_userId_idx").on(table.userId),
 		index("UserAiProvider_providerId_idx").on(table.providerId),
 	],
@@ -439,9 +444,7 @@ export const aiDefaults = pgTable("AiDefaults", {
 	}),
 	defaultAgentReasoningEffort: text("defaultAgentReasoningEffort").notNull().default("none"),
 	defaultAgentSupportsAudio: boolean("defaultAgentSupportsAudio").notNull().default(false),
-	defaultAgentSupportsDocuments: boolean("defaultAgentSupportsDocuments")
-		.notNull()
-		.default(false),
+	defaultAgentSupportsDocuments: boolean("defaultAgentSupportsDocuments").notNull().default(false),
 	defaultAgentTemperature: real("defaultAgentTemperature"),
 	defaultFileImageMode: text("defaultFileImageMode").notNull().default("multimodal"),
 	defaultFileImageModelId: text("defaultFileImageModelId").references(() => aiModel.id, {
@@ -459,9 +462,7 @@ export const aiDefaults = pgTable("AiDefaults", {
 		.notNull()
 		.default("none"),
 	defaultSpeechToTextTemperature: real("defaultSpeechToTextTemperature"),
-	defaultStandardSupportsAgent: boolean("defaultStandardSupportsAgent")
-		.notNull()
-		.default(false),
+	defaultStandardSupportsAgent: boolean("defaultStandardSupportsAgent").notNull().default(false),
 	defaultStandardSupportsAudio: boolean("defaultStandardSupportsAudio").notNull().default(false),
 	defaultStandardSupportsDocuments: boolean("defaultStandardSupportsDocuments")
 		.notNull()
@@ -697,12 +698,9 @@ export const aiScribeFormConfigRelations = relations(aiScribeFormConfig, ({ one 
 	}),
 }));
 
-export const aiScribeWorkspaceRelations = relations(
-	aiScribeWorkspace,
-	({ one }) => ({
-		author: one(user, {
-			fields: [aiScribeWorkspace.authorId],
-			references: [user.id],
-		}),
+export const aiScribeWorkspaceRelations = relations(aiScribeWorkspace, ({ one }) => ({
+	author: one(user, {
+		fields: [aiScribeWorkspace.authorId],
+		references: [user.id],
 	}),
-);
+}));

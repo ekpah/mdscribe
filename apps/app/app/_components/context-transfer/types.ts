@@ -22,4 +22,3 @@ export interface ContextTransferPayload {
 	textContext: InputContextTextContext;
 	version: 1;
 }
-

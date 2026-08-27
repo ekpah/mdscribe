@@ -65,9 +65,7 @@ const locateQuoteWithLiteParse = async (
 			typeof payload.message === "string"
 				? payload.message
 				: "The quote could not be located in the document.";
-		throw new Error(
-			message,
-		);
+		throw new Error(message);
 	}
 	return payload;
 };
@@ -103,8 +101,7 @@ export const resolveFileCitation = async (
 				: await locateQuoteWithLiteParse(
 						file,
 						quote,
-						context.documentResolverEndpoint ??
-							DEFAULT_DOCUMENT_RESOLVER_ENDPOINT,
+						context.documentResolverEndpoint ?? DEFAULT_DOCUMENT_RESOLVER_ENDPOINT,
 						context.signal,
 					)
 			: null;

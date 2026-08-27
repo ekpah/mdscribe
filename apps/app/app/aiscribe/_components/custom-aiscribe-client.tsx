@@ -1,9 +1,10 @@
 "use client";
 
-import { buildBuiltInAiscribeTemplateConfig } from '@/app/aiscribe/_lib/built-in-form-config';
-import type { BuiltInAiscribeTemplateKey } from '@/app/aiscribe/_lib/built-in-form-config';
-import { buildCustomAiscribeTemplateConfig } from '@/app/aiscribe/_lib/custom-form-config';
-import type { PublicAiTextForm } from '@/app/aiscribe/_lib/custom-form-config';
+import { buildBuiltInAiscribeTemplateConfig } from "@/app/aiscribe/_lib/built-in-form-config";
+import type { BuiltInAiscribeTemplateKey } from "@/app/aiscribe/_lib/built-in-form-config";
+import { buildCustomAiscribeTemplateConfig } from "@/app/aiscribe/_lib/custom-form-config";
+import type { PublicAiTextForm } from "@/app/aiscribe/_lib/custom-form-config";
+
 import { AiscribeTemplate } from "./aiscribe-template";
 
 type CustomAiscribeClientProps =

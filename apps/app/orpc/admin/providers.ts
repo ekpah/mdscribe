@@ -1,12 +1,5 @@
 import { ORPCError, type } from "@orpc/server";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	eq,
-	inArray,
-	userAiProvider,
-} from "@repo/database";
+import { aiDefaults, aiModel, aiProvider, eq, inArray, userAiProvider } from "@repo/database";
 import type { Database } from "@repo/database";
 import { z } from "zod";
 
@@ -432,10 +425,7 @@ const listProvidersHandler = admin.handler(async ({ context }) => {
 			})
 			.from(userAiProvider),
 	]);
-	const credentialCounts = new Map<
-		string,
-		{ active: number; stored: number }
-	>();
+	const credentialCounts = new Map<string, { active: number; stored: number }>();
 	for (const credential of credentialStates) {
 		const counts = credentialCounts.get(credential.providerId) ?? {
 			active: 0,
@@ -462,15 +452,11 @@ const listProvidersHandler = admin.handler(async ({ context }) => {
 			},
 			hasApiKey: !!provider.apiKey,
 			models: provider.models.map((model) => {
-				const supportedParameters = normalizeSupportedParameters(
-					model.supportedParameters,
-				);
+				const supportedParameters = normalizeSupportedParameters(model.supportedParameters);
 				return {
 					...model,
 					supportedParameters,
-					supportsReasoning:
-						model.supportsReasoning ||
-						supportedParameters.includes("reasoning"),
+					supportsReasoning: model.supportsReasoning || supportedParameters.includes("reasoning"),
 				};
 			}),
 		};
@@ -790,14 +776,15 @@ const deleteModelHandler = admin
 
 // ============ Defaults handlers ============
 
-const MEDIA_PREPROCESS_MODES = ["direct", "multimodal"] as const satisfies readonly
-	MediaPreprocessStrategy[];
+const MEDIA_PREPROCESS_MODES = [
+	"direct",
+	"multimodal",
+] as const satisfies readonly MediaPreprocessStrategy[];
 
 const normalizeMediaMode = (
 	value: string | null | undefined,
 	fallback: MediaPreprocessStrategy,
-): MediaPreprocessStrategy =>
-	value === "direct" || value === "multimodal" ? value : fallback;
+): MediaPreprocessStrategy => (value === "direct" || value === "multimodal" ? value : fallback);
 
 const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect> | undefined) => {
 	const d: Partial<typeof aiDefaults.$inferSelect> = defaults ?? {};
@@ -892,11 +879,7 @@ const buildAiDefaultsDraft = (
 	};
 };
 
-const persistAiDefaultsDraft = async (
-	db: Database,
-	hasCurrent: boolean,
-	next: AiDefaultsDraft,
-) => {
+const persistAiDefaultsDraft = async (db: Database, hasCurrent: boolean, next: AiDefaultsDraft) => {
 	await (hasCurrent
 		? db
 				.update(aiDefaults)

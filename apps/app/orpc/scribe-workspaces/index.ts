@@ -18,16 +18,10 @@ import { BUILT_IN_AISCRIBE_OVERRIDE_SLUGS } from "@/lib/aiscribe-built-ins";
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
-import {
-	getPromptHarnessTargetField,
-	resolvePromptHarnessId,
-} from "@/orpc/scribe/prompts";
-import type { CanonicalContextField, PromptHarnessId } from "@/orpc/scribe/prompts";
-import {
-	parseWithBadRequest,
-	scribeFormVisibilitySchema,
-} from "@/orpc/scribe-forms/shared";
+import { parseWithBadRequest, scribeFormVisibilitySchema } from "@/orpc/scribe-forms/shared";
 import type { ScribeFormVisibility } from "@/orpc/scribe-forms/shared";
+import { getPromptHarnessTargetField, resolvePromptHarnessId } from "@/orpc/scribe/prompts";
+import type { CanonicalContextField, PromptHarnessId } from "@/orpc/scribe/prompts";
 
 interface ResolvedWorkspaceSection {
 	key: string;
@@ -67,10 +61,7 @@ const SECTION_BLUEPRINT = [
 }[];
 
 const visibleToUser = (userId: string) =>
-	or(
-		eq(aiScribeWorkspace.visibility, "public"),
-		eq(aiScribeWorkspace.authorId, userId),
-	);
+	or(eq(aiScribeWorkspace.visibility, "public"), eq(aiScribeWorkspace.authorId, userId));
 
 const visibleFormToUser = (userId: string) =>
 	or(eq(aiScribeFormConfig.visibility, "public"), eq(aiScribeFormConfig.authorId, userId));
@@ -159,10 +150,7 @@ const resolveUniqueSlug = async ({
 	let suffix = 1;
 
 	const isTaken = async (slug: string): Promise<boolean> => {
-		const matchers = [
-			eq(aiScribeWorkspace.slug, slug),
-			eq(aiScribeWorkspace.authorId, authorId),
-		];
+		const matchers = [eq(aiScribeWorkspace.slug, slug), eq(aiScribeWorkspace.authorId, authorId)];
 		if (excludeId) {
 			matchers.push(ne(aiScribeWorkspace.id, excludeId));
 		}
@@ -211,9 +199,7 @@ const assertVisibleFormSlots = async ({
 	slotFormIds: Record<(typeof FORM_SLOTS)[number]["key"], string | null>;
 	userId: string;
 }): Promise<void> => {
-	const selectedIds = Object.values(slotFormIds).filter(
-		(id): id is string => id !== null,
-	);
+	const selectedIds = Object.values(slotFormIds).filter((id): id is string => id !== null);
 	if (selectedIds.length === 0) {
 		return;
 	}
@@ -288,11 +274,7 @@ const resolveSections = (
 	});
 
 /** Resolve a workspace's referenced forms (visible to the viewer) into sections. */
-const resolveWorkspace = async (
-	db: Database,
-	workspace: AiScribeWorkspace,
-	viewerId: string,
-) => {
+const resolveWorkspace = async (db: Database, workspace: AiScribeWorkspace, viewerId: string) => {
 	const referencedFormIds = [
 		workspace.diagnosisFormId,
 		workspace.anamneseFormId,
@@ -343,10 +325,7 @@ const listAvailableHandler = authed.handler(async ({ context }) => {
 			slug: true,
 		},
 		orderBy: (workspace, { asc }) => [asc(workspace.name)],
-		where: and(
-			eq(aiScribeWorkspace.enabled, true),
-			visibleToUser(context.session.user.id),
-		),
+		where: and(eq(aiScribeWorkspace.enabled, true), visibleToUser(context.session.user.id)),
 		with: { author: { columns: { username: true } } },
 	});
 	return rows.map((row) => ({

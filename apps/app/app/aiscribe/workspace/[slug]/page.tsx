@@ -4,15 +4,11 @@ import { DoctorsNoteEditor } from "@/app/aiscribe/_components/doctors-note-edito
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 
-export default async function WorkspaceEditorPage(
-	props: PageProps<"/aiscribe/workspace/[slug]">,
-) {
+export default async function WorkspaceEditorPage(props: PageProps<"/aiscribe/workspace/[slug]">) {
 	const { slug } = await props.params;
 	const queryClient = getQueryClient();
 	const workspace = await queryClient
-		.fetchQuery(
-			orpc.scribeWorkspaces.getBySlug.queryOptions({ input: { slug } }),
-		)
+		.fetchQuery(orpc.scribeWorkspaces.getBySlug.queryOptions({ input: { slug } }))
 		.catch(() => null);
 
 	if (!workspace) {

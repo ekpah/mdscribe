@@ -107,7 +107,10 @@ Erklären Sie komplexe Berechnungen:
      Diabetes(1) + Stroke/TIA(2) + Gefäßerkrankung(1) + Alter 65-74(1) + Weiblich(1)
      Interpretation: 0=niedrig, 1=mittel, ≥2=hoch -->
 
-**CHA₂DS₂-VASc-Score**: {% score formula="[CHF] + [HTN] + [Age75] * 2 + [DM] + [Stroke] * 2 + [Vasc] + [Age65] + [Female]" /%}
+**CHA₂DS₂-VASc-Score**: {% calc formula="[CHF] + [HTN] + [Age75] * 2 + [DM] + [Stroke] * 2 + [Vasc] + [Age65] + [Female]" %}
+{% info "CHF" type="number" /%}{% info "HTN" type="number" /%}{% info "Age75" type="number" /%}{% info "DM" type="number" /%}
+{% info "Stroke" type="number" /%}{% info "Vasc" type="number" /%}{% info "Age65" type="number" /%}{% info "Female" type="number" /%}
+{% /calc %}
 ```
 
 ### Medizinische Standards referenzieren
@@ -317,7 +320,9 @@ Wenn Sie mehrsprachige Dokumente erstellen:
 {% info "Klinische_Chemie" /%}
 
 <!-- Berechne automatisch abgeleitete Parameter -->
-**Kreatinin-Clearance**: {% score formula="((140 - [Alter]) * [Gewicht] * [Geschlechtsfaktor]) / (72 * [Kreatinin])" unit="ml/min" renderUnit=true /%}
+**Kreatinin-Clearance**: {% calc formula="((140 - [Alter]) * [Gewicht] * [Geschlechtsfaktor]) / (72 * [Kreatinin])" unit="ml/min" renderUnit=true %}
+{% info "Alter" type="number" /%}{% info "Gewicht" type="number" /%}{% info "Geschlechtsfaktor" type="number" /%}{% info "Kreatinin" type="number" /%}
+{% /calc %}
 
 <!-- Geschlechtsfaktor: männlich=1, weiblich=0.85 -->
 
@@ -333,7 +338,7 @@ Wenn Sie mehrsprachige Dokumente erstellen:
 
 ❌ **Programmlogik**: KI-Instruktionen sind keine Programmiersprache
 ❌ **Garantierte Befolgung**: Die KI interpretiert Anweisungen, garantiert aber nicht 100% Befolgung
-❌ **Komplexe Berechnungen**: Verwenden Sie Score-Tags für Berechnungen
+❌ **Komplexe Berechnungen**: Verwenden Sie Calc-Tags für Berechnungen
 ❌ **Datenbankabfragen**: Instruktionen können keine externen Daten abrufen
 
 ### Best Practices für Zuverlässigkeit

@@ -1,9 +1,11 @@
 import type { Location, Node } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
+import { getFormulaVariables } from "./formula";
+
 export type MarkdocContractAttribute = "description" | "formula" | "source" | "type" | "unit";
 type MarkdocInputTagKind = "info" | "switch";
-type MarkdocValidatedTagKind = MarkdocInputTagKind | "score";
+type MarkdocValidatedTagKind = MarkdocInputTagKind | "calc";
 
 export interface MarkdocSettingConflict {
 	attribute: MarkdocContractAttribute;
@@ -29,6 +31,31 @@ export type MarkdocTagDiagnostic =
 			primary: string;
 			severity: "error";
 			tag: MarkdocValidatedTagKind;
+	  }
+	| {
+			code: "calc-components-missing";
+			location?: Location;
+			missingComponents: string[];
+			calc: string;
+			severity: "error";
+	  }
+	| {
+			caseKeys: string[];
+			code: "calc-case-values-missing";
+			location?: Location;
+			calc: string;
+			severity: "error";
+			switch: string;
+	  }
+	| {
+			caseKey: string;
+			code: "case-value-conflict";
+			conflictingLocation?: Location;
+			conflictingValue: number;
+			firstLocation?: Location;
+			firstValue: number;
+			severity: "error";
+			switch: string;
 	  };
 
 interface CanonicalSetting {
@@ -57,6 +84,84 @@ const toSwitchContractType = (value: unknown): string => {
 };
 
 const isTagNode = (node: Node): boolean => node.type === "tag" && typeof node.tag === "string";
+const isCalcTag = (node: Node): boolean => node.tag === "calc" || node.tag === "score";
+
+const collectImmediateTags = (nodes: Node[], tags: Set<string>): Node[] => {
+	const result: Node[] = [];
+	for (const node of nodes) {
+		if (node.type === "tag") {
+			if (node.tag && tags.has(node.tag)) {
+				result.push(node);
+			}
+			continue;
+		}
+		result.push(...collectImmediateTags(node.children, tags));
+	}
+	return result;
+};
+
+const getImmediateCases = (node: Node): Node[] =>
+	collectImmediateTags(node.children, new Set(["case"]));
+
+const validateCalcComponents = (node: Node): MarkdocTagDiagnostic[] => {
+	const formula = toOptionalString(node.attributes.formula);
+	if (!formula) {
+		return [];
+	}
+	let formulaVariables: string[];
+	try {
+		formulaVariables = getFormulaVariables(formula);
+	} catch {
+		return [];
+	}
+
+	const calc = toOptionalString(node.attributes.primary) ?? formula;
+	const components = collectImmediateTags(node.children, new Set(["info", "switch"]));
+	const componentsByPrimary = new Map(
+		components
+			.map((component) => [toOptionalString(component.attributes.primary), component] as const)
+			.filter((entry): entry is readonly [string, Node] => Boolean(entry[0])),
+	);
+	const missingComponents = formulaVariables.filter(
+		(variable) => !componentsByPrimary.has(variable),
+	);
+	const diagnostics: MarkdocTagDiagnostic[] = [];
+	if (missingComponents.length > 0) {
+		diagnostics.push({
+			calc,
+			code: "calc-components-missing",
+			location: node.location,
+			missingComponents,
+			severity: "error",
+		});
+	}
+
+	for (const variable of formulaVariables) {
+		const component = componentsByPrimary.get(variable);
+		if (
+			component?.tag !== "switch" ||
+			component.attributes.type === "boolean" ||
+			component.attributes.type === "checkbox"
+		) {
+			continue;
+		}
+		const caseKeys = getImmediateCases(component)
+			.filter((caseNode) => typeof caseNode.attributes.value !== "number")
+			.map((caseNode) => toOptionalString(caseNode.attributes.primary))
+			.filter((caseKey): caseKey is string => Boolean(caseKey));
+		if (caseKeys.length > 0) {
+			diagnostics.push({
+				caseKeys,
+				calc,
+				code: "calc-case-values-missing",
+				location: component.location,
+				severity: "error",
+				switch: variable,
+			});
+		}
+	}
+	return diagnostics;
+};
 
 const getContractSettings = (kind: MarkdocValidatedTagKind, node: Node): ContractSetting[] => {
 	if (kind === "info") {
@@ -154,7 +259,7 @@ const validateInputTag = (
 	};
 };
 
-const validateScoreTag = (
+const validateCalcTag = (
 	node: Node,
 	contracts: Map<string, CanonicalTagContract>,
 ): MarkdocTagDiagnostic | null => {
@@ -165,7 +270,7 @@ const validateScoreTag = (
 
 	const canonical = contracts.get(primary);
 	if (!canonical) {
-		contracts.set(primary, toCanonicalContract("score", node));
+		contracts.set(primary, toCanonicalContract("calc", node));
 		return null;
 	}
 
@@ -180,14 +285,15 @@ const validateScoreTag = (
 		conflicts,
 		primary,
 		severity: "error",
-		tag: "score",
+		tag: "calc",
 	};
 };
 
 export const validateMarkdocTagContractsInAst = (ast: Node): MarkdocTagDiagnostic[] => {
 	const inputContracts = new Map<string, CanonicalTagContract>();
-	const scoreContracts = new Map<string, CanonicalTagContract>();
+	const calcContracts = new Map<string, CanonicalTagContract>();
 	const diagnostics: MarkdocTagDiagnostic[] = [];
+	const caseValues = new Map<string, { location?: Location; value: number }>();
 
 	for (const node of ast.walk()) {
 		if (!isTagNode(node)) {
@@ -199,8 +305,35 @@ export const validateMarkdocTagContractsInAst = (ast: Node): MarkdocTagDiagnosti
 			diagnostic = validateInputTag(node, "info", inputContracts);
 		} else if (node.tag === "switch") {
 			diagnostic = validateInputTag(node, "switch", inputContracts);
-		} else if (node.tag === "score") {
-			diagnostic = validateScoreTag(node, scoreContracts);
+			const switchPrimary = toOptionalString(node.attributes.primary);
+			if (switchPrimary) {
+				for (const caseNode of getImmediateCases(node)) {
+					const caseKey = toOptionalString(caseNode.attributes.primary);
+					const caseValue = caseNode.attributes.value;
+					if (!caseKey || typeof caseValue !== "number") {
+						continue;
+					}
+					const contractKey = `${switchPrimary}\u0000${caseKey}`;
+					const first = caseValues.get(contractKey);
+					if (!first) {
+						caseValues.set(contractKey, { location: caseNode.location, value: caseValue });
+					} else if (first.value !== caseValue) {
+						diagnostics.push({
+							caseKey,
+							code: "case-value-conflict",
+							conflictingLocation: caseNode.location,
+							conflictingValue: caseValue,
+							firstLocation: first.location,
+							firstValue: first.value,
+							severity: "error",
+							switch: switchPrimary,
+						});
+					}
+				}
+			}
+		} else if (isCalcTag(node)) {
+			diagnostic = validateCalcTag(node, calcContracts);
+			diagnostics.push(...validateCalcComponents(node));
 		}
 
 		if (diagnostic) {

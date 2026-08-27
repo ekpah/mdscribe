@@ -10,6 +10,7 @@ import {
 	Tailwind,
 	Text,
 } from "@react-email/components";
+
 import config from "../tailwind.config";
 
 interface ContextTransferAnnouncementTemplateProps {
@@ -36,23 +37,22 @@ export const ContextTransferAnnouncementTemplate = ({
 							</Text>
 							<Text className="m-0 text-muted-foreground">Hallo,</Text>
 							<Text className="text-muted-foreground">
-								mit <strong>Weiterverwenden</strong> kannst du Eingaben und erzeugte
-								Epikrisen direkt in einem passenden Textbaustein, AI Text oder Dokument
-								weiter nutzen.
+								mit <strong>Weiterverwenden</strong> kannst du Eingaben und erzeugte Epikrisen
+								direkt in einem passenden Textbaustein, AI Text oder Dokument weiter nutzen.
 							</Text>
 							<Text className="text-muted-foreground">
-								Der Kontext wird dabei nicht in der URL gespeichert. MDScribe legt nur
-								einen kurzlebigen, verschlüsselten Transfer ab; der Schlüssel bleibt im
-								Browser und wird nur beim Öffnen des Ziels verwendet.
+								Der Kontext wird dabei nicht in der URL gespeichert. MDScribe legt nur einen
+								kurzlebigen, verschlüsselten Transfer ab; der Schlüssel bleibt im Browser und wird
+								nur beim Öffnen des Ziels verwendet.
 							</Text>
 							<Section className="mt-6 rounded-md border border-border bg-background p-4">
 								<Text className="mt-0 mb-2 font-bold text-foreground text-lg">
 									Typische Nutzung
 								</Text>
 								<Text className="text-muted-foreground">
-									Erstelle zuerst eine Anamnese oder Epikrise, wähle links{" "}
-									<em>Weiterverwenden</em> und öffne danach den passenden Textbaustein
-									oder AI Text mit bereits übernommenem Kontext.
+									Erstelle zuerst eine Anamnese oder Epikrise, wähle links <em>Weiterverwenden</em>{" "}
+									und öffne danach den passenden Textbaustein oder AI Text mit bereits übernommenem
+									Kontext.
 								</Text>
 								<Button
 									className="rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground text-sm"

@@ -16,9 +16,7 @@ describe("complete Markdoc template validation", () => {
 
 	test("reports missing and semantically invalid sources", () => {
 		expect(codes("{% cite %}missing{% /cite %}")).toContain("markdoc-schema");
-		expect(codes(`{% cite source="" %}empty{% /cite %}`)).toContain(
-			"citation-source-invalid",
-		);
+		expect(codes(`{% cite source="" %}empty{% /cite %}`)).toContain("citation-source-invalid");
 		expect(codes(`{% cite source="http://example.test" %}unsafe{% /cite %}`)).toContain(
 			"citation-source-invalid",
 		);
@@ -36,20 +34,71 @@ describe("complete Markdoc template validation", () => {
 	});
 
 	test("includes shared tag-contract diagnostics", () => {
-		expect(
-			codes(`{% info "x" type="string" /%}\n{% info "x" type="number" /%}`),
-		).toContain("tag-settings-conflict");
+		expect(codes(`{% info "x" type="string" /%}\n{% info "x" type="number" /%}`)).toContain(
+			"tag-settings-conflict",
+		);
 	});
 
-	test("rejects a malformed score formula without evaluating it", () => {
-		const diagnostics = validateMarkdocTemplate(
-			`{% score primary="risk" formula="([age]" /%}`,
-		);
+	test("rejects a malformed calc formula without evaluating it", () => {
+		const diagnostics = validateMarkdocTemplate(`{% calc primary="risk" formula="([age]" /%}`);
 		expect(diagnostics).toContainEqual(
 			expect.objectContaining({
 				code: "markdoc-schema",
-				id: "score-formula-invalid",
+				id: "calc-formula-invalid",
 				severity: "error",
+			}),
+		);
+	});
+
+	test("requires every calc formula component to be contained by the calc", () => {
+		const diagnostics = validateMarkdocTemplate(
+			`{% info "age" type="number" /%}{% calc primary="risk" formula="[age]+[missing]" %}{% info "age" type="number" /%}{% /calc %}`,
+		);
+
+		expect(diagnostics).toContainEqual(
+			expect.objectContaining({
+				calc: "risk",
+				code: "calc-components-missing",
+				missingComponents: ["missing"],
+			}),
+		);
+	});
+
+	test("requires and verifies numeric values for calc switch cases", () => {
+		const missingValues = validateMarkdocTemplate(`
+{% calc primary="risk" formula="[ageGroup]" %}
+{% switch "ageGroup" %}
+{% case "young" value=0 %}Young{% /case %}
+{% case "old" %}Old{% /case %}
+{% /switch %}
+{% /calc %}
+`);
+		expect(missingValues).toContainEqual(
+			expect.objectContaining({
+				caseKeys: ["old"],
+				code: "calc-case-values-missing",
+				switch: "ageGroup",
+			}),
+		);
+
+		const valid = validateMarkdocTemplate(
+			`{% calc primary="risk" formula="[ageGroup]+[diabetes]" %}{% switch "ageGroup" %}{% case "young" value=0 %}Young{% /case %}{% case "old" value=2 %}Old{% /case %}{% /switch %}{% switch "diabetes" type="checkbox" %}{% case "true" %}Yes{% /case %}{% case "false" %}No{% /case %}{% /switch %}{% /calc %}`,
+		);
+		expect(valid).toEqual([]);
+	});
+
+	test("rejects conflicting numerical case values across repeated switches", () => {
+		const diagnostics = validateMarkdocTemplate(`
+{% switch "ageGroup" %}{% case "old" value=1 %}Old{% /case %}{% /switch %}
+{% switch "ageGroup" %}{% case "old" value=2 %}Older{% /case %}{% /switch %}
+`);
+		expect(diagnostics).toContainEqual(
+			expect.objectContaining({
+				caseKey: "old",
+				code: "case-value-conflict",
+				conflictingValue: 2,
+				firstValue: 1,
+				switch: "ageGroup",
 			}),
 		);
 	});

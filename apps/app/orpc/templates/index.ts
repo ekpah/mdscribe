@@ -371,7 +371,6 @@ const getEditorContextHandler = authed.handler(async ({ context }) => {
 
 	return {
 		canCreatePrivateTemplates: entitlements.canCreatePrivateTemplates,
-		canEditSource: context.auth.isAdmin,
 		categorySuggestions,
 	};
 });

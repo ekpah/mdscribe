@@ -4,8 +4,8 @@ import { call } from "@orpc/server";
 import { eq, usageEvent } from "@repo/database";
 import { PDFDocument } from "pdf-lib";
 
-import type { TestServer } from "@/__tests__/setup";
 import { aiMockState } from "@/__tests__/preload";
+import type { TestServer } from "@/__tests__/setup";
 import {
 	ADMIN_EMAIL,
 	createTestAiDefaults,
@@ -90,9 +90,7 @@ describe("documents.enhanceDefinition", () => {
 			documentsHandler.enhanceDefinition,
 			{
 				fieldDefinitions: {
-					bindings: [
-						{ fieldName: "patient_name", inputId: "patient_name", isEnabled: true },
-					],
+					bindings: [{ fieldName: "patient_name", inputId: "patient_name", isEnabled: true }],
 					inputs: [
 						{
 							attributes: { primary: "patient_name", type: "string" },

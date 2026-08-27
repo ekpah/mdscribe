@@ -1,8 +1,5 @@
 export { evaluateFhirSource } from "./sources/fhir";
-export {
-	inspectMarkdocSources,
-	resolveMarkdocSources,
-} from "./sources/resolve-markdoc-sources";
+export { inspectMarkdocSources, resolveMarkdocSources } from "./sources/resolve-markdoc-sources";
 export type {
 	InspectedMarkdocSource,
 	InspectedMarkdocSources,

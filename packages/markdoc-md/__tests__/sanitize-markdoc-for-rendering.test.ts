@@ -17,15 +17,15 @@ describe("tolerant cite rendering sanitizer", () => {
 	});
 
 	test("removes unmatched and self-closing cite delimiters", () => {
-		expect(sanitizeMarkdocForRendering("a {% cite source=\"x\" %}b")).toBe("a b");
+		expect(sanitizeMarkdocForRendering('a {% cite source="x" %}b')).toBe("a b");
 		expect(sanitizeMarkdocForRendering("a {% /cite %} b")).toBe("a  b");
-		expect(sanitizeMarkdocForRendering("a {% cite source=\"x\" /%} b")).toBe("a  b");
+		expect(sanitizeMarkdocForRendering('a {% cite source="x" /%} b')).toBe("a  b");
 	});
 
 	test("does not interpret cite-like text inside Markdown code", () => {
 		for (const content of [
-			"```markdoc\n{% cite source=\"x\" %}first\n\nsecond\n```",
-			"before ``{% cite source=\"x\" %}first\n\nsecond`` after",
+			'```markdoc\n{% cite source="x" %}first\n\nsecond\n```',
+			'before ``{% cite source="x" %}first\n\nsecond`` after',
 		]) {
 			expect(sanitizeMarkdocForRendering(content)).toBe(content);
 		}

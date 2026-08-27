@@ -232,8 +232,7 @@ export const buildBuiltInAiscribeTemplateConfig = ({
 	const targetField = getPromptHarnessTargetField(resolvedPromptHarnessId);
 	const resolvedAdditionalInputs = (
 		overrideForm?.id && overrideForm.promptHarness
-			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[resolvedPromptHarnessId] ??
-				definition.additionalInputs)
+			? (PROMPT_HARNESS_ADDITIONAL_INPUTS[resolvedPromptHarnessId] ?? definition.additionalInputs)
 			: definition.additionalInputs
 	)?.filter((field) => field.name !== targetField);
 	const baseConfig = {

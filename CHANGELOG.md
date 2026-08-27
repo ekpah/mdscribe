@@ -4,6 +4,7 @@
 
 ### Added
 
+- Calculated template inputs now support nested number, option, and checkbox components, editable overrides, and automatic recalculation.
 - Umami now tracks successful signups, logins, AI Scribe generations, template and document creation, and AI-assisted template and document filling.
 - The file input context now supports photo transfers from an unauthenticated phone via QR code.
 - Pasting Markdoc text into the template editor now converts supported input, score, and switch syntax directly into interactive editor tags.
@@ -13,6 +14,9 @@
 ### Changed
 
 - The dashboard usage card now identifies active BYOK connections while continuing to show the MDScribe quota consumed by requests using other models.
+- Renamed the Markdoc `score` tag to `calc`, while retaining `score` as a backward-compatible alias across parsing, rendering, the editor, and documentation.
+- Fill Inputs now receives template guidance and examples and can prefer component values while accepting an explicit calculated result when components are incomplete.
+- Split the generic design primitives, Markdoc TipTap editor, and app-owned input renderer into explicit package boundaries.
 - Aligned the landing-page feature previews with their vertical scroll interaction, including right-side pagination, consistent clinical titles, and matching inline vital-sign examples.
 - Reworked the landing page copy to address doctors instead of developers: replaced technical terms like "Markdown" and "Markdoc" with "Textbausteine" throughout hero, feature sections, demo labels, and metadata.
 - Unified all workspaces on TypeScript 7.0.2 via the root package catalog (workspaces previously used 5.9.3 while the root used 7.0.2).
@@ -20,6 +24,7 @@
 
 ### Fixed
 
+- Template validation now synchronizes repeated input contracts, repairs missing calculated components, and keeps interactions scoped to the correct repeated tag instance.
 - Checkbox inputs now render their initially unchecked state as `false`, while empty date inputs no longer display an uncommitted current-date value.
 - The admin user-management AI-usage column now follows each user's quota period and excludes usage billed through their own API key.
 - Fill-document autofill now strips model-added Markdown JSON fences before structured-output parsing, preventing valid responses from failing with "could not parse the response".

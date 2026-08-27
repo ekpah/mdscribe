@@ -8,8 +8,8 @@ interface LandingPageProps {
 }
 
 export const LandingPage = ({ isLoggedIn }: LandingPageProps) => (
-	<div className="h-full w-full self-start">
-		<main className="w-full overflow-x-clip" key="landing-content">
+	<div className="h-full w-full max-w-full self-start overflow-x-clip">
+		<main className="w-full" key="landing-content">
 			<Hero isLoggedIn={isLoggedIn} />
 			<Features />
 			<Pricing isLoggedIn={isLoggedIn} />

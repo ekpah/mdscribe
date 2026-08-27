@@ -42,5 +42,4 @@ export const supportsReasoningParameters = (
 		supportedParameters?: string[];
 		supportsReasoning?: boolean;
 	} | null,
-): boolean =>
-	Boolean(model && getReasoningSupportStatus(model) !== "unsupported");
+): boolean => Boolean(model && getReasoningSupportStatus(model) !== "unsupported");

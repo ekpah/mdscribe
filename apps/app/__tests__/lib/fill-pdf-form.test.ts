@@ -74,11 +74,7 @@ const createChoiceCheckboxPdfWithOptions = async (options: string[]): Promise<Ui
 };
 
 const createChoiceCheckboxPdf = (): Promise<Uint8Array> =>
-	createChoiceCheckboxPdfWithOptions([
-		"Reha",
-		"Teilhabe am Arbeitsleben (LTA) ",
-		"Sonstiges",
-	]);
+	createChoiceCheckboxPdfWithOptions(["Reha", "Teilhabe am Arbeitsleben (LTA) ", "Sonstiges"]);
 
 const createDocumentDefinition = (): DocumentDefinition => ({
 	bindings: [

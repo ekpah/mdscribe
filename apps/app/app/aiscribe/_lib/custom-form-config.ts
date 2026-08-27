@@ -123,7 +123,7 @@ export const buildCustomAiscribeTemplateConfig = (
 	return {
 		additionalInputs: ADDITIONAL_INPUTS.filter((field) => field.name !== targetField),
 		contextMetadata: {
-			author: form.authorId ? (authorName || "Nutzer-Textbaustein") : "MDScribe-Standard",
+			author: form.authorId ? authorName || "Nutzer-Textbaustein" : "MDScribe-Standard",
 			harnessTitle: getPromptHarnessLabel(form.promptHarness),
 			template: resolveTemplateMetadata(form),
 		},

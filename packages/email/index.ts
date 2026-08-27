@@ -69,11 +69,7 @@ const getTransactionalTransport = (): SmtpTransporter => {
 const getTransport = (delivery: EmailDelivery): SmtpTransporter => {
 	const broadcastUrl = process.env.MAIL_BROADCAST_SMTP_URL?.trim();
 	const transactionalUrl = getRequiredEnvironmentValue("MAIL_SMTP_URL");
-	if (
-		delivery !== "broadcast" ||
-		!broadcastUrl ||
-		broadcastUrl === transactionalUrl
-	) {
+	if (delivery !== "broadcast" || !broadcastUrl || broadcastUrl === transactionalUrl) {
 		return getTransactionalTransport();
 	}
 

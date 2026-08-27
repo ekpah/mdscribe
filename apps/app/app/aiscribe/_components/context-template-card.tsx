@@ -37,13 +37,7 @@ interface ContextTemplateCardProps {
 	className?: string;
 }
 
-const MetadataRow = ({
-	children,
-	label,
-}: {
-	children: ReactNode;
-	label: string;
-}) => (
+const MetadataRow = ({ children, label }: { children: ReactNode; label: string }) => (
 	<div className="grid gap-1">
 		<div className="font-medium text-muted-foreground text-xs">{label}</div>
 		<div className="break-words text-foreground text-sm">{children}</div>

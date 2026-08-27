@@ -5,26 +5,20 @@ import { Suspense } from "react";
 
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
+
 import AppSidebar from "./_components/sidebar";
 
 const getTemplates = async (queryClient: QueryClient) => {
-	const templates = await queryClient.fetchQuery(
-		orpc.templates.list.queryOptions(),
-	);
+	const templates = await queryClient.fetchQuery(orpc.templates.list.queryOptions());
 	return templates;
 };
 
-const getFavouriteTemplates = async (
-	queryClient: QueryClient,
-	isLoggedIn: boolean,
-) => {
+const getFavouriteTemplates = async (queryClient: QueryClient, isLoggedIn: boolean) => {
 	if (!isLoggedIn) {
 		return [];
 	}
 	try {
-		const templates = await queryClient.fetchQuery(
-			orpc.templates.favourites.queryOptions(),
-		);
+		const templates = await queryClient.fetchQuery(orpc.templates.favourites.queryOptions());
 		return templates;
 	} catch (error) {
 		// If authentication fails, return empty array instead of crashing
@@ -33,17 +27,12 @@ const getFavouriteTemplates = async (
 	}
 };
 
-const getAuthoredTemplates = async (
-	queryClient: QueryClient,
-	isLoggedIn: boolean,
-) => {
+const getAuthoredTemplates = async (queryClient: QueryClient, isLoggedIn: boolean) => {
 	if (!isLoggedIn) {
 		return [];
 	}
 	try {
-		const templates = await queryClient.fetchQuery(
-			orpc.templates.authored.queryOptions(),
-		);
+		const templates = await queryClient.fetchQuery(orpc.templates.authored.queryOptions());
 		return templates;
 	} catch (error) {
 		// If authentication fails, return empty array instead of crashing
@@ -52,17 +41,12 @@ const getAuthoredTemplates = async (
 	}
 };
 
-const getCustomCollections = async (
-	queryClient: QueryClient,
-	isLoggedIn: boolean,
-) => {
+const getCustomCollections = async (queryClient: QueryClient, isLoggedIn: boolean) => {
 	if (!isLoggedIn) {
 		return [];
 	}
 	try {
-		const collections = await queryClient.fetchQuery(
-			orpc.user.collections.list.queryOptions(),
-		);
+		const collections = await queryClient.fetchQuery(orpc.user.collections.list.queryOptions());
 		return collections;
 	} catch (error) {
 		console.warn("Failed to fetch custom collections:", error);
@@ -80,10 +64,7 @@ const generateSidebarLinks = async (queryClient: QueryClient) => {
 	}));
 };
 
-const generateFavouriteTemplates = async (
-	queryClient: QueryClient,
-	isLoggedIn: boolean,
-) => {
+const generateFavouriteTemplates = async (queryClient: QueryClient, isLoggedIn: boolean) => {
 	const templates = await getFavouriteTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
 		category: temp.category,
@@ -93,10 +74,7 @@ const generateFavouriteTemplates = async (
 	}));
 };
 
-const generateAuthoredTemplates = async (
-	queryClient: QueryClient,
-	isLoggedIn: boolean,
-) => {
+const generateAuthoredTemplates = async (queryClient: QueryClient, isLoggedIn: boolean) => {
 	const templates = await getAuthoredTemplates(queryClient, isLoggedIn);
 	return templates.map((temp) => ({
 		category: temp.category,
@@ -106,11 +84,7 @@ const generateAuthoredTemplates = async (
 	}));
 };
 
-export default async function Layout({
-	children,
-}: {
-	children: React.ReactNode;
-}) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
 	const session = await getServerSession();
 	const isLoggedIn = !!session?.user;
 	const queryClient = new QueryClient();
@@ -134,9 +108,7 @@ export default async function Layout({
 						authoredTemplates={JSON.stringify(
 							await generateAuthoredTemplates(queryClient, isLoggedIn),
 						)}
-						customCollections={JSON.stringify(
-							await getCustomCollections(queryClient, isLoggedIn),
-						)}
+						customCollections={JSON.stringify(await getCustomCollections(queryClient, isLoggedIn))}
 						favouriteTemplates={JSON.stringify(
 							await generateFavouriteTemplates(queryClient, isLoggedIn),
 						)}
@@ -145,10 +117,7 @@ export default async function Layout({
 						templates={JSON.stringify(await generateSidebarLinks(queryClient))}
 					/>
 				</Suspense>
-				<main
-					className="top-16 flex h-full grow overscroll-contain p-2"
-					key="MainContent"
-				>
+				<main className="top-16 flex h-full grow overscroll-contain p-2" key="MainContent">
 					{children}
 				</main>
 			</SidebarProvider>

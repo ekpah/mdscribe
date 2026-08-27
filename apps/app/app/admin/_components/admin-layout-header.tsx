@@ -4,6 +4,7 @@ import { Button } from "@repo/design-system/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useTransition } from "react";
+
 import { AdminBreadcrumb } from "./admin-breadcrumb";
 
 const REFRESHABLE_ADMIN_PATHS = [
@@ -18,9 +19,7 @@ export const AdminLayoutHeader = () => {
 	const pathname = usePathname();
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
-	const showRefresh = REFRESHABLE_ADMIN_PATHS.some((path) =>
-		pathname.startsWith(path),
-	);
+	const showRefresh = REFRESHABLE_ADMIN_PATHS.some((path) => pathname.startsWith(path));
 
 	const handleRefresh = useCallback(() => {
 		startTransition(() => {
@@ -28,7 +27,7 @@ export const AdminLayoutHeader = () => {
 		});
 	}, [router, startTransition]);
 
-		return (
+	return (
 		<div className="shrink-0 bg-solarized-base2 px-4 py-1.5">
 			<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<AdminBreadcrumb />
@@ -40,9 +39,7 @@ export const AdminLayoutHeader = () => {
 						disabled={isPending}
 						className="w-full sm:w-auto"
 					>
-						<RefreshCw
-							className={`mr-2 h-4 w-4 ${isPending ? "animate-spin" : ""}`}
-						/>
+						<RefreshCw className={`mr-2 h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
 						<span className="hidden sm:inline">Aktualisieren</span>
 					</Button>
 				) : null}

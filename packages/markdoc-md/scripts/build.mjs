@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distDirectory = join(packageDirectory, "dist");

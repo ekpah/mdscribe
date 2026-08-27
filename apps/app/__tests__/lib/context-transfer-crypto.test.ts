@@ -55,16 +55,12 @@ describe("context transfer crypto", () => {
 
 	test("rejects payloads above the limit; the server envelope cap covers the maximum payload", async () => {
 		const oversized = { data: "x".repeat(MAX_TRANSFER_PAYLOAD_BYTES + 1) };
-		await expect(encryptTransferEnvelope(oversized)).rejects.toThrow(
-			TransferPayloadTooLargeError,
-		);
+		await expect(encryptTransferEnvelope(oversized)).rejects.toThrow(TransferPayloadTooLargeError);
 
 		// A maximal plaintext must still fit the server-side envelope cap after
 		// IV/tag overhead and base64url expansion.
 		const maxEnvelopeBytes = 1 + 12 + MAX_TRANSFER_PAYLOAD_BYTES + 16;
-		expect(Math.ceil((maxEnvelopeBytes * 4) / 3)).toBeLessThanOrEqual(
-			MAX_TRANSFER_ENVELOPE_CHARS,
-		);
+		expect(Math.ceil((maxEnvelopeBytes * 4) / 3)).toBeLessThanOrEqual(MAX_TRANSFER_ENVELOPE_CHARS);
 	});
 
 	test("hashes valid tokens deterministically and rejects short tokens", async () => {

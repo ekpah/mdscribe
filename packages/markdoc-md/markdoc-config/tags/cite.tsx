@@ -1,15 +1,13 @@
 "use client";
 
-import { MAX_CITATION_QUOTE_LENGTH } from "../../citations/resolvers/types";
-import { useMarkdocInteraction } from "../../render/context/markdoc-interaction-context";
-import { parseCitationSource } from "../../render/utils/citation-source";
 import { Children, isValidElement } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 
-const getCitationClassName = (
-	isHighlighted: boolean,
-	canSelect: boolean,
-): string =>
+import { MAX_CITATION_QUOTE_LENGTH } from "../../citations/resolvers/types";
+import { useMarkdocInteraction } from "../../render/context/markdoc-interaction-context";
+import { parseCitationSource } from "../../render/utils/citation-source";
+
+const getCitationClassName = (isHighlighted: boolean, canSelect: boolean): string =>
 	[
 		"rounded-sm text-inherit transition-colors",
 		"hover:bg-solarized-blue/20",
@@ -36,18 +34,13 @@ export interface CiteProps {
 	source: string;
 }
 
-export const Cite = ({
-	children,
-	quote,
-	source,
-}: CiteProps) => {
+export const Cite = ({ children, quote, source }: CiteProps) => {
 	const { areCitationsHighlighted, onCitationSelect } = useMarkdocInteraction();
 	const reference = parseCitationSource(source);
 	const normalizedQuote = typeof quote === "string" && quote.trim() ? quote.trim() : undefined;
 	const hasUnsupportedChild = hasUnsupportedCitationChild(children);
 	const isValidQuote =
-		quote === undefined ||
-		(typeof quote === "string" && quote.length <= MAX_CITATION_QUOTE_LENGTH);
+		quote === undefined || (typeof quote === "string" && quote.length <= MAX_CITATION_QUOTE_LENGTH);
 	const isValid = reference.kind !== "invalid" && !hasUnsupportedChild && isValidQuote;
 	const canSelect = isValid && Boolean(onCitationSelect);
 	const selectCitation = () => {

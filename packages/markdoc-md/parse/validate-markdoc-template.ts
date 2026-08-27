@@ -1,13 +1,13 @@
 import type { Config, Location, Node } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
+import { MAX_CITATION_QUOTE_LENGTH } from "../citations/resolvers/types";
 import { markdocConfig } from "../markdoc-config";
 import { parseCitationSource } from "../render/utils/citation-source";
 import {
 	type MarkdocTagDiagnostic,
 	validateMarkdocTagContractsInAst,
 } from "./validate-markdoc-tag-contracts";
-import { MAX_CITATION_QUOTE_LENGTH } from "../citations/resolvers/types";
 
 export type MarkdocTemplateDiagnostic =
 	| MarkdocTagDiagnostic
@@ -60,8 +60,7 @@ export const validateMarkdocTemplateAst = (
 					}
 				: undefined,
 			message: diagnostic.error.message,
-			severity:
-				diagnostic.error.level === "warning" ? ("warning" as const) : ("error" as const),
+			severity: diagnostic.error.level === "warning" ? ("warning" as const) : ("error" as const),
 		}),
 	);
 

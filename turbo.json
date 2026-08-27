@@ -1,59 +1,54 @@
 {
-  "$schema": "https://v2-9-6.turborepo.dev/schema.json",
-  "globalDependencies": [
-    ".env",
-    ".env.local",
-    "oxlint.config.ts",
-    ".oxfmtrc.jsonc"
-  ],
-  "globalPassThroughEnv": ["SKIP_ENV_VALIDATION"],
-  "globalEnv": [
-    "POSTGRES_DATABASE_URL",
-    "MAIL_SMTP_URL",
-    "MAIL_BROADCAST_SMTP_URL",
-    "MAIL_FROM_ADDRESS",
-    "MAIL_FROM_NAME",
-    "BETTER_AUTH_SECRET",
-    "OPENROUTER_API_KEY",
-    "BASE_URL",
-    "STRIPE_SECRET_KEY",
-    "STRIPE_WEBHOOK_SECRET",
-    "STRIPE_PLUS_PRICE_ID",
-    "STRIPE_PLUS_PRICE_ID_ANNUAL",
-    "ADMIN_EMAIL"
-  ],
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build"]
-    },
-    "@repo/database#build": {
-      "env": ["POSTGRES_DATABASE_URL"],
-      "outputs": ["**/drizzle/generated/**"]
-    },
-    "@repo/database#dev": {
-      "env": ["POSTGRES_DATABASE_URL"],
-      "outputs": ["**/drizzle/generated/**"]
-    },
-    "app#build": {
-      "dependsOn": ["@repo/database#build"]
-    },
-    "test": {
-      "dependsOn": ["^build"]
-    },
-    "dev": {
-      "cache": false,
-      "persistent": true
-    },
-    "transit": {
-      "dependsOn": ["^transit"]
-    },
-    "lint": {
-      "dependsOn": ["^transit"],
-      "outputs": []
-    },
-    "typecheck": {
-      "dependsOn": [],
-      "outputs": []
-    }
-  }
+	"$schema": "https://v2-9-6.turborepo.dev/schema.json",
+	"globalDependencies": [".env", ".env.local", "oxlint.config.ts", ".oxfmtrc.jsonc"],
+	"globalPassThroughEnv": ["SKIP_ENV_VALIDATION"],
+	"globalEnv": [
+		"POSTGRES_DATABASE_URL",
+		"MAIL_SMTP_URL",
+		"MAIL_BROADCAST_SMTP_URL",
+		"MAIL_FROM_ADDRESS",
+		"MAIL_FROM_NAME",
+		"BETTER_AUTH_SECRET",
+		"OPENROUTER_API_KEY",
+		"BASE_URL",
+		"STRIPE_SECRET_KEY",
+		"STRIPE_WEBHOOK_SECRET",
+		"STRIPE_PLUS_PRICE_ID",
+		"STRIPE_PLUS_PRICE_ID_ANNUAL",
+		"ADMIN_EMAIL"
+	],
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"]
+		},
+		"@repo/database#build": {
+			"env": ["POSTGRES_DATABASE_URL"],
+			"outputs": ["**/drizzle/generated/**"]
+		},
+		"@repo/database#dev": {
+			"env": ["POSTGRES_DATABASE_URL"],
+			"outputs": ["**/drizzle/generated/**"]
+		},
+		"app#build": {
+			"dependsOn": ["@repo/database#build"]
+		},
+		"test": {
+			"dependsOn": ["^build"]
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true
+		},
+		"transit": {
+			"dependsOn": ["^transit"]
+		},
+		"lint": {
+			"dependsOn": ["^transit"],
+			"outputs": []
+		},
+		"typecheck": {
+			"dependsOn": [],
+			"outputs": []
+		}
+	}
 }

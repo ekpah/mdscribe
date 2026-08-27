@@ -15,13 +15,10 @@ import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { parseWithBadRequest, scribeFormVisibilitySchema } from "@/orpc/scribe-forms/shared";
+import type { ScribeFormVisibility } from "@/orpc/scribe-forms/shared";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
 import type { CanonicalContextField } from "@/orpc/scribe/prompts";
-import {
-	parseWithBadRequest,
-	scribeFormVisibilitySchema,
-} from "@/orpc/scribe-forms/shared";
-import type { ScribeFormVisibility } from "@/orpc/scribe-forms/shared";
 
 // One field per prompt-harness section. Each slot is optional — an empty slot
 // falls back to the standard (default) template. Befunde is always default.
@@ -82,10 +79,7 @@ const resolveUniqueSlug = async (
 	let suffix = 1;
 
 	const isTaken = async (slug: string): Promise<boolean> => {
-		const matchers = [
-			eq(aiScribeWorkspace.slug, slug),
-			eq(aiScribeWorkspace.authorId, authorId),
-		];
+		const matchers = [eq(aiScribeWorkspace.slug, slug), eq(aiScribeWorkspace.authorId, authorId)];
 		if (excludeId) {
 			matchers.push(ne(aiScribeWorkspace.id, excludeId));
 		}
@@ -113,9 +107,7 @@ const assertFormSlots = async (
 	db: Database,
 	slotFormIds: Record<(typeof SLOTS)[number]["key"], string | null>,
 ): Promise<void> => {
-	const selectedIds = Object.values(slotFormIds).filter(
-		(id): id is string => id !== null,
-	);
+	const selectedIds = Object.values(slotFormIds).filter((id): id is string => id !== null);
 	if (selectedIds.length === 0) {
 		return;
 	}
@@ -170,24 +162,18 @@ const ensureCanSavePrivateWorkspace = async (
 	}
 };
 
-const listHandler = authed
-	.use(requiredAdminMiddleware)
-	.handler(({ context }) =>
-		context.db.query.aiScribeWorkspace.findMany({
-			orderBy: (workspace, { asc }) => [asc(workspace.createdAt)],
-		}),
-	);
+const listHandler = authed.use(requiredAdminMiddleware).handler(({ context }) =>
+	context.db.query.aiScribeWorkspace.findMany({
+		orderBy: (workspace, { asc }) => [asc(workspace.createdAt)],
+	}),
+);
 
 const createHandler = authed
 	.use(requiredAdminMiddleware)
 	.input(type<z.input<typeof createWorkspaceInput>>())
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(createWorkspaceInput, input);
-		await ensureCanSavePrivateWorkspace(
-			context.db,
-			context.session.user.id,
-			parsed.visibility,
-		);
+		await ensureCanSavePrivateWorkspace(context.db, context.session.user.id, parsed.visibility);
 		const slotForms = {
 			anamneseFormId: toNullableText(parsed.anamneseFormId),
 			diagnosisFormId: toNullableText(parsed.diagnosisFormId),
@@ -203,11 +189,7 @@ const createHandler = authed
 				description: toNullableText(parsed.description),
 				enabled: parsed.enabled,
 				name: parsed.name,
-				slug: await resolveUniqueSlug(
-					context.db,
-					parsed.name,
-					context.session.user.id,
-				),
+				slug: await resolveUniqueSlug(context.db, parsed.name, context.session.user.id),
 				visibility: parsed.visibility,
 			})
 			.returning();
@@ -219,11 +201,7 @@ const updateHandler = authed
 	.input(type<z.input<typeof updateWorkspaceInput>>())
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(updateWorkspaceInput, input);
-		await ensureCanSavePrivateWorkspace(
-			context.db,
-			context.session.user.id,
-			parsed.visibility,
-		);
+		await ensureCanSavePrivateWorkspace(context.db, context.session.user.id, parsed.visibility);
 		const slotForms = {
 			anamneseFormId: toNullableText(parsed.anamneseFormId),
 			diagnosisFormId: toNullableText(parsed.diagnosisFormId),
@@ -273,9 +251,7 @@ const deleteHandler = authed
 	.input(type<z.infer<typeof deleteWorkspaceInput>>())
 	.handler(async ({ context, input }) => {
 		const parsed = parseWithBadRequest(deleteWorkspaceInput, input);
-		await context.db
-			.delete(aiScribeWorkspace)
-			.where(eq(aiScribeWorkspace.id, parsed.id));
+		await context.db.delete(aiScribeWorkspace).where(eq(aiScribeWorkspace.id, parsed.id));
 		return { id: parsed.id };
 	});
 

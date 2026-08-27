@@ -9,8 +9,8 @@ const MARKDOC_ATTRIBUTE_LABELS: Record<MarkdocContractAttribute, string> = {
 };
 
 const MARKDOC_TAG_LABELS = {
+	calc: "Calc-Tag",
 	info: "Info-Tag",
-	score: "Score-Tag",
 	switch: "Switch-Tag",
 } as const;
 
@@ -23,6 +23,15 @@ const CURRENT_LANDING_DATE = new Intl.DateTimeFormat("de-DE", {
 export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): string => {
 	if (diagnostic.code === "tag-kind-conflict") {
 		return `„${diagnostic.primary}“ wird sowohl als ${MARKDOC_TAG_LABELS[diagnostic.firstTag]} als auch als ${MARKDOC_TAG_LABELS[diagnostic.conflictingTag]} verwendet.`;
+	}
+	if (diagnostic.code === "calc-components-missing") {
+		return `Calc „${diagnostic.calc}“ muss alle Formel-Komponenten enthalten. Fehlend: ${diagnostic.missingComponents.join(", ")}.`;
+	}
+	if (diagnostic.code === "calc-case-values-missing") {
+		return `Switch „${diagnostic.switch}“ im Calc „${diagnostic.calc}“ benötigt numerische Werte für: ${diagnostic.caseKeys.join(", ")}.`;
+	}
+	if (diagnostic.code === "case-value-conflict") {
+		return `Switch „${diagnostic.switch}“ verwendet für Option „${diagnostic.caseKey}“ widersprüchliche numerische Werte.`;
 	}
 
 	const attributes = diagnostic.conflicts
@@ -238,42 +247,13 @@ Die notfallmäßige Vorstellung erfolgt bei Synkope am **XX.XX.XXXX**. Die Synko
 				},
 				preview: "Live-Vorschau",
 				score: {
-					age: {
-						initial: "at-least-75",
-						label: "Alter",
-						options: [
-							{ label: "< 65", points: 0, value: "under-65" },
-							{ label: "65–74", points: 1, value: "65-to-74" },
-							{ label: "≥ 75", points: 2, value: "at-least-75" },
-						],
-					},
 					badge: "Live berechnet",
 					content: `# Diagnosen
 
 - **I48.0 – Paroxysmales Vorhofflimmern**
-  - CHA₂DS₂-VASc-Score: {% score "CHA₂DS₂-VASc-Score" formula="[Herzinsuffizienz] + [Hypertonie] + [Alter75] * 2 + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Alter65] + [Weiblich]" unit="Punkte" renderUnit=true /%}
+  - CHA₂DS₂-VASc-Score: {% calc "CHA₂DS₂-VASc-Score" formula="[Herzinsuffizienz] + [Hypertonie] + [Alter] + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Geschlecht]" unit="Punkte" renderUnit=true %}{% switch "Alter" %}{% case "< 65" value=0 %}Unter 65 Jahre{% /case %}{% case "65–74" value=1 %}65 bis 74 Jahre{% /case %}{% case "≥ 75" value=2 %}Mindestens 75 Jahre{% /case %}{% /switch %}{% switch "Geschlecht" %}{% case "Männlich" value=0 %}Männlich{% /case %}{% case "Weiblich" value=1 %}Weiblich{% /case %}{% /switch %}{% switch "Herzinsuffizienz" type="checkbox" %}{% case "true" %}Ja{% /case %}{% case "false" %}Nein{% /case %}{% /switch %}{% switch "Hypertonie" type="checkbox" %}{% case "true" %}Ja{% /case %}{% case "false" %}Nein{% /case %}{% /switch %}{% switch "Diabetes" type="checkbox" %}{% case "true" %}Ja{% /case %}{% case "false" %}Nein{% /case %}{% /switch %}{% switch "Schlaganfall" type="checkbox" %}{% case "true" %}Ja{% /case %}{% case "false" %}Nein{% /case %}{% /switch %}{% switch "Gefaesserkrankung" type="checkbox" %}{% case "true" %}Ja{% /case %}{% case "false" %}Nein{% /case %}{% /switch %}{% /calc %}
   - Orale Antikoagulation mit Apixaban
   - Symptomatisch mit Palpitationen und Belastungsdyspnoe`,
-					factors: [
-						{ initial: false, key: "Herzinsuffizienz", label: "Herzinsuffizienz", points: 1 },
-						{ initial: true, key: "Hypertonie", label: "Hypertonie", points: 1 },
-						{ initial: true, key: "Diabetes", label: "Diabetes", points: 1 },
-						{ initial: false, key: "Schlaganfall", label: "Schlaganfall", points: 2 },
-						{
-							initial: false,
-							key: "Gefaesserkrankung",
-							label: "Gefäßerkrankung",
-							points: 1,
-						},
-					],
-					gender: {
-						initial: "female",
-						label: "Geschlecht",
-						options: [
-							{ label: "Männlich", points: 0, value: "male" },
-							{ label: "Weiblich", points: 1, value: "female" },
-						],
-					},
 					inputLabel: "Score-Eingabe",
 					outputLabel: "Diagnoseblock",
 					title: "Vorhofflimmern · Diagnoseblock",
@@ -282,15 +262,10 @@ Die notfallmäßige Vorstellung erfolgt bei Synkope am **XX.XX.XXXX**. Die Synko
 					badge: "Dynamische Vorlage",
 					content: `# Elektrische Kardioversion
 
-## Vorbereitung
 {% switch "Geschlecht" %}{% case "weiblich" %}Die Patientin{% /case %}{% case "männlich" %}Der Patient{% /case %}{% /switch %} {% info "Nachname" /%} wurde zur elektrischen Kardioversion bei symptomatischem Vorhofflimmern aufgenommen.
 
-Im Vorfeld erfolgte eine TEE ohne Nachweis intrakavitärer Thromben. {% switch "Antikoagulation" %}{% case "sicher" %}Die Antikoagulation wurde sicher eingenommen.{% /case %}{% case "unklar" %}Die Einnahme der Antikoagulation war nicht sicher nachvollziehbar.{% /case %}{% /switch %}
+Nach TEE ohne Nachweis intrakavitärer Thromben erfolgte die synchronisierte elektrische Kardioversion in Kurznarkose.
 
-## Durchführung
-Nach Sedierung mit Propofol ({% info "Dosis Propofol" type="number" unit="mg" renderUnit=true /%}) erfolgte eine synchronisierte elektrische Kardioversion mit {% info "Joule 1. Schock" type="number" unit="J" renderUnit=true /%} in anterolateraler Elektrodenposition.
-
-## Ergebnis
 {% switch "Ergebnis" %}{% case "Sinusrhythmus" %}Erfolgreiche Konversion in den Sinusrhythmus.{% /case %}{% case "Vorhofflimmern" %}Persistierendes Vorhofflimmern nach Kardioversionsversuch.{% /case %}{% /switch %}
 
 Die Patientin oder der Patient war anschließend kardiorespiratorisch stabil; unmittelbare Komplikationen traten nicht auf.`,

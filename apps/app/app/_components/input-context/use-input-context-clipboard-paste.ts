@@ -43,10 +43,5 @@ export const useInputContextClipboardPaste = ({
 				onContextFilesAdded?.();
 			}
 		},
-		[
-			controller,
-			disabled,
-			onAudioFilesAdded,
-			onContextFilesAdded,
-		],
+		[controller, disabled, onAudioFilesAdded, onContextFilesAdded],
 	);

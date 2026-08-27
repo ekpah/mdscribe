@@ -32,9 +32,7 @@ export type Verification = InferSelectModel<typeof verification>;
 export type Template = InferSelectModel<typeof template>;
 export type DocumentTemplate = InferSelectModel<typeof documentTemplate>;
 export type TemplateCollection = InferSelectModel<typeof templateCollection>;
-export type TemplateCollectionTemplate = InferSelectModel<
-	typeof templateCollectionTemplate
->;
+export type TemplateCollectionTemplate = InferSelectModel<typeof templateCollectionTemplate>;
 export type Subscription = InferSelectModel<typeof subscription>;
 export type UsageEvent = InferSelectModel<typeof usageEvent>;
 export type ContextTransfer = InferSelectModel<typeof contextTransfer>;
@@ -50,9 +48,7 @@ export type NewVerification = InferInsertModel<typeof verification>;
 export type NewTemplate = InferInsertModel<typeof template>;
 export type NewDocumentTemplate = InferInsertModel<typeof documentTemplate>;
 export type NewTemplateCollection = InferInsertModel<typeof templateCollection>;
-export type NewTemplateCollectionTemplate = InferInsertModel<
-	typeof templateCollectionTemplate
->;
+export type NewTemplateCollectionTemplate = InferInsertModel<typeof templateCollectionTemplate>;
 export type NewSubscription = InferInsertModel<typeof subscription>;
 export type NewUsageEvent = InferInsertModel<typeof usageEvent>;
 export type NewUsageObservation = InferInsertModel<typeof usageObservation>;
@@ -71,9 +67,5 @@ export type NewAiProvider = InferInsertModel<typeof aiProvider>;
 export type NewAiModel = InferInsertModel<typeof aiModel>;
 export type NewAiDefaults = InferInsertModel<typeof aiDefaults>;
 export type NewAiScribeFormConfig = InferInsertModel<typeof aiScribeFormConfig>;
-export type AiScribeWorkspace = InferSelectModel<
-	typeof aiScribeWorkspace
->;
-export type NewAiScribeWorkspace = InferInsertModel<
-	typeof aiScribeWorkspace
->;
+export type AiScribeWorkspace = InferSelectModel<typeof aiScribeWorkspace>;
+export type NewAiScribeWorkspace = InferInsertModel<typeof aiScribeWorkspace>;

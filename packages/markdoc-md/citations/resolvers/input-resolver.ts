@@ -5,10 +5,7 @@ import type {
 	CitationResolverContext,
 	CitationTextMatch,
 } from "./types";
-import {
-	MAX_CITATION_QUOTE_LENGTH,
-	MAX_CITATION_TEXT_LENGTH,
-} from "./types";
+import { MAX_CITATION_QUOTE_LENGTH, MAX_CITATION_TEXT_LENGTH } from "./types";
 
 interface NormalizedText {
 	ends: Uint32Array;
@@ -46,7 +43,7 @@ const normalizeTextWithIndices = (value: string): NormalizedText => {
 		}
 	};
 
-	for (let index = 0; index < value.length; ) {
+	for (let index = 0; index < value.length;) {
 		const charCode = value.charCodeAt(index);
 		const codePoint = value.codePointAt(index) ?? charCode;
 		const character = String.fromCodePoint(codePoint);
@@ -76,9 +73,7 @@ const normalizeTextWithIndices = (value: string): NormalizedText => {
 			charCode === 13 ||
 			charCode === 32;
 		if (isAsciiWhitespace || (charCode > 127 && /\s/u.test(character))) {
-			pendingSpace = pendingSpace
-				? { end, start: pendingSpace.start }
-				: { end, start: index };
+			pendingSpace = pendingSpace ? { end, start: pendingSpace.start } : { end, start: index };
 			index = end;
 			continue;
 		}
@@ -123,10 +118,7 @@ const normalizeTextWithIndices = (value: string): NormalizedText => {
 export const normalizeCitationSearchText = (value: string): string =>
 	normalizeTextWithIndices(value).text;
 
-export const findQuoteInInputText = (
-	text: string,
-	quote: string,
-): CitationTextMatch | null => {
+export const findQuoteInInputText = (text: string, quote: string): CitationTextMatch | null => {
 	const normalizedText = normalizeTextWithIndices(text);
 	const normalizedQuote = normalizeTextWithIndices(quote).text.trim();
 	if (!normalizedQuote) {
@@ -139,8 +131,7 @@ export const findQuoteInInputText = (
 	}
 
 	const start = normalizedText.starts[normalizedStart];
-	const lastIndex =
-		normalizedText.ends[normalizedStart + normalizedQuote.length - 1];
+	const lastIndex = normalizedText.ends[normalizedStart + normalizedQuote.length - 1];
 	if (start === undefined || lastIndex === undefined) {
 		return null;
 	}
@@ -153,8 +144,7 @@ export const resolveInputCitation = (
 	context: CitationResolverContext,
 ): CitationResolution => {
 	const sourceIdentity = reference.source.split("#", 1)[0] ?? reference.source;
-	const input =
-		context.texts?.get(reference.source) ?? context.texts?.get(sourceIdentity);
+	const input = context.texts?.get(reference.source) ?? context.texts?.get(sourceIdentity);
 	if (!input) {
 		return {
 			code: "source-not-found",
@@ -181,9 +171,7 @@ export const resolveInputCitation = (
 			source: reference.source,
 		};
 	}
-	const match = quote
-		? (findQuoteInInputText(input.text, quote) ?? undefined)
-		: undefined;
+	const match = quote ? (findQuoteInInputText(input.text, quote) ?? undefined) : undefined;
 
 	return {
 		kind: "text",

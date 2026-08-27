@@ -1,6 +1,4 @@
-type DocumentDetailAction =
-	| { href: string; kind: "edit" }
-	| { href: string; kind: "fork" };
+type DocumentDetailAction = { href: string; kind: "edit" } | { href: string; kind: "fork" };
 
 export const getDocumentDetailAction = ({
 	documentId,

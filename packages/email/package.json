@@ -1,24 +1,24 @@
 {
-  "name": "@repo/email",
-  "version": "0.0.0",
-  "license": "Apache-2.0",
-  "private": true,
-  "scripts": {
-    "test": "bun test",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@react-email/components": "1.0.1",
-    "nodemailer": "^9.0.3",
-    "react": "catalog:"
-  },
-  "devDependencies": {
-    "@types/bun": "catalog:",
-    "@types/node": "catalog:",
-    "@types/nodemailer": "^8.0.1",
-    "@types/react": "catalog:",
-    "@types/smtp-server": "^3.5.12",
-    "smtp-server": "^3.16.1",
-    "typescript": "catalog:"
-  }
+	"name": "@repo/email",
+	"version": "0.0.0",
+	"private": true,
+	"license": "Apache-2.0",
+	"scripts": {
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@react-email/components": "1.0.1",
+		"nodemailer": "^9.0.3",
+		"react": "catalog:"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"@types/node": "catalog:",
+		"@types/nodemailer": "^8.0.1",
+		"@types/react": "catalog:",
+		"@types/smtp-server": "^3.5.12",
+		"smtp-server": "^3.16.1",
+		"typescript": "catalog:"
+	}
 }

@@ -6,10 +6,9 @@ import { cn } from "@repo/design-system/lib/utils";
 import { Check, Paperclip, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-} from "@/lib/input-fill-limits";
+
+import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
+
 import { addContextFilesToValue } from "../../files";
 import type { UploadedContextFile } from "../../types";
 import { MobileFileUpload } from "./mobile-file-upload";
@@ -47,9 +46,7 @@ export const DocumentInput = ({
 	onValueChange,
 	value,
 }: DocumentInputProps) => {
-	const [confirmingDeleteFileId, setConfirmingDeleteFileId] = useState<string | null>(
-		null,
-	);
+	const [confirmingDeleteFileId, setConfirmingDeleteFileId] = useState<string | null>(null);
 
 	const handleRawFiles = useCallback(
 		(nextFiles: File[]) => {
@@ -82,15 +79,7 @@ export const DocumentInput = ({
 			onValueChange(result.files);
 			return true;
 		},
-		[
-			disabled,
-			maxFileBytes,
-			maxFiles,
-			maxTotalBytes,
-			onAddFiles,
-			onValueChange,
-			value,
-		],
+		[disabled, maxFileBytes, maxFiles, maxTotalBytes, onAddFiles, onValueChange, value],
 	);
 	const handleAddFiles = useCallback(
 		(files: { file: unknown }[]) => {
@@ -145,13 +134,7 @@ export const DocumentInput = ({
 	}, [confirmingDeleteFileId]);
 
 	return (
-		<div
-			className={cn(
-				"flex min-h-0 flex-col gap-4",
-				disabled && "opacity-70",
-				className,
-			)}
-		>
+		<div className={cn("flex min-h-0 flex-col gap-4", disabled && "opacity-70", className)}>
 			<FileDropzone
 				accept={accept}
 				className={cn(
@@ -204,25 +187,14 @@ export const DocumentInput = ({
 										</Button>
 									) : null}
 									<Button
-										aria-label={
-											isConfirmingDelete
-												? "Löschen bestätigen"
-												: "Datei entfernen"
-										}
-										className={cn(
-											"h-7 w-7",
-											isConfirmingDelete && "text-solarized-red",
-										)}
+										aria-label={isConfirmingDelete ? "Löschen bestätigen" : "Datei entfernen"}
+										className={cn("h-7 w-7", isConfirmingDelete && "text-solarized-red")}
 										disabled={disabled}
 										onClick={() => {
 											handleDeleteClick(id);
 										}}
 										size="icon"
-										title={
-											isConfirmingDelete
-												? "Löschen bestätigen"
-												: "Datei entfernen"
-										}
+										title={isConfirmingDelete ? "Löschen bestätigen" : "Datei entfernen"}
 										type="button"
 										variant="ghost"
 									>

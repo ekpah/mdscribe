@@ -12,9 +12,7 @@ const headingPrefixes: Record<string, string> = {
 	h6: "######",
 };
 
-const inlineRenderers: Partial<
-	Record<string, (innerContent: string) => string>
-> = {
+const inlineRenderers: Partial<Record<string, (innerContent: string) => string>> = {
 	b: (innerContent) => `**${innerContent}**`,
 	br: () => "\n",
 	em: (innerContent) => `*${innerContent}*`,
@@ -31,15 +29,11 @@ const quoteMarkdocValue = (value: string): string => JSON.stringify(value);
 const readAttribute = (element: Element, name: string): string | null =>
 	element.getAttribute(name) ?? element.getAttribute(name.toLowerCase());
 
-const serializeStringAttribute = (
-	name: string,
-	value: string | null,
-): string => (value ? ` ${name}=${quoteMarkdocValue(value)}` : "");
+const serializeStringAttribute = (name: string, value: string | null): string =>
+	value ? ` ${name}=${quoteMarkdocValue(value)}` : "";
 
-const serializeBooleanAttribute = (
-	name: string,
-	value: string | null,
-): string => (value === "true" || value === "" ? ` ${name}=true` : "");
+const serializeBooleanAttribute = (name: string, value: string | null): string =>
+	value === "true" || value === "" ? ` ${name}=true` : "";
 
 const decodeAttributeValue = (value: string | null): string | null => {
 	if (!value) {
@@ -53,12 +47,22 @@ const decodeAttributeValue = (value: string | null): string | null => {
 	}
 };
 
-let convertHtmlFragmentToMarkdoc = (htmlFragment: string): string =>
-	htmlFragment;
+let convertHtmlFragmentToMarkdoc = (htmlFragment: string): string => htmlFragment;
 
 const customMarkdocRenderers: Partial<
 	Record<string, (element: Element, innerContent: string) => string>
 > = {
+	calc: (element, innerContent) => {
+		const formula = readAttribute(element, "formula") || "";
+		const primaryAttribute = serializeStringAttribute("primary", readAttribute(element, "primary"));
+		const formulaAttribute = ` formula=${quoteMarkdocValue(formula)}`;
+		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
+		const renderUnitAttribute = serializeBooleanAttribute(
+			"renderUnit",
+			readAttribute(element, "renderUnit") ?? readAttribute(element, "renderunit"),
+		);
+		return `{% calc${primaryAttribute}${formulaAttribute}${unitAttribute}${renderUnitAttribute} %}${innerContent}{% /calc %}`;
+	},
 	case: (element, innerContent) => {
 		const casePrimary = readAttribute(element, "primary") || "";
 		const encodedCaseContent = readAttribute(element, "data-content");
@@ -66,14 +70,16 @@ const customMarkdocRenderers: Partial<
 		const caseContent = decodedCaseContent
 			? convertHtmlFragmentToMarkdoc(decodedCaseContent).trim()
 			: innerContent.trim();
-		return `{% case ${quoteMarkdocValue(casePrimary)} %}${caseContent}{% /case %}`;
+		const rawValue = readAttribute(element, "value");
+		const valueAttribute =
+			rawValue !== null && rawValue !== "" && Number.isFinite(Number(rawValue))
+				? ` value=${Number(rawValue)}`
+				: "";
+		return `{% case ${quoteMarkdocValue(casePrimary)}${valueAttribute} %}${caseContent}{% /case %}`;
 	},
 	cite: (element, innerContent) => {
 		const source = readAttribute(element, "source") || "";
-		const quoteAttribute = serializeStringAttribute(
-			"quote",
-			readAttribute(element, "quote"),
-		);
+		const quoteAttribute = serializeStringAttribute("quote", readAttribute(element, "quote"));
 		return `{% cite source=${quoteMarkdocValue(source)}${quoteAttribute} %}${innerContent}{% /cite %}`;
 	},
 	info: (element) => {
@@ -82,54 +88,22 @@ const customMarkdocRenderers: Partial<
 			"description",
 			readAttribute(element, "description"),
 		);
-		const typeAttribute = serializeStringAttribute(
-			"type",
-			readAttribute(element, "type"),
-		);
-		const unitAttribute = serializeStringAttribute(
-			"unit",
-			readAttribute(element, "unit"),
-		);
+		const typeAttribute = serializeStringAttribute("type", readAttribute(element, "type"));
+		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
 		const renderUnitAttribute = serializeBooleanAttribute(
 			"renderUnit",
-			readAttribute(element, "renderUnit") ??
-				readAttribute(element, "renderunit"),
+			readAttribute(element, "renderUnit") ?? readAttribute(element, "renderunit"),
 		);
-		const sourceAttribute = serializeStringAttribute(
-			"source",
-			readAttribute(element, "source"),
-		);
+		const sourceAttribute = serializeStringAttribute("source", readAttribute(element, "source"));
 		return `{% info ${quoteMarkdocValue(infoPrimary)}${descriptionAttribute}${typeAttribute}${unitAttribute}${renderUnitAttribute}${sourceAttribute} /%}`;
 	},
-	score: (element) => {
-		const formula = readAttribute(element, "formula") || "";
-		const primaryAttribute = serializeStringAttribute(
-			"primary",
-			readAttribute(element, "primary"),
-		);
-		const formulaAttribute = ` formula=${quoteMarkdocValue(formula)}`;
-		const unitAttribute = serializeStringAttribute(
-			"unit",
-			readAttribute(element, "unit"),
-		);
-		const renderUnitAttribute = serializeBooleanAttribute(
-			"renderUnit",
-			readAttribute(element, "renderUnit") ??
-				readAttribute(element, "renderunit"),
-		);
-		return `{% score${primaryAttribute}${formulaAttribute}${unitAttribute}${renderUnitAttribute} /%}`;
-	},
+	// Legacy editor HTML is normalized to canonical calc syntax.
+	score: (element, innerContent) => customMarkdocRenderers.calc?.(element, innerContent) ?? "",
 	switch: (element, innerContent) => {
 		const switchPrimary = readAttribute(element, "primary") || "";
 		const primary = quoteMarkdocValue(switchPrimary);
-		const sourceAttribute = serializeStringAttribute(
-			"source",
-			readAttribute(element, "source"),
-		);
-		const typeAttribute = serializeStringAttribute(
-			"type",
-			readAttribute(element, "type"),
-		);
+		const sourceAttribute = serializeStringAttribute("source", readAttribute(element, "source"));
+		const typeAttribute = serializeStringAttribute("type", readAttribute(element, "type"));
 		return `{% switch ${primary}${typeAttribute}${sourceAttribute} %}${innerContent}{% /switch %}`;
 	},
 };
@@ -179,11 +153,7 @@ const htmlElementRenderers: Partial<
 	span: (_element, innerContent) => innerContent,
 };
 
-const renderHtmlElement = (
-	element: Element,
-	tagName: string,
-	innerContent: string,
-): string => {
+const renderHtmlElement = (element: Element, tagName: string, innerContent: string): string => {
 	if (tagName in headingPrefixes) {
 		return renderHeading(tagName, innerContent);
 	}
@@ -225,10 +195,7 @@ const processNodeForMarkdoc = (node: Node): string => {
 
 	const element = node as Element;
 	const tagName = element.tagName.toLowerCase();
-	const innerContent = processChildrenForMarkdoc(
-		element,
-		processNodeForMarkdoc,
-	);
+	const innerContent = processChildrenForMarkdoc(element, processNodeForMarkdoc);
 	const customRenderer = customMarkdocRenderers[tagName];
 	return customRenderer
 		? customRenderer(element, innerContent)
@@ -264,9 +231,7 @@ convertHtmlFragmentToMarkdoc = (htmlFragment: string): string => {
  */
 export const htmlToMarkdoc = (html: string): string => {
 	if (!isHtmlToMarkdocSupported()) {
-		throw new Error(
-			"htmlToMarkdoc requires a DOM environment with DOMParser support.",
-		);
+		throw new Error("htmlToMarkdoc requires a DOM environment with DOMParser support.");
 	}
 
 	const parser = new DOMParser();
@@ -278,5 +243,4 @@ export const htmlToMarkdoc = (html: string): string => {
 };
 
 /** Whether htmlToMarkdoc can run in the current JavaScript environment. */
-export const isHtmlToMarkdocSupported = (): boolean =>
-	typeof DOMParser !== "undefined";
+export const isHtmlToMarkdocSupported = (): boolean => typeof DOMParser !== "undefined";

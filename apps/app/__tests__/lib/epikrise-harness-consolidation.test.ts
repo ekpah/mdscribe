@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { resolveFallbackTemplateByContextKey } from "@/orpc/scribe/context/template/fallbacks";
-import {
-	documentTypeConfigs,
-	SELECTABLE_PROMPT_HARNESS_OPTIONS,
-} from "@/orpc/scribe/prompts";
+import { documentTypeConfigs, SELECTABLE_PROMPT_HARNESS_OPTIONS } from "@/orpc/scribe/prompts";
 
 describe("epikrise harness consolidation", () => {
 	test("narrative settings share the epikrise system prompt", () => {

@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
 
-import type { TestServer } from "@/__tests__/setup";
 import { aiMockState } from "@/__tests__/preload";
+import type { TestServer } from "@/__tests__/setup";
 import {
 	createMockSession,
 	createTestAiDefaults,
@@ -21,19 +21,19 @@ import {
 	AI_SCRIBE_STT_EVENT_NAME,
 } from "@/lib/usage-event-names";
 import { USER_MESSAGES } from "@/lib/user-messages";
+import { scribeAgentGenerateSectionHandler } from "@/orpc/scribe-agent/generate-section";
 import { documentTypeConfigs } from "@/orpc/scribe/config";
 import { composeScribeContext } from "@/orpc/scribe/context";
 import { scribeStreamHandler } from "@/orpc/scribe/handlers";
 import { prepareAudioInputForModel } from "@/orpc/scribe/handlers/audio-input";
 import { fillInputsHandler } from "@/orpc/scribe/handlers/fill-inputs";
 import { DEFAULT_SCRIBE_MODEL_CONFIG } from "@/orpc/scribe/handlers/scribe-stream";
-import { scribeAgentGenerateSectionHandler } from "@/orpc/scribe-agent/generate-section";
-import { composeFillInputsPrompt } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
 	getDocumentTypeByPromptName,
 	PROMPT_HARNESS_IDS,
 	PROMPT_HARNESS_OPTIONS,
 } from "@/orpc/scribe/prompts";
+import { composeFillInputsPrompt } from "@/orpc/scribe/prompts/core/fill-inputs";
 import {
 	buildProviderOptions,
 	resolveAgentGenerationStrategy,
@@ -426,7 +426,9 @@ describe("Model Selection Logic", () => {
 			expect(strategy.generation.model.modelName).toBe("openrouter/test-text");
 			expect(strategy.audio?.mode).toBe("preprocess");
 			expect(
-				strategy.audio?.mode === "preprocess" ? strategy.audio.selection.model.modelName : undefined,
+				strategy.audio?.mode === "preprocess"
+					? strategy.audio.selection.model.modelName
+					: undefined,
 			).toBe("openrouter/test-speech");
 			expect(strategy.audio?.mode === "preprocess" ? strategy.audio.strategy : undefined).toBe(
 				"direct",
@@ -946,7 +948,7 @@ describe("Fill Inputs Handler", () => {
 			formData: { diagnoseblock: "I50.1 Akute Linksherzinsuffizienz" },
 			template: {
 				content: "",
-				examples: [],
+				examples: ["Beispielwert: NYHA II"],
 				information: "Bevorzuge kurze, eindeutige Werte.",
 				title: "Ausfüllhinweise",
 			},
@@ -958,8 +960,12 @@ describe("Fill Inputs Handler", () => {
 		expect(messages[1].content).toContain("I50.1 Akute Linksherzinsuffizienz");
 		expect(messages[1].content).toContain("<information>");
 		expect(messages[1].content).toContain("Bevorzuge kurze, eindeutige Werte.");
+		expect(messages[1].content).toContain("<examples>");
+		expect(messages[1].content).toContain("Beispielwert: NYHA II");
 		expect(messages[1].content).not.toContain('"inputFields"');
 		expect(messages[1].content).not.toContain("Verfügbare Felder");
+		expect(messages[0].content).toContain("bevorzuge die einzelnen Komponenten");
+		expect(messages[0].content).toContain("Score-Wert hat Vorrang");
 	});
 
 	test("allows text-only autofill through the default text model", async () => {
@@ -1021,6 +1027,7 @@ describe("Fill Inputs Handler", () => {
 							type: "string",
 						},
 					],
+					templateExamples: ["Aufnahmediagnose: I50.1"],
 					templateInformation: "Nur gesicherte Angaben übernehmen.",
 					textContext: {
 						diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
@@ -1029,14 +1036,21 @@ describe("Fill Inputs Handler", () => {
 				{ context },
 			);
 
-			expect(result.fieldValues).toEqual({ test: "value" });
+			expect(result.fieldValues).toEqual({});
 			expect(aiMockState.lastGenerateTextOptions).toMatchObject({
 				model: {
 					wrappedLanguageModel: {
-						middleware: "extract-json-middleware",
+						middleware: { kind: "extract-json-middleware" },
 					},
 				},
 			});
+			const generatedMessages = (
+				aiMockState.lastGenerateTextOptions as {
+					messages?: { content?: string; role?: string }[];
+				}
+			).messages;
+			expect(generatedMessages?.[1]?.content).toContain("<examples>");
+			expect(generatedMessages?.[1]?.content).toContain("Aufnahmediagnose: I50.1");
 
 			const [event] = await server.db
 				.select()
@@ -1045,6 +1059,8 @@ describe("Fill Inputs Handler", () => {
 			expect(event?.userId).toBe(user.id);
 			expect(event?.model).toBe("openrouter/test-text");
 			expect(event?.inputData).toMatchObject({
+				templateExampleCount: 1,
+				templateExamplesCharacters: "Aufnahmediagnose: I50.1".length,
 				templateInformationCharacters: "Nur gesicherte Angaben übernehmen.".length,
 				textContext: {
 					diagnoseblock: "I50.1 Akute Linksherzinsuffizienz",
@@ -1165,10 +1181,41 @@ describe("Fill Inputs Handler", () => {
 							size: rawFile.length,
 						},
 					],
-					inputFields: [{ label: "Befund", type: "string" }],
+					inputFields: [
+						{ label: "Befund", type: "string" },
+						{ label: "Alter", type: "number" },
+						{ label: "Herzinsuffizienz", type: "number" },
+						{
+							calculation: {
+								components: ["Alter", "Herzinsuffizienz"],
+								formula: "[Alter] + [Herzinsuffizienz]",
+							},
+							label: "Risikoscore",
+							type: "number",
+						},
+					],
 				},
 				{ context },
 			);
+
+			const generationOptions = aiMockState.lastGenerateTextOptions as {
+				model?: {
+					wrappedLanguageModel?: {
+						middleware?: { transform?: (text: string) => string };
+					};
+				};
+				output?: { schema?: { safeParse: (value: unknown) => { success: boolean } } };
+			};
+			const outputSchema = generationOptions.output?.schema;
+			expect(outputSchema?.safeParse({ fieldValues: { Befund: "Unauffällig" } }).success).toBe(
+				true,
+			);
+			expect(outputSchema?.safeParse({ fieldValues: { Unbekannt: "Wert" } }).success).toBe(false);
+			expect(outputSchema?.safeParse({ fieldValues: { Risikoscore: 4 } }).success).toBe(true);
+			const transform = generationOptions.model?.wrappedLanguageModel?.middleware?.transform;
+			const validJson = JSON.stringify({ fieldValues: { Alter: 75 } });
+			expect(transform?.(`\`\`\`json\n${validJson}\n\`\`\``)).toBe(validJson);
+			expect(transform?.(JSON.stringify(validJson))).toBe(validJson);
 
 			const [event] = await server.db
 				.select()
@@ -1212,7 +1259,7 @@ describe("Scribe Agent section generation", () => {
 						notes: "Bitte Anamnese aus Agentenhinweis erzeugen.",
 					},
 					preparedAttachmentText:
-						"<audio_transkripte>\\n<aufnahme index=\"1\">\\nPatient berichtet seit gestern Belastungsdyspnoe.\\n</aufnahme>\\n</audio_transkripte>\\n\\nLabor: NT-proBNP deutlich erhöht.",
+						'<audio_transkripte>\\n<aufnahme index="1">\\nPatient berichtet seit gestern Belastungsdyspnoe.\\n</aufnahme>\\n</audio_transkripte>\\n\\nLabor: NT-proBNP deutlich erhöht.',
 					source: "documentType",
 					traceContext: { agentRunId: "agent-run-1", agentSectionId: "anamnese" },
 				},

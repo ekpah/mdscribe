@@ -90,5 +90,7 @@ export interface CitationResolverContext {
 	texts?: ReadonlyMap<string, CitationTextSource>;
 }
 
-export type CitationReference<K extends CitationSourceReference["kind"]> =
-	Extract<CitationSourceReference, { kind: K }>;
+export type CitationReference<K extends CitationSourceReference["kind"]> = Extract<
+	CitationSourceReference,
+	{ kind: K }
+>;

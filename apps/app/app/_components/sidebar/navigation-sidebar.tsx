@@ -87,15 +87,20 @@ export const NavigationSidebarBrand = ({
 }: NavigationSidebarBrandProps) => (
 	<SidebarMenu>
 		<SidebarMenuItem>
-			<SidebarMenuButton size="lg" render={<Link href={href}>
-					<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-						<Icon className="size-4" />
-					</div>
-					<div className="grid flex-1 text-left text-sm leading-tight">
-						<span className="truncate font-semibold">{title}</span>
-						{subtitle ? <span className="truncate text-xs">{subtitle}</span> : null}
-					</div>
-				</Link>} />
+			<SidebarMenuButton
+				size="lg"
+				render={
+					<Link href={href}>
+						<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+							<Icon className="size-4" />
+						</div>
+						<div className="grid flex-1 text-left text-sm leading-tight">
+							<span className="truncate font-semibold">{title}</span>
+							{subtitle ? <span className="truncate text-xs">{subtitle}</span> : null}
+						</div>
+					</Link>
+				}
+			/>
 		</SidebarMenuItem>
 	</SidebarMenu>
 );
@@ -177,15 +182,21 @@ export const NavigationSidebar = ({
 										section.items.map((item) => {
 											const Icon = item.icon;
 											const href = resolveHref(item);
-											const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+											const isActive =
+												pathname === item.href || pathname.startsWith(`${item.href}/`);
 
 											return (
 												<SidebarMenuItem key={item.key ?? item.href}>
-													<SidebarMenuButton isActive={isActive} render={<Link href={href} onClick={handleCloseMobile}>
-															{Icon ? <Icon /> : null}
-															<span>{item.title}</span>
-															{renderItemMeta?.(item)}
-														</Link>} />
+													<SidebarMenuButton
+														isActive={isActive}
+														render={
+															<Link href={href} onClick={handleCloseMobile}>
+																{Icon ? <Icon /> : null}
+																<span>{item.title}</span>
+																{renderItemMeta?.(item)}
+															</Link>
+														}
+													/>
 												</SidebarMenuItem>
 											);
 										}),
@@ -200,18 +211,22 @@ export const NavigationSidebar = ({
 												key={section.key ?? (section.title || "uncategorized")}
 											>
 												<SidebarMenuItem>
-													<CollapsibleTrigger render={<SidebarMenuButton className={sectionButtonClassName}>
-															{SectionIcon ? <SectionIcon /> : null}
-															<span>{section.title || sectionTitleFallback}</span>
-															{expandIcon === "chevron" ? (
-																<ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
-															) : (
-																<>
-																	<Plus className="ml-auto group-data-open/collapsible:hidden" />
-																	<Minus className="ml-auto group-data-closed/collapsible:hidden" />
-																</>
-															)}
-														</SidebarMenuButton>} />
+													<CollapsibleTrigger
+														render={
+															<SidebarMenuButton className={sectionButtonClassName}>
+																{SectionIcon ? <SectionIcon /> : null}
+																<span>{section.title || sectionTitleFallback}</span>
+																{expandIcon === "chevron" ? (
+																	<ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+																) : (
+																	<>
+																		<Plus className="ml-auto group-data-open/collapsible:hidden" />
+																		<Minus className="ml-auto group-data-closed/collapsible:hidden" />
+																	</>
+																)}
+															</SidebarMenuButton>
+														}
+													/>
 													{section.items.length > 0 ? (
 														<CollapsibleContent>
 															<SidebarMenuSub>
@@ -220,14 +235,18 @@ export const NavigationSidebar = ({
 
 																	return (
 																		<SidebarMenuSubItem key={item.key ?? item.href}>
-																			<SidebarMenuSubButton render={<Link
-																					className="flex items-center justify-between"
-																					href={href}
-																					onClick={handleCloseMobile}
-																				>
-																					<span>{item.title}</span>
-																					{renderItemMeta?.(item)}
-																				</Link>} />
+																			<SidebarMenuSubButton
+																				render={
+																					<Link
+																						className="flex items-center justify-between"
+																						href={href}
+																						onClick={handleCloseMobile}
+																					>
+																						<span>{item.title}</span>
+																						{renderItemMeta?.(item)}
+																					</Link>
+																				}
+																			/>
 																		</SidebarMenuSubItem>
 																	);
 																})}

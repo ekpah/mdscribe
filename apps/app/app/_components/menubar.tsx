@@ -156,14 +156,21 @@ export default function TopMenuBar({
 						if (session?.user) {
 							return (
 								<DropdownMenu>
-									<DropdownMenuTrigger render={<Button variant="ghost" className="relative h-9 w-9 rounded-full">
-											<Avatar className="h-9 w-9">
-												<AvatarImage src={session.user.image ?? undefined} alt={userDisplayName} />
-												<AvatarFallback>
-													<User className="h-5 w-5" />
-												</AvatarFallback>
-											</Avatar>
-										</Button>} />
+									<DropdownMenuTrigger
+										render={
+											<Button variant="ghost" className="relative h-9 w-9 rounded-full">
+												<Avatar className="h-9 w-9">
+													<AvatarImage
+														src={session.user.image ?? undefined}
+														alt={userDisplayName}
+													/>
+													<AvatarFallback>
+														<User className="h-5 w-5" />
+													</AvatarFallback>
+												</Avatar>
+											</Button>
+										}
+									/>
 									<DropdownMenuContent align="end" className="w-56">
 										<DropdownMenuLabel className="font-normal">
 											<div className="flex flex-col space-y-1">
@@ -174,19 +181,31 @@ export default function TopMenuBar({
 											</div>
 										</DropdownMenuLabel>
 										<DropdownMenuSeparator />
-										<DropdownMenuItem render={<Link href="/dashboard" className="cursor-pointer">
-												<LayoutDashboard className="mr-2 h-4 w-4" />
-												Dashboard
-											</Link>} />
-										<DropdownMenuItem render={<Link href="/profile/account" className="cursor-pointer">
-												<Settings className="mr-2 h-4 w-4" />
-												Einstellungen
-											</Link>} />
+										<DropdownMenuItem
+											render={
+												<Link href="/dashboard" className="cursor-pointer">
+													<LayoutDashboard className="mr-2 h-4 w-4" />
+													Dashboard
+												</Link>
+											}
+										/>
+										<DropdownMenuItem
+											render={
+												<Link href="/profile/account" className="cursor-pointer">
+													<Settings className="mr-2 h-4 w-4" />
+													Einstellungen
+												</Link>
+											}
+										/>
 										{isAdmin && (
-											<DropdownMenuItem render={<Link href="/admin" className="cursor-pointer">
-													<Shield className="mr-2 h-4 w-4" />
-													Admin
-												</Link>} />
+											<DropdownMenuItem
+												render={
+													<Link href="/admin" className="cursor-pointer">
+														<Shield className="mr-2 h-4 w-4" />
+														Admin
+													</Link>
+												}
+											/>
 										)}
 										<DropdownMenuSeparator />
 										<ModeToggleSwitch />

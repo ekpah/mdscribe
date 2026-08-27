@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 export default function ErrorState({
-  error,
-  reset: _reset,
+	error,
+	reset: _reset,
 }: {
-  error: Error & { digest?: string };
-  reset: () => void;
+	error: Error & { digest?: string };
+	reset: () => void;
 }) {
-  useEffect(() => {
-    // Log the error to an error reporting service
-    console.error(error);
-  }, [error]);
+	useEffect(() => {
+		// Log the error to an error reporting service
+		console.error(error);
+	}, [error]);
 
-  return (
-    <div>
-      <h2>Something went wrong!</h2>
-    </div>
-  );
+	return (
+		<div>
+			<h2>Something went wrong!</h2>
+		</div>
+	);
 }

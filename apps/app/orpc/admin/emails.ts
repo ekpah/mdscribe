@@ -1,11 +1,7 @@
 import { ORPCError, type } from "@orpc/server";
 import { asc, eq, user } from "@repo/database";
-import {
-	getEmailDraft,
-	listEmailDraftMetadata,
-	renderEmailDraftHtml,
-} from "@repo/email/drafts";
 import { sendEmail, sendEmailBatch } from "@repo/email";
+import { getEmailDraft, listEmailDraftMetadata, renderEmailDraftHtml } from "@repo/email/drafts";
 import { z } from "zod";
 
 import { authed } from "@/orpc";
@@ -63,9 +59,7 @@ const dedupeEmails = (emails: readonly string[]): string[] => {
 
 const adminEmailProcedure = authed.use(requiredAdminMiddleware);
 
-const listEmailDraftsHandler = adminEmailProcedure.handler(() =>
-	listEmailDraftMetadata(),
-);
+const listEmailDraftsHandler = adminEmailProcedure.handler(() => listEmailDraftMetadata());
 
 const listEmailTestRecipientsHandler = adminEmailProcedure.handler(({ context }) =>
 	context.db

@@ -1,6 +1,6 @@
+import { QueryClient } from "@tanstack/react-query";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { QueryClient } from "@tanstack/react-query";
 
 import DocumentEditor from "@/app/documents/_components/document-editor";
 import { orpc } from "@/lib/orpc";
@@ -10,9 +10,7 @@ export const generateMetadata = (): Metadata => ({
 	title: "Scribe - Dokument bearbeiten",
 });
 
-export default async function EditDocumentPage(
-	props: PageProps<"/documents/[id]/edit">,
-) {
+export default async function EditDocumentPage(props: PageProps<"/documents/[id]/edit">) {
 	const [params, session] = await Promise.all([props.params, getServerSession()]);
 	const queryClient = new QueryClient();
 	const document = await queryClient.fetchQuery(

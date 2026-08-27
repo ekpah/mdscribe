@@ -189,7 +189,10 @@ mock.module("ai", () => ({
 		resolveAsync({
 			text: "Transkribierter Testtext",
 		}),
-	extractJsonMiddleware: () => "extract-json-middleware",
+	extractJsonMiddleware: (options?: { transform?: (text: string) => string }) => ({
+		kind: "extract-json-middleware",
+		...options,
+	}),
 	generateObject: (options?: unknown) => {
 		aiMockState.lastGenerateObjectOptions = options;
 		return resolveAsync({
@@ -240,7 +243,7 @@ mock.module("ai", () => ({
 			options?.messages
 				?.map((message) => (typeof message.content === "string" ? message.content : ""))
 				.join("\n") ?? "";
-		const output = promptText.includes("fieldValues") ? { test: "value" } : undefined;
+		const output = promptText.includes("fieldValues") ? { fieldValues: {} } : undefined;
 		const text = output ? JSON.stringify(output) : MOCK_GENERATED_TEXT;
 		return resolveAsync({
 			finishReason: "stop" as const,

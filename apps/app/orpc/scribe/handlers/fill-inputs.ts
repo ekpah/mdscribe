@@ -61,6 +61,8 @@ interface FillInputPayloadSummary {
 	audioFiles: FillInputAudioPayloadSummary[];
 	contextFiles: FillInputContextFilePayloadSummary[];
 	inputFieldCount: number;
+	templateExampleCount: number;
+	templateExamplesCharacters: number;
 	templateInformationCharacters: number;
 	textContextCharacters: number;
 	totalPayloadBytes: number;
@@ -69,10 +71,13 @@ interface FillInputPayloadSummary {
 const describeField = (field: InputField) =>
 	[
 		field.description,
+		field.calculation
+			? `calculated score | formula=${field.calculation.formula} | components=${field.calculation.components.join(", ")} | Prefer returning all components. Return this score only when not all components can be sourced; a returned score overrides calculation.`
+			: undefined,
 		field.type ? `type=${field.type}` : undefined,
 		field.options?.length ? `options=${field.options.join(", ")}` : undefined,
 		field.unit ? `unit=${field.unit}` : undefined,
-		'Return "" when no matching source information exists.',
+		"Omit this field when no matching source information exists.",
 	]
 		.filter(Boolean)
 		.join(" | ");
@@ -96,7 +101,7 @@ const createFillInputsSchema = (inputFields: InputField[]) => {
 
 	return z
 		.object({
-			fieldValues: z.object(fieldValuesShape).strict(),
+			fieldValues: z.object(fieldValuesShape).partial().strict(),
 		})
 		.strict();
 };
@@ -109,9 +114,27 @@ const toFillInputsResult = (
 	if (parsed.success) {
 		return parsed.data as FillInputsResult;
 	}
-	return {
-		fieldValues: object as Record<string, boolean | number | string>,
-	};
+	throw new ORPCError("BAD_REQUEST", {
+		message:
+			"Ausfüllen fehlgeschlagen. (Die Modellantwort entspricht nicht dem erwarteten Schema.)",
+	});
+};
+
+const stripJsonCodeFence = (text: string): string =>
+	text
+		.trim()
+		.replace(/^```(?:json)?\s*\n?/u, "")
+		.replace(/\n?```\s*$/u, "")
+		.trim();
+
+const normalizeGeneratedJson = (text: string): string => {
+	const normalized = stripJsonCodeFence(text);
+	try {
+		const parsed = JSON.parse(normalized) as unknown;
+		return typeof parsed === "string" ? stripJsonCodeFence(parsed) : normalized;
+	} catch {
+		return normalized;
+	}
 };
 
 /**
@@ -123,19 +146,16 @@ const toFillInputsResult = (
  * JSON body that merely carried a non-"stop" finish reason still succeeds, and
  * return `null` when nothing usable can be recovered.
  */
-const readStructuredOutput = (result: {
-	output?: unknown;
-	text?: string;
-}): unknown => {
+const readStructuredOutput = (result: { output?: unknown; text?: string }): unknown => {
 	try {
 		return result.output;
 	} catch {
-		const text = result.text?.trim();
+		const { text } = result;
 		if (!text) {
 			return null;
 		}
 		try {
-			return JSON.parse(text);
+			return JSON.parse(normalizeGeneratedJson(text));
 		} catch {
 			return null;
 		}
@@ -172,6 +192,11 @@ const getTextContextCharacterCount = (
 const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPayloadSummary => {
 	const audioFiles = input.audioFiles ?? [];
 	const contextFiles = input.contextFiles ?? [];
+	const templateExamples = input.templateExamples ?? [];
+	const templateExamplesCharacters = templateExamples.reduce(
+		(total, example) => total + example.length,
+		0,
+	);
 	const templateInformationCharacters = input.templateInformation?.length ?? 0;
 	const textContextCharacters = getTextContextCharacterCount(input.textContext);
 
@@ -189,6 +214,16 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		contextFiles.length,
 		FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles,
 		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxContextFiles} Dateien können berücksichtigt werden.`,
+	);
+	assertAtMost(
+		templateExamples.length,
+		FILL_INPUT_PAYLOAD_LIMITS.maxTemplateExamples,
+		`Maximal ${FILL_INPUT_PAYLOAD_LIMITS.maxTemplateExamples} Vorlagenbeispiele können berücksichtigt werden.`,
+	);
+	assertAtMost(
+		templateExamplesCharacters,
+		FILL_INPUT_PAYLOAD_LIMITS.maxTemplateExamplesCharacters,
+		`Die Vorlagenbeispiele sind zu lang. Maximal erlaubt sind ${FILL_INPUT_PAYLOAD_LIMITS.maxTemplateExamplesCharacters.toLocaleString("de-DE")} Zeichen.`,
 	);
 	assertAtMost(
 		templateInformationCharacters,
@@ -273,6 +308,8 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		audioFiles: audioSummaries,
 		contextFiles: fileSummaries,
 		inputFieldCount: input.inputFields.length,
+		templateExampleCount: templateExamples.length,
+		templateExamplesCharacters,
 		templateInformationCharacters,
 		textContextCharacters,
 		totalPayloadBytes,
@@ -295,6 +332,8 @@ const buildFillInputUsageInputData = (
 	audioFiles: payloadSummary.audioFiles,
 	contextFiles: payloadSummary.contextFiles,
 	inputFields: summarizeInputFields(input.inputFields),
+	templateExampleCount: payloadSummary.templateExampleCount,
+	templateExamplesCharacters: payloadSummary.templateExamplesCharacters,
 	templateInformationCharacters: payloadSummary.templateInformationCharacters,
 	textContext: input.textContext,
 });
@@ -554,13 +593,17 @@ export const fillInputsHandler = authed
 		const filesAreNative = generationStrategy.files?.mode === "native";
 		// Reuse the shared scribe context pipeline so the clinical fields render
 		// through the same tunable <patient_context> as the main scribe flow.
+		const templateExamples = (input.templateExamples ?? [])
+			.map((example) => example.trim())
+			.filter(Boolean);
 		const templateInformation = input.templateInformation?.trim();
+		const hasTemplateContext = Boolean(templateInformation || templateExamples.length > 0);
 		const { contextXml } = composeScribeContext({
 			formData: { ...input.textContext },
-			template: templateInformation
+			template: hasTemplateContext
 				? {
 						content: "",
-						examples: [],
+						examples: templateExamples,
 						information: templateInformation,
 						title: "Ausfüllhinweise",
 					}
@@ -592,7 +635,7 @@ export const fillInputsHandler = authed
 				typeof generationModel === "string" || generationModel.specificationVersion !== "v3"
 					? generationModel
 					: wrapLanguageModel({
-							middleware: extractJsonMiddleware(),
+							middleware: extractJsonMiddleware({ transform: normalizeGeneratedJson }),
 							model: generationModel,
 						}),
 			output: Output.object({

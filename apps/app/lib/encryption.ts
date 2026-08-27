@@ -1,5 +1,4 @@
 import "server-only";
-
 import { env } from "@/env";
 
 const IV_LENGTH = 12;
@@ -16,14 +15,9 @@ const deriveKey = (): Promise<CryptoKey> => {
 	}
 
 	derivedKeyPromise = (async () => {
-		const keyMaterial = new TextEncoder().encode(
-			env.BETTER_AUTH_SECRET as string,
-		);
+		const keyMaterial = new TextEncoder().encode(env.BETTER_AUTH_SECRET as string);
 		const hash = await crypto.subtle.digest("SHA-256", keyMaterial);
-		return crypto.subtle.importKey("raw", hash, { name: "AES-GCM" }, false, [
-			"encrypt",
-			"decrypt",
-		]);
+		return crypto.subtle.importKey("raw", hash, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 	})();
 
 	return derivedKeyPromise;

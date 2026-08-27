@@ -1,10 +1,8 @@
 "use client";
 
-import Inputs from "@repo/design-system/components/inputs/inputs";
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
-import { ToggleGroup, ToggleGroupItem } from "@repo/design-system/components/ui/toggle-group";
 import { Bot, Braces, Calculator, Check, FileCheck2, FileText, Sparkles } from "lucide-react";
 import { parseMarkdocToInputs } from "markdoc-md/parse";
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
@@ -13,12 +11,12 @@ import type { ChangeEvent, ReactNode } from "react";
 
 import { USER_MESSAGES } from "@/lib/user-messages";
 
+import Inputs from "../inputs/inputs";
+
 const CONTENT = USER_MESSAGES.landing.features;
 const FEATURE_IDS = ["markdown", "template", "score", "ai", "document"] as const;
 const TEMPLATE_INPUTS = parseMarkdocToInputs(CONTENT.frame.template.content);
-const INITIAL_SCORE_VALUES = Object.fromEntries(
-	CONTENT.frame.score.factors.map((factor) => [factor.key, factor.initial]),
-);
+const SCORE_INPUTS = parseMarkdocToInputs(CONTENT.frame.score.content);
 
 type FeatureId = (typeof FEATURE_IDS)[number];
 
@@ -78,7 +76,7 @@ const MarkdownDemo = () => {
 					<p className="mb-4 font-mono text-[0.66rem] uppercase tracking-[0.14em] opacity-55">
 						{content.sourceLabel}
 					</p>
-					<pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm leading-7">
+					<pre className="overflow-x-hidden whitespace-pre-wrap font-mono text-sm leading-7">
 						<code>{content.source}</code>
 					</pre>
 				</div>
@@ -108,15 +106,17 @@ const TemplateDemo = ({ onChange, values }: InteractiveDemoProps) => {
 				data-template-demo
 			>
 				<div
-					className="overflow-y-auto border-b bg-muted/20 p-5 md:border-r md:border-b-0 lg:p-6"
+					className="flex min-h-0 flex-col overflow-hidden border-b bg-muted/20 p-5 md:border-r md:border-b-0 lg:p-6"
 					data-template-input
 				>
 					<PaneLabel>{content.inputLabel}</PaneLabel>
-					<Inputs inputTags={TEMPLATE_INPUTS} onChange={onChange} />
+					<div className="min-h-0 flex-1">
+						<Inputs inputTags={TEMPLATE_INPUTS} onChange={onChange} />
+					</div>
 				</div>
-				<div className="overflow-y-auto p-5 lg:p-6">
+				<div className="overflow-hidden px-5 py-4 lg:px-6">
 					<PaneLabel>{content.outputLabel}</PaneLabel>
-					<div className="prose prose-sm max-w-none font-sans leading-relaxed">
+					<div className="prose prose-sm max-w-none font-sans [&_h1]:mt-0 [&_h1]:mb-4 [&_p]:my-2 [&_p]:leading-6">
 						<DynamicMarkdocRenderer markdocContent={content.content} variables={values} />
 					</div>
 				</div>
@@ -125,135 +125,28 @@ const TemplateDemo = ({ onChange, values }: InteractiveDemoProps) => {
 	);
 };
 
-interface ScoreSwitchProps {
-	label: string;
-	onChange: (value: string) => void;
-	options: readonly { label: string; value: string }[];
-	value: string;
-}
-
-const ScoreSwitch = ({ label, onChange, options, value }: ScoreSwitchProps) => (
-	<div className="space-y-1.5">
-		<Label>{label}</Label>
-		<ToggleGroup
-			aria-label={label}
-			className="w-full overflow-hidden bg-background"
-			onValueChange={(values) => {
-				const [nextValue] = values;
-				if (nextValue) {
-					onChange(nextValue);
-				}
-			}}
-			value={[value]}
-			variant="outline"
-		>
-			{options.map((option) => (
-				<ToggleGroupItem
-					className="h-9 flex-1 px-2 text-xs"
-					key={option.value}
-					value={option.value}
-				>
-					{option.label}
-				</ToggleGroupItem>
-			))}
-		</ToggleGroup>
-	</div>
-);
-
 const ScoreDemo = () => {
 	const content = CONTENT.frame.score;
-	const [factorValues, setFactorValues] = useState<Record<string, unknown>>(INITIAL_SCORE_VALUES);
-	const [age, setAge] = useState(content.age.initial);
-	const [gender, setGender] = useState(content.gender.initial);
-	const selectedAge = content.age.options.find((option) => option.value === age);
-	const selectedGender = content.gender.options.find((option) => option.value === gender);
-	const variables = {
-		...factorValues,
-		Alter65: age === "65-to-74",
-		Alter75: age === "at-least-75",
-		Weiblich: gender === "female",
-	};
-	const score =
-		content.factors.reduce(
-			(total, factor) => total + (factorValues[factor.key] ? factor.points : 0),
-			0,
-		) +
-		(selectedAge?.points ?? 0) +
-		(selectedGender?.points ?? 0);
-
-	const handleFactorChange = useCallback((key: string, checked: boolean) => {
-		setFactorValues((currentValues) => ({ ...currentValues, [key]: checked }));
-	}, []);
+	const [values, setValues] = useState<Record<string, unknown>>({});
 
 	return (
 		<DemoFrame badge={content.badge} title={content.title}>
 			<div className="grid min-h-[25rem] md:grid-cols-[0.95fr_1.05fr] lg:h-[28rem] lg:min-h-0">
 				<div
-					className="max-h-[32rem] overflow-y-auto border-b bg-muted/20 p-5 md:border-r md:border-b-0 lg:p-6"
+					className="max-h-[32rem] overflow-hidden border-b bg-muted/20 p-5 md:border-r md:border-b-0 lg:p-6"
 					data-score-input
 				>
-					<PaneLabel>{content.inputLabel}</PaneLabel>
-					<div className="space-y-3">
-						<div className="space-y-1.5">
-							<Label htmlFor="landing-cha2ds2-vasc">CHA₂DS₂-VASc-Score</Label>
-							<Input
-								className="h-9 cursor-default bg-muted font-medium"
-								id="landing-cha2ds2-vasc"
-								readOnly
-								value={`${score} Punkte`}
-							/>
-						</div>
-						<div className="grid gap-3">
-							<ScoreSwitch
-								label={content.age.label}
-								onChange={setAge}
-								options={content.age.options}
-								value={age}
-							/>
-							<ScoreSwitch
-								label={content.gender.label}
-								onChange={setGender}
-								options={content.gender.options}
-								value={gender}
-							/>
-						</div>
-						<div className="grid gap-2 border-muted border-l-2 pl-4 sm:grid-cols-2">
-							{content.factors.map((factor) => (
-								<Label
-									className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 transition-colors hover:bg-muted/40"
-									htmlFor={`landing-score-${factor.key}`}
-									key={factor.key}
-									onClick={(event) => {
-										event.preventDefault();
-										if (
-											event.target instanceof Element &&
-											event.target.closest('[data-slot="checkbox"]')
-										) {
-											return;
-										}
-										handleFactorChange(factor.key, !factorValues[factor.key]);
-									}}
-								>
-									<Checkbox
-										aria-label={factor.label}
-										checked={Boolean(factorValues[factor.key])}
-										id={`landing-score-${factor.key}`}
-										onCheckedChange={(checked) => handleFactorChange(factor.key, checked)}
-									/>
-									<span aria-hidden="true" className="flex gap-1 font-medium text-sm leading-none">
-										{factor.label.split(" ").map((part) => (
-											<span key={part}>{part}</span>
-										))}
-									</span>
-								</Label>
-							))}
-						</div>
+					<div className="h-[24rem] overflow-hidden [&_button[data-slot=toggle-group-item]]:px-1 [&_button[data-slot=toggle-group-item]]:text-xs [&_button[data-slot=toggle-group-item]]:whitespace-nowrap [&_form>div]:p-0 [&_form>div]:pr-1">
+						<Inputs inputTags={SCORE_INPUTS} onChange={setValues} />
 					</div>
 				</div>
 				<div className="overflow-y-auto p-5 lg:p-6">
 					<PaneLabel>{content.outputLabel}</PaneLabel>
-					<div className="prose prose-sm max-w-none font-sans leading-relaxed" data-score-output>
-						<DynamicMarkdocRenderer markdocContent={content.content} variables={variables} />
+					<div
+						className="prose prose-sm max-w-none font-sans leading-relaxed [&_[data-markdoc-input]>span]:whitespace-nowrap"
+						data-score-output
+					>
+						<DynamicMarkdocRenderer markdocContent={content.content} variables={values} />
 					</div>
 				</div>
 			</div>
@@ -276,11 +169,11 @@ const AiDemo = () => {
 				<div className="min-w-0 border-b bg-muted/20 p-5 md:border-r md:border-b-0 lg:p-6">
 					<PaneLabel>{content.templateLabel}</PaneLabel>
 					<div className="md:grid md:grid-rows-[8.75rem_auto]" data-ai-template>
-						<pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[0.68rem] leading-5 text-muted-foreground">
+						<pre className="overflow-x-hidden whitespace-pre-wrap font-mono text-[0.68rem] leading-5 text-muted-foreground">
 							{content.templateIntro}
 						</pre>
 						<pre
-							className="mt-5 overflow-x-auto whitespace-pre-wrap font-mono text-[0.68rem] leading-5 text-muted-foreground md:mt-0"
+							className="mt-5 overflow-x-hidden whitespace-pre-wrap font-mono text-[0.68rem] leading-5 text-muted-foreground md:mt-0"
 							data-ai-template-vitals
 						>
 							{content.templateVitals}

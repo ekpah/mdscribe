@@ -13,9 +13,7 @@ interface ClipboardInputFiles {
  * normally expose these through `files`; `items` is a fallback for browsers
  * that only expose copied screenshots and other clipboard media there.
  */
-export const getClipboardFiles = (
-	clipboardData: ClipboardFileData | null | undefined,
-): File[] => {
+export const getClipboardFiles = (clipboardData: ClipboardFileData | null | undefined): File[] => {
 	if (!clipboardData) {
 		return [];
 	}
@@ -40,9 +38,7 @@ export const getClipboardFiles = (
 	return itemFiles;
 };
 
-export const splitClipboardInputFiles = (
-	files: File[],
-): ClipboardInputFiles => {
+export const splitClipboardInputFiles = (files: File[]): ClipboardInputFiles => {
 	const audioFiles: File[] = [];
 	const contextFiles: File[] = [];
 

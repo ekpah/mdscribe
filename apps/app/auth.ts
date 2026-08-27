@@ -7,8 +7,8 @@ import { APIError } from "better-auth/api";
 import { username } from "better-auth/plugins";
 import { Stripe as StripeClient } from "stripe";
 
-import { USER_MESSAGES } from "@/lib/user-messages";
 import { env } from "@/env";
+import { USER_MESSAGES } from "@/lib/user-messages";
 
 // Usernames feed per-author slug routes, so they must be URL-safe and must not
 // collide with reserved path segments.

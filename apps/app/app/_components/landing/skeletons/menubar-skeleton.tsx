@@ -8,6 +8,7 @@ import {
 } from "@repo/design-system/components/ui/navigation-menu";
 import { Loader2, Menu } from "lucide-react";
 import Link from "next/link";
+
 import DarkLogo from "@/public/logo/dark";
 import LightLogo from "@/public/logo/light";
 
@@ -29,18 +30,12 @@ export default function MenubarSkeleton() {
 					<NavigationMenu className="hidden md:block">
 						<NavigationMenuList>
 							<NavigationMenuItem>
-								<NavigationMenuLink
-									className={navigationMenuTriggerStyle()}
-									href="/templates"
-								>
+								<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/templates">
 									Textbausteine
 								</NavigationMenuLink>
 							</NavigationMenuItem>
 							<NavigationMenuItem>
-								<NavigationMenuLink
-									className={navigationMenuTriggerStyle()}
-									href="/blog"
-								>
+								<NavigationMenuLink className={navigationMenuTriggerStyle()} href="/blog">
 									Blog
 								</NavigationMenuLink>
 							</NavigationMenuItem>

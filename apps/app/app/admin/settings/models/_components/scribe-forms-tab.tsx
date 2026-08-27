@@ -332,9 +332,7 @@ export const ScribeFormsTab = () => {
 		return (
 			<Card className="border-solarized-red/20 bg-solarized-red/10">
 				<CardContent className="p-4 text-center text-solarized-red text-sm">
-					{formsError instanceof Error
-						? formsError.message
-						: "Fehler beim Laden der AI Vorlagen"}
+					{formsError instanceof Error ? formsError.message : "Fehler beim Laden der AI Vorlagen"}
 				</CardContent>
 			</Card>
 		);

@@ -82,16 +82,14 @@ export const getInputIdForPdfWidget = (
 	options: PdfFieldLookupOptions = {},
 ): string | undefined => {
 	const matchingBindings = definition.bindings.filter(
-		(binding) =>
-			binding.fieldName === fieldName && (options.includeDisabled || binding.isEnabled),
+		(binding) => binding.fieldName === fieldName && (options.includeDisabled || binding.isEnabled),
 	);
 	if (!widgetValue) {
 		return matchingBindings[0]?.inputId;
 	}
 
 	return (
-		matchingBindings.find((binding) =>
-			Object.values(binding.valueMap ?? {}).includes(widgetValue),
-		)?.inputId ?? matchingBindings[0]?.inputId
+		matchingBindings.find((binding) => Object.values(binding.valueMap ?? {}).includes(widgetValue))
+			?.inputId ?? matchingBindings[0]?.inputId
 	);
 };

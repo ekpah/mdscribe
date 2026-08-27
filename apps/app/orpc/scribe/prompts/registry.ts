@@ -1,8 +1,5 @@
-import type {
-	DocumentType,
-	DocumentTypeConfig,
-	GrammaticalGender,
-} from "@/orpc/scribe/types";
+import type { DocumentType, DocumentTypeConfig, GrammaticalGender } from "@/orpc/scribe/types";
+
 import { documentPromptDefinitions } from "./definitions";
 
 export const PROMPT_HARNESS_IDS = [
@@ -111,9 +108,7 @@ export const getPromptHarnessTargetField = (
 	return resolved ? promptHarnessTargetFields[resolved] : "epikrise";
 };
 
-export const getDocumentTypeByPromptName = (
-	promptName: string,
-): DocumentType | undefined => {
+export const getDocumentTypeByPromptName = (promptName: string): DocumentType | undefined => {
 	const resolvedHarnessId = resolvePromptHarnessId(promptName);
 	if (resolvedHarnessId) {
 		return resolvedHarnessId;
@@ -130,9 +125,7 @@ export const getPromptHarnessLabel = (promptHarness: string): string => {
 	return documentType ? documentTypeConfigs[documentType].promptName : promptHarness;
 };
 
-export const getPromptHarnessGender = (
-	promptHarness: string,
-): GrammaticalGender => {
+export const getPromptHarnessGender = (promptHarness: string): GrammaticalGender => {
 	const documentType = getDocumentTypeByPromptName(promptHarness);
 	return documentType ? documentTypeConfigs[documentType].gender : "feminine";
 };

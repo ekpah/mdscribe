@@ -1,13 +1,5 @@
 import { ORPCError, type } from "@orpc/server";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	and,
-	eq,
-	inArray,
-	userAiProvider,
-} from "@repo/database";
+import { aiDefaults, aiModel, aiProvider, and, eq, inArray, userAiProvider } from "@repo/database";
 import type { Database } from "@repo/database";
 import { z } from "zod";
 
@@ -25,12 +17,7 @@ const PROVIDER_PROTOCOLS = new Set<ProviderProtocol>([
 	"tinfoil",
 ]);
 
-const USER_MODEL_ROLES = [
-	"text",
-	"agent",
-	"audio",
-	"documents",
-] as const;
+const USER_MODEL_ROLES = ["text", "agent", "audio", "documents"] as const;
 type UserModelRole = (typeof USER_MODEL_ROLES)[number];
 
 interface ModelRoleAssignment {
@@ -46,10 +33,7 @@ const getUserModelRoleAssignments = (
 	}
 
 	const assignments: ModelRoleAssignment[] = [];
-	const addAssignment = (
-		modelRecordId: string | null,
-		role: UserModelRole,
-	) => {
+	const addAssignment = (modelRecordId: string | null, role: UserModelRole) => {
 		if (modelRecordId) {
 			assignments.push({ modelRecordId, role });
 		}
@@ -86,15 +70,11 @@ const getUserModelRoleAssignments = (
 		? defaults.defaultStandardSupportsDocuments
 		: defaults.defaultAgentSupportsDocuments;
 	addAssignment(
-		doesAgentSupportAudio
-			? agentModelRecordId
-			: defaults.defaultSpeechToTextModelId,
+		doesAgentSupportAudio ? agentModelRecordId : defaults.defaultSpeechToTextModelId,
 		"audio",
 	);
 	addAssignment(
-		doesAgentSupportDocuments
-			? agentModelRecordId
-			: defaults.defaultFileImageModelId,
+		doesAgentSupportDocuments ? agentModelRecordId : defaults.defaultFileImageModelId,
 		"documents",
 	);
 
@@ -106,14 +86,9 @@ const getAssignedModelsByProvider = async (
 	defaults: typeof aiDefaults.$inferSelect | undefined,
 ) => {
 	const assignments = getUserModelRoleAssignments(defaults);
-	const modelRecordIds = [
-		...new Set(assignments.map((assignment) => assignment.modelRecordId)),
-	];
+	const modelRecordIds = [...new Set(assignments.map((assignment) => assignment.modelRecordId))];
 	if (modelRecordIds.length === 0) {
-		return new Map<
-			string,
-			{ displayName: string; modelId: string; roles: UserModelRole[] }[]
-		>();
+		return new Map<string, { displayName: string; modelId: string; roles: UserModelRole[] }[]>();
 	}
 
 	const models = await db.query.aiModel.findMany({
@@ -231,15 +206,9 @@ const validateCandidateKey = async (input: {
 	}
 };
 
-const getExposedProvider = async (
-	db: Database,
-	providerId: string,
-) => {
+const getExposedProvider = async (db: Database, providerId: string) => {
 	const provider = await db.query.aiProvider.findFirst({
-		where: and(
-			eq(aiProvider.id, providerId),
-			eq(aiProvider.byokEnabled, true),
-		),
+		where: and(eq(aiProvider.id, providerId), eq(aiProvider.byokEnabled, true)),
 	});
 	if (!provider) {
 		throw new ORPCError("BAD_REQUEST", {
@@ -271,10 +240,7 @@ const statusHandler = authed.handler(async ({ context }) => {
 			where: eq(aiDefaults.id, "global"),
 		}),
 	]);
-	const assignedModelsByProvider = await getAssignedModelsByProvider(
-		context.db,
-		defaults,
-	);
+	const assignedModelsByProvider = await getAssignedModelsByProvider(context.db, defaults);
 	const credentialsByProvider = new Map(
 		credentials.map((credential) => [credential.providerId, credential]),
 	);

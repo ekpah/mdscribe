@@ -1,9 +1,9 @@
 "use client";
 
 import { cn } from "@repo/design-system/lib/utils";
+import { FileText, Info, ListChecks } from "lucide-react";
 import { parseMarkdocToInputs } from "markdoc-md/parse";
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
-import { FileText, Info, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -135,6 +135,7 @@ export default function ContentSection({
 	const inputTags = useMemo(() => parseMarkdocToInputs(note), [note]);
 	const [activeInputName, setActiveInputName] = useState<string | null>(null);
 	const [activeInputFocusKey, setActiveInputFocusKey] = useState(0);
+	const [activePreviewFocusKey, setActivePreviewFocusKey] = useState(0);
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const buildContentViewHref = (view: TemplateContentView) => {
@@ -160,6 +161,7 @@ export default function ContentSection({
 	);
 	const handleInputSelect = useCallback((inputName: string) => {
 		setActiveInputName(inputName);
+		setActivePreviewFocusKey((currentKey) => currentKey + 1);
 	}, []);
 	const handleMarkdocTagSelect = useCallback((tagName: string) => {
 		setActiveInputName(tagName);
@@ -170,6 +172,7 @@ export default function ContentSection({
 		<InputPreviewSection
 			activeInputFocusKey={activeInputFocusKey}
 			activeInputName={activeInputName}
+			activePreviewFocusKey={activePreviewFocusKey}
 			contentType="template"
 			edgeTabs={contentTabs}
 			inputTags={inputTags}
@@ -192,6 +195,7 @@ export default function ContentSection({
 				);
 			}}
 			resetKey={note}
+			templateExamples={examples}
 			templateInformation={information}
 		/>
 	);

@@ -18,6 +18,7 @@ import {
 import { HelpCircle, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
+
 import { ReasoningEffortSelect } from "@/app/admin/_components/reasoning-effort-select";
 import { supportsReasoningParameters } from "@/app/admin/_lib/reasoning";
 import type {
@@ -50,15 +51,13 @@ export const ParameterControls = ({
 	disabled,
 }: ParameterControlsProps) => {
 	const thinkingSupported = supportsReasoningParameters(model);
-	const [activeDirectEdit, setActiveDirectEdit] =
-		useState<DirectEditParameter | null>(null);
+	const [activeDirectEdit, setActiveDirectEdit] = useState<DirectEditParameter | null>(null);
 	const [directValueDrafts, setDirectValueDrafts] = useState<Record<DirectEditParameter, string>>({
 		maxTokens: formatMaxTokensDraft(parameters.maxTokens),
 		temperature: String(parameters.temperature),
 	});
 	const clampNumber = useCallback(
-		(value: number, min: number, max: number) =>
-			Math.min(Math.max(value, min), max),
+		(value: number, min: number, max: number) => Math.min(Math.max(value, min), max),
 		[],
 	);
 
@@ -74,44 +73,46 @@ export const ParameterControls = ({
 						? previous.temperature
 						: String(parameters.temperature),
 			};
-			if (
-				next.maxTokens === previous.maxTokens &&
-				next.temperature === previous.temperature
-			) {
+			if (next.maxTokens === previous.maxTokens && next.temperature === previous.temperature) {
 				return previous;
 			}
 			return next;
 		});
-	}, [
-		activeDirectEdit,
-		parameters.maxTokens,
-		parameters.temperature,
-	]);
+	}, [activeDirectEdit, parameters.maxTokens, parameters.temperature]);
 
-	const updateParam = useCallback(<K extends keyof PlaygroundParameters>(
-		key: K,
-		value: PlaygroundParameters[K],
-	) => {
-		onChange({ ...parameters, [key]: value });
-	}, [onChange, parameters]);
+	const updateParam = useCallback(
+		<K extends keyof PlaygroundParameters>(key: K, value: PlaygroundParameters[K]) => {
+			onChange({ ...parameters, [key]: value });
+		},
+		[onChange, parameters],
+	);
 
-	const handleReasoningEffortChange = useCallback((reasoningEffort: ReasoningEffort) => {
-		onChange({
-			...parameters,
-			reasoningEffort,
-			thinking: reasoningEffort !== "none",
-			thinkingExplicit: true,
-		});
-	}, [onChange, parameters]);
+	const handleReasoningEffortChange = useCallback(
+		(reasoningEffort: ReasoningEffort) => {
+			onChange({
+				...parameters,
+				reasoningEffort,
+				thinking: reasoningEffort !== "none",
+				thinkingExplicit: true,
+			});
+		},
+		[onChange, parameters],
+	);
 
-	const handleTemperatureChange = useCallback((values: number | readonly number[]) => {
-		const value = Array.isArray(values) ? values[0] : (values as number);
-		updateParam("temperature", value);
-	}, [updateParam]);
-	const handleMaxTokensChange = useCallback((values: number | readonly number[]) => {
-		const value = Array.isArray(values) ? values[0] : (values as number);
-		updateParam("maxTokens", value);
-	}, [updateParam]);
+	const handleTemperatureChange = useCallback(
+		(values: number | readonly number[]) => {
+			const value = Array.isArray(values) ? values[0] : (values as number);
+			updateParam("temperature", value);
+		},
+		[updateParam],
+	);
+	const handleMaxTokensChange = useCallback(
+		(values: number | readonly number[]) => {
+			const value = Array.isArray(values) ? values[0] : (values as number);
+			updateParam("maxTokens", value);
+		},
+		[updateParam],
+	);
 
 	const handleResetMaxTokens = useCallback(() => {
 		onChange(withoutMaxTokens(parameters));
@@ -129,54 +130,63 @@ export const ParameterControls = ({
 		setActiveDirectEdit(key);
 	}, []);
 
-	const commitDirectEdit = useCallback((key: DirectEditParameter) => {
-		if (key === "temperature") {
-			const parsed = Number.parseFloat(directValueDrafts.temperature);
+	const commitDirectEdit = useCallback(
+		(key: DirectEditParameter) => {
+			if (key === "temperature") {
+				const parsed = Number.parseFloat(directValueDrafts.temperature);
+				if (Number.isNaN(parsed)) {
+					setDirectDraft("temperature", String(parameters.temperature));
+					return;
+				}
+				const clamped = clampNumber(parsed, 0, 2);
+				updateParam("temperature", clamped);
+				setDirectDraft("temperature", String(clamped));
+				return;
+			}
+
+			if (directValueDrafts.maxTokens.trim() === "") {
+				onChange(withoutMaxTokens(parameters));
+				setDirectDraft("maxTokens", "");
+				return;
+			}
+			const parsed = Number.parseInt(directValueDrafts.maxTokens, 10);
 			if (Number.isNaN(parsed)) {
+				setDirectDraft("maxTokens", formatMaxTokensDraft(parameters.maxTokens));
+				return;
+			}
+			const clamped = clampNumber(parsed, 256, 100_000);
+			updateParam("maxTokens", clamped);
+			setDirectDraft("maxTokens", String(clamped));
+		},
+		[
+			clampNumber,
+			directValueDrafts.maxTokens,
+			directValueDrafts.temperature,
+			onChange,
+			parameters,
+			setDirectDraft,
+			updateParam,
+		],
+	);
+
+	const cancelDirectEdit = useCallback(
+		(key: DirectEditParameter) => {
+			if (key === "temperature") {
 				setDirectDraft("temperature", String(parameters.temperature));
 				return;
 			}
-			const clamped = clampNumber(parsed, 0, 2);
-			updateParam("temperature", clamped);
-			setDirectDraft("temperature", String(clamped));
-			return;
-		}
-
-		if (directValueDrafts.maxTokens.trim() === "") {
-			onChange(withoutMaxTokens(parameters));
-			setDirectDraft("maxTokens", "");
-			return;
-		}
-		const parsed = Number.parseInt(directValueDrafts.maxTokens, 10);
-		if (Number.isNaN(parsed)) {
 			setDirectDraft("maxTokens", formatMaxTokensDraft(parameters.maxTokens));
-			return;
-		}
-		const clamped = clampNumber(parsed, 256, 100_000);
-		updateParam("maxTokens", clamped);
-		setDirectDraft("maxTokens", String(clamped));
-	}, [
-		clampNumber,
-		directValueDrafts.maxTokens,
-		directValueDrafts.temperature,
-		onChange,
-		parameters,
-		setDirectDraft,
-		updateParam,
-	]);
+		},
+		[parameters.maxTokens, parameters.temperature, setDirectDraft],
+	);
 
-	const cancelDirectEdit = useCallback((key: DirectEditParameter) => {
-		if (key === "temperature") {
-			setDirectDraft("temperature", String(parameters.temperature));
-			return;
-		}
-		setDirectDraft("maxTokens", formatMaxTokensDraft(parameters.maxTokens));
-	}, [parameters.maxTokens, parameters.temperature, setDirectDraft]);
-
-	const handleDirectEditBlur = useCallback((key: DirectEditParameter) => {
-		commitDirectEdit(key);
-		setActiveDirectEdit((previous) => (previous === key ? null : previous));
-	}, [commitDirectEdit]);
+	const handleDirectEditBlur = useCallback(
+		(key: DirectEditParameter) => {
+			commitDirectEdit(key);
+			setActiveDirectEdit((previous) => (previous === key ? null : previous));
+		},
+		[commitDirectEdit],
+	);
 
 	const handleDirectEditKeyDown = useCallback(
 		(key: DirectEditParameter, event: KeyboardEvent<HTMLInputElement>) => {
@@ -197,24 +207,14 @@ export const ParameterControls = ({
 
 	const handleTopPChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
-			updateParam(
-				"topP",
-				event.target.value
-					? Number.parseFloat(event.target.value)
-					: undefined,
-			);
+			updateParam("topP", event.target.value ? Number.parseFloat(event.target.value) : undefined);
 		},
 		[updateParam],
 	);
 
 	const handleTopKChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
-			updateParam(
-				"topK",
-				event.target.value
-					? Number.parseInt(event.target.value, 10)
-					: undefined,
-			);
+			updateParam("topK", event.target.value ? Number.parseInt(event.target.value, 10) : undefined);
 		},
 		[updateParam],
 	);
@@ -223,9 +223,7 @@ export const ParameterControls = ({
 		(event: ChangeEvent<HTMLInputElement>) => {
 			updateParam(
 				"frequencyPenalty",
-				event.target.value
-					? Number.parseFloat(event.target.value)
-					: undefined,
+				event.target.value ? Number.parseFloat(event.target.value) : undefined,
 			);
 		},
 		[updateParam],
@@ -235,9 +233,7 @@ export const ParameterControls = ({
 		(event: ChangeEvent<HTMLInputElement>) => {
 			updateParam(
 				"presencePenalty",
-				event.target.value
-					? Number.parseFloat(event.target.value)
-					: undefined,
+				event.target.value ? Number.parseFloat(event.target.value) : undefined,
 			);
 		},
 		[updateParam],
@@ -260,15 +256,15 @@ export const ParameterControls = ({
 				<div className="space-y-2">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<Label className="text-sm text-solarized-base01">
-								Temperature
-							</Label>
+							<Label className="text-sm text-solarized-base01">Temperature</Label>
 							<Tooltip>
-								<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
+								<TooltipTrigger
+									render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />}
+								/>
 								<TooltipContent className="max-w-[250px]">
 									<p>
-										Höhere Werte (z.B. 1.5) machen die Ausgabe kreativer,
-										niedrigere Werte (z.B. 0.2) machen sie deterministischer.
+										Höhere Werte (z.B. 1.5) machen die Ausgabe kreativer, niedrigere Werte (z.B.
+										0.2) machen sie deterministischer.
 									</p>
 								</TooltipContent>
 							</Tooltip>
@@ -297,9 +293,9 @@ export const ParameterControls = ({
 							/>
 						</div>
 					</div>
-						<Slider
-							value={[parameters.temperature]}
-							onValueChange={handleTemperatureChange}
+					<Slider
+						value={[parameters.temperature]}
+						onValueChange={handleTemperatureChange}
 						min={0}
 						max={2}
 						step={0.01}
@@ -312,15 +308,15 @@ export const ParameterControls = ({
 				<div className="space-y-2">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<Label className="text-sm text-solarized-base01">
-								Max Tokens
-							</Label>
+							<Label className="text-sm text-solarized-base01">Max Tokens</Label>
 							<Tooltip>
-								<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
+								<TooltipTrigger
+									render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />}
+								/>
 								<TooltipContent className="max-w-[250px]">
 									<p>
-										Maximale Anzahl an Tokens in der Antwort. Ohne Wert gilt der
-										Modell-Standard. 1 Token entspricht ca. 4 Zeichen.
+										Maximale Anzahl an Tokens in der Antwort. Ohne Wert gilt der Modell-Standard. 1
+										Token entspricht ca. 4 Zeichen.
 									</p>
 								</TooltipContent>
 							</Tooltip>
@@ -390,20 +386,21 @@ export const ParameterControls = ({
 								<div className="flex items-center gap-2">
 									<Label className="text-sm text-solarized-base01">Top P</Label>
 									<Tooltip>
-										<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
+										<TooltipTrigger
+											render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />}
+										/>
 										<TooltipContent className="max-w-[250px]">
 											<p>
-												Nucleus Sampling - berücksichtigt nur die
-												wahrscheinlichsten Tokens bis zur kumulativen
-												Wahrscheinlichkeit.
+												Nucleus Sampling - berücksichtigt nur die wahrscheinlichsten Tokens bis zur
+												kumulativen Wahrscheinlichkeit.
 											</p>
 										</TooltipContent>
 									</Tooltip>
 								</div>
-									<Input
-										type="number"
-										value={parameters.topP ?? ""}
-										onChange={handleTopPChange}
+								<Input
+									type="number"
+									value={parameters.topP ?? ""}
+									onChange={handleTopPChange}
 									min={0}
 									max={1}
 									step={0.01}
@@ -420,19 +417,18 @@ export const ParameterControls = ({
 								<div className="flex items-center gap-2">
 									<Label className="text-sm text-solarized-base01">Top K</Label>
 									<Tooltip>
-										<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
+										<TooltipTrigger
+											render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />}
+										/>
 										<TooltipContent className="max-w-[250px]">
-											<p>
-												Begrenzt die Auswahl auf die K wahrscheinlichsten
-												Tokens.
-											</p>
+											<p>Begrenzt die Auswahl auf die K wahrscheinlichsten Tokens.</p>
 										</TooltipContent>
 									</Tooltip>
 								</div>
-									<Input
-										type="number"
-										value={parameters.topK ?? ""}
-										onChange={handleTopKChange}
+								<Input
+									type="number"
+									value={parameters.topK ?? ""}
+									onChange={handleTopKChange}
 									min={0}
 									placeholder="-"
 									disabled={disabled}
@@ -445,23 +441,23 @@ export const ParameterControls = ({
 						<div className="space-y-2">
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2">
-									<Label className="text-sm text-solarized-base01">
-										Frequency Penalty
-									</Label>
+									<Label className="text-sm text-solarized-base01">Frequency Penalty</Label>
 									<Tooltip>
-										<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
+										<TooltipTrigger
+											render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />}
+										/>
 										<TooltipContent className="max-w-[250px]">
 											<p>
-												Positive Werte reduzieren Wiederholungen basierend auf
-												bisheriger Häufigkeit.
+												Positive Werte reduzieren Wiederholungen basierend auf bisheriger
+												Häufigkeit.
 											</p>
 										</TooltipContent>
 									</Tooltip>
 								</div>
-									<Input
-										type="number"
-										value={parameters.frequencyPenalty ?? ""}
-										onChange={handleFrequencyPenaltyChange}
+								<Input
+									type="number"
+									value={parameters.frequencyPenalty ?? ""}
+									onChange={handleFrequencyPenaltyChange}
 									min={-2}
 									max={2}
 									step={0.1}
@@ -476,23 +472,23 @@ export const ParameterControls = ({
 						<div className="space-y-2">
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2">
-									<Label className="text-sm text-solarized-base01">
-										Presence Penalty
-									</Label>
+									<Label className="text-sm text-solarized-base01">Presence Penalty</Label>
 									<Tooltip>
-										<TooltipTrigger render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />} />
+										<TooltipTrigger
+											render={<HelpCircle className="h-3.5 w-3.5 text-solarized-base01" />}
+										/>
 										<TooltipContent className="max-w-[250px]">
 											<p>
-												Positive Werte fördern neue Themen, negative Werte
-												fokussieren auf bereits genannte Themen.
+												Positive Werte fördern neue Themen, negative Werte fokussieren auf bereits
+												genannte Themen.
 											</p>
 										</TooltipContent>
 									</Tooltip>
 								</div>
-									<Input
-										type="number"
-										value={parameters.presencePenalty ?? ""}
-										onChange={handlePresencePenaltyChange}
+								<Input
+									type="number"
+									value={parameters.presencePenalty ?? ""}
+									onChange={handlePresencePenaltyChange}
 									min={-2}
 									max={2}
 									step={0.1}

@@ -43,13 +43,17 @@ export const NavActions = ({
 		<div className="flex items-center gap-2 text-sm">
 			<TooltipProvider delay={300}>
 				<Tooltip>
-					<TooltipTrigger render={<span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
-							{visibility === "private" ? (
-								<FileUser className="h-4 w-4" strokeWidth={1.5} />
-							) : (
-								<FileIcon className="h-4 w-4" strokeWidth={1.5} />
-							)}
-						</span>} />
+					<TooltipTrigger
+						render={
+							<span className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground">
+								{visibility === "private" ? (
+									<FileUser className="h-4 w-4" strokeWidth={1.5} />
+								) : (
+									<FileIcon className="h-4 w-4" strokeWidth={1.5} />
+								)}
+							</span>
+						}
+					/>
 					<TooltipContent>
 						<p>{visibility === "private" ? "Privat sichtbar" : "Öffentlich sichtbar"}</p>
 					</TooltipContent>
@@ -72,12 +76,7 @@ export const NavActions = ({
 						<TooltipTrigger
 							render={
 								<Link href={action.href}>
-									<Button
-										aria-label={actionLabel}
-										className="h-7 w-7"
-										size="icon"
-										variant="ghost"
-									>
+									<Button aria-label={actionLabel} className="h-7 w-7" size="icon" variant="ghost">
 										<ActionIcon {...actionIconProps} />
 									</Button>
 								</Link>

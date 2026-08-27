@@ -2,7 +2,11 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { diffLines, diffWords } from "diff";
 import { Check, RotateCcw } from "lucide-react";
@@ -296,29 +300,37 @@ export const MarkdownDiffEditor = ({
 						{/* Action buttons - accept or reject all */}
 						<div className="flex items-center gap-1">
 							<Tooltip>
-								<TooltipTrigger render={<Button
-										className="h-7 w-7 p-0 bg-solarized-green text-primary-foreground hover:bg-solarized-green/90 disabled:opacity-50"
-										disabled={isStreaming}
-										onClick={handleAccept}
-										size="sm"
-										type="button"
-									>
-										<Check className="h-3.5 w-3.5" />
-									</Button>} />
+								<TooltipTrigger
+									render={
+										<Button
+											className="h-7 w-7 p-0 bg-solarized-green text-primary-foreground hover:bg-solarized-green/90 disabled:opacity-50"
+											disabled={isStreaming}
+											onClick={handleAccept}
+											size="sm"
+											type="button"
+										>
+											<Check className="h-3.5 w-3.5" />
+										</Button>
+									}
+								/>
 								<TooltipContent>Alle akzeptieren</TooltipContent>
 							</Tooltip>
 
 							<Tooltip>
-								<TooltipTrigger render={<Button
-										className="h-7 w-7 p-0 disabled:opacity-50"
-										disabled={isStreaming}
-										onClick={handleReject}
-										size="sm"
-										type="button"
-										variant="destructive"
-									>
-										<RotateCcw className="h-3.5 w-3.5" />
-									</Button>} />
+								<TooltipTrigger
+									render={
+										<Button
+											className="h-7 w-7 p-0 disabled:opacity-50"
+											disabled={isStreaming}
+											onClick={handleReject}
+											size="sm"
+											type="button"
+											variant="destructive"
+										>
+											<RotateCcw className="h-3.5 w-3.5" />
+										</Button>
+									}
+								/>
 								<TooltipContent>Verwerfen</TooltipContent>
 							</Tooltip>
 						</div>

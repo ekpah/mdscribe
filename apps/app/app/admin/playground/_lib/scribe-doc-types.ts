@@ -215,10 +215,7 @@ export const scribeDocTypeUi: Record<PlaygroundDocumentType, ScribeDocTypeUiConf
 	},
 };
 
-export const allScribeDocTypes = Object.keys(
-	scribeDocTypeUi,
-) as PlaygroundDocumentType[];
+export const allScribeDocTypes = Object.keys(scribeDocTypeUi) as PlaygroundDocumentType[];
 
-export const isScribeDocType = (
-	value: string,
-): value is PlaygroundDocumentType => value in scribeDocTypeUi;
+export const isScribeDocType = (value: string): value is PlaygroundDocumentType =>
+	value in scribeDocTypeUi;

@@ -222,9 +222,7 @@ export const scribeAgentChatHandler = authed
 					timing: {
 						timeToCompletionMs: completedAt - requestStartedAt,
 						timeToFirstTokenMs:
-							firstTokenAt === undefined
-								? undefined
-								: firstTokenAt - requestStartedAt,
+							firstTokenAt === undefined ? undefined : firstTokenAt - requestStartedAt,
 					},
 					traceId,
 					usageMetadata: {

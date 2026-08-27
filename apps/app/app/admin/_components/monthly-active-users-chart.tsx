@@ -83,11 +83,7 @@ const longMonthLabels = [
 // Parse the local bucket date (YYYY-MM-DD) in UTC so points are placed on the
 // shared time axis without being shifted by the viewer's timezone offset.
 const bucketToEpoch = (bucket: string): number =>
-	Date.UTC(
-		Number(bucket.slice(0, 4)),
-		Number(bucket.slice(5, 7)) - 1,
-		Number(bucket.slice(8, 10)),
-	);
+	Date.UTC(Number(bucket.slice(0, 4)), Number(bucket.slice(5, 7)) - 1, Number(bucket.slice(8, 10)));
 
 const formatAxisTick = (value: number): string => {
 	const date = new Date(value);
@@ -112,9 +108,8 @@ const toNumericValue = (
 	return Number.isFinite(numericValue) ? numericValue : null;
 };
 
-const formatCount = (
-	value: number | string | (number | string)[] | undefined,
-): string => toNumericValue(value)?.toLocaleString("de-DE") ?? "-";
+const formatCount = (value: number | string | (number | string)[] | undefined): string =>
+	toNumericValue(value)?.toLocaleString("de-DE") ?? "-";
 
 interface ChartPoint {
 	activeUsers?: number;
@@ -180,9 +175,7 @@ export const MonthlyActiveUsersChart = ({
 		<Card className="border-solarized-base2">
 			<CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="space-y-1">
-					<CardTitle className="text-base text-solarized-base00">
-						Monatlich aktive Nutzer
-					</CardTitle>
+					<CardTitle className="text-base text-solarized-base00">Monatlich aktive Nutzer</CardTitle>
 					<CardDescription>
 						Einzigartige Nutzer pro Kalendermonat (linke Achse) und KI-Anfragen pro Woche (rechte
 						Achse). {projection ? USER_MESSAGES.weeklyUsageProjectionHint : null}

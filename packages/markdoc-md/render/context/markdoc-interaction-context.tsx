@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
+
 import type { CitationRequest } from "../../citations/resolvers/types";
 
 export interface MarkdocInteractionContextType {

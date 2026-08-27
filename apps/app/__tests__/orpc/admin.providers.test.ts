@@ -133,11 +133,7 @@ describe("Admin Providers Handler", () => {
 		);
 		expect(enabled.byokEnabled).toBe(true);
 
-		const listed = await call(
-			providersHandler.connections.list,
-			undefined,
-			{ context },
-		);
+		const listed = await call(providersHandler.connections.list, undefined, { context });
 		expect(listed[0]?.byokEnabled).toBe(true);
 		expect(listed[0]?.byokCredentialCounts).toEqual({
 			active: 0,

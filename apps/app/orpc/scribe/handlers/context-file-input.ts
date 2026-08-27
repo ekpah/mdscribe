@@ -126,8 +126,7 @@ export const extractContextFileText = async ({
 		}),
 		temperature: 0.1,
 	}).catch((error: unknown) => {
-		const details =
-			error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+		const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 		throw new ORPCError("BAD_REQUEST", {
 			message: `Dateien konnten nicht analysiert werden. (${details})`,
 		});

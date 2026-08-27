@@ -47,12 +47,8 @@ describe("PDF field highlights", () => {
 	});
 
 	test("resolves a clicked widget to the binding that owns its export value", () => {
-		expect(getInputIdForPdfWidget(definition, "AW_1", "PDF 4")).toBe(
-			"Gemeinsam",
-		);
-		expect(getInputIdForPdfWidget(definition, "AW_1", "PDF 5")).toBe(
-			"Andere Auswahl",
-		);
+		expect(getInputIdForPdfWidget(definition, "AW_1", "PDF 4")).toBe("Gemeinsam");
+		expect(getInputIdForPdfWidget(definition, "AW_1", "PDF 5")).toBe("Andere Auswahl");
 	});
 
 	test("derives binding-owned widget values without editor PDF metadata", () => {
@@ -84,7 +80,9 @@ describe("PDF field highlights", () => {
 				includeDisabled: true,
 			}),
 		).toContainEqual({ fieldName: "AW_disabled", widgetValues: ["PDF disabled"] });
-		expect(getInputIdForPdfWidget(withDisabledBinding, "AW_disabled", "PDF disabled")).toBeUndefined();
+		expect(
+			getInputIdForPdfWidget(withDisabledBinding, "AW_disabled", "PDF disabled"),
+		).toBeUndefined();
 		expect(
 			getInputIdForPdfWidget(withDisabledBinding, "AW_disabled", "PDF disabled", {
 				includeDisabled: true,

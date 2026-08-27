@@ -108,8 +108,7 @@ export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps)
 			// Only send the username when it actually changed — re-submitting the
 			// same handle would otherwise trip the uniqueness check.
 			const nextUsername = data.username.trim();
-			const usernameChanged =
-				nextUsername.toLowerCase() !== (user.username ?? "").toLowerCase();
+			const usernameChanged = nextUsername.toLowerCase() !== (user.username ?? "").toLowerCase();
 
 			// better-auth client methods resolve with `{ data, error }` instead of
 			// throwing, so surface the error explicitly for toast.promise + the form.
@@ -157,24 +156,15 @@ export const ProfileCard = ({ user, isLoading, setIsLoading }: ProfileCardProps)
 	);
 
 	const renderUsernameField = useCallback(
-		({
-			field,
-		}: {
-			field: ControllerRenderProps<ProfileFormValues, "username">;
-		}) => (
+		({ field }: { field: ControllerRenderProps<ProfileFormValues, "username"> }) => (
 			<FormItem>
 				<FormLabel>Benutzername</FormLabel>
 				<FormControl>
-					<Input
-						autoComplete="username"
-						maxLength={30}
-						placeholder="benutzername"
-						{...field}
-					/>
+					<Input autoComplete="username" maxLength={30} placeholder="benutzername" {...field} />
 				</FormControl>
 				<FormDescription>
-					Dein eindeutiger Login-Name; erscheint auch in den Links zu deinen AI
-					Vorlagen. Buchstaben, Zahlen, Punkt und Unterstrich.
+					Dein eindeutiger Login-Name; erscheint auch in den Links zu deinen AI Vorlagen.
+					Buchstaben, Zahlen, Punkt und Unterstrich.
 				</FormDescription>
 				<FormMessage />
 			</FormItem>

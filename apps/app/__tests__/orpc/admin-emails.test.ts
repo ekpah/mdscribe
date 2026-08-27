@@ -71,11 +71,7 @@ describe("Admin emails handler", () => {
 	});
 
 	test("preview renders AI Textbausteine announcement HTML", async () => {
-		const preview = await call(
-			emailsHandler.preview,
-			{ id: "ai-texts-announcement" },
-			{ context },
-		);
+		const preview = await call(emailsHandler.preview, { id: "ai-texts-announcement" }, { context });
 
 		expect(preview.id).toBe("ai-texts-announcement");
 		expect(preview.html).toContain("<html");
@@ -109,11 +105,7 @@ describe("Admin emails handler", () => {
 		for (const draft of marketingDrafts) {
 			expect(draft.previewProps).not.toHaveProperty("userName");
 
-			const preview = await call(
-				emailsHandler.preview,
-				{ id: draft.id },
-				{ context },
-			);
+			const preview = await call(emailsHandler.preview, { id: draft.id }, { context });
 
 			expect(preview.html).toContain("Hallo,");
 			expect(preview.html).not.toContain("Dr. Max Mustermann");
@@ -128,11 +120,7 @@ describe("Admin emails handler", () => {
 
 	test("sendTest requires a selected user before sending", async () => {
 		await expect(
-			call(
-				emailsHandler.sendTest,
-				{ id: "documents-announcement", userId: "" },
-				{ context },
-			),
+			call(emailsHandler.sendTest, { id: "documents-announcement", userId: "" }, { context }),
 		).rejects.toThrow("Nutzer ist erforderlich");
 
 		expect(sendEmailMock).not.toHaveBeenCalled();

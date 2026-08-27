@@ -1,8 +1,4 @@
-import {
-	defaultShouldDehydrateQuery,
-	isServer,
-	QueryClient,
-} from "@tanstack/react-query";
+import { defaultShouldDehydrateQuery, isServer, QueryClient } from "@tanstack/react-query";
 
 /**
  * TanStack Query client factory with optimized defaults for Next.js App Router
@@ -12,14 +8,14 @@ import {
  * - gcTime: 5 minutes - keeps unused queries in cache for quick re-access
  * - Pending query dehydration - enables streaming SSR (queries start on server, complete on client)
  */
-const makeQueryClient = () => new QueryClient({
+const makeQueryClient = () =>
+	new QueryClient({
 		defaultOptions: {
 			dehydrate: {
 				// Include pending queries in dehydration for streaming SSR
 				// This allows queries to start on the server and complete on the client
 				shouldDehydrateQuery: (query) =>
-					defaultShouldDehydrateQuery(query) ||
-					query.state.status === "pending",
+					defaultShouldDehydrateQuery(query) || query.state.status === "pending",
 				// Don't redact errors - let Next.js handle error boundaries
 				shouldRedactErrors: () => false,
 			},

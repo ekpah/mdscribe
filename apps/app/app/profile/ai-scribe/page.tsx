@@ -1,5 +1,5 @@
-import { UserBriefWorkspacesCard } from "../_components/user-brief-workspaces-card";
 import { UserAiTextsCard } from "../_components/user-ai-texts-card";
+import { UserBriefWorkspacesCard } from "../_components/user-brief-workspaces-card";
 
 export default function ProfileAiScribePage() {
 	return (

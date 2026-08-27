@@ -1,7 +1,7 @@
 # `markdoc-md`
 
 Typed Markdoc schemas, validation, source resolution, and optional React rendering for templates
-that read input values, conditionally render text, calculate scores, and cite source material.
+that read input values, conditionally render text, calculate values, and cite source material.
 
 ## Install
 
@@ -240,31 +240,40 @@ Only immediate `case` children are rendered; unrelated child tags are discarded 
 
 The body may contain inline text and formatting.
 
-## `score`
+## `calc`
 
 Evaluates an `fparser` formula against the renderer's variables and displays the result. Boolean
 values and the strings `"true"`/`"false"` become `1`/`0`. Numeric results are rounded to at most two
 decimal places. An invalid or unevaluable formula renders `...` instead of throwing.
 
+Every variable referenced by the formula must be included as an `info` or `switch` child of that
+calculation. The children appear together below the calculated value in the Inputs panel but are ignored
+when rendering document content. Boolean and `checkbox` switches become `1` when checked and `0`
+when unchecked. String switches use the numeric `value` of their selected case:
+
 ```markdoc
-{% score primary="risk_score" formula="[age] * 2 + [smoker] * 3" unit="points" renderUnit=true /%}
+{% calc primary="risk_score" formula="[age] + [age_group] + [smoker]" unit="points" %}
+{% info "age" type="number" /%}
+{% switch "age_group" %}{% case "under-65" value=0 %}Under 65{% /case %}{% case "65-plus" value=2 %}65 or older{% /case %}{% /switch %}
+{% switch "smoker" type="checkbox" %}{% case "true" %}Yes{% /case %}{% case "false" %}No{% /case %}{% /switch %}
+{% /calc %}
 ```
 
 | Attribute | Required | Default | Meaning |
 | --- | --- | --- | --- |
 | `formula` | Yes | — | Formula evaluated by `fparser`; bracketed names refer to variables. |
-| `primary` | No | — | Stable name for the calculated score. Formula-only scores are supported. |
+| `primary` | No | — | Stable name for the calculated value. Formula-only calculations are supported. |
 | `unit` | No | — | Display unit. |
 | `renderUnit` | No | `false` | Appends `unit` to the result when true. |
 
 ## Shared input contracts
 
-Repeated `info`, `switch`, or named `score` tags with the same `primary` refer to one logical value.
+Repeated `info`, `switch`, or named `calc` tags with the same `primary` refer to one logical value.
 Repeated occurrences may omit metadata, but their non-empty contract attributes must not conflict:
 
 - `info`: `type`, `unit`, `description`, and `source`
-- `switch`: `type` and `source`
-- named `score`: `formula`
+- `switch`: `type`, `source`, and numeric `value` for cases with the same key
+- named `calc`: `formula`
 
 An `info` and a `switch` must not reuse the same `primary`. Presentation-only settings such as
 `renderUnit` may differ between occurrences.
@@ -282,8 +291,11 @@ const blocksSave = diagnostics.some((item) => item.severity === "error");
 
 Rendering intentionally remains tolerant for older stored templates. Invalid citations render as
 annotated, non-interactive text instead of throwing or invoking a resolver. Invalid or missing
-attributes on `info`, `switch`, `case`, and `score` also render inertly or with the score `...`
-fallback. Malformed score formulas are reported as `score-formula-invalid` schema diagnostics.
+attributes on `info`, `switch`, `case`, and `calc` also render inertly or with the calculation `...`
+fallback. Malformed calc formulas are reported as `calc-formula-invalid` schema diagnostics.
+
+`score` remains accepted as a legacy alias for `calc`. Rendering and editor serialization normalize
+legacy `{% score %}` tags to canonical `{% calc %}` syntax.
 `analyzeMarkdocTemplate` returns the same complete diagnostics alongside discovered inputs.
 
 The package root and `markdoc-md/citations` export `parseCitationSource`, `createMdscribeSource`,

@@ -1,9 +1,7 @@
 "use client";
 
-import {
-	FILL_INPUT_PAYLOAD_LIMITS,
-	formatPayloadBytes,
-} from "@/lib/input-fill-limits";
+import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
+
 import type { AudioRecording, UploadedContextFile } from "./types";
 
 interface ContextFileLimits {
@@ -92,10 +90,7 @@ export const addAudioFilesToValue = ({
 
 	return {
 		ok: true,
-		recordings: [
-			...currentRecordings,
-			...files.map(createAudioRecordingFromFile),
-		],
+		recordings: [...currentRecordings, ...files.map(createAudioRecordingFromFile)],
 	};
 };
 
@@ -132,8 +127,7 @@ export const addContextFilesToValue = ({
 	}
 
 	const nextTotalSize =
-		getContextFilesTotalSize(currentFiles) +
-		files.reduce((sum, file) => sum + file.size, 0);
+		getContextFilesTotalSize(currentFiles) + files.reduce((sum, file) => sum + file.size, 0);
 	if (nextTotalSize > maxTotalBytes) {
 		return {
 			files: currentFiles,

@@ -6,9 +6,7 @@ export const generateMetadata = (): Metadata => ({
 	title: "Scribe - Dokument erstellen",
 });
 
-export default async function CreateDocumentPage({
-	searchParams,
-}: PageProps<"/documents/create">) {
+export default async function CreateDocumentPage({ searchParams }: PageProps<"/documents/create">) {
 	const { fork } = await searchParams;
 
 	return (

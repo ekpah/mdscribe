@@ -1,9 +1,9 @@
 "use client";
-import { normalizeBooleanToString } from "../../parse/boolean-coercion";
-import { useVariables } from "../../render/context/variable-context";
 import type { ReactNode } from "react";
 import React from "react";
 
+import { normalizeBooleanToString } from "../../parse/boolean-coercion";
+import { useVariables } from "../../render/context/variable-context";
 import { InteractiveTag } from "./interactive-tag";
 
 export const SwitchContext = React.createContext<string | null>(null);
@@ -34,12 +34,7 @@ const normalizeSwitchValue = (value: unknown, type: SwitchType): string | null =
 	return null;
 };
 
-export const Switch = ({
-	primary,
-	type,
-	source: _source,
-	children,
-}: SwitchProps) => {
+export const Switch = ({ primary, type, source: _source, children }: SwitchProps) => {
 	const variables = useVariables();
 	const variableName = typeof primary === "string" ? primary : null;
 	let resolvedSwitchValue: string | null = null;

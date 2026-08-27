@@ -11,10 +11,7 @@ import {
 	createAudioRecordingsFromTransferPayload,
 	createUploadedFilesFromTransferPayload,
 } from "@/app/_components/context-transfer/hydrate";
-import type {
-	AudioRecording,
-	UploadedContextFile,
-} from "@/app/_components/input-context/types";
+import type { AudioRecording, UploadedContextFile } from "@/app/_components/input-context/types";
 import { resolveFallbackTemplateByContextKey } from "@/orpc/scribe/context/template/fallbacks";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
@@ -189,7 +186,9 @@ export const DoctorsNoteEditor = ({
 	// Agent edits are staged as per-section proposals, reviewed via the diff
 	// editor (accept/reject) rather than applied directly.
 	const [agentProposals, setAgentProposals] = useState<Record<string, string>>({});
-	const [pendingSuggestionValues, setPendingSuggestionValues] = useState<Record<string, string>>({});
+	const [pendingSuggestionValues, setPendingSuggestionValues] = useState<Record<string, string>>(
+		{},
+	);
 
 	const handleAgentPropose = useCallback((sectionId: string, content: string) => {
 		setAgentProposals((prev) => ({ ...prev, [sectionId]: content }));

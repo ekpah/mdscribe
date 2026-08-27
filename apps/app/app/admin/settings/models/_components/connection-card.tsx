@@ -13,6 +13,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
@@ -57,8 +58,7 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 	const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
 
 	const deleteMutation = useMutation({
-		mutationFn: () =>
-			orpc.admin.providers.connections.delete.call({ id: connection.id }),
+		mutationFn: () => orpc.admin.providers.connections.delete.call({ id: connection.id }),
 		onError: (error) => {
 			setIsDeleteConfirming(false);
 			toast.error(error instanceof Error ? error.message : "Fehler");
@@ -75,8 +75,7 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 			orpc.admin.providers.connections.refreshModels.call({
 				id: connection.id,
 			}),
-		onError: (error) =>
-			toast.error(error instanceof Error ? error.message : "Fehler"),
+		onError: (error) => toast.error(error instanceof Error ? error.message : "Fehler"),
 		onSuccess: async (data) => {
 			const preview = data.models
 				.slice(0, 3)
@@ -130,9 +129,7 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 			<CardHeader className="p-4 sm:p-6">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div className="flex flex-wrap items-center gap-2 sm:gap-3">
-						<CardTitle className="text-sm sm:text-base">
-							{connection.name}
-						</CardTitle>
+						<CardTitle className="text-sm sm:text-base">{connection.name}</CardTitle>
 						<Badge variant="outline" className="text-[10px] sm:text-xs">
 							{PROTOCOL_LABELS[connection.protocol] ?? connection.protocol}
 						</Badge>
@@ -178,9 +175,7 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 					</div>
 				</div>
 				{connection.baseUrl && (
-					<p className="mt-1 break-all text-solarized-base01 text-xs">
-						{connection.baseUrl}
-					</p>
+					<p className="mt-1 break-all text-solarized-base01 text-xs">{connection.baseUrl}</p>
 				)}
 			</CardHeader>
 
@@ -192,9 +187,7 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 						disabled={byokMutation.isPending}
 						onCheckedChange={handleByokChange}
 					/>
-					<span className="text-solarized-base00 text-sm">
-						{USER_MESSAGES.adminByok.label}
-					</span>
+					<span className="text-solarized-base00 text-sm">{USER_MESSAGES.adminByok.label}</span>
 					{connection.byokCredentialCounts.stored > 0 && (
 						<span className="text-solarized-base01 text-xs">
 							(
@@ -238,12 +231,8 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 									key={model.modelId}
 									className="flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between"
 								>
-									<span className="break-all font-mono text-solarized-base00">
-										{model.modelId}
-									</span>
-									<span className="text-solarized-base01">
-										{model.displayName}
-									</span>
+									<span className="break-all font-mono text-solarized-base00">{model.modelId}</span>
+									<span className="text-solarized-base01">{model.displayName}</span>
 									{(model.supportedParameters ?? []).length > 0 ? (
 										<span className="text-solarized-base01">
 											{(model.supportedParameters ?? []).join(", ")}

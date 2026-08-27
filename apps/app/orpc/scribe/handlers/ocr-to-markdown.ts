@@ -13,9 +13,12 @@ import { buildProviderOptions, resolveProviderModel } from "@/orpc/scribe/provid
 
 const ocrImageInput = z.object({
 	data: z.string().min(1),
-	mediaType: z.string().min(1).refine((value) => value.startsWith("image/"), {
-		message: "mediaType muss ein Bild-MIME-Type sein",
-	}),
+	mediaType: z
+		.string()
+		.min(1)
+		.refine((value) => value.startsWith("image/"), {
+			message: "mediaType muss ein Bild-MIME-Type sein",
+		}),
 });
 
 const ocrToMarkdownInput = z.object({
@@ -77,9 +80,7 @@ const buildOcrContent = (
 	pageCount: number | undefined;
 	userContent: OcrContentPart[];
 } => {
-	const userContent: OcrContentPart[] = promptText
-		? [{ text: promptText, type: "text" }]
-		: [];
+	const userContent: OcrContentPart[] = promptText ? [{ text: promptText, type: "text" }] : [];
 
 	if (imageInputs.length > 0) {
 		let fileSizeBytes = 0;

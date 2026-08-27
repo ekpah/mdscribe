@@ -8,9 +8,7 @@ describe("input citation quote lookup", () => {
 		const text = "Anamnese:\nDer Patient hat   keine Allergien.";
 		const match = findQuoteInInputText(text, "der patient hat keine allergien");
 		expect(match).not.toBeNull();
-		expect(text.slice(match?.start, match?.end)).toBe(
-			"Der Patient hat   keine Allergien",
-		);
+		expect(text.slice(match?.start, match?.end)).toBe("Der Patient hat   keine Allergien");
 	});
 
 	test("returns the first occurrence", () => {
@@ -49,15 +47,11 @@ describe("input citation quote lookup", () => {
 			throw new Error("Expected an input citation reference");
 		}
 
-		const resolution = resolveInputCitation(
-			{ quote: "missing quote", source },
-			reference,
-			{
-				createFileUrl: () => "",
-				files: new Map(),
-				texts: new Map([[source, { label: "Notes", text: "alpha beta" }]]),
-			},
-		);
+		const resolution = resolveInputCitation({ quote: "missing quote", source }, reference, {
+			createFileUrl: () => "",
+			files: new Map(),
+			texts: new Map([[source, { label: "Notes", text: "alpha beta" }]]),
+		});
 
 		expect(resolution.kind).toBe("text");
 		if (resolution.kind === "text") {

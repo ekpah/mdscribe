@@ -17,10 +17,7 @@ interface DoctorsNoteFieldCardProps {
  * anamnese, befunde, epikrise, …). Each block maps to a prompt harness and a
  * fallback template; this card surfaces that composition for its field.
  */
-export const DoctorsNoteFieldCard = ({
-	config,
-	className,
-}: DoctorsNoteFieldCardProps) => {
+export const DoctorsNoteFieldCard = ({ config, className }: DoctorsNoteFieldCardProps) => {
 	if (!config.documentType) {
 		return (
 			<ContextTemplateCard

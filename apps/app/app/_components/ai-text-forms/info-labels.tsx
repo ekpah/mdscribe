@@ -1,18 +1,26 @@
 "use client";
 
 import { Label } from "@repo/design-system/components/ui/label";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@repo/design-system/components/ui/tooltip";
 import { Info } from "lucide-react";
 
 const InfoHint = ({ text }: { text: string }) => (
 	<Tooltip>
-		<TooltipTrigger render={<button
-				aria-label={text}
-				className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
-				type="button"
-			>
-				<Info className="h-3.5 w-3.5" />
-			</button>} />
+		<TooltipTrigger
+			render={
+				<button
+					aria-label={text}
+					className="inline-flex h-4 w-4 items-center justify-center rounded-full text-solarized-base01 transition-colors hover:text-solarized-base00"
+					type="button"
+				>
+					<Info className="h-3.5 w-3.5" />
+				</button>
+			}
+		/>
 		<TooltipContent className="max-w-64 text-xs leading-relaxed">{text}</TooltipContent>
 	</Tooltip>
 );
@@ -32,13 +40,7 @@ export const LabelWithInfo = ({
 	</div>
 );
 
-export const SectionLabelWithInfo = ({
-	children,
-	info,
-}: {
-	children: string;
-	info: string;
-}) => (
+export const SectionLabelWithInfo = ({ children, info }: { children: string; info: string }) => (
 	<div className="flex items-center gap-1.5">
 		<span className="font-medium">{children}</span>
 		<InfoHint text={info} />

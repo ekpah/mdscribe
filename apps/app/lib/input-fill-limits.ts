@@ -8,6 +8,8 @@ export const FILL_INPUT_PAYLOAD_LIMITS = {
 	maxInputFieldDescriptionCharacters: 2000,
 	maxInputFieldLabelCharacters: 200,
 	maxInputFields: 100,
+	maxTemplateExamplesCharacters: 50_000,
+	maxTemplateExamples: 10,
 	maxTemplateInformationCharacters: 10_000,
 	maxTextContextCharacters: 30_000,
 } as const;

@@ -36,11 +36,7 @@ import {
 	UsagePromptBadge,
 	UsageModelName,
 } from "./columns";
-import type {
-	StatsFilter,
-	UsageListEvent,
-	UsageTrendMetric,
-} from "./types";
+import type { StatsFilter, UsageListEvent, UsageTrendMetric } from "./types";
 
 interface UsageFilters {
 	action?: string;
@@ -466,11 +462,7 @@ const UsageMobileCards = ({
 						<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
 							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 								<p className="text-solarized-base01">Modell</p>
-								<UsageModelName
-									compact
-									metadata={item.metadata}
-									model={item.model}
-								/>
+								<UsageModelName compact metadata={item.metadata} model={item.model} />
 							</div>
 							<div className="rounded-md border border-solarized-base2 bg-solarized-base3 p-2">
 								<p className="text-solarized-base01">Tokens</p>
@@ -558,10 +550,7 @@ const UsageEventsCard = ({
 					value={searchFilter}
 					onChange={onSearchFilterChange}
 				/>
-				<UsageMobileCards
-					items={filteredItems}
-					onSelectById={onSelectById}
-				/>
+				<UsageMobileCards items={filteredItems} onSelectById={onSelectById} />
 			</div>
 
 			<div className="hidden md:block">
@@ -751,24 +740,25 @@ const buildTraceRows = ({
 				}),
 				...(includeChildren
 					? {
-						children: trace.observations
-							.filter(
-								(candidate) =>
-									candidate.parentObservationId === observation.id && candidate !== generationObservation,
-							)
-							.map((child) => buildObservationRow(child)),
-					}
+							children: trace.observations
+								.filter(
+									(candidate) =>
+										candidate.parentObservationId === observation.id &&
+										candidate !== generationObservation,
+								)
+								.map((child) => buildObservationRow(child)),
+						}
 					: {}),
 				...(isTool
 					? {
-						id: observation.id,
-						linkedUsageEventId: generationEvent?.id,
-						metadata: observation.metadata,
-						name: observation.name,
-						observationId: observation.id,
-						toolInputData: observation.inputData,
-						toolOutputData: observation.outputData,
-					}
+							id: observation.id,
+							linkedUsageEventId: generationEvent?.id,
+							metadata: observation.metadata,
+							name: observation.name,
+							observationId: observation.id,
+							toolInputData: observation.inputData,
+							toolOutputData: observation.outputData,
+						}
 					: {}),
 				rowKind,
 			};

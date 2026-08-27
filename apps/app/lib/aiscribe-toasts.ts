@@ -10,6 +10,5 @@ export const isSuccessfulChatFinish = (input: {
 	input.finishReason !== "error" &&
 	input.finishReason !== "content-filter";
 
-export const hasLessThanTenPercentUsageRemaining = (
-	monthlyUsagePercentage: number,
-) => monthlyUsagePercentage > 90;
+export const hasLessThanTenPercentUsageRemaining = (monthlyUsagePercentage: number) =>
+	monthlyUsagePercentage > 90;

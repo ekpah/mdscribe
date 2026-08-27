@@ -304,8 +304,7 @@ const runHandler = authed
 		}
 		const providerOptions = buildProviderOptions({
 			model: resolved,
-			openRouterReasoningEffort:
-				parsed.parameters.reasoningEffort === "none" ? "none" : undefined,
+			openRouterReasoningEffort: parsed.parameters.reasoningEffort === "none" ? "none" : undefined,
 			reasoningEffort,
 			userId: context.session.user.id,
 		});

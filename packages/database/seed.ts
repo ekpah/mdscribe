@@ -25,21 +25,28 @@ const globalForSeed = globalThis as unknown as {
 const SEED_TEMPLATES = [
 	{
 		category: "Prozeduren",
-		content: `# Appendektomie
+		content: `Aufklärung liegt vor, aktuelle Gerinnungswerte wurden geprüft.
 
-## Indikation
-Akute Appendizitis
+Lagerung des Pat. sowie Monitoring von Blutdruck, EKG, SpO2, AF.
 
-## Vorgehen
-- Laparoskopische Appendektomie in Allgemeinanästhesie
-- Standardzugänge: 3-Trokar-Technik
-- Präparation und Absetzung der Appendix
+Lokalanästhesie mit {% info "Lokale volumen" type="string" unit="ml" /%} Mecain. Sonographisch gesteuerte Punktion der V. jugularis interna rechts unter sonographischer Kontrolle nach sterilen Kautelen. Einbringen einer 8,5-Fr. x 4" (10cm) Arrow-Flex Schleuse in Seldinger Technik. Hierüber Einschwemmen eines 7-Fr. Swan-Ganz-Katheters zur Durchführung der Druckmessung, HZV-Messung sowie Etagenoxymetrie.
 
-## Nachsorge
-- Kostaufbau nach Toleranz
-- Frühmobilisation
-- Entlassungszeitpunkt nach individueller klinischer Beurteilung`,
-		title: "Akute Appendizitis",
+Lagekontrolle mittels Druckkurven.
+
+Am Ende der Untersuchung Entfernen des Katheters und der Schleuse.
+
+Anlage eines sterilen Wundverbandes.
+
+Uhrzeit Beginn Untersuchung: {% info "Uhrzeit_Beginn_Untersuchung" type="string" /%} Uhr; Uhrzeit Ende Untersuchung: {% info "Uhrzeit_Ende_Untersuchung" type="string" /%} Uhr.
+
+**Rechtsherzkatheteruntersuchung** vom {% info "Datum" type="date" /%}:
+Laufende Untersuchungsnummer: {% info "Laufende_Untersuchungsnummer" type="string" /%} Indikation: {% info "Indikation" type="string" /%} O²-Gabe: {% info "O2_Gabe" type="string" /%} Körpergröße: {% info "Koerpergroesse_cm" type="number" unit="cm" /%} cm, Gewicht: {% info "Gewicht_kg" type="number" unit="kg" /%} kg, KÖF: {% calc primary="KOEF" formula="0.007184 * ([Koerpergroesse_cm] ^ 0.725) * ([Gewicht_kg] ^ 0.425)" unit="m²" %}{% info "Koerpergroesse_cm" type="number" unit="cm" /%}{% info "Gewicht_kg" type="number" unit="kg" /%}{% /calc %} m². Atemfrequenz: {% info "Atemfrequenz" type="number" unit="/min" /%} /min.
+
+Werte in Ruhe: ZVD {% info "ZVD_mmHg" type="number" unit="mmHg" /%}mmHg, RA {% info "RA_mmHg" type="number" unit="mmHg" /%}mmHg, RV {% info "RV_Systole_mmHg" type="number" unit="mmHg" /%}/{% info "RV_Diastole_mmHg" type="number" unit="mmHg" /%} ({% info "RV_Mitteldruck_mmHg" type="number" unit="mmHg" /%})mmHg, PAP {% info "PAP_Systole_mmHg" type="number" unit="mmHg" /%}/{% info "PAP_Diastole_mmHg" type="number" unit="mmHg" /%} ({% calc primary="PAP_Mitteldruck_mmHg" formula="([PAP_Systole_mmHg] + 2 * [PAP_Diastole_mmHg]) / 3" unit="mmHg" %}{% info "PAP_Systole_mmHg" type="number" unit="mmHg" /%}{% info "PAP_Diastole_mmHg" type="number" unit="mmHg" /%}{% /calc %})mmHg, PAWP {% info "PAWP_mmHg" type="number" unit="mmHg" /%}mmHg, HZV {% info "HZV_l_min" type="number" unit="l/min" /%}l/min, CI {% calc primary="CI_l_min_KOEF" formula="[HZV_l_min] / (0.007184 * ([Koerpergroesse_cm] ^ 0.725) * ([Gewicht_kg] ^ 0.425))" unit="l/min/KÖF" %}{% info "HZV_l_min" type="number" unit="l/min" /%}{% info "Koerpergroesse_cm" type="number" unit="cm" /%}{% info "Gewicht_kg" type="number" unit="kg" /%}{% /calc %}l/min/KÖF, SV {% calc primary="SV_ml" formula="[HZV_l_min] * 1000 / [Herzfrequenz_min]" unit="ml" %}{% info "HZV_l_min" type="number" unit="l/min" /%}{% info "Herzfrequenz_min" type="number" unit="/min" /%}{% /calc %}ml, SVI {% calc primary="SVI_ml_m2" formula="([HZV_l_min] * 1000 / [Herzfrequenz_min]) / (0.007184 * ([Koerpergroesse_cm] ^ 0.725) * ([Gewicht_kg] ^ 0.425))" unit="ml/m²" %}{% info "HZV_l_min" type="number" unit="l/min" /%}{% info "Herzfrequenz_min" type="number" unit="/min" /%}{% info "Koerpergroesse_cm" type="number" unit="cm" /%}{% info "Gewicht_kg" type="number" unit="kg" /%}{% /calc %}ml/m², PAC {% calc primary="PAC_ml_mmHg" formula="([HZV_l_min] * 1000 / [Herzfrequenz_min]) / ([PAP_Systole_mmHg] - [PAP_Diastole_mmHg])" unit="ml/mmHg" %}{% info "HZV_l_min" type="number" unit="l/min" /%}{% info "Herzfrequenz_min" type="number" unit="/min" /%}{% info "PAP_Systole_mmHg" type="number" unit="mmHg" /%}{% info "PAP_Diastole_mmHg" type="number" unit="mmHg" /%}{% /calc %}ml/mmHg, Herzfrequenz {% info "Herzfrequenz_min" type="number" unit="/min" /%}/min., PVR {% calc primary="PVR_dyn_s_cm_5" formula="80 * ((([PAP_Systole_mmHg] + 2 * [PAP_Diastole_mmHg]) / 3) - [PAWP_mmHg]) / [HZV_l_min]" unit="dyn xs x cm -5" %}{% info "PAP_Systole_mmHg" type="number" unit="mmHg" /%}{% info "PAP_Diastole_mmHg" type="number" unit="mmHg" /%}{% info "PAWP_mmHg" type="number" unit="mmHg" /%}{% info "HZV_l_min" type="number" unit="l/min" /%}{% /calc %}dyn xs x cm -5, SVR {% calc primary="SVR_dyn_s_cm_5" formula="80 * ((([SystAP_Systole_mmHg] + 2 * [SystAP_Diastole_mmHg]) / 3) - [RA_mmHg]) / [HZV_l_min]" unit="dyn xs x cm-5" %}{% info "SystAP_Systole_mmHg" type="number" unit="mmHg" /%}{% info "SystAP_Diastole_mmHg" type="number" unit="mmHg" /%}{% info "RA_mmHg" type="number" unit="mmHg" /%}{% info "HZV_l_min" type="number" unit="l/min" /%}{% /calc %}dyn xs x cm-5‚ Sättigung {% info "Saettigung_Prozent" type="number" unit="%" /%}%, zentral venöse Sättigung {% info "Zentralvenoese_Saettigung_Prozent" type="number" unit="%" /%}%. Syst.AP {% info "SystAP_Systole_mmHg" type="number" unit="mmHg" /%}/{% info "SystAP_Diastole_mmHg" type="number" unit="mmHg" /%}({% calc primary="SystAP_Mitteldruck_mmHg" formula="([SystAP_Systole_mmHg] + 2 * [SystAP_Diastole_mmHg]) / 3" unit="mmHg" %}{% info "SystAP_Systole_mmHg" type="number" unit="mmHg" /%}{% info "SystAP_Diastole_mmHg" type="number" unit="mmHg" /%}{% /calc %})mmHg.
+
+Zusammenfassung: {% info "Beurteilung" type="string" /%}
+`,
+		title: "Rechtsherzkatheter",
 	},
 	{
 		category: "Anamnese",

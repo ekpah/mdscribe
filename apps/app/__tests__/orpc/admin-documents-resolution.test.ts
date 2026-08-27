@@ -1,14 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
 import { call } from "@orpc/server";
-import {
-	aiDefaults,
-	aiModel,
-	aiProvider,
-	eq,
-	usageEvent,
-} from "@repo/database";
-import { scribeHandler } from "@/orpc/admin/scribe";
-import { documentsHandler } from "@/orpc/documents";
+import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
+
 import {
 	ADMIN_EMAIL,
 	createTestAiDefaults,
@@ -18,6 +12,8 @@ import {
 } from "@/__tests__/setup";
 import type { TestServer } from "@/__tests__/setup";
 import { AI_SCRIBE_STT_EVENT_NAME } from "@/lib/usage-event-names";
+import { scribeHandler } from "@/orpc/admin/scribe";
+import { documentsHandler } from "@/orpc/documents";
 import { ocrToMarkdownHandler } from "@/orpc/scribe/handlers/ocr-to-markdown";
 import { appendScribeInputAttachmentsToMessages } from "@/orpc/scribe/handlers/scribe-stream";
 import type { ResolvedGenerationStrategy } from "@/orpc/scribe/handlers/scribe-stream";
@@ -135,12 +131,10 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		expect(
 			parts.some((part) => part.type === "text" && part.text?.includes("<audio_context>")),
 		).toBe(true);
-		expect(parts.some((part) => part.type === "file" && part.mediaType === "audio/wav")).toBe(
+		expect(parts.some((part) => part.type === "file" && part.mediaType === "audio/wav")).toBe(true);
+		expect(parts.some((part) => part.type === "file" && part.mediaType === "application/pdf")).toBe(
 			true,
 		);
-		expect(
-			parts.some((part) => part.type === "file" && part.mediaType === "application/pdf"),
-		).toBe(true);
 		expect(parts.some((part) => part.type === "text" && part.text?.includes("befund.pdf"))).toBe(
 			true,
 		);
@@ -233,7 +227,9 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		const originalFetch = globalThis.fetch;
 		try {
 			globalThis.fetch = (() =>
-				Promise.resolve(Response.json({ text: "Direktes Admin-Transkript" }))) as unknown as typeof fetch;
+				Promise.resolve(
+					Response.json({ text: "Direktes Admin-Transkript" }),
+				)) as unknown as typeof fetch;
 
 			const audioFiles = [
 				{

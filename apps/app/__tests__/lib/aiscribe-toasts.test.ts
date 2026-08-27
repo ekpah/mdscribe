@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-	hasLessThanTenPercentUsageRemaining,
-	isSuccessfulChatFinish,
-} from "@/lib/aiscribe-toasts";
+import { hasLessThanTenPercentUsageRemaining, isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 
 describe("AI Scribe toast decisions", () => {
 	test("shows success only for a completed generation", () => {

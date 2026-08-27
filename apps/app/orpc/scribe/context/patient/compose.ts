@@ -1,4 +1,5 @@
 import type { ContextSource, PatientContextData } from "@/orpc/scribe/context/types";
+
 import { renderPatientContextSections } from "./guidance";
 
 const EMPTY_PATIENT_CONTEXT: PatientContextData = {
@@ -9,8 +10,7 @@ const EMPTY_PATIENT_CONTEXT: PatientContextData = {
 	notes: "",
 };
 
-const toTrimmedString = (value: unknown): string =>
-	typeof value === "string" ? value.trim() : "";
+const toTrimmedString = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
 const mergeField = (current: string, next: string): string => {
 	if (!current) {

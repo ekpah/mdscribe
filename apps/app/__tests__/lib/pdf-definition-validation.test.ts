@@ -47,11 +47,9 @@ describe("PDF document definition validation", () => {
 
 	test("rejects AI proposals that remove or add PDF field names", () => {
 		expect(() =>
-			validateDocumentDefinitionPreservesPdfFields(
-				definition,
-				{ bindings: [], inputs: [] },
-				[textField],
-			),
+			validateDocumentDefinitionPreservesPdfFields(definition, { bindings: [], inputs: [] }, [
+				textField,
+			]),
 		).toThrow('Der KI-Vorschlag hat das PDF-Feld "patient_name" entfernt.');
 
 		expect(() =>

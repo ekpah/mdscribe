@@ -686,10 +686,7 @@ const usePdfViewState = ({
 				try {
 					const nextFieldTargets = await collectFieldTargets(pdfDocument);
 					setBufferLoadStates((currentStates) => {
-						if (
-							buffer.generation !== currentGenerationRef.current ||
-							!currentStates[buffer.id]
-						) {
+						if (buffer.generation !== currentGenerationRef.current || !currentStates[buffer.id]) {
 							return currentStates;
 						}
 						return {
@@ -704,10 +701,7 @@ const usePdfViewState = ({
 				} catch (error) {
 					console.error("PDF annotation load error:", error);
 					setBufferLoadStates((currentStates) => {
-						if (
-							buffer.generation !== currentGenerationRef.current ||
-							!currentStates[buffer.id]
-						) {
+						if (buffer.generation !== currentGenerationRef.current || !currentStates[buffer.id]) {
 							return currentStates;
 						}
 						return {
@@ -731,10 +725,7 @@ const usePdfViewState = ({
 		window.requestAnimationFrame(() => {
 			window.requestAnimationFrame(() => {
 				setBufferLoadStates((currentStates) => {
-					if (
-						buffer.generation !== currentGenerationRef.current ||
-						!currentStates[buffer.id]
-					) {
+					if (buffer.generation !== currentGenerationRef.current || !currentStates[buffer.id]) {
 						return currentStates;
 					}
 					return {
@@ -838,9 +829,10 @@ export const PDFViewSection = ({
 	const effectiveNumPages = numPages ?? pendingNumPages;
 	const hasMultiplePages = Boolean(effectiveNumPages && effectiveNumPages > 1);
 	const showPageControls = Boolean(visibleBuffer && numPages && numPages > 1 && hasUploadedFile);
-	const pageWidth = hasUploadedFile && hasMultiplePages
-		? getPageWidth(containerWidth, 120)
-		: getPageWidth(containerWidth, 16);
+	const pageWidth =
+		hasUploadedFile && hasMultiplePages
+			? getPageWidth(containerWidth, 120)
+			: getPageWidth(containerWidth, 16);
 	const bufferViews = [
 		pendingBuffer
 			? {

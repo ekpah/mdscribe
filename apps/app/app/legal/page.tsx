@@ -1,4 +1,9 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/design-system/components/ui/tabs";
 import { AlertTriangle, Info, Shield } from "lucide-react";
 
 const supportEmail = "support@mdscribe.de";
@@ -216,14 +221,13 @@ export default function LegalPage() {
 										erteilt.
 									</p>
 									<p>
-										Soweit ein Nutzer für eine vom Administrator freigeschaltete KI-Verbindung
-										einen eigenen API-Schlüssel hinterlegt, wird dieser verschlüsselt gespeichert
-										und für passende KI-Anfragen anstelle des Betreiberschlüssels verwendet. Der
-										Schlüssel wird nicht wieder im Browser angezeigt und nicht in
-										Nutzungsprotokollen gespeichert. Für Verarbeitung, Kosten, Nutzungslimits und
-										Aufbewahrung beim jeweiligen KI-Dienst gelten dessen Bedingungen. Protokoll,
-										Zieladresse und Modelle der Verbindung bleiben durch den Administrator
-										vorgegeben.
+										Soweit ein Nutzer für eine vom Administrator freigeschaltete KI-Verbindung einen
+										eigenen API-Schlüssel hinterlegt, wird dieser verschlüsselt gespeichert und für
+										passende KI-Anfragen anstelle des Betreiberschlüssels verwendet. Der Schlüssel
+										wird nicht wieder im Browser angezeigt und nicht in Nutzungsprotokollen
+										gespeichert. Für Verarbeitung, Kosten, Nutzungslimits und Aufbewahrung beim
+										jeweiligen KI-Dienst gelten dessen Bedingungen. Protokoll, Zieladresse und
+										Modelle der Verbindung bleiben durch den Administrator vorgegeben.
 									</p>
 								</div>
 
