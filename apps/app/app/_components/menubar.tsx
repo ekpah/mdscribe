@@ -155,7 +155,7 @@ export default function TopMenuBar({
 
 						if (session?.user) {
 							return (
-								<DropdownMenu>
+								<DropdownMenu modal={false}>
 									<DropdownMenuTrigger
 										render={
 											<Button variant="ghost" className="relative h-9 w-9 rounded-full">

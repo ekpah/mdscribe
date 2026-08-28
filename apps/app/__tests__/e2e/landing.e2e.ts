@@ -5,6 +5,16 @@ test.describe("Landing Page", () => {
 		await page.goto("/");
 	});
 
+	test("does not overflow the viewport horizontally", async ({ page }) => {
+		await expect
+			.poll(() =>
+				page.evaluate(
+					() => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+				),
+			)
+			.toBe(true);
+	});
+
 	test("presents the product, source and primary actions", async ({ page }) => {
 		await expect(page).toHaveTitle(/Open Source für medizinische Dokumentation/i);
 		await expect(
@@ -150,6 +160,27 @@ test.describe("Landing Page", () => {
 				}),
 			)
 			.toBe(true);
+	});
+});
+
+test.describe("Authenticated landing page", () => {
+	test("keeps the header stable when the Avatar menu opens", async ({ page }) => {
+		await page.goto("/sign-in");
+		const signInCard = page.getByTestId("sign-in-card");
+		await signInCard.getByLabel("E-Mail oder Benutzername").fill("test@test.com");
+		await signInCard.getByLabel("Passwort").fill("password123");
+		await signInCard.getByRole("button", { name: "Anmelden" }).click();
+		await page.waitForURL(/\/dashboard/);
+		await page.goto("/");
+
+		const avatarTrigger = page.locator("nav [data-slot='dropdown-menu-trigger']");
+		await expect(avatarTrigger).toBeVisible();
+		const initialPosition = await avatarTrigger.boundingBox();
+		await avatarTrigger.click();
+
+		await expect(page.getByRole("menu")).toBeVisible();
+		expect(await avatarTrigger.boundingBox()).toEqual(initialPosition);
+		expect(await page.evaluate(() => getComputedStyle(document.body).overflow)).not.toBe("hidden");
 	});
 });
 

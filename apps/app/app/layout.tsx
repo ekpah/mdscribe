@@ -56,7 +56,7 @@ export default async function RootLayout({ children }: RootLayoutProperties) {
 					<QueryProvider>
 						<HydrationBoundary state={dehydrate(queryClient)}>
 							<DesignSystemProvider>
-								<div className="flex h-screen w-screen" key="Body">
+								<div className="flex h-screen w-full" key="Body">
 									<nav className="fixed top-0 right-0 bottom-[calc(100vh-(--spacing(16)))] left-0 z-30 h-16">
 										{/*ModeWatcher track="true" />*/}
 										<Suspense fallback={<MenubarSkeleton />}>

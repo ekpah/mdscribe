@@ -24,6 +24,7 @@
 
 ### Fixed
 
+- The landing page no longer overflows horizontally or shifts when the Avatar menu opens.
 - Template validation now synchronizes repeated input contracts, repairs missing calculated components, and keeps interactions scoped to the correct repeated tag instance.
 - Checkbox inputs now render their initially unchecked state as `false`, while empty date inputs no longer display an uncommitted current-date value.
 - The admin user-management AI-usage column now follows each user's quota period and excludes usage billed through their own API key.
