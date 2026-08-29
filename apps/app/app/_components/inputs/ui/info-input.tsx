@@ -14,7 +14,7 @@ import { cn } from "@repo/design-system/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import type { InfoInputTagType } from "markdoc-md/parse";
 import type React from "react";
-import { useCallback, useId, useMemo } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { Button, DatePicker, Dialog, Group, Popover } from "react-aria-components";
 import { withMask } from "use-mask-input";
 
@@ -74,6 +74,8 @@ const InfoInput = ({
 	const controlId = useId();
 	const isDateType = input.attributes.type === "date";
 	const isNumberType = input.attributes.type === "number";
+	const [isEditingNumber, setIsEditingNumber] = useState(false);
+	const [numberDraft, setNumberDraft] = useState("");
 
 	const dateValue = useMemo(() => parseDateInput(value), [value]);
 
@@ -105,11 +107,19 @@ const InfoInput = ({
 	// Handle number changes
 	const handleNumberChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
+			setNumberDraft(e.target.value);
 			const numValue = Number(e.target.value);
 			onChange(Number.isNaN(numValue) ? 0 : numValue);
 		},
 		[onChange],
 	);
+	const handleNumberFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+		setNumberDraft(e.currentTarget.value);
+		setIsEditingNumber(true);
+	}, []);
+	const handleNumberBlur = useCallback(() => {
+		setIsEditingNumber(false);
+	}, []);
 
 	// Handle text changes
 	const handleTextChange = useCallback(
@@ -175,7 +185,7 @@ const InfoInput = ({
 
 	// Number input
 	if (isNumberType) {
-		const displayValue = (value as number | undefined) ?? "";
+		const displayValue = isEditingNumber ? numberDraft : ((value as number | undefined) ?? "");
 
 		return (
 			<div className="w-full max-w-full *:not-first:mt-1" key={`info-${input.attributes.primary}`}>
@@ -191,11 +201,15 @@ const InfoInput = ({
 							inputClassName,
 						)}
 						id={controlId}
+						inputMode="decimal"
 						name={input.attributes.primary}
+						onBlur={handleNumberBlur}
 						onChange={handleNumberChange}
+						onFocus={handleNumberFocus}
 						placeholder={`Enter ${input.attributes.primary}`}
-						ref={withMask("999999", {
+						ref={withMask("decimal", {
 							placeholder: "",
+							rightAlign: false,
 							showMaskOnHover: false,
 						})}
 						type="text"
