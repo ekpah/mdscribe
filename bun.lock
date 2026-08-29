@@ -59,7 +59,7 @@
         "sonner": "catalog:",
         "stripe": "^22.0.2",
         "tinfoil": "^1.2.1",
-        "use-mask-input": "^3.4.2",
+        "use-mask-input": "^3.14.1",
         "ws": "^8.20.0",
         "zod": "catalog:",
       },
@@ -2912,7 +2912,7 @@
 
     "urijs": ["urijs@1.19.11", "", {}, "sha512-HXgFDgDommxn5/bIv0cnQZsPhHDA90NPHD6+c/v21U5+Sx5hoP8+dP9IZXBU1gIfvdRfhG8cel9QNPeionfcCQ=="],
 
-    "use-mask-input": ["use-mask-input@3.5.2", "", { "peerDependencies": { "react": ">=17", "react-dom": ">=17" } }, "sha512-WZSX7WEfT9TAaQuKOeO/Ic2e2X7XzUH6Wo4XeH3E9jujMP3Y/kOQJspzWzrY3PkBSQG3uwPjvEtJCEY5pwgC+Q=="],
+    "use-mask-input": ["use-mask-input@3.14.1", "", { "peerDependencies": { "antd": ">=5", "react": ">=17", "react-dom": ">=17", "vee-validate": ">=4", "vue": ">=3.4" }, "optionalPeers": ["antd", "react", "react-dom", "vee-validate", "vue"] }, "sha512-v8A2WuNgLfyMmncVEb87JIF3kfG48uysQ41uWhvFEZkq4zFP5tNIRIeg5dlrmxDTJc2O8vFtYKgjxAL3fFSFfQ=="],
 
     "use-sync-external-store": ["use-sync-external-store@1.6.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w=="],
 

@@ -16,12 +16,19 @@ import type { InfoInputTagType } from "markdoc-md/parse";
 import type React from "react";
 import { useCallback, useId, useMemo, useState } from "react";
 import { Button, DatePicker, Dialog, Group, Popover } from "react-aria-components";
-import { withMask } from "use-mask-input";
+import { useMaskInput } from "use-mask-input";
 
 import { formatDateGerman, parseDateInput } from "./date-utils";
 import { SuggestionBadge } from "./suggestion-badge";
 
 type InfoValue = string | number | DateValue | undefined;
+
+const decimalMaskOptions = {
+	placeholder: "",
+	radixPoint: ".",
+	rightAlign: false,
+	showMaskOnHover: false,
+};
 
 const hasFilledValue = (value: unknown): boolean =>
 	value !== undefined && value !== null && value !== "";
@@ -76,6 +83,7 @@ const InfoInput = ({
 	const isNumberType = input.attributes.type === "number";
 	const [isEditingNumber, setIsEditingNumber] = useState(false);
 	const [numberDraft, setNumberDraft] = useState("");
+	const decimalMaskRef = useMaskInput({ mask: "decimal", options: decimalMaskOptions });
 
 	const dateValue = useMemo(() => parseDateInput(value), [value]);
 
@@ -108,7 +116,7 @@ const InfoInput = ({
 	const handleNumberChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			setNumberDraft(e.target.value);
-			const numValue = Number(e.target.value);
+			const numValue = Number(e.target.value.replace(",", "."));
 			onChange(Number.isNaN(numValue) ? 0 : numValue);
 		},
 		[onChange],
@@ -207,11 +215,7 @@ const InfoInput = ({
 						onChange={handleNumberChange}
 						onFocus={handleNumberFocus}
 						placeholder={`Enter ${input.attributes.primary}`}
-						ref={withMask("decimal", {
-							placeholder: "",
-							rightAlign: false,
-							showMaskOnHover: false,
-						})}
+						ref={decimalMaskRef}
 						type="text"
 						value={displayValue}
 					/>
