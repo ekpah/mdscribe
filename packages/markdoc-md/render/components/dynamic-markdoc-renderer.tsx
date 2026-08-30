@@ -1,14 +1,18 @@
 "use client";
 
 import type { Config } from "@markdoc/markdoc";
+import Markdoc from "@markdoc/markdoc";
 import { useMemo } from "react";
 
 import type { CitationRequest } from "../../citations/resolvers";
 import type { MarkdocComponentMap } from "../../markdoc-config/tags/helpers/components";
+import { buildVariableContracts } from "../../parse/validate-markdoc-tag-contracts";
 import { MarkdocInteractionProvider } from "../context/markdoc-interaction-context";
 import { VariableProvider } from "../context/variable-context";
+import { VariableContractProvider } from "../context/variable-contract-context";
 import { useCitationModifier } from "../hooks/use-citation-modifier";
 import renderMarkdocAsReact from "../utils/render-markdoc-as-react";
+import { sanitizeMarkdocForRendering } from "../utils/sanitize-markdoc-for-rendering";
 
 export interface DynamicMarkdocRendererProps {
 	/**
@@ -60,6 +64,11 @@ export const DynamicMarkdocRenderer = ({
 		() => renderMarkdocAsReact(markdocContent, { components, config }),
 		[components, config, markdocContent],
 	);
+	const variableContracts = useMemo(
+		() =>
+			buildVariableContracts(Markdoc.parse(sanitizeMarkdocForRendering(markdocContent))).contracts,
+		[markdocContent],
+	);
 	const normalizedVariables = (variables ?? {}) as Record<
 		string,
 		string | number | boolean | null | undefined
@@ -69,9 +78,11 @@ export const DynamicMarkdocRenderer = ({
 		<MarkdocInteractionProvider
 			value={{ activeTagName, areCitationsHighlighted, onCitationSelect, onTagSelect }}
 		>
-			<VariableProvider value={normalizedVariables}>
-				<div className={className}>{renderedContent}</div>
-			</VariableProvider>
+			<VariableContractProvider value={variableContracts}>
+				<VariableProvider value={normalizedVariables}>
+					<div className={className}>{renderedContent}</div>
+				</VariableProvider>
+			</VariableContractProvider>
 		</MarkdocInteractionProvider>
 	);
 };

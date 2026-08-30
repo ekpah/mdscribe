@@ -1,18 +1,23 @@
-import type { MarkdocContractAttribute, MarkdocTagDiagnostic } from "markdoc-md/parse";
+import type {
+	MarkdocContractAttribute,
+	MarkdocTagDiagnostic,
+	VariableDomain,
+} from "markdoc-md/parse";
 
 const MARKDOC_ATTRIBUTE_LABELS: Record<MarkdocContractAttribute, string> = {
 	description: "Beschreibung",
 	formula: "Formel",
 	source: "Quelle",
-	type: "Typ",
 	unit: "Einheit",
 };
 
-const MARKDOC_TAG_LABELS = {
-	calc: "Calc-Tag",
-	info: "Info-Tag",
-	switch: "Switch-Tag",
-} as const;
+const VARIABLE_DOMAIN_LABELS: Record<VariableDomain, string> = {
+	boolean: "Checkbox",
+	date: "Datum",
+	enum: "Auswahl",
+	number: "Zahl",
+	text: "Text",
+};
 
 const CURRENT_LANDING_DATE = new Intl.DateTimeFormat("de-DE", {
 	day: "2-digit",
@@ -21,23 +26,49 @@ const CURRENT_LANDING_DATE = new Intl.DateTimeFormat("de-DE", {
 }).format(new Date());
 
 export const formatMarkdocTagDiagnostic = (diagnostic: MarkdocTagDiagnostic): string => {
-	if (diagnostic.code === "tag-kind-conflict") {
-		return `„${diagnostic.primary}“ wird sowohl als ${MARKDOC_TAG_LABELS[diagnostic.firstTag]} als auch als ${MARKDOC_TAG_LABELS[diagnostic.conflictingTag]} verwendet.`;
+	switch (diagnostic.code) {
+		case "variable-domain-conflict": {
+			return `„${diagnostic.name}“ wird sowohl als ${VARIABLE_DOMAIN_LABELS[diagnostic.firstDomain]} als auch als ${VARIABLE_DOMAIN_LABELS[diagnostic.conflictingDomain]} verwendet.`;
+		}
+		case "variable-settings-conflict": {
+			const attributes = diagnostic.conflicts
+				.map((conflict) => MARKDOC_ATTRIBUTE_LABELS[conflict.attribute])
+				.join(", ");
+			return `„${diagnostic.name}“ verwendet widersprüchliche Einstellungen: ${attributes}.`;
+		}
+		case "case-condition-invalid": {
+			const reasons = {
+				"conflicting-operators": "widersprüchliche Bedingungsoperatoren",
+				"empty-range": "einen leeren Wertebereich",
+				"missing-condition":
+					"eine fehlende Bedingung (Zahl-Switches benötigen eq/gt/gte/lt/lte oder default=true)",
+				"primary-and-condition": "sowohl einen Options-Namen als auch eine Bedingung",
+				"requires-number-switch": "eine Bedingung, obwohl der Switch kein Zahl-Switch ist",
+			} as const;
+			return `Switch „${diagnostic.switch}“ enthält ${reasons[diagnostic.reason]}.`;
+		}
+		case "case-unreachable": {
+			return `Switch „${diagnostic.switch}“ enthält nach dem Standardfall einen unerreichbaren Fall.`;
+		}
+		case "orphan-case": {
+			return diagnostic.caseKey
+				? `Case „${diagnostic.caseKey}“ steht außerhalb eines Switches.`
+				: "Ein Case steht außerhalb eines Switches.";
+		}
+		case "calc-components-missing": {
+			return `Calc „${diagnostic.calc}“ muss alle Formel-Komponenten enthalten. Fehlend: ${diagnostic.missingComponents.join(", ")}.`;
+		}
+		case "calc-case-values-missing": {
+			return `Switch „${diagnostic.switch}“ im Calc „${diagnostic.calc}“ benötigt numerische Werte für: ${diagnostic.caseKeys.join(", ")}.`;
+		}
+		case "case-value-conflict": {
+			return `Switch „${diagnostic.switch}“ verwendet für Option „${diagnostic.caseKey}“ widersprüchliche numerische Werte.`;
+		}
+		default: {
+			const exhaustive: never = diagnostic;
+			throw new Error(`Unbekannte Markdoc-Diagnose: ${JSON.stringify(exhaustive)}`);
+		}
 	}
-	if (diagnostic.code === "calc-components-missing") {
-		return `Calc „${diagnostic.calc}“ muss alle Formel-Komponenten enthalten. Fehlend: ${diagnostic.missingComponents.join(", ")}.`;
-	}
-	if (diagnostic.code === "calc-case-values-missing") {
-		return `Switch „${diagnostic.switch}“ im Calc „${diagnostic.calc}“ benötigt numerische Werte für: ${diagnostic.caseKeys.join(", ")}.`;
-	}
-	if (diagnostic.code === "case-value-conflict") {
-		return `Switch „${diagnostic.switch}“ verwendet für Option „${diagnostic.caseKey}“ widersprüchliche numerische Werte.`;
-	}
-
-	const attributes = diagnostic.conflicts
-		.map((conflict) => MARKDOC_ATTRIBUTE_LABELS[conflict.attribute])
-		.join(", ");
-	return `${MARKDOC_TAG_LABELS[diagnostic.tag]} „${diagnostic.primary}“ verwendet widersprüchliche Einstellungen: ${attributes}.`;
 };
 
 /** Single source of truth for all user-facing German messages. */

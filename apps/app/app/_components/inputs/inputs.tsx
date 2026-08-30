@@ -1,5 +1,7 @@
 "use client";
 
+/* oxlint-disable eslint/complexity, eslint/no-nested-ternary, eslint/no-use-before-define */
+
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Input } from "@repo/design-system/components/ui/input";
@@ -13,7 +15,14 @@ import {
 import { cn } from "@repo/design-system/lib/utils";
 import Formula from "fparser";
 import { Bot, Pencil, RotateCcw, Sigma } from "lucide-react";
-import { toFormulaValue, toVoiceBooleanValue as toFillInputsBooleanValue } from "markdoc-md/parse";
+import {
+	resolveMatchedCaseIndex,
+	serializeCaseCondition,
+	toCaseCondition,
+	toFormulaValue,
+	toNumericSwitchValue,
+	toVoiceBooleanValue as toFillInputsBooleanValue,
+} from "markdoc-md/parse";
 import type { CalcInputTagType, InputTagType } from "markdoc-md/parse";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -139,13 +148,16 @@ export const collectFillInputFields = (inputTags: InputTagType[]) => {
 
 		if (input.name === "Switch") {
 			const options = input.children
-				?.filter((child) => child.name === "Case" && child.attributes.primary)
-				.map((child) => child.attributes.primary);
+				?.filter((child) => child.name === "Case")
+				.map((child) => toSwitchCaseKey(child.attributes))
+				.filter((key): key is string => Boolean(key));
 			const switchType =
-				input.attributes.type === "boolean" || input.attributes.type === "checkbox"
+				input.attributes.type === "number"
+					? "number"
+					: (input.attributes.type === "boolean" || input.attributes.type === "checkbox"
 					? "boolean"
-					: "switch";
-			pushField(input.attributes.primary, undefined, switchType, options);
+					: "switch");
+			pushField(input.attributes.primary, input.attributes.description, switchType, options, input.attributes.unit);
 			for (const child of input.children ?? []) {
 				visit(child);
 			}
@@ -293,6 +305,11 @@ const normalizeFillInputsValue = (
 };
 
 const toSwitchCaseKey = (value: unknown): string | undefined => {
+	if (value && typeof value === "object") {
+		const attributes = value as { primary?: string };
+		const condition = toCaseCondition(attributes);
+		return attributes.primary || (condition ? serializeCaseCondition(condition) : undefined);
+	}
 	if (typeof value === "string") {
 		return value;
 	}
@@ -693,14 +710,31 @@ const renderInputTag = (
 	}
 
 	if (input.name === "Switch") {
-		const currentValue = context.values[fieldKey] as string | boolean | undefined;
+		const currentValue = context.values[fieldKey] as string | number | boolean | undefined;
 		const currentCaseKey = toSwitchCaseKey(currentValue);
+		const orderedCases = input.children
+			?.filter((child) => child.name === "Case")
+			.toSorted((a, b) =>
+				(a.attributes.index ?? input.children.indexOf(a)) -
+				(b.attributes.index ?? input.children.indexOf(b)),
+			);
+		const matchedNumberCaseIndex =
+			input.attributes.type === "number" && orderedCases
+				? resolveMatchedCaseIndex(
+						toNumericSwitchValue(currentValue),
+						orderedCases.map((child) => toCaseCondition(child.attributes)),
+					)
+				: null;
 		const selectedCaseChildren =
-			currentCaseKey && input.children
+			input.attributes.type === "number"
+				? (matchedNumberCaseIndex === null
+						? []
+						: orderedCases?.[matchedNumberCaseIndex]?.children ?? [])
+				: (currentCaseKey && input.children
 				? input.children
 						.filter((child) => child.name === "Case" && child.attributes.primary === currentCaseKey)
 						.flatMap((caseChild) => caseChild.children)
-				: [];
+				: []);
 
 		return (
 			<div

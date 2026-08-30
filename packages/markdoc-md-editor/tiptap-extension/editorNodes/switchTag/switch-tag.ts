@@ -3,6 +3,8 @@ import { Fragment } from "@tiptap/pm/model";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 
+import type { CaseConditionAttrs } from "../case-condition";
+import { serializeCaseConditionAttrs } from "../case-condition";
 import { SwitchTagView } from "./switch-tag-view";
 
 const decodeCaseContent = (value: string | null): string => {
@@ -16,14 +18,14 @@ const decodeCaseContent = (value: string | null): string => {
 	}
 };
 
-export interface SwitchCase {
+export interface SwitchCase extends CaseConditionAttrs {
 	primary: string;
 	text: string;
 	content?: string;
 	value?: number;
 }
 
-export type SwitchTagType = "string" | "boolean";
+export type SwitchTagType = "string" | "boolean" | "number";
 
 const SWITCH_BOOLEAN_CASE_PRIMARIES = ["true", "false"] as const;
 
@@ -48,7 +50,7 @@ export const hasBooleanSwitchCaseShape = (cases: SwitchCase[]): boolean =>
 	);
 
 const parseSwitchTagType = (rawType: string | null): SwitchTagType | null => {
-	if (rawType === "string" || rawType === "boolean") {
+	if (rawType === "string" || rawType === "boolean" || rawType === "number") {
 		return rawType;
 	}
 	if (rawType === "checkbox") {
@@ -70,6 +72,8 @@ export interface SwitchTagAttrs {
 	 * Optional source metadata used by upstream value-population flows.
 	 */
 	source: string | null;
+	unit: string | null;
+	description: string | null;
 	/**
 	 * Cases to render within the switch tag
 	 */
@@ -84,6 +88,8 @@ export interface SwitchTagAttrs {
 export const SwitchTag = Node.create<SwitchTagAttrs>({
 	addAttributes() {
 		return {
+			description: { default: null, parseHTML: (element) => element.getAttribute("description") },
+			unit: { default: null, parseHTML: (element) => element.getAttribute("unit") },
 			cases: {
 				default: [],
 				renderHTML: () => ({}),
@@ -137,6 +143,8 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 					const source = element.getAttribute("source");
 					const rawType = element.getAttribute("type");
 					const type = parseSwitchTagType(rawType);
+					const unit = element.getAttribute("unit");
+					const description = element.getAttribute("description");
 					const caseElements = [...element.children].filter(
 						(child): child is HTMLElement =>
 							child instanceof HTMLElement && child.tagName.toLowerCase() === "case",
@@ -149,6 +157,13 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 							child.hasAttribute("value") && Number.isFinite(Number(child.getAttribute("value")))
 								? Number(child.getAttribute("value"))
 								: undefined,
+						...Object.fromEntries(
+							["eq", "gt", "gte", "lt", "lte"].flatMap((key) => {
+								const raw = child.getAttribute(key);
+								return raw !== null && Number.isFinite(Number(raw)) ? [[key, Number(raw)]] : [];
+							}),
+						),
+						isDefault: child.getAttribute("default") === "true",
 					}));
 
 					return {
@@ -156,6 +171,8 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 						primary,
 						source,
 						type,
+						unit,
+						description,
 					};
 				},
 				getContent: () => Fragment.empty,
@@ -178,6 +195,12 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 				"data-content": encodeURIComponent(caseItem.content ?? caseItem.text ?? ""),
 				primary: caseItem.primary ?? "",
 				value: caseItem.value,
+				eq: caseItem.eq,
+				gt: caseItem.gt,
+				gte: caseItem.gte,
+				lt: caseItem.lt,
+				lte: caseItem.lte,
+				default: caseItem.isDefault ? "true" : undefined,
 			},
 			caseItem.text ?? "",
 		]);
@@ -188,6 +211,8 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 				primary: node.attrs.primary,
 				source: node.attrs.source,
 				type: node.attrs.type,
+				unit: node.attrs.unit,
+				description: node.attrs.description,
 			}),
 			...caseNodes,
 		];
@@ -200,9 +225,15 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 		const switchSourceAttribute = node.attrs.source
 			? ` source=${JSON.stringify(node.attrs.source)}`
 			: "";
+		const switchUnitAttribute = node.attrs.unit ? ` unit=${JSON.stringify(node.attrs.unit)}` : "";
+		const switchDescriptionAttribute = node.attrs.description
+			? ` description=${JSON.stringify(node.attrs.description)}`
+			: "";
 		const cases: SwitchCase[] = Array.isArray(node.attrs.cases) ? node.attrs.cases : [];
 		const content = cases
 			.map((caseItem) => {
+				const condition = serializeCaseConditionAttrs(caseItem);
+				if (condition) return `{% case ${condition} %}${caseItem.text ?? ""}{% /case %}`;
 				const casePrimaryValue = caseItem.primary ? JSON.stringify(caseItem.primary) : '""';
 				const caseText = caseItem.text ?? "";
 				const caseValue = caseItem.value === undefined ? "" : ` value=${caseItem.value}`;
@@ -210,7 +241,7 @@ export const SwitchTag = Node.create<SwitchTagAttrs>({
 			})
 			.join("");
 
-		return `{% switch ${switchPrimaryValue}${switchTypeAttribute}${switchSourceAttribute} %}${content}{% /switch %}`;
+		return `{% switch ${switchPrimaryValue}${switchTypeAttribute}${switchUnitAttribute}${switchDescriptionAttribute}${switchSourceAttribute} %}${content}{% /switch %}`;
 	},
 
 	selectable: true,

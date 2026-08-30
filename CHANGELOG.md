@@ -11,6 +11,8 @@
 - Pasting Markdoc text into the template editor now converts supported input, calc, and switch syntax directly into interactive editor tags.
 - Users can now delete their own text templates from the template editor; dependent AI templates are removed and affected Brief-Baukasten sections revert to the default AI template.
 - Users can now delete their own PDF document templates from the document editor.
+- Number switches: switch tags can now branch on numeric values with structured case conditions (equal, greater/less bounds, ranges, and a default case), selecting the first matching case; the template editor offers a "Zahl" switch type with a per-case condition editor, and the input panel renders a numeric field with optional unit.
+- One template variable can now be shared across tag kinds when their value types agree: a number info and a number switch merge into a single input, a switch can branch on a calculated score, and an info can display a calculated value.
 
 ### Changed
 

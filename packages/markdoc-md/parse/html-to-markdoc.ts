@@ -84,6 +84,19 @@ const customMarkdocRenderers: Partial<
 			rawValue !== null && rawValue !== "" && Number.isFinite(Number(rawValue))
 				? ` value=${Number(rawValue)}`
 				: "";
+		const conditionAttributes = ["eq", "gt", "gte", "lt", "lte"]
+			.map((operator) => {
+				const raw = readAttribute(element, operator);
+				return raw !== null && raw !== "" && Number.isFinite(Number(raw))
+					? ` ${operator}=${Number(raw)}`
+					: "";
+			})
+			.join("");
+		const defaultAttribute = serializeBooleanAttribute("default", readAttribute(element, "default"));
+		// Condition cases (number switches) carry no primary key.
+		if (conditionAttributes || defaultAttribute) {
+			return `{% case${conditionAttributes}${defaultAttribute} %}${caseContent}{% /case %}`;
+		}
 		return `{% case ${quoteMarkdocValue(casePrimary)}${valueAttribute} %}${caseContent}{% /case %}`;
 	},
 	cite: (element, innerContent) => {
@@ -114,7 +127,12 @@ const customMarkdocRenderers: Partial<
 		const primary = quoteMarkdocValue(switchPrimary);
 		const sourceAttribute = serializeStringAttribute("source", readAttribute(element, "source"));
 		const typeAttribute = serializeStringAttribute("type", readAttribute(element, "type"));
-		return `{% switch ${primary}${typeAttribute}${sourceAttribute} %}${innerContent}{% /switch %}`;
+		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
+		const descriptionAttribute = serializeStringAttribute(
+			"description",
+			readAttribute(element, "description"),
+		);
+		return `{% switch ${primary}${typeAttribute}${unitAttribute}${descriptionAttribute}${sourceAttribute} %}${innerContent}{% /switch %}`;
 	},
 };
 

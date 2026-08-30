@@ -33,9 +33,12 @@ describe("complete Markdoc template validation", () => {
 		}
 	});
 
-	test("includes shared tag-contract diagnostics", () => {
+	test("includes shared variable-contract diagnostics", () => {
 		expect(codes(`{% info "x" type="string" /%}\n{% info "x" type="number" /%}`)).toContain(
-			"tag-settings-conflict",
+			"variable-domain-conflict",
+		);
+		expect(codes(`{% info "x" unit="mg" /%}\n{% info "x" unit="ml" /%}`)).toContain(
+			"variable-settings-conflict",
 		);
 	});
 

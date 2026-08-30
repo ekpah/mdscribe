@@ -106,6 +106,11 @@ export const TagInspectorHelp = () => (
 							Erstellt bedingte Inhalte basierend auf einer Variable. Nützlich für verschiedene
 							Patientengruppen oder Szenarien.
 						</p>
+						<p className="text-muted-foreground text-xs leading-relaxed">
+							Ein Zahl-Switch prüft Werte mit „gleich“, „größer als“, „mindestens“, „kleiner als“,
+							„höchstens“ oder einem Bereich. Der erste passende Fall gewinnt. „Sonst“ ist der
+							Standardfall und gehört ans Ende.
+						</p>
 						<div className="rounded bg-muted p-2">
 							<p className="font-mono text-xs">
 								<span className="text-solarized-green">{'{% switch "geschlecht" %}'}</span>

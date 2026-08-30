@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 
+import { serializeCaseConditionAttrs } from "../case-condition";
 import { CaseTagView } from "./case-tag-view";
 
 export interface CaseTagOptions {
@@ -17,6 +18,20 @@ export interface CaseTagOptions {
 export const CaseTag = Node.create<CaseTagOptions>({
 	addAttributes() {
 		return {
+			...Object.fromEntries(
+				["eq", "gt", "gte", "lt", "lte"].map((name) => [
+					name,
+					{
+						default: null,
+						parseHTML: (element: HTMLElement) =>
+							element.hasAttribute(name) ? Number(element.getAttribute(name)) : null,
+					},
+				]),
+			),
+			isDefault: {
+				default: false,
+				parseHTML: (element) => element.getAttribute("default") === "true",
+			},
 			primary: {
 				default: "",
 				parseHTML: (element) => element.getAttribute("primary"),
@@ -60,11 +75,19 @@ export const CaseTag = Node.create<CaseTagOptions>({
 			mergeAttributes(HTMLAttributes, {
 				primary: node.attrs.primary,
 				value: node.attrs.value,
+				eq: node.attrs.eq,
+				gt: node.attrs.gt,
+				gte: node.attrs.gte,
+				lt: node.attrs.lt,
+				lte: node.attrs.lte,
+				default: node.attrs.isDefault ? "true" : undefined,
 			}),
 			0,
 		];
 	},
 	renderText({ node }: { node: ProseMirrorNode }) {
+		const condition = serializeCaseConditionAttrs(node.attrs);
+		if (condition) return `{% case ${condition} %}${node.textContent}{% /case %}`;
 		const casePrimary = node.attrs.primary;
 		const casePrimaryValue = casePrimary ? JSON.stringify(casePrimary) : '""';
 		const caseValue = node.attrs.value === null ? "" : ` value=${node.attrs.value}`;

@@ -1,6 +1,9 @@
 "use client";
 
+/* oxlint-disable eslint/complexity */
+
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
+import { Input } from "@repo/design-system/components/ui/input";
 import { Label } from "@repo/design-system/components/ui/label";
 import {
 	Select,
@@ -11,8 +14,10 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@repo/design-system/components/ui/toggle-group";
 import { cn } from "@repo/design-system/lib/utils";
-import { toBooleanValue, type SwitchInputTagType } from "markdoc-md/parse";
+import { toBooleanValue } from "markdoc-md/parse";
+import type { SwitchInputTagType } from "markdoc-md/parse";
 import { useCallback, useId } from "react";
+import type React from "react";
 
 import { SuggestionBadge } from "./suggestion-badge";
 
@@ -35,11 +40,11 @@ const isBooleanSwitchInput = (
 };
 
 const toCurrentStringValue = (
-	value: string | boolean | undefined,
+	value: string | number | boolean | undefined,
 	currentBooleanValue: boolean | undefined,
 ): string => {
-	if (typeof value === "string") {
-		return value;
+	if (typeof value === "string" || typeof value === "number") {
+		return String(value);
 	}
 
 	if (currentBooleanValue === undefined) {
@@ -99,14 +104,15 @@ export const SwitchInput = ({
 	inputClassName,
 }: {
 	input: SwitchInputTagType;
-	value: string | boolean | undefined;
-	onChange: (newValue: string | boolean) => void;
+	value: string | number | boolean | undefined;
+	onChange: (newValue: string | number | boolean) => void;
 	suggestedValue?: string | number | boolean;
 	suggestionLabel?: string;
 	onAcceptSuggestedValue?: () => void;
 	inputClassName?: string;
 }) => {
 	const controlId = useId();
+	const isNumberSwitch = input.attributes.type === "number";
 	const options = input.children?.filter(
 		(caseTag) => caseTag.name === "Case" && caseTag.attributes.primary,
 	);
@@ -140,6 +146,49 @@ export const SwitchInput = ({
 		normalizedSuggestionBoolean,
 		normalizedSuggestionString,
 	});
+
+	if (isNumberSwitch) {
+		const displayValue = typeof value === "boolean" ? "" : (value ?? "");
+		const handleNumberChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+			onChange(event.target.value);
+		};
+		return (
+			<div className="w-full max-w-full space-y-1" key={`switch-${input.attributes.primary}`}>
+				<Label className="font-medium text-foreground" htmlFor={controlId}>
+					{input.attributes.primary}
+				</Label>
+				<div className="flex w-full max-w-full rounded-md shadow-xs">
+					<Input
+						className={cn(
+							"-me-px min-w-0 flex-1 shadow-none focus-visible:z-10",
+							input.attributes.unit && "rounded-e-none",
+							inputClassName,
+						)}
+						id={controlId}
+						inputMode="decimal"
+						name={input.attributes.primary}
+						onChange={handleNumberChange}
+						type="text"
+						value={displayValue}
+					/>
+					{input.attributes.unit && (
+						<span className="inline-flex items-center rounded-e-md border border-input bg-background px-3 font-medium text-foreground text-sm">
+							{input.attributes.unit}
+						</span>
+					)}
+				</div>
+				{shouldShowSuggestion && (
+					<SuggestionBadge
+						hasExistingValue={hasValue}
+						label={suggestionLabel}
+						onAccept={onAcceptSuggestedValue}
+						unit={input.attributes.unit}
+						value={normalizedSuggestionString ?? ""}
+					/>
+				)}
+			</div>
+		);
+	}
 
 	if (isBooleanSwitch) {
 		const checked = currentBooleanValue ?? false;

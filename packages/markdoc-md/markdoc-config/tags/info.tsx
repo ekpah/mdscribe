@@ -1,6 +1,6 @@
 "use client";
 
-import { useVariables } from "../../render/context/variable-context";
+import { useResolvedVariable } from "../../render/hooks/use-resolved-variable";
 import { InteractiveTag } from "./helpers/interactive-tag";
 import { roundNumber } from "./helpers/round";
 import type { RoundValue } from "./helpers/round";
@@ -24,14 +24,14 @@ export const Info = ({
 	source: _source,
 	round,
 }: InfoProps) => {
-	const variables = useVariables();
 	const variableName = typeof primary === "string" ? primary : undefined;
-	// Look up the value from context using the 'primary' prop as the key.
-	// Provide an empty string as a fallback if the variable doesn't exist.
-	const value = variableName ? variables[variableName] : undefined;
+	// Resolve the value through the shared read path: a stored value wins;
+	// a computed variable (declared by a calc with the same name) derives its
+	// value from the formula.
+	const { value, isComputed } = useResolvedVariable(variableName);
 	let renderedValue = value;
-	if (_type === "number" && typeof value === "number") {
-		renderedValue = roundNumber(value, round);
+	if (typeof value === "number" && (_type === "number" || isComputed)) {
+		renderedValue = roundNumber(value, round, isComputed ? 2 : undefined);
 	} else if (typeof value === "boolean") {
 		renderedValue = String(value);
 	}

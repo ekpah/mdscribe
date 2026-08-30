@@ -1,11 +1,40 @@
 import type { Location, Node } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
+import type { CaseCondition } from "./case-conditions";
+import { hasCaseCondition, serializeCaseCondition, toCaseCondition } from "./case-conditions";
 import { getFormulaVariables } from "./formula";
 
-export type MarkdocContractAttribute = "description" | "formula" | "source" | "type" | "unit";
-type MarkdocInputTagKind = "info" | "switch";
-type MarkdocValidatedTagKind = MarkdocInputTagKind | "calc";
+/**
+ * Every named `info`, `switch`, and `calc` tag declares or uses one shared
+ * variable identified by its `primary` name. A variable has exactly one
+ * contract: a value domain, identity settings that must agree across all
+ * mentions, and the roles the template uses it in.
+ */
+export type VariableDomain = "boolean" | "date" | "enum" | "number" | "text";
+
+export interface VariableRoles {
+	/** Declared by `calc`: derived from a formula, manual override allowed. */
+	computed: boolean;
+	/** Declared by `info`: user-editable and rendered verbatim. */
+	field: boolean;
+	/** Declared by `switch`: drives case selection. */
+	selector: boolean;
+}
+
+export interface VariableContract {
+	description?: string;
+	domain: VariableDomain;
+	formula?: string;
+	location?: Location;
+	name: string;
+	roles: VariableRoles;
+	source?: string;
+	unit?: string;
+}
+
+/** Identity settings that must agree across all mentions of a variable. */
+export type MarkdocContractAttribute = "description" | "formula" | "source" | "unit";
 
 export interface MarkdocSettingConflict {
 	attribute: MarkdocContractAttribute;
@@ -14,23 +43,48 @@ export interface MarkdocSettingConflict {
 	firstValue: string;
 }
 
+export type CaseConditionIssue =
+	| "conflicting-operators"
+	| "empty-range"
+	| "missing-condition"
+	| "primary-and-condition"
+	| "requires-number-switch";
+
 export type MarkdocTagDiagnostic =
 	| {
-			code: "tag-kind-conflict";
+			code: "variable-domain-conflict";
+			conflictingDomain: VariableDomain;
 			conflictingLocation?: Location;
-			conflictingTag: MarkdocInputTagKind;
+			firstDomain: VariableDomain;
 			firstLocation?: Location;
-			firstTag: MarkdocInputTagKind;
-			primary: string;
+			name: string;
 			severity: "error";
 	  }
 	| {
-			code: "tag-settings-conflict";
+			code: "variable-settings-conflict";
 			conflictingLocation?: Location;
 			conflicts: MarkdocSettingConflict[];
-			primary: string;
+			name: string;
 			severity: "error";
-			tag: MarkdocValidatedTagKind;
+	  }
+	| {
+			code: "case-condition-invalid";
+			location?: Location;
+			reason: CaseConditionIssue;
+			severity: "error";
+			switch: string;
+	  }
+	| {
+			code: "case-unreachable";
+			location?: Location;
+			severity: "error";
+			switch: string;
+	  }
+	| {
+			caseKey?: string;
+			code: "orphan-case";
+			location?: Location;
+			severity: "error";
 	  }
 	| {
 			code: "calc-components-missing";
@@ -58,30 +112,8 @@ export type MarkdocTagDiagnostic =
 			switch: string;
 	  };
 
-interface CanonicalSetting {
-	location?: Location;
-	value: string;
-}
-
-interface CanonicalTagContract {
-	kind: MarkdocValidatedTagKind;
-	location?: Location;
-	settings: Partial<Record<MarkdocContractAttribute, CanonicalSetting>>;
-}
-
-type ContractSetting = readonly [MarkdocContractAttribute, string | undefined];
-
 const toOptionalString = (value: unknown): string | undefined =>
 	typeof value === "string" && value.length > 0 ? value : undefined;
-
-const toInfoType = (value: unknown): string => toOptionalString(value) ?? "string";
-
-const toSwitchContractType = (value: unknown): string => {
-	if (value === "boolean" || value === "checkbox") {
-		return "boolean";
-	}
-	return "string";
-};
 
 const isTagNode = (node: Node): boolean => node.type === "tag" && typeof node.tag === "string";
 const isCalcTag = (node: Node): boolean => node.tag === "calc" || node.tag === "score";
@@ -103,7 +135,330 @@ const collectImmediateTags = (nodes: Node[], tags: Set<string>): Node[] => {
 const getImmediateCases = (node: Node): Node[] =>
 	collectImmediateTags(node.children, new Set(["case"]));
 
-const validateCalcComponents = (node: Node): MarkdocTagDiagnostic[] => {
+/**
+ * Derives the value domain a single switch occurrence declares. A switch
+ * without an explicit `type` whose cases carry condition attributes is
+ * inferred to be a number switch.
+ */
+export const deriveSwitchDomain = (node: Node): VariableDomain => {
+	const type = node.attributes.type;
+	if (type === "boolean" || type === "checkbox") {
+		return "boolean";
+	}
+	if (type === "number") {
+		return "number";
+	}
+	if (type === undefined || type === null) {
+		const hasConditionCase = getImmediateCases(node).some((caseNode) =>
+			hasCaseCondition(caseNode.attributes),
+		);
+		if (hasConditionCase) {
+			return "number";
+		}
+	}
+	return "enum";
+};
+
+const deriveInfoDomain = (node: Node): VariableDomain => {
+	const type = node.attributes.type;
+	if (type === "number") {
+		return "number";
+	}
+	if (type === "date") {
+		return "date";
+	}
+	return "text";
+};
+
+interface VariableOccurrence {
+	domain: VariableDomain;
+	location?: Location;
+	role: keyof VariableRoles;
+	settings: Partial<Record<MarkdocContractAttribute, string>>;
+}
+
+const toOccurrence = (node: Node): { name: string; occurrence: VariableOccurrence } | null => {
+	const name = toOptionalString(node.attributes.primary);
+	if (!name) {
+		return null;
+	}
+	if (node.tag === "info") {
+		return {
+			name,
+			occurrence: {
+				domain: deriveInfoDomain(node),
+				location: node.location,
+				role: "field",
+				settings: {
+					description: toOptionalString(node.attributes.description),
+					source: toOptionalString(node.attributes.source),
+					unit: toOptionalString(node.attributes.unit),
+				},
+			},
+		};
+	}
+	if (node.tag === "switch") {
+		return {
+			name,
+			occurrence: {
+				domain: deriveSwitchDomain(node),
+				location: node.location,
+				role: "selector",
+				settings: {
+					description: toOptionalString(node.attributes.description),
+					source: toOptionalString(node.attributes.source),
+					unit: toOptionalString(node.attributes.unit),
+				},
+			},
+		};
+	}
+	if (isCalcTag(node)) {
+		return {
+			name,
+			occurrence: {
+				domain: "number",
+				location: node.location,
+				role: "computed",
+				settings: {
+					formula: toOptionalString(node.attributes.formula),
+					unit: toOptionalString(node.attributes.unit),
+				},
+			},
+		};
+	}
+	return null;
+};
+
+interface CanonicalVariable {
+	contract: VariableContract;
+	settingLocations: Partial<Record<MarkdocContractAttribute, Location | undefined>>;
+}
+
+export interface VariableContractsResult {
+	contracts: Map<string, VariableContract>;
+	diagnostics: MarkdocTagDiagnostic[];
+}
+
+const mergeOccurrence = (
+	canonical: CanonicalVariable,
+	occurrence: VariableOccurrence,
+	diagnostics: MarkdocTagDiagnostic[],
+): void => {
+	const { contract } = canonical;
+	if (occurrence.domain !== contract.domain) {
+		diagnostics.push({
+			code: "variable-domain-conflict",
+			conflictingDomain: occurrence.domain,
+			conflictingLocation: occurrence.location,
+			firstDomain: contract.domain,
+			firstLocation: contract.location,
+			name: contract.name,
+			severity: "error",
+		});
+		return;
+	}
+
+	const conflicts: MarkdocSettingConflict[] = [];
+	for (const [attribute, value] of Object.entries(occurrence.settings) as [
+		MarkdocContractAttribute,
+		string | undefined,
+	][]) {
+		if (value === undefined) {
+			continue;
+		}
+		const existing = contract[attribute];
+		if (existing === undefined) {
+			contract[attribute] = value;
+			canonical.settingLocations[attribute] = occurrence.location;
+			continue;
+		}
+		if (existing !== value) {
+			conflicts.push({
+				attribute,
+				conflictingValue: value,
+				firstLocation: canonical.settingLocations[attribute],
+				firstValue: existing,
+			});
+		}
+	}
+	if (conflicts.length > 0) {
+		diagnostics.push({
+			code: "variable-settings-conflict",
+			conflictingLocation: occurrence.location,
+			conflicts,
+			name: contract.name,
+			severity: "error",
+		});
+	}
+	contract.roles[occurrence.role] = true;
+};
+
+/**
+ * Builds the unified variable-contract registry for a parsed template. Every
+ * named `info`, `switch`, and `calc` mention contributes to one contract per
+ * variable name. Tolerant: never throws for malformed templates.
+ */
+export const buildVariableContracts = (ast: Node): VariableContractsResult => {
+	const canonicals = new Map<string, CanonicalVariable>();
+	const diagnostics: MarkdocTagDiagnostic[] = [];
+
+	for (const node of ast.walk()) {
+		if (!isTagNode(node)) {
+			continue;
+		}
+		const entry = toOccurrence(node);
+		if (!entry) {
+			continue;
+		}
+		const canonical = canonicals.get(entry.name);
+		if (!canonical) {
+			const contract: VariableContract = {
+				domain: entry.occurrence.domain,
+				location: entry.occurrence.location,
+				name: entry.name,
+				roles: { computed: false, field: false, selector: false },
+			};
+			const created: CanonicalVariable = { contract, settingLocations: {} };
+			mergeOccurrence(created, entry.occurrence, diagnostics);
+			canonicals.set(entry.name, created);
+			continue;
+		}
+		mergeOccurrence(canonical, entry.occurrence, diagnostics);
+	}
+
+	const contracts = new Map<string, VariableContract>();
+	for (const [name, canonical] of canonicals) {
+		contracts.set(name, canonical.contract);
+	}
+	return { contracts, diagnostics };
+};
+
+const validateCaseCondition = (condition: CaseCondition): CaseConditionIssue | null => {
+	const hasRange =
+		condition.gt !== undefined ||
+		condition.gte !== undefined ||
+		condition.lt !== undefined ||
+		condition.lte !== undefined;
+	if (condition.default && (condition.eq !== undefined || hasRange)) {
+		return "conflicting-operators";
+	}
+	if (condition.eq !== undefined && hasRange) {
+		return "conflicting-operators";
+	}
+	if (
+		(condition.gt !== undefined && condition.gte !== undefined) ||
+		(condition.lt !== undefined && condition.lte !== undefined)
+	) {
+		return "conflicting-operators";
+	}
+	const lower = condition.gt ?? condition.gte;
+	const upper = condition.lt ?? condition.lte;
+	if (lower !== undefined && upper !== undefined) {
+		const inclusiveBoth = condition.gte !== undefined && condition.lte !== undefined;
+		if (inclusiveBoth ? upper < lower : upper <= lower) {
+			return "empty-range";
+		}
+	}
+	return null;
+};
+
+const validateSwitchCases = (
+	node: Node,
+	contracts: Map<string, VariableContract>,
+	caseValues: Map<string, { location?: Location; value: number }>,
+	diagnostics: MarkdocTagDiagnostic[],
+): void => {
+	const switchPrimary = toOptionalString(node.attributes.primary);
+	const domain = switchPrimary
+		? (contracts.get(switchPrimary)?.domain ?? deriveSwitchDomain(node))
+		: deriveSwitchDomain(node);
+	const switchName = switchPrimary ?? "";
+	let seenDefault = false;
+
+	for (const caseNode of getImmediateCases(node)) {
+		const condition = toCaseCondition(caseNode.attributes);
+		const caseKey = toOptionalString(caseNode.attributes.primary);
+
+		if (seenDefault) {
+			diagnostics.push({
+				code: "case-unreachable",
+				location: caseNode.location,
+				severity: "error",
+				switch: switchName,
+			});
+		}
+
+		if (condition) {
+			if (domain !== "number") {
+				diagnostics.push({
+					code: "case-condition-invalid",
+					location: caseNode.location,
+					reason: "requires-number-switch",
+					severity: "error",
+					switch: switchName,
+				});
+			}
+			if (caseKey) {
+				diagnostics.push({
+					code: "case-condition-invalid",
+					location: caseNode.location,
+					reason: "primary-and-condition",
+					severity: "error",
+					switch: switchName,
+				});
+			}
+			const issue = validateCaseCondition(condition);
+			if (issue) {
+				diagnostics.push({
+					code: "case-condition-invalid",
+					location: caseNode.location,
+					reason: issue,
+					severity: "error",
+					switch: switchName,
+				});
+			}
+			if (condition.default) {
+				seenDefault = true;
+			}
+		} else if (domain === "number") {
+			diagnostics.push({
+				code: "case-condition-invalid",
+				location: caseNode.location,
+				reason: "missing-condition",
+				severity: "error",
+				switch: switchName,
+			});
+		}
+
+		// Numeric calc-value mapping consistency for equality cases.
+		if (switchPrimary && caseKey && typeof caseNode.attributes.value === "number") {
+			const contractKey = `${switchPrimary}\u0000${caseKey}`;
+			const first = caseValues.get(contractKey);
+			if (!first) {
+				caseValues.set(contractKey, {
+					location: caseNode.location,
+					value: caseNode.attributes.value,
+				});
+			} else if (first.value !== caseNode.attributes.value) {
+				diagnostics.push({
+					caseKey,
+					code: "case-value-conflict",
+					conflictingLocation: caseNode.location,
+					conflictingValue: caseNode.attributes.value,
+					firstLocation: first.location,
+					firstValue: first.value,
+					severity: "error",
+					switch: switchPrimary,
+				});
+			}
+		}
+	}
+};
+
+const validateCalcComponents = (
+	node: Node,
+	contracts: Map<string, VariableContract>,
+): MarkdocTagDiagnostic[] => {
 	const formula = toOptionalString(node.attributes.formula);
 	if (!formula) {
 		return [];
@@ -138,11 +493,14 @@ const validateCalcComponents = (node: Node): MarkdocTagDiagnostic[] => {
 
 	for (const variable of formulaVariables) {
 		const component = componentsByPrimary.get(variable);
-		if (
-			component?.tag !== "switch" ||
-			component.attributes.type === "boolean" ||
-			component.attributes.type === "checkbox"
-		) {
+		if (component?.tag !== "switch") {
+			continue;
+		}
+		// Only enum switches map options to numbers through case values.
+		// Boolean switches contribute 1/0 and number switches contribute the
+		// value itself, so neither requires a mapping.
+		const domain = contracts.get(variable)?.domain ?? deriveSwitchDomain(component);
+		if (domain !== "enum") {
 			continue;
 		}
 		const caseKeys = getImmediateCases(component)
@@ -163,182 +521,38 @@ const validateCalcComponents = (node: Node): MarkdocTagDiagnostic[] => {
 	return diagnostics;
 };
 
-const getContractSettings = (kind: MarkdocValidatedTagKind, node: Node): ContractSetting[] => {
-	if (kind === "info") {
-		return [
-			["type", toInfoType(node.attributes.type)],
-			["unit", toOptionalString(node.attributes.unit)],
-			["description", toOptionalString(node.attributes.description)],
-			["source", toOptionalString(node.attributes.source)],
-		];
-	}
-	if (kind === "switch") {
-		return [
-			["type", toSwitchContractType(node.attributes.type)],
-			["source", toOptionalString(node.attributes.source)],
-		];
-	}
-	return [["formula", toOptionalString(node.attributes.formula)]];
-};
-
-const toCanonicalContract = (kind: MarkdocValidatedTagKind, node: Node): CanonicalTagContract => {
-	const settings: CanonicalTagContract["settings"] = {};
-	for (const [attribute, value] of getContractSettings(kind, node)) {
-		if (value !== undefined) {
-			settings[attribute] = { location: node.location, value };
-		}
-	}
-	return { kind, location: node.location, settings };
-};
-
-const compareContract = (canonical: CanonicalTagContract, node: Node): MarkdocSettingConflict[] => {
-	const conflicts: MarkdocSettingConflict[] = [];
-	for (const [attribute, currentValue] of getContractSettings(canonical.kind, node)) {
-		if (currentValue === undefined) {
-			continue;
-		}
-
-		const firstSetting = canonical.settings[attribute];
-		if (!firstSetting) {
-			canonical.settings[attribute] = { location: node.location, value: currentValue };
-			continue;
-		}
-
-		if (firstSetting.value !== currentValue) {
-			conflicts.push({
-				attribute,
-				conflictingValue: currentValue,
-				firstLocation: firstSetting.location,
-				firstValue: firstSetting.value,
-			});
-		}
-	}
-	return conflicts;
-};
-
-const validateInputTag = (
-	node: Node,
-	kind: MarkdocInputTagKind,
-	contracts: Map<string, CanonicalTagContract>,
-): MarkdocTagDiagnostic | null => {
-	const primary = toOptionalString(node.attributes.primary);
-	if (!primary) {
-		return null;
-	}
-
-	const canonical = contracts.get(primary);
-	if (!canonical) {
-		contracts.set(primary, toCanonicalContract(kind, node));
-		return null;
-	}
-
-	if (canonical.kind !== kind) {
-		return {
-			code: "tag-kind-conflict",
-			conflictingLocation: node.location,
-			conflictingTag: kind,
-			firstLocation: canonical.location,
-			firstTag: canonical.kind as MarkdocInputTagKind,
-			primary,
-			severity: "error",
-		};
-	}
-
-	const conflicts = compareContract(canonical, node);
-	if (conflicts.length === 0) {
-		return null;
-	}
-
-	return {
-		code: "tag-settings-conflict",
-		conflictingLocation: node.location,
-		conflicts,
-		primary,
-		severity: "error",
-		tag: kind,
-	};
-};
-
-const validateCalcTag = (
-	node: Node,
-	contracts: Map<string, CanonicalTagContract>,
-): MarkdocTagDiagnostic | null => {
-	const primary = toOptionalString(node.attributes.primary);
-	if (!primary) {
-		return null;
-	}
-
-	const canonical = contracts.get(primary);
-	if (!canonical) {
-		contracts.set(primary, toCanonicalContract("calc", node));
-		return null;
-	}
-
-	const conflicts = compareContract(canonical, node);
-	if (conflicts.length === 0) {
-		return null;
-	}
-
-	return {
-		code: "tag-settings-conflict",
-		conflictingLocation: node.location,
-		conflicts,
-		primary,
-		severity: "error",
-		tag: "calc",
-	};
-};
-
 export const validateMarkdocTagContractsInAst = (ast: Node): MarkdocTagDiagnostic[] => {
-	const inputContracts = new Map<string, CanonicalTagContract>();
-	const calcContracts = new Map<string, CanonicalTagContract>();
-	const diagnostics: MarkdocTagDiagnostic[] = [];
+	const { contracts, diagnostics } = buildVariableContracts(ast);
 	const caseValues = new Map<string, { location?: Location; value: number }>();
+	const attachedCases = new Set<Node>();
 
 	for (const node of ast.walk()) {
 		if (!isTagNode(node)) {
 			continue;
 		}
-
-		let diagnostic: MarkdocTagDiagnostic | null = null;
-		if (node.tag === "info") {
-			diagnostic = validateInputTag(node, "info", inputContracts);
-		} else if (node.tag === "switch") {
-			diagnostic = validateInputTag(node, "switch", inputContracts);
-			const switchPrimary = toOptionalString(node.attributes.primary);
-			if (switchPrimary) {
-				for (const caseNode of getImmediateCases(node)) {
-					const caseKey = toOptionalString(caseNode.attributes.primary);
-					const caseValue = caseNode.attributes.value;
-					if (!caseKey || typeof caseValue !== "number") {
-						continue;
-					}
-					const contractKey = `${switchPrimary}\u0000${caseKey}`;
-					const first = caseValues.get(contractKey);
-					if (!first) {
-						caseValues.set(contractKey, { location: caseNode.location, value: caseValue });
-					} else if (first.value !== caseValue) {
-						diagnostics.push({
-							caseKey,
-							code: "case-value-conflict",
-							conflictingLocation: caseNode.location,
-							conflictingValue: caseValue,
-							firstLocation: first.location,
-							firstValue: first.value,
-							severity: "error",
-							switch: switchPrimary,
-						});
-					}
-				}
+		if (node.tag === "switch") {
+			for (const caseNode of getImmediateCases(node)) {
+				attachedCases.add(caseNode);
 			}
+			validateSwitchCases(node, contracts, caseValues, diagnostics);
 		} else if (isCalcTag(node)) {
-			diagnostic = validateCalcTag(node, calcContracts);
-			diagnostics.push(...validateCalcComponents(node));
+			diagnostics.push(...validateCalcComponents(node, contracts));
 		}
+	}
 
-		if (diagnostic) {
-			diagnostics.push(diagnostic);
+	for (const node of ast.walk()) {
+		if (node.type !== "tag" || node.tag !== "case" || attachedCases.has(node)) {
+			continue;
 		}
+		const condition = toCaseCondition(node.attributes);
+		diagnostics.push({
+			caseKey:
+				toOptionalString(node.attributes.primary) ??
+				(condition ? serializeCaseCondition(condition) : undefined),
+			code: "orphan-case",
+			location: node.location,
+			severity: "error",
+		});
 	}
 
 	return diagnostics;

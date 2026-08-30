@@ -290,7 +290,7 @@ describe("markdoc tags phase 1 regressions", () => {
 
 		expect(diagnostics).toHaveLength(1);
 		expect(diagnostics[0]).toMatchObject({
-			code: "tag-settings-conflict",
+			code: "variable-settings-conflict",
 			conflicts: [
 				{
 					attribute: "source",
@@ -298,8 +298,7 @@ describe("markdoc tags phase 1 regressions", () => {
 					firstValue: "fhir://Observation.first().value",
 				},
 			],
-			primary: "Hämoglobin",
-			tag: "info",
+			name: "Hämoglobin",
 		});
 	});
 
@@ -363,16 +362,10 @@ describe("markdoc tags phase 1 regressions", () => {
 		expect(compatibleSwitch).toEqual([]);
 		expect(conflictingInfo).toHaveLength(1);
 		expect(conflictingInfo[0]).toMatchObject({
-			code: "tag-settings-conflict",
-			conflicts: [
-				{
-					attribute: "type",
-					conflictingValue: "number",
-					firstValue: "string",
-				},
-			],
-			primary: "Alter",
-			tag: "info",
+			code: "variable-domain-conflict",
+			conflictingDomain: "number",
+			firstDomain: "text",
+			name: "Alter",
 		});
 	});
 
@@ -385,24 +378,16 @@ describe("markdoc tags phase 1 regressions", () => {
 		expect(diagnostics).toHaveLength(1);
 		const [diagnostic] = diagnostics;
 		expect(diagnostic).toMatchObject({
-			code: "tag-settings-conflict",
-			conflicts: [
-				{ attribute: "type", conflictingValue: "date", firstValue: "number" },
-				{ attribute: "unit", conflictingValue: "cm", firstValue: "kg" },
-				{
-					attribute: "description",
-					conflictingValue: "Zweites Feld",
-					firstValue: "Erstes Feld",
-				},
-			],
-			primary: "Gewicht",
-			tag: "info",
+			code: "variable-domain-conflict",
+			conflictingDomain: "date",
+			firstDomain: "number",
+			name: "Gewicht",
 		});
-		if (diagnostic?.code !== "tag-settings-conflict") {
-			throw new Error("Expected settings conflict");
+		if (diagnostic?.code !== "variable-domain-conflict") {
+			throw new Error("Expected domain conflict");
 		}
 		expect(diagnostic.conflictingLocation?.start.line).toBeDefined();
-		expect(diagnostic.conflicts.every((conflict) => conflict.firstLocation)).toBe(true);
+		expect(diagnostic.firstLocation?.start.line).toBeDefined();
 	});
 
 	test("rejects input tags of different kinds that share a primary", () => {
@@ -413,10 +398,10 @@ describe("markdoc tags phase 1 regressions", () => {
 
 		expect(diagnostics).toHaveLength(1);
 		expect(diagnostics[0]).toMatchObject({
-			code: "tag-kind-conflict",
-			conflictingTag: "switch",
-			firstTag: "info",
-			primary: "Status",
+			code: "variable-domain-conflict",
+			conflictingDomain: "enum",
+			firstDomain: "text",
+			name: "Status",
 		});
 	});
 
@@ -441,10 +426,10 @@ describe("markdoc tags phase 1 regressions", () => {
 
 		expect(diagnostics).toHaveLength(1);
 		expect(diagnostics[0]).toMatchObject({
-			code: "tag-settings-conflict",
-			conflicts: [{ attribute: "type", conflictingValue: "boolean", firstValue: "string" }],
-			primary: "Status",
-			tag: "switch",
+			code: "variable-domain-conflict",
+			conflictingDomain: "boolean",
+			firstDomain: "enum",
+			name: "Status",
 		});
 	});
 
@@ -456,7 +441,7 @@ describe("markdoc tags phase 1 regressions", () => {
 
 		expect(diagnostics).toHaveLength(1);
 		expect(diagnostics[0]).toMatchObject({
-			code: "tag-settings-conflict",
+			code: "variable-settings-conflict",
 			conflicts: [
 				{
 					attribute: "source",
@@ -464,15 +449,14 @@ describe("markdoc tags phase 1 regressions", () => {
 					firstValue: "fhir://Patient.active",
 				},
 			],
-			primary: "Aktiv",
-			tag: "switch",
+			name: "Aktiv",
 		});
 	});
 
 	test("keeps calc presentation local and rejects conflicting formulas", () => {
 		const compatible = validateMarkdocTagContracts(`
 {% calc "BMI" formula="[A]+1" unit="kg" renderUnit=false %}{% info "A" type="number" /%}{% /calc %}
-{% calc "BMI" formula="[A]+1" unit="cm" renderUnit=true %}{% info "A" type="number" /%}{% /calc %}
+{% calc "BMI" formula="[A]+1" unit="kg" renderUnit=true %}{% info "A" type="number" /%}{% /calc %}
 `);
 		const conflictingSource = `
 {% calc "Total" formula="[A]+1" %}{% info "A" type="number" /%}{% /calc %}
@@ -487,10 +471,9 @@ describe("markdoc tags phase 1 regressions", () => {
 		expect(compatible).toEqual([]);
 		expect(conflicting).toHaveLength(1);
 		expect(conflicting[0]).toMatchObject({
-			code: "tag-settings-conflict",
+			code: "variable-settings-conflict",
 			conflicts: [{ attribute: "formula", conflictingValue: "[B]+2", firstValue: "[A]+1" }],
-			primary: "Total",
-			tag: "calc",
+			name: "Total",
 		});
 		expect(calc?.attributes.formula).toBe("[A]+1");
 		expect(calc?.children.map((child) => child.attributes.primary)).toEqual(["A"]);

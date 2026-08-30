@@ -168,9 +168,10 @@ export const inspectMarkdocSources = (
 		analysis.diagnostics
 			.filter(
 				(diagnostic) =>
-					diagnostic.code === "tag-kind-conflict" || diagnostic.code === "tag-settings-conflict",
+					diagnostic.code === "variable-domain-conflict" ||
+					diagnostic.code === "variable-settings-conflict",
 			)
-			.map((diagnostic) => diagnostic.primary),
+			.map((diagnostic) => diagnostic.name),
 	);
 
 	for (const input of collectSourcedInputTags(analysis.inputs)) {

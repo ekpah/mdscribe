@@ -9,6 +9,12 @@ export {
 export type { MarkdocInteractionContextType } from "./render/context/markdoc-interaction-context";
 export { useVariables, VariableProvider } from "./render/context/variable-context";
 export type { VariableMap, VariableValue } from "./render/context/variable-context";
+export {
+	useVariableContract,
+	VariableContractProvider,
+} from "./render/context/variable-contract-context";
+export { useResolvedVariable } from "./render/hooks/use-resolved-variable";
+export type { ResolvedVariable } from "./render/hooks/use-resolved-variable";
 export { useCitationModifier } from "./render/hooks/use-citation-modifier";
 export { components } from "./markdoc-config/tags/helpers/components";
 export type { MarkdocComponentMap } from "./markdoc-config/tags/helpers/components";

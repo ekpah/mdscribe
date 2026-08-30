@@ -57,6 +57,19 @@ const tags: NonNullable<Config["tags"]> = {
 	// cases should not contain breaks, as this will not be rendered correctly
 	case: {
 		attributes: {
+			// Marks the fallback case of a number switch. Matches when no
+			// previous condition matched, including an unset value.
+			default: { required: false, type: Boolean },
+			// Structured numeric conditions for number switches. Multiple
+			// operators on one case combine conjunctively (gte=4 lt=10).
+			eq: { required: false, type: Number },
+			gt: { required: false, type: Number },
+			gte: { required: false, type: Number },
+			// Internal: position within the parent switch, injected by the
+			// switch transform so first-match-wins selection is stable.
+			index: { required: false, type: Number },
+			lt: { required: false, type: Number },
+			lte: { required: false, type: Number },
 			primary: { render: true, type: String },
 			value: { required: false, type: Number },
 		},
@@ -108,13 +121,15 @@ const tags: NonNullable<Config["tags"]> = {
 	score: calcTag,
 	switch: {
 		attributes: {
+			description: { required: false, type: String },
 			primary: { required: true, type: String },
 			source: { required: false, type: String },
 			type: {
-				matches: ["string", "boolean", "checkbox"],
+				matches: ["string", "boolean", "checkbox", "number"],
 				required: false,
 				type: String,
 			},
+			unit: { required: false, type: String },
 		},
 		children: ["tag", "text"],
 		render: "Switch",
@@ -156,6 +171,12 @@ const tags: NonNullable<Config["tags"]> = {
 				return immediateCaseTags;
 			};
 			node.children = getImmediateCaseTags(node.children);
+			// Inject each case's position so first-match-wins selection is
+			// stable for number switches. Scalar attributes stay serializable
+			// through both the React and HTML renderers.
+			for (const [index, caseNode] of node.children.entries()) {
+				caseNode.attributes.index = index;
+			}
 			const attributes = node.transformAttributes(config);
 			const children = node.transformChildren(config);
 
