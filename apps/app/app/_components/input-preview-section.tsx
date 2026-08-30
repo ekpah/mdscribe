@@ -14,9 +14,9 @@ import {
 	InputContextControls,
 	useInputContextState,
 } from "@/app/_components/input-context/input-context-controls";
+import { trackEvent } from "@/lib/analytics";
 import { useSession } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
-import { trackEvent } from "@/lib/analytics";
 
 import type {
 	FillInputsAudioFile,
@@ -226,7 +226,6 @@ export const InputPreviewSection = ({
 			return;
 		}
 		if (mobilePanel !== "preview") {
-			setMobilePanel("preview");
 			return;
 		}
 		lastPreviewFocusKeyRef.current = activePreviewFocusKey;

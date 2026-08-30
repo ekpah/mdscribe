@@ -27,6 +27,7 @@
 
 ### Fixed
 
+- Mobile sidebars now use their configured background and foreground colors, and selecting a template input no longer navigates away from the input panel.
 - Number inputs now accept `.` and `,` decimal separators without resetting the cursor, including calculated template component fields.
 - The landing page no longer overflows horizontally or shifts when the Avatar menu opens.
 - Template validation now synchronizes repeated input contracts, repairs missing calculated components, and keeps interactions scoped to the correct repeated tag instance.
