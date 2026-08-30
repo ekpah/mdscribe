@@ -12,7 +12,7 @@
 		"./tag-inspector/use-selected-markdoc-tag": "./tag-inspector/use-selected-markdoc-tag.ts",
 		"./tip-tap": "./tip-tap.tsx",
 		"./tiptap-extension": "./tiptap-extension/index.ts",
-		"./tiptap-extension/editorNodes/scoreTag/score-tag": "./tiptap-extension/editorNodes/scoreTag/score-tag.ts"
+		"./tiptap-extension/editorNodes/calcTag/calc-tag": "./tiptap-extension/editorNodes/calcTag/calc-tag.ts"
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit"

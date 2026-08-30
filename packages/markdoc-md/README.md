@@ -196,7 +196,7 @@ Renders one value from the renderer's `variables` object. The `primary` value is
 If the key is absent, the tag renders an empty value.
 
 ```markdoc
-{% info "weight" type="number" description="Current body weight" unit="kg" renderUnit=true /%}
+{% info "weight" type="number" description="Current body weight" unit="kg" round=1 renderUnit=true /%}
 ```
 
 | Attribute | Required | Default | Meaning |
@@ -205,6 +205,7 @@ If the key is absent, the tag renders an empty value.
 | `type` | No | `string` | Input contract: `string`, `number`, or `date`. |
 | `description` | No | — | Human-readable input guidance/metadata. |
 | `unit` | No | — | Unit metadata. |
+| `round` | No | — | For numeric inputs, rounds the rendered value to this many decimal places. `false` leaves it unrounded. |
 | `renderUnit` | No | `false` | Appends `unit` to the rendered value when true. |
 | `source` | No | — | Source metadata, for example a `fhir://...` expression used by an upstream value-population flow. The renderer itself does not fetch it. |
 
@@ -244,7 +245,8 @@ The body may contain inline text and formatting.
 
 Evaluates an `fparser` formula against the renderer's variables and displays the result. Boolean
 values and the strings `"true"`/`"false"` become `1`/`0`. Numeric results are rounded to at most two
-decimal places. An invalid or unevaluable formula renders `...` instead of throwing.
+decimal places by default. Set `round` to another number of decimal places or to `false` to leave the
+result unrounded. An invalid or unevaluable formula renders `...` instead of throwing.
 
 Every variable referenced by the formula must be included as an `info` or `switch` child of that
 calculation. The children appear together below the calculated value in the Inputs panel but are ignored
@@ -264,6 +266,7 @@ when unchecked. String switches use the numeric `value` of their selected case:
 | `formula` | Yes | — | Formula evaluated by `fparser`; bracketed names refer to variables. |
 | `primary` | No | — | Stable name for the calculated value. Formula-only calculations are supported. |
 | `unit` | No | — | Display unit. |
+| `round` | No | `2` | Number of decimal places, from `0` to `100`; `false` disables rounding. |
 | `renderUnit` | No | `false` | Appends `unit` to the result when true. |
 
 ## Shared input contracts
@@ -276,7 +279,7 @@ Repeated occurrences may omit metadata, but their non-empty contract attributes 
 - named `calc`: `formula`
 
 An `info` and a `switch` must not reuse the same `primary`. Presentation-only settings such as
-`renderUnit` may differ between occurrences.
+`round` and `renderUnit` may differ between occurrences.
 
 ## Rendering and validation
 

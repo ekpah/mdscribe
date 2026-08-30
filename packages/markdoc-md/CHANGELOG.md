@@ -4,6 +4,7 @@
 
 ### Added
 
+- `calc` and numeric `info` tags support a `round` presentation attribute for configurable decimal places or unrounded output.
 - Calculated `calc` tags can contain number, option, and checkbox inputs, including numeric case values for formulas.
 
 ### Changed

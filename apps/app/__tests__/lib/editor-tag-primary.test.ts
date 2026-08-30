@@ -10,7 +10,7 @@ import {
 } from "markdoc-md-editor/editor-helpers/select-inserted-inline-tag";
 import { updateMarkdocTagAttributesInTransaction } from "markdoc-md-editor/tag-inspector/use-selected-markdoc-tag";
 import { isCursorAfterInlineMarkdocTag } from "markdoc-md-editor/tiptap-extension";
-import { ensureCalcFormulaComponents } from "markdoc-md-editor/tiptap-extension/editorNodes/scoreTag/score-tag";
+import { ensureCalcFormulaComponents } from "markdoc-md-editor/tiptap-extension/editorNodes/calcTag/calc-tag";
 
 type SelectionState = Parameters<typeof getPrimaryFromSelection>[0];
 
@@ -61,14 +61,14 @@ describe("Markdoc tag insertion primary", () => {
 		const state = createSelectionState({
 			segments: [
 				"before ",
-				{ attrs: { primary: "Score primary" }, type: { name: "scoreTag" } },
+				{ attrs: { primary: "Calc primary" }, type: { name: "calcTag" } },
 				" between ",
 				{ attrs: { primary: "Info primary" }, type: { name: "infoTag" } },
 				" after",
 			],
 		});
 
-		expect(getPrimaryFromSelection(state)).toBe("before Score primary between Info primary after");
+		expect(getPrimaryFromSelection(state)).toBe("before Calc primary between Info primary after");
 	});
 
 	test("does not derive a primary from a collapsed selection", () => {
@@ -168,7 +168,7 @@ describe("shared Markdoc tag settings", () => {
 					group: "inline",
 					inline: true,
 				},
-				scoreTag: {
+				calcTag: {
 					atom: true,
 					attrs: {
 						components: { default: [] },
@@ -188,7 +188,7 @@ describe("shared Markdoc tag settings", () => {
 			type: "number",
 			unit: "years",
 		});
-		const calc = schema.node("scoreTag", {
+		const calc = schema.node("calcTag", {
 			components: [],
 			formula: "[age] + [missing]",
 			primary: "risk",
@@ -214,7 +214,7 @@ describe("shared Markdoc tag settings", () => {
 		expect(ensureCalcFormulaComponents(state.apply(transaction).tr)).toBe(false);
 	});
 
-	test("updates required shared attributes on every duplicate and contained score component", () => {
+	test("updates required shared attributes on every duplicate and contained calc component", () => {
 		const schema = new Schema({
 			nodes: {
 				doc: { content: "inline*" },
@@ -231,7 +231,7 @@ describe("shared Markdoc tag settings", () => {
 					group: "inline",
 					inline: true,
 				},
-				scoreTag: {
+				calcTag: {
 					atom: true,
 					attrs: {
 						components: { default: [] },
@@ -258,7 +258,7 @@ describe("shared Markdoc tag settings", () => {
 			type: "number",
 			unit: "years",
 		});
-		const score = schema.node("scoreTag", {
+		const calc = schema.node("calcTag", {
 			components: [
 				{
 					kind: "info",
@@ -272,7 +272,7 @@ describe("shared Markdoc tag settings", () => {
 			formula: "[age]",
 			primary: "risk",
 		});
-		const doc = schema.node("doc", null, [first, schema.text(" "), second, score]);
+		const doc = schema.node("doc", null, [first, schema.text(" "), second, calc]);
 		const positions: number[] = [];
 		doc.descendants((node, pos) => {
 			if (node.type.name === "infoTag") {
@@ -303,8 +303,8 @@ describe("shared Markdoc tag settings", () => {
 		]);
 		expect(infoNodes.map((node) => node.attrs.unit)).toEqual(["Jahre", "Jahre"]);
 		expect(infoNodes.map((node) => node.attrs.renderUnit)).toEqual([true, false]);
-		const nextScore = nextState.doc.lastChild;
-		expect(nextScore?.attrs.components).toEqual([
+		const nextCalc = nextState.doc.lastChild;
+		expect(nextCalc?.attrs.components).toEqual([
 			{
 				kind: "info",
 				primary: "patientAge",
@@ -320,7 +320,7 @@ describe("shared Markdoc tag settings", () => {
 		const schema = new Schema({
 			nodes: {
 				doc: { content: "inline*" },
-				scoreTag: {
+				calcTag: {
 					atom: true,
 					attrs: {
 						components: { default: [] },
@@ -335,13 +335,13 @@ describe("shared Markdoc tag settings", () => {
 				text: { group: "inline" },
 			},
 		});
-		const first = schema.node("scoreTag", {
+		const first = schema.node("calcTag", {
 			formula: "[age]",
 			primary: "risk",
 			renderUnit: true,
 			unit: "Punkte",
 		});
-		const second = schema.node("scoreTag", {
+		const second = schema.node("calcTag", {
 			formula: "[age]",
 			primary: "risk",
 			renderUnit: true,
@@ -361,7 +361,7 @@ describe("shared Markdoc tag settings", () => {
 
 		const calcAttributes: Record<string, unknown>[] = [];
 		state.apply(transaction).doc.descendants((node) => {
-			if (node.type.name === "scoreTag") {
+			if (node.type.name === "calcTag") {
 				calcAttributes.push(node.attrs);
 			}
 		});
@@ -370,11 +370,11 @@ describe("shared Markdoc tag settings", () => {
 		expect(calcAttributes.map(({ unit }) => unit)).toEqual(["Neue Punkte", "Prozent"]);
 	});
 
-	test("updates switch case score values from a score component everywhere", () => {
+	test("updates switch case values from a calc component everywhere", () => {
 		const schema = new Schema({
 			nodes: {
 				doc: { content: "inline*" },
-				scoreTag: {
+				calcTag: {
 					atom: true,
 					attrs: {
 						components: { default: [] },
@@ -404,27 +404,27 @@ describe("shared Markdoc tag settings", () => {
 		];
 		const component = { cases, kind: "switch", primary: "riskLevel", type: "string" };
 		const switchTag = schema.node("switchTag", { cases, primary: "riskLevel", type: "string" });
-		const firstScore = schema.node("scoreTag", {
+		const firstCalc = schema.node("calcTag", {
 			components: [component],
 			formula: "[riskLevel]",
 			primary: "risk",
 		});
-		const secondScore = schema.node("scoreTag", {
+		const secondCalc = schema.node("calcTag", {
 			components: [component],
 			formula: "[riskLevel] * 2",
 			primary: "otherRisk",
 		});
-		const doc = schema.node("doc", null, [switchTag, firstScore, secondScore]);
-		let firstScorePos = -1;
+		const doc = schema.node("doc", null, [switchTag, firstCalc, secondCalc]);
+		let firstCalcPos = -1;
 		doc.descendants((node, pos) => {
-			if (node.type.name === "scoreTag" && firstScorePos === -1) {
-				firstScorePos = pos;
+			if (node.type.name === "calcTag" && firstCalcPos === -1) {
+				firstCalcPos = pos;
 			}
 		});
 		const state = EditorState.create({ doc, schema });
 		const transaction = state.tr;
 		expect(
-			updateMarkdocTagAttributesInTransaction(transaction, firstScorePos, {
+			updateMarkdocTagAttributesInTransaction(transaction, firstCalcPos, {
 				components: [
 					{
 						...component,
@@ -443,7 +443,7 @@ describe("shared Markdoc tag settings", () => {
 			if (node.type.name === "switchTag") {
 				highValues.push(node.attrs.cases[1]?.value);
 			}
-			if (node.type.name === "scoreTag") {
+			if (node.type.name === "calcTag") {
 				highValues.push(node.attrs.components[0]?.cases[1]?.value);
 			}
 		});

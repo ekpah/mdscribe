@@ -20,6 +20,7 @@ Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung var
 | `primary` | String | Ja | - | Der Name des Feldes/der Variable |
 | `type` | String | Nein | `"string"` | Datentyp: `"string"`, `"number"`, `"date"` |
 | `unit` | String | Nein | - | Einheit für den Wert (z.B. "kg", "mmHg") |
+| `round` | Number oder `false` | Nein | - | Rundet Zahlen auf die angegebene Anzahl Nachkommastellen; `false` lässt den Wert ungerundet |
 | `renderUnit` | Boolean | Nein | `false` | Ob die Einheit angezeigt werden soll |
 
 ### Beispiele
@@ -37,6 +38,11 @@ Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung var
 **Zahl mit Einheit:**
 ```markdown
 **Gewicht**: {% info "Gewicht" type="number" unit="kg" renderUnit=true /%}
+```
+
+**Zahl auf eine Nachkommastelle runden:**
+```markdown
+**Temperatur**: {% info "Temperatur" type="number" unit="°C" round=1 renderUnit=true /%}
 ```
 
 **Weitere Beispiele:**
@@ -62,6 +68,5 @@ Das Info-Tag ist das am häufigsten verwendete Tag und dient zur Darstellung var
 - ✅ Setzen Sie **Einheiten** bei numerischen Werten
 - ❌ Vermeiden Sie **zu lange Feldnamen**
 - ❌ Verwenden Sie **keine Sonderzeichen** im Feldnamen (Ausnahme: Unterstrich)
-
 
 

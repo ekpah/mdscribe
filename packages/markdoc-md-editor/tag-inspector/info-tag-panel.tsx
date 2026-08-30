@@ -99,6 +99,15 @@ export const InfoTagPanel = ({
 		[editor, pos],
 	);
 
+	const handleRoundChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			updateMarkdocTagAttributes(editor, pos, {
+				round: event.target.value === "" ? null : Number(event.target.value),
+			});
+		},
+		[editor, pos],
+	);
+
 	return (
 		<div className="space-y-4">
 			<div className="space-y-1.5">
@@ -193,6 +202,24 @@ export const InfoTagPanel = ({
 						Einheit im Dokument anzeigen
 					</Label>
 				</div>
+				{node.attrs.type === "number" ? (
+					<div className="space-y-1.5">
+						<Label className="font-normal text-xs" htmlFor="info-tag-round">
+							Nachkommastellen (optional)
+						</Label>
+						<Input
+							className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
+							id="info-tag-round"
+							max={100}
+							min={0}
+							onChange={handleRoundChange}
+							placeholder="Nicht runden"
+							step={1}
+							type="number"
+							value={typeof node.attrs.round === "number" ? node.attrs.round : ""}
+						/>
+					</div>
+				) : null}
 			</div>
 		</div>
 	);

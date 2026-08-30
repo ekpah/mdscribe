@@ -3,17 +3,17 @@
 import { Extension } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
 
+import { CalcTag } from "./editorNodes/calcTag/calc-tag";
+import type { CalcTagAttrs } from "./editorNodes/calcTag/calc-tag";
 import { CaseTag } from "./editorNodes/caseTag/case-tag";
 import type { CaseTagOptions } from "./editorNodes/caseTag/case-tag";
 import { InfoTag } from "./editorNodes/infoTag/info-tag";
 import type { InfoTagAttrs } from "./editorNodes/infoTag/info-tag";
-import { ScoreTag } from "./editorNodes/scoreTag/score-tag";
-import type { ScoreTagAttrs } from "./editorNodes/scoreTag/score-tag";
 import { SwitchTag } from "./editorNodes/switchTag/switch-tag";
 import type { SwitchTagAttrs } from "./editorNodes/switchTag/switch-tag";
 import { TagGapCaret } from "./tag-gap-caret";
 
-const INLINE_MARKDOC_TAG_NAMES = new Set(["caseTag", "infoTag", "scoreTag", "switchTag"]);
+const INLINE_MARKDOC_TAG_NAMES = new Set(["calcTag", "caseTag", "infoTag", "switchTag"]);
 
 export const isCursorAfterInlineMarkdocTag = (state: EditorState): boolean => {
 	const { selection } = state;
@@ -36,16 +36,16 @@ interface MarkdocExtensionOptions {
 	caseTag: Partial<CaseTagOptions> | false;
 
 	/**
+	 * If set to false, the calcTag extension will not be registered
+	 * @example calcTag: false
+	 */
+	calcTag: Partial<CalcTagAttrs> | false;
+
+	/**
 	 * If set to false, the infoTag extension will not be registered
 	 * @example infoTag: false
 	 */
 	infoTag: Partial<InfoTagAttrs> | false;
-
-	/**
-	 * If set to false, the scoreTag extension will not be registered
-	 * @example scoreTag: false
-	 */
-	scoreTag: Partial<ScoreTagAttrs> | false;
 
 	/**
 	 * If set to false, the switchTag extension will not be registered
@@ -60,7 +60,7 @@ interface MarkdocExtensionOptions {
  * It includes:
  * - CaseTag: Represents a case within a switch statement
  * - InfoTag: Displays informational content
- * - ScoreTag: Displays calculated scores based on formulas
+ * - CalcTag: Displays values calculated from formulas
  * - SwitchTag: Creates conditional switch statements
  */
 export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
@@ -80,12 +80,12 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 			extensions.push(CaseTag.configure(this.options.caseTag));
 		}
 
-		if (this.options.infoTag !== false) {
-			extensions.push(InfoTag.configure(this.options.infoTag));
+		if (this.options.calcTag !== false) {
+			extensions.push(CalcTag.configure(this.options.calcTag));
 		}
 
-		if (this.options.scoreTag !== false) {
-			extensions.push(ScoreTag.configure(this.options.scoreTag));
+		if (this.options.infoTag !== false) {
+			extensions.push(InfoTag.configure(this.options.infoTag));
 		}
 
 		if (this.options.switchTag !== false) {

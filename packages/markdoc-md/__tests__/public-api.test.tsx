@@ -62,6 +62,36 @@ describe("public integration APIs", () => {
 		expect(html).not.toContain(">8<");
 	});
 
+	test("configures decimal-place rounding for calc and numeric info tags", () => {
+		const html = renderToStaticMarkup(
+			React.createElement(DynamicMarkdocRenderer, {
+				markdocContent: [
+					`{% calc formula="1 / 3" /%}`,
+					`{% calc formula="1 / 3" round=4 /%}`,
+					`{% calc formula="1 / 3" round=false /%}`,
+					`{% info "measurement" type="number" round=3 /%}`,
+				].join(" "),
+				variables: { measurement: 1.23456 },
+			}),
+		);
+
+		expect(html).toContain(">0.33<");
+		expect(html).toContain(">0.3333<");
+		expect(html).toContain(">0.3333333333333333<");
+		expect(html).toContain(">1.235<");
+	});
+
+	test("validates round as false or a supported number of decimal places", () => {
+		expect(validateMarkdocTemplate(`{% calc formula="1 / 3" round=4 /%}`)).toEqual([]);
+		expect(validateMarkdocTemplate(`{% info "value" type="number" round=false /%}`)).toEqual([]);
+
+		for (const round of ["true", "-1", "1.5", "101"]) {
+			expect(
+				validateMarkdocTemplate(`{% info "value" type="number" round=${round} /%}`),
+			).toContainEqual(expect.objectContaining({ id: "round-value-invalid" }));
+		}
+	});
+
 	test("fails explicitly when the browser-only HTML converter is unavailable", () => {
 		expect(isHtmlToMarkdocSupported()).toBe(false);
 		expect(() => htmlToMarkdoc("<p>hello</p>")).toThrow("htmlToMarkdoc requires a DOM environment");

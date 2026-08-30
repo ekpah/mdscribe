@@ -48,7 +48,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				.command(selectInsertedInlineTag)
 				.run();
 		},
-		handleInsertScoreTag() {
+		handleInsertCalcTag() {
 			const selectedPrimary = getPrimaryFromSelection(editor.state);
 			editor
 				.chain()
@@ -59,7 +59,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 						primary: selectedPrimary,
 						unit: "",
 					},
-					type: "scoreTag",
+					type: "calcTag",
 				})
 				.command(selectInsertedInlineTag)
 				.run();
@@ -242,7 +242,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				</Button>
 				<Button
 					className={cn(tagButtonClassName, "bg-solarized-orange hover:bg-solarized-orange/90")}
-					onClick={handlers.handleInsertScoreTag}
+					onClick={handlers.handleInsertCalcTag}
 					size="sm"
 					type="button"
 					variant="ghost"

@@ -2,6 +2,11 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 
+import {
+	parseRoundAttribute,
+	renderRoundAttribute,
+	serializeRoundAttribute,
+} from "../round-attribute";
 import { InfoTagView } from "./info-tag-view";
 
 // `variable` remains part of the runtime attributes contract used by the view.
@@ -30,6 +35,8 @@ export interface InfoTagAttrs {
 	 * Whether the unit should be rendered inline
 	 */
 	renderUnit: boolean;
+	/** Number of decimal places, or false to disable rounding. */
+	round: number | false | null;
 	/**
 	 * Optional variable name for dynamic content
 	 */
@@ -53,13 +60,6 @@ export const InfoTag = Node.create<InfoTagAttrs>({
 					primary: attributes.primary,
 				}),
 			},
-			source: {
-				default: null,
-				parseHTML: (element) => element.getAttribute("source"),
-				renderHTML: (attributes) => ({
-					source: attributes.source,
-				}),
-			},
 			renderUnit: {
 				default: false,
 				parseHTML: (element) => {
@@ -68,6 +68,20 @@ export const InfoTag = Node.create<InfoTagAttrs>({
 				},
 				renderHTML: (attributes) => ({
 					renderUnit: attributes.renderUnit ? "true" : null,
+				}),
+			},
+			round: {
+				default: null,
+				parseHTML: parseRoundAttribute,
+				renderHTML: (attributes) => ({
+					round: renderRoundAttribute(attributes.round),
+				}),
+			},
+			source: {
+				default: null,
+				parseHTML: (element) => element.getAttribute("source"),
+				renderHTML: (attributes) => ({
+					source: attributes.source,
 				}),
 			},
 			type: {
@@ -127,9 +141,10 @@ export const InfoTag = Node.create<InfoTagAttrs>({
 			: "";
 		const typeAttribute = node.attrs.type ? ` type=${JSON.stringify(node.attrs.type)}` : "";
 		const unitAttribute = node.attrs.unit ? ` unit=${JSON.stringify(node.attrs.unit)}` : "";
+		const roundAttribute = serializeRoundAttribute(node.attrs.round);
 		const renderUnitAttribute = node.attrs.renderUnit ? " renderUnit=true" : "";
 		const sourceAttribute = node.attrs.source ? ` source=${JSON.stringify(node.attrs.source)}` : "";
-		return `{% info ${JSON.stringify(node.attrs.primary ?? "")}${descriptionAttribute}${typeAttribute}${unitAttribute}${renderUnitAttribute}${sourceAttribute} /%}`;
+		return `{% info ${JSON.stringify(node.attrs.primary ?? "")}${descriptionAttribute}${typeAttribute}${unitAttribute}${roundAttribute}${renderUnitAttribute}${sourceAttribute} /%}`;
 	},
 
 	selectable: true,

@@ -33,6 +33,7 @@ export type InfoInputTagType = BaseInputTag & {
 		unit?: string;
 		description?: string;
 		renderUnit?: boolean;
+		round?: number | false;
 		source?: string;
 	};
 };
@@ -80,6 +81,7 @@ export type CalcInputTagType = BaseInputTag & {
 		formula?: string;
 		unit?: string;
 		renderUnit?: boolean;
+		round?: number | false;
 	};
 };
 
@@ -351,6 +353,10 @@ const toCalcTag = (node: MarkdocTagNode, children: InputTagType[]): CalcInputTag
 			primary: toKeyPart(node.attributes.primary),
 			renderUnit:
 				typeof node.attributes.renderUnit === "boolean" ? node.attributes.renderUnit : undefined,
+			round:
+				typeof node.attributes.round === "number" || node.attributes.round === false
+					? node.attributes.round
+					: undefined,
 			unit: toKeyPart(node.attributes.unit) || undefined,
 		},
 		children,

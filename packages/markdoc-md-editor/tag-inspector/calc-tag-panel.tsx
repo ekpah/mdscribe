@@ -12,12 +12,12 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { ScoreComponent } from "../tiptap-extension/editorNodes/scoreTag/score-tag";
+import type { CalcComponent } from "../tiptap-extension/editorNodes/calcTag/calc-tag";
 import { updateMarkdocTagAttributes } from "./use-selected-markdoc-tag";
 
-const SCORE_OPERATORS = ["+", "-", "*", "/", "(", ")"] as const;
+const CALC_OPERATORS = ["+", "-", "*", "/", "(", ")"] as const;
 
-export const ScoreTagPanel = ({
+export const CalcTagPanel = ({
 	editor,
 	node,
 	pos,
@@ -29,22 +29,23 @@ export const ScoreTagPanel = ({
 	const formulaValue = node.attrs.formula ?? "";
 	const unitValue = node.attrs.unit ?? "";
 	const formulaInputRef = useRef<HTMLTextAreaElement>(null);
-	const [availableComponents, setAvailableComponents] = useState<ScoreComponent[]>([]);
-	const scoreComponents = useMemo(
-		() => (Array.isArray(node.attrs.components) ? (node.attrs.components as ScoreComponent[]) : []),
+	const [availableComponents, setAvailableComponents] = useState<CalcComponent[]>([]);
+	const calcComponents = useMemo(
+		() => (Array.isArray(node.attrs.components) ? (node.attrs.components as CalcComponent[]) : []),
 		[node.attrs.components],
 	);
 	const availableVariables = availableComponents.map((component) => component.primary);
 
 	useEffect(() => {
 		const updateVariables = () => {
-			const components = new Map<string, ScoreComponent>();
+			const components = new Map<string, CalcComponent>();
 			editor.state.doc.descendants((docNode) => {
 				if (docNode.type.name === "infoTag" && docNode.attrs.primary) {
 					components.set(docNode.attrs.primary, {
 						description: docNode.attrs.description,
 						kind: "info",
 						primary: docNode.attrs.primary,
+						...(docNode.attrs.round === null ? {} : { round: docNode.attrs.round }),
 						renderUnit: docNode.attrs.renderUnit,
 						source: docNode.attrs.source,
 						type: docNode.attrs.type,
@@ -60,7 +61,7 @@ export const ScoreTagPanel = ({
 					});
 				}
 			});
-			for (const component of scoreComponents) {
+			for (const component of calcComponents) {
 				if (!components.has(component.primary)) {
 					components.set(component.primary, component);
 				}
@@ -78,7 +79,7 @@ export const ScoreTagPanel = ({
 		return () => {
 			editor.off("update", updateVariables);
 		};
-	}, [editor, scoreComponents]);
+	}, [calcComponents, editor]);
 
 	const { parsedVariables, parseError } = useMemo(() => {
 		if (!formulaValue.trim()) {
@@ -101,11 +102,11 @@ export const ScoreTagPanel = ({
 
 	const setFormula = useCallback(
 		(formula: string) => {
-			let components = scoreComponents;
+			let components = calcComponents;
 			try {
 				const variables = new Formula(formula).getVariables();
 				const componentsByPrimary = new Map(
-					[...scoreComponents, ...availableComponents].map((component) => [
+					[...calcComponents, ...availableComponents].map((component) => [
 						component.primary,
 						component,
 					]),
@@ -119,7 +120,7 @@ export const ScoreTagPanel = ({
 			}
 			updateMarkdocTagAttributes(editor, pos, { components, formula });
 		},
-		[availableComponents, editor, pos, scoreComponents],
+		[availableComponents, calcComponents, editor, pos],
 	);
 
 	const insertIntoFormula = useCallback(
@@ -192,6 +193,22 @@ export const ScoreTagPanel = ({
 		[editor, pos],
 	);
 
+	const handleRoundChange = useCallback(
+		(event: ChangeEvent<HTMLInputElement>) => {
+			updateMarkdocTagAttributes(editor, pos, {
+				round: event.target.value === "" ? null : Number(event.target.value),
+			});
+		},
+		[editor, pos],
+	);
+
+	const handleRoundingDisabledChange = useCallback(
+		(disabled: boolean) => {
+			updateMarkdocTagAttributes(editor, pos, { round: disabled ? false : null });
+		},
+		[editor, pos],
+	);
+
 	const variableInsertHandlers = useMemo<Record<string, () => void>>(() => {
 		const handlers: Record<string, () => void> = {};
 		for (const variable of availableVariables) {
@@ -204,7 +221,7 @@ export const ScoreTagPanel = ({
 
 	const operatorInsertHandlers = useMemo<Record<string, () => void>>(() => {
 		const handlers: Record<string, () => void> = {};
-		for (const operator of SCORE_OPERATORS) {
+		for (const operator of CALC_OPERATORS) {
 			handlers[operator] = () => {
 				insertOperator(operator);
 			};
@@ -215,12 +232,12 @@ export const ScoreTagPanel = ({
 	return (
 		<div className="space-y-4">
 			<div className="space-y-1.5">
-				<Label className="font-medium text-xs" htmlFor="score-tag-primary">
+				<Label className="font-medium text-xs" htmlFor="calc-tag-primary">
 					Name
 				</Label>
 				<Input
 					className="h-8 text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
-					id="score-tag-primary"
+					id="calc-tag-primary"
 					onChange={handlePrimaryChange}
 					placeholder="z.B. CHA2DS2-VASc"
 					value={node.attrs.primary || ""}
@@ -228,12 +245,12 @@ export const ScoreTagPanel = ({
 			</div>
 
 			<div className="space-y-1.5">
-				<Label className="font-medium text-xs" htmlFor="score-tag-formula">
+				<Label className="font-medium text-xs" htmlFor="calc-tag-formula">
 					Formel
 				</Label>
 				<Textarea
 					className="min-h-[72px] font-mono text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
-					id="score-tag-formula"
+					id="calc-tag-formula"
 					onChange={handleFormulaChange}
 					placeholder="z.B. [age] * 2 + [crp] * 3"
 					ref={formulaInputRef}
@@ -294,7 +311,7 @@ export const ScoreTagPanel = ({
 					)}
 				</div>
 				<div className="flex flex-wrap gap-1.5">
-					{SCORE_OPERATORS.map((operator) => (
+					{CALC_OPERATORS.map((operator) => (
 						<button
 							className="inline-flex items-center rounded-md border border-solarized-orange/20 bg-background px-2 py-0.5 font-mono text-[11px] text-foreground transition hover:border-solarized-orange/40 hover:bg-solarized-orange/5"
 							key={operator}
@@ -317,12 +334,12 @@ export const ScoreTagPanel = ({
 					</p>
 				</div>
 				<div className="space-y-1.5">
-					<Label className="font-medium text-xs" htmlFor="score-tag-unit">
+					<Label className="font-medium text-xs" htmlFor="calc-tag-unit">
 						Einheit (optional)
 					</Label>
 					<Input
 						className="h-8 text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
-						id="score-tag-unit"
+						id="calc-tag-unit"
 						onChange={handleUnitChange}
 						placeholder="z.B. kg, mm, °C, Punkte"
 						value={unitValue}
@@ -331,13 +348,42 @@ export const ScoreTagPanel = ({
 				<div className="flex items-center gap-2">
 					<Checkbox
 						checked={node.attrs.renderUnit === true}
-						id="score-tag-render-unit"
+						id="calc-tag-render-unit"
 						onCheckedChange={(checked) => {
 							handleRenderUnitChange(checked === true);
 						}}
 					/>
-					<Label className="font-normal text-xs" htmlFor="score-tag-render-unit">
+					<Label className="font-normal text-xs" htmlFor="calc-tag-render-unit">
 						Einheit im Dokument anzeigen
+					</Label>
+				</div>
+				<div className="space-y-1.5">
+					<Label className="font-normal text-xs" htmlFor="calc-tag-round">
+						Nachkommastellen
+					</Label>
+					<Input
+						className="h-8 text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
+						disabled={node.attrs.round === false}
+						id="calc-tag-round"
+						max={100}
+						min={0}
+						onChange={handleRoundChange}
+						placeholder="2 (Standard)"
+						step={1}
+						type="number"
+						value={typeof node.attrs.round === "number" ? node.attrs.round : ""}
+					/>
+				</div>
+				<div className="flex items-center gap-2">
+					<Checkbox
+						checked={node.attrs.round === false}
+						id="calc-tag-round-disabled"
+						onCheckedChange={(checked) => {
+							handleRoundingDisabledChange(checked === true);
+						}}
+					/>
+					<Label className="font-normal text-xs" htmlFor="calc-tag-round-disabled">
+						Nicht runden
 					</Label>
 				</div>
 			</div>

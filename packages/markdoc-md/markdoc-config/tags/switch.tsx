@@ -4,7 +4,7 @@ import React from "react";
 
 import { normalizeBooleanToString } from "../../parse/boolean-coercion";
 import { useVariables } from "../../render/context/variable-context";
-import { InteractiveTag } from "./interactive-tag";
+import { InteractiveTag } from "./helpers/interactive-tag";
 
 export const SwitchContext = React.createContext<string | null>(null);
 

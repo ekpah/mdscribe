@@ -6,7 +6,7 @@ import { Calculator } from "lucide-react";
 
 import { TagChip, useSelectTagNode } from "../tag-chip";
 
-export const ScoreTagView = ({ editor, node, selected, deleteNode, getPos }: NodeViewProps) => {
+export const CalcTagView = ({ editor, node, selected, deleteNode, getPos }: NodeViewProps) => {
 	const handleSelectTag = useSelectTagNode({ editor, getPos });
 
 	const primaryValue = node.attrs.primary ?? "";

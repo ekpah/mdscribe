@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { useMarkdocInteraction } from "../../render/context/markdoc-interaction-context";
+import { useMarkdocInteraction } from "../../../render/context/markdoc-interaction-context";
 
 const getInteractiveTagClassName = (isActive: boolean, canSelect: boolean) =>
 	[

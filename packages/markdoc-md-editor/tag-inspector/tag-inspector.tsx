@@ -8,10 +8,10 @@ import type { Editor } from "@tiptap/react";
 import type { LucideIcon } from "lucide-react";
 import { Calculator, Code2, CornerDownRight, Info, X } from "lucide-react";
 
+import { CalcTagPanel } from "./calc-tag-panel";
 import { CaseTagPanel } from "./case-tag-panel";
 import { TagInspectorHelp } from "./help-content";
 import { InfoTagPanel } from "./info-tag-panel";
-import { ScoreTagPanel } from "./score-tag-panel";
 import { SwitchTagPanel } from "./switch-tag-panel";
 import type { MarkdocTagKind, SelectedMarkdocTag } from "./use-selected-markdoc-tag";
 import { useSelectedMarkdocTag } from "./use-selected-markdoc-tag";
@@ -22,6 +22,12 @@ export const TAG_PANEL_META: Record<
 	MarkdocTagKind,
 	{ icon: LucideIcon; iconClassName: string; iconWrapClassName: string; label: string }
 > = {
+	calcTag: {
+		icon: Calculator,
+		iconClassName: "text-solarized-orange",
+		iconWrapClassName: "bg-solarized-orange/15",
+		label: "Calc",
+	},
 	caseTag: {
 		icon: CornerDownRight,
 		iconClassName: "text-solarized-cyan",
@@ -33,12 +39,6 @@ export const TAG_PANEL_META: Record<
 		iconClassName: "text-solarized-blue",
 		iconWrapClassName: "bg-solarized-blue/15",
 		label: "Info",
-	},
-	scoreTag: {
-		icon: Calculator,
-		iconClassName: "text-solarized-orange",
-		iconWrapClassName: "bg-solarized-orange/15",
-		label: "Calc",
 	},
 	switchTag: {
 		icon: Code2,
@@ -56,6 +56,8 @@ export const TagPanelBody = ({
 	selectedTag: SelectedMarkdocTag;
 }) => {
 	switch (selectedTag.kind) {
+		case "calcTag":
+			return <CalcTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
 		case "caseTag":
 			return <CaseTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
 		case "infoTag":
@@ -67,8 +69,6 @@ export const TagPanelBody = ({
 					selectPrimary={selectedTag.selectPrimary}
 				/>
 			);
-		case "scoreTag":
-			return <ScoreTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
 		case "switchTag":
 			return (
 				<SwitchTagPanel

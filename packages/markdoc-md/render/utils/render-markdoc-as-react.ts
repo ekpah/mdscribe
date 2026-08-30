@@ -4,8 +4,8 @@ import React from "react";
 import type { ReactNode } from "react";
 
 import { markdocConfig } from "../../markdoc-config";
-import { components } from "../../markdoc-config/tags/components";
-import type { MarkdocComponentMap } from "../../markdoc-config/tags/components";
+import { components } from "../../markdoc-config/tags/helpers/components";
+import type { MarkdocComponentMap } from "../../markdoc-config/tags/helpers/components";
 import { sanitizeMarkdocForRendering } from "./sanitize-markdoc-for-rendering";
 
 /**

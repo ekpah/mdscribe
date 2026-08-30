@@ -148,7 +148,7 @@ export const TagInspectorHelp = () => (
 				</AccordionItem>
 
 				{/* Calc Tag */}
-				<AccordionItem value="score">
+				<AccordionItem value="calc">
 					<AccordionTrigger className="py-2 text-sm hover:no-underline">
 						<div className="flex items-center gap-2">
 							<Badge className="bg-solarized-orange text-xs">Calc</Badge>

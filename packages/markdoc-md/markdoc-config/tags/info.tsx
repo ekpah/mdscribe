@@ -1,7 +1,9 @@
 "use client";
 
 import { useVariables } from "../../render/context/variable-context";
-import { InteractiveTag } from "./interactive-tag";
+import { InteractiveTag } from "./helpers/interactive-tag";
+import { roundNumber } from "./helpers/round";
+import type { RoundValue } from "./helpers/round";
 
 export interface InfoProps {
 	primary: string;
@@ -10,6 +12,7 @@ export interface InfoProps {
 	renderUnit?: boolean;
 	description?: string;
 	source?: string;
+	round?: RoundValue;
 }
 
 export const Info = ({
@@ -19,13 +22,19 @@ export const Info = ({
 	renderUnit,
 	description: _description,
 	source: _source,
+	round,
 }: InfoProps) => {
 	const variables = useVariables();
 	const variableName = typeof primary === "string" ? primary : undefined;
 	// Look up the value from context using the 'primary' prop as the key.
 	// Provide an empty string as a fallback if the variable doesn't exist.
 	const value = variableName ? variables[variableName] : undefined;
-	const renderedValue = typeof value === "boolean" ? String(value) : value;
+	let renderedValue = value;
+	if (_type === "number" && typeof value === "number") {
+		renderedValue = roundNumber(value, round);
+	} else if (typeof value === "boolean") {
+		renderedValue = String(value);
+	}
 
 	// Missing variables intentionally render as empty to keep template output stable.
 

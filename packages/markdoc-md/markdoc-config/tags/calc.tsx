@@ -4,7 +4,9 @@ import Formula from "fparser";
 
 import { toFormulaValue } from "../../parse/boolean-coercion";
 import { useVariables } from "../../render/context/variable-context";
-import { InteractiveTag } from "./interactive-tag";
+import { InteractiveTag } from "./helpers/interactive-tag";
+import { roundNumber } from "./helpers/round";
+import type { RoundValue } from "./helpers/round";
 
 interface ValueObject {
 	[key: string]: number | string | ValueObject;
@@ -15,6 +17,7 @@ export interface CalcProps {
 	primary?: string;
 	unit?: string;
 	renderUnit?: boolean;
+	round?: RoundValue;
 }
 
 const formatFormulaForTooltip = (formula: string): string =>
@@ -28,7 +31,7 @@ const getFormulaTooltipLabel = (formula: string): string => {
 	return normalizedFormula ? `Formula: ${normalizedFormula}` : "No formula";
 };
 
-export const Calc = ({ formula, primary, unit, renderUnit }: CalcProps) => {
+export const Calc = ({ formula, primary, unit, renderUnit, round }: CalcProps) => {
 	const variables = useVariables();
 	const normalizedFormula = typeof formula === "string" ? formula : "";
 	const tagName = typeof primary === "string" ? primary : undefined;
@@ -44,7 +47,7 @@ export const Calc = ({ formula, primary, unit, renderUnit }: CalcProps) => {
 			? override
 			: new Formula(normalizedFormula).evaluate(formulaVariables);
 
-		const roundedResult = typeof result === "number" ? Number(result.toFixed(2)) : result;
+		const roundedResult = typeof result === "number" ? roundNumber(result, round, 2) : result;
 
 		return (
 			<InteractiveTag tagName={tagName}>

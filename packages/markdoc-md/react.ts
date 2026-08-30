@@ -10,7 +10,7 @@ export type { MarkdocInteractionContextType } from "./render/context/markdoc-int
 export { useVariables, VariableProvider } from "./render/context/variable-context";
 export type { VariableMap, VariableValue } from "./render/context/variable-context";
 export { useCitationModifier } from "./render/hooks/use-citation-modifier";
-export { components } from "./markdoc-config/tags/components";
-export type { MarkdocComponentMap } from "./markdoc-config/tags/components";
+export { components } from "./markdoc-config/tags/helpers/components";
+export type { MarkdocComponentMap } from "./markdoc-config/tags/helpers/components";
 export { default as renderMarkdocAsReact } from "./render/utils/render-markdoc-as-react";
 export type { RenderMarkdocReactOptions } from "./render/utils/render-markdoc-as-react";

@@ -4,20 +4,26 @@ import type { Transaction } from "@tiptap/pm/state";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import Formula from "fparser";
 
-import { ScoreTagView } from "./score-tag-view";
+import {
+	parseRoundAttribute,
+	renderRoundAttribute,
+	serializeRoundAttribute,
+} from "../round-attribute";
+import { CalcTagView } from "./calc-tag-view";
 
 /** An info input referenced by a calculated tag. */
-export interface ScoreInfoComponent {
+export interface CalcInfoComponent {
 	description?: string | null;
 	kind: "info";
 	primary: string;
 	renderUnit?: boolean;
+	round?: number | false | null;
 	source?: string | null;
 	type?: "date" | "number" | "string" | null;
 	unit?: string | null;
 }
 
-export interface ScoreSwitchComponent {
+export interface CalcSwitchComponent {
 	cases: {
 		content?: string;
 		primary: string;
@@ -30,9 +36,9 @@ export interface ScoreSwitchComponent {
 	type?: "boolean" | "string" | null;
 }
 
-export type ScoreComponent = ScoreInfoComponent | ScoreSwitchComponent;
+export type CalcComponent = CalcInfoComponent | CalcSwitchComponent;
 
-const parseScoreSwitchType = (value: string | null): ScoreSwitchComponent["type"] => {
+const parseCalcSwitchType = (value: string | null): CalcSwitchComponent["type"] => {
 	if (value === "checkbox") {
 		return "boolean";
 	}
@@ -47,23 +53,25 @@ const readNumberAttribute = (element: Element, attribute: string): number | unde
 	return Number(rawValue);
 };
 
-const parseScoreComponents = (element: HTMLElement): ScoreComponent[] =>
-	[...element.children].flatMap((child): ScoreComponent[] => {
+const parseCalcComponents = (element: HTMLElement): CalcComponent[] =>
+	[...element.children].flatMap((child): CalcComponent[] => {
 		if (!(child instanceof HTMLElement)) {
 			return [];
 		}
 		const tagName = child.tagName.toLowerCase();
 		const primary = child.getAttribute("primary") ?? "";
 		if (tagName === "info") {
+			const round = parseRoundAttribute(child);
 			return [
 				{
 					description: child.getAttribute("description"),
 					kind: "info",
 					primary,
+					...(round === null ? {} : { round }),
 					renderUnit:
 						(child.getAttribute("renderunit") ?? child.getAttribute("renderUnit")) === "true",
 					source: child.getAttribute("source"),
-					type: child.getAttribute("type") as ScoreInfoComponent["type"],
+					type: child.getAttribute("type") as CalcInfoComponent["type"],
 					unit: child.getAttribute("unit"),
 				},
 			];
@@ -87,12 +95,12 @@ const parseScoreComponents = (element: HTMLElement): ScoreComponent[] =>
 				kind: "switch",
 				primary,
 				source: child.getAttribute("source"),
-				type: parseScoreSwitchType(child.getAttribute("type")),
+				type: parseCalcSwitchType(child.getAttribute("type")),
 			},
 		];
 	});
 
-const renderScoreComponentHtml = (component: ScoreComponent) => {
+const renderCalcComponentHtml = (component: CalcComponent) => {
 	if (component.kind === "info") {
 		return [
 			"Info",
@@ -100,6 +108,7 @@ const renderScoreComponentHtml = (component: ScoreComponent) => {
 				description: component.description,
 				primary: component.primary,
 				renderUnit: component.renderUnit ? "true" : null,
+				round: renderRoundAttribute(component.round),
 				source: component.source,
 				type: component.type,
 				unit: component.unit,
@@ -124,10 +133,10 @@ const renderScoreComponentHtml = (component: ScoreComponent) => {
 const renderStringAttribute = (name: string, value: string | null | undefined): string =>
 	value ? ` ${name}=${JSON.stringify(value)}` : "";
 
-const renderScoreComponentText = (component: ScoreComponent): string => {
+const renderCalcComponentText = (component: CalcComponent): string => {
 	if (component.kind === "info") {
 		const renderUnit = component.renderUnit ? " renderUnit=true" : "";
-		return `{% info ${JSON.stringify(component.primary)}${renderStringAttribute("description", component.description)}${renderStringAttribute("type", component.type)}${renderStringAttribute("unit", component.unit)}${renderUnit}${renderStringAttribute("source", component.source)} /%}`;
+		return `{% info ${JSON.stringify(component.primary)}${renderStringAttribute("description", component.description)}${renderStringAttribute("type", component.type)}${renderStringAttribute("unit", component.unit)}${serializeRoundAttribute(component.round)}${renderUnit}${renderStringAttribute("source", component.source)} /%}`;
 	}
 	const cases = component.cases
 		.map((caseItem) => {
@@ -138,7 +147,7 @@ const renderScoreComponentText = (component: ScoreComponent): string => {
 	return `{% switch ${JSON.stringify(component.primary)}${renderStringAttribute("type", component.type)}${renderStringAttribute("source", component.source)} %}${cases}{% /switch %}`;
 };
 
-const toComponentFromNode = (node: ProseMirrorNode): ScoreComponent | null => {
+const toComponentFromNode = (node: ProseMirrorNode): CalcComponent | null => {
 	const primary = typeof node.attrs.primary === "string" ? node.attrs.primary : "";
 	if (!primary) {
 		return null;
@@ -148,6 +157,7 @@ const toComponentFromNode = (node: ProseMirrorNode): ScoreComponent | null => {
 			description: node.attrs.description,
 			kind: "info",
 			primary,
+			...(node.attrs.round === null ? {} : { round: node.attrs.round }),
 			renderUnit: node.attrs.renderUnit,
 			source: node.attrs.source,
 			type: node.attrs.type,
@@ -168,14 +178,14 @@ const toComponentFromNode = (node: ProseMirrorNode): ScoreComponent | null => {
 
 /** Adds formula inputs to Calc nodes so legacy and incomplete tags serialize canonically. */
 export const ensureCalcFormulaComponents = (tr: Transaction): boolean => {
-	const availableComponents = new Map<string, ScoreComponent>();
+	const availableComponents = new Map<string, CalcComponent>();
 	tr.doc.descendants((node) => {
 		const component = toComponentFromNode(node);
 		if (component) {
 			availableComponents.set(component.primary, component);
 		}
-		if (node.type.name === "scoreTag" && Array.isArray(node.attrs.components)) {
-			for (const existing of node.attrs.components as ScoreComponent[]) {
+		if (node.type.name === "calcTag" && Array.isArray(node.attrs.components)) {
+			for (const existing of node.attrs.components as CalcComponent[]) {
 				if (existing.primary && !availableComponents.has(existing.primary)) {
 					availableComponents.set(existing.primary, existing);
 				}
@@ -183,9 +193,9 @@ export const ensureCalcFormulaComponents = (tr: Transaction): boolean => {
 		}
 	});
 
-	const updates: { components: ScoreComponent[]; pos: number }[] = [];
+	const updates: { components: CalcComponent[]; pos: number }[] = [];
 	tr.doc.descendants((node, pos) => {
-		if (node.type.name !== "scoreTag" || typeof node.attrs.formula !== "string") {
+		if (node.type.name !== "calcTag" || typeof node.attrs.formula !== "string") {
 			return;
 		}
 		let variables: string[];
@@ -195,13 +205,13 @@ export const ensureCalcFormulaComponents = (tr: Transaction): boolean => {
 			return;
 		}
 		const components = Array.isArray(node.attrs.components)
-			? (node.attrs.components as ScoreComponent[])
+			? (node.attrs.components as CalcComponent[])
 			: [];
 		const existingPrimaries = new Set(components.map((component) => component.primary));
 		const missingComponents = variables
 			.filter((variable) => !existingPrimaries.has(variable))
 			.map(
-				(variable): ScoreComponent =>
+				(variable): CalcComponent =>
 					availableComponents.get(variable) ?? {
 						kind: "info",
 						primary: variable,
@@ -222,15 +232,15 @@ export const ensureCalcFormulaComponents = (tr: Transaction): boolean => {
 	return updates.length > 0;
 };
 
-export interface ScoreTagAttrs {
+export interface CalcTagAttrs {
 	/** Inputs explicitly contained by and referenced from the formula. */
-	components: ScoreComponent[];
+	components: CalcComponent[];
 	/**
-	 * Optional display key for the score
+	 * Optional display key for the calculated value
 	 */
 	primary: string | null;
 	/**
-	 * The formula to calculate the score
+	 * The formula to calculate the value
 	 */
 	formula: string | null;
 	/**
@@ -241,9 +251,11 @@ export interface ScoreTagAttrs {
 	 * Whether the unit should be rendered inline
 	 */
 	renderUnit: boolean;
+	/** Number of decimal places, or false to disable rounding. */
+	round: number | false | null;
 }
 
-export const ScoreTag = Node.create<ScoreTagAttrs>({
+export const CalcTag = Node.create<CalcTagAttrs>({
 	addAttributes() {
 		return {
 			components: {
@@ -274,6 +286,13 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
 					renderUnit: attributes.renderUnit ? "true" : null,
 				}),
 			},
+			round: {
+				default: null,
+				parseHTML: parseRoundAttribute,
+				renderHTML: (attributes) => ({
+					round: renderRoundAttribute(attributes.round),
+				}),
+			},
 			unit: {
 				default: null,
 				parseHTML: (element) => element.getAttribute("unit"),
@@ -285,25 +304,25 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
 	},
 
 	addNodeView() {
-		return ReactNodeViewRenderer(ScoreTagView);
+		return ReactNodeViewRenderer(CalcTagView);
 	},
 	atom: true,
 	draggable: false,
 	group: "inline",
 	inline: true,
 
-	name: "scoreTag",
+	name: "calcTag",
 
 	parseHTML() {
 		return [
 			{
 				getAttrs: (element) =>
-					element instanceof HTMLElement ? { components: parseScoreComponents(element) } : false,
+					element instanceof HTMLElement ? { components: parseCalcComponents(element) } : false,
 				tag: "Calc",
 			},
 			{
 				getAttrs: (element) =>
-					element instanceof HTMLElement ? { components: parseScoreComponents(element) } : false,
+					element instanceof HTMLElement ? { components: parseCalcComponents(element) } : false,
 				tag: "Score",
 			},
 		];
@@ -317,7 +336,7 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
 		node: ProseMirrorNode;
 	}) {
 		const components = Array.isArray(node.attrs.components)
-			? (node.attrs.components as ScoreComponent[])
+			? (node.attrs.components as CalcComponent[])
 			: [];
 		return [
 			"Calc",
@@ -325,9 +344,10 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
 				formula: node.attrs.formula,
 				primary: node.attrs.primary,
 				renderUnit: node.attrs.renderUnit ? "true" : null,
+				round: renderRoundAttribute(node.attrs.round),
 				unit: node.attrs.unit,
 			}),
-			...components.map(renderScoreComponentHtml),
+			...components.map(renderCalcComponentHtml),
 		];
 	},
 
@@ -335,12 +355,13 @@ export const ScoreTag = Node.create<ScoreTagAttrs>({
 		const primary = node.attrs.primary ? ` primary=${JSON.stringify(node.attrs.primary)}` : "";
 		const formula = node.attrs.formula || "";
 		const formulaAttribute = ` formula=${JSON.stringify(formula)}`;
+		const round = serializeRoundAttribute(node.attrs.round);
 		const renderUnit = node.attrs.renderUnit ? " renderUnit=true" : "";
 		const unit = node.attrs.unit ? ` unit=${JSON.stringify(node.attrs.unit)}` : "";
 		const components = Array.isArray(node.attrs.components)
-			? (node.attrs.components as ScoreComponent[])
+			? (node.attrs.components as CalcComponent[])
 			: [];
-		return `{% calc${primary}${formulaAttribute}${unit}${renderUnit} %}${components.map(renderScoreComponentText).join("")}{% /calc %}`;
+		return `{% calc${primary}${formulaAttribute}${unit}${round}${renderUnit} %}${components.map(renderCalcComponentText).join("")}{% /calc %}`;
 	},
 
 	selectable: true,

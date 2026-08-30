@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { FOCUS_INSERTED_TAG_PRIMARY_META } from "../editor-helpers/select-inserted-inline-tag";
 
-export type MarkdocTagKind = "caseTag" | "infoTag" | "scoreTag" | "switchTag";
+export type MarkdocTagKind = "calcTag" | "caseTag" | "infoTag" | "switchTag";
 
 export interface SelectedMarkdocTag {
 	kind: MarkdocTagKind;
@@ -24,9 +24,9 @@ export interface SelectedMarkdocTag {
 }
 
 const MARKDOC_TAG_NODE_NAMES = new Set<MarkdocTagKind>([
+	"calcTag",
 	"caseTag",
 	"infoTag",
-	"scoreTag",
 	"switchTag",
 ]);
 
@@ -34,9 +34,9 @@ const asMarkdocTagKind = (name: string): MarkdocTagKind | null =>
 	MARKDOC_TAG_NODE_NAMES.has(name as MarkdocTagKind) ? (name as MarkdocTagKind) : null;
 
 const SHARED_ATTRIBUTES: Record<MarkdocTagKind, ReadonlySet<string>> = {
+	calcTag: new Set(["components", "formula", "primary"]),
 	caseTag: new Set(),
 	infoTag: new Set(["description", "primary", "source", "type", "unit"]),
-	scoreTag: new Set(["components", "formula", "primary"]),
 	switchTag: new Set(["primary", "source", "type"]),
 };
 
@@ -61,7 +61,7 @@ const mergeSharedSwitchCaseValues = (current: unknown, updated: unknown): unknow
 	);
 };
 
-const mergeSharedScoreComponent = (
+const mergeSharedCalcComponent = (
 	current: Record<string, unknown>,
 	updated: Record<string, unknown>,
 ): Record<string, unknown> => {
@@ -79,7 +79,7 @@ const mergeSharedScoreComponent = (
 	return nextComponent;
 };
 
-const synchronizeScoreComponents = ({
+const synchronizeCalcComponents = ({
 	node,
 	oldPrimary,
 	pos,
@@ -112,14 +112,14 @@ const synchronizeScoreComponents = ({
 		});
 		if (matchingComponent) {
 			updates.push({
-				attrs: mergeSharedScoreComponent(candidate.attrs, matchingComponent.updated),
+				attrs: mergeSharedCalcComponent(candidate.attrs, matchingComponent.updated),
 				pos: candidatePos,
 			});
 			return;
 		}
 		if (
 			candidatePos !== pos &&
-			candidate.type.name === "scoreTag" &&
+			candidate.type.name === "calcTag" &&
 			candidate.attrs.primary !== oldPrimary &&
 			Array.isArray(candidate.attrs.components)
 		) {
@@ -133,7 +133,7 @@ const synchronizeScoreComponents = ({
 						return component;
 					}
 					changed = true;
-					return mergeSharedScoreComponent(component, matching.updated);
+					return mergeSharedCalcComponent(component, matching.updated);
 				},
 			);
 			if (changed) {
@@ -308,9 +308,9 @@ export const updateMarkdocTagAttributesInTransaction = (
 	}
 	if ((kind === "infoTag" || kind === "switchTag") && typeof oldPrimary === "string") {
 		const componentKind = kind === "infoTag" ? "info" : "switch";
-		const scoreUpdates: { components: Record<string, unknown>[]; pos: number }[] = [];
+		const calcUpdates: { components: Record<string, unknown>[]; pos: number }[] = [];
 		tr.doc.descendants((candidate, candidatePos) => {
-			if (candidate.type.name !== "scoreTag" || !Array.isArray(candidate.attrs.components)) {
+			if (candidate.type.name !== "calcTag" || !Array.isArray(candidate.attrs.components)) {
 				return;
 			}
 			let changed = false;
@@ -328,21 +328,21 @@ export const updateMarkdocTagAttributesInTransaction = (
 				},
 			);
 			if (changed) {
-				scoreUpdates.push({ components, pos: candidatePos });
+				calcUpdates.push({ components, pos: candidatePos });
 			}
 		});
-		for (const scoreUpdate of scoreUpdates) {
-			const score = tr.doc.nodeAt(scoreUpdate.pos);
-			if (score) {
-				tr.setNodeMarkup(scoreUpdate.pos, undefined, {
-					...score.attrs,
-					components: scoreUpdate.components,
+		for (const calcUpdate of calcUpdates) {
+			const calc = tr.doc.nodeAt(calcUpdate.pos);
+			if (calc) {
+				tr.setNodeMarkup(calcUpdate.pos, undefined, {
+					...calc.attrs,
+					components: calcUpdate.components,
 				});
 			}
 		}
 	}
-	if (kind === "scoreTag" && Array.isArray(attributes.components)) {
-		synchronizeScoreComponents({
+	if (kind === "calcTag" && Array.isArray(attributes.components)) {
+		synchronizeCalcComponents({
 			node,
 			oldPrimary,
 			pos,

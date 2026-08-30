@@ -182,7 +182,7 @@ export const collectFillInputFields = (inputTags: InputTagType[]) => {
 	return { fields, meta };
 };
 
-const collectScoreKeys = (inputTags: InputTagType[]): Set<string> => {
+const collectCalcKeys = (inputTags: InputTagType[]): Set<string> => {
 	const keys = new Set<string>();
 	const visit = (input: InputTagType) => {
 		if (input.name === "Calc" && input.attributes.primary) {
@@ -198,7 +198,10 @@ const collectScoreKeys = (inputTags: InputTagType[]): Set<string> => {
 	return keys;
 };
 
-const calculateScore = (input: CalcInputTagType, values: Record<string, unknown>): number => {
+export const calculateCalcValue = (
+	input: CalcInputTagType,
+	values: Record<string, unknown>,
+): number => {
 	try {
 		const formula = new Formula(input.attributes.formula ?? "");
 		const formulaValues = Object.fromEntries(
@@ -225,13 +228,16 @@ const calculateScore = (input: CalcInputTagType, values: Record<string, unknown>
 			}
 		}
 		const result = formula.evaluate(formulaValues as Record<string, number>);
-		return typeof result === "number" ? Number(result.toFixed(2)) : 0;
+		if (typeof result !== "number" || input.attributes.round === false) {
+			return typeof result === "number" ? result : 0;
+		}
+		return Number(result.toFixed(input.attributes.round ?? 2));
 	} catch {
 		return 0;
 	}
 };
 
-const resolveCalculatedScores = (
+const resolveCalculatedValues = (
 	inputTags: InputTagType[],
 	values: Record<string, unknown>,
 ): Record<string, unknown> => {
@@ -242,7 +248,7 @@ const resolveCalculatedScores = (
 			input.attributes.primary &&
 			!Object.hasOwn(values, input.attributes.primary)
 		) {
-			resolvedValues[input.attributes.primary] = calculateScore(input, resolvedValues);
+			resolvedValues[input.attributes.primary] = calculateCalcValue(input, resolvedValues);
 		}
 		for (const child of input.children ?? []) {
 			visit(child);
@@ -429,7 +435,7 @@ interface RenderContext {
 	isFocusSelectionSuppressed: React.MutableRefObject<boolean>;
 	onInputBlur?: (inputName: string) => void;
 	onInputSelect?: (inputName: string) => void;
-	resetScoreHandlers: Record<string, () => void>;
+	resetCalcHandlers: Record<string, () => void>;
 	suggestedValues: Record<string, SuggestedValue>;
 	values: Record<string, unknown>;
 }
@@ -488,7 +494,7 @@ const getSelectableFieldHandlers = (
 	};
 };
 
-const ScoreInputField = ({
+const CalcInputField = ({
 	input,
 	context,
 	renderChild,
@@ -504,21 +510,21 @@ const ScoreInputField = ({
 	const isOverridden = inputState !== undefined;
 	const isActiveInput = context.activeInputName === fieldKey;
 	const [isEditing, setIsEditing] = useState(false);
-	const [scoreDraft, setScoreDraft] = useState("");
-	const handleScoreChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		setScoreDraft(event.target.value);
+	const [calcDraft, setCalcDraft] = useState("");
+	const handleCalcChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setCalcDraft(event.target.value);
 	};
-	const handleScoreBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+	const handleCalcBlur = (event: React.FocusEvent<HTMLInputElement>) => {
 		const nextDraft = event.currentTarget.value;
 		setIsEditing(false);
 		if (!nextDraft || !Number.isFinite(Number(nextDraft))) {
-			context.resetScoreHandlers[fieldKey]?.();
+			context.resetCalcHandlers[fieldKey]?.();
 			return;
 		}
 		const nextValue = Number(nextDraft);
-		const calculatedValue = calculateScore(input, context.values);
+		const calculatedValue = calculateCalcValue(input, context.values);
 		if (nextValue === calculatedValue) {
-			context.resetScoreHandlers[fieldKey]?.();
+			context.resetCalcHandlers[fieldKey]?.();
 			return;
 		}
 		context.changeHandlers[fieldKey]?.(nextValue);
@@ -586,15 +592,15 @@ const ScoreInputField = ({
 						inputStateClassName,
 					)}
 					id={controlId}
-					onBlur={handleScoreBlur}
-					onChange={handleScoreChange}
+					onBlur={handleCalcBlur}
+					onChange={handleCalcChange}
 					onFocus={(event) => {
-						setScoreDraft(event.currentTarget.value);
+						setCalcDraft(event.currentTarget.value);
 						setIsEditing(true);
 					}}
 					step="any"
 					type="number"
-					value={isEditing ? scoreDraft : (context.values[fieldKey] as number)}
+					value={isEditing ? calcDraft : (context.values[fieldKey] as number)}
 				/>
 				{input.attributes.unit ? (
 					<span className="shrink-0 text-muted-foreground text-sm">{input.attributes.unit}</span>
@@ -606,7 +612,7 @@ const ScoreInputField = ({
 								render={
 									<Button
 										aria-label="Berechneten Score wiederherstellen"
-										onClick={context.resetScoreHandlers[fieldKey]}
+										onClick={context.resetCalcHandlers[fieldKey]}
 										size="icon"
 										type="button"
 										variant="outline"
@@ -634,23 +640,23 @@ const ScoreInputField = ({
 const renderInputTag = (
 	input: InputTagType,
 	context: RenderContext,
-	parentScoreKey?: string,
+	parentCalcKey?: string,
 ): React.ReactNode | null => {
 	if (!input.attributes.primary) {
 		return null;
 	}
 
 	const fieldKey = input.attributes.primary;
-	const selectionFieldKey = parentScoreKey ?? fieldKey;
+	const selectionFieldKey = parentCalcKey ?? fieldKey;
 	const suggestedValue = context.suggestedValues[fieldKey];
 	const inputState = context.fieldSources[fieldKey];
 	const inputStateClassName = getInputStateClassName(inputState);
 	const handleFieldChange = context.changeHandlers[fieldKey];
 	const handleApplySuggestion = context.applySuggestionHandlers[fieldKey];
-	const isActiveInput = !parentScoreKey && context.activeInputName === fieldKey;
+	const isActiveInput = !parentCalcKey && context.activeInputName === fieldKey;
 	const selectableFieldHandlers = getSelectableFieldHandlers(selectionFieldKey, context);
 	const handleFieldRef = (node: HTMLDivElement | null) => {
-		if (parentScoreKey) {
+		if (parentCalcKey) {
 			return;
 		}
 		if (node) {
@@ -665,7 +671,7 @@ const renderInputTag = (
 			<div
 				className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
 				key={`info-${fieldKey}`}
-				ref={parentScoreKey ? undefined : handleFieldRef}
+				ref={parentCalcKey ? undefined : handleFieldRef}
 				{...selectableFieldHandlers}
 			>
 				{inputState && (
@@ -700,7 +706,7 @@ const renderInputTag = (
 			<div
 				className={getInputWrapperClassName(isActiveInput, Boolean(context.onInputSelect))}
 				key={`switch-${fieldKey}`}
-				ref={parentScoreKey ? undefined : handleFieldRef}
+				ref={parentCalcKey ? undefined : handleFieldRef}
 				{...selectableFieldHandlers}
 			>
 				{inputState && (
@@ -720,7 +726,7 @@ const renderInputTag = (
 				{/* Render children of selected case */}
 				{selectedCaseChildren.length > 0 && (
 					<div className="mt-2.5 ml-4 space-y-2.5">
-						{selectedCaseChildren.map((child) => renderInputTag(child, context, parentScoreKey))}
+						{selectedCaseChildren.map((child) => renderInputTag(child, context, parentCalcKey))}
 					</div>
 				)}
 			</div>
@@ -729,10 +735,10 @@ const renderInputTag = (
 
 	if (input.name === "Calc") {
 		return (
-			<ScoreInputField
+			<CalcInputField
 				context={context}
 				input={input}
-				key={`score-${fieldKey}`}
+				key={`calc-${fieldKey}`}
 				renderChild={(child) => renderInputTag(child, context, fieldKey)}
 			/>
 		);
@@ -764,10 +770,10 @@ export default function Inputs({
 	const isFocusSelectionSuppressed = useRef(false);
 	const lastHandledFocusKeyRef = useRef(activeInputFocusKey);
 	const resolvedValues = useMemo(
-		() => resolveCalculatedScores(inputTags, values),
+		() => resolveCalculatedValues(inputTags, values),
 		[inputTags, values],
 	);
-	const scoreKeys = useMemo(() => collectScoreKeys(inputTags), [inputTags]);
+	const calcKeys = useMemo(() => collectCalcKeys(inputTags), [inputTags]);
 
 	useEffect(() => {
 		onChange(resolvedValues);
@@ -860,7 +866,7 @@ export default function Inputs({
 				if (isEmptyValue(value)) {
 					return withoutRecordKey(prevSources, key);
 				}
-				if (scoreKeys.has(key)) {
+				if (calcKeys.has(key)) {
 					return { ...prevSources, [key]: "manual" };
 				}
 				const hasSuggestion = Boolean(suggestedValues[key]);
@@ -873,10 +879,10 @@ export default function Inputs({
 				return withoutRecordKey(prevSources, key);
 			});
 		},
-		[scoreKeys, suggestedValues],
+		[calcKeys, suggestedValues],
 	);
 
-	const resetScore = useCallback(
+	const resetCalc = useCallback(
 		(key: string) => {
 			setValues((prevValues) => withoutRecordKey(prevValues, key));
 			setFieldSources((prevSources) => withoutRecordKey(prevSources, key));
@@ -944,15 +950,15 @@ export default function Inputs({
 		return handlers;
 	}, [fieldKeys, handleApplySuggestion]);
 
-	const resetScoreHandlers = useMemo<Record<string, () => void>>(() => {
+	const resetCalcHandlers = useMemo<Record<string, () => void>>(() => {
 		const handlers: Record<string, () => void> = {};
-		for (const scoreKey of scoreKeys) {
-			handlers[scoreKey] = () => {
-				resetScore(scoreKey);
+		for (const calcKey of calcKeys) {
+			handlers[calcKey] = () => {
+				resetCalc(calcKey);
 			};
 		}
 		return handlers;
-	}, [resetScore, scoreKeys]);
+	}, [calcKeys, resetCalc]);
 
 	const { fields: fillInputFields, meta: fillInputMeta } = useMemo(
 		() => collectFillInputFields(inputTags),
@@ -988,11 +994,11 @@ export default function Inputs({
 
 				let nextSuggestions = { ...stateRef.current.suggestedValues };
 				const returnedFields = new Set(Object.keys(fieldValues));
-				const omittedScoreFields = fillInputFields
+				const omittedCalcFields = fillInputFields
 					.filter((field) => field.calculation && !returnedFields.has(field.label))
 					.map((field) => field.label);
-				for (const scoreField of omittedScoreFields) {
-					nextSuggestions = withoutRecordKey(nextSuggestions, scoreField);
+				for (const calcField of omittedCalcFields) {
+					nextSuggestions = withoutRecordKey(nextSuggestions, calcField);
 				}
 
 				for (const [field, value] of Object.entries(fieldValues)) {
@@ -1008,7 +1014,7 @@ export default function Inputs({
 				}
 
 				setSuggestedValues(nextSuggestions);
-				applySuggestions(nextSuggestions, omittedScoreFields);
+				applySuggestions(nextSuggestions, omittedCalcFields);
 				onSuggestedValuesChange?.(nextSuggestions);
 
 				toast.success("Felder ausgefüllt", {
@@ -1038,7 +1044,7 @@ export default function Inputs({
 		isFocusSelectionSuppressed,
 		onInputBlur,
 		onInputSelect,
-		resetScoreHandlers,
+		resetCalcHandlers,
 		suggestedValues,
 		values: resolvedValues,
 	};

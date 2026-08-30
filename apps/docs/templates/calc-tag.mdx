@@ -24,6 +24,7 @@ Jede in der Formel referenzierte Variable muss als `info`- oder `switch`-Tag inn
 |-----------|-----|---------|--------------|
 | `formula` | String | Ja | Die mathematische Formel |
 | `unit` | String | Nein | Einheit für das Ergebnis |
+| `round` | Number oder `false` | Nein | Anzahl der Nachkommastellen (Standard: `2`); `false` deaktiviert die Rundung |
 | `renderUnit` | Boolean | Nein | Ob die Einheit angezeigt werden soll |
 
 ### Formel-Syntax
@@ -65,6 +66,16 @@ Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
 {% /calc %}
 ```
 
+**Vier Nachkommastellen:**
+```markdown
+{% calc formula="[Zaehler] / [Nenner]" round=4 %}
+{% info "Zaehler" type="number" /%}
+{% info "Nenner" type="number" /%}
+{% /calc %}
+```
+
+Mit `round=false` wird das Ergebnis ohne Rundung dargestellt.
+
 **CHA₂DS₂-VASc-Score (vereinfacht):**
 ```markdown
 **CHA₂DS₂-VASc-Score**: {% calc formula="[Herzinsuffizienz] + [Hypertonie] + [Alter75] * 2 + [Diabetes] + [Schlaganfall] * 2 + [Gefaesserkrankung] + [Alter65] + [Geschlecht]" %}
@@ -89,7 +100,7 @@ Variablen werden in **eckigen Klammern** referenziert: `[Variablenname]`
 
 1. Das Calc-Tag enthält und referenziert seine Variablen als Info- oder Switch-Tags
 2. Die Formel wird automatisch berechnet, wenn Werte eingegeben werden
-3. Das Ergebnis wird gerundet auf **2 Dezimalstellen**
+3. Das Ergebnis wird standardmäßig auf **2 Dezimalstellen** gerundet; `round` passt dies an
 4. Bei fehlenden oder ungültigen Werten wird `...` angezeigt
 5. Das Ergebnis erscheint als **orangener Badge** im Dokument
 

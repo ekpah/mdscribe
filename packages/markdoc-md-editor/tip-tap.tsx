@@ -13,7 +13,7 @@ import type { MouseEvent } from "react";
 
 import TipTapMenu from "./tip-tap-menu";
 import { MarkdocMD } from "./tiptap-extension";
-import { ensureCalcFormulaComponents } from "./tiptap-extension/editorNodes/scoreTag/score-tag";
+import { ensureCalcFormulaComponents } from "./tiptap-extension/editorNodes/calcTag/calc-tag";
 
 const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:calc|info|score|switch)\b/iu;
 const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Calc|Info|Score|Switch)\b/iu;

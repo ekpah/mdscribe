@@ -1,7 +1,26 @@
-import type { Config, Node } from "@markdoc/markdoc";
+import type { Config, Node, SchemaAttribute } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
-import { isValidFormula } from "../../parse/formula";
+import { isValidFormula } from "../../../parse/formula";
+
+const roundAttribute: SchemaAttribute = {
+	type: [Number, Boolean],
+	validate(value) {
+		if (
+			value === false ||
+			(typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 100)
+		) {
+			return [];
+		}
+		return [
+			{
+				id: "round-value-invalid",
+				level: "error",
+				message: "The 'round' attribute must be false or an integer from 0 to 100.",
+			},
+		];
+	},
+};
 
 const calcTag: NonNullable<Config["tags"]>[string] = {
 	attributes: {
@@ -26,6 +45,7 @@ const calcTag: NonNullable<Config["tags"]>[string] = {
 			default: false,
 			type: Boolean,
 		},
+		round: roundAttribute,
 		unit: { type: String },
 	},
 	children: ["tag", "text"],
@@ -66,6 +86,7 @@ const tags: NonNullable<Config["tags"]> = {
 				default: false,
 				type: Boolean,
 			},
+			round: roundAttribute,
 			source: {
 				required: false,
 				type: String,

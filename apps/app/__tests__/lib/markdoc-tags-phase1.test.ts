@@ -6,7 +6,7 @@ import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { collectFillInputFields } from "@/app/_components/inputs/inputs";
+import { calculateCalcValue, collectFillInputFields } from "@/app/_components/inputs/inputs";
 
 describe("markdoc tags phase 1 regressions", () => {
 	test("keeps case scopes separate across switches with same case labels", () => {
@@ -214,6 +214,53 @@ describe("markdoc tags phase 1 regressions", () => {
 			unit: "kg",
 		});
 		expect(input?.attributes.renderUnit).toBe(false);
+	});
+
+	test("preserves local round settings for info and calc tags", () => {
+		const source = `
+{% info "Messwert" type="number" round=3 /%}
+{% calc "Quotient" formula="[A]/[B]" round=false %}{% info "A" type="number" round=1 /%}{% info "B" type="number" /%}{% /calc %}
+`;
+		const inputs = parseMarkdocToInputs(source);
+		const info = inputs.find((input) => input.name === "Info");
+		const calc = inputs.find((input) => input.name === "Calc");
+		if (info?.name !== "Info" || calc?.name !== "Calc") {
+			throw new Error("Expected info and calc inputs");
+		}
+		const [component] = calc.children;
+		if (component?.name !== "Info") {
+			throw new Error("Expected numeric info component");
+		}
+
+		expect(info.attributes.round).toBe(3);
+		expect(calc.attributes.round).toBe(false);
+		expect(component.attributes.round).toBe(1);
+		expect(validateMarkdocTagContracts(source)).toEqual([]);
+
+		const html = renderTipTapHTML(source);
+		expect(html).toContain('primary="Messwert"');
+		expect(html).toContain('round="3"');
+		expect(html).toContain('round="false"');
+	});
+
+	test("uses calc decimal-place settings in interactive inputs", () => {
+		const [fourDecimals, unrounded, defaultRounding] = parseMarkdocToInputs(`
+{% calc "FourDecimals" formula="1/3" round=4 /%}
+{% calc "Unrounded" formula="1/3" round=false /%}
+{% calc "Default" formula="1/3" /%}
+		`).filter((input) => input.name === "Calc");
+
+		if (
+			fourDecimals?.name !== "Calc" ||
+			unrounded?.name !== "Calc" ||
+			defaultRounding?.name !== "Calc"
+		) {
+			throw new Error("Expected calc inputs");
+		}
+
+		expect(calculateCalcValue(fourDecimals, {})).toBe(0.3333);
+		expect(calculateCalcValue(unrounded, {})).toBe(1 / 3);
+		expect(calculateCalcValue(defaultRounding, {})).toBe(0.33);
 	});
 
 	test("preserves and merges an Info source attribute", () => {

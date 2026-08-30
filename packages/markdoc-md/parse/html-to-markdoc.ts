@@ -35,6 +35,14 @@ const serializeStringAttribute = (name: string, value: string | null): string =>
 const serializeBooleanAttribute = (name: string, value: string | null): string =>
 	value === "true" || value === "" ? ` ${name}=true` : "";
 
+const serializeRoundAttribute = (value: string | null): string => {
+	if (value === "false") {
+		return " round=false";
+	}
+	const round = value === null || value === "" ? Number.NaN : Number(value);
+	return Number.isInteger(round) && round >= 0 && round <= 100 ? ` round=${round}` : "";
+};
+
 const decodeAttributeValue = (value: string | null): string | null => {
 	if (!value) {
 		return null;
@@ -57,11 +65,12 @@ const customMarkdocRenderers: Partial<
 		const primaryAttribute = serializeStringAttribute("primary", readAttribute(element, "primary"));
 		const formulaAttribute = ` formula=${quoteMarkdocValue(formula)}`;
 		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
+		const roundAttribute = serializeRoundAttribute(readAttribute(element, "round"));
 		const renderUnitAttribute = serializeBooleanAttribute(
 			"renderUnit",
 			readAttribute(element, "renderUnit") ?? readAttribute(element, "renderunit"),
 		);
-		return `{% calc${primaryAttribute}${formulaAttribute}${unitAttribute}${renderUnitAttribute} %}${innerContent}{% /calc %}`;
+		return `{% calc${primaryAttribute}${formulaAttribute}${unitAttribute}${roundAttribute}${renderUnitAttribute} %}${innerContent}{% /calc %}`;
 	},
 	case: (element, innerContent) => {
 		const casePrimary = readAttribute(element, "primary") || "";
@@ -90,12 +99,13 @@ const customMarkdocRenderers: Partial<
 		);
 		const typeAttribute = serializeStringAttribute("type", readAttribute(element, "type"));
 		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
+		const roundAttribute = serializeRoundAttribute(readAttribute(element, "round"));
 		const renderUnitAttribute = serializeBooleanAttribute(
 			"renderUnit",
 			readAttribute(element, "renderUnit") ?? readAttribute(element, "renderunit"),
 		);
 		const sourceAttribute = serializeStringAttribute("source", readAttribute(element, "source"));
-		return `{% info ${quoteMarkdocValue(infoPrimary)}${descriptionAttribute}${typeAttribute}${unitAttribute}${renderUnitAttribute}${sourceAttribute} /%}`;
+		return `{% info ${quoteMarkdocValue(infoPrimary)}${descriptionAttribute}${typeAttribute}${unitAttribute}${roundAttribute}${renderUnitAttribute}${sourceAttribute} /%}`;
 	},
 	// Legacy editor HTML is normalized to canonical calc syntax.
 	score: (element, innerContent) => customMarkdocRenderers.calc?.(element, innerContent) ?? "",
