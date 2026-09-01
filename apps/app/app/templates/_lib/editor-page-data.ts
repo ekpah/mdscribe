@@ -12,12 +12,14 @@ interface TemplateEditorData {
 	information: string;
 	id?: string;
 	canCreatePrivateTemplates: boolean;
+	isTemplateAgentEnabled: boolean;
 	visibility: "public" | "private";
 }
 
 interface EditorContextData {
 	categorySuggestions: string[];
 	canCreatePrivateTemplates: boolean;
+	isTemplateAgentEnabled: boolean;
 }
 
 const getCommonEditorData = (queryClient: QueryClient): Promise<EditorContextData> =>

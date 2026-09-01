@@ -103,6 +103,13 @@ export const router = {
 		const handlerModule = await import("./scribe-workspaces");
 		return { default: handlerModule.scribeWorkspacesHandler };
 	}),
+	// Admin-only preview of AI-assisted Markdoc template editing.
+	templateAgent: {
+		edit: lazy(async () => {
+			const handlerModule = await import("./template-agent/edit");
+			return { default: handlerModule.templateAgentEditHandler };
+		}),
+	},
 
 	// Template operations (all CRUD under templates)
 	templates: lazy(async () => {

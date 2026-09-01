@@ -45,6 +45,7 @@ import { orpc } from "@/lib/orpc";
 import { formatMarkdocTagDiagnostic, USER_MESSAGES } from "@/lib/user-messages";
 
 import { TagInspector, TagInspectorSheet } from "./tag-inspector-dynamic";
+import { TemplateEditorSidebar } from "./template-editor-sidebar";
 import TipTap from "./tip-tap-dynamic";
 
 const FALLBACK_CATEGORIES = ["Kardiologie", "Gastroenterologie", "Diverses", "Onkologie"] as const;
@@ -359,6 +360,7 @@ export default function Editor({
 	information: initialInformation,
 	id,
 	canCreatePrivateTemplates = false,
+	isTemplateAgentEnabled = false,
 	visibility: initialVisibility = "public",
 }: {
 	cat: string;
@@ -369,6 +371,7 @@ export default function Editor({
 	information: string;
 	id?: string;
 	canCreatePrivateTemplates?: boolean;
+	isTemplateAgentEnabled?: boolean;
 	visibility?: TemplateVisibility;
 }) {
 	const router = useRouter();
@@ -812,8 +815,16 @@ export default function Editor({
 			</Card>
 
 			{/* Tag inspector: sidebar on xl+, bottom sheet below */}
-			<div className="hidden w-80 xl:block">
-				<TagInspector editor={editorInstance} />
+			<div className={cn("hidden xl:block", isTemplateAgentEnabled ? "w-96" : "w-80")}>
+				{isTemplateAgentEnabled ? (
+					<TemplateEditorSidebar
+						content={content}
+						editor={editorInstance}
+						onContentChange={setContent}
+					/>
+				) : (
+					<TagInspector editor={editorInstance} />
+				)}
 			</div>
 			<TagInspectorSheet editor={editorInstance} />
 		</div>

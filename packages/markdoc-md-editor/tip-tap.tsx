@@ -8,7 +8,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import TipTapStarterKit from "@tiptap/starter-kit";
 import { htmlToMarkdoc, renderTipTapHTML } from "markdoc-md/editor";
 import { type MarkdocTagDiagnostic, validateMarkdocTagContracts } from "markdoc-md/parse";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { MouseEvent } from "react";
 
 import TipTapMenu from "./tip-tap-menu";
@@ -31,6 +31,7 @@ export default function TipTap({
 	/** Reports semantic Markdoc tag conflicts without loading Markdoc in the parent bundle. */
 	onValidationChange?: (diagnostics: MarkdocTagDiagnostic[]) => void;
 }) {
+	const lastEditorContentRef = useRef(note);
 	const editor = useEditor({
 		autofocus: true,
 		content: renderTipTapHTML(note),
@@ -103,10 +104,21 @@ export default function TipTap({
 			// Get the HTML and convert to markdoc format
 			const html = updatedEditor.getHTML();
 			const markdocContent = htmlToMarkdoc(html);
+			lastEditorContentRef.current = markdocContent;
 			setContent(markdocContent);
 			onValidationChange?.(validateMarkdocTagContracts(markdocContent));
 		},
 	});
+
+	useEffect(() => {
+		if (!editor || note === lastEditorContentRef.current) {
+			return;
+		}
+
+		lastEditorContentRef.current = note;
+		editor.commands.setContent(renderTipTapHTML(note), { emitUpdate: false });
+		onValidationChange?.(validateMarkdocTagContracts(note));
+	}, [editor, note, onValidationChange]);
 
 	useEffect(() => {
 		if (!onEditorChange) {

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Admins can now create and revise Markdoc templates with an AI agent embedded in the Template Editor sidebar, including audio and file context, while retaining the existing Info view.
 - `calc` and numeric `info` tags now support Liquid-style `round` values for configurable decimal places, including `round=false` for unrounded output.
 - Calculated template inputs now support nested number, option, and checkbox components, editable overrides, and automatic recalculation.
 - Umami now tracks successful signups, logins, AI Scribe generations, template and document creation, and AI-assisted template and document filling.
