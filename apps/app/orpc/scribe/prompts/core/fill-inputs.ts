@@ -20,6 +20,7 @@ Antworte nur mit JSON:
 
 Regeln:
 - Verwende ausschließlich Keys aus dem Output-Schema.
+- Gib nur Felder zurück, für die passende Quellinformationen vorhanden sind.
 - Erfinde nichts. Lass Felder ohne passende Quellinformation weg.
 - Beachte die Beschreibung/Metadaten im Output-Schema.
 - Bei berechneten Scores bevorzuge die einzelnen Komponenten, damit der Score aus der Formel berechnet wird.

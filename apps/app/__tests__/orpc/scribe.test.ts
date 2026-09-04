@@ -1018,6 +1018,9 @@ describe("Fill Inputs Handler", () => {
 				db: server.db,
 				session: createMockSession(user),
 			});
+			aiMockState.nextGenerateTextOutput = {
+				fieldValues: { Aufnahmediagnose: "I50.1 Akute Linksherzinsuffizienz" },
+			};
 			const result = await call(
 				fillInputsHandler,
 				{
@@ -1036,7 +1039,9 @@ describe("Fill Inputs Handler", () => {
 				{ context },
 			);
 
-			expect(result.fieldValues).toEqual({});
+			expect(result.fieldValues).toEqual({
+				Aufnahmediagnose: "I50.1 Akute Linksherzinsuffizienz",
+			});
 			expect(aiMockState.lastGenerateTextOptions).toMatchObject({
 				model: {
 					wrappedLanguageModel: {
@@ -1169,8 +1174,15 @@ describe("Fill Inputs Handler", () => {
 				db: server.db,
 				session: createMockSession(user),
 			});
+			aiMockState.nextGenerateTextOutput = {
+				fieldValues: {
+					Alter: 75,
+					"Aufklärung erfolgt": true,
+					"Seite Punktion": "rechts",
+				},
+			};
 
-			await call(
+			const result = await call(
 				fillInputsHandler,
 				{
 					contextFiles: [
@@ -1184,6 +1196,7 @@ describe("Fill Inputs Handler", () => {
 					inputFields: [
 						{ label: "Befund", type: "string" },
 						{ label: "Alter", type: "number" },
+						{ label: "Aufklärung erfolgt", type: "boolean" },
 						{ label: "Herzinsuffizienz", type: "number" },
 						{
 							calculation: {
@@ -1193,10 +1206,21 @@ describe("Fill Inputs Handler", () => {
 							label: "Risikoscore",
 							type: "number",
 						},
+						{
+							description: "Punktionsseite laut Befund",
+							label: "Seite Punktion",
+							options: ["links", "rechts"],
+							type: "switch",
+						},
 					],
 				},
 				{ context },
 			);
+			expect(result.fieldValues).toEqual({
+				Alter: 75,
+				"Aufklärung erfolgt": true,
+				"Seite Punktion": "rechts",
+			});
 
 			const generationOptions = aiMockState.lastGenerateTextOptions as {
 				model?: {
@@ -1207,11 +1231,31 @@ describe("Fill Inputs Handler", () => {
 				output?: { schema?: { safeParse: (value: unknown) => { success: boolean } } };
 			};
 			const outputSchema = generationOptions.output?.schema;
-			expect(outputSchema?.safeParse({ fieldValues: { Befund: "Unauffällig" } }).success).toBe(
-				true,
-			);
-			expect(outputSchema?.safeParse({ fieldValues: { Unbekannt: "Wert" } }).success).toBe(false);
-			expect(outputSchema?.safeParse({ fieldValues: { Risikoscore: 4 } }).success).toBe(true);
+			const sparseFieldValues = {
+				Alter: 75,
+				"Aufklärung erfolgt": true,
+				"Seite Punktion": "rechts",
+			};
+			expect(outputSchema?.safeParse({ fieldValues: {} }).success).toBe(true);
+			expect(
+				outputSchema?.safeParse({
+					fieldValues: { ...sparseFieldValues, Unbekannt: "Wert" },
+				}).success,
+			).toBe(false);
+			expect(
+				outputSchema?.safeParse({
+					fieldValues: { ...sparseFieldValues, "Seite Punktion": "mittig" },
+				}).success,
+			).toBe(false);
+			expect(
+				outputSchema?.safeParse({
+					fieldValues: { ...sparseFieldValues, "Aufklärung erfolgt": "true" },
+				}).success,
+			).toBe(false);
+			expect(outputSchema?.safeParse({ fieldValues: sparseFieldValues })).toMatchObject({
+				data: { fieldValues: sparseFieldValues },
+				success: true,
+			});
 			const transform = generationOptions.model?.wrappedLanguageModel?.middleware?.transform;
 			const validJson = JSON.stringify({ fieldValues: { Alter: 75 } });
 			expect(transform?.(`\`\`\`json\n${validJson}\n\`\`\``)).toBe(validJson);
@@ -1225,6 +1269,18 @@ describe("Fill Inputs Handler", () => {
 			expect(serializedInput).toContain("befund.pdf");
 			expect(serializedInput).not.toContain(fileData);
 			expect(serializedInput).not.toContain(rawFile);
+			expect(serializedInput).not.toContain("hasDescription");
+			expect(serializedInput).not.toContain("optionCount");
+			expect(event?.inputData).toMatchObject({
+				inputFields: expect.arrayContaining([
+					{
+						description: "Punktionsseite laut Befund",
+						label: "Seite Punktion",
+						options: ["links", "rechts"],
+						type: "switch",
+					},
+				]),
+			});
 			const [ocrEvent] = await server.db
 				.select()
 				.from(usageEvent)

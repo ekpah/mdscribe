@@ -74,21 +74,21 @@ const describeField = (field: InputField) =>
 		field.calculation
 			? `calculated score | formula=${field.calculation.formula} | components=${field.calculation.components.join(", ")} | Prefer returning all components. Return this score only when not all components can be sourced; a returned score overrides calculation.`
 			: undefined,
-		field.type ? `type=${field.type}` : undefined,
-		field.options?.length ? `options=${field.options.join(", ")}` : undefined,
 		field.unit ? `unit=${field.unit}` : undefined,
-		"Omit this field when no matching source information exists.",
 	]
 		.filter(Boolean)
 		.join(" | ");
 
 const getFieldValueSchema = (field: InputField) => {
 	const description = describeField(field);
+	if (field.type === "switch" && field.options?.length) {
+		return z.enum(field.options).meta({ description });
+	}
 	if (field.type === "number") {
 		return z.union([z.number(), z.string()]).meta({ description });
 	}
 	if (field.type === "boolean") {
-		return z.union([z.boolean(), z.string()]).meta({ description });
+		return z.boolean().meta({ description });
 	}
 	return z.string().meta({ description });
 };
@@ -316,22 +316,13 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 	};
 };
 
-const summarizeInputFields = (inputFields: InputField[]) =>
-	inputFields.map((field) => ({
-		hasDescription: Boolean(field.description?.trim()),
-		label: field.label,
-		optionCount: field.options?.length ?? 0,
-		type: field.type ?? "string",
-		unit: field.unit,
-	}));
-
 const buildFillInputUsageInputData = (
 	input: FillInputsInputPayload,
 	payloadSummary: FillInputPayloadSummary,
 ): UsageInputData => ({
 	audioFiles: payloadSummary.audioFiles,
 	contextFiles: payloadSummary.contextFiles,
-	inputFields: summarizeInputFields(input.inputFields),
+	inputFields: input.inputFields,
 	templateExampleCount: payloadSummary.templateExampleCount,
 	templateExamplesCharacters: payloadSummary.templateExamplesCharacters,
 	templateInformationCharacters: payloadSummary.templateInformationCharacters,

@@ -179,6 +179,7 @@ mock.module("stripe", () => ({
 export const aiMockState: {
 	lastGenerateObjectOptions?: unknown;
 	lastGenerateTextOptions?: unknown;
+	nextGenerateTextOutput?: unknown;
 } = {};
 
 mock.module("ai", () => ({
@@ -243,7 +244,12 @@ mock.module("ai", () => ({
 			options?.messages
 				?.map((message) => (typeof message.content === "string" ? message.content : ""))
 				.join("\n") ?? "";
-		const output = promptText.includes("fieldValues") ? { fieldValues: {} } : undefined;
+		const isFillInputsRequest = promptText.includes("fieldValues");
+		let output: unknown;
+		if (isFillInputsRequest) {
+			output = aiMockState.nextGenerateTextOutput ?? { fieldValues: {} };
+			delete aiMockState.nextGenerateTextOutput;
+		}
 		const text = output ? JSON.stringify(output) : MOCK_GENERATED_TEXT;
 		return resolveAsync({
 			finishReason: "stop" as const,
