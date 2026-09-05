@@ -1,4 +1,4 @@
-import type { FillInputsContextFile, PromptMessage } from "@/orpc/scribe/types";
+import type { FillInputsContextFile, InputField, PromptMessage } from "@/orpc/scribe/types";
 
 export const FILL_INPUTS_PROMPT_NAME = "input_fill";
 
@@ -9,7 +9,7 @@ Quellen (jeweils optional):
 - <audio_transkripte>: transkribierte Diktate.
 - <datei_kontext>: per OCR aus Dateien extrahierter Text.
 - <dateien>: Metadaten angehängter Dateien (zusätzlich als Nachrichtenteile).
-- Das Output-Schema enthält die exakt auszufüllenden Feldlabels mit Beschreibung.
+- <input_fields>: die auszufüllenden Felder mit exakten Labels, Typen und Metadaten; keine Patientendaten.
 
 Antworte nur mit JSON:
 {
@@ -19,16 +19,18 @@ Antworte nur mit JSON:
 }
 
 Regeln:
-- Verwende ausschließlich Keys aus dem Output-Schema.
+- Verwende ausschließlich die exakten Labels aus <input_fields> als Keys.
 - Gib nur Felder zurück, für die passende Quellinformationen vorhanden sind.
 - Erfinde nichts. Lass Felder ohne passende Quellinformation weg.
-- Beachte die Beschreibung/Metadaten im Output-Schema.
+- Beachte die Beschreibung/Metadaten in <input_fields> und das Output-Schema.
 - Bei berechneten Scores bevorzuge die einzelnen Komponenten, damit der Score aus der Formel berechnet wird.
 - Gib einen Score-Wert nur aus, wenn nicht alle Komponenten aus den Quellen belegt werden können. Ein ausgegebener Score-Wert hat Vorrang vor der Berechnung.
 - Bei switch muss der Wert exakt eine der options sein.
 - Bei boolean nutze true oder false.`;
 
 interface FillInputsPromptInput {
+	/** Explicit field definitions, including for providers that only support JSON mode. */
+	inputFields: InputField[];
 	/** Already-wrapped `<audio_transkripte>` section, if audio was transcribed. */
 	audioTranscripts?: string;
 	/** Files attached natively to the model; listed here for reference. */
@@ -50,13 +52,14 @@ const renderContextFilesSection = (files: FillInputsContextFile[]): string => {
 
 const buildFillInputsUserPrompt = (input: FillInputsPromptInput): string => {
 	const sections = [
+		`<input_fields>\n${JSON.stringify(input.inputFields)}\n</input_fields>`,
 		input.contextXml,
 		input.audioTranscripts,
 		input.fileTextContext,
 		renderContextFilesSection(input.contextFiles ?? []),
 	].filter((section): section is string => Boolean(section?.trim()));
 
-	return sections.length > 0 ? sections.join("\n\n") : "Keine Quellen vorhanden.";
+	return sections.join("\n\n");
 };
 
 export const composeFillInputsPrompt = (input: FillInputsPromptInput): PromptMessage[] => [

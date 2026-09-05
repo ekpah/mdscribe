@@ -421,7 +421,7 @@ const prepareFillInputsAudio = async ({
 	});
 };
 
-const extractFillInputFileText = ({
+const extractFillInputFileText = async ({
 	contextFiles,
 	db,
 	generationStrategy,
@@ -438,7 +438,7 @@ const extractFillInputFileText = ({
 }) => {
 	const filesPlan = generationStrategy.files;
 	if (hasFiles && filesPlan?.mode === "preprocess") {
-		return extractContextFileText({
+		const fileTextContext = await extractContextFileText({
 			contextFiles: contextFiles ?? [],
 			db,
 			modelSelection: filesPlan.selection,
@@ -446,9 +446,16 @@ const extractFillInputFileText = ({
 			userId,
 			zdr,
 		});
+		if (!fileTextContext) {
+			throw new ORPCError("BAD_REQUEST", {
+				message:
+					"Die Dateianalyse hat keinen Text geliefert. Bitte die Dateien oder das OCR-Modell prüfen.",
+			});
+		}
+		return fileTextContext;
 	}
 
-	return Promise.resolve("");
+	return "";
 };
 
 const buildFillInputUserContent = ({
@@ -605,6 +612,7 @@ export const fillInputsHandler = authed
 			contextFiles: filesAreNative ? contextFiles : undefined,
 			contextXml,
 			fileTextContext,
+			inputFields: input.inputFields,
 		});
 
 		const outputSchema = createFillInputsSchema(input.inputFields);

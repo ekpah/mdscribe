@@ -28,6 +28,7 @@
 
 ### Fixed
 
+- Fill Inputs now includes field definitions directly in the model prompt instead of relying solely on structured-output support, and reports empty OCR output rather than silently continuing.
 - Fill-document autofill now uses optional output fields with non-null values, constrains switches to their configured options, and enforces boolean fields as `true` or `false`. Usage logs now preserve field options and descriptions instead of recording only counts and flags.
 - Mobile sidebars now use their configured background and foreground colors, and selecting a template input no longer navigates away from the input panel.
 - Number inputs now accept `.` and `,` decimal separators without resetting the cursor, including calculated template component fields.

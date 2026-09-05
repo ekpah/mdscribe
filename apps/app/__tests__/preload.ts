@@ -180,6 +180,7 @@ export const aiMockState: {
 	lastGenerateObjectOptions?: unknown;
 	lastGenerateTextOptions?: unknown;
 	nextGenerateTextOutput?: unknown;
+	nextGenerateTextText?: string;
 } = {};
 
 mock.module("ai", () => ({
@@ -250,7 +251,9 @@ mock.module("ai", () => ({
 			output = aiMockState.nextGenerateTextOutput ?? { fieldValues: {} };
 			delete aiMockState.nextGenerateTextOutput;
 		}
-		const text = output ? JSON.stringify(output) : MOCK_GENERATED_TEXT;
+		const text =
+			aiMockState.nextGenerateTextText ?? (output ? JSON.stringify(output) : MOCK_GENERATED_TEXT);
+		delete aiMockState.nextGenerateTextText;
 		return resolveAsync({
 			finishReason: "stop" as const,
 			output,

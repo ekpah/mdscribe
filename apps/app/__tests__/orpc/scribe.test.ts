@@ -953,7 +953,15 @@ describe("Fill Inputs Handler", () => {
 				title: "Ausfüllhinweise",
 			},
 		});
-		const messages = composeFillInputsPrompt({ contextXml });
+		const inputFields = [
+			{
+				description: "NYHA-Klasse",
+				label: "NYHA",
+				options: ["I", "II", "III", "IV"],
+				type: "switch" as const,
+			},
+		];
+		const messages = composeFillInputsPrompt({ contextXml, inputFields });
 
 		expect(messages[1].content).toContain("<patient_context>");
 		expect(messages[1].content).toContain("<diagnoseblock>");
@@ -962,11 +970,95 @@ describe("Fill Inputs Handler", () => {
 		expect(messages[1].content).toContain("Bevorzuge kurze, eindeutige Werte.");
 		expect(messages[1].content).toContain("<examples>");
 		expect(messages[1].content).toContain("Beispielwert: NYHA II");
-		expect(messages[1].content).not.toContain('"inputFields"');
-		expect(messages[1].content).not.toContain("Verfügbare Felder");
+		expect(messages[1].content).toContain(
+			`<input_fields>\n${JSON.stringify(inputFields)}\n</input_fields>`,
+		);
 		expect(messages[0].content).toContain("bevorzuge die einzelnen Komponenten");
 		expect(messages[0].content).toContain("Score-Wert hat Vorrang");
 	});
+
+	test.each(["direct", "multimodal"])(
+		"passes %s OCR text and field definitions to the separate text model",
+		async (mode) => {
+			const server = await startTestServer(`fill-inputs-ocr-${mode}`);
+			try {
+				const { providerId } = await createTestAiDefaults(server.db);
+				const ocrModelId = crypto.randomUUID();
+				await server.db
+					.insert(aiModel)
+					.values({ displayName: "OCR", id: ocrModelId, modelId: "test-ocr", providerId });
+				await server.db
+					.update(aiDefaults)
+					.set({
+						defaultFileImageMode: mode,
+						defaultFileImageModelId: ocrModelId,
+						defaultStandardSupportsDocuments: false,
+					})
+					.where(eq(aiDefaults.id, "global"));
+				const { user } = await createTestUser(server.db);
+				const context = createTestContext({ db: server.db, session: createMockSession(user) });
+				const inputFields = [
+					{
+						description: "Alter des Patienten",
+						label: "Alter",
+						type: "number" as const,
+						unit: "Jahre",
+					},
+				];
+				const input = {
+					contextFiles: [
+						{
+							data: Buffer.from("test-pdf").toString("base64"),
+							mimeType: "application/pdf",
+							name: "befund.pdf",
+							size: 8,
+						},
+					],
+					inputFields,
+				};
+				aiMockState.nextGenerateTextText = "Patient ist 75 Jahre alt.";
+				aiMockState.nextGenerateTextOutput = { fieldValues: { Alter: 75 } };
+				const result = await call(fillInputsHandler, input, { context });
+				expect(result.fieldValues).toEqual({ Alter: 75 });
+				const options = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
+				expect(typeof options.messages[1].content).toBe("string");
+				expect(options.messages[1].content).toContain(
+					"<datei_kontext>\nPatient ist 75 Jahre alt.\n</datei_kontext>",
+				);
+				expect(options.messages[1].content).toContain(JSON.stringify(inputFields));
+				expect(options.messages[1].content).not.toContain(input.contextFiles[0].data);
+				const events = await server.db.select().from(usageEvent);
+				expect(events).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({
+							model: "test-ocr",
+							name: AI_SCRIBE_OCR_EVENT_NAME,
+							result: "Patient ist 75 Jahre alt.",
+						}),
+						expect.objectContaining({
+							model: "openrouter/test-model",
+							name: AI_INPUT_FILL_EVENT_NAME,
+							result: '{"Alter":75}',
+						}),
+					]),
+				);
+
+				aiMockState.nextGenerateTextText = "  \n";
+				await expect(call(fillInputsHandler, input, { context })).rejects.toThrow(
+					"Die Dateianalyse hat keinen Text geliefert",
+				);
+				const fillEvents = await server.db
+					.select()
+					.from(usageEvent)
+					.where(eq(usageEvent.name, AI_INPUT_FILL_EVENT_NAME));
+				expect(fillEvents).toHaveLength(1);
+			} finally {
+				delete aiMockState.nextGenerateTextText;
+				delete aiMockState.nextGenerateTextOutput;
+				await server.close();
+			}
+		},
+	);
 
 	test("allows text-only autofill through the default text model", async () => {
 		const server = await startTestServer("fill-inputs-text-only");
