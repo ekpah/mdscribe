@@ -1,7 +1,6 @@
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 import { database } from "./client";
-import { seedDatabase } from "./seed";
 
 const hasTable = async (tableName: string): Promise<boolean> => {
 	const rows = await database.$client.unsafe<{ exists: boolean }[]>(
@@ -29,7 +28,6 @@ const bootstrapDatabase = async (): Promise<void> => {
 			);
 		}
 
-		await seedDatabase(database);
 		console.log("Database bootstrap complete");
 	} finally {
 		await database.$client.end({ timeout: 5 });

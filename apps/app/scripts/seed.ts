@@ -1,11 +1,10 @@
+import type { Database } from "@repo/database";
+import * as schema from "@repo/database/schema";
 import { hashPassword } from "better-auth/crypto";
-import { count } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-import * as schema from "./schema";
+import { encryptApiKey } from "../lib/encryption-core";
 
-type SeedDatabase = PostgresJsDatabase<typeof schema>;
-type SeedTransaction = Parameters<Parameters<SeedDatabase["transaction"]>[0]>[0];
+type SeedTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 // Constants for test credentials
 const SEED_USER = {
@@ -203,11 +202,36 @@ const seedUsageEvents = async (db: SeedTransaction, userId: string): Promise<voi
 	console.log(`Seeded ${events.length} usage events`);
 };
 
+const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
+	const providers = [
+		["OPENROUTER_API_KEY", "OpenRouter", "openrouter", "https://openrouter.ai/api/v1"],
+		["ANTHROPIC_API_KEY", "Anthropic", "anthropic", "https://api.anthropic.com/v1"],
+		["OPENAI_API_KEY", "OpenAI", "openai", "https://api.openai.com/v1"],
+		["MISTRAL_API_KEY", "Mistral", "openai-compatible", "https://api.mistral.ai/v1"],
+		["TINFOIL_API_KEY", "Tinfoil", "tinfoil", "https://inference.tinfoil.sh/v1"],
+	] as const;
+
+	for (const [variable, name, protocol, baseUrl] of providers) {
+		const apiKey = process.env[variable]?.trim();
+		// Older orb setup scripts supplied this placeholder even without a real key.
+		if (!apiKey || apiKey === "orb-placeholder") {
+			continue;
+		}
+		await db.insert(schema.aiProvider).values({
+			apiKey: await encryptApiKey(apiKey, process.env.BETTER_AUTH_SECRET ?? ""),
+			baseUrl,
+			name,
+			protocol,
+		});
+		console.log(`Seeded AI provider: ${name}`);
+	}
+};
+
 /**
  * Seed the database with test data for local development
  * Only runs once, even across HMR reloads
  */
-export const seedDatabase = async (db: SeedDatabase): Promise<void> => {
+export const seedDatabase = async (db: Database): Promise<void> => {
 	if (process.env.MDSCRIBE_ALLOW_DEV_SEED !== "1") {
 		console.log("Development seed disabled; skipping.");
 		return;
@@ -222,8 +246,8 @@ export const seedDatabase = async (db: SeedDatabase): Promise<void> => {
 		return;
 	}
 
-	const [{ count: userCount }] = await db.select({ count: count() }).from(schema.user);
-	if (Number(userCount) > 0) {
+	const [existingUser] = await db.select({ id: schema.user.id }).from(schema.user).limit(1);
+	if (existingUser) {
 		globalForSeed.seeded = true;
 		console.log("Database already contains user data, skipping seed.");
 		return;
@@ -268,6 +292,7 @@ export const seedDatabase = async (db: SeedDatabase): Promise<void> => {
 
 		await seedTemplates(transaction, userId);
 		await seedUsageEvents(transaction, userId);
+		await seedAiProviders(transaction);
 	});
 
 	// Mark as seeded
@@ -275,3 +300,15 @@ export const seedDatabase = async (db: SeedDatabase): Promise<void> => {
 	console.log("Database seeding complete!");
 	console.log(`Test user: ${SEED_USER.email} / ${SEED_USER.password}`);
 };
+
+if (import.meta.main) {
+	const { database } = await import("@repo/database/client");
+	try {
+		await seedDatabase(database);
+	} catch (error) {
+		console.error("Database seed failed:", error);
+		process.exitCode = 1;
+	} finally {
+		await database.$client.end({ timeout: 5 });
+	}
+}

@@ -4,6 +4,7 @@
 
 ### Added
 
+- First-run development seeding now configures OpenRouter, Anthropic, OpenAI, Mistral, and Tinfoil providers from available environment API keys, encrypted with the app's auth secret.
 - Admins can now create and revise Markdoc templates with an AI agent embedded in the Template Editor sidebar, including audio and file context, while retaining the existing Info view.
 - `calc` and numeric `info` tags now support Liquid-style `round` values for configurable decimal places, including `round=false` for unrounded output.
 - Calculated template inputs now support nested number, option, and checkbox components, editable overrides, and automatic recalculation.
@@ -17,6 +18,7 @@
 
 ### Changed
 
+- Moved app-specific development seeding and API-key encryption into the app, while keeping schema setup and migrations in the database package.
 - The dashboard usage card now identifies active BYOK connections while continuing to show the MDScribe quota consumed by requests using other models.
 - Renamed the Markdoc `score` tag to `calc`, while retaining `score` as a backward-compatible alias across parsing, rendering, the editor, and documentation.
 - Fill Inputs now receives template guidance and examples and can prefer component values while accepting an explicit calculated result when components are incomplete.

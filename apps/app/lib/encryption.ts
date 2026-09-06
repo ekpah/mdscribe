@@ -1,6 +1,8 @@
 import "server-only";
 import { env } from "@/env";
 
+import { encryptApiKey } from "./encryption-core";
+
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 
@@ -27,24 +29,8 @@ const deriveKey = (): Promise<CryptoKey> => {
  * Encrypt plaintext using AES-256-GCM.
  * Returns a base64 string containing IV + ciphertext + auth tag.
  */
-export const encrypt = async (plaintext: string): Promise<string> => {
-	const key = await deriveKey();
-	const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-	const encoded = new TextEncoder().encode(plaintext);
-
-	const cipherBuffer = await crypto.subtle.encrypt(
-		{ iv, name: "AES-GCM", tagLength: TAG_LENGTH * 8 },
-		key,
-		encoded,
-	);
-
-	// Combine IV + ciphertext+tag into a single buffer
-	const combined = new Uint8Array(IV_LENGTH + cipherBuffer.byteLength);
-	combined.set(iv, 0);
-	combined.set(new Uint8Array(cipherBuffer), IV_LENGTH);
-
-	return Buffer.from(combined).toString("base64");
-};
+export const encrypt = (plaintext: string): Promise<string> =>
+	encryptApiKey(plaintext, env.BETTER_AUTH_SECRET as string);
 
 /**
  * Decrypt a base64 string produced by encrypt().
