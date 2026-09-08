@@ -18,6 +18,8 @@
 
 ### Changed
 
+- Template tags now use compact, subtly tinted chips with text-style deletion and isolated selection; Info and Calc chips show units when `renderUnit` is enabled. Their inspectors show shared attributes first, including calc descriptions. Switches expand directly within the document with option tabs and a collapse button, preserving surrounding text and sharing one toolbar at the top; tag settings stay on the right. Chip and expanded-switch colors are defined centrally. Reused calculated values link to their original calculation instead of another editable input, and dependent calculations resolve in dependency order.
+- The Template Agent now reads and independently edits content, examples, and information, preserving untouched sections and line breaks and explaining reuse of named calculations. Clicking a template tag opens the Info sidebar, including already-selected tags, without switching views during ordinary edits.
 - Moved app-specific development seeding and API-key encryption into the app, while keeping schema setup and migrations in the database package.
 - The dashboard usage card now identifies active BYOK connections while continuing to show the MDScribe quota consumed by requests using other models.
 - Renamed the Markdoc `score` tag to `calc`, while retaining `score` as a backward-compatible alias across parsing, rendering, the editor, and documentation.
@@ -30,6 +32,7 @@
 
 ### Fixed
 
+- Markdoc editor HTML conversions preserve line breaks and blank paragraphs on reopen or content replacement, and retain calculated tags' description and source metadata.
 - Fill Inputs now includes field definitions directly in the model prompt instead of relying solely on structured-output support, and reports empty OCR output rather than silently continuing.
 - Fill-document autofill now uses optional output fields with non-null values, constrains switches to their configured options, and enforces boolean fields as `true` or `false`. Usage logs now preserve field options and descriptions instead of recording only counts and flags.
 - Mobile sidebars now use their configured background and foreground colors, and selecting a template input no longer navigates away from the input panel.

@@ -124,7 +124,11 @@ export const templateAgentEditHandler = authed
 			},
 			providerOptions,
 			stopWhen: stepCountIs(4),
-			system: buildTemplateAgentSystemPrompt(input.content),
+			system: buildTemplateAgentSystemPrompt({
+				content: input.content,
+				examples: input.examples ?? [],
+				information: input.information ?? "",
+			}),
 			temperature,
 			tools: { updateTemplate: createUpdateTemplateTool() },
 		});

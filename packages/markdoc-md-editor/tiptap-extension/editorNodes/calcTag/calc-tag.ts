@@ -235,6 +235,8 @@ export const ensureCalcFormulaComponents = (tr: Transaction): boolean => {
 export interface CalcTagAttrs {
 	/** Inputs explicitly contained by and referenced from the formula. */
 	components: CalcComponent[];
+	description: string | null;
+	source: string | null;
 	/**
 	 * Optional display key for the calculated value
 	 */
@@ -262,6 +264,7 @@ export const CalcTag = Node.create<CalcTagAttrs>({
 				default: [],
 				renderHTML: () => ({}),
 			},
+			description: { default: null, parseHTML: (element) => element.getAttribute("description") },
 			formula: {
 				default: null,
 				parseHTML: (element) => element.getAttribute("formula"),
@@ -293,6 +296,7 @@ export const CalcTag = Node.create<CalcTagAttrs>({
 					round: renderRoundAttribute(attributes.round),
 				}),
 			},
+			source: { default: null, parseHTML: (element) => element.getAttribute("source") },
 			unit: {
 				default: null,
 				parseHTML: (element) => element.getAttribute("unit"),
@@ -358,10 +362,12 @@ export const CalcTag = Node.create<CalcTagAttrs>({
 		const round = serializeRoundAttribute(node.attrs.round);
 		const renderUnit = node.attrs.renderUnit ? " renderUnit=true" : "";
 		const unit = node.attrs.unit ? ` unit=${JSON.stringify(node.attrs.unit)}` : "";
+		const description = renderStringAttribute("description", node.attrs.description);
+		const source = renderStringAttribute("source", node.attrs.source);
 		const components = Array.isArray(node.attrs.components)
 			? (node.attrs.components as CalcComponent[])
 			: [];
-		return `{% calc${primary}${formulaAttribute}${unit}${round}${renderUnit} %}${components.map(renderCalcComponentText).join("")}{% /calc %}`;
+		return `{% calc${primary}${formulaAttribute}${description}${source}${unit}${round}${renderUnit} %}${components.map(renderCalcComponentText).join("")}{% /calc %}`;
 	},
 
 	selectable: true,

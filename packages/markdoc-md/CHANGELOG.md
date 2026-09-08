@@ -20,6 +20,9 @@
 
 ### Fixed
 
+- Cases accept rich Markdown and nested template tags without spurious child-schema warnings.
+- Editor HTML roundtrips preserve soft and hard line breaks, consecutive and boundary breaks, and empty paragraphs using durable Markdown padding instead of discarded whitespace.
+- `calc` and legacy `score` tags accept and preserve their shared `description` and `source` attributes in editor HTML roundtrips.
 - Repeated input contracts and calculated-tag components are validated consistently without duplicating independent inputs.
 - Boolean switches now resolve an undefined variable to the `false` case.
 - Build script: the public-types check now runs through a dedicated `__tests__/tsconfig.json` (`tsc -p`) instead of passing files on the `tsc` command line, which TypeScript 7 rejects with TS5112 when a `tsconfig.json` is present.

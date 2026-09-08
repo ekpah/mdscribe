@@ -24,6 +24,7 @@ const roundAttribute: SchemaAttribute = {
 
 const calcTag: NonNullable<Config["tags"]>[string] = {
 	attributes: {
+		description: { required: false, type: String },
 		formula: {
 			required: true,
 			type: String,
@@ -46,6 +47,7 @@ const calcTag: NonNullable<Config["tags"]>[string] = {
 			type: Boolean,
 		},
 		round: roundAttribute,
+		source: { required: false, type: String },
 		unit: { type: String },
 	},
 	children: ["tag", "text"],
@@ -54,7 +56,6 @@ const calcTag: NonNullable<Config["tags"]>[string] = {
 
 const tags: NonNullable<Config["tags"]> = {
 	calc: calcTag,
-	// cases should not contain breaks, as this will not be rendered correctly
 	case: {
 		attributes: {
 			// Marks the fallback case of a number switch. Matches when no
@@ -73,7 +74,7 @@ const tags: NonNullable<Config["tags"]> = {
 			primary: { render: true, type: String },
 			value: { required: false, type: Number },
 		},
-		children: ["text", "strong", "em", "code", "link", "inline"],
+		// Cases contain rich Markdown and arbitrarily nested template tags.
 		render: "Case",
 	},
 	cite: {

@@ -184,6 +184,7 @@ export const aiMockState: {
 } = {};
 
 mock.module("ai", () => ({
+	tool: <T>(definition: T): T => definition,
 	Output: {
 		object: (options: unknown) => options,
 	},

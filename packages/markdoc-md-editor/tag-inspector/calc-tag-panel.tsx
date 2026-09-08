@@ -13,6 +13,7 @@ import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CalcComponent } from "../tiptap-extension/editorNodes/calcTag/calc-tag";
+import { CommonTagFields } from "./common-tag-fields";
 import { updateMarkdocTagAttributes } from "./use-selected-markdoc-tag";
 
 const CALC_OPERATORS = ["+", "-", "*", "/", "(", ")"] as const;
@@ -21,15 +22,17 @@ export const CalcTagPanel = ({
 	editor,
 	node,
 	pos,
+	selectPrimary = false,
 }: {
 	editor: Editor;
 	node: ProseMirrorNode;
 	pos: number;
+	selectPrimary?: boolean;
 }) => {
 	const formulaValue = node.attrs.formula ?? "";
-	const unitValue = node.attrs.unit ?? "";
 	const formulaInputRef = useRef<HTMLTextAreaElement>(null);
 	const [availableComponents, setAvailableComponents] = useState<CalcComponent[]>([]);
+	const [computedVariables, setComputedVariables] = useState<Map<string, number>>(new Map());
 	const calcComponents = useMemo(
 		() => (Array.isArray(node.attrs.components) ? (node.attrs.components as CalcComponent[]) : []),
 		[node.attrs.components],
@@ -39,6 +42,7 @@ export const CalcTagPanel = ({
 	useEffect(() => {
 		const updateVariables = () => {
 			const components = new Map<string, CalcComponent>();
+			const calculations = new Map<string, number>();
 			editor.state.doc.descendants((docNode) => {
 				if (docNode.type.name === "infoTag" && docNode.attrs.primary) {
 					components.set(docNode.attrs.primary, {
@@ -61,6 +65,23 @@ export const CalcTagPanel = ({
 					});
 				}
 			});
+			editor.state.doc.descendants((docNode, docPos) => {
+				if (
+					docNode.type.name === "calcTag" &&
+					docNode.attrs.primary &&
+					docNode.attrs.primary !== node.attrs.primary
+				) {
+					calculations.set(docNode.attrs.primary, docPos);
+					// A compatible info declaration references the computed contract;
+					// it does not create another manual input.
+					components.set(docNode.attrs.primary, {
+						kind: "info",
+						primary: docNode.attrs.primary,
+						type: "number",
+					});
+				}
+			});
+			setComputedVariables(calculations);
 			for (const component of calcComponents) {
 				if (!components.has(component.primary)) {
 					components.set(component.primary, component);
@@ -79,7 +100,7 @@ export const CalcTagPanel = ({
 		return () => {
 			editor.off("update", updateVariables);
 		};
-	}, [calcComponents, editor]);
+	}, [calcComponents, editor, node.attrs.primary]);
 
 	const { parsedVariables, parseError } = useMemo(() => {
 		if (!formulaValue.trim()) {
@@ -165,25 +186,11 @@ export const CalcTagPanel = ({
 		[formulaValue, insertIntoFormula],
 	);
 
-	const handlePrimaryChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			updateMarkdocTagAttributes(editor, pos, { primary: event.target.value || null });
-		},
-		[editor, pos],
-	);
-
 	const handleFormulaChange = useCallback(
 		(event: ChangeEvent<HTMLTextAreaElement>) => {
 			setFormula(event.target.value);
 		},
 		[setFormula],
-	);
-
-	const handleUnitChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			updateMarkdocTagAttributes(editor, pos, { unit: event.target.value || null });
-		},
-		[editor, pos],
 	);
 
 	const handleRenderUnitChange = useCallback(
@@ -231,18 +238,7 @@ export const CalcTagPanel = ({
 
 	return (
 		<div className="space-y-4">
-			<div className="space-y-1.5">
-				<Label className="font-medium text-xs" htmlFor="calc-tag-primary">
-					Name
-				</Label>
-				<Input
-					className="h-8 text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
-					id="calc-tag-primary"
-					onChange={handlePrimaryChange}
-					placeholder="z.B. CHA2DS2-VASc"
-					value={node.attrs.primary || ""}
-				/>
-			</div>
+			<CommonTagFields editor={editor} node={node} pos={pos} selectPrimary={selectPrimary} />
 
 			<div className="space-y-1.5">
 				<Label className="font-medium text-xs" htmlFor="calc-tag-formula">
@@ -277,14 +273,31 @@ export const CalcTagPanel = ({
 					<div className="space-y-1.5 pt-1">
 						<Label className="font-medium text-xs">Enthaltene Werte</Label>
 						<div className="flex flex-wrap gap-1.5">
-							{parsedVariables.map((variable) => (
-								<span
-									className="rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange"
-									key={variable}
-								>
-									[{variable}]
-								</span>
-							))}
+							{parsedVariables.map((variable) =>
+								computedVariables.has(variable) ? (
+									<button
+										className="rounded-md border border-solarized-orange/40 px-2 py-1 text-xs text-solarized-orange hover:bg-solarized-orange/10"
+										key={variable}
+										type="button"
+										title="Berechneter Wert – ursprüngliche Berechnung öffnen"
+										onClick={() => {
+											const target = computedVariables.get(variable);
+											if (target !== undefined) {
+												editor.chain().focus().setNodeSelection(target).scrollIntoView().run();
+											}
+										}}
+									>
+										[{variable}] · berechnet ↗
+									</button>
+								) : (
+									<span
+										className="rounded-full border border-solarized-orange/20 bg-solarized-orange/10 px-2 py-0.5 font-mono text-[11px] text-solarized-orange"
+										key={variable}
+									>
+										[{variable}]
+									</span>
+								),
+							)}
 						</div>
 					</div>
 				)}
@@ -305,9 +318,7 @@ export const CalcTagPanel = ({
 							</button>
 						))
 					) : (
-						<span className="text-muted-foreground text-xs">
-							Noch keine Info-Variablen im Dokument.
-						</span>
+						<span className="text-muted-foreground text-xs">Noch keine Variablen im Dokument.</span>
 					)}
 				</div>
 				<div className="flex flex-wrap gap-1.5">
@@ -332,18 +343,6 @@ export const CalcTagPanel = ({
 					<p className="text-muted-foreground text-xs">
 						Diese Einstellungen werden nicht auf Calc-Tags mit demselben Namen übertragen.
 					</p>
-				</div>
-				<div className="space-y-1.5">
-					<Label className="font-medium text-xs" htmlFor="calc-tag-unit">
-						Einheit (optional)
-					</Label>
-					<Input
-						className="h-8 text-sm focus:border-solarized-orange focus:ring-solarized-orange/50"
-						id="calc-tag-unit"
-						onChange={handleUnitChange}
-						placeholder="z.B. kg, mm, °C, Punkte"
-						value={unitValue}
-					/>
 				</div>
 				<div className="flex items-center gap-2">
 					<Checkbox

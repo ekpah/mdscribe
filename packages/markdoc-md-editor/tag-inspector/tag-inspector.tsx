@@ -57,7 +57,14 @@ export const TagPanelBody = ({
 }) => {
 	switch (selectedTag.kind) {
 		case "calcTag":
-			return <CalcTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
+			return (
+				<CalcTagPanel
+					editor={editor}
+					node={selectedTag.node}
+					pos={selectedTag.pos}
+					selectPrimary={selectedTag.selectPrimary}
+				/>
+			);
 		case "caseTag":
 			return <CaseTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
 		case "infoTag":

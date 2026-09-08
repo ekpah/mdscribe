@@ -14,8 +14,9 @@ import { Separator } from "@repo/design-system/components/ui/separator";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import type { ChangeEvent } from "react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 
+import { CommonTagFields } from "./common-tag-fields";
 import { updateMarkdocTagAttributes } from "./use-selected-markdoc-tag";
 
 const INFO_TYPE_NONE = "none";
@@ -38,56 +39,11 @@ export const InfoTagPanel = ({
 	pos: number;
 	selectPrimary: boolean;
 }) => {
-	const primaryInputRef = useRef<HTMLInputElement>(null);
-
-	useEffect(() => {
-		if (!selectPrimary) {
-			return;
-		}
-
-		const animationFrame = requestAnimationFrame(() => {
-			primaryInputRef.current?.focus();
-			primaryInputRef.current?.select();
-		});
-
-		return () => {
-			cancelAnimationFrame(animationFrame);
-		};
-	}, [selectPrimary]);
-
-	const handlePrimaryChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			updateMarkdocTagAttributes(editor, pos, { primary: event.target.value });
-		},
-		[editor, pos],
-	);
-
 	const handleTypeChange = useCallback(
 		(value: string) => {
 			updateMarkdocTagAttributes(editor, pos, {
 				type: value === INFO_TYPE_NONE ? null : value,
 			});
-		},
-		[editor, pos],
-	);
-
-	const handleUnitChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			updateMarkdocTagAttributes(editor, pos, { unit: event.target.value || null });
-		},
-		[editor, pos],
-	);
-
-	const handleDescriptionChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			updateMarkdocTagAttributes(editor, pos, { description: event.target.value || null });
-		},
-		[editor, pos],
-	);
-
-	const handleSourceChange = useCallback(
-		(event: ChangeEvent<HTMLInputElement>) => {
-			updateMarkdocTagAttributes(editor, pos, { source: event.target.value || null });
 		},
 		[editor, pos],
 	);
@@ -110,19 +66,7 @@ export const InfoTagPanel = ({
 
 	return (
 		<div className="space-y-4">
-			<div className="space-y-1.5">
-				<Label className="font-medium text-xs" htmlFor="info-tag-primary">
-					Variablenname
-				</Label>
-				<Input
-					className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
-					id="info-tag-primary"
-					onChange={handlePrimaryChange}
-					placeholder="z.B. patientenname, alter"
-					ref={primaryInputRef}
-					value={node.attrs.primary || ""}
-				/>
-			</div>
+			<CommonTagFields editor={editor} node={node} pos={pos} selectPrimary={selectPrimary} />
 
 			<div className="space-y-1.5">
 				<Label className="font-medium text-xs" htmlFor="info-tag-type">
@@ -140,45 +84,6 @@ export const InfoTagPanel = ({
 						))}
 					</SelectContent>
 				</Select>
-			</div>
-
-			<div className="space-y-1.5">
-				<Label className="font-medium text-xs" htmlFor="info-tag-unit">
-					Einheit (optional)
-				</Label>
-				<Input
-					className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
-					id="info-tag-unit"
-					onChange={handleUnitChange}
-					placeholder="z.B. kg, mmHg"
-					value={node.attrs.unit || ""}
-				/>
-			</div>
-
-			<div className="space-y-1.5">
-				<Label className="font-medium text-xs" htmlFor="info-tag-description">
-					Beschreibung (optional)
-				</Label>
-				<Input
-					className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
-					id="info-tag-description"
-					onChange={handleDescriptionChange}
-					placeholder="Hinweis für das Ausfüllen"
-					value={node.attrs.description || ""}
-				/>
-			</div>
-
-			<div className="space-y-1.5">
-				<Label className="font-medium text-xs" htmlFor="info-tag-source">
-					Quelle (optional)
-				</Label>
-				<Input
-					className="h-8 text-sm focus:border-solarized-blue focus:ring-solarized-blue/50"
-					id="info-tag-source"
-					onChange={handleSourceChange}
-					placeholder="z.B. fhir://Observation..."
-					value={node.attrs.source || ""}
-				/>
 			</div>
 
 			<Separator />

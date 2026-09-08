@@ -7,13 +7,14 @@ import { Separator } from "@repo/design-system/components/ui/separator";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import { Plus, Trash2 } from "lucide-react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 
 import type {
 	SwitchCase,
 	SwitchTagType,
 } from "../tiptap-extension/editorNodes/switchTag/switch-tag";
 import { normalizeBooleanSwitchCases } from "../tiptap-extension/editorNodes/switchTag/switch-tag";
+import { CommonTagFields } from "./common-tag-fields";
 import { updateMarkdocTagAttributes } from "./use-selected-markdoc-tag";
 
 type Kind = "eq" | "gt" | "gte" | "lt" | "lte" | "range" | "default";
@@ -59,7 +60,6 @@ export const SwitchTagPanel = ({
 	pos: number;
 	selectPrimary: boolean;
 }) => {
-	const primaryRef = useRef<HTMLInputElement>(null);
 	const cases = useMemo(
 		() => (Array.isArray(node.attrs.cases) ? (node.attrs.cases as SwitchCase[]) : []),
 		[node.attrs.cases],
@@ -99,16 +99,7 @@ export const SwitchTagPanel = ({
 
 	return (
 		<div className="space-y-4">
-			<div className="space-y-1.5">
-				<Label className="font-medium text-xs">Variablenname</Label>
-				<Input
-					ref={primaryRef}
-					autoFocus={selectPrimary}
-					value={node.attrs.primary || ""}
-					onChange={(e) => update({ primary: e.target.value })}
-					placeholder="z.B. psa"
-				/>
-			</div>
+			<CommonTagFields editor={editor} node={node} pos={pos} selectPrimary={selectPrimary} />
 			<div className="space-y-1.5">
 				<Label className="font-medium text-xs">Darstellung</Label>
 				<div className="grid grid-cols-3 gap-1">
@@ -130,33 +121,12 @@ export const SwitchTagPanel = ({
 					))}
 				</div>
 			</div>
-			{number && (
-				<div className="space-y-1.5">
-					<Label className="font-medium text-xs">Einheit (optional)</Label>
-					<Input
-						value={node.attrs.unit || ""}
-						onChange={(e) => update({ unit: e.target.value || null })}
-						placeholder="z.B. ng/ml"
-					/>
-				</div>
-			)}
-			<div className="space-y-1.5">
-				<Label className="font-medium text-xs">Beschreibung (optional)</Label>
-				<Input
-					value={node.attrs.description || ""}
-					onChange={(e) => update({ description: e.target.value || null })}
-				/>
-			</div>
-			<div className="space-y-1.5">
-				<Label className="font-medium text-xs">Quelle (optional)</Label>
-				<Input
-					value={node.attrs.source || ""}
-					onChange={(e) => update({ source: e.target.value || null })}
-				/>
-			</div>
 			<Separator />
 			<div className="space-y-2">
 				<Label className="font-medium text-xs">Optionen ({cases.length})</Label>
+				<p className="text-xs text-muted-foreground">
+					Inhalte und verschachtelte Tags links über die Optionen-Tabs bearbeiten.
+				</p>
 				{cases.map((item, index) => {
 					const kind = kindOf(item);
 					const lowerKey = item.gt !== undefined ? "gt" : "gte";
@@ -241,13 +211,9 @@ export const SwitchTagPanel = ({
 									placeholder="Label"
 								/>
 							)}
-							<Input
-								value={item.text}
-								onChange={(e) =>
-									changeCase(index, { text: e.target.value, content: e.target.value })
-								}
-								placeholder="Inhalt"
-							/>
+							<p className="line-clamp-3 whitespace-pre-wrap break-words text-xs text-muted-foreground">
+								{item.text || "Noch kein Inhalt"}
+							</p>
 							{!boolean && !number && (
 								<Input
 									type="number"

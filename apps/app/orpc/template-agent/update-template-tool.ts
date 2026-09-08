@@ -1,8 +1,9 @@
 import { tool } from "ai";
 import { validateMarkdocTemplate } from "markdoc-md";
-import { z } from "zod";
 
-const MAX_TEMPLATE_LENGTH = 100_000;
+import { templateSectionUpdateSchema } from "@/lib/template-section-update";
+
+import type { TemplateSections } from "./types";
 
 const formatDiagnostic = (
 	diagnostic: ReturnType<typeof validateMarkdocTemplate>[number],
@@ -15,15 +16,19 @@ const formatDiagnostic = (
 export const createUpdateTemplateTool = () =>
 	tool({
 		description:
-			"Ersetzt den Inhalt der aktuellen MDScribe-Vorlage. Nur aufrufen, wenn der Nutzer ausdrücklich eine Vorlage erstellen oder inhaltlich ändern möchte. Für Fragen, Erklärungen und Beratung normal antworten, ohne dieses Werkzeug aufzurufen.",
-		execute: ({ content }: { content: string }) => {
-			if (content.length > MAX_TEMPLATE_LENGTH) {
-				return { error: "Die Vorlage ist zu lang.", ok: false as const };
+			"Ersetzt nur die angegebenen Abschnitte der aktuellen Vorlage: content, examples, information. Unveränderte Abschnitte weglassen. Nur bei ausdrücklichem Änderungswunsch aufrufen, nicht für Fragen oder Beratung.",
+		execute: (input: Partial<TemplateSections>) => {
+			const parsed = templateSectionUpdateSchema.safeParse(input);
+			if (!parsed.success) {
+				return {
+					error: parsed.error.issues[0]?.message ?? "Ungültige Abschnitte.",
+					ok: false as const,
+				};
 			}
 
-			const errors = validateMarkdocTemplate(content).filter(
-				(diagnostic) => diagnostic.severity === "error",
-			);
+			const errors = (
+				parsed.data.content === undefined ? [] : validateMarkdocTemplate(parsed.data.content)
+			).filter((diagnostic) => diagnostic.severity === "error");
 			if (errors.length > 0) {
 				const [firstError] = errors;
 				return {
@@ -32,12 +37,7 @@ export const createUpdateTemplateTool = () =>
 				};
 			}
 
-			return { content, ok: true as const };
+			return { ...parsed.data, ok: true as const };
 		},
-		inputSchema: z.object({
-			content: z
-				.string()
-				.max(MAX_TEMPLATE_LENGTH)
-				.describe("Der vollständige neue Markdoc-Inhalt der Vorlage, ohne Markdown-Codeblock."),
-		}),
+		inputSchema: templateSectionUpdateSchema,
 	});

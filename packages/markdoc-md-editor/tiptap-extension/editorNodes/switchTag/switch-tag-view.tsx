@@ -2,7 +2,6 @@
 
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
-import { Code2 } from "lucide-react";
 import { useMemo } from "react";
 
 import { TagChip, useSelectTagNode } from "../tag-chip";
@@ -11,7 +10,7 @@ import { isBooleanSwitchType, normalizeBooleanSwitchCases } from "./switch-tag";
 
 const EMPTY_CASES: SwitchCase[] = [];
 
-export const SwitchTagView = ({ editor, node, getPos, selected, deleteNode }: NodeViewProps) => {
+export const SwitchTagView = ({ editor, node, getPos, selected }: NodeViewProps) => {
 	const handleSelectTag = useSelectTagNode({ editor, getPos });
 
 	const rawCases = Array.isArray(node.attrs.cases)
@@ -26,17 +25,14 @@ export const SwitchTagView = ({ editor, node, getPos, selected, deleteNode }: No
 	return (
 		<NodeViewWrapper
 			as="span"
-			className="mx-0.5 inline-block align-[-0.125em] leading-none"
+			className="mx-0.5 inline-block align-[-0.125em] leading-none has-[[data-switch-expansion]>*]:inline"
 			contentEditable={false}
 		>
 			<TagChip
 				color="green"
 				dataType="markdoc-switch"
-				icon={Code2}
 				label="Switch"
-				onRemove={deleteNode}
 				onSelect={handleSelectTag}
-				removeLabel="Switch-Tag entfernen"
 				selected={selected}
 				summary={
 					<>
@@ -47,6 +43,7 @@ export const SwitchTagView = ({ editor, node, getPos, selected, deleteNode }: No
 					</>
 				}
 			/>
+			<span data-switch-expansion="" className="block has-[*]:mt-1 has-[*]:mb-2" />
 		</NodeViewWrapper>
 	);
 };

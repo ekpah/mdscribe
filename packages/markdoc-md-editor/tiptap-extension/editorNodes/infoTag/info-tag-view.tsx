@@ -2,11 +2,10 @@
 
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
-import { Info } from "lucide-react";
 
 import { TagChip, useSelectTagNode } from "../tag-chip";
 
-export const InfoTagView = ({ editor, node, selected, deleteNode, getPos }: NodeViewProps) => {
+export const InfoTagView = ({ editor, node, selected, getPos }: NodeViewProps) => {
 	const handleSelectTag = useSelectTagNode({ editor, getPos });
 
 	return (
@@ -18,16 +17,18 @@ export const InfoTagView = ({ editor, node, selected, deleteNode, getPos }: Node
 			<TagChip
 				color="blue"
 				dataType="markdoc-info"
-				icon={Info}
 				label="Info"
-				onRemove={deleteNode}
 				onSelect={handleSelectTag}
-				removeLabel="Info-Tag entfernen"
 				selected={selected}
 				summary={
-					<span className="max-w-[22ch] truncate font-mono text-foreground/80">
-						{node.attrs.primary || <span className="text-muted-foreground italic">leer</span>}
-					</span>
+					<>
+						<span className="max-w-[22ch] truncate font-mono text-foreground/80">
+							{node.attrs.primary || <span className="text-muted-foreground italic">leer</span>}
+						</span>
+						{node.attrs.renderUnit && node.attrs.unit ? (
+							<span className="text-muted-foreground">· {node.attrs.unit}</span>
+						) : null}
+					</>
 				}
 			/>
 		</NodeViewWrapper>

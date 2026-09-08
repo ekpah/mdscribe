@@ -14,8 +14,9 @@ import {
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import Formula from "fparser";
-import { Bot, Pencil, RotateCcw, Sigma } from "lucide-react";
+import { ArrowUpRight, Bot, Pencil, RotateCcw, Sigma } from "lucide-react";
 import {
+	getFormulaVariables,
 	resolveMatchedCaseIndex,
 	serializeCaseCondition,
 	toCaseCondition,
@@ -154,10 +155,16 @@ export const collectFillInputFields = (inputTags: InputTagType[]) => {
 			const switchType =
 				input.attributes.type === "number"
 					? "number"
-					: (input.attributes.type === "boolean" || input.attributes.type === "checkbox"
-					? "boolean"
-					: "switch");
-			pushField(input.attributes.primary, input.attributes.description, switchType, options, input.attributes.unit);
+					: input.attributes.type === "boolean" || input.attributes.type === "checkbox"
+						? "boolean"
+						: "switch";
+			pushField(
+				input.attributes.primary,
+				input.attributes.description,
+				switchType,
+				options,
+				input.attributes.unit,
+			);
 			for (const child of input.children ?? []) {
 				visit(child);
 			}
@@ -249,25 +256,45 @@ export const calculateCalcValue = (
 	}
 };
 
-const resolveCalculatedValues = (
+export const resolveCalculatedValues = (
 	inputTags: InputTagType[],
 	values: Record<string, unknown>,
 ): Record<string, unknown> => {
 	const resolvedValues = { ...values };
-	const visit = (input: InputTagType) => {
-		if (
-			input.name === "Calc" &&
-			input.attributes.primary &&
-			!Object.hasOwn(values, input.attributes.primary)
-		) {
-			resolvedValues[input.attributes.primary] = calculateCalcValue(input, resolvedValues);
+	const calculations = new Map<string, CalcInputTagType>();
+	const collect = (input: InputTagType) => {
+		if (input.name === "Calc" && input.attributes.primary) {
+			calculations.set(input.attributes.primary, input);
 		}
 		for (const child of input.children ?? []) {
-			visit(child);
+			collect(child);
 		}
 	};
 	for (const inputTag of inputTags) {
-		visit(inputTag);
+		collect(inputTag);
+	}
+	const visiting = new Set<string>();
+	const resolve = (key: string) => {
+		if (Object.hasOwn(resolvedValues, key) || visiting.has(key)) {
+			return;
+		}
+		const input = calculations.get(key);
+		if (!input) {
+			return;
+		}
+		visiting.add(key);
+		try {
+			for (const dependency of getFormulaVariables(input.attributes.formula ?? "")) {
+				resolve(dependency);
+			}
+		} catch {
+			// Invalid stored formulas retain calculateCalcValue's tolerant fallback.
+		}
+		resolvedValues[key] = calculateCalcValue(input, resolvedValues);
+		visiting.delete(key);
+	};
+	for (const key of calculations.keys()) {
+		resolve(key);
 	}
 	return resolvedValues;
 };
@@ -445,6 +472,7 @@ const SourceIndicator = ({ source }: { source: InputSource | undefined }) => {
 
 interface RenderContext {
 	activeInputName?: string | null;
+	calcKeys: Set<string>;
 	changeHandlers: Record<string, (value: unknown) => void>;
 	applySuggestionHandlers: Record<string, () => void>;
 	fieldRefs: React.MutableRefObject<Map<string, HTMLDivElement>>;
@@ -553,6 +581,19 @@ const CalcInputField = ({
 		}
 		context.fieldRefs.current.delete(fieldKey);
 	};
+	const children = [...input.children];
+	try {
+		for (const primary of getFormulaVariables(input.attributes.formula ?? "")) {
+			if (
+				context.calcKeys.has(primary) &&
+				!children.some((child) => child.attributes.primary === primary)
+			) {
+				children.push({ attributes: { primary, type: "number" }, children: [], name: "Info" });
+			}
+		}
+	} catch {
+		// Invalid stored formulas have no additional dependency links.
+	}
 
 	return (
 		<div
@@ -645,9 +686,9 @@ const CalcInputField = ({
 					</TooltipProvider>
 				) : null}
 			</div>
-			{input.children.length > 0 && (
+			{children.length > 0 && (
 				<div className="ml-4 max-w-full space-y-2 border-muted border-l-2 pr-4 pl-4">
-					{input.children.map(renderChild)}
+					{children.map(renderChild)}
 				</div>
 			)}
 		</div>
@@ -664,6 +705,36 @@ const renderInputTag = (
 	}
 
 	const fieldKey = input.attributes.primary;
+	if (parentCalcKey && input.name !== "Calc" && context.calcKeys.has(fieldKey)) {
+		return (
+			<button
+				className="group my-2 block w-full rounded-md text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				aria-label={`${fieldKey} – ursprüngliche Berechnung öffnen`}
+				key={`calc-reference-${fieldKey}`}
+				type="button"
+				onFocus={(event) => event.stopPropagation()}
+				onClick={(event) => {
+					event.stopPropagation();
+					const target = context.fieldRefs.current.get(fieldKey);
+					target?.scrollIntoView({ behavior: "smooth", block: "center" });
+					if (target) {
+						focusFirstInputControl(target);
+					}
+					context.onInputSelect?.(fieldKey);
+				}}
+				title="Berechneter Wert – ursprüngliche Berechnung öffnen"
+			>
+				<span className="mb-1 block font-medium text-foreground">{fieldKey}</span>
+				<span className="flex items-center gap-1.5">
+					<output className="flex h-9 min-w-0 flex-1 items-center rounded-md border border-input bg-muted px-3 font-medium text-foreground group-hover:border-ring">
+						{Number.isFinite(context.values[fieldKey]) ? String(context.values[fieldKey]) : "—"}
+					</output>
+					<span className="shrink-0 text-muted-foreground">berechnet</span>
+					<ArrowUpRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+				</span>
+			</button>
+		);
+	}
 	const selectionFieldKey = parentCalcKey ?? fieldKey;
 	const suggestedValue = context.suggestedValues[fieldKey];
 	const inputState = context.fieldSources[fieldKey];
@@ -714,9 +785,10 @@ const renderInputTag = (
 		const currentCaseKey = toSwitchCaseKey(currentValue);
 		const orderedCases = input.children
 			?.filter((child) => child.name === "Case")
-			.toSorted((a, b) =>
-				(a.attributes.index ?? input.children.indexOf(a)) -
-				(b.attributes.index ?? input.children.indexOf(b)),
+			.toSorted(
+				(a, b) =>
+					(a.attributes.index ?? input.children.indexOf(a)) -
+					(b.attributes.index ?? input.children.indexOf(b)),
 			);
 		const matchedNumberCaseIndex =
 			input.attributes.type === "number" && orderedCases
@@ -727,14 +799,16 @@ const renderInputTag = (
 				: null;
 		const selectedCaseChildren =
 			input.attributes.type === "number"
-				? (matchedNumberCaseIndex === null
-						? []
-						: orderedCases?.[matchedNumberCaseIndex]?.children ?? [])
-				: (currentCaseKey && input.children
-				? input.children
-						.filter((child) => child.name === "Case" && child.attributes.primary === currentCaseKey)
-						.flatMap((caseChild) => caseChild.children)
-				: []);
+				? matchedNumberCaseIndex === null
+					? []
+					: (orderedCases?.[matchedNumberCaseIndex]?.children ?? [])
+				: currentCaseKey && input.children
+					? input.children
+							.filter(
+								(child) => child.name === "Case" && child.attributes.primary === currentCaseKey,
+							)
+							.flatMap((caseChild) => caseChild.children)
+					: [];
 
 		return (
 			<div
@@ -1072,6 +1146,7 @@ export default function Inputs({
 	const renderContext: RenderContext = {
 		activeInputName,
 		applySuggestionHandlers,
+		calcKeys,
 		changeHandlers,
 		fieldRefs,
 		fieldSources,

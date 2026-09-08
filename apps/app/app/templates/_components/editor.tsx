@@ -19,18 +19,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/design-system/components/ui/select";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InfoIcon, Loader2, Plus, Trash2 } from "lucide-react";
@@ -43,6 +34,7 @@ import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 import { orpc } from "@/lib/orpc";
 import { formatMarkdocTagDiagnostic, USER_MESSAGES } from "@/lib/user-messages";
+import type { TemplateSections } from "@/orpc/template-agent/types";
 
 import { TagInspector, TagInspectorSheet } from "./tag-inspector-dynamic";
 import { TemplateEditorSidebar } from "./template-editor-sidebar";
@@ -388,6 +380,18 @@ export default function Editor({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [editorInstance, setEditorInstance] = useState<TagInspectorEditor | null>(null);
 	const [markdocDiagnostics, setMarkdocDiagnostics] = useState<MarkdocTagDiagnostic[] | null>(null);
+
+	const handleTemplateChange = useCallback((update: Partial<TemplateSections>) => {
+		if (update.content !== undefined) {
+			setContent(update.content);
+		}
+		if (update.examples !== undefined) {
+			setExamples(update.examples);
+		}
+		if (update.information !== undefined) {
+			setInformation(update.information);
+		}
+	}, []);
 
 	const createMutation = useMutation(orpc.templates.create.mutationOptions());
 	const updateMutation = useMutation(orpc.templates.update.mutationOptions());
@@ -818,9 +822,9 @@ export default function Editor({
 			<div className={cn("hidden xl:block", isTemplateAgentEnabled ? "w-96" : "w-80")}>
 				{isTemplateAgentEnabled ? (
 					<TemplateEditorSidebar
-						content={content}
+						template={{ content, examples, information }}
 						editor={editorInstance}
-						onContentChange={setContent}
+						onTemplateChange={handleTemplateChange}
 					/>
 				) : (
 					<TagInspector editor={editorInstance} />

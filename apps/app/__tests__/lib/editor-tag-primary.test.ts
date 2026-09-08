@@ -324,9 +324,11 @@ describe("shared Markdoc tag settings", () => {
 					atom: true,
 					attrs: {
 						components: { default: [] },
+						description: { default: null },
 						formula: { default: null },
 						primary: { default: null },
 						renderUnit: { default: false },
+						source: { default: null },
 						unit: { default: null },
 					},
 					group: "inline",
@@ -353,8 +355,10 @@ describe("shared Markdoc tag settings", () => {
 
 		expect(
 			updateMarkdocTagAttributesInTransaction(transaction, 0, {
+				description: "Berechnetes Risiko",
 				primary: "renamedRisk",
 				renderUnit: false,
+				source: "Risikomodell",
 				unit: "Neue Punkte",
 			}),
 		).toBe(true);
@@ -367,7 +371,12 @@ describe("shared Markdoc tag settings", () => {
 		});
 		expect(calcAttributes.map(({ primary }) => primary)).toEqual(["renamedRisk", "renamedRisk"]);
 		expect(calcAttributes.map(({ renderUnit }) => renderUnit)).toEqual([false, true]);
-		expect(calcAttributes.map(({ unit }) => unit)).toEqual(["Neue Punkte", "Prozent"]);
+		expect(calcAttributes.map(({ unit }) => unit)).toEqual(["Neue Punkte", "Neue Punkte"]);
+		expect(calcAttributes.map(({ description }) => description)).toEqual([
+			"Berechnetes Risiko",
+			"Berechnetes Risiko",
+		]);
+		expect(calcAttributes.map(({ source }) => source)).toEqual(["Risikomodell", "Risikomodell"]);
 	});
 
 	test("updates switch case values from a calc component everywhere", () => {

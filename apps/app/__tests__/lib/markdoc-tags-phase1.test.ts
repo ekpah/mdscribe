@@ -6,9 +6,37 @@ import { DynamicMarkdocRenderer } from "markdoc-md/react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { calculateCalcValue, collectFillInputFields } from "@/app/_components/inputs/inputs";
+import Inputs, {
+	calculateCalcValue,
+	collectFillInputFields,
+	resolveCalculatedValues,
+} from "@/app/_components/inputs/inputs";
 
 describe("markdoc tags phase 1 regressions", () => {
+	test("reused calculations resolve before dependents regardless of document order", () => {
+		const tags =
+			parseMarkdocToInputs(`{% calc primary="PAC" formula="[SV] / [pressure]" %}{% info "SV" type="number" /%}{% info "pressure" type="number" /%}{% /calc %}
+{% calc primary="SV" formula="[output] * 1000 / [rate]" %}{% info "output" type="number" /%}{% info "rate" type="number" /%}{% /calc %}`);
+		expect(resolveCalculatedValues(tags, { output: 6, rate: 60, pressure: 20 })).toMatchObject({
+			SV: 100,
+			PAC: 5,
+		});
+		expect(
+			resolveCalculatedValues(tags, { output: 6, rate: 60, pressure: 20, SV: 80 }),
+		).toMatchObject({ SV: 80, PAC: 4 });
+		const displayTags = parseMarkdocToInputs(
+			'{% calc primary="PAC" formula="[SV] / 2" %}{% info "SV" type="number" /%}{% /calc %}\n{% calc primary="SV" formula="100" /%}',
+		);
+		const html = renderToStaticMarkup(
+			createElement(Inputs, { inputTags: displayTags, onChange: () => {} }),
+		);
+		expect(html).toContain('aria-label="SV – ursprüngliche Berechnung öffnen"');
+		expect(html).toMatch(/<output[^>]*bg-muted[^>]*>100<\/output>/);
+		expect(html).toContain(">berechnet</span>");
+		// Only the two real results are editable, not the computed reference.
+		expect(html.match(/type="number"/g)).toHaveLength(2);
+	});
+
 	test("keeps case scopes separate across switches with same case labels", () => {
 		const source = `
 {% switch "S1" %}{% case "Ja" %}{% info "I1" /%}{% /case %}{% /switch %}

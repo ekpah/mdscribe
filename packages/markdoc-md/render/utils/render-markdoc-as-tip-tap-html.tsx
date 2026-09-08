@@ -16,6 +16,34 @@ export const renderTipTapHTML = (
 	const source =
 		options.sanitize === false ? markdocString : sanitizeMarkdocForRendering(markdocString);
 	const ast = Markdoc.parse(source);
-	const content = Markdoc.transform(ast, options.config ?? config);
+	// Markdown has no empty paragraphs or leading/trailing hard breaks. The
+	// HTML serializer pads empty lines with &nbsp; so the parser retains them.
+	for (const node of ast.walk()) {
+		if (node.type !== "inline") {
+			continue;
+		}
+		for (const [index, child] of node.children.entries()) {
+			const previous = node.children[index - 1];
+			const next = node.children[index + 1];
+			if (
+				child.type === "text" &&
+				child.attributes.content === "\u00a0" &&
+				(!previous || previous.type === "hardbreak" || previous.type === "softbreak") &&
+				(!next || next.type === "hardbreak" || next.type === "softbreak")
+			) {
+				child.attributes.content = "";
+			}
+		}
+	}
+	const editorConfig = options.config ?? config;
+	const content = Markdoc.transform(ast, {
+		...editorConfig,
+		nodes: {
+			...editorConfig.nodes,
+			// TipTap has one line-break node. Normalize soft breaks to visible
+			// hard breaks here without changing the non-editor renderer.
+			softbreak: { render: "br" },
+		},
+	});
 	return Markdoc.renderers.html(content);
 };

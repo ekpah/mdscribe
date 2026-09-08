@@ -2,12 +2,11 @@
 
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper } from "@tiptap/react";
-import { CornerDownRight } from "lucide-react";
 
 import { formatCaseConditionLabel } from "../case-condition";
 import { TagChip, useSelectTagNode } from "../tag-chip";
 
-export const CaseTagView = ({ editor, node, getPos, deleteNode, selected }: NodeViewProps) => {
+export const CaseTagView = ({ editor, node, getPos, selected }: NodeViewProps) => {
 	const handleSelectTag = useSelectTagNode({ editor, getPos });
 
 	return (
@@ -15,11 +14,8 @@ export const CaseTagView = ({ editor, node, getPos, deleteNode, selected }: Node
 			<TagChip
 				color="cyan"
 				dataType="markdoc-case"
-				icon={CornerDownRight}
 				label="Case"
-				onRemove={deleteNode}
 				onSelect={handleSelectTag}
-				removeLabel="Case-Tag entfernen"
 				selected={selected}
 				summary={
 					<span className="max-w-[16ch] truncate font-mono text-foreground/80">

@@ -27,6 +27,8 @@ import { useInputContextState } from "@/app/_components/input-context/use-input-
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
 import { isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 import { orpc } from "@/lib/orpc";
+import { templateSectionUpdateSchema } from "@/lib/template-section-update";
+import type { TemplateSections } from "@/orpc/template-agent/types";
 
 import { TagInspector } from "./tag-inspector-dynamic";
 
@@ -43,7 +45,13 @@ interface UpdateTemplateToolPart {
 	type: string;
 	toolCallId?: string;
 	state?: "input-streaming" | "input-available" | "output-available" | "output-error";
-	output?: { content?: unknown; error?: unknown; ok?: unknown };
+	output?: {
+		content?: unknown;
+		examples?: unknown;
+		information?: unknown;
+		error?: unknown;
+		ok?: unknown;
+	};
 	errorText?: string;
 }
 
@@ -227,20 +235,20 @@ const TemplateAgentComposer = ({
 };
 
 export const TemplateEditorSidebar = ({
-	content,
+	template,
 	editor,
-	onContentChange,
+	onTemplateChange,
 }: {
-	content: string;
+	template: TemplateSections;
 	editor: TagInspectorEditor | null;
-	onContentChange: (content: string) => void;
+	onTemplateChange: (update: Partial<TemplateSections>) => void;
 }) => {
 	const [activeView, setActiveView] = useState("info");
 	const [instruction, setInstruction] = useState("");
 	const [isPreparing, setIsPreparing] = useState(false);
 	const inputContext = useInputContextState();
-	const contentRef = useRef(content);
-	const onContentChangeRef = useRef(onContentChange);
+	const templateRef = useRef(template);
+	const onTemplateChangeRef = useRef(onTemplateChange);
 	const appliedToolCallIds = useRef<Set<string>>(new Set());
 	const submittedContextCleanupRef = useRef<(() => void) | null>(null);
 	const pendingAttachmentsRef = useRef<{
@@ -275,7 +283,7 @@ export const TemplateEditorSidebar = ({
 					await orpc.templateAgent.edit.call(
 						{
 							audioFiles: attachments.audioFiles,
-							content: contentRef.current,
+							...templateRef.current,
 							contextFiles: attachments.contextFiles,
 							messages: options.messages,
 						},
@@ -290,9 +298,29 @@ export const TemplateEditorSidebar = ({
 	const canSend = !isLoading && (instruction.trim().length > 0 || hasAttachments);
 
 	useEffect(() => {
-		contentRef.current = content;
-		onContentChangeRef.current = onContentChange;
-	}, [content, onContentChange]);
+		templateRef.current = template;
+		onTemplateChangeRef.current = onTemplateChange;
+	}, [template, onTemplateChange]);
+
+	useEffect(() => {
+		if (!editor) {
+			return;
+		}
+		const dom = editor.view.dom.closest("[data-markdoc-editor-root]") ?? editor.view.dom;
+		const handleTagClick = (event: Event) => {
+			if (
+				event.target instanceof Element &&
+				event.target.closest(
+					'button[data-type="markdoc-info"], button[data-type="markdoc-switch"], button[data-type="markdoc-calc"], button[data-type="markdoc-case"]',
+				)
+			) {
+				setActiveView("info");
+			}
+		};
+		// Chips stop propagation; capture also observes clicks on an already selected tag.
+		dom.addEventListener("click", handleTagClick, true);
+		return () => dom.removeEventListener("click", handleTagClick, true);
+	}, [editor]);
 
 	useEffect(() => {
 		for (const message of messages) {
@@ -311,9 +339,12 @@ export const TemplateEditorSidebar = ({
 				) {
 					continue;
 				}
-				if (toolPart.output?.ok === true && typeof toolPart.output.content === "string") {
-					onContentChangeRef.current(toolPart.output.content);
-					appliedToolCallIds.current.add(toolPart.toolCallId);
+				if (toolPart.output?.ok === true) {
+					const update = templateSectionUpdateSchema.safeParse(toolPart.output);
+					if (update.success) {
+						onTemplateChangeRef.current(update.data);
+						appliedToolCallIds.current.add(toolPart.toolCallId);
+					}
 				}
 			}
 		}

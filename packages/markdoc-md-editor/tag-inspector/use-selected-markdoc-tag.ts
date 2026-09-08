@@ -34,10 +34,10 @@ const asMarkdocTagKind = (name: string): MarkdocTagKind | null =>
 	MARKDOC_TAG_NODE_NAMES.has(name as MarkdocTagKind) ? (name as MarkdocTagKind) : null;
 
 const SHARED_ATTRIBUTES: Record<MarkdocTagKind, ReadonlySet<string>> = {
-	calcTag: new Set(["components", "formula", "primary"]),
+	calcTag: new Set(["components", "description", "formula", "primary", "source", "unit"]),
 	caseTag: new Set(),
 	infoTag: new Set(["description", "primary", "source", "type", "unit"]),
-	switchTag: new Set(["primary", "source", "type"]),
+	switchTag: new Set(["description", "primary", "source", "type", "unit"]),
 };
 
 interface SharedSwitchCase {

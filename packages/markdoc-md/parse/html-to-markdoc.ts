@@ -14,14 +14,23 @@ const headingPrefixes: Record<string, string> = {
 
 const inlineRenderers: Partial<Record<string, (innerContent: string) => string>> = {
 	b: (innerContent) => `**${innerContent}**`,
-	br: () => "\n",
+	br: () => "  \n",
 	em: (innerContent) => `*${innerContent}*`,
 	hr: () => "\n---\n\n",
 	i: (innerContent) => `*${innerContent}*`,
 	ol: (innerContent) => `${innerContent}\n`,
-	p: (innerContent) => `${innerContent}\n\n`,
+	// Entity-only lines survive Markdown parsing, including empty paragraphs
+	// and padding before/after consecutive or boundary hard breaks.
+	p: (innerContent) => `${preserveEmptyLines(innerContent)}\n\n`,
 	strong: (innerContent) => `**${innerContent}**`,
 	ul: (innerContent) => `${innerContent}\n`,
+};
+
+const preserveEmptyLines = (content: string): string => {
+	const lines = content.split("\n");
+	return lines
+		.map((line, index) => (line.trim() ? line : `&nbsp;${index < lines.length - 1 ? "  " : ""}`))
+		.join("\n");
 };
 
 const quoteMarkdocValue = (value: string): string => JSON.stringify(value);
@@ -65,12 +74,17 @@ const customMarkdocRenderers: Partial<
 		const primaryAttribute = serializeStringAttribute("primary", readAttribute(element, "primary"));
 		const formulaAttribute = ` formula=${quoteMarkdocValue(formula)}`;
 		const unitAttribute = serializeStringAttribute("unit", readAttribute(element, "unit"));
+		const descriptionAttribute = serializeStringAttribute(
+			"description",
+			readAttribute(element, "description"),
+		);
+		const sourceAttribute = serializeStringAttribute("source", readAttribute(element, "source"));
 		const roundAttribute = serializeRoundAttribute(readAttribute(element, "round"));
 		const renderUnitAttribute = serializeBooleanAttribute(
 			"renderUnit",
 			readAttribute(element, "renderUnit") ?? readAttribute(element, "renderunit"),
 		);
-		return `{% calc${primaryAttribute}${formulaAttribute}${unitAttribute}${roundAttribute}${renderUnitAttribute} %}${innerContent}{% /calc %}`;
+		return `{% calc${primaryAttribute}${formulaAttribute}${unitAttribute}${descriptionAttribute}${sourceAttribute}${roundAttribute}${renderUnitAttribute} %}${innerContent}{% /calc %}`;
 	},
 	case: (element, innerContent) => {
 		const casePrimary = readAttribute(element, "primary") || "";
@@ -92,7 +106,10 @@ const customMarkdocRenderers: Partial<
 					: "";
 			})
 			.join("");
-		const defaultAttribute = serializeBooleanAttribute("default", readAttribute(element, "default"));
+		const defaultAttribute = serializeBooleanAttribute(
+			"default",
+			readAttribute(element, "default"),
+		);
 		// Condition cases (number switches) carry no primary key.
 		if (conditionAttributes || defaultAttribute) {
 			return `{% case${conditionAttributes}${defaultAttribute} %}${caseContent}{% /case %}`;
@@ -164,7 +181,7 @@ const renderAnchor = (element: Element, innerContent: string): string => {
 
 const renderHeading = (tagName: string, innerContent: string): string => {
 	const headingPrefix = headingPrefixes[tagName];
-	return `${headingPrefix} ${innerContent}\n\n`;
+	return `${headingPrefix} ${preserveEmptyLines(innerContent)}\n\n`;
 };
 
 const htmlElementRenderers: Partial<
@@ -223,6 +240,10 @@ const processNodeForMarkdoc = (node: Node): string => {
 
 	const element = node as Element;
 	const tagName = element.tagName.toLowerCase();
+	// ProseMirror's view-only filler is not an authored hard break.
+	if (tagName === "br" && element.classList.contains("ProseMirror-trailingBreak")) {
+		return "";
+	}
 	const innerContent = processChildrenForMarkdoc(element, processNodeForMarkdoc);
 	const customRenderer = customMarkdocRenderers[tagName];
 	return customRenderer
