@@ -203,6 +203,10 @@ const seedUsageEvents = async (db: SeedTransaction, userId: string): Promise<voi
 };
 
 const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
+	// Orb snapshots are shared; personal credentials are configured by resume instead.
+	if (process.env.AMP_ORB === "1") {
+		return;
+	}
 	const providers = [
 		["OPENROUTER_API_KEY", "OpenRouter", "openrouter", "https://openrouter.ai/api/v1"],
 		["ANTHROPIC_API_KEY", "Anthropic", "anthropic", "https://api.anthropic.com/v1"],

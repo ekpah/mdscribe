@@ -13,6 +13,7 @@ const variables = [
 	"OPENAI_API_KEY",
 	"MISTRAL_API_KEY",
 	"TINFOIL_API_KEY",
+	"AMP_ORB",
 	"BETTER_AUTH_SECRET",
 	"NODE_ENV",
 	"MDSCRIBE_ALLOW_DEV_SEED",
@@ -73,6 +74,14 @@ const database = (userCount = 0) => {
 };
 
 describe("development AI provider seed", () => {
+	test("does not put personal credentials into shared orb snapshots", async () => {
+		process.env.AMP_ORB = "1";
+		process.env.OPENROUTER_API_KEY = "personal-key";
+		const { db, providers } = database();
+		await seedDatabase(db);
+		expect(providers).toHaveLength(0);
+	});
+
 	test("seeds all five services with app-decryptable keys and default URLs", async () => {
 		for (const name of variables.slice(0, 5)) {
 			process.env[name] = `  test-${name}  `;

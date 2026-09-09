@@ -15,3 +15,8 @@ done < <(pg_lsclusters --no-header)
 
 pg_isready --quiet --host 127.0.0.1 --port 5432
 echo "PostgreSQL is ready."
+
+# Run from the app so Bun loads the same auth secret as the development server.
+# Credentials arrive after shared snapshot activation and must not be seeded in setup.
+NODE_ENV="development" POSTGRES_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe" \
+	bun run --cwd apps/app scripts/orb-ai-defaults.ts

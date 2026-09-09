@@ -34,6 +34,7 @@
 ### Fixed
 
 - OCR document uploads no longer send JSON Schema constraints, including array-size limits, unsupported by Gemini through OpenRouter. Invalid page geometry is discarded without losing otherwise usable OCR text.
+- Orb activation now configures OpenRouter with Gemini 3.8 Flash and audio, document/OCR, and agent defaults from the current user's environment key, including already-seeded databases; personal provider credentials are no longer seeded into shared orb setup snapshots.
 - Markdoc editor HTML conversions preserve line breaks and blank paragraphs on reopen or content replacement, and retain calculated tags' description and source metadata.
 - Fill Inputs now includes field definitions directly in the model prompt instead of relying solely on structured-output support, and reports empty OCR output rather than silently continuing.
 - Fill-document autofill now uses optional output fields with non-null values, constrains switches to their configured options, and enforces boolean fields as `true` or `false`. Usage logs now preserve field options and descriptions instead of recording only counts and flags.
