@@ -9,6 +9,7 @@ import {
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
 } from "@/lib/input-fill-limits";
+import type { OcrResult } from "@/lib/ocr-types";
 import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
 import { buildUsageEventData, extractOpenRouterUsage } from "@/lib/usage-logging";
 import type { StandardUsage, UsageInputData, UsageMetadata } from "@/lib/usage-logging";
@@ -33,12 +34,13 @@ import {
 	prepareAudioInputForModel,
 	transcribeAudioFilesWithPrompt,
 } from "./audio-input";
-import { createContextFileParts, extractContextFileText } from "./context-file-input";
+import { createContextFileParts, extractContextFiles } from "./context-file-input";
 import { enforceScribeUsageLimit } from "./usage-limit";
 
 type FieldValue = boolean | number | string;
 interface FillInputsResult {
 	fieldValues: Record<string, FieldValue>;
+	ocrResults: OcrResult[];
 }
 
 interface FillInputAudioPayloadSummary {
@@ -112,7 +114,7 @@ const toFillInputsResult = (
 ): FillInputsResult => {
 	const parsed = schema.safeParse(object);
 	if (parsed.success) {
-		return parsed.data as FillInputsResult;
+		return { ...parsed.data, ocrResults: [] } as FillInputsResult;
 	}
 	throw new ORPCError("BAD_REQUEST", {
 		message:
@@ -438,7 +440,7 @@ const extractFillInputFileText = async ({
 }) => {
 	const filesPlan = generationStrategy.files;
 	if (hasFiles && filesPlan?.mode === "preprocess") {
-		const fileTextContext = await extractContextFileText({
+		const extractedFiles = await extractContextFiles({
 			contextFiles: contextFiles ?? [],
 			db,
 			modelSelection: filesPlan.selection,
@@ -446,16 +448,16 @@ const extractFillInputFileText = async ({
 			userId,
 			zdr,
 		});
-		if (!fileTextContext) {
+		if (!extractedFiles.textContext) {
 			throw new ORPCError("BAD_REQUEST", {
 				message:
 					"Die Dateianalyse hat keinen Text geliefert. Bitte die Dateien oder das OCR-Modell prüfen.",
 			});
 		}
-		return fileTextContext;
+		return extractedFiles;
 	}
 
-	return "";
+	return { ocrResults: [], textContext: "" };
 };
 
 const buildFillInputUserContent = ({
@@ -580,7 +582,7 @@ export const fillInputsHandler = authed
 			const message = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", { message });
 		});
-		const fileTextContext = await extractFillInputFileText({
+		const extractedFiles = await extractFillInputFileText({
 			contextFiles,
 			db: context.db,
 			generationStrategy,
@@ -588,6 +590,7 @@ export const fillInputsHandler = authed
 			userId: context.session.user.id,
 			zdr: entitlements.hasActiveSubscription,
 		});
+		const fileTextContext = extractedFiles.textContext;
 		const filesAreNative = generationStrategy.files?.mode === "native";
 		// Reuse the shared scribe context pipeline so the clinical fields render
 		// through the same tunable <patient_context> as the main scribe flow.
@@ -700,5 +703,8 @@ export const fillInputsHandler = authed
 			}),
 		);
 
-		return fillResult;
+		return {
+			...fillResult,
+			ocrResults: extractedFiles.ocrResults,
+		};
 	});

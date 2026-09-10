@@ -10,11 +10,33 @@ const resolveAsync = <T>(value: T): Promise<T> => Promise.resolve(value);
 // mocks agree — handlers read `.text` off both paths.
 const MOCK_GENERATED_TEXT = "Generated text response";
 
-const createUIMessageStream = () => {
+const createUIMessageStream = (options?: {
+	execute: (input: {
+		writer: { merge: (stream: ReadableStream<unknown>) => void; write: (part: unknown) => void };
+	}) => void;
+}) => {
 	const encoder = new TextEncoder();
 
 	return new ReadableStream({
-		start(controller) {
+		async start(controller) {
+			if (options) {
+				let mergedStream: ReadableStream<unknown> | undefined;
+				options.execute({
+					writer: {
+						merge: (stream) => {
+							mergedStream = stream;
+						},
+						write: (part) => controller.enqueue(part),
+					},
+				});
+				if (mergedStream) {
+					for await (const chunk of mergedStream) {
+						controller.enqueue(chunk);
+					}
+				}
+				controller.close();
+				return;
+			}
 			controller.enqueue(encoder.encode(`0:${JSON.stringify(MOCK_GENERATED_TEXT)}\n`));
 			controller.close();
 		},
@@ -177,17 +199,22 @@ mock.module("stripe", () => ({
 }));
 
 export const aiMockState: {
+	generateTextCallCount: number;
 	lastGenerateObjectOptions?: unknown;
 	lastGenerateTextOptions?: unknown;
+	lastOcrGenerateTextOptions?: unknown;
 	nextGenerateTextOutput?: unknown;
+	nextOcrOutput?: unknown;
 	nextGenerateTextText?: string;
-} = {};
+	streamTextCallCount: number;
+} = { generateTextCallCount: 0, streamTextCallCount: 0 };
 
 mock.module("ai", () => ({
 	tool: <T>(definition: T): T => definition,
 	Output: {
 		object: (options: unknown) => options,
 	},
+	createUIMessageStream,
 	experimental_transcribe: () =>
 		resolveAsync({
 			text: "Transkribierter Testtext",
@@ -241,6 +268,7 @@ mock.module("ai", () => ({
 		});
 	},
 	generateText: (options?: { messages?: { content?: unknown }[] }) => {
+		aiMockState.generateTextCallCount += 1;
 		aiMockState.lastGenerateTextOptions = options;
 		const promptText =
 			options?.messages
@@ -251,6 +279,13 @@ mock.module("ai", () => ({
 		if (isFillInputsRequest) {
 			output = aiMockState.nextGenerateTextOutput ?? { fieldValues: {} };
 			delete aiMockState.nextGenerateTextOutput;
+		} else if (promptText.includes("You are an OCR engine.")) {
+			aiMockState.lastOcrGenerateTextOptions = options;
+			output = aiMockState.nextOcrOutput ?? {
+				pages: [],
+				text: aiMockState.nextGenerateTextText ?? MOCK_GENERATED_TEXT,
+			};
+			delete aiMockState.nextOcrOutput;
 		}
 		const text =
 			aiMockState.nextGenerateTextText ?? (output ? JSON.stringify(output) : MOCK_GENERATED_TEXT);
@@ -258,6 +293,16 @@ mock.module("ai", () => ({
 		return resolveAsync({
 			finishReason: "stop" as const,
 			output,
+			providerMetadata: {
+				openrouter: {
+					usage: {
+						completionTokens: 25,
+						cost: 0.002,
+						promptTokens: 50,
+						totalTokens: 75,
+					},
+				},
+			},
 			text,
 			usage: {
 				completionTokens: 25,
@@ -266,7 +311,10 @@ mock.module("ai", () => ({
 			},
 		});
 	},
-	streamText: (options: { onFinish?: (event: unknown) => void }) => createMockStreamResult(options),
+	streamText: (options: { onFinish?: (event: unknown) => void }) => {
+		aiMockState.streamTextCallCount += 1;
+		return createMockStreamResult(options);
+	},
 	wrapLanguageModel: (options: unknown) => ({ wrappedLanguageModel: options }),
 }));
 

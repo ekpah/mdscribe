@@ -65,7 +65,7 @@ export const scribeAgentGenerateSectionHandler = authed
 				})
 			: undefined;
 
-		const generation = await runScribeGeneration({
+		const { generation } = await runScribeGeneration({
 			context,
 			input:
 				input.source === "customForm"

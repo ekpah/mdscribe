@@ -1016,10 +1016,52 @@ describe("Fill Inputs Handler", () => {
 					],
 					inputFields,
 				};
-				aiMockState.nextGenerateTextText = "Patient ist 75 Jahre alt.";
+				const expectedOcrResult = {
+					pages: [
+						{
+							blocks: [
+								{
+									bbox: { height: 12, width: 140, x: 24, y: 36 },
+									text: "Patient ist 75 Jahre alt.",
+								},
+							],
+							height: 842,
+							pageNumber: 1,
+							width: 595,
+						},
+					],
+					text: "Patient ist 75 Jahre alt.",
+				};
+				aiMockState.nextOcrOutput = expectedOcrResult;
 				aiMockState.nextGenerateTextOutput = { fieldValues: { Alter: 75 } };
 				const result = await call(fillInputsHandler, input, { context });
 				expect(result.fieldValues).toEqual({ Alter: 75 });
+				expect(result.ocrResults).toEqual([{ ...expectedOcrResult, backend: "llm" }]);
+				const ocrOptions = aiMockState.lastOcrGenerateTextOptions as {
+					messages: { content: unknown }[];
+					output: { schema: { safeParse: (value: unknown) => { success: boolean } } };
+				};
+				expect(ocrOptions.messages[0]?.content).toContain(
+					"Coordinates use a top-left origin and 72-DPI page points",
+				);
+				expect(
+					ocrOptions.output.schema.safeParse({
+						pages: [
+							{
+								blocks: [
+									{
+										bbox: { height: 10, width: 30, x: 80, y: 10 },
+										text: "outside",
+									},
+								],
+								height: 100,
+								pageNumber: 1,
+								width: 100,
+							},
+						],
+						text: "outside",
+					}).success,
+				).toBe(false);
 				const options = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
 				expect(typeof options.messages[1].content).toBe("string");
 				expect(options.messages[1].content).toContain(
@@ -1042,8 +1084,32 @@ describe("Fill Inputs Handler", () => {
 						}),
 					]),
 				);
+				const ocrEvent = events.find((event) => event.name === AI_SCRIBE_OCR_EVENT_NAME);
+				expect(ocrEvent?.metadata).toMatchObject({
+					ocr: {
+						coordinateSystem: "page-points-top-left",
+						pages: [
+							{
+								blocks: [
+									{
+										bbox: { height: 12, width: 140, x: 24, y: 36 },
+										text: "Patient ist 75 Jahre alt.",
+									},
+								],
+								pageNumber: 1,
+							},
+						],
+					},
+				});
+				expect(ocrEvent).toMatchObject({
+					cost: "0.002000",
+					inputTokens: 50,
+					outputTokens: 25,
+					totalTokens: 75,
+					userId: user.id,
+				});
 
-				aiMockState.nextGenerateTextText = "  \n";
+				aiMockState.nextOcrOutput = { pages: [], text: "  \n" };
 				await expect(call(fillInputsHandler, input, { context })).rejects.toThrow(
 					"Die Dateianalyse hat keinen Text geliefert",
 				);
@@ -1055,6 +1121,8 @@ describe("Fill Inputs Handler", () => {
 			} finally {
 				delete aiMockState.nextGenerateTextText;
 				delete aiMockState.nextGenerateTextOutput;
+				delete aiMockState.nextOcrOutput;
+				delete aiMockState.lastOcrGenerateTextOptions;
 				await server.close();
 			}
 		},
@@ -1168,10 +1236,14 @@ describe("Fill Inputs Handler", () => {
 		}
 	});
 
-	test("counts autofill cost against the monthly usage limit", async () => {
+	test("enforces the autofill usage limit before OCR or generation", async () => {
 		const server = await startTestServer("fill-inputs-usage-limit");
 		try {
 			await createTestAiDefaults(server.db);
+			await server.db
+				.update(aiDefaults)
+				.set({ defaultStandardSupportsDocuments: false })
+				.where(eq(aiDefaults.id, "global"));
 			const { user } = await createTestUser(server.db);
 
 			await server.db.insert(usageEvent).values({
@@ -1182,10 +1254,19 @@ describe("Fill Inputs Handler", () => {
 				userId: user.id,
 			});
 
+			aiMockState.generateTextCallCount = 0;
 			await expect(
 				call(
 					fillInputsHandler,
 					{
+						contextFiles: [
+							{
+								data: Buffer.from("test-pdf").toString("base64"),
+								mimeType: "application/pdf",
+								name: "befund.pdf",
+								size: 8,
+							},
+						],
 						inputFields: [{ label: "Aufnahmediagnose", type: "string" }],
 						textContext: { diagnoseblock: "I50.1" },
 					},
@@ -1197,6 +1278,7 @@ describe("Fill Inputs Handler", () => {
 					},
 				),
 			).rejects.toThrow("Monatliche Nutzungsgrenze erreicht");
+			expect(aiMockState.generateTextCallCount).toBe(0);
 		} finally {
 			await server.close();
 		}
@@ -1590,8 +1672,12 @@ describe("Scribe Stream Handler", () => {
 	});
 
 	describe("Usage Limits", () => {
-		test("enforces free tier monthly cost limit", async () => {
+		test("enforces the free tier usage limit before OCR or generation", async () => {
 			const { user } = await createTestUser(server.db);
+			await server.db
+				.update(aiDefaults)
+				.set({ defaultStandardSupportsDocuments: false })
+				.where(eq(aiDefaults.id, "global"));
 
 			// Free tier budget is $2/month.
 			const { usageEvent: usageEventTable } = await import("@repo/database");
@@ -1606,10 +1692,20 @@ describe("Scribe Stream Handler", () => {
 			const session = createMockSession(user);
 			const context = createTestContext({ db: server.db, session });
 
+			aiMockState.generateTextCallCount = 0;
+			aiMockState.streamTextCallCount = 0;
 			await expect(
 				call(
 					scribeStreamHandler,
 					{
+						contextFiles: [
+							{
+								data: Buffer.from("test-pdf").toString("base64"),
+								mimeType: "application/pdf",
+								name: "befund.pdf",
+								size: 8,
+							},
+						],
 						documentType: "discharge",
 						messages: [
 							{
@@ -1622,6 +1718,8 @@ describe("Scribe Stream Handler", () => {
 					{ context },
 				),
 			).rejects.toThrow("Monatliche Nutzungsgrenze erreicht");
+			expect(aiMockState.generateTextCallCount).toBe(0);
+			expect(aiMockState.streamTextCallCount).toBe(0);
 		});
 
 		test("plus subscribers have a higher monthly cost limit", async () => {

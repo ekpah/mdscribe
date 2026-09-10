@@ -1,12 +1,22 @@
 "use client";
 
 import { Button } from "@repo/design-system/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@repo/design-system/components/ui/dialog";
 import { FileDropzone } from "@repo/design-system/components/ui/file-dropzone";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { cn } from "@repo/design-system/lib/utils";
-import { Check, Paperclip, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Check, Eye, Paperclip, Trash2, X } from "lucide-react";
+import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { PDFViewSection } from "@/app/_components/pdf-view-section-dynamic";
 import { FILL_INPUT_PAYLOAD_LIMITS, formatPayloadBytes } from "@/lib/input-fill-limits";
 
 import { addContextFilesToValue } from "../../files";
@@ -30,6 +40,82 @@ interface DocumentInputProps {
 	value: UploadedContextFile[];
 }
 
+const FilePreviewDialog = ({
+	file,
+	onOpenChange,
+	pdfFile,
+	previewUrl,
+}: {
+	file: UploadedContextFile;
+	onOpenChange: (open: boolean) => void;
+	pdfFile: Uint8Array | null;
+	previewUrl: string | null;
+}) => {
+	const ocrText = file.ocrResult?.text;
+	const renderOriginalPreview = () => {
+		if (pdfFile) {
+			return <PDFViewSection hasUploadedFile pdfFile={pdfFile} resetKey={file.id} />;
+		}
+
+		if (previewUrl) {
+			return (
+				<div className="relative h-full min-h-96 w-full">
+					<Image
+						alt={`Vorschau von ${file.file.name}`}
+						className="object-contain"
+						fill
+						src={previewUrl}
+						unoptimized
+					/>
+				</div>
+			);
+		}
+
+		return (
+			<div className="flex h-full min-h-96 items-center justify-center p-6 text-center text-muted-foreground text-sm">
+				Für diesen Dateityp ist keine Vorschau verfügbar.
+			</div>
+		);
+	};
+	return (
+		<Dialog onOpenChange={onOpenChange} open>
+			<DialogContent className="flex h-[min(52rem,calc(100vh-2rem))] max-w-5xl flex-col overflow-hidden p-4 sm:max-w-5xl">
+				<DialogHeader className="pr-8">
+					<DialogTitle className="truncate">{file.file.name}</DialogTitle>
+					<DialogDescription>
+						Originaldatei und der bei der letzten Anfrage erkannte OCR-Text.
+					</DialogDescription>
+				</DialogHeader>
+				<Tabs className="min-h-0 flex-1" defaultValue="original">
+					<TabsList>
+						<TabsTrigger value="original">Original</TabsTrigger>
+						<TabsTrigger value="ocr">OCR-Text</TabsTrigger>
+					</TabsList>
+					<TabsContent
+						className="h-full min-h-0 overflow-hidden rounded-md border"
+						value="original"
+					>
+						{renderOriginalPreview()}
+					</TabsContent>
+					<TabsContent
+						className="min-h-0 overflow-auto rounded-md border bg-muted/20 p-4"
+						value="ocr"
+					>
+						{ocrText ? (
+							<pre className="font-sans text-sm whitespace-pre-wrap">{ocrText}</pre>
+						) : (
+							<div className="flex h-full min-h-64 items-center justify-center p-6 text-center text-muted-foreground text-sm">
+								OCR-Text ist nach dem Absenden verfügbar, sofern die Datei durch das OCR-Modell
+								vorverarbeitet wurde.
+							</div>
+						)}
+					</TabsContent>
+				</Tabs>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
 export const DocumentInput = ({
 	accept,
 	className,
@@ -47,6 +133,29 @@ export const DocumentInput = ({
 	value,
 }: DocumentInputProps) => {
 	const [confirmingDeleteFileId, setConfirmingDeleteFileId] = useState<string | null>(null);
+	const [previewFile, setPreviewFile] = useState<{
+		file: UploadedContextFile;
+		pdfFile: Uint8Array | null;
+		url: string | null;
+	} | null>(null);
+	const previewUrlRef = useRef<string | null>(null);
+
+	const closePreview = useCallback(() => {
+		if (previewUrlRef.current) {
+			URL.revokeObjectURL(previewUrlRef.current);
+			previewUrlRef.current = null;
+		}
+		setPreviewFile(null);
+	}, []);
+
+	useEffect(
+		() => () => {
+			if (previewUrlRef.current) {
+				URL.revokeObjectURL(previewUrlRef.current);
+			}
+		},
+		[],
+	);
 
 	const handleRawFiles = useCallback(
 		(nextFiles: File[]) => {
@@ -135,6 +244,18 @@ export const DocumentInput = ({
 
 	return (
 		<div className={cn("flex min-h-0 flex-col gap-4", disabled && "opacity-70", className)}>
+			{previewFile ? (
+				<FilePreviewDialog
+					file={previewFile.file}
+					onOpenChange={(open) => {
+						if (!open) {
+							closePreview();
+						}
+					}}
+					pdfFile={previewFile.pdfFile}
+					previewUrl={previewFile.url}
+				/>
+			) : null}
 			<FileDropzone
 				accept={accept}
 				className={cn(
@@ -162,13 +283,35 @@ export const DocumentInput = ({
 								)}
 								key={id}
 							>
-								<div className="flex min-w-0 items-center gap-2 text-xs">
+								<button
+									className="flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left text-xs outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+									onClick={async () => {
+										const selectedFile = value.find((item) => item.id === id);
+										if (selectedFile) {
+											const isPdf = selectedFile.file.type === "application/pdf";
+											const url = selectedFile.file.type.startsWith("image/")
+												? URL.createObjectURL(selectedFile.file)
+												: null;
+											previewUrlRef.current = url;
+											setPreviewFile({
+												file: selectedFile,
+												pdfFile: isPdf
+													? new Uint8Array(await selectedFile.file.arrayBuffer())
+													: null,
+												url,
+											});
+										}
+									}}
+									title="Datei anzeigen"
+									type="button"
+								>
 									<Paperclip className="h-3.5 w-3.5 shrink-0 text-solarized-blue" />
 									<span className="truncate">{file.name}</span>
 									<span className="shrink-0 text-muted-foreground">
 										{Math.ceil(file.size / 1024)} KB
 									</span>
-								</div>
+									<Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+								</button>
 								<div className="flex w-16 shrink-0 items-center justify-end gap-1">
 									{isConfirmingDelete ? (
 										<Button

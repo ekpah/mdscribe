@@ -279,10 +279,11 @@ export const InputPreviewSection = ({
 				templateInformation,
 				textContext,
 			});
+			inputContextController.setContextFileOcrResults(result.ocrResults);
 			trackEvent(`${contentType}-filled-with-ai`);
 			return result.fieldValues;
 		},
-		[contentType, templateExamples, templateInformation],
+		[contentType, inputContextController, templateExamples, templateInformation],
 	);
 
 	const inputPanelClassName = getInputPanelClassName(hasInputTags, mobilePanel);

@@ -12,6 +12,7 @@ import {
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
 } from "@/lib/input-fill-limits";
+import type { OcrResult } from "@/lib/ocr-types";
 
 import { addAudioFilesToValue, addContextFilesToValue } from "./files";
 import {
@@ -111,6 +112,15 @@ export const useInputContextState = ({
 		setTextContextState(nextTextContext);
 	}, []);
 
+	const setContextFileOcrResults = useCallback((results: OcrResult[]) => {
+		setContextFiles((currentFiles) =>
+			currentFiles.map((contextFile, index) => ({
+				...contextFile,
+				ocrResult: results[index],
+			})),
+		);
+	}, []);
+
 	const prepareSubmission = useCallback(async (): Promise<InputContextSubmission> => {
 		const audioFiles = await Promise.all(
 			audioRecordings.map((recording) => createAudioSubmissionFile(recording.blob)),
@@ -154,6 +164,7 @@ export const useInputContextState = ({
 		hasTextContext,
 		prepareSubmission,
 		setAudioRecordings,
+		setContextFileOcrResults,
 		setContextFiles,
 		setTextContext,
 		textContext,

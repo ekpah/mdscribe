@@ -1,3 +1,5 @@
+import type { OcrResult } from "@/lib/ocr-types";
+
 export interface AudioRecording {
 	blob: Blob;
 	duration: number;
@@ -42,6 +44,7 @@ export interface InputContextSubmission {
 export interface UploadedContextFile {
 	file: File;
 	id: string;
+	ocrResult?: OcrResult;
 }
 
 export type InputContextPanel = "audio" | "files" | "text";
@@ -59,6 +62,7 @@ export interface InputContextController {
 	prepareSubmission: () => Promise<InputContextSubmission>;
 	setAudioRecordings: (recordings: AudioRecording[]) => void;
 	setContextFiles: (files: UploadedContextFile[]) => void;
+	setContextFileOcrResults: (results: OcrResult[]) => void;
 	setTextContext: (textContext: InputContextTextContext) => void;
 	textContext: InputContextTextContext;
 }

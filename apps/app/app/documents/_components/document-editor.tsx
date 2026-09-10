@@ -22,11 +22,7 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { Switch } from "@repo/design-system/components/ui/switch";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@repo/design-system/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { InfoIcon, Link2, Loader2, Plus, Sparkles, Trash2, Unlink2, X } from "lucide-react";
@@ -35,6 +31,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { toast } from "sonner";
 
+import { PDFViewSection } from "@/app/_components/pdf-view-section-dynamic";
 import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
 import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
 import {
@@ -43,7 +40,6 @@ import {
 } from "@/app/documents/_components/pdf-field-highlights";
 import type { PdfFieldHighlight } from "@/app/documents/_components/pdf-field-highlights";
 import { PDFUploadSection } from "@/app/documents/_components/pdf-upload-section";
-import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	buildDefaultDocumentDefinitionFromPdfFields,
 	decodeBase64ToUint8Array,

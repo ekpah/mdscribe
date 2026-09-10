@@ -3,20 +3,10 @@
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToUnproxiedDataStream } from "@orpc/client";
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardFooter,
-	CardHeader,
-} from "@repo/design-system/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@repo/design-system/components/ui/card";
 import { Kbd } from "@repo/design-system/components/ui/kbd";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@repo/design-system/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { FileText, Loader2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -32,11 +22,9 @@ import {
 import { useInputContextState } from "@/app/_components/input-context/input-context-controls";
 import { useTextSnippets } from "@/hooks/use-text-snippets";
 import { getAiscribeErrorMessage } from "@/lib/aiscribe-errors";
-import {
-	hasLessThanTenPercentUsageRemaining,
-	isSuccessfulChatFinish,
-} from "@/lib/aiscribe-toasts";
+import { hasLessThanTenPercentUsageRemaining, isSuccessfulChatFinish } from "@/lib/aiscribe-toasts";
 import { trackEvent } from "@/lib/analytics";
+import type { OcrUIMessage } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { getPromptHarnessTargetField } from "@/orpc/scribe/prompts";
@@ -165,8 +153,13 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 	}, [isCustomFormConfig, router]);
 
 	// Use AI SDK useChat with custom oRPC transport
-	const { messages, sendMessage, status, setMessages } = useChat({
+	const { messages, sendMessage, status, setMessages } = useChat<OcrUIMessage>({
 		id: chatId,
+		onData: (part) => {
+			if (part.type === "data-ocr-results" && Array.isArray(part.data)) {
+				inputContextController.setContextFileOcrResults(part.data);
+			}
+		},
 		onError: (error) => {
 			const message = getAiscribeErrorMessage(error);
 			if (message) {

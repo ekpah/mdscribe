@@ -7,13 +7,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { InputPreviewSection } from "@/app/_components/input-preview-section";
+import { PDFViewSection } from "@/app/_components/pdf-view-section-dynamic";
 import { DocumentPreviewTabs } from "@/app/documents/_components/document-preview-tabs";
 import type { DocumentPreviewView } from "@/app/documents/_components/document-preview-tabs";
 import {
 	getInputIdForPdfWidget,
 	getPdfFieldHighlightsForInput,
 } from "@/app/documents/_components/pdf-field-highlights";
-import { PDFViewSection } from "@/app/documents/_components/pdf-view-section-dynamic";
 import {
 	cloneUint8Array,
 	decodeBase64ToUint8Array,

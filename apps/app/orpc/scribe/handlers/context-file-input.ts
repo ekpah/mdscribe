@@ -1,19 +1,13 @@
-import { ORPCError } from "@orpc/server";
 import type { Database } from "@repo/database";
-import { generateText } from "ai";
 
 import { getBase64Payload } from "@/lib/input-fill-limits";
-import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
-import type { StandardUsage } from "@/lib/usage-logging";
-import { USER_MESSAGES } from "@/lib/user-messages";
-import { buildProviderOptions } from "@/orpc/scribe/providers";
+import type { OcrResult } from "@/lib/ocr-types";
+import { extractOcrDocument } from "@/orpc/scribe/ocr";
 import type {
 	MediaPreprocessStrategy,
 	ResolvedDefaultModelSelection,
 } from "@/orpc/scribe/providers";
 import type { FillInputsContextFile } from "@/orpc/scribe/types";
-
-import { logMediaPreprocessingUsage } from "./preprocessing-usage";
 
 interface PreparedContextFilePart {
 	data: Buffer;
@@ -64,11 +58,11 @@ export const formatContextFileMetadataForPrompt = (
  * context, keeping non-multimodal routes provider-agnostic and avoiding
  * implicit file support checks in the final generation model.
  *
- * With strategy "multimodal" the files are sent together with an extraction
- * prompt. With strategy "direct" the files are sent without any text prompt,
- * which dedicated OCR models expect.
+ * Each file is extracted separately so its page geometry remains attributable
+ * to the corresponding usage event. Only the text projection is passed on to
+ * Scribe; consumers that need geometry should use `extractOcrDocument`.
  */
-export const extractContextFileText = async ({
+export const extractContextFiles = async ({
 	contextFiles,
 	db,
 	modelSelection,
@@ -82,92 +76,41 @@ export const extractContextFileText = async ({
 	strategy?: MediaPreprocessStrategy;
 	userId: string;
 	zdr?: boolean;
-}): Promise<string> => {
+}): Promise<{ ocrResults: OcrResult[]; textContext: string }> => {
 	if (!contextFiles?.length) {
-		return "";
+		return { ocrResults: [], textContext: "" };
 	}
 
-	const messages =
-		strategy === "direct"
-			? [
-					{
-						content: createContextFileParts(contextFiles),
-						role: "user" as const,
-					},
-				]
-			: [
-					{
-						content:
-							"Extrahiere den relevanten medizinischen Inhalt aus den angehängten Dateien. Antworte knapp, strukturiert und ohne erfundene Details.",
-						role: "system" as const,
-					},
-					{
-						content: [
-							{
-								text: "Dateien für medizinische Dokumentation:",
-								type: "text" as const,
-							},
-							...createContextFileParts(contextFiles),
-						],
-						role: "user" as const,
-					},
-				];
-
-	const requestStartedAt = Date.now();
-	const result = await generateText({
-		messages,
-		model: modelSelection.model.model,
-		providerOptions: buildProviderOptions({
-			includeUsage: true,
-			model: modelSelection.model,
-			reasoningEffort: modelSelection.reasoningEffort,
-			userId,
-			zdr,
-		}),
-		temperature: 0.1,
-	}).catch((error: unknown) => {
-		const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
-		throw new ORPCError("BAD_REQUEST", {
-			message: `Dateien konnten nicht analysiert werden. (${details})`,
-		});
-	});
-	const timeToCompletionMs = Date.now() - requestStartedAt;
-
-	const extractedText = result.text.trim();
-	const promptName = strategy === "direct" ? "ocr:direct" : "ocr:prompt";
-	await logMediaPreprocessingUsage({
-		db,
-		inputData: {
-			contextFiles: contextFiles.map((file, index) => ({
-				index: index + 1,
-				mediaType: file.mimeType,
-				name: file.name,
-				payloadBytes: Buffer.from(getBase64Payload(file.data), "base64").length,
-				size: file.size,
-			})),
-		},
-		isOpenRouter: modelSelection.model.isOpenRouter,
-		metadata: {
-			credentialSource: modelSelection.model.credentialSource,
-			endpoint: promptName,
-			promptLabel: promptName,
-			promptName,
-			providerProtocol: modelSelection.model.providerProtocol,
-			slot: modelSelection.slot,
-			strategy,
-		},
-		modelName: modelSelection.model.modelName,
-		name: AI_SCRIBE_OCR_EVENT_NAME,
-		providerMetadata: (result as { providerMetadata?: Record<string, unknown> }).providerMetadata,
-		result: extractedText,
-		standardUsage: result.usage as StandardUsage,
-		timing: { timeToCompletionMs },
-		userId,
-		zdr,
-	});
+	const results = [];
+	for (const contextFile of contextFiles) {
+		results.push(
+			await extractOcrDocument({
+				contextFile,
+				db,
+				modelSelection,
+				strategy,
+				userId,
+				zdr,
+			}),
+		);
+	}
+	const extractedText = results
+		.map((result) => result.text)
+		.filter(Boolean)
+		.join("\n\n");
 	if (!extractedText) {
-		return "";
+		return { ocrResults: results, textContext: "" };
 	}
 
-	return `<datei_kontext>\n${extractedText}\n</datei_kontext>`;
+	return {
+		ocrResults: results,
+		textContext: `<datei_kontext>\n${extractedText}\n</datei_kontext>`,
+	};
+};
+
+export const extractContextFileText = async (
+	input: Parameters<typeof extractContextFiles>[0],
+): Promise<string> => {
+	const result = await extractContextFiles(input);
+	return result.textContext;
 };

@@ -1,7 +1,7 @@
 import { ORPCError, streamToEventIterator, type } from "@orpc/server";
 import { aiScribeFormConfig, and, eq, or } from "@repo/database";
 import type { Database } from "@repo/database";
-import { streamText } from "ai";
+import { createUIMessageStream, streamText } from "ai";
 import type { ModelMessage, UIMessage } from "ai";
 
 import type { Session } from "@/lib/auth-types";
@@ -10,6 +10,7 @@ import {
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
 } from "@/lib/input-fill-limits";
+import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
@@ -22,7 +23,7 @@ import {
 } from "@/orpc/scribe/handlers/audio-input";
 import {
 	createContextFileParts,
-	extractContextFileText,
+	extractContextFiles,
 	formatContextFileMetadataForPrompt,
 } from "@/orpc/scribe/handlers/context-file-input";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
@@ -473,6 +474,7 @@ interface PreparedContextFiles {
 	fileTextContext: string;
 	metadataPrompt: string;
 	mode: "native" | "text";
+	ocrResults: OcrResult[];
 }
 
 const appendNativeAudioToMessages = (
@@ -578,10 +580,11 @@ const prepareContextFilesForMessages = async ({
 			fileTextContext: "",
 			metadataPrompt: fileMetadataPrompt,
 			mode: "native",
+			ocrResults: [],
 		};
 	}
 
-	const fileTextContext = await extractContextFileText({
+	const extractedFiles = await extractContextFiles({
 		contextFiles,
 		db,
 		modelSelection: filesPlan.selection,
@@ -591,9 +594,10 @@ const prepareContextFilesForMessages = async ({
 	});
 	return {
 		fileParts: [],
-		fileTextContext,
+		fileTextContext: extractedFiles.textContext,
 		metadataPrompt: fileMetadataPrompt,
 		mode: "text",
+		ocrResults: extractedFiles.ocrResults,
 	};
 };
 
@@ -622,6 +626,7 @@ export const appendScribeInputAttachmentsToMessages = async ({
 	audioTranscripts: string[];
 	fileTextContext: string;
 	messages: ModelMessage[];
+	ocrResults: OcrResult[];
 }> => {
 	const prepareAudio = async (): Promise<PreparedAudio | null> => {
 		if (audioFiles.length === 0) {
@@ -699,6 +704,7 @@ export const appendScribeInputAttachmentsToMessages = async ({
 		audioTranscripts: preparedAudio?.transcripts ?? [],
 		fileTextContext: preparedFiles?.fileTextContext ?? "",
 		messages: nextMessages,
+		ocrResults: preparedFiles?.ocrResults ?? [],
 	};
 };
 
@@ -885,13 +891,25 @@ export const runScribeGeneration = async ({
 		temperature: effectiveTemperature,
 	});
 
-	return result;
+	return { generation: result, ocrResults: attachmentsResult.ocrResults };
 };
 
 export const scribeStreamHandler = authed
 	.use(scribeEntitlementsMiddleware)
 	.input(type<ScribeStreamInput>())
 	.handler(async ({ input, context }) => {
-		const generation = await runScribeGeneration({ context, input });
-		return streamToEventIterator(generation.toUIMessageStream());
+		const { generation, ocrResults } = await runScribeGeneration({ context, input });
+		const stream = createUIMessageStream<OcrUIMessage>({
+			execute: ({ writer }) => {
+				if (ocrResults.length > 0) {
+					writer.write({
+						data: ocrResults,
+						transient: true,
+						type: "data-ocr-results",
+					});
+				}
+				writer.merge(generation.toUIMessageStream<OcrUIMessage>());
+			},
+		});
+		return streamToEventIterator(stream);
 	});
