@@ -16,22 +16,35 @@ import type {
 } from "@/orpc/scribe/providers";
 import type { FillInputsContextFile } from "@/orpc/scribe/types";
 
+// Gemini structured output rejects JSON Schema's `exclusiveMinimum` and
+// `minLength`. Express those constraints as Zod refinements so they still run
+// when AI SDK validates the response without being sent to the provider.
+const positiveNumberSchema = z
+	.number()
+	.nonnegative()
+	.refine((value) => value > 0);
+const positiveIntegerSchema = z
+	.number()
+	.int()
+	.nonnegative()
+	.refine((value) => value > 0);
+
 const ocrBlockSchema = z.object({
 	bbox: z.object({
-		height: z.number().positive(),
-		width: z.number().positive(),
+		height: positiveNumberSchema,
+		width: positiveNumberSchema,
 		x: z.number().nonnegative(),
 		y: z.number().nonnegative(),
 	}),
-	text: z.string().min(1),
+	text: z.string().refine((value) => value.length > 0),
 });
 
 const ocrPageSchema = z
 	.object({
 		blocks: z.array(ocrBlockSchema).max(5000),
-		height: z.number().positive(),
-		pageNumber: z.number().int().positive(),
-		width: z.number().positive(),
+		height: positiveNumberSchema,
+		pageNumber: positiveIntegerSchema,
+		width: positiveNumberSchema,
 	})
 	.refine(
 		(page) =>

@@ -33,6 +33,7 @@
 
 ### Fixed
 
+- OCR document uploads no longer send JSON Schema constraints unsupported by Gemini through OpenRouter, while retaining the same response validation in the app.
 - Markdoc editor HTML conversions preserve line breaks and blank paragraphs on reopen or content replacement, and retain calculated tags' description and source metadata.
 - Fill Inputs now includes field definitions directly in the model prompt instead of relying solely on structured-output support, and reports empty OCR output rather than silently continuing.
 - Fill-document autofill now uses optional output fields with non-null values, constrains switches to their configured options, and enforces boolean fields as `true` or `false`. Usage logs now preserve field options and descriptions instead of recording only counts and flags.

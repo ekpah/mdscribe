@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { ORPCError, call } from "@orpc/server";
 import { aiDefaults, aiModel, aiProvider, eq, usageEvent } from "@repo/database";
+import { z } from "zod";
 
 import { aiMockState } from "@/__tests__/preload";
 import type { TestServer } from "@/__tests__/setup";
@@ -1039,11 +1040,14 @@ describe("Fill Inputs Handler", () => {
 				expect(result.ocrResults).toEqual([{ ...expectedOcrResult, backend: "llm" }]);
 				const ocrOptions = aiMockState.lastOcrGenerateTextOptions as {
 					messages: { content: unknown }[];
-					output: { schema: { safeParse: (value: unknown) => { success: boolean } } };
+					output: { schema: z.ZodType };
 				};
 				expect(ocrOptions.messages[0]?.content).toContain(
 					"Coordinates use a top-left origin and 72-DPI page points",
 				);
+				const providerSchema = JSON.stringify(z.toJSONSchema(ocrOptions.output.schema));
+				expect(providerSchema).not.toContain("exclusiveMinimum");
+				expect(providerSchema).not.toContain("minLength");
 				expect(
 					ocrOptions.output.schema.safeParse({
 						pages: [
