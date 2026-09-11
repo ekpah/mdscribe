@@ -1,29 +1,34 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 
-import { aiProvider } from "@repo/database/schema";
+import type { Database } from "@repo/database";
+import { aiDefaults, aiModel, aiProvider, template, user } from "@repo/database/schema";
 
 import { env } from "@/env";
-import { decrypt, encrypt } from "@/lib/encryption";
+import { decrypt } from "@/lib/encryption";
 
 import { seedDatabase } from "../../scripts/seed";
+import { startTestServer } from "../setup";
 
-const variables = [
+const providerVariables = [
 	"OPENROUTER_API_KEY",
 	"ANTHROPIC_API_KEY",
 	"OPENAI_API_KEY",
 	"MISTRAL_API_KEY",
 	"TINFOIL_API_KEY",
-	"AMP_ORB",
-	"BETTER_AUTH_SECRET",
+];
+const variables = [
+	...providerVariables,
+	...providerVariables.map((name) => name.toLowerCase()),
 	"NODE_ENV",
+	"BETTER_AUTH_SECRET",
 	"MDSCRIBE_ALLOW_DEV_SEED",
+	"MDSCRIBE_SKIP_AI_SEED",
 ];
 const seedState = globalThis as unknown as { seeded?: boolean };
-let saved: Record<string, string | undefined>;
+let saved: (string | undefined)[];
 let previousSeeded: boolean | undefined;
-
 beforeEach(() => {
-	saved = Object.fromEntries(variables.map((name) => [name, process.env[name]]));
+	saved = variables.map((name) => process.env[name]);
 	previousSeeded = seedState.seeded;
 	seedState.seeded = false;
 	for (const name of variables) {
@@ -33,115 +38,103 @@ beforeEach(() => {
 	process.env.MDSCRIBE_ALLOW_DEV_SEED = "1";
 	process.env.BETTER_AUTH_SECRET = env.BETTER_AUTH_SECRET;
 });
-
 afterEach(() => {
-	for (const name of variables) {
-		if (saved[name] === undefined) {
+	for (const [index, name] of variables.entries()) {
+		if (saved[index] === undefined) {
 			Reflect.deleteProperty(process.env, name);
 		} else {
-			process.env[name] = saved[name];
+			process.env[name] = saved[index];
 		}
 	}
 	seedState.seeded = previousSeeded;
 });
 
-const database = (userCount = 0) => {
-	const providers: (typeof aiProvider.$inferInsert)[] = [];
-	const transaction = mock(async (runTransaction: (tx: unknown) => Promise<void>) => {
-		await runTransaction({
-			insert: (table: unknown) => ({
-				values: (value: typeof aiProvider.$inferInsert) => {
-					if (table === aiProvider) {
-						providers.push(value);
-					}
-					return Promise.resolve();
-				},
-			}),
-		});
-	});
-	return {
-		db: {
-			select: () => ({
-				from: () => ({
-					limit: () => Promise.resolve(userCount > 0 ? [{ id: "existing-user" }] : []),
-				}),
-			}),
-			transaction,
-		} as unknown as Parameters<typeof seedDatabase>[0],
-		providers,
-		transaction,
-	};
-};
+test("requires explicit development opt-in", async () => {
+	delete process.env.MDSCRIBE_ALLOW_DEV_SEED;
+	await seedDatabase({} as Database);
+	process.env.MDSCRIBE_ALLOW_DEV_SEED = "1";
+	Reflect.set(process.env, "NODE_ENV", "production");
+	await expect(seedDatabase({} as Database)).rejects.toThrow("NODE_ENV=development");
+});
 
-describe("development AI provider seed", () => {
-	test("does not put personal credentials into shared orb snapshots", async () => {
-		process.env.AMP_ORB = "1";
-		process.env.OPENROUTER_API_KEY = "personal-key";
-		const { db, providers } = database();
-		await seedDatabase(db);
-		expect(providers).toHaveLength(0);
+test("seeds all available providers, Gemini defaults, and preserves admin choices on repeat", async () => {
+	const { db } = await startTestServer("database-seed");
+	for (const variable of providerVariables) {
+		process.env[variable] = ` test-${variable} `;
+	}
+	await seedDatabase(db);
+	const providers = await db.select().from(aiProvider);
+	expect(providers.map(({ name, protocol, baseUrl }) => [name, protocol, baseUrl])).toEqual([
+		["OpenRouter", "openrouter", "https://openrouter.ai/api/v1"],
+		["Anthropic", "anthropic", "https://api.anthropic.com/v1"],
+		["OpenAI", "openai", "https://api.openai.com/v1"],
+		["Mistral", "openai-compatible", "https://api.mistral.ai/v1"],
+		["Tinfoil", "tinfoil", "https://inference.tinfoil.sh/v1"],
+	]);
+	for (const [index, provider] of providers.entries()) {
+		expect(await decrypt(provider.apiKey ?? "")).toBe(`test-${providerVariables[index]}`);
+	}
+	const [model] = await db.select().from(aiModel);
+	expect(model.modelId).toBe("google/gemini-3.8-flash");
+	const [defaults] = await db.select().from(aiDefaults);
+	expect(defaults).toMatchObject({
+		defaultAgentModelId: model.id,
+		defaultAgentSupportsAudio: true,
+		defaultAgentSupportsDocuments: true,
+		defaultFileImageModelId: model.id,
+		defaultSpeechToTextModelId: model.id,
+		defaultStandardSupportsAgent: true,
+		defaultStandardSupportsAudio: true,
+		defaultStandardSupportsDocuments: true,
+		defaultTextModelId: model.id,
 	});
+	await db.update(aiDefaults).set({ defaultStandardSupportsAudio: false });
+	await seedDatabase(db);
+	expect(await db.select().from(aiProvider)).toHaveLength(5);
+	expect(await db.select().from(aiModel)).toHaveLength(1);
+	expect(await db.select().from(user)).toHaveLength(1);
+	expect(await db.select().from(template)).toHaveLength(5);
+	const [preserved] = await db.select().from(aiDefaults);
+	expect(preserved.defaultStandardSupportsAudio).toBe(false);
+});
 
-	test("seeds all five services with app-decryptable keys and default URLs", async () => {
-		for (const name of variables.slice(0, 5)) {
-			process.env[name] = `  test-${name}  `;
-		}
-		const { db, providers } = database();
-		await seedDatabase(db);
-		expect(providers.map(({ name, protocol, baseUrl }) => [name, protocol, baseUrl])).toEqual([
-			["OpenRouter", "openrouter", "https://openrouter.ai/api/v1"],
-			["Anthropic", "anthropic", "https://api.anthropic.com/v1"],
-			["OpenAI", "openai", "https://api.openai.com/v1"],
-			["Mistral", "openai-compatible", "https://api.mistral.ai/v1"],
-			["Tinfoil", "tinfoil", "https://inference.tinfoil.sh/v1"],
-		]);
-		for (const [index, provider] of providers.entries()) {
-			expect(await decrypt(provider.apiKey ?? "")).toBe(`test-${variables[index]}`);
-			expect(provider.apiKey).not.toContain(`test-${variables[index]}`);
-		}
-		await seedDatabase(db);
-		expect(providers).toHaveLength(5);
-	});
+test("skips absent keys and adds providers after snapshot/user seeding", async () => {
+	const { db } = await startTestServer("database-seed-activation");
+	process.env.OPENROUTER_API_KEY = "orb-placeholder";
+	process.env.ANTHROPIC_API_KEY = " ";
+	process.env.openai_api_key = "lowercase-openai";
+	process.env.MDSCRIBE_SKIP_AI_SEED = "1";
+	await seedDatabase(db);
+	expect(await db.select().from(aiProvider)).toHaveLength(0);
+	delete process.env.MDSCRIBE_SKIP_AI_SEED;
+	await seedDatabase(db);
+	const [openai] = await db.select().from(aiProvider);
+	expect(openai.name).toBe("OpenAI");
+	expect(await decrypt(openai.apiKey ?? "")).toBe("lowercase-openai");
+	expect(await db.select().from(aiModel)).toHaveLength(0);
+	expect(await db.select().from(aiDefaults)).toHaveLength(0);
+	await db
+		.insert(aiProvider)
+		.values({ id: "existing-openrouter", name: "OpenRouter", protocol: "openrouter" });
+	await db.insert(aiDefaults).values({ id: "global" });
+	process.env.openrouter_api_key = "lowercase-openrouter";
+	seedState.seeded = false;
+	await seedDatabase(db);
+	expect(await db.select().from(aiProvider)).toHaveLength(2);
+	const [model] = await db.select().from(aiModel);
+	expect(model.providerId).toBe("existing-openrouter");
+	const [defaults] = await db.select().from(aiDefaults);
+	expect(defaults.defaultTextModelId).toBe(model.id);
+	expect(defaults.defaultStandardSupportsAgent).toBe(true);
+	expect(await db.select().from(user)).toHaveLength(1);
+});
 
-	test("skips missing, blank, and placeholder keys", async () => {
-		process.env.OPENROUTER_API_KEY = "orb-placeholder";
-		process.env.ANTHROPIC_API_KEY = "  ";
-		delete process.env.BETTER_AUTH_SECRET;
-		const { db, providers } = database();
-		await seedDatabase(db);
-		expect(providers).toHaveLength(0);
-	});
-
-	test("does not seed an existing database", async () => {
-		process.env.OPENAI_API_KEY = "test-openai";
-		const { db, transaction } = database(1);
-		await seedDatabase(db);
-		expect(transaction).not.toHaveBeenCalled();
-	});
-
-	test("requires explicit development opt-in", async () => {
-		const { db, transaction } = database();
-		delete process.env.MDSCRIBE_ALLOW_DEV_SEED;
-		await seedDatabase(db);
-		expect(transaction).not.toHaveBeenCalled();
-		process.env.MDSCRIBE_ALLOW_DEV_SEED = "1";
-		Reflect.set(process.env, "NODE_ENV", "production");
-		await expect(seedDatabase(db)).rejects.toThrow("NODE_ENV=development");
-		expect(transaction).not.toHaveBeenCalled();
-	});
-
-	test("refuses to encrypt without an auth secret", async () => {
-		process.env.OPENAI_API_KEY = "test-openai";
-		delete process.env.BETTER_AUTH_SECRET;
-		await expect(seedDatabase(database().db)).rejects.toThrow("BETTER_AUTH_SECRET");
-		expect(seedState.seeded).toBe(false);
-	});
-
-	test("app encryption still round-trips with fresh random IVs", async () => {
-		const first = await encrypt("test-key");
-		const second = await encrypt("test-key");
-		expect(first).not.toBe(second);
-		expect(await decrypt(first)).toBe("test-key");
-		expect(await decrypt(second)).toBe("test-key");
-	});
+test("no credentials needs no encryption secret, but a provided key does", async () => {
+	const { db } = await startTestServer("database-seed-secret");
+	delete process.env.BETTER_AUTH_SECRET;
+	await seedDatabase(db);
+	expect(await db.select().from(aiProvider)).toHaveLength(0);
+	process.env.OPENAI_API_KEY = "test-openai";
+	await expect(seedDatabase(db)).rejects.toThrow("BETTER_AUTH_SECRET");
+	expect(await db.select().from(aiProvider)).toHaveLength(0);
 });

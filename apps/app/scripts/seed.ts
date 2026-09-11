@@ -1,6 +1,7 @@
 import type { Database } from "@repo/database";
 import * as schema from "@repo/database/schema";
 import { hashPassword } from "better-auth/crypto";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { encryptApiKey } from "../lib/encryption-core";
 
@@ -202,9 +203,69 @@ const seedUsageEvents = async (db: SeedTransaction, userId: string): Promise<voi
 	console.log(`Seeded ${events.length} usage events`);
 };
 
+const seedAiDefaults = async (db: SeedTransaction, modelId: string): Promise<void> => {
+	const defaults = {
+		defaultAgentModelId: modelId,
+		defaultAgentSupportsAudio: true,
+		defaultAgentSupportsDocuments: true,
+		defaultFileImageModelId: modelId,
+		defaultSpeechToTextModelId: modelId,
+		defaultStandardSupportsAgent: true,
+		defaultStandardSupportsAudio: true,
+		defaultStandardSupportsDocuments: true,
+		defaultTextModelId: modelId,
+		id: "global",
+	};
+	await db
+		.insert(schema.aiDefaults)
+		.values(defaults)
+		.onConflictDoUpdate({
+			set: defaults,
+			setWhere: and(
+				isNull(schema.aiDefaults.defaultTextModelId),
+				isNull(schema.aiDefaults.defaultAgentModelId),
+				isNull(schema.aiDefaults.defaultFileImageModelId),
+				isNull(schema.aiDefaults.defaultSpeechToTextModelId),
+			),
+			target: schema.aiDefaults.id,
+		});
+};
+
+const seedAiModels = async (db: SeedTransaction, providerId: string): Promise<void> => {
+	const modelId = "google/gemini-3.8-flash";
+	const [model] = await db
+		.insert(schema.aiModel)
+		.values({
+			displayName: "Gemini 3.8 Flash",
+			modelId,
+			providerId,
+			supportedParameters: [
+				"include_reasoning",
+				"max_tokens",
+				"reasoning",
+				"reasoning_effort",
+				"response_format",
+				"seed",
+				"stop",
+				"structured_outputs",
+				"temperature",
+				"tool_choice",
+				"tools",
+				"top_p",
+			],
+			supportsReasoning: true,
+		})
+		.onConflictDoUpdate({
+			set: { modelId },
+			target: [schema.aiModel.providerId, schema.aiModel.modelId],
+		})
+		.returning({ id: schema.aiModel.id });
+	await seedAiDefaults(db, model.id);
+};
+
 const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
-	// Orb snapshots are shared; personal credentials are configured by resume instead.
-	if (process.env.AMP_ORB === "1") {
+	// Setup snapshots are shared; resume invokes this same seed with personal keys.
+	if (process.env.MDSCRIBE_SKIP_AI_SEED === "1") {
 		return;
 	}
 	const providers = [
@@ -216,24 +277,40 @@ const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
 	] as const;
 
 	for (const [variable, name, protocol, baseUrl] of providers) {
-		const apiKey = process.env[variable]?.trim();
+		const apiKey = [process.env[variable], process.env[variable.toLowerCase()]]
+			.map((value) => value?.trim())
+			.find((value) => value && value !== "orb-placeholder");
 		// Older orb setup scripts supplied this placeholder even without a real key.
-		if (!apiKey || apiKey === "orb-placeholder") {
+		if (!apiKey) {
 			continue;
 		}
-		await db.insert(schema.aiProvider).values({
-			apiKey: await encryptApiKey(apiKey, process.env.BETTER_AUTH_SECRET ?? ""),
-			baseUrl,
-			name,
-			protocol,
-		});
+		const [existing] = await db
+			.select({ id: schema.aiProvider.id })
+			.from(schema.aiProvider)
+			.where(and(eq(schema.aiProvider.protocol, protocol), eq(schema.aiProvider.name, name)))
+			.limit(1);
+		const encryptedKey = await encryptApiKey(apiKey, process.env.BETTER_AUTH_SECRET ?? "");
+		const [provider] = await db
+			.insert(schema.aiProvider)
+			.values({
+				apiKey: encryptedKey,
+				baseUrl,
+				id: existing?.id ?? `seed-${variable.toLowerCase()}`,
+				name,
+				protocol,
+			})
+			.onConflictDoUpdate({ set: { apiKey: encryptedKey }, target: schema.aiProvider.id })
+			.returning({ id: schema.aiProvider.id });
+		if (protocol === "openrouter") {
+			await seedAiModels(db, provider.id);
+		}
 		console.log(`Seeded AI provider: ${name}`);
 	}
 };
 
 /**
  * Seed the database with test data for local development
- * Only runs once, even across HMR reloads
+ * User/template data runs once; available AI providers are refreshed on each call.
  */
 export const seedDatabase = async (db: Database): Promise<void> => {
 	if (process.env.MDSCRIBE_ALLOW_DEV_SEED !== "1") {
@@ -243,6 +320,9 @@ export const seedDatabase = async (db: Database): Promise<void> => {
 	if (process.env.NODE_ENV !== "development") {
 		throw new Error("Development seed data requires NODE_ENV=development.");
 	}
+
+	// Providers may become available after the user/template seed (e.g. orb activation).
+	await db.transaction(seedAiProviders);
 
 	// Skip if already seeded (HMR protection)
 	if (globalForSeed.seeded) {
@@ -296,7 +376,6 @@ export const seedDatabase = async (db: Database): Promise<void> => {
 
 		await seedTemplates(transaction, userId);
 		await seedUsageEvents(transaction, userId);
-		await seedAiProviders(transaction);
 	});
 
 	// Mark as seeded

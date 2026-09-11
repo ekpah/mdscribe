@@ -18,5 +18,5 @@ echo "PostgreSQL is ready."
 
 # Run from the app so Bun loads the same auth secret as the development server.
 # Credentials arrive after shared snapshot activation and must not be seeded in setup.
-NODE_ENV="development" POSTGRES_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe" \
-	bun run --cwd apps/app scripts/orb-ai-defaults.ts
+NODE_ENV="development" MDSCRIBE_ALLOW_DEV_SEED="1" POSTGRES_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/mdscribe" \
+	bun run --cwd apps/app db:seed
