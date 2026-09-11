@@ -1047,25 +1047,38 @@ describe("Fill Inputs Handler", () => {
 				);
 				const providerSchema = JSON.stringify(z.toJSONSchema(ocrOptions.output.schema));
 				expect(providerSchema).not.toContain("exclusiveMinimum");
+				expect(providerSchema).not.toContain("maxItems");
 				expect(providerSchema).not.toContain("minLength");
-				expect(
-					ocrOptions.output.schema.safeParse({
-						pages: [
-							{
-								blocks: [
-									{
-										bbox: { height: 10, width: 30, x: 80, y: 10 },
-										text: "outside",
-									},
-								],
-								height: 100,
-								pageNumber: 1,
-								width: 100,
-							},
-						],
-						text: "outside",
-					}).success,
-				).toBe(false);
+				const invalidGeometryOutput = {
+					pages: [
+						{
+							blocks: [
+								{
+									bbox: { height: 10, width: 30, x: 80, y: 10 },
+									text: "Patient ist 75 Jahre alt.",
+								},
+							],
+							height: 100,
+							pageNumber: 1,
+							width: 100,
+						},
+					],
+					text: "Patient ist 75 Jahre alt.",
+				};
+				expect(ocrOptions.output.schema.safeParse(invalidGeometryOutput).success).toBe(true);
+				aiMockState.nextOcrOutput = invalidGeometryOutput;
+				aiMockState.nextGenerateTextOutput = { fieldValues: { Alter: 75 } };
+				const resultWithoutGeometry = await call(fillInputsHandler, input, { context });
+				expect(resultWithoutGeometry).toMatchObject({
+					fieldValues: { Alter: 75 },
+					ocrResults: [
+						{
+							backend: "llm",
+							text: "Patient ist 75 Jahre alt.",
+						},
+					],
+				});
+				expect(resultWithoutGeometry.ocrResults[0]).not.toHaveProperty("pages");
 				const options = aiMockState.lastGenerateTextOptions as { messages: { content: unknown }[] };
 				expect(typeof options.messages[1].content).toBe("string");
 				expect(options.messages[1].content).toContain(
@@ -1121,7 +1134,7 @@ describe("Fill Inputs Handler", () => {
 					.select()
 					.from(usageEvent)
 					.where(eq(usageEvent.name, AI_INPUT_FILL_EVENT_NAME));
-				expect(fillEvents).toHaveLength(1);
+				expect(fillEvents).toHaveLength(2);
 			} finally {
 				delete aiMockState.nextGenerateTextText;
 				delete aiMockState.nextGenerateTextOutput;
