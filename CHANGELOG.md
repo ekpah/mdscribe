@@ -34,6 +34,8 @@
 ### Fixed
 
 - OCR document uploads no longer send JSON Schema constraints, including array-size limits, unsupported by Gemini through OpenRouter. Invalid page geometry is discarded without losing otherwise usable OCR text.
+- Orb previews minify Turbopack development bundles to reduce script requests and download time on high-latency connections; local development and production build defaults remain unchanged.
+- Seeded Gemini 3.8 Flash standard-mode thinking now defaults to `minimal` rather than `none`, while preserving existing admin selections.
 - The existing development seed now configures every supported provider with an available environment key, plus OpenRouter's Gemini 3.8 Flash with audio, document/OCR, and agent defaults. Orb activation reruns this seed for already-seeded databases, while shared setup snapshots omit personal provider credentials.
 - Markdoc editor HTML conversions preserve line breaks and blank paragraphs on reopen or content replacement, and retain calculated tags' description and source metadata.
 - Fill Inputs now includes field definitions directly in the model prompt instead of relying solely on structured-output support, and reports empty OCR output rather than silently continuing.

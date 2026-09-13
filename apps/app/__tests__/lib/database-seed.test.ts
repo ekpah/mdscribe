@@ -87,8 +87,11 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 		defaultStandardSupportsAudio: true,
 		defaultStandardSupportsDocuments: true,
 		defaultTextModelId: model.id,
+		defaultTextReasoningEffort: "minimal",
 	});
-	await db.update(aiDefaults).set({ defaultStandardSupportsAudio: false });
+	await db
+		.update(aiDefaults)
+		.set({ defaultStandardSupportsAudio: false, defaultTextReasoningEffort: "high" });
 	await seedDatabase(db);
 	expect(await db.select().from(aiProvider)).toHaveLength(5);
 	expect(await db.select().from(aiModel)).toHaveLength(1);
@@ -96,6 +99,7 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 	expect(await db.select().from(template)).toHaveLength(5);
 	const [preserved] = await db.select().from(aiDefaults);
 	expect(preserved.defaultStandardSupportsAudio).toBe(false);
+	expect(preserved.defaultTextReasoningEffort).toBe("high");
 });
 
 test("skips absent keys and adds providers after snapshot/user seeding", async () => {

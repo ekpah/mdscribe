@@ -214,6 +214,7 @@ const seedAiDefaults = async (db: SeedTransaction, modelId: string): Promise<voi
 		defaultStandardSupportsAudio: true,
 		defaultStandardSupportsDocuments: true,
 		defaultTextModelId: modelId,
+		defaultTextReasoningEffort: "minimal",
 		id: "global",
 	};
 	await db

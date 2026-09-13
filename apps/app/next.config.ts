@@ -50,6 +50,8 @@ export const config: NextConfig = {
 	// so only list barrels that aren't covered by that default.
 	experimental: {
 		optimizePackageImports: ["@repo/design-system", "@base-ui/react", "react-aria-components"],
+		// Remote previews pay for every byte; retain normal local dev and build defaults.
+		...(orbPortalHostname ? { turbopackMinify: true } : {}),
 	},
 
 	headers() {
