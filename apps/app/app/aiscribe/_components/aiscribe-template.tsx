@@ -141,10 +141,14 @@ export const AiscribeTemplate = ({ config, isAdmin = false }: AiscribeTemplatePr
 			}
 
 			toast.warning(USER_MESSAGES.lowScribeUsageRemaining, {
-				action: {
-					label: USER_MESSAGES.lowScribeUsageSubscriptionAction,
-					onClick: () => router.push("/subscription"),
-				},
+				...(usage.subscriptionsEnabled
+					? {
+							action: {
+								label: USER_MESSAGES.lowScribeUsageSubscriptionAction,
+								onClick: () => router.push("/subscription"),
+							},
+						}
+					: {}),
 				id: "aiscribe-low-usage",
 			});
 		} catch {

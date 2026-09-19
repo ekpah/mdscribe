@@ -8,6 +8,7 @@ import { username } from "better-auth/plugins";
 import { Stripe as StripeClient } from "stripe";
 
 import { env } from "@/env";
+import { stripeConfig } from "@/lib/stripe-config";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
 // Usernames feed per-author slug routes, so they must be URL-safe and must not
@@ -36,13 +37,6 @@ const RESERVED_USERNAMES = new Set([
 const isValidUsername = (value: string): boolean =>
 	USERNAME_PATTERN.test(value) && !RESERVED_USERNAMES.has(value.toLowerCase());
 
-// Initialize stripe client (use placeholder during Docker builds where env vars aren't available)
-const isBuildTime = !!process.env.SKIP_ENV_VALIDATION;
-if (!isBuildTime && !(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET)) {
-	throw new Error("STRIPE_SECRET_KEY is not set");
-}
-const stripeClient = new StripeClient((env.STRIPE_SECRET_KEY as string) || "sk_placeholder");
-
 const authBaseUrl = new URL(env.NEXT_PUBLIC_BASE_URL as string);
 const isOrbPreview =
 	process.env.NODE_ENV === "development" &&
@@ -66,6 +60,34 @@ const userNameLengthHook = {
 		return Promise.resolve({ data: authUser });
 	},
 };
+
+const stripeAuthPlugins = stripeConfig
+	? ([
+			stripe({
+				createCustomerOnSignUp: true,
+				getCheckoutSessionParams: () => ({
+					params: {
+						allow_promotion_codes: true,
+					},
+				}),
+				stripeClient: new StripeClient(stripeConfig.secretKey),
+				stripeWebhookSecret: stripeConfig.webhookSecret,
+				subscription: {
+					enabled: true as const,
+					plans: [
+						{
+							annualDiscountPriceId: stripeConfig.annualPriceId,
+							limits: {
+								ai_scribe_generations: 500,
+							},
+							name: "plus",
+							priceId: stripeConfig.priceId,
+						},
+					],
+				},
+			}),
+		] as const)
+	: ([] as const);
 
 export const auth = betterAuth({
 	advanced: isOrbPreview
@@ -146,29 +168,7 @@ export const auth = betterAuth({
 		},
 	},
 	plugins: [
-		stripe({
-			createCustomerOnSignUp: true,
-			getCheckoutSessionParams: () => ({
-				params: {
-					allow_promotion_codes: true,
-				},
-			}),
-			stripeClient,
-			stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET as string,
-			subscription: {
-				enabled: true as const,
-				plans: [
-					{
-						annualDiscountPriceId: env.STRIPE_PLUS_PRICE_ID_ANNUAL as string,
-						limits: {
-							ai_scribe_generations: 500,
-						},
-						name: "plus",
-						priceId: env.STRIPE_PLUS_PRICE_ID as string,
-					},
-				],
-			},
-		}),
+		...stripeAuthPlugins,
 		username({
 			minUsernameLength: 3,
 			usernameValidator: isValidUsername,

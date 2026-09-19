@@ -13,6 +13,7 @@ const CONTENT = USER_MESSAGES.landing;
 
 interface PricingProps {
 	isLoggedIn: boolean;
+	subscriptionsEnabled: boolean;
 }
 
 interface PlanCardProps {
@@ -170,7 +171,7 @@ const SourceSection = () => {
 	);
 };
 
-export const Pricing = ({ isLoggedIn }: PricingProps) => {
+export const Pricing = ({ isLoggedIn, subscriptionsEnabled }: PricingProps) => {
 	const [isYearly, setIsYearly] = useState(false);
 	const content = CONTENT.pricing;
 	const { free, plus, selfHosted } = content.plans;
@@ -200,37 +201,41 @@ export const Pricing = ({ isLoggedIn }: PricingProps) => {
 						</p>
 					</div>
 
-					<div className="mt-9 flex justify-center">
-						<div className="inline-flex rounded-lg border bg-background p-1 shadow-sm">
-							<button
-								aria-pressed={!isYearly}
-								className={`rounded-md px-4 py-2 font-medium text-sm transition-colors ${
-									isYearly
-										? "text-muted-foreground hover:text-foreground"
-										: "bg-primary text-primary-foreground"
-								}`}
-								onClick={handleSetMonthly}
-								type="button"
-							>
-								{content.monthly}
-							</button>
-							<button
-								aria-pressed={isYearly}
-								className={`rounded-md px-4 py-2 font-medium text-sm transition-colors ${
-									isYearly
-										? "bg-primary text-primary-foreground"
-										: "text-muted-foreground hover:text-foreground"
-								}`}
-								onClick={handleSetYearly}
-								type="button"
-							>
-								{content.yearly}
-								<span className="ml-1.5 text-xs opacity-75">{content.yearlyDiscount}</span>
-							</button>
+					{subscriptionsEnabled ? (
+						<div className="mt-9 flex justify-center">
+							<div className="inline-flex rounded-lg border bg-background p-1 shadow-sm">
+								<button
+									aria-pressed={!isYearly}
+									className={`rounded-md px-4 py-2 font-medium text-sm transition-colors ${
+										isYearly
+											? "text-muted-foreground hover:text-foreground"
+											: "bg-primary text-primary-foreground"
+									}`}
+									onClick={handleSetMonthly}
+									type="button"
+								>
+									{content.monthly}
+								</button>
+								<button
+									aria-pressed={isYearly}
+									className={`rounded-md px-4 py-2 font-medium text-sm transition-colors ${
+										isYearly
+											? "bg-primary text-primary-foreground"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+									onClick={handleSetYearly}
+									type="button"
+								>
+									{content.yearly}
+									<span className="ml-1.5 text-xs opacity-75">{content.yearlyDiscount}</span>
+								</button>
+							</div>
 						</div>
-					</div>
+					) : null}
 
-					<div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+					<div
+						className={`mt-10 grid gap-5 md:grid-cols-2 ${subscriptionsEnabled ? "lg:grid-cols-3" : "mx-auto max-w-4xl"}`}
+					>
 						<PlanCard
 							caption={free.caption}
 							ctaHref={isLoggedIn ? "/dashboard" : "/sign-up"}
@@ -240,18 +245,20 @@ export const Pricing = ({ isLoggedIn }: PricingProps) => {
 							name={free.name}
 							price={free.price}
 						/>
-						<PlanCard
-							caption={isYearly ? plus.captionYearly : plus.captionMonthly}
-							ctaHref={isLoggedIn ? "/profile/account" : "/sign-up"}
-							ctaLabel={plus.cta}
-							description={plus.description}
-							features={plus.features}
-							icon={<Plus className="size-5" />}
-							isHighlighted
-							name={plus.name}
-							price={isYearly ? plus.priceYearly : plus.priceMonthly}
-							priceSuffix={content.perMonth}
-						/>
+						{subscriptionsEnabled ? (
+							<PlanCard
+								caption={isYearly ? plus.captionYearly : plus.captionMonthly}
+								ctaHref={isLoggedIn ? "/profile/account" : "/sign-up"}
+								ctaLabel={plus.cta}
+								description={plus.description}
+								features={plus.features}
+								icon={<Plus className="size-5" />}
+								isHighlighted
+								name={plus.name}
+								price={isYearly ? plus.priceYearly : plus.priceMonthly}
+								priceSuffix={content.perMonth}
+							/>
+						) : null}
 						<PlanCard
 							caption={selfHosted.caption}
 							ctaHref="https://github.com/ekpah/mdscribe"

@@ -4,6 +4,7 @@ import { database } from "@repo/database/client";
 
 import { resolveProductEntitlements } from "@/lib/product-entitlements";
 import { getScribeUsageBudgetPercentage } from "@/lib/product-plans";
+import { subscriptionsEnabled } from "@/lib/stripe-config";
 import { isByokUsageMetadata } from "@/lib/usage-logging";
 import { resolveMonthlyUsagePeriod } from "@/lib/usage-period";
 import type { MonthlyUsagePeriod } from "@/lib/usage-period";
@@ -113,6 +114,7 @@ export const getUsage = async (
 	});
 
 	return {
+		subscriptionsEnabled,
 		usage: {
 			byModel: Object.fromEntries(
 				Object.entries(usage.byModel).map(([model, value]) => [

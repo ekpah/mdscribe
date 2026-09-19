@@ -1,8 +1,8 @@
-import { and, desc, eq, inArray, subscription } from "@repo/database";
 import type { Database } from "@repo/database";
 
 import { PRODUCT_PLANS } from "@/lib/product-plans";
 import type { ProductPlan } from "@/lib/product-plans";
+import { getActiveSubscription } from "@/lib/subscriptions";
 
 interface ProductEntitlements {
 	canCreatePrivateAiScribeForms: boolean;
@@ -19,23 +19,7 @@ export const resolveProductEntitlements = async (input: {
 	db: Database;
 	userId: string;
 }): Promise<ProductEntitlements> => {
-	const subscriptions = await input.db
-		.select({
-			createdAt: subscription.createdAt,
-			periodEnd: subscription.periodEnd,
-			periodStart: subscription.periodStart,
-		})
-		.from(subscription)
-		.where(
-			and(
-				eq(subscription.referenceId, input.userId),
-				inArray(subscription.status, ["active", "trialing"]),
-			),
-		)
-		.orderBy(desc(subscription.createdAt))
-		.limit(1);
-
-	const [activeSubscription] = subscriptions;
+	const activeSubscription = await getActiveSubscription(input);
 	const hasActiveSubscription = Boolean(activeSubscription);
 	const plan: ProductPlan = hasActiveSubscription ? "plus" : "free";
 	const planEntitlements = PRODUCT_PLANS[plan];

@@ -33,7 +33,6 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { env } from "@/env";
 import { getDashboardActivityTitle } from "@/lib/dashboard-activity";
 import { DASHBOARD_AI_FUNCTION_KEYS } from "@/lib/dashboard-ai-functions";
@@ -42,6 +41,8 @@ import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
+import { subscriptionsEnabled } from "@/lib/stripe-config";
+import { getActiveSubscription } from "@/lib/subscriptions";
 
 import { LiveTime } from "./_components/live-time";
 
@@ -353,6 +354,7 @@ const DashboardQuickStats = ({
 	monthlyUsagePercentage,
 	subscriptionPlanLabel,
 	subscriptionStatus,
+	showSubscriptions,
 	usageResetsAt,
 	userTemplateCount,
 }: {
@@ -362,6 +364,7 @@ const DashboardQuickStats = ({
 	monthlyUsagePercentage: number;
 	subscriptionPlanLabel: string;
 	subscriptionStatus: ReturnType<typeof getSubscriptionStatus>;
+	showSubscriptions: boolean;
 	usageResetsAt?: string;
 	userTemplateCount: number;
 }) => {
@@ -457,24 +460,26 @@ const DashboardQuickStats = ({
 							Wird am {formatUsageResetDate(usageResetsAt)} zurückgesetzt
 						</p>
 					) : null}
-					<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
-						<div className="flex flex-wrap items-center justify-between gap-2">
-							<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
-								<CreditCard className="h-3 w-3" />
-								{subscriptionPlanLabel}
-							</span>
-							<Badge className={subscriptionStatus.badgeClassName} variant="outline">
-								{subscriptionStatus.label}
-							</Badge>
+					{showSubscriptions ? (
+						<div className="space-y-2 border-solarized-base1/40 border-t pt-3">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<span className="inline-flex items-center gap-1 font-medium text-solarized-base01 text-xs">
+									<CreditCard className="h-3 w-3" />
+									{subscriptionPlanLabel}
+								</span>
+								<Badge className={subscriptionStatus.badgeClassName} variant="outline">
+									{subscriptionStatus.label}
+								</Badge>
+							</div>
+							<Link
+								className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
+								href="/subscription"
+							>
+								Abonnement verwalten
+								<ArrowRight className="h-3 w-3" />
+							</Link>
 						</div>
-						<Link
-							className="inline-flex items-center gap-1 text-solarized-blue text-xs hover:text-solarized-blue/80"
-							href="/subscription"
-						>
-							Abonnement verwalten
-							<ArrowRight className="h-3 w-3" />
-						</Link>
-					</div>
+					) : null}
 				</CardContent>
 			</Card>
 		</div>
@@ -721,12 +726,7 @@ const RecentActivityCard = ({ activities }: { activities: DashboardActivity[] })
 export default async function DashboardPage() {
 	// Auth check - must happen before queries
 	const requestHeaders = await headers();
-	const [session, subscriptions] = await Promise.all([
-		getServerSession(),
-		auth.api.listActiveSubscriptions({
-			headers: requestHeaders,
-		}),
-	]).catch((_e) => {
+	const session = await getServerSession().catch((_e) => {
 		throw redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")));
 	});
 
@@ -734,9 +734,7 @@ export default async function DashboardPage() {
 		redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/dashboard")));
 	}
 
-	const activeSubscription = subscriptions.find(
-		(sub) => sub.status === "active" || sub.status === "trialing",
-	);
+	const activeSubscription = await getActiveSubscription({ userId: session.user.id });
 
 	// Use the shared getQueryClient for proper SSR caching
 	const queryClient = getQueryClient();
@@ -769,7 +767,7 @@ export default async function DashboardPage() {
 	const { hasActiveByokConnection, isMonthlyBudgetReached, monthlyUsagePercentage, usageResetsAt } =
 		getDashboardUsageSummary(data?.usage);
 	const subscriptionPlanLabel = getSubscriptionPlanLabel(activeSubscription?.plan);
-	const subscriptionStatus = getSubscriptionStatus(activeSubscription);
+	const subscriptionStatus = getSubscriptionStatus(activeSubscription ?? undefined);
 	const isAdmin = session.user.email === env.ADMIN_EMAIL;
 
 	const recentActivity = getRecentActivityItems(recentEvents ?? []);
@@ -794,6 +792,7 @@ export default async function DashboardPage() {
 						monthlyUsagePercentage={monthlyUsagePercentage}
 						subscriptionPlanLabel={subscriptionPlanLabel}
 						subscriptionStatus={subscriptionStatus}
+						showSubscriptions={subscriptionsEnabled}
 						usageResetsAt={usageResetsAt}
 						userTemplateCount={userTemplates?.length ?? 0}
 					/>

@@ -19,6 +19,7 @@
 
 ### Changed
 
+- Stripe subscriptions are now optional. Instances without a Stripe secret key run on the free usage limit and no longer show pricing, upgrade, or billing controls.
 - Template tags now use compact, subtly tinted chips with text-style deletion and isolated selection; Info and Calc chips show units when `renderUnit` is enabled. Their inspectors show shared attributes first, including calc descriptions. Switches expand directly within the document with option tabs and a collapse button, preserving surrounding text and sharing one toolbar at the top; tag settings stay on the right. Chip and expanded-switch colors are defined centrally. Reused calculated values link to their original calculation instead of another editable input, and dependent calculations resolve in dependency order.
 - The Template Agent now reads and independently edits content, examples, and information, preserving untouched sections and line breaks and explaining reuse of named calculations. Clicking a template tag opens the Info sidebar, including already-selected tags, without switching views during ordinary edits.
 - OCR preprocessing now requests structured line-level page bounding boxes from the configured file/image model while preserving the existing text-only Scribe prompt context. Uploaded files can be opened with the shared app-level PDF preview and toggled to their OCR text after preprocessing.

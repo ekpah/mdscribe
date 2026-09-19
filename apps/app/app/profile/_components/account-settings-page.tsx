@@ -24,6 +24,7 @@ interface AccountSettingsPageProps {
 	readonly subscription?: Subscription;
 	readonly activeSessions: ActiveSessionView[];
 	readonly session: Session;
+	readonly subscriptionsEnabled: boolean;
 }
 
 export const AccountSettingsPage = ({
@@ -31,6 +32,7 @@ export const AccountSettingsPage = ({
 	subscription,
 	activeSessions,
 	session,
+	subscriptionsEnabled,
 }: AccountSettingsPageProps) => {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isManagingSubscription, setIsManagingSubscription] = useState(false);
@@ -77,17 +79,23 @@ export const AccountSettingsPage = ({
 		<div className="space-y-6">
 			<div className="space-y-1">
 				<h2 className="font-semibold text-solarized-base00 text-2xl">Account</h2>
-				<p className="text-sm text-solarized-base01">Profil, aktive Sitzungen und Abonnement.</p>
+				<p className="text-sm text-solarized-base01">
+					{subscriptionsEnabled
+						? "Profil, aktive Sitzungen und Abonnement."
+						: "Profil und aktive Sitzungen."}
+				</p>
 			</div>
 			<div className="space-y-6">
 				<ProfileCard isLoading={isLoading} setIsLoading={setIsLoading} user={user} />
-				<UserCard activeSessions={activeSessions} session={session} subscription={subscription} />
-				<SubscriptionCard
-					isManagingSubscription={isManagingSubscription}
-					onCancel={handleSubscriptionCancel}
-					onUpgrade={handleSubscriptionUpgrade}
-					subscription={subscription}
-				/>
+				<UserCard activeSessions={activeSessions} session={session} />
+				{subscriptionsEnabled ? (
+					<SubscriptionCard
+						isManagingSubscription={isManagingSubscription}
+						onCancel={handleSubscriptionCancel}
+						onUpgrade={handleSubscriptionUpgrade}
+						subscription={subscription}
+					/>
+				) : null}
 			</div>
 		</div>
 	);

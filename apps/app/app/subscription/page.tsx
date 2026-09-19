@@ -4,20 +4,20 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
 import { getServerSession } from "@/lib/server-session";
 import { createSignInRedirect, getRequestedPath } from "@/lib/sign-in-redirect";
+import { subscriptionsEnabled } from "@/lib/stripe-config";
+import { getActiveSubscription } from "@/lib/subscriptions";
 
 import { SubscriptionManagementCard } from "./_components/subscription-management-card";
 
 export default async function SubscriptionPage() {
+	if (!subscriptionsEnabled) {
+		redirect("/dashboard");
+	}
+
 	const requestHeaders = await headers();
-	const [session, subscriptions] = await Promise.all([
-		getServerSession(),
-		auth.api.listActiveSubscriptions({
-			headers: requestHeaders,
-		}),
-	]).catch((_e) => {
+	const session = await getServerSession().catch((_e) => {
 		throw redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")));
 	});
 
@@ -25,9 +25,7 @@ export default async function SubscriptionPage() {
 		redirect(createSignInRedirect(getRequestedPath(requestHeaders, "/subscription")));
 	}
 
-	const activeSubscription = subscriptions.find(
-		(sub) => sub.status === "active" || sub.status === "trialing",
-	);
+	const activeSubscription = await getActiveSubscription({ userId: session.user.id });
 
 	return (
 		<div className="h-full w-screen overflow-y-auto bg-gradient-to-br from-solarized-base3 via-solarized-base2 to-solarized-base2">

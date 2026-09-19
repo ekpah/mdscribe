@@ -13,6 +13,11 @@ const optionalSmtpUrlSchema = z.preprocess(
 	smtpUrlSchema.optional(),
 );
 
+const optionalNonemptyStringSchema = z.preprocess(
+	(value) => (value === "" ? undefined : value),
+	z.string().min(1).optional(),
+);
+
 export const env = createEnv({
 	client: {
 		NEXT_PUBLIC_BASE_URL: z.string().min(1).url(),
@@ -48,10 +53,10 @@ export const env = createEnv({
 		NEXT_RUNTIME: z.enum(["nodejs", "edge"]).optional(),
 		NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 		POSTGRES_DATABASE_URL: z.string().min(1).url(),
-		STRIPE_PLUS_PRICE_ID: z.string().min(1),
-		STRIPE_PLUS_PRICE_ID_ANNUAL: z.string().min(1),
-		STRIPE_SECRET_KEY: z.string().min(1),
-		STRIPE_WEBHOOK_SECRET: z.string().min(1),
+		STRIPE_PLUS_PRICE_ID: optionalNonemptyStringSchema,
+		STRIPE_PLUS_PRICE_ID_ANNUAL: optionalNonemptyStringSchema,
+		STRIPE_SECRET_KEY: optionalNonemptyStringSchema,
+		STRIPE_WEBHOOK_SECRET: optionalNonemptyStringSchema,
 		VERCEL: z.string().optional(),
 	},
 	skipValidation: !!process.env.SKIP_ENV_VALIDATION,

@@ -1,14 +1,8 @@
 "use client";
 
-import type { Subscription } from "@better-auth/stripe";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/design-system/components/ui/avatar";
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/design-system/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { LaptopIcon, Loader2, SmartphoneIcon } from "lucide-react";
@@ -24,7 +18,6 @@ import { sessionQueryKey } from "@/lib/session-query";
 export default function UserCard(props: {
 	session: Session | null;
 	activeSessions: ActiveSessionView[];
-	subscription?: Subscription;
 }) {
 	const router = useRouter();
 	const queryClient = useQueryClient();
