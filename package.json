@@ -39,10 +39,11 @@
 		"knip:ci": "bun run knip"
 	},
 	"devDependencies": {
+		"@shadcn/lint": "^0.1.0",
 		"@types/node": "^26.1.2",
 		"knip": "^6.31.0",
 		"oxfmt": "^0.62.0",
-		"oxlint": "^1.77.0",
+		"oxlint": "^1.80.0",
 		"turbo": "2.10.9",
 		"typescript": "catalog:",
 		"ultracite": "^7.10.1"

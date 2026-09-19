@@ -4,6 +4,7 @@
 
 ### Added
 
+- Registered `@shadcn/lint` with Oxlint and enabled warnings for Tailwind classes that the project cannot generate.
 - First-run development seeding now configures OpenRouter, Anthropic, OpenAI, Mistral, and Tinfoil providers from available environment API keys, encrypted with the app's auth secret.
 - Admins can now create and revise Markdoc templates with an AI agent embedded in the Template Editor sidebar, including audio and file context, while retaining the existing Info view.
 - `calc` and numeric `info` tags now support Liquid-style `round` values for configurable decimal places, including `round=false` for unrounded output.

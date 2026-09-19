@@ -4,7 +4,7 @@
 	"rsc": true,
 	"tsx": true,
 	"tailwind": {
-		"css": "@repo/design-system/styles/globals.css",
+		"css": "../../packages/design-system/styles/globals.css",
 		"baseColor": "slate",
 		"cssVariables": true,
 		"prefix": ""
