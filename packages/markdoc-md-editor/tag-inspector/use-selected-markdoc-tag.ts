@@ -2,13 +2,15 @@
 
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
-import { NodeSelection } from "@tiptap/pm/state";
+import { NodeSelection, Selection, TextSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { FOCUS_INSERTED_TAG_PRIMARY_META } from "../editor-helpers/select-inserted-inline-tag";
 
-export type MarkdocTagKind = "calcTag" | "caseTag" | "infoTag" | "switchTag";
+const CLEAR_SELECTED_TAG_META = "markdoc-clear-selected-tag";
+
+export type MarkdocTagKind = "calcTag" | "caseTag" | "detailsTag" | "infoTag" | "switchTag";
 
 export interface SelectedMarkdocTag {
 	kind: MarkdocTagKind;
@@ -16,7 +18,7 @@ export interface SelectedMarkdocTag {
 	pos: number;
 	/**
 	 * How the tag became selected: as a node selection (chip click) or because
-	 * the text cursor sits inside the tag content (case tags only).
+	 * the text cursor sits inside the tag content (case and details tags).
 	 */
 	via: "content" | "node";
 	/** Select the primary input when this tag was just inserted from the toolbar. */
@@ -26,6 +28,7 @@ export interface SelectedMarkdocTag {
 const MARKDOC_TAG_NODE_NAMES = new Set<MarkdocTagKind>([
 	"calcTag",
 	"caseTag",
+	"detailsTag",
 	"infoTag",
 	"switchTag",
 ]);
@@ -36,6 +39,9 @@ const asMarkdocTagKind = (name: string): MarkdocTagKind | null =>
 const SHARED_ATTRIBUTES: Record<MarkdocTagKind, ReadonlySet<string>> = {
 	calcTag: new Set(["components", "description", "formula", "primary", "source", "unit"]),
 	caseTag: new Set(),
+	// A details section has no shared variable identity; label and default
+	// state are local to each occurrence.
+	detailsTag: new Set(),
 	infoTag: new Set(["description", "primary", "source", "type", "unit"]),
 	switchTag: new Set(["description", "primary", "source", "type", "unit"]),
 };
@@ -162,14 +168,15 @@ const readSelectedTag = (editor: Editor, selectPrimary = false): SelectedMarkdoc
 		}
 	}
 
-	// A text cursor inside a case tag's inline content still selects that case.
+	// A text cursor inside a case tag's inline content or a details block's
+	// content still selects that tag, so the inspector follows the caret.
 	const { $from } = selection;
 	const { depth: maxDepth } = $from;
 	for (let depth = maxDepth; depth > 0; depth -= 1) {
 		const node = $from.node(depth);
-		if (node.type.name === "caseTag") {
+		if (node.type.name === "caseTag" || node.type.name === "detailsTag") {
 			return {
-				kind: "caseTag",
+				kind: node.type.name,
 				node,
 				pos: $from.before(depth),
 				selectPrimary,
@@ -191,6 +198,7 @@ export const useSelectedMarkdocTag = (
 	editor: Editor | null,
 ): { clearSelectedTag: () => void; selectedTag: SelectedMarkdocTag | null } => {
 	const [selectedTag, setSelectedTag] = useState<SelectedMarkdocTag | null>(null);
+	const dismissedSelectionRef = useRef<{ from: number; to: number } | null>(null);
 
 	useEffect(() => {
 		if (!editor) {
@@ -205,6 +213,21 @@ export const useSelectedMarkdocTag = (
 				setSelectedTag(null);
 				return;
 			}
+			if (transaction.getMeta(CLEAR_SELECTED_TAG_META) === true) {
+				setSelectedTag(null);
+				return;
+			}
+			const dismissedSelection = dismissedSelectionRef.current;
+			if (
+				dismissedSelection &&
+				!transaction.selectionSet &&
+				editor.state.selection.from === dismissedSelection.from &&
+				editor.state.selection.to === dismissedSelection.to
+			) {
+				setSelectedTag(null);
+				return;
+			}
+			dismissedSelectionRef.current = null;
 
 			const requestsPrimarySelection =
 				transaction.getMeta(FOCUS_INSERTED_TAG_PRIMARY_META) === true;
@@ -261,9 +284,25 @@ export const useSelectedMarkdocTag = (
 		// Collapse an active tag selection so the next transaction does not
 		// immediately re-activate the tag.
 		const liveTag = readSelectedTag(editor);
-		if (liveTag) {
-			editor.commands.setTextSelection(liveTag.pos);
+		if (!liveTag) {
+			return;
 		}
+
+		const { doc } = editor.state;
+		const dismissAt = (selection: Selection) => {
+			dismissedSelectionRef.current = { from: selection.from, to: selection.to };
+			editor.view.dispatch(
+				editor.state.tr.setMeta(CLEAR_SELECTED_TAG_META, true).setSelection(selection),
+			);
+		};
+		if (doc.resolve(liveTag.pos).parent.inlineContent) {
+			dismissAt(TextSelection.create(doc, liveTag.pos));
+			return;
+		}
+
+		// Block tags (details) are not inline content: place the caret after the
+		// section instead of requesting a text selection at a doc-level position.
+		dismissAt(Selection.near(doc.resolve(liveTag.pos + liveTag.node.nodeSize), 1));
 	}, [editor]);
 
 	return { clearSelectedTag, selectedTag: editor ? selectedTag : null };

@@ -1,6 +1,6 @@
 /**
  * Converts Markdoc tags to HTML format using custom elements that can be used with Tiptap.
- * Supports cite, info, switch, and case tags.
+ * Supports cite, details, info, switch, and case tags.
  */
 
 const headingPrefixes: Record<string, string> = {
@@ -93,6 +93,10 @@ const customMarkdocRenderers: Partial<
 		const caseContent = decodedCaseContent
 			? convertHtmlFragmentToMarkdoc(decodedCaseContent).trim()
 			: innerContent.trim();
+		// Cases are normally inline, but Details is a block tag and must begin on
+		// its own line. This includes cases with prose before Details and keeps
+		// sibling case delimiters from sharing the block case's closing line.
+		const containsDetails = caseContent.includes("{% details");
 		const rawValue = readAttribute(element, "value");
 		const valueAttribute =
 			rawValue !== null && rawValue !== "" && Number.isFinite(Number(rawValue))
@@ -110,16 +114,31 @@ const customMarkdocRenderers: Partial<
 			"default",
 			readAttribute(element, "default"),
 		);
+		const openingTag =
+			conditionAttributes || defaultAttribute
+				? `{% case${conditionAttributes}${defaultAttribute} %}`
+				: `{% case ${quoteMarkdocValue(casePrimary)}${valueAttribute} %}`;
+		if (containsDetails) {
+			return `\n${openingTag}\n${caseContent}\n{% /case %}\n`;
+		}
 		// Condition cases (number switches) carry no primary key.
 		if (conditionAttributes || defaultAttribute) {
-			return `{% case${conditionAttributes}${defaultAttribute} %}${caseContent}{% /case %}`;
+			return `${openingTag}${caseContent}{% /case %}`;
 		}
-		return `{% case ${quoteMarkdocValue(casePrimary)}${valueAttribute} %}${caseContent}{% /case %}`;
+		return `${openingTag}${caseContent}{% /case %}`;
 	},
 	cite: (element, innerContent) => {
 		const source = readAttribute(element, "source") || "";
 		const quoteAttribute = serializeStringAttribute("quote", readAttribute(element, "quote"));
 		return `{% cite source=${quoteMarkdocValue(source)}${quoteAttribute} %}${innerContent}{% /cite %}`;
+	},
+	details: (element, innerContent) => {
+		const summaryAttribute = serializeStringAttribute("summary", readAttribute(element, "summary"));
+		const openAttribute = serializeBooleanAttribute("open", readAttribute(element, "open"));
+		// Block form: the opening tag needs its own line, otherwise Markdoc parses
+		// the section as an inline tag nested in a paragraph. The trailing blank
+		// line keeps consecutive closing tags off each other's lines.
+		return `{% details${summaryAttribute}${openAttribute} %}\n${innerContent}{% /details %}\n\n`;
 	},
 	info: (element) => {
 		const infoPrimary = readAttribute(element, "primary") || "";
@@ -149,7 +168,10 @@ const customMarkdocRenderers: Partial<
 			"description",
 			readAttribute(element, "description"),
 		);
-		return `{% switch ${primary}${typeAttribute}${unitAttribute}${descriptionAttribute}${sourceAttribute} %}${innerContent}{% /switch %}`;
+		// A case containing Details has block content, so the switch and case
+		// delimiters also need their own lines for Markdoc to parse the tree.
+		const content = innerContent.includes("{% details") ? `\n${innerContent.trim()}\n` : innerContent;
+		return `{% switch ${primary}${typeAttribute}${unitAttribute}${descriptionAttribute}${sourceAttribute} %}${content}{% /switch %}`;
 	},
 };
 

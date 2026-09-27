@@ -240,19 +240,36 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 	const handleCopyClick = useCallback(async () => {
 		// Use the ref to get the rendered content directly
 		const contentElement = contentRef.current;
-		if (contentElement) {
-			const renderedContent = contentElement.innerHTML;
+		if (!contentElement) {
+			toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
+			return;
+		}
+
+		// innerHTML keeps the content of collapsed sections and the authored open
+		// state, so the rich-text payload is captured before any section is opened.
+		const renderedContent = contentElement.innerHTML;
+
+		// Collapsed sections are hidden from the rendered layout, so the plain-text
+		// representation would silently drop their content. Open them for the
+		// synchronous read and restore the authored state afterwards.
+		const collapsedSections = [
+			...contentElement.querySelectorAll<HTMLDetailsElement>("details:not([open])"),
+		];
+		for (const section of collapsedSections) {
+			section.open = true;
+		}
+		try {
 			// innerText preserves the visual separators produced by block elements and
 			// line breaks. textContent concatenates their text nodes without separators.
 			// oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- Clipboard text must match the rendered layout.
 			const textContent = contentElement.innerText.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-			try {
-				await handleCopy(renderedContent, textContent);
-			} catch (error) {
-				console.error("Copy action failed:", error);
+			await handleCopy(renderedContent, textContent);
+		} catch (error) {
+			console.error("Copy action failed:", error);
+		} finally {
+			for (const section of collapsedSections) {
+				section.open = false;
 			}
-		} else {
-			toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
 		}
 	}, [handleCopy]);
 

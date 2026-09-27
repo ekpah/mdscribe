@@ -52,4 +52,41 @@ for (const tag of ["calc", "score"]) {
 	equal(calc?.getAttribute("source") ?? "", "Observation.value");
 }
 
-document.body.textContent = `${fragments.length * 3 + 8} browser roundtrip assertions passed`;
+equal(
+	htmlToMarkdoc('<Details summary="Laborwerte" open="true"><p>Text</p></Details>'),
+	'{% details summary="Laborwerte" open=true %}\nText\n\n{% /details %}\n\n',
+);
+equal(
+	htmlToMarkdoc('<Details open="false"><p>Text</p></Details>'),
+	"{% details %}\nText\n\n{% /details %}\n\n",
+);
+const detailsInCase = htmlToMarkdoc(
+	'<Switch primary="s"><Case primary="a"><p>Intro</p><Details summary="More"><p>Text</p></Details></Case><Case primary="b">B</Case></Switch>',
+);
+equal(
+	detailsInCase,
+	'{% switch "s" %}\n{% case "a" %}\nIntro\n\n{% details summary="More" %}\nText\n\n{% /details %}\n{% /case %}\n{% case "b" %}B{% /case %}\n{% /switch %}',
+);
+const parsedDetailsInCase = new DOMParser()
+	.parseFromString(renderTipTapHTML(detailsInCase), "text/html")
+	.querySelector("details");
+equal(parsedDetailsInCase?.getAttribute("summary") ?? "", "More");
+equal(parsedDetailsInCase?.textContent?.trim() ?? "", "Text");
+
+for (const source of [
+	'{% details summary="Laborwerte" %}\nText\n{% /details %}',
+	"{% details %}\nText\n{% /details %}",
+	'{% details summary="Laborwerte" open=true %}\nFirst\n\n- eins\n- zwei\n{% /details %}',
+	'{% details summary="Vorbefunde" %}\nAuswärtig.\n\n{% details summary="Radiologie" %}\nRöntgen.\n{% /details %}\n{% /details %}',
+]) {
+	const first = renderTipTapHTML(source);
+	const reopened = renderTipTapHTML(htmlToMarkdoc(first));
+	equal(reopened, first);
+	const details = new DOMParser().parseFromString(reopened, "text/html").querySelector("details");
+	equal(details?.getAttribute("open") ?? "false", source.includes("open=true") ? "true" : "false");
+	if (source.includes('summary="Laborwerte"')) {
+		equal(details?.getAttribute("summary") ?? "", "Laborwerte");
+	}
+}
+
+document.body.textContent = `${fragments.length * 3 + 15} browser roundtrip assertions passed`;

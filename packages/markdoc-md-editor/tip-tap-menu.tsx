@@ -6,6 +6,8 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
+import type { JSONContent } from "@tiptap/core";
+import type { Fragment } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import {
 	Bold,
@@ -20,7 +22,38 @@ import {
 } from "lucide-react";
 
 import { getPrimaryFromSelection } from "./editor-helpers/get-primary-from-selection";
-import { selectInsertedInlineTag } from "./editor-helpers/select-inserted-inline-tag";
+import {
+	FOCUS_INSERTED_TAG_PRIMARY_META,
+	selectInsertedInlineTag,
+} from "./editor-helpers/select-inserted-inline-tag";
+
+/**
+ * Turns a selection into valid block content for a container tag: whole blocks
+ * keep their type, while inline runs (a marked phrase) become a paragraph.
+ */
+const toBlockContent = (fragment: Fragment): JSONContent[] => {
+	const blocks: JSONContent[] = [];
+	let inline: JSONContent[] = [];
+	const flushInline = () => {
+		if (inline.length > 0) {
+			blocks.push({ content: inline, type: "paragraph" });
+			inline = [];
+		}
+	};
+
+	for (let index = 0; index < fragment.childCount; index += 1) {
+		const child = fragment.child(index);
+		if (child.isBlock) {
+			flushInline();
+			blocks.push(child.toJSON() as JSONContent);
+		} else {
+			inline.push(child.toJSON() as JSONContent);
+		}
+	}
+	flushInline();
+
+	return blocks;
+};
 
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
 	if (!editor) {
@@ -36,18 +69,6 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 	const separatorClassName = "mx-0.5 h-5 w-px bg-solarized-blue/20";
 
 	const handlers = {
-		handleInsertInfoTag() {
-			const selectedPrimary = getPrimaryFromSelection(editor.state);
-			editor
-				.chain()
-				.focus()
-				.insertContent({
-					attrs: { primary: selectedPrimary ?? "..." },
-					type: "infoTag",
-				})
-				.command(selectInsertedInlineTag)
-				.run();
-		},
 		handleInsertCalcTag() {
 			const selectedPrimary = getPrimaryFromSelection(editor.state);
 			editor
@@ -60,6 +81,42 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 						unit: "",
 					},
 					type: "calcTag",
+				})
+				.command(selectInsertedInlineTag)
+				.run();
+		},
+		handleInsertDetailsTag() {
+			// Marked content becomes the section body, the way a marked value
+			// becomes the primary of an info tag.
+			const { from, to } = editor.state.selection;
+			const markedBlocks = toBlockContent(editor.state.doc.slice(from, to).content);
+			editor
+				.chain()
+				.focus()
+				.insertContentAt(
+					{ from, to },
+					{
+						attrs: { open: false, summary: null },
+						content: markedBlocks.length > 0 ? markedBlocks : [{ type: "paragraph" }],
+						type: "detailsTag",
+					},
+				)
+				.command(({ tr, dispatch }) => {
+					if (dispatch) {
+						dispatch(tr.setMeta(FOCUS_INSERTED_TAG_PRIMARY_META, true));
+					}
+					return true;
+				})
+				.run();
+		},
+		handleInsertInfoTag() {
+			const selectedPrimary = getPrimaryFromSelection(editor.state);
+			editor
+				.chain()
+				.focus()
+				.insertContent({
+					attrs: { primary: selectedPrimary ?? "..." },
+					type: "infoTag",
 				})
 				.command(selectInsertedInlineTag)
 				.run();
@@ -248,6 +305,15 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 					variant="ghost"
 				>
 					<span>Calc</span>
+				</Button>
+				<Button
+					className={cn(tagButtonClassName, "bg-solarized-violet hover:bg-solarized-violet/90")}
+					onClick={handlers.handleInsertDetailsTag}
+					size="sm"
+					type="button"
+					variant="ghost"
+				>
+					<span>Details</span>
 				</Button>
 
 				<TooltipProvider delay={200}>

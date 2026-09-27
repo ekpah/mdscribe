@@ -6,11 +6,14 @@ import { useMarkdocInteraction } from "../../../render/context/markdoc-interacti
 
 const getInteractiveTagClassName = (isActive: boolean, canSelect: boolean) =>
 	[
-		"inline rounded-md border border-transparent px-1 transition-colors",
-		canSelect ? "cursor-pointer hover:border-solarized-orange/40 hover:bg-solarized-orange/10" : "",
+		"inline rounded-md border px-1 transition-colors",
+		canSelect ? "cursor-pointer" : "",
+		// Active and inactive border colors are mutually exclusive: listing both
+		// would let `border-transparent` win on stylesheet order.
 		isActive
-			? "border-solarized-orange/70 bg-solarized-orange/20 ring-2 ring-solarized-orange/20"
-			: "",
+			? "border-solarized-orange/70 bg-solarized-orange/20 ring-2 ring-solarized-orange/35"
+			: "border-transparent",
+		canSelect && !isActive ? "hover:border-solarized-orange/40 hover:bg-solarized-orange/10" : "",
 	]
 		.filter(Boolean)
 		.join(" ");

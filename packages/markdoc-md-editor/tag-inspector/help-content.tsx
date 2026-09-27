@@ -173,6 +173,32 @@ export const TagInspectorHelp = () => (
 						</div>
 					</AccordionContent>
 				</AccordionItem>
+				{/* Details Tag */}
+				<AccordionItem value="details">
+					<AccordionTrigger className="py-2 text-sm hover:no-underline">
+						<div className="flex items-center gap-2">
+							<Badge className="bg-solarized-violet text-xs">Details</Badge>
+							<span className="text-xs">Aufklappbarer Abschnitt</span>
+						</div>
+					</AccordionTrigger>
+					<AccordionContent className="space-y-2 pt-1 pb-3">
+						<p className="text-muted-foreground text-xs leading-relaxed">
+							Fasst Inhalt in einem aufklappbaren Abschnitt zusammen, wie auf GitHub. Die
+							Beschriftung ist optional.
+						</p>
+						<div className="rounded bg-muted p-2">
+							<p className="font-mono text-xs">
+								<span className="text-solarized-violet">
+									{'{% details summary="Laborwerte" %}'}
+								</span>
+								<br />
+								<span className="text-muted-foreground">Inhalt des Abschnitts</span>
+								<br />
+								<span className="text-solarized-violet">{"{% /details %}"}</span>
+							</p>
+						</div>
+					</AccordionContent>
+				</AccordionItem>
 			</Accordion>
 		</div>
 

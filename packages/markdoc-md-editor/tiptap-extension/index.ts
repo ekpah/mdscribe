@@ -7,6 +7,8 @@ import { CalcTag } from "./editorNodes/calcTag/calc-tag";
 import type { CalcTagAttrs } from "./editorNodes/calcTag/calc-tag";
 import { CaseTag } from "./editorNodes/caseTag/case-tag";
 import type { CaseTagOptions } from "./editorNodes/caseTag/case-tag";
+import { DetailsTag } from "./editorNodes/detailsTag/details-tag";
+import type { DetailsTagAttrs } from "./editorNodes/detailsTag/details-tag";
 import { InfoTag } from "./editorNodes/infoTag/info-tag";
 import type { InfoTagAttrs } from "./editorNodes/infoTag/info-tag";
 import { SwitchTag } from "./editorNodes/switchTag/switch-tag";
@@ -42,6 +44,12 @@ interface MarkdocExtensionOptions {
 	calcTag: Partial<CalcTagAttrs> | false;
 
 	/**
+	 * If set to false, the detailsTag extension will not be registered
+	 * @example detailsTag: false
+	 */
+	detailsTag: Partial<DetailsTagAttrs> | false;
+
+	/**
 	 * If set to false, the infoTag extension will not be registered
 	 * @example infoTag: false
 	 */
@@ -62,6 +70,7 @@ interface MarkdocExtensionOptions {
  * - InfoTag: Displays informational content
  * - CalcTag: Displays values calculated from formulas
  * - SwitchTag: Creates conditional switch statements
+ * - DetailsTag: Collapsible section with an optional label
  */
 export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 	addKeyboardShortcuts() {
@@ -82,6 +91,10 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 
 		if (this.options.calcTag !== false) {
 			extensions.push(CalcTag.configure(this.options.calcTag));
+		}
+
+		if (this.options.detailsTag !== false) {
+			extensions.push(DetailsTag.configure(this.options.detailsTag));
 		}
 
 		if (this.options.infoTag !== false) {

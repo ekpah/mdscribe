@@ -6,10 +6,11 @@ import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Editor } from "@tiptap/react";
 import type { LucideIcon } from "lucide-react";
-import { Calculator, Code2, CornerDownRight, Info, X } from "lucide-react";
+import { Calculator, ChevronsDownUp, Code2, CornerDownRight, Info, X } from "lucide-react";
 
 import { CalcTagPanel } from "./calc-tag-panel";
 import { CaseTagPanel } from "./case-tag-panel";
+import { DetailsTagPanel } from "./details-tag-panel";
 import { TagInspectorHelp } from "./help-content";
 import { InfoTagPanel } from "./info-tag-panel";
 import { SwitchTagPanel } from "./switch-tag-panel";
@@ -33,6 +34,12 @@ export const TAG_PANEL_META: Record<
 		iconClassName: "text-solarized-cyan",
 		iconWrapClassName: "bg-solarized-cyan/15",
 		label: "Case",
+	},
+	detailsTag: {
+		icon: ChevronsDownUp,
+		iconClassName: "text-solarized-violet",
+		iconWrapClassName: "bg-solarized-violet/15",
+		label: "Details",
 	},
 	infoTag: {
 		icon: Info,
@@ -67,6 +74,15 @@ export const TagPanelBody = ({
 			);
 		case "caseTag":
 			return <CaseTagPanel editor={editor} node={selectedTag.node} pos={selectedTag.pos} />;
+		case "detailsTag":
+			return (
+				<DetailsTagPanel
+					editor={editor}
+					node={selectedTag.node}
+					pos={selectedTag.pos}
+					selectPrimary={selectedTag.selectPrimary}
+				/>
+			);
 		case "infoTag":
 			return (
 				<InfoTagPanel

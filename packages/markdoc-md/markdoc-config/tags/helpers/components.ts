@@ -3,6 +3,7 @@ import Markdoc from "@markdoc/markdoc";
 import { Calc, Score } from "../calc";
 import { Case } from "../case";
 import { Cite } from "../cite";
+import { Details } from "../details";
 import { Info } from "../info";
 import { Switch } from "../switch";
 
@@ -12,4 +13,12 @@ export type MarkdocComponentMap = Exclude<
 	undefined | ((name: string) => object)
 >;
 
-export const components = { Calc, Case, Cite, Info, Score, Switch } satisfies MarkdocComponentMap;
+export const components = {
+	Calc,
+	Case,
+	Cite,
+	Details,
+	Info,
+	Score,
+	Switch,
+} satisfies MarkdocComponentMap;

@@ -190,6 +190,34 @@ Citation sources are limited to 8,192 characters and quotes to 4,000 characters.
 input resolver accepts up to 2 MiB of source text. Matching is Unicode-normalized,
 case/diacritic-insensitive, whitespace-tolerant, and handles words hyphenated across line breaks.
 
+## `details`
+
+Collapsible section, matching GitHub's collapsed sections. The rendered document uses native
+`<details>`/`<summary>` elements, so the section expands without JavaScript and the document DOM
+matches GitHub's output.
+
+```markdoc
+{% details summary="Laborwerte" open=true %}
+**CRP** 12 mg/l
+
+- Leukozyten 9,8/nl
+{% /details %}
+```
+
+| Attribute | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `summary` | No | — | Section label. Without it the section renders the label `Details`. |
+| `open` | No | `false` | Expands the section by default. |
+
+Write the tag in block form, with the opening and closing tags on their own lines. The inline form
+(`{% details %}Text{% /details %}`) is reported as `tag-placement-invalid`, because Markdoc would
+otherwise nest the section inside a paragraph.
+
+The body accepts rich Markdown, nested `details` sections, and nested template tags. Variables inside
+a collapsed section are still discovered as inputs, because input extraction reads the parsed
+document rather than the rendered one. Collapsed content is hidden from the rendered layout, so hosts
+that derive text from rendered HTML — copy actions and printing — must expand sections first.
+
 ## `info`
 
 Renders one value from the renderer's `variables` object. The `primary` value is the variable key.

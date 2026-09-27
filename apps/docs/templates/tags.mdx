@@ -12,7 +12,7 @@ Tags sind spezielle Markierungen in Ihren Templates, die dynamische und interakt
 - Automatische Berechnungen durchführen
 - Strukturierte, wiederverwendbare Templates erstellen
 
-MDScribe bietet drei Haupttypen von Tags: **Info**, **Switch/Case** und **Calc**.
+MDScribe bietet vier Haupttypen von Tags: **Info**, **Switch/Case**, **Calc** und **Details**.
 
 ## Verfügbare Tags
 
@@ -33,6 +33,12 @@ Switch/Case-Tags ermöglichen bedingte Inhalte basierend auf verschiedenen Optio
 Das Calc-Tag führt automatische Berechnungen basierend auf mathematischen Formeln durch. Es referenziert andere Variablen und berechnet Werte in Echtzeit.
 
 [→ Zur vollständigen Calc-Tag Dokumentation](/templates/calc-tag)
+
+### 🟣 Details-Tag
+
+Das Details-Tag fasst Inhalt in einem aufklappbaren Abschnitt zusammen, wie die aufklappbaren Bereiche in GitHub. Die Beschriftung ist optional, und Abschnitte können ineinander verschachtelt werden.
+
+[→ Zur vollständigen Details-Tag Dokumentation](/templates/details-tag)
 
 ## Tags kombinieren
 
@@ -133,5 +139,6 @@ Dieses Beispiel wird beim Speichern abgelehnt, weil derselbe Wert nicht gleichze
 | **Info**        | 🔵 Blau   | Variable Daten   | `{% info "Name" /%}`                                           |
 | **Switch/Case** | 🟢 Grün   | Bedingte Inhalte | `{% switch "Var" %}{% case "A" %}Text{% /case %}{% /switch %}` |
 | **Calc**        | 🟠 Orange | Berechnungen     | `{% calc formula="[A]" %}{% info "A" type="number" /%}{% /calc %}` |
+| **Details**     | 🟣 Violett | Aufklappbare Abschnitte | `{% details summary="Titel" %}Text{% /details %}` |
 
 Mit diesen Tags können Sie flexible, wiederverwendbare Templates erstellen, die sich automatisch an verschiedene Situationen anpassen!

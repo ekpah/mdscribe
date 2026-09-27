@@ -20,4 +20,9 @@ export const TAG_COLORS = {
 		selected: "border-solarized-orange bg-solarized-orange/10 ring-2 ring-solarized-orange/35",
 		surface: "border-solarized-orange/80 bg-solarized-orange/5",
 	},
+	violet: {
+		hover: "hover:border-solarized-violet hover:bg-solarized-violet/10",
+		selected: "border-solarized-violet bg-solarized-violet/10 ring-2 ring-solarized-violet/35",
+		surface: "border-solarized-violet/80 bg-solarized-violet/5",
+	},
 } as const;

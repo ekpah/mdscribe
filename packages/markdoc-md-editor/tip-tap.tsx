@@ -25,8 +25,8 @@ import { ensureCalcFormulaComponents } from "./tiptap-extension/editorNodes/calc
 import { formatCaseConditionLabel } from "./tiptap-extension/editorNodes/case-condition";
 import type { SwitchCase } from "./tiptap-extension/editorNodes/switchTag/switch-tag";
 
-const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:calc|info|score|switch)\b/iu;
-const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Calc|Info|Score|Switch)\b/iu;
+const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:calc|details|info|score|switch)\b/iu;
+const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Calc|Details|Info|Score|Switch)\b/iu;
 
 export default function TipTap({
 	note,

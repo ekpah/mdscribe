@@ -55,6 +55,7 @@
           "templates/info-tag",
           "templates/calc-tag",
           "templates/switch-case-tags",
+          "templates/details-tag",
           "documents/index",
           "ai/index",
           "ai/ki-instruktionen",

@@ -3,6 +3,13 @@ import Markdoc from "@markdoc/markdoc";
 
 import { isValidFormula } from "../../../parse/formula";
 
+/**
+ * Label rendered for a `details` tag without a `summary`, matching the label
+ * GitHub's rendering falls back to. Kept here so the React component and the
+ * editor node view cannot drift apart.
+ */
+export const DEFAULT_DETAILS_SUMMARY = "Details";
+
 const roundAttribute: SchemaAttribute = {
 	type: [Number, Boolean],
 	validate(value) {
@@ -76,6 +83,33 @@ const tags: NonNullable<Config["tags"]> = {
 		},
 		// Cases contain rich Markdown and arbitrarily nested template tags.
 		render: "Case",
+	},
+	// GitHub-style collapsed section. Renders native <details>/<summary>.
+	details: {
+		attributes: {
+			// Matches GitHub's `<details open>`: expands the section by default.
+			open: { default: false, type: Boolean },
+			// Optional label; rendering falls back to DEFAULT_DETAILS_SUMMARY.
+			summary: { required: false, type: String },
+		},
+		// Rich block content, including nested template tags.
+		children: [
+			"blockquote",
+			"comment",
+			"fence",
+			"heading",
+			"hr",
+			"inline",
+			"item",
+			"list",
+			"paragraph",
+			"table",
+			"tag",
+			"text",
+		],
+		inline: false,
+		render: "Details",
+		selfClosing: false,
 	},
 	cite: {
 		attributes: {

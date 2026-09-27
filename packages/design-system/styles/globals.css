@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @source "../components/**/*.{ts,tsx}";
+@source "../../markdoc-md/**/*.{ts,tsx}";
 @source "../../markdoc-md-editor/**/*.{ts,tsx}";
 @source "../../../apps/app/**/*.{ts,tsx}";
 @plugin '@tailwindcss/typography';

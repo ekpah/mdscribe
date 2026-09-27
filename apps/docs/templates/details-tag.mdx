@@ -1,0 +1,76 @@
+---
+title: Details-Tag
+description: Dokumentation zum Details-Tag für aufklappbare Abschnitte in Templates
+---
+
+## Details-Tag
+
+Das Details-Tag fasst Inhalt in einem aufklappbaren Abschnitt zusammen – wie die aufklappbaren
+Bereiche in GitHub. Der Abschnitt wird im Dokument als natives Aufklapp-Element gerendert und
+funktioniert ohne JavaScript.
+
+### Syntax
+
+```markdown
+{% details summary="Laborwerte" %}
+**CRP** 12 mg/l
+
+- Leukozyten 9,8/nl
+{% /details %}
+```
+
+Öffnungs- und Schluss-Tag stehen jeweils in einer eigenen Zeile. Die einzeilige Schreibweise
+(`{% details %}Text{% /details %}`) wird beim Speichern abgelehnt, weil Markdoc den Abschnitt dann
+innerhalb eines Absatzes einfügt.
+
+### Parameter
+
+| Parameter | Typ | Pflicht | Beschreibung |
+|-----------|-----|---------|--------------|
+| `summary` | String | Nein | Beschriftung des Abschnitts. Ohne Beschriftung wird „Details“ angezeigt. |
+| `open` | Boolean | Nein | Ob der Abschnitt standardmäßig geöffnet ist (Standard: `false`) |
+
+### Beispiele
+
+**Aufgeklappter Abschnitt mit Berechnung:**
+
+```markdown
+{% details summary="Nierenfunktion" open=true %}
+Die Nierenfunktion ist {% switch "Nierenfunktion" %}{% case "normal" %}normal{% /case %}{% case "eingeschränkt" %}eingeschränkt (eGFR {% info "eGFR" type="number" unit="ml/min" renderUnit=true /%}){% /case %}{% /switch %}.
+{% /details %}
+```
+
+**Verschachtelte Abschnitte:**
+
+```markdown
+{% details summary="Vorbefunde" %}
+Auswärtige Befunde vom {% info "Vorbefunddatum" type="date" /%}.
+
+{% details summary="Radiologie" %}
+Röntgen-Thorax ohne Infiltrat.
+{% /details %}
+{% /details %}
+```
+
+**Ohne Beschriftung:**
+
+```markdown
+{% details %}
+Zusätzliche Angaben, die erst auf Wunsch sichtbar sein sollen.
+{% /details %}
+```
+
+### Funktionsweise
+
+1. Der Abschnitt wird als aufklappbares Element gerendert; die Beschriftung ist anklickbar
+2. Mit `open=true` ist der Abschnitt im Dokument von Anfang an geöffnet
+3. Variablen innerhalb eines zugeklappten Abschnitts erscheinen trotzdem als Eingabefelder
+4. Abschnitte können beliebig ineinander verschachtelt werden
+5. Beim Kopieren eines Dokuments wird der Inhalt zugeklappter Abschnitte mit übernommen
+
+### Best Practices
+
+- ✅ Verwenden Sie **aussagekräftige Beschriftungen**, damit klar ist, was im Abschnitt steht
+- ✅ Klappen Sie **Zusatzinformationen** zu, die den Textfluss sonst unterbrechen
+- ✅ Legen Sie Abschnitte, die im Ausdruck erscheinen müssen, mit `open=true` an
+- ❌ Verstecken Sie keine **medizinisch notwendigen Angaben** in zugeklappten Abschnitten

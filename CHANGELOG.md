@@ -4,6 +4,7 @@
 
 ### Added
 
+- Templates can now include collapsible sections (`{% details %}`) that render like GitHub's collapsed sections: an optional label, `open=true` to expand by default, nesting, and template tags inside. Inserting a section wraps marked content into it, the editor shows the label above the section body like an expanded switch, content in a collapsed section still appears as an input, is included when copying a document, and survives pasting a rendered section back into the editor.
 - Registered `@shadcn/lint` with Oxlint and enabled warnings for Tailwind classes that the project cannot generate.
 - First-run development seeding now configures OpenRouter, Anthropic, OpenAI, Mistral, and Tinfoil providers from available environment API keys, encrypted with the app's auth secret.
 - Admins can now create and revise Markdoc templates with an AI agent embedded in the Template Editor sidebar, including audio and file context, while retaining the existing Info view.
@@ -35,6 +36,8 @@
 
 ### Fixed
 
+- Clicking a value tag in a rendered template now shows its active border: the transparent border color no longer overrides the active border, and the active ring is more visible.
+- The design system's Tailwind sources now include the `markdoc-md` package, so utility classes used by its components are generated: the collapsed-section marker and spacing, and the citation highlight that previously had no CSS.
 - OCR document uploads no longer send JSON Schema constraints, including array-size limits, unsupported by Gemini through OpenRouter. Invalid page geometry is discarded without losing otherwise usable OCR text.
 - Orb previews minify Turbopack development bundles to reduce script requests and download time on high-latency connections; local development and production build defaults remain unchanged.
 - Seeded Gemini 3.8 Flash standard-mode thinking now defaults to `minimal` rather than `none`, while preserving existing admin selections.

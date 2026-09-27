@@ -4,6 +4,7 @@
 
 ### Added
 
+- `details` tags render GitHub-style collapsible sections with an optional `summary` and an `open` default, using native `<details>`/`<summary>` elements, a slightly larger disclosure marker, and tight spacing between the label and the body. Sections accept rich Markdown, nested tags, and nested sections; inputs inside a collapsed section are still discovered, and editor HTML roundtrips through `{% details %}` blocks.
 - `calc` and numeric `info` tags support a `round` presentation attribute for configurable decimal places or unrounded output.
 - Calculated `calc` tags can contain number, option, and checkbox inputs, including numeric case values for formulas.
 - Number switches: `switch` tags with `type="number"` (or inferred from condition cases) select the first `case` in document order whose structured condition (`eq`, `gt`, `gte`, `lt`, `lte`, `default=true`) matches; unset values match only the `default` case. Shared evaluation lives in `parse/case-conditions.ts` and is exported (`toCaseCondition`, `matchesCaseCondition`, `resolveMatchedCaseIndex`, `toNumericSwitchValue`, `serializeCaseCondition`).
