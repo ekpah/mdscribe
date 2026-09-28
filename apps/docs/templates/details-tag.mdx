@@ -23,6 +23,31 @@ funktioniert ohne JavaScript.
 (`{% details %}Text{% /details %}`) wird beim Speichern abgelehnt, weil Markdoc den Abschnitt dann
 innerhalb eines Absatzes einfügt.
 
+### Als Zeile im Text
+
+Die Beschriftung sieht aus wie eine normale Textzeile; nur der Pfeil zeigt, dass sich darunter
+weitere Angaben aufklappen lassen. Steht der Abschnitt ohne Leerzeile direkt unter oder über einer
+Textzeile, setzt er diese Zeilen ohne Absatzabstand fort. So lassen sich einfache Zeilen und
+aufklappbare Zeilen mischen:
+
+```markdown
+**Therapie und Verlauf:**  
+01/24 Erstdiagnose, Staging ohne Fernmetastasen
+{% details summary="02/24 – 04/24 Neoadjuvante Chemotherapie, gute Verträglichkeit" %}
+02/24 Zyklus 1, Neutropenie Grad 2  
+04/24 Zwischenstaging mit partieller Remission
+{% /details %}
+05/24 Gastrektomie, R0
+
+**Nebendiagnosen:**  
+…
+```
+
+Eine Leerzeile vor oder nach dem Abschnitt erzeugt wie gewohnt einen Absatzabstand. Im Editor
+erscheint diese Leerzeile als leere Zeile neben dem Abschnitt: Mit Enter fügen Sie sie ein, mit
+der Rücktaste entfernen Sie sie. Die Beschriftung tippen Sie im Editor direkt in die erste Zeile des
+Abschnitts; Enter springt in den Inhalt.
+
 ### Parameter
 
 | Parameter | Typ | Pflicht | Beschreibung |

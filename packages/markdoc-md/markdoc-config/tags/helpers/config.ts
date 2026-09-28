@@ -2,6 +2,7 @@ import type { Config, Node, SchemaAttribute } from "@markdoc/markdoc";
 import Markdoc from "@markdoc/markdoc";
 
 import { isValidFormula } from "../../../parse/formula";
+import { readDetailsLineFlow } from "./details-line-flow";
 
 /**
  * Label rendered for a `details` tag without a `summary`, matching the label
@@ -110,6 +111,14 @@ const tags: NonNullable<Config["tags"]> = {
 		inline: false,
 		render: "Details",
 		selfClosing: false,
+		transform(node: Node, config: Config) {
+			return new Markdoc.Tag(
+				"Details",
+				// The line flow comes from the source layout, not from an authored attribute.
+				{ ...node.transformAttributes(config), ...readDetailsLineFlow(node) },
+				node.transformChildren(config),
+			);
+		},
 	},
 	cite: {
 		attributes: {

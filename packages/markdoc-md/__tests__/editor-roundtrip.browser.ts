@@ -14,6 +14,14 @@ const normalize = (html: string): string => {
 	return (doc.querySelector("article") ?? doc.body).innerHTML;
 };
 
+const staysStableForThreeCycles = (fragment: string): void => {
+	let html = fragment;
+	for (let cycle = 0; cycle < 3; cycle++) {
+		html = renderTipTapHTML(htmlToMarkdoc(html));
+		equal(normalize(html), normalize(fragment));
+	}
+};
+
 const fragments = [
 	"<p>first<br>second</p>",
 	"<p>first<br><br>second</p>",
@@ -29,11 +37,7 @@ const fragments = [
 ];
 
 for (const fragment of fragments) {
-	let html = fragment;
-	for (let cycle = 0; cycle < 3; cycle++) {
-		html = renderTipTapHTML(htmlToMarkdoc(html));
-		equal(normalize(html), normalize(fragment));
-	}
+	staysStableForThreeCycles(fragment);
 }
 
 equal(normalize(renderTipTapHTML("first\nsecond")), "<p>first<br>second</p>");
@@ -65,7 +69,7 @@ const detailsInCase = htmlToMarkdoc(
 );
 equal(
 	detailsInCase,
-	'{% switch "s" %}\n{% case "a" %}\nIntro\n\n{% details summary="More" %}\nText\n\n{% /details %}\n{% /case %}\n{% case "b" %}B{% /case %}\n{% /switch %}',
+	'{% switch "s" %}\n{% case "a" %}\nIntro\n{% details summary="More" %}\nText\n\n{% /details %}\n{% /case %}\n{% case "b" %}B{% /case %}\n{% /switch %}',
 );
 const parsedDetailsInCase = new DOMParser()
 	.parseFromString(renderTipTapHTML(detailsInCase), "text/html")
@@ -78,6 +82,9 @@ for (const source of [
 	"{% details %}\nText\n{% /details %}",
 	'{% details summary="Laborwerte" open=true %}\nFirst\n\n- eins\n- zwei\n{% /details %}',
 	'{% details summary="Vorbefunde" %}\nAuswärtig.\n\n{% details summary="Radiologie" %}\nRöntgen.\n{% /details %}\n{% /details %}',
+	'Vorher\n{% details summary="A" %}\nText\n{% /details %}\nNachher',
+	'Vorher\n\n{% details summary="A" %}\nText\n{% /details %}\n\nNachher',
+	'{% details summary="A" %}\na\n{% /details %}\n{% details summary="B" %}\nb\n{% /details %}\n\n&nbsp;\n\nNachher',
 ]) {
 	const first = renderTipTapHTML(source);
 	const reopened = renderTipTapHTML(htmlToMarkdoc(first));
@@ -89,4 +96,48 @@ for (const source of [
 	}
 }
 
-document.body.textContent = `${fragments.length * 3 + 15} browser roundtrip assertions passed`;
+// Line flow: a section written against its neighbours stays flush; an empty
+// editor line next to it is the blank source line that keeps the paragraph gap.
+equal(
+	htmlToMarkdoc(
+		'<p>01/24 Erstdiagnose</p><Details summary="02/24 Chemo"><p>Zyklus 1</p></Details><Details summary="03/24 OP"><p>OP</p></Details><p>04/24 Staging</p><p></p><Details summary="05/24"><p>x</p></Details><p></p><p><strong>Nebendiagnosen:</strong></p>',
+	),
+	'01/24 Erstdiagnose\n{% details summary="02/24 Chemo" %}\nZyklus 1\n\n{% /details %}\n{% details summary="03/24 OP" %}\nOP\n\n{% /details %}\n04/24 Staging\n\n{% details summary="05/24" %}\nx\n\n{% /details %}\n\n**Nebendiagnosen:**\n\n',
+);
+equal(
+	normalize(renderTipTapHTML(htmlToMarkdoc("<p>A</p><p></p><p></p><Details><p>x</p></Details>"))),
+	'<p>A</p><p></p><p></p><details open="false"><p>x</p></details>',
+);
+
+// Empty editor lines around sections are lossless at document boundaries,
+// beside non-line-flow blocks, in runs, and inside nested section content.
+for (const fragment of [
+	'<p></p><Details open="false"><p>x</p></Details>',
+	'<Details open="false"><p>x</p></Details><p></p>',
+	'<h2>Heading</h2><p></p><Details open="false"><p>x</p></Details>',
+	'<Details open="false"><p>x</p></Details><p></p><h2>Heading</h2>',
+	'<Details open="false" summary="A"><p>a</p></Details><p></p><p></p><Details open="false" summary="B"><p>b</p></Details>',
+	'<Details open="false" summary="Outer"><p></p><Details open="false" summary="Inner"><p>x</p></Details><p></p></Details>',
+]) {
+	staysStableForThreeCycles(fragment);
+}
+
+const encodedCaseContent = encodeURIComponent(
+	'<p>Before</p><p></p><Details summary="Nested"><p>x</p></Details><p></p><p>After</p>',
+);
+const caseSource = htmlToMarkdoc(
+	`<Switch primary="choice"><Case primary="yes" data-content="${encodedCaseContent}"></Case></Switch>`,
+);
+let reopenedCase = renderTipTapHTML(caseSource);
+for (let cycle = 0; cycle < 3; cycle++) {
+	const caseElement = new DOMParser()
+		.parseFromString(reopenedCase, "text/html")
+		.querySelector("case");
+	equal(
+		normalize(caseElement?.innerHTML ?? ""),
+		'<p>Before</p><p></p><details open="false" summary="Nested"><p>x</p></details><p></p><p>After</p>',
+	);
+	reopenedCase = renderTipTapHTML(htmlToMarkdoc(reopenedCase));
+}
+
+document.body.textContent = `${fragments.length * 3 + 44} browser roundtrip assertions passed`;

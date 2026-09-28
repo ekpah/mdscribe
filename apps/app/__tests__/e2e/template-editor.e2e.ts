@@ -55,7 +55,10 @@ PAC: {% calc primary="PAC" formula="[SV] / 2" %}{% info "SV" type="number" /%}{%
 	await expect(main.locator('button[data-type="markdoc-info"]:visible')).toHaveText("volume");
 	await main.getByRole("tab", { exact: true, name: "no" }).click();
 	await main.locator('button[data-type="markdoc-switch"]').first().click();
-	await expect(main.getByRole("tab", { exact: true, name: "no" })).toHaveAttribute("aria-selected", "true");
+	await expect(main.getByRole("tab", { exact: true, name: "no" })).toHaveAttribute(
+		"aria-selected",
+		"true",
+	);
 	await expect(main.locator(".tiptap").last()).toHaveText("Alternative content");
 	await main.locator(".tiptap").last().click();
 	await main.locator(".tiptap").last().press("ControlOrMeta+End");
@@ -103,4 +106,192 @@ PAC: {% calc primary="PAC" formula="[SV] / 2" %}{% info "SV" type="number" /%}{%
 	await main.locator('button[data-type="markdoc-calc"]').last().click();
 	await page.keyboard.press("Backspace");
 	await expect(main.locator('button[data-type="markdoc-calc"]')).toHaveCount(1);
+});
+
+test("wrapping existing details focuses the newly inserted summary", async ({ page }) => {
+	await page.goto("/sign-in");
+	await page.getByLabel("E-Mail oder Benutzername").fill("test@test.com");
+	await page.getByLabel("Passwort", { exact: true }).fill("password123");
+	await page.getByTestId("sign-in-card").getByRole("button", { name: "Anmelden" }).click();
+	await page.waitForURL(/\/dashboard/);
+	await page.goto("/templates/create");
+	const main = page.getByRole("tabpanel", { exact: true, name: "Template" });
+	const editor = main.locator(".tiptap");
+	const pasteDetails = async () => {
+		await editor.evaluate((element) => {
+			const clipboardData = new DataTransfer();
+			clipboardData.setData(
+				"text/plain",
+				'{% details summary="Original outer" %}\nOuter body\n{% details summary="Original inner" %}\nInner body\n{% /details %}\n{% /details %}',
+			);
+			(element as HTMLElement).focus();
+			element.dispatchEvent(
+				new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData }),
+			);
+		});
+	};
+	await pasteDetails();
+
+	const selectDetails = async (summary: string) => {
+		await editor.evaluate((element, selectedSummary) => {
+			const { editor: tipTap } = element as HTMLElement & {
+				editor: {
+					commands: { setNodeSelection: (pos: number) => void };
+					state: {
+						doc: {
+							descendants: (
+								callback: (
+									node: { attrs: { summary?: string }; type: { name: string } },
+									pos: number,
+								) => boolean | void,
+							) => void;
+						};
+					};
+				};
+			};
+			let position: number | null = null;
+			tipTap.state.doc.descendants((node, pos) => {
+				if (node.type.name === "detailsTag" && node.attrs.summary === selectedSummary) {
+					position = pos;
+					return false;
+				}
+			});
+			if (position === null) {
+				throw new Error(`Could not find details section ${selectedSummary}`);
+			}
+			tipTap.commands.setNodeSelection(position);
+		}, summary);
+		await main.getByRole("button", { exact: true, name: "Details" }).click();
+		const summaries = main.getByLabel("Beschriftung des Details-Abschnitts");
+		await expect(main.locator("textarea[data-details-summary]:focus")).toHaveValue("");
+		await expect(summaries).toHaveCount(3);
+		expect(
+			await summaries.evaluateAll((elements) =>
+				elements.map((element) => (element as HTMLTextAreaElement).value),
+			),
+		).toContain(summary);
+	};
+
+	await selectDetails("Original outer");
+	await expect(main.getByLabel("Beschriftung des Details-Abschnitts").nth(2)).toHaveValue(
+		"Original inner",
+	);
+	await page.reload();
+	await pasteDetails();
+	await selectDetails("Original inner");
+	await expect(main.getByLabel("Beschriftung des Details-Abschnitts").nth(0)).toHaveValue(
+		"Original outer",
+	);
+});
+
+test("inserting details within a paragraph focuses the new summary", async ({ page }) => {
+	await page.goto("/sign-in");
+	await page.getByLabel("E-Mail oder Benutzername").fill("test@test.com");
+	await page.getByLabel("Passwort", { exact: true }).fill("password123");
+	await page.getByTestId("sign-in-card").getByRole("button", { name: "Anmelden" }).click();
+	await page.waitForURL(/\/dashboard/);
+	await page.goto("/templates/create");
+	const main = page.getByRole("tabpanel", { exact: true, name: "Template" });
+	const editor = main.locator(".tiptap");
+
+	for (const { from, to } of [
+		{ from: 6, to: 6 },
+		{ from: 3, to: 3 },
+		{ from: 1, to: 4 },
+	]) {
+		await page.reload();
+		await editor.evaluate(
+			(element, selection) => {
+				const { editor: tipTap } = element as HTMLElement & {
+					editor: {
+						commands: { setTextSelection: (range: { from: number; to: number }) => void };
+						state: {
+							doc: {
+								descendants: (
+									callback: (
+										node: { isText: boolean; text?: string },
+										pos: number,
+									) => boolean | void,
+								) => void;
+							};
+						};
+					};
+				};
+				const clipboardData = new DataTransfer();
+				clipboardData.setData("text/plain", "abcdef");
+				(element as HTMLElement).focus();
+				element.dispatchEvent(
+					new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData }),
+				);
+				let textPosition: number | null = null;
+				tipTap.state.doc.descendants((node, pos) => {
+					if (node.isText && node.text === "abcdef") {
+						textPosition = pos;
+						return false;
+					}
+				});
+				if (textPosition === null) {
+					throw new Error("Could not find inserted paragraph text");
+				}
+				tipTap.commands.setTextSelection({
+					from: textPosition + selection.from,
+					to: textPosition + selection.to,
+				});
+			},
+			{ from, to },
+		);
+		await main.getByRole("button", { exact: true, name: "Details" }).click();
+		await expect(main.locator("textarea[data-details-summary]:focus")).toHaveValue("");
+	}
+
+	await page.reload();
+	await editor.evaluate((element) => {
+		const { editor: tipTap } = element as HTMLElement & {
+			editor: {
+				commands: { setTextSelection: (range: { from: number; to: number }) => void };
+				state: {
+					doc: {
+						descendants: (
+							callback: (node: { isText: boolean; text?: string }, pos: number) => boolean | void,
+						) => void;
+					};
+				};
+			};
+		};
+		const clipboardData = new DataTransfer();
+		clipboardData.setData(
+			"text/plain",
+			'abc\n{% details summary="Existing" %}\ndefghi\n{% /details %}',
+		);
+		(element as HTMLElement).focus();
+		element.dispatchEvent(
+			new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData }),
+		);
+		let paragraphPosition: number | null = null;
+		let detailsTextPosition: number | null = null;
+		tipTap.state.doc.descendants((node, pos) => {
+			if (node.isText && node.text === "abc") {
+				paragraphPosition = pos;
+			}
+			if (node.isText && node.text === "defghi") {
+				detailsTextPosition = pos;
+			}
+		});
+		if (paragraphPosition === null || detailsTextPosition === null) {
+			throw new Error("Could not find cross-block selection boundaries");
+		}
+		tipTap.commands.setTextSelection({
+			from: paragraphPosition + 1,
+			to: detailsTextPosition + 3,
+		});
+	});
+	await main.getByRole("button", { exact: true, name: "Details" }).click();
+	const focusedSummary = main.locator("textarea[data-details-summary]:focus");
+	await expect(focusedSummary).toHaveValue("");
+	await focusedSummary.fill("New wrapper");
+	expect(
+		await main
+			.getByLabel("Beschriftung des Details-Abschnitts")
+			.evaluateAll((elements) => elements.map((element) => (element as HTMLTextAreaElement).value)),
+	).toEqual(["New wrapper", "Existing"]);
 });

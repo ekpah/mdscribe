@@ -6,6 +6,7 @@ import {
 	TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
 import { cn } from "@repo/design-system/lib/utils";
+import { getChangedRanges } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import type { Fragment } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
@@ -22,10 +23,8 @@ import {
 } from "lucide-react";
 
 import { getPrimaryFromSelection } from "./editor-helpers/get-primary-from-selection";
-import {
-	FOCUS_INSERTED_TAG_PRIMARY_META,
-	selectInsertedInlineTag,
-} from "./editor-helpers/select-inserted-inline-tag";
+import { selectInsertedInlineTag } from "./editor-helpers/select-inserted-inline-tag";
+import { focusDetailsSummary } from "./tiptap-extension/editorNodes/detailsTag/details-tag-view";
 
 /**
  * Turns a selection into valid block content for a container tag: whole blocks
@@ -90,6 +89,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 			// becomes the primary of an info tag.
 			const { from, to } = editor.state.selection;
 			const markedBlocks = toBlockContent(editor.state.doc.slice(from, to).content);
+			let insertedPosition: number | null = null;
 			editor
 				.chain()
 				.focus()
@@ -101,13 +101,34 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 						type: "detailsTag",
 					},
 				)
-				.command(({ tr, dispatch }) => {
-					if (dispatch) {
-						dispatch(tr.setMeta(FOCUS_INSERTED_TAG_PRIMARY_META, true));
+				.command(({ tr }) => {
+					// Replacement fitting can include a paragraph boundary before the
+					// inserted node, so search the changed range instead of assuming its
+					// start is the details position. The first match is the new wrapper;
+					// returning false skips existing details nested inside it.
+					for (const { newRange } of getChangedRanges(tr)) {
+						tr.doc.nodesBetween(newRange.from, newRange.to, (node, pos) => {
+							if (
+								insertedPosition === null &&
+								pos >= newRange.from &&
+								node.type.name === "detailsTag"
+							) {
+								insertedPosition = pos;
+								return false;
+							}
+							return insertedPosition === null;
+						});
+						if (insertedPosition !== null) {
+							break;
+						}
 					}
 					return true;
 				})
 				.run();
+			// The summary is typed inline on the section's first line.
+			if (insertedPosition !== null) {
+				focusDetailsSummary(editor, insertedPosition);
+			}
 		},
 		handleInsertInfoTag() {
 			const selectedPrimary = getPrimaryFromSelection(editor.state);

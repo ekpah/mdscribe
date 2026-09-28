@@ -137,7 +137,8 @@ const customMarkdocRenderers: Partial<
 		const openAttribute = serializeBooleanAttribute("open", readAttribute(element, "open"));
 		// Block form: the opening tag needs its own line, otherwise Markdoc parses
 		// the section as an inline tag nested in a paragraph. The trailing blank
-		// line keeps consecutive closing tags off each other's lines.
+		// line keeps consecutive closing tags off each other's lines; the parent
+		// drops it when the next block continues the section's line flow.
 		return `{% details${summaryAttribute}${openAttribute} %}\n${innerContent}{% /details %}\n\n`;
 	},
 	info: (element) => {
@@ -170,7 +171,9 @@ const customMarkdocRenderers: Partial<
 		);
 		// A case containing Details has block content, so the switch and case
 		// delimiters also need their own lines for Markdoc to parse the tree.
-		const content = innerContent.includes("{% details") ? `\n${innerContent.trim()}\n` : innerContent;
+		const content = innerContent.includes("{% details")
+			? `\n${innerContent.trim()}\n`
+			: innerContent;
 		return `{% switch ${primary}${typeAttribute}${unitAttribute}${descriptionAttribute}${sourceAttribute} %}${content}{% /switch %}`;
 	},
 };
@@ -234,12 +237,91 @@ const renderHtmlElement = (element: Element, tagName: string, innerContent: stri
 	return inlineRenderer ? inlineRenderer(innerContent) : innerContent;
 };
 
+const isElementNamed = (node: Node | null, tagName: string): node is Element =>
+	node?.nodeType === 1 && (node as Element).tagName.toLowerCase() === tagName;
+
+/** An empty editor line: `<p></p>`, optionally holding ProseMirror's view-only filler. */
+const isEmptyParagraph = (node: Node | null): boolean =>
+	isElementNamed(node, "p") &&
+	node.textContent === "" &&
+	[...node.children].every((child) => child.classList.contains("ProseMirror-trailingBreak"));
+
+/**
+ * Blocks a details section can join; mirrors `markDetailsLineFlow` in the
+ * renderer. An empty paragraph that stays in the source (as `&nbsp;`) is a
+ * paragraph there too.
+ */
+const sharesLineFlow = (node: Node | null): boolean =>
+	isElementNamed(node, "details") || isElementNamed(node, "p");
+
+/** Adjacent block, skipping formatting whitespace between elements. */
+const siblingBlock = (node: Node, direction: "nextSibling" | "previousSibling"): Node | null => {
+	let sibling = node[direction];
+	while (sibling?.nodeType === 3 && !sibling.textContent?.trim()) {
+		sibling = sibling[direction];
+	}
+	return sibling;
+};
+
+/** The run of consecutive empty paragraphs around `paragraph` and the blocks bounding it. */
+const emptyParagraphRun = (paragraph: Node) => {
+	let before = siblingBlock(paragraph, "previousSibling");
+	let index = 0;
+	while (before && isEmptyParagraph(before)) {
+		index += 1;
+		before = siblingBlock(before, "previousSibling");
+	}
+	let after = siblingBlock(paragraph, "nextSibling");
+	let length = index + 1;
+	while (after && isEmptyParagraph(after)) {
+		length += 1;
+		after = siblingBlock(after, "nextSibling");
+	}
+	return { after, before, index, length };
+};
+
+/**
+ * Inverse of renderTipTapHTML, which shows a blank source line between a details
+ * section and a neighbouring paragraph or section as one empty editor line. In a
+ * run of empty lines touching a section, one line is that blank line; the others
+ * stay `&nbsp;` paragraphs. It counts only where the renderer recreates it: next
+ * to a section whose other side is a paragraph or section after saving.
+ */
+const isSourceBlankLine = (paragraph: Node): boolean => {
+	const { after, before, index, length } = emptyParagraphRun(paragraph);
+	if (isElementNamed(before, "details") && (length > 1 || sharesLineFlow(after))) {
+		return index === 0;
+	}
+	if (isElementNamed(after, "details") && (length > 1 || sharesLineFlow(before))) {
+		return index === length - 1;
+	}
+	return false;
+};
+
 const processChildrenForMarkdoc = (
 	node: Node,
 	processNode: (childNode: Node) => string,
 ): string => {
 	let innerContent = "";
+	const blankLines = new Set<Node>();
 	for (const child of node.childNodes) {
+		if (isEmptyParagraph(child) && isSourceBlankLine(child)) {
+			blankLines.add(child);
+			continue;
+		}
+		// A details section directly next to a line block continues its lines:
+		// no blank line between them in the source. This includes kept `&nbsp;`
+		// lines, so the renderer does not add a gap line of its own there.
+		const previous = siblingBlock(child, "previousSibling");
+		if (
+			previous &&
+			!blankLines.has(previous) &&
+			(isElementNamed(previous, "details") || isElementNamed(child, "details")) &&
+			sharesLineFlow(previous) &&
+			sharesLineFlow(child)
+		) {
+			innerContent = innerContent.replace(/\n+$/u, "\n");
+		}
 		innerContent += processNode(child);
 	}
 	return innerContent;

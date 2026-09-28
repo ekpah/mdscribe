@@ -213,6 +213,22 @@ Write the tag in block form, with the opening and closing tags on their own line
 (`{% details %}Text{% /details %}`) is reported as `tag-placement-invalid`, because Markdoc would
 otherwise nest the section inside a paragraph.
 
+The summary renders with the body font and line height, so it reads like one more line of text.
+A section written directly below or above a paragraph or another section, without a blank line
+between them, continues those lines without a paragraph gap; a blank line keeps the gap. This lets a
+run of lines mix plain lines and expandable ones:
+
+```markdoc
+01/24 Erstdiagnose
+{% details summary="02/24 Chemotherapie" %}
+Zyklus 1–4
+{% /details %}
+05/24 Gastrektomie
+```
+
+`renderTipTapHTML` shows each such blank line as an empty paragraph next to the section, and
+`htmlToMarkdoc` turns it back into the blank line, so the layout roundtrips through the editor.
+
 The body accepts rich Markdown, nested `details` sections, and nested template tags. Variables inside
 a collapsed section are still discovered as inputs, because input extraction reads the parsed
 document rather than the rendered one. Collapsed content is hidden from the rendered layout, so hosts
