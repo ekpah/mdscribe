@@ -90,9 +90,13 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 			const { from, to } = editor.state.selection;
 			const markedBlocks = toBlockContent(editor.state.doc.slice(from, to).content);
 			let insertedPosition: number | null = null;
+			// Android Chrome can lock up when ProseMirror mounts a contentful node
+			// view while its contenteditable root still owns DOM focus. The toolbar
+			// tap does not blur that root, so blur it before changing the document;
+			// the summary field receives focus after its node view mounts below.
+			editor.view.dom.blur();
 			editor
 				.chain()
-				.focus()
 				.insertContentAt(
 					{ from, to },
 					{

@@ -1,6 +1,34 @@
-import { expect, test } from "@playwright/test";
+import { devices, expect, test } from "@playwright/test";
 
 test.use({ viewport: { height: 1000, width: 1600 } });
+
+test("inserting details remains responsive on mobile", async ({ browser }, testInfo) => {
+	const context = await browser.newContext({
+		...devices["Pixel 7"],
+		baseURL: testInfo.project.use.baseURL,
+	});
+	const page = await context.newPage();
+	try {
+		await page.goto("/sign-in");
+		await page.getByLabel("E-Mail oder Benutzername").fill("test@test.com");
+		await page.getByLabel("Passwort", { exact: true }).fill("password123");
+		await page.getByTestId("sign-in-card").getByRole("button", { name: "Anmelden" }).tap();
+		await page.waitForURL(/\/dashboard/);
+		await page.goto("/templates/create");
+		const main = page.getByRole("tabpanel", { exact: true, name: "Template" });
+		await main.locator(".tiptap").tap();
+		await main.getByRole("button", { exact: true, name: "Details" }).tap();
+
+		const summary = main.locator("textarea[data-details-summary]:focus");
+		await expect(summary).toHaveValue("");
+		await summary.fill("Mobile details");
+		await expect(main.getByLabel("Beschriftung des Details-Abschnitts")).toHaveValue(
+			"Mobile details",
+		);
+	} finally {
+		await context.close();
+	}
+});
 
 test("nested cases retain rich tags, chip selection stays local, and calculated references link to their definition", async ({
 	page,
