@@ -32,6 +32,7 @@ const fragments = [
 	"<p><strong>first</strong><br><em>second</em></p>",
 	"<blockquote><p>first<br>second</p><p></p></blockquote>",
 	"<ul><li>first<br>second</li></ul>",
+	'<h2>Heading</h2><Details open="false"><p>Text</p></Details>',
 	"<p>non-breaking space</p>",
 	"<p><strong>first</strong> <em>second</em></p>",
 ];
@@ -63,6 +64,10 @@ equal(
 equal(
 	htmlToMarkdoc('<Details open="false"><p>Text</p></Details>'),
 	"{% details %}\nText\n\n{% /details %}\n\n",
+);
+equal(
+	htmlToMarkdoc('<h2>Heading</h2><Details open="false"><p>Text</p></Details>'),
+	"## Heading\n{% details %}\nText\n\n{% /details %}\n\n",
 );
 const detailsInCase = htmlToMarkdoc(
 	'<Switch primary="s"><Case primary="a"><p>Intro</p><Details summary="More"><p>Text</p></Details></Case><Case primary="b">B</Case></Switch>',

@@ -2,6 +2,10 @@
 
 ## [Unpublished]
 
+### Fixed
+
+- Editor serialization no longer inserts a blank line before a directly adjacent `details` tag.
+
 ### Added
 
 - `details` tags render GitHub-style collapsible sections with an optional `summary` and an `open` default, using native `<details>`/`<summary>` elements. The summary keeps the body font and line height, and the body follows with normal line spacing. A section written directly next to a paragraph or another section (no blank line) continues those lines without a paragraph gap; a blank line keeps the gap, and `renderTipTapHTML`/`htmlToMarkdoc` roundtrip it as an empty editor paragraph. Sections accept rich Markdown, nested tags, and nested sections; inputs inside a collapsed section are still discovered, and editor HTML roundtrips through `{% details %}` blocks.

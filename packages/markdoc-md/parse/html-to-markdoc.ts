@@ -310,15 +310,15 @@ const processChildrenForMarkdoc = (
 			continue;
 		}
 		// A details section directly next to a line block continues its lines:
-		// no blank line between them in the source. This includes kept `&nbsp;`
-		// lines, so the renderer does not add a gap line of its own there.
+		// no blank line between them in the source. Its opening tag always follows
+		// the preceding block with one line break; an authored empty paragraph is
+		// still serialized separately and therefore keeps an intentional gap.
 		const previous = siblingBlock(child, "previousSibling");
 		if (
 			previous &&
 			!blankLines.has(previous) &&
-			(isElementNamed(previous, "details") || isElementNamed(child, "details")) &&
-			sharesLineFlow(previous) &&
-			sharesLineFlow(child)
+			(isElementNamed(child, "details") ||
+				(isElementNamed(previous, "details") && sharesLineFlow(child)))
 		) {
 			innerContent = innerContent.replace(/\n+$/u, "\n");
 		}
