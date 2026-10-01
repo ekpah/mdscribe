@@ -1696,10 +1696,10 @@ describe("Scribe Stream Handler", () => {
 				.set({ defaultStandardSupportsDocuments: false })
 				.where(eq(aiDefaults.id, "global"));
 
-			// Free tier budget is $2/month.
+			// Free tier budget is $0.30/month.
 			const { usageEvent: usageEventTable } = await import("@repo/database");
 			await server.db.insert(usageEventTable).values({
-				cost: "2.00",
+				cost: "0.30",
 				id: crypto.randomUUID(),
 				name: "admin_scribe_playground",
 				timestamp: new Date(),

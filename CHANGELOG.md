@@ -40,6 +40,7 @@
 - Inserting a Details tag from the template-editor toolbar no longer freezes or crashes the page in mobile Chrome.
 - Clicking a value tag in a rendered template now shows its active border: the transparent border color no longer overrides the active border, and the active ring is more visible.
 - The design system's Tailwind sources now include the `markdoc-md` package, so utility classes used by its components are generated: the collapsed-section marker and spacing, and the citation highlight that previously had no CSS.
+- Reduced the free AI Scribe monthly usage limit to $0.30.
 - OCR document uploads no longer send JSON Schema constraints, including array-size limits, unsupported by Gemini through OpenRouter. Invalid page geometry is discarded without losing otherwise usable OCR text.
 - Orb previews minify Turbopack development bundles to reduce script requests and download time on high-latency connections; local development and production build defaults remain unchanged.
 - Seeded Gemini 3.8 Flash standard-mode thinking now defaults to `minimal` rather than `none`, while preserving existing admin selections.
