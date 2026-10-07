@@ -1,4 +1,5 @@
-import type { Node } from "@markdoc/markdoc";
+import { Tag } from "@markdoc/markdoc";
+import type { Node, RenderableTreeNode } from "@markdoc/markdoc";
 
 /**
  * Where a `details` section continues the surrounding lines instead of starting
@@ -54,3 +55,36 @@ export const readDetailsLineFlow = (node: Node): DetailsLineFlow => ({
 	joinNext: node.attributes[JOIN_NEXT] === true,
 	joinPrevious: node.attributes[JOIN_PREVIOUS] === true,
 });
+
+const isRenderedDetails = (node: RenderableTreeNode | undefined): node is Tag =>
+	Tag.isTag(node) && node.name === "Details";
+
+const sharesRenderedLineFlow = (node: RenderableTreeNode | undefined): boolean =>
+	isRenderedDetails(node) || (Tag.isTag(node) && node.name === "p");
+
+/** Make details-adjacent source gaps real empty lines, in both editor and template output. */
+export const showDetailsGapsAsEmptyLines = (node: RenderableTreeNode): void => {
+	if (!Tag.isTag(node)) {
+		return;
+	}
+	const children: RenderableTreeNode[] = [];
+	for (const [index, child] of node.children.entries()) {
+		showDetailsGapsAsEmptyLines(child);
+		if (!isRenderedDetails(child)) {
+			children.push(child);
+			continue;
+		}
+		const { joinNext, joinPrevious, ...attributes } = child.attributes;
+		child.attributes = attributes;
+		const previous = node.children[index - 1];
+		const next = node.children[index + 1];
+		if (sharesRenderedLineFlow(previous) && !isRenderedDetails(previous) && joinPrevious !== true) {
+			children.push(new Tag("p"));
+		}
+		children.push(child);
+		if (sharesRenderedLineFlow(next) && joinNext !== true) {
+			children.push(new Tag("p"));
+		}
+	}
+	node.children = children;
+};

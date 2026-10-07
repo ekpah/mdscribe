@@ -9,7 +9,7 @@ import {
 	selectInsertedInlineTag,
 } from "markdoc-md-editor/editor-helpers/select-inserted-inline-tag";
 import { updateMarkdocTagAttributesInTransaction } from "markdoc-md-editor/tag-inspector/use-selected-markdoc-tag";
-import { isCursorAfterInlineMarkdocTag } from "markdoc-md-editor/tiptap-extension";
+import { shouldInsertLineBreak } from "markdoc-md-editor/tiptap-extension";
 import { ensureCalcFormulaComponents } from "markdoc-md-editor/tiptap-extension/editorNodes/calcTag/calc-tag";
 
 type SelectionState = Parameters<typeof getPrimaryFromSelection>[0];
@@ -112,12 +112,15 @@ describe("inserted Markdoc tag selection", () => {
 	});
 });
 
-describe("newline after an inline Markdoc tag", () => {
+describe("template line breaks", () => {
 	const schema = new Schema({
 		nodes: {
 			doc: { content: "block+" },
 			hardBreak: { group: "inline", inline: true },
+			heading: { content: "inline*", group: "block" },
 			infoTag: { atom: true, group: "inline", inline: true },
+			listItem: { content: "paragraph+" },
+			bulletList: { content: "listItem+", group: "block" },
 			paragraph: { content: "inline*", group: "block" },
 			text: { group: "inline" },
 		},
@@ -133,10 +136,10 @@ describe("newline after an inline Markdoc tag", () => {
 			selection: TextSelection.atEnd(doc),
 		});
 
-		expect(isCursorAfterInlineMarkdocTag(state)).toBe(true);
+		expect(shouldInsertLineBreak(state)).toBe(true);
 	});
 
-	test("keeps normal Enter behavior when text follows the tag", () => {
+	test("uses the same line break after ordinary text", () => {
 		const doc = schema.node("doc", null, [
 			schema.node("paragraph", null, [schema.node("infoTag"), schema.text(" trailing text")]),
 		]);
@@ -146,7 +149,23 @@ describe("newline after an inline Markdoc tag", () => {
 			selection: TextSelection.atEnd(doc),
 		});
 
-		expect(isCursorAfterInlineMarkdocTag(state)).toBe(false);
+		expect(shouldInsertLineBreak(state)).toBe(true);
+	});
+
+	test("retains structural Enter behavior in headings and list items", () => {
+		for (const block of [
+			schema.node("heading", null, [schema.text("Heading")]),
+			schema.node("bulletList", null, [
+				schema.node("listItem", null, [schema.node("paragraph", null, [schema.node("infoTag")])]),
+			]),
+		]) {
+			const doc = schema.node("doc", null, [block]);
+			expect(
+				shouldInsertLineBreak(
+					EditorState.create({ doc, schema, selection: TextSelection.atEnd(doc) }),
+				),
+			).toBe(false);
+		}
 	});
 });
 

@@ -36,6 +36,7 @@
 
 ### Fixed
 
+- Template previews and copied output now preserve the editor's line breaks and explicit blank lines without inserting Markdown paragraph gaps. Rich-text copies carry compact typography, plain-text copies retain list markers and collapsed-section contents, and Enter creates a line break in ordinary template text while preserving heading and list behavior.
 - Inserting a Details tag directly after another block no longer adds a blank line before the tag.
 - Inserting a Details tag from the template-editor toolbar no longer freezes or crashes the page in mobile Chrome.
 - Clicking a value tag in a rendered template now shows its active border: the transparent border color no longer overrides the active border, and the active ring is more visible.

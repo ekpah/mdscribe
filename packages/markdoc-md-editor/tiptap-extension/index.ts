@@ -15,19 +15,18 @@ import { SwitchTag } from "./editorNodes/switchTag/switch-tag";
 import type { SwitchTagAttrs } from "./editorNodes/switchTag/switch-tag";
 import { TagGapCaret } from "./tag-gap-caret";
 
-const INLINE_MARKDOC_TAG_NAMES = new Set(["calcTag", "caseTag", "infoTag", "switchTag"]);
-
-export const isCursorAfterInlineMarkdocTag = (state: EditorState): boolean => {
-	const { selection } = state;
-	if (!selection.empty) {
+export const shouldInsertLineBreak = (state: EditorState): boolean => {
+	const { $from } = state.selection;
+	if ($from.parent.type.name !== "paragraph") {
 		return false;
 	}
-	const { $from } = selection;
-	return (
-		$from.parent.isTextblock &&
-		$from.parentOffset === $from.parent.content.size &&
-		Boolean($from.nodeBefore && INLINE_MARKDOC_TAG_NAMES.has($from.nodeBefore.type.name))
-	);
+	// Enter must still create/exit list items, rather than insert a line inside one.
+	for (let depth = $from.depth - 1; depth > 0; depth -= 1) {
+		if ($from.node(depth).type.name === "listItem") {
+			return false;
+		}
+	}
+	return true;
 };
 
 interface MarkdocExtensionOptions {
@@ -76,9 +75,7 @@ export const MarkdocMD = Extension.create<MarkdocExtensionOptions>({
 	addKeyboardShortcuts() {
 		return {
 			Enter: () =>
-				isCursorAfterInlineMarkdocTag(this.editor.state)
-					? this.editor.commands.setHardBreak()
-					: false,
+				shouldInsertLineBreak(this.editor.state) ? this.editor.commands.setHardBreak() : false,
 		};
 	},
 

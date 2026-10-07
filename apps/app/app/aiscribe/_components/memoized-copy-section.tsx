@@ -1,9 +1,11 @@
 "use client";
-import * as Markdoc from "@markdoc/markdoc";
+
 import { Check, Copy } from "lucide-react";
 import { DynamicMarkdocRenderer } from "markdoc-md/react";
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+
+import { getRenderedClipboardContent } from "@/lib/rendered-clipboard";
 
 interface MemoizedCopySectionProps {
 	title?: string;
@@ -11,176 +13,18 @@ interface MemoizedCopySectionProps {
 	values?: Record<string, unknown>;
 }
 
-/**
- * Normalizes markdown line breaks to ensure proper rendering.
- * In standard markdown, a single newline doesn't create a line break.
- * This function ensures:
- * - Bold headers (like **Hauptdiagnose:**) are followed by paragraph breaks
- * - List items are properly separated from preceding content
- * - Individual text lines have trailing spaces for hard breaks
- */
-const normalizeMarkdownLineBreaks = (markdown: string): string => {
-	// First, normalize all line endings to \n
-	let normalized = markdown.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-
-	// Ensure bold headers (like **Hauptdiagnose:**) are followed by a blank line
-	// Match: **Text:** followed by single newline and non-empty content
-	normalized = normalized.replaceAll(/(\*\*[^*]+:\*\*)\n(?!\n)(?=[^\s])/g, "$1\n\n");
-
-	// Ensure lines ending with colons and single newlines get proper breaks
-	// This handles plain text headers like "Hauptdiagnose:"
-	normalized = normalized.replaceAll(/^([A-ZÄÖÜ][^:\n]*:)\n(?!\n)(?=[^\s-])/gm, "$1\n\n");
-
-	// Ensure list items (starting with - or numbered) are separated from previous content
-	normalized = normalized.replaceAll(/([^\n])\n(?!\n)([-\d]+[.)]?\s)/g, "$1\n\n$2");
-
-	// Add trailing double spaces to lines that aren't blank, don't end with
-	// markdown formatting, and are followed by another content line.
-	// This creates hard line breaks in markdown for items like:
-	// "Z.n. Hemithyreoidektomie" -> "Z.n. Hemithyreoidektomie  "
-	const lines = normalized.split("\n");
-	const processedLines = lines.map((line, index) => {
-		const nextLine = lines[index + 1];
-		const trimmedLine = line.trim();
-		const trimmedNextLine = nextLine?.trim();
-
-		// Skip if line is empty, already ends with spaces, or is last line
-		if (!trimmedLine || line.endsWith("  ") || index === lines.length - 1 || !trimmedNextLine) {
-			return line;
-		}
-
-		// Skip if line ends with markdown block markers
-		if (
-			trimmedLine.endsWith("**") ||
-			trimmedLine.endsWith(":") ||
-			trimmedLine.startsWith("#") ||
-			trimmedLine.startsWith("-") ||
-			/^\d+[.)]\s/.test(trimmedLine)
-		) {
-			return line;
-		}
-
-		// Skip if next line starts a new section or is a list item
-		if (
-			trimmedNextLine.startsWith("**") ||
-			trimmedNextLine.startsWith("#") ||
-			trimmedNextLine.startsWith("-") ||
-			/^\d+[.)]\s/.test(trimmedNextLine)
-		) {
-			return line;
-		}
-
-		// Add trailing spaces for hard line break
-		return `${line}  `;
-	});
-
-	return processedLines.join("\n");
-};
-
-const parseMarkdocIntoBlocks = (markdown: string): string[] => {
-	// Parse with Markdoc to validate syntax, but use line-by-line for block extraction
-	try {
-		// This validates the Markdoc syntax.
-		Markdoc.parse(markdown);
-	} catch (error) {
-		console.warn("Markdoc parsing error, falling back to basic parsing:", error);
-	}
-
-	const blocks: string[] = [];
-	const lines = markdown.split("\n");
-	let currentBlock = "";
-	let inMarkdocTag = false;
-	let tagDepth = 0;
-
-	for (const line of lines) {
-		const trimmedLine = line.trim();
-
-		// Check for Markdoc opening tags (not self-closing)
-		const openTagMatches = trimmedLine.match(/\{%\s*([^/\s]+)/g);
-		// Check for Markdoc closing tags
-		const closeTagMatches = trimmedLine.match(/\{%\s*\/([^/\s]+)/g);
-		// Check for self-closing tags
-		const selfClosingMatches = trimmedLine.match(/\{%.*\/%\}/g);
-
-		if (openTagMatches && !selfClosingMatches) {
-			if (!inMarkdocTag && currentBlock.trim()) {
-				blocks.push(currentBlock.trim());
-				currentBlock = "";
-			}
-			inMarkdocTag = true;
-			tagDepth += openTagMatches.length;
-		}
-
-		if (closeTagMatches) {
-			tagDepth -= closeTagMatches.length;
-			if (tagDepth <= 0) {
-				inMarkdocTag = false;
-				tagDepth = 0;
-				// Add the line to complete the tag block
-				currentBlock = currentBlock ? `${currentBlock}\n${line}` : line;
-				blocks.push(currentBlock.trim());
-				currentBlock = "";
-				continue;
-			}
-		}
-
-		// Always append line, preserving explicit line breaks even at end.
-		currentBlock += (currentBlock === "" ? "" : "\n") + line;
-
-		// Natural break points when not in tags
-		if (
-			!inMarkdocTag &&
-			currentBlock.trim() &&
-			(trimmedLine.match(/^#{1,6}\s/) ||
-				trimmedLine.match(/^[-*_]{3,}$/) ||
-				(trimmedLine === "" && currentBlock.trim()))
-		) {
-			blocks.push(currentBlock.trim());
-			currentBlock = "";
-		}
-	}
-
-	if (currentBlock.trim()) {
-		blocks.push(currentBlock.trim());
-	}
-
-	return blocks.filter((block) => block.length > 0);
-};
-
-const MemoizedMarkdownBlock = memo(
-	({ content, values }: { content: string; values?: Record<string, unknown> }) => (
-		<DynamicMarkdocRenderer variables={values} markdocContent={content} />
-	),
-	(prevProps, nextProps) => {
-		if (prevProps.content !== nextProps.content) {
-			return false;
-		}
-		if (JSON.stringify(prevProps.values) !== JSON.stringify(nextProps.values)) {
-			return false;
-		}
-		return true;
-	},
-);
-
-MemoizedMarkdownBlock.displayName = "MemoizedMarkdownBlock";
-
 export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCopySectionProps) => {
 	const [isCopied, setIsCopied] = useState(false);
-	const blocks = useMemo(() => {
-		const normalizedContent = normalizeMarkdownLineBreaks(content);
-		return parseMarkdocIntoBlocks(normalizedContent);
-	}, [content]);
 	const contentRef = useRef<HTMLDivElement>(null);
 
 	const handleCopy = useCallback(async (renderedContent: string, textContent: string) => {
 		try {
-			// Check if we're in a secure context and have clipboard support
 			if (!navigator.clipboard) {
 				throw new Error("Clipboard API not supported");
 			}
 
-			// Always offer rich text together with a plain-text representation. Paste
-			// targets can then choose the format they support without losing structure.
+			// Both formats come from the same rendered document, with explicit line
+			// blocks and breaks rather than clipboard-only newline rewriting.
 			if (
 				typeof ClipboardItem !== "undefined" &&
 				typeof navigator.clipboard.write === "function" &&
@@ -188,12 +32,8 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 			) {
 				try {
 					const clipboardItem = new ClipboardItem({
-						"text/html": new Blob([renderedContent], {
-							type: "text/html",
-						}),
-						"text/plain": new Blob([textContent], {
-							type: "text/plain",
-						}),
+						"text/html": new Blob([renderedContent], { type: "text/html" }),
+						"text/plain": new Blob([textContent], { type: "text/plain" }),
 					});
 					await navigator.clipboard.write([clipboardItem]);
 					setIsCopied(true);
@@ -204,14 +44,11 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 				}
 			}
 
-			// Final fallback to plain text (most compatible)
 			await navigator.clipboard.writeText(textContent);
 			setIsCopied(true);
 			toast.success("Text kopiert (Einfacher Text)");
 		} catch (error) {
 			console.error("Clipboard operation failed:", error);
-
-			// Legacy fallback using document.execCommand (for very old browsers)
 			try {
 				const textArea = document.createElement("textarea");
 				textArea.value = textContent;
@@ -222,12 +59,11 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 				const success = document.execCommand("copy");
 				textArea.remove();
 
-				if (success) {
-					setIsCopied(true);
-					toast.success("Text kopiert (Fallback)");
-				} else {
+				if (!success) {
 					throw new Error("Legacy copy failed", { cause: error });
 				}
+				setIsCopied(true);
+				toast.success("Text kopiert (Fallback)");
 			} catch (legacyError) {
 				toast.error("Kopieren fehlgeschlagen. Bitte manuell kopieren.");
 				console.error("All clipboard methods failed:", legacyError);
@@ -238,55 +74,26 @@ export const MemoizedCopySection = memo(({ title, content, values }: MemoizedCop
 	}, []);
 
 	const handleCopyClick = useCallback(async () => {
-		// Use the ref to get the rendered content directly
-		const contentElement = contentRef.current;
-		if (!contentElement) {
+		if (!contentRef.current) {
 			toast.error("Problem mit dem Kopieren - bitte manuell kopieren");
 			return;
 		}
-
-		// innerHTML keeps the content of collapsed sections and the authored open
-		// state, so the rich-text payload is captured before any section is opened.
-		const renderedContent = contentElement.innerHTML;
-
-		// Collapsed sections are hidden from the rendered layout, so the plain-text
-		// representation would silently drop their content. Open them for the
-		// synchronous read and restore the authored state afterwards.
-		const collapsedSections = [
-			...contentElement.querySelectorAll<HTMLDetailsElement>("details:not([open])"),
-		];
-		for (const section of collapsedSections) {
-			section.open = true;
-		}
-		try {
-			// innerText preserves the visual separators produced by block elements and
-			// line breaks. textContent concatenates their text nodes without separators.
-			// oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- Clipboard text must match the rendered layout.
-			const textContent = contentElement.innerText.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-			await handleCopy(renderedContent, textContent);
-		} catch (error) {
-			console.error("Copy action failed:", error);
-		} finally {
-			for (const section of collapsedSections) {
-				section.open = false;
-			}
-		}
+		const { html, text } = getRenderedClipboardContent(contentRef.current);
+		await handleCopy(html, text);
 	}, [handleCopy]);
 
 	return (
 		<div className="space-y-2">
 			{title && <h3 className="font-medium text-lg capitalize">{title}</h3>}
-			<div className="group relative w-full whitespace-pre-line rounded-md bg-muted p-3 text-left">
+			<div className="group relative w-full rounded-md bg-muted p-3 text-left">
 				<div ref={contentRef} data-section={title}>
-					{blocks.map((block) => (
-						<MemoizedMarkdownBlock content={block} values={values} key={`block_${block}`} />
-					))}
+					<DynamicMarkdocRenderer layout="template" markdocContent={content} variables={values} />
 				</div>
 				<button
+					aria-label="Gerenderten Text kopieren"
 					type="button"
-					tabIndex={0}
 					onClick={handleCopyClick}
-					className="absolute top-2 right-2 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100"
+					className="absolute top-2 right-2 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
 				>
 					{isCopied ? (
 						<Check className="h-4 w-4 text-solarized-green" />

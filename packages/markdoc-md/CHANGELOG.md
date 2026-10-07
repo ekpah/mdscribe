@@ -8,6 +8,7 @@
 
 ### Added
 
+- React renderers support an opt-in `layout="template"` that preserves soft breaks, explicit empty lines, and Details-adjacent gaps as real HTML structure, with portable compact typography for rich-text copying. Standard Markdown rendering remains unchanged.
 - `details` tags render GitHub-style collapsible sections with an optional `summary` and an `open` default, using native `<details>`/`<summary>` elements. The summary keeps the body font and line height, and the body follows with normal line spacing. A section written directly next to a paragraph or another section (no blank line) continues those lines without a paragraph gap; a blank line keeps the gap, and `renderTipTapHTML`/`htmlToMarkdoc` roundtrip it as an empty editor paragraph. Sections accept rich Markdown, nested tags, and nested sections; inputs inside a collapsed section are still discovered, and editor HTML roundtrips through `{% details %}` blocks.
 - `calc` and numeric `info` tags support a `round` presentation attribute for configurable decimal places or unrounded output.
 - Calculated `calc` tags can contain number, option, and checkbox inputs, including numeric case values for formulas.

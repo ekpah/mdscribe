@@ -188,6 +188,7 @@ export default function ContentSection({
 					<DynamicMarkdocRenderer
 						activeTagName={activeInputName}
 						className="prose prose-slate grow"
+						layout="template"
 						markdocContent={note as string}
 						onTagSelect={handleMarkdocTagSelect}
 						variables={values}

@@ -15,6 +15,8 @@ import renderMarkdocAsReact from "../utils/render-markdoc-as-react";
 import { sanitizeMarkdocForRendering } from "../utils/sanitize-markdoc-for-rendering";
 
 export interface DynamicMarkdocRendererProps {
+	/** Preserve the template editor's line structure and portable typography. */
+	layout?: "template";
 	/**
 	 * The raw Markdoc content string.
 	 */
@@ -50,6 +52,7 @@ export interface DynamicMarkdocRendererProps {
  */
 export const DynamicMarkdocRenderer = ({
 	markdocContent,
+	layout,
 	variables,
 	activeTagName,
 	onCitationSelect,
@@ -61,8 +64,8 @@ export const DynamicMarkdocRenderer = ({
 }: DynamicMarkdocRendererProps) => {
 	const areCitationsHighlighted = useCitationModifier();
 	const renderedContent = useMemo(
-		() => renderMarkdocAsReact(markdocContent, { components, config }),
-		[components, config, markdocContent],
+		() => renderMarkdocAsReact(markdocContent, { components, config, layout }),
+		[components, config, layout, markdocContent],
 	);
 	const variableContracts = useMemo(
 		() =>

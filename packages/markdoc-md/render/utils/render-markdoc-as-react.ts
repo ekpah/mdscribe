@@ -7,6 +7,7 @@ import { markdocConfig } from "../../markdoc-config";
 import { components } from "../../markdoc-config/tags/helpers/components";
 import type { MarkdocComponentMap } from "../../markdoc-config/tags/helpers/components";
 import { sanitizeMarkdocForRendering } from "./sanitize-markdoc-for-rendering";
+import { applyTemplateLayout, templateConfig } from "./template-layout";
 
 /**
  * Renders a Markdoc string into React elements.
@@ -15,6 +16,8 @@ import { sanitizeMarkdocForRendering } from "./sanitize-markdoc-for-rendering";
  * @returns A ReactNode representing the Markdoc content.
  */
 export interface RenderMarkdocReactOptions {
+	/** Line-faithful template layout, including portable clipboard typography. */
+	layout?: "template";
 	/** Additional or replacement components keyed by Markdoc render name. */
 	components?: MarkdocComponentMap;
 	/** A complete Markdoc config. Defaults to the package config. */
@@ -29,7 +32,14 @@ export default function renderMarkdocAsReact(
 ): ReactNode {
 	const source = options.sanitize === false ? content : sanitizeMarkdocForRendering(content);
 	const ast = Markdoc.parse(source);
-	const note = Markdoc.transform(ast, options.config ?? markdocConfig);
+	const isTemplate = options.layout === "template";
+	const note = Markdoc.transform(
+		ast,
+		options.config ?? (isTemplate ? templateConfig : markdocConfig),
+	);
+	if (isTemplate) {
+		applyTemplateLayout(note, options.components);
+	}
 	return Markdoc.renderers.react(note, React, {
 		components: { ...components, ...options.components },
 	});
