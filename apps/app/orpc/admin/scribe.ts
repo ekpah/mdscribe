@@ -8,6 +8,7 @@ import {
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
 } from "@/lib/input-fill-limits";
+import { ocrResultSchema } from "@/lib/ocr-types";
 import { extractOpenRouterUsage } from "@/lib/usage-logging";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import { authed } from "@/orpc";
@@ -35,6 +36,7 @@ import {
 	buildProviderOptions,
 	resolveDefaultModel,
 	resolveModelByRecordId,
+	resolveOcrSelection,
 	resolveProviderModel,
 } from "@/orpc/scribe/providers";
 import type { AudioFile, FillInputsContextFile } from "@/orpc/scribe/types";
@@ -84,12 +86,24 @@ const audioFileInputSchema = z.object({
 		.optional(),
 });
 
-const contextFileInputSchema = z.object({
+const rawContextFileInputSchema = z.object({
 	data: z.string().min(1),
+	kind: z.literal("file").optional(),
 	mimeType: z.string().min(1),
 	name: z.string().min(1),
 	size: z.number().nonnegative(),
 });
+
+const contextFileInputSchema = z.union([
+	rawContextFileInputSchema,
+	z
+		.object({
+			kind: z.literal("ocr"),
+			name: z.string().min(1),
+			ocrResult: ocrResultSchema,
+		})
+		.strict(),
+]);
 
 const transcribeAudioInput = z.object({
 	audioFiles: z.array(audioFileInputSchema).min(1).max(FILL_INPUT_PAYLOAD_LIMITS.maxAudioFiles),
@@ -288,7 +302,13 @@ const runHandler = authed
 				db: context.db,
 				generationStrategy: {
 					audio: { mode: "native" },
-					files: { mode: "native" },
+					files: contextFiles.some((file) => file.kind === "ocr")
+						? {
+								mode: "preprocess",
+								selection: await resolveOcrSelection(context.db, context.session.user.id),
+								strategy: "multimodal",
+							}
+						: { mode: "native" },
 					generation: {
 						defaultTemperature: null,
 						model: resolved,

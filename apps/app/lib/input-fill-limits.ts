@@ -1,3 +1,5 @@
+import type { ContextDocument } from "@/lib/ocr-types";
+
 export const FILL_INPUT_PAYLOAD_LIMITS = {
 	maxAudioFiles: 3,
 	maxAudioPayloadBytesPerRecording: 12 * 1024 * 1024,
@@ -32,6 +34,12 @@ export const getBase64DecodedByteLength = (value: string | undefined): number =>
 
 	return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
 };
+
+/** Count the submitted representation, including OCR text/geometry but never absent image bytes. */
+export const getContextDocumentPayloadByteLength = (file: ContextDocument): number =>
+	file.kind === "ocr"
+		? new TextEncoder().encode(JSON.stringify(file)).byteLength
+		: getBase64DecodedByteLength(file.data);
 
 export const formatPayloadBytes = (bytes: number): string => {
 	if (bytes >= 1024 * 1024) {

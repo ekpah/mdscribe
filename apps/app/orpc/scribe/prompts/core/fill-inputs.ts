@@ -46,7 +46,9 @@ const renderContextFilesSection = (files: FillInputsContextFile[]): string => {
 		return "";
 	}
 
-	const entries = files.map((file) => `- ${file.name} (${file.mimeType})`).join("\n");
+	const entries = files
+		.map((file) => (file.kind === "ocr" ? `- ${file.name}` : `- ${file.name} (${file.mimeType})`))
+		.join("\n");
 	return `<dateien>\n${entries}\n</dateien>`;
 };
 

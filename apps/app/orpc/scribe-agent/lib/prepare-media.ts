@@ -5,6 +5,7 @@ import {
 	FILL_INPUT_PAYLOAD_LIMITS,
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
+	getContextDocumentPayloadByteLength,
 } from "@/lib/input-fill-limits";
 import {
 	formatAudioTranscriptsForPrompt,
@@ -38,10 +39,10 @@ interface AgentAudioPayloadSummary {
 
 interface AgentFilePayloadSummary {
 	index: number;
-	mediaType: string;
+	mediaType?: string;
 	name: string;
 	payloadBytes: number;
-	size: number;
+	size?: number;
 }
 
 export interface PreparedAgentMedia {
@@ -74,7 +75,7 @@ const EMPTY_PREPARED_MEDIA: PreparedAgentMedia = {
 	usedTranscription: false,
 };
 
-const describeMediaMode = (plan: MediaPlan | undefined): string | undefined => {
+const describeMediaMode = (plan: MediaPlan<unknown> | undefined): string | undefined => {
 	if (!plan) {
 		return undefined;
 	}
@@ -136,7 +137,7 @@ const validateAgentMediaPayload = (
 	const fileSummaries: AgentFilePayloadSummary[] = [];
 	let fileTotalBytes = 0;
 	for (const [index, file] of contextFiles.entries()) {
-		const payloadBytes = getBase64DecodedByteLength(file.data);
+		const payloadBytes = getContextDocumentPayloadByteLength(file);
 		fileTotalBytes += payloadBytes;
 		assertAtMost(
 			payloadBytes,
@@ -145,10 +146,9 @@ const validateAgentMediaPayload = (
 		);
 		fileSummaries.push({
 			index: index + 1,
-			mediaType: file.mimeType,
+			...(file.kind === "ocr" ? {} : { mediaType: file.mimeType, size: file.size }),
 			name: file.name,
 			payloadBytes,
-			size: file.size,
 		});
 	}
 	assertAtMost(
@@ -163,11 +163,10 @@ const validateAgentMediaPayload = (
 /**
  * Prepares the agent's per-turn audio/file attachments for the standard model.
  *
- * Reuses the shared scribe media pipeline: each kind is attached natively when
- * the standard model declares the capability, and otherwise preprocessed
- * through the configured speech-to-text / file-image slot into text. The
+ * Reuses the shared scribe media pipeline: the document slot takes precedence
+ * over native vision; audio uses native capability or speech-to-text. The
  * returned `nativeContentParts` are appended to the latest user turn while
- * `injectedTextBlocks` carry transcripts/extracted text/metadata as context.
+ * `injectedTextBlocks` carry transcripts, structured OCR, and metadata.
  */
 export const prepareAgentMedia = async ({
 	audioFiles,
@@ -253,7 +252,6 @@ export const prepareAgentMedia = async ({
 				contextFiles,
 				db,
 				modelSelection: filesPlan.selection,
-				strategy: filesPlan.strategy,
 				userId,
 				zdr,
 			});

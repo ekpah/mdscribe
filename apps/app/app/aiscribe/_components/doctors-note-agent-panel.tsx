@@ -381,6 +381,8 @@ const AgentComposer = forwardRef<
 					<DocumentInput
 						disabled={fieldsDisabled}
 						onAddFiles={controller.addContextFiles}
+						onRetryOcr={controller.retryContextFileOcr}
+						onRotate={controller.rotateContextFile}
 						onValueChange={controller.setContextFiles}
 						value={controller.contextFiles}
 					/>
@@ -478,7 +480,7 @@ export const DoctorsNoteAgentPanel = ({
 }: DoctorsNoteAgentPanelProps) => {
 	const [instruction, setInstruction] = useState("");
 	const [isDraggingFiles, setIsDraggingFiles] = useState(false);
-	const inputContext = useInputContextState();
+	const inputContext = useInputContextState({ agent: true });
 	const hydratedInitialContextRef = useRef(false);
 	const composerRef = useRef<AgentComposerHandle>(null);
 

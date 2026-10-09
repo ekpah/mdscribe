@@ -33,6 +33,9 @@ const PROTOCOLS = [
 		label: "OpenAI-kompatibel (llama.cpp / vLLM / LM Studio)",
 		value: "openai-compatible",
 	},
+	{ label: "OCR HTTP (LiteParse / PaddleOCR)", value: "ocr-http" },
+	{ label: "Mistral OCR (native Dokumenten-API)", value: "mistral-ocr" },
+	{ label: "Privatemode OCR (verschlüsselt, DeepSeek OCR 2)", value: "privatemode-ocr" },
 	{ label: "OpenRouter", value: "openrouter" },
 	{ label: "OpenAI", value: "openai" },
 	{ label: "Anthropic", value: "anthropic" },
@@ -40,7 +43,10 @@ const PROTOCOLS = [
 ] as const;
 
 const BASE_URL_PLACEHOLDERS: Record<string, string> = {
+	"mistral-ocr": "https://api.mistral.ai/v1",
+	"ocr-http": "http://localhost:8000/ocr",
 	"openai-compatible": "http://localhost:11434/v1",
+	"privatemode-ocr": "https://api.privatemode.ai",
 	tinfoil: "https://inference.tinfoil.sh/v1",
 };
 
@@ -73,14 +79,14 @@ export const AddProviderDialog = () => {
 	const providerPayload = useMemo(() => {
 		let normalizedBaseUrl: string | undefined;
 		if (baseUrl.trim()) {
-			normalizedBaseUrl = normalizeMaybeBaseUrl(baseUrl);
+			normalizedBaseUrl = protocol === "ocr-http" ? baseUrl.trim() : normalizeMaybeBaseUrl(baseUrl);
 		}
 
 		return {
 			apiKey: apiKey.trim() || undefined,
 			baseUrl: normalizedBaseUrl,
 			name: name.trim(),
-			protocol: protocol as "openai-compatible" | "openrouter" | "openai" | "anthropic" | "tinfoil",
+			protocol: protocol as (typeof PROTOCOLS)[number]["value"],
 		};
 	}, [name, protocol, baseUrl, apiKey]);
 
@@ -174,6 +180,10 @@ export const AddProviderDialog = () => {
 			toast.error("OpenAI-kompatible Provider benoetigen eine Base URL (inkl. /v1)");
 			return;
 		}
+		if (providerPayload.protocol === "ocr-http" && !providerPayload.baseUrl) {
+			toast.error("OCR HTTP Provider benötigen einen vollständigen OCR-Endpunkt (inkl. /ocr)");
+			return;
+		}
 
 		if (baseUrl.trim() && !normalizeMaybeBaseUrl(baseUrl)) {
 			toast.error(PROVIDER_BASE_URL_ERROR_MESSAGE);
@@ -249,8 +259,10 @@ export const AddProviderDialog = () => {
 
 					<div className="space-y-2">
 						<Label htmlFor="provider-url">
-							Base URL
-							{protocol === "openai-compatible" ? " (erforderlich)" : " (optional)"}
+							{protocol === "ocr-http" ? "OCR-Endpunkt" : "Base URL"}
+							{protocol === "openai-compatible" || protocol === "ocr-http"
+								? " (erforderlich)"
+								: " (optional)"}
 						</Label>
 						<Input
 							id="provider-url"
@@ -261,7 +273,10 @@ export const AddProviderDialog = () => {
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="provider-key">API Key (optional)</Label>
+						<Label htmlFor="provider-key">
+							API Key (
+							{["mistral-ocr", "privatemode-ocr"].includes(protocol) ? "erforderlich" : "optional"})
+						</Label>
 						<Input
 							id="provider-key"
 							type="password"

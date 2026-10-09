@@ -97,7 +97,15 @@ export const config: NextConfig = {
 	outputFileTracingExcludes: {
 		"*": ["**/node_modules/@prisma/**", "**/node_modules/prisma/**"],
 	},
+	// LiteParse loads a platform-specific N-API addon and PDFium at runtime.
+	outputFileTracingIncludes: {
+		"/*": [
+			"../../node_modules/@llamaindex/liteparse*/**/*",
+			"../../node_modules/privatemode-ai/dist/**/*",
+		],
+	},
 	outputFileTracingRoot: resolve(import.meta.dirname, "../../"),
+	serverExternalPackages: ["@llamaindex/liteparse", "privatemode-ai"],
 
 	// Skip type-checking during Docker builds — this runs in CI instead.
 	// Prevents OOM kills on memory-constrained build servers.

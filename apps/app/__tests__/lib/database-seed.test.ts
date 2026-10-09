@@ -9,6 +9,19 @@ import { decrypt } from "@/lib/encryption";
 import { seedDatabase } from "../../scripts/seed";
 import { startTestServer } from "../setup";
 
+// OCR providers (local PaddleOCR, Mistral OCR, Privatemode) are covered separately.
+const isPaddle = ({ id }: { id: string }) => id.startsWith("dev-paddleocr-");
+const isOcrRow = ({ id, providerId }: { id: string; providerId?: string }) =>
+	/^dev-paddleocr-|-ocr$/.test(providerId ?? id);
+const selectProviders = async (db: Database) => {
+	const rows = await db.select().from(aiProvider);
+	return rows.filter((row) => !isOcrRow(row));
+};
+const selectModels = async (db: Database) => {
+	const rows = await db.select().from(aiModel);
+	return rows.filter((row) => !isOcrRow(row));
+};
+
 const providerVariables = [
 	"OPENROUTER_API_KEY",
 	"ANTHROPIC_API_KEY",
@@ -16,8 +29,10 @@ const providerVariables = [
 	"MISTRAL_API_KEY",
 	"TINFOIL_API_KEY",
 ];
+const ocrVariables = ["PRIVATEMODE_API_KEY"];
 const variables = [
 	...providerVariables,
+	...ocrVariables,
 	...providerVariables.map((name) => name.toLowerCase()),
 	"NODE_ENV",
 	"BETTER_AUTH_SECRET",
@@ -63,7 +78,7 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 		process.env[variable] = ` test-${variable} `;
 	}
 	await seedDatabase(db);
-	const providers = await db.select().from(aiProvider);
+	const providers = await selectProviders(db);
 	expect(providers.map(({ name, protocol, baseUrl }) => [name, protocol, baseUrl])).toEqual([
 		["OpenRouter", "openrouter", "https://openrouter.ai/api/v1"],
 		["Anthropic", "anthropic", "https://api.anthropic.com/v1"],
@@ -74,8 +89,14 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 	for (const [index, provider] of providers.entries()) {
 		expect(await decrypt(provider.apiKey ?? "")).toBe(`test-${providerVariables[index]}`);
 	}
-	const [model] = await db.select().from(aiModel);
+	const [model] = await selectModels(db);
 	expect(model.modelId).toBe("google/gemini-3.8-flash");
+	// Keys for OCR-capable providers also make their OCR models selectable.
+	const allModels = await db.select().from(aiModel);
+	expect(allModels.filter(isOcrRow).map(({ modelId }) => modelId)).toEqual([
+		"mistral-ocr-4-0",
+		"ocr",
+	]);
 	const [defaults] = await db.select().from(aiDefaults);
 	expect(defaults).toMatchObject({
 		defaultAgentModelId: model.id,
@@ -93,8 +114,8 @@ test("seeds all available providers, Gemini defaults, and preserves admin choice
 		.update(aiDefaults)
 		.set({ defaultStandardSupportsAudio: false, defaultTextReasoningEffort: "high" });
 	await seedDatabase(db);
-	expect(await db.select().from(aiProvider)).toHaveLength(5);
-	expect(await db.select().from(aiModel)).toHaveLength(1);
+	expect(await selectProviders(db)).toHaveLength(5);
+	expect(await selectModels(db)).toHaveLength(1);
 	expect(await db.select().from(user)).toHaveLength(1);
 	expect(await db.select().from(template)).toHaveLength(5);
 	const [preserved] = await db.select().from(aiDefaults);
@@ -109,13 +130,13 @@ test("skips absent keys and adds providers after snapshot/user seeding", async (
 	process.env.openai_api_key = "lowercase-openai";
 	process.env.MDSCRIBE_SKIP_AI_SEED = "1";
 	await seedDatabase(db);
-	expect(await db.select().from(aiProvider)).toHaveLength(0);
+	expect(await selectProviders(db)).toHaveLength(0);
 	delete process.env.MDSCRIBE_SKIP_AI_SEED;
 	await seedDatabase(db);
-	const [openai] = await db.select().from(aiProvider);
+	const [openai] = await selectProviders(db);
 	expect(openai.name).toBe("OpenAI");
 	expect(await decrypt(openai.apiKey ?? "")).toBe("lowercase-openai");
-	expect(await db.select().from(aiModel)).toHaveLength(0);
+	expect(await selectModels(db)).toHaveLength(0);
 	expect(await db.select().from(aiDefaults)).toHaveLength(0);
 	await db
 		.insert(aiProvider)
@@ -124,8 +145,8 @@ test("skips absent keys and adds providers after snapshot/user seeding", async (
 	process.env.openrouter_api_key = "lowercase-openrouter";
 	seedState.seeded = false;
 	await seedDatabase(db);
-	expect(await db.select().from(aiProvider)).toHaveLength(2);
-	const [model] = await db.select().from(aiModel);
+	expect(await selectProviders(db)).toHaveLength(2);
+	const [model] = await selectModels(db);
 	expect(model.providerId).toBe("existing-openrouter");
 	const [defaults] = await db.select().from(aiDefaults);
 	expect(defaults.defaultTextModelId).toBe(model.id);
@@ -137,8 +158,24 @@ test("no credentials needs no encryption secret, but a provided key does", async
 	const { db } = await startTestServer("database-seed-secret");
 	delete process.env.BETTER_AUTH_SECRET;
 	await seedDatabase(db);
-	expect(await db.select().from(aiProvider)).toHaveLength(0);
+	expect(await selectProviders(db)).toHaveLength(0);
 	process.env.OPENAI_API_KEY = "test-openai";
 	await expect(seedDatabase(db)).rejects.toThrow("BETTER_AUTH_SECRET");
-	expect(await db.select().from(aiProvider)).toHaveLength(0);
+	expect(await selectProviders(db)).toHaveLength(0);
+});
+
+test("makes local PaddleOCR selectable without making it a default", async () => {
+	const { db } = await startTestServer("database-seed-paddle");
+	process.env.MDSCRIBE_SKIP_AI_SEED = "1";
+	await seedDatabase(db);
+	seedState.seeded = false;
+	await seedDatabase(db);
+	delete process.env.MDSCRIBE_SKIP_AI_SEED;
+	const providers = await db.select().from(aiProvider);
+	expect(providers.filter(isPaddle).map(({ baseUrl, protocol }) => [protocol, baseUrl])).toEqual([
+		["ocr-http", "http://127.0.0.1:8829/ocr"],
+	]);
+	const models = await db.select().from(aiModel);
+	expect(models.filter(isPaddle)).toHaveLength(1);
+	expect(await db.select().from(aiDefaults)).toHaveLength(0);
 });

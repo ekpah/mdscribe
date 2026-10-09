@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { call } from "@orpc/server";
-import { aiScribeFormConfig, aiScribeWorkspace, eq, subscription, usageEvent } from "@repo/database";
+import {
+	aiScribeFormConfig,
+	aiScribeWorkspace,
+	eq,
+	subscription,
+	usageEvent,
+} from "@repo/database";
 
 import {
 	ADMIN_EMAIL,

@@ -720,7 +720,10 @@ export const InputContextControls = ({
 		>
 			<DocumentInput
 				disabled={isPanelDisabled}
+				ocrEnabled={controller.ocrConfigured}
 				onAddFiles={controller.addContextFiles}
+				onRetryOcr={controller.retryContextFileOcr}
+				onRotate={controller.rotateContextFile}
 				onValueChange={controller.setContextFiles}
 				value={controller.contextFiles}
 			/>

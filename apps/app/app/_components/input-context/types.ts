@@ -1,4 +1,4 @@
-import type { OcrResult } from "@/lib/ocr-types";
+import type { ContextDocument, OcrResult } from "@/lib/ocr-types";
 
 export interface AudioRecording {
 	blob: Blob;
@@ -18,12 +18,7 @@ export interface InputContextAudioFile {
 	};
 }
 
-export interface InputContextFile {
-	data: string;
-	mimeType: string;
-	name: string;
-	size: number;
-}
+export type InputContextFile = ContextDocument;
 
 export interface InputContextTextContext {
 	anamnese?: string;
@@ -44,7 +39,10 @@ export interface InputContextSubmission {
 export interface UploadedContextFile {
 	file: File;
 	id: string;
+	ocrError?: string;
 	ocrResult?: OcrResult;
+	/** Images await manual alignment; "skipped" means no OCR model is configured. */
+	ocrStatus?: "awaiting-alignment" | "pending" | "error" | "complete" | "skipped";
 }
 
 export type InputContextPanel = "audio" | "files" | "text";
@@ -54,12 +52,20 @@ export interface InputContextController {
 	addContextFiles: (files: File[]) => boolean;
 	audioRecordings: AudioRecording[];
 	contextFiles: UploadedContextFile[];
+	ocrConfigured: boolean;
 	effectiveMaxRecordings: number;
 	hasAnyContext: boolean;
 	hasAudioRecordings: boolean;
 	hasContextFiles: boolean;
 	hasTextContext: boolean;
 	prepareSubmission: () => Promise<InputContextSubmission>;
+	retryContextFileOcr: (id: string) => void;
+	/** Replaces an image with a rotated copy and re-runs OCR; returns the new file. */
+	rotateContextFile: (
+		id: string,
+		/** Clockwise turn of the stored image (EXIF already applied). */
+		turn: 0 | 90 | 180 | 270,
+	) => Promise<UploadedContextFile | null>;
 	setAudioRecordings: (recordings: AudioRecording[]) => void;
 	setContextFiles: (files: UploadedContextFile[]) => void;
 	setContextFileOcrResults: (results: OcrResult[]) => void;

@@ -30,10 +30,45 @@ const getContextFilesTotalSize = (files: UploadedContextFile[]): number => {
 	return total;
 };
 
-const createUploadedContextFile = (file: File): UploadedContextFile => ({
+export const createUploadedContextFile = (file: File): UploadedContextFile => ({
 	file,
 	id: `file-${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+	ocrStatus: file.type.startsWith("image/") ? "awaiting-alignment" : "pending",
 });
+
+// Matches the server's OCR page bound; larger images are downscaled there anyway.
+const MAX_ROTATED_IMAGE_SIDE = 3000;
+
+/**
+ * Rotates an image clockwise by `turn` degrees, applying its EXIF orientation
+ * first. Users must align and confirm images before recognition.
+ */
+export const rotateImageFile = async (file: File, turn: 0 | 90 | 180 | 270): Promise<File> => {
+	const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+	const scale = Math.min(1, MAX_ROTATED_IMAGE_SIDE / Math.max(bitmap.width, bitmap.height));
+	const width = Math.round(bitmap.width * scale);
+	const height = Math.round(bitmap.height * scale);
+	const sideways = turn === 90 || turn === 270;
+	const canvas = new OffscreenCanvas(sideways ? height : width, sideways ? width : height);
+	const context = canvas.getContext("2d");
+	if (!context) {
+		bitmap.close();
+		throw new Error("Das Bild konnte nicht gedreht werden.");
+	}
+	context.translate(
+		turn === 90 || turn === 180 ? canvas.width : 0,
+		turn === 180 || turn === 270 ? canvas.height : 0,
+	);
+	context.rotate((turn * Math.PI) / 180);
+	context.drawImage(bitmap, 0, 0, width, height);
+	bitmap.close();
+	// Always JPEG: a re-encoded PNG photo could exceed the upload size limit.
+	const blob = await canvas.convertToBlob({ quality: 0.92, type: "image/jpeg" });
+	return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.jpg`, {
+		lastModified: Date.now(),
+		type: "image/jpeg",
+	});
+};
 
 const createAudioRecordingFromFile = (file: File): AudioRecording => ({
 	blob: file,

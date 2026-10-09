@@ -9,6 +9,7 @@ import {
 	FILL_INPUT_PAYLOAD_LIMITS,
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
+	getContextDocumentPayloadByteLength,
 } from "@/lib/input-fill-limits";
 import type { OcrResult, OcrUIMessage } from "@/lib/ocr-types";
 import { USER_MESSAGES } from "@/lib/user-messages";
@@ -142,7 +143,7 @@ export const validateScribeContextFiles = (contextFiles: FillInputsContextFile[]
 
 	let totalBytes = 0;
 	for (const file of contextFiles) {
-		const payloadBytes = getBase64DecodedByteLength(file.data);
+		const payloadBytes = getContextDocumentPayloadByteLength(file);
 		totalBytes += payloadBytes;
 
 		if (payloadBytes > FILL_INPUT_PAYLOAD_LIMITS.maxContextFileBytes) {
@@ -196,10 +197,9 @@ export const validateScribeAudioFiles = (audioFiles: AudioFile[]) => {
 const summarizeContextFilesForUsage = (contextFiles: FillInputsContextFile[]) =>
 	contextFiles.map((file, index) => ({
 		index: index + 1,
-		mediaType: file.mimeType,
+		...(file.kind === "ocr" ? {} : { mediaType: file.mimeType, size: file.size }),
 		name: file.name,
-		payloadBytes: getBase64DecodedByteLength(file.data),
-		size: file.size,
+		payloadBytes: getContextDocumentPayloadByteLength(file),
 	}));
 
 /**
@@ -588,7 +588,6 @@ const prepareContextFilesForMessages = async ({
 		contextFiles,
 		db,
 		modelSelection: filesPlan.selection,
-		strategy: filesPlan.strategy,
 		userId,
 		zdr,
 	});

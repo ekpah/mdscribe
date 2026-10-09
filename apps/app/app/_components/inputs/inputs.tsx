@@ -28,6 +28,8 @@ import type { CalcInputTagType, InputTagType } from "markdoc-md/parse";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { ContextDocument } from "@/lib/ocr-types";
+
 import { normalizeDateValue } from "./ui/date-utils";
 import { LazyInfoInput } from "./ui/lazy-info-input";
 import { SwitchInput } from "./ui/switch-input";
@@ -41,12 +43,7 @@ export interface FillInputsAudioFile {
 	};
 }
 
-export interface FillInputsContextFile {
-	data: string;
-	mimeType: string;
-	name: string;
-	size: number;
-}
+export type FillInputsContextFile = ContextDocument;
 
 export interface FillInputsTextContext {
 	anamnese?: string;

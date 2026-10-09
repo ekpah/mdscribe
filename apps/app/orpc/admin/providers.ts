@@ -5,12 +5,19 @@ import { z } from "zod";
 
 import { decrypt, encrypt } from "@/lib/encryption";
 import {
+	isOcrProvider,
+	OCR_MODEL_IDS,
+	ocrHttpResponseSchema,
+	validateOcrResponseBounds,
+} from "@/lib/ocr-protocol";
+import {
 	normalizeOpenAICompatibleBaseUrl,
 	normalizeProviderBaseUrl,
 	PROVIDER_BASE_URL_ERROR_MESSAGE,
 } from "@/lib/openai-compatible";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
+import { createPrivatemodeOcrClient } from "@/orpc/scribe/ocr/adapters/privatemode";
 import {
 	invalidateAiProviderResolutionCaches,
 	normalizeOpenRouterRoutingMode,
@@ -31,6 +38,9 @@ const PROVIDER_PROTOCOLS = [
 	"openai",
 	"anthropic",
 	"tinfoil",
+	"ocr-http",
+	"mistral-ocr",
+	"privatemode-ocr",
 ] as const;
 
 const TINFOIL_DEFAULT_BASE_URL = "https://inference.tinfoil.sh/v1";
@@ -80,7 +90,8 @@ const normalizeOptionalBaseUrl = (
 	}
 
 	try {
-		return normalizeProviderBaseUrl(trimmed);
+		normalizeProviderBaseUrl(trimmed);
+		return trimmed;
 	} catch {
 		ctx.addIssue({
 			code: z.ZodIssueCode.custom,
@@ -125,8 +136,28 @@ const normalizeConfiguredBaseUrl = (
 	protocol: ProviderProtocol,
 	baseUrl: string | undefined | null,
 ): string | null => {
+	if (protocol === "privatemode-ocr") {
+		return normalizeProviderBaseUrl(baseUrl || "https://api.privatemode.ai");
+	}
+	if (protocol === "mistral-ocr") {
+		return ensureV1BaseUrl(baseUrl || "https://api.mistral.ai/v1");
+	}
 	if (!baseUrl) {
 		return null;
+	}
+
+	if (protocol === "ocr-http") {
+		const url = new URL(baseUrl);
+		if (
+			!["http:", "https:"].includes(url.protocol) ||
+			url.username ||
+			url.password ||
+			url.search ||
+			url.hash
+		) {
+			throw new ORPCError("BAD_REQUEST", { message: "Ungültiger OCR-Endpunkt" });
+		}
+		return url.href;
 	}
 
 	if (protocol === "openai-compatible") {
@@ -188,10 +219,122 @@ const fetchTinfoilModels = async (
 		}));
 };
 
+const fetchOcrModel = async (config: ProviderFetchConfig): Promise<FetchedProviderModel[]> => {
+	const signal = AbortSignal.timeout(15_000);
+	const endpoint = requireConfiguredBaseUrl(config.protocol, config.baseUrl);
+	// Probe the actual OCR contract with a synthetic blank 64x64 PNG, not /models.
+	const image = Buffer.from(
+		"iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAQAAAACCEkxzAAAAEklEQVQoz2P4DwUMo4xRBukMAOPT/hB1CzVqAAAAAElFTkSuQmCC",
+		"base64",
+	);
+	const body = new FormData();
+	body.append("file", new Blob([image], { type: "image/png" }), "check.png");
+	body.append("language", "de");
+	const response = await fetch(endpoint, {
+		body,
+		headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {},
+		method: "POST",
+		redirect: "error",
+		signal,
+	});
+	if (!response.ok) {
+		throw new ORPCError("BAD_REQUEST", { message: `OCR check failed: HTTP ${response.status}` });
+	}
+	const result = ocrHttpResponseSchema.safeParse(await response.json());
+	if (!result.success) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Endpoint does not implement the LiteParse OCR protocol",
+		});
+	}
+	validateOcrResponseBounds(result.data, 64, 64);
+	return [
+		{
+			displayName: "OCR HTTP",
+			modelId: "ocr",
+			supportedParameters: [],
+			supportsReasoning: false,
+		},
+	];
+};
+
+const fetchMistralOcrModel = async (
+	config: ProviderFetchConfig,
+): Promise<FetchedProviderModel[]> => {
+	const signal = AbortSignal.timeout(15_000);
+	if (!config.apiKey?.trim()) {
+		throw new ORPCError("BAD_REQUEST", { message: "Mistral OCR benötigt einen API-Key" });
+	}
+	const response = await fetch(
+		`${requireConfiguredBaseUrl(config.protocol, config.baseUrl)}/models`,
+		{
+			headers: { Authorization: `Bearer ${config.apiKey}` },
+			signal,
+		},
+	);
+	if (!response.ok) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Mistral provider check failed: HTTP ${response.status}`,
+		});
+	}
+	const body = z
+		.object({ data: z.array(z.object({ id: z.string() })) })
+		.parse(await response.json());
+	if (!body.data.some((model) => model.id === "mistral-ocr-4-0")) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Mistral OCR 4 ist für diese Verbindung nicht verfügbar",
+		});
+	}
+	return [
+		{
+			displayName: "Mistral OCR 4",
+			modelId: "mistral-ocr-4-0",
+			supportedParameters: [],
+			supportsReasoning: false,
+		},
+	];
+};
+
+const fetchPrivatemodeOcrModel = async (
+	config: ProviderFetchConfig,
+): Promise<FetchedProviderModel[]> => {
+	const signal = AbortSignal.timeout(15_000);
+	const client = await createPrivatemodeOcrClient(
+		config.apiKey,
+		config.baseUrl ?? "https://api.privatemode.ai",
+	);
+	try {
+		const models = await client.models.list({ signal });
+		if (!models.data.some(({ id }) => id === "deepseek-ocr-2")) {
+			throw new Error("OCR model unavailable");
+		}
+		return [
+			{
+				displayName: "DeepSeek OCR 2 (Privatemode)",
+				modelId: "deepseek-ocr-2",
+				supportedParameters: [],
+				supportsReasoning: false,
+			},
+		];
+	} catch {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Privatemode-Prüfung fehlgeschlagen oder DeepSeek OCR 2 nicht verfügbar",
+		});
+	} finally {
+		client.close();
+	}
+};
+
 export const fetchProviderModels = async (
 	config: ProviderFetchConfig,
 ): Promise<FetchedProviderModel[]> => {
 	const signal = AbortSignal.timeout(15_000);
+	if (isOcrProvider(config.protocol)) {
+		return {
+			"mistral-ocr": fetchMistralOcrModel,
+			"ocr-http": fetchOcrModel,
+			"privatemode-ocr": fetchPrivatemodeOcrModel,
+		}[config.protocol](config);
+	}
 
 	if (config.protocol === "openrouter") {
 		const headers: Record<string, string> = {};
@@ -556,6 +699,14 @@ const updateProviderHandler = admin
 		const existing = await getProviderById(context.db, parsed.id);
 
 		const nextProtocol = parsed.protocol ?? (existing.protocol as ProviderProtocol);
+		if (
+			nextProtocol !== existing.protocol &&
+			(isOcrProvider(nextProtocol) || isOcrProvider(existing.protocol))
+		) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Für einen Wechsel zwischen OCR und LLM bitte einen neuen Provider anlegen.",
+			});
+		}
 		const nextBaseUrl =
 			parsed.baseUrl === undefined
 				? existing.baseUrl
@@ -628,6 +779,10 @@ const setProviderByokEnabledHandler = admin
 	.input(type<z.infer<typeof setProviderByokEnabledInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = setProviderByokEnabledInput.parse(input);
+		const existing = await getProviderById(context.db, parsed.id);
+		if (parsed.enabled && isOcrProvider(existing.protocol)) {
+			throw new ORPCError("BAD_REQUEST", { message: "BYOK ist für OCR HTTP nicht verfügbar" });
+		}
 		const [provider] = await context.db
 			.update(aiProvider)
 			.set({ byokEnabled: parsed.enabled })
@@ -694,6 +849,12 @@ const createModelHandler = admin
 	.input(type<z.infer<typeof createModelInput>>())
 	.handler(async ({ input, context }) => {
 		const parsed = createModelInput.parse(input);
+		const provider = await getProviderById(context.db, parsed.providerId);
+		if (isOcrProvider(provider.protocol)) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "OCR HTTP stellt genau einen OCR-Endpunkt bereit",
+			});
+		}
 		const supportedParameters = normalizeSupportedParameters(parsed.supportedParameters);
 		const [model] = await context.db
 			.insert(aiModel)
@@ -730,6 +891,15 @@ const updateModelHandler = admin
 		});
 		if (!existing) {
 			throw new ORPCError("NOT_FOUND", { message: "Model not found" });
+		}
+		if (
+			isOcrProvider(existing.provider.protocol) &&
+			parsed.modelId !== undefined &&
+			parsed.modelId !== OCR_MODEL_IDS[existing.provider.protocol]
+		) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Die OCR-Endpunkt-ID kann nicht geändert werden",
+			});
 		}
 		if (parsed.openRouterRoutingMode !== undefined && existing.provider.protocol !== "openrouter") {
 			throw new ORPCError("BAD_REQUEST", {
@@ -794,7 +964,6 @@ const buildDefaultsResponse = (defaults: Partial<typeof aiDefaults.$inferSelect>
 		defaultAgentSupportsAudio: d.defaultAgentSupportsAudio ?? false,
 		defaultAgentSupportsDocuments: d.defaultAgentSupportsDocuments ?? false,
 		defaultAgentTemperature: d.defaultAgentTemperature ?? null,
-		defaultFileImageMode: normalizeMediaMode(d.defaultFileImageMode, "multimodal"),
 		defaultFileImageModelId: d.defaultFileImageModelId ?? null,
 		defaultFileImageReasoningEffort: normalizeReasoningEffort(d.defaultFileImageReasoningEffort),
 		defaultFileImageTemperature: d.defaultFileImageTemperature ?? null,
@@ -968,9 +1137,15 @@ const setDefaultHandler = admin
 		if (parsed.modelId) {
 			const existing = await context.db.query.aiModel.findFirst({
 				where: eq(aiModel.id, parsed.modelId),
+				with: { provider: true },
 			});
 			if (!existing) {
 				throw new ORPCError("NOT_FOUND", { message: "Model not found" });
+			}
+			if (isOcrProvider(existing.provider.protocol) && parsed.defaultType !== "file-image") {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "OCR HTTP kann nur als Dokumenten-Modell verwendet werden",
+				});
 			}
 		}
 
@@ -990,7 +1165,6 @@ const setDefaultHandler = admin
 const setDefaultOptionsInput = z.object({
 	agentSupportsAudio: z.boolean().optional(),
 	agentSupportsDocuments: z.boolean().optional(),
-	fileImageMode: z.enum(MEDIA_PREPROCESS_MODES).optional(),
 	speechToTextMode: z.enum(MEDIA_PREPROCESS_MODES).optional(),
 	standardSupportsAgent: z.boolean().optional(),
 	standardSupportsAudio: z.boolean().optional(),
@@ -1012,9 +1186,6 @@ const setDefaultOptionsHandler = admin
 		}
 		if (parsed.agentSupportsDocuments !== undefined) {
 			next.defaultAgentSupportsDocuments = parsed.agentSupportsDocuments;
-		}
-		if (parsed.fileImageMode !== undefined) {
-			next.defaultFileImageMode = parsed.fileImageMode;
 		}
 		if (parsed.speechToTextMode !== undefined) {
 			next.defaultSpeechToTextMode = parsed.speechToTextMode;

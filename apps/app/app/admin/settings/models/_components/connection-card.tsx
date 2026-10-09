@@ -2,18 +2,14 @@
 
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/design-system/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@repo/design-system/components/ui/card";
 import { Switch } from "@repo/design-system/components/ui/switch";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { isOcrProvider } from "@/lib/ocr-protocol";
 import { orpc } from "@/lib/orpc";
 import { USER_MESSAGES } from "@/lib/user-messages";
 
@@ -42,9 +38,12 @@ interface ProviderData {
 
 const PROTOCOL_LABELS: Record<string, string> = {
 	anthropic: "Anthropic",
+	"mistral-ocr": "Mistral OCR",
+	"ocr-http": "OCR HTTP",
 	openai: "OpenAI",
 	"openai-compatible": "OpenAI-kompatibel",
 	openrouter: "OpenRouter",
+	"privatemode-ocr": "Privatemode OCR",
 	tinfoil: "Tinfoil",
 };
 
@@ -180,25 +179,27 @@ export const ConnectionCard = ({ connection }: ConnectionCardProps) => {
 			</CardHeader>
 
 			<CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
-				<div className="mb-4 flex flex-wrap items-center gap-2">
-					<Switch
-						aria-label={USER_MESSAGES.adminByok.ariaLabel}
-						checked={connection.byokEnabled}
-						disabled={byokMutation.isPending}
-						onCheckedChange={handleByokChange}
-					/>
-					<span className="text-solarized-base00 text-sm">{USER_MESSAGES.adminByok.label}</span>
-					{connection.byokCredentialCounts.stored > 0 && (
-						<span className="text-solarized-base01 text-xs">
-							(
-							{USER_MESSAGES.adminByok.credentialCounts(
-								connection.byokCredentialCounts.stored,
-								connection.byokCredentialCounts.active,
-							)}
-							)
-						</span>
-					)}
-				</div>
+				{!isOcrProvider(connection.protocol) && (
+					<div className="mb-4 flex flex-wrap items-center gap-2">
+						<Switch
+							aria-label={USER_MESSAGES.adminByok.ariaLabel}
+							checked={connection.byokEnabled}
+							disabled={byokMutation.isPending}
+							onCheckedChange={handleByokChange}
+						/>
+						<span className="text-solarized-base00 text-sm">{USER_MESSAGES.adminByok.label}</span>
+						{connection.byokCredentialCounts.stored > 0 && (
+							<span className="text-solarized-base01 text-xs">
+								(
+								{USER_MESSAGES.adminByok.credentialCounts(
+									connection.byokCredentialCounts.stored,
+									connection.byokCredentialCounts.active,
+								)}
+								)
+							</span>
+						)}
+					</div>
+				)}
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-solarized-base01 text-sm">
 						{connection.models.length} Modell

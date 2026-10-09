@@ -25,11 +25,17 @@ import { authed, pub } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
 import { getOptionalAuthSession } from "@/orpc/middlewares/auth";
 import { scribeEntitlementsMiddleware } from "@/orpc/middlewares/entitlements";
+import { extractContextFileText } from "@/orpc/scribe/handlers/context-file-input";
 import { enforceScribeUsageLimit } from "@/orpc/scribe/handlers/usage-limit";
 import {
 	buildProviderOptions,
+	isOcrServiceSelection,
 	resolveGenerationStrategy,
 	resolveProviderModel,
+} from "@/orpc/scribe/providers";
+import type {
+	ResolvedDefaultModelSelection,
+	ResolvedOcrServiceSelection,
 } from "@/orpc/scribe/providers";
 
 import { pdfDocumentConfigs } from "./config";
@@ -173,6 +179,60 @@ const decodePdfBase64 = (value: string): Uint8Array => {
 
 const encodePdfBase64 = (value: Uint8Array): string => Buffer.from(value).toString("base64");
 
+const resolvePdfAnalysisSelections = (
+	strategy: Awaited<ReturnType<typeof resolveGenerationStrategy>>,
+): {
+	modelSelection: ResolvedDefaultModelSelection;
+	ocrSelection?: ResolvedOcrServiceSelection;
+} => {
+	const fileSelection =
+		strategy.files?.mode === "preprocess" ? strategy.files.selection : undefined;
+	if (fileSelection && isOcrServiceSelection(fileSelection)) {
+		return { modelSelection: strategy.generation, ocrSelection: fileSelection };
+	}
+	return { modelSelection: fileSelection ?? strategy.generation };
+};
+
+const extractPdfOcrText = async ({
+	base64,
+	bytes,
+	db,
+	ocrSelection,
+	userId,
+	zdr,
+}: {
+	base64: string;
+	bytes: Uint8Array;
+	db: Database;
+	ocrSelection?: ResolvedOcrServiceSelection;
+	userId: string;
+	zdr?: boolean;
+}): Promise<string | undefined> => {
+	if (!ocrSelection) {
+		return undefined;
+	}
+	const extractedText = await extractContextFileText({
+		contextFiles: [
+			{
+				data: base64,
+				mimeType: "application/pdf",
+				name: "document.pdf",
+				size: bytes.byteLength,
+			},
+		],
+		db,
+		modelSelection: ocrSelection,
+		userId,
+		zdr,
+	});
+	if (!extractedText) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Die OCR-Analyse hat keinen Text geliefert. Bitte das PDF oder OCR-Modell prüfen.",
+		});
+	}
+	return extractedText;
+};
+
 const ensureValidFieldDefinitions = (
 	fieldDefinitions: DocumentDefinition,
 ): {
@@ -264,6 +324,7 @@ const parseFormHandler = adminDocumentProcedure
 		const promptMessages = config.prompt({ fieldMappings, inputFields });
 		const promptText = promptMessages[0].content;
 		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
+		let ocrSelection: ResolvedOcrServiceSelection | undefined;
 		try {
 			const { providerId } = parsed;
 			if (providerId || parsed.model) {
@@ -280,8 +341,7 @@ const parseFormHandler = adminDocumentProcedure
 				const strategy = await resolveGenerationStrategy(context.db, {
 					hasFiles: true,
 				});
-				modelSelection =
-					strategy.files?.mode === "preprocess" ? strategy.files.selection : strategy.generation;
+				({ modelSelection, ocrSelection } = resolvePdfAnalysisSelections(strategy));
 			}
 		} catch (error) {
 			const details = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -293,6 +353,13 @@ const parseFormHandler = adminDocumentProcedure
 		let result: Awaited<ReturnType<typeof generateObject>>;
 		const requestStartedAt = Date.now();
 		try {
+			const extractedText = await extractPdfOcrText({
+				base64: fileBase64,
+				bytes,
+				db: context.db,
+				ocrSelection,
+				userId: context.session.user.id,
+			});
 			result = await generateObject({
 				experimental_telemetry: { isEnabled: true },
 				messages: [
@@ -300,16 +367,18 @@ const parseFormHandler = adminDocumentProcedure
 						content: [{ text: promptText, type: "text" }],
 						role: "user",
 					},
-					{
-						content: [
-							{
-								data: bytes,
-								mediaType: "application/pdf",
-								type: "file",
+					extractedText
+						? { content: [{ text: extractedText, type: "text" }], role: "user" }
+						: {
+								content: [
+									{
+										data: bytes,
+										mediaType: "application/pdf",
+										type: "file",
+									},
+								],
+								role: "user",
 							},
-						],
-						role: "user",
-					},
 				],
 				model: modelSelection.model.model,
 				providerOptions: buildProviderOptions({
@@ -385,25 +454,32 @@ const enhanceDefinitionHandler = authed
 			});
 		}
 
-		let modelSelection: Awaited<ReturnType<typeof resolveGenerationStrategy>>["generation"];
+		let strategy: Awaited<ReturnType<typeof resolveGenerationStrategy>>;
 		try {
-			const strategy = await resolveGenerationStrategy(context.db, {
+			strategy = await resolveGenerationStrategy(context.db, {
 				hasFiles: true,
 				userId: context.session.user.id,
 			});
-			modelSelection =
-				strategy.files?.mode === "preprocess" ? strategy.files.selection : strategy.generation;
 		} catch (error) {
 			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
 			throw new ORPCError("BAD_REQUEST", {
 				message: `${USER_MESSAGES.documentEditor.aiModelUnavailable} (${details})`,
 			});
 		}
+		const { modelSelection, ocrSelection } = resolvePdfAnalysisSelections(strategy);
 		const { entitlements } = await enforceScribeUsageLimit({
 			db: context.db,
 			entitlements: context.entitlements.scribe,
-			isQuotaExempt: modelSelection.model.credentialSource === "user_byok",
+			isQuotaExempt: !ocrSelection && modelSelection.model.credentialSource === "user_byok",
 			session: context.session,
+		});
+		const extractedText = await extractPdfOcrText({
+			base64: parsed.fileBase64,
+			bytes: pdfBytes,
+			db: context.db,
+			ocrSelection,
+			userId: context.session.user.id,
+			zdr: entitlements.hasActiveSubscription,
 		});
 
 		const requestStartedAt = Date.now();
@@ -414,10 +490,12 @@ const enhanceDefinitionHandler = authed
 					content: [{ text: promptText, type: "text" }],
 					role: "user",
 				},
-				{
-					content: [{ data: pdfBytes, mediaType: "application/pdf", type: "file" }],
-					role: "user",
-				},
+				extractedText
+					? { content: [{ text: extractedText, type: "text" }], role: "user" }
+					: {
+							content: [{ data: pdfBytes, mediaType: "application/pdf", type: "file" }],
+							role: "user",
+						},
 			],
 			model: modelSelection.model.model,
 			output: "no-schema",

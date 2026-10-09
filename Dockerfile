@@ -54,7 +54,8 @@ ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
 
 # Build only the app (docs is deployed separately).
 # Run Next directly under Node to avoid Bun worker_threads build issues.
-RUN cd apps/app && node ../../node_modules/next/dist/bin/next build
+# Webpack output avoids Turbopack's hashed ESM externals, unsupported by the Bun runner.
+RUN cd apps/app && node ../../node_modules/next/dist/bin/next build --webpack
 
 # ---- Runner ----
 FROM base AS runner

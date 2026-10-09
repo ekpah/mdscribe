@@ -12,6 +12,8 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { SecureClient, TinfoilAI, toFile } from "tinfoil";
 
 import { decrypt } from "@/lib/encryption";
+import { isOcrProvider } from "@/lib/ocr-protocol";
+import type { OcrProviderProtocol } from "@/lib/ocr-protocol";
 import { normalizeOpenAICompatibleBaseUrl } from "@/lib/openai-compatible";
 import { USER_MESSAGES } from "@/lib/user-messages";
 import type { ReasoningEffort } from "@/orpc/scribe/types";
@@ -74,17 +76,38 @@ export interface ResolvedDefaultModelSelection {
 	slot: DefaultModelSlot;
 }
 
-export type MediaPlan =
+/** A dedicated OCR provider (not a vision LLM) selected as the document model. */
+export interface ResolvedOcrServiceSelection {
+	kind: "ocr-service";
+	model: {
+		apiKey?: string;
+		credentialSource: "operator";
+		endpoint: string;
+		modelName: string;
+		providerId: string;
+		providerProtocol: OcrProviderProtocol;
+	};
+	slot: "file-image";
+}
+
+export type ResolvedOcrSelection = ResolvedDefaultModelSelection | ResolvedOcrServiceSelection;
+
+export const isOcrServiceSelection = (
+	selection: ResolvedOcrSelection,
+): selection is ResolvedOcrServiceSelection =>
+	"kind" in selection && selection.kind === "ocr-service";
+
+export type MediaPlan<T = ResolvedDefaultModelSelection> =
 	| { mode: "native" }
 	| {
 			mode: "preprocess";
-			selection: ResolvedDefaultModelSelection;
+			selection: T;
 			strategy: MediaPreprocessStrategy;
 	  };
 
 interface GenerationStrategy {
 	audio?: MediaPlan;
-	files?: MediaPlan;
+	files?: MediaPlan<ResolvedOcrSelection>;
 	generation: ResolvedDefaultModelSelection;
 }
 
@@ -790,6 +813,44 @@ export const resolveDefaultModel = async (
 	return buildDefaultSelection(db, defaults, slot, userId);
 };
 
+const buildOcrSelection = async (
+	db: Database,
+	defaults: AiDefaultsRow,
+	userId?: string,
+): Promise<ResolvedOcrSelection> => {
+	if (!defaults.defaultFileImageModelId) {
+		throw new Error(USER_MESSAGES.modelUnavailable);
+	}
+	const { model, provider } = await getModelProviderRowsByRecordId(
+		defaults.defaultFileImageModelId,
+		db,
+	);
+	if (!isOcrProvider(provider.protocol)) {
+		return buildDefaultSelection(db, defaults, "file-image", userId);
+	}
+	if (!provider.baseUrl) {
+		throw new Error("OCR HTTP endpoint is missing");
+	}
+	return {
+		kind: "ocr-service",
+		model: {
+			apiKey: provider.apiKey ? await decrypt(provider.apiKey) : undefined,
+			credentialSource: "operator",
+			endpoint: provider.baseUrl,
+			modelName:
+				provider.protocol === "mistral-ocr" ? model.modelId : `${provider.name}/${model.modelId}`,
+			providerId: provider.id,
+			providerProtocol: provider.protocol,
+		},
+		slot: "file-image",
+	};
+};
+
+export const resolveOcrSelection = async (
+	db: Database,
+	userId?: string,
+): Promise<ResolvedOcrSelection> => buildOcrSelection(db, await getDefaults(db), userId);
+
 const normalizeMediaPreprocessStrategy = (
 	value: string | null | undefined,
 	fallback: MediaPreprocessStrategy,
@@ -798,11 +859,9 @@ const normalizeMediaPreprocessStrategy = (
 /**
  * Resolves the global model strategy for a generation request.
  *
- * The standard (text) model always produces the final answer. Each media kind
- * is sent natively to the standard model when the admin declared that
- * capability; otherwise it is preprocessed through the dedicated slot model,
- * either via its direct parsing path (STT endpoint, promptless OCR) or as a
- * prompted multimodal request, depending on the configured slot mode.
+ * The standard (text) model produces the final answer. A selected document
+ * model always handles files; native vision is used only without that slot.
+ * Audio uses native capability or the configured speech-to-text slot.
  */
 export const resolveGenerationStrategy = async (
 	db: Database,
@@ -822,14 +881,14 @@ export const resolveGenerationStrategy = async (
 		};
 	};
 
-	const buildFilesPlan = async (): Promise<MediaPlan> => {
-		if (defaults.defaultStandardSupportsDocuments) {
+	const buildFilesPlan = async (): Promise<MediaPlan<ResolvedOcrSelection>> => {
+		if (!defaults.defaultFileImageModelId && defaults.defaultStandardSupportsDocuments) {
 			return { mode: "native" };
 		}
 		return {
 			mode: "preprocess",
-			selection: await buildDefaultSelection(db, defaults, "file-image", userId),
-			strategy: normalizeMediaPreprocessStrategy(defaults.defaultFileImageMode, "multimodal"),
+			selection: await buildOcrSelection(db, defaults, userId),
+			strategy: "multimodal",
 		};
 	};
 
@@ -876,14 +935,14 @@ export const resolveAgentGenerationStrategy = async (
 		};
 	};
 
-	const buildFilesPlan = async (): Promise<MediaPlan> => {
-		if (supportsDocuments) {
+	const buildFilesPlan = async (): Promise<MediaPlan<ResolvedOcrSelection>> => {
+		if (!defaults.defaultFileImageModelId && supportsDocuments) {
 			return { mode: "native" };
 		}
 		return {
 			mode: "preprocess",
-			selection: await buildDefaultSelection(db, defaults, "file-image", userId),
-			strategy: normalizeMediaPreprocessStrategy(defaults.defaultFileImageMode, "multimodal"),
+			selection: await buildOcrSelection(db, defaults, userId),
+			strategy: "multimodal",
 		};
 	};
 

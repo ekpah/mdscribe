@@ -1,13 +1,17 @@
+import { ORPCError } from "@orpc/server";
 import type { Database } from "@repo/database";
 
 import { getBase64Payload } from "@/lib/input-fill-limits";
+import { ocrResultSchema } from "@/lib/ocr-types";
 import type { OcrResult } from "@/lib/ocr-types";
+import { AI_SCRIBE_OCR_EVENT_NAME } from "@/lib/usage-event-names";
+import { USER_MESSAGES } from "@/lib/user-messages";
 import { extractOcrDocument } from "@/orpc/scribe/ocr";
-import type {
-	MediaPreprocessStrategy,
-	ResolvedDefaultModelSelection,
-} from "@/orpc/scribe/providers";
+import { isOcrServiceSelection } from "@/orpc/scribe/providers";
+import type { ResolvedOcrSelection } from "@/orpc/scribe/providers";
 import type { FillInputsContextFile } from "@/orpc/scribe/types";
+
+import { logMediaPreprocessingUsage } from "./preprocessing-usage";
 
 interface PreparedContextFilePart {
 	data: Buffer;
@@ -24,11 +28,18 @@ interface PreparedContextFilePart {
 export const createContextFileParts = (
 	contextFiles: FillInputsContextFile[],
 ): PreparedContextFilePart[] =>
-	contextFiles.map((file) => ({
-		data: Buffer.from(getBase64Payload(file.data), "base64"),
-		mediaType: file.mimeType,
-		type: "file" as const,
-	}));
+	contextFiles.map((file) => {
+		if (file.kind === "ocr") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Das Dokumenten-Modell wurde geändert. Bitte die Dateivorschau aktualisieren.",
+			});
+		}
+		return {
+			data: Buffer.from(getBase64Payload(file.data), "base64"),
+			mediaType: file.mimeType,
+			type: "file" as const,
+		};
+	});
 
 /**
  * Formats attached file metadata for the prompt so direct multimodal models can
@@ -42,9 +53,10 @@ export const formatContextFileMetadataForPrompt = (
 	}
 
 	const entries = contextFiles
-		.map(
-			(file, index) =>
-				`<datei index="${index + 1}" name="${file.name}" mimeType="${file.mimeType}" size="${file.size}" />`,
+		.map((file, index) =>
+			file.kind === "ocr"
+				? `<datei index="${index + 1}" name="${file.name}" />`
+				: `<datei index="${index + 1}" name="${file.name}" mimeType="${file.mimeType}" size="${file.size}" />`,
 		)
 		.join("\n");
 
@@ -52,28 +64,20 @@ export const formatContextFileMetadataForPrompt = (
 };
 
 /**
- * Extracts text from attached files with the configured file/image model.
- *
- * The returned text is passed into the final text model as normal prompt
- * context, keeping non-multimodal routes provider-agnostic and avoiding
- * implicit file support checks in the final generation model.
- *
- * Each file is extracted separately so its page geometry remains attributable
- * to the corresponding usage event. Only the text projection is passed on to
- * Scribe; consumers that need geometry should use `extractOcrDocument`.
+ * Supplies indexed OCR text and citation geometry as JSON in Scribe's prompt.
+ * Each document gets its own usage event so geometry has an unambiguous source.
+ * Raw files and rendered page images are never included in usage events.
  */
 export const extractContextFiles = async ({
 	contextFiles,
 	db,
 	modelSelection,
-	strategy = "multimodal",
 	userId,
 	zdr,
 }: {
 	contextFiles: FillInputsContextFile[] | undefined;
 	db?: Database;
-	modelSelection: ResolvedDefaultModelSelection;
-	strategy?: MediaPreprocessStrategy;
+	modelSelection: ResolvedOcrSelection;
 	userId: string;
 	zdr?: boolean;
 }): Promise<{ ocrResults: OcrResult[]; textContext: string }> => {
@@ -81,30 +85,110 @@ export const extractContextFiles = async ({
 		return { ocrResults: [], textContext: "" };
 	}
 
-	const results = [];
-	for (const contextFile of contextFiles) {
-		results.push(
-			await extractOcrDocument({
-				contextFile,
-				db,
-				modelSelection,
-				strategy,
-				userId,
-				zdr,
-			}),
-		);
+	const ocrResults: OcrResult[] = [];
+	const documents: { index: number; name: string; ocrResult: OcrResult }[] = [];
+	// Bound document-level memory/concurrency, particularly for rasterized PDFs.
+	for (const [index, file] of contextFiles.entries()) {
+		if (file.kind === "ocr") {
+			const result = ocrResultSchema.safeParse(file.ocrResult);
+			if (!result.success || "data" in file) {
+				throw new ORPCError("BAD_REQUEST", { message: "Das OCR-Ergebnis ist ungültig." });
+			}
+			ocrResults.push(result.data);
+			documents.push({
+				index: index + 1,
+				name: file.name,
+				ocrResult: result.data,
+			});
+			continue;
+		}
+		const data = Buffer.from(getBase64Payload(file.data), "base64");
+		const requestStartedAt = Date.now();
+		const inputData = {
+			contextFiles: [
+				{
+					index: index + 1,
+					mediaType: file.mimeType,
+					name: file.name,
+					payloadBytes: data.length,
+					size: file.size,
+				},
+			],
+		};
+		const result = await extractOcrDocument({
+			data,
+			mimeType: file.mimeType,
+			modelSelection,
+			onModelUsage: (inference) => {
+				if (isOcrServiceSelection(modelSelection)) {
+					return;
+				}
+				logMediaPreprocessingUsage({
+					db,
+					inputData,
+					isOpenRouter: modelSelection.model.isOpenRouter,
+					metadata: {
+						credentialSource: modelSelection.model.credentialSource,
+						promptName: "ocr:llm-page",
+						providerProtocol: modelSelection.model.providerProtocol,
+						slot: "file-image",
+					},
+					modelName: modelSelection.model.modelName,
+					name: AI_SCRIBE_OCR_EVENT_NAME,
+					providerMetadata: inference.providerMetadata,
+					result: inference.text,
+					standardUsage: inference.usage,
+					userId,
+					zdr,
+				});
+			},
+			userId,
+			zdr,
+		}).catch((error: unknown) => {
+			const details = error instanceof Error ? error.message : USER_MESSAGES.unknownError;
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Dateien konnten nicht analysiert werden. (${details})`,
+			});
+		});
+		const promptName = "ocr:document";
+		logMediaPreprocessingUsage({
+			db,
+			inputData,
+			isOpenRouter: false,
+			metadata: {
+				endpoint: promptName,
+				ocrBackend: result.backend,
+				ocrModel: modelSelection.model.modelName,
+				...(result.usage ? { billingUnit: "page", pagesProcessed: result.usage.pages } : {}),
+				// Geometry contains source text too: ZDR must redact it, not just result.
+				...(!zdr && result.pages
+					? {
+							ocr: { coordinateSystem: "page-relative-top-left", pages: result.pages },
+						}
+					: {}),
+				promptLabel: promptName,
+				promptName,
+				slot: modelSelection.slot,
+			},
+			modelName: modelSelection.model.modelName,
+			name: AI_SCRIBE_OCR_EVENT_NAME,
+			result: result.text,
+			timing: { timeToCompletionMs: Date.now() - requestStartedAt },
+			userId,
+			zdr,
+		});
+		ocrResults.push(result);
+		documents.push({
+			index: index + 1,
+			name: file.name,
+			ocrResult: result,
+		});
 	}
-	const extractedText = results
-		.map((result) => result.text)
-		.filter(Boolean)
-		.join("\n\n");
-	if (!extractedText) {
-		return { ocrResults: results, textContext: "" };
-	}
-
 	return {
-		ocrResults: results,
-		textContext: `<datei_kontext>\n${extractedText}\n</datei_kontext>`,
+		ocrResults,
+		textContext: documents.some(({ ocrResult }) => ocrResult.text)
+			? `<datei_kontext>\n${JSON.stringify(documents)}\n</datei_kontext>`
+			: "",
 	};
 };
 

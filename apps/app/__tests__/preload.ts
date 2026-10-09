@@ -1,10 +1,17 @@
 import { mock } from "bun:test";
 
+import type { LiteParseConfig, ParseResult } from "@llamaindex/liteparse";
+
 process.env.POSTGRES_DATABASE_URL ??= "postgres://postgres:postgres@127.0.0.1:5432/mdscribe";
 process.env.POSTGRES_DATABASE_URL_TEST ??=
 	"postgres://postgres:postgres@127.0.0.1:5432/mdscribe_test";
 
 const resolveAsync = <T>(value: T): Promise<T> => Promise.resolve(value);
+
+const MOCK_PAGE_PNG = Buffer.from(
+	"iVBORw0KGgoAAAANSUhEUgAAAEAAAABAAQAAAACCEkxzAAAAEklEQVQoz2P4DwUMo4xRBukMAOPT/hB1CzVqAAAAAElFTkSuQmCC",
+	"base64",
+);
 
 // Single canonical mock generation text so the streamText and generateText
 // mocks agree — handlers read `.text` off both paths.
@@ -158,6 +165,52 @@ const sendEmailBatchMock = mock((options: { to?: readonly string[] }) =>
 
 mock.module("server-only", () => ({}));
 
+export const ocrMockState: {
+	config?: Partial<LiteParseConfig>;
+	result?: Pick<ParseResult, "pages" | "pageErrors" | "text" | "totalPages">;
+	error?: Error;
+	closed: number;
+} = { closed: 0 };
+
+mock.module("@llamaindex/liteparse", () => ({
+	LiteParse: class {
+		state = ocrMockState;
+
+		constructor(config: Partial<LiteParseConfig>) {
+			this.state.config = config;
+		}
+		parse(_data: Buffer) {
+			if (this.state.error) {
+				return Promise.reject(this.state.error);
+			}
+			return Promise.resolve(
+				this.state.result ?? {
+					pageErrors: [],
+					pages: [{ height: 800, pageNum: 1, text: "", textItems: [], width: 600 }],
+					text: "",
+					totalPages: 1,
+				},
+			);
+		}
+		screenshot = (_data: Buffer, pageNumbers: number[]) => {
+			if (this.state.error) {
+				return Promise.reject(this.state.error);
+			}
+			return Promise.resolve(
+				pageNumbers.map((pageNum) => ({
+					height: 64,
+					imageBuffer: MOCK_PAGE_PNG,
+					pageNum,
+					width: 64,
+				})),
+			);
+		};
+		close() {
+			this.state.closed += 1;
+		}
+	},
+}));
+
 mock.module("@/env", () => ({
 	env: {
 		ADMIN_EMAIL: "admin@test.com",
@@ -205,12 +258,12 @@ export const aiMockState: {
 	lastOcrGenerateTextOptions?: unknown;
 	nextGenerateTextOutput?: unknown;
 	nextOcrOutput?: unknown;
+	nextOcrOutputs?: unknown[];
 	nextGenerateTextText?: string;
 	streamTextCallCount: number;
 } = { generateTextCallCount: 0, streamTextCallCount: 0 };
 
 mock.module("ai", () => ({
-	tool: <T>(definition: T): T => definition,
 	Output: {
 		object: (options: unknown) => options,
 	},
@@ -279,13 +332,22 @@ mock.module("ai", () => ({
 		if (isFillInputsRequest) {
 			output = aiMockState.nextGenerateTextOutput ?? { fieldValues: {} };
 			delete aiMockState.nextGenerateTextOutput;
-		} else if (promptText.includes("You are an OCR engine.")) {
+		} else if (promptText.includes("You are an OCR engine")) {
 			aiMockState.lastOcrGenerateTextOptions = options;
-			output = aiMockState.nextOcrOutput ?? {
-				pages: [],
-				text: aiMockState.nextGenerateTextText ?? MOCK_GENERATED_TEXT,
-			};
+			output = aiMockState.nextOcrOutputs?.shift() ??
+				aiMockState.nextOcrOutput ?? {
+					blocks: [
+						{
+							box_2d: [15.625, 15.625, 234.375, 937.5],
+							text: aiMockState.nextGenerateTextText ?? MOCK_GENERATED_TEXT,
+						},
+					],
+					text: aiMockState.nextGenerateTextText ?? MOCK_GENERATED_TEXT,
+				};
 			delete aiMockState.nextOcrOutput;
+			if (aiMockState.nextOcrOutputs?.length === 0) {
+				delete aiMockState.nextOcrOutputs;
+			}
 		}
 		const text =
 			aiMockState.nextGenerateTextText ?? (output ? JSON.stringify(output) : MOCK_GENERATED_TEXT);
@@ -315,6 +377,7 @@ mock.module("ai", () => ({
 		aiMockState.streamTextCallCount += 1;
 		return createMockStreamResult(options);
 	},
+	tool: <T>(definition: T): T => definition,
 	wrapLanguageModel: (options: unknown) => ({ wrappedLanguageModel: options }),
 }));
 

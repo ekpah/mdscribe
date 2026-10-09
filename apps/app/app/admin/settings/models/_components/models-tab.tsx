@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { ReasoningEffortSelect } from "@/app/admin/_components/reasoning-effort-select";
 import { getReasoningSupportStatus, supportsReasoningParameters } from "@/app/admin/_lib/reasoning";
 import type { ReasoningEffort } from "@/app/admin/_lib/reasoning";
+import { isOcrProvider } from "@/lib/ocr-protocol";
 import { orpc } from "@/lib/orpc";
 
 interface AiModelData {
@@ -81,7 +82,7 @@ interface DefaultModelRowConfig {
 	description: string;
 	label: string;
 	mediaModeDescriptions?: Record<MediaMode, string>;
-	mediaModeKey?: "fileImageMode" | "speechToTextMode";
+	mediaModeKey?: "speechToTextMode";
 	placeholder: string;
 	type: DefaultType;
 }
@@ -105,14 +106,8 @@ const DEFAULT_MODEL_ROWS: DefaultModelRowConfig[] = [
 	{
 		capabilityGate: "documents",
 		description:
-			"Extrahiert PDF- oder Bildinhalte zu Text, bevor das Standard-Modell weiterarbeitet.",
+			"Extrahiert PDF- oder Bildinhalte mit dem gewählten OCR-Dienst oder Vision-Modell zu Text, bevor das Standard-Modell weiterarbeitet.",
 		label: "Dokumenten-Modell",
-		mediaModeDescriptions: {
-			direct: "Direkt: Das Dokument wird ohne Text-Prompt gesendet — für dedizierte OCR-Modelle.",
-			multimodal:
-				"Multimodal: Das Dokument wird zusammen mit einem Extraktions-Prompt an ein multimodales Modell gesendet.",
-		},
-		mediaModeKey: "fileImageMode",
 		placeholder: "Dokumenten-Modell auswählen",
 		type: "file-image",
 	},
@@ -412,6 +407,57 @@ const OpenRouterRoutingControl = ({
 	</div>
 );
 
+const GenerationControls = ({
+	disabled,
+	onReasoningChange,
+	onTemperatureChange,
+	reasoningEffort,
+	rowType,
+	selectedModel,
+	temperature,
+}: {
+	disabled: boolean;
+	onReasoningChange: (value: ReasoningEffort) => void;
+	onTemperatureChange: (value: number | null) => void;
+	reasoningEffort: ReasoningEffort;
+	rowType: DefaultType;
+	selectedModel: AiModelData | null;
+	temperature: number | null;
+}) => {
+	const reasoningSupportStatus = getReasoningSupportStatus(selectedModel);
+	const supportsReasoning = supportsReasoningParameters(selectedModel);
+
+	return (
+		<>
+			<ReasoningEffortSelect
+				disabled={disabled || !supportsReasoning}
+				label="Reasoning"
+				onValueChange={onReasoningChange}
+				showDescription={false}
+				value={supportsReasoning ? reasoningEffort : "none"}
+			/>
+			{selectedModel && reasoningSupportStatus === "unsupported" ? (
+				<p className="text-solarized-base01 text-xs">
+					Dieses Modell listet Reasoning nicht als unterstützten Parameter. MDScribe sendet deshalb
+					keine Reasoning-Optionen.
+				</p>
+			) : null}
+			{selectedModel && reasoningSupportStatus === "unknown" ? (
+				<p className="text-solarized-base01 text-xs">
+					Dieser Provider meldet keine Parameterliste. Sie können Reasoning trotzdem setzen; wenn
+					das Modell es nicht unterstützt, kann der Provider die Anfrage ablehnen.
+				</p>
+			) : null}
+			<DefaultTemperatureControl
+				disabled={disabled}
+				id={`default-${rowType}-temperature`}
+				onCommit={onTemperatureChange}
+				value={temperature}
+			/>
+		</>
+	);
+};
+
 const DefaultModelRow = ({
 	coveredByStandard,
 	isUpdating,
@@ -427,6 +473,7 @@ const DefaultModelRow = ({
 	renderCapabilities,
 	row,
 	selectedModel,
+	isOcrHttp,
 	selectorOptions,
 	enabledModelOptions,
 	reasoningEffort,
@@ -450,11 +497,10 @@ const DefaultModelRow = ({
 	renderCapabilities?: () => React.ReactNode;
 	row: DefaultModelRowConfig;
 	selectedModel: AiModelData | null;
+	isOcrHttp: boolean;
 	selectorOptions: ModelOption[];
 	temperature: number | null;
 }) => {
-	const reasoningSupportStatus = getReasoningSupportStatus(selectedModel);
-	const supportsReasoning = supportsReasoningParameters(selectedModel);
 	const selectorId = `default-${row.type}-model`;
 	const rowDisabled = isUpdating || coveredByStandard;
 
@@ -503,31 +549,17 @@ const DefaultModelRow = ({
 						value={mediaMode}
 					/>
 				) : null}
-				<ReasoningEffortSelect
-					disabled={rowDisabled || !supportsReasoning}
-					label="Reasoning"
-					onValueChange={onReasoningChange}
-					showDescription={false}
-					value={supportsReasoning ? reasoningEffort : "none"}
-				/>
-				{selectedModel && reasoningSupportStatus === "unsupported" ? (
-					<p className="text-solarized-base01 text-xs">
-						Dieses Modell listet Reasoning nicht als unterstützten Parameter. MDScribe sendet
-						deshalb keine Reasoning-Optionen.
-					</p>
-				) : null}
-				{selectedModel && reasoningSupportStatus === "unknown" ? (
-					<p className="text-solarized-base01 text-xs">
-						Dieser Provider meldet keine Parameterliste. Sie können Reasoning trotzdem setzen; wenn
-						das Modell es nicht unterstützt, kann der Provider die Anfrage ablehnen.
-					</p>
-				) : null}
-				<DefaultTemperatureControl
-					disabled={rowDisabled}
-					id={`default-${row.type}-temperature`}
-					onCommit={onTemperatureChange}
-					value={temperature}
-				/>
+				{isOcrHttp ? null : (
+					<GenerationControls
+						disabled={rowDisabled}
+						onReasoningChange={onReasoningChange}
+						onTemperatureChange={onTemperatureChange}
+						reasoningEffort={reasoningEffort}
+						rowType={row.type}
+						selectedModel={selectedModel}
+						temperature={temperature}
+					/>
+				)}
 				{selectedModel && isOpenRouter ? (
 					<OpenRouterRoutingControl
 						disabled={rowDisabled}
@@ -573,7 +605,6 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 		mutationFn: (data: {
 			agentSupportsAudio?: boolean;
 			agentSupportsDocuments?: boolean;
-			fileImageMode?: MediaMode;
 			speechToTextMode?: MediaMode;
 			standardSupportsAgent?: boolean;
 			standardSupportsAudio?: boolean;
@@ -617,7 +648,12 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 		() => new Map(connections.map((provider) => [provider.id, provider])),
 		[connections],
 	);
-	const selectorOptions = makeSelectorOptions(enabledModelOptions);
+	const nonOcrModelOptions = enabledModelOptions.filter(
+		(option) =>
+			!isOcrProvider(
+				providerById.get(modelById.get(option.value)?.providerId ?? "")?.protocol ?? "",
+			),
+	);
 
 	const isUpdatingDefaults =
 		isDefaultsLoading || setDefaultMutation.isPending || setOptionsMutation.isPending;
@@ -735,16 +771,13 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 	);
 
 	const handleMediaModeChange = useCallback(
-		(mediaModeKey: "fileImageMode" | "speechToTextMode", value: MediaMode) => {
+		(mediaModeKey: "speechToTextMode", value: MediaMode) => {
 			setOptionsMutation.mutate({ [mediaModeKey]: value });
 		},
 		[setOptionsMutation],
 	);
 
 	const getMediaMode = (row: DefaultModelRowConfig): MediaMode | null => {
-		if (row.mediaModeKey === "fileImageMode") {
-			return defaults?.defaultFileImageMode ?? "multimodal";
-		}
 		if (row.mediaModeKey === "speechToTextMode") {
 			return defaults?.defaultSpeechToTextMode ?? "direct";
 		}
@@ -756,7 +789,8 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 			return defaults?.defaultStandardSupportsAgent ?? false;
 		}
 		if (row.capabilityGate === "documents") {
-			return defaults?.defaultStandardSupportsDocuments ?? false;
+			// Preview OCR remains independently configurable for native document models.
+			return false;
 		}
 		if (row.capabilityGate === "audio") {
 			return defaults?.defaultStandardSupportsAudio ?? false;
@@ -781,6 +815,11 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 					{DEFAULT_MODEL_ROWS.map((row) => {
 						const modelId = getDefaultModelId(row.type);
 						const selectedModel = modelId ? (modelById.get(modelId) ?? null) : null;
+						const isOcrHttp = selectedModel
+							? isOcrProvider(providerById.get(selectedModel.providerId)?.protocol ?? "")
+							: false;
+						const rowModelOptions =
+							row.type === "file-image" ? enabledModelOptions : nonOcrModelOptions;
 						const mediaMode = getMediaMode(row);
 						let renderCapabilities: (() => React.ReactNode) | undefined;
 						if (row.type === "text") {
@@ -807,7 +846,8 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 						return (
 							<DefaultModelRow
 								coveredByStandard={isCoveredByStandard(row)}
-								enabledModelOptions={enabledModelOptions}
+								enabledModelOptions={rowModelOptions}
+								isOcrHttp={isOcrHttp}
 								isUpdating={isUpdatingDefaults}
 								isOpenRouter={
 									selectedModel
@@ -856,7 +896,7 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 								renderCapabilities={renderCapabilities}
 								row={row}
 								selectedModel={selectedModel}
-								selectorOptions={selectorOptions}
+								selectorOptions={makeSelectorOptions(rowModelOptions)}
 								temperature={getDefaultTemperature(row.type)}
 								routingMode={normalizeOpenRouterRoutingMode(selectedModel?.openRouterRoutingMode)}
 							/>
@@ -875,8 +915,8 @@ export const ModelsTab = ({ connections }: ModelsTabProps) => {
 							sonst Dokumenten-/Audio-Vorverarbeitung.
 						</div>
 						<div>
-							Dokumenten-Modell: extrahiert PDF/Bild zu Text, wenn die Fähigkeit Dokumente nicht
-							angehakt ist — direkt (ohne Prompt) oder multimodal (mit Prompt).
+							Dokumenten-Modell: extrahiert PDF/Bild mit dem gewählten OCR-Dienst oder
+							Vision-Modell, wenn die Fähigkeit Dokumente nicht angehakt ist.
 						</div>
 						<div>
 							Audio-Modell: transkribiert Aufnahmen, wenn die Fähigkeit Audio nicht angehakt ist —

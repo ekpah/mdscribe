@@ -1,3 +1,5 @@
+import type { ContextDocument } from "@/lib/ocr-types";
+
 /**
  * Model configuration for streaming responses
  */
@@ -29,12 +31,7 @@ export interface AudioFile {
 /**
  * Generic file data for input autofill context.
  */
-export interface FillInputsContextFile {
-	data: string;
-	mimeType: string;
-	name: string;
-	size: number;
-}
+export type FillInputsContextFile = ContextDocument;
 
 /**
  * Reusable clinical text context for input autofill

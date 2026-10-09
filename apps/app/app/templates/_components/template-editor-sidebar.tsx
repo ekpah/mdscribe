@@ -165,6 +165,8 @@ const TemplateAgentComposer = ({
 					<DocumentInput
 						disabled={isLoading}
 						onAddFiles={controller.addContextFiles}
+						onRetryOcr={controller.retryContextFileOcr}
+						onRotate={controller.rotateContextFile}
 						onValueChange={controller.setContextFiles}
 						value={controller.contextFiles}
 					/>
@@ -246,7 +248,7 @@ export const TemplateEditorSidebar = ({
 	const [activeView, setActiveView] = useState("info");
 	const [instruction, setInstruction] = useState("");
 	const [isPreparing, setIsPreparing] = useState(false);
-	const inputContext = useInputContextState();
+	const inputContext = useInputContextState({ agent: true });
 	const templateRef = useRef(template);
 	const onTemplateChangeRef = useRef(onTemplateChange);
 	const appliedToolCallIds = useRef<Set<string>>(new Set());

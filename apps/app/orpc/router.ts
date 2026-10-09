@@ -74,13 +74,17 @@ export const router = {
 
 	// AI document generation
 	scribe: {
+		documentInputPolicy: lazy(async () => {
+			const handlerModule = await import("./scribe/handlers/extract-context-file");
+			return { default: handlerModule.documentInputPolicyHandler };
+		}),
+		extractContextFile: lazy(async () => {
+			const handlerModule = await import("./scribe/handlers/extract-context-file");
+			return { default: handlerModule.extractContextFileHandler };
+		}),
 		fillInputs: lazy(async () => {
 			const handlerModule = await import("./scribe/handlers/fill-inputs");
 			return { default: handlerModule.fillInputsHandler };
-		}),
-		ocrToMarkdown: lazy(async () => {
-			const handlerModule = await import("./scribe/handlers/ocr-to-markdown");
-			return { default: handlerModule.ocrToMarkdownHandler };
 		}),
 	},
 	// AI documentation agent (text-only MVP)

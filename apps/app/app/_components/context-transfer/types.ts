@@ -1,8 +1,8 @@
 import type {
 	InputContextAudioFile,
-	InputContextFile,
 	InputContextTextContext,
 } from "@/app/_components/input-context/types";
+import type { RawContextDocument } from "@/lib/ocr-types";
 import type { PromptHarnessId } from "@/orpc/scribe/prompts";
 
 export type ContextTransferTargetType = "ai-form" | "document" | "template" | "workspace";
@@ -14,7 +14,7 @@ export interface TransferAudioFile extends InputContextAudioFile {
 
 export interface ContextTransferPayload {
 	audioFiles: TransferAudioFile[];
-	contextFiles: InputContextFile[];
+	contextFiles: RawContextDocument[];
 	source?: {
 		promptHarness?: PromptHarnessId | string;
 		title?: string;

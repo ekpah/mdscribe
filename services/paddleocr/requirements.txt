@@ -2,7 +2,7 @@
 # Dockerfile. Keep the HTTP service dependencies pinned for repeatable builds.
 fastapi==0.131.0
 numpy==2.3.5
-paddleocr==3.7.0
+paddleocr[doc-parser]==3.7.0
 pillow==12.1.1
 python-multipart==0.0.22
 uvicorn==0.41.0

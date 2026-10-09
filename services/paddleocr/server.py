@@ -18,6 +18,7 @@ LOGGER = logging.getLogger("paddleocr-service")
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 MAX_IMAGE_PIXELS = 50_000_000
+TEXT_DET_MAX_SIDE = 1600
 Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
 
 _pipeline: Any | None = None
@@ -32,22 +33,39 @@ class OcrItem(BaseModel):
 
 
 class OcrResponse(BaseModel):
+    text: str
     results: list[OcrItem]
 
 
 class StatusResponse(BaseModel):
+    model: str
     status: str
 
 
 def _create_pipeline() -> Any:
     # Importing PaddleOCR loads the native inference runtime, so keep it out of
     # module import paths used by lightweight contract tests.
-    from paddleocr import PaddleOCR
+    from paddleocr import PPStructureV3
 
-    return PaddleOCR(
+    return PPStructureV3(
+        lang="de",
+        ocr_version="PP-OCRv5",
+        device="cpu",
+        cpu_threads=4,
+        enable_mkldnn=False,
+        use_table_recognition=True,
+        use_formula_recognition=False,
+        use_seal_recognition=False,
+        use_chart_recognition=False,
+        use_region_detection=False,
+        # Users align the image before OCR; never infer or correct orientation.
         use_doc_orientation_classify=False,
         use_doc_unwarping=False,
-        use_textline_orientation=True,
+        use_textline_orientation=False,
+        # PP-OCRv5 otherwise detects text at full resolution, which needs >10 GB
+        # for a 3000 px photo. Boxes are still returned in input pixels.
+        text_det_limit_type="max",
+        text_det_limit_side_len=TEXT_DET_MAX_SIDE,
     )
 
 
@@ -145,13 +163,9 @@ def _bbox(
 
 
 def format_results(
-    predictions: Iterable[Any], width: int, height: int
+    overall_ocr_res: Any, width: int, height: int
 ) -> list[OcrItem]:
-    first_result = next(iter(predictions), None)
-    if first_result is None:
-        return []
-
-    payload = _result_payload(first_result)
+    payload = _result_payload(overall_ocr_res)
     texts = _field(payload, "rec_texts")
     scores = _field(payload, "rec_scores")
     boxes = _field(payload, "rec_boxes")
@@ -195,6 +209,41 @@ def format_results(
     return formatted
 
 
+class NativeResultError(ValueError):
+    pass
+
+
+def _native_response(
+    predictions: Iterable[Any], width: int, height: int
+) -> OcrResponse:
+    """Extract native markup and geometry in the supplied image frame."""
+    result = next(iter(predictions), None)
+    if result is None:
+        raise NativeResultError("PP-StructureV3 returned no result")
+
+    # PaddleX results subclass dict but expose computed Markdown as a property.
+    markdown = getattr(result, "markdown", None)
+    if markdown is None and isinstance(result, dict):
+        markdown = result.get("markdown")
+    if not isinstance(markdown, dict) or "markdown_texts" not in markdown:
+        raise NativeResultError("PP-StructureV3 result has no native Markdown")
+    text = markdown["markdown_texts"]
+    if not isinstance(text, str):
+        raise NativeResultError("PP-StructureV3 native Markdown is not text")
+
+    payload = _result_payload(result)
+    overall_ocr_res = (
+        payload.get("overall_ocr_res") if isinstance(payload, dict) else None
+    )
+    if overall_ocr_res is None:
+        raise NativeResultError("PP-StructureV3 result has no overall OCR output")
+
+    return OcrResponse(
+        text=text,
+        results=format_results(overall_ocr_res, width, height),
+    )
+
+
 def _decode_image(image_data: bytes) -> np.ndarray:
     try:
         with Image.open(io.BytesIO(image_data)) as source:
@@ -224,9 +273,9 @@ def _predict(pipeline: Any, image: np.ndarray) -> list[Any]:
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     global _pipeline
 
-    LOGGER.info("Loading PP-OCRv6 medium models on CPU")
+    LOGGER.info("Loading PP-StructureV3 German PP-OCRv5 models on CPU")
     _pipeline = await asyncio.to_thread(_create_pipeline)
-    LOGGER.info("PP-OCRv6 is ready")
+    LOGGER.info("PP-StructureV3 is ready")
     try:
         yield
     finally:
@@ -257,7 +306,7 @@ async def validation_error(_: Request, error: RequestValidationError) -> JSONRes
 async def health() -> StatusResponse:
     if _pipeline is None:
         raise HTTPException(status_code=503, detail="OCR model is still loading")
-    return StatusResponse(status="healthy")
+    return StatusResponse(model="PP-StructureV3-PP-OCRv5-de", status="healthy")
 
 
 @app.post("/ocr", response_model=OcrResponse)
@@ -265,8 +314,8 @@ async def ocr(
     file: UploadFile = File(...),
     language: str = Form(default="en"),
 ) -> OcrResponse:
-    # PP-OCRv6 uses one unified recognition model for its supported languages.
-    # The field remains part of the endpoint because LiteParse always sends it.
+    # This deployment is deliberately fixed to German. The field remains for
+    # compatibility with existing multipart clients.
     del language
 
     image_data = await file.read(MAX_UPLOAD_BYTES + 1)
@@ -295,4 +344,10 @@ async def ocr(
         LOGGER.exception("PaddleOCR inference failed")
         raise HTTPException(status_code=500, detail="OCR processing failed") from error
 
-    return OcrResponse(results=format_results(predictions, width, height))
+    try:
+        return _native_response(predictions, width, height)
+    except NativeResultError as error:
+        LOGGER.error("Incomplete PP-StructureV3 output: %s", error)
+        raise HTTPException(
+            status_code=500, detail="OCR pipeline returned incomplete native output"
+        ) from error

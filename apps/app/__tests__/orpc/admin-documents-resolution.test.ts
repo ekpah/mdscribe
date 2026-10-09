@@ -14,7 +14,6 @@ import type { TestServer } from "@/__tests__/setup";
 import { AI_SCRIBE_STT_EVENT_NAME } from "@/lib/usage-event-names";
 import { scribeHandler } from "@/orpc/admin/scribe";
 import { documentsHandler } from "@/orpc/documents";
-import { ocrToMarkdownHandler } from "@/orpc/scribe/handlers/ocr-to-markdown";
 import { appendScribeInputAttachmentsToMessages } from "@/orpc/scribe/handlers/scribe-stream";
 import type { ResolvedGenerationStrategy } from "@/orpc/scribe/handlers/scribe-stream";
 import type { ResolvedModel } from "@/orpc/scribe/providers";
@@ -270,41 +269,6 @@ describe("Shared Resolver Usage (admin/documents)", () => {
 		} finally {
 			globalThis.fetch = originalFetch;
 		}
-	});
-
-	test("scribe.ocrToMarkdown resolves model via legacy connectionId alias", async () => {
-		const imageBase64 = Buffer.from("fake-image").toString("base64");
-
-		const result = await call(
-			ocrToMarkdownHandler,
-			{
-				connectionId: seeded.providerId,
-				imagesBase64: [imageBase64],
-				model: seeded.modelId,
-			},
-			{ context },
-		);
-
-		expect(result.markdown).toBe("Generated text response");
-	});
-
-	test("scribe.ocrToMarkdown accepts explicit image media types", async () => {
-		const result = await call(
-			ocrToMarkdownHandler,
-			{
-				images: [
-					{
-						data: Buffer.from("fake-png").toString("base64"),
-						mediaType: "image/png",
-					},
-				],
-				model: seeded.modelId,
-				providerId: seeded.providerId,
-			},
-			{ context },
-		);
-
-		expect(result.markdown).toBe("Generated text response");
 	});
 
 	test("documents.parseForm resolves file/image default model", async () => {

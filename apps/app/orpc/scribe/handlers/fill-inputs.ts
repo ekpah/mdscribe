@@ -8,6 +8,7 @@ import {
 	FILL_INPUT_PAYLOAD_LIMITS,
 	formatPayloadBytes,
 	getBase64DecodedByteLength,
+	getContextDocumentPayloadByteLength,
 } from "@/lib/input-fill-limits";
 import type { OcrResult } from "@/lib/ocr-types";
 import { AI_INPUT_FILL_EVENT_NAME } from "@/lib/usage-event-names";
@@ -53,10 +54,10 @@ interface FillInputAudioPayloadSummary {
 
 interface FillInputContextFilePayloadSummary {
 	index: number;
-	mediaType: string;
+	mediaType?: string;
 	name: string;
 	payloadBytes: number;
-	size: number;
+	size?: number;
 }
 
 interface FillInputPayloadSummary {
@@ -285,7 +286,7 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 
 	const fileSummaries: FillInputContextFilePayloadSummary[] = [];
 	for (const [index, file] of contextFiles.entries()) {
-		const payloadBytes = getBase64DecodedByteLength(file.data);
+		const payloadBytes = getContextDocumentPayloadByteLength(file);
 		totalPayloadBytes += payloadBytes;
 		assertAtMost(
 			payloadBytes,
@@ -294,10 +295,9 @@ const summarizeAndValidatePayload = (input: FillInputsInputPayload): FillInputPa
 		);
 		fileSummaries.push({
 			index: index + 1,
-			mediaType: file.mimeType,
+			...(file.kind === "ocr" ? {} : { mediaType: file.mimeType, size: file.size }),
 			name: file.name,
 			payloadBytes,
-			size: file.size,
 		});
 	}
 	assertAtMost(
@@ -361,7 +361,7 @@ const assertFillInputsRequest = ({
 	});
 };
 
-const describeMediaPlan = (plan: MediaPlan | undefined): string | undefined => {
+const describeMediaPlan = (plan: MediaPlan<unknown> | undefined): string | undefined => {
 	if (!plan) {
 		return undefined;
 	}
@@ -444,7 +444,6 @@ const extractFillInputFileText = async ({
 			contextFiles: contextFiles ?? [],
 			db,
 			modelSelection: filesPlan.selection,
-			strategy: filesPlan.strategy,
 			userId,
 			zdr,
 		});

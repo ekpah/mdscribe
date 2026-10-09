@@ -4,6 +4,7 @@ import { hashPassword } from "better-auth/crypto";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { encryptApiKey } from "../lib/encryption-core";
+import { isOcrProvider, OCR_MODEL_IDS } from "../lib/ocr-protocol";
 
 type SeedTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -209,6 +210,8 @@ const seedAiDefaults = async (db: SeedTransaction, modelId: string): Promise<voi
 		defaultAgentSupportsAudio: true,
 		defaultAgentSupportsDocuments: true,
 		defaultFileImageModelId: modelId,
+		// Uploads run OCR immediately; Gemini's default thinking makes it slow.
+		defaultFileImageReasoningEffort: "minimal",
 		defaultSpeechToTextModelId: modelId,
 		defaultStandardSupportsAgent: true,
 		defaultStandardSupportsAudio: true,
@@ -264,6 +267,27 @@ const seedAiModels = async (db: SeedTransaction, providerId: string): Promise<vo
 	await seedAiDefaults(db, model.id);
 };
 
+/**
+ * Makes the orb's local PaddleOCR service (`.amp/services.yaml`) selectable as
+ * document model. It is not selected by default: it needs about 12 GB of RAM.
+ */
+const seedPaddleOcr = async (db: SeedTransaction): Promise<void> => {
+	const provider = {
+		baseUrl: "http://127.0.0.1:8829/ocr",
+		name: "PaddleOCR (local)",
+		protocol: "ocr-http",
+	};
+	await db
+		.insert(schema.aiProvider)
+		.values({ ...provider, id: "dev-paddleocr-provider" })
+		.onConflictDoUpdate({ set: provider, target: schema.aiProvider.id });
+	const model = { displayName: "PaddleOCR", modelId: "ocr", providerId: "dev-paddleocr-provider" };
+	await db
+		.insert(schema.aiModel)
+		.values({ ...model, id: "dev-paddleocr-model" })
+		.onConflictDoUpdate({ set: model, target: schema.aiModel.id });
+};
+
 const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
 	// Setup snapshots are shared; resume invokes this same seed with personal keys.
 	if (process.env.MDSCRIBE_SKIP_AI_SEED === "1") {
@@ -275,6 +299,8 @@ const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
 		["OPENAI_API_KEY", "OpenAI", "openai", "https://api.openai.com/v1"],
 		["MISTRAL_API_KEY", "Mistral", "openai-compatible", "https://api.mistral.ai/v1"],
 		["TINFOIL_API_KEY", "Tinfoil", "tinfoil", "https://inference.tinfoil.sh/v1"],
+		["MISTRAL_API_KEY", "Mistral OCR", "mistral-ocr", "https://api.mistral.ai/v1"],
+		["PRIVATEMODE_API_KEY", "Privatemode OCR", "privatemode-ocr", "https://api.privatemode.ai"],
 	] as const;
 
 	for (const [variable, name, protocol, baseUrl] of providers) {
@@ -296,7 +322,9 @@ const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
 			.values({
 				apiKey: encryptedKey,
 				baseUrl,
-				id: existing?.id ?? `seed-${variable.toLowerCase()}`,
+				id:
+					existing?.id ??
+					`seed-${variable.toLowerCase()}${isOcrProvider(protocol) ? `-${protocol}` : ""}`,
 				name,
 				protocol,
 			})
@@ -304,6 +332,12 @@ const seedAiProviders = async (db: SeedTransaction): Promise<void> => {
 			.returning({ id: schema.aiProvider.id });
 		if (protocol === "openrouter") {
 			await seedAiModels(db, provider.id);
+		} else if (isOcrProvider(protocol)) {
+			// OCR providers expose exactly one model, selectable as document model.
+			await db
+				.insert(schema.aiModel)
+				.values({ displayName: name, modelId: OCR_MODEL_IDS[protocol], providerId: provider.id })
+				.onConflictDoNothing({ target: [schema.aiModel.providerId, schema.aiModel.modelId] });
 		}
 		console.log(`Seeded AI provider: ${name}`);
 	}
@@ -324,6 +358,7 @@ export const seedDatabase = async (db: Database): Promise<void> => {
 
 	// Providers may become available after the user/template seed (e.g. orb activation).
 	await db.transaction(seedAiProviders);
+	await db.transaction(seedPaddleOcr);
 
 	// Skip if already seeded (HMR protection)
 	if (globalForSeed.seeded) {

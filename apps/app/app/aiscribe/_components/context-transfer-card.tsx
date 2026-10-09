@@ -34,7 +34,6 @@ import type {
 } from "@/app/_components/context-transfer/types";
 import type {
 	InputContextController,
-	InputContextFile,
 	InputContextTextContext,
 	InputContextTextContextKey,
 } from "@/app/_components/input-context/types";
@@ -48,6 +47,7 @@ import {
 	TransferPayloadTooLargeError,
 } from "@/lib/context-transfer-crypto";
 import { formatPayloadBytes } from "@/lib/input-fill-limits";
+import type { RawContextDocument } from "@/lib/ocr-types";
 import { orpc } from "@/lib/orpc";
 import {
 	getPromptHarnessGender,
@@ -94,7 +94,7 @@ const improvedAdjectiveEndings: Record<ReturnType<typeof getPromptHarnessGender>
 	plural: "e",
 };
 
-const toContextFilePayload = async ({ file }: { file: File }): Promise<InputContextFile> => ({
+const toContextFilePayload = async ({ file }: { file: File }): Promise<RawContextDocument> => ({
 	data: await blobToBase64(file),
 	mimeType: file.type || "application/octet-stream",
 	name: file.name,

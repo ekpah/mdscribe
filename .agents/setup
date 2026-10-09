@@ -19,6 +19,12 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
 	postgresql \
 	postgresql-contrib \
 	postgresql-server-dev-15 \
+	libgl1 \
+	libglib2.0-0 \
+	libgomp1 \
+	libsm6 \
+	libxext6 \
+	libxrender1 \
 	ssl-cert \
 	xz-utils
 
@@ -55,6 +61,25 @@ sudo ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
 
 echo "Installing workspace dependencies..."
 bun install --frozen-lockfile
+
+readonly PADDLEOCR_VENV="${HOME}/.cache/mdscribe/paddleocr-venv"
+readonly PADDLEOCR_HOME="${HOME}/.cache/mdscribe/paddleocr-models"
+echo "Installing the PaddleOCR CPU service..."
+uv python install 3.12
+uv venv --python 3.12 --allow-existing "${PADDLEOCR_VENV}"
+uv pip install --python "${PADDLEOCR_VENV}/bin/python" \
+	--index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/ \
+	paddlepaddle==3.3.0
+uv pip install --python "${PADDLEOCR_VENV}/bin/python" \
+	--requirement services/paddleocr/requirements.txt
+
+echo "Warming PaddleOCR model files..."
+mkdir -p "${PADDLEOCR_HOME}"
+HOME="${PADDLEOCR_HOME}" PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
+	PYTHONPATH="${PWD}/services/paddleocr" \
+	"${PADDLEOCR_VENV}/bin/python" -c \
+	'from server import _create_pipeline; pipeline = _create_pipeline(); assert pipeline is not None' \
+	2>"${HOME}/.cache/mdscribe/paddleocr-warm.log"
 
 ensure_env_defaults() {
 	local env_file="$1"
