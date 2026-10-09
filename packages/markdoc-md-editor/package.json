@@ -20,6 +20,7 @@
 	"dependencies": {
 		"@repo/design-system": "workspace:*",
 		"@tiptap/core": "^3.22.4",
+		"@tiptap/extension-table": "3.29.2",
 		"@tiptap/markdown": "^3.22.4",
 		"@tiptap/pm": "^3.22.4",
 		"@tiptap/react": "^3.22.4",

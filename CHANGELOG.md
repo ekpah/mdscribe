@@ -4,6 +4,7 @@
 
 ### Added
 
+- Template tables now use Tiptap's table editor with row/column controls and cell merge/split, saving as built-in Markdoc tables without custom schemas or layout metadata. Cells retain inline formatting and line breaks; merges preserve filled content in one paragraph, and edits that create fully covered rows or unsupported cell blocks are prevented. Rendered templates and rich-text copies include readable table borders and padding.
 - Templates can now include collapsible sections (`{% details %}`) that render like GitHub's collapsed sections: an optional label, `open=true` to expand by default, nesting, and template tags inside. The summary reads like a normal line of text, and a section written directly next to a line (no blank line) continues it without a paragraph gap, so plain lines and expandable lines can alternate. Inserting a section places it directly below the current line and wraps marked content into it; the summary is typed inline on the section's first line, including when an existing section is wrapped, and blank lines next to a section show as empty editor lines. Content in a collapsed section still appears as an input, is included when copying a document, and survives pasting a rendered section back into the editor.
 - Registered `@shadcn/lint` with Oxlint and enabled warnings for Tailwind classes that the project cannot generate.
 - First-run development seeding now configures OpenRouter, Anthropic, OpenAI, Mistral, and Tinfoil providers from available environment API keys, encrypted with the app's auth secret.

@@ -96,7 +96,7 @@ const customMarkdocRenderers: Partial<
 		// Cases are normally inline, but Details is a block tag and must begin on
 		// its own line. This includes cases with prose before Details and keeps
 		// sibling case delimiters from sharing the block case's closing line.
-		const containsDetails = caseContent.includes("{% details");
+		const containsDetails = /\{% (?:details|table)\b/u.test(caseContent);
 		const rawValue = readAttribute(element, "value");
 		const valueAttribute =
 			rawValue !== null && rawValue !== "" && Number.isFinite(Number(rawValue))
@@ -171,7 +171,7 @@ const customMarkdocRenderers: Partial<
 		);
 		// A case containing Details has block content, so the switch and case
 		// delimiters also need their own lines for Markdoc to parse the tree.
-		const content = innerContent.includes("{% details")
+		const content = /\{% (?:details|table)\b/u.test(innerContent)
 			? `\n${innerContent.trim()}\n`
 			: innerContent;
 		return `{% switch ${primary}${typeAttribute}${unitAttribute}${descriptionAttribute}${sourceAttribute} %}${content}{% /switch %}`;
@@ -207,6 +207,40 @@ const renderAnchor = (element: Element, innerContent: string): string => {
 const renderHeading = (tagName: string, innerContent: string): string => {
 	const headingPrefix = headingPrefixes[tagName];
 	return `${headingPrefix} ${preserveEmptyLines(innerContent)}\n\n`;
+};
+
+const renderTable = (element: Element, processNode: (node: Node) => string): string => {
+	const rows = [...(element as HTMLTableElement).rows];
+	const hasHeader =
+		rows[0]?.cells.length > 0 && [...rows[0].cells].every((cell) => cell.tagName === "TH");
+	const content = rows
+		.map((row) =>
+			[...row.cells]
+				.map((cell) => {
+					const paragraph =
+						cell.children.length === 1 && cell.firstElementChild?.tagName === "P"
+							? cell.firstElementChild
+							: cell;
+					let source = preserveEmptyLines(
+						[...paragraph.childNodes].map(processNode).join(""),
+					).trimEnd();
+					const spans = ["colspan", "rowspan"].flatMap((name) => {
+						const value = Number(cell.getAttribute(name));
+						return value > 1 ? [`${name}=${value}`] : [];
+					});
+					if (spans.length > 0) {
+						source += `{% ${spans.join(" ")} %}`;
+					}
+					const lines = source.split("\n");
+					return `* ${lines[0]}${lines
+						.slice(1)
+						.map((line) => `\n  ${line}`)
+						.join("")}`;
+				})
+				.join("\n"),
+		)
+		.join("\n---\n");
+	return `{% table %}\n${hasHeader ? "" : "---\n"}${content}\n{% /table %}\n\n`;
 };
 
 const htmlElementRenderers: Partial<
@@ -347,6 +381,9 @@ const processNodeForMarkdoc = (node: Node): string => {
 	// ProseMirror's view-only filler is not an authored hard break.
 	if (tagName === "br" && element.classList.contains("ProseMirror-trailingBreak")) {
 		return "";
+	}
+	if (tagName === "table") {
+		return renderTable(element, processNodeForMarkdoc);
 	}
 	const innerContent = processChildrenForMarkdoc(element, processNodeForMarkdoc);
 	const customRenderer = customMarkdocRenderers[tagName];

@@ -42,6 +42,23 @@ const styles: Record<string, CSSProperties> = {
 	ol: { listStyleType: "decimal", margin: "4px 0", paddingLeft: "1.57143em" },
 	p: { margin: 0 },
 	strong: { fontWeight: 600 },
+	table: { borderCollapse: "collapse", margin: "12px 0", tableLayout: "fixed", width: "100%" },
+	td: {
+		border: "1px solid #b8b8b8",
+		overflowWrap: "break-word",
+		padding: "8px 12px",
+		verticalAlign: "top",
+	},
+	th: {
+		backgroundColor: "#f0f0f0",
+		border: "1px solid #b8b8b8",
+		color: "#333",
+		fontWeight: 600,
+		overflowWrap: "break-word",
+		padding: "8px 12px",
+		textAlign: "left",
+		verticalAlign: "top",
+	},
 	ul: { listStyleType: "disc", margin: "4px 0", paddingLeft: "1.57143em" },
 };
 

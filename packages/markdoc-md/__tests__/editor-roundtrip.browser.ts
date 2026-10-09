@@ -1,7 +1,10 @@
 // Browser-only regression suite (uses the real DOMParser, no DOM mock).
 // bun build __tests__/editor-roundtrip.browser.ts --target browser --outfile /tmp/markdoc-roundtrip.js
 // agent-browser open about:blank && agent-browser eval --stdin < /tmp/markdoc-roundtrip.js
+import Markdoc from "@markdoc/markdoc";
+
 import { htmlToMarkdoc, renderTipTapHTML } from "../editor";
+import { validateMarkdocTemplate } from "../parse/validate-markdoc-template";
 
 const equal = (actual: string, expected: string): void => {
 	if (actual !== expected) {
@@ -145,4 +148,71 @@ for (let cycle = 0; cycle < 3; cycle++) {
 	reopenedCase = renderTipTapHTML(htmlToMarkdoc(reopenedCase));
 }
 
-document.body.textContent = `${fragments.length * 3 + 44} browser roundtrip assertions passed`;
+const tableShape = (html: string): string => {
+	const table = new DOMParser().parseFromString(html, "text/html").querySelector("table");
+	if (!table) {
+		throw new Error("Table was lost");
+	}
+	return JSON.stringify(
+		[...table.rows].map((row) =>
+			[...row.cells].map((cell) => {
+				const content =
+					cell.children.length === 1 && cell.firstElementChild?.tagName === "P"
+						? cell.firstElementChild.innerHTML
+						: cell.innerHTML;
+				return {
+					colspan: cell.colSpan,
+					content: content.replaceAll("&nbsp;", "").trim(),
+					header: cell.tagName === "TH",
+					rowspan: cell.rowSpan,
+				};
+			}),
+		),
+	);
+};
+
+const tableFragments = [
+	'<table><tr><th><p>A</p></th><th><p>B</p></th><th><p>C</p></th></tr><tr><td rowspan="2"><p>Group</p></td><td><p>17</p></td><td><p>23</p></td></tr><tr><td><p>41</p></td><td><p>59</p></td></tr><tr><td colspan="3"><p>Total</p></td></tr></table>',
+	"<table><tr><td><p>No header</p></td><td><p></p></td></tr></table>",
+	'<table><tr><th colspan="2"><p>Heading</p></th></tr><tr><td colspan="2"><p><strong>Assessment</strong><br>Stable.<br></p></td></tr><tr><td><p>After</p></td><td><p>97</p></td></tr></table>',
+];
+
+for (const fragment of tableFragments) {
+	let html = fragment;
+	for (let cycle = 0; cycle < 3; cycle += 1) {
+		const source = htmlToMarkdoc(html);
+		if (!source.includes("{% table")) {
+			throw new Error("Expected native Markdoc table syntax");
+		}
+		if (source.includes("layout=")) {
+			throw new Error("Tables must not require custom layout metadata");
+		}
+		equal(JSON.stringify(validateMarkdocTemplate(source)), "[]");
+		const ast = Markdoc.parse(source);
+		equal(JSON.stringify(Markdoc.validate(ast)), "[]");
+		equal(tableShape(Markdoc.renderers.html(Markdoc.transform(ast))), tableShape(fragment));
+		html = renderTipTapHTML(source);
+		equal(tableShape(html), tableShape(fragment));
+	}
+}
+
+const ordinaryTable = htmlToMarkdoc(tableFragments[0]);
+if (ordinaryTable.includes("layout=")) {
+	throw new Error("Ordinary native spans should not need layout metadata");
+}
+if (!ordinaryTable.includes("rowspan=2") || !ordinaryTable.includes("colspan=3")) {
+	throw new Error("Native cell span annotations were lost");
+}
+
+const tagTable = renderTipTapHTML(
+	'{% table %}\n* Parameter\n* Wert\n---\n* Puls\n* {% info "Puls" type="number" /%}\n{% /table %}',
+);
+equal(renderTipTapHTML(htmlToMarkdoc(tagTable)), tagTable);
+const nestedTableCase = htmlToMarkdoc(
+	`<Switch primary="choice"><Case primary="yes" data-content="${encodeURIComponent(tagTable)}"></Case></Switch>`,
+);
+if (!renderTipTapHTML(nestedTableCase).includes("<table>")) {
+	throw new Error("Table in switch case was lost");
+}
+
+document.body.textContent = `Editor roundtrips and ${tableFragments.length * 3} table save/reopen cycles passed`;

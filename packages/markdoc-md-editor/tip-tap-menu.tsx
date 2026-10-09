@@ -1,5 +1,12 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@repo/design-system/components/ui/dropdown-menu";
+import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
@@ -10,6 +17,7 @@ import { getChangedRanges } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import type { Fragment } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
+import { useEditorState } from "@tiptap/react";
 import {
 	Bold,
 	Heading1,
@@ -19,6 +27,7 @@ import {
 	Italic,
 	List,
 	Redo,
+	Table,
 	Undo,
 } from "lucide-react";
 
@@ -55,6 +64,19 @@ const toBlockContent = (fragment: Fragment): JSONContent[] => {
 };
 
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
+	const tableState = useEditorState({
+		editor,
+		selector: ({ editor: current }) => {
+			if (!current || current.isDestroyed || !current.isActive("table")) {
+				return { active: false, canMerge: false, canSplit: false };
+			}
+			return {
+				active: true,
+				canMerge: current.can().mergeCells(),
+				canSplit: current.can().splitCell(),
+			};
+		},
+	});
 	if (!editor) {
 		return null;
 	}
@@ -227,6 +249,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 						toolbarButtonClassName,
 						editor.isActive("heading", { level: 1 }) && activeToolbarButtonClassName,
 					)}
+					disabled={tableState?.active}
 					onClick={handlers.handleToggleH1}
 					size="sm"
 					type="button"
@@ -240,6 +263,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 						toolbarButtonClassName,
 						editor.isActive("heading", { level: 2 }) && activeToolbarButtonClassName,
 					)}
+					disabled={tableState?.active}
 					onClick={handlers.handleToggleH2}
 					size="sm"
 					type="button"
@@ -253,6 +277,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 						toolbarButtonClassName,
 						editor.isActive("heading", { level: 3 }) && activeToolbarButtonClassName,
 					)}
+					disabled={tableState?.active}
 					onClick={handlers.handleToggleH3}
 					size="sm"
 					type="button"
@@ -269,6 +294,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 						toolbarButtonClassName,
 						editor.isActive("bulletList") && activeToolbarButtonClassName,
 					)}
+					disabled={tableState?.active}
 					onClick={handlers.handleToggleBulletList}
 					size="sm"
 					type="button"
@@ -276,6 +302,77 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				>
 					<List className="h-4 w-4" />
 				</Button>
+
+				<DropdownMenu>
+					<DropdownMenuTrigger
+						aria-label="Tabelle"
+						className={cn(
+							toolbarButtonClassName,
+							"inline-flex items-center justify-center",
+							tableState?.active && activeToolbarButtonClassName,
+						)}
+					>
+						<Table className="h-4 w-4" />
+					</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<DropdownMenuItem
+							disabled={tableState?.active}
+							onClick={() =>
+								editor.chain().focus().insertTable({ cols: 3, rows: 3, withHeaderRow: true }).run()
+							}
+						>
+							Tabelle einfügen
+						</DropdownMenuItem>
+						{tableState?.active && (
+							<>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => editor.chain().focus().addRowBefore().run()}>
+									Zeile darüber
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => editor.chain().focus().addRowAfter().run()}>
+									Zeile darunter
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => editor.chain().focus().addColumnBefore().run()}>
+									Spalte links
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => editor.chain().focus().addColumnAfter().run()}>
+									Spalte rechts
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									disabled={!tableState.canMerge}
+									onClick={() => editor.chain().focus().mergeCells().run()}
+								>
+									Zellen verbinden
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									disabled={!tableState.canSplit}
+									onClick={() => editor.chain().focus().splitCell().run()}
+								>
+									Zelle teilen
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => editor.chain().focus().deleteRow().run()}>
+									Zeile löschen
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => editor.chain().focus().deleteColumn().run()}>
+									Spalte löschen
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									variant="destructive"
+									onClick={() => editor.chain().focus().deleteTable().run()}
+								>
+									Tabelle löschen
+								</DropdownMenuItem>
+							</>
+						)}
+						<DropdownMenuSeparator />
+						<p className="max-w-60 px-2 py-1.5 text-xs text-muted-foreground">
+							Ein Absatz pro Zelle, mit Zeilenumbrüchen und Textformatierung. Verbindungen dürfen
+							keine Zeile vollständig überdecken.
+						</p>
+					</DropdownMenuContent>
+				</DropdownMenu>
 
 				<div className={separatorClassName} />
 
@@ -333,6 +430,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 				</Button>
 				<Button
 					className={cn(tagButtonClassName, "bg-solarized-violet hover:bg-solarized-violet/90")}
+					disabled={tableState?.active}
 					onClick={handlers.handleInsertDetailsTag}
 					size="sm"
 					type="button"

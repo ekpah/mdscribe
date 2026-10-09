@@ -3,6 +3,7 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
 import { cn } from "@repo/design-system/lib/utils";
+import { TableKit } from "@tiptap/extension-table";
 import { Markdown } from "@tiptap/markdown";
 import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
@@ -24,9 +25,10 @@ import { MarkdocMD } from "./tiptap-extension";
 import { ensureCalcFormulaComponents } from "./tiptap-extension/editorNodes/calcTag/calc-tag";
 import { formatCaseConditionLabel } from "./tiptap-extension/editorNodes/case-condition";
 import type { SwitchCase } from "./tiptap-extension/editorNodes/switchTag/switch-tag";
+import { NativeTable } from "./tiptap-extension/native-table";
 
-const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:calc|details|info|score|switch)\b/iu;
-const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Calc|Details|Info|Score|Switch)\b/iu;
+const MARKDOC_INPUT_TAG_PATTERN = /\{%\s*(?:calc|details|info|score|switch|table)\b/iu;
+const TIPTAP_INPUT_ELEMENT_PATTERN = /<(?:Calc|Details|Info|Score|Switch|table)\b/iu;
 
 export default function TipTap({
 	note,
@@ -70,6 +72,10 @@ export default function TipTap({
 					"[&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:leading-tight",
 					"[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:leading-tight",
 					"[&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_li]:leading-[1.45]",
+					"[&_table]:my-3 [&_table]:w-full [&_table]:table-fixed [&_table]:border-collapse [&_table]:whitespace-normal",
+					"[&_td]:relative [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top [&_td]:wrap-break-word",
+					"[&_th]:relative [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:align-top [&_th]:wrap-break-word",
+					"[&_.tableWrapper]:overflow-x-auto [&_.selectedCell]:bg-solarized-blue/15",
 					"[&_.ProseMirror-separator]:!m-0 [&_.ProseMirror-separator]:!inline [&_.ProseMirror-separator]:!size-0 [&_.ProseMirror-separator]:!border-0",
 					"[&_.is-empty]:relative",
 					"[&_.is-empty]:before:content-[attr(data-placeholder)]",
@@ -134,6 +140,8 @@ export default function TipTap({
 			TipTapStarterKit,
 			Markdown,
 			MarkdocMD,
+			TableKit.configure({ table: false }),
+			NativeTable,
 			// Placeholder.configure({
 			//   placeholder: ({ node }) => {
 			//     return 'Ergänze hier deinen Textbaustein...';

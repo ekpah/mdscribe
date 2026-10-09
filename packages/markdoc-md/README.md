@@ -59,6 +59,29 @@ The default React components emit semantic elements, `data-*` hooks, and utility
 remain functional without a CSS framework. Applications can replace any component or pass a
 custom wrapper class through `DynamicMarkdocRenderer`.
 
+## Tables and merged cells
+
+Editor tables save as native Markdoc list tables, not raw HTML or Markdown pipe tables:
+
+```markdoc
+{% table %}
+* Parameter
+* Value
+---
+* Summary{% colspan=2 %}
+{% /table %}
+```
+
+Native `colspan` and `rowspan` annotations preserve ordinary merged cells without custom table
+schemas or layout metadata. The editor limits cells to one paragraph with inline formatting,
+line breaks, and dynamic tags. Merging filled cells joins their contents with line breaks.
+It prevents edits that fully cover a following row or merge headers into the body, and does not
+offer custom column widths or header columns. Tables without a header start their body with `---`.
+
+`renderTipTapHTML` restores editable HTML tables from this source. The React renderer's
+`layout="template"` adds portable borders, padding, and header styling, including in rich-text
+copies. Dynamic template tags remain supported inside cells.
+
 ## Extending the schema
 
 The package exports a regular Markdoc `Config`. Compose it explicitly when adding schemas, and pass
