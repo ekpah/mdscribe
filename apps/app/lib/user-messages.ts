@@ -463,19 +463,19 @@ RR 110/80 mmHg, Puls 96/min, Temperatur 38,9 °C, SpO₂ 99 %.`,
 		},
 	},
 	lowScribeUsageRemaining:
-		"Weniger als 10 % Ihres monatlichen KI-Budgets sind verfügbar. Passen Sie Ihr Abonnement rechtzeitig an, um Unterbrechungen zu vermeiden.",
+		"Weniger als 10 % Ihres monatlichen KI-Budgets sind verfügbar. Das Budget wird zum Beginn des nächsten Nutzungszeitraums zurückgesetzt.",
 	lowScribeUsageSubscriptionAction: "Abo ansehen",
 	missingInput: "Bitte füllen Sie mindestens ein Pflichtfeld aus.",
 	modelUnavailable:
 		"Kein geeignetes KI-Modell verfügbar. Bitte konfigurieren Sie ein Modell in den Einstellungen.",
 	privateAiScribeFormRequiresPlus:
-		"Private AI Vorlagen sind nur mit Plus verfügbar. Speichern Sie die AI Vorlage öffentlich oder aktualisieren Sie Ihr Abo.",
+		"Private AI Vorlagen sind für Ihr Konto nicht verfügbar. Speichern Sie die AI Vorlage öffentlich.",
 	privateAiScribeWorkspaceRequiresPlus:
-		"Private Brief-Baukästen sind nur mit Plus verfügbar. Speichern Sie den Brief-Baukasten öffentlich oder aktualisieren Sie Ihr Abo.",
+		"Private Brief-Baukästen sind für Ihr Konto nicht verfügbar. Speichern Sie den Brief-Baukasten öffentlich.",
 	privateDocumentRequiresPlus:
-		"Private Dokumente sind nur mit Plus verfügbar. Speichern Sie das Dokument öffentlich oder aktualisieren Sie Ihr Abo.",
+		"Private Dokumente sind für Ihr Konto nicht verfügbar. Speichern Sie das Dokument öffentlich.",
 	privateTemplateRequiresPlus:
-		"Private Textbausteine sind nur mit Plus verfügbar. Speichern Sie den Textbaustein öffentlich oder aktualisieren Sie Ihr Abo.",
+		"Private Textbausteine sind für Ihr Konto nicht verfügbar. Speichern Sie den Textbaustein öffentlich.",
 	providerAuthFailed:
 		"Der API-Schlüssel wurde vom Anbieter abgelehnt. Bitte prüfen Sie die Konfiguration.",
 	providerUnavailable: "Der KI-Anbieter ist nicht erreichbar. Bitte prüfen Sie die Verbindung.",
@@ -500,7 +500,7 @@ RR 110/80 mmHg, Puls 96/min, Temperatur 38,9 °C, SpO₂ 99 %.`,
 		emailNotVerified: "Bitte bestätigen Sie Ihre E-Mail-Adresse.",
 		failed: "E-Mail-Adresse, Benutzername oder Passwort ist ungültig.",
 	},
-	subscriptionRequired: "Ihr Abonnement reicht nicht aus. Bitte aktualisieren Sie Ihr Abo.",
+	subscriptionRequired: "Diese Funktion ist für Ihr Konto nicht verfügbar.",
 	templateInformationDescription:
 		"Hinweise und Vorgaben für die KI. Sie werden als Anweisungen in den Vorlagenkontext aufgenommen.",
 	templateInformationEmpty: "Keine Informationen hinterlegt.",
@@ -532,7 +532,8 @@ RR 110/80 mmHg, Puls 96/min, Temperatur 38,9 °C, SpO₂ 99 %.`,
 	},
 	unauthorized: "Bitte melden Sie sich an, um diese Funktion zu nutzen.",
 	unknownError: "Es ist ein unbekannter Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
-	usageLimitReached: "Monatliche Nutzungsgrenze erreicht. Bitte passen Sie Ihr Abonnement an.",
+	usageLimitReached:
+		"Monatliche Nutzungsgrenze erreicht. Warten Sie bis zum nächsten Nutzungszeitraum oder verwenden Sie eigene API-Schlüssel für alle beteiligten KI-Modelle.",
 	userNameAlreadyTaken: "Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.",
 	userNameFallbackHint:
 		"Wenn du keinen Benutzernamen einträgst, verwenden wir den Teil vor dem @ deiner E-Mail-Adresse.",

@@ -1,4 +1,3 @@
-import { stripeClient } from "@better-auth/stripe/client";
 import { useQuery } from "@tanstack/react-query";
 import { inferAdditionalFields, usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
@@ -11,15 +10,7 @@ import { normalizeSession, sessionQueryKey, sessionQueryStaleTime } from "./sess
 
 export const authClient = createAuthClient({
 	baseURL: env.NEXT_PUBLIC_BASE_URL as string,
-	plugins: [
-		inferAdditionalFields<typeof auth>(),
-		usernameClient(),
-		// stripe plugin for subscription management
-		stripeClient({
-			// if you want to enable subscription management
-			subscription: true,
-		}),
-	],
+	plugins: [inferAdditionalFields<typeof auth>(), usernameClient()],
 });
 
 const fetchSession = async (): Promise<Session | null> => {

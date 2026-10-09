@@ -8,6 +8,7 @@ import {
 	user,
 } from "@repo/database";
 
+import { subscriptionsEnabled } from "@/lib/stripe-config";
 import { resolveMonthlyUsagePeriod } from "@/lib/usage-period";
 import { authed } from "@/orpc";
 import { requiredAdminMiddleware } from "@/orpc/middlewares/admin";
@@ -73,7 +74,7 @@ const adminUsersHandler = authed.use(requiredAdminMiddleware).handler(async ({ c
 	const [aiScribeFormRows, aiScribeWorkspaceRows, subscriptions, users] = await Promise.all([
 		aiScribeFormsQuery,
 		aiScribeWorkspacesQuery,
-		subscriptionsQuery,
+		subscriptionsEnabled ? subscriptionsQuery : [],
 		usersQuery,
 	]);
 	const usageByUserId = new Map(

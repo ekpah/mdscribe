@@ -62,7 +62,7 @@ const FIELD_EXPLANATIONS = {
 	sections:
 		"Jeder Abschnitt kann eine passende AI Vorlage verwenden. Ohne Auswahl nutzt der Abschnitt die Standard-Vorlage.",
 	visibility:
-		"Öffentliche Brief-Baukästen können alle Nutzer sehen und verwenden. Private Brief-Baukästen sind eine Plus-Funktion.",
+		"Öffentliche Brief-Baukästen können alle Nutzer sehen und verwenden. Private Brief-Baukästen sind nur mit entsprechender Kontoberechtigung verfügbar.",
 } as const;
 
 interface WorkspaceDraft {

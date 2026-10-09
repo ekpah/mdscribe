@@ -16,8 +16,8 @@ import { CreditCard, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { authClient } from "@/lib/auth-client";
 import { unwrapAuthClientResult } from "@/lib/auth-client-result";
+import { getBillingClient } from "@/lib/billing-client";
 import { orpc } from "@/lib/orpc";
 
 const getPlanLabel = (plan?: string | null) => {
@@ -71,14 +71,16 @@ export const SubscriptionManagementCard = ({ subscription }: { subscription?: Su
 	const handleUpgrade = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			async () =>
-				unwrapAuthClientResult(
-					await authClient.subscription.upgrade({
+			async () => {
+				const billingClient = await getBillingClient();
+				return unwrapAuthClientResult(
+					await billingClient.subscription.upgrade({
 						cancelUrl: "/subscription",
 						plan: "plus",
 						successUrl: "/subscription",
 					}),
-				),
+				);
+			},
 			{
 				error: "Abonnement konnte nicht aktualisiert werden.",
 				finally: () => setIsManagingSubscription(false),
@@ -91,12 +93,14 @@ export const SubscriptionManagementCard = ({ subscription }: { subscription?: Su
 	const handleCancel = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			async () =>
-				unwrapAuthClientResult(
-					await authClient.subscription.cancel({
+			async () => {
+				const billingClient = await getBillingClient();
+				return unwrapAuthClientResult(
+					await billingClient.subscription.cancel({
 						returnUrl: "/subscription",
 					}),
-				),
+				);
+			},
 			{
 				error: "Abonnement konnte nicht storniert werden.",
 				finally: () => setIsManagingSubscription(false),
@@ -109,12 +113,14 @@ export const SubscriptionManagementCard = ({ subscription }: { subscription?: Su
 	const handleBillingPortal = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			async () =>
-				unwrapAuthClientResult(
-					await authClient.subscription.billingPortal({
+			async () => {
+				const billingClient = await getBillingClient();
+				return unwrapAuthClientResult(
+					await billingClient.subscription.billingPortal({
 						returnUrl: "/subscription",
 					}),
-				),
+				);
+			},
 			{
 				error: "Zahlungsportal konnte nicht geöffnet werden.",
 				finally: () => setIsManagingSubscription(false),

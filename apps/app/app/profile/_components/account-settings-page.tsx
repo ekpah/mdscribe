@@ -4,9 +4,9 @@ import type { Subscription } from "@better-auth/stripe";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { authClient } from "@/lib/auth-client";
 import { unwrapAuthClientResult } from "@/lib/auth-client-result";
 import type { Session } from "@/lib/auth-types";
+import { getBillingClient } from "@/lib/billing-client";
 import type { ActiveSessionView } from "@/lib/session-device";
 
 import { ProfileCard } from "./profile-card";
@@ -40,14 +40,16 @@ export const AccountSettingsPage = ({
 	const handleSubscriptionUpgrade = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			async () =>
-				unwrapAuthClientResult(
-					await authClient.subscription.upgrade({
+			async () => {
+				const billingClient = await getBillingClient();
+				return unwrapAuthClientResult(
+					await billingClient.subscription.upgrade({
 						cancelUrl: "/profile/account",
 						plan: "plus",
 						successUrl: "/profile/account",
 					}),
-				),
+				);
+			},
 			{
 				error: "Dein Abonnement konnte nicht aktualisiert werden.",
 				finally: () => setIsManagingSubscription(false),
@@ -60,12 +62,14 @@ export const AccountSettingsPage = ({
 	const handleSubscriptionCancel = useCallback(() => {
 		setIsManagingSubscription(true);
 		toast.promise(
-			async () =>
-				unwrapAuthClientResult(
-					await authClient.subscription.cancel({
+			async () => {
+				const billingClient = await getBillingClient();
+				return unwrapAuthClientResult(
+					await billingClient.subscription.cancel({
 						returnUrl: "/profile/account",
 					}),
-				),
+				);
+			},
 			{
 				error: "Dein Abonnement konnte nicht storniert werden.",
 				finally: () => setIsManagingSubscription(false),

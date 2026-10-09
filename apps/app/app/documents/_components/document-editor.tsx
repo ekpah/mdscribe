@@ -1747,7 +1747,7 @@ export default function DocumentEditor({
 											<div className="space-y-1 text-xs">
 												<p>{USER_MESSAGES.publicDocumentVisibilityWarning}</p>
 												{canCreatePrivateDocuments ? null : (
-													<p>Private Dokumente sind in Plus enthalten.</p>
+													<p>{USER_MESSAGES.privateDocumentRequiresPlus}</p>
 												)}
 											</div>
 										</TooltipContent>

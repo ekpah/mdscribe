@@ -37,6 +37,7 @@
 
 ### Fixed
 
+- Stripe-disabled instances no longer expose upgrade messaging in quota warnings or private-content controls, initialize the client billing integration during ordinary authentication, or report stored subscriptions as active in admin user management. Free quotas and private-content restrictions remain enforced.
 - Template previews and copied output now preserve the editor's line breaks and explicit blank lines without inserting Markdown paragraph gaps. Rich-text copies carry compact typography, plain-text copies retain list markers and collapsed-section contents, and Enter creates a line break in ordinary template text while preserving heading and list behavior.
 - Inserting a Details tag directly after another block no longer adds a blank line before the tag.
 - Inserting a Details tag from the template-editor toolbar no longer freezes or crashes the page in mobile Chrome.

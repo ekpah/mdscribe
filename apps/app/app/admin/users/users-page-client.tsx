@@ -59,10 +59,18 @@ const UsersTableToolbar = ({
 	);
 };
 
-export default function UsersPageClient() {
+export default function UsersPageClient({
+	subscriptionsEnabled,
+}: {
+	subscriptionsEnabled: boolean;
+}) {
 	const [searchFilter, setSearchFilter] = useState("");
 
 	const { data: users = [], isLoading, error } = useQuery(orpc.admin.users.list.queryOptions());
+	const visibleColumns = useMemo(
+		() => columns.filter((column) => subscriptionsEnabled || column.id !== "subscription"),
+		[subscriptionsEnabled],
+	);
 
 	const handleSearchFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
 		setSearchFilter(event.target.value);
@@ -205,12 +213,14 @@ export default function UsersPageClient() {
 									{freeUsers}
 								</p>
 							</div>
-							<div className="space-y-1">
-								<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Plus</p>
-								<p className="font-semibold text-base text-solarized-violet sm:text-lg">
-									{plusUsers}
-								</p>
-							</div>
+							{subscriptionsEnabled ? (
+								<div className="space-y-1">
+									<p className="font-medium text-solarized-base01 text-xs sm:text-sm">Plus</p>
+									<p className="font-semibold text-base text-solarized-violet sm:text-lg">
+										{plusUsers}
+									</p>
+								</div>
+							) : null}
 						</div>
 					</CardContent>
 				</Card>
@@ -279,17 +289,19 @@ export default function UsersPageClient() {
 												)}
 												{user.emailVerified ? "Verifiziert" : "Nicht verifiziert"}
 											</Badge>
-											<Badge
-												variant="outline"
-												className={
-													user.hasActiveSubscription
-														? "border-solarized-violet text-solarized-violet"
-														: "border-solarized-base1 text-solarized-base01"
-												}
-											>
-												<Star className="mr-1 h-3 w-3" />
-												{getSubscriptionLabel(user)}
-											</Badge>
+											{subscriptionsEnabled ? (
+												<Badge
+													variant="outline"
+													className={
+														user.hasActiveSubscription
+															? "border-solarized-violet text-solarized-violet"
+															: "border-solarized-base1 text-solarized-base01"
+													}
+												>
+													<Star className="mr-1 h-3 w-3" />
+													{getSubscriptionLabel(user)}
+												</Badge>
+											) : null}
 										</div>
 
 										<div className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -342,7 +354,7 @@ export default function UsersPageClient() {
 
 						<div className="hidden md:block">
 							<DataTable
-								columns={columns}
+								columns={visibleColumns}
 								data={filteredUsers as UserData[]}
 								emptyMessage="Keine Benutzer gefunden"
 								renderToolbar={renderToolbar}

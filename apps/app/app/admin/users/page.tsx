@@ -2,6 +2,7 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 
 import { getQueryClient } from "@/lib/get-query-client";
 import { orpc } from "@/lib/orpc";
+import { subscriptionsEnabled } from "@/lib/stripe-config";
 
 import UsersPageClient from "./users-page-client";
 
@@ -13,7 +14,7 @@ export default async function UsersPage() {
 
 	return (
 		<HydrationBoundary state={dehydrate(queryClient)}>
-			<UsersPageClient />
+			<UsersPageClient subscriptionsEnabled={subscriptionsEnabled} />
 		</HydrationBoundary>
 	);
 }

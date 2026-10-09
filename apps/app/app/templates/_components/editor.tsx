@@ -744,7 +744,7 @@ export default function Editor({
 										<div className="space-y-1 text-xs">
 											<p>{USER_MESSAGES.publicTemplateVisibilityWarning}</p>
 											{canCreatePrivateTemplates ? null : (
-												<p>Private Textbausteine sind in Plus enthalten.</p>
+												<p>{USER_MESSAGES.privateTemplateRequiresPlus}</p>
 											)}
 										</div>
 									</TooltipContent>

@@ -49,7 +49,7 @@ const FIELD_EXPLANATIONS = {
 	template:
 		"Das Template gibt Stil, Format und Zielstruktur des erzeugten Textes vor. Eigene und favorisierte Templates können ebenfalls ausgewählt werden.",
 	visibility:
-		"Öffentliche AI Vorlagen können alle Nutzer sehen und verwenden. Private AI Vorlagen sind eine Plus-Funktion.",
+		"Öffentliche AI Vorlagen können alle Nutzer sehen und verwenden. Private AI Vorlagen sind nur mit entsprechender Kontoberechtigung verfügbar.",
 } as const;
 
 type AiTextVisibility = "public" | "private";
