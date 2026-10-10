@@ -12,11 +12,7 @@ export type { NextConfig };
 jiti.import("./env.ts");
 
 const getOrbPortalHostname = (): string | undefined => {
-	if (
-		process.env.NODE_ENV !== "development" ||
-		process.env.MDSCRIBE_ORB_PREVIEW !== "1" ||
-		!process.env.PUBLIC_URL
-	) {
+	if (process.env.MDSCRIBE_ORB_PREVIEW !== "1" || !process.env.PUBLIC_URL) {
 		return undefined;
 	}
 
@@ -44,6 +40,8 @@ const orbPortalHostname = getOrbPortalHostname();
 export const config: NextConfig = {
 	allowedDevOrigins: orbPortalHostname ? [orbPortalHostname] : undefined,
 	devIndicators: orbPortalHostname ? false : undefined,
+	// Keep production review snapshots separate from on-demand dev output.
+	distDir: orbPortalHostname && process.env.NODE_ENV === "production" ? ".next/preview" : ".next",
 
 	// PERF: Optimize barrel-file imports (15-70% faster dev boot, 28% faster builds).
 	// Next.js already optimizes a built-in list (lucide-react, recharts, date-fns, …),
@@ -51,7 +49,9 @@ export const config: NextConfig = {
 	experimental: {
 		optimizePackageImports: ["@repo/design-system", "@base-ui/react", "react-aria-components"],
 		// Remote previews pay for every byte; retain normal local dev and build defaults.
-		...(orbPortalHostname ? { turbopackMinify: true } : {}),
+		...(orbPortalHostname && process.env.NODE_ENV === "development"
+			? { turbopackMinify: true }
+			: {}),
 	},
 
 	headers() {

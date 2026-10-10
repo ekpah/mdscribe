@@ -10,12 +10,18 @@ services:
   app:
     health: /api/healthcheck
     command: >-
-      export NEXT_PUBLIC_BASE_URL="$PUBLIC_URL"
+      export NODE_ENV="production"
+      NEXT_PUBLIC_BASE_URL="$PUBLIC_URL"
       BETTER_AUTH_URL="$PUBLIC_URL"
       ADMIN_EMAIL="test@test.com"
-      MDSCRIBE_ORB_PREVIEW="1" &&
+      MDSCRIBE_ORB_PREVIEW="1"
+      HOSTNAME="0.0.0.0" &&
       bun run --cwd packages/markdoc-md build &&
-      bun --bun next dev apps/app --webpack -p "$PORT"
+      SKIP_ENV_VALIDATION="1"
+      bun node_modules/next/dist/bin/next build apps/app --turbopack &&
+      cp -r apps/app/public apps/app/.next/preview/standalone/apps/app/public &&
+      cp -r apps/app/.next/preview/static apps/app/.next/preview/standalone/apps/app/.next/preview/static &&
+      exec bun --env-file=apps/app/.env apps/app/.next/preview/standalone/apps/app/server.js
     portal:
       title: MDScribe
-      description: Sign in with test@test.com / password123. Changes reload automatically.
+      description: Production preview. Sign in with test@test.com / password123. Restart the app service to rebuild after changes; no hot reload.

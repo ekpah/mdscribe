@@ -26,6 +26,7 @@
 
 ### Changed
 
+- Orb review portals now build with Bun/Turbopack and serve production snapshots with Bun instead of running a persistent dev server. Bun is pinned to 1.3.14 in orb setup, package-manager metadata, and CI to match the Docker runtime; Webpack dev mode remains available on demand for agent iteration.
 - Stripe subscriptions are now optional. Instances without a Stripe secret key run on the free usage limit and no longer show pricing, upgrade, or billing controls.
 - Switches are now selections or checkboxes only: number switches and switches over several fields are rejected in favor of `condition`, and every calc needs a name. Template saves validate the complete template.
 - Calculations show a result only once all of their values are filled in. Until then, the calc, any Info showing its value, and its input field show „…“ instead of 0 or NaN; calculations that depend on it wait as well, and conditions on it use their default case. Unchecked checkboxes count as filled.
